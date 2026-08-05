@@ -46,6 +46,7 @@ class ColarOverlay extends StatelessWidget {
                   duration: const Duration(milliseconds: 600),
                   child: CustomPaint(
                     key: ValueKey(onFim),
+                    size: Size.infinite,
                     painter: _CordPainter(
                       color: colors.cord,
                       onFim: onFim,
