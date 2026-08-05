@@ -2,14 +2,13 @@
 
 Voice-first Flutter app for the internalization room of the Shemá oral Bible translation flow. Implemented from the Claude Design prototype `Sala de Internalização.dc.html` (Shemá design system).
 
-The room walks a team through Ruth 1 in six stations, with **zero readable words on team screens** — one terracotta circle, a bead necklace (colar) as the only progress indicator, and everything else spoken:
+The room walks a team through Ruth 1 in five stations, with **zero readable words on team screens** — one terracotta circle, a bead necklace (colar) as the only progress indicator, and everything else spoken:
 
 1. **Convite** — the breathing circle welcomes the team and gives the book panorama; a wooden bead opens the passage.
 2. **Conversa** — hold the circle to speak; the facilitator voice answers. Each engaged meaning-map element warms a bead on the colar (oat → half → wood; the 12th bead is a ring: the significant absence). Holding the hand button records a question that becomes a blue knot on the cord.
 3. **Ensaio** — hold to record the whole passage; listen, re-record, or keep. Kept takes become ghost beads on the thread.
-4. **Autocheque** — segment by segment, confirm or listen again. No pass/fail — it is conversation.
-5. **Retrotradução** — two passes over five segments, telling each one in Portuguese for the consultant; the first pass half-fills each bead, the second completes it.
-6. **Fecho** — the cord closes into a circle and the beads glow slowly.
+4. **Retrotradução** — two passes over five segments, telling each one in Portuguese for the consultant; the first pass half-fills each bead, the second completes it.
+5. **Fecho** — the cord closes into a circle and the beads glow slowly.
 
 Design doctrine applied: thinking is clay that glows, never a spinner; the raised hand becomes a blue knot on the cord; progress lives only in the colar; no numbers or percentages.
 

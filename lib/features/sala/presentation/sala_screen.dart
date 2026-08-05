@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/session_notifier.dart';
 import '../domain/session_state.dart';
-import 'widgets/autocheque_view.dart';
 import 'widgets/colar_overlay.dart';
 import 'widgets/conversa_view.dart';
 import 'widgets/convite_view.dart';
@@ -49,8 +48,6 @@ class SalaScreen extends ConsumerWidget {
         return const ConversaView();
       case SalaStage.ensaio:
         return const EnsaioView();
-      case SalaStage.autocheque:
-        return const AutochequeView();
       case SalaStage.retro:
         return const RetroView();
       case SalaStage.fim:

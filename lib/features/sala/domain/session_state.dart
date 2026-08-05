@@ -1,6 +1,6 @@
 import 'meaning_map.dart';
 
-enum SalaStage { convite, conversa, ensaio, autocheque, retro, fim }
+enum SalaStage { convite, conversa, ensaio, retro, fim }
 
 enum VoiceState { invite, listening, thinking, speaking }
 
@@ -33,7 +33,6 @@ class SalaSessionState {
   final EnsaioStatus ensaio;
   final int takes;
   final bool playPing;
-  final int checkIndex;
   final int retroPass;
   final int retroIndex;
   final RetroPhase retroPhase;
@@ -54,7 +53,6 @@ class SalaSessionState {
     this.ensaio = EnsaioStatus.idle,
     this.takes = 0,
     this.playPing = false,
-    this.checkIndex = 0,
     this.retroPass = 1,
     this.retroIndex = 0,
     this.retroPhase = RetroPhase.ouvir,
@@ -98,7 +96,6 @@ class SalaSessionState {
     EnsaioStatus? ensaio,
     int? takes,
     bool? playPing,
-    int? checkIndex,
     int? retroPass,
     int? retroIndex,
     RetroPhase? retroPhase,
@@ -119,7 +116,6 @@ class SalaSessionState {
       ensaio: ensaio ?? this.ensaio,
       takes: takes ?? this.takes,
       playPing: playPing ?? this.playPing,
-      checkIndex: checkIndex ?? this.checkIndex,
       retroPass: retroPass ?? this.retroPass,
       retroIndex: retroIndex ?? this.retroIndex,
       retroPhase: retroPhase ?? this.retroPhase,

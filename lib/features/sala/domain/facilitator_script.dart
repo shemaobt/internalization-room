@@ -32,9 +32,6 @@ abstract class FacilitatorScript {
   static const ensaioAbertura =
       'Agora é a vez de vocês: segurem o círculo grande e contem a passagem inteira na língua de vocês.';
 
-  static const autochequeAbertura =
-      'Ouçam o que gravaram, trecho por trecho. Este pedaço ficou do jeito que vocês queriam?';
-
   static const retroSegundaPassada =
       'Muito bem. Agora vamos passar de novo, trecho por trecho, para completar cada conta.';
 

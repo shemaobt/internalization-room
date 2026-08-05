@@ -15,7 +15,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   final Map<String, Timer> _timers = {};
   int _epoch = 0;
   String? _pendingTakePath;
-  String? _lastKeptTakePath;
 
   FacilitatorVoiceService get _voice => ref.read(facilitatorVoiceProvider);
   RecordingRepository get _recorder => ref.read(recordingRepositoryProvider);
@@ -205,36 +204,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void takeKeep() {
-    _lastKeptTakePath = _pendingTakePath;
     _pendingTakePath = null;
     state = state.copyWith(
       ensaio: EnsaioStatus.idle,
       takes: state.takes + 1,
     );
-  }
-
-  void goCheck() {
-    _clearAll();
-    state = state.copyWith(stage: SalaStage.autocheque, checkIndex: 0);
-    unawaited(_speak(FacilitatorScript.autochequeAbertura));
-  }
-
-  void checkOk() {
-    final next = state.checkIndex + 1;
-    if (next >= RuthOneMeaningMap.segmentCount) {
-      startRetro();
-    } else {
-      state = state.copyWith(checkIndex: next);
-    }
-  }
-
-  void checkRedo() {
-    final path = _lastKeptTakePath;
-    if (path != null) unawaited(_playback.play(path));
-    state = state.copyWith(playPing: true);
-    _after('play', 1200, () {
-      state = state.copyWith(playPing: false);
-    });
   }
 
   void startRetro() {
