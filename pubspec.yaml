@@ -1,0 +1,33 @@
+name: internalization_room
+description: "Sala de Internalização — voice-first oral Bible internalization room (Shemá)."
+publish_to: 'none'
+
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  flutter_riverpod: ^2.6.1
+  flutter_svg: ^2.0.10
+  lucide_icons: ^0.257.0
+  path_provider: ^2.1.5
+  record: ^6.2.1
+  just_audio: ^0.9.42
+  audio_session: ^0.1.21
+  flutter_tts: ^4.2.0
+  path: ^1.9.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icon-branco.svg
+    - assets/icon-telha.svg
