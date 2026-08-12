@@ -610,6 +610,30 @@ void main() {
     expect(harness.room.takesKept, ['ensaio/${KeptScope.whole}']);
   });
 
+  test('a take the server has not taken yet is not counted as safe', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    harness.room.reachable = false;
+    notifier.takeKeep();
+    await settle();
+
+    expect(container.read(salaSessionProvider).unsentTakes, 1,
+        reason: 'a conta aparece quando a equipe guarda, mas ainda está só no tablet');
+
+    harness.room.reachable = true;
+    await harness.takes.flush();
+    await notifier.refreshUnsent();
+
+    expect(container.read(salaSessionProvider).unsentTakes, 0);
+  });
+
   test('a told-back piece goes to the server and nothing is voiced', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);

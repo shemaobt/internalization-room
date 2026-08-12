@@ -48,6 +48,8 @@ class SalaSessionState {
   final List<BtFindingKind> btFindings;
   final int btPass;
   final bool fimClosed;
+  final int unsentTakes;
+  final int unsentChunks;
 
   const SalaSessionState({
     this.stage = SalaStage.convite,
@@ -74,6 +76,8 @@ class SalaSessionState {
     this.btFindings = const [],
     this.btPass = 1,
     this.fimClosed = false,
+    this.unsentTakes = 0,
+    this.unsentChunks = 0,
   });
 
   bool get colarOn => stage != SalaStage.convite;
@@ -155,6 +159,8 @@ class SalaSessionState {
     List<BtFindingKind>? btFindings,
     int? btPass,
     bool? fimClosed,
+    int? unsentTakes,
+    int? unsentChunks,
   }) {
     return SalaSessionState(
       stage: stage ?? this.stage,
@@ -184,6 +190,8 @@ class SalaSessionState {
       btFindings: btFindings ?? this.btFindings,
       btPass: btPass ?? this.btPass,
       fimClosed: fimClosed ?? this.fimClosed,
+      unsentTakes: unsentTakes ?? this.unsentTakes,
+      unsentChunks: unsentChunks ?? this.unsentChunks,
     );
   }
 }
