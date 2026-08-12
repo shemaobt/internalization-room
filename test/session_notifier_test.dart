@@ -509,6 +509,26 @@ void main() {
 
     expect(harness.inbox.questionsSent, ['sessao-1']);
     expect(container.read(salaSessionProvider).knots, 1);
+    expect(harness.recorder.deleted, ['captura-1.m4a'],
+        reason: 'a pergunta já está no servidor, esperando uma pessoa — '
+            'a cópia no tablet não serve para nada');
+  });
+
+  test('a question that never left is kept on the tablet', () async {
+    final harness = SalaHarness(retryBackoff: const [Duration(seconds: 30)])
+      ..inbox.refuses = true;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.handTap();
+    notifier.conversaTap();
+    await settle();
+
+    expect(harness.inbox.questionsSent, isEmpty);
+    expect(harness.recorder.deleted, isEmpty,
+        reason: 'nada reenvia essa pergunta, mas apagá-la seria destruir '
+            'a única cópia de algo que a equipe pediu');
   });
 
   test('a question that never left ties no knot', () async {

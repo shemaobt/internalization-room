@@ -497,6 +497,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _handleRoomFailure(error);
       return;
     }
+    unawaited(_recorder.delete(path));
     state = state.copyWith(
       handAck: true,
       knots: state.knots + 1,
