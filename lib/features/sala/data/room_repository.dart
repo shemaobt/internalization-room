@@ -9,6 +9,7 @@ import '../../../core/config/env.dart';
 import '../domain/bt_finding.dart';
 import '../domain/session_snapshot.dart';
 import '../domain/turn_result.dart';
+import 'device_identity.dart';
 
 const _basePath = '/api/internalization-room';
 const _turnTimeout = Duration(seconds: 90);
@@ -93,8 +94,28 @@ class RoomRepository {
       _uri('/sessions/$sessionId/back-translation/chunks'),
     )
       ..headers['X-Room-Key'] = Env.roomKey
+      ..headers['X-Room-Device'] = await deviceIdentity()
       ..files.add(await http.MultipartFile.fromPath('file', audio.path));
     return _read(await _sendMultipart(request), BackTranslationChunk.fromJson);
+  }
+
+  Future<void> sendTake(
+    String sessionId,
+    File audio, {
+    required String kind,
+    required String scope,
+    int? passNumber,
+    int? chunkIndex,
+  }) async {
+    final request = http.MultipartRequest('POST', _uri('/sessions/$sessionId/takes'))
+      ..headers['X-Room-Key'] = Env.roomKey
+      ..headers['X-Room-Device'] = await deviceIdentity()
+      ..fields['kind'] = kind
+      ..fields['scope'] = scope
+      ..files.add(await http.MultipartFile.fromPath('file', audio.path));
+    if (passNumber != null) request.fields['pass_number'] = '$passNumber';
+    if (chunkIndex != null) request.fields['chunk_index'] = '$chunkIndex';
+    _read(await _sendMultipart(request), (json) => json);
   }
 
   Future<BackTranslationVerdict> finishBackTranslation(String sessionId) async {
