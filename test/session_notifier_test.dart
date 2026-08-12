@@ -6,6 +6,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -81,7 +82,7 @@ void main() {
     await settle();
 
     expect(harness.room.turnsSent, 1);
-    expect(harness.recorder.deleted, ['captura-1.m4a'],
+    expect(harness.recorder.deleted, [endsWith('captura-1.m4a')],
         reason: 'o registro da conversa é o texto no servidor — o áudio da equipe '
             'não é o produto e não pode ficar enchendo o tablet');
   });
@@ -97,7 +98,7 @@ void main() {
     notifier.conversaTap();
     await settle();
 
-    expect(harness.recorder.deleted, ['captura-1.m4a'],
+    expect(harness.recorder.deleted, [endsWith('captura-1.m4a')],
         reason: 'nenhum caminho de erro reenvia o arquivo, então guardá-lo só ocupa espaço');
   });
 
@@ -509,7 +510,7 @@ void main() {
 
     expect(harness.inbox.questionsSent, ['sessao-1']);
     expect(container.read(salaSessionProvider).knots, 1);
-    expect(harness.recorder.deleted, ['captura-1.m4a'],
+    expect(harness.recorder.deleted, [endsWith('captura-1.m4a')],
         reason: 'a pergunta já está no servidor, esperando uma pessoa — '
             'a cópia no tablet não serve para nada');
   });
@@ -565,6 +566,48 @@ void main() {
         reason: 'a resposta é áudio do servidor, como toda voz que vem de fora');
     expect(container.read(salaSessionProvider).hasUnheardReply, isFalse);
     expect(harness.inbox.heard, ['r1']);
+  });
+
+  test('a kept take leaves the tablet', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    await settle();
+
+    expect(harness.room.takesKept, ['ensaio/${KeptScope.whole}'],
+        reason: 'o ensaio é o produto — um tablet que quebra não pode levar a sessão junto');
+    expect(await harness.takes.pending(), isEmpty);
+  });
+
+  test('a take recorded with no network waits instead of being lost', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    harness.room.reachable = false;
+    notifier.takeKeep();
+    await settle();
+
+    expect(harness.room.takesKept, isEmpty);
+    expect(await harness.takes.pending(), hasLength(1),
+        reason: 'sem rede a tomada fica na fila, e a fila é um arquivo em disco');
+
+    harness.room.reachable = true;
+    await harness.takes.flush();
+
+    expect(harness.room.takesKept, ['ensaio/${KeptScope.whole}']);
   });
 
   test('a told-back piece goes to the server and nothing is voiced', () async {
