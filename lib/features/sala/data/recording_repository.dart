@@ -15,8 +15,10 @@ class RecordingRepository {
     return dir;
   }
 
+  Future<bool> hasPermission() => _recorder.hasPermission();
+
   Future<bool> start(String fileName) async {
-    if (!await _recorder.hasPermission()) return false;
+    if (!await hasPermission()) return false;
     final dir = await _recordingsDir();
     await _recorder.start(
       const RecordConfig(encoder: AudioEncoder.aacLc),
