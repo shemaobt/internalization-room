@@ -203,8 +203,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _attemptReturn() async {
     if (!state.offline || _returning) return;
     _returning = true;
+    final epoch = _epoch;
     try {
-      if (await _network.canReachRoom()) {
+      final reachable = await _network.canReachRoom();
+      if (epoch != _epoch) return;
+      if (reachable) {
         _comeBack();
       } else if (state.offline) {
         _scheduleRetry();
