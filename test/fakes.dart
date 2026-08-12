@@ -163,6 +163,7 @@ class FakeRoom implements RoomRepository {
   int turnsSent = 0;
   int chunksSent = 0;
   final List<String> takesKept = [];
+  String? refuseTake;
   bool chunkCaptured = true;
   bool verdictChecked = true;
   BtFindingKind? verdictFinding;
@@ -230,6 +231,7 @@ class FakeRoom implements RoomRepository {
     int? chunkIndex,
   }) async {
     _guard('sendTake');
+    if (refuseTake == '$kind/$scope') throw const RoomRefused();
     takesKept.add('$kind/$scope');
   }
 
