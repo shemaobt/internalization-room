@@ -185,6 +185,8 @@ class FacilitatorCircle extends StatelessWidget {
         return _haltedBody(colors, LucideIcons.userCheck);
       case VoiceState.offline:
         return _haltedBody(colors, null);
+      case VoiceState.blocked:
+        return _haltedBody(colors, LucideIcons.micOff);
     }
   }
 
