@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/session_notifier.dart';
+import '../data/take_upload_queue.dart';
 import '../domain/session_state.dart';
 import 'widgets/colar_overlay.dart';
 import 'widgets/conversa_view.dart';
@@ -22,6 +25,7 @@ class _SalaScreenState extends ConsumerState<SalaScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(ref.read(takeUploadQueueProvider).flush());
       ref.read(salaSessionProvider.notifier).beckon();
     });
   }
