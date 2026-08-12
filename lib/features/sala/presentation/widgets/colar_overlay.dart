@@ -1,26 +1,26 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/sala_colors.dart';
-import '../../domain/meaning_map.dart';
 import '../../domain/session_state.dart';
+import 'bead.dart';
 import 'bead_styles.dart';
 import 'motion.dart';
 
 const _designWidth = 390.0;
 const _designHeight = 812.0;
 
-Offset arcPoint(int i) {
-  final t = i / (RuthOneMeaningMap.count - 1);
+Offset arcPoint(int i, int total) {
+  final t = total > 1 ? i / (total - 1) : 0.0;
   final u = 1 - t;
   final x = u * u * 34 + 2 * u * t * 195 + t * t * 356;
   final y = u * u * 24 + 2 * u * t * 92 + t * t * 24;
   return Offset(x, y);
 }
 
-Offset circlePoint(int i) {
-  final angle = (-90 + i * 30) * 3.141592653589793 / 180;
-  return Offset(195, 400) +
-      Offset.fromDirection(angle, 122);
+Offset circlePoint(int i, int total) {
+  final step = total > 0 ? 360 / total : 0.0;
+  final angle = (-90 + i * step) * 3.141592653589793 / 180;
+  return Offset(195, 400) + Offset.fromDirection(angle, 122);
 }
 
 class ColarOverlay extends StatelessWidget {
@@ -56,7 +56,7 @@ class ColarOverlay extends StatelessWidget {
                   ),
                 ),
               ),
-              for (var i = 0; i < RuthOneMeaningMap.count; i++)
+              for (var i = 0; i < session.coverage.total; i++)
                 _bead(context, colors, i, map, onFim),
               for (var k = 0; k < session.knots; k++)
                 _knot(map, k, onFim),
@@ -74,14 +74,13 @@ class ColarOverlay extends StatelessWidget {
     Offset Function(Offset) map,
     bool onFim,
   ) {
+    final total = session.coverage.total;
     final size = (onFim ? 26.0 : 18.0);
-    final p = map(onFim ? circlePoint(i) : arcPoint(i));
-    final isAbsence = i == RuthOneMeaningMap.absenceIndex;
-    final engaged =
-        session.stage != SalaStage.conversa || i < session.engaged;
-    final surfacedOnly = session.stage == SalaStage.conversa &&
-        i >= session.engaged &&
-        i < session.surfaced;
+    final p = map(onFim ? circlePoint(i, total) : arcPoint(i, total));
+    final isAbsence = session.coverage.isAbsence(i);
+    final engaged = i < session.coverage.engaged;
+    final surfacedOnly = i >= session.coverage.engaged &&
+        i < session.coverage.surfaced;
 
     BoxDecoration decoration;
     if (engaged && isAbsence) {
@@ -138,7 +137,10 @@ class ColarOverlay extends StatelessWidget {
       decoration: decoration,
     );
     if (pinged) {
-      bead = PingIn(key: ValueKey('ping-$i-${session.engaged}'), child: bead);
+      bead = PingIn(
+        key: ValueKey('ping-$i-${session.coverage.engaged}'),
+        child: bead,
+      );
     } else if (glowing) {
       bead = Loop(
         period: const Duration(milliseconds: 3000),
@@ -170,26 +172,17 @@ class ColarOverlay extends StatelessWidget {
 
   Widget _knot(Offset Function(Offset) map, int k, bool onFim) {
     final p = map(
-      onFim ? const Offset(195, 400) : Offset(178 + k * 24, 104),
+      onFim
+          ? const Offset(195, 400) +
+              Offset.fromDirection(k * 0.9, 18 + 6.0 * (k ~/ 7))
+          : Offset(178 + (k % 8) * 24, 104 + (k ~/ 8) * 22),
     );
     return AnimatedPositioned(
       duration: const Duration(milliseconds: 900),
       curve: Curves.easeInOut,
       left: p.dx,
       top: p.dy,
-      child: PingIn(
-        child: Transform.rotate(
-          angle: 0.785398,
-          child: Container(
-            width: 13,
-            height: 13,
-            decoration: const BoxDecoration(
-              gradient: BeadStyles.azul,
-              borderRadius: BorderRadius.all(Radius.circular(4)),
-            ),
-          ),
-        ),
-      ),
+      child: const PingIn(child: KnotMark(size: 13)),
     );
   }
 }
@@ -219,7 +212,7 @@ class _CordPainter extends CustomPainter {
         Rect.fromCenter(
           center: Offset(195 * sx, 400 * sy),
           width: 244 * sx,
-          height: 244 * sx,
+          height: 244 * sy,
         ),
       );
     } else {

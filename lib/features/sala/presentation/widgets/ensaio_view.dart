@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/session_state.dart';
+import 'bead.dart';
 import 'bead_styles.dart';
 import 'eq_bars.dart';
 import 'motion.dart';
@@ -18,15 +19,27 @@ class EnsaioView extends ConsumerWidget {
     final notifier = ref.read(salaSessionProvider.notifier);
     final colors = SalaColors.of(context);
     final recording = session.ensaio == EnsaioStatus.recording;
+    final ghosting = session.ensaio == EnsaioStatus.ghostPlaying;
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        SizedBox(
+          height: 52,
+          child: session.canGhostPlay || ghosting
+              ? _GhostButton(
+                  playing: ghosting,
+                  colors: colors,
+                  onTap: notifier.ghostPlay,
+                )
+              : null,
+        ),
+        const SizedBox(height: 26),
         _RecordCircle(
           recording: recording,
+          dimmed: ghosting,
           colors: colors,
-          onStart: notifier.recStart,
-          onStop: notifier.recStop,
+          onTap: notifier.ensaioTap,
         ),
         const SizedBox(height: 38),
         EqBars(active: recording),
@@ -93,20 +106,7 @@ class EnsaioView extends ConsumerWidget {
               for (var i = 0; i < session.takes; i++)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 7),
-                  child: PingIn(
-                    child: Opacity(
-                      opacity: 0.45,
-                      child: Container(
-                        width: 24,
-                        height: 24,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: BeadStyles.wood,
-                          boxShadow: BeadStyles.matte,
-                        ),
-                      ),
-                    ),
-                  ),
+                  child: const PingIn(child: Bead(size: 24, opacity: 0.45)),
                 ),
             ],
           ),
@@ -132,61 +132,100 @@ class EnsaioView extends ConsumerWidget {
   }
 }
 
+class _GhostButton extends StatelessWidget {
+  final bool playing;
+  final SalaColors colors;
+  final VoidCallback onTap;
+
+  const _GhostButton({
+    required this.playing,
+    required this.colors,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final button = Opacity(
+      opacity: 0.55,
+      child: RoundActionButton(
+        size: 52,
+        semanticLabel: 'Ouvir o ensaio guardado antes de gravar',
+        gradient: BeadStyles.wood,
+        onTap: onTap,
+        child: Icon(
+          playing ? LucideIcons.pause : LucideIcons.play,
+          size: 22,
+          color: ShemaBrand.branco,
+        ),
+      ),
+    );
+    if (!playing) return FadeUp(child: button);
+    return Pulse(
+      amount: 0.08,
+      period: const Duration(milliseconds: 1200),
+      child: button,
+    );
+  }
+}
+
 class _RecordCircle extends StatelessWidget {
   final bool recording;
+  final bool dimmed;
   final SalaColors colors;
-  final VoidCallback onStart;
-  final VoidCallback onStop;
+  final VoidCallback onTap;
 
   const _RecordCircle({
     required this.recording,
+    required this.dimmed,
     required this.colors,
-    required this.onStart,
-    required this.onStop,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: 'Segurar para gravar o ensaio',
-      child: Listener(
-        onPointerDown: (_) => onStart(),
-        onPointerUp: (_) => onStop(),
-        onPointerCancel: (_) => onStop(),
-        child: Loop(
-          period: const Duration(milliseconds: 4600),
-          animate: !recording,
-          builder: (context, t) => Transform.scale(
-            scale: recording ? 1 : 1 + 0.045 * t,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 400),
-              width: 160,
-              height: 160,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: BeadStyles.telha(colors),
-                boxShadow: recording
-                    ? [
-                        BoxShadow(color: colors.halo, spreadRadius: 10),
-                        BoxShadow(
-                          color: colors.telha.withValues(alpha: 0.38),
-                          offset: const Offset(0, 12),
-                          blurRadius: 38,
-                        ),
-                      ]
-                    : [
-                        BoxShadow(
-                          color: colors.telha.withValues(alpha: 0.32),
-                          offset: const Offset(0, 10),
-                          blurRadius: 34,
-                        ),
-                      ],
-              ),
-              child: const Icon(
-                LucideIcons.mic,
-                size: 52,
-                color: ShemaBrand.branco,
+      label: recording ? 'Tocar ao terminar' : 'Tocar para gravar o ensaio',
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedOpacity(
+          opacity: dimmed ? 0.3 : 1,
+          duration: const Duration(milliseconds: 400),
+          child: Loop(
+            period: const Duration(milliseconds: 4600),
+            animate: recording,
+            builder: (context, t) => Transform.scale(
+              scale: recording ? 1 : 1 + 0.045 * t,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 400),
+                width: 160,
+                height: 160,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: BeadStyles.telha(colors),
+                  boxShadow: recording
+                      ? [
+                          BoxShadow(color: colors.halo, spreadRadius: 10),
+                          BoxShadow(
+                            color: colors.telha.withValues(alpha: 0.38),
+                            offset: const Offset(0, 12),
+                            blurRadius: 38,
+                          ),
+                        ]
+                      : [
+                          BoxShadow(
+                            color: colors.telha.withValues(alpha: 0.32),
+                            offset: const Offset(0, 10),
+                            blurRadius: 34,
+                          ),
+                        ],
+                ),
+                child: const Icon(
+                  LucideIcons.mic,
+                  size: 52,
+                  color: ShemaBrand.branco,
+                ),
               ),
             ),
           ),
@@ -221,11 +260,6 @@ class _TakeActionButton extends StatelessWidget {
       onTap: onTap,
       child: icon,
     );
-    if (!pulsing) return button;
-    return Loop(
-      period: const Duration(milliseconds: 1000),
-      builder: (context, t) =>
-          Transform.scale(scale: 1 + 0.12 * t, child: button),
-    );
+    return Pulse(animate: pulsing, child: button);
   }
 }

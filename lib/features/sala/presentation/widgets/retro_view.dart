@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
-import '../../domain/meaning_map.dart';
 import '../../domain/session_state.dart';
+import 'bead.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
 import 'motion.dart';
@@ -17,91 +18,153 @@ class RetroView extends ConsumerWidget {
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);
     final colors = SalaColors.of(context);
-    final listening = session.retroPhase == RetroPhase.ouvir;
+    final conferida = session.btPhase == BtPhase.conferida;
+    final clipRunning =
+        session.btPhase == BtPhase.playing && !session.btClipEnded;
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (var i = 0; i < RuthOneMeaningMap.segmentCount; i++)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: _retroBead(colors, session, i, listening),
-              ),
-          ],
-        ),
+        _ChunkBeads(passes: session.btChunkPasses, colors: colors),
         const SizedBox(height: 46),
-        FacilitatorCircle(
-          size: 150,
-          voice: session.voice,
-          showListenDot: session.showListenDot,
-          opacity: listening && session.voice == VoiceState.invite ? 0.35 : 1,
-          semanticLabel: 'Segurar para contar em português',
-          onHoldStart: notifier.retroHoldStart,
-          onHoldEnd: notifier.retroHoldEnd,
-          onHoldCancel: notifier.holdCancel,
+        SizedBox(
+          width: 200,
+          height: 200,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              if (clipRunning) _ClipHalo(colors: colors),
+              FacilitatorCircle(
+                size: 150,
+                voice: conferida ? VoiceState.done : session.voice,
+                      semanticLabel: _circleLabel(session),
+                onTap: notifier.retroTap,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 44),
+        SizedBox(
+          height: 64,
+          child: _actions(session, notifier),
         ),
       ],
     );
   }
 
-  Widget _retroBead(
-    SalaColors colors,
-    SalaSessionState session,
-    int i,
-    bool listening,
-  ) {
-    final fill = session.fills[i];
-    final current = i == session.retroIndex;
-    final size = current ? 46.0 : 34.0;
-
-    BoxDecoration decoration;
-    if (fill == 2) {
-      decoration = const BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: BeadStyles.wood,
-        boxShadow: BeadStyles.matte,
-      );
-    } else if (fill == 1) {
-      decoration = BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.bottomCenter,
-          end: Alignment.topCenter,
-          colors: [ShemaBrand.wood, ShemaBrand.wood, colors.card, colors.card],
-          stops: const [0, 0.5, 0.5, 1],
+  Widget? _actions(SalaSessionState session, SalaSessionNotifier notifier) {
+    if (session.btPhase == BtPhase.findings) {
+      return FadeUp(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            RoundActionButton(
+              size: 60,
+              semanticLabel: 'Ouvir e contar esta parte de novo',
+              gradient: BeadStyles.wood,
+              onTap: notifier.retellChunk,
+              child: const Icon(
+                LucideIcons.rotateCcw,
+                size: 24,
+                color: ShemaBrand.branco,
+              ),
+            ),
+            const SizedBox(width: 28),
+            RoundActionButton(
+              size: 60,
+              semanticLabel: 'Gravar esta parte de novo',
+              gradient: BeadStyles.azul,
+              onTap: notifier.reRecordClip,
+              child: const Icon(
+                LucideIcons.mic,
+                size: 24,
+                color: ShemaBrand.branco,
+              ),
+            ),
+          ],
         ),
-        border: Border.all(color: colors.cord, width: 2),
-      );
-    } else {
-      decoration = BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: BeadStyles.oat(colors),
-        border: Border.all(color: colors.line),
       );
     }
+    if (session.canFinishBackTranslation) {
+      return AdvanceButton(
+        gradient: BeadStyles.verde,
+        semanticLabel: 'Terminei de contar de volta',
+        onTap: notifier.finishBackTranslation,
+        child: const Icon(
+          LucideIcons.check,
+          size: 26,
+          color: ShemaBrand.branco,
+        ),
+      );
+    }
+    return null;
+  }
 
-    final highlighted = current && listening;
-    final bead = AnimatedContainer(
-      duration: const Duration(milliseconds: 500),
-      width: size,
-      height: size,
-      decoration: highlighted
-          ? decoration.copyWith(
-              boxShadow: [
-                ...?decoration.boxShadow,
-                BoxShadow(color: colors.halo, spreadRadius: 5),
-              ],
-            )
-          : decoration,
-    );
-    if (!highlighted) return bead;
+  String _circleLabel(SalaSessionState session) {
+    switch (session.btPhase) {
+      case BtPhase.playing:
+        return 'Tocar para contar este pedaço em português';
+      case BtPhase.capturing:
+        return 'Tocar ao terminar o pedaço';
+      case BtPhase.thinking:
+      case BtPhase.findings:
+      case BtPhase.conferida:
+        return 'Contada de volta';
+    }
+  }
+}
+
+class _ClipHalo extends StatelessWidget {
+  final SalaColors colors;
+
+  const _ClipHalo({required this.colors});
+
+  @override
+  Widget build(BuildContext context) {
     return Loop(
-      period: const Duration(milliseconds: 1400),
-      builder: (context, t) =>
-          Transform.scale(scale: 1 + 0.12 * t, child: bead),
+      period: const Duration(milliseconds: 2200),
+      builder: (context, t) => Container(
+        width: 176 + 8 * t,
+        height: 176 + 8 * t,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: ShemaBrand.azul.withValues(alpha: 0.55 - 0.25 * t),
+            width: 2,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChunkBeads extends StatelessWidget {
+  final List<int> passes;
+  final SalaColors colors;
+
+  const _ChunkBeads({required this.passes, required this.colors});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 44,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final pass in passes)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 7),
+              child: PingIn(
+                child: Bead(
+                  size: 26,
+                  border: pass > 1
+                      ? Border.all(color: ShemaBrand.azulInk, width: 2.5)
+                      : null,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

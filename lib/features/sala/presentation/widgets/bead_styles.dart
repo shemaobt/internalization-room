@@ -115,6 +115,8 @@ class AdvanceButton extends StatelessWidget {
   final Gradient gradient;
   final Widget? child;
   final String semanticLabel;
+  final Color halo;
+  final BoxBorder? border;
 
   const AdvanceButton({
     super.key,
@@ -123,6 +125,8 @@ class AdvanceButton extends StatelessWidget {
     required this.semanticLabel,
     this.size = 64,
     this.child,
+    this.halo = ShemaBrand.verdeClaro,
+    this.border,
   });
 
   @override
@@ -141,6 +145,7 @@ class AdvanceButton extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: gradient,
+                border: border,
                 boxShadow: [
                   const BoxShadow(
                     color: Color(0x330A0703),
@@ -148,8 +153,7 @@ class AdvanceButton extends StatelessWidget {
                     blurRadius: 12,
                   ),
                   BoxShadow(
-                    color: ShemaBrand.verdeClaro
-                        .withValues(alpha: 0.35 * (1 - t)),
+                    color: halo.withValues(alpha: 0.35 * (1 - t)),
                     spreadRadius: 12 * t,
                   ),
                 ],

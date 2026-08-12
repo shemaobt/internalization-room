@@ -31,6 +31,9 @@ class _LoopState extends State<Loop> with SingleTickerProviderStateMixin {
   @override
   void didUpdateWidget(Loop oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.period != oldWidget.period && _controller.isAnimating) {
+      _controller.stop();
+    }
     _controller.duration = widget.period;
     if (widget.animate && !_controller.isAnimating) {
       _controller.repeat(reverse: true);
@@ -95,6 +98,31 @@ class _RippleState extends State<Ripple> with SingleTickerProviderStateMixin {
         context,
         Curves.easeOut.transform(_controller.value),
       ),
+    );
+  }
+}
+
+class Pulse extends StatelessWidget {
+  final Widget child;
+  final double amount;
+  final Duration period;
+  final bool animate;
+
+  const Pulse({
+    super.key,
+    required this.child,
+    this.amount = 0.12,
+    this.period = const Duration(milliseconds: 1000),
+    this.animate = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (!animate) return child;
+    return Loop(
+      period: period,
+      builder: (context, t) =>
+          Transform.scale(scale: 1 + amount * t, child: child),
     );
   }
 }
