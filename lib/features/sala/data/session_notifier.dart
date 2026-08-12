@@ -417,6 +417,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       await _voiceTurn(await _room.sendTurn(sessionId, File(path)));
     } on Exception catch (error) {
       _handleRoomFailure(error);
+    } finally {
+      unawaited(_recorder.delete(path));
     }
   }
 

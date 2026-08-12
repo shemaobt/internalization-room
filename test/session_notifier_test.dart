@@ -70,6 +70,37 @@ void main() {
     expect(container.read(salaSessionProvider).voice, VoiceState.invite);
   });
 
+  test('the conversation keeps the words and throws the recording away', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    expect(harness.room.turnsSent, 1);
+    expect(harness.recorder.deleted, ['captura-1.m4a'],
+        reason: 'o registro da conversa é o texto no servidor — o áudio da equipe '
+            'não é o produto e não pode ficar enchendo o tablet');
+  });
+
+  test('a turn the room refused still throws the recording away', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    harness.room.failWith = const RoomUnavailable('sem rede');
+
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    expect(harness.recorder.deleted, ['captura-1.m4a'],
+        reason: 'nenhum caminho de erro reenvia o arquivo, então guardá-lo só ocupa espaço');
+  });
+
   test('the app never decides coverage — it mirrors the server', () async {
     final harness = SalaHarness()..room.nextCoverage = coverage(engaged: 5, surfaced: 7);
     final container = await inConversa(harness);
