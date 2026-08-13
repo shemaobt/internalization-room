@@ -628,9 +628,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> _countUnsent() async {
+    final sessionId = state.sessionId;
+    if (sessionId == null) return;
     final epoch = _epoch;
-    final takes = await _takes.unsentOf('ensaio');
-    final chunks = await _takes.unsentOf('retro');
+    final takes = await _takes.unsentOf('ensaio', sessionId: sessionId);
+    final chunks = await _takes.unsentOf('retro', sessionId: sessionId);
     if (epoch != _epoch) return;
     state = state.copyWith(unsentTakes: takes, unsentChunks: chunks);
   }
@@ -696,26 +698,30 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final path = await _recorder.stop();
     final sessionId = state.sessionId;
 
-    if (path != null && sessionId != null) {
-      try {
-        final captured = await _room.sendChunk(sessionId, File(path));
-        if (!captured.captured) {
-          state = state.copyWith(btPhase: BtPhase.playing, voice: VoiceState.invite);
-          if (!state.btClipEnded) unawaited(_playback.resume());
-          return;
-        }
-      } on Exception catch (error) {
-        unawaited(_guard(
-          path,
-          kind: 'retro',
-          scope: KeptScope.whole,
-          passNumber: state.btPass,
-          chunkIndex: state.btChunkPasses.length + 1,
-        ));
-        _handleRoomFailure(error);
+    if (path == null || sessionId == null) {
+      state = state.copyWith(btPhase: BtPhase.playing, voice: VoiceState.invite);
+      if (!state.btClipEnded) unawaited(_playback.resume());
+      return;
+    }
+
+    try {
+      final captured = await _room.sendChunk(sessionId, File(path));
+      if (!captured.captured) {
+        state = state.copyWith(btPhase: BtPhase.playing, voice: VoiceState.invite);
         if (!state.btClipEnded) unawaited(_playback.resume());
         return;
       }
+    } on Exception catch (error) {
+      unawaited(_guard(
+        path,
+        kind: 'retro',
+        scope: KeptScope.whole,
+        passNumber: state.btPass,
+        chunkIndex: state.btChunkPasses.length + 1,
+      ));
+      _handleRoomFailure(error);
+      if (!state.btClipEnded) unawaited(_playback.resume());
+      return;
     }
 
     state = state.copyWith(

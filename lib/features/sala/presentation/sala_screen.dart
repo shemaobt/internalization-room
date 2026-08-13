@@ -30,7 +30,12 @@ class _SalaScreenState extends ConsumerState<SalaScreen> with WidgetsBindingObse
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(ref.read(takeUploadQueueProvider).flush());
+      unawaited(
+        ref
+            .read(takeUploadQueueProvider)
+            .flush()
+            .then((_) => ref.read(salaSessionProvider.notifier).refreshUnsent()),
+      );
       unawaited(_openRoom());
     });
   }
