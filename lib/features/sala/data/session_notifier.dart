@@ -50,6 +50,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   bool _noticeSpoken = false;
   bool _conviteOpened = false;
   bool _returning = false;
+  bool _strandedSpoken = false;
   String? _panoramaSessionId;
   String? _pendingTakePath;
   StreamSubscription<void>? _playbackDone;
@@ -641,8 +642,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final epoch = _epoch;
     final takes = await _takes.unsentOf('ensaio', sessionId: sessionId);
     final chunks = await _takes.unsentOf('retro', sessionId: sessionId);
+    final stranded = (await _takes.giveUps()).isNotEmpty;
     if (epoch != _epoch) return;
     state = state.copyWith(unsentTakes: takes, unsentChunks: chunks);
+    if (stranded && !_strandedSpoken) {
+      _strandedSpoken = true;
+      unawaited(_voice.playAsset(strandedTakeAsset));
+    }
   }
 
   void startRetro() {
@@ -814,6 +820,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _retryStep = 0;
     _noticeSpoken = false;
     _conviteOpened = false;
+    _strandedSpoken = false;
     _panoramaSessionId = null;
     _pendingTakePath = null;
     state = const SalaSessionState();

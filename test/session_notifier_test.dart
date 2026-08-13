@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
@@ -672,6 +673,31 @@ void main() {
         reason: 'a equipe contempla o colar fechado e a sala reabre — antes ficava presa ali');
     expect(after.sessionId, isNull);
     expect(after.takes, 0);
+  });
+
+  test('a take that ran out of tries is said out loud, once', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    harness.room.reachable = false;
+    notifier.takeKeep();
+    await settle();
+
+    for (var attempt = 0; attempt < takeUploadAttempts + 1; attempt++) {
+      await harness.takes.flush();
+    }
+    await notifier.refreshUnsent();
+    await notifier.refreshUnsent();
+
+    expect(harness.voice.assets.where((a) => a == strandedTakeAsset), hasLength(1),
+        reason: 'a equipe precisa saber que algo ficou preso — e ouvir isso uma vez, '
+            'não a cada vez que a conta é recontada');
   });
 
   test('a chunk the room refused is not counted as safe either', () async {
