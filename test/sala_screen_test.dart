@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -177,5 +178,34 @@ void main() {
       bySemanticsLabelWidget('Ouvir o ensaio guardado antes de gravar'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('a long press unsticks a retro the room abandoned', (tester) async {
+    final harness = SalaHarness();
+    final container = await pumpSala(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.goConversa();
+    await tester.pump(const Duration(milliseconds: 200));
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    notifier.takeKeep();
+    notifier.startRetro();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    harness.room.failWith = const RoomRefused();
+    notifier.retroTap();
+    await tester.pump(const Duration(milliseconds: 100));
+    notifier.retroTap();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(container.read(salaSessionProvider).needsPerson, isTrue);
+
+    await tester.longPress(find.byType(FacilitatorCircle).first);
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(container.read(salaSessionProvider).voice, VoiceState.invite,
+        reason: 'a retro travada não tinha saída nenhuma pela tela');
   });
 }

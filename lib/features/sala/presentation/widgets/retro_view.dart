@@ -43,6 +43,7 @@ class RetroView extends ConsumerWidget {
                 voice: conferida ? VoiceState.done : session.voice,
                       semanticLabel: _circleLabel(session),
                 onTap: notifier.retroTap,
+              onLongPress: notifier.resolveWithPerson,
               ),
             ],
           ),
