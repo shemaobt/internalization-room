@@ -15,6 +15,16 @@ Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) async 
   await Future<void>.delayed(delay);
 }
 
+Future<void> until(
+  bool Function() condition, {
+  Duration limit = const Duration(seconds: 5),
+}) async {
+  final deadline = DateTime.now().add(limit);
+  while (!condition() && DateTime.now().isBefore(deadline)) {
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+}
+
 Future<ProviderContainer> inConversa(SalaHarness harness) async {
   final container = harness.container();
   await container.read(salaSessionProvider.notifier).goConversa();
@@ -281,6 +291,7 @@ void main() {
     final container = await inConversa(harness);
     addTearDown(container.dispose);
 
+    await until(() => harness.voice.assets.isNotEmpty);
     await settle(const Duration(milliseconds: 200));
 
     expect(harness.voice.assets, hasLength(1),
@@ -632,6 +643,35 @@ void main() {
     await notifier.refreshUnsent();
 
     expect(container.read(salaSessionProvider).unsentTakes, 0);
+  });
+
+  test('the closed necklace opens the room again on its own', () async {
+    final harness = SalaHarness(fimLinger: const Duration(milliseconds: 40));
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    notifier.startRetro();
+    await settle();
+    notifier.retroTap();
+    await settle();
+    notifier.retroTap();
+    await settle();
+    harness.playback.finishPlayback();
+    await settle();
+    await notifier.finishBackTranslation();
+    await settle(const Duration(seconds: 2));
+
+    final after = container.read(salaSessionProvider);
+    expect(after.stage, SalaStage.convite,
+        reason: 'a equipe contempla o colar fechado e a sala reabre — antes ficava presa ali');
+    expect(after.sessionId, isNull);
+    expect(after.takes, 0);
   });
 
   test('a chunk the room refused is not counted as safe either', () async {

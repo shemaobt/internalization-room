@@ -313,12 +313,14 @@ class SalaHarness {
   final Duration settleDelay;
   final List<Duration> retryBackoff;
   final Duration? beckonInterval;
+  final Duration fimLinger;
 
   SalaHarness({
     List<HandReply> replies = const [],
     this.settleDelay = const Duration(milliseconds: 60),
     this.retryBackoff = const [Duration(milliseconds: 20)],
     this.beckonInterval,
+    this.fimLinger = const Duration(seconds: 30),
   }) : inbox = FakeInbox(replies: replies);
 
   late final TakeUploadQueue takes = TakeUploadQueue(
@@ -337,6 +339,7 @@ class SalaHarness {
         beadSettleDelayProvider.overrideWithValue(settleDelay),
         roomRetryBackoffProvider.overrideWithValue(retryBackoff),
         beckonIntervalProvider.overrideWithValue(beckonInterval),
+        fimLingerProvider.overrideWithValue(fimLinger),
       ];
 
   ProviderContainer container() => ProviderContainer(overrides: overrides);
