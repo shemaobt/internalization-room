@@ -25,7 +25,11 @@ class RetroView extends ConsumerWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _ChunkBeads(passes: session.btChunkPasses, colors: colors),
+        _ChunkBeads(
+          passes: session.btChunkPasses,
+          unsent: session.unsentChunks,
+          colors: colors,
+        ),
         const SizedBox(height: 46),
         SizedBox(
           width: 200,
@@ -140,9 +144,14 @@ class _ClipHalo extends StatelessWidget {
 
 class _ChunkBeads extends StatelessWidget {
   final List<int> passes;
+  final int unsent;
   final SalaColors colors;
 
-  const _ChunkBeads({required this.passes, required this.colors});
+  const _ChunkBeads({
+    required this.passes,
+    required this.unsent,
+    required this.colors,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -151,13 +160,14 @@ class _ChunkBeads extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          for (final pass in passes)
+          for (var index = 0; index < passes.length; index++)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 7),
               child: PingIn(
                 child: Bead(
                   size: 26,
-                  border: pass > 1
+                  filled: index < passes.length - unsent,
+                  border: passes[index] > 1
                       ? Border.all(color: ShemaBrand.azulInk, width: 2.5)
                       : null,
                 ),
