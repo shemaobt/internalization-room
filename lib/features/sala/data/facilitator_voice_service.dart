@@ -11,11 +11,14 @@ import 'room_repository.dart';
 
 const _libraryFolder = 'voz';
 const _clipsKept = 60;
+const _lineGrace = Duration(seconds: 8);
+const _unknownLineCeiling = Duration(seconds: 90);
 
 class FacilitatorVoiceService {
   final Future<Uint8List> Function(String url) _fetch;
   final Future<Directory> Function() _libraryDir;
   AudioPlayer? _opened;
+  Future<void> _speaking = Future<void>.value();
 
   FacilitatorVoiceService({
     required Future<Uint8List> Function(String url) fetch,
@@ -25,26 +28,40 @@ class FacilitatorVoiceService {
 
   AudioPlayer get _player => _opened ??= AudioPlayer();
 
-  Future<bool> play(String url) async {
-    if (url.isEmpty) return false;
-    try {
+  Future<bool> play(String url) {
+    if (url.isEmpty) return Future.value(false);
+    return _afterTheCurrentLine(() async {
       final file = await clipFor(url);
-      await _player.setFilePath(file.path);
-      await _player.play();
-      return true;
-    } on Exception {
-      return false;
-    }
+      return _sayItWhole(() => _player.setFilePath(file.path));
+    });
   }
 
-  Future<bool> playAsset(String assetPath) async {
+  Future<bool> playAsset(String assetPath) {
+    return _afterTheCurrentLine(
+      () => _sayItWhole(() => _player.setAsset(assetPath)),
+    );
+  }
+
+  Future<bool> _afterTheCurrentLine(Future<bool> Function() speak) {
+    final spoken = _speaking.then((_) async {
+      try {
+        return await speak();
+      } on Exception {
+        return false;
+      }
+    });
+    _speaking = spoken.then((_) {}, onError: (_) {});
+    return spoken;
+  }
+
+  Future<bool> _sayItWhole(Future<Duration?> Function() load) async {
+    final length = await load();
     try {
-      await _player.setAsset(assetPath);
-      await _player.play();
-      return true;
-    } on Exception {
-      return false;
+      await _player.play().timeout((length ?? _unknownLineCeiling) + _lineGrace);
+    } on TimeoutException {
+      await stop();
     }
+    return true;
   }
   Future<File> clipFor(String url) async {
     final dir = await _libraryDir();

@@ -8,12 +8,19 @@ class PlaybackRepository {
   final StreamController<void> _completions = StreamController<void>.broadcast();
   StreamSubscription<PlayerState>? _states;
   AudioPlayer? _opened;
+  Duration? _openedLength;
 
   PlaybackRepository({Future<void> Function(String path)? start}) : _start = start;
 
   AudioPlayer get _player => _opened ??= AudioPlayer();
 
   Stream<void> get completions => _completions.stream;
+
+  Duration? get playingLength => _openedLength;
+
+  Duration get position => _opened?.position ?? Duration.zero;
+
+  Future<void> seek(Duration to) => _quietly(() => _player.seek(to));
 
   void _watchCompletion() {
     _states ??= _player.playerStateStream.listen((playerState) {
@@ -34,7 +41,7 @@ class PlaybackRepository {
   Future<void> _open(String path) async {
     _watchCompletion();
     await _player.stop();
-    await _player.setFilePath(path);
+    _openedLength = await _player.setFilePath(path);
     await _player.play();
   }
 

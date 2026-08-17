@@ -120,7 +120,7 @@ void main() {
 
     expect(
       () => repository.createSession(),
-      throwsA(isA<RoomUnavailable>()),
+      throwsA(isA<RoomBroke>()),
       reason: 'um TypeError escapa de todo `on Exception` e trava a sala em '
           'pensando, sem gesto e sem voz',
     );
@@ -138,8 +138,22 @@ void main() {
     await expectStatus(401, isA<RoomRefused>());
     await expectStatus(403, isA<RoomRefused>());
     await expectStatus(404, isA<SessionGone>());
-    await expectStatus(422, isA<RoomUnavailable>());
-    await expectStatus(500, isA<RoomUnavailable>());
+    await expectStatus(422, isA<RoomBroke>());
+    await expectStatus(500, isA<RoomBroke>());
+  });
+
+  test('a room that cannot be reached is not the same as one that answers badly',
+      () async {
+    final repository = RoomRepository(
+      client: MockClient((_) async => throw const SocketException('sem rota')),
+    );
+    addTearDown(repository.dispose);
+
+    await expectLater(
+      () => repository.fetchState('s'),
+      throwsA(isA<RoomUnavailable>()),
+      reason: 'só transporte é queda de rede; resposta ruim é sala quebrada',
+    );
   });
 }
 
