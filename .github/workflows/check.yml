@@ -2,6 +2,8 @@ name: Check
 
 on:
   pull_request:
+  push:
+    branches: [main]
 
 jobs:
   check:
@@ -27,4 +29,22 @@ jobs:
         run: flutter analyze
 
       - name: Test
-        run: flutter test
+        run: flutter test --reporter expanded --coverage
+
+      # Every screen in this room is spoken; the team cannot read. A Text widget is a
+      # regression nobody would notice in review, because it looks fine on a developer's
+      # laptop and is invisible to the people who use it.
+      - name: The room stays wordless
+        run: |
+          if grep -rn "Text(" lib/features/sala/presentation/; then
+            echo "::error::A written word reached a team screen."
+            exit 1
+          fi
+
+      - name: Keep the coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/lcov.info
+          if-no-files-found: warn

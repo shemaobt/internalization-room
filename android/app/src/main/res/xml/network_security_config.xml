@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The pilot backend is reached over plain HTTP on a LAN address that changes with
+     the venue, so cleartext cannot be pinned to a fixed host without breaking silently
+     in the field. Remove this file once the room talks to an HTTPS backend. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
