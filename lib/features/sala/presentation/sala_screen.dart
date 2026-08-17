@@ -13,6 +13,7 @@ import 'widgets/colar_overlay.dart';
 import 'widgets/conversa_view.dart';
 import 'widgets/convite_view.dart';
 import 'widgets/ensaio_view.dart';
+import 'widgets/escolha_view.dart';
 import 'widgets/hear_again_button.dart';
 import 'widgets/mic_gate_view.dart';
 import 'widgets/retro_view.dart';
@@ -101,6 +102,8 @@ class _SalaScreenState extends ConsumerState<SalaScreen> with WidgetsBindingObse
     switch (stage) {
       case SalaStage.convite:
         return const ConviteView();
+      case SalaStage.escolha:
+        return const EscolhaView();
       case SalaStage.conversa:
         return const ConversaView();
       case SalaStage.ensaio:

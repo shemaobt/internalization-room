@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 
 import '../../../core/config/env.dart';
 import '../domain/bt_finding.dart';
+import '../domain/passagem.dart';
 import '../domain/session_snapshot.dart';
 import '../domain/turn_result.dart';
 import 'device_identity.dart';
@@ -71,6 +72,13 @@ class RoomRepository {
     return _read(response, SessionSnapshot.fromJson);
   }
 
+  Future<List<Passagem>> passagesOf(String book) async {
+    final response = await _send(
+      () => _client.get(_uri('/books/$book/passages'), headers: _headers),
+      _stateTimeout,
+    );
+    return _read(response, passagensFromJson);
+  }
 
   Future<SessionSnapshot> fetchState(String sessionId) async {
     final response = await _send(

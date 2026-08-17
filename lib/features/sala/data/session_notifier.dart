@@ -8,11 +8,13 @@ import '../domain/bt_finding.dart';
 import '../domain/facilitator_script.dart';
 import '../domain/hand_reply.dart';
 import '../domain/kept_take.dart';
+import '../domain/passagem.dart';
 import '../domain/session_state.dart';
 import '../domain/spoken_line.dart';
 import '../domain/turn_result.dart';
 import 'connectivity_service.dart';
 import 'facilitator_voice_service.dart';
+import 'finished_passages.dart';
 import 'hand_inbox_repository.dart';
 import 'mic_permission.dart';
 import 'playback_repository.dart';
@@ -54,6 +56,10 @@ final playbackCeilingProvider = Provider<Duration?>(
   (ref) => const Duration(minutes: 6),
 );
 
+/// The book the room is serving. One string, in one place, so another book is a config
+/// change rather than a code change — the catalogue route takes it as a parameter.
+final bookProvider = Provider<String>((ref) => 'Ruth');
+
 final beckonIntervalProvider = Provider<Duration?>(
   (ref) => const Duration(seconds: 25),
 );
@@ -85,6 +91,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _ackSpoken = 0;
   int _inaudibleSpoken = 0;
   DateTime? _listeningSince;
+  String? _emCurso;
   bool _recontando = false;
   Duration _trechoStart = Duration.zero;
   Duration _trechoEnd = Duration.zero;
@@ -101,6 +108,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   RoomRepository get _room => ref.read(roomRepositoryProvider);
   TakeUploadQueue get _takes => ref.read(takeUploadQueueProvider);
   ConnectivityService get _network => ref.read(connectivityServiceProvider);
+  FinishedPassages get _feitas => ref.read(finishedPassagesProvider);
 
   @override
   SalaSessionState build() {
@@ -354,6 +362,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(voice: VoiceState.invite);
     if (state.stage == SalaStage.fim) {
       _startOver();
+    } else if (state.stage == SalaStage.escolha) {
+      unawaited(abrirEscolha());
     } else if (state.stage == SalaStage.convite &&
         state.conviteStep == ConviteStep.boasVindas) {
       _conviteOpened = false;
@@ -488,8 +498,76 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
 
-  Future<void> goConversa() async {
+  Future<void> abrirEscolha() async {
     _clearAll();
+    final epoch = _epoch;
+    state = state.copyWith(
+      stage: SalaStage.escolha,
+      voice: VoiceState.thinking,
+      peerCue: false,
+    );
+    _watchBusyState();
+    final List<Passagem> todas;
+    try {
+      todas = await _room.passagesOf(ref.read(bookProvider));
+    } on Object catch (error) {
+      if (epoch != _epoch) return;
+      _handleRoomFailure(error);
+      return;
+    }
+    if (epoch != _epoch) return;
+    final feitas = await _feitas.all();
+    if (epoch != _epoch) return;
+    final roda = [
+      for (final passagem in todas)
+        if (!feitas.contains(passagem.pericope)) passagem,
+    ];
+    state = state.copyWith(
+      naRoda: roda,
+      aOferecer: 0,
+      voice: VoiceState.invite,
+    );
+    if (roda.isEmpty) {
+      state = state.copyWith(voice: VoiceState.done);
+      return;
+    }
+    unawaited(_dizerAOferecida());
+  }
+
+  void escolhaTap() {
+    if (state.stage != SalaStage.escolha) return;
+    if (state.offline) {
+      retryNow();
+      return;
+    }
+    if (state.needsPerson || state.naRoda.isEmpty) return;
+    if (state.voice != VoiceState.invite) return;
+    state = state.copyWith(
+      aOferecer: (state.aOferecer + 1) % state.naRoda.length,
+    );
+    unawaited(_dizerAOferecida());
+  }
+
+  Future<void> _dizerAOferecida() async {
+    final passagem = state.oferecida;
+    if (passagem == null) return;
+    final epoch = _epoch;
+    state = state.copyWith(voice: VoiceState.speaking);
+    _watchBusyState();
+    await _speak(passagem.audioUrl, '');
+    if (epoch != _epoch) return;
+    state = state.copyWith(voice: VoiceState.invite);
+  }
+
+  void entrarNaOferecida() {
+    final passagem = state.oferecida;
+    if (passagem == null || state.voice != VoiceState.invite) return;
+    unawaited(goConversa(pericope: passagem.pericope));
+  }
+
+  Future<void> goConversa({String? pericope}) async {
+    _clearAll();
+    _emCurso = pericope;
     final epoch = _epoch;
     state = state.copyWith(
       stage: SalaStage.conversa,
@@ -505,6 +583,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     try {
       final snapshot = await _room.createSession(
+        pericope: pericope,
         afterSession: _panoramaSessionId,
       );
       if (epoch != _epoch) return;
@@ -1047,6 +1126,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _closeTheNecklace() {
+    final feita = _emCurso;
+    if (feita != null) unawaited(_feitas.add(feita).catchError((_) {}));
     _after('fim', const Duration(milliseconds: 700), () {
       state = state.copyWith(stage: SalaStage.fim, voice: VoiceState.done);
       _after('close', const Duration(milliseconds: 1000), () {
@@ -1068,7 +1149,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _panoramaSessionId = null;
     _pendingTakePath = null;
     state = const SalaSessionState();
-    beckon();
+    _emCurso = null;
+    unawaited(abrirEscolha());
   }
 }
 

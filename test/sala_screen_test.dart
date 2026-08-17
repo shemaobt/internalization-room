@@ -9,6 +9,7 @@ import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/data/mic_permission.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/main.dart';
@@ -76,8 +77,57 @@ void main() {
     }
   });
 
+  testWidgets('the choice screen is the circle, the wood and nothing else',
+      (tester) async {
+    final harness = SalaHarness();
+    final container = await pumpSala(tester, harness);
+    await container.read(salaSessionProvider.notifier).abrirEscolha();
+    await tester.pump(const Duration(milliseconds: 300));
 
+    expect(bySemanticsLabelWidget('Ouvir a próxima passagem'), findsOneWidget);
+    expect(bySemanticsLabelWidget('Entrar nesta passagem'), findsOneWidget);
+    expect(find.byType(ColarOverlay), findsNothing,
+        reason: 'o colar mede uma passagem; na escolha ainda não há passagem');
+    expect(find.byType(Text), findsNothing,
+        reason: 'nenhuma palavra escrita, em nenhuma tela da sala');
+  });
 
+  testWidgets('the wooden button carries the passage the room just said',
+      (tester) async {
+    final harness = SalaHarness();
+    final container = await pumpSala(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(container.read(salaSessionProvider).voice, VoiceState.invite,
+        reason: 'passo 1: a sala terminou de dizer a primeira');
+    notifier.escolhaTap();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(container.read(salaSessionProvider).oferecida?.pericope, 'P02',
+        reason: 'passo 2: o toque no círculo avançou a roda');
+
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.tap(find.byType(AdvanceButton));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(harness.room.pericopesAsked, contains('P02'));
+    expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
+  });
+
+  testWidgets('a finished book offers nothing to enter', (tester) async {
+    final harness = SalaHarness()..room.passages = const [];
+    final container = await pumpSala(tester, harness);
+    await container.read(salaSessionProvider.notifier).abrirEscolha();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(bySemanticsLabelWidget('Entrar nesta passagem'), findsNothing,
+        reason: 'não há o que oferecer, e um botão que não leva a lugar nenhum '
+            'é pior do que nenhum botão');
+    expect(
+      bySemanticsLabelWidget('Todas as passagens foram trabalhadas'),
+      findsOneWidget,
+    );
+  });
 
   testWidgets('no stage ever shows a written word', (tester) async {
     final harness = SalaHarness()..room.done = true;
@@ -85,6 +135,10 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     expect(find.byType(Text), findsNothing, reason: 'convite');
+
+    await notifier.abrirEscolha();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(Text), findsNothing, reason: 'escolha');
 
     for (final go in [notifier.goConversa, notifier.goEnsaio, notifier.startRetro]) {
       go();
@@ -112,6 +166,8 @@ void main() {
     }
 
     await expectALiveGesture('convite');
+    await notifier.abrirEscolha();
+    await expectALiveGesture('escolha');
     notifier.goConversa();
     await expectALiveGesture('conversa');
     notifier.goEnsaio();
