@@ -827,14 +827,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     unawaited(_recorder.delete(path));
+    final asked = state.knots;
     state = state.copyWith(
       handAck: true,
-      knots: state.knots + 1,
-      voice: VoiceState.invite,
+      knots: asked + 1,
+      voice: VoiceState.speaking,
     );
+    _watchBusyState();
     _after('ack', const Duration(milliseconds: 3200), () {
       state = state.copyWith(handAck: false);
     });
+    await _voice.playAsset(fixedLineAsset(rotated(handoffLines, asked)));
+    if (epoch != _epoch) return;
+    state = state.copyWith(voice: VoiceState.invite);
   }
 
   void goEnsaio() {
