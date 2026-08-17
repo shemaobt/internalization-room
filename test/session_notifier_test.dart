@@ -760,9 +760,74 @@ void main() {
     expect(container.read(salaSessionProvider).unsentTakes, 0);
   });
 
+  test('a wheel that failed to load is not a finished book', () async {
+    final harness = SalaHarness()..room.failWith = const RoomBroke('HTTP 500');
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
 
+    await notifier.abrirEscolha();
+    await settle();
 
+    final state = container.read(salaSessionProvider);
+    expect(state.livroInteiroFeito, isFalse,
+        reason: 'uma lista vazia por falha dizia à equipe que o livro inteiro '
+            'já tinha sido trabalhado');
+    expect(state.rodaPorLer, isTrue);
+    expect(state.needsPerson, isFalse);
+  });
 
+  test('the touch is the retry when the wheel never loaded', () async {
+    final harness = SalaHarness()..room.failWith = const RoomBroke('HTTP 500');
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+    harness.room.failWith = null;
+
+    notifier.escolhaTap();
+    await settle();
+
+    expect(container.read(salaSessionProvider).naRoda, hasLength(3),
+        reason: 'sem isso a tela não tinha gesto vivo nenhum: o círculo era morto, '
+            'não havia botão, e não há texto que explique o que houve');
+    expect(container.read(salaSessionProvider).oferecida?.pericope, 'P01');
+  });
+
+  test('an empty wheel really does mean the book is done', () async {
+    final harness = SalaHarness()..room.passages = const [];
+    final container = harness.container();
+    addTearDown(container.dispose);
+
+    await container.read(salaSessionProvider.notifier).abrirEscolha();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.livroInteiroFeito, isTrue);
+    expect(state.rodaPorLer, isFalse);
+    expect(state.voice, VoiceState.done);
+  });
+
+  test('the wheel reloads itself when the network comes back', () async {
+    final harness = SalaHarness()..network.reachable = false;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    harness.room.reachable = false;
+    await notifier.abrirEscolha();
+    await settle();
+    expect(container.read(salaSessionProvider).offline, isTrue);
+
+    harness.room.reachable = true;
+    harness.network.reachable = true;
+    harness.network.networkComesBack();
+    await settle(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).naRoda, hasLength(3),
+        reason: '_comeBack não conhecia a escolha: a rede voltava e a roda '
+            'continuava vazia para sempre');
+  });
 
   test('the room offers one passage at a time, by voice', () async {
     final harness = SalaHarness();
@@ -835,7 +900,7 @@ void main() {
     await settle();
 
     expect(
-      container.read(salaSessionProvider).naRoda.map((p) => p.pericope),
+      container.read(salaSessionProvider).naRoda?.map((p) => p.pericope),
       ['P02', 'P03'],
       reason: 'uma perícope terminada nunca se repete — e antes o app refazia '
           'a P01 para sempre',

@@ -53,7 +53,11 @@ class SalaSessionState {
   final bool playPing;
   final BtPhase btPhase;
   final List<int> btChunkPasses;
-  final List<Passagem> naRoda;
+  /// The passages still to be worked, or null when the wheel has not been read.
+  ///
+  /// Null and empty must stay apart: empty is a finished book, and the room says so out
+  /// loud. A failed load answering "empty" told the team the work was over.
+  final List<Passagem>? naRoda;
   final int aOferecer;
   final List<Trecho> btTrechos;
   final int? btFindingChunk;
@@ -85,7 +89,7 @@ class SalaSessionState {
     this.playPing = false,
     this.btPhase = BtPhase.playing,
     this.btChunkPasses = const [],
-    this.naRoda = const [],
+    this.naRoda,
     this.aOferecer = 0,
     this.btTrechos = const [],
     this.btFindingChunk,
@@ -100,10 +104,16 @@ class SalaSessionState {
   bool get colarOn =>
       stage != SalaStage.convite && stage != SalaStage.escolha;
 
-  Passagem? get oferecida =>
-      aOferecer >= 0 && aOferecer < naRoda.length ? naRoda[aOferecer] : null;
+  Passagem? get oferecida {
+    final roda = naRoda;
+    if (roda == null || aOferecer < 0 || aOferecer >= roda.length) return null;
+    return roda[aOferecer];
+  }
 
-  bool get livroInteiroFeito => stage == SalaStage.escolha && naRoda.isEmpty;
+  bool get rodaPorLer => stage == SalaStage.escolha && naRoda == null;
+
+  bool get livroInteiroFeito =>
+      stage == SalaStage.escolha && naRoda != null && naRoda!.isEmpty;
 
   bool get onFim => stage == SalaStage.fim;
 
@@ -179,6 +189,7 @@ class SalaSessionState {
     BtPhase? btPhase,
     List<int>? btChunkPasses,
     List<Passagem>? naRoda,
+    bool clearRoda = false,
     int? aOferecer,
     List<Trecho>? btTrechos,
     int? btFindingChunk,
@@ -214,7 +225,7 @@ class SalaSessionState {
       playPing: playPing ?? this.playPing,
       btPhase: btPhase ?? this.btPhase,
       btChunkPasses: btChunkPasses ?? this.btChunkPasses,
-      naRoda: naRoda ?? this.naRoda,
+      naRoda: clearRoda ? null : (naRoda ?? this.naRoda),
       aOferecer: aOferecer ?? this.aOferecer,
       btTrechos: btTrechos ?? this.btTrechos,
       btFindingChunk: clearFindingChunk

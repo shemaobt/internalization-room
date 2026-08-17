@@ -72,10 +72,16 @@ class RoomRepository {
     return _read(response, SessionSnapshot.fromJson);
   }
 
+  /// The passages of a book, each with the line that names it aloud.
+  ///
+  /// This gets the turn budget, not the state one: the route walks every passage of the
+  /// book and synthesizes a line for each, so it is generative work wearing the shape of
+  /// a read. Twenty seconds turned a room that was still working into "the internet is
+  /// gone" — spoken, to a team that cannot read the difference.
   Future<List<Passagem>> passagesOf(String book) async {
     final response = await _send(
       () => _client.get(_uri('/books/$book/passages'), headers: _headers),
-      _stateTimeout,
+      _turnTimeout,
     );
     return _read(response, passagensFromJson);
   }

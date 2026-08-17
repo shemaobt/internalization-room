@@ -505,6 +505,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       stage: SalaStage.escolha,
       voice: VoiceState.thinking,
       peerCue: false,
+      clearRoda: true,
     );
     _watchBusyState();
     final List<Passagem> todas;
@@ -540,11 +541,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       retryNow();
       return;
     }
-    if (state.needsPerson || state.naRoda.isEmpty) return;
+    if (state.needsPerson) return;
     if (state.voice != VoiceState.invite) return;
-    state = state.copyWith(
-      aOferecer: (state.aOferecer + 1) % state.naRoda.length,
-    );
+    final roda = state.naRoda;
+    if (roda == null) {
+      // The wheel never loaded. There is nothing to advance and nothing to enter, so the
+      // touch is the retry — otherwise this screen has no live gesture at all.
+      unawaited(abrirEscolha());
+      return;
+    }
+    if (roda.isEmpty) return;
+    state = state.copyWith(aOferecer: (state.aOferecer + 1) % roda.length);
     unawaited(_dizerAOferecida());
   }
 

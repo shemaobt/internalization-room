@@ -11,6 +11,10 @@ import 'room_repository.dart';
 
 const _basePath = '/api/internalization-room';
 const _timeout = Duration(seconds: 20);
+/// A question carries up to 25 MB of the team's own voice and the room stores it before
+/// answering, so it gets the same budget as the other routes that move audio — not the
+/// one meant for reading a row back.
+const _uploadTimeout = Duration(seconds: 90);
 
 class HandInboxRepository {
   final http.Client _client;
@@ -66,9 +70,17 @@ class HandInboxRepository {
     )
       ..headers.addAll(await _headers)
       ..files.add(await http.MultipartFile.fromPath('file', audio.path));
-    final response = await http.Response.fromStream(
-      await _client.send(request).timeout(_timeout),
-    );
+    final http.Response response;
+    try {
+      // The deadline has to cover draining the body too: wrapping only `send` left the
+      // read with no limit at all, so a half-answered request hung here for good. And a
+      // raw TimeoutException escaping made the caller treat a slow link as a crash.
+      response = await Future(() async {
+        return http.Response.fromStream(await _client.send(request));
+      }).timeout(_uploadTimeout);
+    } on Exception catch (error) {
+      throw RoomUnavailable('$error');
+    }
     if (response.statusCode != 200) {
       throw RoomUnavailable('HTTP ${response.statusCode}');
     }
