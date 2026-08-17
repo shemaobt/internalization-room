@@ -46,7 +46,6 @@ class SalaSessionState {
   final List<HandReply> replies;
   final String? playingReplyId;
   final List<KeptTake> keptTakes;
-  final String? replayingScope;
   final SpokenLine? lastSpoken;
   final EnsaioStatus ensaio;
   final int takes;
@@ -61,6 +60,8 @@ class SalaSessionState {
   final int aOferecer;
   final List<Trecho> btTrechos;
   final int? btFindingChunk;
+  /// The room is replaying the stretch a finding landed on.
+  final bool btTrechoTocando;
   final bool btClipEnded;
   final List<BtFindingKind> btFindings;
   final int btPass;
@@ -82,7 +83,6 @@ class SalaSessionState {
     this.replies = const [],
     this.playingReplyId,
     this.keptTakes = const [],
-    this.replayingScope,
     this.lastSpoken,
     this.ensaio = EnsaioStatus.idle,
     this.takes = 0,
@@ -93,6 +93,7 @@ class SalaSessionState {
     this.aOferecer = 0,
     this.btTrechos = const [],
     this.btFindingChunk,
+    this.btTrechoTocando = false,
     this.btClipEnded = false,
     this.btFindings = const [],
     this.btPass = 1,
@@ -130,7 +131,10 @@ class SalaSessionState {
   bool get canHearAgain =>
       lastSpoken != null &&
       voice == VoiceState.invite &&
-      stage != SalaStage.ensaio;
+      stage != SalaStage.ensaio &&
+      // In the retro the team's own recording is running under an `invite` circle, and
+      // the facilitator's line would have played on top of it, from a second player.
+      stage != SalaStage.retro;
 
   bool get showEntrada =>
       stage == SalaStage.convite &&
@@ -179,8 +183,6 @@ class SalaSessionState {
     String? playingReplyId,
     bool clearPlayingReply = false,
     List<KeptTake>? keptTakes,
-    String? replayingScope,
-    bool clearReplayingScope = false,
     SpokenLine? lastSpoken,
     bool clearLastSpoken = false,
     EnsaioStatus? ensaio,
@@ -194,6 +196,7 @@ class SalaSessionState {
     List<Trecho>? btTrechos,
     int? btFindingChunk,
     bool clearFindingChunk = false,
+    bool? btTrechoTocando,
     bool? btClipEnded,
     List<BtFindingKind>? btFindings,
     int? btPass,
@@ -216,9 +219,6 @@ class SalaSessionState {
       playingReplyId:
           clearPlayingReply ? null : (playingReplyId ?? this.playingReplyId),
       keptTakes: keptTakes ?? this.keptTakes,
-      replayingScope: clearReplayingScope
-          ? null
-          : (replayingScope ?? this.replayingScope),
       lastSpoken: clearLastSpoken ? null : (lastSpoken ?? this.lastSpoken),
       ensaio: ensaio ?? this.ensaio,
       takes: takes ?? this.takes,
@@ -231,6 +231,7 @@ class SalaSessionState {
       btFindingChunk: clearFindingChunk
           ? null
           : (btFindingChunk ?? this.btFindingChunk),
+      btTrechoTocando: btTrechoTocando ?? this.btTrechoTocando,
       btClipEnded: btClipEnded ?? this.btClipEnded,
       btFindings: btFindings ?? this.btFindings,
       btPass: btPass ?? this.btPass,

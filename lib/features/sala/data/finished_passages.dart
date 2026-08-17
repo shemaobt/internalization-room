@@ -16,6 +16,8 @@ const _ledger = 'passagens_feitas.json';
 /// team: swap the tablet and the record is gone. Correct for one tablet per team, and the
 /// thing that moves server-side once a team login exists.
 class FinishedPassages {
+  static String _bookMark(String book) => 'livro:$book';
+
   final Future<Directory> Function() _home;
 
   FinishedPassages({Future<Directory> Function()? home})
@@ -37,6 +39,16 @@ class FinishedPassages {
       return {};
     }
   }
+
+  /// Whether the book's panorama has already been heard on this tablet.
+  ///
+  /// It opens the room and takes minutes. Playing it on every launch made the team sit
+  /// through the whole book again before they could choose where to work, and minted an
+  /// orphan panorama session on the server each time.
+  Future<bool> bookOpened(String book) async =>
+      (await all()).contains(_bookMark(book));
+
+  Future<void> markBookOpened(String book) => add(_bookMark(book));
 
   Future<void> add(String pericope) async {
     if (pericope.isEmpty) return;

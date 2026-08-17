@@ -110,6 +110,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ConnectivityService get _network => ref.read(connectivityServiceProvider);
   FinishedPassages get _feitas => ref.read(finishedPassagesProvider);
 
+  String get _book => ref.read(bookProvider);
+
   @override
   SalaSessionState build() {
     ref.onDispose(() {
@@ -189,6 +191,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchPlayback();
   }
 
+  /// Bring the line down first, then let the circle show it speaking.
+  ///
+  /// The download has a 90 s ceiling, and every caller used to enter `speaking` before it
+  /// — the room rippled as if it were talking while nothing came out. `thinking` is what
+  /// this actually is, and it is also what makes the screen refuse a touch that would
+  /// start a second line on top of this one.
+  Future<void> _readyToSpeak(String url, String fixedLine) async {
+    if (fixedLine.isEmpty) {
+      state = state.copyWith(voice: VoiceState.thinking);
+      _watchBusyState();
+      await _voice.fetch(url);
+    }
+  }
+
   Future<bool> _speak(String url, String fixedLine) async {
     final epoch = _epoch;
     final played = fixedLine.isEmpty
@@ -206,6 +222,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final line = state.lastSpoken;
     if (line == null || !state.canHearAgain) return;
     final epoch = _epoch;
+    await _readyToSpeak(line.url, line.fixedLine);
+    if (epoch != _epoch) return;
     state = state.copyWith(voice: VoiceState.speaking);
     _watchBusyState();
     await _speak(line.url, line.fixedLine);
@@ -215,6 +233,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _voiceTurn(TurnResult turn) async {
     final epoch = _epoch;
+    await _readyToSpeak(turn.audioUrl, turn.fixedLine);
+    if (epoch != _epoch) return;
     state = state.copyWith(voice: VoiceState.speaking);
     _watchBusyState();
     final played = await _speak(turn.audioUrl, turn.fixedLine);
@@ -246,6 +266,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _haltForAPerson() {
     _leaveThinking();
+    if (!state.needsPerson) {
+      unawaited(_voice.playAsset(fixedLineAsset(needsPersonLine)));
+    }
     state = state.copyWith(voice: VoiceState.needsPerson, peerCue: false);
     _tellTheRoomAPersonIsNeeded();
   }
@@ -428,6 +451,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
+  /// Open the room: invite the team the first time, and go straight to the passages
+  /// after that. The panorama belongs to a book, not to a launch.
+  Future<void> openTheRoom() async {
+    if (state.stage != SalaStage.convite) return;
+    if (state.conviteStep != ConviteStep.boasVindas) return;
+    if (await _feitas.bookOpened(_book)) {
+      await abrirEscolha();
+      return;
+    }
+    beckon();
+  }
+
   void beckon() {
     if (state.stage != SalaStage.convite) return;
     if (state.conviteStep != ConviteStep.boasVindas) return;
@@ -467,6 +502,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _voicePanorama(TurnResult turn) async {
     final epoch = _epoch;
+    await _readyToSpeak(turn.audioUrl, turn.fixedLine);
+    if (epoch != _epoch) return;
     state = state.copyWith(voice: VoiceState.speaking);
     _watchBusyState();
     final played = await _speak(turn.audioUrl, turn.fixedLine);
@@ -481,6 +518,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _roomFailures = 0;
     _retryStep = 0;
     _noticeSpoken = false;
+    unawaited(_feitas.markBookOpened(_book).catchError((_) {}));
     state = state.copyWith(
       voice: VoiceState.invite,
       conviteStep: ConviteStep.entrada,
@@ -529,7 +567,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: VoiceState.invite,
     );
     if (roda.isEmpty) {
-      state = state.copyWith(voice: VoiceState.done);
+      // Nothing left for the room to offer, which is exactly what needsPerson means —
+      // and it is the only state here with a glyph, a spoken line and a way out. A green
+      // disc that refused every gesture in silence looked like a room that had died.
+      _haltForAPerson();
       return;
     }
     unawaited(_dizerAOferecida());
@@ -559,6 +600,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final passagem = state.oferecida;
     if (passagem == null) return;
     final epoch = _epoch;
+    await _readyToSpeak(passagem.audioUrl, '');
+    if (epoch != _epoch) return;
     state = state.copyWith(voice: VoiceState.speaking);
     _watchBusyState();
     await _speak(passagem.audioUrl, '');
@@ -570,6 +613,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final passagem = state.oferecida;
     if (passagem == null || state.voice != VoiceState.invite) return;
     unawaited(goConversa(pericope: passagem.pericope));
+  }
+
+  /// Leave a passage part-way and go pick another one.
+  ///
+  /// There was no way out at all: a team that entered the wrong passage was held there
+  /// until it was checked, or had to have the app killed. The passage was never finished,
+  /// so it stays in the wheel, and the upload queue keeps whatever it was already holding.
+  void leaveThePassage() {
+    _clearAll();
+    _emCurso = null;
+    state = const SalaSessionState();
+    unawaited(abrirEscolha());
   }
 
   Future<void> goConversa({String? pericope}) async {
@@ -611,6 +666,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       retryNow();
       return;
     }
+    if (state.playingReplyId != null) return;
     if (state.noteMode) {
       _sendQuestion();
       return;
@@ -781,19 +837,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     });
   }
 
-  void replayKeptTake(String scopeId) {
-    if (state.stage != SalaStage.conversa) return;
-    final take = state.keptTakes.firstWhere(
-      (candidate) => candidate.scopeId == scopeId,
-      orElse: () => const KeptTake(scopeId: '', path: ''),
-    );
-    if (take.path.isEmpty) return;
-    state = state.copyWith(replayingScope: scopeId);
-    _play(take.path, onComplete: () {
-      state = state.copyWith(clearReplayingScope: true);
-    });
-  }
-
   void goEnsaio() {
     _clearAll();
     state = state.copyWith(
@@ -805,6 +848,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void ghostPlay() {
+    if (state.ensaio == EnsaioStatus.ghostPlaying) {
+      // The button already showed a pause glyph; it just did not pause.
+      _releasePlayback();
+      unawaited(_playback.stop());
+      return;
+    }
     final take = state.wholeTake;
     if (take == null || state.ensaio != EnsaioStatus.idle) return;
     state = state.copyWith(ensaio: EnsaioStatus.ghostPlaying);
@@ -819,23 +868,31 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state = state.copyWith(ensaio: EnsaioStatus.recording);
         unawaited(_recordOrBlock('ensaio_tomada_${_stamp()}'));
       case EnsaioStatus.recording:
-        state = state.copyWith(ensaio: EnsaioStatus.recorded);
-        unawaited(_stopTake());
+        unawaited(_finishTake());
       case EnsaioStatus.ghostPlaying:
       case EnsaioStatus.recorded:
         break;
     }
   }
 
-  Future<void> _stopTake() async {
-    _pendingTakePath = await _recorder.stop();
+  /// The take is only offered once the recorder has handed the file back.
+  ///
+  /// Flipping to `recorded` first showed the keep/redo/listen buttons while `stop()` was
+  /// still writing, and a quick keep found no path and dropped the take without a word.
+  /// Staying in `recording` for those few frames is also the truer thing to show.
+  Future<void> _finishTake() async {
+    final epoch = _epoch;
+    final path = await _recorder.stop();
+    if (epoch != _epoch) return;
+    _pendingTakePath = path;
+    state = state.copyWith(ensaio: EnsaioStatus.recorded);
   }
 
   void takePlay() {
     final path = _pendingTakePath;
-    if (path != null) _play(path);
+    if (path == null) return;
     state = state.copyWith(playPing: true);
-    _after('play', const Duration(milliseconds: 1800), () {
+    _play(path, onComplete: () {
       state = state.copyWith(playPing: false);
     });
   }
@@ -928,7 +985,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _playClipFromStart() {
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
-    state = state.copyWith(btTrechos: const [], clearFindingChunk: true);
+    state = state.copyWith(
+      btTrechos: const [],
+      clearFindingChunk: true,
+      btTrechoTocando: false,
+    );
     final take = state.wholeTake;
     if (take == null) {
       state = state.copyWith(btClipEnded: true);
@@ -1053,6 +1114,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     try {
       final verdict = await _room.finishBackTranslation(sessionId);
       if (epoch != _epoch) return;
+      await _readyToSpeak(verdict.audioUrl, verdict.fixedLine);
+      if (epoch != _epoch) return;
       state = state.copyWith(voice: VoiceState.speaking);
       _watchBusyState();
       await _speak(verdict.audioUrl, verdict.fixedLine);
@@ -1081,7 +1144,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final take = state.wholeTake;
     final trecho = _trechoOfTheFinding();
     if (take == null || trecho == null) return;
-    unawaited(_playback.playRange(take.path, trecho.from, trecho.to));
+    // Without a state to show, the stretch played into a screen that looked exactly like
+    // the one waiting for the team to speak.
+    _onPlaybackComplete = () {
+      state = state.copyWith(btTrechoTocando: false);
+    };
+    _playbackDone ??= _playback.completions.listen((_) => _releasePlayback());
+    state = state.copyWith(btTrechoTocando: true);
+    unawaited(
+      _playback
+          .playRange(take.path, trecho.from, trecho.to)
+          .then((_) => _watchPlayback()),
+    );
   }
 
   Trecho? _trechoOfTheFinding() {
@@ -1116,6 +1190,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: VoiceState.invite,
       ensaio: EnsaioStatus.idle,
       takes: 0,
+      unsentTakes: 0,
       btPhase: BtPhase.playing,
       btChunkPasses: const [],
       btClipEnded: false,

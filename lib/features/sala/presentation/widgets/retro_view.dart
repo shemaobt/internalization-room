@@ -20,7 +20,8 @@ class RetroView extends ConsumerWidget {
     final colors = SalaColors.of(context);
     final conferida = session.btPhase == BtPhase.conferida;
     final clipRunning =
-        session.btPhase == BtPhase.playing && !session.btClipEnded;
+        (session.btPhase == BtPhase.playing && !session.btClipEnded) ||
+            session.btTrechoTocando;
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -111,8 +112,10 @@ class RetroView extends ConsumerWidget {
         return 'Tocar para contar este pedaço em português';
       case BtPhase.capturing:
         return 'Tocar ao terminar o pedaço';
-      case BtPhase.thinking:
       case BtPhase.findings:
+        return 'Ouvir de novo a parte apontada';
+      case BtPhase.thinking:
+        return 'Um instante';
       case BtPhase.conferida:
         return 'Contada de volta';
     }
@@ -167,17 +170,12 @@ class _ChunkBeads extends StatelessWidget {
               child: PingIn(
                 child: Bead(
                   size: 26,
-                  filled: true,
+                  filled: index < passes.length - unsent.clamp(0, passes.length),
                   border: passes[index] > 1
                       ? Border.all(color: ShemaBrand.azulInk, width: 2.5)
                       : null,
                 ),
               ),
-            ),
-          for (var waiting = 0; waiting < unsent; waiting++)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 7),
-              child: Bead(size: 26, filled: false),
             ),
         ],
       ),

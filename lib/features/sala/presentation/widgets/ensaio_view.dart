@@ -110,7 +110,7 @@ class EnsaioView extends ConsumerWidget {
                     child: Bead(
                       size: 24,
                       opacity: 0.45,
-                      filled: i < session.takes - session.unsentTakes,
+                      filled: i < session.takes - session.unsentTakes.clamp(0, session.takes),
                     ),
                   ),
                 ),
@@ -155,7 +155,9 @@ class _GhostButton extends StatelessWidget {
       opacity: 0.55,
       child: RoundActionButton(
         size: 52,
-        semanticLabel: 'Ouvir o ensaio guardado antes de gravar',
+        semanticLabel: playing
+            ? 'Parar de ouvir o ensaio guardado'
+            : 'Ouvir o ensaio guardado antes de gravar',
         gradient: BeadStyles.wood,
         onTap: onTap,
         child: Icon(
@@ -191,7 +193,11 @@ class _RecordCircle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: recording ? 'Tocar ao terminar' : 'Tocar para gravar o ensaio',
+      label: switch ((recording, dimmed)) {
+        (true, _) => 'Tocar ao terminar',
+        (false, true) => 'O ensaio guardado está tocando',
+        _ => 'Tocar para gravar o ensaio',
+      },
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
@@ -200,9 +206,9 @@ class _RecordCircle extends StatelessWidget {
           duration: const Duration(milliseconds: 400),
           child: Loop(
             period: const Duration(milliseconds: 4600),
-            animate: recording,
+            animate: true,
             builder: (context, t) => Transform.scale(
-              scale: recording ? 1 : 1 + 0.045 * t,
+              scale: 1 + (recording ? 0.06 : 0.045) * t,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 400),
                 width: 160,

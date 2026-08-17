@@ -4,14 +4,12 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
-import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
 import 'bead.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
 import 'hand_button.dart';
 import 'motion.dart';
-import 'replay_chips.dart';
 
 class ConversaView extends ConsumerWidget {
   const ConversaView({super.key});
@@ -27,11 +25,6 @@ class ConversaView extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              ReplayChips(
-                takes: session.keptTakes,
-                replayingScope: session.replayingScope,
-                onReplay: notifier.replayKeptTake,
-              ),
               const SizedBox(height: 26),
               FacilitatorCircle(
                 size: 158,
@@ -69,7 +62,6 @@ class ConversaView extends ConsumerWidget {
             hasUnheardReply: session.hasUnheardReply,
             playingReply: session.playingReplyId != null,
             onTap: notifier.handTap,
-            enabled: handReachesAPerson,
           ),
         ),
         if (session.handAck)
