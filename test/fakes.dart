@@ -112,6 +112,7 @@ class FakePlayback implements PlaybackRepository {
   Duration? length;
   Duration at = Duration.zero;
   final List<Duration> seeks = [];
+  final List<String> ranges = [];
 
   @override
   Stream<void> get completions => _completions.stream;
@@ -130,6 +131,12 @@ class FakePlayback implements PlaybackRepository {
 
   @override
   Future<void> play(String path) async => played.add(path);
+
+  @override
+  Future<void> playRange(String path, Duration from, Duration to) async {
+    played.add(path);
+    ranges.add('${from.inMilliseconds}-${to.inMilliseconds}');
+  }
 
   @override
   Future<void> pause() async => paused = true;
@@ -183,14 +190,19 @@ class FakeRoom implements RoomRepository {
   bool done = false;
   int turnsSent = 0;
   int chunksSent = 0;
+  final List<String> chunkSpans = [];
   final List<String> takesKept = [];
   String? refuseTake;
   bool chunkCaptured = true;
   bool verdictChecked = true;
   BtFindingKind? verdictFinding;
+  int? verdictFindingChunk;
   String? serverStatus;
   String fixedLine = '';
+  final List<String> restartsAsked = [];
   int personsAsked = 0;
+  int retells = 0;
+  int retellBudget = 3;
 
   Exception? failWith;
 
@@ -244,6 +256,14 @@ class FakeRoom implements RoomRepository {
   }
 
   @override
+  Future<BackTranslationRestart> restartBackTranslation(String sessionId) async {
+    _guard('restartBackTranslation');
+    restartsAsked.add('novo-clipe');
+    retells = 0;
+    return const BackTranslationRestart(needsPerson: false);
+  }
+
+  @override
   Future<void> askForAPerson(String sessionId) async {
     _guard('askForAPerson');
     personsAsked++;
@@ -282,10 +302,23 @@ class FakeRoom implements RoomRepository {
       );
 
   @override
-  Future<BackTranslationChunk> sendChunk(String sessionId, File audio) async {
+  Future<BackTranslationChunk> sendChunk(
+    String sessionId,
+    File audio, {
+    Duration? from,
+    Duration? to,
+    bool retelling = false,
+  }) async {
     _guard('sendChunk');
     chunksSent++;
-    return BackTranslationChunk(chunks: chunksSent, captured: chunkCaptured);
+    chunkSpans.add('${from?.inMilliseconds}-${to?.inMilliseconds}');
+    if (retelling) retells++;
+    return BackTranslationChunk(
+      chunks: chunksSent,
+      captured: chunkCaptured,
+      passNumber: retelling ? 2 : 1,
+      needsPerson: retelling && retells >= retellBudget,
+    );
   }
 
   @override
@@ -296,6 +329,7 @@ class FakeRoom implements RoomRepository {
       fixedLine: '',
       checked: verdictChecked,
       findingKind: verdictFinding,
+      findingChunk: verdictFindingChunk,
       findingsRemaining: verdictFinding == null ? 0 : 1,
       usedFailSafe: false,
     );

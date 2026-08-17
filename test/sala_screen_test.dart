@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/data/mic_permission.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
@@ -210,6 +211,36 @@ void main() {
     );
   });
 
+  testWidgets('the findings screen offers the retell and re-record exits',
+      (tester) async {
+    final harness = SalaHarness()
+      ..room.verdictChecked = false
+      ..room.verdictFinding = BtFindingKind.addition;
+    final container = await pumpSala(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.goConversa();
+    await tester.pump(const Duration(milliseconds: 200));
+    notifier.goEnsaio();
+    await tester.pump(const Duration(milliseconds: 100));
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await tester.pump(const Duration(milliseconds: 100));
+    notifier.takeKeep();
+    notifier.startRetro();
+    await tester.pump(const Duration(milliseconds: 200));
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 200));
+    await notifier.finishBackTranslation();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
+    expect(
+      bySemanticsLabelWidget('Ouvir e contar esta parte de novo'),
+      findsOneWidget,
+    );
+    expect(bySemanticsLabelWidget('Gravar esta parte de novo'), findsOneWidget);
+  });
 
   testWidgets('the ensaio offers ghost play before recording', (tester) async {
     final container = await pumpSala(tester, SalaHarness());

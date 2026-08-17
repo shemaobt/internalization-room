@@ -167,12 +167,17 @@ class _ChunkBeads extends StatelessWidget {
               child: PingIn(
                 child: Bead(
                   size: 26,
-                  filled: index < passes.length - unsent,
+                  filled: true,
                   border: passes[index] > 1
                       ? Border.all(color: ShemaBrand.azulInk, width: 2.5)
                       : null,
                 ),
               ),
+            ),
+          for (var waiting = 0; waiting < unsent; waiting++)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 7),
+              child: Bead(size: 26, filled: false),
             ),
         ],
       ),

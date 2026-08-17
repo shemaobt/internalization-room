@@ -38,6 +38,24 @@ class PlaybackRepository {
     }
   }
 
+  Future<void> playRange(String path, Duration from, Duration to) async {
+    if (_start != null) return play(path);
+    try {
+      _watchCompletion();
+      await _player.stop();
+      _openedLength = await _player.setAudioSource(
+        ClippingAudioSource(
+          child: AudioSource.file(path),
+          start: from,
+          end: to,
+        ),
+      );
+      await _player.play();
+    } on Exception {
+      _completions.add(null);
+    }
+  }
+
   Future<void> _open(String path) async {
     _watchCompletion();
     await _player.stop();
