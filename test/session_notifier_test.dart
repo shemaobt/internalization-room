@@ -1579,7 +1579,8 @@ void main() {
     expect(state.needsPerson, isTrue);
     expect(state.offline, isFalse,
         reason: 'esperar nunca conserta chave errada — não pode virar tela de offline');
-    expect(harness.voice.assets, isEmpty);
+    expect(harness.voice.assets, contains(fixedLineAsset(needsPersonLine)),
+        reason: 'pedir uma pessoa em silêncio é um disco parado numa sala que não lê');
   });
 
   test('a session the server no longer has is dropped, not retried forever', () async {

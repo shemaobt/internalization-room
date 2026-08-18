@@ -458,6 +458,39 @@ void main() {
         reason: 'e o servidor precisa saber, senão ela volta na próxima abertura');
   });
 
+  test('the server asking for a person is said out loud too', () async {
+    final harness = SalaHarness(settleDelay: const Duration(milliseconds: 30));
+    harness.room.serverStatus = 'needs_person';
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+
+    await until(() => container.read(salaSessionProvider).needsPerson);
+
+    expect(harness.voice.assets, contains(fixedLineAsset(needsPersonLine)),
+        reason: 'o caminho em que o próprio servidor manda parar era o mais mudo dos seis');
+  });
+
+  test('a session the room forgot does not keep being told about it', () async {
+    final harness = SalaHarness();
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    final asked = harness.room.personsAsked;
+
+    harness.room.failWith = const SessionGone();
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.sessionId, isNull);
+    expect(state.needsPerson, isTrue);
+    expect(harness.voice.assets, contains(fixedLineAsset(needsPersonLine)));
+    expect(harness.room.personsAsked, asked,
+        reason: 'a sessão foi esquecida junto, e é a sessão nula que impede o aviso de '
+            'sair — avisar um id que já deu 404 é um 404 atrás do outro');
+  });
+
   test('hearing again is not offered on top of the retro clip', () async {
     final harness = SalaHarness();
     harness.room.verdictChecked = false;
