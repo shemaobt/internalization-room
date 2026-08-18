@@ -4,7 +4,7 @@ class SessionSnapshot {
   final String sessionId;
   final String pericope;
   final String status;
-  final Coverage coverage;
+  final Coverage? coverage;
   final bool done;
 
   const SessionSnapshot({
@@ -19,9 +19,11 @@ class SessionSnapshot {
         sessionId: json['session_id'] as String,
         pericope: json['pericope'] as String? ?? '',
         status: json['status'] as String? ?? '',
-        coverage: Coverage.fromJson(
-          (json['coverage'] as Map?)?.cast<String, dynamic>() ?? const {},
-        ),
+        coverage: json['coverage'] == null
+            ? null
+            : Coverage.fromJson(
+                (json['coverage'] as Map).cast<String, dynamic>(),
+              ),
         done: json['done'] as bool? ?? false,
       );
 

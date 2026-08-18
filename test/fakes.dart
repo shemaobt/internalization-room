@@ -261,6 +261,8 @@ class FakeRoom implements RoomRepository {
   final List<String> takesKept = [];
   String? refuseTake;
   bool chunkCaptured = true;
+  bool turnsAreCanned = false;
+  bool silentAboutCoverage = false;
   bool verdictChecked = true;
   BtFindingKind? verdictFinding;
   int? verdictFindingChunk;
@@ -379,8 +381,8 @@ class FakeRoom implements RoomRepository {
         fixedLine: fixedLine,
         transcript: 'a equipe falou',
         peerCue: peerCue,
-        usedFailSafe: false,
-        coverage: nextCoverage,
+        usedFailSafe: turnsAreCanned,
+        coverage: silentAboutCoverage ? null : nextCoverage,
         done: done,
       );
 
