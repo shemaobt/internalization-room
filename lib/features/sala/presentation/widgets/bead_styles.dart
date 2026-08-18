@@ -28,38 +28,31 @@ abstract class BeadStyles {
   );
 
   static RadialGradient oat(SalaColors colors) => RadialGradient(
-        center: _beadCenter,
-        radius: 1.0,
-        colors: [colors.oatHi, colors.oat],
-        stops: const [0, 0.7],
-      );
+    center: _beadCenter,
+    radius: 1.0,
+    colors: [colors.oatHi, colors.oat],
+    stops: const [0, 0.7],
+  );
 
   static RadialGradient clay(SalaColors colors, double glow) => RadialGradient(
-        center: _beadCenter,
-        radius: 1.0,
-        colors: [
-          Color.lerp(colors.clayHi, Colors.white, glow * 0.14)!,
-          Color.lerp(colors.clay, Colors.white, glow * 0.14)!,
-        ],
-        stops: const [0, 0.7],
-      );
+    center: _beadCenter,
+    radius: 1.0,
+    colors: [
+      Color.lerp(colors.clayHi, Colors.white, glow * 0.14)!,
+      Color.lerp(colors.clay, Colors.white, glow * 0.14)!,
+    ],
+    stops: const [0, 0.7],
+  );
 
   static RadialGradient telha(SalaColors colors) => RadialGradient(
-        center: const Alignment(-0.32, -0.4),
-        radius: 1.0,
-        colors: [
-          Color.lerp(colors.telha, ShemaBrand.branco, 0.28)!,
-          colors.telha,
-        ],
-        stops: const [0, 0.68],
-      );
+    center: const Alignment(-0.32, -0.4),
+    radius: 1.0,
+    colors: [Color.lerp(colors.telha, ShemaBrand.branco, 0.28)!, colors.telha],
+    stops: const [0, 0.68],
+  );
 
   static const matte = [
-    BoxShadow(
-      color: Color(0x330A0703),
-      offset: Offset(0, 1),
-      blurRadius: 3,
-    ),
+    BoxShadow(color: Color(0x330A0703), offset: Offset(0, 1), blurRadius: 3),
   ];
 }
 
@@ -118,6 +111,13 @@ class AdvanceButton extends StatelessWidget {
   final Color halo;
   final BoxBorder? border;
 
+  /// Whether the touch is live yet.
+  ///
+  /// A button that leaves the tree while the room speaks takes its own hit box with it,
+  /// so a finger already on the way lands on nothing at all. It stays, dimmed and deaf,
+  /// and comes back without moving.
+  final bool ready;
+
   const AdvanceButton({
     super.key,
     required this.onTap,
@@ -127,6 +127,7 @@ class AdvanceButton extends StatelessWidget {
     this.child,
     this.halo = ShemaBrand.verdeClaro,
     this.border,
+    this.ready = true,
   });
 
   @override
@@ -134,31 +135,37 @@ class AdvanceButton extends StatelessWidget {
     return FadeUp(
       child: Loop(
         period: const Duration(milliseconds: 2400),
+        animate: ready,
         builder: (context, t) => Semantics(
           button: true,
+          enabled: ready,
           label: semanticLabel,
-          child: GestureDetector(
-            onTap: onTap,
-            child: Container(
-              width: size,
-              height: size,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: gradient,
-                border: border,
-                boxShadow: [
-                  const BoxShadow(
-                    color: Color(0x330A0703),
-                    offset: Offset(0, 4),
-                    blurRadius: 12,
-                  ),
-                  BoxShadow(
-                    color: halo.withValues(alpha: 0.35 * (1 - t)),
-                    spreadRadius: 12 * t,
-                  ),
-                ],
+          child: AnimatedOpacity(
+            opacity: ready ? 1 : 0.35,
+            duration: const Duration(milliseconds: 300),
+            child: GestureDetector(
+              onTap: ready ? onTap : null,
+              child: Container(
+                width: size,
+                height: size,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: gradient,
+                  border: border,
+                  boxShadow: [
+                    const BoxShadow(
+                      color: Color(0x330A0703),
+                      offset: Offset(0, 4),
+                      blurRadius: 12,
+                    ),
+                    BoxShadow(
+                      color: halo.withValues(alpha: 0.35 * (1 - t)),
+                      spreadRadius: 12 * t,
+                    ),
+                  ],
+                ),
+                child: Center(child: child),
               ),
-              child: Center(child: child),
             ),
           ),
         ),

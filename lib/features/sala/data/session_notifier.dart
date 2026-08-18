@@ -580,6 +580,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(_dizerAOferecida());
   }
 
+  /// The circle on the wheel says the passage again. It no longer moves.
+  ///
+  /// One tap used to both advance and speak, so a team could never hear a passage twice
+  /// without leaving it, and going back one meant riding the whole wheel through
+  /// fourteen names. Moving is the ruler's job now, and the ruler is dragged.
   void escolhaTap() {
     if (state.stage != SalaStage.escolha) return;
     if (state.offline) {
@@ -590,13 +595,34 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.voice != VoiceState.invite) return;
     final roda = state.naRoda;
     if (roda == null) {
-      // The wheel never loaded. There is nothing to advance and nothing to enter, so the
+      // The wheel never loaded. There is nothing to say and nothing to enter, so the
       // touch is the retry — otherwise this screen has no live gesture at all.
       unawaited(abrirEscolha());
       return;
     }
     if (roda.isEmpty) return;
-    state = state.copyWith(aOferecer: (state.aOferecer + 1) % roda.length);
+    unawaited(_dizerAOferecida());
+  }
+
+  /// Move along the wheel with the finger still down, without saying anything.
+  ///
+  /// Naming every passage the finger crosses would stutter fourteen clips across one
+  /// drag. The room stays quiet while they are choosing and speaks where they land.
+  void apontarPassagem(int index) {
+    if (state.stage != SalaStage.escolha || state.needsPerson) return;
+    final roda = state.naRoda;
+    if (roda == null || roda.isEmpty) return;
+    final at = index.clamp(0, roda.length - 1);
+    if (at == state.aOferecer && state.voice == VoiceState.invite) return;
+    _cancelTimers();
+    unawaited(_voice.stop());
+    state = state.copyWith(aOferecer: at, voice: VoiceState.invite);
+  }
+
+  /// Say where the finger landed.
+  void dizerAPassagem() {
+    if (state.stage != SalaStage.escolha || state.needsPerson) return;
+    if (state.naRoda?.isEmpty ?? true) return;
     unawaited(_dizerAOferecida());
   }
 

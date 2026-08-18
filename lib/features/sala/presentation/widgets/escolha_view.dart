@@ -6,6 +6,7 @@ import '../../data/session_notifier.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
+import 'passage_ruler.dart';
 
 class EscolhaView extends ConsumerWidget {
   const EscolhaView({super.key});
@@ -15,6 +16,7 @@ class EscolhaView extends ConsumerWidget {
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);
     final colors = SalaColors.of(context);
+    final roda = session.naRoda ?? const [];
     final podeEntrar =
         session.oferecida != null && session.voice == VoiceState.invite;
 
@@ -28,7 +30,7 @@ class EscolhaView extends ConsumerWidget {
             _ when session.livroInteiroFeito =>
               'Todas as passagens foram trabalhadas',
             _ when session.rodaPorLer => 'Tocar para procurar as passagens',
-            _ => 'Ouvir a próxima passagem',
+            _ => 'Ouvir esta passagem de novo',
           },
           onTap: notifier.escolhaTap,
           onLongPress: notifier.resolveWithPerson,
@@ -36,66 +38,27 @@ class EscolhaView extends ConsumerWidget {
         const SizedBox(height: 52),
         SizedBox(
           height: 78,
-          child: podeEntrar
-              ? AdvanceButton(
+          child: session.oferecida == null
+              ? null
+              : AdvanceButton(
                   size: 78,
                   gradient: BeadStyles.wood,
                   halo: ShemaBrand.wood,
                   border: Border.all(color: colors.cord, width: 2),
                   semanticLabel: 'Entrar nesta passagem',
+                  ready: podeEntrar,
                   onTap: notifier.entrarNaOferecida,
-                )
-              : null,
+                ),
         ),
-        const SizedBox(height: 34),
-        SizedBox(
-          height: 12,
-          width: 168,
-          child: CustomPaint(
-            painter: _RodaPainter(
-              at: session.aOferecer,
-              total: session.naRoda?.length ?? 0,
-              color: colors.cord,
-              mark: colors.telha,
-            ),
-          ),
+        const SizedBox(height: 20),
+        PassageRuler(
+          total: roda.length,
+          at: session.aOferecer,
+          hint: podeEntrar,
+          onAim: notifier.apontarPassagem,
+          onSettle: notifier.dizerAPassagem,
         ),
       ],
     );
   }
-}
-
-/// Where the wheel is, and nothing else. Not how much of the book is done — progress lives
-/// in the colar and nowhere else, so this is a position that disappears with the screen.
-class _RodaPainter extends CustomPainter {
-  final int at;
-  final int total;
-  final Color color;
-  final Color mark;
-
-  const _RodaPainter({
-    required this.at,
-    required this.total,
-    required this.color,
-    required this.mark,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (total <= 1) return;
-    final y = size.height / 2;
-    canvas.drawLine(
-      Offset(0, y),
-      Offset(size.width, y),
-      Paint()
-        ..color = color
-        ..strokeWidth = 1.5,
-    );
-    final x = size.width * (at / (total - 1));
-    canvas.drawCircle(Offset(x, y), 4, Paint()..color = mark);
-  }
-
-  @override
-  bool shouldRepaint(_RodaPainter old) =>
-      old.at != at || old.total != total || old.mark != mark;
 }
