@@ -609,19 +609,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// Naming every passage the finger crosses would stutter fourteen clips across one
   /// drag. The room stays quiet while they are choosing and speaks where they land.
   void apontarPassagem(int index) {
-    if (state.stage != SalaStage.escolha || state.needsPerson) return;
+    if (state.stage != SalaStage.escolha) return;
+    if (state.needsPerson || state.offline) return;
     final roda = state.naRoda;
     if (roda == null || roda.isEmpty) return;
     final at = index.clamp(0, roda.length - 1);
     if (at == state.aOferecer && state.voice == VoiceState.invite) return;
-    _cancelTimers();
+    // Not `_cancelTimers()`: it bumps the epoch and clears every timer in the room,
+    // including the one that retries the network. A finger on the ruler would have killed
+    // the way back from offline. Cutting the line short is enough, and `_dizerAOferecida`
+    // checks for itself that the finger has not moved on.
     unawaited(_voice.stop());
     state = state.copyWith(aOferecer: at, voice: VoiceState.invite);
   }
 
   /// Say where the finger landed.
   void dizerAPassagem() {
-    if (state.stage != SalaStage.escolha || state.needsPerson) return;
+    if (state.stage != SalaStage.escolha) return;
+    if (state.needsPerson || state.offline) return;
     if (state.naRoda?.isEmpty ?? true) return;
     unawaited(_dizerAOferecida());
   }
@@ -630,12 +635,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final passagem = state.oferecida;
     if (passagem == null) return;
     final epoch = _epoch;
+    final aimed = state.aOferecer;
+    bool moved() => epoch != _epoch || state.aOferecer != aimed;
     await _readyToSpeak(passagem.audioUrl, '');
-    if (epoch != _epoch) return;
+    if (moved()) return;
     state = state.copyWith(voice: VoiceState.speaking);
     _watchBusyState();
     await _speak(passagem.audioUrl, '');
-    if (epoch != _epoch) return;
+    if (moved()) return;
     state = state.copyWith(voice: VoiceState.invite);
   }
 

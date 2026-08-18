@@ -13,7 +13,7 @@ import 'motion.dart';
 /// both ways; each passage has its own notch, so the row says how many there are without
 /// a number. It is a measuring stick, not a second necklace: the beads belong to the
 /// coverage of one passage and would say the wrong thing here.
-class PassageRuler extends StatelessWidget {
+class PassageRuler extends StatefulWidget {
   final int total;
   final int at;
 
@@ -57,35 +57,70 @@ class PassageRuler extends StatelessWidget {
   }
 
   @override
+  State<PassageRuler> createState() => _PassageRulerState();
+}
+
+class _PassageRulerState extends State<PassageRuler> {
+  bool _touched = false;
+
+  @override
   Widget build(BuildContext context) {
     final colors = SalaColors.of(context);
-    if (total <= 0) return const SizedBox(height: height);
+    final total = widget.total;
+    if (total <= 0) return const SizedBox(height: PassageRuler.height);
+
+    // Once a finger has run the row, the row has said what it does. Showing the hint for
+    // the rest of the session would repaint this screen sixty times a second forever, to
+    // teach something already learned.
+    final hinting = widget.hint && !_touched;
 
     return LayoutBuilder(
       builder: (context, box) {
-        void aimAt(double dx) => onAim(_indexAt(dx, box.maxWidth));
+        void aimAt(double dx) {
+          if (!_touched) setState(() => _touched = true);
+          widget.onAim(widget._indexAt(dx, box.maxWidth));
+        }
 
-        return GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTapDown: (details) => aimAt(details.localPosition.dx),
-          onTapUp: (_) => onSettle(),
-          onHorizontalDragStart: (details) => aimAt(details.localPosition.dx),
-          onHorizontalDragUpdate: (details) => aimAt(details.localPosition.dx),
-          onHorizontalDragEnd: (_) => onSettle(),
-          child: SizedBox(
-            height: height,
-            width: double.infinity,
-            child: Loop(
-              period: const Duration(milliseconds: 2600),
-              animate: hint,
-              builder: (context, t) => CustomPaint(
-                painter: _RulerPainter(
-                  total: total,
-                  at: at,
-                  started: started,
-                  nudge: hint ? 7 * t : 0,
-                  cord: colors.cord,
-                  mark: colors.telha,
+        return Semantics(
+          slider: true,
+          label: 'Escolher a passagem, correndo o dedo pela fileira',
+          value: '${widget.at + 1} de $total',
+          increasedValue: '${(widget.at + 2).clamp(1, total)} de $total',
+          decreasedValue: '${widget.at.clamp(1, total)} de $total',
+          onIncrease: () {
+            aimAt(PassageRuler._placeOf(widget.at + 1, total, box.maxWidth));
+            widget.onSettle();
+          },
+          onDecrease: () {
+            aimAt(PassageRuler._placeOf(widget.at - 1, total, box.maxWidth));
+            widget.onSettle();
+          },
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapDown: (details) => aimAt(details.localPosition.dx),
+            onTapUp: (_) => widget.onSettle(),
+            onHorizontalDragStart: (details) => aimAt(details.localPosition.dx),
+            onHorizontalDragUpdate: (details) =>
+                aimAt(details.localPosition.dx),
+            onHorizontalDragEnd: (_) => widget.onSettle(),
+            child: SizedBox(
+              height: PassageRuler.height,
+              width: double.infinity,
+              child: Loop(
+                period: const Duration(milliseconds: 2600),
+                animate: hinting,
+                builder: (context, t) => CustomPaint(
+                  painter: _RulerPainter(
+                    total: total,
+                    at: widget.at,
+                    started: widget.started,
+                    // Toward the end that has room, so the mark never drifts off the row.
+                    nudge: hinting
+                        ? 7 * t * (widget.at < total - 1 ? 1 : -1)
+                        : 0,
+                    cord: colors.cord,
+                    mark: colors.telha,
+                  ),
                 ),
               ),
             ),
