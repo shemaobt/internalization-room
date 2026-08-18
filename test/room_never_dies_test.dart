@@ -764,14 +764,11 @@ void main() {
     expect(container.read(salaSessionProvider).needsPerson, isFalse,
         reason: 'duas falhas ainda não chamam ninguém');
 
+    // Entered with the room still failing, because a turn that lands resets the counters
+    // itself — the inheritance only shows when the new passage stumbles too.
     notifier.leaveThePassage();
     await settle();
-    harness.voice.succeeds = true;
     notifier.entrarNaOferecida();
-    await settle();
-    harness.voice.succeeds = false;
-    notifier.conversaTap();
-    notifier.conversaTap();
     await settle();
 
     expect(container.read(salaSessionProvider).needsPerson, isFalse,
