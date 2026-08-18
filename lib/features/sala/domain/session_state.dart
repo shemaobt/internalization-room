@@ -1,5 +1,6 @@
 import 'bt_finding.dart';
 import 'spoken_line.dart';
+import '../data/connectivity_service.dart';
 import 'coverage.dart';
 import 'hand_reply.dart';
 import 'kept_take.dart';
@@ -35,6 +36,9 @@ class PingRange {
 class SalaSessionState {
   final SalaStage stage;
   final VoiceState voice;
+  /// Why the room is out of reach, when it is. Two different faces: a tablet with no
+  /// network at all, and a network that is fine with no room answering on it.
+  final RoomReach reach;
   final ConviteStep conviteStep;
   final String? sessionId;
   final Coverage coverage;
@@ -79,6 +83,7 @@ class SalaSessionState {
   const SalaSessionState({
     this.stage = SalaStage.convite,
     this.voice = VoiceState.invite,
+    this.reach = RoomReach.fine,
     this.conviteStep = ConviteStep.boasVindas,
     this.sessionId,
     this.coverage = Coverage.empty,
@@ -177,6 +182,7 @@ class SalaSessionState {
   SalaSessionState copyWith({
     SalaStage? stage,
     VoiceState? voice,
+    RoomReach? reach,
     ConviteStep? conviteStep,
     String? sessionId,
     bool clearSession = false,
@@ -216,6 +222,7 @@ class SalaSessionState {
     return SalaSessionState(
       stage: stage ?? this.stage,
       voice: voice ?? this.voice,
+      reach: reach ?? this.reach,
       conviteStep: conviteStep ?? this.conviteStep,
       sessionId: clearSession ? null : (sessionId ?? this.sessionId),
       coverage: coverage ?? this.coverage,

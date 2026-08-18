@@ -10,23 +10,31 @@ const _pingTimeout = Duration(seconds: 6);
 const _radioAnswerTimeout = Duration(seconds: 4);
 const _quietBetweenSignals = Duration(seconds: 3);
 
+/// How far a request would get right now.
+///
+/// The check has always computed this — radio first, then the room — and then threw the
+/// answer away one line before anyone could be told. A wrong address on a perfect wi-fi
+/// and a tablet with no network at all produced the same face, and the room said the
+/// internet had gone.
+enum RoomReach { fine, noNetwork, roomSilent }
+
 class ConnectivityService {
   final Connectivity _connectivity;
   final http.Client _client;
-  Future<bool>? _inFlight;
+  Future<RoomReach>? _inFlight;
   DateTime? _lastSignal;
 
   ConnectivityService({Connectivity? connectivity, http.Client? client})
       : _connectivity = connectivity ?? Connectivity(),
         _client = client ?? http.Client();
 
-  Future<bool> canReachRoom() {
+  Future<RoomReach> reachRoom() {
     return _inFlight ??= _check().whenComplete(() => _inFlight = null);
   }
 
-  Future<bool> _check() async {
-    if (!await _radioSeesSomething()) return false;
-    return _pingBackend();
+  Future<RoomReach> _check() async {
+    if (!await _radioSeesSomething()) return RoomReach.noNetwork;
+    return await _pingBackend() ? RoomReach.fine : RoomReach.roomSilent;
   }
 
   Future<bool> _radioSeesSomething() async {

@@ -26,6 +26,7 @@ class EscolhaView extends ConsumerWidget {
         FacilitatorCircle(
           size: 196,
           voice: session.voice,
+          reach: session.reach,
           semanticLabel: switch (session) {
             _ when session.livroInteiroFeito =>
               'Todas as passagens foram trabalhadas',

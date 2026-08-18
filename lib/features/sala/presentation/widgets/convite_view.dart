@@ -20,6 +20,7 @@ class ConviteView extends ConsumerWidget {
         FacilitatorCircle(
           size: 196,
           voice: session.voice,
+          reach: session.reach,
           beckon: session.awaitingFirstTouch,
           semanticLabel: switch (session) {
             _ when session.needsPerson => 'Um momento para uma pessoa',

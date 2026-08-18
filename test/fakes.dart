@@ -420,12 +420,14 @@ class FakeRoom implements RoomRepository {
 class FakeNetwork implements ConnectivityService {
   final StreamController<void> _returned = StreamController<void>.broadcast();
   bool reachable = true;
+  bool radioSeesNothing = false;
   int checks = 0;
 
   @override
-  Future<bool> canReachRoom() async {
+  Future<RoomReach> reachRoom() async {
     checks++;
-    return reachable;
+    if (radioSeesNothing) return RoomReach.noNetwork;
+    return reachable ? RoomReach.fine : RoomReach.roomSilent;
   }
 
   @override

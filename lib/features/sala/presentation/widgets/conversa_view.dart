@@ -29,6 +29,7 @@ class ConversaView extends ConsumerWidget {
               FacilitatorCircle(
                 size: 158,
                 voice: session.voice,
+          reach: session.reach,
                 noteMode: session.noteMode,
                 peerCue: session.peerCue,
                       semanticLabel: _circleLabel(session),
