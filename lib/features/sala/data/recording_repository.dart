@@ -8,6 +8,13 @@ import 'package:record/record.dart';
 
 const _permissionAnswerCeiling = Duration(seconds: 60);
 
+/// What came of asking the microphone to start.
+///
+/// `false` used to mean both "the team said no" and "something went wrong", and the room
+/// showed the microphone-denied screen for either — accusing a team that had denied
+/// nothing, on a tablet whose disk was full.
+enum Capture { started, denied, failed }
+
 class RecordingRepository {
   final AudioRecorder _recorder = AudioRecorder();
 
@@ -18,22 +25,30 @@ class RecordingRepository {
     return dir;
   }
 
-  Future<bool> hasPermission() async {
+  /// Whether the microphone is allowed, or null when the question could not be asked.
+  Future<bool?> hasPermission() async {
     try {
       return await _recorder.hasPermission().timeout(_permissionAnswerCeiling);
     } on Object {
-      return false;
+      return null;
     }
   }
 
-  Future<bool> start(String fileName) async {
-    if (!await hasPermission()) return false;
-    final dir = await _recordingsDir();
-    await _recorder.start(
-      const RecordConfig(encoder: AudioEncoder.aacLc),
-      path: p.join(dir.path, '$fileName.m4a'),
-    );
-    return true;
+  Future<Capture> start(String fileName) async {
+    if (await hasPermission() == false) return Capture.denied;
+    try {
+      final dir = await _recordingsDir();
+      await _recorder.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc),
+        path: p.join(dir.path, '$fileName.m4a'),
+      );
+      return Capture.started;
+    } on Object {
+      // A full disk, an unwritable directory, another app holding the microphone. This
+      // used to escape as an unhandled async error while the screen already showed the
+      // room listening, and the team spoke into a recorder that was never running.
+      return Capture.failed;
+    }
   }
 
   Future<String?> stop() => _recorder.stop();

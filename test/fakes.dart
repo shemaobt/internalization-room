@@ -94,13 +94,18 @@ class FakeRecorder implements RecordingRepository {
 
   bool permitted = true;
 
-  @override
-  Future<bool> hasPermission() async => permitted;
+  bool? answersPermission = true;
+  bool startThrows = false;
 
   @override
-  Future<bool> start(String fileName) async {
+  Future<bool?> hasPermission() async => permitted ? answersPermission : false;
+
+  @override
+  Future<Capture> start(String fileName) async {
     captures++;
-    return permitted;
+    if (!permitted) return Capture.denied;
+    if (startThrows) return Capture.failed;
+    return Capture.started;
   }
 
   Completer<void>? _holdingStop;
