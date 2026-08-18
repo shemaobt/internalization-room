@@ -90,6 +90,7 @@ class FakeRecorder implements RecordingRepository {
   int captures = 0;
   bool returnsNothing = false;
   final List<String> deleted = [];
+  String? lastPath;
 
   bool permitted = true;
 
@@ -118,7 +119,7 @@ class FakeRecorder implements RecordingRepository {
     if (returnsNothing) return null;
     final file = File('${home.path}/captura-$captures.m4a')
       ..writeAsStringSync('a equipe falou');
-    return file.path;
+    return lastPath = file.path;
   }
 
   @override
