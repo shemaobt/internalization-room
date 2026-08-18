@@ -140,6 +140,7 @@ class FakeRecorder implements RecordingRepository {
 
 class FakePlayback implements PlaybackRepository {
   final StreamController<void> _completions = StreamController<void>.broadcast();
+  final StreamController<void> _failures = StreamController<void>.broadcast();
   final List<String> played = [];
   bool paused = false;
 
@@ -150,6 +151,11 @@ class FakePlayback implements PlaybackRepository {
 
   @override
   Stream<void> get completions => _completions.stream;
+
+  @override
+  Stream<void> get failures => _failures.stream;
+
+  void failPlayback() => _failures.add(null);
 
   @override
   Duration? get playingLength => length;

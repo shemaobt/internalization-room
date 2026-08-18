@@ -5,7 +5,13 @@ import 'package:just_audio/just_audio.dart';
 
 class PlaybackRepository {
   final Future<void> Function(String path)? _start;
-  final StreamController<void> _completions = StreamController<void>.broadcast();
+  /// Every ending, and whether the audio was actually heard.
+  ///
+  /// A file that will not open used to be published as a completion, so "the team heard
+  /// it" and "there was nothing to hear" arrived on the same wire. In the retro that
+  /// meant a corrupt rehearsal marked the clip as played to the end, which is the one
+  /// condition the `terminei` gesture waits for.
+  final StreamController<bool> _endings = StreamController<bool>.broadcast();
   StreamSubscription<PlayerState>? _states;
   AudioPlayer? _opened;
   Duration? _openedLength;
@@ -14,7 +20,11 @@ class PlaybackRepository {
 
   AudioPlayer get _player => _opened ??= AudioPlayer();
 
-  Stream<void> get completions => _completions.stream;
+  Stream<void> get completions =>
+      _endings.stream.where((heard) => heard).map((_) {});
+
+  Stream<void> get failures =>
+      _endings.stream.where((heard) => !heard).map((_) {});
 
   Duration? get playingLength => _openedLength;
 
@@ -25,7 +35,7 @@ class PlaybackRepository {
   void _watchCompletion() {
     _states ??= _player.playerStateStream.listen((playerState) {
       if (playerState.processingState == ProcessingState.completed) {
-        _completions.add(null);
+        _endings.add(true);
       }
     });
   }
@@ -33,8 +43,8 @@ class PlaybackRepository {
   Future<void> play(String path) async {
     try {
       await (_start ?? _open)(path);
-    } on Exception {
-      _completions.add(null);
+    } on Object {
+      _endings.add(false);
     }
   }
 
@@ -51,8 +61,8 @@ class PlaybackRepository {
         ),
       );
       await _player.play();
-    } on Exception {
-      _completions.add(null);
+    } on Object {
+      _endings.add(false);
     }
   }
 
@@ -80,7 +90,7 @@ class PlaybackRepository {
 
   Future<void> dispose() async {
     await _states?.cancel();
-    await _completions.close();
+    await _endings.close();
     await _opened?.dispose();
   }
 }
