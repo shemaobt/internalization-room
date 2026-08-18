@@ -32,6 +32,9 @@ const _roomFailuresBeforeNeedsPerson = 3;
 /// How many times the room may answer nothing before the app stops waiting for it.
 const _slowAnswersBeforeGivingUp = 3;
 
+/// How many times the inbox may fail to answer before the room says so out loud.
+const _inboxSilencesBeforeSayingSo = 3;
+
 final busyStateCeilingProvider = Provider<Duration?>(
   (ref) => const Duration(seconds: 120),
 );
@@ -97,6 +100,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   DateTime? _listeningSince;
   String? _emCurso;
   bool _recontando = false;
+  int _inboxSilences = 0;
   Duration _trechoStart = Duration.zero;
   Duration _trechoEnd = Duration.zero;
   String? _panoramaSessionId;
@@ -884,16 +888,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> _pullInbox() async {
-    try {
-      final fetched = await _inbox.fetchReplies();
-      if (fetched.isEmpty) return;
-      final known = {for (final reply in state.replies) reply.id: reply};
-      state = state.copyWith(
-        replies: [for (final reply in fetched) known[reply.id] ?? reply],
-      );
-    } on Exception {
+    final fetched = await _inbox.fetchReplies();
+    // Null is "could not ask", which is not "nothing is waiting". The hand going quiet
+    // because a key was rotated looked exactly like the hand going quiet because nobody
+    // had answered yet.
+    if (fetched == null) {
+      _inboxSilences++;
+      if (_inboxSilences >= _inboxSilencesBeforeSayingSo) _haltForAPerson();
       return;
     }
+    _inboxSilences = 0;
+    if (fetched.isEmpty || _gone) return;
+    final known = {for (final reply in state.replies) reply.id: reply};
+    state = state.copyWith(
+      replies: [for (final reply in fetched) known[reply.id] ?? reply],
+    );
   }
 
   void handTap() {
@@ -1552,6 +1561,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _strandedSpoken = false;
     _personAsked = false;
     _recontando = false;
+    _inboxSilences = 0;
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
     _pendingTakePath = null;
