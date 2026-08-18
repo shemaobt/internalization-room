@@ -28,7 +28,9 @@ class ConviteView extends ConsumerWidget {
             _ => 'Falar com o facilitador',
           },
           onTap: notifier.conviteTap,
-          onLongPress: notifier.resolveWithPerson,
+          onLongPress: session.canResolveWithPerson
+              ? notifier.resolveWithPerson
+              : null,
         ),
         const SizedBox(height: 52),
         SizedBox(

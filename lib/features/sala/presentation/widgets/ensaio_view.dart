@@ -40,7 +40,9 @@ class EnsaioView extends ConsumerWidget {
           dimmed: ghosting,
           colors: colors,
           onTap: notifier.ensaioTap,
-          onLongPress: notifier.resolveWithPerson,
+          onLongPress: session.canResolveWithPerson
+              ? notifier.resolveWithPerson
+              : null,
         ),
         const SizedBox(height: 38),
         EqBars(active: recording),
@@ -182,7 +184,7 @@ class _RecordCircle extends StatelessWidget {
   final bool dimmed;
   final SalaColors colors;
   final VoidCallback onTap;
-  final VoidCallback onLongPress;
+  final VoidCallback? onLongPress;
 
   const _RecordCircle({
     required this.recording,
@@ -204,8 +206,9 @@ class _RecordCircle extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         // The long press is how a person gets the room going again, and this was the one
-        // screen without it: every other stage wires it to its circle. A rehearsal that
-        // halted here had no gesture but throwing the passage away.
+        // screen without it. It is null on a healthy room on purpose: Flutter gives the
+        // long press the arena over the tap, so wiring it unconditionally made a finger
+        // held on the record circle open nothing at all.
         onLongPress: onLongPress,
         behavior: HitTestBehavior.opaque,
         child: AnimatedOpacity(

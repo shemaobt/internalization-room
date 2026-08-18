@@ -549,6 +549,49 @@ void main() {
             'a sala disse que a internet tinha caído');
   });
 
+  test('a kept take still reaches the queue when the room is disposed', () async {
+    final harness = SalaHarness();
+    final container = await inConversaHarness(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    container.dispose();
+    await settle(const Duration(milliseconds: 400));
+
+    expect(await harness.takes.entries(), isNotEmpty,
+        reason: 'a guarda contra ler providers descartados foi posta antes do '
+            'enfileiramento, no método cujo trabalho é não perder gravação');
+  });
+
+  test('a rehearsal that will not open leaves a way to make another', () async {
+    final harness = SalaHarness();
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    notifier.startRetro();
+    await settle();
+
+    harness.playback.failPlayback();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.stage, SalaStage.ensaio,
+        reason: 'o retro não tem gesto que se recupere de um clipe que não abre: '
+            'btClipEnded nunca chega, o terminei nunca aparece e reRecordClip exige findings');
+    expect(state.ensaio, EnsaioStatus.idle);
+    expect(state.needsPerson, isTrue);
+  });
+
   test('hearing again is not offered on top of the retro clip', () async {
     final harness = SalaHarness();
     harness.room.verdictChecked = false;
