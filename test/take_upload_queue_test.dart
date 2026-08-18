@@ -226,10 +226,14 @@ void main() {
       await queue.flush();
     }
 
-    expect(await queue.giveUps(), isEmpty,
+    expect(await queue.waiting(), hasLength(1),
         reason: 'um timeout não é uma recusa: num link ruim as cinco tentativas eram '
             'gastas em cinco esperas e a gravação era abandonada de vez');
-    expect(await queue.waiting(), hasLength(1));
+    expect((await queue.pending()).single.attempts, 0,
+        reason: 'nenhuma espera pode gastar o orçamento de recusas');
+    expect(await queue.giveUps(), hasLength(1),
+        reason: 'continua sendo tentada, mas parar de avisar durante horas é a metade '
+            'da decisão que nunca foi construída');
 
     room.reachable = true;
     clock = clock.add(const Duration(minutes: 20));

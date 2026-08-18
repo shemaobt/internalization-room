@@ -28,7 +28,7 @@ class RetroView extends ConsumerWidget {
       children: [
         _ChunkBeads(
           passes: session.btChunkPasses,
-          unsent: session.unsentChunks,
+          failures: session.btChunkFailures,
           colors: colors,
         ),
         const SizedBox(height: 46),
@@ -146,35 +146,43 @@ class _ClipHalo extends StatelessWidget {
   }
 }
 
+/// One bead per stretch the team told, in the order they told them.
+///
+/// A stretch that landed is filled; one the room never took is hollow, and sits where it
+/// was actually told rather than at the end of the row. Subtracting a count of failures
+/// from a list of successes drew neither: the two never described the same stretch.
 class _ChunkBeads extends StatelessWidget {
   final List<int> passes;
-  final int unsent;
+  final List<int> failures;
   final SalaColors colors;
 
   const _ChunkBeads({
     required this.passes,
-    required this.unsent,
+    required this.failures,
     required this.colors,
   });
 
   @override
   Widget build(BuildContext context) {
+    var told = 0;
     return SizedBox(
       height: 44,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          for (var index = 0; index < passes.length; index++)
+          for (var place = 1; place <= passes.length + failures.length; place++)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 7),
               child: PingIn(
-                child: Bead(
-                  size: 26,
-                  filled: index < passes.length - unsent.clamp(0, passes.length),
-                  border: passes[index] > 1
-                      ? Border.all(color: ShemaBrand.azulInk, width: 2.5)
-                      : null,
-                ),
+                child: failures.contains(place)
+                    ? const Bead(size: 26, filled: false)
+                    : Bead(
+                        size: 26,
+                        filled: true,
+                        border: passes[told++] > 1
+                            ? Border.all(color: ShemaBrand.azulInk, width: 2.5)
+                            : null,
+                      ),
               ),
             ),
         ],

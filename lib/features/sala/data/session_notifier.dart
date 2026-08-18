@@ -986,16 +986,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> _countUnsent() async {
-    final sessionId = state.sessionId;
-    if (sessionId == null) return;
     final epoch = _epoch;
-    final takes = await _takes.unsentOf('ensaio', sessionId: sessionId);
-    final chunks = await _takes.unsentOf('retro', sessionId: sessionId);
+    // Whether a recording is stuck is not a question about the session in progress, and
+    // asking it only when one existed meant the check at the first frame — the moment a
+    // facilitator is standing there and could act — did nothing at all.
     final stranded =
         (await _takes.giveUps()).isNotEmpty || await _takes.lostHistory();
+    if (stranded && epoch == _epoch) _sayARecordingIsStranded();
+    final sessionId = state.sessionId;
+    if (sessionId == null) return;
+    final takes = await _takes.unsentOf('ensaio', sessionId: sessionId);
+    final chunks = await _takes.unsentOf('retro', sessionId: sessionId);
     if (epoch != _epoch) return;
     state = state.copyWith(unsentTakes: takes, unsentChunks: chunks);
-    if (stranded) _sayARecordingIsStranded();
   }
 
   void _sayARecordingIsStranded() {
@@ -1011,6 +1014,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: VoiceState.invite,
       btPhase: BtPhase.playing,
       btChunkPasses: const [],
+      btChunkFailures: const [],
       btClipEnded: false,
       btFindings: const [],
       btPass: 1,
@@ -1110,7 +1114,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           passNumber: state.btPass,
           chunkIndex: state.btChunkPasses.length + 1,
         ));
-        state = state.copyWith(btPhase: BtPhase.playing, voice: VoiceState.invite);
+        state = state.copyWith(
+          btPhase: BtPhase.playing,
+          voice: VoiceState.invite,
+          btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
+        );
         if (!state.btClipEnded) _letTheClipRun();
         return;
       }
@@ -1123,6 +1131,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         chunkIndex: state.btChunkPasses.length + 1,
       ));
       if (epoch != _epoch) return;
+      state = state.copyWith(
+        btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
+      );
       _handleRoomFailure(error);
       if (!state.btClipEnded) _letTheClipRun();
       return;
@@ -1147,6 +1158,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     if (!state.btClipEnded) _letTheClipRun();
   }
+
+  /// Where the stretch just told sits in the row, counting the ones that failed.
+  int _nextChunkPlace() =>
+      state.btChunkPasses.length + state.btChunkFailures.length + 1;
 
   Future<void> finishBackTranslation() async {
     if (!state.canFinishBackTranslation) return;
@@ -1238,13 +1253,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: VoiceState.invite,
       ensaio: EnsaioStatus.idle,
       takes: 0,
-      unsentTakes: 0,
       btPhase: BtPhase.playing,
       btChunkPasses: const [],
+      btChunkFailures: const [],
       btClipEnded: false,
       btFindings: const [],
       btPass: 1,
     );
+    // Asserting `unsentTakes: 0` here was a claim about the disk made without reading it:
+    // the queue still holds the old session's takes, and the two bookkeepers disagreed.
+    unawaited(_countUnsent());
   }
 
   Future<void> _forgetTheAbandonedClip(String sessionId) async {
