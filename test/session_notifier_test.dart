@@ -478,8 +478,13 @@ void main() {
     notifier.conviteTap();
     await settle();
 
-    expect(harness.room.pericopesAsked, hasLength(2),
-        reason: 'um novo toque tenta de novo em vez de bater numa tela morta');
+    expect(
+      harness.room.calls.where((call) => call == 'openSession'),
+      hasLength(2),
+      reason: 'um novo toque tenta de novo em vez de bater numa tela morta',
+    );
+    expect(harness.room.pericopesAsked, hasLength(1),
+        reason: 'tentar de novo não é abrir outro panorama: cada toque deixava uma sessão abandonada no servidor');
   });
 
   test('the convite does not stay stuck thinking forever', () async {

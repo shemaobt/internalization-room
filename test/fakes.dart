@@ -191,10 +191,14 @@ class FakeFinished implements FinishedPassages {
   final Set<String> done = {};
 
   @override
-  Future<Set<String>> all() async => done;
+  Future<Set<String>> all(String book) async => {
+        for (final row in done)
+          if (row.startsWith('$book/')) row.substring(book.length + 1),
+      };
 
   @override
-  Future<void> add(String pericope) async => done.add(pericope);
+  Future<void> add(String book, String pericope) async =>
+      done.add('$book/$pericope');
 
   @override
   Future<bool> bookOpened(String book) async => done.contains('livro:$book');

@@ -487,10 +487,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     try {
-      final snapshot = await _room.createSession(pericope: panoramaPericope);
+      // A panorama that fails to play sends the team back to the invite, and every touch
+      // used to mint another session for the same book — the server collected one
+      // abandoned panorama per attempt. One launch asks for one panorama.
+      final panorama = _panoramaSessionId ??
+          (await _room.createSession(pericope: panoramaPericope)).sessionId;
       if (epoch != _epoch) return;
-      _panoramaSessionId = snapshot.sessionId;
-      final turn = await _room.openSession(snapshot.sessionId);
+      _panoramaSessionId = panorama;
+      final turn = await _room.openSession(panorama);
       if (epoch != _epoch) return;
       await _voicePanorama(turn);
     } on Object catch (error) {
@@ -555,7 +559,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (epoch != _epoch) return;
-    final feitas = await _feitas.all();
+    final feitas = await _feitas.all(_book);
     if (epoch != _epoch) return;
     final roda = [
       for (final passagem in todas)
@@ -1275,7 +1279,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _closeTheNecklace() {
     final feita = _emCurso;
-    if (feita != null) unawaited(_feitas.add(feita).catchError((_) {}));
+    if (feita != null) unawaited(_feitas.add(_book, feita).catchError((_) {}));
     _after('fim', const Duration(milliseconds: 700), () {
       state = state.copyWith(stage: SalaStage.fim, voice: VoiceState.done);
       _after('close', const Duration(milliseconds: 1000), () {
