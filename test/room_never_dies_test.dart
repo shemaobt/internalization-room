@@ -592,6 +592,59 @@ void main() {
     expect(state.needsPerson, isTrue);
   });
 
+  test('the hand does not bury the way back from an outage', () async {
+    // No pending reply on purpose: with one, the hand plays it and never reaches the
+    // branch that overwrites the offline state.
+    final harness = SalaHarness(retryBackoff: const [Duration(milliseconds: 30)]);
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.network.reachable = false;
+    harness.room.reachable = false;
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await until(() => container.read(salaSessionProvider).offline);
+
+    notifier.handTap();
+    await settle();
+
+    expect(container.read(salaSessionProvider).offline, isTrue,
+        reason: 'a mão escrevia needsPerson por cima de offline, e toda volta — o timer, '
+            'a escuta de rede, o toque — é guardada em state.offline');
+
+    harness.network.reachable = true;
+    harness.room.reachable = true;
+    await until(
+      () => !container.read(salaSessionProvider).offline,
+      limit: const Duration(seconds: 3),
+    );
+    expect(container.read(salaSessionProvider).offline, isFalse,
+        reason: 'e a queda voltava a se curar sozinha');
+  });
+
+  test('a settle that finds the session gone halts instead of retrying', () async {
+    final harness = SalaHarness(settleDelay: const Duration(milliseconds: 40));
+    final container = harness.container();
+    addTearDown(container.dispose);
+
+    // The poll is armed at the end of the opening turn and fires once. Setting the
+    // failure here catches that one poll, which is the only thing that reads the session
+    // between turns.
+    await container.read(salaSessionProvider.notifier).goConversa();
+    harness.room.failWith = const SessionGone();
+    await until(
+      () => container.read(salaSessionProvider).needsPerson,
+      limit: const Duration(seconds: 3),
+    );
+
+    final state = container.read(salaSessionProvider);
+    expect(state.sessionId, isNull,
+        reason: 'o 404 caía no catch genérico e virava mais uma tentativa; o disco de '
+            'convite seguia respirando sobre uma sessão que o servidor já esqueceu, e a '
+            'equipe falava um turno inteiro dentro dela');
+  });
+
   test('hearing again is not offered on top of the retro clip', () async {
     final harness = SalaHarness();
     harness.room.verdictChecked = false;

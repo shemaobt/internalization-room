@@ -518,6 +518,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       } else if (snapshot.done && state.stage == SalaStage.conversa) {
         state = state.copyWith(voice: VoiceState.done, peerCue: false);
       }
+    } on SessionGone {
+      // Retrying a session the server has forgotten just spends the budget. The invite
+      // disc used to keep breathing over it while the team spoke a whole turn into a
+      // session that no longer existed.
+      if (epoch != _epoch) return;
+      _haltForAPerson(sessionIsGone: true);
+    } on RoomRefused {
+      if (epoch != _epoch) return;
+      _haltForAPerson();
     } on Exception {
       if (epoch != _epoch || attempt + 1 >= _settleAttempts) return;
       _after('settle', ref.read(settleRetryDelayProvider), () {
@@ -879,6 +888,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void handTap() {
+    // The hand lives on the conversa, but the outgoing screen stays hit-testable for the
+    // 400 ms the switcher takes, so a finger already travelling lands here from the next
+    // stage — and starts a question recording no screen shows and no gesture stops.
+    if (state.stage != SalaStage.conversa) return;
+    if (state.offline) {
+      // `_haltForAPerson` writes over `voice: offline`, and every way back — the retry
+      // timer, the network watch, the touch — is guarded on `state.offline`. One tap on
+      // the lit hand during an outage turned a room that would have healed itself into
+      // one that needs a person to walk in.
+      retryNow();
+      return;
+    }
+    if (state.needsPerson) return;
     if (state.playingReplyId != null) return;
     if (state.voice == VoiceState.listening && !state.noteMode) return;
     final unheard = state.oldestUnheardReply;

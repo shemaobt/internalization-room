@@ -272,6 +272,8 @@ class FakeRoom implements RoomRepository {
     Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
   ];
   int personsAsked = 0;
+  /// Attempts, including the ones that threw — the latch is about trying, not landing.
+  int personsTold = 0;
   int retells = 0;
   int retellBudget = 3;
 
@@ -343,6 +345,7 @@ class FakeRoom implements RoomRepository {
 
   @override
   Future<void> askForAPerson(String sessionId) async {
+    personsTold++;
     _guard('askForAPerson');
     personsAsked++;
   }
