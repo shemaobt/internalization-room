@@ -4,8 +4,10 @@ import 'package:internalization_room/features/sala/data/mic_permission.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 
 import 'fakes.dart';
+import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
+import 'sala_screen_test.dart' show bySemanticsLabelWidget, pumpSala;
 import 'session_notifier_test.dart' show inConversa, settle;
 
 void main() {
@@ -82,5 +84,20 @@ void main() {
     expect(access, MicAccess.unknown,
         reason: 'sessenta segundos sem resposta da plataforma punham a equipe na tela de '
             'microfone negado, sem ninguém ter negado nada');
+  });
+
+  testWidgets('clearing the gate opens the room, not just the screen', (tester) async {
+    final harness = SalaHarness()..recorder.permitted = false;
+    final container = await pumpSala(tester, harness);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(container.read(micPermissionProvider), MicAccess.denied);
+
+    harness.recorder.permitted = true;
+    await tester.tap(bySemanticsLabelWidget('A sala precisa do microfone para funcionar'));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(harness.voice.assets, contains(inviteToStartAsset),
+        reason: 'checar a permissão trocava a tela e não começava nada: o convite nunca '
+            'acenava, e numa sala que não lê isso é um círculo mudo');
   });
 }
