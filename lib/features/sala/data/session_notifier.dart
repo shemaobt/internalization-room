@@ -112,9 +112,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   String get _book => ref.read(bookProvider);
 
+  /// The room is gone and its providers with it.
+  ///
+  /// Half this class is fire-and-forget: `_guard` queues a take and counts what is left
+  /// long after the gesture that started it returned. Reading a provider once the
+  /// container is disposed throws, and the throw lands in no one's `catch` — it showed up
+  /// as two tests that failed only on a slower machine, which is the same thing happening
+  /// where nobody was looking.
+  bool _gone = false;
+
   @override
   SalaSessionState build() {
     ref.onDispose(() {
+      _gone = true;
       _cancelTimers();
       unawaited(_playbackDone?.cancel());
       unawaited(_networkWatch?.cancel());
@@ -986,7 +996,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }) async {
     final sessionId = state.sessionId;
     final audio = File(path);
-    if (!await audio.exists()) return;
+    if (!await audio.exists() || _gone) return;
     if (sessionId == null) {
       // The room lost the session — a 404 clears it — and a take has nowhere to go
       // without one. The bead had already been filled by `takeKeep`, so this returned in
@@ -1011,6 +1021,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     await _countUnsent();
+    if (_gone) return;
     await _takes.flush();
     await _countUnsent();
   }
@@ -1023,23 +1034,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> _countUnsent() async {
+    if (_gone) return;
     final epoch = _epoch;
     // Whether a recording is stuck is not a question about the session in progress, and
     // asking it only when one existed meant the check at the first frame — the moment a
     // facilitator is standing there and could act — did nothing at all.
     final stranded =
         (await _takes.giveUps()).isNotEmpty || await _takes.lostHistory();
+    if (_gone) return;
     if (stranded && epoch == _epoch) _sayARecordingIsStranded();
     final sessionId = state.sessionId;
     if (sessionId == null) return;
     final takes = await _takes.unsentOf('ensaio', sessionId: sessionId);
     final chunks = await _takes.unsentOf('retro', sessionId: sessionId);
-    if (epoch != _epoch) return;
+    if (_gone || epoch != _epoch) return;
     state = state.copyWith(unsentTakes: takes, unsentChunks: chunks);
   }
 
   void _sayARecordingIsStranded() {
-    if (_strandedSpoken) return;
+    if (_strandedSpoken || _gone) return;
     _strandedSpoken = true;
     unawaited(_voice.playAsset(strandedTakeAsset));
   }

@@ -1715,4 +1715,20 @@ void main() {
 
     expect(container.read(salaSessionProvider).stage, SalaStage.fim);
   });
+
+  test('the room stops touching its providers once it is gone', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    container.dispose();
+
+    await settle(const Duration(milliseconds: 400));
+  },
+      timeout: const Timeout(Duration(seconds: 20)));
 }
