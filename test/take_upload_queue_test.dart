@@ -30,6 +30,45 @@ void main() {
     return file;
   }
 
+  File manifest() => File('${home.path}/guardadas/fila.json');
+
+  test('a manifest it cannot read is never rewritten from scratch', () async {
+    final room = FakeRoom()..reachable = false;
+    final queue = queueOn(room);
+    await queue.enqueue(aTake('velha-1'),
+        sessionId: 'sessao-1', kind: 'ensaio', scope: 'inteira');
+    await queue.enqueue(aTake('velha-2'),
+        sessionId: 'sessao-1', kind: 'ensaio', scope: 'inteira');
+
+    manifest().writeAsStringSync('[{"id": "velha-1", tru');
+
+    await queue.enqueue(aTake('nova'),
+        sessionId: 'sessao-2', kind: 'ensaio', scope: 'inteira');
+
+    expect(await queue.lostHistory(), isTrue,
+        reason: 'as linhas ilegíveis nomeavam áudio e a sessão dele — não podem sumir sem deixar marca');
+    expect(File('${home.path}/guardadas/fila.json.ilegivel').existsSync(), isTrue);
+    expect(File('${home.path}/guardadas/ensaio-velha-1.m4a').existsSync(), isTrue,
+        reason: 'o áudio continua no aparelho mesmo quando o registro dele se perdeu');
+  });
+
+  test('a keep racing a flush does not drop the take it just enqueued', () async {
+    final room = FakeRoom()..reachable = false;
+    final queue = queueOn(room);
+    await queue.enqueue(aTake('primeira'),
+        sessionId: 'sessao-1', kind: 'ensaio', scope: 'inteira');
+
+    room.reachable = true;
+    await Future.wait([
+      queue.flush(),
+      queue.enqueue(aTake('segunda'),
+          sessionId: 'sessao-1', kind: 'ensaio', scope: 'inteira'),
+    ]);
+
+    expect(await queue.entries(), hasLength(2),
+        reason: 'as duas escritas liam a fila antes de escrever, e a última apagava a outra');
+  });
+
   test('a take waits on disk until the room takes it', () async {
     final room = FakeRoom()..reachable = false;
     final queue = queueOn(room);
@@ -113,8 +152,11 @@ void main() {
     room.reachable = true;
     await queue.flush();
 
-    expect(await queue.pending(), isEmpty,
+    expect(await queue.waiting(), isEmpty,
         reason: 'insistir para sempre num arquivo que não existe é uma fila que nunca esvazia');
+    expect(await queue.giveUps(), hasLength(1),
+        reason: 'um áudio que sumiu não é um áudio entregue, e a sala precisa dizer isso');
+    expect(await queue.unsentOf('ensaio', sessionId: 'sessao-1'), 1);
     expect(room.takesKept, isEmpty);
   });
 
