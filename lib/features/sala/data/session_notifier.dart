@@ -837,8 +837,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final path = await _recorder.stop();
     if (epoch != _epoch) return;
     final sessionId = state.sessionId;
-    if (path == null || sessionId == null) {
+    if (path == null) {
+      // The recorder handed nothing back after a turn the team just spoke. Reading that
+      // as an ordinary return to the invite is the same silence `_finishTake` used to
+      // keep, one method over.
       state = state.copyWith(voice: VoiceState.invite);
+      _haltForAPerson();
+      return;
+    }
+    if (sessionId == null) {
+      state = state.copyWith(voice: VoiceState.invite);
+      _haltForAPerson(sessionIsGone: true);
       return;
     }
     if (!_heardSomething) {
@@ -969,7 +978,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (epoch != _epoch) return;
     final sessionId = state.sessionId;
     if (path == null || sessionId == null) {
-      state = state.copyWith(voice: VoiceState.invite);
+      // The team raised their hand, spoke a question, and nothing came back from the
+      // recorder. Returning to the invite in silence is the room forgetting they asked.
+      state = state.copyWith(voice: VoiceState.invite, noteMode: false);
+      _haltForAPerson(sessionIsGone: sessionId == null);
       return;
     }
     try {
@@ -1151,14 +1163,36 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> refreshUnsent() => _countUnsent();
 
   Future<void> _recordOrBlock(String fileName) async {
-    switch (await _recorder.start(fileName)) {
+    final epoch = _epoch;
+    final capture = await _recorder.start(fileName);
+    // The answer can arrive a minute late — `hasPermission` waits up to sixty seconds for
+    // the platform — by which time the team may be on another stage entirely.
+    if (epoch != _epoch || _gone) return;
+    switch (capture) {
       case Capture.started:
         return;
       case Capture.denied:
+        // Unwound as well: the gate replaces the screen, but the state underneath it is
+        // what the team comes back to, and it said the room was recording.
+        _undoTheListening();
         ref.read(micPermissionProvider.notifier).refuse();
       case Capture.failed:
         _theRecorderNeverStarted();
     }
+  }
+
+  /// Put back whatever the caller set before it asked for a microphone.
+  void _undoTheListening() {
+    final capturing = state.btPhase == BtPhase.capturing;
+    state = state.copyWith(
+      ensaio: EnsaioStatus.idle,
+      noteMode: false,
+      btPhase: capturing ? BtPhase.playing : state.btPhase,
+      voice: VoiceState.invite,
+    );
+    // The retro's clip was paused for the telling-back that never started. Its sibling
+    // `_finishChunkCapture` resumes it; this path left it frozen with the halo running.
+    if (capturing && !state.btClipEnded) _letTheClipRun();
   }
 
   /// The screen already said the room was listening, and it was not.
@@ -1167,13 +1201,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// left the circle gathering over a microphone that was off. The team performs the
   /// whole passage into it and loses it.
   void _theRecorderNeverStarted() {
-    state = state.copyWith(
-      ensaio: EnsaioStatus.idle,
-      noteMode: false,
-      btPhase: state.btPhase == BtPhase.capturing
-          ? BtPhase.playing
-          : state.btPhase,
-    );
+    _undoTheListening();
     _haltForAPerson();
   }
 

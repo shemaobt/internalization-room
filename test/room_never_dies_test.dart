@@ -645,6 +645,56 @@ void main() {
             'equipe falava um turno inteiro dentro dela');
   });
 
+  test('a denied microphone leaves no screen pretending to record', () async {
+    final harness = SalaHarness();
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    harness.recorder.permitted = false;
+    notifier.ensaioTap();
+    await settle();
+
+    expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.idle,
+        reason: 'a porteira troca a tela, mas o estado embaixo dela é o que a equipe '
+            'encontra ao voltar — e ele dizia que a sala estava gravando');
+  });
+
+  test('a turn the recorder never handed back is not a shrug', () async {
+    final harness = SalaHarness();
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.conversaTap();
+    await settle();
+    harness.recorder.returnsNothing = true;
+    notifier.conversaTap();
+    await settle();
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'a equipe acabou de falar a passagem inteira e nada voltou do gravador; '
+            'voltar ao convite em silêncio é o mesmo descarte que o ensaio tinha');
+  });
+
+  test('a question the recorder never handed back is not forgotten', () async {
+    final harness = SalaHarness();
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.handTap();
+    await settle();
+    harness.recorder.returnsNothing = true;
+    notifier.conversaTap();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.needsPerson, isTrue);
+    expect(state.noteMode, isFalse);
+  });
+
   test('hearing again is not offered on top of the retro clip', () async {
     final harness = SalaHarness();
     harness.room.verdictChecked = false;
