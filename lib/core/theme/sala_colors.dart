@@ -82,8 +82,15 @@ class SalaColors extends ThemeExtension<SalaColors> {
     cord: Color(0xFF4A4336),
     telha: Color(0xFFE36A1E),
     halo: Color(0x73E36A1E),
-    oatHi: Color(0xFF3A332A),
-    oat: Color(0xFF2C2620),
+    // Raised out of the background. At #2C2620 the unfilled bead sat at 1.2:1 against the
+    // dark paper, and the only thing carrying its shape was a ten-percent black shadow,
+    // which renders as nothing on near-black. The bead that means "this part of the
+    // passage is still ahead of you" was invisible, so the cord looked finished from the
+    // first turn — and the hollow bead elsewhere means "this recording has not left the
+    // tablet". #5F564A is 2.5:1 against the paper and still 3:1 against a filled bead,
+    // which is the contrast that has to survive: the two must not read as one.
+    oatHi: Color(0xFF6E6455),
+    oat: Color(0xFF5F564A),
     clayHi: Color(0xFF5A5045),
     clay: Color(0xFF463E33),
     elev: Color(0xFF221B12),
