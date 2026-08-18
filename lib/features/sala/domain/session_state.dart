@@ -136,6 +136,13 @@ class SalaSessionState {
 
   bool get ensaioDone => takes >= 1 && ensaio == EnsaioStatus.idle;
 
+  /// Whether the way out of the rehearsal belongs on the screen at all.
+  ///
+  /// Apart from whether it can be touched this instant. Gating the widget's existence on
+  /// readiness takes its hit box with it, so a finger already travelling toward it during
+  /// a ghost play lands on nothing.
+  bool get ensaioHasATake => takes >= 1;
+
   bool get awaitingFirstTouch =>
       stage == SalaStage.convite &&
       conviteStep == ConviteStep.boasVindas &&
@@ -153,6 +160,12 @@ class SalaSessionState {
       stage == SalaStage.convite &&
       conviteStep == ConviteStep.entrada &&
       voice == VoiceState.invite;
+
+  /// The same, minus the readiness — see [ensaioHasATake]. Hearing the book overview
+  /// again is offered at exactly the same moment as this button, and used to delete it
+  /// for the minute or two the overview takes.
+  bool get entradaOffered =>
+      stage == SalaStage.convite && conviteStep == ConviteStep.entrada;
 
   bool get hasUnheardReply => replies.any((reply) => !reply.heard);
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -356,5 +358,54 @@ void main() {
 
     expect(container.read(salaSessionProvider).voice, VoiceState.invite,
         reason: 'a retro travada não tinha saída nenhuma pela tela');
+  });
+
+  testWidgets('the way forward does not vanish while the room replays a line', (
+    tester,
+  ) async {
+    final harness = SalaHarness();
+    final container = await pumpSala(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.openConvite();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(container.read(salaSessionProvider).showEntrada, isTrue);
+    expect(find.byType(AdvanceButton), findsOneWidget);
+
+    harness.voice.holdNextLine();
+    unawaited(notifier.hearAgain());
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(container.read(salaSessionProvider).showEntrada, isFalse,
+        reason: 'a sala está falando, então o toque não vale agora');
+    expect(find.byType(AdvanceButton), findsOneWidget,
+        reason: 'mas o alvo não pode sumir: ouvir o panorama de novo leva um a dois '
+            'minutos, e a mão já estava a caminho do botão');
+
+    harness.voice.finishHeldLine();
+    await tester.pump(const Duration(milliseconds: 400));
+  });
+
+  testWidgets('the way out of the rehearsal survives a ghost play', (tester) async {
+    final harness = SalaHarness();
+    final container = await pumpSala(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.goConversa();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await tester.pump(const Duration(milliseconds: 300));
+    notifier.takeKeep();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(AdvanceButton), findsOneWidget);
+
+    notifier.ghostPlay();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(container.read(salaSessionProvider).ensaioDone, isFalse);
+    expect(find.byType(AdvanceButton), findsOneWidget,
+        reason: 'ouvir o ensaio guardado apagava o caminho para a retro');
   });
 }
