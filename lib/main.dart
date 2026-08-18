@@ -9,17 +9,31 @@ import 'features/sala/presentation/sala_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Env.load();
+  // A `.env` that will not load, or one missing a value, is a broken build — and the
+  // failure has to reach the room rather than the console. `Env`'s own throw is an
+  // `Error`, which every catch between the network layer and the screen misses, so a
+  // missing key used to loop the invite between offline and touch-me forever against a
+  // healthy server. The room asks for a person instead, which is the one halted state
+  // with a glyph, a spoken line and a way out.
+  var built = true;
+  try {
+    await Env.load();
+    built = Env.complete;
+  } on Object {
+    built = false;
+  }
   await configureRoomAudio();
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  runApp(const ProviderScope(child: SalaApp()));
+  runApp(ProviderScope(child: SalaApp(built: built)));
 }
 
 class SalaApp extends StatelessWidget {
-  const SalaApp({super.key});
+  final bool built;
+
+  const SalaApp({super.key, this.built = true});
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +42,7 @@ class SalaApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      home: const SalaScreen(),
+      home: SalaScreen(built: built),
     );
   }
 }

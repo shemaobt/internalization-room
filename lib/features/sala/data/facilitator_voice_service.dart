@@ -84,7 +84,12 @@ class FacilitatorVoiceService {
       unawaited(_touch(file));
       return file;
     }
-    await file.writeAsBytes(await _fetch(url));
+    // Staged and renamed, like the take queue two files away. `writeAsBytes` truncates
+    // first, so a kill mid-write left a short file that passes `length > 0` and is served
+    // from then on: the room goes mute on that one line, and stays mute across restarts.
+    final staging = File('${file.path}.novo');
+    await staging.writeAsBytes(await _fetch(url), flush: true);
+    await staging.rename(file.path);
     unawaited(_dropOldestBeyondBudget(dir));
     return file;
   }
