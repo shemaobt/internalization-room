@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -212,6 +213,47 @@ void main() {
     expect(find.byType(ColarOverlay), findsOneWidget);
     expect(bySemanticsLabelWidget('Levantar a mão'), findsOneWidget);
     expect(bySemanticsLabelWidget('Tocar para falar'), findsOneWidget);
+  });
+
+  testWidgets('the dev latch waits for a session before offering the skip',
+      (tester) async {
+    dotenv.testLoad(
+      fileInput: 'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
+    );
+    addTearDown(() => dotenv.testLoad(fileInput: ''));
+    final harness = SalaHarness()..network.reachable = false;
+    final container = await pumpSala(tester, harness);
+    unawaited(container.read(salaSessionProvider.notifier).goConversa());
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
+    expect(container.read(salaSessionProvider).sessionId, isNull);
+    expect(bySemanticsLabelWidget('Ir para o ensaio'), findsNothing,
+        reason: 'sem sessão, pular criaria um ensaio órfão: gravações sem '
+            'sessão e uma sala pedindo pessoa');
+
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
+    await tester.pump();
+  });
+
+  testWidgets('the dev latch opens the way into the ensaio', (tester) async {
+    dotenv.testLoad(
+      fileInput: 'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
+    );
+    addTearDown(() => dotenv.testLoad(fileInput: ''));
+    final container = await pumpSala(tester, SalaHarness());
+    unawaited(container.read(salaSessionProvider.notifier).goConversa());
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).sessionId, isNotNull);
+    expect(bySemanticsLabelWidget('Ir para o ensaio'), findsOneWidget);
+
+    await tester.tap(bySemanticsLabelWidget('Ir para o ensaio'));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
+    expect(bySemanticsLabelWidget('Tocar para gravar o ensaio'), findsOneWidget);
   });
 
   testWidgets('a peer cue turns the circle into team-talk mode',

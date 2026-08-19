@@ -42,7 +42,8 @@ class ConversaView extends ConsumerWidget {
               const SizedBox(height: 44),
               SizedBox(
                 height: 64,
-                child: session.conversaDone || Env.devPularFases
+                child: session.conversaDone ||
+                        (Env.devPularFases && session.sessionId != null)
                     ? AdvanceButton(
                         gradient: BeadStyles.verde,
                         semanticLabel: 'Ir para o ensaio',
