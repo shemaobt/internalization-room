@@ -11,6 +11,7 @@ import 'package:internalization_room/features/sala/data/playback_repository.dart
 import 'package:internalization_room/features/sala/data/recording_repository.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
+import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/coverage.dart';
@@ -216,6 +217,34 @@ class FakeFinished implements FinishedPassages {
 
   @override
   Future<void> markBookOpened(String book) async => done.add('livro:$book');
+}
+
+/// In memory, like the finished-passages double. The real one touches disk, and the
+/// wheel now reads it on every open — under a widget test's fake clock that never
+/// resolves, which hangs the whole suite.
+class FakeWorkInProgress implements WorkInProgress {
+  final Map<String, ResumePoint> rows = {};
+
+  @override
+  Future<Set<String>> startedIn(String book) async => {
+        for (final key in rows.keys)
+          if (key.startsWith('$book/')) key.substring(book.length + 1),
+      };
+
+  @override
+  Future<ResumePoint?> of(String book, String pericope) async =>
+      rows['$book/$pericope'];
+
+  @override
+  Future<void> remember(String book, String pericope, ResumePoint point) async =>
+      rows['$book/$pericope'] = point;
+
+  @override
+  Future<void> forget(String book, String pericope) async =>
+      rows.remove('$book/$pericope');
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class FakeInbox implements HandInboxRepository {
@@ -477,6 +506,8 @@ class SalaHarness {
 
   final FakeFinished finished = FakeFinished();
 
+  final FakeWorkInProgress emAberto = FakeWorkInProgress();
+
   late final TakeUploadQueue takes = TakeUploadQueue(
     room: room,
     home: () async => takesHome,
@@ -490,6 +521,7 @@ class SalaHarness {
         roomRepositoryProvider.overrideWithValue(room),
         takeUploadQueueProvider.overrideWithValue(takes),
         finishedPassagesProvider.overrideWithValue(finished),
+        workInProgressProvider.overrideWithValue(emAberto),
         connectivityServiceProvider.overrideWithValue(network),
         beadSettleDelayProvider.overrideWithValue(settleDelay),
         roomRetryBackoffProvider.overrideWithValue(retryBackoff),

@@ -832,6 +832,90 @@ void main() {
             'único registro de progresso que essa equipe percebe');
   });
 
+  test('coming back to a passage reopens the same session', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.abrirEscolha();
+    await settle();
+    notifier.entrarNaOferecida();
+    await settle();
+    final aberta = container.read(salaSessionProvider).sessionId;
+    expect(aberta, isNotNull);
+
+    notifier.leaveThePassage();
+    await settle();
+    expect(container.read(salaSessionProvider).comecadas, contains('P01'),
+        reason: 'a régua desenha essas mais altas, porque voltar a uma é outro ato');
+
+    harness.room.pericopesAsked.clear();
+    notifier.entrarNaOferecida();
+    await settle();
+
+    expect(container.read(salaSessionProvider).sessionId, aberta,
+        reason: 'sair abandonava a sessão no servidor para sempre — e o servidor não a '
+            'reencontra, porque ir_sessions não guarda aparelho');
+    expect(harness.room.pericopesAsked, isEmpty,
+        reason: 'e não se cria outra em cima da que já existe');
+  });
+
+  test('a passage carried to the end stops being work in progress', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    // Entered through the wheel, because a resume point is a passage: `goConversa()` with
+    // no pericope has nothing to remember.
+    await notifier.abrirEscolha();
+    await settle();
+    notifier.entrarNaOferecida();
+    await settle();
+
+    notifier.goEnsaio();
+    await settle();
+    expect(await harness.emAberto.startedIn('Ruth'), contains('P01'));
+
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    notifier.startRetro();
+    await settle();
+    harness.playback.finishPlayback();
+    await settle();
+    await notifier.finishBackTranslation();
+    await settle(const Duration(milliseconds: 900));
+
+    expect(await harness.emAberto.startedIn('Ruth'), isEmpty,
+        reason: 'uma passagem conferida não é trabalho em aberto');
+  });
+
+  test('a session the server forgot starts the passage clean', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.abrirEscolha();
+    await settle();
+    notifier.entrarNaOferecida();
+    await settle();
+    notifier.leaveThePassage();
+    await settle();
+
+    harness.room.failWith = const SessionGone();
+    notifier.entrarNaOferecida();
+    await settle();
+    harness.room.failWith = null;
+    await settle(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).stage, SalaStage.conversa,
+        reason: 'lembrar de uma sessão que o servidor esqueceu não pode virar beco');
+  });
+
   test('hearing again is not offered on top of the retro clip', () async {
     final harness = SalaHarness();
     harness.room.verdictChecked = false;

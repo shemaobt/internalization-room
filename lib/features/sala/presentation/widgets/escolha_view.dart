@@ -57,6 +57,10 @@ class EscolhaView extends ConsumerWidget {
         PassageRuler(
           total: roda.length,
           at: session.aOferecer,
+          started: {
+            for (var index = 0; index < roda.length; index++)
+              if (session.comecadas.contains(roda[index].pericope)) index,
+          },
           hint: podeEntrar,
           onAim: notifier.apontarPassagem,
           onSettle: notifier.dizerAPassagem,
