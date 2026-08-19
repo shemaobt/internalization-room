@@ -1,5 +1,7 @@
 abstract class KeptScope {
   static const whole = 'passagem-inteira';
+
+  static String parte(int n) => 'parte-$n';
 }
 
 class KeptTake {

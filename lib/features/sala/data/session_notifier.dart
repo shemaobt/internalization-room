@@ -109,6 +109,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Duration _trechoStart = Duration.zero;
   Duration _trechoEnd = Duration.zero;
   int _retroClipMs = 0;
+  int _parteTocando = 0;
+  List<int> _fimDaParteMs = [];
+  int _ghostParte = 0;
   String? _panoramaSessionId;
 
   String? _bridgeMode;
@@ -1221,18 +1224,37 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void ghostPlay() {
     if (state.ensaio == EnsaioStatus.ghostPlaying) {
       // The button already showed a pause glyph; it just did not pause.
+      state = state.copyWith(ensaio: EnsaioStatus.idle);
       _releasePlayback();
       unawaited(_playback.stop());
       return;
     }
-    final take = state.wholeTake;
-    if (take == null || state.ensaio != EnsaioStatus.idle) return;
+    if (state.partes.isEmpty || state.ensaio != EnsaioStatus.idle) return;
     state = state.copyWith(ensaio: EnsaioStatus.ghostPlaying);
+    _ghostParte = 0;
+    _tocarParteFantasma();
+  }
+
+  void _tocarParteFantasma() {
     void backToTheCircle() {
       state = state.copyWith(ensaio: EnsaioStatus.idle);
     }
 
-    _play(take.path, onComplete: backToTheCircle, onFailed: backToTheCircle);
+    void aProxima() {
+      _ghostParte++;
+      if (_ghostParte >= state.partes.length ||
+          state.ensaio != EnsaioStatus.ghostPlaying) {
+        backToTheCircle();
+        return;
+      }
+      _tocarParteFantasma();
+    }
+
+    _play(
+      state.partes[_ghostParte].path,
+      onComplete: aProxima,
+      onFailed: backToTheCircle,
+    );
   }
 
   void ensaioTap() {
@@ -1294,15 +1316,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(ensaio: EnsaioStatus.idle);
       return;
     }
+    final parte = state.keptTakes.length + 1;
+    final escopo = KeptScope.parte(parte);
     state = state.copyWith(
       ensaio: EnsaioStatus.idle,
-      takes: state.takes + 1,
-      keptTakes: [
-        ...state.keptTakes.where((take) => take.scopeId != KeptScope.whole),
-        KeptTake(scopeId: KeptScope.whole, path: path),
-      ],
+      keptTakes: [...state.keptTakes, KeptTake(scopeId: escopo, path: path)],
+      takes: state.keptTakes.length + 1,
     );
-    unawaited(_guard(path, kind: 'ensaio', scope: KeptScope.whole));
+    unawaited(_guard(path, kind: 'ensaio', scope: escopo, chunkIndex: parte));
     _rememberWhereTheyAre(SalaStage.ensaio);
   }
 
@@ -1420,8 +1441,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (sessionId == null) return;
     final takes = await _takes.unsentOf('ensaio', sessionId: sessionId);
     final chunks = await _takes.unsentOf('retro', sessionId: sessionId);
+    final scopes = await _takes.unsentScopesOf('ensaio', sessionId: sessionId);
     if (_gone || epoch != _epoch) return;
-    state = state.copyWith(unsentTakes: takes, unsentChunks: chunks);
+    state = state.copyWith(
+      unsentTakes: takes,
+      unsentChunks: chunks,
+      unsentTakeScopes: scopes,
+    );
   }
 
   void _sayARecordingIsStranded() {
@@ -1450,25 +1476,36 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _playClipFromStart() {
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
+    _parteTocando = 0;
+    _fimDaParteMs = [];
     state = state.copyWith(
       btTrechos: const [],
       clearFindingChunk: true,
       btTrechoTocando: false,
+      btParteFronteira: false,
     );
-    final take = state.wholeTake;
-    if (take == null) {
+    if (state.partes.isEmpty) {
       // No rehearsal to tell back is not a rehearsal that finished playing. Calling it
       // one opened `terminei` over an empty back translation.
       _haltForAPerson();
       return;
     }
     _retroClipMs = 0;
+    _tocarParteDaRetro(0);
+  }
+
+  int _inicioDaParteMs(int parte) => parte == 0 ? 0 : _fimDaParteMs[parte - 1];
+
+  Duration get _posicaoGlobal =>
+      Duration(milliseconds: _inicioDaParteMs(_parteTocando)) +
+      _playback.position;
+
+  void _tocarParteDaRetro(int parte) {
+    _parteTocando = parte;
+    state = state.copyWith(btParteFronteira: false);
     _play(
-      take.path,
-      onComplete: () {
-        _retroClipMs = _playback.position.inMilliseconds;
-        state = state.copyWith(btClipEnded: true);
-      },
+      state.partes[parte].path,
+      onComplete: _fimDeParte,
       onFailed: () {
         // The one caller I left without this, under a comment saying every caller had it.
         // A rehearsal that will not open cannot be told back at all, and the retro has no
@@ -1482,6 +1519,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
+  void _fimDeParte() {
+    final fim =
+        _inicioDaParteMs(_parteTocando) + _playback.position.inMilliseconds;
+    if (_fimDaParteMs.length <= _parteTocando) _fimDaParteMs.add(fim);
+    if (_parteTocando >= state.partes.length - 1) {
+      _retroClipMs = fim;
+      state = state.copyWith(btClipEnded: true, btParteFronteira: false);
+      return;
+    }
+    state = state.copyWith(btParteFronteira: true);
+  }
+
+  void proximaParte() {
+    if (state.stage != SalaStage.retro) return;
+    if (state.btPhase != BtPhase.playing || !state.btParteFronteira) return;
+    if (state.needsPerson || state.offline) return;
+    _tocarParteDaRetro(_parteTocando + 1);
+  }
+
   void retroTap() {
     if (state.stage != SalaStage.retro) return;
     if (state.offline) {
@@ -1491,7 +1547,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.needsPerson) return;
     switch (state.btPhase) {
       case BtPhase.playing:
-        _trechoEnd = _playback.position;
+        _trechoEnd = _posicaoGlobal;
         _holdClip();
         _startChunkCapture();
       case BtPhase.capturing:
@@ -1529,7 +1585,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
     if (path == null || sessionId == null) {
       state = state.copyWith(btPhase: BtPhase.playing, voice: VoiceState.invite);
-      if (!state.btClipEnded) _letTheClipRun();
+      _retomarClipe();
       return;
     }
 
@@ -1560,7 +1616,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           voice: VoiceState.invite,
           btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
         );
-        if (!state.btClipEnded) _letTheClipRun();
+        _retomarClipe();
         return;
       }
     } on Exception catch (error) {
@@ -1576,7 +1632,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
       );
       _handleRoomFailure(error);
-      if (!state.btClipEnded) _letTheClipRun();
+      _retomarClipe();
       return;
     }
 
@@ -1597,7 +1653,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btChunkPasses: [...state.btChunkPasses, captured.passNumber],
       btTrechos: [...state.btTrechos, trecho],
     );
-    if (!state.btClipEnded) _letTheClipRun();
+    _retomarClipe();
+  }
+
+  void _retomarClipe() {
+    if (state.btClipEnded || state.btParteFronteira) return;
+    _letTheClipRun();
   }
 
   /// Where the stretch just told sits in the row, counting the ones that failed.
@@ -1648,22 +1709,45 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _leadThemToTheTrecho() {
-    final take = state.wholeTake;
     final trecho = _trechoOfTheFinding();
-    if (take == null || trecho == null) return;
+    if (state.partes.isEmpty || trecho == null) return;
+    state = state.copyWith(btTrechoTocando: true);
+    _tocarFaixaGlobal(trecho.from, trecho.to);
+  }
+
+  int _parteQueContem(int posicaoMs) {
+    for (var i = 0; i < _fimDaParteMs.length; i++) {
+      if (posicaoMs < _fimDaParteMs[i]) return i;
+    }
+    return state.partes.length - 1;
+  }
+
+  void _tocarFaixaGlobal(Duration from, Duration to) {
     // Without a state to show, the stretch played into a screen that looked exactly like
     // the one waiting for the team to speak.
     void quiet() {
       state = state.copyWith(btTrechoTocando: false);
     }
 
-    _onPlaybackComplete = quiet;
+    final parte = _parteQueContem(from.inMilliseconds);
+    final inicio = _inicioDaParteMs(parte);
+    final fimDaParte = parte < _fimDaParteMs.length
+        ? _fimDaParteMs[parte]
+        : to.inMilliseconds;
+    final localFrom = Duration(milliseconds: from.inMilliseconds - inicio);
+    final atravessa = to.inMilliseconds > fimDaParte;
+    final localTo = Duration(
+      milliseconds: (atravessa ? fimDaParte : to.inMilliseconds) - inicio,
+    );
+
+    _onPlaybackComplete = atravessa
+        ? () => _tocarFaixaGlobal(Duration(milliseconds: fimDaParte), to)
+        : quiet;
     _onPlaybackFailed = quiet;
     _listenForTheEnd();
-    state = state.copyWith(btTrechoTocando: true);
     unawaited(
       _playback
-          .playRange(take.path, trecho.from, trecho.to)
+          .playRange(state.partes[parte].path, localFrom, localTo)
           .then((_) => _watchPlayback()),
     );
   }
@@ -1695,15 +1779,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       unawaited(_forgetTheAbandonedClip(sessionId));
     }
     _clearAll();
+    _parteTocando = 0;
+    _fimDaParteMs = [];
     state = state.copyWith(
       stage: SalaStage.ensaio,
       voice: VoiceState.invite,
       ensaio: EnsaioStatus.idle,
       takes: 0,
+      keptTakes: const [],
       btPhase: BtPhase.playing,
       btChunkPasses: const [],
       btChunkFailures: const [],
       btClipEnded: false,
+      btParteFronteira: false,
       btFindings: const [],
       btPass: 1,
     );
@@ -1767,6 +1855,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _failSafeTurns = 0;
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
+    _parteTocando = 0;
+    _fimDaParteMs = [];
+    _ghostParte = 0;
     _pendingTakePath = null;
     _emCurso = null;
   }

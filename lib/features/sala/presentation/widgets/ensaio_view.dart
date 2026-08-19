@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
+import '../../data/take_upload_queue.dart';
 import '../../domain/session_state.dart';
 import 'bead.dart';
 import 'bead_styles.dart';
@@ -106,14 +107,15 @@ class EnsaioView extends ConsumerWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              for (var i = 0; i < session.takes; i++)
+              for (final take in session.keptTakes)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 7),
                   child: PingIn(
                     child: Bead(
                       size: 24,
                       opacity: 0.45,
-                      filled: i < session.takes - session.unsentTakes.clamp(0, session.takes),
+                      filled: !session.unsentTakeScopes.contains(take.scopeId) &&
+                          !session.unsentTakeScopes.contains(unknownScope),
                     ),
                   ),
                 ),

@@ -19,9 +19,10 @@ class RetroView extends ConsumerWidget {
     final notifier = ref.read(salaSessionProvider.notifier);
     final colors = SalaColors.of(context);
     final conferida = session.btPhase == BtPhase.conferida;
-    final clipRunning =
-        (session.btPhase == BtPhase.playing && !session.btClipEnded) ||
-            session.btTrechoTocando;
+    final clipRunning = (session.btPhase == BtPhase.playing &&
+            !session.btClipEnded &&
+            !session.btParteFronteira) ||
+        session.btTrechoTocando;
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -90,6 +91,20 @@ class RetroView extends ConsumerWidget {
               ),
             ),
           ],
+        ),
+      );
+    }
+    if (session.btPhase == BtPhase.playing &&
+        session.btParteFronteira &&
+        !session.btClipEnded) {
+      return AdvanceButton(
+        gradient: BeadStyles.wood,
+        semanticLabel: 'Ouvir a proxima parte da gravacao',
+        onTap: notifier.proximaParte,
+        child: const Icon(
+          LucideIcons.skipForward,
+          size: 26,
+          color: ShemaBrand.branco,
         ),
       );
     }

@@ -712,7 +712,7 @@ void main() {
     notifier.takeKeep();
     await settle();
 
-    expect(harness.room.takesKept, ['ensaio/${KeptScope.whole}'],
+    expect(harness.room.takesKept, ['ensaio/${KeptScope.parte(1)}'],
         reason: 'o ensaio é o produto — um tablet que quebra não pode levar a sessão junto');
     expect(await harness.takes.pending(), isEmpty);
   });
@@ -738,7 +738,7 @@ void main() {
     harness.room.reachable = true;
     await harness.takes.flush();
 
-    expect(harness.room.takesKept, ['ensaio/${KeptScope.whole}']);
+    expect(harness.room.takesKept, ['ensaio/${KeptScope.parte(1)}']);
   });
 
   test('a take the server has not taken yet is not counted as safe', () async {
@@ -1454,7 +1454,7 @@ void main() {
     notifier.ensaioTap();
     notifier.ensaioTap();
     await settle();
-    harness.room.refuseTake = 'ensaio/${KeptScope.whole}';
+    harness.room.refuseTake = 'ensaio/${KeptScope.parte(1)}';
     notifier.takeKeep();
     await settle();
 
@@ -1661,7 +1661,7 @@ void main() {
 
     expect(container.read(salaSessionProvider).takes, 1,
         reason: 'um keep rápido achava o caminho nulo e descartava a tomada em silêncio');
-    expect(container.read(salaSessionProvider).wholeTake, isNotNull);
+    expect(container.read(salaSessionProvider).partes, hasLength(1));
   });
 
   test('a failed take never destroys the one already kept', () async {
@@ -1675,7 +1675,7 @@ void main() {
     notifier.ensaioTap();
     await settle();
     notifier.takeKeep();
-    final guardada = container.read(salaSessionProvider).wholeTake;
+    final guardada = container.read(salaSessionProvider).partes.firstOrNull;
     expect(guardada, isNotNull);
 
     final contadas = container.read(salaSessionProvider).takes;
@@ -1685,7 +1685,7 @@ void main() {
     await settle();
 
     final state = container.read(salaSessionProvider);
-    expect(state.wholeTake?.path, guardada!.path);
+    expect(state.partes.firstOrNull?.path, guardada!.path);
     expect(state.ensaio, EnsaioStatus.idle,
         reason: 'oferecer guardar, refazer e ouvir sobre uma tomada que não existe deixava '
             'a equipe confirmar um ensaio no vazio, do mesmo jeito que um bom');
@@ -1835,6 +1835,231 @@ void main() {
         reason: 'o createSession já devolve a cobertura; o colar não espera a voz');
     harness.voice.finishHeldFetch();
     await settle();
+  });
+
+  Future<void> gravaParte(SalaSessionNotifier notifier) async {
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    await settle();
+  }
+
+  test('the rehearsal is told in parts, each kept in order', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    await gravaParte(notifier);
+    await gravaParte(notifier);
+    await gravaParte(notifier);
+
+    final state = container.read(salaSessionProvider);
+    expect(state.takes, 3);
+    expect([for (final t in state.partes) t.scopeId],
+        ['parte-1', 'parte-2', 'parte-3']);
+    expect(state.ensaio, EnsaioStatus.idle,
+        reason: 'guardar uma parte já deixa o círculo pronto para a próxima');
+    expect(harness.room.takesKept,
+        ['ensaio/parte-1', 'ensaio/parte-2', 'ensaio/parte-3']);
+    expect(state.ensaioDone, isTrue);
+  });
+
+  test('the ghost play walks every part in order', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    await gravaParte(notifier);
+    await gravaParte(notifier);
+
+    notifier.ghostPlay();
+    await settle();
+    expect(harness.playback.played, hasLength(1));
+    harness.playback.finishPlayback();
+    await settle();
+    expect(harness.playback.played, hasLength(2),
+        reason: 'a parte seguinte toca sozinha quando a anterior acaba');
+    harness.playback.finishPlayback();
+    await settle();
+    expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.idle);
+  });
+
+  test('the retro pauses at a part boundary and waits for a gesture', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    await gravaParte(notifier);
+    await gravaParte(notifier);
+    notifier.startRetro();
+    await settle();
+
+    harness.playback.at = const Duration(seconds: 10);
+    harness.playback.finishPlayback();
+    await settle();
+
+    var state = container.read(salaSessionProvider);
+    expect(state.btParteFronteira, isTrue);
+    expect(state.btClipEnded, isFalse,
+        reason: 'a fronteira não é o fim: terminei não pode aparecer aqui');
+    expect(harness.playback.played, hasLength(1));
+
+    notifier.proximaParte();
+    await settle();
+    expect(harness.playback.played, hasLength(2));
+    expect(container.read(salaSessionProvider).btParteFronteira, isFalse);
+
+    harness.playback.at = const Duration(seconds: 8);
+    harness.playback.finishPlayback();
+    await settle();
+    state = container.read(salaSessionProvider);
+    expect(state.btClipEnded, isTrue);
+    expect(state.canFinishBackTranslation, isTrue);
+  });
+
+  test('a stretch told across parts carries global positions', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    await gravaParte(notifier);
+    await gravaParte(notifier);
+    notifier.startRetro();
+    await settle();
+
+    harness.playback.at = const Duration(seconds: 10);
+    harness.playback.finishPlayback();
+    await settle();
+    notifier.retroTap();
+    await settle();
+    notifier.retroTap();
+    await until(() => harness.room.chunksSent == 1);
+    await settle();
+
+    notifier.proximaParte();
+    await settle();
+    harness.playback.at = const Duration(seconds: 5);
+    notifier.retroTap();
+    await settle();
+    notifier.retroTap();
+    await until(() => harness.room.chunksSent == 2);
+    await settle();
+
+    expect(harness.room.chunkSpans, ['0-10000', '10000-15000'],
+        reason: 'a linha do tempo que o servidor vê continua única: os '
+            'deslocamentos somam as partes anteriores');
+  });
+
+  test('terminei sums every part the team heard', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    await gravaParte(notifier);
+    await gravaParte(notifier);
+    notifier.startRetro();
+    await settle();
+    harness.playback.at = const Duration(seconds: 10);
+    harness.playback.finishPlayback();
+    await settle();
+    notifier.proximaParte();
+    await settle();
+    harness.playback.at = const Duration(seconds: 8);
+    harness.playback.finishPlayback();
+    await settle();
+
+    await notifier.finishBackTranslation();
+    await settle();
+
+    expect(harness.room.clipDurationsSent.last, 18000);
+  });
+
+  test('a finding in the second part plays the right stretch of it', () async {
+    final harness = SalaHarness()
+      ..room.verdictChecked = false
+      ..room.verdictFinding = BtFindingKind.missing;
+    final container = await inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    await gravaParte(notifier);
+    await gravaParte(notifier);
+    notifier.startRetro();
+    await settle();
+    harness.playback.at = const Duration(seconds: 10);
+    harness.playback.finishPlayback();
+    await settle();
+    notifier.retroTap();
+    await settle();
+    notifier.retroTap();
+    await until(() => harness.room.chunksSent == 1);
+    await settle();
+    notifier.proximaParte();
+    await settle();
+    harness.playback.at = const Duration(seconds: 3);
+    notifier.retroTap();
+    await settle();
+    notifier.retroTap();
+    await until(() => harness.room.chunksSent == 2);
+    await settle();
+    harness.playback.at = const Duration(seconds: 8);
+    harness.playback.finishPlayback();
+    await settle();
+
+    harness.room.verdictFindingChunk = 2;
+    await notifier.finishBackTranslation();
+    await settle();
+
+    expect(harness.playback.ranges, isNotEmpty);
+    expect(harness.playback.ranges.last, '0-3000',
+        reason: 'o trecho global 10s–13s vive na parte 2, que começa em 10s: '
+            'localmente é 0–3s dentro do arquivo da parte');
+    expect(harness.playback.played.last, contains('captura'),
+        reason: 'e o arquivo tocado é o da parte 2');
+  });
+
+  test('re-recording the clip forgets every part', () async {
+    final harness = SalaHarness()
+      ..room.verdictChecked = false
+      ..room.verdictFinding = BtFindingKind.missing
+      ..room.verdictFindingChunk = 1;
+    final container = await inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    await gravaParte(notifier);
+    await gravaParte(notifier);
+    notifier.startRetro();
+    await settle();
+    harness.playback.at = const Duration(seconds: 4);
+    notifier.retroTap();
+    await settle();
+    notifier.retroTap();
+    await until(() => harness.room.chunksSent == 1);
+    harness.playback.at = const Duration(seconds: 10);
+    harness.playback.finishPlayback();
+    await settle();
+    notifier.proximaParte();
+    await settle();
+    harness.playback.at = const Duration(seconds: 8);
+    harness.playback.finishPlayback();
+    await settle();
+    await notifier.finishBackTranslation();
+    await settle();
+
+    notifier.reRecordClip();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.partes, isEmpty,
+        reason: 'o ghost play tocava o take velho depois de regravar');
+    expect(state.takes, 0);
   });
 
   test('the room stops touching its providers once it is gone', () async {

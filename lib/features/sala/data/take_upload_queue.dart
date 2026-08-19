@@ -19,6 +19,7 @@ const takeUploadAttempts = 5;
 /// half of that decision was never built: a take that only ever times out kept retrying
 /// forever and nobody was ever told. It keeps retrying; it just stops doing it in silence.
 const takeUploadWaitsBeforeSaying = 8;
+const unknownScope = '?';
 
 final takeRetryBackoffProvider = Provider<List<Duration>>(
   (ref) => const [
@@ -204,6 +205,16 @@ class TakeUploadQueue {
       for (final entry in written)
         if (!entry.stored && entry.kind == kind && entry.sessionId == sessionId) entry,
     ].length;
+  }
+
+  Future<Set<String>> unsentScopesOf(String kind, {required String sessionId}) async {
+    final written = await _written();
+    if (written == null) return {unknownScope};
+    return {
+      for (final entry in written)
+        if (!entry.stored && entry.kind == kind && entry.sessionId == sessionId)
+          entry.scope,
+    };
   }
 
   Future<List<PendingTake>> giveUps() async => [

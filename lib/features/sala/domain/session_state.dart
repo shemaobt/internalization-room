@@ -77,11 +77,13 @@ class SalaSessionState {
   /// The room is replaying the stretch a finding landed on.
   final bool btTrechoTocando;
   final bool btClipEnded;
+  final bool btParteFronteira;
   final List<BtFindingKind> btFindings;
   final int btPass;
   final bool fimClosed;
   final int unsentTakes;
   final int unsentChunks;
+  final Set<String> unsentTakeScopes;
 
   const SalaSessionState({
     this.stage = SalaStage.convite,
@@ -112,11 +114,13 @@ class SalaSessionState {
     this.btFindingChunk,
     this.btTrechoTocando = false,
     this.btClipEnded = false,
+    this.btParteFronteira = false,
     this.btFindings = const [],
     this.btPass = 1,
     this.fimClosed = false,
     this.unsentTakes = 0,
     this.unsentChunks = 0,
+    this.unsentTakeScopes = const {},
   });
 
   bool get colarOn =>
@@ -194,14 +198,9 @@ class SalaSessionState {
   bool get canFinishBackTranslation =>
       stage == SalaStage.retro && btPhase == BtPhase.playing && btClipEnded;
 
-  KeptTake? get wholeTake {
-    for (final take in keptTakes) {
-      if (take.scopeId == KeptScope.whole) return take;
-    }
-    return null;
-  }
+  List<KeptTake> get partes => keptTakes;
 
-  bool get canGhostPlay => wholeTake != null && ensaio == EnsaioStatus.idle;
+  bool get canGhostPlay => partes.isNotEmpty && ensaio == EnsaioStatus.idle;
 
   SalaSessionState copyWith({
     SalaStage? stage,
@@ -238,11 +237,13 @@ class SalaSessionState {
     bool clearFindingChunk = false,
     bool? btTrechoTocando,
     bool? btClipEnded,
+    bool? btParteFronteira,
     List<BtFindingKind>? btFindings,
     int? btPass,
     bool? fimClosed,
     int? unsentTakes,
     int? unsentChunks,
+    Set<String>? unsentTakeScopes,
   }) {
     return SalaSessionState(
       stage: stage ?? this.stage,
@@ -276,11 +277,13 @@ class SalaSessionState {
           : (btFindingChunk ?? this.btFindingChunk),
       btTrechoTocando: btTrechoTocando ?? this.btTrechoTocando,
       btClipEnded: btClipEnded ?? this.btClipEnded,
+      btParteFronteira: btParteFronteira ?? this.btParteFronteira,
       btFindings: btFindings ?? this.btFindings,
       btPass: btPass ?? this.btPass,
       fimClosed: fimClosed ?? this.fimClosed,
       unsentTakes: unsentTakes ?? this.unsentTakes,
       unsentChunks: unsentChunks ?? this.unsentChunks,
+      unsentTakeScopes: unsentTakeScopes ?? this.unsentTakeScopes,
     );
   }
 }
