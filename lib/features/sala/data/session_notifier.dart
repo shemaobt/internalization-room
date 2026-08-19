@@ -109,6 +109,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Duration _trechoStart = Duration.zero;
   Duration _trechoEnd = Duration.zero;
   String? _panoramaSessionId;
+
+  String? _bridgeMode;
+  bool _awaitingCalibration = false;
   String? _pendingTakePath;
   StreamSubscription<void>? _playbackDone;
   StreamSubscription<void>? _playbackFailed;
@@ -288,6 +291,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _voiceTurn(TurnResult turn) async {
     final epoch = _epoch;
+    _captureBridgeMode(turn);
     await _readyToSpeak(turn.audioUrl, turn.fixedLine);
     if (epoch != _epoch) return;
     state = state.copyWith(voice: VoiceState.speaking);
@@ -639,11 +643,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _slowAnswers = 0;
     _retryStep = 0;
     _noticeSpoken = false;
+    _captureBridgeMode(turn);
     unawaited(_feitas.markBookOpened(_book).catchError((_) {}));
     state = state.copyWith(
       voice: VoiceState.invite,
       conviteStep: ConviteStep.entrada,
     );
+  }
+
+  void _captureBridgeMode(TurnResult turn) {
+    if (turn.bridgeMode.isEmpty) {
+      _awaitingCalibration = false;
+      return;
+    }
+    if (turn.bridgeMode == 'calibration_pending') {
+      _awaitingCalibration = true;
+      return;
+    }
+    _bridgeMode = turn.bridgeMode;
+    _awaitingCalibration = false;
   }
 
   void conviteTap() {
@@ -652,8 +670,59 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       retryNow();
       return;
     }
+    if (state.conviteStep == ConviteStep.entrada && _awaitingCalibration) {
+      switch (state.voice) {
+        case VoiceState.invite:
+          _startListening('calibracao_${_stamp()}');
+        case VoiceState.listening:
+          unawaited(_finishCalibrationListening());
+        case VoiceState.thinking:
+        case VoiceState.speaking:
+        case VoiceState.done:
+        case VoiceState.needsPerson:
+        case VoiceState.offline:
+        case VoiceState.blocked:
+          break;
+      }
+      return;
+    }
     if (state.voice != VoiceState.invite) return;
     if (state.conviteStep == ConviteStep.boasVindas) unawaited(openConvite());
+  }
+
+  Future<void> _finishCalibrationListening() async {
+    final epoch = _epoch;
+    final path = await _recorder.stop();
+    if (epoch != _epoch) return;
+    final panorama = _panoramaSessionId;
+    if (path == null) {
+      state = state.copyWith(voice: VoiceState.invite);
+      _haltForAPerson();
+      return;
+    }
+    if (panorama == null) {
+      _awaitingCalibration = false;
+      state = state.copyWith(voice: VoiceState.invite);
+      unawaited(_recorder.delete(path));
+      return;
+    }
+    if (!_heardSomething) {
+      await _askThemToRepeat(path);
+      return;
+    }
+    _sayImThinking();
+    state = state.copyWith(voice: VoiceState.thinking);
+    _watchBusyState();
+    try {
+      final turn = await _room.sendTurn(panorama, File(path));
+      if (epoch != _epoch) return;
+      await _voicePanorama(turn);
+    } on Exception catch (error) {
+      if (epoch != _epoch) return;
+      _handleRoomFailure(error);
+    } finally {
+      unawaited(_recorder.delete(path));
+    }
   }
 
 
@@ -825,6 +894,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           (await _room.createSession(
             pericope: pericope,
             afterSession: _panoramaSessionId,
+            bridgeMode: _bridgeMode,
           ))
               .sessionId;
       if (epoch != _epoch) return;
@@ -1659,6 +1729,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _forgetThePassage();
     _conviteOpened = false;
     _panoramaSessionId = null;
+    _awaitingCalibration = false;
     state = const SalaSessionState();
     unawaited(abrirEscolha());
   }
