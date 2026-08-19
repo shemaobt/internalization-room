@@ -108,6 +108,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _failSafeTurns = 0;
   Duration _trechoStart = Duration.zero;
   Duration _trechoEnd = Duration.zero;
+  int _retroClipMs = 0;
   String? _panoramaSessionId;
 
   String? _bridgeMode;
@@ -1455,9 +1456,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _haltForAPerson();
       return;
     }
+    _retroClipMs = 0;
     _play(
       take.path,
       onComplete: () {
+        _retroClipMs = _playback.position.inMilliseconds;
         state = state.copyWith(btClipEnded: true);
       },
       onFailed: () {
@@ -1607,7 +1610,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(btPhase: BtPhase.thinking, voice: VoiceState.thinking);
     _watchBusyState();
     try {
-      final verdict = await _room.finishBackTranslation(sessionId);
+      final verdict = await _room.finishBackTranslation(
+        sessionId,
+        clipDurationMs: _retroClipMs,
+      );
       if (epoch != _epoch) return;
       await _readyToSpeak(verdict.audioUrl, verdict.fixedLine);
       if (epoch != _epoch) return;

@@ -1782,6 +1782,30 @@ void main() {
         reason: 'o servidor decide a troca; o tablet só a carrega para a próxima passagem');
   });
 
+  test('terminei carries how much of the clip was actually heard', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    notifier.startRetro();
+    await settle();
+    harness.playback.at = const Duration(seconds: 61);
+    harness.playback.finishPlayback();
+    await settle();
+    await notifier.finishBackTranslation();
+    await settle();
+
+    expect(harness.room.clipDurationsSent, isNotEmpty);
+    expect(harness.room.clipDurationsSent.last, 61000,
+        reason: 'o alcance tocado é evidência para o artefato do Refine: '
+            'o servidor registra o que o tablet realmente deixou tocar');
+  });
+
   test('the room stops touching its providers once it is gone', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);

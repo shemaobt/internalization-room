@@ -189,11 +189,22 @@ class RoomRepository {
     _read(response, (json) => json);
   }
 
-  Future<BackTranslationVerdict> finishBackTranslation(String sessionId) async {
+  Future<BackTranslationVerdict> finishBackTranslation(
+    String sessionId, {
+    int? clipDurationMs,
+  }) async {
     final response = await _send(
       () => _client.post(
         _uri('/sessions/$sessionId/back-translation/finish'),
         headers: _headers,
+        body: clipDurationMs == null || clipDurationMs <= 0
+            ? null
+            : jsonEncode({
+                'played_ranges': [
+                  [0, clipDurationMs],
+                ],
+                'clip_duration_ms': clipDurationMs,
+              }),
       ),
       _turnTimeout,
     );
