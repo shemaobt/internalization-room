@@ -28,4 +28,18 @@ void main() {
 
     expect(Env.complete, isTrue);
   });
+
+  test('the phase-skip latch is off unless a dev build asks for it', () {
+    dotenv.testLoad(
+      fileInput: 'BACKEND_URL=http://10.0.0.2:8000\nINTERNALIZATION_ROOM_KEY=k',
+    );
+    expect(Env.devPularFases, isFalse,
+        reason: 'o portão que ele pula é a metodologia: sem a linha no .env, nada muda');
+
+    dotenv.testLoad(
+      fileInput:
+          'BACKEND_URL=http://10.0.0.2:8000\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
+    );
+    expect(Env.devPularFases, isTrue);
+  });
 }
