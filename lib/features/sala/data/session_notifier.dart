@@ -255,12 +255,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchPlayback();
   }
 
-  /// Bring the line down first, then let the circle show it speaking.
-  ///
-  /// The download has a 90 s ceiling, and every caller used to enter `speaking` before it
-  /// — the room rippled as if it were talking while nothing came out. `thinking` is what
-  /// this actually is, and it is also what makes the screen refuse a touch that would
-  /// start a second line on top of this one.
   /// Straight to speaking for a line already on the tablet.
   ///
   /// `thinking` is there to cover a download, and a replay has nothing to download: the
@@ -270,6 +264,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     await _readyToSpeak(url, fixedLine);
   }
 
+  /// Bring the line down first, then let the circle show it speaking.
+  ///
+  /// The download has a 90 s ceiling, and every caller used to enter `speaking` before it
+  /// — the room rippled as if it were talking while nothing came out. `thinking` is what
+  /// this actually is, and it is also what makes the screen refuse a touch that would
+  /// start a second line on top of this one.
   Future<void> _readyToSpeak(String url, String fixedLine) async {
     if (fixedLine.isEmpty) {
       state = state.copyWith(voice: VoiceState.thinking);
