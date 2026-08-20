@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/config/env.dart';
-import '../../data/session_notifier.dart';
-import '../../domain/session_state.dart';
+import '../../../core/config/env.dart';
+import '../data/session_notifier.dart';
+import '../domain/session_state.dart';
 
 class DevSkipBar extends ConsumerWidget {
   const DevSkipBar({super.key});
