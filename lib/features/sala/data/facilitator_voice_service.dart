@@ -19,6 +19,7 @@ class FacilitatorVoiceService {
   final Future<Directory> Function() _libraryDir;
   AudioPlayer? _opened;
   Future<void> _speaking = Future<void>.value();
+  final Map<String, Future<File>> _arriving = {};
 
   FacilitatorVoiceService({
     required Future<Uint8List> Function(String url) fetch,
@@ -77,7 +78,21 @@ class FacilitatorVoiceService {
     }
     return true;
   }
-  Future<File> clipFor(String url) async {
+  /// The line on disk, downloading it once however many callers ask at the same moment.
+  ///
+  /// The opening fetches its second movement while the first is still being spoken, and
+  /// two downloads of one line wrote the same staging file and renamed it out from under
+  /// each other. The loser threw, the throw was swallowed as a line that would not play,
+  /// and the room went quiet between two breaths of the same sentence.
+  Future<File> clipFor(String url) {
+    final arriving = _arriving[url];
+    if (arriving != null) return arriving;
+    final started = _bringItIn(url);
+    _arriving[url] = started;
+    return started.whenComplete(() => _arriving.remove(url));
+  }
+
+  Future<File> _bringItIn(String url) async {
     final dir = await _libraryDir();
     final file = File(p.join(dir.path, '${_nameFor(url)}.mp3'));
     if (file.existsSync() && file.lengthSync() > 0) {

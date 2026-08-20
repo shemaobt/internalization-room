@@ -398,17 +398,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// failure would never come.
   Future<bool> _speakTheOpening(TurnResult turn, int epoch) async {
     state = state.copyWith(contasEnfiadas: false);
-    unawaited(_voice.fetch(turn.sceneUrl));
+    // Brought in while the first movement is being spoken, so the second follows it
+    // without a gap — and awaited before it is asked for, so the download and the playing
+    // are never two callers racing for the same file.
+    final arriving = _voice.fetch(turn.sceneUrl);
     final opened = await _speak(turn.panoramaUrl, '', panoramaUrl: turn.panoramaUrl);
     if (epoch != _epoch) return opened;
     state = state.copyWith(contasEnfiadas: true);
     if (!opened) return false;
-    await _readyToSpeak(turn.sceneUrl, '');
+    await arriving;
     if (epoch != _epoch) return true;
-    state = state.copyWith(voice: VoiceState.speaking);
+    // The voice stays `speaking` across both: one opening in two breaths, not a turn that
+    // ended and another that began. Dropping to `thinking` in between showed the team the
+    // room had stopped talking while it was still mid-sentence.
     _watchBusyState();
-    await _speak(turn.sceneUrl, '', panoramaUrl: turn.panoramaUrl);
-    return true;
+    return _speak(turn.sceneUrl, '', panoramaUrl: turn.panoramaUrl);
   }
 
   void _registerUnplayableTurn() {

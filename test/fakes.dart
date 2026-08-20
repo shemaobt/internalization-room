@@ -34,6 +34,8 @@ class FakeVoice implements FacilitatorVoiceService {
   final List<String> assets = [];
   final List<String> fetched = [];
   bool succeeds = true;
+  /// Lines this voice refuses to play, by url — for the halves of one turn.
+  final Set<String> refuses = {};
   Completer<bool>? _holding;
 
   void holdNextLine() => _holding = Completer<bool>();
@@ -51,6 +53,7 @@ class FakeVoice implements FacilitatorVoiceService {
   @override
   Future<bool> play(String url) {
     played.add(url);
+    if (refuses.contains(url)) return Future.value(false);
     return _answer();
   }
 

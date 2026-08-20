@@ -154,6 +154,21 @@ void main() {
     await until(() => container.read(salaSessionProvider).contasEnfiadas);
   });
 
+  test('a scene that never played is not a turn that finished', () async {
+    final harness = SalaHarness()..room.opensInTwoMovements = true;
+    harness.room.peerCue = true;
+    harness.voice.refuses.add(sceneUrl);
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+
+    final state = container.read(salaSessionProvider);
+    expect(harness.voice.played, [panoramaUrl, sceneUrl]);
+    expect(state.peerCue, isFalse,
+        reason: 'o panorama tocou e o convite não — dizer "conversem entre '
+            'vocês" ali é a sala fingir que terminou de falar');
+    expect(state.contasEnfiadas, isTrue);
+  });
+
   test('ouvir de novo repeats the scene, never the whole passage', () async {
     final harness = SalaHarness()..room.opensInTwoMovements = true;
     final container = await inConversa(harness);
