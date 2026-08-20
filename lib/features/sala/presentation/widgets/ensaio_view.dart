@@ -132,7 +132,7 @@ class EnsaioView extends ConsumerWidget {
                   semanticLabel: 'Ir para a retrotradução',
                   onTap: notifier.startRetro,
                   child: const Icon(
-                    LucideIcons.languages,
+                    LucideIcons.checkCheck,
                     size: 26,
                     color: ShemaBrand.branco,
                   ),
