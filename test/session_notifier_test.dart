@@ -217,6 +217,26 @@ void main() {
         reason: 'um colar preso por uma falha nunca mais chegaria');
   });
 
+  test('a canned line never takes the place of what the room told them', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    final told = container.read(salaSessionProvider).lastSpoken!.url;
+
+    harness.room.turnsAreCanned = true;
+    harness.room.fixedLine = 'A0';
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    await until(() => harness.voice.assets.isNotEmpty);
+    await settle();
+
+    expect(container.read(salaSessionProvider).lastSpoken!.url, told,
+        reason: 'o replay devolvia "vamos parar um instante aqui" no lugar da '
+            'cena que a equipe pediu para ouvir de novo');
+  });
+
   test('the necklace is strung before the server answers', () async {
     final harness = SalaHarness();
     harness.room.passages = const [

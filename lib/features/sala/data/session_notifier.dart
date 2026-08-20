@@ -269,12 +269,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  Future<bool> _speak(String url, String fixedLine, {String panoramaUrl = ''}) async {
+  /// Say a line, and remember it as the one "ouvir de novo" gives back.
+  ///
+  /// [remember] is false for a canned line. A fail-safe is what the room says when it could
+  /// not compose an answer, and letting it take the place of the last real line meant the
+  /// replay handed a team "vamos parar um instante aqui" instead of the scene they were
+  /// asking to hear again. The room repeats what it actually told them.
+  Future<bool> _speak(
+    String url,
+    String fixedLine, {
+    String panoramaUrl = '',
+    bool remember = true,
+  }) async {
     final epoch = _epoch;
     final played = fixedLine.isEmpty
         ? await _voice.play(url)
         : await _voice.playAsset(fixedLineAsset(fixedLine));
-    if (played && epoch == _epoch) {
+    if (played && remember && epoch == _epoch) {
       state = state.copyWith(
         lastSpoken: SpokenLine(
           url: url,
@@ -347,7 +358,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchBusyState();
     final played = turn.toldInTwoMovements
         ? await _speakTheOpening(turn, epoch)
-        : await _speak(turn.audioUrl, turn.fixedLine);
+        : await _speak(
+            turn.audioUrl,
+            turn.fixedLine,
+            remember: !turn.usedFailSafe,
+          );
     if (epoch != _epoch) return;
     if (!played) {
       _registerUnplayableTurn();
@@ -1108,10 +1123,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _startListening(String fileName) {
     _listeningSince = DateTime.now();
+    // The line is kept, not dropped. `canHearAgain` already hides the button for every
+    // voice but `invite`, so it is gone while the microphone is open either way — and
+    // forgetting it here meant that when the room could only answer with a canned line,
+    // the team had nothing at all to hear again.
     state = state.copyWith(
       voice: VoiceState.listening,
       peerCue: false,
-      clearLastSpoken: true,
     );
     unawaited(_recordOrBlock(fileName));
   }
