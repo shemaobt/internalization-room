@@ -269,14 +269,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  Future<bool> _speak(String url, String fixedLine) async {
+  Future<bool> _speak(String url, String fixedLine, {String panoramaUrl = ''}) async {
     final epoch = _epoch;
     final played = fixedLine.isEmpty
         ? await _voice.play(url)
         : await _voice.playAsset(fixedLineAsset(fixedLine));
     if (played && epoch == _epoch) {
       state = state.copyWith(
-        lastSpoken: SpokenLine(url: url, fixedLine: fixedLine),
+        lastSpoken: SpokenLine(
+          url: url,
+          fixedLine: fixedLine,
+          panoramaUrl: panoramaUrl,
+        ),
       );
     }
     return played;
@@ -290,7 +294,40 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (epoch != _epoch) return;
     state = state.copyWith(voice: VoiceState.speaking);
     _watchBusyState();
-    await _speak(line.url, line.fixedLine);
+    await _speak(line.url, line.fixedLine, panoramaUrl: line.panoramaUrl);
+    if (epoch != _epoch) return;
+    state = state.copyWith(voice: VoiceState.invite);
+  }
+
+  /// The whole opening again — the shape of the passage, and then the scene.
+  ///
+  /// A short tap gives back the scene, which is what a team asks for most of the time. The
+  /// movement before it was said once and would otherwise be gone, so it lives here, under
+  /// a press held. The necklace comes off the cord and is strung again as the scene
+  /// arrives: the same movement backwards, which is how the room says what just happened
+  /// without a word for it.
+  Future<void> hearTheWholeOpening() async {
+    final line = state.lastSpoken;
+    if (line == null || !state.canHearAgain) return;
+    if (!line.toldInTwoMovements) {
+      await hearAgain();
+      return;
+    }
+    final epoch = _epoch;
+    state = state.copyWith(contasEnfiadas: false);
+    await _readyToSpeak(line.panoramaUrl, '');
+    if (epoch != _epoch) return;
+    state = state.copyWith(voice: VoiceState.speaking);
+    _watchBusyState();
+    final played = await _speak(line.panoramaUrl, '', panoramaUrl: line.panoramaUrl);
+    if (epoch != _epoch) return;
+    state = state.copyWith(contasEnfiadas: true);
+    if (!played) {
+      state = state.copyWith(voice: VoiceState.invite);
+      return;
+    }
+    _watchBusyState();
+    await _speak(line.url, '', panoramaUrl: line.panoramaUrl);
     if (epoch != _epoch) return;
     state = state.copyWith(voice: VoiceState.invite);
   }
@@ -308,7 +345,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     state = state.copyWith(voice: VoiceState.speaking);
     _watchBusyState();
-    final played = await _speak(turn.audioUrl, turn.fixedLine);
+    final played = turn.toldInTwoMovements
+        ? await _speakTheOpening(turn, epoch)
+        : await _speak(turn.audioUrl, turn.fixedLine);
     if (epoch != _epoch) return;
     if (!played) {
       _registerUnplayableTurn();
@@ -334,6 +373,27 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _failSafeTurns = 0;
     }
     _scheduleSettle();
+  }
+
+  /// The opening said in the two movements the room wrote it in.
+  ///
+  /// The necklace waits for the second one: the beads belong to the scene, and hanging
+  /// them over the passage's own shape said the work was already laid out. Whatever
+  /// happens to the scene's clip, the beads are handed over — a necklace held back by a
+  /// failure would never come.
+  Future<bool> _speakTheOpening(TurnResult turn, int epoch) async {
+    state = state.copyWith(contasEnfiadas: false);
+    unawaited(_voice.fetch(turn.sceneUrl));
+    final opened = await _speak(turn.panoramaUrl, '', panoramaUrl: turn.panoramaUrl);
+    if (epoch != _epoch) return opened;
+    state = state.copyWith(contasEnfiadas: true);
+    if (!opened) return false;
+    await _readyToSpeak(turn.sceneUrl, '');
+    if (epoch != _epoch) return true;
+    state = state.copyWith(voice: VoiceState.speaking);
+    _watchBusyState();
+    await _speak(turn.sceneUrl, '', panoramaUrl: turn.panoramaUrl);
+    return true;
   }
 
   void _registerUnplayableTurn() {
@@ -881,6 +941,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       stage: SalaStage.conversa,
       voice: VoiceState.thinking,
       peerCue: false,
+      contasEnfiadas: true,
     );
     _stringTheNecklaceEarly(pericope);
     _watchBusyState();

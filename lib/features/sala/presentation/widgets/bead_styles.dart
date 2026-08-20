@@ -65,6 +65,7 @@ class RoundActionButton extends StatelessWidget {
   final Border? border;
   final List<BoxShadow>? shadows;
   final String semanticLabel;
+  final VoidCallback? onLongPress;
 
   const RoundActionButton({
     super.key,
@@ -76,6 +77,7 @@ class RoundActionButton extends StatelessWidget {
     this.background,
     this.border,
     this.shadows,
+    this.onLongPress,
   });
 
   @override
@@ -85,6 +87,7 @@ class RoundActionButton extends StatelessWidget {
       label: semanticLabel,
       child: GestureDetector(
         onTap: onTap,
+        onLongPress: onLongPress,
         child: Container(
           width: size,
           height: size,

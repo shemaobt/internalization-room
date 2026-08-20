@@ -42,6 +42,15 @@ class SalaSessionState {
   final ConviteStep conviteStep;
   final String? sessionId;
   final Coverage coverage;
+
+  /// Whether the beads are on the cord yet.
+  ///
+  /// The room opens in two movements — the whole passage, then the scene — and the
+  /// necklace belongs to the second. Showing it during the first put a full string of
+  /// beads over a passage that had not been opened yet. False only while the opening's
+  /// first movement is being spoken; true everywhere else, so no other stage can be
+  /// caught without it.
+  final bool contasEnfiadas;
   final PingRange? ping;
   final bool peerCue;
   final bool noteMode;
@@ -92,6 +101,7 @@ class SalaSessionState {
     this.conviteStep = ConviteStep.boasVindas,
     this.sessionId,
     this.coverage = Coverage.empty,
+    this.contasEnfiadas = true,
     this.ping,
     this.peerCue = false,
     this.noteMode = false,
@@ -212,6 +222,7 @@ class SalaSessionState {
     String? sessionId,
     bool clearSession = false,
     Coverage? coverage,
+    bool? contasEnfiadas,
     PingRange? ping,
     bool clearPing = false,
     bool? peerCue,
@@ -254,6 +265,7 @@ class SalaSessionState {
       conviteStep: conviteStep ?? this.conviteStep,
       sessionId: clearSession ? null : (sessionId ?? this.sessionId),
       coverage: coverage ?? this.coverage,
+      contasEnfiadas: contasEnfiadas ?? this.contasEnfiadas,
       ping: clearPing ? null : (ping ?? this.ping),
       peerCue: peerCue ?? this.peerCue,
       noteMode: noteMode ?? this.noteMode,

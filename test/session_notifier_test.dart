@@ -120,6 +120,103 @@ void main() {
     expect(state.coverage.total, totalBeads);
   });
 
+  test('the opening is told in two movements, and the necklace waits', () async {
+    final harness = SalaHarness()..room.opensInTwoMovements = true;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+
+    expect(harness.voice.played, [panoramaUrl, sceneUrl],
+        reason: 'o todo primeiro, a cena depois — nessa ordem e sem emenda');
+
+    final state = container.read(salaSessionProvider);
+    expect(state.contasEnfiadas, isTrue,
+        reason: 'as contas entram quando a cena chega e ficam');
+    expect(state.lastSpoken!.url, sceneUrl);
+    expect(state.lastSpoken!.panoramaUrl, panoramaUrl);
+  });
+
+  test('the necklace stays off the cord while the whole is being told', () async {
+    final harness = SalaHarness()..room.opensInTwoMovements = true;
+    harness.voice.holdNextLine();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    unawaited(notifier.goConversa(pericope: 'P01'));
+    await until(() => harness.voice.played.isNotEmpty);
+    await settle();
+
+    expect(harness.voice.played, [panoramaUrl]);
+    expect(container.read(salaSessionProvider).contasEnfiadas, isFalse,
+        reason: 'um colar cheio sobre uma passagem ainda não aberta diz que o '
+            'trabalho já está posto');
+
+    harness.voice.finishHeldLine();
+    await until(() => container.read(salaSessionProvider).contasEnfiadas);
+  });
+
+  test('ouvir de novo repeats the scene, never the whole passage', () async {
+    final harness = SalaHarness()..room.opensInTwoMovements = true;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    harness.voice.played.clear();
+
+    await notifier.hearAgain();
+    await settle();
+
+    expect(harness.voice.played, [sceneUrl]);
+  });
+
+  test('a held press gives the whole opening back, necklace and all', () async {
+    final harness = SalaHarness()..room.opensInTwoMovements = true;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    harness.voice.played.clear();
+    harness.voice.holdNextLine();
+
+    unawaited(notifier.hearTheWholeOpening());
+    await until(() => harness.voice.played.isNotEmpty);
+    await settle();
+
+    expect(harness.voice.played, [panoramaUrl]);
+    expect(container.read(salaSessionProvider).contasEnfiadas, isFalse,
+        reason: 'as contas saem do fio para o panorama e voltam com a cena — é '
+            'o que faz o gesto ser percebido sem uma palavra');
+
+    harness.voice.finishHeldLine();
+    await until(() => harness.voice.played.length > 1);
+    await settle();
+
+    expect(harness.voice.played, [panoramaUrl, sceneUrl]);
+    expect(container.read(salaSessionProvider).contasEnfiadas, isTrue);
+  });
+
+  test('an opening told in one breath shows the necklace at once', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+
+    final state = container.read(salaSessionProvider);
+    expect(state.contasEnfiadas, isTrue);
+    expect(state.lastSpoken!.panoramaUrl, isEmpty);
+    expect(state.lastSpoken!.toldInTwoMovements, isFalse);
+  });
+
+  test('a scene that will not play still hands the necklace over', () async {
+    final harness = SalaHarness()..room.opensInTwoMovements = true;
+    harness.voice.succeeds = false;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+
+    expect(container.read(salaSessionProvider).contasEnfiadas, isTrue,
+        reason: 'um colar preso por uma falha nunca mais chegaria');
+  });
+
   test('the necklace is strung before the server answers', () async {
     final harness = SalaHarness();
     harness.room.passages = const [

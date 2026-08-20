@@ -222,6 +222,9 @@ class FakeFinished implements FinishedPassages {
 /// In memory, like the finished-passages double. The real one touches disk, and the
 /// wheel now reads it on every open — under a widget test's fake clock that never
 /// resolves, which hangs the whole suite.
+const panoramaUrl = '/api/internalization-room/voice/panorama';
+const sceneUrl = '/api/internalization-room/voice/cena';
+
 class FakeWorkInProgress implements WorkInProgress {
   final Map<String, ResumePoint> rows = {};
 
@@ -285,6 +288,8 @@ class FakeRoom implements RoomRepository {
 
   Coverage? settledCoverage;
   bool peerCue = false;
+  /// Whether the opening comes back cut where the Guide marked it.
+  bool opensInTwoMovements = false;
   bool done = false;
   int turnsSent = 0;
   int chunksSent = 0;
@@ -419,6 +424,12 @@ class FakeRoom implements RoomRepository {
         coverage: silentAboutCoverage ? null : nextCoverage,
         done: done,
         bridgeMode: bridgeMode,
+        segments: opensInTwoMovements
+            ? const [
+                SpokenSegment(role: 'panorama', audioUrl: panoramaUrl),
+                SpokenSegment(role: 'scene', audioUrl: sceneUrl),
+              ]
+            : const [],
       );
 
   @override
