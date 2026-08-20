@@ -51,6 +51,22 @@ class FacilitatorVoiceService {
     }
   }
 
+  /// Whether this line is already on the tablet, so nothing has to be waited for.
+  ///
+  /// A replay is not the room thinking — it already holds the words. Passing through the
+  /// thinking face on the way to repeating something it has in hand made the circle change
+  /// colour twice for a line that starts instantly.
+  Future<bool> holds(String url) async {
+    if (url.isEmpty) return false;
+    try {
+      final dir = await _libraryDir();
+      final file = File(p.join(dir.path, '${_nameFor(url)}.mp3'));
+      return file.existsSync() && file.lengthSync() > 0;
+    } on Exception {
+      return false;
+    }
+  }
+
   Future<bool> playAsset(String assetPath) {
     return _afterTheCurrentLine(
       () => _sayItWhole(() => _player.setAsset(assetPath)),

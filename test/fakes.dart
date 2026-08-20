@@ -60,6 +60,12 @@ class FakeVoice implements FacilitatorVoiceService {
   @override
   Future<File> clipFor(String url) async => File(url);
 
+  /// Lines this tablet does not have yet, by url.
+  final Set<String> missing = {};
+
+  @override
+  Future<bool> holds(String url) async => url.isNotEmpty && !missing.contains(url);
+
   Completer<void>? _fetching;
 
   void holdNextFetch() => _fetching = Completer<void>();

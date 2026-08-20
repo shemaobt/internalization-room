@@ -154,6 +154,60 @@ void main() {
     await until(() => container.read(salaSessionProvider).contasEnfiadas);
   });
 
+  test('replaying takes the circle off team-talk while the room speaks', () async {
+    final harness = SalaHarness()..room.peerCue = true;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    expect(container.read(salaSessionProvider).peerCue, isTrue);
+    expect(container.read(salaSessionProvider).voice, VoiceState.invite,
+        reason: 'é isto que desenha o círculo azul da equipe');
+
+    harness.voice.fetched.clear();
+    harness.voice.holdNextLine();
+    unawaited(notifier.hearAgain());
+    await until(() => harness.voice.played.length > 1);
+    await settle();
+
+    expect(container.read(salaSessionProvider).voice, VoiceState.speaking,
+        reason: 'enquanto a sala fala, o círculo é dela — não da equipe');
+    expect(harness.voice.fetched, isEmpty,
+        reason: 'a fala já está no aparelho: passar pela cara de "pensando" '
+            'fazia o círculo mudar de cor duas vezes para repetir o que ela '
+            'já tem na mão');
+
+    harness.voice.finishHeldLine();
+    await until(
+      () => container.read(salaSessionProvider).voice == VoiceState.invite,
+    );
+
+    expect(container.read(salaSessionProvider).peerCue, isTrue,
+        reason: 'acabou de falar, a bola volta para a equipe');
+  });
+
+  test('a line the tablet no longer holds is waited for, not mimed', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    final line = container.read(salaSessionProvider).lastSpoken!.url;
+    harness.voice.missing.add(line);
+    harness.voice.holdNextFetch();
+
+    unawaited(notifier.hearAgain());
+    await settle();
+
+    expect(container.read(salaSessionProvider).voice, VoiceState.thinking,
+        reason: 'o círculo falando sem som é o que a espera de download '
+            'sempre significou');
+
+    harness.voice.finishHeldFetch();
+    await until(
+      () => container.read(salaSessionProvider).voice == VoiceState.invite,
+    );
+  });
+
   test('a scene that never played is not a turn that finished', () async {
     final harness = SalaHarness()..room.opensInTwoMovements = true;
     harness.room.peerCue = true;

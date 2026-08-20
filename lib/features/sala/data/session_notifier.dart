@@ -261,6 +261,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// — the room rippled as if it were talking while nothing came out. `thinking` is what
   /// this actually is, and it is also what makes the screen refuse a touch that would
   /// start a second line on top of this one.
+  /// Straight to speaking for a line already on the tablet.
+  ///
+  /// `thinking` is there to cover a download, and a replay has nothing to download: the
+  /// circle went clay and then orange for a line that starts the instant it is asked for.
+  Future<void> _readyToRepeat(String url, String fixedLine) async {
+    if (fixedLine.isNotEmpty || await _voice.holds(url)) return;
+    await _readyToSpeak(url, fixedLine);
+  }
+
   Future<void> _readyToSpeak(String url, String fixedLine) async {
     if (fixedLine.isEmpty) {
       state = state.copyWith(voice: VoiceState.thinking);
@@ -301,7 +310,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final line = state.lastSpoken;
     if (line == null || !state.canHearAgain) return;
     final epoch = _epoch;
-    await _readyToSpeak(line.url, line.fixedLine);
+    await _readyToRepeat(line.url, line.fixedLine);
     if (epoch != _epoch) return;
     state = state.copyWith(voice: VoiceState.speaking);
     _watchBusyState();
@@ -326,7 +335,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     final epoch = _epoch;
     state = state.copyWith(contasEnfiadas: false);
-    await _readyToSpeak(line.panoramaUrl, '');
+    await _readyToRepeat(line.panoramaUrl, '');
     if (epoch != _epoch) return;
     state = state.copyWith(voice: VoiceState.speaking);
     _watchBusyState();
