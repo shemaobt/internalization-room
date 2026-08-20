@@ -1466,6 +1466,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void startRetro() {
+    if (state.stage == SalaStage.ensaio) {
+      if (state.ensaio == EnsaioStatus.recording) return;
+      if (state.ensaio == EnsaioStatus.recorded) takeKeep();
+    }
     _rememberWhereTheyAre(SalaStage.retro);
     _clearAll();
     state = state.copyWith(

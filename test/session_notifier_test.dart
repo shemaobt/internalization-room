@@ -1869,6 +1869,48 @@ void main() {
     expect(state.ensaioDone, isTrue);
   });
 
+  test('a part still waiting for its check rides into the retro', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    await gravaParte(notifier);
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+
+    expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.recorded);
+    notifier.startRetro();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.stage, SalaStage.retro);
+    expect([for (final t in state.partes) t.scopeId], ['parte-1', 'parte-2'],
+        reason: 'um pedaço gravado e ainda sem o check sumia calado no pulo '
+            'para a retro');
+  });
+
+  test('a recording still running holds the door to the retro', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    await gravaParte(notifier);
+    notifier.ensaioTap();
+    await settle();
+
+    notifier.startRetro();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.stage, SalaStage.ensaio);
+    expect(state.ensaio, EnsaioStatus.recording,
+        reason: 'avançar no meio de uma gravação a descartaria sem gesto '
+            'nenhum da equipe');
+  });
+
   test('the ghost play walks every part in order', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
