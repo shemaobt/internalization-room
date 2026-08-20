@@ -14,7 +14,6 @@ class DevSkipBar extends ConsumerWidget {
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);
     const emCena = {SalaStage.conversa, SalaStage.ensaio, SalaStage.retro};
-    if (!emCena.contains(session.stage)) return const SizedBox.shrink();
 
     final temSessao = session.sessionId != null;
     final temParte = session.partes.isNotEmpty;
@@ -34,27 +33,29 @@ class DevSkipBar extends ConsumerWidget {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               const _DevTag(),
-              _DevButton(
-                label: 'ensaio',
-                hint: temSessao ? null : 'esperando a sessão nascer',
-                onTap: temSessao && session.stage == SalaStage.conversa
-                    ? notifier.goEnsaio
-                    : null,
-              ),
-              _DevButton(
-                label: 'retro',
-                hint: temParte ? null : 'grave 1 parte no ensaio antes',
-                onTap: temParte && session.stage != SalaStage.retro
-                    ? notifier.startRetro
-                    : null,
-              ),
-              _DevButton(
-                label: 'recomeçar',
-                hint: null,
-                onTap: temSessao || session.stage != SalaStage.conversa
-                    ? notifier.devRecomecarPassagem
-                    : null,
-              ),
+              if (emCena.contains(session.stage)) ...[
+                _DevButton(
+                  label: 'ensaio',
+                  hint: temSessao ? null : 'esperando a sessão nascer',
+                  onTap: temSessao && session.stage == SalaStage.conversa
+                      ? notifier.goEnsaio
+                      : null,
+                ),
+                _DevButton(
+                  label: 'retro',
+                  hint: temParte ? null : 'grave 1 parte no ensaio antes',
+                  onTap: temParte && session.stage != SalaStage.retro
+                      ? notifier.startRetro
+                      : null,
+                ),
+                _DevButton(
+                  label: 'recomeçar',
+                  hint: null,
+                  onTap: temSessao || session.stage != SalaStage.conversa
+                      ? notifier.devRecomecarPassagem
+                      : null,
+                ),
+              ],
             ],
           ),
         ),

@@ -215,6 +215,27 @@ void main() {
     expect(bySemanticsLabelWidget('Tocar para falar'), findsOneWidget);
   });
 
+  testWidgets('the dev seal shows from the invite on, before any skip exists',
+      (tester) async {
+    dotenv.testLoad(
+      fileInput: 'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
+    );
+    addTearDown(() => dotenv.testLoad(fileInput: ''));
+    final container = await pumpSala(tester, SalaHarness());
+    final notifier = container.read(salaSessionProvider.notifier);
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text('DEV'), findsOneWidget,
+        reason: 'sem o selo no convite não dá para saber que o build é de dev');
+    expect(find.text('pular → ensaio'), findsNothing);
+
+    await notifier.abrirEscolha();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text('DEV'), findsOneWidget);
+    expect(find.text('pular → retro'), findsNothing);
+  });
+
   testWidgets('the dev bar names every skip, and waits for its inputs',
       (tester) async {
     dotenv.testLoad(
