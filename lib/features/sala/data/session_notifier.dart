@@ -925,10 +925,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       unawaited(_pullInbox());
       _watchBusyState();
+      if (resumed) {
+        final pastTheConversa = await _backToWhereTheyStopped(waiting);
+        if (epoch != _epoch) return;
+        if (pastTheConversa) {
+          final snapshot = await _room.fetchState(sessionId);
+          if (epoch != _epoch) return;
+          state = state.copyWith(coverage: snapshot.coverage);
+          return;
+        }
+      }
       // Re-opening carries the coverage back with it, so the necklace fills itself.
       await _voiceTurn(await _room.openSession(sessionId));
-      if (epoch != _epoch) return;
-      if (resumed) await _backToWhereTheyStopped(waiting);
     } on SessionGone {
       if (epoch != _epoch) return;
       if (pericope != null) {
@@ -987,8 +995,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// Put the team back on the stage they left, when the audio for it is still here.
-  Future<void> _backToWhereTheyStopped(ResumePoint waiting) async {
-    if (waiting.stage == SalaStage.conversa || waiting.takes.isEmpty) return;
+  Future<bool> _backToWhereTheyStopped(ResumePoint waiting) async {
+    if (waiting.stage == SalaStage.conversa || waiting.takes.isEmpty) {
+      return false;
+    }
     final here = [
       for (final take in waiting.takes)
         if (await File(take.path).exists()) take,
@@ -996,15 +1006,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_gone || here.isEmpty) {
       // The rehearsal is gone from the tablet, so the retro cannot be told back over it.
       // The conversa is the step that still works.
-      return;
+      return false;
     }
     state = state.copyWith(
       stage: SalaStage.ensaio,
       ensaio: EnsaioStatus.idle,
+      voice: VoiceState.invite,
       keptTakes: here,
       takes: here.length,
     );
     unawaited(_countUnsent());
+    return true;
   }
 
   void conversaTap() {

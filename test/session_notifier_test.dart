@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
@@ -8,6 +9,7 @@ import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -86,6 +88,36 @@ void main() {
     expect(state.voice, VoiceState.invite);
     expect(state.sessionId, isNull);
     expect(state.colarOn, isFalse);
+  });
+
+  test('resuming past the conversa does not reopen the conversa', () async {
+    final harness = SalaHarness();
+    final gravada = File(
+      '${Directory.systemTemp.createTempSync('sala-retomada').path}/p1.m4a',
+    )..writeAsBytesSync([1, 2, 3]);
+    addTearDown(() => gravada.parent.deleteSync(recursive: true));
+    harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.ensaio,
+      takes: [KeptTake(scopeId: KeptScope.parte(1), path: gravada.path)],
+    );
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.stage, SalaStage.ensaio);
+    expect(state.partes.single.path, gravada.path);
+    expect(harness.room.calls, isNot(contains('openSession')),
+        reason: 'reabrir a conversa fazia o Guia perguntar como numa '
+            'internalização para uma equipe que já estava no ensaio');
+    expect(harness.room.calls, contains('fetchState'));
+    expect(state.coverage.total, totalBeads);
   });
 
   test('the necklace is strung before the server answers', () async {
