@@ -729,7 +729,9 @@ void main() {
     await settle();
     harness.room.reachable = false;
     notifier.takeKeep();
-    await settle();
+    while ((await harness.takes.pending()).isEmpty) {
+      await settle(const Duration(milliseconds: 20));
+    }
 
     expect(harness.room.takesKept, isEmpty);
     expect(await harness.takes.pending(), hasLength(1),
@@ -737,6 +739,7 @@ void main() {
 
     harness.room.reachable = true;
     await harness.takes.flush();
+    await until(() => harness.room.takesKept.isNotEmpty);
 
     expect(harness.room.takesKept, ['ensaio/${KeptScope.parte(1)}']);
   });
