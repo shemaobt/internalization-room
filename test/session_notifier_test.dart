@@ -2047,6 +2047,7 @@ void main() {
         ['parte-1', 'parte-2', 'parte-3']);
     expect(state.ensaio, EnsaioStatus.idle,
         reason: 'guardar uma parte já deixa o círculo pronto para a próxima');
+    await until(() => harness.room.takesKept.length == 3);
     expect(harness.room.takesKept,
         ['ensaio/parte-1', 'ensaio/parte-2', 'ensaio/parte-3']);
     expect(state.ensaioDone, isTrue);
