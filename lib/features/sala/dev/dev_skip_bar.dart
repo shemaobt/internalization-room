@@ -20,7 +20,7 @@ class DevSkipBar extends ConsumerWidget {
 
     return Positioned(
       right: 14,
-      bottom: 18 + MediaQuery.viewPaddingOf(context).bottom,
+      bottom: 104 + MediaQuery.viewPaddingOf(context).bottom,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
