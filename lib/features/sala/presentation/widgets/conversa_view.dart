@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
-import '../../../../core/config/env.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/session_state.dart';
 import 'bead.dart';
@@ -42,8 +41,7 @@ class ConversaView extends ConsumerWidget {
               const SizedBox(height: 44),
               SizedBox(
                 height: 64,
-                child: session.conversaDone ||
-                        (Env.devPularFases && session.sessionId != null)
+                child: session.conversaDone
                     ? AdvanceButton(
                         gradient: BeadStyles.verde,
                         semanticLabel: 'Ir para o ensaio',

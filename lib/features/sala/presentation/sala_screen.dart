@@ -9,6 +9,7 @@ import '../data/session_notifier.dart';
 import '../data/take_upload_queue.dart';
 import '../domain/facilitator_script.dart';
 import '../domain/session_state.dart';
+import 'widgets/dev_skip_bar.dart';
 import 'widgets/colar_overlay.dart';
 import 'widgets/conversa_view.dart';
 import 'widgets/convite_view.dart';
@@ -101,6 +102,7 @@ class _SalaScreenState extends ConsumerState<SalaScreen> with WidgetsBindingObse
               ),
             const HearAgainButton(),
             const LeavePassageButton(),
+            const DevSkipBar(),
           ],
         ),
       ),

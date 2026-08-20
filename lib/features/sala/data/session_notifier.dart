@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/config/env.dart';
 import '../domain/bt_finding.dart';
 import '../domain/facilitator_script.dart';
 import '../domain/hand_reply.dart';
@@ -1208,6 +1209,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     await _voice.playAsset(fixedLineAsset(rotated(handoffLines, asked)));
     if (epoch != _epoch) return;
     state = state.copyWith(voice: VoiceState.invite);
+  }
+
+  void devRecomecarPassagem() {
+    if (!Env.devPularFases) return;
+    final pericope = _emCurso;
+    if (pericope == null) return;
+    unawaited(_emAberto.forget(_book, pericope).catchError((_) {}));
+    unawaited(goConversa(pericope: pericope, fresh: true));
   }
 
   void goEnsaio() {
