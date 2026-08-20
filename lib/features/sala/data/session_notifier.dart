@@ -10,6 +10,7 @@ import '../domain/facilitator_script.dart';
 import '../domain/hand_reply.dart';
 import '../domain/kept_take.dart';
 import '../domain/passagem.dart';
+import '../domain/coverage.dart';
 import '../domain/session_state.dart';
 import '../domain/spoken_line.dart';
 import '../domain/turn_result.dart';
@@ -881,6 +882,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: VoiceState.thinking,
       peerCue: false,
     );
+    _stringTheNecklaceEarly(pericope);
     _watchBusyState();
     final reach = await _network.reachRoom();
     if (epoch != _epoch) return;
@@ -943,6 +945,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     } on Exception catch (error) {
       if (epoch != _epoch) return;
       _handleRoomFailure(error);
+    }
+  }
+
+  void _stringTheNecklaceEarly(String? pericope) {
+    if (pericope == null) return;
+    for (final passagem in state.naRoda ?? const <Passagem>[]) {
+      if (passagem.pericope == pericope && passagem.beads > 0) {
+        state = state.copyWith(
+          coverage: Coverage(
+            engaged: 0,
+            surfaced: 0,
+            total: passagem.beads,
+            absenceIndex: passagem.absenceIndex,
+          ),
+        );
+        return;
+      }
     }
   }
 

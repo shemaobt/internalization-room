@@ -8,6 +8,7 @@ import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -85,6 +86,30 @@ void main() {
     expect(state.voice, VoiceState.invite);
     expect(state.sessionId, isNull);
     expect(state.colarOn, isFalse);
+  });
+
+  test('the necklace is strung before the server answers', () async {
+    final harness = SalaHarness();
+    harness.room.passages = const [
+      Passagem(pericope: 'P01', audioUrl: '/voice/p01', beads: 7, absenceIndex: 3),
+    ];
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+
+    final entering = notifier.goConversa(pericope: 'P01');
+    final seeded = container.read(salaSessionProvider).coverage;
+    expect(seeded.total, 7,
+        reason: 'esperar o create deixava a equipe diante de um cordão nu');
+    expect(seeded.engaged, 0);
+    expect(seeded.absenceIndex, 3);
+
+    await entering;
+    await settle();
+    expect(container.read(salaSessionProvider).coverage.total, totalBeads,
+        reason: 'a palavra final sobre o colar continua sendo do servidor');
   });
 
   test('the coverage necklace steps aside in the retro', () {
