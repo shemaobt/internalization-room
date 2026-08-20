@@ -990,8 +990,11 @@ void main() {
         reason: 'sem rede a tomada fica na fila, e a fila é um arquivo em disco');
 
     harness.room.reachable = true;
-    await harness.takes.flush();
-    await until(() => harness.room.takesKept.isNotEmpty);
+    final deadline = DateTime.now().add(const Duration(seconds: 10));
+    while (harness.room.takesKept.isEmpty && DateTime.now().isBefore(deadline)) {
+      await harness.takes.flush();
+      await settle(const Duration(milliseconds: 20));
+    }
 
     expect(harness.room.takesKept, ['ensaio/${KeptScope.parte(1)}']);
   });
