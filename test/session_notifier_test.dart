@@ -42,7 +42,7 @@ Future<void> _intoFindings(
   await settle();
   for (final at in const [Duration(seconds: 12), Duration(seconds: 30)]) {
     harness.playback.at = at;
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await settle();
@@ -1224,7 +1224,7 @@ void main() {
     notifier.takeKeep();
     notifier.startRetro();
     await settle();
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await settle();
@@ -1299,7 +1299,7 @@ void main() {
     notifier.takeKeep();
     notifier.startRetro();
     await settle();
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await settle();
@@ -1330,7 +1330,7 @@ void main() {
     notifier.takeKeep();
     notifier.startRetro();
     await settle();
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await settle();
@@ -1370,7 +1370,7 @@ void main() {
     await settle(const Duration(milliseconds: 50));
 
     harness.playback.at = const Duration(milliseconds: 40);
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle(const Duration(milliseconds: 400));
 
     expect(container.read(salaSessionProvider).btClipEnded, isFalse,
@@ -1396,7 +1396,7 @@ void main() {
     notifier.startRetro();
     await settle();
     harness.room.failWith = const RoomRefused();
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await settle();
@@ -1438,7 +1438,7 @@ void main() {
     notifier.startRetro();
     await settle();
     harness.room.failWith = const RoomRefused();
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await settle();
@@ -1465,7 +1465,9 @@ void main() {
 
     notifier.retellChunk();
     await settle();
-    notifier.retroTap();
+    harness.playback.finishPlayback();
+    await settle();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await settle();
@@ -1489,7 +1491,9 @@ void main() {
 
     notifier.retellChunk();
     await settle();
-    notifier.retroTap();
+    harness.playback.finishPlayback();
+    await settle();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await settle();
@@ -1539,6 +1543,7 @@ void main() {
     await _intoFindings(harness, notifier);
 
     notifier.reRecordClip();
+    await until(() => harness.room.restartsAsked.isNotEmpty);
     await settle();
 
     expect(harness.room.restartsAsked, ['novo-clipe'],
@@ -1643,13 +1648,13 @@ void main() {
     await settle();
 
     harness.playback.at = const Duration(seconds: 12);
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await settle();
 
     harness.playback.at = const Duration(seconds: 30);
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await settle();
@@ -1679,13 +1684,13 @@ void main() {
     await settle();
 
     harness.playback.at = const Duration(seconds: 12);
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await settle();
 
     harness.playback.at = const Duration(seconds: 30);
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await settle();
@@ -1742,7 +1747,7 @@ void main() {
     await settle();
 
     harness.room.failWith = const RoomUnavailable('sem rede');
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await settle();
@@ -1766,7 +1771,7 @@ void main() {
     await settle();
 
     final spokenBefore = harness.voice.played.length;
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await settle();
@@ -1791,7 +1796,7 @@ void main() {
     notifier.startRetro();
     await settle();
 
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await settle();
@@ -1881,7 +1886,7 @@ void main() {
     await settle();
 
     harness.room.reachable = false;
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await settle();
@@ -1967,7 +1972,7 @@ void main() {
     notifier.startRetro();
     await settle();
 
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await settle();
@@ -2236,7 +2241,7 @@ void main() {
     harness.playback.at = const Duration(seconds: 10);
     harness.playback.finishPlayback();
     await settle();
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await until(() => harness.room.chunksSent == 1);
@@ -2245,7 +2250,7 @@ void main() {
     notifier.proximaParte();
     await settle();
     harness.playback.at = const Duration(seconds: 5);
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await until(() => harness.room.chunksSent == 2);
@@ -2254,6 +2259,112 @@ void main() {
     expect(harness.room.chunkSpans, ['0-10000', '10000-15000'],
         reason: 'a linha do tempo que o servidor vê continua única: os '
             'deslocamentos somam as partes anteriores');
+  });
+
+  test('terminei reports what was heard, not the length of the clip', () async {
+    final harness = SalaHarness()..playback.length = const Duration(seconds: 10);
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    await gravaParte(notifier);
+    await gravaParte(notifier);
+    notifier.startRetro();
+    await settle();
+    harness.playback.finishPlayback();
+    await settle();
+    notifier.ouvirGravacao();
+    await settle();
+    harness.playback.finishPlayback();
+    await settle();
+
+    await notifier.finishBackTranslation();
+    await settle();
+
+    expect(harness.room.clipDurationsSent.last, 20000);
+    expect(harness.room.playedRangesSent.last, [
+      [0, 10000],
+      [10000, 20000],
+    ], reason: 'o relatório dizia sempre "do zero até o fim", então a trava que '
+        'existe para pegar exatamente isso nunca podia falhar');
+  });
+
+  test('a part left unheard is not reported as heard', () async {
+    final harness = SalaHarness()..playback.length = const Duration(seconds: 10);
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    await gravaParte(notifier);
+    await gravaParte(notifier);
+    notifier.startRetro();
+    await settle();
+    harness.playback.finishPlayback();
+    await settle();
+
+    expect(container.read(salaSessionProvider).btClipEnded, isFalse,
+        reason: 'a primeira parte acabou; a gravação não');
+    notifier.ouvirGravacao();
+    await settle();
+    harness.playback.at = const Duration(seconds: 3);
+    notifier.cortarTrecho();
+    await settle();
+    notifier.retroTap();
+    await settle();
+
+    expect(harness.room.chunkSpans.last, '0-13000',
+        reason: 'o trecho é contado no relógio da gravação inteira');
+    expect(container.read(salaSessionProvider).btClipRodando, isFalse);
+  });
+
+  test('a part measures itself, not the position it stopped at', () async {
+    final harness = SalaHarness()..playback.length = const Duration(seconds: 10);
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    await gravaParte(notifier);
+    await gravaParte(notifier);
+    notifier.startRetro();
+    await settle();
+    harness.playback.at = Duration.zero;
+    harness.playback.finishPlayback();
+    await settle();
+    notifier.ouvirGravacao();
+    await settle();
+    harness.playback.finishPlayback();
+    await settle();
+
+    await notifier.finishBackTranslation();
+    await settle();
+
+    expect(harness.room.clipDurationsSent.last, 20000,
+        reason: 'lida da posição no instante em que a parte acaba, uma gravação '
+            'de três partes se declarava do tamanho de uma');
+  });
+
+  test('the circle no longer cuts a stretch on its own', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    await gravaParte(notifier);
+    notifier.startRetro();
+    await settle();
+    final captures = harness.recorder.captures;
+
+    notifier.retroTap();
+    await settle();
+
+    expect(harness.recorder.captures, captures,
+        reason: 'ouvir e cortar eram o mesmo toque, e a sala só podia adivinhar '
+            'quanto a equipe tinha ouvido');
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
   });
 
   test('terminei sums every part the team heard', () async {
@@ -2296,7 +2407,7 @@ void main() {
     harness.playback.at = const Duration(seconds: 10);
     harness.playback.finishPlayback();
     await settle();
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await until(() => harness.room.chunksSent == 1);
@@ -2304,7 +2415,7 @@ void main() {
     notifier.proximaParte();
     await settle();
     harness.playback.at = const Duration(seconds: 3);
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await until(() => harness.room.chunksSent == 2);
@@ -2339,7 +2450,7 @@ void main() {
     notifier.startRetro();
     await settle();
     harness.playback.at = const Duration(seconds: 4);
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await until(() => harness.room.chunksSent == 1);

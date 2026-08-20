@@ -431,7 +431,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     harness.room.failWith = const RoomRefused();
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await tester.pump(const Duration(milliseconds: 100));
     notifier.retroTap();
     await tester.pump(const Duration(milliseconds: 300));

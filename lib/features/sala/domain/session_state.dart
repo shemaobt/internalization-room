@@ -87,6 +87,13 @@ class SalaSessionState {
   final bool btTrechoTocando;
   final bool btClipEnded;
   final bool btParteFronteira;
+
+  /// Whether the rehearsal is running right now.
+  ///
+  /// Listening and cutting used to be the same tap on the circle, so the room could only
+  /// infer what the team had heard. They are two gestures now, and this is the one the
+  /// listening gesture owns.
+  final bool btClipRodando;
   final List<BtFindingKind> btFindings;
   final int btPass;
   final bool fimClosed;
@@ -125,6 +132,7 @@ class SalaSessionState {
     this.btTrechoTocando = false,
     this.btClipEnded = false,
     this.btParteFronteira = false,
+    this.btClipRodando = false,
     this.btFindings = const [],
     this.btPass = 1,
     this.fimClosed = false,
@@ -251,6 +259,7 @@ class SalaSessionState {
     bool? btTrechoTocando,
     bool? btClipEnded,
     bool? btParteFronteira,
+    bool? btClipRodando,
     List<BtFindingKind>? btFindings,
     int? btPass,
     bool? fimClosed,
@@ -292,6 +301,7 @@ class SalaSessionState {
       btTrechoTocando: btTrechoTocando ?? this.btTrechoTocando,
       btClipEnded: btClipEnded ?? this.btClipEnded,
       btParteFronteira: btParteFronteira ?? this.btParteFronteira,
+      btClipRodando: btClipRodando ?? this.btClipRodando,
       btFindings: btFindings ?? this.btFindings,
       btPass: btPass ?? this.btPass,
       fimClosed: fimClosed ?? this.fimClosed,

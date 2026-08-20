@@ -221,7 +221,7 @@ void main() {
     notifier.startRetro();
     await settle();
     harness.playback.at = const Duration(seconds: 12);
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await until(() => container.read(salaSessionProvider).btPhase == BtPhase.playing);
@@ -299,14 +299,14 @@ void main() {
 
     harness.room.chunkCaptured = false;
     harness.playback.at = const Duration(seconds: 12);
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await until(() => container.read(salaSessionProvider).btChunkFailures.isNotEmpty);
 
     harness.room.chunkCaptured = true;
     harness.playback.at = const Duration(seconds: 30);
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await until(() => container.read(salaSessionProvider).btChunkPasses.isNotEmpty);
@@ -718,7 +718,7 @@ void main() {
     notifier.startRetro();
     await settle();
     harness.playback.at = const Duration(seconds: 12);
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await settle();
@@ -744,7 +744,7 @@ void main() {
     notifier.startRetro();
     await settle();
     harness.playback.at = const Duration(seconds: 9);
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await settle();

@@ -290,6 +290,7 @@ class FakeRoom implements RoomRepository {
   final List<String?> pericopesAsked = [];
   final List<String?> bridgeModesSent = [];
   final List<int?> clipDurationsSent = [];
+  final List<List<List<int>>> playedRangesSent = [];
   final List<bool> metBefore = [];
   final List<String> clipsFetched = [];
   bool reachable = true;
@@ -465,8 +466,10 @@ class FakeRoom implements RoomRepository {
   Future<BackTranslationVerdict> finishBackTranslation(
     String sessionId, {
     int? clipDurationMs,
+    List<List<int>> playedRanges = const [],
   }) async {
     clipDurationsSent.add(clipDurationMs);
+    playedRangesSent.add(playedRanges);
     _guard('finishBackTranslation');
     return BackTranslationVerdict(
       audioUrl: '/api/internalization-room/voice/veredito',

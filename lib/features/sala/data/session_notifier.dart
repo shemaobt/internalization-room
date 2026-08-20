@@ -113,6 +113,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _retroClipMs = 0;
   int _parteTocando = 0;
   List<int> _fimDaParteMs = [];
+  /// What the team actually heard of their own rehearsal, in global milliseconds.
+  ///
+  /// This used to be invented at the very end — "nought to the length of the clip" — so
+  /// the report that travels to Refine said a team had listened to the whole rehearsal
+  /// however little of it had played, and the gate that exists to catch exactly that could
+  /// never fail. It is a record now: one span per stretch of listening, closed whenever
+  /// the rehearsal stops.
+  List<List<int>> _ouvido = [];
+  int _desdeMs = 0;
   int _ghostParte = 0;
   String? _panoramaSessionId;
 
@@ -1546,7 +1555,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     // The retro's clip was paused for the telling-back that never started. Its sibling
     // `_finishChunkCapture` resumes it; this path left it frozen with the halo running.
-    if (capturing && !state.btClipEnded) _letTheClipRun();
+    if (capturing) state = state.copyWith(btClipRodando: false);
   }
 
   /// The screen already said the room was listening, and it was not.
@@ -1614,11 +1623,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _trechoEnd = Duration.zero;
     _parteTocando = 0;
     _fimDaParteMs = [];
+    _ouvido = [];
+    _desdeMs = 0;
+    _retroClipMs = 0;
     state = state.copyWith(
       btTrechos: const [],
       clearFindingChunk: true,
       btTrechoTocando: false,
       btParteFronteira: false,
+      btClipRodando: false,
     );
     if (state.partes.isEmpty) {
       // No rehearsal to tell back is not a rehearsal that finished playing. Calling it
@@ -1626,7 +1639,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _haltForAPerson();
       return;
     }
-    _retroClipMs = 0;
     _tocarParteDaRetro(0);
   }
 
@@ -1636,9 +1648,29 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       Duration(milliseconds: _inicioDaParteMs(_parteTocando)) +
       _playback.position;
 
+  void _seguirOClipe() {
+    _desdeMs = _posicaoGlobal.inMilliseconds;
+    state = state.copyWith(btClipRodando: true);
+    _letTheClipRun();
+  }
+
+  /// Stop the rehearsal and write down how far it got.
+  ///
+  /// [ate] is the true end of a part, which the part's own duration knows better than the
+  /// player's position at the moment it finished.
+  void _pararOClipe({int? ate}) {
+    _holdClip();
+    if (state.btClipRodando) {
+      final fim = ate ?? _posicaoGlobal.inMilliseconds;
+      if (fim > _desdeMs) _ouvido = [..._ouvido, [_desdeMs, fim]];
+    }
+    state = state.copyWith(btClipRodando: false);
+  }
+
   void _tocarParteDaRetro(int parte) {
     _parteTocando = parte;
-    state = state.copyWith(btParteFronteira: false);
+    _desdeMs = _inicioDaParteMs(parte);
+    state = state.copyWith(btParteFronteira: false, btClipRodando: true);
     _play(
       state.partes[parte].path,
       onComplete: _fimDeParte,
@@ -1656,15 +1688,58 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _fimDeParte() {
-    final fim =
-        _inicioDaParteMs(_parteTocando) + _playback.position.inMilliseconds;
+    // The part's own length, not where the player says it stopped. A position read at the
+    // moment a clip finishes can come back as nought, and every offset after it — every
+    // stretch the team tells back, and the length of the whole rehearsal — was measured
+    // from there. A three-part rehearsal reported itself as one part long.
+    final medido = _playback.playingLength?.inMilliseconds ??
+        _playback.position.inMilliseconds;
+    final fim = _inicioDaParteMs(_parteTocando) + medido;
     if (_fimDaParteMs.length <= _parteTocando) _fimDaParteMs.add(fim);
-    if (_parteTocando >= state.partes.length - 1) {
-      _retroClipMs = fim;
+    _pararOClipe(ate: fim);
+    final ultima = _parteTocando >= state.partes.length - 1;
+    if (ultima && _fimDaParteMs.length >= state.partes.length) {
+      _retroClipMs = _fimDaParteMs.last;
       state = state.copyWith(btClipEnded: true, btParteFronteira: false);
       return;
     }
     state = state.copyWith(btParteFronteira: true);
+  }
+
+  /// Listen to the rehearsal, hold it, or cross into the next part.
+  ///
+  /// One gesture with one meaning. It used to share the circle with cutting a stretch and
+  /// opening the microphone, which is why the room could only guess how much had been
+  /// heard.
+  void ouvirGravacao() {
+    if (state.stage != SalaStage.retro) return;
+    if (state.btPhase != BtPhase.playing) return;
+    if (state.needsPerson || state.offline) return;
+    if (state.btTrechoTocando) return;
+    if (state.btClipRodando) {
+      _pararOClipe();
+      return;
+    }
+    if (state.btParteFronteira) {
+      _tocarParteDaRetro(_parteTocando + 1);
+      return;
+    }
+    if (state.btClipEnded) return;
+    _seguirOClipe();
+  }
+
+  /// End a stretch here and hand the floor to the team.
+  void cortarTrecho() {
+    if (state.stage != SalaStage.retro) return;
+    if (state.btPhase != BtPhase.playing) return;
+    if (state.needsPerson || state.offline) return;
+    if (state.btTrechoTocando) return;
+    // While telling a stretch again, its bounds are the ones the finding named. Reading the
+    // position instead wrote a place inside the excerpt into a number that means a place in
+    // the whole rehearsal, and every stretch after it inherited the lie.
+    if (!_recontando) _trechoEnd = _posicaoGlobal;
+    _pararOClipe();
+    _startChunkCapture();
   }
 
   void proximaParte() {
@@ -1683,9 +1758,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.needsPerson) return;
     switch (state.btPhase) {
       case BtPhase.playing:
-        _trechoEnd = _posicaoGlobal;
-        _holdClip();
-        _startChunkCapture();
+        break;
       case BtPhase.capturing:
         unawaited(_finishChunkCapture());
       case BtPhase.findings:
@@ -1721,7 +1794,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
     if (path == null || sessionId == null) {
       state = state.copyWith(btPhase: BtPhase.playing, voice: VoiceState.invite);
-      _retomarClipe();
       return;
     }
 
@@ -1752,8 +1824,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           voice: VoiceState.invite,
           btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
         );
-        _retomarClipe();
-        return;
+          return;
       }
     } on Exception catch (error) {
       unawaited(_guard(
@@ -1768,7 +1839,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
       );
       _handleRoomFailure(error);
-      _retomarClipe();
       return;
     }
 
@@ -1789,12 +1859,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btChunkPasses: [...state.btChunkPasses, captured.passNumber],
       btTrechos: [...state.btTrechos, trecho],
     );
-    _retomarClipe();
-  }
-
-  void _retomarClipe() {
-    if (state.btClipEnded || state.btParteFronteira) return;
-    _letTheClipRun();
   }
 
   /// Where the stretch just told sits in the row, counting the ones that failed.
@@ -1816,6 +1880,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       final verdict = await _room.finishBackTranslation(
         sessionId,
         clipDurationMs: _retroClipMs,
+        playedRanges: _ouvido,
       );
       if (epoch != _epoch) return;
       await _readyToSpeak(verdict.audioUrl, verdict.fixedLine);
@@ -1917,6 +1982,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _clearAll();
     _parteTocando = 0;
     _fimDaParteMs = [];
+    _ouvido = [];
+    _retroClipMs = 0;
     state = state.copyWith(
       stage: SalaStage.ensaio,
       voice: VoiceState.invite,
@@ -1993,6 +2060,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _trechoEnd = Duration.zero;
     _parteTocando = 0;
     _fimDaParteMs = [];
+    _ouvido = [];
+    _desdeMs = 0;
+    _retroClipMs = 0;
     _ghostParte = 0;
     _pendingTakePath = null;
     _emCurso = null;

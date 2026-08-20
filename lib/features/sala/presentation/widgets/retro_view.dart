@@ -19,10 +19,7 @@ class RetroView extends ConsumerWidget {
     final notifier = ref.read(salaSessionProvider.notifier);
     final colors = SalaColors.of(context);
     final conferida = session.btPhase == BtPhase.conferida;
-    final clipRunning = (session.btPhase == BtPhase.playing &&
-            !session.btClipEnded &&
-            !session.btParteFronteira) ||
-        session.btTrechoTocando;
+    final clipRunning = session.btClipRodando || session.btTrechoTocando;
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -61,6 +58,18 @@ class RetroView extends ConsumerWidget {
     );
   }
 
+  IconData _listenGlyph(SalaSessionState session) {
+    if (session.btClipRodando) return LucideIcons.pause;
+    if (session.btParteFronteira) return LucideIcons.skipForward;
+    return LucideIcons.play;
+  }
+
+  String _listenLabel(SalaSessionState session) {
+    if (session.btClipRodando) return 'Pausar a gravacao';
+    if (session.btParteFronteira) return 'Ouvir a proxima parte da gravacao';
+    return 'Ouvir a gravacao';
+  }
+
   Widget? _actions(SalaSessionState session, SalaSessionNotifier notifier) {
     if (session.btPhase == BtPhase.findings) {
       return FadeUp(
@@ -94,29 +103,51 @@ class RetroView extends ConsumerWidget {
         ),
       );
     }
-    if (session.btPhase == BtPhase.playing &&
-        session.btParteFronteira &&
-        !session.btClipEnded) {
-      return AdvanceButton(
-        gradient: BeadStyles.wood,
-        semanticLabel: 'Ouvir a proxima parte da gravacao',
-        onTap: notifier.proximaParte,
-        child: const Icon(
-          LucideIcons.skipForward,
-          size: 26,
-          color: ShemaBrand.branco,
-        ),
-      );
-    }
-    if (session.canFinishBackTranslation) {
-      return AdvanceButton(
-        gradient: BeadStyles.verde,
-        semanticLabel: 'Terminei de contar de volta',
-        onTap: notifier.finishBackTranslation,
-        child: const Icon(
-          LucideIcons.check,
-          size: 26,
-          color: ShemaBrand.branco,
+    if (session.btPhase == BtPhase.playing && !session.btTrechoTocando) {
+      // Two gestures, one meaning each. They were a single tap on the circle — listen,
+      // cut, and hand the microphone over all at once — and the room could only guess how
+      // much of the rehearsal a team had actually heard.
+      return FadeUp(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (session.canFinishBackTranslation)
+              RoundActionButton(
+                size: 60,
+                semanticLabel: 'Terminei de contar de volta',
+                gradient: BeadStyles.verde,
+                onTap: notifier.finishBackTranslation,
+                child: const Icon(
+                  LucideIcons.check,
+                  size: 24,
+                  color: ShemaBrand.branco,
+                ),
+              )
+            else
+              RoundActionButton(
+                size: 60,
+                semanticLabel: _listenLabel(session),
+                gradient: BeadStyles.wood,
+                onTap: notifier.ouvirGravacao,
+                child: Icon(
+                  _listenGlyph(session),
+                  size: 24,
+                  color: ShemaBrand.branco,
+                ),
+              ),
+            const SizedBox(width: 28),
+            RoundActionButton(
+              size: 60,
+              semanticLabel: 'Cortar aqui e contar esta parte',
+              gradient: BeadStyles.azul,
+              onTap: notifier.cortarTrecho,
+              child: const Icon(
+                LucideIcons.scissors,
+                size: 24,
+                color: ShemaBrand.branco,
+              ),
+            ),
+          ],
         ),
       );
     }
