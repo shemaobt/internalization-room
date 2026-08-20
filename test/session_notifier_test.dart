@@ -87,6 +87,15 @@ void main() {
     expect(state.colarOn, isFalse);
   });
 
+  test('the coverage necklace steps aside in the retro', () {
+    expect(const SalaSessionState(stage: SalaStage.conversa).colarOn, isTrue);
+    expect(const SalaSessionState(stage: SalaStage.ensaio).colarOn, isTrue);
+    expect(const SalaSessionState(stage: SalaStage.retro).colarOn, isFalse,
+        reason: 'na retro as contas são os trechos contados; o colar da '
+            'conversa por cima lia como a mesma fileira de novo');
+    expect(const SalaSessionState(stage: SalaStage.fim).colarOn, isTrue);
+  });
+
   test('ping range covers newly engaged beads only', () {
     const ping = PingRange(4, 6);
 

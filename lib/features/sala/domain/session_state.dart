@@ -124,7 +124,9 @@ class SalaSessionState {
   });
 
   bool get colarOn =>
-      stage != SalaStage.convite && stage != SalaStage.escolha;
+      stage != SalaStage.convite &&
+      stage != SalaStage.escolha &&
+      stage != SalaStage.retro;
 
   Passagem? get oferecida {
     final roda = naRoda;
