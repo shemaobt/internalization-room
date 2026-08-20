@@ -19,46 +19,38 @@ class DevSkipBar extends ConsumerWidget {
     final temParte = session.partes.isNotEmpty;
 
     return Positioned(
-      top: 0,
-      left: 0,
-      right: 0,
-      child: SafeArea(
-        bottom: false,
-        child: Container(
-          margin: const EdgeInsets.only(top: 4),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          alignment: Alignment.center,
-          child: Wrap(
-            spacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              const _DevTag(),
-              if (emCena.contains(session.stage)) ...[
-                _DevButton(
-                  label: 'ensaio',
-                  hint: temSessao ? null : 'esperando a sessão nascer',
-                  onTap: temSessao && session.stage == SalaStage.conversa
-                      ? notifier.goEnsaio
-                      : null,
-                ),
-                _DevButton(
-                  label: 'retro',
-                  hint: temParte ? null : 'grave 1 parte no ensaio antes',
-                  onTap: temParte && session.stage != SalaStage.retro
-                      ? notifier.startRetro
-                      : null,
-                ),
-                _DevButton(
-                  label: 'recomeçar',
-                  hint: null,
-                  onTap: temSessao || session.stage != SalaStage.conversa
-                      ? notifier.devRecomecarPassagem
-                      : null,
-                ),
-              ],
-            ],
-          ),
-        ),
+      right: 14,
+      bottom: 18 + MediaQuery.viewPaddingOf(context).bottom,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        spacing: 6,
+        children: [
+          const _DevTag(),
+          if (emCena.contains(session.stage)) ...[
+            _DevButton(
+              label: 'ensaio',
+              hint: temSessao ? null : 'esperando a sessão nascer',
+              onTap: temSessao && session.stage == SalaStage.conversa
+                  ? notifier.goEnsaio
+                  : null,
+            ),
+            _DevButton(
+              label: 'retro',
+              hint: temParte ? null : 'grave 1 parte no ensaio antes',
+              onTap: temParte && session.stage != SalaStage.retro
+                  ? notifier.startRetro
+                  : null,
+            ),
+            _DevButton(
+              label: 'recomeçar',
+              hint: null,
+              onTap: temSessao || session.stage != SalaStage.conversa
+                  ? notifier.devRecomecarPassagem
+                  : null,
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -103,19 +95,20 @@ class _DevButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: habilitado ? const Color(0x33FFFFFF) : const Color(0x14FFFFFF),
+          color: habilitado ? const Color(0xE6332B24) : const Color(0x80332B24),
           borderRadius: BorderRadius.circular(11),
           border: Border.all(
-            color: habilitado ? const Color(0x66FFFFFF) : const Color(0x22FFFFFF),
+            color: habilitado ? const Color(0xFFB4552D) : const Color(0x40B4552D),
           ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
               'pular → $label',
               style: TextStyle(
-                color: habilitado ? Colors.white : const Color(0x55FFFFFF),
+                color: habilitado ? Colors.white : const Color(0x88FFFFFF),
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -123,7 +116,7 @@ class _DevButton extends StatelessWidget {
             if (hint != null)
               Text(
                 hint!,
-                style: const TextStyle(color: Color(0x55FFFFFF), fontSize: 9),
+                style: const TextStyle(color: Color(0x88FFFFFF), fontSize: 9),
               ),
           ],
         ),
