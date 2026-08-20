@@ -227,7 +227,13 @@ void main() {
     await until(() => container.read(salaSessionProvider).btPhase == BtPhase.playing);
     await settle();
 
-    final queued = await harness.takes.entries();
+    var queued = await harness.takes.entries();
+    final deadline = DateTime.now().add(const Duration(seconds: 5));
+    while (queued.where((entry) => entry.kind == 'retro').isEmpty &&
+        DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      queued = await harness.takes.entries();
+    }
     expect(
       queued.where((entry) => entry.kind == 'retro'),
       isNotEmpty,
