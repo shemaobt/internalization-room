@@ -9,6 +9,7 @@ import 'package:internalization_room/features/sala/data/hand_inbox_repository.da
 import 'package:internalization_room/features/sala/data/playback_repository.dart';
 import 'package:internalization_room/features/sala/data/recording_repository.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/coverage.dart';
@@ -66,6 +67,7 @@ class FakeVoice implements FacilitatorVoiceService {
 }
 
 class FakeRecorder implements RecordingRepository {
+  final Directory home = Directory.systemTemp.createTempSync('sala-gravacoes');
   int captures = 0;
   bool returnsNothing = false;
   final List<String> deleted = [];
@@ -77,8 +79,12 @@ class FakeRecorder implements RecordingRepository {
   }
 
   @override
-  Future<String?> stop() async =>
-      returnsNothing ? null : 'captura-$captures.m4a';
+  Future<String?> stop() async {
+    if (returnsNothing) return null;
+    final file = File('${home.path}/captura-$captures.m4a')
+      ..writeAsStringSync('a equipe falou');
+    return file.path;
+  }
 
   @override
   Future<void> discard() async {}
@@ -156,6 +162,7 @@ class FakeRoom implements RoomRepository {
   bool done = false;
   int turnsSent = 0;
   int chunksSent = 0;
+  final List<String> takesKept = [];
   bool chunkCaptured = true;
   bool verdictChecked = true;
   BtFindingKind? verdictFinding;
@@ -211,6 +218,19 @@ class FakeRoom implements RoomRepository {
   Future<TurnResult> openSession(String sessionId) async {
     _guard('openSession');
     return _turn(sessionId);
+  }
+
+  @override
+  Future<void> sendTake(
+    String sessionId,
+    File audio, {
+    required String kind,
+    required String scope,
+    int? passNumber,
+    int? chunkIndex,
+  }) async {
+    _guard('sendTake');
+    takesKept.add('$kind/$scope');
   }
 
   @override
@@ -276,6 +296,7 @@ class FakeNetwork implements ConnectivityService {
 }
 
 class SalaHarness {
+  final Directory takesHome = Directory.systemTemp.createTempSync('sala-tomadas');
   final FakeVoice voice = FakeVoice();
   final FakeRecorder recorder = FakeRecorder();
   final FakePlayback playback = FakePlayback();
@@ -293,12 +314,18 @@ class SalaHarness {
     this.beckonInterval,
   }) : inbox = FakeInbox(replies: replies);
 
+  late final TakeUploadQueue takes = TakeUploadQueue(
+    room: room,
+    home: () async => takesHome,
+  );
+
   List<Override> get overrides => [
         facilitatorVoiceProvider.overrideWithValue(voice),
         recordingRepositoryProvider.overrideWithValue(recorder),
         playbackRepositoryProvider.overrideWithValue(playback),
         handInboxRepositoryProvider.overrideWithValue(inbox),
         roomRepositoryProvider.overrideWithValue(room),
+        takeUploadQueueProvider.overrideWithValue(takes),
         connectivityServiceProvider.overrideWithValue(network),
         beadSettleDelayProvider.overrideWithValue(settleDelay),
         roomRetryBackoffProvider.overrideWithValue(retryBackoff),

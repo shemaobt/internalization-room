@@ -16,6 +16,7 @@ import 'hand_inbox_repository.dart';
 import 'playback_repository.dart';
 import 'recording_repository.dart';
 import 'room_repository.dart';
+import 'take_upload_queue.dart';
 
 final beadSettleDelayProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 30),
@@ -55,6 +56,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   PlaybackRepository get _playback => ref.read(playbackRepositoryProvider);
   HandInboxRepository get _inbox => ref.read(handInboxRepositoryProvider);
   RoomRepository get _room => ref.read(roomRepositoryProvider);
+  TakeUploadQueue get _takes => ref.read(takeUploadQueueProvider);
   ConnectivityService get _network => ref.read(connectivityServiceProvider);
 
   @override
@@ -229,6 +231,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(_networkWatch?.cancel());
     _networkWatch = null;
     _unplayableTurns = 0;
+    unawaited(_takes.flush());
     state = state.copyWith(voice: VoiceState.invite);
     if (state.stage == SalaStage.convite &&
         state.conviteStep == ConviteStep.boasVindas) {
@@ -589,6 +592,28 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         KeptTake(scopeId: KeptScope.whole, path: path),
       ],
     );
+    unawaited(_guard(path, kind: 'ensaio', scope: KeptScope.whole));
+  }
+
+  Future<void> _guard(
+    String path, {
+    required String kind,
+    required String scope,
+    int? passNumber,
+    int? chunkIndex,
+  }) async {
+    final sessionId = state.sessionId;
+    final audio = File(path);
+    if (sessionId == null || !await audio.exists()) return;
+    await _takes.enqueue(
+      audio,
+      sessionId: sessionId,
+      kind: kind,
+      scope: scope,
+      passNumber: passNumber,
+      chunkIndex: chunkIndex,
+    );
+    await _takes.flush();
   }
 
   void startRetro() {
@@ -661,6 +686,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           return;
         }
       } on Exception catch (error) {
+        unawaited(_guard(
+          path,
+          kind: 'retro',
+          scope: KeptScope.whole,
+          passNumber: state.btPass,
+          chunkIndex: state.btChunkPasses.length + 1,
+        ));
         _handleRoomFailure(error);
         if (!state.btClipEnded) unawaited(_playback.resume());
         return;
