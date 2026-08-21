@@ -10,6 +10,13 @@
 	<string>Sala de Internalização</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>A Sala de Internalização usa o microfone para ouvir a sua voz durante a conversa, o ensaio e a retrotradução.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>A Sala de Internalização fala com o servidor da sala na rede local desta casa para ouvir e responder à equipe.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
