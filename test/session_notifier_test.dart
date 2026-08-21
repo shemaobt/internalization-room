@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
@@ -13,6 +14,16 @@ import 'fakes.dart';
 
 Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) async {
   await Future<void>.delayed(delay);
+}
+
+Future<void> until(
+  bool Function() condition, {
+  Duration limit = const Duration(seconds: 5),
+}) async {
+  final deadline = DateTime.now().add(limit);
+  while (!condition() && DateTime.now().isBefore(deadline)) {
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
 }
 
 Future<ProviderContainer> inConversa(SalaHarness harness) async {
@@ -281,6 +292,7 @@ void main() {
     final container = await inConversa(harness);
     addTearDown(container.dispose);
 
+    await until(() => harness.voice.assets.isNotEmpty);
     await settle(const Duration(milliseconds: 200));
 
     expect(harness.voice.assets, hasLength(1),
@@ -632,6 +644,60 @@ void main() {
     await notifier.refreshUnsent();
 
     expect(container.read(salaSessionProvider).unsentTakes, 0);
+  });
+
+  test('the closed necklace opens the room again on its own', () async {
+    final harness = SalaHarness(fimLinger: const Duration(milliseconds: 40));
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    notifier.startRetro();
+    await settle();
+    notifier.retroTap();
+    await settle();
+    notifier.retroTap();
+    await settle();
+    harness.playback.finishPlayback();
+    await settle();
+    await notifier.finishBackTranslation();
+    await settle(const Duration(seconds: 2));
+
+    final after = container.read(salaSessionProvider);
+    expect(after.stage, SalaStage.convite,
+        reason: 'a equipe contempla o colar fechado e a sala reabre — antes ficava presa ali');
+    expect(after.sessionId, isNull);
+    expect(after.takes, 0);
+  });
+
+  test('a take that ran out of tries is said out loud, once', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    harness.room.reachable = false;
+    notifier.takeKeep();
+    await settle();
+
+    for (var attempt = 0; attempt < takeUploadAttempts + 1; attempt++) {
+      await harness.takes.flush();
+    }
+    await notifier.refreshUnsent();
+    await notifier.refreshUnsent();
+
+    expect(harness.voice.assets.where((a) => a == strandedTakeAsset), hasLength(1),
+        reason: 'a equipe precisa saber que algo ficou preso — e ouvir isso uma vez, '
+            'não a cada vez que a conta é recontada');
   });
 
   test('a chunk the room refused is not counted as safe either', () async {

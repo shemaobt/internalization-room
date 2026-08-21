@@ -29,6 +29,10 @@ final beckonIntervalProvider = Provider<Duration?>(
   (ref) => const Duration(seconds: 25),
 );
 
+final fimLingerProvider = Provider<Duration>(
+  (ref) => const Duration(seconds: 14),
+);
+
 final roomRetryBackoffProvider = Provider<List<Duration>>(
   (ref) => const [
     Duration(seconds: 5),
@@ -46,6 +50,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   bool _noticeSpoken = false;
   bool _conviteOpened = false;
   bool _returning = false;
+  bool _strandedSpoken = false;
   String? _panoramaSessionId;
   String? _pendingTakePath;
   StreamSubscription<void>? _playbackDone;
@@ -352,12 +357,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> goConversa() async {
     _clearAll();
+    final epoch = _epoch;
     state = state.copyWith(
       stage: SalaStage.conversa,
       voice: VoiceState.thinking,
       peerCue: false,
     );
-    if (!await _network.canReachRoom()) {
+    final reachable = await _network.canReachRoom();
+    if (epoch != _epoch) return;
+    if (!reachable) {
       _goOffline();
       return;
     }
@@ -365,6 +373,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       final snapshot = await _room.createSession(
         afterSession: _panoramaSessionId,
       );
+      if (epoch != _epoch) return;
       state = state.copyWith(
         sessionId: snapshot.sessionId,
         coverage: snapshot.coverage,
@@ -633,8 +642,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final epoch = _epoch;
     final takes = await _takes.unsentOf('ensaio', sessionId: sessionId);
     final chunks = await _takes.unsentOf('retro', sessionId: sessionId);
+    final stranded = (await _takes.giveUps()).isNotEmpty;
     if (epoch != _epoch) return;
     state = state.copyWith(unsentTakes: takes, unsentChunks: chunks);
+    if (stranded && !_strandedSpoken) {
+      _strandedSpoken = true;
+      unawaited(_voice.playAsset(strandedTakeAsset));
+    }
   }
 
   void startRetro() {
@@ -665,6 +679,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void retroTap() {
     if (state.stage != SalaStage.retro) return;
+    if (state.offline) {
+      retryNow();
+      return;
+    }
     switch (state.btPhase) {
       case BtPhase.playing:
         unawaited(_playback.pause());
@@ -794,8 +812,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(stage: SalaStage.fim, voice: VoiceState.done);
       _after('close', const Duration(milliseconds: 1000), () {
         state = state.copyWith(fimClosed: true);
+        _after('recomecar', ref.read(fimLingerProvider), _startOver);
       });
     });
+  }
+
+  void _startOver() {
+    _clearAll();
+    _unplayableTurns = 0;
+    _retryStep = 0;
+    _noticeSpoken = false;
+    _conviteOpened = false;
+    _strandedSpoken = false;
+    _panoramaSessionId = null;
+    _pendingTakePath = null;
+    state = const SalaSessionState();
+    beckon();
   }
 }
 
