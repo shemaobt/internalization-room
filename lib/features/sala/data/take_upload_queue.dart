@@ -135,8 +135,10 @@ class TakeUploadQueue {
   Future<List<PendingTake>> waiting() async =>
       [for (final entry in await pending()) if (!entry.exhausted) entry];
 
-  Future<int> unsentOf(String kind) async =>
-      [for (final entry in await pending()) if (entry.kind == kind) entry].length;
+  Future<int> unsentOf(String kind, {required String sessionId}) async => [
+        for (final entry in await pending())
+          if (entry.kind == kind && entry.sessionId == sessionId) entry,
+      ].length;
 
   Future<List<PendingTake>> giveUps() async =>
       [for (final entry in await pending()) if (entry.exhausted) entry];

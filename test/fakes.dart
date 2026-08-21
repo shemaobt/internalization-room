@@ -72,10 +72,15 @@ class FakeRecorder implements RecordingRepository {
   bool returnsNothing = false;
   final List<String> deleted = [];
 
+  bool permitted = true;
+
+  @override
+  Future<bool> hasPermission() async => permitted;
+
   @override
   Future<bool> start(String fileName) async {
     captures++;
-    return true;
+    return permitted;
   }
 
   @override

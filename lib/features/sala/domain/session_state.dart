@@ -6,7 +6,7 @@ import 'kept_take.dart';
 
 enum SalaStage { convite, conversa, ensaio, retro, fim }
 
-enum VoiceState { invite, listening, thinking, speaking, done, needsPerson, offline }
+enum VoiceState { invite, listening, thinking, speaking, done, needsPerson, offline, blocked }
 
 enum ConviteStep { boasVindas, panorama, entrada }
 

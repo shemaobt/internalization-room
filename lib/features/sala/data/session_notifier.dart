@@ -13,6 +13,7 @@ import '../domain/turn_result.dart';
 import 'connectivity_service.dart';
 import 'facilitator_voice_service.dart';
 import 'hand_inbox_repository.dart';
+import 'mic_permission.dart';
 import 'playback_repository.dart';
 import 'recording_repository.dart';
 import 'room_repository.dart';
@@ -395,6 +396,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case VoiceState.done:
       case VoiceState.needsPerson:
       case VoiceState.offline:
+      case VoiceState.blocked:
         break;
     }
   }
@@ -405,7 +407,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       peerCue: false,
       clearLastSpoken: true,
     );
-    unawaited(_recorder.start(fileName));
+    unawaited(_recordOrBlock(fileName));
   }
 
   Future<void> _finishListening() async {
@@ -456,7 +458,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: VoiceState.listening,
       peerCue: false,
     );
-    unawaited(_recorder.start('pergunta_${_stamp()}'));
+    unawaited(_recordOrBlock('pergunta_${_stamp()}'));
   }
 
   Future<void> _playReply(HandReply reply) async {
@@ -547,7 +549,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (state.ensaio) {
       case EnsaioStatus.idle:
         state = state.copyWith(ensaio: EnsaioStatus.recording);
-        unawaited(_recorder.start('ensaio_tomada_${_stamp()}'));
+        unawaited(_recordOrBlock('ensaio_tomada_${_stamp()}'));
       case EnsaioStatus.recording:
         state = state.copyWith(ensaio: EnsaioStatus.recorded);
         unawaited(_stopTake());
@@ -620,10 +622,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> refreshUnsent() => _countUnsent();
 
+  Future<void> _recordOrBlock(String fileName) async {
+    if (await _recorder.start(fileName)) return;
+    ref.read(micPermissionProvider.notifier).refuse();
+  }
+
   Future<void> _countUnsent() async {
+    final sessionId = state.sessionId;
+    if (sessionId == null) return;
     final epoch = _epoch;
-    final takes = await _takes.unsentOf('ensaio');
-    final chunks = await _takes.unsentOf('retro');
+    final takes = await _takes.unsentOf('ensaio', sessionId: sessionId);
+    final chunks = await _takes.unsentOf('retro', sessionId: sessionId);
     if (epoch != _epoch) return;
     state = state.copyWith(unsentTakes: takes, unsentChunks: chunks);
   }
@@ -675,7 +684,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: VoiceState.listening,
     );
     unawaited(
-      _recorder.start(
+      _recordOrBlock(
         'retro_passada${state.btPass}_pedaco${state.btChunkPasses.length + 1}',
       ),
     );
@@ -689,26 +698,33 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final path = await _recorder.stop();
     final sessionId = state.sessionId;
 
-    if (path != null && sessionId != null) {
-      try {
-        final captured = await _room.sendChunk(sessionId, File(path));
-        if (!captured.captured) {
-          state = state.copyWith(btPhase: BtPhase.playing, voice: VoiceState.invite);
-          if (!state.btClipEnded) unawaited(_playback.resume());
-          return;
-        }
-      } on Exception catch (error) {
-        unawaited(_guard(
-          path,
-          kind: 'retro',
-          scope: KeptScope.whole,
-          passNumber: state.btPass,
-          chunkIndex: state.btChunkPasses.length + 1,
-        ));
-        _handleRoomFailure(error);
+    if (path == null || sessionId == null) {
+      state = state.copyWith(btPhase: BtPhase.playing, voice: VoiceState.invite);
+      if (!state.btClipEnded) unawaited(_playback.resume());
+      return;
+    }
+
+    try {
+      final captured = await _room.sendChunk(sessionId, File(path));
+      if (!captured.captured) {
+        state = state.copyWith(btPhase: BtPhase.playing, voice: VoiceState.invite);
         if (!state.btClipEnded) unawaited(_playback.resume());
         return;
       }
+    } on Exception catch (error) {
+      unawaited(_guard(
+        path,
+        kind: 'retro',
+        scope: KeptScope.whole,
+        passNumber: state.btPass,
+        chunkIndex: state.btChunkPasses.length + 1,
+      ));
+      state = state.copyWith(
+        btChunkPasses: [...state.btChunkPasses, state.btPass],
+      );
+      _handleRoomFailure(error);
+      if (!state.btClipEnded) unawaited(_playback.resume());
+      return;
     }
 
     state = state.copyWith(

@@ -634,6 +634,30 @@ void main() {
     expect(container.read(salaSessionProvider).unsentTakes, 0);
   });
 
+  test('a chunk the room refused is not counted as safe either', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    notifier.startRetro();
+    await settle();
+
+    harness.room.failWith = const RoomUnavailable('sem rede');
+    notifier.retroTap();
+    await settle();
+    notifier.retroTap();
+    await settle();
+
+    expect(container.read(salaSessionProvider).unsentChunks, 1,
+        reason: 'o trecho subiu junto com a transcrição e falhou — a conta não pode dizer pronto');
+  });
+
   test('a told-back piece goes to the server and nothing is voiced', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
