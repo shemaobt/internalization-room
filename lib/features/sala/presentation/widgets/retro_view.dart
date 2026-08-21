@@ -17,7 +17,6 @@ class RetroView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);
-    final colors = SalaColors.of(context);
     final conferida = session.btPhase == BtPhase.conferida;
     final clipRunning =
         session.btPhase == BtPhase.playing && !session.btClipEnded;
@@ -28,7 +27,6 @@ class RetroView extends ConsumerWidget {
         _ChunkBeads(
           passes: session.btChunkPasses,
           unsent: session.unsentChunks,
-          colors: colors,
         ),
         const SizedBox(height: 46),
         SizedBox(
@@ -37,7 +35,7 @@ class RetroView extends ConsumerWidget {
           child: Stack(
             alignment: Alignment.center,
             children: [
-              if (clipRunning) _ClipHalo(colors: colors),
+              if (clipRunning) const _ClipHalo(),
               FacilitatorCircle(
                 size: 150,
                 voice: conferida ? VoiceState.done : session.voice,
@@ -119,9 +117,7 @@ class RetroView extends ConsumerWidget {
 }
 
 class _ClipHalo extends StatelessWidget {
-  final SalaColors colors;
-
-  const _ClipHalo({required this.colors});
+  const _ClipHalo();
 
   @override
   Widget build(BuildContext context) {
@@ -145,13 +141,8 @@ class _ClipHalo extends StatelessWidget {
 class _ChunkBeads extends StatelessWidget {
   final List<int> passes;
   final int unsent;
-  final SalaColors colors;
 
-  const _ChunkBeads({
-    required this.passes,
-    required this.unsent,
-    required this.colors,
-  });
+  const _ChunkBeads({required this.passes, required this.unsent});
 
   @override
   Widget build(BuildContext context) {
