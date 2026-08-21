@@ -66,11 +66,19 @@ class HandInboxRepository {
     )
       ..headers.addAll(await _headers)
       ..files.add(await http.MultipartFile.fromPath('file', audio.path));
-    final response = await http.Response.fromStream(
-      await _client.send(request).timeout(_timeout),
-    );
+    final response = await _sendMultipart(request);
     if (response.statusCode != 200) {
       throw RoomUnavailable('HTTP ${response.statusCode}');
+    }
+  }
+
+  Future<http.Response> _sendMultipart(http.MultipartRequest request) async {
+    try {
+      return await Future(
+        () async => http.Response.fromStream(await _client.send(request)),
+      ).timeout(_timeout);
+    } on Exception catch (error) {
+      throw RoomUnavailable('$error');
     }
   }
 
