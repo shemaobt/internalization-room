@@ -75,9 +75,6 @@ void main() {
     }
   });
 
-
-
-
   testWidgets('no stage ever shows a written word', (tester) async {
     final harness = SalaHarness()..room.done = true;
     final container = await pumpSala(tester, harness);
@@ -209,7 +206,6 @@ void main() {
       findsOneWidget,
     );
   });
-
 
   testWidgets('the ensaio offers ghost play before recording', (tester) async {
     final container = await pumpSala(tester, SalaHarness());

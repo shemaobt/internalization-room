@@ -71,7 +71,6 @@ class RoomRepository {
     return _read(response, SessionSnapshot.fromJson);
   }
 
-
   Future<SessionSnapshot> fetchState(String sessionId) async {
     final response = await _send(
       () => _client.get(_uri('/sessions/$sessionId'), headers: _headers),

@@ -20,8 +20,6 @@ class PlaybackRepository {
 
   Duration get position => _opened?.position ?? Duration.zero;
 
-  Future<void> seek(Duration to) => _quietly(() => _player.seek(to));
-
   void _watchCompletion() {
     _states ??= _player.playerStateStream.listen((playerState) {
       if (playerState.processingState == ProcessingState.completed) {

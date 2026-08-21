@@ -719,15 +719,6 @@ void main() {
     expect(container.read(salaSessionProvider).unsentTakes, 0);
   });
 
-
-
-
-
-
-
-
-
-
   test('the closed necklace opens the room again on its own', () async {
     final harness = SalaHarness(fimLinger: const Duration(milliseconds: 40));
     final container = await inConversa(harness);
@@ -778,7 +769,6 @@ void main() {
         reason: 'sem teto, uma reprodução interrompida deixava a tela do ensaio '
             'sem nenhum gesto vivo — nada para tocar, e nada escrito para explicar');
   });
-
 
   test('the closed room opens again on a touch, not only on its own', () async {
     final harness = SalaHarness(fimLinger: const Duration(seconds: 30));
@@ -879,8 +869,6 @@ void main() {
         reason: 'e a escuta volta de onde parou, em vez de ficar muda para sempre');
   });
 
-
-
   test('the retro ignores taps once it has asked for a person', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
@@ -909,11 +897,6 @@ void main() {
         reason: 'a equipe falava para um buraco enquanto o círculo mostrava '
             '"chame uma pessoa"');
   });
-
-
-
-
-
 
   test('the room answers the moment the team stops talking', () async {
     final harness = SalaHarness();
@@ -973,8 +956,6 @@ void main() {
     expect(container.read(salaSessionProvider).voice, VoiceState.invite,
         reason: 'e a sala volta a convidar, pronta para ouvir de novo');
   });
-
-
 
   test('a take that ran out of tries is said out loud, once', () async {
     final harness = SalaHarness();
