@@ -1,0 +1,92 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
+
+import '../../../core/config/env.dart';
+import '../domain/hand_reply.dart';
+import 'device_identity.dart';
+import 'room_repository.dart';
+
+const _basePath = '/api/internalization-room';
+const _timeout = Duration(seconds: 20);
+
+class HandInboxRepository {
+  final http.Client _client;
+  final Future<String> Function() _deviceId;
+
+  HandInboxRepository({
+    http.Client? client,
+    Future<String> Function()? deviceId,
+  })  : _client = client ?? http.Client(),
+        _deviceId = deviceId ?? deviceIdentity;
+
+  Future<Map<String, String>> get _headers async => {
+        'X-Room-Key': Env.roomKey,
+        'X-Room-Device': await _deviceId(),
+      };
+
+  Future<List<HandReply>> fetchReplies() async {
+    try {
+      final response = await _client
+          .get(
+            Uri.parse('${Env.backendUrl}$_basePath/questions/replies'),
+            headers: await _headers,
+          )
+          .timeout(_timeout);
+      if (response.statusCode != 200) return const [];
+      final body = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      return [
+        for (final reply in (body['replies'] as List? ?? const []))
+          HandReply.fromJson((reply as Map).cast<String, dynamic>()),
+      ];
+    } on Object {
+      return const [];
+    }
+  }
+
+  Future<void> markHeard(String replyId) async {
+    try {
+      await _client
+          .post(
+            Uri.parse('${Env.backendUrl}$_basePath/questions/$replyId/heard'),
+            headers: await _headers,
+          )
+          .timeout(_timeout);
+    } on Exception {
+      return;
+    }
+  }
+
+  Future<void> sendQuestion(String sessionId, File audio) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('${Env.backendUrl}$_basePath/questions?session_id=$sessionId'),
+    )
+      ..headers.addAll(await _headers)
+      ..files.add(await http.MultipartFile.fromPath('file', audio.path));
+    final response = await _sendMultipart(request);
+    if (response.statusCode != 200) {
+      throw RoomUnavailable('HTTP ${response.statusCode}');
+    }
+  }
+
+  Future<http.Response> _sendMultipart(http.MultipartRequest request) async {
+    try {
+      return await Future(
+        () async => http.Response.fromStream(await _client.send(request)),
+      ).timeout(_timeout);
+    } on Exception catch (error) {
+      throw RoomUnavailable('$error');
+    }
+  }
+
+  void dispose() => _client.close();
+}
+
+final handInboxRepositoryProvider = Provider<HandInboxRepository>((ref) {
+  final repository = HandInboxRepository();
+  ref.onDispose(repository.dispose);
+  return repository;
+});
