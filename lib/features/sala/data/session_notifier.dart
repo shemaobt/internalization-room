@@ -737,6 +737,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         passNumber: state.btPass,
         chunkIndex: state.btChunkPasses.length + 1,
       ));
+      state = state.copyWith(
+        btChunkPasses: [...state.btChunkPasses, state.btPass],
+      );
       _handleRoomFailure(error);
       if (!state.btClipEnded) unawaited(_playback.resume());
       return;
