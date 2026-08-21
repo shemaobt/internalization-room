@@ -1,35 +1,76 @@
 import 'dart:async';
-import 'dart:math' as math;
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/facilitator_script.dart';
-import '../domain/meaning_map.dart';
+import '../domain/hand_reply.dart';
+import '../domain/kept_take.dart';
 import '../domain/session_state.dart';
+import '../domain/spoken_line.dart';
+import '../domain/turn_result.dart';
+import 'connectivity_service.dart';
 import 'facilitator_voice_service.dart';
+import 'hand_inbox_repository.dart';
 import 'playback_repository.dart';
 import 'recording_repository.dart';
+import 'room_repository.dart';
+
+final beadSettleDelayProvider = Provider<Duration>(
+  (ref) => const Duration(seconds: 30),
+);
+
+const _unplayableTurnsBeforeNeedsPerson = 3;
+
+final beckonIntervalProvider = Provider<Duration?>(
+  (ref) => const Duration(seconds: 25),
+);
+
+final roomRetryBackoffProvider = Provider<List<Duration>>(
+  (ref) => const [
+    Duration(seconds: 5),
+    Duration(seconds: 10),
+    Duration(seconds: 20),
+    Duration(seconds: 30),
+  ],
+);
 
 class SalaSessionNotifier extends Notifier<SalaSessionState> {
   final Map<String, Timer> _timers = {};
   int _epoch = 0;
+  int _unplayableTurns = 0;
+  int _retryStep = 0;
+  bool _noticeSpoken = false;
+  bool _conviteOpened = false;
+  bool _returning = false;
+  String? _panoramaSessionId;
   String? _pendingTakePath;
+  StreamSubscription<void>? _playbackDone;
+  StreamSubscription<void>? _networkWatch;
+  VoidCallback? _onPlaybackComplete;
 
   FacilitatorVoiceService get _voice => ref.read(facilitatorVoiceProvider);
   RecordingRepository get _recorder => ref.read(recordingRepositoryProvider);
   PlaybackRepository get _playback => ref.read(playbackRepositoryProvider);
+  HandInboxRepository get _inbox => ref.read(handInboxRepositoryProvider);
+  RoomRepository get _room => ref.read(roomRepositoryProvider);
+  ConnectivityService get _network => ref.read(connectivityServiceProvider);
 
   @override
   SalaSessionState build() {
-    ref.onDispose(_cancelTimers);
+    ref.onDispose(() {
+      _cancelTimers();
+      unawaited(_playbackDone?.cancel());
+      unawaited(_networkWatch?.cancel());
+    });
     return const SalaSessionState();
   }
 
-  void _after(String key, int ms, VoidCallback fn) {
+  void _after(String key, Duration delay, VoidCallback fn) {
     _timers[key]?.cancel();
     final epoch = _epoch;
-    _timers[key] = Timer(Duration(milliseconds: ms), () {
+    _timers[key] = Timer(delay, () {
       if (epoch == _epoch) fn();
     });
   }
@@ -44,125 +85,440 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _clearAll() {
     _cancelTimers();
+    state = state.copyWith(clearLastSpoken: true);
+    _onPlaybackComplete = null;
     unawaited(_voice.stop());
     unawaited(_playback.stop());
   }
 
-  Future<void> _speak(String line, {VoidCallback? onDone}) async {
-    final epoch = _epoch;
-    state = state.copyWith(voice: VoiceState.speaking);
-    await _voice.speak(line);
-    if (epoch != _epoch) return;
-    state = state.copyWith(voice: VoiceState.invite);
-    onDone?.call();
-  }
-
   String _stamp() => DateTime.now().millisecondsSinceEpoch.toString();
 
-  Future<void> conviteTap() async {
-    if (state.stage != SalaStage.convite || state.voice != VoiceState.invite) {
+  void _play(String path, {VoidCallback? onComplete}) {
+    _onPlaybackComplete = onComplete;
+    _playbackDone ??= _playback.completions.listen((_) {
+      final callback = _onPlaybackComplete;
+      _onPlaybackComplete = null;
+      callback?.call();
+    });
+    unawaited(_playback.play(path));
+  }
+
+  Future<bool> _speak(String url, String fixedLine) async {
+    final epoch = _epoch;
+    final played = fixedLine.isEmpty
+        ? await _voice.play(url)
+        : await _voice.playAsset(fixedLineAsset(fixedLine));
+    if (played && epoch == _epoch) {
+      state = state.copyWith(
+        lastSpoken: SpokenLine(url: url, fixedLine: fixedLine),
+      );
+    }
+    return played;
+  }
+
+  Future<void> hearAgain() async {
+    final line = state.lastSpoken;
+    if (line == null || !state.canHearAgain) return;
+    final epoch = _epoch;
+    state = state.copyWith(voice: VoiceState.speaking);
+    await _speak(line.url, line.fixedLine);
+    if (epoch != _epoch) return;
+    state = state.copyWith(voice: VoiceState.invite);
+  }
+
+  Future<void> _voiceTurn(TurnResult turn) async {
+    final epoch = _epoch;
+    state = state.copyWith(voice: VoiceState.speaking);
+    final played = await _speak(turn.audioUrl, turn.fixedLine);
+    if (epoch != _epoch) return;
+    if (!played) {
+      _registerUnplayableTurn();
       return;
     }
-    switch (state.conviteStep) {
-      case ConviteStep.boasVindas:
-        await _speak(FacilitatorScript.boasVindas, onDone: () {
-          state = state.copyWith(conviteStep: ConviteStep.panorama);
+    _unplayableTurns = 0;
+    _retryStep = 0;
+    _noticeSpoken = false;
+    state = state.copyWith(
+      voice: turn.done ? VoiceState.done : VoiceState.invite,
+      peerCue: turn.peerCue,
+      coverage: turn.coverage,
+    );
+    _scheduleSettle();
+  }
+
+  void _registerUnplayableTurn() {
+    _unplayableTurns++;
+    state = state.copyWith(
+      voice: _unplayableTurns >= _unplayableTurnsBeforeNeedsPerson
+          ? VoiceState.needsPerson
+          : VoiceState.invite,
+      peerCue: false,
+    );
+  }
+
+  void _handleRoomFailure(Object error) {
+    _leaveThinking();
+    switch (error) {
+      case RoomRefused():
+        state = state.copyWith(voice: VoiceState.needsPerson, peerCue: false);
+      case SessionGone():
+        state = state.copyWith(clearSession: true, voice: VoiceState.needsPerson);
+      default:
+        _goOffline();
+    }
+  }
+
+  void _leaveThinking() {
+    if (state.stage == SalaStage.retro && state.btPhase == BtPhase.thinking) {
+      state = state.copyWith(btPhase: BtPhase.playing);
+    }
+  }
+
+  void _goOffline() {
+    if (state.offline) return;
+    _cancelTimers();
+    _leaveThinking();
+    state = state.copyWith(voice: VoiceState.offline, peerCue: false);
+    if (!_noticeSpoken) {
+      _noticeSpoken = true;
+      unawaited(_voice.playAsset(offlineNoticeAsset));
+    }
+    _watchForNetwork();
+    _scheduleRetry();
+  }
+
+  void _watchForNetwork() {
+    _networkWatch ??= _network.onNetworkReturned.listen((_) {
+      unawaited(_attemptReturn());
+    });
+  }
+
+  void _scheduleRetry() {
+    final backoff = ref.read(roomRetryBackoffProvider);
+    final step = _retryStep < backoff.length ? _retryStep : backoff.length - 1;
+    _retryStep++;
+    _after('retry', backoff[step], () => unawaited(_attemptReturn()));
+  }
+
+  Future<void> _attemptReturn() async {
+    if (!state.offline || _returning) return;
+    _returning = true;
+    final epoch = _epoch;
+    try {
+      final reachable = await _network.canReachRoom();
+      if (epoch != _epoch) return;
+      if (reachable) {
+        _comeBack();
+      } else if (state.offline) {
+        _scheduleRetry();
+      }
+    } finally {
+      _returning = false;
+    }
+  }
+
+  void retryNow() {
+    if (!state.offline) return;
+    _timers.remove('retry')?.cancel();
+    unawaited(_attemptReturn());
+  }
+
+  void _comeBack() {
+    if (!state.offline) return;
+    _timers.remove('retry')?.cancel();
+    unawaited(_networkWatch?.cancel());
+    _networkWatch = null;
+    _unplayableTurns = 0;
+    state = state.copyWith(voice: VoiceState.invite);
+    if (state.stage == SalaStage.convite &&
+        state.conviteStep == ConviteStep.boasVindas) {
+      _conviteOpened = false;
+      beckon();
+    } else if (state.sessionId == null && state.stage == SalaStage.conversa) {
+      unawaited(goConversa());
+    }
+  }
+
+  void resolveWithPerson() {
+    if (!state.needsPerson && !state.offline) return;
+    _timers.remove('retry')?.cancel();
+    _unplayableTurns = 0;
+    _retryStep = 0;
+    _noticeSpoken = false;
+    unawaited(_networkWatch?.cancel());
+    _networkWatch = null;
+    state = state.copyWith(voice: VoiceState.invite);
+    beckon();
+  }
+
+  void _scheduleSettle() {
+    final sessionId = state.sessionId;
+    if (sessionId == null) return;
+    _after('settle', ref.read(beadSettleDelayProvider), () {
+      unawaited(_pullState(sessionId));
+      unawaited(_pullInbox());
+    });
+  }
+
+  Future<void> _pullState(String sessionId) async {
+    final epoch = _epoch;
+    try {
+      final snapshot = await _room.fetchState(sessionId);
+      if (epoch != _epoch || state.sessionId != sessionId) return;
+      final before = state.coverage.engaged;
+      state = state.copyWith(
+        coverage: snapshot.coverage,
+        ping: snapshot.coverage.engaged > before
+            ? PingRange(before, snapshot.coverage.engaged)
+            : null,
+      );
+      if (state.ping != null) {
+        _after('ping', const Duration(milliseconds: 700), () {
+          state = state.copyWith(clearPing: true);
         });
-      case ConviteStep.panorama:
-        await _speak(FacilitatorScript.panorama, onDone: () {
-          state = state.copyWith(conviteStep: ConviteStep.entrada);
-        });
-      case ConviteStep.entrada:
+      }
+      if (snapshot.needsPerson && state.stage == SalaStage.conversa) {
+        state = state.copyWith(voice: VoiceState.needsPerson, peerCue: false);
+      } else if (snapshot.done && state.stage == SalaStage.conversa) {
+        state = state.copyWith(voice: VoiceState.done, peerCue: false);
+      }
+    } on Exception {
+      return;
+    }
+  }
+
+  void beckon() {
+    if (state.stage != SalaStage.convite) return;
+    if (state.conviteStep != ConviteStep.boasVindas) return;
+    if (_conviteOpened || state.offline) return;
+    unawaited(_voice.playAsset(inviteToStartAsset));
+    final again = ref.read(beckonIntervalProvider);
+    if (again != null) _after('beckon', again, beckon);
+  }
+
+  Future<void> openConvite() async {
+    if (state.stage != SalaStage.convite || _conviteOpened) return;
+    _conviteOpened = true;
+    _timers.remove('beckon')?.cancel();
+    state = state.copyWith(voice: VoiceState.thinking);
+    if (!await _network.canReachRoom()) {
+      _conviteOpened = false;
+      _goOffline();
+      return;
+    }
+    try {
+      final snapshot = await _room.createSession(pericope: panoramaPericope);
+      _panoramaSessionId = snapshot.sessionId;
+      final turn = await _room.openSession(snapshot.sessionId);
+      state = state.copyWith(conviteStep: ConviteStep.panorama);
+      await _voicePanorama(turn);
+    } on Exception catch (error) {
+      _conviteOpened = false;
+      _handleRoomFailure(error);
+    }
+  }
+
+  Future<void> _voicePanorama(TurnResult turn) async {
+    final epoch = _epoch;
+    state = state.copyWith(voice: VoiceState.speaking);
+    final played = await _speak(turn.audioUrl, turn.fixedLine);
+    if (epoch != _epoch) return;
+    if (!played) {
+      _registerUnplayableTurn();
+      return;
+    }
+    _unplayableTurns = 0;
+    _retryStep = 0;
+    _noticeSpoken = false;
+    state = state.copyWith(
+      voice: VoiceState.invite,
+      conviteStep: ConviteStep.entrada,
+    );
+  }
+
+  void conviteTap() {
+    if (state.stage != SalaStage.convite) return;
+    if (state.offline) {
+      retryNow();
+      return;
+    }
+    if (state.voice != VoiceState.invite) return;
+    if (state.conviteStep == ConviteStep.boasVindas) unawaited(openConvite());
+  }
+
+  Future<void> goConversa() async {
+    _clearAll();
+    state = state.copyWith(
+      stage: SalaStage.conversa,
+      voice: VoiceState.thinking,
+      peerCue: false,
+    );
+    if (!await _network.canReachRoom()) {
+      _goOffline();
+      return;
+    }
+    try {
+      final snapshot = await _room.createSession(
+        afterSession: _panoramaSessionId,
+      );
+      state = state.copyWith(
+        sessionId: snapshot.sessionId,
+        coverage: snapshot.coverage,
+      );
+      unawaited(_pullInbox());
+      await _voiceTurn(await _room.openSession(snapshot.sessionId));
+    } on Exception catch (error) {
+      _handleRoomFailure(error);
+    }
+  }
+
+  void conversaTap() {
+    if (state.stage != SalaStage.conversa) return;
+    if (state.offline) {
+      retryNow();
+      return;
+    }
+    if (state.noteMode) {
+      _sendQuestion();
+      return;
+    }
+    switch (state.voice) {
+      case VoiceState.invite:
+        _startListening('conversa_${_stamp()}');
+      case VoiceState.listening:
+        unawaited(_finishListening());
+      case VoiceState.thinking:
+      case VoiceState.speaking:
+      case VoiceState.done:
+      case VoiceState.needsPerson:
+      case VoiceState.offline:
         break;
     }
   }
 
-  void goConversa() {
-    _clearAll();
+  void _startListening(String fileName) {
     state = state.copyWith(
-      stage: SalaStage.conversa,
-      voice: VoiceState.invite,
-      lineIndex: -1,
+      voice: VoiceState.listening,
+      peerCue: false,
+      clearLastSpoken: true,
     );
-    unawaited(_speak(FacilitatorScript.conversaAbertura));
+    unawaited(_recorder.start(fileName));
   }
 
-  void conversaHoldStart() {
-    if (state.stage != SalaStage.conversa || state.voice != VoiceState.invite) {
-      return;
-    }
-    state = state.copyWith(voice: VoiceState.listening);
-    unawaited(_recorder.start('conversa_${_stamp()}'));
-  }
-
-  void conversaHoldEnd() {
-    if (state.stage != SalaStage.conversa ||
-        state.voice != VoiceState.listening) {
-      return;
-    }
-    unawaited(_recorder.stop());
+  Future<void> _finishListening() async {
+    final path = await _recorder.stop();
     state = state.copyWith(voice: VoiceState.thinking);
-    _after('think', 1500, () {
-      final lineIndex = math.min(
-        state.lineIndex + 1,
-        FacilitatorScript.linhas.length - 1,
-      );
-      final surfaced = math.min(RuthOneMeaningMap.count, state.engaged + 2);
-      state = state.copyWith(lineIndex: lineIndex, surfaced: surfaced);
-      unawaited(
-        _speak(FacilitatorScript.linhas[lineIndex], onDone: () {
-          final from = state.engaged;
-          state = state.copyWith(
-            engaged: surfaced,
-            ping: PingRange(from, surfaced),
-          );
-          _after('ping', 700, () {
-            state = state.copyWith(clearPing: true);
-          });
-          if (state.conversaDone) {
-            unawaited(_speak(FacilitatorScript.coberturaCompleta));
-          }
-        }),
-      );
-    });
-  }
-
-  void holdCancel() {
-    if (state.voice == VoiceState.listening && state.stage != SalaStage.retro) {
-      unawaited(_recorder.discard());
-      state = state.copyWith(voice: VoiceState.invite, hand: false);
+    final sessionId = state.sessionId;
+    if (path == null || sessionId == null) {
+      state = state.copyWith(voice: VoiceState.invite);
+      return;
+    }
+    try {
+      await _voiceTurn(await _room.sendTurn(sessionId, File(path)));
+    } on Exception catch (error) {
+      _handleRoomFailure(error);
+    } finally {
+      unawaited(_recorder.delete(path));
     }
   }
 
-  void handDown() {
-    _after('hand', 450, () {
-      state = state.copyWith(hand: true, voice: VoiceState.listening);
-      unawaited(_recorder.start('pergunta_${_stamp()}'));
-    });
+  Future<void> _pullInbox() async {
+    try {
+      final fetched = await _inbox.fetchReplies();
+      if (fetched.isEmpty) return;
+      final known = {for (final reply in state.replies) reply.id: reply};
+      state = state.copyWith(
+        replies: [for (final reply in fetched) known[reply.id] ?? reply],
+      );
+    } on Exception {
+      return;
+    }
   }
 
-  void handUp() {
-    _timers.remove('hand')?.cancel();
-    if (!state.hand) return;
-    unawaited(_recorder.stop());
+  void handTap() {
+    if (state.playingReplyId != null) return;
+    if (state.voice == VoiceState.listening && !state.noteMode) return;
+    final unheard = state.oldestUnheardReply;
+    if (unheard != null) {
+      state = state.copyWith(playingReplyId: unheard.id);
+      unawaited(_playReply(unheard));
+      return;
+    }
+    if (state.noteMode) {
+      _cancelQuestion();
+      return;
+    }
     state = state.copyWith(
-      hand: false,
+      noteMode: true,
+      voice: VoiceState.listening,
+      peerCue: false,
+    );
+    unawaited(_recorder.start('pergunta_${_stamp()}'));
+  }
+
+  Future<void> _playReply(HandReply reply) async {
+    final played = await _voice.play(reply.audioUrl);
+    if (played) _markHeard(reply.id);
+    state = state.copyWith(clearPlayingReply: true);
+  }
+
+  void _markHeard(String replyId) {
+    unawaited(_inbox.markHeard(replyId));
+    state = state.copyWith(
+      replies: [
+        for (final reply in state.replies)
+          reply.id == replyId ? reply.asHeard() : reply,
+      ],
+      clearPlayingReply: true,
+    );
+  }
+
+  void _cancelQuestion() {
+    unawaited(_recorder.discard());
+    state = state.copyWith(noteMode: false, voice: VoiceState.invite);
+  }
+
+  void _sendQuestion() {
+    if (!state.noteMode) return;
+    state = state.copyWith(noteMode: false, voice: VoiceState.thinking);
+    unawaited(_deliverQuestion());
+  }
+
+  Future<void> _deliverQuestion() async {
+    final path = await _recorder.stop();
+    final sessionId = state.sessionId;
+    if (path == null || sessionId == null) {
+      state = state.copyWith(voice: VoiceState.invite);
+      return;
+    }
+    try {
+      await _inbox.sendQuestion(sessionId, File(path));
+    } on Exception catch (error) {
+      _handleRoomFailure(error);
+      return;
+    }
+    unawaited(_recorder.delete(path));
+    state = state.copyWith(
       handAck: true,
       knots: state.knots + 1,
       voice: VoiceState.invite,
     );
-    unawaited(_speak(FacilitatorScript.maoGuardada));
-    _after('ack', 3200, () {
+    _after('ack', const Duration(milliseconds: 3200), () {
       state = state.copyWith(handAck: false);
     });
   }
 
-  void handCancel() {
-    _timers.remove('hand')?.cancel();
-    if (state.hand) {
-      unawaited(_recorder.discard());
-      state = state.copyWith(hand: false, voice: VoiceState.invite);
-    }
+  void replayKeptTake(String scopeId) {
+    if (state.stage != SalaStage.conversa) return;
+    final take = state.keptTakes.firstWhere(
+      (candidate) => candidate.scopeId == scopeId,
+      orElse: () => const KeptTake(scopeId: '', path: ''),
+    );
+    if (take.path.isEmpty) return;
+    state = state.copyWith(replayingScope: scopeId);
+    _play(take.path, onComplete: () {
+      state = state.copyWith(clearReplayingScope: true);
+    });
   }
 
   void goEnsaio() {
@@ -171,27 +527,42 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       stage: SalaStage.ensaio,
       voice: VoiceState.invite,
       ensaio: EnsaioStatus.idle,
+      peerCue: false,
     );
-    unawaited(_speak(FacilitatorScript.ensaioAbertura));
   }
 
-  void recStart() {
-    if (state.ensaio == EnsaioStatus.recording) return;
-    state = state.copyWith(ensaio: EnsaioStatus.recording);
-    unawaited(_recorder.start('ensaio_tomada_${_stamp()}'));
+  void ghostPlay() {
+    final take = state.wholeTake;
+    if (take == null || state.ensaio != EnsaioStatus.idle) return;
+    state = state.copyWith(ensaio: EnsaioStatus.ghostPlaying);
+    _play(take.path, onComplete: () {
+      state = state.copyWith(ensaio: EnsaioStatus.idle);
+    });
   }
 
-  Future<void> recStop() async {
-    if (state.ensaio != EnsaioStatus.recording) return;
+  void ensaioTap() {
+    switch (state.ensaio) {
+      case EnsaioStatus.idle:
+        state = state.copyWith(ensaio: EnsaioStatus.recording);
+        unawaited(_recorder.start('ensaio_tomada_${_stamp()}'));
+      case EnsaioStatus.recording:
+        state = state.copyWith(ensaio: EnsaioStatus.recorded);
+        unawaited(_stopTake());
+      case EnsaioStatus.ghostPlaying:
+      case EnsaioStatus.recorded:
+        break;
+    }
+  }
+
+  Future<void> _stopTake() async {
     _pendingTakePath = await _recorder.stop();
-    state = state.copyWith(ensaio: EnsaioStatus.recorded);
   }
 
   void takePlay() {
     final path = _pendingTakePath;
-    if (path != null) unawaited(_playback.play(path));
+    if (path != null) _play(path);
     state = state.copyWith(playPing: true);
-    _after('play', 1800, () {
+    _after('play', const Duration(milliseconds: 1800), () {
       state = state.copyWith(playPing: false);
     });
   }
@@ -204,10 +575,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void takeKeep() {
+    final path = _pendingTakePath;
     _pendingTakePath = null;
+    if (path == null) {
+      state = state.copyWith(ensaio: EnsaioStatus.idle);
+      return;
+    }
     state = state.copyWith(
       ensaio: EnsaioStatus.idle,
       takes: state.takes + 1,
+      keptTakes: [
+        ...state.keptTakes.where((take) => take.scopeId != KeptScope.whole),
+        KeptTake(scopeId: KeptScope.whole, path: path),
+      ],
     );
   }
 
@@ -215,74 +595,146 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _clearAll();
     state = state.copyWith(
       stage: SalaStage.retro,
-      retroPass: 1,
-      retroIndex: 0,
-      retroPhase: RetroPhase.ouvir,
-      fills: const [0, 0, 0, 0, 0],
       voice: VoiceState.invite,
+      btPhase: BtPhase.playing,
+      btChunkPasses: const [],
+      btClipEnded: false,
+      btFindings: const [],
+      btPass: 1,
+      peerCue: false,
     );
-    _after('hear', 2000, () {
-      state = state.copyWith(retroPhase: RetroPhase.falar);
+    _playClipFromStart();
+  }
+
+  void _playClipFromStart() {
+    final take = state.wholeTake;
+    if (take == null) {
+      state = state.copyWith(btClipEnded: true);
+      return;
+    }
+    _play(take.path, onComplete: () {
+      state = state.copyWith(btClipEnded: true);
     });
   }
 
-  void retroHoldStart() {
-    if (state.retroPhase != RetroPhase.falar ||
-        state.voice != VoiceState.invite) {
-      return;
+  void retroTap() {
+    if (state.stage != SalaStage.retro) return;
+    switch (state.btPhase) {
+      case BtPhase.playing:
+        unawaited(_playback.pause());
+        _startChunkCapture();
+      case BtPhase.capturing:
+        unawaited(_finishChunkCapture());
+      case BtPhase.thinking:
+      case BtPhase.findings:
+      case BtPhase.conferida:
+        break;
     }
-    state = state.copyWith(voice: VoiceState.listening);
+  }
+
+  void _startChunkCapture() {
+    state = state.copyWith(
+      btPhase: BtPhase.capturing,
+      voice: VoiceState.listening,
+    );
     unawaited(
       _recorder.start(
-        'retro_passada${state.retroPass}_trecho${state.retroIndex + 1}',
+        'retro_passada${state.btPass}_pedaco${state.btChunkPasses.length + 1}',
       ),
     );
   }
 
-  void retroHoldEnd() {
-    if (state.voice != VoiceState.listening || state.stage != SalaStage.retro) {
-      return;
-    }
-    unawaited(_recorder.stop());
-    state = state.copyWith(voice: VoiceState.thinking);
-    _after('fill', 900, () {
-      final fills = List<int>.from(state.fills);
-      fills[state.retroIndex] = state.retroPass;
-      if (state.retroIndex < RuthOneMeaningMap.segmentCount - 1) {
-        state = state.copyWith(
-          voice: VoiceState.invite,
-          fills: fills,
-          retroIndex: state.retroIndex + 1,
-          retroPhase: RetroPhase.ouvir,
-        );
-        _after('hear', 2000, () {
-          state = state.copyWith(retroPhase: RetroPhase.falar);
-        });
-      } else if (state.retroPass == 1) {
-        state = state.copyWith(
-          voice: VoiceState.invite,
-          fills: fills,
-          retroPass: 2,
-          retroIndex: 0,
-          retroPhase: RetroPhase.ouvir,
-        );
-        unawaited(
-          _speak(FacilitatorScript.retroSegundaPassada, onDone: () {
-            _after('hear', 1600, () {
-              state = state.copyWith(retroPhase: RetroPhase.falar);
-            });
-          }),
-        );
-      } else {
-        state = state.copyWith(voice: VoiceState.invite, fills: fills);
-        _after('fim', 700, () {
-          state = state.copyWith(stage: SalaStage.fim);
-          _after('close', 1000, () {
-            state = state.copyWith(fimClosed: true);
-            unawaited(_speak(FacilitatorScript.fecho));
-          });
-        });
+  Future<void> _finishChunkCapture() async {
+    state = state.copyWith(
+      btPhase: BtPhase.thinking,
+      voice: VoiceState.thinking,
+    );
+    final path = await _recorder.stop();
+    final sessionId = state.sessionId;
+
+    if (path != null && sessionId != null) {
+      try {
+        final captured = await _room.sendChunk(sessionId, File(path));
+        if (!captured.captured) {
+          state = state.copyWith(btPhase: BtPhase.playing, voice: VoiceState.invite);
+          if (!state.btClipEnded) unawaited(_playback.resume());
+          return;
+        }
+      } on Exception catch (error) {
+        _handleRoomFailure(error);
+        if (!state.btClipEnded) unawaited(_playback.resume());
+        return;
       }
+    }
+
+    state = state.copyWith(
+      btPhase: BtPhase.playing,
+      voice: VoiceState.invite,
+      btChunkPasses: [...state.btChunkPasses, state.btPass],
+    );
+    if (!state.btClipEnded) unawaited(_playback.resume());
+  }
+
+  Future<void> finishBackTranslation() async {
+    if (!state.canFinishBackTranslation) return;
+    final sessionId = state.sessionId;
+    if (sessionId == null) return;
+
+    state = state.copyWith(btPhase: BtPhase.thinking, voice: VoiceState.thinking);
+    try {
+      final verdict = await _room.finishBackTranslation(sessionId);
+      state = state.copyWith(voice: VoiceState.speaking);
+      await _voice.play(verdict.audioUrl);
+
+      if (verdict.checked) {
+        state = state.copyWith(btPhase: BtPhase.conferida, voice: VoiceState.done);
+        _closeTheNecklace();
+        return;
+      }
+      state = state.copyWith(
+        btPhase: BtPhase.findings,
+        voice: VoiceState.invite,
+        btFindings: verdict.findingKind == null ? const [] : [verdict.findingKind!],
+      );
+    } on Exception catch (error) {
+      _handleRoomFailure(error);
+    }
+  }
+
+  void retellChunk() {
+    if (state.btPhase != BtPhase.findings) return;
+    state = state.copyWith(
+      btPass: 2,
+      btPhase: BtPhase.playing,
+      btClipEnded: false,
+      btFindings: const [],
+      btChunkPasses: const [],
+    );
+    _playClipFromStart();
+  }
+
+  void reRecordClip() {
+    if (state.btPhase != BtPhase.findings) return;
+    _clearAll();
+    state = state.copyWith(
+      stage: SalaStage.ensaio,
+      voice: VoiceState.invite,
+      ensaio: EnsaioStatus.idle,
+      takes: 0,
+      btPhase: BtPhase.playing,
+      btChunkPasses: const [],
+      btClipEnded: false,
+      btFindings: const [],
+      btPass: 1,
+    );
+  }
+
+  void _closeTheNecklace() {
+    _after('fim', const Duration(milliseconds: 700), () {
+      state = state.copyWith(stage: SalaStage.fim, voice: VoiceState.done);
+      _after('close', const Duration(milliseconds: 1000), () {
+        state = state.copyWith(fimClosed: true);
+      });
     });
   }
 }

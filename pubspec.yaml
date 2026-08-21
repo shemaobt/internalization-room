@@ -12,18 +12,16 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.8
   flutter_riverpod: ^2.6.1
-  flutter_svg: ^2.0.10
   lucide_icons_flutter: ^3.1.15
   path_provider: ^2.1.5
+  record: ^6.2.1
+  just_audio: ^0.9.42
+  audio_session: ^0.1.21
   http: ^1.2.2
   flutter_dotenv: ^5.2.1
   # Outside the AGENTS.md stack list, and deliberately: the room must be able to say it
   # has no connection before the team taps, not only after a request has already failed.
   connectivity_plus: ^6.1.0
-  record: ^6.2.1
-  just_audio: ^0.9.42
-  audio_session: ^0.1.21
-  flutter_tts: ^4.2.0
   path: ^1.9.0
 
 # path_provider_foundation 2.6.0 pulls objective_c as a native asset, and that
@@ -36,9 +34,19 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  image_path: "assets/icon/app_icon.png"
+  ios: true
+  remove_alpha_ios: true
+  android: true
+  adaptive_icon_background: "#F6F5EB"
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
 
 flutter:
   uses-material-design: true
   assets:
-    - assets/icon-branco.svg
-    - assets/icon-telha.svg
+    - .env
+    - assets/audio/
+    - assets/audio/fixed/

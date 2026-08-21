@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
@@ -20,23 +20,22 @@ class ConviteView extends ConsumerWidget {
         FacilitatorCircle(
           size: 196,
           voice: session.voice,
-          showListenDot: session.showListenDot,
-          semanticLabel: 'Falar com o facilitador',
+          beckon: session.awaitingFirstTouch,
+          semanticLabel: session.needsPerson
+              ? 'Um momento para uma pessoa'
+              : 'Falar com o facilitador',
           onTap: notifier.conviteTap,
-          child: session.showBook
-              ? SvgPicture.asset(
-                  'assets/icon-branco.svg',
-                  width: 84,
-                  height: 84,
-                )
-              : null,
+          onLongPress: notifier.resolveWithPerson,
         ),
         const SizedBox(height: 52),
         SizedBox(
-          height: 64,
+          height: 78,
           child: session.showEntrada
               ? AdvanceButton(
+                  size: 78,
                   gradient: BeadStyles.wood,
+                  halo: ShemaBrand.wood,
+                  border: Border.all(color: SalaColors.of(context).cord, width: 2),
                   semanticLabel: 'Entrar na passagem',
                   onTap: notifier.goConversa,
                 )

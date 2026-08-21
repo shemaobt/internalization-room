@@ -4,9 +4,14 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
+import '../../domain/facilitator_script.dart';
+import '../../domain/session_state.dart';
+import 'bead.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
+import 'hand_button.dart';
 import 'motion.dart';
+import 'replay_chips.dart';
 
 class ConversaView extends ConsumerWidget {
   const ConversaView({super.key});
@@ -15,7 +20,6 @@ class ConversaView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);
-    final colors = SalaColors.of(context);
 
     return Stack(
       children: [
@@ -23,15 +27,20 @@ class ConversaView extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              ReplayChips(
+                takes: session.keptTakes,
+                replayingScope: session.replayingScope,
+                onReplay: notifier.replayKeptTake,
+              ),
+              const SizedBox(height: 26),
               FacilitatorCircle(
                 size: 158,
                 voice: session.voice,
-                azulMode: session.hand,
-                showListenDot: session.showListenDot,
-                semanticLabel: 'Segurar para falar',
-                onHoldStart: notifier.conversaHoldStart,
-                onHoldEnd: notifier.conversaHoldEnd,
-                onHoldCancel: notifier.holdCancel,
+                noteMode: session.noteMode,
+                peerCue: session.peerCue,
+                      semanticLabel: _circleLabel(session),
+                onTap: notifier.conversaTap,
+                onLongPress: notifier.resolveWithPerson,
               ),
               const SizedBox(height: 44),
               SizedBox(
@@ -53,14 +62,14 @@ class ConversaView extends ConsumerWidget {
           ),
         ),
         Positioned(
-          left: 22,
-          bottom: 26,
-          child: _HandButton(
-            active: session.hand,
-            colors: colors,
-            onDown: notifier.handDown,
-            onUp: notifier.handUp,
-            onCancel: notifier.handCancel,
+          left: 14,
+          bottom: 18 + MediaQuery.viewPaddingOf(context).bottom,
+          child: HandButton(
+            noteMode: session.noteMode,
+            hasUnheardReply: session.hasUnheardReply,
+            playingReply: session.playingReplyId != null,
+            onTap: notifier.handTap,
+            enabled: handReachesAPerson,
           ),
         ),
         if (session.handAck)
@@ -69,74 +78,20 @@ class ConversaView extends ConsumerWidget {
             right: 0,
             bottom: 110,
             child: Center(
-              child: PingIn(
-                child: Transform.rotate(
-                  angle: 0.785398,
-                  child: Container(
-                    width: 15,
-                    height: 15,
-                    decoration: const BoxDecoration(
-                      gradient: BeadStyles.azul,
-                      borderRadius: BorderRadius.all(Radius.circular(4)),
-                    ),
-                  ),
-                ),
-              ),
+              child: const PingIn(child: KnotMark(size: 15)),
             ),
           ),
       ],
     );
   }
-}
 
-class _HandButton extends StatelessWidget {
-  final bool active;
-  final SalaColors colors;
-  final VoidCallback onDown;
-  final VoidCallback onUp;
-  final VoidCallback onCancel;
-
-  const _HandButton({
-    required this.active,
-    required this.colors,
-    required this.onDown,
-    required this.onUp,
-    required this.onCancel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: 'Levantar a mão',
-      child: Listener(
-        onPointerDown: (_) => onDown(),
-        onPointerUp: (_) => onUp(),
-        onPointerCancel: (_) => onCancel(),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          width: 60,
-          height: 60,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: colors.card,
-            border: Border.all(color: colors.line, width: 1.5),
-            boxShadow: active
-                ? [
-                    BoxShadow(
-                      color: ShemaBrand.azul.withValues(alpha: 0.35),
-                      spreadRadius: 5,
-                    ),
-                  ]
-                : null,
-          ),
-          child: Icon(
-            LucideIcons.hand,
-            size: 26,
-            color: active ? ShemaBrand.azulInk : colors.mut,
-          ),
-        ),
-      ),
-    );
+  String _circleLabel(SalaSessionState session) {
+    if (session.needsPerson) return 'Um momento para uma pessoa';
+    if (session.noteMode) return 'Enviar a pergunta';
+    if (session.peerCue && session.voice == VoiceState.invite) {
+      return 'Conversem entre vocês — tocar quando quiserem me contar';
+    }
+    if (session.voice == VoiceState.listening) return 'Tocar ao terminar';
+    return 'Tocar para falar';
   }
 }

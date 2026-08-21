@@ -7,14 +7,27 @@ import 'widgets/colar_overlay.dart';
 import 'widgets/conversa_view.dart';
 import 'widgets/convite_view.dart';
 import 'widgets/ensaio_view.dart';
-import 'widgets/fim_view.dart';
+import 'widgets/hear_again_button.dart';
 import 'widgets/retro_view.dart';
 
-class SalaScreen extends ConsumerWidget {
+class SalaScreen extends ConsumerStatefulWidget {
   const SalaScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SalaScreen> createState() => _SalaScreenState();
+}
+
+class _SalaScreenState extends ConsumerState<SalaScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(salaSessionProvider.notifier).beckon();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final session = ref.watch(salaSessionProvider);
 
     return Scaffold(
@@ -22,6 +35,7 @@ class SalaScreen extends ConsumerWidget {
         top: false,
         bottom: false,
         child: Stack(
+          fit: StackFit.expand,
           children: [
             Positioned.fill(
               child: AnimatedSwitcher(
@@ -33,7 +47,10 @@ class SalaScreen extends ConsumerWidget {
               ),
             ),
             if (session.colarOn)
-              const Positioned.fill(child: _ColarLayer()),
+              const Positioned.fill(
+                child: SafeArea(bottom: false, child: _ColarLayer()),
+              ),
+            const HearAgainButton(),
           ],
         ),
       ),
@@ -51,7 +68,7 @@ class SalaScreen extends ConsumerWidget {
       case SalaStage.retro:
         return const RetroView();
       case SalaStage.fim:
-        return const FimView();
+        return const SizedBox.expand();
     }
   }
 }
