@@ -41,7 +41,7 @@ class HandInboxRepository {
         for (final reply in (body['replies'] as List? ?? const []))
           HandReply.fromJson((reply as Map).cast<String, dynamic>()),
       ];
-    } on Exception {
+    } on Object {
       return const [];
     }
   }
