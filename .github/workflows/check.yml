@@ -20,6 +20,9 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Provide a .env
+        run: cp .env.example .env
+
       - name: Analyze
         run: flutter analyze
 
