@@ -69,6 +69,7 @@ class TakeUploadQueue {
   final RoomRepository _room;
   final Future<Directory> Function() _home;
   bool _flushing = false;
+  int _minted = 0;
 
   TakeUploadQueue({required RoomRepository room, Future<Directory> Function()? home})
       : _room = room,
@@ -81,6 +82,8 @@ class TakeUploadQueue {
   }
 
   Future<File> _manifestFile() async => File(p.join((await _dir()).path, _manifest));
+
+  String _mintId() => '${DateTime.now().microsecondsSinceEpoch}-${_minted++}';
 
   Future<List<PendingTake>> entries() async {
     final file = await _manifestFile();
@@ -114,8 +117,9 @@ class TakeUploadQueue {
     int? chunkIndex,
   }) async {
     final dir = await _dir();
-    final id = p.basenameWithoutExtension(audio.path);
-    final kept = p.join(dir.path, '$kind-$id${p.extension(audio.path)}');
+    final id = _mintId();
+    final name = p.basenameWithoutExtension(audio.path);
+    final kept = p.join(dir.path, '$kind-$name-$id${p.extension(audio.path)}');
     if (audio.path != kept) {
       await audio.copy(kept);
     }
