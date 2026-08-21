@@ -385,6 +385,79 @@ void main() {
     expect(container.read(salaSessionProvider).showEntrada, isFalse);
   });
 
+  test('a room that answers badly does not disguise itself as a dead network',
+      () async {
+    final harness = SalaHarness()..room.failWith = const RoomBroke('HTTP 500');
+    final container = harness.container();
+    addTearDown(container.dispose);
+
+    await container.read(salaSessionProvider.notifier).openConvite();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.offline, isFalse,
+        reason: 'chamar de queda de rede uma sala que respondeu errado devolve '
+            'a equipe ao aceno para sempre, sem nunca pedir ajuda');
+    expect(state.awaitingFirstTouch, isTrue);
+    expect(harness.voice.assets, isNot(contains(offlineNoticeAsset)));
+  });
+
+  test('three bad answers ask for a person, not for another touch', () async {
+    final harness = SalaHarness()..room.failWith = const RoomBroke('HTTP 500');
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.openConvite();
+    await notifier.openConvite();
+    await notifier.openConvite();
+    await settle();
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue);
+
+    notifier.resolveWithPerson();
+
+    expect(container.read(salaSessionProvider).voice, VoiceState.invite);
+  });
+
+  test('a panorama that cannot be spoken leaves a way back', () async {
+    final harness = SalaHarness()..voice.succeeds = false;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.openConvite();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.conviteStep, ConviteStep.boasVindas,
+        reason: 'o passo só avança depois que o panorama foi realmente falado');
+    expect(state.awaitingFirstTouch, isTrue);
+
+    notifier.conviteTap();
+    await settle();
+
+    expect(harness.room.pericopesAsked, hasLength(2),
+        reason: 'um novo toque tenta de novo em vez de bater numa tela morta');
+  });
+
+  test('the convite does not stay stuck thinking forever', () async {
+    final harness = SalaHarness(busyCeiling: const Duration(milliseconds: 40));
+    final container = harness.container();
+    addTearDown(container.dispose);
+    harness.voice.holdNextLine();
+
+    unawaited(container.read(salaSessionProvider.notifier).openConvite());
+    await settle(const Duration(milliseconds: 20));
+
+    expect(container.read(salaSessionProvider).voice, VoiceState.speaking);
+
+    await settle(const Duration(milliseconds: 80));
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'uma fala que nunca termina não pode prender a sala em silêncio');
+  });
+
   test('the last line can be heard again without touching the room', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
@@ -675,6 +748,215 @@ void main() {
     expect(after.takes, 0);
   });
 
+  test('the ensaio does not freeze on a ghost play that never ends', () async {
+    final harness = SalaHarness(playbackCeiling: const Duration(milliseconds: 40));
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    notifier.ghostPlay();
+
+    expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.ghostPlaying);
+
+    await settle(const Duration(milliseconds: 140));
+
+    expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.idle,
+        reason: 'sem teto, uma reprodução interrompida deixava a tela do ensaio '
+            'sem nenhum gesto vivo — nada para tocar, e nada escrito para explicar');
+  });
+
+  test('the closed room opens again on a touch, not only on its own', () async {
+    final harness = SalaHarness(fimLinger: const Duration(seconds: 30));
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    notifier.startRetro();
+    await settle();
+    notifier.retroTap();
+    await settle();
+    notifier.retroTap();
+    await settle();
+    harness.playback.finishPlayback();
+    await settle();
+    await notifier.finishBackTranslation();
+    await settle(const Duration(seconds: 2));
+
+    expect(container.read(salaSessionProvider).stage, SalaStage.fim);
+
+    notifier.beginAgain();
+
+    expect(container.read(salaSessionProvider).stage, SalaStage.convite,
+        reason: 'a tela do fim não tinha alvo de toque nenhum; se a corrente de '
+            'temporizadores morresse, a sala ficava branca até matarem o app');
+  });
+
+  test('a verdict that lands after the room gave up does not restart it', () async {
+    final harness = SalaHarness(busyCeiling: const Duration(milliseconds: 60));
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    notifier.startRetro();
+    await settle();
+    notifier.retroTap();
+    await settle();
+    notifier.retroTap();
+    await settle();
+    harness.playback.finishPlayback();
+    await settle();
+
+    harness.voice.holdNextLine();
+    unawaited(notifier.finishBackTranslation());
+    await settle(const Duration(milliseconds: 200));
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'o cão de guarda desiste de uma fala que não termina');
+
+    harness.voice.finishHeldLine();
+    await settle(const Duration(seconds: 2));
+
+    final after = container.read(salaSessionProvider);
+    expect(after.needsPerson, isTrue,
+        reason: 'sem guarda de época, o veredito atrasado saltava a equipe para '
+            'conferida e fechava o colar por cima de quem já tinha parado a sala');
+    expect(after.stage, isNot(SalaStage.fim));
+  });
+
+  test('explaining for longer than the clip does not end the clip', () async {
+    final harness = SalaHarness(clipGrace: const Duration(milliseconds: 60))
+      ..playback.length = const Duration(milliseconds: 200);
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    notifier.startRetro();
+    await settle(const Duration(milliseconds: 50));
+
+    harness.playback.at = const Duration(milliseconds: 40);
+    notifier.retroTap();
+    await settle(const Duration(milliseconds: 400));
+
+    expect(container.read(salaSessionProvider).btClipEnded, isFalse,
+        reason: 'o teto contava no relógio de parede e não sabia que o clipe '
+            'estava pausado, então terminava a gravação no meio da explicação');
+
+    notifier.retroTap();
+    await settle();
+
+    expect(container.read(salaSessionProvider).btClipEnded, isFalse);
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.playing,
+        reason: 'e a escuta volta de onde parou, em vez de ficar muda para sempre');
+  });
+
+  test('the retro ignores taps once it has asked for a person', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    notifier.startRetro();
+    await settle();
+    harness.room.failWith = const RoomRefused();
+    notifier.retroTap();
+    await settle();
+    notifier.retroTap();
+    await settle();
+    expect(container.read(salaSessionProvider).needsPerson, isTrue);
+    final capturesBefore = harness.recorder.captures;
+
+    notifier.retroTap();
+    await settle();
+
+    expect(harness.recorder.captures, capturesBefore,
+        reason: 'a equipe falava para um buraco enquanto o círculo mostrava '
+            '"chame uma pessoa"');
+  });
+
+  test('the room answers the moment the team stops talking', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    harness.voice.assets.clear();
+
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    expect(harness.voice.assets.first, fixedLineAsset(instantAckLines.first),
+        reason: 'a fala de reconhecimento existe aprovada e no pacote desde o '
+            'começo, e nada nunca a tocava — a sala esperava calada');
+  });
+
+  test('the acknowledgement rotates so the room does not sound stuck', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    harness.voice.assets.clear();
+
+    for (var turn = 0; turn < 2; turn++) {
+      notifier.conversaTap();
+      notifier.conversaTap();
+      await settle();
+    }
+
+    expect(
+      harness.voice.assets.where((asset) => asset.contains('/F')).toList(),
+      [
+        fixedLineAsset(instantAckLines[0]),
+        fixedLineAsset(instantAckLines[1]),
+      ],
+    );
+  });
+
+  test('a capture with no speech is answered from the bundle, not from the room',
+      () async {
+    final harness = SalaHarness(shortestSpeech: const Duration(seconds: 30));
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    harness.voice.assets.clear();
+    final callsBefore = harness.room.calls.length;
+
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    expect(harness.room.calls.length, callsBefore,
+        reason: 'a regra existe para que um silêncio não custe nem espera nem '
+            'chamada — hoje subia tudo e o servidor decidia depois');
+    expect(harness.voice.assets, [fixedLineAsset(inaudibleLines.first)]);
+    expect(container.read(salaSessionProvider).voice, VoiceState.invite,
+        reason: 'e a sala volta a convidar, pronta para ouvir de novo');
+  });
+
   test('a take that ran out of tries is said out loud, once', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
@@ -685,7 +967,7 @@ void main() {
     notifier.ensaioTap();
     notifier.ensaioTap();
     await settle();
-    harness.room.reachable = false;
+    harness.room.refuseTake = 'ensaio/${KeptScope.whole}';
     notifier.takeKeep();
     await settle();
 

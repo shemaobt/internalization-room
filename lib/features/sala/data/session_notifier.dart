@@ -24,6 +24,28 @@ final beadSettleDelayProvider = Provider<Duration>(
 );
 
 const _unplayableTurnsBeforeNeedsPerson = 3;
+const _roomFailuresBeforeNeedsPerson = 3;
+
+final busyStateCeilingProvider = Provider<Duration?>(
+  (ref) => const Duration(seconds: 120),
+);
+
+final clipGraceProvider = Provider<Duration>(
+  (ref) => const Duration(seconds: 10),
+);
+const _settleAttempts = 3;
+
+final shortestSpeechProvider = Provider<Duration>(
+  (ref) => const Duration(milliseconds: 900),
+);
+
+final settleRetryDelayProvider = Provider<Duration>(
+  (ref) => const Duration(seconds: 10),
+);
+
+final playbackCeilingProvider = Provider<Duration?>(
+  (ref) => const Duration(minutes: 6),
+);
 
 final beckonIntervalProvider = Provider<Duration?>(
   (ref) => const Duration(seconds: 25),
@@ -46,11 +68,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   final Map<String, Timer> _timers = {};
   int _epoch = 0;
   int _unplayableTurns = 0;
+  int _roomFailures = 0;
   int _retryStep = 0;
   bool _noticeSpoken = false;
   bool _conviteOpened = false;
   bool _returning = false;
   bool _strandedSpoken = false;
+  bool _personAsked = false;
+  int _ackSpoken = 0;
+  int _inaudibleSpoken = 0;
+  DateTime? _listeningSince;
   String? _panoramaSessionId;
   String? _pendingTakePath;
   StreamSubscription<void>? _playbackDone;
@@ -97,18 +124,48 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _onPlaybackComplete = null;
     unawaited(_voice.stop());
     unawaited(_playback.stop());
+    unawaited(_recorder.discard());
   }
 
   String _stamp() => DateTime.now().millisecondsSinceEpoch.toString();
 
   void _play(String path, {VoidCallback? onComplete}) {
     _onPlaybackComplete = onComplete;
-    _playbackDone ??= _playback.completions.listen((_) {
-      final callback = _onPlaybackComplete;
-      _onPlaybackComplete = null;
-      callback?.call();
-    });
-    unawaited(_playback.play(path));
+    _playbackDone ??= _playback.completions.listen((_) => _releasePlayback());
+    unawaited(_playback.play(path).then((_) => _watchPlayback()));
+  }
+
+  void _releasePlayback() {
+    _timers.remove('playback')?.cancel();
+    final callback = _onPlaybackComplete;
+    _onPlaybackComplete = null;
+    callback?.call();
+  }
+
+  void _watchPlayback() {
+    if (_onPlaybackComplete == null) return;
+    final length = _playback.playingLength;
+    final ceiling = length == null
+        ? ref.read(playbackCeilingProvider)
+        : _leftToHear(length);
+    if (ceiling == null) return;
+    _after('playback', ceiling, _releasePlayback);
+  }
+
+  Duration _leftToHear(Duration length) {
+    final grace = ref.read(clipGraceProvider);
+    final left = length - _playback.position;
+    return left.isNegative ? grace : left + grace;
+  }
+
+  void _holdClip() {
+    _timers.remove('playback')?.cancel();
+    unawaited(_playback.pause());
+  }
+
+  void _letTheClipRun() {
+    unawaited(_playback.resume());
+    _watchPlayback();
   }
 
   Future<bool> _speak(String url, String fixedLine) async {
@@ -129,6 +186,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (line == null || !state.canHearAgain) return;
     final epoch = _epoch;
     state = state.copyWith(voice: VoiceState.speaking);
+    _watchBusyState();
     await _speak(line.url, line.fixedLine);
     if (epoch != _epoch) return;
     state = state.copyWith(voice: VoiceState.invite);
@@ -137,6 +195,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _voiceTurn(TurnResult turn) async {
     final epoch = _epoch;
     state = state.copyWith(voice: VoiceState.speaking);
+    _watchBusyState();
     final played = await _speak(turn.audioUrl, turn.fixedLine);
     if (epoch != _epoch) return;
     if (!played) {
@@ -144,6 +203,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _unplayableTurns = 0;
+    _roomFailures = 0;
     _retryStep = 0;
     _noticeSpoken = false;
     state = state.copyWith(
@@ -156,12 +216,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _registerUnplayableTurn() {
     _unplayableTurns++;
-    state = state.copyWith(
-      voice: _unplayableTurns >= _unplayableTurnsBeforeNeedsPerson
-          ? VoiceState.needsPerson
-          : VoiceState.invite,
-      peerCue: false,
-    );
+    if (_unplayableTurns >= _unplayableTurnsBeforeNeedsPerson) {
+      _haltForAPerson();
+      return;
+    }
+    state = state.copyWith(voice: VoiceState.invite, peerCue: false);
+  }
+
+  void _haltForAPerson() {
+    _leaveThinking();
+    state = state.copyWith(voice: VoiceState.needsPerson, peerCue: false);
+    _tellTheRoomAPersonIsNeeded();
+  }
+
+  void _tellTheRoomAPersonIsNeeded() {
+    final sessionId = state.sessionId;
+    if (sessionId == null || _personAsked) return;
+    _personAsked = true;
+    unawaited(_room.askForAPerson(sessionId).catchError((_) {}));
   }
 
   void _handleRoomFailure(Object error) {
@@ -171,9 +243,38 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state = state.copyWith(voice: VoiceState.needsPerson, peerCue: false);
       case SessionGone():
         state = state.copyWith(clearSession: true, voice: VoiceState.needsPerson);
+      case RoomBroke():
+        _registerRoomFailure();
       default:
         _goOffline();
     }
+  }
+
+  void _registerRoomFailure() {
+    _roomFailures++;
+    _conviteOpened = false;
+    if (_roomFailures >= _roomFailuresBeforeNeedsPerson) {
+      _haltForAPerson();
+      return;
+    }
+    state = state.copyWith(voice: VoiceState.invite, peerCue: false);
+    beckon();
+  }
+
+  void _watchBusyState() {
+    final ceiling = ref.read(busyStateCeilingProvider);
+    if (ceiling != null) _after('watchdog', ceiling, _giveUpOnBusyState);
+  }
+
+  void _giveUpOnBusyState() {
+    if (state.voice != VoiceState.thinking &&
+        state.voice != VoiceState.speaking) {
+      return;
+    }
+    _cancelTimers();
+    _conviteOpened = false;
+    _leaveThinking();
+    _haltForAPerson();
   }
 
   void _leaveThinking() {
@@ -236,10 +337,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _timers.remove('retry')?.cancel();
     unawaited(_networkWatch?.cancel());
     _networkWatch = null;
-    _unplayableTurns = 0;
     unawaited(_takes.flush().then((_) => _countUnsent()));
     state = state.copyWith(voice: VoiceState.invite);
-    if (state.stage == SalaStage.convite &&
+    if (state.stage == SalaStage.fim) {
+      _startOver();
+    } else if (state.stage == SalaStage.convite &&
         state.conviteStep == ConviteStep.boasVindas) {
       _conviteOpened = false;
       beckon();
@@ -248,10 +350,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
+  void beginAgain() => _startOver();
+
   void resolveWithPerson() {
     if (!state.needsPerson && !state.offline) return;
     _timers.remove('retry')?.cancel();
+    _personAsked = false;
     _unplayableTurns = 0;
+    _roomFailures = 0;
     _retryStep = 0;
     _noticeSpoken = false;
     unawaited(_networkWatch?.cancel());
@@ -269,7 +375,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     });
   }
 
-  Future<void> _pullState(String sessionId) async {
+  Future<void> _pullState(String sessionId, {int attempt = 0}) async {
     final epoch = _epoch;
     try {
       final snapshot = await _room.fetchState(sessionId);
@@ -292,14 +398,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state = state.copyWith(voice: VoiceState.done, peerCue: false);
       }
     } on Exception {
-      return;
+      if (epoch != _epoch || attempt + 1 >= _settleAttempts) return;
+      _after('settle', ref.read(settleRetryDelayProvider), () {
+        unawaited(_pullState(sessionId, attempt: attempt + 1));
+      });
     }
   }
 
   void beckon() {
     if (state.stage != SalaStage.convite) return;
     if (state.conviteStep != ConviteStep.boasVindas) return;
-    if (_conviteOpened || state.offline) return;
+    if (_conviteOpened || state.offline || state.needsPerson) return;
     unawaited(_voice.playAsset(inviteToStartAsset));
     final again = ref.read(beckonIntervalProvider);
     if (again != null) _after('beckon', again, beckon);
@@ -309,19 +418,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.stage != SalaStage.convite || _conviteOpened) return;
     _conviteOpened = true;
     _timers.remove('beckon')?.cancel();
+    final epoch = _epoch;
     state = state.copyWith(voice: VoiceState.thinking);
-    if (!await _network.canReachRoom()) {
+    _watchBusyState();
+    final reachable = await _network.canReachRoom();
+    if (epoch != _epoch) return;
+    if (!reachable) {
       _conviteOpened = false;
       _goOffline();
       return;
     }
     try {
       final snapshot = await _room.createSession(pericope: panoramaPericope);
+      if (epoch != _epoch) return;
       _panoramaSessionId = snapshot.sessionId;
       final turn = await _room.openSession(snapshot.sessionId);
-      state = state.copyWith(conviteStep: ConviteStep.panorama);
+      if (epoch != _epoch) return;
       await _voicePanorama(turn);
-    } on Exception catch (error) {
+    } on Object catch (error) {
+      if (epoch != _epoch) return;
       _conviteOpened = false;
       _handleRoomFailure(error);
     }
@@ -330,13 +445,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _voicePanorama(TurnResult turn) async {
     final epoch = _epoch;
     state = state.copyWith(voice: VoiceState.speaking);
+    _watchBusyState();
     final played = await _speak(turn.audioUrl, turn.fixedLine);
     if (epoch != _epoch) return;
     if (!played) {
+      _conviteOpened = false;
       _registerUnplayableTurn();
+      beckon();
       return;
     }
     _unplayableTurns = 0;
+    _roomFailures = 0;
     _retryStep = 0;
     _noticeSpoken = false;
     state = state.copyWith(
@@ -363,6 +482,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: VoiceState.thinking,
       peerCue: false,
     );
+    _watchBusyState();
     final reachable = await _network.canReachRoom();
     if (epoch != _epoch) return;
     if (!reachable) {
@@ -411,6 +531,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _startListening(String fileName) {
+    _listeningSince = DateTime.now();
     state = state.copyWith(
       voice: VoiceState.listening,
       peerCue: false,
@@ -419,21 +540,52 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(_recordOrBlock(fileName));
   }
 
+  bool get _heardSomething {
+    final since = _listeningSince;
+    if (since == null) return true;
+    return DateTime.now().difference(since) >= ref.read(shortestSpeechProvider);
+  }
+
   Future<void> _finishListening() async {
+    final epoch = _epoch;
     final path = await _recorder.stop();
-    state = state.copyWith(voice: VoiceState.thinking);
+    if (epoch != _epoch) return;
     final sessionId = state.sessionId;
     if (path == null || sessionId == null) {
       state = state.copyWith(voice: VoiceState.invite);
       return;
     }
+    if (!_heardSomething) {
+      await _askThemToRepeat(path);
+      return;
+    }
+    _sayImThinking();
+    state = state.copyWith(voice: VoiceState.thinking);
+    _watchBusyState();
     try {
       await _voiceTurn(await _room.sendTurn(sessionId, File(path)));
     } on Exception catch (error) {
+      if (epoch != _epoch) return;
       _handleRoomFailure(error);
     } finally {
       unawaited(_recorder.delete(path));
     }
+  }
+
+  void _sayImThinking() {
+    final line = rotated(instantAckLines, _ackSpoken++);
+    unawaited(_voice.playAsset(fixedLineAsset(line)));
+  }
+
+  Future<void> _askThemToRepeat(String path) async {
+    final epoch = _epoch;
+    unawaited(_recorder.delete(path));
+    state = state.copyWith(voice: VoiceState.speaking, peerCue: false);
+    _watchBusyState();
+    final line = rotated(inaudibleLines, _inaudibleSpoken++);
+    await _voice.playAsset(fixedLineAsset(line));
+    if (epoch != _epoch) return;
+    state = state.copyWith(voice: VoiceState.invite);
   }
 
   Future<void> _pullInbox() async {
@@ -471,7 +623,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> _playReply(HandReply reply) async {
+    final epoch = _epoch;
     final played = await _voice.play(reply.audioUrl);
+    if (epoch != _epoch) return;
     if (played) _markHeard(reply.id);
     state = state.copyWith(clearPlayingReply: true);
   }
@@ -495,11 +649,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _sendQuestion() {
     if (!state.noteMode) return;
     state = state.copyWith(noteMode: false, voice: VoiceState.thinking);
+    _watchBusyState();
     unawaited(_deliverQuestion());
   }
 
   Future<void> _deliverQuestion() async {
+    final epoch = _epoch;
     final path = await _recorder.stop();
+    if (epoch != _epoch) return;
     final sessionId = state.sessionId;
     if (path == null || sessionId == null) {
       state = state.copyWith(voice: VoiceState.invite);
@@ -507,7 +664,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     try {
       await _inbox.sendQuestion(sessionId, File(path));
+      if (epoch != _epoch) return;
     } on Exception catch (error) {
+      if (epoch != _epoch) return;
       _handleRoomFailure(error);
       return;
     }
@@ -683,9 +842,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       retryNow();
       return;
     }
+    if (state.needsPerson) return;
     switch (state.btPhase) {
       case BtPhase.playing:
-        unawaited(_playback.pause());
+        _holdClip();
         _startChunkCapture();
       case BtPhase.capturing:
         unawaited(_finishChunkCapture());
@@ -703,30 +863,34 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     unawaited(
       _recordOrBlock(
-        'retro_passada${state.btPass}_pedaco${state.btChunkPasses.length + 1}',
+        'retro_passada${state.btPass}_pedaco${_stamp()}',
       ),
     );
   }
 
   Future<void> _finishChunkCapture() async {
+    final epoch = _epoch;
     state = state.copyWith(
       btPhase: BtPhase.thinking,
       voice: VoiceState.thinking,
     );
+    _watchBusyState();
     final path = await _recorder.stop();
+    if (epoch != _epoch) return;
     final sessionId = state.sessionId;
 
     if (path == null || sessionId == null) {
       state = state.copyWith(btPhase: BtPhase.playing, voice: VoiceState.invite);
-      if (!state.btClipEnded) unawaited(_playback.resume());
+      if (!state.btClipEnded) _letTheClipRun();
       return;
     }
 
     try {
       final captured = await _room.sendChunk(sessionId, File(path));
+      if (epoch != _epoch) return;
       if (!captured.captured) {
         state = state.copyWith(btPhase: BtPhase.playing, voice: VoiceState.invite);
-        if (!state.btClipEnded) unawaited(_playback.resume());
+        if (!state.btClipEnded) _letTheClipRun();
         return;
       }
     } on Exception catch (error) {
@@ -737,11 +901,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         passNumber: state.btPass,
         chunkIndex: state.btChunkPasses.length + 1,
       ));
+      if (epoch != _epoch) return;
       state = state.copyWith(
         btChunkPasses: [...state.btChunkPasses, state.btPass],
       );
       _handleRoomFailure(error);
-      if (!state.btClipEnded) unawaited(_playback.resume());
+      if (!state.btClipEnded) _letTheClipRun();
       return;
     }
 
@@ -750,19 +915,27 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: VoiceState.invite,
       btChunkPasses: [...state.btChunkPasses, state.btPass],
     );
-    if (!state.btClipEnded) unawaited(_playback.resume());
+    if (!state.btClipEnded) _letTheClipRun();
   }
 
   Future<void> finishBackTranslation() async {
     if (!state.canFinishBackTranslation) return;
     final sessionId = state.sessionId;
-    if (sessionId == null) return;
+    if (sessionId == null) {
+      _haltForAPerson();
+      return;
+    }
 
+    final epoch = _epoch;
     state = state.copyWith(btPhase: BtPhase.thinking, voice: VoiceState.thinking);
+    _watchBusyState();
     try {
       final verdict = await _room.finishBackTranslation(sessionId);
+      if (epoch != _epoch) return;
       state = state.copyWith(voice: VoiceState.speaking);
-      await _voice.play(verdict.audioUrl);
+      _watchBusyState();
+      await _speak(verdict.audioUrl, verdict.fixedLine);
+      if (epoch != _epoch) return;
 
       if (verdict.checked) {
         state = state.copyWith(btPhase: BtPhase.conferida, voice: VoiceState.done);
@@ -775,6 +948,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         btFindings: verdict.findingKind == null ? const [] : [verdict.findingKind!],
       );
     } on Exception catch (error) {
+      if (epoch != _epoch) return;
       _handleRoomFailure(error);
     }
   }
@@ -820,10 +994,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _startOver() {
     _clearAll();
     _unplayableTurns = 0;
+    _roomFailures = 0;
     _retryStep = 0;
     _noticeSpoken = false;
     _conviteOpened = false;
     _strandedSpoken = false;
+    _personAsked = false;
     _panoramaSessionId = null;
     _pendingTakePath = null;
     state = const SalaSessionState();

@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
+
+const _permissionAnswerCeiling = Duration(seconds: 60);
 
 class RecordingRepository {
   final AudioRecorder _recorder = AudioRecorder();
@@ -15,7 +18,13 @@ class RecordingRepository {
     return dir;
   }
 
-  Future<bool> hasPermission() => _recorder.hasPermission();
+  Future<bool> hasPermission() async {
+    try {
+      return await _recorder.hasPermission().timeout(_permissionAnswerCeiling);
+    } on Object {
+      return false;
+    }
+  }
 
   Future<bool> start(String fileName) async {
     if (!await hasPermission()) return false;

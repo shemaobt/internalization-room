@@ -109,8 +109,17 @@ class FakePlayback implements PlaybackRepository {
   final List<String> played = [];
   bool paused = false;
 
+  Duration? length;
+  Duration at = Duration.zero;
+
   @override
   Stream<void> get completions => _completions.stream;
+
+  @override
+  Duration? get playingLength => length;
+
+  @override
+  Duration get position => at;
 
   @override
   Future<void> play(String path) async => played.add(path);
@@ -174,6 +183,7 @@ class FakeRoom implements RoomRepository {
   BtFindingKind? verdictFinding;
   String? serverStatus;
   String fixedLine = '';
+  int personsAsked = 0;
 
   Exception? failWith;
 
@@ -224,6 +234,12 @@ class FakeRoom implements RoomRepository {
   Future<TurnResult> openSession(String sessionId) async {
     _guard('openSession');
     return _turn(sessionId);
+  }
+
+  @override
+  Future<void> askForAPerson(String sessionId) async {
+    _guard('askForAPerson');
+    personsAsked++;
   }
 
   @override
@@ -313,6 +329,10 @@ class SalaHarness {
   final Duration settleDelay;
   final List<Duration> retryBackoff;
   final Duration? beckonInterval;
+  final Duration? busyCeiling;
+  final Duration? playbackCeiling;
+  final Duration clipGrace;
+  final Duration shortestSpeech;
   final Duration fimLinger;
 
   SalaHarness({
@@ -320,6 +340,10 @@ class SalaHarness {
     this.settleDelay = const Duration(milliseconds: 60),
     this.retryBackoff = const [Duration(milliseconds: 20)],
     this.beckonInterval,
+    this.busyCeiling,
+    this.playbackCeiling,
+    this.clipGrace = const Duration(seconds: 10),
+    this.shortestSpeech = Duration.zero,
     this.fimLinger = const Duration(seconds: 30),
   }) : inbox = FakeInbox(replies: replies);
 
@@ -339,6 +363,10 @@ class SalaHarness {
         beadSettleDelayProvider.overrideWithValue(settleDelay),
         roomRetryBackoffProvider.overrideWithValue(retryBackoff),
         beckonIntervalProvider.overrideWithValue(beckonInterval),
+        busyStateCeilingProvider.overrideWithValue(busyCeiling),
+        playbackCeilingProvider.overrideWithValue(playbackCeiling),
+        clipGraceProvider.overrideWithValue(clipGrace),
+        shortestSpeechProvider.overrideWithValue(shortestSpeech),
         fimLingerProvider.overrideWithValue(fimLinger),
       ];
 

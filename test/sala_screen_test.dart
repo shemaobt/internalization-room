@@ -5,6 +5,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
+import 'package:internalization_room/features/sala/data/mic_permission.dart';
+import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
@@ -73,8 +75,64 @@ void main() {
     }
   });
 
-  testWidgets(
-    'conversa offers a tap to speak, the hand and the colar — paused while the hand is disabled (handReachesAPerson)',
+  testWidgets('no stage ever shows a written word', (tester) async {
+    final harness = SalaHarness()..room.done = true;
+    final container = await pumpSala(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    expect(find.byType(Text), findsNothing, reason: 'convite');
+
+    for (final go in [notifier.goConversa, notifier.goEnsaio, notifier.startRetro]) {
+      go();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(find.byType(Text), findsNothing,
+          reason: 'a sala é falada de ponta a ponta: uma palavra escrita é uma '
+              'palavra que esta equipe não pode ler');
+    }
+  });
+
+  testWidgets('no stage is a dead end — every screen answers a touch',
+      (tester) async {
+    final harness = SalaHarness()..room.done = true;
+    final container = await pumpSala(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    Future<void> expectALiveGesture(String stage) async {
+      await tester.pump(const Duration(milliseconds: 200));
+      final live = tester
+          .widgetList<GestureDetector>(find.byType(GestureDetector))
+          .where((it) => it.onTap != null || it.onLongPress != null);
+      expect(live, isNotEmpty,
+          reason: 'sem gesto vivo em "$stage" a equipe não tem o que tocar, e '
+              'não há texto que explique o que houve');
+    }
+
+    await expectALiveGesture('convite');
+    notifier.goConversa();
+    await expectALiveGesture('conversa');
+    notifier.goEnsaio();
+    await expectALiveGesture('ensaio');
+    notifier.startRetro();
+    await expectALiveGesture('retro');
+  });
+
+  testWidgets('the mic gate answers a touch out loud, not in silence',
+      (tester) async {
+    final harness = SalaHarness()..recorder.permitted = false;
+    final container = await pumpSala(tester, harness);
+    await container.read(micPermissionProvider.notifier).check();
+    await tester.pump(const Duration(milliseconds: 200));
+    harness.voice.assets.clear();
+
+    await tester.tap(find.byType(FacilitatorCircle));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(harness.voice.assets, contains(micBlockedAsset),
+        reason: 'a tela do microfone não tem texto: se o toque não fala, ela é '
+            'muda e sem efeito para sempre');
+  });
+
+  testWidgets('conversa offers a tap to speak, the hand and the colar',
       (tester) async {
     final container = await pumpSala(tester, SalaHarness());
     container.read(salaSessionProvider.notifier).goConversa();
@@ -84,7 +142,7 @@ void main() {
     expect(find.byType(ColarOverlay), findsOneWidget);
     expect(bySemanticsLabelWidget('Levantar a mão'), findsOneWidget);
     expect(bySemanticsLabelWidget('Tocar para falar'), findsOneWidget);
-  }, skip: true);
+  });
 
   testWidgets('a peer cue turns the circle into team-talk mode',
       (tester) async {
@@ -104,8 +162,7 @@ void main() {
     );
   });
 
-  testWidgets(
-    'an unheard reply turns the hand into a listening affordance — paused while the hand is disabled (handReachesAPerson)',
+  testWidgets('an unheard reply turns the hand into a listening affordance',
       (tester) async {
     final container = await pumpSala(
       tester,
@@ -119,7 +176,7 @@ void main() {
       findsOneWidget,
     );
     expect(bySemanticsLabelWidget('Levantar a mão'), findsNothing);
-  }, skip: true);
+  });
 
   testWidgets('the back-translation offers terminei once the clip ends',
       (tester) async {
@@ -149,13 +206,6 @@ void main() {
       findsOneWidget,
     );
   });
-
-  testWidgets(
-    'the findings screen offers the retell and re-record exits — unreachable '
-    'while the back-translation verdict lives on the backend without a route',
-    (tester) async {},
-    skip: true,
-  );
 
   testWidgets('the ensaio offers ghost play before recording', (tester) async {
     final container = await pumpSala(tester, SalaHarness());

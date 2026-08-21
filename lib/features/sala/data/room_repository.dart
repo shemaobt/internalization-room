@@ -24,6 +24,15 @@ class RoomUnavailable implements Exception {
   String toString() => 'RoomUnavailable: $reason';
 }
 
+class RoomBroke implements Exception {
+  final String reason;
+
+  const RoomBroke(this.reason);
+
+  @override
+  String toString() => 'RoomBroke: $reason';
+}
+
 class RoomRefused implements Exception {
   const RoomRefused();
 }
@@ -118,6 +127,17 @@ class RoomRepository {
     _read(await _sendMultipart(request), (json) => json);
   }
 
+  Future<void> askForAPerson(String sessionId) async {
+    final response = await _send(
+      () => _client.post(
+        _uri('/sessions/$sessionId/needs-person'),
+        headers: _headers,
+      ),
+      _stateTimeout,
+    );
+    _read(response, (json) => json);
+  }
+
   Future<BackTranslationVerdict> finishBackTranslation(String sessionId) async {
     final response = await _send(
       () => _client.post(
@@ -141,7 +161,7 @@ class RoomRepository {
       throw const RoomRefused();
     }
     if (response.statusCode != 200) {
-      throw RoomUnavailable('HTTP ${response.statusCode}');
+      throw RoomBroke('HTTP ${response.statusCode}');
     }
     return response.bodyBytes;
   }
@@ -167,9 +187,9 @@ class RoomRepository {
     try {
       return build(body);
     } on TypeError catch (error) {
-      throw RoomUnavailable('resposta sem os campos esperados: $error');
+      throw RoomBroke('resposta sem os campos esperados: $error');
     } on FormatException catch (error) {
-      throw RoomUnavailable('resposta ilegível: $error');
+      throw RoomBroke('resposta ilegível: $error');
     }
   }
 
@@ -181,14 +201,14 @@ class RoomRepository {
       throw const SessionGone();
     }
     if (response.statusCode != 200) {
-      throw RoomUnavailable('HTTP ${response.statusCode}');
+      throw RoomBroke('HTTP ${response.statusCode}');
     }
     try {
       return jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
     } on Exception catch (error) {
-      throw RoomUnavailable('resposta ilegível: $error');
+      throw RoomBroke('resposta ilegível: $error');
     } on TypeError catch (error) {
-      throw RoomUnavailable('resposta em formato inesperado: $error');
+      throw RoomBroke('resposta em formato inesperado: $error');
     }
   }
 

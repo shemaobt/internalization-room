@@ -108,8 +108,25 @@ class _SalaScreenState extends ConsumerState<SalaScreen> with WidgetsBindingObse
       case SalaStage.retro:
         return const RetroView();
       case SalaStage.fim:
-        return const SizedBox.expand();
+        return const _FimView();
     }
+  }
+}
+
+class _FimView extends ConsumerWidget {
+  const _FimView();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Semantics(
+      button: true,
+      label: 'Começar de novo',
+      child: GestureDetector(
+        onTap: ref.read(salaSessionProvider.notifier).beginAgain,
+        behavior: HitTestBehavior.opaque,
+        child: const SizedBox.expand(),
+      ),
+    );
   }
 }
 

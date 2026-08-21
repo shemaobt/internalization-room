@@ -31,6 +31,16 @@ jobs:
       - name: Test
         run: flutter test --reporter expanded --coverage
 
+      # Three skipped tests sat green for weeks, one with an empty body and a reason that
+      # had stopped being true. A paused test is a decision, and a decision belongs in a
+      # review — not in a suite that reports success.
+      - name: No test is quietly skipped
+        run: |
+          if grep -rn "skip: true\|skip:true" test/; then
+            echo "::error::A skipped test hides a decision. Delete it or fix it."
+            exit 1
+          fi
+
       # Every screen in this room is spoken; the team cannot read. A Text widget is a
       # regression nobody would notice in review, because it looks fine on a developer's
       # laptop and is invisible to the people who use it.

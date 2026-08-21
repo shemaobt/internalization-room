@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/audio/room_audio_session.dart';
 import 'core/config/env.dart';
 import 'core/theme/app_theme.dart';
 import 'features/sala/presentation/sala_screen.dart';
@@ -9,6 +10,7 @@ import 'features/sala/presentation/sala_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Env.load();
+  await configureRoomAudio();
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
