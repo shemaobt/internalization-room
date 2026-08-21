@@ -106,7 +106,13 @@ class EnsaioView extends ConsumerWidget {
               for (var i = 0; i < session.takes; i++)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 7),
-                  child: const PingIn(child: Bead(size: 24, opacity: 0.45)),
+                  child: PingIn(
+                    child: Bead(
+                      size: 24,
+                      opacity: 0.45,
+                      filled: i < session.takes - session.unsentTakes,
+                    ),
+                  ),
                 ),
             ],
           ),

@@ -2,17 +2,26 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/sala_colors.dart';
 import 'bead_styles.dart';
 
 class Bead extends StatelessWidget {
   final double size;
   final double opacity;
   final Border? border;
+  final bool filled;
 
-  const Bead({super.key, required this.size, this.opacity = 1, this.border});
+  const Bead({
+    super.key,
+    required this.size,
+    this.opacity = 1,
+    this.border,
+    this.filled = true,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final colors = SalaColors.of(context);
     return Opacity(
       opacity: opacity,
       child: Container(
@@ -20,9 +29,9 @@ class Bead extends StatelessWidget {
         height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: BeadStyles.wood,
+          gradient: filled ? BeadStyles.wood : BeadStyles.oat(colors),
           boxShadow: BeadStyles.matte,
-          border: border,
+          border: border ?? (filled ? null : Border.all(color: colors.line)),
         ),
       ),
     );

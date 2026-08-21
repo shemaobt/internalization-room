@@ -10,6 +10,17 @@ import 'room_repository.dart';
 const _folder = 'guardadas';
 const _manifest = 'fila.json';
 
+const takeUploadAttempts = 5;
+
+final takeRetryBackoffProvider = Provider<List<Duration>>(
+  (ref) => const [
+    Duration(seconds: 5),
+    Duration(seconds: 30),
+    Duration(minutes: 2),
+    Duration(minutes: 10),
+  ],
+);
+
 class PendingTake {
   final String id;
   final String path;
@@ -19,6 +30,8 @@ class PendingTake {
   final int? passNumber;
   final int? chunkIndex;
   final bool stored;
+  final int attempts;
+  final DateTime? lastTry;
 
   const PendingTake({
     required this.id,
@@ -29,9 +42,13 @@ class PendingTake {
     this.passNumber,
     this.chunkIndex,
     this.stored = false,
+    this.attempts = 0,
+    this.lastTry,
   });
 
-  PendingTake asStored() => PendingTake(
+  bool get exhausted => attempts >= takeUploadAttempts;
+
+  PendingTake copyWith({bool? stored, int? attempts, DateTime? lastTry}) => PendingTake(
         id: id,
         path: path,
         sessionId: sessionId,
@@ -39,7 +56,9 @@ class PendingTake {
         scope: scope,
         passNumber: passNumber,
         chunkIndex: chunkIndex,
-        stored: true,
+        stored: stored ?? this.stored,
+        attempts: attempts ?? this.attempts,
+        lastTry: lastTry ?? this.lastTry,
       );
 
   Map<String, Object?> toJson() => {
@@ -51,6 +70,8 @@ class PendingTake {
         'pass_number': passNumber,
         'chunk_index': chunkIndex,
         'stored': stored,
+        'attempts': attempts,
+        'last_try': lastTry?.toIso8601String(),
       };
 
   factory PendingTake.fromJson(Map<String, Object?> json) => PendingTake(
@@ -62,18 +83,28 @@ class PendingTake {
         passNumber: json['pass_number'] as int?,
         chunkIndex: json['chunk_index'] as int?,
         stored: json['stored'] as bool? ?? false,
+        attempts: json['attempts'] as int? ?? 0,
+        lastTry: DateTime.tryParse(json['last_try'] as String? ?? ''),
       );
 }
 
 class TakeUploadQueue {
   final RoomRepository _room;
   final Future<Directory> Function() _home;
+  final List<Duration> _backoff;
+  final DateTime Function() _now;
   bool _flushing = false;
   int _minted = 0;
 
-  TakeUploadQueue({required RoomRepository room, Future<Directory> Function()? home})
-      : _room = room,
-        _home = home ?? getApplicationSupportDirectory;
+  TakeUploadQueue({
+    required RoomRepository room,
+    Future<Directory> Function()? home,
+    List<Duration> backoff = const [],
+    DateTime Function()? now,
+  })  : _room = room,
+        _home = home ?? getApplicationSupportDirectory,
+        _backoff = backoff,
+        _now = now ?? DateTime.now;
 
   Future<Directory> _dir() async {
     final dir = Directory(p.join((await _home()).path, _folder));
@@ -100,6 +131,23 @@ class TakeUploadQueue {
 
   Future<List<PendingTake>> pending() async =>
       [for (final entry in await entries()) if (!entry.stored) entry];
+
+  Future<List<PendingTake>> waiting() async =>
+      [for (final entry in await pending()) if (!entry.exhausted) entry];
+
+  Future<int> unsentOf(String kind) async =>
+      [for (final entry in await pending()) if (entry.kind == kind) entry].length;
+
+  Future<List<PendingTake>> giveUps() async =>
+      [for (final entry in await pending()) if (entry.exhausted) entry];
+
+  bool _ready(PendingTake entry) {
+    final last = entry.lastTry;
+    if (last == null || entry.attempts == 0 || _backoff.isEmpty) return true;
+    final step = entry.attempts - 1;
+    final wait = _backoff[step < _backoff.length ? step : _backoff.length - 1];
+    return !_now().isBefore(last.add(wait));
+  }
 
   Future<void> _write(List<PendingTake> entries) async {
     final file = await _manifestFile();
@@ -141,10 +189,11 @@ class TakeUploadQueue {
     _flushing = true;
     try {
       var sent = 0;
-      for (final entry in await pending()) {
+      for (final entry in await waiting()) {
+        if (!_ready(entry)) continue;
         final file = File(entry.path);
         if (!await file.exists()) {
-          await _markStored(entry);
+          await _replace(entry, entry.copyWith(stored: true));
           continue;
         }
         try {
@@ -157,9 +206,13 @@ class TakeUploadQueue {
             chunkIndex: entry.chunkIndex,
           );
         } on Exception {
-          return sent;
+          await _replace(
+            entry,
+            entry.copyWith(attempts: entry.attempts + 1, lastTry: _now()),
+          );
+          continue;
         }
-        await _markStored(entry);
+        await _replace(entry, entry.copyWith(stored: true));
         sent++;
       }
       return sent;
@@ -168,14 +221,17 @@ class TakeUploadQueue {
     }
   }
 
-  Future<void> _markStored(PendingTake stored) async {
+  Future<void> _replace(PendingTake target, PendingTake updated) async {
     await _write([
       for (final entry in await entries())
-        if (entry.id == stored.id && entry.kind == stored.kind) entry.asStored() else entry,
+        if (entry.id == target.id && entry.kind == target.kind) updated else entry,
     ]);
   }
 }
 
 final takeUploadQueueProvider = Provider<TakeUploadQueue>(
-  (ref) => TakeUploadQueue(room: ref.read(roomRepositoryProvider)),
+  (ref) => TakeUploadQueue(
+    room: ref.read(roomRepositoryProvider),
+    backoff: ref.read(takeRetryBackoffProvider),
+  ),
 );

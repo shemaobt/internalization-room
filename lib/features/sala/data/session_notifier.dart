@@ -231,7 +231,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(_networkWatch?.cancel());
     _networkWatch = null;
     _unplayableTurns = 0;
-    unawaited(_takes.flush());
+    unawaited(_takes.flush().then((_) => _countUnsent()));
     state = state.copyWith(voice: VoiceState.invite);
     if (state.stage == SalaStage.convite &&
         state.conviteStep == ConviteStep.boasVindas) {
@@ -613,7 +613,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       passNumber: passNumber,
       chunkIndex: chunkIndex,
     );
+    await _countUnsent();
     await _takes.flush();
+    await _countUnsent();
+  }
+
+  Future<void> refreshUnsent() => _countUnsent();
+
+  Future<void> _countUnsent() async {
+    final epoch = _epoch;
+    final takes = await _takes.unsentOf('ensaio');
+    final chunks = await _takes.unsentOf('retro');
+    if (epoch != _epoch) return;
+    state = state.copyWith(unsentTakes: takes, unsentChunks: chunks);
   }
 
   void startRetro() {
