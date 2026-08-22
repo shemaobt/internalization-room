@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 
 import 'fakes.dart';
@@ -48,7 +49,12 @@ void main() {
     expect(await queue.lostHistory(), isTrue,
         reason: 'as linhas ilegíveis nomeavam áudio e a sessão dele — não podem sumir sem deixar marca');
     expect(File('${home.path}/guardadas/fila.json.ilegivel').existsSync(), isTrue);
-    expect(File('${home.path}/guardadas/ensaio-velha-1.m4a').existsSync(), isTrue,
+    expect(
+        Directory('${home.path}/guardadas')
+            .listSync()
+            .whereType<File>()
+            .any((file) => p.basename(file.path).startsWith('ensaio-velha-1-')),
+        isTrue,
         reason: 'o áudio continua no aparelho mesmo quando o registro dele se perdeu');
   });
 
