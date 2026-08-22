@@ -435,6 +435,29 @@ void main() {
         reason: 'e depois que a pessoa resolve, gravar volta a funcionar');
   });
 
+  test('a reply that will not play does not take the hand with it', () async {
+    final harness = SalaHarness(
+      replies: const [HandReply(id: 'r1', audioUrl: '/voice/r1')],
+    );
+    harness.voice.succeeds = false;
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await until(() => container.read(salaSessionProvider).hasUnheardReply);
+    notifier.handTap();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.hasUnheardReply, isFalse,
+        reason: 'a mão oferece sempre a resposta mais antiga não ouvida, então uma que '
+            'não toca era oferecida para sempre e a equipe perdia o gesto de perguntar');
+    expect(state.needsPerson, isTrue,
+        reason: 'a resposta se perdeu — quem transmite agora é uma pessoa');
+    expect(harness.inbox.heard, contains('r1'),
+        reason: 'e o servidor precisa saber, senão ela volta na próxima abertura');
+  });
+
   test('hearing again is not offered on top of the retro clip', () async {
     final harness = SalaHarness();
     harness.room.verdictChecked = false;

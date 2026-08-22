@@ -848,12 +848,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(_recordOrBlock('pergunta_${_stamp()}'));
   }
 
+  /// Play the facilitator's answer, and never let a broken one take the gesture away.
+  ///
+  /// Marking a reply heard only when it played sounds careful and is a trap: the hand
+  /// offers the oldest unheard reply on every touch, so an answer that cannot be played
+  /// is offered again, and again, and the team loses the one gesture they have for
+  /// reaching a person. The answer is already lost — refusing to let go of it costs them
+  /// the ability to ask anything else.
   Future<void> _playReply(HandReply reply) async {
     final epoch = _epoch;
     final played = await _voice.play(reply.audioUrl);
     if (epoch != _epoch) return;
-    if (played) _markHeard(reply.id);
-    state = state.copyWith(clearPlayingReply: true);
+    _markHeard(reply.id);
+    if (played) {
+      state = state.copyWith(clearPlayingReply: true);
+      return;
+    }
+    _haltForAPerson();
   }
 
   void _markHeard(String replyId) {
