@@ -363,6 +363,47 @@ void main() {
         reason: 'e não pode deixar a tela travada em "falando" sobre a passagem errada');
   });
 
+  test('a rehearsal that will not play never opens the terminei', () async {
+    final harness = SalaHarness();
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    notifier.startRetro();
+    await settle();
+
+    harness.playback.failPlayback();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.btClipEnded, isFalse,
+        reason: 'uma falha chegava como conclusão, e é a conclusão que abre o terminei');
+    expect(state.canFinishBackTranslation, isFalse);
+    expect(state.needsPerson, isTrue,
+        reason: 'o áudio da própria equipe não abrir é coisa para uma pessoa olhar');
+  });
+
+  test('a retro with no rehearsal reaches a person, not the terminei', () async {
+    final harness = SalaHarness();
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.startRetro();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.btClipEnded, isFalse,
+        reason: 'não haver ensaio nenhum não é um ensaio que chegou ao fim');
+    expect(state.needsPerson, isTrue);
+  });
+
   test('hearing again is not offered on top of the retro clip', () async {
     final harness = SalaHarness();
     harness.room.verdictChecked = false;

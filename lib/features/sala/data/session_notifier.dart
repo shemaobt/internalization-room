@@ -98,6 +98,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   String? _panoramaSessionId;
   String? _pendingTakePath;
   StreamSubscription<void>? _playbackDone;
+  StreamSubscription<void>? _playbackFailed;
   StreamSubscription<void>? _networkWatch;
   VoidCallback? _onPlaybackComplete;
 
@@ -127,6 +128,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _gone = true;
       _cancelTimers();
       unawaited(_playbackDone?.cancel());
+      unawaited(_playbackFailed?.cancel());
       unawaited(_networkWatch?.cancel());
     });
     return const SalaSessionState();
@@ -161,8 +163,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _play(String path, {VoidCallback? onComplete}) {
     _onPlaybackComplete = onComplete;
-    _playbackDone ??= _playback.completions.listen((_) => _releasePlayback());
+    _listenForTheEnd();
     unawaited(_playback.play(path).then((_) => _watchPlayback()));
+  }
+
+  void _listenForTheEnd() {
+    _playbackDone ??= _playback.completions.listen((_) => _releasePlayback());
+    _playbackFailed ??= _playback.failures.listen((_) => _cannotPlayTheirOwnAudio());
+  }
+
+  void _cannotPlayTheirOwnAudio() {
+    _timers.remove('playback')?.cancel();
+    _onPlaybackComplete = null;
+    _haltForAPerson();
   }
 
   void _releasePlayback() {
@@ -1087,7 +1100,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     final take = state.wholeTake;
     if (take == null) {
-      state = state.copyWith(btClipEnded: true);
+      _haltForAPerson();
       return;
     }
     _play(take.path, onComplete: () {
@@ -1266,7 +1279,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _onPlaybackComplete = () {
       state = state.copyWith(btTrechoTocando: false);
     };
-    _playbackDone ??= _playback.completions.listen((_) => _releasePlayback());
+    _listenForTheEnd();
     state = state.copyWith(btTrechoTocando: true);
     unawaited(
       _playback
