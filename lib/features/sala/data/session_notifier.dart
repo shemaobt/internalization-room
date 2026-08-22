@@ -101,6 +101,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   StreamSubscription<void>? _playbackFailed;
   StreamSubscription<void>? _networkWatch;
   VoidCallback? _onPlaybackComplete;
+  VoidCallback? _onPlaybackFailed;
 
   FacilitatorVoiceService get _voice => ref.read(facilitatorVoiceProvider);
   RecordingRepository get _recorder => ref.read(recordingRepositoryProvider);
@@ -161,8 +162,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   String _stamp() => DateTime.now().millisecondsSinceEpoch.toString();
 
-  void _play(String path, {VoidCallback? onComplete}) {
+  void _play(String path, {VoidCallback? onComplete, VoidCallback? onFailed}) {
     _onPlaybackComplete = onComplete;
+    _onPlaybackFailed = onFailed;
     _listenForTheEnd();
     unawaited(_playback.play(path).then((_) => _watchPlayback()));
   }
@@ -175,6 +177,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _cannotPlayTheirOwnAudio() {
     _timers.remove('playback')?.cancel();
     _onPlaybackComplete = null;
+    final undo = _onPlaybackFailed;
+    _onPlaybackFailed = null;
+    undo?.call();
     _haltForAPerson();
   }
 
@@ -182,6 +187,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _timers.remove('playback')?.cancel();
     final callback = _onPlaybackComplete;
     _onPlaybackComplete = null;
+    _onPlaybackFailed = null;
     callback?.call();
   }
 
@@ -926,9 +932,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final take = state.wholeTake;
     if (take == null || state.ensaio != EnsaioStatus.idle) return;
     state = state.copyWith(ensaio: EnsaioStatus.ghostPlaying);
-    _play(take.path, onComplete: () {
+    void backToTheCircle() {
       state = state.copyWith(ensaio: EnsaioStatus.idle);
-    });
+    }
+
+    _play(take.path, onComplete: backToTheCircle, onFailed: backToTheCircle);
   }
 
   void ensaioTap() {
@@ -961,9 +969,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final path = _pendingTakePath;
     if (path == null) return;
     state = state.copyWith(playPing: true);
-    _play(path, onComplete: () {
+    void stopThePulse() {
       state = state.copyWith(playPing: false);
-    });
+    }
+
+    _play(path, onComplete: stopThePulse, onFailed: stopThePulse);
   }
 
   void takeRedo() {
@@ -1276,9 +1286,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (take == null || trecho == null) return;
     // Without a state to show, the stretch played into a screen that looked exactly like
     // the one waiting for the team to speak.
-    _onPlaybackComplete = () {
+    void quiet() {
       state = state.copyWith(btTrechoTocando: false);
-    };
+    }
+
+    _onPlaybackComplete = quiet;
+    _onPlaybackFailed = quiet;
     _listenForTheEnd();
     state = state.copyWith(btTrechoTocando: true);
     unawaited(

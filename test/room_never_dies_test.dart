@@ -404,6 +404,37 @@ void main() {
     expect(state.needsPerson, isTrue);
   });
 
+  test('a ghost play that fails gives the ensaio back its gestures', () async {
+    final harness = SalaHarness();
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    await settle();
+    notifier.ghostPlay();
+    await settle();
+    expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.ghostPlaying);
+
+    harness.playback.failPlayback();
+    await settle();
+
+    expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.idle,
+        reason: 'preso em ghostPlaying, o toque no círculo e o botão fantasma não fazem '
+            'nada, e o ensaio não desenha o glifo de parada — a tela move e não responde');
+    expect(container.read(salaSessionProvider).needsPerson, isTrue);
+
+    notifier.resolveWithPerson();
+    await settle();
+    notifier.ensaioTap();
+    expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.recording,
+        reason: 'e depois que a pessoa resolve, gravar volta a funcionar');
+  });
+
   test('hearing again is not offered on top of the retro clip', () async {
     final harness = SalaHarness();
     harness.room.verdictChecked = false;
