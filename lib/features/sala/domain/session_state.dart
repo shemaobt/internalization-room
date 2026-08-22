@@ -68,6 +68,9 @@ class SalaSessionState {
   /// Null and empty must stay apart: empty is a finished book, and the room says so out
   /// loud. A failed load answering "empty" told the team the work was over.
   final List<Passagem>? naRoda;
+  /// Passages of this book with work waiting in them, by pericope. The ruler draws these
+  /// taller, because going back to one is a different act from starting one.
+  final Set<String> comecadas;
   final int aOferecer;
   final List<Trecho> btTrechos;
   final int? btFindingChunk;
@@ -102,6 +105,7 @@ class SalaSessionState {
     this.btChunkPasses = const [],
     this.btChunkFailures = const [],
     this.naRoda,
+    this.comecadas = const {},
     this.aOferecer = 0,
     this.btTrechos = const [],
     this.btFindingChunk,
@@ -210,6 +214,7 @@ class SalaSessionState {
     List<int>? btChunkPasses,
     List<int>? btChunkFailures,
     List<Passagem>? naRoda,
+    Set<String>? comecadas,
     bool clearRoda = false,
     int? aOferecer,
     List<Trecho>? btTrechos,
@@ -247,6 +252,7 @@ class SalaSessionState {
       btChunkPasses: btChunkPasses ?? this.btChunkPasses,
       btChunkFailures: btChunkFailures ?? this.btChunkFailures,
       naRoda: clearRoda ? null : (naRoda ?? this.naRoda),
+      comecadas: comecadas ?? this.comecadas,
       aOferecer: aOferecer ?? this.aOferecer,
       btTrechos: btTrechos ?? this.btTrechos,
       btFindingChunk: clearFindingChunk

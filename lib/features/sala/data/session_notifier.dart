@@ -22,6 +22,7 @@ import 'playback_repository.dart';
 import 'recording_repository.dart';
 import 'room_repository.dart';
 import 'take_upload_queue.dart';
+import 'work_in_progress.dart';
 
 final beadSettleDelayProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 30),
@@ -124,6 +125,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   TakeUploadQueue get _takes => ref.read(takeUploadQueueProvider);
   ConnectivityService get _network => ref.read(connectivityServiceProvider);
   FinishedPassages get _feitas => ref.read(finishedPassagesProvider);
+  WorkInProgress get _emAberto => ref.read(workInProgressProvider);
 
   String get _book => ref.read(bookProvider);
 
@@ -665,14 +667,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (epoch != _epoch) return;
-    final feitas = await _feitas.all(_book);
-    if (epoch != _epoch) return;
+    // Held before the awaits: a provider read after the container is disposed throws,
+    // and this method is reached from a fire-and-forget touch.
+    final ledger = _feitas;
+    final open = _emAberto;
+    final book = _book;
+    final feitas = await ledger.all(book);
+    final comecadas = await open.startedIn(book);
+    if (epoch != _epoch || _gone) return;
     final roda = [
       for (final passagem in todas)
         if (!feitas.contains(passagem.pericope)) passagem,
     ];
     state = state.copyWith(
       naRoda: roda,
+      comecadas: comecadas,
       aOferecer: 0,
       voice: VoiceState.invite,
     );
@@ -771,7 +780,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(abrirEscolha());
   }
 
-  Future<void> goConversa({String? pericope}) async {
+  /// Enter a passage, resuming the session this tablet left in it when there is one.
+  ///
+  /// `fresh` skips the resume, which is how the 404 path starts over: retrying without it
+  /// looked the session up again and recursed forever.
+  Future<void> goConversa({String? pericope, bool fresh = false}) async {
     _clearAll();
     _emCurso = pericope;
     final epoch = _epoch;
@@ -791,23 +804,99 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // minutes", and a single arming over reach + create + open made it say "the whole
     // chain took two minutes" — which a slow but perfectly successful panorama does.
     _watchBusyState();
+    // Only the passages the wheel already said have work waiting are looked up on disk,
+    // so entering a fresh one costs no read at all.
+    final waiting = !fresh && pericope != null && state.comecadas.contains(pericope)
+        ? await _emAberto.of(_book, pericope)
+        : null;
+    if (epoch != _epoch) return;
     try {
-      final snapshot = await _room.createSession(
-        pericope: pericope,
-        afterSession: _panoramaSessionId,
-      );
+      final resumed = waiting != null;
+      final sessionId = waiting?.sessionId ??
+          (await _room.createSession(
+            pericope: pericope,
+            afterSession: _panoramaSessionId,
+          ))
+              .sessionId;
       if (epoch != _epoch) return;
-      state = state.copyWith(
-        sessionId: snapshot.sessionId,
-        coverage: snapshot.coverage,
-      );
+      state = state.copyWith(sessionId: sessionId);
+      if (pericope != null && !resumed) {
+        unawaited(
+          _emAberto
+              .remember(
+                _book,
+                pericope,
+                ResumePoint(sessionId: sessionId, stage: SalaStage.conversa),
+              )
+              .catchError((_) {}),
+        );
+      }
       unawaited(_pullInbox());
       _watchBusyState();
-      await _voiceTurn(await _room.openSession(snapshot.sessionId));
+      // Re-opening carries the coverage back with it, so the necklace fills itself.
+      await _voiceTurn(await _room.openSession(sessionId));
+      if (epoch != _epoch) return;
+      if (resumed) await _backToWhereTheyStopped(waiting, epoch);
+    } on SessionGone {
+      if (epoch != _epoch) return;
+      if (pericope != null) {
+        unawaited(_emAberto.forget(_book, pericope).catchError((_) {}));
+      }
+      if (fresh) {
+        // Already the clean attempt: the server is refusing the passage itself, not the
+        // session we remembered. Retrying again is the loop this guard exists to stop.
+        _haltForAPerson(sessionIsGone: true);
+        return;
+      }
+      // The tablet remembered a session the server has forgotten. Start clean, once.
+      unawaited(goConversa(pericope: pericope, fresh: true));
     } on Exception catch (error) {
       if (epoch != _epoch) return;
       _handleRoomFailure(error);
     }
+  }
+
+  /// Write down where they are, so leaving lands them back here rather than at the start.
+  void _rememberWhereTheyAre(SalaStage stage) {
+    if (_gone) return;
+    final pericope = _emCurso;
+    final sessionId = state.sessionId;
+    if (pericope == null || sessionId == null) return;
+    unawaited(
+      _emAberto
+          .remember(
+            _book,
+            pericope,
+            ResumePoint(
+              sessionId: sessionId,
+              stage: stage,
+              takes: state.keptTakes,
+            ),
+          )
+          .catchError((_) {}),
+    );
+  }
+
+  /// Put the team back on the stage they left, when the audio for it is still here.
+  Future<void> _backToWhereTheyStopped(ResumePoint waiting, int epoch) async {
+    if (waiting.stage == SalaStage.conversa || waiting.takes.isEmpty) return;
+    final here = [
+      for (final take in waiting.takes)
+        if (await File(take.path).exists()) take,
+    ];
+    if (epoch != _epoch) return;
+    if (_gone || here.isEmpty) {
+      // The rehearsal is gone from the tablet, so the retro cannot be told back over it.
+      // The conversa is the step that still works.
+      return;
+    }
+    state = state.copyWith(
+      stage: SalaStage.ensaio,
+      ensaio: EnsaioStatus.idle,
+      keptTakes: here,
+      takes: here.length,
+    );
+    unawaited(_countUnsent());
   }
 
   void conversaTap() {
@@ -1031,6 +1120,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void goEnsaio() {
+    _rememberWhereTheyAre(SalaStage.ensaio);
     _clearAll();
     state = state.copyWith(
       stage: SalaStage.ensaio,
@@ -1125,6 +1215,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ],
     );
     unawaited(_guard(path, kind: 'ensaio', scope: KeptScope.whole));
+    _rememberWhereTheyAre(SalaStage.ensaio);
   }
 
   /// Throw away a take that was recorded and never kept.
@@ -1250,6 +1341,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void startRetro() {
+    _rememberWhereTheyAre(SalaStage.retro);
     _clearAll();
     state = state.copyWith(
       stage: SalaStage.retro,
@@ -1531,7 +1623,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _closeTheNecklace() {
     final feita = _emCurso;
-    if (feita != null) unawaited(_feitas.add(_book, feita).catchError((_) {}));
+    if (feita != null) {
+      unawaited(_feitas.add(_book, feita).catchError((_) {}));
+      unawaited(_emAberto.forget(_book, feita).catchError((_) {}));
+    }
     _after('fim', const Duration(milliseconds: 700), () {
       state = state.copyWith(stage: SalaStage.fim, voice: VoiceState.done);
       _after('close', const Duration(milliseconds: 1000), () {
