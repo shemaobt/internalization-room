@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
@@ -201,6 +202,77 @@ void main() {
       fixedLineAsset(handoffLines[0]),
       fixedLineAsset(handoffLines[1]),
     ]);
+  });
+
+  test('a stretch the room did not capture is still kept as audio', () async {
+    final harness = SalaHarness();
+    harness.room.chunkCaptured = false;
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    notifier.startRetro();
+    await settle();
+    harness.playback.at = const Duration(seconds: 12);
+    notifier.retroTap();
+    await settle();
+    notifier.retroTap();
+    await until(() => container.read(salaSessionProvider).btPhase == BtPhase.playing);
+    await settle();
+
+    final queued = await harness.takes.entries();
+    expect(
+      queued.where((entry) => entry.kind == 'retro'),
+      isNotEmpty,
+      reason: 'o servidor devolve 200 sem guardar nada; se o app também soltar, o trecho deixa de existir',
+    );
+  });
+
+  test('a take with nowhere to go says so instead of filling a bead', () async {
+    final harness = SalaHarness();
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.room.failWith = const SessionGone();
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    await until(() => container.read(salaSessionProvider).sessionId == null);
+    harness.room.failWith = null;
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    await settle();
+
+    expect(harness.voice.assets, contains(strandedTakeAsset));
+  });
+
+  test('leaving a passage does not strand the take on disk', () async {
+    final harness = SalaHarness();
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    final recorded = harness.recorder.lastPath;
+    expect(recorded, isNotNull);
+
+    notifier.leaveThePassage();
+    await settle();
+
+    expect(harness.recorder.deleted, contains(recorded));
   });
 
   test('hearing again is not offered on top of the retro clip', () async {

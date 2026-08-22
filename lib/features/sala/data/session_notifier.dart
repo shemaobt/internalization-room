@@ -594,6 +594,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void leaveThePassage() {
     _clearAll();
+    _dropThePendingTake();
     _emCurso = null;
     state = const SalaSessionState();
     unawaited(abrirEscolha());
@@ -893,6 +894,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(_guard(path, kind: 'ensaio', scope: KeptScope.whole));
   }
 
+  /// Throw away a take that was recorded and never kept.
+  ///
+  /// Leaving a passage used to abandon the file instead: not deleted, so it stayed on the
+  /// tablet forever, and not queued, so nothing would ever send it. An orphan is the one
+  /// outcome that is neither of the two things the team asked for.
+  void _dropThePendingTake() {
+    final path = _pendingTakePath;
+    if (path == null) return;
+    _pendingTakePath = null;
+    unawaited(_recorder.delete(path));
+  }
+
   Future<void> _guard(
     String path, {
     required String kind,
@@ -902,7 +915,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }) async {
     final sessionId = state.sessionId;
     final audio = File(path);
-    if (sessionId == null || !await audio.exists()) return;
+    if (!await audio.exists()) return;
+    if (sessionId == null) {
+      // The room lost the session — a 404 clears it — and a take has nowhere to go
+      // without one. The bead had already been filled by `takeKeep`, so this returned in
+      // silence and the recording read as delivered.
+      _sayARecordingIsStranded();
+      return;
+    }
     try {
       await _takes.enqueue(
         audio,
@@ -1047,6 +1067,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
       if (epoch != _epoch) return;
       if (!captured.captured) {
+        // The room heard nothing in it — which is also what a transcription outage looks
+        // like from here. Either way the stretch they just told is audio, and it used to
+        // be dropped on both sides: the server returns before it stores anything, and
+        // this branch kept no copy.
+        unawaited(_guard(
+          path,
+          kind: 'retro',
+          scope: KeptScope.whole,
+          passNumber: state.btPass,
+          chunkIndex: state.btChunkPasses.length + 1,
+        ));
         state = state.copyWith(btPhase: BtPhase.playing, voice: VoiceState.invite);
         if (!state.btClipEnded) _letTheClipRun();
         return;
