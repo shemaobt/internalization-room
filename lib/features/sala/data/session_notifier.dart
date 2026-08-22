@@ -545,8 +545,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.voice != VoiceState.invite) return;
     final roda = state.naRoda;
     if (roda == null) {
-      // The wheel never loaded. There is nothing to advance and nothing to enter, so the
-      // touch is the retry — otherwise this screen has no live gesture at all.
       unawaited(abrirEscolha());
       return;
     }

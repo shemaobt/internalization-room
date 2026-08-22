@@ -238,9 +238,6 @@ class TakeUploadQueue {
             chunkIndex: entry.chunkIndex,
           );
         } on RoomUnavailable {
-          // Never reached the room: paced like any other retry, but it does not spend the
-          // budget. A timeout is not a refusal, and treating it as one abandoned takes on
-          // a slow link with the same finality as a server that said no.
           await _replace(
             entry,
             entry.copyWith(waits: entry.waits + 1, lastTry: _now()),

@@ -72,9 +72,6 @@ class HandInboxRepository {
       ..files.add(await http.MultipartFile.fromPath('file', audio.path));
     final http.Response response;
     try {
-      // The deadline has to cover draining the body too: wrapping only `send` left the
-      // read with no limit at all, so a half-answered request hung here for good. And a
-      // raw TimeoutException escaping made the caller treat a slow link as a crash.
       response = await Future(() async {
         return http.Response.fromStream(await _client.send(request));
       }).timeout(_uploadTimeout);
