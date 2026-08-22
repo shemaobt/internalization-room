@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:internalization_room/features/sala/data/connectivity_service.dart';
 import 'package:internalization_room/features/sala/data/facilitator_voice_service.dart';
+import 'package:internalization_room/features/sala/data/finished_passages.dart';
 import 'package:internalization_room/features/sala/data/hand_inbox_repository.dart';
 import 'package:internalization_room/features/sala/data/playback_repository.dart';
 import 'package:internalization_room/features/sala/data/recording_repository.dart';
@@ -14,6 +15,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/coverage.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
+import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
@@ -146,6 +148,16 @@ class FakePlayback implements PlaybackRepository {
   Future<void> dispose() async => _completions.close();
 }
 
+class FakeFinished implements FinishedPassages {
+  final Set<String> done = {};
+
+  @override
+  Future<Set<String>> all() async => done;
+
+  @override
+  Future<void> add(String pericope) async => done.add(pericope);
+}
+
 class FakeInbox implements HandInboxRepository {
   List<HandReply> replies;
   final List<String> heard = [];
@@ -193,6 +205,12 @@ class FakeRoom implements RoomRepository {
   String? serverStatus;
   String fixedLine = '';
   final List<String> restartsAsked = [];
+  final List<String> booksAsked = [];
+  List<Passagem> passages = const [
+    Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+    Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
+    Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
+  ];
   int personsAsked = 0;
   int retells = 0;
   int retellBudget = 3;
@@ -228,6 +246,13 @@ class FakeRoom implements RoomRepository {
       coverage: nextCoverage,
       done: false,
     );
+  }
+
+  @override
+  Future<List<Passagem>> passagesOf(String book) async {
+    _guard('passagesOf');
+    booksAsked.add(book);
+    return passages;
   }
 
   @override
@@ -381,6 +406,8 @@ class SalaHarness {
     this.fimLinger = const Duration(seconds: 30),
   }) : inbox = FakeInbox(replies: replies);
 
+  final FakeFinished finished = FakeFinished();
+
   late final TakeUploadQueue takes = TakeUploadQueue(
     room: room,
     home: () async => takesHome,
@@ -393,6 +420,7 @@ class SalaHarness {
         handInboxRepositoryProvider.overrideWithValue(inbox),
         roomRepositoryProvider.overrideWithValue(room),
         takeUploadQueueProvider.overrideWithValue(takes),
+        finishedPassagesProvider.overrideWithValue(finished),
         connectivityServiceProvider.overrideWithValue(network),
         beadSettleDelayProvider.overrideWithValue(settleDelay),
         roomRetryBackoffProvider.overrideWithValue(retryBackoff),

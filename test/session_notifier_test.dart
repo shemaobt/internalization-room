@@ -50,6 +50,23 @@ Future<void> _intoFindings(
   await settle();
 }
 
+Future<void> _intoConferida(
+  SalaHarness harness,
+  SalaSessionNotifier notifier,
+) async {
+  notifier.goEnsaio();
+  notifier.ensaioTap();
+  notifier.ensaioTap();
+  await settle();
+  notifier.takeKeep();
+  notifier.startRetro();
+  await settle();
+  harness.playback.finishPlayback();
+  await settle();
+  await notifier.finishBackTranslation();
+  await settle(const Duration(milliseconds: 900));
+}
+
 Future<ProviderContainer> inConversa(SalaHarness harness) async {
   final container = harness.container();
   await container.read(salaSessionProvider.notifier).goConversa();
@@ -743,6 +760,104 @@ void main() {
     expect(container.read(salaSessionProvider).unsentTakes, 0);
   });
 
+
+
+
+
+  test('the room offers one passage at a time, by voice', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.abrirEscolha();
+    await settle();
+
+    expect(harness.room.booksAsked, ['Ruth']);
+    expect(container.read(salaSessionProvider).oferecida?.pericope, 'P01');
+    expect(harness.voice.played, ['/voice/p01'],
+        reason: 'a equipe escolhe de ouvido: a sala diz a passagem, não a escreve');
+
+    notifier.escolhaTap();
+    await settle();
+
+    expect(container.read(salaSessionProvider).oferecida?.pericope, 'P02');
+    expect(harness.voice.played, ['/voice/p01', '/voice/p02']);
+  });
+
+  test('the wheel wraps around instead of ending', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+
+    for (var turn = 0; turn < 3; turn++) {
+      notifier.escolhaTap();
+      await settle();
+    }
+
+    expect(container.read(salaSessionProvider).oferecida?.pericope, 'P01',
+        reason: 'não há fim de lista para uma equipe que não lê — a roda volta');
+  });
+
+  test('entering carries the chosen passage to the room', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+    notifier.escolhaTap();
+    await settle();
+
+    notifier.entrarNaOferecida();
+    await settle();
+
+    expect(harness.room.pericopesAsked, contains('P02'),
+        reason: 'o cliente nunca mandava perícope e o servidor caía sempre na P01');
+    expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
+  });
+
+  test('a passage carried to the end leaves the wheel for good', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+    notifier.entrarNaOferecida();
+    await settle();
+    await _intoConferida(harness, notifier);
+
+    await notifier.abrirEscolha();
+    await settle();
+
+    expect(
+      container.read(salaSessionProvider).naRoda.map((p) => p.pericope),
+      ['P02', 'P03'],
+      reason: 'uma perícope terminada nunca se repete — e antes o app refazia '
+          'a P01 para sempre',
+    );
+  });
+
+  test('a book with nothing left rests instead of asking for a person', () async {
+    final harness = SalaHarness()..room.passages = const [];
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.abrirEscolha();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.livroInteiroFeito, isTrue);
+    expect(state.voice, VoiceState.done,
+        reason: 'acabar o livro é descanso, não falha');
+    expect(state.needsPerson, isFalse);
+  });
+
   test('the closed necklace opens the room again on its own', () async {
     final harness = SalaHarness(fimLinger: const Duration(milliseconds: 40));
     final container = await inConversa(harness);
@@ -766,8 +881,9 @@ void main() {
     await settle(const Duration(seconds: 2));
 
     final after = container.read(salaSessionProvider);
-    expect(after.stage, SalaStage.convite,
-        reason: 'a equipe contempla o colar fechado e a sala reabre — antes ficava presa ali');
+    expect(after.stage, SalaStage.escolha,
+        reason: 'a sala reabre na escolha, não no convite: voltar ao convite '
+            'refazia a mesma perícope para sempre num tablet esquecido ligado');
     expect(after.sessionId, isNull);
     expect(after.takes, 0);
   });
@@ -843,7 +959,7 @@ void main() {
 
     notifier.beginAgain();
 
-    expect(container.read(salaSessionProvider).stage, SalaStage.convite,
+    expect(container.read(salaSessionProvider).stage, SalaStage.escolha,
         reason: 'a tela do fim não tinha alvo de toque nenhum; se a corrente de '
             'temporizadores morresse, a sala ficava branca até matarem o app');
   });

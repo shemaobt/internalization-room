@@ -3,8 +3,9 @@ import 'spoken_line.dart';
 import 'coverage.dart';
 import 'hand_reply.dart';
 import 'kept_take.dart';
+import 'passagem.dart';
 
-enum SalaStage { convite, conversa, ensaio, retro, fim }
+enum SalaStage { convite, escolha, conversa, ensaio, retro, fim }
 
 enum VoiceState { invite, listening, thinking, speaking, done, needsPerson, offline, blocked }
 
@@ -52,6 +53,8 @@ class SalaSessionState {
   final bool playPing;
   final BtPhase btPhase;
   final List<int> btChunkPasses;
+  final List<Passagem> naRoda;
+  final int aOferecer;
   final List<Trecho> btTrechos;
   final int? btFindingChunk;
   final bool btClipEnded;
@@ -82,6 +85,8 @@ class SalaSessionState {
     this.playPing = false,
     this.btPhase = BtPhase.playing,
     this.btChunkPasses = const [],
+    this.naRoda = const [],
+    this.aOferecer = 0,
     this.btTrechos = const [],
     this.btFindingChunk,
     this.btClipEnded = false,
@@ -92,7 +97,13 @@ class SalaSessionState {
     this.unsentChunks = 0,
   });
 
-  bool get colarOn => stage != SalaStage.convite;
+  bool get colarOn =>
+      stage != SalaStage.convite && stage != SalaStage.escolha;
+
+  Passagem? get oferecida =>
+      aOferecer >= 0 && aOferecer < naRoda.length ? naRoda[aOferecer] : null;
+
+  bool get livroInteiroFeito => stage == SalaStage.escolha && naRoda.isEmpty;
 
   bool get onFim => stage == SalaStage.fim;
 
@@ -167,6 +178,8 @@ class SalaSessionState {
     bool? playPing,
     BtPhase? btPhase,
     List<int>? btChunkPasses,
+    List<Passagem>? naRoda,
+    int? aOferecer,
     List<Trecho>? btTrechos,
     int? btFindingChunk,
     bool clearFindingChunk = false,
@@ -201,6 +214,8 @@ class SalaSessionState {
       playPing: playPing ?? this.playPing,
       btPhase: btPhase ?? this.btPhase,
       btChunkPasses: btChunkPasses ?? this.btChunkPasses,
+      naRoda: naRoda ?? this.naRoda,
+      aOferecer: aOferecer ?? this.aOferecer,
       btTrechos: btTrechos ?? this.btTrechos,
       btFindingChunk: clearFindingChunk
           ? null
