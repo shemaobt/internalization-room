@@ -111,6 +111,7 @@ class TakeUploadQueue {
   final List<Duration> _backoff;
   final DateTime Function() _now;
   bool _flushing = false;
+  int _minted = 0;
 
   TakeUploadQueue({
     required RoomRepository room,
@@ -129,6 +130,8 @@ class TakeUploadQueue {
   }
 
   Future<File> _manifestFile() async => File(p.join((await _dir()).path, _manifest));
+
+  String _mintId() => '${DateTime.now().microsecondsSinceEpoch}-${_minted++}';
 
   /// The queue as written on disk, or null when it could not be read.
   ///
@@ -198,8 +201,9 @@ class TakeUploadQueue {
     int? chunkIndex,
   }) async {
     final dir = await _dir();
-    final id = p.basenameWithoutExtension(audio.path);
-    final kept = p.join(dir.path, '$kind-$id${p.extension(audio.path)}');
+    final id = _mintId();
+    final name = p.basenameWithoutExtension(audio.path);
+    final kept = p.join(dir.path, '$kind-$name-$id${p.extension(audio.path)}');
     if (audio.path != kept) {
       await audio.copy(kept);
     }
@@ -238,9 +242,6 @@ class TakeUploadQueue {
             chunkIndex: entry.chunkIndex,
           );
         } on RoomUnavailable {
-          // Never reached the room: paced like any other retry, but it does not spend the
-          // budget. A timeout is not a refusal, and treating it as one abandoned takes on
-          // a slow link with the same finality as a server that said no.
           await _replace(
             entry,
             entry.copyWith(waits: entry.waits + 1, lastTry: _now()),
