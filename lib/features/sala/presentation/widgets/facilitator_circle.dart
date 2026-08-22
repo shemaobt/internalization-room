@@ -203,21 +203,27 @@ class FacilitatorCircle extends StatelessWidget {
       );
 
   Widget _teamTalkBody(SalaColors colors) {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        _disc(
-          gradient: BeadStyles.azul,
-          shadows: [
-            BoxShadow(
-              color: ShemaBrand.azulLo.withValues(alpha: 0.32),
-              offset: const Offset(0, 10),
-              blurRadius: 30,
+    return Loop(
+      period: const Duration(milliseconds: 4600),
+      builder: (context, t) => Transform.scale(
+        scale: 1 + 0.045 * t,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            _disc(
+              gradient: BeadStyles.azul,
+              shadows: [
+                BoxShadow(
+                  color: ShemaBrand.azulLo.withValues(alpha: 0.32),
+                  offset: const Offset(0, 10),
+                  blurRadius: 30,
+                ),
+              ],
             ),
+            Icon(LucideIcons.users, size: size * 0.3, color: ShemaBrand.branco),
           ],
         ),
-        Icon(LucideIcons.users, size: size * 0.3, color: ShemaBrand.branco),
-      ],
+      ),
     );
   }
 
