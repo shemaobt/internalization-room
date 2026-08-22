@@ -41,9 +41,6 @@ void main() {
     final alone = await _scalesOver(tester, _circle(peerCue: false));
     final withTeam = await _scalesOver(tester, _circle(peerCue: true));
 
-    // Counting distinct scales passes on an amplitude of 0.00002 — four thousandths of a
-    // pixel on a 196 px disc. What the claim actually is: the same breath as every other
-    // invite, so the two sets have to be equal.
     double peak(Set<double> seen) => seen.reduce((a, b) => a > b ? a : b);
 
     // Counting distinct scales passes at an amplitude of 0.00002 — four thousandths of a

@@ -165,11 +165,6 @@ class SalaSessionState {
 
   bool get needsPerson => voice == VoiceState.needsPerson;
 
-  /// Whether a long press would do anything at all.
-  ///
-  /// `resolveWithPerson` no-ops on a healthy room, and Flutter gives the long press the
-  /// arena over the tap — so wiring it unconditionally makes every held press dead. On
-  /// the rehearsal circle that meant a finger held down never opened the microphone.
   bool get canResolveWithPerson => needsPerson || offline;
 
   bool get offline => voice == VoiceState.offline;
