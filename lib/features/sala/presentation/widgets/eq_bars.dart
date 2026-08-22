@@ -43,7 +43,11 @@ class _EqBarsState extends State<EqBars> with SingleTickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final colors = SalaColors.of(context);
-    const activeColor = Color(0xFFE8813E);
+    // The only raw hex in the widget layer, and it was tuned against the dark background:
+    // 2.5:1 on the light paper, against 4.6:1 for the room's own telha. This is the
+    // strongest "the microphone is on" cue on the rehearsal screen, and it was the least
+    // legible thing on it — on a tablet outdoors, which is where this runs.
+    final activeColor = colors.telha;
     return SizedBox(
       height: 40,
       child: AnimatedBuilder(
