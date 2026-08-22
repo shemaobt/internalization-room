@@ -37,7 +37,7 @@ class ConviteView extends ConsumerWidget {
                   halo: ShemaBrand.wood,
                   border: Border.all(color: SalaColors.of(context).cord, width: 2),
                   semanticLabel: 'Entrar na passagem',
-                  onTap: notifier.goConversa,
+                  onTap: notifier.abrirEscolha,
                 )
               : null,
         ),

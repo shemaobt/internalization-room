@@ -24,9 +24,12 @@ class EscolhaView extends ConsumerWidget {
         FacilitatorCircle(
           size: 196,
           voice: session.voice,
-          semanticLabel: session.livroInteiroFeito
-              ? 'Todas as passagens foram trabalhadas'
-              : 'Ouvir a próxima passagem',
+          semanticLabel: switch (session) {
+            _ when session.livroInteiroFeito =>
+              'Todas as passagens foram trabalhadas',
+            _ when session.rodaPorLer => 'Tocar para procurar as passagens',
+            _ => 'Ouvir a próxima passagem',
+          },
           onTap: notifier.escolhaTap,
           onLongPress: notifier.resolveWithPerson,
         ),
@@ -51,7 +54,7 @@ class EscolhaView extends ConsumerWidget {
           child: CustomPaint(
             painter: _RodaPainter(
               at: session.aOferecer,
-              total: session.naRoda.length,
+              total: session.naRoda?.length ?? 0,
               color: colors.cord,
               mark: colors.telha,
             ),

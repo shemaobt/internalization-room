@@ -175,8 +175,8 @@ void main() {
     expect(await queue.flush(), 1);
   });
 
-  test('after the ceiling it stops trying but nothing is thrown away', () async {
-    final room = FakeRoom()..reachable = false;
+  test('a room that refuses spends the tries, and keeps the audio', () async {
+    final room = FakeRoom()..refuseTake = 'ensaio/inteira';
     final queue = queueOn(room);
     final entry = await queue.enqueue(
       aTake('tomada'),
@@ -186,6 +186,7 @@ void main() {
     );
 
     for (var attempt = 0; attempt < takeUploadAttempts + 2; attempt++) {
+      clock = clock.add(const Duration(minutes: 20));
       await queue.flush();
     }
 
@@ -196,6 +197,54 @@ void main() {
         reason: 'mas o áudio continua em disco — desistir em silêncio é uma forma de perder');
     expect(await queue.pending(), hasLength(1),
         reason: 'e a entrada continua no manifesto, não é apagada');
+  });
+
+  test('a room it never reached is paced, never abandoned', () async {
+    final room = FakeRoom()..reachable = false;
+    final queue = queueOn(room);
+    await queue.enqueue(
+      aTake('tomada'),
+      sessionId: 'sessao-1',
+      kind: 'ensaio',
+      scope: 'inteira',
+    );
+
+    for (var attempt = 0; attempt < takeUploadAttempts + 4; attempt++) {
+      clock = clock.add(const Duration(minutes: 20));
+      await queue.flush();
+    }
+
+    expect(await queue.giveUps(), isEmpty,
+        reason: 'um timeout não é uma recusa: num link ruim as cinco tentativas eram '
+            'gastas em cinco esperas e a gravação era abandonada de vez');
+    expect(await queue.waiting(), hasLength(1));
+
+    room.reachable = true;
+    clock = clock.add(const Duration(minutes: 20));
+
+    expect(await queue.flush(), 1, reason: 'e ela sobe assim que a sala volta');
+  });
+
+  test('a manifest it cannot read never claims the audio is safe', () async {
+    final dir = Directory('${home.path}/guardadas')..createSync(recursive: true);
+    File('${dir.path}/fila.json').writeAsStringSync('{ isto nao e json');
+
+    final queue = queueOn(FakeRoom());
+
+    expect(await queue.unsentOf('ensaio', sessionId: 'sessao-1'), greaterThan(0),
+        reason: 'devolver 0 pintava as contas cheias e dizia à equipe que as '
+            'gravações chegaram ao servidor, na palavra de um arquivo que a fila '
+            'acabara de não conseguir ler');
+  });
+
+  test('a manifest with a broken entry is not read as an empty queue', () async {
+    final dir = Directory('${home.path}/guardadas')..createSync(recursive: true);
+    File('${dir.path}/fila.json').writeAsStringSync('[{"id":"sem-o-resto"}]');
+
+    final queue = queueOn(FakeRoom());
+
+    expect(await queue.unsentOf('ensaio', sessionId: 'sessao-1'), greaterThan(0),
+        reason: 'o TypeError do fromJson nem era capturado');
   });
 
   test('a manifest written before attempts existed is still read', () async {

@@ -30,7 +30,12 @@ class PendingTake {
   final int? passNumber;
   final int? chunkIndex;
   final bool stored;
+  /// Times the room answered and refused. Only these spend the budget.
   final int attempts;
+  /// Times the request never got an answer. These pace the retries but never exhaust
+  /// them: a tablet on a weak link would otherwise spend all five tries on five slow
+  /// minutes and abandon a recording the room may well have accepted.
+  final int waits;
   final DateTime? lastTry;
 
   const PendingTake({
@@ -43,12 +48,21 @@ class PendingTake {
     this.chunkIndex,
     this.stored = false,
     this.attempts = 0,
+    this.waits = 0,
     this.lastTry,
   });
 
   bool get exhausted => attempts >= takeUploadAttempts;
 
-  PendingTake copyWith({bool? stored, int? attempts, DateTime? lastTry}) => PendingTake(
+  int get tries => attempts + waits;
+
+  PendingTake copyWith({
+    bool? stored,
+    int? attempts,
+    int? waits,
+    DateTime? lastTry,
+  }) =>
+      PendingTake(
         id: id,
         path: path,
         sessionId: sessionId,
@@ -58,6 +72,7 @@ class PendingTake {
         chunkIndex: chunkIndex,
         stored: stored ?? this.stored,
         attempts: attempts ?? this.attempts,
+        waits: waits ?? this.waits,
         lastTry: lastTry ?? this.lastTry,
       );
 
@@ -71,6 +86,7 @@ class PendingTake {
         'chunk_index': chunkIndex,
         'stored': stored,
         'attempts': attempts,
+        'waits': waits,
         'last_try': lastTry?.toIso8601String(),
       };
 
@@ -84,6 +100,7 @@ class PendingTake {
         chunkIndex: json['chunk_index'] as int?,
         stored: json['stored'] as bool? ?? false,
         attempts: json['attempts'] as int? ?? 0,
+        waits: json['waits'] as int? ?? 0,
         lastTry: DateTime.tryParse(json['last_try'] as String? ?? ''),
       );
 }
@@ -116,7 +133,13 @@ class TakeUploadQueue {
 
   String _mintId() => '${DateTime.now().microsecondsSinceEpoch}-${_minted++}';
 
-  Future<List<PendingTake>> entries() async {
+  /// The queue as written on disk, or null when it could not be read.
+  ///
+  /// Null and an empty list must stay apart: empty means every take reached the room, and
+  /// the beads paint full on the strength of it. A manifest that will not parse says
+  /// nothing about where the audio is, and answering "nothing pending" to that told the
+  /// team their recordings were safe on the word of a file we had just failed to read.
+  Future<List<PendingTake>?> _written() async {
     final file = await _manifestFile();
     if (!await file.exists()) return const [];
     try {
@@ -124,10 +147,12 @@ class TakeUploadQueue {
       return [
         for (final entry in raw) PendingTake.fromJson(entry as Map<String, Object?>),
       ];
-    } on FormatException {
-      return const [];
+    } on Object {
+      return null;
     }
   }
+
+  Future<List<PendingTake>> entries() async => await _written() ?? const [];
 
   Future<List<PendingTake>> pending() async =>
       [for (final entry in await entries()) if (!entry.stored) entry];
@@ -135,18 +160,27 @@ class TakeUploadQueue {
   Future<List<PendingTake>> waiting() async =>
       [for (final entry in await pending()) if (!entry.exhausted) entry];
 
-  Future<int> unsentOf(String kind, {required String sessionId}) async => [
-        for (final entry in await pending())
-          if (entry.kind == kind && entry.sessionId == sessionId) entry,
-      ].length;
+  /// How many takes of this kind are still on the tablet — and never zero on a doubt.
+  ///
+  /// A manifest we cannot read is counted as one outstanding take rather than none: the
+  /// bead stays hollow, the room keeps saying there is something to send, and the error
+  /// falls on the safe side of a recording nobody is allowed to lose.
+  Future<int> unsentOf(String kind, {required String sessionId}) async {
+    final written = await _written();
+    if (written == null) return 1;
+    return [
+      for (final entry in written)
+        if (!entry.stored && entry.kind == kind && entry.sessionId == sessionId) entry,
+    ].length;
+  }
 
   Future<List<PendingTake>> giveUps() async =>
       [for (final entry in await pending()) if (entry.exhausted) entry];
 
   bool _ready(PendingTake entry) {
     final last = entry.lastTry;
-    if (last == null || entry.attempts == 0 || _backoff.isEmpty) return true;
-    final step = entry.attempts - 1;
+    if (last == null || entry.tries == 0 || _backoff.isEmpty) return true;
+    final step = entry.tries - 1;
     final wait = _backoff[step < _backoff.length ? step : _backoff.length - 1];
     return !_now().isBefore(last.add(wait));
   }
@@ -207,6 +241,12 @@ class TakeUploadQueue {
             passNumber: entry.passNumber,
             chunkIndex: entry.chunkIndex,
           );
+        } on RoomUnavailable {
+          await _replace(
+            entry,
+            entry.copyWith(waits: entry.waits + 1, lastTry: _now()),
+          );
+          continue;
         } on Exception {
           await _replace(
             entry,
