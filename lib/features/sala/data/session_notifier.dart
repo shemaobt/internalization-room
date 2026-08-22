@@ -312,7 +312,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       peerCue: false,
       clearSession: sessionIsGone,
     );
-    // Self-guarded on a null session, which is what `sessionIsGone` has just produced.
     _tellTheRoomAPersonIsNeeded();
   }
 
@@ -329,7 +328,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case RoomRefused():
         _haltForAPerson();
       case SessionGone():
-        // Nothing to tell a session the room has already forgotten.
         _haltForAPerson(sessionIsGone: true);
       case RoomBroke():
         _registerRoomFailure();
