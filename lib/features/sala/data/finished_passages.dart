@@ -8,13 +8,6 @@ import 'package:path_provider/path_provider.dart';
 const _folder = 'guardadas';
 const _ledger = 'passagens_feitas.json';
 
-/// Which passages this tablet has already carried to the end.
-///
-/// It lives on the device, beside the take queue's own manifest, because `ir_sessions`
-/// carries no identity at all — the server can say that some session of a passage reached
-/// done, never that *this team* finished it. That makes the ledger per tablet, not per
-/// team: swap the tablet and the record is gone. Correct for one tablet per team, and the
-/// thing that moves server-side once a team login exists.
 /// The book every entry written before passages were scoped belonged to.
 ///
 /// Passage ids come from the meaning maps as `P01`…`P14`, so they repeat in every book:
@@ -23,6 +16,13 @@ const _ledger = 'passagens_feitas.json';
 /// already finished. Only Ruth has ever been served, so an unscoped entry is Ruth's.
 const legacyBook = 'Ruth';
 
+/// Which passages this tablet has already carried to the end.
+///
+/// It lives on the device, beside the take queue's own manifest, because `ir_sessions`
+/// carries no identity at all — the server can say that some session of a passage reached
+/// done, never that *this team* finished it. That makes the ledger per tablet, not per
+/// team: swap the tablet and the record is gone. Correct for one tablet per team, and the
+/// thing that moves server-side once a team login exists.
 class FinishedPassages {
   static String _bookMark(String book) => 'livro:$book';
 
