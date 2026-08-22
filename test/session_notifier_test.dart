@@ -1725,6 +1725,63 @@ void main() {
     expect(container.read(salaSessionProvider).stage, SalaStage.fim);
   });
 
+  test('the panorama question waits for one spoken answer at the entrada', () async {
+    final harness = SalaHarness()..room.bridgeMode = 'calibration_pending';
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.openConvite();
+    harness.room.bridgeMode = 'guided_microchecks';
+    notifier.conviteTap();
+    await settle();
+    expect(container.read(salaSessionProvider).voice, VoiceState.listening,
+        reason: 'a pergunta do método foi feita; o círculo escuta a única resposta');
+    notifier.conviteTap();
+    await until(() => harness.room.turnsSent == 1);
+    await settle();
+
+    expect(harness.room.turnsSent, 1,
+        reason: 'a resposta vai para a sessão do panorama, uma vez só');
+    await notifier.goConversa();
+    await settle();
+    expect(harness.room.bridgeModesSent.last, 'guided_microchecks',
+        reason: 'a escolha feita no panorama viaja com a passagem do mesmo livro');
+  });
+
+  test('skipping the method answer sends no mode and never re-asks', () async {
+    final harness = SalaHarness()..room.bridgeMode = 'calibration_pending';
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.openConvite();
+    await notifier.goConversa();
+    await settle();
+
+    expect(harness.room.turnsSent, 0,
+        reason: 'entrar direto também é uma resposta: o servidor cai para o modo adaptativo');
+    expect(harness.room.bridgeModesSent.last, isNull);
+  });
+
+  test('an explicit switch reported by a passage turn is remembered', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.room.bridgeMode = 'full_retell';
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    await until(() => harness.room.turnsSent == 1);
+    await settle();
+    await notifier.goConversa();
+    await settle();
+
+    expect(harness.room.bridgeModesSent.last, 'full_retell',
+        reason: 'o servidor decide a troca; o tablet só a carrega para a próxima passagem');
+  });
+
   test('the room stops touching its providers once it is gone', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);

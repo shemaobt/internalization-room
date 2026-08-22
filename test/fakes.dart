@@ -270,6 +270,7 @@ class FakeInbox implements HandInboxRepository {
 class FakeRoom implements RoomRepository {
   final List<String> calls = [];
   final List<String?> pericopesAsked = [];
+  final List<String?> bridgeModesSent = [];
   final List<bool> metBefore = [];
   final List<String> clipsFetched = [];
   bool reachable = true;
@@ -291,6 +292,7 @@ class FakeRoom implements RoomRepository {
   int? verdictFindingChunk;
   String? serverStatus;
   String fixedLine = '';
+  String bridgeMode = '';
   final List<String> restartsAsked = [];
   final List<String> booksAsked = [];
   List<Passagem> passages = const [
@@ -322,10 +324,12 @@ class FakeRoom implements RoomRepository {
   Future<SessionSnapshot> createSession({
     String? pericope,
     String? afterSession,
+    String? bridgeMode,
   }) async {
     _guard('createSession');
     pericopesAsked.add(pericope);
     metBefore.add(afterSession != null);
+    bridgeModesSent.add(bridgeMode);
     return SessionSnapshot(
       sessionId: 'sessao-1',
       pericope: pericope ?? 'rute-1',
@@ -404,6 +408,7 @@ class FakeRoom implements RoomRepository {
         usedFailSafe: turnsAreCanned,
         coverage: silentAboutCoverage ? null : nextCoverage,
         done: done,
+        bridgeMode: bridgeMode,
       );
 
   @override

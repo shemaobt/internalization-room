@@ -71,6 +71,7 @@ class RoomRepository {
   Future<SessionSnapshot> createSession({
     String? pericope,
     String? afterSession,
+    String? bridgeMode,
   }) async {
     final response = await _send(
       () => _client.post(
@@ -79,6 +80,7 @@ class RoomRepository {
         body: jsonEncode({
           'pericope': ?pericope,
           'after_session': ?afterSession,
+          'bridge_mode': ?bridgeMode,
         }),
       ),
       _stateTimeout,

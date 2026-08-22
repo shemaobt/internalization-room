@@ -13,6 +13,8 @@ class TurnResult {
   final Coverage? coverage;
   final bool done;
 
+  final String bridgeMode;
+
   const TurnResult({
     required this.sessionId,
     required this.audioUrl,
@@ -22,6 +24,7 @@ class TurnResult {
     required this.usedFailSafe,
     required this.coverage,
     required this.done,
+    this.bridgeMode = '',
   });
 
   factory TurnResult.fromJson(Map<String, dynamic> json) => TurnResult(
@@ -37,5 +40,6 @@ class TurnResult {
                 (json['coverage'] as Map).cast<String, dynamic>(),
               ),
         done: json['done'] as bool? ?? false,
+        bridgeMode: json['bridge_mode'] as String? ?? '',
       );
 }
