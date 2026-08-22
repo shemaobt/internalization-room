@@ -972,6 +972,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final epoch = _epoch;
     final path = await _recorder.stop();
     if (epoch != _epoch) return;
+    if (path == null) {
+      // Nothing came back. Offering keep, redo and listen over a take that does not exist
+      // let a team confirm a rehearsal into nothing — the buttons vanished exactly as on a
+      // good keep, no bead appeared, and the way to the retro never opened.
+      state = state.copyWith(ensaio: EnsaioStatus.idle);
+      _haltForAPerson();
+      return;
+    }
     _pendingTakePath = path;
     state = state.copyWith(ensaio: EnsaioStatus.recorded);
   }
@@ -1066,8 +1074,30 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> refreshUnsent() => _countUnsent();
 
   Future<void> _recordOrBlock(String fileName) async {
-    if (await _recorder.start(fileName)) return;
-    ref.read(micPermissionProvider.notifier).refuse();
+    switch (await _recorder.start(fileName)) {
+      case Capture.started:
+        return;
+      case Capture.denied:
+        ref.read(micPermissionProvider.notifier).refuse();
+      case Capture.failed:
+        _theRecorderNeverStarted();
+    }
+  }
+
+  /// The screen already said the room was listening, and it was not.
+  ///
+  /// Every caller sets its own state before this runs, so a recorder that never started
+  /// left the circle gathering over a microphone that was off. The team performs the
+  /// whole passage into it and loses it.
+  void _theRecorderNeverStarted() {
+    state = state.copyWith(
+      ensaio: EnsaioStatus.idle,
+      noteMode: false,
+      btPhase: state.btPhase == BtPhase.capturing
+          ? BtPhase.playing
+          : state.btPhase,
+    );
+    _haltForAPerson();
   }
 
   Future<void> _countUnsent() async {

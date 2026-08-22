@@ -1677,13 +1677,21 @@ void main() {
     final guardada = container.read(salaSessionProvider).wholeTake;
     expect(guardada, isNotNull);
 
+    final contadas = container.read(salaSessionProvider).takes;
     harness.recorder.returnsNothing = true;
     notifier.ensaioTap();
     notifier.ensaioTap();
     await settle();
-    notifier.takeKeep();
 
-    expect(container.read(salaSessionProvider).wholeTake?.path, guardada!.path);
+    final state = container.read(salaSessionProvider);
+    expect(state.wholeTake?.path, guardada!.path);
+    expect(state.ensaio, EnsaioStatus.idle,
+        reason: 'oferecer guardar, refazer e ouvir sobre uma tomada que não existe deixava '
+            'a equipe confirmar um ensaio no vazio, do mesmo jeito que um bom');
+    expect(state.takes, contadas,
+        reason: 'e a conta não pode subir por uma gravação que nunca houve');
+    expect(state.needsPerson, isTrue,
+        reason: 'gravar a passagem inteira e não sair nada é coisa para uma pessoa olhar');
   });
 
   test('the back-translation reaches conferida and closes the necklace', () async {
