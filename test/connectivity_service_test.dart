@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/connectivity_service.dart';
+import 'package:internalization_room/features/sala/domain/room_reach.dart';
 
 class FakeConnectivity implements Connectivity {
   final StreamController<List<ConnectivityResult>> _changes =

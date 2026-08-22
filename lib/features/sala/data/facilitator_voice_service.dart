@@ -36,10 +36,6 @@ class FacilitatorVoiceService {
     });
   }
 
-  /// Fetch a line without speaking it, so the room can wait in the state it is really in.
-  ///
-  /// The speaking ripples used to start before this download, which can take as long as
-  /// the request allows: the circle was visibly talking and audibly saying nothing.
   Future<bool> fetch(String url) async {
     if (url.isEmpty) return false;
     try {

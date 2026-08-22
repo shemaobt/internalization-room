@@ -13,6 +13,7 @@ import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/coverage.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
@@ -151,7 +152,6 @@ class FakePlayback implements PlaybackRepository {
 
   Duration? length;
   Duration at = Duration.zero;
-  final List<Duration> seeks = [];
   final List<String> ranges = [];
 
   @override
@@ -167,12 +167,6 @@ class FakePlayback implements PlaybackRepository {
 
   @override
   Duration get position => at;
-
-  @override
-  Future<void> seek(Duration to) async {
-    at = to;
-    seeks.add(to);
-  }
 
   @override
   Future<void> play(String path) async => played.add(path);
