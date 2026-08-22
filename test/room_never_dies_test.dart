@@ -695,6 +695,86 @@ void main() {
     expect(state.noteMode, isFalse);
   });
 
+  test('the next passage does not inherit the last one\'s retell', () async {
+    final harness = SalaHarness();
+    harness.room.verdictChecked = false;
+    harness.room.verdictFinding = BtFindingKind.missing;
+    harness.room.verdictFindingChunk = 1;
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    notifier.startRetro();
+    await settle();
+    harness.playback.at = const Duration(seconds: 12);
+    notifier.retroTap();
+    await settle();
+    notifier.retroTap();
+    await settle();
+    harness.playback.finishPlayback();
+    await settle();
+    await notifier.finishBackTranslation();
+    await settle();
+    notifier.retellChunk();
+    await settle();
+
+    notifier.leaveThePassage();
+    await settle();
+    harness.room.chunkSpans.clear();
+    final antes = harness.room.retells;
+
+    notifier.entrarNaOferecida();
+    await settle();
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    notifier.startRetro();
+    await settle();
+    harness.playback.at = const Duration(seconds: 9);
+    notifier.retroTap();
+    await settle();
+    notifier.retroTap();
+    await settle();
+
+    expect(harness.room.retells, antes,
+        reason: 'o primeiro trecho de uma retro nova subia marcado como recontagem de um '
+            'trecho que não existe, porque _recontando só é limpo por um chunk que chega');
+  });
+
+  test('a fresh passage does not inherit the last one\'s strikes', () async {
+    final harness = SalaHarness();
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.voice.succeeds = false;
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+    expect(container.read(salaSessionProvider).needsPerson, isFalse,
+        reason: 'duas falhas ainda não chamam ninguém');
+
+    // Entered with the room still failing, because a turn that lands resets the counters
+    // itself — the inheritance only shows when the new passage stumbles too.
+    notifier.leaveThePassage();
+    await settle();
+    notifier.entrarNaOferecida();
+    await settle();
+
+    expect(container.read(salaSessionProvider).needsPerson, isFalse,
+        reason: 'a passagem nova começava com as faltas da anterior e parava na primeira');
+  });
+
   test('hearing again is not offered on top of the retro clip', () async {
     final harness = SalaHarness();
     harness.room.verdictChecked = false;

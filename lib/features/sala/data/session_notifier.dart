@@ -737,7 +737,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void leaveThePassage() {
     _clearAll();
     _dropThePendingTake();
-    _emCurso = null;
+    _forgetThePassage();
     state = const SalaSessionState();
     unawaited(abrirEscolha());
   }
@@ -1484,6 +1484,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btFindings: const [],
       btPass: 1,
     );
+    _recontando = false;
     // Asserting `unsentTakes: 0` here was a claim about the disk made without reading it:
     // the queue still holds the old session's takes, and the two bookkeepers disagreed.
     unawaited(_countUnsent());
@@ -1511,18 +1512,34 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _startOver() {
     _clearAll();
+    _forgetThePassage();
+    _conviteOpened = false;
+    _panoramaSessionId = null;
+    state = const SalaSessionState();
+    unawaited(abrirEscolha());
+  }
+
+  /// Everything a passage leaves behind that the next one must not inherit.
+  ///
+  /// These are counters and latches with no home in the state object, so nothing about
+  /// them is reset by rebuilding it. `leaveThePassage` reset none of them and `_startOver`
+  /// reset most: a new passage could start with the previous one's strike count and halt
+  /// for a person on its first failure, and `_recontando` — set when the team taps retell
+  /// and cleared only by a chunk that lands — made the very first stretch of the next
+  /// back translation upload as a correction of a stretch that does not exist.
+  void _forgetThePassage() {
     _unplayableTurns = 0;
     _roomFailures = 0;
+    _slowAnswers = 0;
     _retryStep = 0;
     _noticeSpoken = false;
-    _conviteOpened = false;
     _strandedSpoken = false;
     _personAsked = false;
-    _panoramaSessionId = null;
+    _recontando = false;
+    _trechoStart = Duration.zero;
+    _trechoEnd = Duration.zero;
     _pendingTakePath = null;
-    state = const SalaSessionState();
     _emCurso = null;
-    unawaited(abrirEscolha());
   }
 }
 
