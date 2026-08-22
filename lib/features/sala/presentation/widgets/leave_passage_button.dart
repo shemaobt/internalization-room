@@ -6,11 +6,6 @@ import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/session_state.dart';
 
-/// The way out of a passage the team no longer wants to work.
-///
-/// It sits below the necklace on the left — the four corners are already spoken for by
-/// the hand, the hear-again button and the two ends of the cord. It is cord-coloured, not
-/// wood: wood means advance everywhere else in the room, and leaving is not advancing.
 class LeavePassageButton extends ConsumerWidget {
   const LeavePassageButton({super.key});
 

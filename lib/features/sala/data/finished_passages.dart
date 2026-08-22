@@ -8,6 +8,14 @@ import 'package:path_provider/path_provider.dart';
 const _folder = 'guardadas';
 const _ledger = 'passagens_feitas.json';
 
+/// The book every entry written before passages were scoped belonged to.
+///
+/// Passage ids come from the meaning maps as `P01`…`P14`, so they repeat in every book:
+/// a tablet that finished Ruth would have had those numbers struck from Jonah's wheel the
+/// day a second book shipped, and a book with the same passage count would have opened
+/// already finished. Only Ruth has ever been served, so an unscoped entry is Ruth's.
+const _legacyBook = 'Ruth';
+
 /// Which passages this tablet has already carried to the end.
 ///
 /// It lives on the device, beside the take queue's own manifest, because `ir_sessions`
@@ -15,14 +23,6 @@ const _ledger = 'passagens_feitas.json';
 /// done, never that *this team* finished it. That makes the ledger per tablet, not per
 /// team: swap the tablet and the record is gone. Correct for one tablet per team, and the
 /// thing that moves server-side once a team login exists.
-/// The book every entry written before passages were scoped belonged to.
-///
-/// Passage ids come from the meaning maps as `P01`…`P14`, so they repeat in every book:
-/// a tablet that finished Ruth would have had those numbers struck from Jonah's wheel the
-/// day a second book shipped, and a book with the same passage count would have opened
-/// already finished. Only Ruth has ever been served, so an unscoped entry is Ruth's.
-const legacyBook = 'Ruth';
-
 class FinishedPassages {
   static String _bookMark(String book) => 'livro:$book';
 
@@ -60,7 +60,7 @@ class FinishedPassages {
     return {
       for (final row in rows)
         if (row.startsWith('$book/')) row.substring(book.length + 1)
-        else if (book == legacyBook && !row.contains('/') && !row.startsWith('livro:'))
+        else if (book == _legacyBook && !row.contains('/') && !row.startsWith('livro:'))
           row,
     };
   }

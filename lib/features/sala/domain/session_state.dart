@@ -1,6 +1,6 @@
 import 'bt_finding.dart';
 import 'spoken_line.dart';
-import '../data/connectivity_service.dart';
+import 'room_reach.dart';
 import 'coverage.dart';
 import 'hand_reply.dart';
 import 'kept_take.dart';
@@ -74,7 +74,6 @@ class SalaSessionState {
   final int aOferecer;
   final List<Trecho> btTrechos;
   final int? btFindingChunk;
-  /// The room is replaying the stretch a finding landed on.
   final bool btTrechoTocando;
   final bool btClipEnded;
   final List<BtFindingKind> btFindings;
@@ -140,11 +139,6 @@ class SalaSessionState {
 
   bool get ensaioDone => takes >= 1 && ensaio == EnsaioStatus.idle;
 
-  /// Whether the way out of the rehearsal belongs on the screen at all.
-  ///
-  /// Apart from whether it can be touched this instant. Gating the widget's existence on
-  /// readiness takes its hit box with it, so a finger already travelling toward it during
-  /// a ghost play lands on nothing.
   bool get ensaioHasATake => takes >= 1;
 
   bool get awaitingFirstTouch =>
@@ -156,8 +150,6 @@ class SalaSessionState {
       lastSpoken != null &&
       voice == VoiceState.invite &&
       stage != SalaStage.ensaio &&
-      // In the retro the team's own recording is running under an `invite` circle, and
-      // the facilitator's line would have played on top of it, from a second player.
       stage != SalaStage.retro;
 
   bool get showEntrada =>
@@ -165,9 +157,6 @@ class SalaSessionState {
       conviteStep == ConviteStep.entrada &&
       voice == VoiceState.invite;
 
-  /// The same, minus the readiness — see [ensaioHasATake]. Hearing the book overview
-  /// again is offered at exactly the same moment as this button, and used to delete it
-  /// for the minute or two the overview takes.
   bool get entradaOffered =>
       stage == SalaStage.convite && conviteStep == ConviteStep.entrada;
 
@@ -182,11 +171,6 @@ class SalaSessionState {
 
   bool get needsPerson => voice == VoiceState.needsPerson;
 
-  /// Whether a long press would do anything at all.
-  ///
-  /// `resolveWithPerson` no-ops on a healthy room, and Flutter gives the long press the
-  /// arena over the tap — so wiring it unconditionally makes every held press dead. On
-  /// the rehearsal circle that meant a finger held down never opened the microphone.
   bool get canResolveWithPerson => needsPerson || offline;
 
   bool get offline => voice == VoiceState.offline;
