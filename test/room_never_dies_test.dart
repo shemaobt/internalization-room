@@ -8,6 +8,7 @@ import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
+import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -489,6 +490,63 @@ void main() {
     expect(harness.room.personsAsked, asked,
         reason: 'a sessão foi esquecida junto, e é a sessão nula que impede o aviso de '
             'sair — avisar um id que já deu 404 é um 404 atrás do outro');
+  });
+
+  test('a room that answers nothing is not a network that is gone', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.room.failWith = const RoomSlow();
+    await notifier.abrirEscolha();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.offline, isFalse,
+        reason: 'um turno lento apagava a tela e dizia que a internet tinha caído');
+    expect(state.voice, VoiceState.invite,
+        reason: 'a sala continua lá — o toque tenta de novo em vez de desistir');
+  });
+
+  test('a room that answers nothing three times is finally given up on', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.room.failWith = const RoomSlow();
+    for (var tentativa = 0; tentativa < 3; tentativa++) {
+      await notifier.abrirEscolha();
+      await settle();
+    }
+
+    final state = container.read(salaSessionProvider);
+    expect(state.offline, isTrue);
+    expect(state.reach, RoomReach.roomSilent,
+        reason: 'e o rosto disso não é a nuvem cortada: a rede está boa, quem não '
+            'responde é a sala');
+  });
+
+  test('no network and no room wear different faces', () async {
+    final harness = SalaHarness()..network.radioSeesNothing = true;
+    final container = harness.container();
+    addTearDown(container.dispose);
+
+    await container.read(salaSessionProvider.notifier).goConversa();
+    await settle();
+
+    expect(container.read(salaSessionProvider).reach, RoomReach.noNetwork);
+
+    final semSala = SalaHarness()..network.reachable = false;
+    final outro = semSala.container();
+    addTearDown(outro.dispose);
+    await outro.read(salaSessionProvider.notifier).goConversa();
+    await settle();
+
+    expect(outro.read(salaSessionProvider).reach, RoomReach.roomSilent,
+        reason: 'endereço errado numa rede perfeita foi o que travou o aparelho hoje, e '
+            'a sala disse que a internet tinha caído');
   });
 
   test('hearing again is not offered on top of the retro clip', () async {

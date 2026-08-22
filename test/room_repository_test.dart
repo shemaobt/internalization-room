@@ -155,6 +155,23 @@ void main() {
       reason: 'só transporte é queda de rede; resposta ruim é sala quebrada',
     );
   });
+
+  test('a room that takes too long is not a room that is gone', () async {
+    final repository = RoomRepository(
+      client: MockClient((_) async {
+        await Future<void>.delayed(const Duration(seconds: 30));
+        return http.Response('{}', 200);
+      }),
+    );
+    addTearDown(repository.dispose);
+
+    await expectLater(
+      () => repository.fetchState('s'),
+      throwsA(isA<RoomSlow>()),
+      reason: 'esperar demais e não achar a sala eram a mesma exceção, e a equipe ouvia '
+          'que a internet tinha caído por causa de um servidor pensando',
+    );
+  }, timeout: const Timeout(Duration(seconds: 90)));
 }
 
 Future<File> _tempRecording() async {

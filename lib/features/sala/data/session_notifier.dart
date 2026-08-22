@@ -9,6 +9,7 @@ import '../domain/facilitator_script.dart';
 import '../domain/hand_reply.dart';
 import '../domain/kept_take.dart';
 import '../domain/passagem.dart';
+import '../domain/room_reach.dart';
 import '../domain/session_state.dart';
 import '../domain/spoken_line.dart';
 import '../domain/turn_result.dart';
@@ -28,6 +29,9 @@ final beadSettleDelayProvider = Provider<Duration>(
 
 const _unplayableTurnsBeforeNeedsPerson = 3;
 const _roomFailuresBeforeNeedsPerson = 3;
+
+/// How many times the room may answer nothing before the app stops waiting for it.
+const _slowAnswersBeforeGivingUp = 3;
 
 final busyStateCeilingProvider = Provider<Duration?>(
   (ref) => const Duration(seconds: 120),
@@ -82,6 +86,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _epoch = 0;
   int _unplayableTurns = 0;
   int _roomFailures = 0;
+  int _slowAnswers = 0;
   int _retryStep = 0;
   bool _noticeSpoken = false;
   bool _conviteOpened = false;
@@ -274,6 +279,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     _unplayableTurns = 0;
     _roomFailures = 0;
+    _slowAnswers = 0;
     _retryStep = 0;
     _noticeSpoken = false;
     state = state.copyWith(
@@ -322,9 +328,27 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _haltForAPerson(sessionIsGone: true);
       case RoomBroke():
         _registerRoomFailure();
+      case RoomSlow():
+        _registerSlowRoom();
       default:
-        _goOffline();
+        _goOffline(RoomReach.noNetwork);
     }
+  }
+
+  /// The room answered nothing in time. It is still there.
+  ///
+  /// Every timeout used to be spent as a verdict — one slow turn and the room told a team
+  /// on a working network that the internet was gone. The upload queue has always paced
+  /// waits apart from refusals; this is the same distinction, arriving late.
+  void _registerSlowRoom() {
+    _slowAnswers++;
+    _conviteOpened = false;
+    if (_slowAnswers >= _slowAnswersBeforeGivingUp) {
+      _goOffline(RoomReach.roomSilent);
+      return;
+    }
+    state = state.copyWith(voice: VoiceState.invite, peerCue: false);
+    beckon();
   }
 
   void _registerRoomFailure() {
@@ -360,11 +384,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  void _goOffline() {
+  void _goOffline(RoomReach why) {
     if (state.offline) return;
     _cancelTimers();
     _leaveThinking();
-    state = state.copyWith(voice: VoiceState.offline, peerCue: false);
+    state = state.copyWith(
+      voice: VoiceState.offline,
+      reach: why,
+      peerCue: false,
+    );
     if (!_noticeSpoken) {
       _noticeSpoken = true;
       unawaited(_voice.playAsset(offlineNoticeAsset));
@@ -391,11 +419,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _returning = true;
     final epoch = _epoch;
     try {
-      final reachable = await _network.canReachRoom();
+      final reach = await _network.reachRoom();
       if (epoch != _epoch) return;
-      if (reachable) {
+      if (reach == RoomReach.fine) {
         _comeBack();
       } else if (state.offline) {
+        state = state.copyWith(reach: reach);
         _scheduleRetry();
       }
     } finally {
@@ -515,13 +544,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final epoch = _epoch;
     state = state.copyWith(voice: VoiceState.thinking);
     _watchBusyState();
-    final reachable = await _network.canReachRoom();
+    final reach = await _network.reachRoom();
     if (epoch != _epoch) return;
-    if (!reachable) {
+    if (reach != RoomReach.fine) {
       _conviteOpened = false;
-      _goOffline();
+      _goOffline(reach);
       return;
     }
+    _watchBusyState();
     try {
       // A panorama that fails to play sends the team back to the invite, and every touch
       // used to mint another session for the same book — the server collected one
@@ -556,6 +586,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     _unplayableTurns = 0;
     _roomFailures = 0;
+    _slowAnswers = 0;
     _retryStep = 0;
     _noticeSpoken = false;
     unawaited(_feitas.markBookOpened(_book).catchError((_) {}));
@@ -711,12 +742,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       peerCue: false,
     );
     _watchBusyState();
-    final reachable = await _network.canReachRoom();
+    final reach = await _network.reachRoom();
     if (epoch != _epoch) return;
-    if (!reachable) {
-      _goOffline();
+    if (reach != RoomReach.fine) {
+      _goOffline(reach);
       return;
     }
+    // Re-armed, not armed once: the ceiling is meant to say "nothing has happened for two
+    // minutes", and a single arming over reach + create + open made it say "the whole
+    // chain took two minutes" — which a slow but perfectly successful panorama does.
+    _watchBusyState();
     try {
       final snapshot = await _room.createSession(
         pericope: pericope,
@@ -728,8 +763,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         coverage: snapshot.coverage,
       );
       unawaited(_pullInbox());
+      _watchBusyState();
       await _voiceTurn(await _room.openSession(snapshot.sessionId));
     } on Exception catch (error) {
+      if (epoch != _epoch) return;
       _handleRoomFailure(error);
     }
   }

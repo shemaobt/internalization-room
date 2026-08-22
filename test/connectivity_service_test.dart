@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/connectivity_service.dart';
+import 'package:internalization_room/features/sala/domain/room_reach.dart';
 
 class FakeConnectivity implements Connectivity {
   final StreamController<List<ConnectivityResult>> _changes =
@@ -48,10 +49,10 @@ void main() {
     addTearDown(service.dispose);
 
     final answers = await Future.wait(
-      List.generate(50, (_) => service.canReachRoom()),
+      List.generate(50, (_) => service.reachRoom()),
     );
 
-    expect(answers, everyElement(isTrue));
+    expect(answers, everyElement(RoomReach.fine));
     expect(requests, 1,
         reason: 'cinquenta perguntas ao mesmo tempo derrubam justamente a sala '
             'que elas queriam alcançar');
@@ -70,8 +71,8 @@ void main() {
     );
     addTearDown(service.dispose);
 
-    await service.canReachRoom();
-    await service.canReachRoom();
+    await service.reachRoom();
+    await service.reachRoom();
 
     expect(requests, 2);
   });
@@ -121,6 +122,20 @@ void main() {
             'zerasse a espera, cair e voltar viraria um laço fechado');
   });
 
+  test('a network that works with no room on it is not a network that is gone', () async {
+    final connectivity = FakeConnectivity()..current = [ConnectivityResult.wifi];
+    addTearDown(connectivity.close);
+    final service = ConnectivityService(
+      connectivity: connectivity,
+      client: MockClient((_) async => http.Response('nao', 404)),
+    );
+    addTearDown(service.dispose);
+
+    expect(await service.reachRoom(), RoomReach.roomSilent,
+        reason: 'endereço errado no wi-fi do local produzia a mesma resposta que um '
+            'tablet sem rede nenhuma, e a sala dizia que a internet tinha caído');
+  });
+
   test('no interface at all never reaches for the network', () async {
     var requests = 0;
     final connectivity = FakeConnectivity()..current = [ConnectivityResult.none];
@@ -134,7 +149,7 @@ void main() {
     );
     addTearDown(service.dispose);
 
-    expect(await service.canReachRoom(), isFalse);
+    expect(await service.reachRoom(), RoomReach.noNetwork);
     expect(requests, 0);
   });
 }

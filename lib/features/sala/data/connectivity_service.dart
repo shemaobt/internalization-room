@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
 import '../../../core/config/env.dart';
+import '../domain/room_reach.dart';
 
 const _pingTimeout = Duration(seconds: 6);
 const _radioAnswerTimeout = Duration(seconds: 4);
@@ -13,20 +14,20 @@ const _quietBetweenSignals = Duration(seconds: 3);
 class ConnectivityService {
   final Connectivity _connectivity;
   final http.Client _client;
-  Future<bool>? _inFlight;
+  Future<RoomReach>? _inFlight;
   DateTime? _lastSignal;
 
   ConnectivityService({Connectivity? connectivity, http.Client? client})
       : _connectivity = connectivity ?? Connectivity(),
         _client = client ?? http.Client();
 
-  Future<bool> canReachRoom() {
+  Future<RoomReach> reachRoom() {
     return _inFlight ??= _check().whenComplete(() => _inFlight = null);
   }
 
-  Future<bool> _check() async {
-    if (!await _radioSeesSomething()) return false;
-    return _pingBackend();
+  Future<RoomReach> _check() async {
+    if (!await _radioSeesSomething()) return RoomReach.noNetwork;
+    return await _pingBackend() ? RoomReach.fine : RoomReach.roomSilent;
   }
 
   Future<bool> _radioSeesSomething() async {

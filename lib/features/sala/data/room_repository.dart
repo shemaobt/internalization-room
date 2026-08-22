@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -23,6 +24,19 @@ class RoomUnavailable implements Exception {
 
   @override
   String toString() => 'RoomUnavailable: $reason';
+}
+
+/// The room was reached and did not answer in time.
+///
+/// Not the same as not reaching it, and it used to be: both arrived as `RoomUnavailable`
+/// and the room told the team the internet was gone. A server thinking too long is a
+/// server that is there — waiting and touching again is the answer, not a cloud with a
+/// line through it.
+class RoomSlow implements Exception {
+  const RoomSlow();
+
+  @override
+  String toString() => 'RoomSlow';
 }
 
 class RoomBroke implements Exception {
@@ -212,6 +226,8 @@ class RoomRepository {
   ) async {
     try {
       return await call().timeout(timeout);
+    } on TimeoutException {
+      throw const RoomSlow();
     } on Exception catch (error) {
       throw RoomUnavailable('$error');
     }

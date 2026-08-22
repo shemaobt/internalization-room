@@ -13,6 +13,7 @@ import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/coverage.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
@@ -413,12 +414,14 @@ class FakeRoom implements RoomRepository {
 class FakeNetwork implements ConnectivityService {
   final StreamController<void> _returned = StreamController<void>.broadcast();
   bool reachable = true;
+  bool radioSeesNothing = false;
   int checks = 0;
 
   @override
-  Future<bool> canReachRoom() async {
+  Future<RoomReach> reachRoom() async {
     checks++;
-    return reachable;
+    if (radioSeesNothing) return RoomReach.noNetwork;
+    return reachable ? RoomReach.fine : RoomReach.roomSilent;
   }
 
   @override

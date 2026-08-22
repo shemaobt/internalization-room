@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
+import '../../domain/room_reach.dart';
 import '../../domain/session_state.dart';
 import 'bead.dart';
 import 'bead_styles.dart';
@@ -10,6 +11,7 @@ import 'motion.dart';
 class FacilitatorCircle extends StatelessWidget {
   final double size;
   final VoiceState voice;
+  final RoomReach reach;
   final bool noteMode;
   final bool peerCue;
   final bool beckon;
@@ -23,6 +25,7 @@ class FacilitatorCircle extends StatelessWidget {
     super.key,
     required this.size,
     required this.voice,
+    this.reach = RoomReach.fine,
     required this.semanticLabel,
     this.noteMode = false,
     this.peerCue = false,
@@ -115,9 +118,17 @@ class FacilitatorCircle extends StatelessWidget {
     return [ring(0), ring(0.5)];
   }
 
+  /// A tablet with no network at all, or a network with no room answering on it.
+  ///
+  /// The check has always known which; it collapsed both into one face, and a wrong
+  /// address on a working wi-fi told the team the internet had gone.
+  IconData get _offlineGlyph => reach == RoomReach.roomSilent
+      ? LucideIcons.serverOff
+      : LucideIcons.cloudOff;
+
   Widget _body(SalaColors colors) {
     if (voice == VoiceState.needsPerson) return _haltedBody(colors, LucideIcons.userCheck);
-    if (voice == VoiceState.offline) return _haltedBody(colors, LucideIcons.cloudOff);
+    if (voice == VoiceState.offline) return _haltedBody(colors, _offlineGlyph);
     if (_teamTalk) return _teamTalkBody(colors);
 
     switch (voice) {
@@ -184,7 +195,7 @@ class FacilitatorCircle extends StatelessWidget {
       case VoiceState.needsPerson:
         return _haltedBody(colors, LucideIcons.userCheck);
       case VoiceState.offline:
-        return _haltedBody(colors, LucideIcons.cloudOff);
+        return _haltedBody(colors, _offlineGlyph);
       case VoiceState.blocked:
         return _haltedBody(colors, LucideIcons.micOff);
     }
