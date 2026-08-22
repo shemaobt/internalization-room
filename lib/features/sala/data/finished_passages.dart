@@ -40,11 +40,6 @@ class FinishedPassages {
     }
   }
 
-  /// Whether the book's panorama has already been heard on this tablet.
-  ///
-  /// It opens the room and takes minutes. Playing it on every launch made the team sit
-  /// through the whole book again before they could choose where to work, and minted an
-  /// orphan panorama session on the server each time.
   Future<bool> bookOpened(String book) async =>
       (await all()).contains(_bookMark(book));
 
