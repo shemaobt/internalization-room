@@ -112,9 +112,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   String get _book => ref.read(bookProvider);
 
+  /// The room is gone and its providers with it.
+  ///
+  /// Half this class is fire-and-forget: `_guard` queues a take and counts what is left
+  /// long after the gesture that started it returned. Reading a provider once the
+  /// container is disposed throws, and the throw lands in no one's `catch` — it showed up
+  /// as two tests that failed only on a slower machine, which is the same thing happening
+  /// where nobody was looking.
+  bool _gone = false;
+
   @override
   SalaSessionState build() {
     ref.onDispose(() {
+      _gone = true;
       _cancelTimers();
       unawaited(_playbackDone?.cancel());
       unawaited(_networkWatch?.cancel());
@@ -583,6 +593,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(_dizerAOferecida());
   }
 
+  /// The circle on the wheel says the passage again. It no longer moves.
+  ///
+  /// One tap used to both advance and speak, so a team could never hear a passage twice
+  /// without leaving it, and going back one meant riding the whole wheel through
+  /// fourteen names. Moving is the ruler's job now, and the ruler is dragged.
   void escolhaTap() {
     if (state.stage != SalaStage.escolha) return;
     if (state.offline) {
@@ -593,13 +608,39 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.voice != VoiceState.invite) return;
     final roda = state.naRoda;
     if (roda == null) {
-      // The wheel never loaded. There is nothing to advance and nothing to enter, so the
+      // The wheel never loaded. There is nothing to say and nothing to enter, so the
       // touch is the retry — otherwise this screen has no live gesture at all.
       unawaited(abrirEscolha());
       return;
     }
     if (roda.isEmpty) return;
-    state = state.copyWith(aOferecer: (state.aOferecer + 1) % roda.length);
+    unawaited(_dizerAOferecida());
+  }
+
+  /// Move along the wheel with the finger still down, without saying anything.
+  ///
+  /// Naming every passage the finger crosses would stutter fourteen clips across one
+  /// drag. The room stays quiet while they are choosing and speaks where they land.
+  void apontarPassagem(int index) {
+    if (state.stage != SalaStage.escolha) return;
+    if (state.needsPerson || state.offline) return;
+    final roda = state.naRoda;
+    if (roda == null || roda.isEmpty) return;
+    final at = index.clamp(0, roda.length - 1);
+    if (at == state.aOferecer && state.voice == VoiceState.invite) return;
+    // Not `_cancelTimers()`: it bumps the epoch and clears every timer in the room,
+    // including the one that retries the network. A finger on the ruler would have killed
+    // the way back from offline. Cutting the line short is enough, and `_dizerAOferecida`
+    // checks for itself that the finger has not moved on.
+    unawaited(_voice.stop());
+    state = state.copyWith(aOferecer: at, voice: VoiceState.invite);
+  }
+
+  /// Say where the finger landed.
+  void dizerAPassagem() {
+    if (state.stage != SalaStage.escolha) return;
+    if (state.needsPerson || state.offline) return;
+    if (state.naRoda?.isEmpty ?? true) return;
     unawaited(_dizerAOferecida());
   }
 
@@ -607,12 +648,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final passagem = state.oferecida;
     if (passagem == null) return;
     final epoch = _epoch;
+    final aimed = state.aOferecer;
+    bool moved() => epoch != _epoch || state.aOferecer != aimed;
     await _readyToSpeak(passagem.audioUrl, '');
-    if (epoch != _epoch) return;
+    if (moved()) return;
     state = state.copyWith(voice: VoiceState.speaking);
     _watchBusyState();
     await _speak(passagem.audioUrl, '');
-    if (epoch != _epoch) return;
+    if (moved()) return;
     state = state.copyWith(voice: VoiceState.invite);
   }
 
@@ -956,7 +999,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }) async {
     final sessionId = state.sessionId;
     final audio = File(path);
-    if (!await audio.exists()) return;
+    if (!await audio.exists() || _gone) return;
     if (sessionId == null) {
       // The room lost the session — a 404 clears it — and a take has nowhere to go
       // without one. The bead had already been filled by `takeKeep`, so this returned in
@@ -981,6 +1024,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     await _countUnsent();
+    if (_gone) return;
     await _takes.flush();
     await _countUnsent();
   }
@@ -993,24 +1037,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> _countUnsent() async {
+    if (_gone) return;
     final epoch = _epoch;
     // Whether a recording is stuck is not a question about the session in progress, and
     // asking it only when one existed meant the check at the first frame — the moment a
     // facilitator is standing there and could act — did nothing at all.
     final stranded =
         (await _takes.giveUps()).isNotEmpty || await _takes.lostHistory();
+    if (_gone) return;
     if (stranded && epoch == _epoch) _sayARecordingIsStranded();
     if (epoch != _epoch) return;
     final sessionId = state.sessionId;
     if (sessionId == null) return;
     final takes = await _takes.unsentOf('ensaio', sessionId: sessionId);
     final chunks = await _takes.unsentOf('retro', sessionId: sessionId);
-    if (epoch != _epoch) return;
+    if (_gone || epoch != _epoch) return;
     state = state.copyWith(unsentTakes: takes, unsentChunks: chunks);
   }
 
   void _sayARecordingIsStranded() {
-    if (_strandedSpoken) return;
+    if (_strandedSpoken || _gone) return;
     _strandedSpoken = true;
     unawaited(_voice.playAsset(strandedTakeAsset));
   }

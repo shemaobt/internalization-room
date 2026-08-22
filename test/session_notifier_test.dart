@@ -853,11 +853,24 @@ void main() {
     notifier.escolhaTap();
     await settle();
 
+    expect(container.read(salaSessionProvider).oferecida?.pericope, 'P01',
+        reason: 'o toque no círculo diz de novo; quem anda pela roda é o dedo na régua');
+    expect(harness.voice.played, ['/voice/p01', '/voice/p01']);
+
+    notifier.apontarPassagem(1);
+    await settle();
+
+    expect(harness.voice.played, ['/voice/p01', '/voice/p01'],
+        reason: 'atravessar a régua com o dedo abaixado não dispara catorze nomes');
+
+    notifier.dizerAPassagem();
+    await settle();
+
     expect(container.read(salaSessionProvider).oferecida?.pericope, 'P02');
-    expect(harness.voice.played, ['/voice/p01', '/voice/p02']);
+    expect(harness.voice.played, ['/voice/p01', '/voice/p01', '/voice/p02']);
   });
 
-  test('the wheel wraps around instead of ending', () async {
+  test('the row has ends, and stops at them instead of wrapping', () async {
     final harness = SalaHarness();
     final container = harness.container();
     addTearDown(container.dispose);
@@ -865,13 +878,15 @@ void main() {
     await notifier.abrirEscolha();
     await settle();
 
-    for (var turn = 0; turn < 3; turn++) {
-      notifier.escolhaTap();
-      await settle();
-    }
+    notifier.apontarPassagem(9);
+    await settle();
+    expect(container.read(salaSessionProvider).oferecida?.pericope, 'P03',
+        reason: 'a roda dava a volta porque o fim da lista era invisível; a régua '
+            'mostra as pontas, e uma ponta que teleporta o dedo desorienta');
 
-    expect(container.read(salaSessionProvider).oferecida?.pericope, 'P01',
-        reason: 'não há fim de lista para uma equipe que não lê — a roda volta');
+    notifier.apontarPassagem(-4);
+    await settle();
+    expect(container.read(salaSessionProvider).oferecida?.pericope, 'P01');
   });
 
   test('entering carries the chosen passage to the room', () async {
@@ -881,7 +896,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     await notifier.abrirEscolha();
     await settle();
-    notifier.escolhaTap();
+    notifier.apontarPassagem(1);
+    notifier.dizerAPassagem();
     await settle();
 
     notifier.entrarNaOferecida();
@@ -1699,4 +1715,20 @@ void main() {
 
     expect(container.read(salaSessionProvider).stage, SalaStage.fim);
   });
+
+  test('the room stops touching its providers once it is gone', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    container.dispose();
+
+    await settle(const Duration(milliseconds: 400));
+  },
+      timeout: const Timeout(Duration(seconds: 20)));
 }

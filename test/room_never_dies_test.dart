@@ -338,6 +338,31 @@ void main() {
     expect(harness.voice.assets, contains(strandedTakeAsset));
   });
 
+  test('a name already on its way does not speak over where the finger went', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.abrirEscolha();
+    await settle();
+    harness.voice.played.clear();
+
+    harness.voice.holdNextFetch();
+    notifier.dizerAPassagem();
+    await until(() => harness.voice.fetched.length > 1);
+
+    notifier.apontarPassagem(2);
+    harness.voice.finishHeldFetch();
+    await settle();
+
+    expect(harness.voice.played, isEmpty,
+        reason: 'a fala em curso era da P01; o dedo já estava na P03 quando ela chegou');
+    expect(container.read(salaSessionProvider).oferecida?.pericope, 'P03');
+    expect(container.read(salaSessionProvider).voice, VoiceState.invite,
+        reason: 'e não pode deixar a tela travada em "falando" sobre a passagem errada');
+  });
+
   test('hearing again is not offered on top of the retro clip', () async {
     final harness = SalaHarness();
     harness.room.verdictChecked = false;

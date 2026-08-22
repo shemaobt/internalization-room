@@ -11,6 +11,7 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/passage_ruler.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/main.dart';
 
@@ -84,8 +85,10 @@ void main() {
     await container.read(salaSessionProvider.notifier).abrirEscolha();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(bySemanticsLabelWidget('Ouvir a próxima passagem'), findsOneWidget);
+    expect(bySemanticsLabelWidget('Ouvir esta passagem de novo'), findsOneWidget);
     expect(bySemanticsLabelWidget('Entrar nesta passagem'), findsOneWidget);
+    expect(find.byType(PassageRuler), findsOneWidget,
+        reason: 'a régua é o gesto de andar pelo livro, não só um enfeite de posição');
     expect(find.byType(ColarOverlay), findsNothing,
         reason: 'o colar mede uma passagem; na escolha ainda não há passagem');
     expect(find.byType(Text), findsNothing,
@@ -101,10 +104,15 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(container.read(salaSessionProvider).voice, VoiceState.invite,
         reason: 'passo 1: a sala terminou de dizer a primeira');
-    notifier.escolhaTap();
+    await tester.drag(find.byType(PassageRuler), const Offset(400, 0));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(container.read(salaSessionProvider).oferecida?.pericope, 'P03',
+        reason: 'passo 2: o dedo correu a régua até a ponta');
+
+    await tester.drag(find.byType(PassageRuler), const Offset(-140, 0));
     await tester.pump(const Duration(milliseconds: 300));
     expect(container.read(salaSessionProvider).oferecida?.pericope, 'P02',
-        reason: 'passo 2: o toque no círculo avançou a roda');
+        reason: 'passo 3: e voltou uma — o que a roda de mão única não permitia');
 
     await tester.pump(const Duration(milliseconds: 800));
     await tester.tap(find.byType(AdvanceButton));
