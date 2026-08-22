@@ -310,6 +310,12 @@ class TakeUploadQueue {
             entry.copyWith(waits: entry.waits + 1, lastTry: _now()),
           );
           continue;
+        } on RoomSlow {
+          await _replace(
+            entry,
+            entry.copyWith(waits: entry.waits + 1, lastTry: _now()),
+          );
+          continue;
         } on Exception {
           await _replace(
             entry,
