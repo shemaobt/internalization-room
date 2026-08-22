@@ -31,12 +31,6 @@ class HandInboxRepository {
         'X-Room-Device': await _deviceId(),
       };
 
-  /// The answers waiting for this tablet, or null when the room could not be asked.
-  ///
-  /// An empty list and a failed request used to be the same value. A rotated key, a 500
-  /// and a timeout all read as "there are no answers", so the hand went quiet in exactly
-  /// the situation where a facilitator is waiting to be told their reply arrived — and
-  /// nothing anywhere said a word.
   Future<List<HandReply>?> fetchReplies() async {
     final http.Response response;
     try {
@@ -57,9 +51,6 @@ class HandInboxRepository {
           HandReply.fromJson((reply as Map).cast<String, dynamic>()),
       ];
     } on Object {
-      // `on Exception` missed the casts, and `TypeError` is an `Error`: one reply row
-      // without its id escaped through `_pullInbox`'s own `on Exception` and past an
-      // `unawaited`, and the inbox never updated again for the life of the session.
       return null;
     }
   }
