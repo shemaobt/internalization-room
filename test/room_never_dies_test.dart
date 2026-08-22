@@ -164,6 +164,45 @@ void main() {
     harness.voice.finishHeldLine();
   });
 
+  test('a question sent to a person is answered out loud, not with a knot', () async {
+    final harness = SalaHarness();
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.handTap();
+    await settle();
+    notifier.conversaTap();
+    await until(() => harness.inbox.questionsSent.isNotEmpty);
+    await settle();
+
+    expect(harness.voice.assets, contains(fixedLineAsset(handoffLines.first)));
+    expect(container.read(salaSessionProvider).knots, 1);
+  });
+
+  test('the handoff line rotates, so a second question is not an echo', () async {
+    final harness = SalaHarness();
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    for (var asked = 0; asked < 2; asked++) {
+      notifier.handTap();
+      await settle();
+      notifier.conversaTap();
+      await until(() => harness.inbox.questionsSent.length > asked);
+      await settle();
+    }
+
+    final spoken = harness.voice.assets
+        .where((asset) => asset.contains('/C'))
+        .toList();
+    expect(spoken, [
+      fixedLineAsset(handoffLines[0]),
+      fixedLineAsset(handoffLines[1]),
+    ]);
+  });
+
   test('hearing again is not offered on top of the retro clip', () async {
     final harness = SalaHarness();
     harness.room.verdictChecked = false;
