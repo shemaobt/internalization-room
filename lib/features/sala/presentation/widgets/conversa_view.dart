@@ -34,7 +34,9 @@ class ConversaView extends ConsumerWidget {
                 peerCue: session.peerCue,
                       semanticLabel: _circleLabel(session),
                 onTap: notifier.conversaTap,
-                onLongPress: notifier.resolveWithPerson,
+                onLongPress: session.canResolveWithPerson
+              ? notifier.resolveWithPerson
+              : null,
               ),
               const SizedBox(height: 44),
               SizedBox(

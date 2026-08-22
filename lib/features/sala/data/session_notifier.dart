@@ -160,6 +160,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _cancelTimers();
     state = state.copyWith(clearLastSpoken: true);
     _onPlaybackComplete = null;
+    _onPlaybackFailed = null;
     unawaited(_voice.stop());
     unawaited(_playback.stop());
     unawaited(_recorder.discard());
@@ -1080,9 +1081,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int? passNumber,
     int? chunkIndex,
   }) async {
+    if (_gone) return;
+    final queue = _takes;
     final sessionId = state.sessionId;
     final audio = File(path);
-    if (!await audio.exists() || _gone) return;
+    if (!await audio.exists()) return;
     if (sessionId == null) {
       // The room lost the session — a 404 clears it — and a take has nowhere to go
       // without one. The bead had already been filled by `takeKeep`, so this returned in
@@ -1091,7 +1094,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     try {
-      await _takes.enqueue(
+      await queue.enqueue(
         audio,
         sessionId: sessionId,
         kind: kind,
@@ -1107,8 +1110,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     await _countUnsent();
-    if (_gone) return;
-    await _takes.flush();
+    await queue.flush();
     await _countUnsent();
   }
 
@@ -1195,9 +1197,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _haltForAPerson();
       return;
     }
-    _play(take.path, onComplete: () {
-      state = state.copyWith(btClipEnded: true);
-    });
+    _play(
+      take.path,
+      onComplete: () {
+        state = state.copyWith(btClipEnded: true);
+      },
+      onFailed: () {
+        state = state.copyWith(
+          stage: SalaStage.ensaio,
+          ensaio: EnsaioStatus.idle,
+          btPhase: BtPhase.playing,
+        );
+      },
+    );
   }
 
   void retroTap() {

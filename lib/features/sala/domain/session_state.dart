@@ -162,6 +162,8 @@ class SalaSessionState {
 
   bool get needsPerson => voice == VoiceState.needsPerson;
 
+  bool get canResolveWithPerson => needsPerson || offline;
+
   bool get offline => voice == VoiceState.offline;
 
   bool get canFinishBackTranslation =>

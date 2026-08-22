@@ -86,6 +86,9 @@ void main() {
     final settled = <int>[];
     await pumpRuler(tester, total: 1, at: 0, aimed: aimed, settled: settled);
 
+    expect(find.byType(PassageRuler), findsOneWidget);
+    expect(tester.getSize(find.byType(PassageRuler)).height, PassageRuler.height,
+        reason: 'a última passagem do livro ficava sem indicador nenhum');
     expect(
       find.descendant(
         of: find.byType(PassageRuler),

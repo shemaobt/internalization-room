@@ -34,7 +34,9 @@ class EscolhaView extends ConsumerWidget {
             _ => 'Ouvir esta passagem de novo',
           },
           onTap: notifier.escolhaTap,
-          onLongPress: notifier.resolveWithPerson,
+          onLongPress: session.canResolveWithPerson
+              ? notifier.resolveWithPerson
+              : null,
         ),
         const SizedBox(height: 52),
         SizedBox(

@@ -23,8 +23,10 @@ Widget _circle({required bool peerCue}) => MaterialApp(
 Future<Set<double>> _scalesOver(WidgetTester tester, Widget app) async {
   await tester.pumpWidget(app);
   final seen = <double>{};
-  for (var frame = 0; frame < 4; frame++) {
-    await tester.pump(const Duration(milliseconds: 600));
+  // A full breath is 4600 ms, eased at both ends: coarse steps never land on the peak,
+  // and sampling less than half a period never approaches it at all.
+  for (var frame = 0; frame < 44; frame++) {
+    await tester.pump(const Duration(milliseconds: 120));
     for (final transform in tester.widgetList<Transform>(find.byType(Transform))) {
       seen.add(transform.transform.getMaxScaleOnAxis());
     }
@@ -39,12 +41,14 @@ void main() {
     final alone = await _scalesOver(tester, _circle(peerCue: false));
     final withTeam = await _scalesOver(tester, _circle(peerCue: true));
 
-    expect(alone.length, greaterThan(1));
-    expect(
-      withTeam.length,
-      greaterThan(1),
-      reason: 'a tela em que a sala espera a equipe era a única parada do app',
-    );
+    double peak(Set<double> seen) => seen.reduce((a, b) => a > b ? a : b);
+
+    // Counting distinct scales passes at an amplitude of 0.00002 — four thousandths of a
+    // pixel on a 196 px disc. What the claim is: the same breath as every other invite,
+    // so both reach the same peak, and that peak is visible.
+    expect(peak(withTeam), greaterThan(1.04));
+    expect((peak(withTeam) - peak(alone)).abs(), lessThan(0.004),
+        reason: 'a afirmação não é que respira, é que respira igual a todo invite');
   });
 
   testWidgets('a button that just appeared accepts the first touch', (
