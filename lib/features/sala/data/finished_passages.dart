@@ -14,7 +14,7 @@ const _ledger = 'passagens_feitas.json';
 /// a tablet that finished Ruth would have had those numbers struck from Jonah's wheel the
 /// day a second book shipped, and a book with the same passage count would have opened
 /// already finished. Only Ruth has ever been served, so an unscoped entry is Ruth's.
-const legacyBook = 'Ruth';
+const _legacyBook = 'Ruth';
 
 /// Which passages this tablet has already carried to the end.
 ///
@@ -60,7 +60,7 @@ class FinishedPassages {
     return {
       for (final row in rows)
         if (row.startsWith('$book/')) row.substring(book.length + 1)
-        else if (book == legacyBook && !row.contains('/') && !row.startsWith('livro:'))
+        else if (book == _legacyBook && !row.contains('/') && !row.startsWith('livro:'))
           row,
     };
   }
