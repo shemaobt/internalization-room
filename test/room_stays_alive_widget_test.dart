@@ -5,6 +5,20 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
 
+Widget _circleIn(VoiceState voice) => MaterialApp(
+      theme: AppTheme.light,
+      home: Scaffold(
+        body: Center(
+          child: FacilitatorCircle(
+            size: 196,
+            voice: voice,
+            semanticLabel: 'circulo',
+            onTap: () {},
+          ),
+        ),
+      ),
+    );
+
 Widget _circle({required bool peerCue}) => MaterialApp(
       theme: AppTheme.light,
       home: Scaffold(
@@ -94,5 +108,21 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(seen.toSet().length, greaterThan(1));
+  });
+
+  testWidgets('a halted room is still visibly running', (tester) async {
+    for (final voice in [
+      VoiceState.needsPerson,
+      VoiceState.offline,
+      VoiceState.blocked,
+    ]) {
+      final seen = await _scalesOver(tester, _circleIn(voice));
+      final swing = seen.reduce((a, b) => a > b ? a : b) -
+          seen.reduce((a, b) => a < b ? a : b);
+
+      expect(swing, greaterThan(0.015),
+          reason: '$voice fala sua linha uma vez e depois nunca mais; sem movimento, '
+              'olhar para essa tela não distingue uma sala esperando de um app morto');
+    }
   });
 }

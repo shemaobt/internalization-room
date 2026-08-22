@@ -238,18 +238,35 @@ class FacilitatorCircle extends StatelessWidget {
     );
   }
 
+  /// A room that has stopped, and is still running.
+  ///
+  /// This served `needsPerson`, `offline` and `blocked` as a bare `Container` — the three
+  /// states that outlast every other, each of which speaks its line once and then never
+  /// again. Offline ends when the network returns, `needsPerson` when somebody who is not
+  /// the team walks over, and `blocked` is the first screen the app ever shows on that
+  /// path. A team glancing up at any of them had nothing to tell a room that is waiting
+  /// from one that has died.
+  ///
+  /// Slower and shallower than an invite on purpose: the colour and the glyph already say
+  /// this is not a turn to take. The breath only says the app is still there.
   Widget _haltedBody(SalaColors colors, IconData? glyph) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: BeadStyles.clay(colors, 0),
-        border: Border.all(color: colors.cord, width: 2),
+    return Loop(
+      period: const Duration(milliseconds: 6200),
+      builder: (context, t) => Transform.scale(
+        scale: 1 + 0.028 * t,
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: BeadStyles.clay(colors, 0),
+            border: Border.all(color: colors.cord, width: 2),
+          ),
+          child: glyph == null
+              ? null
+              : Icon(glyph, size: size * 0.28, color: colors.mut),
+        ),
       ),
-      child: glyph == null
-          ? null
-          : Icon(glyph, size: size * 0.28, color: colors.mut),
     );
   }
 
