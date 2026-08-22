@@ -65,9 +65,9 @@ class RetroView extends ConsumerWidget {
   }
 
   String _listenLabel(SalaSessionState session) {
-    if (session.btClipRodando) return 'Pausar a gravacao';
-    if (session.btParteFronteira) return 'Ouvir a proxima parte da gravacao';
-    return 'Ouvir a gravacao';
+    if (session.btClipRodando) return 'Pausar a gravação';
+    if (session.btParteFronteira) return 'Ouvir a próxima parte da gravação';
+    return 'Ouvir a gravação';
   }
 
   Widget? _actions(SalaSessionState session, SalaSessionNotifier notifier) {
