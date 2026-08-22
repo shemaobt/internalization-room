@@ -328,7 +328,7 @@ class FakeRoom implements RoomRepository {
       sessionId: sessionId,
       pericope: 'rute-1',
       status: serverStatus ?? (done ? 'done' : 'in_progress'),
-      coverage: settledCoverage ?? nextCoverage,
+      coverage: silentAboutCoverage ? null : (settledCoverage ?? nextCoverage),
       done: done,
     );
   }
