@@ -97,7 +97,13 @@ class RoomRepository {
     return _read(await _sendMultipart(request), TurnResult.fromJson);
   }
 
-  Future<BackTranslationChunk> sendChunk(String sessionId, File audio) async {
+  Future<BackTranslationChunk> sendChunk(
+    String sessionId,
+    File audio, {
+    Duration? from,
+    Duration? to,
+    bool retelling = false,
+  }) async {
     final request = http.MultipartRequest(
       'POST',
       _uri('/sessions/$sessionId/back-translation/chunks'),
@@ -105,6 +111,9 @@ class RoomRepository {
       ..headers['X-Room-Key'] = Env.roomKey
       ..headers['X-Room-Device'] = await deviceIdentity()
       ..files.add(await http.MultipartFile.fromPath('file', audio.path));
+    if (from != null) request.fields['starts_ms'] = '${from.inMilliseconds}';
+    if (to != null) request.fields['ends_ms'] = '${to.inMilliseconds}';
+    if (retelling) request.fields['retelling'] = 'true';
     return _read(await _sendMultipart(request), BackTranslationChunk.fromJson);
   }
 
@@ -125,6 +134,17 @@ class RoomRepository {
     if (passNumber != null) request.fields['pass_number'] = '$passNumber';
     if (chunkIndex != null) request.fields['chunk_index'] = '$chunkIndex';
     _read(await _sendMultipart(request), (json) => json);
+  }
+
+  Future<BackTranslationRestart> restartBackTranslation(String sessionId) async {
+    final response = await _send(
+      () => _client.post(
+        _uri('/sessions/$sessionId/back-translation/restart'),
+        headers: _headers,
+      ),
+      _stateTimeout,
+    );
+    return _read(response, BackTranslationRestart.fromJson);
   }
 
   Future<void> askForAPerson(String sessionId) async {

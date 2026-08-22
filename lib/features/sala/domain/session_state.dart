@@ -14,6 +14,14 @@ enum EnsaioStatus { idle, ghostPlaying, recording, recorded }
 
 enum BtPhase { playing, capturing, thinking, findings, conferida }
 
+class Trecho {
+  final int index;
+  final Duration from;
+  final Duration to;
+
+  const Trecho({required this.index, required this.from, required this.to});
+}
+
 class PingRange {
   final int from;
   final int to;
@@ -44,6 +52,8 @@ class SalaSessionState {
   final bool playPing;
   final BtPhase btPhase;
   final List<int> btChunkPasses;
+  final List<Trecho> btTrechos;
+  final int? btFindingChunk;
   final bool btClipEnded;
   final List<BtFindingKind> btFindings;
   final int btPass;
@@ -72,6 +82,8 @@ class SalaSessionState {
     this.playPing = false,
     this.btPhase = BtPhase.playing,
     this.btChunkPasses = const [],
+    this.btTrechos = const [],
+    this.btFindingChunk,
     this.btClipEnded = false,
     this.btFindings = const [],
     this.btPass = 1,
@@ -155,6 +167,9 @@ class SalaSessionState {
     bool? playPing,
     BtPhase? btPhase,
     List<int>? btChunkPasses,
+    List<Trecho>? btTrechos,
+    int? btFindingChunk,
+    bool clearFindingChunk = false,
     bool? btClipEnded,
     List<BtFindingKind>? btFindings,
     int? btPass,
@@ -186,6 +201,10 @@ class SalaSessionState {
       playPing: playPing ?? this.playPing,
       btPhase: btPhase ?? this.btPhase,
       btChunkPasses: btChunkPasses ?? this.btChunkPasses,
+      btTrechos: btTrechos ?? this.btTrechos,
+      btFindingChunk: clearFindingChunk
+          ? null
+          : (btFindingChunk ?? this.btFindingChunk),
       btClipEnded: btClipEnded ?? this.btClipEnded,
       btFindings: btFindings ?? this.btFindings,
       btPass: btPass ?? this.btPass,

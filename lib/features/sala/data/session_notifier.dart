@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../domain/bt_finding.dart';
 import '../domain/facilitator_script.dart';
 import '../domain/hand_reply.dart';
 import '../domain/kept_take.dart';
@@ -78,6 +79,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _ackSpoken = 0;
   int _inaudibleSpoken = 0;
   DateTime? _listeningSince;
+  bool _recontando = false;
+  Duration _trechoStart = Duration.zero;
+  Duration _trechoEnd = Duration.zero;
   String? _panoramaSessionId;
   String? _pendingTakePath;
   StreamSubscription<void>? _playbackDone;
@@ -826,6 +830,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _playClipFromStart() {
+    _recontando = false;
+    _trechoStart = Duration.zero;
+    _trechoEnd = Duration.zero;
+    state = state.copyWith(btTrechos: const [], clearFindingChunk: true);
     final take = state.wholeTake;
     if (take == null) {
       state = state.copyWith(btClipEnded: true);
@@ -845,12 +853,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.needsPerson) return;
     switch (state.btPhase) {
       case BtPhase.playing:
+        if (!_recontando) _trechoEnd = _playback.position;
         _holdClip();
         _startChunkCapture();
       case BtPhase.capturing:
         unawaited(_finishChunkCapture());
-      case BtPhase.thinking:
       case BtPhase.findings:
+        _leadThemToTheTrecho();
+      case BtPhase.thinking:
       case BtPhase.conferida:
         break;
     }
@@ -885,8 +895,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
 
+    final BackTranslationChunk captured;
     try {
-      final captured = await _room.sendChunk(sessionId, File(path));
+      captured = await _room.sendChunk(
+        sessionId,
+        File(path),
+        from: _trechoStart,
+        to: _trechoEnd,
+        retelling: _recontando,
+      );
       if (epoch != _epoch) return;
       if (!captured.captured) {
         state = state.copyWith(btPhase: BtPhase.playing, voice: VoiceState.invite);
@@ -910,10 +927,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
 
+    _recontando = false;
+    if (captured.needsPerson) {
+      _haltForAPerson();
+      return;
+    }
+    final trecho = Trecho(
+      index: captured.chunks,
+      from: _trechoStart,
+      to: _trechoEnd,
+    );
+    _trechoStart = _trechoEnd;
     state = state.copyWith(
       btPhase: BtPhase.playing,
       voice: VoiceState.invite,
-      btChunkPasses: [...state.btChunkPasses, state.btPass],
+      btChunkPasses: [...state.btChunkPasses, captured.passNumber],
+      btTrechos: [...state.btTrechos, trecho],
     );
     if (!state.btClipEnded) _letTheClipRun();
   }
@@ -946,27 +975,49 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         btPhase: BtPhase.findings,
         voice: VoiceState.invite,
         btFindings: verdict.findingKind == null ? const [] : [verdict.findingKind!],
+        btFindingChunk: verdict.findingChunk,
+        clearFindingChunk: verdict.findingChunk == null,
       );
+      _leadThemToTheTrecho();
     } on Exception catch (error) {
       if (epoch != _epoch) return;
       _handleRoomFailure(error);
     }
   }
 
+  void _leadThemToTheTrecho() {
+    final take = state.wholeTake;
+    final trecho = _trechoOfTheFinding();
+    if (take == null || trecho == null) return;
+    unawaited(_playback.playRange(take.path, trecho.from, trecho.to));
+  }
+
+  Trecho? _trechoOfTheFinding() {
+    final at = state.btFindingChunk;
+    if (at == null) return null;
+    for (final trecho in state.btTrechos) {
+      if (trecho.index == at) return trecho.to > trecho.from ? trecho : null;
+    }
+    return null;
+  }
+
   void retellChunk() {
     if (state.btPhase != BtPhase.findings) return;
-    state = state.copyWith(
-      btPass: 2,
-      btPhase: BtPhase.playing,
-      btClipEnded: false,
-      btFindings: const [],
-      btChunkPasses: const [],
-    );
-    _playClipFromStart();
+    final trecho = _trechoOfTheFinding();
+    if (trecho == null) return;
+    _trechoStart = trecho.from;
+    _trechoEnd = trecho.to;
+    _recontando = true;
+    state = state.copyWith(btPhase: BtPhase.playing, voice: VoiceState.invite);
+    _leadThemToTheTrecho();
   }
 
   void reRecordClip() {
     if (state.btPhase != BtPhase.findings) return;
+    final sessionId = state.sessionId;
+    if (sessionId != null) {
+      unawaited(_forgetTheAbandonedClip(sessionId));
+    }
     _clearAll();
     state = state.copyWith(
       stage: SalaStage.ensaio,
@@ -979,6 +1030,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btFindings: const [],
       btPass: 1,
     );
+  }
+
+  Future<void> _forgetTheAbandonedClip(String sessionId) async {
+    try {
+      await _room.restartBackTranslation(sessionId);
+    } on Exception {
+      return;
+    }
   }
 
   void _closeTheNecklace() {
