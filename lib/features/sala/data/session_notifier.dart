@@ -172,11 +172,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _playbackFailed ??= _playback.failures.listen((_) => _cannotPlayTheirOwnAudio());
   }
 
-  /// The recording the room was going to play does not play.
-  ///
-  /// This used to arrive as a completion, so the room went on as though the team had
-  /// heard it — and in the retro that is the one thing `terminei` waits for, so a corrupt
-  /// rehearsal could carry a passage all the way to checked with nothing ever played.
   void _cannotPlayTheirOwnAudio() {
     _timers.remove('playback')?.cancel();
     _onPlaybackComplete = null;
@@ -1101,8 +1096,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     final take = state.wholeTake;
     if (take == null) {
-      // No rehearsal to tell back is not a rehearsal that finished playing. Calling it
-      // one opened `terminei` over an empty back translation.
       _haltForAPerson();
       return;
     }

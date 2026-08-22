@@ -5,12 +5,6 @@ import 'package:just_audio/just_audio.dart';
 
 class PlaybackRepository {
   final Future<void> Function(String path)? _start;
-  /// Every ending, and whether the audio was actually heard.
-  ///
-  /// A file that will not open used to be published as a completion, so "the team heard
-  /// it" and "there was nothing to hear" arrived on the same wire. In the retro that
-  /// meant a corrupt rehearsal marked the clip as played to the end, which is the one
-  /// condition the `terminei` gesture waits for.
   final StreamController<bool> _endings = StreamController<bool>.broadcast();
   StreamSubscription<PlayerState>? _states;
   AudioPlayer? _opened;
