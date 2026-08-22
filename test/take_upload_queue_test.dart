@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 
 import 'fakes.dart';
@@ -48,7 +49,12 @@ void main() {
     expect(await queue.lostHistory(), isTrue,
         reason: 'as linhas ilegíveis nomeavam áudio e a sessão dele — não podem sumir sem deixar marca');
     expect(File('${home.path}/guardadas/fila.json.ilegivel').existsSync(), isTrue);
-    expect(File('${home.path}/guardadas/ensaio-velha-1.m4a').existsSync(), isTrue,
+    expect(
+        Directory('${home.path}/guardadas')
+            .listSync()
+            .whereType<File>()
+            .any((file) => p.basename(file.path).startsWith('ensaio-velha-1-')),
+        isTrue,
         reason: 'o áudio continua no aparelho mesmo quando o registro dele se perdeu');
   });
 
@@ -136,6 +142,36 @@ void main() {
 
     expect(await queue.flush(), 2);
     expect(room.takesKept, ['ensaio/inteira', 'retro/P03']);
+  });
+
+  test('a second take recorded under the same name does not eat the first', () async {
+    final room = FakeRoom()..reachable = false;
+    final queue = queueOn(room);
+    final source = aTake('retro_passada1_pedaco1');
+
+    final first = await queue.enqueue(
+      source,
+      sessionId: 'sessao-1',
+      kind: 'retro',
+      scope: 'inteira',
+    );
+    source.writeAsStringSync('a equipe contou de novo');
+    final second = await queue.enqueue(
+      source,
+      sessionId: 'sessao-1',
+      kind: 'retro',
+      scope: 'inteira',
+    );
+
+    expect(second.id, isNot(first.id));
+    expect(File(first.path).readAsStringSync(), 'a equipe contou a passagem',
+        reason: 'a segunda tentativa não escreve por cima do áudio da primeira');
+    expect(File(second.path).readAsStringSync(), 'a equipe contou de novo');
+
+    room.reachable = true;
+    expect(await queue.flush(), 2);
+    expect(room.takesKept, ['retro/inteira', 'retro/inteira']);
+    expect(await queue.pending(), isEmpty);
   });
 
   test('a take whose file vanished stops being retried', () async {

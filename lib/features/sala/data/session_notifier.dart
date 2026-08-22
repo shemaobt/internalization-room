@@ -381,7 +381,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _timers.remove('retry')?.cancel();
     unawaited(_networkWatch?.cancel());
     _networkWatch = null;
-    unawaited(_takes.flush().then((_) => _countUnsent()));
+    final epoch = _epoch;
+    unawaited(_takes.flush().then((_) {
+      if (epoch == _epoch) unawaited(_countUnsent());
+    }));
     state = state.copyWith(voice: VoiceState.invite);
     if (state.stage == SalaStage.fim) {
       _startOver();
@@ -997,6 +1000,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final stranded =
         (await _takes.giveUps()).isNotEmpty || await _takes.lostHistory();
     if (stranded && epoch == _epoch) _sayARecordingIsStranded();
+    if (epoch != _epoch) return;
     final sessionId = state.sessionId;
     if (sessionId == null) return;
     final takes = await _takes.unsentOf('ensaio', sessionId: sessionId);

@@ -67,7 +67,6 @@ class SalaSessionState {
   final int aOferecer;
   final List<Trecho> btTrechos;
   final int? btFindingChunk;
-  /// The room is replaying the stretch a finding landed on.
   final bool btTrechoTocando;
   final bool btClipEnded;
   final List<BtFindingKind> btFindings;
@@ -140,8 +139,6 @@ class SalaSessionState {
       lastSpoken != null &&
       voice == VoiceState.invite &&
       stage != SalaStage.ensaio &&
-      // In the retro the team's own recording is running under an `invite` circle, and
-      // the facilitator's line would have played on top of it, from a second player.
       stage != SalaStage.retro;
 
   bool get showEntrada =>
