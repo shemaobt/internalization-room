@@ -123,8 +123,9 @@ class EnsaioView extends ConsumerWidget {
         const SizedBox(height: 20),
         SizedBox(
           height: 64,
-          child: session.ensaioDone
+          child: session.ensaioHasATake
               ? AdvanceButton(
+                  ready: session.ensaioDone,
                   gradient: BeadStyles.verde,
                   semanticLabel: 'Ir para a retrotradução',
                   onTap: notifier.startRetro,

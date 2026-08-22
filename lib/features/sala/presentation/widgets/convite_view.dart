@@ -35,8 +35,9 @@ class ConviteView extends ConsumerWidget {
         const SizedBox(height: 52),
         SizedBox(
           height: 78,
-          child: session.showEntrada
+          child: session.entradaOffered
               ? AdvanceButton(
+                  ready: session.showEntrada,
                   size: 78,
                   gradient: BeadStyles.wood,
                   halo: ShemaBrand.wood,

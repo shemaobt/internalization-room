@@ -135,6 +135,8 @@ class SalaSessionState {
 
   bool get ensaioDone => takes >= 1 && ensaio == EnsaioStatus.idle;
 
+  bool get ensaioHasATake => takes >= 1;
+
   bool get awaitingFirstTouch =>
       stage == SalaStage.convite &&
       conviteStep == ConviteStep.boasVindas &&
@@ -150,6 +152,9 @@ class SalaSessionState {
       stage == SalaStage.convite &&
       conviteStep == ConviteStep.entrada &&
       voice == VoiceState.invite;
+
+  bool get entradaOffered =>
+      stage == SalaStage.convite && conviteStep == ConviteStep.entrada;
 
   bool get hasUnheardReply => replies.any((reply) => !reply.heard);
 
