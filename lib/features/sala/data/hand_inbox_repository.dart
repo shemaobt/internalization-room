@@ -45,7 +45,7 @@ class HandInboxRepository {
         for (final reply in (body['replies'] as List? ?? const []))
           HandReply.fromJson((reply as Map).cast<String, dynamic>()),
       ];
-    } on Exception {
+    } on Object {
       return const [];
     }
   }
@@ -70,16 +70,22 @@ class HandInboxRepository {
     )
       ..headers.addAll(await _headers)
       ..files.add(await http.MultipartFile.fromPath('file', audio.path));
-    final http.Response response;
-    try {
-      response = await Future(() async {
-        return http.Response.fromStream(await _client.send(request));
-      }).timeout(_uploadTimeout);
-    } on Exception catch (error) {
-      throw RoomUnavailable('$error');
-    }
+    final response = await _sendMultipart(request, timeout: _uploadTimeout);
     if (response.statusCode != 200) {
       throw RoomUnavailable('HTTP ${response.statusCode}');
+    }
+  }
+
+  Future<http.Response> _sendMultipart(
+    http.MultipartRequest request, {
+    Duration timeout = _timeout,
+  }) async {
+    try {
+      return await Future(
+        () async => http.Response.fromStream(await _client.send(request)),
+      ).timeout(timeout);
+    } on Exception catch (error) {
+      throw RoomUnavailable('$error');
     }
   }
 

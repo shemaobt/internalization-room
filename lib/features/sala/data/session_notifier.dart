@@ -33,17 +33,11 @@ final busyStateCeilingProvider = Provider<Duration?>(
   (ref) => const Duration(seconds: 120),
 );
 
-/// Slack added to a clip's own length before the room decides the playback is lost. A
-/// provider, not a constant, because a ceiling nothing can shrink is a ceiling no test
-/// can reach — which is how the paused-clip bug shipped.
 final clipGraceProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 10),
 );
 const _settleAttempts = 3;
 
-/// How much sound counts as the team having said something. Below it the room answers
-/// from the bundle instead of paying for a round trip to hear silence — the one place
-/// the app judges a capture rather than forwarding it.
 final shortestSpeechProvider = Provider<Duration>(
   (ref) => const Duration(milliseconds: 900),
 );
@@ -170,9 +164,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _after('playback', ceiling, _releasePlayback);
   }
 
-  /// The ceiling counts what is left of the clip, never its whole length: the retro pauses
-  /// the take for as long as the team needs to tell a stretch back, and a wall-clock ceiling
-  /// would end the clip mid-listening — after which nothing resumes it.
   Duration _leftToHear(Duration length) {
     final grace = ref.read(clipGraceProvider);
     final left = length - _playback.position;
@@ -369,7 +360,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _conviteOpened = false;
       beckon();
     } else if (state.sessionId == null && state.stage == SalaStage.conversa) {
-      unawaited(goConversa());
+      unawaited(goConversa(pericope: _emCurso));
     }
   }
 
@@ -496,7 +487,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.voice != VoiceState.invite) return;
     if (state.conviteStep == ConviteStep.boasVindas) unawaited(openConvite());
   }
-
 
   Future<void> abrirEscolha() async {
     _clearAll();
@@ -924,6 +914,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _playClipFromStart() {
+    _recontando = false;
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
     state = state.copyWith(btTrechos: const [], clearFindingChunk: true);
@@ -946,7 +937,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.needsPerson) return;
     switch (state.btPhase) {
       case BtPhase.playing:
-        _trechoEnd = _playback.position;
+        if (!_recontando) _trechoEnd = _playback.position;
         _holdClip();
         _startChunkCapture();
       case BtPhase.capturing:
@@ -1012,6 +1003,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         chunkIndex: state.btChunkPasses.length + 1,
       ));
       if (epoch != _epoch) return;
+      state = state.copyWith(
+        btChunkPasses: [...state.btChunkPasses, state.btPass],
+      );
       _handleRoomFailure(error);
       if (!state.btClipEnded) _letTheClipRun();
       return;
