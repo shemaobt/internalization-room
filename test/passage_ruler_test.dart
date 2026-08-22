@@ -86,10 +86,16 @@ void main() {
     final settled = <int>[];
     await pumpRuler(tester, total: 1, at: 0, aimed: aimed, settled: settled);
 
-    // `find.byType(CustomPaint)` matches MaterialApp's own debug banner, so it passed
-    // with no ruler in the tree at all. The size is what the team can see.
     expect(find.byType(PassageRuler), findsOneWidget);
     expect(tester.getSize(find.byType(PassageRuler)).height, PassageRuler.height,
         reason: 'a última passagem do livro ficava sem indicador nenhum');
+    expect(
+      find.descendant(
+        of: find.byType(PassageRuler),
+        matching: find.byType(CustomPaint),
+      ),
+      findsOneWidget,
+      reason: 'a última passagem do livro ficava sem indicador nenhum',
+    );
   });
 }

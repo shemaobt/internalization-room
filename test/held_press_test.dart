@@ -1,51 +1,52 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/core/theme/app_theme.dart';
+import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
 
-/// A finger held on a button is a tap the team meant to make.
-///
-/// Flutter gives the long press the arena over the tap, so a `GestureDetector` that wires
-/// both fires only the long press — and when that long press is a no-op, the gesture is
-/// swallowed whole. On the rehearsal circle it meant a held finger never opened the mic.
+import 'fakes.dart';
+import 'sala_screen_test.dart' show bySemanticsLabelWidget, pumpSala;
+
+Future<void> _holdTheCircle(WidgetTester tester) async {
+  final circle = bySemanticsLabelWidget('Tocar para gravar o ensaio');
+  final finger = await tester.startGesture(tester.getCenter(circle));
+  await tester.pump(const Duration(milliseconds: 900));
+  await finger.up();
+  await tester.pump(const Duration(milliseconds: 100));
+}
+
 void main() {
-  testWidgets('a held press still records when nobody can answer a long press', (
+  testWidgets('a finger held on the record circle opens the microphone', (
     tester,
   ) async {
-    var taps = 0;
-    var presses = 0;
+    final container = await pumpSala(tester, SalaHarness());
+    final notifier = container.read(salaSessionProvider.notifier);
 
-    Widget circle({required VoidCallback? onLongPress}) => MaterialApp(
-          theme: AppTheme.light,
-          home: Scaffold(
-            body: Center(
-              child: GestureDetector(
-                onTap: () => taps++,
-                onLongPress: onLongPress,
-                behavior: HitTestBehavior.opaque,
-                child: const SizedBox(width: 160, height: 160),
-              ),
-            ),
-          ),
-        );
+    notifier.goEnsaio();
+    await tester.pump(const Duration(milliseconds: 120));
 
-    await tester.pumpWidget(circle(onLongPress: () => presses++));
-    final gesture = await tester.startGesture(tester.getCenter(find.byType(SizedBox)));
-    await tester.pump(const Duration(milliseconds: 900));
-    await gesture.up();
-    await tester.pump();
+    await _holdTheCircle(tester);
 
-    expect(taps, 0, reason: 'com o toque longo ligado, segurar o dedo engole o toque');
-    expect(presses, 1);
+    expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.recording,
+        reason: 'o toque longo ganha a arena do toque, e numa sala saudável ele '
+            'não tem o que fazer — segurar o dedo não abria microfone nenhum');
+  });
 
-    taps = 0;
-    await tester.pumpWidget(circle(onLongPress: null));
-    final again = await tester.startGesture(tester.getCenter(find.byType(SizedBox)));
-    await tester.pump(const Duration(milliseconds: 900));
-    await again.up();
-    await tester.pump();
+  testWidgets('a held press still unsticks an ensaio the room abandoned', (
+    tester,
+  ) async {
+    final harness = SalaHarness()..recorder.returnsNothing = true;
+    final container = await pumpSala(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
 
-    expect(taps, 1,
-        reason: 'numa sala saudável o toque longo não tem o que fazer, então precisa '
-            'sair da frente — senão gravar depende de soltar o dedo depressa');
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(container.read(salaSessionProvider).needsPerson, isTrue);
+
+    harness.recorder.returnsNothing = false;
+    await _holdTheCircle(tester);
+
+    expect(container.read(salaSessionProvider).voice, VoiceState.invite,
+        reason: 'um ensaio travado não tem outra saída pela tela');
   });
 }
