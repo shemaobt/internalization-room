@@ -840,6 +840,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _playClipFromStart() {
+    _recontando = false;
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
     state = state.copyWith(btTrechos: const [], clearFindingChunk: true);
@@ -862,7 +863,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.needsPerson) return;
     switch (state.btPhase) {
       case BtPhase.playing:
-        _trechoEnd = _playback.position;
+        if (!_recontando) _trechoEnd = _playback.position;
         _holdClip();
         _startChunkCapture();
       case BtPhase.capturing:
