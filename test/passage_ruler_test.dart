@@ -86,7 +86,13 @@ void main() {
     final settled = <int>[];
     await pumpRuler(tester, total: 1, at: 0, aimed: aimed, settled: settled);
 
-    expect(find.byType(CustomPaint), findsWidgets,
-        reason: 'a última passagem do livro ficava sem indicador nenhum');
+    expect(
+      find.descendant(
+        of: find.byType(PassageRuler),
+        matching: find.byType(CustomPaint),
+      ),
+      findsOneWidget,
+      reason: 'a última passagem do livro ficava sem indicador nenhum',
+    );
   });
 }
