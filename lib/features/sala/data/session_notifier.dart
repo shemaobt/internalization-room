@@ -293,12 +293,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(voice: VoiceState.invite, peerCue: false);
   }
 
-  void _haltForAPerson() {
+  void _haltForAPerson({bool sessionIsGone = false}) {
     _leaveThinking();
     if (!state.needsPerson) {
       unawaited(_voice.playAsset(fixedLineAsset(needsPersonLine)));
     }
-    state = state.copyWith(voice: VoiceState.needsPerson, peerCue: false);
+    state = state.copyWith(
+      voice: VoiceState.needsPerson,
+      peerCue: false,
+      clearSession: sessionIsGone,
+    );
     _tellTheRoomAPersonIsNeeded();
   }
 
@@ -313,9 +317,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _leaveThinking();
     switch (error) {
       case RoomRefused():
-        state = state.copyWith(voice: VoiceState.needsPerson, peerCue: false);
+        _haltForAPerson();
       case SessionGone():
-        state = state.copyWith(clearSession: true, voice: VoiceState.needsPerson);
+        _haltForAPerson(sessionIsGone: true);
       case RoomBroke():
         _registerRoomFailure();
       default:
@@ -471,7 +475,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         });
       }
       if (snapshot.needsPerson && state.stage == SalaStage.conversa) {
-        state = state.copyWith(voice: VoiceState.needsPerson, peerCue: false);
+        _haltForAPerson();
       } else if (snapshot.done && state.stage == SalaStage.conversa) {
         state = state.copyWith(voice: VoiceState.done, peerCue: false);
       }
