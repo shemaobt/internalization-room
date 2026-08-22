@@ -15,6 +15,7 @@ import 'widgets/convite_view.dart';
 import 'widgets/ensaio_view.dart';
 import 'widgets/escolha_view.dart';
 import 'widgets/hear_again_button.dart';
+import 'widgets/leave_passage_button.dart';
 import 'widgets/mic_gate_view.dart';
 import 'widgets/retro_view.dart';
 
@@ -56,7 +57,7 @@ class _SalaScreenState extends ConsumerState<SalaScreen> with WidgetsBindingObse
     final access = await ref.read(micPermissionProvider.notifier).check();
     if (!mounted) return;
     if (access == MicAccess.granted) {
-      ref.read(salaSessionProvider.notifier).beckon();
+      unawaited(ref.read(salaSessionProvider.notifier).openTheRoom());
     } else {
       unawaited(ref.read(facilitatorVoiceProvider).playAsset(micBlockedAsset));
     }
@@ -92,6 +93,7 @@ class _SalaScreenState extends ConsumerState<SalaScreen> with WidgetsBindingObse
                 child: SafeArea(bottom: false, child: _ColarLayer()),
               ),
             const HearAgainButton(),
+            const LeavePassageButton(),
           ],
         ),
       ),

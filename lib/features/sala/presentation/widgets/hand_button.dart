@@ -9,7 +9,6 @@ class HandButton extends StatelessWidget {
   final bool hasUnheardReply;
   final bool playingReply;
   final VoidCallback onTap;
-  final bool enabled;
 
   const HandButton({
     super.key,
@@ -17,26 +16,23 @@ class HandButton extends StatelessWidget {
     required this.hasUnheardReply,
     required this.playingReply,
     required this.onTap,
-    this.enabled = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final colors = SalaColors.of(context);
-    final lit = enabled && (noteMode || playingReply);
+    final lit = noteMode || playingReply;
 
-    return Opacity(
-      opacity: enabled ? 1 : 0.35,
-      child: Semantics(
+    return Semantics(
       button: true,
-      enabled: enabled,
-      label: enabled
-          ? (hasUnheardReply
-              ? 'Ouvir a resposta do facilitador'
-              : (noteMode ? 'Cancelar a pergunta' : 'Levantar a mão'))
-          : 'Levantar a mão — indisponível por enquanto',
+      label: switch ((playingReply, hasUnheardReply, noteMode)) {
+        (true, _, _) => 'O facilitador está respondendo',
+        (_, true, _) => 'Ouvir a resposta do facilitador',
+        (_, _, true) => 'Cancelar a pergunta',
+        _ => 'Levantar a mão',
+      },
       child: GestureDetector(
-        onTap: enabled ? onTap : null,
+        onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: SizedBox(
           width: 76,
@@ -68,12 +64,11 @@ class HandButton extends StatelessWidget {
                   color: lit ? ShemaBrand.azulInk : colors.mut,
                 ),
               ),
-              if (enabled && hasUnheardReply && !playingReply)
+              if (hasUnheardReply && !playingReply)
                 Positioned(top: 10, right: 10, child: _quietDot()),
             ],
           ),
         ),
-      ),
       ),
     );
   }

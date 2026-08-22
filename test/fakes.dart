@@ -31,6 +31,7 @@ Coverage coverage({int engaged = 0, int surfaced = 0}) => Coverage(
 class FakeVoice implements FacilitatorVoiceService {
   final List<String> played = [];
   final List<String> assets = [];
+  final List<String> fetched = [];
   bool succeeds = true;
   Completer<bool>? _holding;
 
@@ -54,6 +55,22 @@ class FakeVoice implements FacilitatorVoiceService {
 
   @override
   Future<File> clipFor(String url) async => File(url);
+
+  Completer<void>? _fetching;
+
+  void holdNextFetch() => _fetching = Completer<void>();
+
+  void finishHeldFetch() {
+    _fetching?.complete();
+    _fetching = null;
+  }
+
+  @override
+  Future<bool> fetch(String url) async {
+    fetched.add(url);
+    await _fetching?.future;
+    return succeeds;
+  }
 
   @override
   Future<bool> playAsset(String assetPath) {
@@ -85,8 +102,19 @@ class FakeRecorder implements RecordingRepository {
     return permitted;
   }
 
+  Completer<void>? _holdingStop;
+
+  void holdNextStop() => _holdingStop = Completer<void>();
+
+  void finishStop() {
+    _holdingStop?.complete();
+    _holdingStop = null;
+  }
+
   @override
   Future<String?> stop() async {
+    final held = _holdingStop;
+    if (held != null) await held.future;
     if (returnsNothing) return null;
     final file = File('${home.path}/captura-$captures.m4a')
       ..writeAsStringSync('a equipe falou');
@@ -156,6 +184,12 @@ class FakeFinished implements FinishedPassages {
 
   @override
   Future<void> add(String pericope) async => done.add(pericope);
+
+  @override
+  Future<bool> bookOpened(String book) async => done.contains('livro:$book');
+
+  @override
+  Future<void> markBookOpened(String book) async => done.add('livro:$book');
 }
 
 class FakeInbox implements HandInboxRepository {

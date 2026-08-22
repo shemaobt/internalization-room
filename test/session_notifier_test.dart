@@ -806,7 +806,9 @@ void main() {
     final state = container.read(salaSessionProvider);
     expect(state.livroInteiroFeito, isTrue);
     expect(state.rodaPorLer, isFalse);
-    expect(state.voice, VoiceState.done);
+    expect(state.needsPerson, isTrue,
+        reason: 'roda lida e vazia é livro terminado — e terminar o livro é '
+            'exatamente o momento de chamar o facilitador');
   });
 
   test('the wheel reloads itself when the network comes back', () async {
@@ -907,7 +909,7 @@ void main() {
     );
   });
 
-  test('a book with nothing left rests instead of asking for a person', () async {
+  test('a finished book reaches a person instead of dying quietly', () async {
     final harness = SalaHarness()..room.passages = const [];
     final container = harness.container();
     addTearDown(container.dispose);
@@ -918,9 +920,16 @@ void main() {
 
     final state = container.read(salaSessionProvider);
     expect(state.livroInteiroFeito, isTrue);
-    expect(state.voice, VoiceState.done,
-        reason: 'acabar o livro é descanso, não falha');
-    expect(state.needsPerson, isFalse);
+    expect(state.needsPerson, isTrue,
+        reason: 'um disco verde parado, mudo, recusando todo gesto era '
+            'indistinguível de um app morto — e não há texto que explique');
+    expect(harness.voice.assets, contains(fixedLineAsset(needsPersonLine)),
+        reason: 'e a fala para chamar o facilitador já estava no pacote');
+
+    notifier.resolveWithPerson();
+
+    expect(container.read(salaSessionProvider).needsPerson, isFalse,
+        reason: 'o toque longo tira a sala de lá, como em todo outro halt');
   });
 
   test('the closed necklace opens the room again on its own', () async {
@@ -1599,6 +1608,38 @@ void main() {
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.playing,
         reason: 'thinking só avança pela rede — ficaria sem toque e sem volta');
+  });
+
+  test('a take is only offered once the recorder has handed it back', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    await settle();
+    harness.recorder.holdNextStop();
+    notifier.ensaioTap();
+    await settle();
+
+    expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.recording,
+        reason: 'os três botões da tomada não podem aparecer enquanto o arquivo '
+            'ainda está sendo escrito');
+
+    notifier.takeKeep();
+    await settle();
+    harness.recorder.finishStop();
+    await settle();
+
+    expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.recorded);
+
+    notifier.takeKeep();
+    await settle();
+
+    expect(container.read(salaSessionProvider).takes, 1,
+        reason: 'um keep rápido achava o caminho nulo e descartava a tomada em silêncio');
+    expect(container.read(salaSessionProvider).wholeTake, isNotNull);
   });
 
   test('a failed take never destroys the one already kept', () async {

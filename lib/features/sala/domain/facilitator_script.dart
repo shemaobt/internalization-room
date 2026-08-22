@@ -14,6 +14,7 @@ const instantAckLines = ['F0', 'F1', 'F2', 'F3'];
 
 const inaudibleLines = ['D0', 'D1', 'D2'];
 
+const needsPersonLine = 'E0';
+
 String rotated(List<String> lines, int spoken) => lines[spoken % lines.length];
 
-const handReachesAPerson = true;

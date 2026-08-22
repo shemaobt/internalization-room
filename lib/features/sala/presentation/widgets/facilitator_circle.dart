@@ -117,7 +117,7 @@ class FacilitatorCircle extends StatelessWidget {
 
   Widget _body(SalaColors colors) {
     if (voice == VoiceState.needsPerson) return _haltedBody(colors, LucideIcons.userCheck);
-    if (voice == VoiceState.offline) return _haltedBody(colors, null);
+    if (voice == VoiceState.offline) return _haltedBody(colors, LucideIcons.cloudOff);
     if (_teamTalk) return _teamTalkBody(colors);
 
     switch (voice) {
@@ -184,7 +184,7 @@ class FacilitatorCircle extends StatelessWidget {
       case VoiceState.needsPerson:
         return _haltedBody(colors, LucideIcons.userCheck);
       case VoiceState.offline:
-        return _haltedBody(colors, null);
+        return _haltedBody(colors, LucideIcons.cloudOff);
       case VoiceState.blocked:
         return _haltedBody(colors, LucideIcons.micOff);
     }

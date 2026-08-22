@@ -21,9 +21,11 @@ class ConviteView extends ConsumerWidget {
           size: 196,
           voice: session.voice,
           beckon: session.awaitingFirstTouch,
-          semanticLabel: session.needsPerson
-              ? 'Um momento para uma pessoa'
-              : 'Falar com o facilitador',
+          semanticLabel: switch (session) {
+            _ when session.needsPerson => 'Um momento para uma pessoa',
+            _ when session.showEntrada => 'O facilitador já contou do livro',
+            _ => 'Falar com o facilitador',
+          },
           onTap: notifier.conviteTap,
           onLongPress: notifier.resolveWithPerson,
         ),

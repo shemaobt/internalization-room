@@ -36,6 +36,16 @@ class FacilitatorVoiceService {
     });
   }
 
+  Future<bool> fetch(String url) async {
+    if (url.isEmpty) return false;
+    try {
+      await clipFor(url);
+      return true;
+    } on Exception {
+      return false;
+    }
+  }
+
   Future<bool> playAsset(String assetPath) {
     return _afterTheCurrentLine(
       () => _sayItWhole(() => _player.setAsset(assetPath)),
