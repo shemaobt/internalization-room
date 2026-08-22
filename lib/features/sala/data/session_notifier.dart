@@ -174,15 +174,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _playbackFailed ??= _playback.failures.listen((_) => _cannotPlayTheirOwnAudio());
   }
 
-  /// The recording the room was going to play does not play.
-  ///
-  /// This used to arrive as a completion, so the room went on as though the team had
-  /// heard it — and in the retro that is the one thing `terminei` waits for, so a corrupt
-  /// rehearsal could carry a passage all the way to checked with nothing ever played.
-  ///
-  /// Refusing the completion is only half of it: whoever asked for the audio left the
-  /// screen mid-gesture, and something has to unwind it. Running the completion callback
-  /// instead would put the lie back, so each caller says what its own failure looks like.
   void _cannotPlayTheirOwnAudio() {
     _timers.remove('playback')?.cancel();
     _onPlaybackComplete = null;
@@ -419,7 +410,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _timers.remove('retry')?.cancel();
     unawaited(_networkWatch?.cancel());
     _networkWatch = null;
-    unawaited(_takes.flush().then((_) => _countUnsent()));
+    final epoch = _epoch;
+    unawaited(_takes.flush().then((_) {
+      if (epoch == _epoch) unawaited(_countUnsent());
+    }));
     state = state.copyWith(voice: VoiceState.invite);
     if (state.stage == SalaStage.fim) {
       _startOver();
@@ -1075,6 +1069,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         (await _takes.giveUps()).isNotEmpty || await _takes.lostHistory();
     if (_gone) return;
     if (stranded && epoch == _epoch) _sayARecordingIsStranded();
+    if (epoch != _epoch) return;
     final sessionId = state.sessionId;
     if (sessionId == null) return;
     final takes = await _takes.unsentOf('ensaio', sessionId: sessionId);
@@ -1115,8 +1110,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     final take = state.wholeTake;
     if (take == null) {
-      // No rehearsal to tell back is not a rehearsal that finished playing. Calling it
-      // one opened `terminei` over an empty back translation.
       _haltForAPerson();
       return;
     }

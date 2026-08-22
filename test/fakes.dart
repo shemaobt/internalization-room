@@ -146,7 +146,6 @@ class FakePlayback implements PlaybackRepository {
 
   Duration? length;
   Duration at = Duration.zero;
-  final List<Duration> seeks = [];
   final List<String> ranges = [];
 
   @override
@@ -162,12 +161,6 @@ class FakePlayback implements PlaybackRepository {
 
   @override
   Duration get position => at;
-
-  @override
-  Future<void> seek(Duration to) async {
-    at = to;
-    seeks.add(to);
-  }
 
   @override
   Future<void> play(String path) async => played.add(path);

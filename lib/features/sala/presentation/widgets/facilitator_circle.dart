@@ -202,13 +202,6 @@ class FacilitatorCircle extends StatelessWidget {
         ],
       );
 
-  /// The room handing the floor to the team — and still visibly alive.
-  ///
-  /// This is an invite like any other, but it was the one that did not breathe: it
-  /// short-circuits above the switch, so it lost the loop the invite branch has. In a
-  /// room with no written word, a screen that neither moves nor speaks is what a crashed
-  /// app looks like, and this is the state that lasts longest, because it ends only when
-  /// the team decides it does.
   Widget _teamTalkBody(SalaColors colors) {
     return Loop(
       period: const Duration(milliseconds: 4600),
