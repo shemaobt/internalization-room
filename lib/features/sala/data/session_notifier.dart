@@ -369,7 +369,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _conviteOpened = false;
       beckon();
     } else if (state.sessionId == null && state.stage == SalaStage.conversa) {
-      unawaited(goConversa());
+      unawaited(goConversa(pericope: _emCurso));
     }
   }
 
