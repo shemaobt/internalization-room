@@ -283,8 +283,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _voiceTurn(TurnResult turn) async {
     final epoch = _epoch;
     _captureBridgeMode(turn);
+    state = state.copyWith(coverage: turn.coverage);
+    _scheduleSettle();
     await _readyToSpeak(turn.audioUrl, turn.fixedLine);
     if (epoch != _epoch) return;
+    if (turn.audioUrl.isEmpty && turn.fixedLine.isEmpty) {
+      _registerUnplayableTurn();
+      return;
+    }
     state = state.copyWith(voice: VoiceState.speaking);
     _watchBusyState();
     final played = await _speak(turn.audioUrl, turn.fixedLine);
@@ -301,7 +307,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       voice: turn.done ? VoiceState.done : VoiceState.invite,
       peerCue: turn.peerCue,
-      coverage: turn.coverage,
     );
     if (turn.usedFailSafe) {
       // The server is telling the room this answer is canned because the model failed.
@@ -882,15 +887,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (epoch != _epoch) return;
     try {
       final resumed = waiting != null;
-      final sessionId = waiting?.sessionId ??
-          (await _room.createSession(
-            pericope: pericope,
-            afterSession: _panoramaSessionId,
-            bridgeMode: _bridgeMode,
-          ))
-              .sessionId;
+      final created = waiting == null
+          ? await _room.createSession(
+              pericope: pericope,
+              afterSession: _panoramaSessionId,
+              bridgeMode: _bridgeMode,
+            )
+          : null;
+      final sessionId = waiting?.sessionId ?? created!.sessionId;
       if (epoch != _epoch) return;
-      state = state.copyWith(sessionId: sessionId);
+      state = state.copyWith(sessionId: sessionId, coverage: created?.coverage);
       if (pericope != null && !resumed) {
         unawaited(
           _emAberto

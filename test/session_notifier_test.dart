@@ -1806,6 +1806,40 @@ void main() {
             'o servidor registra o que o tablet realmente deixou tocar');
   });
 
+  test('a line that will not play does not erase the necklace', () async {
+    final harness = SalaHarness()..voice.succeeds = false;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.goConversa();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.coverage.total, greaterThan(0),
+        reason: 'a cobertura é um fato da passagem, não do áudio: a fala que falhou '
+            'deixava o fio nu, sem contas e sem o acerto de 30s agendado');
+    expect(harness.room.calls, contains('fetchState'));
+    expect(state.voice, VoiceState.invite);
+  });
+
+  test('the necklace divides the moment the session is born', () async {
+    final harness = SalaHarness()
+      ..voice.holdNextFetch()
+      ..room.silentAboutCoverage = true;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    unawaited(notifier.goConversa());
+    await until(() => container.read(salaSessionProvider).sessionId != null);
+
+    expect(container.read(salaSessionProvider).coverage.total, greaterThan(0),
+        reason: 'o createSession já devolve a cobertura; o colar não espera a voz');
+    harness.voice.finishHeldFetch();
+    await settle();
+  });
+
   test('the room stops touching its providers once it is gone', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
