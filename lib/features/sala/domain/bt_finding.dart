@@ -1,14 +1,32 @@
-enum BtFindingKind { missing, addition, unclear }
-
-BtFindingKind? btFindingKindFrom(String? raw) {
-  for (final kind in BtFindingKind.values) {
-    if (kind.name == raw) return kind;
-  }
-  return null;
+enum BtFindingKind {
+  missing,
+  addition,
+  meaningChange,
+  wrongRelation,
+  reorderedEvent,
+  preservationViolation,
+  insufficientEvidence,
+  unclear,
 }
 
+const _wireNames = {
+  'missing': BtFindingKind.missing,
+  'addition': BtFindingKind.addition,
+  'meaning_change': BtFindingKind.meaningChange,
+  'wrong_relation': BtFindingKind.wrongRelation,
+  'reordered_event': BtFindingKind.reorderedEvent,
+  'preservation_violation': BtFindingKind.preservationViolation,
+  'insufficient_evidence': BtFindingKind.insufficientEvidence,
+  'unclear': BtFindingKind.unclear,
+};
+
+BtFindingKind? btFindingKindFrom(String? raw) => _wireNames[raw];
+
 extension BtFindingExit on BtFindingKind {
-  bool get exitsByReRecording => this == BtFindingKind.addition;
+  bool get exitsByReRecording =>
+      this == BtFindingKind.addition ||
+      this == BtFindingKind.meaningChange ||
+      this == BtFindingKind.preservationViolation;
 }
 
 class BackTranslationChunk {
