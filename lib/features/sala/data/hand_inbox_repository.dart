@@ -31,22 +31,27 @@ class HandInboxRepository {
         'X-Room-Device': await _deviceId(),
       };
 
-  Future<List<HandReply>> fetchReplies() async {
+  Future<List<HandReply>?> fetchReplies() async {
+    final http.Response response;
     try {
-      final response = await _client
+      response = await _client
           .get(
             Uri.parse('${Env.backendUrl}$_basePath/questions/replies'),
             headers: await _headers,
           )
           .timeout(_timeout);
-      if (response.statusCode != 200) return const [];
+    } on Object {
+      return null;
+    }
+    if (response.statusCode != 200) return null;
+    try {
       final body = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       return [
         for (final reply in (body['replies'] as List? ?? const []))
           HandReply.fromJson((reply as Map).cast<String, dynamic>()),
       ];
     } on Object {
-      return const [];
+      return null;
     }
   }
 
@@ -70,22 +75,19 @@ class HandInboxRepository {
     )
       ..headers.addAll(await _headers)
       ..files.add(await http.MultipartFile.fromPath('file', audio.path));
-    final response = await _sendMultipart(request, timeout: _uploadTimeout);
-    if (response.statusCode != 200) {
-      throw RoomUnavailable('HTTP ${response.statusCode}');
-    }
-  }
-
-  Future<http.Response> _sendMultipart(
-    http.MultipartRequest request, {
-    Duration timeout = _timeout,
-  }) async {
+    final http.Response response;
     try {
-      return await Future(
-        () async => http.Response.fromStream(await _client.send(request)),
-      ).timeout(timeout);
+      // The deadline has to cover draining the body too: wrapping only `send` left the
+      // read with no limit at all, so a half-answered request hung here for good. And a
+      // raw TimeoutException escaping made the caller treat a slow link as a crash.
+      response = await Future(() async {
+        return http.Response.fromStream(await _client.send(request));
+      }).timeout(_uploadTimeout);
     } on Exception catch (error) {
       throw RoomUnavailable('$error');
+    }
+    if (response.statusCode != 200) {
+      throw RoomUnavailable('HTTP ${response.statusCode}');
     }
   }
 

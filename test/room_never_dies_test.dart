@@ -775,6 +775,25 @@ void main() {
         reason: 'a passagem nova começava com as faltas da anterior e parava na primeira');
   });
 
+  test('an inbox that cannot be asked is not an inbox with nothing in it', () async {
+    final harness = SalaHarness(settleDelay: const Duration(milliseconds: 20));
+    harness.inbox.cannotBeAsked = true;
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    for (var turno = 0; turno < 3; turno++) {
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+    }
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'chave rotacionada, 500 e timeout liam como "não há respostas", então a '
+            'mão emudecia justo quando um facilitador espera ser avisado de que a dele chegou');
+  });
+
   test('hearing again is not offered on top of the retro clip', () async {
     final harness = SalaHarness();
     harness.room.verdictChecked = false;

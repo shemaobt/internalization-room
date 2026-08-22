@@ -217,11 +217,13 @@ class FakeInbox implements HandInboxRepository {
   final List<String> heard = [];
   final List<String> questionsSent = [];
   bool refuses = false;
+  bool cannotBeAsked = false;
 
   FakeInbox({this.replies = const []});
 
   @override
-  Future<List<HandReply>> fetchReplies() async => replies;
+  Future<List<HandReply>?> fetchReplies() async =>
+      cannotBeAsked ? null : replies;
 
   @override
   Future<void> markHeard(String replyId) async => heard.add(replyId);
