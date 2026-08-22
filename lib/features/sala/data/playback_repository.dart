@@ -69,13 +69,20 @@ class PlaybackRepository {
 
   Future<void> resume() => _quietly(() => _player.play());
 
-  Future<void> stop() => _quietly(() => _player.stop());
+  Future<void> stop() => _quietly(() async {
+        // Cleared with the playback it described. The safety ceiling for the next clip
+        // was computed from the length of the last one.
+        _openedLength = null;
+        await _player.stop();
+      });
 
   Future<void> _quietly(Future<void> Function() act) async {
     if (_opened == null) return;
     try {
       await act();
-    } on Exception {
+    } on Object {
+      // `on Exception` while `play` was widened to `on Object`: a `StateError` from a
+      // disposed player escaped these four fire-and-forget calls with nothing to catch it.
       return;
     }
   }

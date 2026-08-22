@@ -304,6 +304,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(voice: VoiceState.invite, peerCue: false);
   }
 
+  /// The build has no address or no key, so nothing the team does can work.
+  ///
+  /// Reached before the room opens, because the alternative is discovering it one failed
+  /// request at a time — and `Env`'s throw is an `Error`, which the network layer's
+  /// catches all miss.
+  void haltForABrokenBuild() => _haltForAPerson();
+
   void _haltForAPerson({bool sessionIsGone = false}) {
     _leaveThinking();
     if (!state.needsPerson) {

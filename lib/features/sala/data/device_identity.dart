@@ -6,7 +6,14 @@ import 'package:path_provider/path_provider.dart';
 
 const _fileName = 'aparelho.id';
 
+/// Memoised as the *future*, not the value.
+///
+/// Caching only the result left the check-then-mint open: two callers on the first boot
+/// — the hand pulling its inbox while a take uploads — both saw no file, both minted, and
+/// one lost. A question already sent under the losing id can never be fetched back,
+/// because the server filters replies by device.
 Future<String>? _remembered;
+
 Future<String> deviceIdentity() => _remembered ??= _findOrMint();
 
 Future<String> _findOrMint() async {
@@ -17,7 +24,7 @@ Future<String> _findOrMint() async {
     if (stored.isNotEmpty) return stored;
   }
   final minted = _mint();
-  await file.writeAsString(minted);
+  await file.writeAsString(minted, flush: true);
   return minted;
 }
 

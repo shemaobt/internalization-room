@@ -20,7 +20,10 @@ import 'widgets/mic_gate_view.dart';
 import 'widgets/retro_view.dart';
 
 class SalaScreen extends ConsumerStatefulWidget {
-  const SalaScreen({super.key});
+  /// Whether the build carries an address and a key at all.
+  final bool built;
+
+  const SalaScreen({super.key, this.built = true});
 
   @override
   ConsumerState<SalaScreen> createState() => _SalaScreenState();
@@ -32,6 +35,10 @@ class _SalaScreenState extends ConsumerState<SalaScreen> with WidgetsBindingObse
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!widget.built) {
+        ref.read(salaSessionProvider.notifier).haltForABrokenBuild();
+        return;
+      }
       unawaited(
         ref
             .read(takeUploadQueueProvider)
