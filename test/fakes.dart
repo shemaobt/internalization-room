@@ -35,6 +35,8 @@ class FakeVoice implements FacilitatorVoiceService {
   final List<String> assets = [];
   final List<String> fetched = [];
   bool succeeds = true;
+  /// Lines this voice refuses to play, by url — for the halves of one turn.
+  final Set<String> refuses = {};
   Completer<bool>? _holding;
 
   void holdNextLine() => _holding = Completer<bool>();
@@ -52,11 +54,18 @@ class FakeVoice implements FacilitatorVoiceService {
   @override
   Future<bool> play(String url) {
     played.add(url);
+    if (refuses.contains(url)) return Future.value(false);
     return _answer();
   }
 
   @override
   Future<File> clipFor(String url) async => File(url);
+
+  /// Lines this tablet does not have yet, by url.
+  final Set<String> missing = {};
+
+  @override
+  Future<bool> holds(String url) async => url.isNotEmpty && !missing.contains(url);
 
   Completer<void>? _fetching;
 
@@ -216,6 +225,9 @@ class FakeFinished implements FinishedPassages {
 /// In memory, like the finished-passages double. The real one touches disk, and the
 /// wheel now reads it on every open — under a widget test's fake clock that never
 /// resolves, which hangs the whole suite.
+const panoramaUrl = '/api/internalization-room/voice/panorama';
+const sceneUrl = '/api/internalization-room/voice/cena';
+
 class FakeWorkInProgress implements WorkInProgress {
   final Map<String, ResumePoint> rows = {};
 
@@ -272,6 +284,7 @@ class FakeRoom implements RoomRepository {
   final List<String?> pericopesAsked = [];
   final List<String?> bridgeModesSent = [];
   final List<int?> clipDurationsSent = [];
+  final List<List<List<int>>> playedRangesSent = [];
   final List<bool> metBefore = [];
   final List<String> clipsFetched = [];
   bool reachable = true;
@@ -279,6 +292,8 @@ class FakeRoom implements RoomRepository {
 
   Coverage? settledCoverage;
   bool peerCue = false;
+  /// Whether the opening comes back cut where the Guide marked it.
+  bool opensInTwoMovements = false;
   bool done = false;
   int turnsSent = 0;
   int chunksSent = 0;
@@ -410,6 +425,12 @@ class FakeRoom implements RoomRepository {
         coverage: silentAboutCoverage ? null : nextCoverage,
         done: done,
         bridgeMode: bridgeMode,
+        segments: opensInTwoMovements
+            ? const [
+                SpokenSegment(role: 'panorama', audioUrl: panoramaUrl),
+                SpokenSegment(role: 'scene', audioUrl: sceneUrl),
+              ]
+            : const [],
       );
 
   @override
@@ -436,8 +457,10 @@ class FakeRoom implements RoomRepository {
   Future<BackTranslationVerdict> finishBackTranslation(
     String sessionId, {
     int? clipDurationMs,
+    List<List<int>> playedRanges = const [],
   }) async {
     clipDurationsSent.add(clipDurationMs);
+    playedRangesSent.add(playedRanges);
     _guard('finishBackTranslation');
     return BackTranslationVerdict(
       audioUrl: '/api/internalization-room/voice/veredito',

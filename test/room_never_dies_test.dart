@@ -221,13 +221,19 @@ void main() {
     notifier.startRetro();
     await settle();
     harness.playback.at = const Duration(seconds: 12);
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await until(() => container.read(salaSessionProvider).btPhase == BtPhase.playing);
     await settle();
 
-    final queued = await harness.takes.entries();
+    var queued = await harness.takes.entries();
+    final deadline = DateTime.now().add(const Duration(seconds: 5));
+    while (queued.where((entry) => entry.kind == 'retro').isEmpty &&
+        DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      queued = await harness.takes.entries();
+    }
     expect(
       queued.where((entry) => entry.kind == 'retro'),
       isNotEmpty,
@@ -293,14 +299,14 @@ void main() {
 
     harness.room.chunkCaptured = false;
     harness.playback.at = const Duration(seconds: 12);
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await until(() => container.read(salaSessionProvider).btChunkFailures.isNotEmpty);
 
     harness.room.chunkCaptured = true;
     harness.playback.at = const Duration(seconds: 30);
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await until(() => container.read(salaSessionProvider).btChunkPasses.isNotEmpty);
@@ -712,7 +718,7 @@ void main() {
     notifier.startRetro();
     await settle();
     harness.playback.at = const Duration(seconds: 12);
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await settle();
@@ -738,7 +744,7 @@ void main() {
     notifier.startRetro();
     await settle();
     harness.playback.at = const Duration(seconds: 9);
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
     await settle();

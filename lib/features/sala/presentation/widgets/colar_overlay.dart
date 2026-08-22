@@ -166,7 +166,12 @@ class ColarOverlay extends StatelessWidget {
       curve: Curves.easeInOut,
       left: p.dx - size / 2,
       top: p.dy - size / 2,
-      child: bead,
+      child: ThreadIn(
+        index: i,
+        total: total,
+        threaded: session.contasEnfiadas,
+        child: bead,
+      ),
     );
   }
 

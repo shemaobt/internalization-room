@@ -30,6 +30,39 @@ void main() {
         libraryDir: () async => library,
       );
 
+  test('two callers asking for the same line at once share one download', () async {
+    final voice = service();
+
+    final together = await Future.wait([
+      voice.clipFor(_clip),
+      voice.clipFor(_clip),
+      voice.clipFor(_clip),
+    ]);
+
+    expect(fetched, [_clip],
+        reason: 'a abertura busca o segundo movimento enquanto o primeiro ainda '
+            'está sendo falado, e dois downloads da mesma fala escreviam o mesmo '
+            'arquivo de staging e o renomeavam por cima um do outro');
+    expect(together.map((file) => file.path).toSet(), hasLength(1));
+    for (final file in together) {
+      expect(file.existsSync(), isTrue);
+      expect(file.lengthSync(), greaterThan(0));
+    }
+  });
+
+  test('a line already fetched alongside its own play still plays', () async {
+    final voice = service();
+
+    final arriving = voice.fetch(_clip);
+    final file = await voice.clipFor(_clip);
+    await arriving;
+
+    expect(file.existsSync(), isTrue,
+        reason: 'o perdedor da corrida estourava, o estouro era engolido como '
+            'uma fala que não toca, e a sala ficava muda entre dois fôlegos');
+    expect(fetched, [_clip]);
+  });
+
   test('a line already heard is never fetched again', () async {
     final voice = service();
 

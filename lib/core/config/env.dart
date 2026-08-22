@@ -24,6 +24,9 @@ abstract class Env {
 
   static String get roomKey => _required('INTERNALIZATION_ROOM_KEY');
 
+  static bool get devPularFases =>
+      dotenv.isInitialized && _value('DEV_PULAR_FASES') == '1';
+
   static String _stripTrailingSlashes(String url) {
     var end = url.length;
     while (end > 0 && url[end - 1] == '/') {

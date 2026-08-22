@@ -42,6 +42,15 @@ class SalaSessionState {
   final ConviteStep conviteStep;
   final String? sessionId;
   final Coverage coverage;
+
+  /// Whether the beads are on the cord yet.
+  ///
+  /// The room opens in two movements — the whole passage, then the scene — and the
+  /// necklace belongs to the second. Showing it during the first put a full string of
+  /// beads over a passage that had not been opened yet. False only while the opening's
+  /// first movement is being spoken; true everywhere else, so no other stage can be
+  /// caught without it.
+  final bool contasEnfiadas;
   final PingRange? ping;
   final bool peerCue;
   final bool noteMode;
@@ -76,11 +85,20 @@ class SalaSessionState {
   final int? btFindingChunk;
   final bool btTrechoTocando;
   final bool btClipEnded;
+  final bool btParteFronteira;
+
+  /// Whether the rehearsal is running right now.
+  ///
+  /// Listening and cutting used to be the same tap on the circle, so the room could only
+  /// infer what the team had heard. They are two gestures now, and this is the one the
+  /// listening gesture owns.
+  final bool btClipRodando;
   final List<BtFindingKind> btFindings;
   final int btPass;
   final bool fimClosed;
   final int unsentTakes;
   final int unsentChunks;
+  final Set<String> unsentTakeScopes;
 
   const SalaSessionState({
     this.stage = SalaStage.convite,
@@ -89,6 +107,7 @@ class SalaSessionState {
     this.conviteStep = ConviteStep.boasVindas,
     this.sessionId,
     this.coverage = Coverage.empty,
+    this.contasEnfiadas = true,
     this.ping,
     this.peerCue = false,
     this.noteMode = false,
@@ -111,15 +130,20 @@ class SalaSessionState {
     this.btFindingChunk,
     this.btTrechoTocando = false,
     this.btClipEnded = false,
+    this.btParteFronteira = false,
+    this.btClipRodando = false,
     this.btFindings = const [],
     this.btPass = 1,
     this.fimClosed = false,
     this.unsentTakes = 0,
     this.unsentChunks = 0,
+    this.unsentTakeScopes = const {},
   });
 
   bool get colarOn =>
-      stage != SalaStage.convite && stage != SalaStage.escolha;
+      stage != SalaStage.convite &&
+      stage != SalaStage.escolha &&
+      stage != SalaStage.retro;
 
   Passagem? get oferecida {
     final roda = naRoda;
@@ -178,14 +202,9 @@ class SalaSessionState {
   bool get canFinishBackTranslation =>
       stage == SalaStage.retro && btPhase == BtPhase.playing && btClipEnded;
 
-  KeptTake? get wholeTake {
-    for (final take in keptTakes) {
-      if (take.scopeId == KeptScope.whole) return take;
-    }
-    return null;
-  }
+  List<KeptTake> get partes => keptTakes;
 
-  bool get canGhostPlay => wholeTake != null && ensaio == EnsaioStatus.idle;
+  bool get canGhostPlay => partes.isNotEmpty && ensaio == EnsaioStatus.idle;
 
   SalaSessionState copyWith({
     SalaStage? stage,
@@ -195,6 +214,7 @@ class SalaSessionState {
     String? sessionId,
     bool clearSession = false,
     Coverage? coverage,
+    bool? contasEnfiadas,
     PingRange? ping,
     bool clearPing = false,
     bool? peerCue,
@@ -222,11 +242,14 @@ class SalaSessionState {
     bool clearFindingChunk = false,
     bool? btTrechoTocando,
     bool? btClipEnded,
+    bool? btParteFronteira,
+    bool? btClipRodando,
     List<BtFindingKind>? btFindings,
     int? btPass,
     bool? fimClosed,
     int? unsentTakes,
     int? unsentChunks,
+    Set<String>? unsentTakeScopes,
   }) {
     return SalaSessionState(
       stage: stage ?? this.stage,
@@ -235,6 +258,7 @@ class SalaSessionState {
       conviteStep: conviteStep ?? this.conviteStep,
       sessionId: clearSession ? null : (sessionId ?? this.sessionId),
       coverage: coverage ?? this.coverage,
+      contasEnfiadas: contasEnfiadas ?? this.contasEnfiadas,
       ping: clearPing ? null : (ping ?? this.ping),
       peerCue: peerCue ?? this.peerCue,
       noteMode: noteMode ?? this.noteMode,
@@ -260,11 +284,14 @@ class SalaSessionState {
           : (btFindingChunk ?? this.btFindingChunk),
       btTrechoTocando: btTrechoTocando ?? this.btTrechoTocando,
       btClipEnded: btClipEnded ?? this.btClipEnded,
+      btParteFronteira: btParteFronteira ?? this.btParteFronteira,
+      btClipRodando: btClipRodando ?? this.btClipRodando,
       btFindings: btFindings ?? this.btFindings,
       btPass: btPass ?? this.btPass,
       fimClosed: fimClosed ?? this.fimClosed,
       unsentTakes: unsentTakes ?? this.unsentTakes,
       unsentChunks: unsentChunks ?? this.unsentChunks,
+      unsentTakeScopes: unsentTakeScopes ?? this.unsentTakeScopes,
     );
   }
 }

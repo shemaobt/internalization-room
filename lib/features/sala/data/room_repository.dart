@@ -192,17 +192,18 @@ class RoomRepository {
   Future<BackTranslationVerdict> finishBackTranslation(
     String sessionId, {
     int? clipDurationMs,
+    List<List<int>> playedRanges = const [],
   }) async {
     final response = await _send(
       () => _client.post(
         _uri('/sessions/$sessionId/back-translation/finish'),
         headers: _headers,
+        // What was heard, as it was heard. Declaring nought-to-the-end made the report a
+        // restatement of the clip's length, and the gate that reads it could never fail.
         body: clipDurationMs == null || clipDurationMs <= 0
             ? null
             : jsonEncode({
-                'played_ranges': [
-                  [0, clipDurationMs],
-                ],
+                'played_ranges': playedRanges,
                 'clip_duration_ms': clipDurationMs,
               }),
       ),

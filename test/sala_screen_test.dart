@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -214,6 +215,89 @@ void main() {
     expect(bySemanticsLabelWidget('Tocar para falar'), findsOneWidget);
   });
 
+  testWidgets('the dev seal shows from the invite on, before any skip exists',
+      (tester) async {
+    dotenv.testLoad(
+      fileInput: 'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
+    );
+    addTearDown(() => dotenv.testLoad(fileInput: ''));
+    final container = await pumpSala(tester, SalaHarness());
+    final notifier = container.read(salaSessionProvider.notifier);
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text('DEV'), findsOneWidget,
+        reason: 'sem o selo no convite não dá para saber que o build é de dev');
+    expect(find.text('pular → ensaio'), findsNothing);
+
+    await notifier.abrirEscolha();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text('DEV'), findsOneWidget);
+    expect(find.text('pular → retro'), findsNothing);
+  });
+
+  testWidgets('the dev bar names every skip, and waits for its inputs',
+      (tester) async {
+    dotenv.testLoad(
+      fileInput: 'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
+    );
+    addTearDown(() => dotenv.testLoad(fileInput: ''));
+    final harness = SalaHarness()..network.reachable = false;
+    final container = await pumpSala(tester, harness);
+    unawaited(container.read(salaSessionProvider.notifier).goConversa());
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('DEV'), findsOneWidget);
+    expect(find.text('pular → ensaio'), findsOneWidget);
+    expect(find.text('esperando a sessão nascer'), findsOneWidget);
+    expect(find.text('grave 1 parte no ensaio antes'), findsOneWidget);
+
+    await tester.tap(find.text('pular → ensaio'), warnIfMissed: false);
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(container.read(salaSessionProvider).stage, SalaStage.conversa,
+        reason: 'sem sessão, pular criaria um ensaio órfão: gravações sem '
+            'sessão e uma sala pedindo pessoa');
+
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
+    await tester.pump();
+  });
+
+  testWidgets('the dev bar walks into the ensaio once the session exists',
+      (tester) async {
+    dotenv.testLoad(
+      fileInput: 'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
+    );
+    addTearDown(() => dotenv.testLoad(fileInput: ''));
+    final container = await pumpSala(tester, SalaHarness());
+    unawaited(container.read(salaSessionProvider.notifier).goConversa());
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).sessionId, isNotNull);
+    expect(find.text('esperando a sessão nascer'), findsNothing);
+
+    await tester.tap(find.text('pular → ensaio'));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
+    expect(bySemanticsLabelWidget('Tocar para gravar o ensaio'), findsOneWidget);
+    expect(find.text('DEV'), findsOneWidget,
+        reason: 'a barra segue visível no ensaio para o próximo pulo');
+  });
+
+  testWidgets('a field build shows no dev bar at all', (tester) async {
+    dotenv.testLoad(
+      fileInput: 'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k',
+    );
+    addTearDown(() => dotenv.testLoad(fileInput: ''));
+    final container = await pumpSala(tester, SalaHarness());
+    unawaited(container.read(salaSessionProvider.notifier).goConversa());
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('DEV'), findsNothing);
+    expect(find.text('pular → ensaio'), findsNothing);
+  });
+
   testWidgets('a peer cue turns the circle into team-talk mode',
       (tester) async {
     final harness = SalaHarness()..room.peerCue = true;
@@ -347,7 +431,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     harness.room.failWith = const RoomRefused();
-    notifier.retroTap();
+    notifier.cortarTrecho();
     await tester.pump(const Duration(milliseconds: 100));
     notifier.retroTap();
     await tester.pump(const Duration(milliseconds: 300));
