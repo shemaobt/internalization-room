@@ -14,6 +14,7 @@ import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/coverage.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
@@ -152,7 +153,6 @@ class FakePlayback implements PlaybackRepository {
 
   Duration? length;
   Duration at = Duration.zero;
-  final List<Duration> seeks = [];
   final List<String> ranges = [];
 
   @override
@@ -168,12 +168,6 @@ class FakePlayback implements PlaybackRepository {
 
   @override
   Duration get position => at;
-
-  @override
-  Future<void> seek(Duration to) async {
-    at = to;
-    seeks.add(to);
-  }
 
   @override
   Future<void> play(String path) async => played.add(path);
@@ -308,8 +302,6 @@ class FakeRoom implements RoomRepository {
     Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
   ];
   int personsAsked = 0;
-  /// Attempts, including the ones that threw — the latch is about trying, not landing.
-  int personsTold = 0;
   int retells = 0;
   int retellBudget = 3;
 
@@ -362,7 +354,7 @@ class FakeRoom implements RoomRepository {
       sessionId: sessionId,
       pericope: 'rute-1',
       status: serverStatus ?? (done ? 'done' : 'in_progress'),
-      coverage: settledCoverage ?? nextCoverage,
+      coverage: silentAboutCoverage ? null : (settledCoverage ?? nextCoverage),
       done: done,
     );
   }
@@ -383,7 +375,6 @@ class FakeRoom implements RoomRepository {
 
   @override
   Future<void> askForAPerson(String sessionId) async {
-    personsTold++;
     _guard('askForAPerson');
     personsAsked++;
   }
