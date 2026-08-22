@@ -845,7 +845,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // Re-opening carries the coverage back with it, so the necklace fills itself.
       await _voiceTurn(await _room.openSession(sessionId));
       if (epoch != _epoch) return;
-      if (resumed) await _backToWhereTheyStopped(waiting);
+      if (resumed) await _backToWhereTheyStopped(waiting, epoch);
     } on SessionGone {
       if (epoch != _epoch) return;
       if (pericope != null) {
@@ -887,12 +887,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// Put the team back on the stage they left, when the audio for it is still here.
-  Future<void> _backToWhereTheyStopped(ResumePoint waiting) async {
+  Future<void> _backToWhereTheyStopped(ResumePoint waiting, int epoch) async {
     if (waiting.stage == SalaStage.conversa || waiting.takes.isEmpty) return;
     final here = [
       for (final take in waiting.takes)
         if (await File(take.path).exists()) take,
     ];
+    if (epoch != _epoch) return;
     if (_gone || here.isEmpty) {
       // The rehearsal is gone from the tablet, so the retro cannot be told back over it.
       // The conversa is the step that still works.
