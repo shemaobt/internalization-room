@@ -1,6 +1,6 @@
 import 'bt_finding.dart';
 import 'spoken_line.dart';
-import '../data/connectivity_service.dart';
+import 'room_reach.dart';
 import 'coverage.dart';
 import 'hand_reply.dart';
 import 'kept_take.dart';

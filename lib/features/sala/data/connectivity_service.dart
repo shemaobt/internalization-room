@@ -5,18 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
 import '../../../core/config/env.dart';
+import '../domain/room_reach.dart';
 
 const _pingTimeout = Duration(seconds: 6);
 const _radioAnswerTimeout = Duration(seconds: 4);
 const _quietBetweenSignals = Duration(seconds: 3);
-
-/// How far a request would get right now.
-///
-/// The check has always computed this — radio first, then the room — and then threw the
-/// answer away one line before anyone could be told. A wrong address on a perfect wi-fi
-/// and a tablet with no network at all produced the same face, and the room said the
-/// internet had gone.
-enum RoomReach { fine, noNetwork, roomSilent }
 
 class ConnectivityService {
   final Connectivity _connectivity;

@@ -9,6 +9,7 @@ import '../domain/facilitator_script.dart';
 import '../domain/hand_reply.dart';
 import '../domain/kept_take.dart';
 import '../domain/passagem.dart';
+import '../domain/room_reach.dart';
 import '../domain/session_state.dart';
 import '../domain/spoken_line.dart';
 import '../domain/turn_result.dart';

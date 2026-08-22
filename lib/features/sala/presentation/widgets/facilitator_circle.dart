@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
-import '../../data/connectivity_service.dart';
+import '../../domain/room_reach.dart';
 import '../../domain/session_state.dart';
 import 'bead.dart';
 import 'bead_styles.dart';
