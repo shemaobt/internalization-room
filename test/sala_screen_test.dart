@@ -76,9 +76,6 @@ void main() {
     }
   });
 
-
-
-
   testWidgets('no stage ever shows a written word', (tester) async {
     final harness = SalaHarness()..room.done = true;
     final container = await pumpSala(tester, harness);

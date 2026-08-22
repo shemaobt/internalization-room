@@ -743,15 +743,6 @@ void main() {
     expect(container.read(salaSessionProvider).unsentTakes, 0);
   });
 
-
-
-
-
-
-
-
-
-
   test('the closed necklace opens the room again on its own', () async {
     final harness = SalaHarness(fimLinger: const Duration(milliseconds: 40));
     final container = await inConversa(harness);
