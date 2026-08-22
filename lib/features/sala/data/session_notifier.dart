@@ -903,14 +903,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     final audio = File(path);
     if (sessionId == null || !await audio.exists()) return;
-    await _takes.enqueue(
-      audio,
-      sessionId: sessionId,
-      kind: kind,
-      scope: scope,
-      passNumber: passNumber,
-      chunkIndex: chunkIndex,
-    );
+    try {
+      await _takes.enqueue(
+        audio,
+        sessionId: sessionId,
+        kind: kind,
+        scope: scope,
+        passNumber: passNumber,
+        chunkIndex: chunkIndex,
+      );
+    } on Object {
+      // A full disk throws here, on the copy or on the manifest write. It used to be an
+      // unhandled async error behind an `unawaited`: the screen kept its beads and the
+      // room went on as if the recording were queued.
+      _sayARecordingIsStranded();
+      return;
+    }
     await _countUnsent();
     await _takes.flush();
     await _countUnsent();
@@ -929,13 +937,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final epoch = _epoch;
     final takes = await _takes.unsentOf('ensaio', sessionId: sessionId);
     final chunks = await _takes.unsentOf('retro', sessionId: sessionId);
-    final stranded = (await _takes.giveUps()).isNotEmpty;
+    final stranded =
+        (await _takes.giveUps()).isNotEmpty || await _takes.lostHistory();
     if (epoch != _epoch) return;
     state = state.copyWith(unsentTakes: takes, unsentChunks: chunks);
-    if (stranded && !_strandedSpoken) {
-      _strandedSpoken = true;
-      unawaited(_voice.playAsset(strandedTakeAsset));
-    }
+    if (stranded) _sayARecordingIsStranded();
+  }
+
+  void _sayARecordingIsStranded() {
+    if (_strandedSpoken) return;
+    _strandedSpoken = true;
+    unawaited(_voice.playAsset(strandedTakeAsset));
   }
 
   void startRetro() {

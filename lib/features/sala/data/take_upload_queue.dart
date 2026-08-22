@@ -30,6 +30,13 @@ class PendingTake {
   final int? passNumber;
   final int? chunkIndex;
   final bool stored;
+  /// The audio this row points at is no longer on disk.
+  ///
+  /// `stored` is the queue's only word for "the room has it", and a vanished file used to
+  /// be written as `stored` — turning a lost recording into a delivered one, after which
+  /// nothing could tell the two apart. Lost is its own answer: it still counts as
+  /// outstanding, it is never retried, and it is what the room says out loud.
+  final bool lost;
   /// Times the room answered and refused. Only these spend the budget.
   final int attempts;
   /// Times the request never got an answer. These pace the retries but never exhaust
@@ -47,6 +54,7 @@ class PendingTake {
     this.passNumber,
     this.chunkIndex,
     this.stored = false,
+    this.lost = false,
     this.attempts = 0,
     this.waits = 0,
     this.lastTry,
@@ -58,6 +66,7 @@ class PendingTake {
 
   PendingTake copyWith({
     bool? stored,
+    bool? lost,
     int? attempts,
     int? waits,
     DateTime? lastTry,
@@ -71,6 +80,7 @@ class PendingTake {
         passNumber: passNumber,
         chunkIndex: chunkIndex,
         stored: stored ?? this.stored,
+        lost: lost ?? this.lost,
         attempts: attempts ?? this.attempts,
         waits: waits ?? this.waits,
         lastTry: lastTry ?? this.lastTry,
@@ -85,6 +95,7 @@ class PendingTake {
         'pass_number': passNumber,
         'chunk_index': chunkIndex,
         'stored': stored,
+        'lost': lost,
         'attempts': attempts,
         'waits': waits,
         'last_try': lastTry?.toIso8601String(),
@@ -99,6 +110,7 @@ class PendingTake {
         passNumber: json['pass_number'] as int?,
         chunkIndex: json['chunk_index'] as int?,
         stored: json['stored'] as bool? ?? false,
+        lost: json['lost'] as bool? ?? false,
         attempts: json['attempts'] as int? ?? 0,
         waits: json['waits'] as int? ?? 0,
         lastTry: DateTime.tryParse(json['last_try'] as String? ?? ''),
@@ -111,6 +123,7 @@ class TakeUploadQueue {
   final List<Duration> _backoff;
   final DateTime Function() _now;
   bool _flushing = false;
+  Future<void> _writes = Future<void>.value();
   int _minted = 0;
 
   TakeUploadQueue({
@@ -157,8 +170,20 @@ class TakeUploadQueue {
   Future<List<PendingTake>> pending() async =>
       [for (final entry in await entries()) if (!entry.stored) entry];
 
-  Future<List<PendingTake>> waiting() async =>
-      [for (final entry in await pending()) if (!entry.exhausted) entry];
+  Future<List<PendingTake>> waiting() async => [
+        for (final entry in await pending())
+          if (!entry.exhausted && !entry.lost) entry,
+      ];
+
+  /// Whether a manifest this queue could not read was set aside.
+  ///
+  /// Its rows named audio that is still on the tablet and the session each one belonged
+  /// to — and the session is the part no scan of the files can recover. The room is not
+  /// allowed to imply everything reached the server after that.
+  Future<bool> lostHistory() async => (await _quarantineFile()).exists();
+
+  Future<File> _quarantineFile() async =>
+      File(p.join((await _dir()).path, '$_manifest.ilegivel'));
 
   /// How many takes of this kind are still on the tablet — and never zero on a doubt.
   ///
@@ -174,8 +199,10 @@ class TakeUploadQueue {
     ].length;
   }
 
-  Future<List<PendingTake>> giveUps() async =>
-      [for (final entry in await pending()) if (entry.exhausted) entry];
+  Future<List<PendingTake>> giveUps() async => [
+        for (final entry in await pending())
+          if (entry.exhausted || entry.lost) entry,
+      ];
 
   bool _ready(PendingTake entry) {
     final last = entry.lastTry;
@@ -188,8 +215,35 @@ class TakeUploadQueue {
   Future<void> _write(List<PendingTake> entries) async {
     final file = await _manifestFile();
     final staging = File('${file.path}.novo');
-    await staging.writeAsString(jsonEncode([for (final e in entries) e.toJson()]));
+    await staging.writeAsString(
+      jsonEncode([for (final e in entries) e.toJson()]),
+      flush: true,
+    );
     await staging.rename(file.path);
+  }
+
+  /// Rewrite the manifest from what is actually on disk, one writer at a time.
+  ///
+  /// Both writers used to build the new list from `entries()`, which reads an unreadable
+  /// file as an empty queue: the first recording after a truncated `fila.json` replaced
+  /// the ledger of every pending take with a single row, and the audio those rows named
+  /// became orphans nothing would ever scan again. Neither writer held a lock either, so
+  /// a keep racing a flush wrote a list built before the other's — dropping the take that
+  /// had just been enqueued.
+  Future<void> _mutate(
+    List<PendingTake> Function(List<PendingTake> written) change,
+  ) {
+    final next = _writes.then((_) async {
+      final written = await _written();
+      if (written == null) {
+        await (await _manifestFile()).rename((await _quarantineFile()).path);
+        await _write(change(const []));
+        return;
+      }
+      await _write(change(written));
+    });
+    _writes = next.then((_) {}, onError: (_) {});
+    return next;
   }
 
   Future<PendingTake> enqueue(
@@ -216,7 +270,7 @@ class TakeUploadQueue {
       passNumber: passNumber,
       chunkIndex: chunkIndex,
     );
-    await _write([...await entries(), entry]);
+    await _mutate((written) => [...written, entry]);
     return entry;
   }
 
@@ -229,7 +283,7 @@ class TakeUploadQueue {
         if (!_ready(entry)) continue;
         final file = File(entry.path);
         if (!await file.exists()) {
-          await _replace(entry, entry.copyWith(stored: true));
+          await _replace(entry, entry.copyWith(lost: true));
           continue;
         }
         try {
@@ -263,12 +317,14 @@ class TakeUploadQueue {
     }
   }
 
-  Future<void> _replace(PendingTake target, PendingTake updated) async {
-    await _write([
-      for (final entry in await entries())
-        if (entry.id == target.id && entry.kind == target.kind) updated else entry,
-    ]);
-  }
+  Future<void> _replace(PendingTake target, PendingTake updated) =>
+      _mutate((written) => [
+            for (final entry in written)
+              if (entry.id == target.id && entry.kind == target.kind)
+                updated
+              else
+                entry,
+          ]);
 }
 
 final takeUploadQueueProvider = Provider<TakeUploadQueue>(
