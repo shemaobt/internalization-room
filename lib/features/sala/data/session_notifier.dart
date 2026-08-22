@@ -191,12 +191,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchPlayback();
   }
 
-  /// Bring the line down first, then let the circle show it speaking.
-  ///
-  /// The download has a 90 s ceiling, and every caller used to enter `speaking` before it
-  /// — the room rippled as if it were talking while nothing came out. `thinking` is what
-  /// this actually is, and it is also what makes the screen refuse a touch that would
-  /// start a second line on top of this one.
   Future<void> _readyToSpeak(String url, String fixedLine) async {
     if (fixedLine.isEmpty) {
       state = state.copyWith(voice: VoiceState.thinking);
@@ -451,8 +445,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  /// Open the room: invite the team the first time, and go straight to the passages
-  /// after that. The panorama belongs to a book, not to a launch.
   Future<void> openTheRoom() async {
     if (state.stage != SalaStage.convite) return;
     if (state.conviteStep != ConviteStep.boasVindas) return;
@@ -567,9 +559,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: VoiceState.invite,
     );
     if (roda.isEmpty) {
-      // Nothing left for the room to offer, which is exactly what needsPerson means —
-      // and it is the only state here with a glyph, a spoken line and a way out. A green
-      // disc that refused every gesture in silence looked like a room that had died.
       _haltForAPerson();
       return;
     }
@@ -615,11 +604,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(goConversa(pericope: passagem.pericope));
   }
 
-  /// Leave a passage part-way and go pick another one.
-  ///
-  /// There was no way out at all: a team that entered the wrong passage was held there
-  /// until it was checked, or had to have the app killed. The passage was never finished,
-  /// so it stays in the wheel, and the upload queue keeps whatever it was already holding.
   void leaveThePassage() {
     _clearAll();
     _emCurso = null;
@@ -849,7 +833,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void ghostPlay() {
     if (state.ensaio == EnsaioStatus.ghostPlaying) {
-      // The button already showed a pause glyph; it just did not pause.
       _releasePlayback();
       unawaited(_playback.stop());
       return;
@@ -875,11 +858,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  /// The take is only offered once the recorder has handed the file back.
-  ///
-  /// Flipping to `recorded` first showed the keep/redo/listen buttons while `stop()` was
-  /// still writing, and a quick keep found no path and dropped the take without a word.
-  /// Staying in `recording` for those few frames is also the truer thing to show.
   Future<void> _finishTake() async {
     final epoch = _epoch;
     final path = await _recorder.stop();
@@ -1026,6 +1004,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       btPhase: BtPhase.capturing,
       voice: VoiceState.listening,
+      btTrechoTocando: false,
     );
     unawaited(
       _recordOrBlock(
@@ -1144,8 +1123,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final take = state.wholeTake;
     final trecho = _trechoOfTheFinding();
     if (take == null || trecho == null) return;
-    // Without a state to show, the stretch played into a screen that looked exactly like
-    // the one waiting for the team to speak.
     _onPlaybackComplete = () {
       state = state.copyWith(btTrechoTocando: false);
     };
