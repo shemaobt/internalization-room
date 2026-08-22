@@ -889,9 +889,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _pullInbox() async {
     final fetched = await _inbox.fetchReplies();
-    // Null is "could not ask", which is not "nothing is waiting". The hand going quiet
-    // because a key was rotated looked exactly like the hand going quiet because nobody
-    // had answered yet.
     if (fetched == null) {
       _inboxSilences++;
       if (_inboxSilences >= _inboxSilencesBeforeSayingSo) _haltForAPerson();
