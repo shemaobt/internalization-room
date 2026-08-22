@@ -1819,11 +1819,14 @@ void main() {
     expect(state.coverage.total, greaterThan(0),
         reason: 'a cobertura é um fato da passagem, não do áudio: a fala que falhou '
             'deixava o fio nu, sem contas e sem o acerto de 30s agendado');
+    expect(harness.room.calls, contains('fetchState'));
     expect(state.voice, VoiceState.invite);
   });
 
   test('the necklace divides the moment the session is born', () async {
-    final harness = SalaHarness()..voice.holdNextFetch();
+    final harness = SalaHarness()
+      ..voice.holdNextFetch()
+      ..room.silentAboutCoverage = true;
     final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
