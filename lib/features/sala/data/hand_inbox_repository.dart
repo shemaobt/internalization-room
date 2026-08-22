@@ -45,7 +45,7 @@ class HandInboxRepository {
         for (final reply in (body['replies'] as List? ?? const []))
           HandReply.fromJson((reply as Map).cast<String, dynamic>()),
       ];
-    } on Exception {
+    } on Object {
       return const [];
     }
   }
@@ -70,19 +70,22 @@ class HandInboxRepository {
     )
       ..headers.addAll(await _headers)
       ..files.add(await http.MultipartFile.fromPath('file', audio.path));
-    final http.Response response;
-    try {
-      // The deadline has to cover draining the body too: wrapping only `send` left the
-      // read with no limit at all, so a half-answered request hung here for good. And a
-      // raw TimeoutException escaping made the caller treat a slow link as a crash.
-      response = await Future(() async {
-        return http.Response.fromStream(await _client.send(request));
-      }).timeout(_uploadTimeout);
-    } on Exception catch (error) {
-      throw RoomUnavailable('$error');
-    }
+    final response = await _sendMultipart(request, timeout: _uploadTimeout);
     if (response.statusCode != 200) {
       throw RoomUnavailable('HTTP ${response.statusCode}');
+    }
+  }
+
+  Future<http.Response> _sendMultipart(
+    http.MultipartRequest request, {
+    Duration timeout = _timeout,
+  }) async {
+    try {
+      return await Future(
+        () async => http.Response.fromStream(await _client.send(request)),
+      ).timeout(timeout);
+    } on Exception catch (error) {
+      throw RoomUnavailable('$error');
     }
   }
 
