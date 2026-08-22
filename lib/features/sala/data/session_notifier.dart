@@ -36,6 +36,9 @@ const _slowAnswersBeforeGivingUp = 3;
 /// How many times the inbox may fail to answer before the room says so out loud.
 const _inboxSilencesBeforeSayingSo = 3;
 
+/// How many canned answers in a row before the room stops pretending it is working.
+const _failSafeTurnsBeforeAPerson = 3;
+
 final busyStateCeilingProvider = Provider<Duration?>(
   (ref) => const Duration(seconds: 120),
 );
@@ -102,6 +105,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   String? _emCurso;
   bool _recontando = false;
   int _inboxSilences = 0;
+  int _failSafeTurns = 0;
   Duration _trechoStart = Duration.zero;
   Duration _trechoEnd = Duration.zero;
   String? _panoramaSessionId;
@@ -292,6 +296,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       peerCue: turn.peerCue,
       coverage: turn.coverage,
     );
+    if (turn.usedFailSafe) {
+      // The server is telling the room this answer is canned because the model failed.
+      // Treating it as an ordinary turn reset every failure counter and advanced the
+      // passage, so a room degraded to fallbacks looked perfectly healthy and could carry
+      // a passage all the way to done on them.
+      _failSafeTurns++;
+      if (_failSafeTurns >= _failSafeTurnsBeforeAPerson) _haltForAPerson();
+    } else {
+      _failSafeTurns = 0;
+    }
     _scheduleSettle();
   }
 
@@ -503,13 +517,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     try {
       final snapshot = await _room.fetchState(sessionId);
       if (epoch != _epoch || state.sessionId != sessionId) return;
+      final told = snapshot.coverage;
       final before = state.coverage.engaged;
-      state = state.copyWith(
-        coverage: snapshot.coverage,
-        ping: snapshot.coverage.engaged > before
-            ? PingRange(before, snapshot.coverage.engaged)
-            : null,
-      );
+      // A turn that carried no coverage leaves the necklace where it is. Reading a
+      // missing field as zero emptied the cord mid-passage — the only record of progress
+      // this team can perceive — and put it back thirty seconds later, or never.
+      if (told != null) {
+        state = state.copyWith(
+          coverage: told,
+          ping: told.engaged > before ? PingRange(before, told.engaged) : null,
+        );
+      }
       if (state.ping != null) {
         _after('ping', const Duration(milliseconds: 700), () {
           state = state.copyWith(clearPing: true);
@@ -1550,6 +1568,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _personAsked = false;
     _recontando = false;
     _inboxSilences = 0;
+    _failSafeTurns = 0;
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
     _pendingTakePath = null;

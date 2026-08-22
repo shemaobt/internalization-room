@@ -794,6 +794,44 @@ void main() {
             'mão emudecia justo quando um facilitador espera ser avisado de que a dele chegou');
   });
 
+  test('a room answering from the tin does not pass for a working one', () async {
+    final harness = SalaHarness();
+    harness.room.turnsAreCanned = true;
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    for (var turno = 0; turno < 3; turno++) {
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+    }
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'o servidor avisa que a resposta é enlatada porque o modelo falhou, e o '
+            'app zerava todo contador e avançava a passagem em cima disso');
+  });
+
+  test('a turn that says nothing about coverage leaves the necklace alone', () async {
+    final harness = SalaHarness(settleDelay: const Duration(milliseconds: 30));
+    harness.room.nextCoverage = coverage(engaged: 3, surfaced: 5);
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    expect(container.read(salaSessionProvider).coverage.engaged, 3);
+
+    harness.room.silentAboutCoverage = true;
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    await settle();
+
+    expect(container.read(salaSessionProvider).coverage.engaged, 3,
+        reason: 'campo ausente lido como zero esvaziava o colar no meio da passagem — o '
+            'único registro de progresso que essa equipe percebe');
+  });
+
   test('hearing again is not offered on top of the retro clip', () async {
     final harness = SalaHarness();
     harness.room.verdictChecked = false;

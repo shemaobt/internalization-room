@@ -255,6 +255,8 @@ class FakeRoom implements RoomRepository {
   final List<String> takesKept = [];
   String? refuseTake;
   bool chunkCaptured = true;
+  bool turnsAreCanned = false;
+  bool silentAboutCoverage = false;
   bool verdictChecked = true;
   BtFindingKind? verdictFinding;
   int? verdictFindingChunk;
@@ -318,7 +320,7 @@ class FakeRoom implements RoomRepository {
       sessionId: sessionId,
       pericope: 'rute-1',
       status: serverStatus ?? (done ? 'done' : 'in_progress'),
-      coverage: settledCoverage ?? nextCoverage,
+      coverage: silentAboutCoverage ? null : (settledCoverage ?? nextCoverage),
       done: done,
     );
   }
@@ -370,8 +372,8 @@ class FakeRoom implements RoomRepository {
         fixedLine: fixedLine,
         transcript: 'a equipe falou',
         peerCue: peerCue,
-        usedFailSafe: false,
-        coverage: nextCoverage,
+        usedFailSafe: turnsAreCanned,
+        coverage: silentAboutCoverage ? null : nextCoverage,
         done: done,
       );
 

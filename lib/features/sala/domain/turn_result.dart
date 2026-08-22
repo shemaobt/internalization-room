@@ -7,7 +7,10 @@ class TurnResult {
   final String transcript;
   final bool peerCue;
   final bool usedFailSafe;
-  final Coverage coverage;
+  /// Null when the turn carried no coverage at all — which is not the same as a passage
+  /// with nothing in it. Reading a missing field as zero emptied the necklace, which is
+  /// the only record of progress this team can perceive.
+  final Coverage? coverage;
   final bool done;
 
   const TurnResult({
@@ -28,9 +31,11 @@ class TurnResult {
         transcript: json['transcript'] as String? ?? '',
         peerCue: json['peer_cue'] as bool? ?? false,
         usedFailSafe: json['used_fail_safe'] as bool? ?? false,
-        coverage: Coverage.fromJson(
-          (json['coverage'] as Map?)?.cast<String, dynamic>() ?? const {},
-        ),
+        coverage: json['coverage'] == null
+            ? null
+            : Coverage.fromJson(
+                (json['coverage'] as Map).cast<String, dynamic>(),
+              ),
         done: json['done'] as bool? ?? false,
       );
 }
