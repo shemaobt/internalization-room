@@ -17,6 +17,7 @@ class RetroView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);
+    final colors = SalaColors.of(context);
     final conferida = session.btPhase == BtPhase.conferida;
     final clipRunning =
         (session.btPhase == BtPhase.playing && !session.btClipEnded) ||
@@ -27,7 +28,8 @@ class RetroView extends ConsumerWidget {
       children: [
         _ChunkBeads(
           passes: session.btChunkPasses,
-          unsent: session.unsentChunks,
+          failures: session.btChunkFailures,
+          colors: colors,
         ),
         const SizedBox(height: 46),
         SizedBox(
@@ -36,7 +38,7 @@ class RetroView extends ConsumerWidget {
           child: Stack(
             alignment: Alignment.center,
             children: [
-              if (clipRunning) const _ClipHalo(),
+              if (clipRunning) _ClipHalo(colors: colors),
               FacilitatorCircle(
                 size: 150,
                 voice: conferida ? VoiceState.done : session.voice,
@@ -121,7 +123,9 @@ class RetroView extends ConsumerWidget {
 }
 
 class _ClipHalo extends StatelessWidget {
-  const _ClipHalo();
+  final SalaColors colors;
+
+  const _ClipHalo({required this.colors});
 
   @override
   Widget build(BuildContext context) {
@@ -142,30 +146,43 @@ class _ClipHalo extends StatelessWidget {
   }
 }
 
+/// One bead per stretch the team told, in the order they told them.
+///
+/// A stretch that landed is filled; one the room never took is hollow, and sits where it
+/// was actually told rather than at the end of the row. Subtracting a count of failures
+/// from a list of successes drew neither: the two never described the same stretch.
 class _ChunkBeads extends StatelessWidget {
   final List<int> passes;
-  final int unsent;
+  final List<int> failures;
+  final SalaColors colors;
 
-  const _ChunkBeads({required this.passes, required this.unsent});
+  const _ChunkBeads({
+    required this.passes,
+    required this.failures,
+    required this.colors,
+  });
 
   @override
   Widget build(BuildContext context) {
+    var told = 0;
     return SizedBox(
       height: 44,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          for (var index = 0; index < passes.length; index++)
+          for (var place = 1; place <= passes.length + failures.length; place++)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 7),
               child: PingIn(
-                child: Bead(
-                  size: 26,
-                  filled: index < passes.length - unsent.clamp(0, passes.length),
-                  border: passes[index] > 1
-                      ? Border.all(color: ShemaBrand.azulInk, width: 2.5)
-                      : null,
-                ),
+                child: failures.contains(place)
+                    ? const Bead(size: 26, filled: false)
+                    : Bead(
+                        size: 26,
+                        filled: true,
+                        border: passes[told++] > 1
+                            ? Border.all(color: ShemaBrand.azulInk, width: 2.5)
+                            : null,
+                      ),
               ),
             ),
         ],

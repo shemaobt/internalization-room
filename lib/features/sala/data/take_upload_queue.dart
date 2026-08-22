@@ -12,6 +12,14 @@ const _manifest = 'fila.json';
 
 const takeUploadAttempts = 5;
 
+/// How many answerless tries pass before the room says a recording is stuck.
+///
+/// Waits deliberately never exhaust the budget — a weak link would spend all five tries
+/// on five slow minutes and abandon audio the room may well have accepted. But the other
+/// half of that decision was never built: a take that only ever times out kept retrying
+/// forever and nobody was ever told. It keeps retrying; it just stops doing it in silence.
+const takeUploadWaitsBeforeSaying = 8;
+
 final takeRetryBackoffProvider = Provider<List<Duration>>(
   (ref) => const [
     Duration(seconds: 5),
@@ -61,6 +69,8 @@ class PendingTake {
   });
 
   bool get exhausted => attempts >= takeUploadAttempts;
+
+  bool get stalled => waits >= takeUploadWaitsBeforeSaying;
 
   int get tries => attempts + waits;
 
@@ -201,7 +211,7 @@ class TakeUploadQueue {
 
   Future<List<PendingTake>> giveUps() async => [
         for (final entry in await pending())
-          if (entry.exhausted || entry.lost) entry,
+          if (entry.exhausted || entry.lost || entry.stalled) entry,
       ];
 
   bool _ready(PendingTake entry) {

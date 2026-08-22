@@ -33,11 +33,17 @@ final busyStateCeilingProvider = Provider<Duration?>(
   (ref) => const Duration(seconds: 120),
 );
 
+/// Slack added to a clip's own length before the room decides the playback is lost. A
+/// provider, not a constant, because a ceiling nothing can shrink is a ceiling no test
+/// can reach — which is how the paused-clip bug shipped.
 final clipGraceProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 10),
 );
 const _settleAttempts = 3;
 
+/// How much sound counts as the team having said something. Below it the room answers
+/// from the bundle instead of paying for a round trip to hear silence — the one place
+/// the app judges a capture rather than forwarding it.
 final shortestSpeechProvider = Provider<Duration>(
   (ref) => const Duration(milliseconds: 900),
 );
@@ -166,6 +172,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _after('playback', ceiling, _releasePlayback);
   }
 
+  /// The ceiling counts what is left of the clip, never its whole length: the retro pauses
+  /// the take for as long as the team needs to tell a stretch back, and a wall-clock ceiling
+  /// would end the clip mid-listening — after which nothing resumes it.
   Duration _leftToHear(Duration length) {
     final grace = ref.read(clipGraceProvider);
     final left = length - _playback.position;
@@ -182,6 +191,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchPlayback();
   }
 
+  /// Bring the line down first, then let the circle show it speaking.
+  ///
+  /// The download has a 90 s ceiling, and every caller used to enter `speaking` before it
+  /// — the room rippled as if it were talking while nothing came out. `thinking` is what
+  /// this actually is, and it is also what makes the screen refuse a touch that would
+  /// start a second line on top of this one.
   Future<void> _readyToSpeak(String url, String fixedLine) async {
     if (fixedLine.isEmpty) {
       state = state.copyWith(voice: VoiceState.thinking);
@@ -366,7 +381,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _timers.remove('retry')?.cancel();
     unawaited(_networkWatch?.cancel());
     _networkWatch = null;
-    unawaited(_takes.flush().then((_) => _countUnsent()));
+    final epoch = _epoch;
+    unawaited(_takes.flush().then((_) {
+      if (epoch == _epoch) unawaited(_countUnsent());
+    }));
     state = state.copyWith(voice: VoiceState.invite);
     if (state.stage == SalaStage.fim) {
       _startOver();
@@ -377,7 +395,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _conviteOpened = false;
       beckon();
     } else if (state.sessionId == null && state.stage == SalaStage.conversa) {
-      unawaited(goConversa(pericope: _emCurso));
+      unawaited(goConversa());
     }
   }
 
@@ -436,6 +454,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
+  /// Open the room: invite the team the first time, and go straight to the passages
+  /// after that. The panorama belongs to a book, not to a launch.
   Future<void> openTheRoom() async {
     if (state.stage != SalaStage.convite) return;
     if (state.conviteStep != ConviteStep.boasVindas) return;
@@ -518,6 +538,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.conviteStep == ConviteStep.boasVindas) unawaited(openConvite());
   }
 
+
   Future<void> abrirEscolha() async {
     _clearAll();
     final epoch = _epoch;
@@ -549,6 +570,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: VoiceState.invite,
     );
     if (roda.isEmpty) {
+      // Nothing left for the room to offer, which is exactly what needsPerson means —
+      // and it is the only state here with a glyph, a spoken line and a way out. A green
+      // disc that refused every gesture in silence looked like a room that had died.
       _haltForAPerson();
       return;
     }
@@ -565,6 +589,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.voice != VoiceState.invite) return;
     final roda = state.naRoda;
     if (roda == null) {
+      // The wheel never loaded. There is nothing to advance and nothing to enter, so the
+      // touch is the retry — otherwise this screen has no live gesture at all.
       unawaited(abrirEscolha());
       return;
     }
@@ -592,6 +618,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(goConversa(pericope: passagem.pericope));
   }
 
+  /// Leave a passage part-way and go pick another one.
+  ///
+  /// There was no way out at all: a team that entered the wrong passage was held there
+  /// until it was checked, or had to have the app killed. The passage was never finished,
+  /// so it stays in the wheel, and the upload queue keeps whatever it was already holding.
   void leaveThePassage() {
     _clearAll();
     _dropThePendingTake();
@@ -827,6 +858,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void ghostPlay() {
     if (state.ensaio == EnsaioStatus.ghostPlaying) {
+      // The button already showed a pause glyph; it just did not pause.
       _releasePlayback();
       unawaited(_playback.stop());
       return;
@@ -852,6 +884,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
+  /// The take is only offered once the recorder has handed the file back.
+  ///
+  /// Flipping to `recorded` first showed the keep/redo/listen buttons while `stop()` was
+  /// still writing, and a quick keep found no path and dropped the take without a word.
+  /// Staying in `recording` for those few frames is also the truer thing to show.
   Future<void> _finishTake() async {
     final epoch = _epoch;
     final path = await _recorder.stop();
@@ -952,16 +989,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> _countUnsent() async {
-    final sessionId = state.sessionId;
-    if (sessionId == null) return;
     final epoch = _epoch;
-    final takes = await _takes.unsentOf('ensaio', sessionId: sessionId);
-    final chunks = await _takes.unsentOf('retro', sessionId: sessionId);
+    // Whether a recording is stuck is not a question about the session in progress, and
+    // asking it only when one existed meant the check at the first frame — the moment a
+    // facilitator is standing there and could act — did nothing at all.
     final stranded =
         (await _takes.giveUps()).isNotEmpty || await _takes.lostHistory();
+    if (stranded && epoch == _epoch) _sayARecordingIsStranded();
+    if (epoch != _epoch) return;
+    final sessionId = state.sessionId;
+    if (sessionId == null) return;
+    final takes = await _takes.unsentOf('ensaio', sessionId: sessionId);
+    final chunks = await _takes.unsentOf('retro', sessionId: sessionId);
     if (epoch != _epoch) return;
     state = state.copyWith(unsentTakes: takes, unsentChunks: chunks);
-    if (stranded) _sayARecordingIsStranded();
   }
 
   void _sayARecordingIsStranded() {
@@ -977,6 +1018,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: VoiceState.invite,
       btPhase: BtPhase.playing,
       btChunkPasses: const [],
+      btChunkFailures: const [],
       btClipEnded: false,
       btFindings: const [],
       btPass: 1,
@@ -986,7 +1028,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _playClipFromStart() {
-    _recontando = false;
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
     state = state.copyWith(
@@ -1013,7 +1054,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.needsPerson) return;
     switch (state.btPhase) {
       case BtPhase.playing:
-        if (!_recontando) _trechoEnd = _playback.position;
+        _trechoEnd = _playback.position;
         _holdClip();
         _startChunkCapture();
       case BtPhase.capturing:
@@ -1030,7 +1071,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       btPhase: BtPhase.capturing,
       voice: VoiceState.listening,
-      btTrechoTocando: false,
     );
     unawaited(
       _recordOrBlock(
@@ -1078,7 +1118,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           passNumber: state.btPass,
           chunkIndex: state.btChunkPasses.length + 1,
         ));
-        state = state.copyWith(btPhase: BtPhase.playing, voice: VoiceState.invite);
+        state = state.copyWith(
+          btPhase: BtPhase.playing,
+          voice: VoiceState.invite,
+          btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
+        );
         if (!state.btClipEnded) _letTheClipRun();
         return;
       }
@@ -1092,7 +1136,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ));
       if (epoch != _epoch) return;
       state = state.copyWith(
-        btChunkPasses: [...state.btChunkPasses, state.btPass],
+        btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
       );
       _handleRoomFailure(error);
       if (!state.btClipEnded) _letTheClipRun();
@@ -1118,6 +1162,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     if (!state.btClipEnded) _letTheClipRun();
   }
+
+  /// Where the stretch just told sits in the row, counting the ones that failed.
+  int _nextChunkPlace() =>
+      state.btChunkPasses.length + state.btChunkFailures.length + 1;
 
   Future<void> finishBackTranslation() async {
     if (!state.canFinishBackTranslation) return;
@@ -1163,6 +1211,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final take = state.wholeTake;
     final trecho = _trechoOfTheFinding();
     if (take == null || trecho == null) return;
+    // Without a state to show, the stretch played into a screen that looked exactly like
+    // the one waiting for the team to speak.
     _onPlaybackComplete = () {
       state = state.copyWith(btTrechoTocando: false);
     };
@@ -1207,13 +1257,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: VoiceState.invite,
       ensaio: EnsaioStatus.idle,
       takes: 0,
-      unsentTakes: 0,
       btPhase: BtPhase.playing,
       btChunkPasses: const [],
+      btChunkFailures: const [],
       btClipEnded: false,
       btFindings: const [],
       btPass: 1,
     );
+    // Asserting `unsentTakes: 0` here was a claim about the disk made without reading it:
+    // the queue still holds the old session's takes, and the two bookkeepers disagreed.
+    unawaited(_countUnsent());
   }
 
   Future<void> _forgetTheAbandonedClip(String sessionId) async {

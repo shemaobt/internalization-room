@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
@@ -273,6 +274,68 @@ void main() {
     await settle();
 
     expect(harness.recorder.deleted, contains(recorded));
+  });
+
+  test('a stretch that failed keeps its own place in the row', () async {
+    final harness = SalaHarness();
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    notifier.startRetro();
+    await settle();
+
+    harness.room.chunkCaptured = false;
+    harness.playback.at = const Duration(seconds: 12);
+    notifier.retroTap();
+    await settle();
+    notifier.retroTap();
+    await until(() => container.read(salaSessionProvider).btChunkFailures.isNotEmpty);
+
+    harness.room.chunkCaptured = true;
+    harness.playback.at = const Duration(seconds: 30);
+    notifier.retroTap();
+    await settle();
+    notifier.retroTap();
+    await until(() => container.read(salaSessionProvider).btChunkPasses.isNotEmpty);
+
+    final state = container.read(salaSessionProvider);
+    expect(state.btChunkFailures, [1],
+        reason: 'o trecho que falhou foi o primeiro, e é a primeira conta que fica oca');
+    expect(state.btChunkPasses, hasLength(1));
+    expect(
+      state.btChunkPasses.length + state.btChunkFailures.length,
+      2,
+      reason: 'uma conta por trecho contado — nem a mais, nem a menos',
+    );
+  });
+
+  test('a stranded recording is spoken before any session exists', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+
+    await harness.takes.enqueue(
+      harness.recorder.aFile('perdida'),
+      sessionId: 'sessao-de-ontem',
+      kind: 'ensaio',
+      scope: 'inteira',
+    );
+    harness.room.reachable = false;
+    for (var wait = 0; wait <= takeUploadWaitsBeforeSaying; wait++) {
+      await harness.takes.flush();
+    }
+
+    await container.read(salaSessionProvider.notifier).refreshUnsent();
+    await settle();
+
+    expect(container.read(salaSessionProvider).sessionId, isNull);
+    expect(harness.voice.assets, contains(strandedTakeAsset));
   });
 
   test('hearing again is not offered on top of the retro clip', () async {

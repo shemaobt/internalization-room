@@ -122,6 +122,9 @@ class FakeRecorder implements RecordingRepository {
     return lastPath = file.path;
   }
 
+  File aFile(String name) => File('${home.path}/$name.m4a')
+    ..writeAsStringSync('a equipe contou a passagem');
+
   @override
   Future<void> discard() async {}
 

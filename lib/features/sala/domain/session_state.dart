@@ -52,6 +52,13 @@ class SalaSessionState {
   final bool playPing;
   final BtPhase btPhase;
   final List<int> btChunkPasses;
+  /// Which stretch numbers the room never took, in the order they were told.
+  ///
+  /// A count could not say this. `btChunkPasses` only grows when a stretch lands, and the
+  /// unsent count only grows when one fails — two disjoint sets, so subtracting one from
+  /// the other hollowed a bead belonging to a stretch that had arrived while the stretch
+  /// actually at risk had no bead at all.
+  final List<int> btChunkFailures;
   /// The passages still to be worked, or null when the wheel has not been read.
   ///
   /// Null and empty must stay apart: empty is a finished book, and the room says so out
@@ -88,6 +95,7 @@ class SalaSessionState {
     this.playPing = false,
     this.btPhase = BtPhase.playing,
     this.btChunkPasses = const [],
+    this.btChunkFailures = const [],
     this.naRoda,
     this.aOferecer = 0,
     this.btTrechos = const [],
@@ -187,6 +195,7 @@ class SalaSessionState {
     bool? playPing,
     BtPhase? btPhase,
     List<int>? btChunkPasses,
+    List<int>? btChunkFailures,
     List<Passagem>? naRoda,
     bool clearRoda = false,
     int? aOferecer,
@@ -222,6 +231,7 @@ class SalaSessionState {
       playPing: playPing ?? this.playPing,
       btPhase: btPhase ?? this.btPhase,
       btChunkPasses: btChunkPasses ?? this.btChunkPasses,
+      btChunkFailures: btChunkFailures ?? this.btChunkFailures,
       naRoda: clearRoda ? null : (naRoda ?? this.naRoda),
       aOferecer: aOferecer ?? this.aOferecer,
       btTrechos: btTrechos ?? this.btTrechos,
