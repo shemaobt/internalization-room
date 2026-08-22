@@ -9,6 +9,7 @@ import '../domain/facilitator_script.dart';
 import '../domain/hand_reply.dart';
 import '../domain/kept_take.dart';
 import '../domain/passagem.dart';
+import '../domain/room_reach.dart';
 import '../domain/session_state.dart';
 import '../domain/spoken_line.dart';
 import '../domain/turn_result.dart';
@@ -163,8 +164,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _cancelTimers();
     state = state.copyWith(clearLastSpoken: true);
     _onPlaybackComplete = null;
-    // Both, not one. A failure callback left behind by an abandoned ghost play fires
-    // across the stage reset and flips a live recording back to idle.
     _onPlaybackFailed = null;
     unawaited(_voice.stop());
     unawaited(_playback.stop());
@@ -185,15 +184,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _playbackFailed ??= _playback.failures.listen((_) => _cannotPlayTheirOwnAudio());
   }
 
-  /// The recording the room was going to play does not play.
-  ///
-  /// This used to arrive as a completion, so the room went on as though the team had
-  /// heard it — and in the retro that is the one thing `terminei` waits for, so a corrupt
-  /// rehearsal could carry a passage all the way to checked with nothing ever played.
-  ///
-  /// Refusing the completion is only half of it: whoever asked for the audio left the
-  /// screen mid-gesture, and something has to unwind it. Running the completion callback
-  /// instead would put the lie back, so each caller says what its own failure looks like.
   void _cannotPlayTheirOwnAudio() {
     _timers.remove('playback')?.cancel();
     _onPlaybackComplete = null;
@@ -331,7 +321,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       peerCue: false,
       clearSession: sessionIsGone,
     );
-    // Self-guarded on a null session, which is what `sessionIsGone` has just produced.
     _tellTheRoomAPersonIsNeeded();
   }
 
@@ -348,7 +337,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case RoomRefused():
         _haltForAPerson();
       case SessionGone():
-        // Nothing to tell a session the room has already forgotten.
         _haltForAPerson(sessionIsGone: true);
       case RoomBroke():
         _registerRoomFailure();
@@ -467,7 +455,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _timers.remove('retry')?.cancel();
     unawaited(_networkWatch?.cancel());
     _networkWatch = null;
-    unawaited(_takes.flush().then((_) => _countUnsent()));
+    final epoch = _epoch;
+    unawaited(_takes.flush().then((_) {
+      if (epoch == _epoch) unawaited(_countUnsent());
+    }));
     state = state.copyWith(voice: VoiceState.invite);
     if (state.stage == SalaStage.fim) {
       _startOver();
@@ -896,9 +887,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _pullInbox() async {
     final fetched = await _inbox.fetchReplies();
-    // Null is "could not ask", which is not "nothing is waiting". The hand going quiet
-    // because a key was rotated looked exactly like the hand going quiet because nobody
-    // had answered yet.
     if (fetched == null) {
       _inboxSilences++;
       if (_inboxSilences >= _inboxSilencesBeforeSayingSo) _haltForAPerson();
@@ -1140,10 +1128,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int? passNumber,
     int? chunkIndex,
   }) async {
-    // Held before the first await, because this is the durable half: once the container
-    // is disposed the provider cannot be read, and I had guarded the enqueue itself on
-    // that — turning a crash into a lost recording, in the one method whose whole job is
-    // not losing recordings.
+    if (_gone) return;
     final queue = _takes;
     final sessionId = state.sessionId;
     final audio = File(path);
@@ -1231,6 +1216,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         (await _takes.giveUps()).isNotEmpty || await _takes.lostHistory();
     if (_gone) return;
     if (stranded && epoch == _epoch) _sayARecordingIsStranded();
+    if (epoch != _epoch) return;
     final sessionId = state.sessionId;
     if (sessionId == null) return;
     final takes = await _takes.unsentOf('ensaio', sessionId: sessionId);
@@ -1271,8 +1257,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     final take = state.wholeTake;
     if (take == null) {
-      // No rehearsal to tell back is not a rehearsal that finished playing. Calling it
-      // one opened `terminei` over an empty back translation.
       _haltForAPerson();
       return;
     }
@@ -1282,9 +1266,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state = state.copyWith(btClipEnded: true);
       },
       onFailed: () {
-        // The one caller I left without this, under a comment saying every caller had it.
-        // A rehearsal that will not open cannot be told back at all, and the retro has no
-        // gesture that recovers — so the room goes back to where a new one can be made.
         state = state.copyWith(
           stage: SalaStage.ensaio,
           ensaio: EnsaioStatus.idle,

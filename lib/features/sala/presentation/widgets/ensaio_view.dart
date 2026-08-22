@@ -206,10 +206,6 @@ class _RecordCircle extends StatelessWidget {
       },
       child: GestureDetector(
         onTap: onTap,
-        // The long press is how a person gets the room going again, and this was the one
-        // screen without it. It is null on a healthy room on purpose: Flutter gives the
-        // long press the arena over the tap, so wiring it unconditionally made a finger
-        // held on the record circle open nothing at all.
         onLongPress: onLongPress,
         behavior: HitTestBehavior.opaque,
         child: AnimatedOpacity(
