@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,10 +7,13 @@ import '../data/session_notifier.dart';
 import '../domain/session_state.dart';
 
 class DevSkipBar extends ConsumerWidget {
-  const DevSkipBar({super.key});
+  final bool debug;
+
+  const DevSkipBar({super.key, this.debug = kDebugMode});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (!debug) return const SizedBox.shrink();
     if (!Env.devPularFases) return const SizedBox.shrink();
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);

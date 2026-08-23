@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/dev/dev_skip_bar.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
@@ -296,6 +297,42 @@ void main() {
 
     expect(find.text('DEV'), findsNothing);
     expect(find.text('pular → ensaio'), findsNothing);
+  });
+
+  testWidgets('a signed build hides the skip bar its .env still turns on',
+      (tester) async {
+    dotenv.testLoad(
+      fileInput: 'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
+    );
+    addTearDown(() => dotenv.testLoad(fileInput: ''));
+    final container = SalaHarness().container();
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          home: Stack(children: [DevSkipBar(debug: true)]),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('DEV'), findsOneWidget);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          home: Stack(children: [DevSkipBar(debug: false)]),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('DEV'), findsNothing,
+        reason: 'o .env do desenvolvedor ia junto no bundle: quatro botões em '
+            'português sobre uma tela sem palavras, e um toque descartava a sessão');
   });
 
   testWidgets('a peer cue turns the circle into team-talk mode',
