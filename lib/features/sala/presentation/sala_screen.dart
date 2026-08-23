@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/facilitator_voice_service.dart';
 import '../data/mic_permission.dart';
+import '../data/screen_awake.dart';
 import '../data/session_notifier.dart';
 import '../data/take_upload_queue.dart';
 import '../domain/facilitator_script.dart';
@@ -31,10 +32,13 @@ class SalaScreen extends ConsumerStatefulWidget {
 }
 
 class _SalaScreenState extends ConsumerState<SalaScreen> with WidgetsBindingObserver {
+  late final ScreenAwake _awake = ref.read(screenAwakeProvider);
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    unawaited(_awake.hold());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!widget.built) {
         ref.read(salaSessionProvider.notifier).haltForABrokenBuild();
@@ -53,6 +57,7 @@ class _SalaScreenState extends ConsumerState<SalaScreen> with WidgetsBindingObse
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    unawaited(_awake.release());
     super.dispose();
   }
 

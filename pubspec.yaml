@@ -23,6 +23,7 @@ dependencies:
   # has no connection before the team taps, not only after a request has already failed.
   connectivity_plus: ^6.1.0
   path: ^1.9.0
+  wakelock_plus: ^1.7.0
 
 # path_provider_foundation 2.6.0 pulls objective_c as a native asset, and that
 # framework ships ad-hoc signed — iOS rejects the install with
