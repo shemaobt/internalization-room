@@ -23,6 +23,10 @@ dependencies:
   # has no connection before the team taps, not only after a request has already failed.
   connectivity_plus: ^6.1.0
   path: ^1.9.0
+  # Outside the AGENTS.md stack list, like connectivity_plus above it: nothing else can
+  # hold the screen, and the team leaves the tablet untouched for minutes at a time. It
+  # raises the Flutter floor to 3.41.0 — below that, `pub get` fails without saying why.
+  wakelock_plus: ^1.7.0
 
 # path_provider_foundation 2.6.0 pulls objective_c as a native asset, and that
 # framework ships ad-hoc signed — iOS rejects the install with

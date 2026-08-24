@@ -521,4 +521,27 @@ void main() {
     expect(find.byType(AdvanceButton), findsOneWidget,
         reason: 'ouvir o ensaio guardado apagava o caminho para a retro');
   });
+
+  testWidgets('the screen is held awake when the room opens, not when the team taps',
+      (tester) async {
+    final harness = SalaHarness();
+    await pumpSala(tester, harness);
+
+    expect(harness.awake.held, isTrue,
+        reason: 'a equipe conversava quatro minutos sem tocar no tablet e o '
+            'bloqueio automático levava junto a gravação aberta');
+  });
+
+  testWidgets('a room that is gone lets the screen sleep again, instead of holding it forever',
+      (tester) async {
+    final harness = SalaHarness();
+    await pumpSala(tester, harness);
+    expect(harness.awake.held, isTrue);
+
+    await tester.pumpWidget(const SizedBox());
+
+    expect(harness.awake.held, isFalse,
+        reason: 'segurar a tela e nunca soltar deixa o tablet aceso muito '
+            'depois de a sala ter saído da frente');
+  });
 }

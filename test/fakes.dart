@@ -10,6 +10,7 @@ import 'package:internalization_room/features/sala/data/hand_inbox_repository.da
 import 'package:internalization_room/features/sala/data/playback_repository.dart';
 import 'package:internalization_room/features/sala/data/recording_repository.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/screen_awake.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -499,6 +500,16 @@ class FakeNetwork implements ConnectivityService {
   void dispose() => _returned.close();
 }
 
+class FakeScreenAwake implements ScreenAwake {
+  bool held = false;
+
+  @override
+  Future<void> hold() async => held = true;
+
+  @override
+  Future<void> release() async => held = false;
+}
+
 class SalaHarness {
   final Directory takesHome = Directory.systemTemp.createTempSync('sala-tomadas');
   final FakeVoice voice = FakeVoice();
@@ -507,6 +518,7 @@ class SalaHarness {
   final FakeInbox inbox;
   final FakeRoom room = FakeRoom();
   final FakeNetwork network = FakeNetwork();
+  final FakeScreenAwake awake = FakeScreenAwake();
   final Duration settleDelay;
   final List<Duration> retryBackoff;
   final Duration? beckonInterval;
@@ -547,6 +559,7 @@ class SalaHarness {
         finishedPassagesProvider.overrideWithValue(finished),
         workInProgressProvider.overrideWithValue(emAberto),
         connectivityServiceProvider.overrideWithValue(network),
+        screenAwakeProvider.overrideWithValue(awake),
         beadSettleDelayProvider.overrideWithValue(settleDelay),
         roomRetryBackoffProvider.overrideWithValue(retryBackoff),
         beckonIntervalProvider.overrideWithValue(beckonInterval),
