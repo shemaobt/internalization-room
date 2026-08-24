@@ -39,7 +39,10 @@ class RecordingRepository {
     try {
       final dir = await _recordingsDir();
       await _recorder.start(
-        const RecordConfig(encoder: AudioEncoder.aacLc),
+        const RecordConfig(
+          encoder: AudioEncoder.aacLc,
+          audioInterruption: AudioInterruptionMode.pauseResume,
+        ),
         path: p.join(dir.path, '$fileName.m4a'),
       );
       return Capture.started;
