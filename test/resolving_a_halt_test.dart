@@ -90,6 +90,45 @@ void main() {
             'falar depois que a pessoa resolveu a parada');
   });
 
+  test('resolving while the room is still out says so instead of inviting',
+      () async {
+    final harness = SalaHarness()..room.reachable = false;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    expect(read().offline, isTrue);
+    final turns = harness.room.turnsSent;
+
+    notifier.resolveWithPerson();
+    await settle(const Duration(milliseconds: 300));
+
+    expect(read().offline, isTrue,
+        reason: 'resolver não põe o servidor de pé; um convite aqui seria o '
+            'mesmo círculo respirando sobre nada, com outra causa');
+
+    notifier.conversaTap();
+    await settle();
+
+    expect(read().voice, isNot(VoiceState.listening),
+        reason: 'e a sala não leva a equipe a falar contra nada: o toque na '
+            'tela de queda é uma nova tentativa, não uma gravação');
+
+    harness.room.reachable = true;
+    await until(() => read().voice == VoiceState.invite);
+    await settle();
+
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    await until(() => harness.room.turnsSent > turns);
+
+    expect(harness.room.turnsSent, turns + 1,
+        reason: 'e quando o servidor volta, a sala volta com sessão e o '
+            'primeiro turno da equipe chega');
+  });
+
   test('a turn spoken the instant a halt is resolved is not lost to the wait',
       () async {
     final harness = SalaHarness();

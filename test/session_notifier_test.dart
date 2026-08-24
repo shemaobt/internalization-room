@@ -542,7 +542,7 @@ void main() {
     expect(container.read(salaSessionProvider).offline, isTrue);
   });
 
-  test('a person resolves the offline halt', () async {
+  test('a person resolves the offline halt once the room answers again', () async {
     final harness = SalaHarness()..room.reachable = false;
     final container = await inConversa(harness);
     addTearDown(container.dispose);
