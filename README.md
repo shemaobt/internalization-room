@@ -63,6 +63,14 @@ flutter run -d <iphone-id>       # on an iPhone (signing team already configured
 
 iOS signing uses the Shemá team (`55ZKR3YQMJ`, bundle id `com.shema.internalizationRoom`). First deploy to a personal device may require trusting the developer profile on the phone (Settings → General → VPN & Device Management).
 
+Android release signing reads `android/key.properties`, which is gitignored and absent from a
+fresh checkout: copy `android/key.properties.example` and fill in the four values. Without it
+`flutter build appbundle --release` stops with a message naming the file rather than producing
+an unsigned artifact, and `flutter run --release` stops with it too — debug and profile builds
+are unaffected. `storeFile` resolves against `android/app/` when relative, so an absolute path
+is the one that does what it looks like. The keystore and its passwords belong in the team's
+secret store: an install can only ever be replaced by a build carrying the same key.
+
 ## Test and lint
 
 ```sh
