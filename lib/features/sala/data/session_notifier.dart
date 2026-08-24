@@ -200,7 +200,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _onPlaybackComplete = onComplete;
     _onPlaybackFailed = onFailed;
     _listenForTheEnd();
-    unawaited(_playback.play(path).then((_) => _watchPlayback()));
+    unawaited(_playback.play(path));
+    _watchPlayback(clipStillOpening: true);
   }
 
   void _listenForTheEnd() {
@@ -225,9 +226,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     callback?.call();
   }
 
-  void _watchPlayback() {
+  void _watchPlayback({bool clipStillOpening = false}) {
     if (_onPlaybackComplete == null) return;
-    final length = _playback.playingLength;
+    final length = clipStillOpening ? null : _playback.playingLength;
     final ceiling = length == null
         ? ref.read(playbackCeilingProvider)
         : _leftToHear(length);
@@ -1930,11 +1931,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         : quiet;
     _onPlaybackFailed = quiet;
     _listenForTheEnd();
-    unawaited(
-      _playback
-          .playRange(state.partes[parte].path, localFrom, localTo)
-          .then((_) => _watchPlayback()),
-    );
+    unawaited(_playback.playRange(state.partes[parte].path, localFrom, localTo));
+    _watchPlayback(clipStillOpening: true);
   }
 
   Trecho? _trechoOfTheFinding() {
