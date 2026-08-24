@@ -45,7 +45,7 @@ The room is wired to `tripod-backend` at `/api/internalization-room`, addressed 
 
 Timing and escalation policy also live in providers so tests can shrink them: `beadSettleDelayProvider`, `beckonIntervalProvider`, `busyStateCeilingProvider`, `playbackCeilingProvider`, `roomRetryBackoffProvider`, `fimLingerProvider`.
 
-Recordings (conversa utterances, questions, ensaio takes, retro segments) are captured under the app documents directory in `recordings/`. Takes and chunks waiting to reach the room are copied to `guardadas/` with a `fila.json` manifest that survives the app closing; that copy is deliberately kept after upload — the rehearsal and the back-translation are the team's product.
+Recordings (conversa utterances, questions, ensaio takes, retro segments) are captured under the app documents directory in `recordings/`. Takes and chunks waiting to reach the room are copied to `guardadas/` with a `fila.json` manifest that survives the app closing; each row names the file, not its absolute path, so the queue still finds the audio after a restore or a reinstall changes the container prefix. That copy is deliberately kept after upload — the rehearsal and the back-translation are the team's product.
 
 ### Known gaps
 
