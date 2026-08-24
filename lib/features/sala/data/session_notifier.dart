@@ -1093,9 +1093,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (await File(take.path).exists()) take,
     ];
     if (epoch != _epoch) return false;
-    if (_gone || here.isEmpty) {
-      // The rehearsal is gone from the tablet, so the retro cannot be told back over it.
-      // The conversa is the step that still works.
+    if (_gone || here.length != waiting.takes.length) {
+      // Not all of the rehearsal is on the tablet, so the retro cannot be told back over
+      // it. The conversa is the step that still works.
       return false;
     }
     state = state.copyWith(
