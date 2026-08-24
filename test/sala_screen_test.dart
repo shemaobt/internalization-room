@@ -299,40 +299,32 @@ void main() {
     expect(find.text('pular → ensaio'), findsNothing);
   });
 
-  testWidgets('a signed build hides the skip bar its .env still turns on',
+  testWidgets("the room's own screen hides the skip bar, not only a bar built by a test",
       (tester) async {
     dotenv.testLoad(
       fileInput: 'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
     );
     addTearDown(() => dotenv.testLoad(fileInput: ''));
-    final container = SalaHarness().container();
+    final harness = SalaHarness();
+    final container = ProviderContainer(
+      overrides: [
+        ...harness.overrides,
+        debugBuildProvider.overrideWithValue(false),
+      ],
+    );
     addTearDown(container.dispose);
 
     await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: const MaterialApp(
-          home: Stack(children: [DevSkipBar(debug: true)]),
-        ),
-      ),
+      UncontrolledProviderScope(container: container, child: const SalaApp()),
     );
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 200));
 
-    expect(find.text('DEV'), findsOneWidget);
-
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: const MaterialApp(
-          home: Stack(children: [DevSkipBar(debug: false)]),
-        ),
-      ),
-    );
-    await tester.pump(const Duration(milliseconds: 100));
-
+    expect(find.byType(DevSkipBar), findsOneWidget,
+        reason: 'a barra segue montada na Stack: o que muda é ela não desenhar nada');
     expect(find.text('DEV'), findsNothing,
-        reason: 'o .env do desenvolvedor ia junto no bundle: quatro botões em '
-            'português sobre uma tela sem palavras, e um toque descartava a sessão');
+        reason: 'o teste anterior montava a barra à mão e passava o sinalizador, '
+            'então trocar o mount de produção por um fixo deixava a suíte verde e '
+            'a barra voltava no release');
   });
 
   testWidgets('a peer cue turns the circle into team-talk mode',
