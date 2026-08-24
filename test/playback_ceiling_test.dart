@@ -73,7 +73,7 @@ void main() {
   test('a part that just began is not ended by the length of the one before it',
       () async {
     final harness = SalaHarness(clipGrace: const Duration(milliseconds: 60))
-      ..playback.length = const Duration(milliseconds: 200);
+      ..playback.length = const Duration(milliseconds: 600);
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -84,25 +84,50 @@ void main() {
     notifier.startRetro();
     await settle();
 
-    harness.playback.at = const Duration(milliseconds: 200);
+    harness.playback.at = const Duration(milliseconds: 600);
     harness.playback.finishPlayback();
     await settle();
 
     expect(container.read(salaSessionProvider).btParteFronteira, isTrue);
 
     notifier.proximaParte();
-    await settle(const Duration(milliseconds: 400));
+    await settle(const Duration(milliseconds: 250));
 
     final state = container.read(salaSessionProvider);
     expect(state.btClipEnded, isFalse,
-        reason: 'a parte que começa agora não tem o tamanho da que acabou; '
-            'medir o teto por ela declararia a gravação inteira ouvida');
+        reason: 'a parte que começa agora não tem o tamanho nem a posição da '
+            'que acabou; medida por elas, ela nasceria já no fim');
     expect(state.btClipRodando, isTrue);
+  });
+
+  test('a clip longer than the generic ceiling is not cut in half', () async {
+    final harness = SalaHarness(
+      playbackCeiling: const Duration(milliseconds: 100),
+      clipGrace: const Duration(milliseconds: 60),
+    )..playback.length = const Duration(milliseconds: 900);
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    await gravaParte(notifier);
+    notifier.startRetro();
+    await settle(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).btClipEnded, isFalse,
+        reason: 'o teto genérico é para um clipe que nunca abriu; assim que o '
+            'clipe abre, quem manda é o comprimento dele');
+
+    await settle(const Duration(milliseconds: 900));
+
+    expect(container.read(salaSessionProvider).btClipEnded, isTrue,
+        reason: 'e o teto continua existindo: passado o comprimento do clipe '
+            'mais a margem, a parte termina mesmo sem aviso de fim');
   });
 
   test('hearing a stretch again does not cut it short', () async {
     final harness = SalaHarness(clipGrace: const Duration(milliseconds: 60))
-      ..playback.length = const Duration(milliseconds: 200)
+      ..playback.length = const Duration(milliseconds: 600)
       ..room.verdictChecked = false
       ..room.verdictFinding = BtFindingKind.missing
       ..room.verdictFindingChunk = 1;
@@ -122,7 +147,7 @@ void main() {
     await until(() => harness.room.chunksSent == 1);
     await settle();
 
-    harness.playback.at = const Duration(milliseconds: 200);
+    harness.playback.at = const Duration(milliseconds: 600);
     harness.playback.finishPlayback();
     await settle();
     await notifier.finishBackTranslation();
@@ -131,7 +156,7 @@ void main() {
     expect(container.read(salaSessionProvider).btTrechoTocando, isTrue);
 
     notifier.retroTap();
-    await settle(const Duration(milliseconds: 400));
+    await settle(const Duration(milliseconds: 250));
 
     expect(container.read(salaSessionProvider).btTrechoTocando, isTrue,
         reason: 'o trecho pedido de novo toca até o fim: o teto herdado do '

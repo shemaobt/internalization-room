@@ -6,6 +6,7 @@ import 'package:just_audio/just_audio.dart';
 class PlaybackRepository {
   final Future<void> Function(String path)? _start;
   final StreamController<bool> _endings = StreamController<bool>.broadcast();
+  final StreamController<void> _openings = StreamController<void>.broadcast();
   StreamSubscription<PlayerState>? _states;
   AudioPlayer? _opened;
   Duration? _openedLength;
@@ -19,6 +20,10 @@ class PlaybackRepository {
 
   Stream<void> get failures =>
       _endings.stream.where((heard) => !heard).map((_) {});
+
+  /// The clip is loaded and its length is known. Until this, `playingLength` still
+  /// answers for the clip before it.
+  Stream<void> get openings => _openings.stream;
 
   Duration? get playingLength => _openedLength;
 
@@ -52,6 +57,7 @@ class PlaybackRepository {
           end: to,
         ),
       );
+      _openings.add(null);
       await _player.play();
     } on Object {
       _endings.add(false);
@@ -62,6 +68,7 @@ class PlaybackRepository {
     _watchCompletion();
     await _player.stop();
     _openedLength = await _player.setFilePath(path);
+    _openings.add(null);
     await _player.play();
   }
 
@@ -90,6 +97,7 @@ class PlaybackRepository {
   Future<void> dispose() async {
     await _states?.cancel();
     await _endings.close();
+    await _openings.close();
     await _opened?.dispose();
   }
 }

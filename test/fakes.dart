@@ -158,6 +158,7 @@ class FakeRecorder implements RecordingRepository {
 class FakePlayback implements PlaybackRepository {
   final StreamController<void> _completions = StreamController<void>.broadcast();
   final StreamController<void> _failures = StreamController<void>.broadcast();
+  final StreamController<void> _openings = StreamController<void>.broadcast();
   final List<String> played = [];
   bool paused = false;
 
@@ -171,6 +172,9 @@ class FakePlayback implements PlaybackRepository {
 
   @override
   Stream<void> get failures => _failures.stream;
+
+  @override
+  Stream<void> get openings => _openings.stream;
 
   void failPlayback() {
     _failures.add(null);
@@ -220,6 +224,12 @@ class FakePlayback implements PlaybackRepository {
     _stopSounding();
     final playing = Completer<void>();
     _playing = playing;
+    // A clip is not open the instant it is asked for: the source loads first, and only
+    // then does the player rewind and know how long it is.
+    scheduleMicrotask(() {
+      at = Duration.zero;
+      _openings.add(null);
+    });
     return playing.future;
   }
 
@@ -230,7 +240,10 @@ class FakePlayback implements PlaybackRepository {
   }
 
   @override
-  Future<void> dispose() async => _completions.close();
+  Future<void> dispose() async {
+    await _completions.close();
+    await _openings.close();
+  }
 }
 
 class FakeFinished implements FinishedPassages {

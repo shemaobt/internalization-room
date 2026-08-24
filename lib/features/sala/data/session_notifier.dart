@@ -131,6 +131,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   String? _pendingTakePath;
   StreamSubscription<void>? _playbackDone;
   StreamSubscription<void>? _playbackFailed;
+  StreamSubscription<void>? _playbackOpened;
   StreamSubscription<void>? _networkWatch;
   VoidCallback? _onPlaybackComplete;
   VoidCallback? _onPlaybackFailed;
@@ -163,6 +164,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _cancelTimers();
       unawaited(_playbackDone?.cancel());
       unawaited(_playbackFailed?.cancel());
+      unawaited(_playbackOpened?.cancel());
       unawaited(_networkWatch?.cancel());
     });
     return const SalaSessionState();
@@ -207,6 +209,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _listenForTheEnd() {
     _playbackDone ??= _playback.completions.listen((_) => _releasePlayback());
     _playbackFailed ??= _playback.failures.listen((_) => _cannotPlayTheirOwnAudio());
+    _playbackOpened ??= _playback.openings.listen((_) => _watchPlayback());
   }
 
   void _cannotPlayTheirOwnAudio() {
