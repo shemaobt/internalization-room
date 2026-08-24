@@ -547,9 +547,15 @@ void main() {
     final container = await inConversa(harness);
     addTearDown(container.dispose);
 
+    harness.room.reachable = true;
     container.read(salaSessionProvider.notifier).resolveWithPerson();
+    await until(
+      () => container.read(salaSessionProvider).voice == VoiceState.invite,
+    );
 
-    expect(container.read(salaSessionProvider).voice, VoiceState.invite);
+    expect(container.read(salaSessionProvider).voice, VoiceState.invite,
+        reason: 'a sala nunca chegou a ter sessão; o convite só é honesto '
+            'depois que ela vai buscar uma');
   });
 
   test('the room comes back without the network ever changing', () async {

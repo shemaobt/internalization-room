@@ -1,0 +1,120 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
+
+import 'fakes.dart';
+import 'session_notifier_test.dart' show inConversa, settle, until;
+
+Future<void> _haltWith(
+  SalaHarness harness,
+  SalaSessionNotifier notifier,
+  SalaSessionState Function() read,
+  Exception failure,
+) async {
+  harness.room.failWith = failure;
+  notifier.conversaTap();
+  await settle();
+  notifier.conversaTap();
+  await until(() => read().needsPerson);
+  harness.room.failWith = null;
+}
+
+int _sessionsOpened(SalaHarness harness) =>
+    harness.room.calls.where((call) => call == 'createSession').length;
+
+void main() {
+  test('a turn spoken after a person resolves a forgotten session reaches the room',
+      () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    await _haltWith(harness, notifier, read, const SessionGone());
+    final turns = harness.room.turnsSent;
+
+    notifier.resolveWithPerson();
+    await until(() => read().voice == VoiceState.invite);
+    await settle();
+
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    await until(() => harness.room.turnsSent > turns);
+
+    expect(harness.room.turnsSent, turns + 1,
+        reason: 'a pessoa resolveu a parada e a equipe falou um turno inteiro; '
+            'sem sessão nenhuma por baixo, o turno era descartado no caminho');
+    expect(read().needsPerson, isFalse,
+        reason: 'e a sala não volta a parar em cima do turno que acabou de ouvir');
+  });
+
+  test('resolving an ordinary halt does not open a second session', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    await _haltWith(harness, notifier, read, const RoomRefused());
+    final opened = _sessionsOpened(harness);
+
+    notifier.resolveWithPerson();
+    await settle(const Duration(milliseconds: 300));
+
+    expect(_sessionsOpened(harness), opened,
+        reason: 'a parada comum não perdeu a sessão; abrir outra abandonaria a '
+            'que a equipe já encheu, e tudo que estava dentro dela');
+  });
+
+  test('a resolved halt hands the team the invite to speak', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    await _haltWith(harness, notifier, read, const SessionGone());
+
+    notifier.resolveWithPerson();
+    await until(() => read().voice == VoiceState.invite);
+    await settle();
+
+    notifier.conversaTap();
+    await settle();
+
+    expect(read().voice, VoiceState.listening,
+        reason: 'o convite não é enfeite: é ele que deixa a equipe começar a '
+            'falar depois que a pessoa resolveu a parada');
+  });
+
+  test('a turn spoken the instant a halt is resolved is not lost to the wait',
+      () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    await _haltWith(harness, notifier, read, const SessionGone());
+    final turns = harness.room.turnsSent;
+
+    notifier.resolveWithPerson();
+    notifier.conversaTap();
+
+    await until(() => read().voice == VoiceState.invite);
+    await settle();
+
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    await until(() => harness.room.turnsSent > turns);
+
+    expect(harness.room.turnsSent, turns + 1,
+        reason: 'tocar o círculo antes de a sala estar de pé não pode consumir '
+            'o turno: a equipe fala uma vez e a sala ouve uma vez');
+    expect(read().needsPerson, isFalse);
+  });
+}

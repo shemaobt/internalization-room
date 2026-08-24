@@ -614,7 +614,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(_networkWatch?.cancel());
     _networkWatch = null;
     state = state.copyWith(voice: VoiceState.invite);
-    beckon();
+    if (state.sessionId == null && state.stage == SalaStage.conversa) {
+      unawaited(goConversa());
+    } else {
+      beckon();
+    }
   }
 
   void _scheduleSettle() {
