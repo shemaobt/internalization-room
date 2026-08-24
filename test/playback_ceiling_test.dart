@@ -155,6 +155,7 @@ void main() {
 
     expect(container.read(salaSessionProvider).btTrechoTocando, isTrue);
 
+    harness.playback.at = const Duration(milliseconds: 600);
     notifier.retroTap();
     await settle(const Duration(milliseconds: 250));
 
