@@ -1,0 +1,13 @@
+# The upload key that signs every release. Mint one with:
+#   keytool -genkey -v -keystore ~/shema-upload-key.jks -storetype JKS \
+#     -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+# The keystore and these passwords belong in the team's secret store, not only on the
+# laptop that built the app: an install can only ever be replaced by a build carrying
+# the same key, so losing it means the room can never be updated again.
+
+# A relative path resolves against android/app/, not against this file's directory —
+# an absolute path is the one that does what it looks like.
+storeFile=/Users/you/shema-upload-key.jks
+keyAlias=upload
+storePassword=
+keyPassword=
