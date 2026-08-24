@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/dev/dev_skip_bar.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
@@ -296,6 +297,34 @@ void main() {
 
     expect(find.text('DEV'), findsNothing);
     expect(find.text('pular → ensaio'), findsNothing);
+  });
+
+  testWidgets("the room's own screen hides the skip bar, not only a bar built by a test",
+      (tester) async {
+    dotenv.testLoad(
+      fileInput: 'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
+    );
+    addTearDown(() => dotenv.testLoad(fileInput: ''));
+    final harness = SalaHarness();
+    final container = ProviderContainer(
+      overrides: [
+        ...harness.overrides,
+        debugBuildProvider.overrideWithValue(false),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const SalaApp()),
+    );
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.byType(DevSkipBar), findsOneWidget,
+        reason: 'a barra segue montada na Stack: o que muda é ela não desenhar nada');
+    expect(find.text('DEV'), findsNothing,
+        reason: 'o teste anterior montava a barra à mão e passava o sinalizador, '
+            'então trocar o mount de produção por um fixo deixava a suíte verde e '
+            'a barra voltava no release');
   });
 
   testWidgets('a peer cue turns the circle into team-talk mode',
