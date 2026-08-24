@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
+import '../../domain/bt_finding.dart';
 import '../../domain/session_state.dart';
 import 'bead.dart';
 import 'bead_styles.dart';
@@ -72,22 +73,26 @@ class RetroView extends ConsumerWidget {
 
   Widget? _actions(SalaSessionState session, SalaSessionNotifier notifier) {
     if (session.btPhase == BtPhase.findings) {
+      final retellingCanSettleIt =
+          !session.btFindings.any((finding) => finding.exitsByReRecording);
       return FadeUp(
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            RoundActionButton(
-              size: 60,
-              semanticLabel: 'Ouvir e contar esta parte de novo',
-              gradient: BeadStyles.wood,
-              onTap: notifier.retellChunk,
-              child: const Icon(
-                LucideIcons.rotateCcw,
-                size: 24,
-                color: ShemaBrand.branco,
+            if (retellingCanSettleIt) ...[
+              RoundActionButton(
+                size: 60,
+                semanticLabel: 'Ouvir e contar esta parte de novo',
+                gradient: BeadStyles.wood,
+                onTap: notifier.retellChunk,
+                child: const Icon(
+                  LucideIcons.rotateCcw,
+                  size: 24,
+                  color: ShemaBrand.branco,
+                ),
               ),
-            ),
-            const SizedBox(width: 28),
+              const SizedBox(width: 28),
+            ],
             RoundActionButton(
               size: 60,
               semanticLabel: 'Gravar esta parte de novo',

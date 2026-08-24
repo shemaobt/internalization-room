@@ -9,7 +9,7 @@ The room walks a team through a passage in five stations, with **zero readable w
 1. **Convite** — the breathing circle welcomes the team and gives the book panorama; a wooden bead opens the passage.
 2. **Conversa** — tap the circle to speak, tap again when finished. Each engaged meaning-map element warms a bead on the colar (oat → half → wood; one bead is a ring: the significant absence — the backend says how many beads there are and which one it is). Tapping the hand records a question that becomes a blue knot on the cord.
 3. **Ensaio** — tap to record the whole passage; listen, re-record, or keep. Kept takes become ghost beads on the thread.
-4. **Retrotradução** — the team's own recording plays; a tap pauses it and captures a piece told back in Portuguese, and a tap sets the clip running again from where it stopped. When the clip ends, *terminei* runs the check, which lands on findings or on *conferida*.
+4. **Retrotradução** — the team's own recording plays; a tap pauses it and captures a piece told back in Portuguese, and a tap sets the clip running again from where it stopped. When the clip ends, *terminei* runs the check, which lands on findings or on *conferida*. A finding offers telling that part again and re-recording it — except for the kinds that are a property of the mother-tongue recording (an addition, a meaning change, a preservation violation), where telling it again cannot remove anything from the recording and only re-recording is offered.
 5. **Fecho** — the cord closes into a circle and the beads glow slowly.
 
 ### Interaction rules taken from the flows document
