@@ -45,12 +45,13 @@ The room is wired to `tripod-backend` at `/api/internalization-room`, addressed 
 
 Timing and escalation policy also live in providers so tests can shrink them: `beadSettleDelayProvider`, `beckonIntervalProvider`, `busyStateCeilingProvider`, `playbackCeilingProvider`, `roomRetryBackoffProvider`, `fimLingerProvider`.
 
-Recordings (conversa utterances, questions, ensaio takes, retro segments) are captured under the app documents directory in `recordings/`. Takes and chunks waiting to reach the room are copied to `guardadas/` with a `fila.json` manifest that survives the app closing; that copy is deliberately kept after upload — the rehearsal and the back-translation are the team's product.
+Recordings (conversa utterances, questions, ensaio takes, retro segments) are captured under the app documents directory in `recordings/`. Capture is opened in `pauseResume`: a call, an alarm or another app taking the microphone pauses the take and the recorder comes back on its own when the interruption ends, instead of staying paused for the rest of the rehearsal. Takes and chunks waiting to reach the room are copied to `guardadas/` with a `fila.json` manifest that survives the app closing; that copy is deliberately kept after upload — the rehearsal and the back-translation are the team's product.
 
 ### Known gaps
 
 - The room decides locally that it `needsPerson` (unplayable lines, repeated room failures, a busy state that overran) but has no way to tell the backend — `needs_person` has no producer server-side either.
 - The back-translation retell loop has no cap, and `pass_number` is client-invented: `POST .../back-translation/chunks` carries no pass or chunk index, so the server cannot tell one pass from another.
+- Nothing in the app listens to the audio session's interruption stream, so while a call holds the microphone the circle still draws a room that is listening. The take resumes by itself; the screen never says it stopped.
 - `dashed_ring.dart` and `BtFindingKind.exitsByReRecording` are written but unused — they encode design and domain rules the running code does not apply.
 
 ## Run
