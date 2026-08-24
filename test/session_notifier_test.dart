@@ -2492,4 +2492,47 @@ void main() {
     await settle(const Duration(milliseconds: 400));
   },
       timeout: const Timeout(Duration(seconds: 20)));
+
+  test('a room gone while it counts what is unsent stops touching its providers',
+      () async {
+    final harness = SalaHarness();
+    final queue = QueueThatHoldsTheCount(
+      room: harness.room,
+      home: () async => harness.takesHome,
+    );
+    final container = ProviderContainer(
+      overrides: [
+        ...harness.overrides,
+        takeUploadQueueProvider.overrideWithValue(queue),
+      ],
+    );
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.goConversa();
+    await settle();
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+
+    notifier.takeKeep();
+    await queue.counting.future;
+    container.dispose();
+    queue.letItFinish.complete();
+
+    await settle(const Duration(milliseconds: 400));
+  }, timeout: const Timeout(Duration(seconds: 20)));
+}
+
+class QueueThatHoldsTheCount extends TakeUploadQueue {
+  QueueThatHoldsTheCount({required super.room, super.home});
+
+  final Completer<void> counting = Completer<void>();
+  final Completer<void> letItFinish = Completer<void>();
+
+  @override
+  Future<List<PendingTake>> giveUps() async {
+    if (!counting.isCompleted) counting.complete();
+    await letItFinish.future;
+    return super.giveUps();
+  }
 }
