@@ -202,6 +202,21 @@ class SalaSessionState {
   bool get canFinishBackTranslation =>
       stage == SalaStage.retro && btPhase == BtPhase.playing && btClipEnded;
 
+  /// The stretch the finding points at, when the pointer names one that was recorded.
+  ///
+  /// The server does not check the pointer against the stretches that exist, so a stale
+  /// or out-of-range one reaches the app and names nothing. Every side that acts on the
+  /// finding reads this: the screen drew the rule a second time, and the day the two
+  /// copies disagreed the dead button was back.
+  Trecho? get btFindingTrecho {
+    final at = btFindingChunk;
+    if (at == null) return null;
+    for (final trecho in btTrechos) {
+      if (trecho.index == at) return trecho.to > trecho.from ? trecho : null;
+    }
+    return null;
+  }
+
   List<KeptTake> get partes => keptTakes;
 
   bool get canGhostPlay => partes.isNotEmpty && ensaio == EnsaioStatus.idle;

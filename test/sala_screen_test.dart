@@ -39,6 +39,7 @@ Future<ProviderContainer> pumpSala(
 }
 
 const retellExit = 'Ouvir e contar esta parte de novo';
+const wholeClipExit = 'Ouvir e contar a gravação de novo';
 const reRecordExit = 'Gravar esta parte de novo';
 
 Future<ProviderContainer> pumpToFindings(
@@ -420,9 +421,34 @@ void main() {
     );
   });
 
-  testWidgets('a missing finding offers the retell and re-record exits',
+  testWidgets('a finding on a stretch offers the retell and re-record exits',
       (tester) async {
-    final container = await pumpToFindings(tester, BtFindingKind.missing);
+    final harness = SalaHarness()
+      ..room.verdictChecked = false
+      ..room.verdictFinding = BtFindingKind.missing
+      ..room.verdictFindingChunk = 1;
+    final container = await pumpSala(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.goConversa();
+    await tester.pump(const Duration(milliseconds: 200));
+    notifier.goEnsaio();
+    await tester.pump(const Duration(milliseconds: 100));
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await tester.pump(const Duration(milliseconds: 100));
+    notifier.takeKeep();
+    notifier.startRetro();
+    await tester.pump(const Duration(milliseconds: 200));
+    harness.playback.at = const Duration(seconds: 10);
+    notifier.cortarTrecho();
+    await tester.pump(const Duration(milliseconds: 200));
+    notifier.retroTap();
+    await tester.pump(const Duration(milliseconds: 600));
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 200));
+    await notifier.finishBackTranslation();
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
     expect(bySemanticsLabelWidget(retellExit), findsOneWidget);
@@ -435,6 +461,11 @@ void main() {
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
     expect(bySemanticsLabelWidget(retellExit), findsNothing);
+    expect(bySemanticsLabelWidget(wholeClipExit), findsNothing,
+        reason: 'telling the whole recording again is the same offer as '
+            'telling one stretch again, only wider — it cannot take out of the '
+            'recording what the kind says is in it, so the pointer being '
+            'absent must not smuggle the offer back in');
     expect(bySemanticsLabelWidget(reRecordExit), findsOneWidget);
   });
 
@@ -448,6 +479,7 @@ void main() {
 
       expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
       expect(bySemanticsLabelWidget(retellExit), findsNothing);
+      expect(bySemanticsLabelWidget(wholeClipExit), findsNothing);
       expect(bySemanticsLabelWidget(reRecordExit), findsOneWidget);
     });
   }
@@ -460,6 +492,7 @@ void main() {
 
       expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
       final offered = bySemanticsLabelWidget(retellExit).evaluate().length +
+          bySemanticsLabelWidget(wholeClipExit).evaluate().length +
           bySemanticsLabelWidget(reRecordExit).evaluate().length;
       expect(offered, greaterThan(0));
     });
