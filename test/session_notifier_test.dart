@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/facilitator_voice_service.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
@@ -2583,5 +2585,32 @@ void main() {
     expect(harness.voice.played, contains(turnoUrl),
         reason: 'uma guarda mal posta cala a sala inteira, e sala muda e pior');
     expect(container.read(salaSessionProvider).coverage.engaged, 7);
+  });
+
+  test('lines the team never hears halt the room for a person', () async {
+    final player = SpeakingPlayer()..stopsBeforeTheEnd = true;
+    final library = Directory.systemTemp.createTempSync('sala-voz-parada');
+    addTearDown(() => library.deleteSync(recursive: true));
+    final harness = SalaHarness(
+      voiceService: FacilitatorVoiceService(
+        fetch: (_) async => Uint8List.fromList([1, 2, 3]),
+        libraryDir: () async => library,
+        player: player,
+      ),
+    );
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    for (var attempt = 0; attempt < 3; attempt++) {
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+    }
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'o dano da issue e os cinco contadores de saude serem zerados '
+            'por uma linha que a equipe nunca ouviu');
   });
 }

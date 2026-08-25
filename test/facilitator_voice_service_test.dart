@@ -3,6 +3,9 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/facilitator_voice_service.dart';
+import 'package:just_audio/just_audio.dart';
+
+import 'fakes.dart';
 
 const _clip = '/api/internalization-room/voice/aaa';
 const _other = '/api/internalization-room/voice/bbb';
@@ -22,12 +25,15 @@ void main() {
     if (library.existsSync()) library.deleteSync(recursive: true);
   });
 
-  FacilitatorVoiceService service() => FacilitatorVoiceService(
+  FacilitatorVoiceService service({AudioPlayer? player, Duration? grace}) =>
+      FacilitatorVoiceService(
         fetch: (url) async {
           fetched.add(url);
           return Uint8List.fromList([1, 2, 3]);
         },
         libraryDir: () async => library,
+        player: player,
+        lineGrace: grace,
       );
 
   test('two callers asking for the same line at once share one download', () async {
@@ -107,5 +113,38 @@ void main() {
     expect(fetched, [_clip],
         reason: 'um arquivo de zero byte de uma escrita interrompida tocaria '
             'silêncio, e a equipe ouve cada frase uma vez só');
+  });
+
+  test('a line the player paused in the middle is not counted as heard', () async {
+    final player = SpeakingPlayer();
+    final voice = service(player: player);
+
+    final speaking = voice.play(_clip);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    player.pauseIt();
+
+    expect(await speaking, isFalse,
+        reason: 'o just_audio resolve o future do play() na pausa e no stop, nao so '
+            'no fim — a sala contava como falada uma linha que a equipe nao ouviu');
+  });
+
+  test('a line that overruns its ceiling is not counted as heard', () async {
+    final player = SpeakingPlayer();
+    final voice = service(player: player, grace: const Duration(milliseconds: 30));
+
+    expect(await voice.play(_clip), isFalse,
+        reason: 'a sala para o tocador e ainda assim dizia que tinha falado');
+  });
+
+  test('a line played to the end is still counted as heard', () async {
+    final player = SpeakingPlayer();
+    final voice = service(player: player);
+
+    final speaking = voice.play(_clip);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    player.reachTheEnd();
+
+    expect(await speaking, isTrue,
+        reason: 'se tudo passar a valer falso a sala se declara doente estando sa');
   });
 }

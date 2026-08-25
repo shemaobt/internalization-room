@@ -1285,6 +1285,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(clearPlayingReply: true);
       return;
     }
+    // No strike count here, unlike every other line. `_markHeard` above is unconditional and
+    // tells the server too, so this answer is gone whatever happened to it — a ducked reply
+    // and a broken one cost the team the same thing, and only a person can now relay it.
+    // Giving this path the three strikes a turn gets would destroy three answers before
+    // anyone was called; a turn survives its strikes because the room can say it again.
     _haltForAPerson();
   }
 
