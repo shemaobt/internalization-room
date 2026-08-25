@@ -2505,4 +2505,83 @@ void main() {
     await settle(const Duration(milliseconds: 400));
   },
       timeout: const Timeout(Duration(seconds: 20)));
+
+  test('a turn that comes back after the team left is not spoken', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    harness.room.holdNextTurn();
+
+    unawaited(notifier.goConversa(pericope: 'P01'));
+    await settle();
+    notifier.leaveThePassage();
+    await settle();
+    final saidBeforeItLanded = harness.voice.played.length;
+    harness.room.finishHeldTurn();
+    await settle();
+
+    expect(harness.voice.played.skip(saidBeforeItLanded), isNot(contains(turnoUrl)),
+        reason: 'a resposta chegou para uma passagem que a equipe ja tinha deixado');
+  });
+
+  test('a turn that comes back after the team left writes no coverage', () async {
+    final harness = SalaHarness();
+    harness.room.nextCoverage = coverage(engaged: 7, surfaced: 2);
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    harness.room.holdNextTurn();
+
+    unawaited(notifier.goConversa(pericope: 'P01'));
+    await settle();
+    notifier.leaveThePassage();
+    await settle();
+    harness.room.finishHeldTurn();
+    await settle();
+
+    expect(container.read(salaSessionProvider).coverage.engaged, 0,
+        reason: 'o colar da passagem nova recebeu o que a passagem velha apurou');
+  });
+
+  test('a spoken turn that comes back after the team left is not spoken either',
+      () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    notifier.conversaTap();
+    await settle();
+    harness.room.holdNextTurn();
+    notifier.conversaTap();
+    await settle();
+
+    notifier.leaveThePassage();
+    await settle();
+    final saidBeforeItLanded = harness.voice.played.length;
+    harness.room.finishHeldTurn();
+    await settle();
+
+    expect(harness.room.calls, contains('sendTurn'),
+        reason: 'sem o envio o teste nao encena a corrida que a issue nomeia');
+    expect(harness.voice.played.skip(saidBeforeItLanded), isNot(contains(turnoUrl)),
+        reason: 'openSession e sendTurn sao dois caminhos e a issue nomeia os dois');
+  });
+
+  test('an ordinary turn is still spoken and still fills the necklace', () async {
+    final harness = SalaHarness();
+    harness.room.nextCoverage = coverage(engaged: 7, surfaced: 2);
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    await settle();
+
+    expect(harness.voice.played, contains(turnoUrl),
+        reason: 'uma guarda mal posta cala a sala inteira, e sala muda e pior');
+    expect(container.read(salaSessionProvider).coverage.engaged, 7);
+  });
 }
