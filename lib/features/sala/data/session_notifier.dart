@@ -1973,6 +1973,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (sessionId != null && !await _theRoomForgotTheAbandonedClip(sessionId)) {
       return;
     }
+    if (state.btPhase != BtPhase.findings) return;
     _clearAll();
     _parteTocando = 0;
     _fimDaParteMs = [];

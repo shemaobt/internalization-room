@@ -1633,6 +1633,33 @@ void main() {
             'segundo toque mandaria a sessao descartar o clipe duas vezes');
   });
 
+  test('a retell told while the restart is in flight is not thrown away',
+      () async {
+    final harness = SalaHarness()
+      ..room.verdictChecked = false
+      ..room.verdictFinding = BtFindingKind.missing
+      ..room.verdictFindingChunk = 1;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await _intoFindings(harness, notifier);
+
+    harness.room.holdNextTurn();
+    notifier.reRecordClip();
+    await settle();
+    notifier.retellChunk();
+    await settle();
+    harness.room.finishHeldTurn();
+    await settle();
+
+    final after = container.read(salaSessionProvider);
+    expect(after.stage, SalaStage.retro,
+        reason: 'a equipe pediu para contar o trecho de novo e a resposta atrasada '
+            'do recomeco a mandava para o ensaio no meio da fala');
+    expect(after.partes, isNotEmpty,
+        reason: 'e levava junto a gravacao que ela estava contando');
+  });
+
   test('a room that halts for a person says so to the server', () async {
     final harness = SalaHarness()..voice.succeeds = false;
     final container = await inConversa(harness);
