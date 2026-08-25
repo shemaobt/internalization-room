@@ -75,18 +75,23 @@ void main() {
 
   test('a canned turn says whether the room was in trouble, not only that it was canned',
       () async {
+    var inTrouble = true;
     final repository = RoomRepository(
       client: MockClient((request) async =>
-          http.Response(_turnBody(usedFailSafe: true, degraded: true), 200)),
+          http.Response(_turnBody(usedFailSafe: true, degraded: inTrouble), 200)),
     );
     addTearDown(repository.dispose);
 
-    final turn = await repository.sendTurn('sessao-1', await _tempRecording());
+    final broken = await repository.sendTurn('sessao-1', await _tempRecording());
+    inTrouble = false;
+    final ensaiando = await repository.sendTurn('sessao-1', await _tempRecording());
 
-    expect(turn.usedFailSafe, isTrue);
-    expect(turn.degraded, isTrue,
-        reason: 'a sala responde da lata tanto quando falha quanto quando a equipe '
-            'ensaia na língua dela, e a diferença só existe se o campo chegar do fio');
+    expect(broken.degraded, isTrue);
+    expect(ensaiando.usedFailSafe, isTrue);
+    expect(ensaiando.degraded, isFalse,
+        reason: 'a sala responde da lata tanto quando falha quanto quando a equipe ensaia '
+            'na língua dela, e os dois campos juntos só provam alguma coisa se a resposta '
+            'trouxer a combinação que existe por causa da correção');
   });
 
   test('the panorama is asked for by name, a plain session is not', () async {
