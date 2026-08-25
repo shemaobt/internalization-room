@@ -73,24 +73,47 @@ class RetroView extends ConsumerWidget {
 
   Widget? _actions(SalaSessionState session, SalaSessionNotifier notifier) {
     if (session.btPhase == BtPhase.findings) {
+      // Two rules meet here. The outer one is about the kind: for a finding that belongs to
+      // the recording rather than to the telling, telling it again settles nothing — and
+      // that holds whether the retell would cover one stretch or the whole clip, so both
+      // go together. The inner one is about the pointer: a finding that names no stretch
+      // has nothing to retell, so the offer degrades to the whole recording instead of to
+      // a button that returns on its first line.
       final retellingCanSettleIt =
           !session.btFindings.any((finding) => finding.exitsByReRecording);
+      final namedStretch = session.btTrechos.any(
+        (trecho) =>
+            trecho.index == session.btFindingChunk && trecho.to > trecho.from,
+      );
       return FadeUp(
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (retellingCanSettleIt) ...[
-              RoundActionButton(
-                size: 60,
-                semanticLabel: 'Ouvir e contar esta parte de novo',
-                gradient: BeadStyles.wood,
-                onTap: notifier.retellChunk,
-                child: const Icon(
-                  LucideIcons.rotateCcw,
-                  size: 24,
-                  color: ShemaBrand.branco,
+              if (namedStretch)
+                RoundActionButton(
+                  size: 60,
+                  semanticLabel: 'Ouvir e contar esta parte de novo',
+                  gradient: BeadStyles.wood,
+                  onTap: notifier.retellChunk,
+                  child: const Icon(
+                    LucideIcons.rotateCcw,
+                    size: 24,
+                    color: ShemaBrand.branco,
+                  ),
+                )
+              else
+                RoundActionButton(
+                  size: 60,
+                  semanticLabel: 'Ouvir e contar a gravação de novo',
+                  gradient: BeadStyles.wood,
+                  onTap: notifier.startRetro,
+                  child: const Icon(
+                    LucideIcons.rotateCcw,
+                    size: 24,
+                    color: ShemaBrand.branco,
+                  ),
                 ),
-              ),
               const SizedBox(width: 28),
             ],
             RoundActionButton(
