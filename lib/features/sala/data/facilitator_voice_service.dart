@@ -18,14 +18,19 @@ class FacilitatorVoiceService {
   final Future<Uint8List> Function(String url) _fetch;
   final Future<Directory> Function() _libraryDir;
   AudioPlayer? _opened;
+  final Duration _grace;
   Future<void> _speaking = Future<void>.value();
   final Map<String, Future<File>> _arriving = {};
 
   FacilitatorVoiceService({
     required Future<Uint8List> Function(String url) fetch,
     Future<Directory> Function()? libraryDir,
+    AudioPlayer? player,
+    Duration? lineGrace,
   })  : _fetch = fetch,
-        _libraryDir = libraryDir ?? _defaultLibraryDir;
+        _libraryDir = libraryDir ?? _defaultLibraryDir,
+        _opened = player,
+        _grace = lineGrace ?? _lineGrace;
 
   AudioPlayer get _player => _opened ??= AudioPlayer();
 
@@ -81,14 +86,21 @@ class FacilitatorVoiceService {
     return spoken;
   }
 
+  /// Whether the team heard the whole line.
+  ///
+  /// just_audio completes the future of `play()` when the sound stops — at the end of the
+  /// line, but equally on a pause, on a stop, or when another app takes the output. Reading
+  /// that as success let an interrupted line clear every health counter the room keeps, and
+  /// pushed the team on to answer a question they were never asked.
   Future<bool> _sayItWhole(Future<Duration?> Function() load) async {
     final length = await load();
     try {
-      await _player.play().timeout((length ?? _unknownLineCeiling) + _lineGrace);
+      await _player.play().timeout((length ?? _unknownLineCeiling) + _grace);
     } on TimeoutException {
       await stop();
+      return false;
     }
-    return true;
+    return _player.processingState == ProcessingState.completed;
   }
   /// The line on disk, downloading it once however many callers ask at the same moment.
   ///
