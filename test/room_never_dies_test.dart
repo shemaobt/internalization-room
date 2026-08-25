@@ -816,8 +816,10 @@ void main() {
       await settle();
     }
 
-    expect(harness.voice.assets, contains(fixedLineAsset('G0')),
-        reason: 'sem a linha da sala tocando, o teste passaria por nunca ter havido turno');
+    final ditas = harness.voice.assets.where((a) => a == fixedLineAsset('G0')).length;
+    expect(ditas, 3,
+        reason: 'a parada é na terceira; um teste que não chega lá passa sem nunca ter '
+            'exercido a contagem que ele existe para prender');
     expect(container.read(salaSessionProvider).needsPerson, isFalse,
         reason: 'a equipe fazia o que a sala pediu — ensaiar na língua dela — e no terceiro '
             'turno o app parava a sessão para um facilitador que não estava na casa');
