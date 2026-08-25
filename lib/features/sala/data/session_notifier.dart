@@ -362,8 +362,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(voice: VoiceState.invite);
   }
 
-  Future<void> _voiceTurn(TurnResult turn) async {
-    final epoch = _epoch;
+  Future<void> _voiceTurn(TurnResult turn, int epoch) async {
+    if (epoch != _epoch) return;
     _captureBridgeMode(turn);
     state = state.copyWith(coverage: turn.coverage);
     _scheduleSettle();
@@ -1040,7 +1040,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         }
       }
       // Re-opening carries the coverage back with it, so the necklace fills itself.
-      await _voiceTurn(await _room.openSession(sessionId));
+      await _voiceTurn(await _room.openSession(sessionId), epoch);
     } on SessionGone {
       if (epoch != _epoch) return;
       if (pericope != null) {
@@ -1195,7 +1195,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(voice: VoiceState.thinking);
     _watchBusyState();
     try {
-      await _voiceTurn(await _room.sendTurn(sessionId, File(path)));
+      await _voiceTurn(await _room.sendTurn(sessionId, File(path)), epoch);
     } on Exception catch (error) {
       if (epoch != _epoch) return;
       _handleRoomFailure(error);

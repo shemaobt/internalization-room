@@ -280,6 +280,7 @@ class FakeFinished implements FinishedPassages {
 /// In memory, like the finished-passages double. The real one touches disk, and the
 /// wheel now reads it on every open — under a widget test's fake clock that never
 /// resolves, which hangs the whole suite.
+const turnoUrl = '/api/internalization-room/voice/turno';
 const panoramaUrl = '/api/internalization-room/voice/panorama';
 const sceneUrl = '/api/internalization-room/voice/cena';
 
@@ -377,6 +378,20 @@ class FakeRoom implements RoomRepository {
 
   Exception? failWith;
 
+  Completer<void>? _holdingTurn;
+
+  void holdNextTurn() => _holdingTurn = Completer<void>();
+
+  void finishHeldTurn() {
+    _holdingTurn?.complete();
+    _holdingTurn = null;
+  }
+
+  Future<void> _turnArrives() {
+    final held = _holdingTurn;
+    return held == null ? Future<void>.value() : held.future;
+  }
+
   void _guard(String call) {
     calls.add(call);
     final failure = failWith;
@@ -432,6 +447,7 @@ class FakeRoom implements RoomRepository {
   @override
   Future<TurnResult> openSession(String sessionId) async {
     _guard('openSession');
+    await _turnArrives();
     return _turn(sessionId);
   }
 
@@ -467,12 +483,13 @@ class FakeRoom implements RoomRepository {
   Future<TurnResult> sendTurn(String sessionId, File audio) async {
     _guard('sendTurn');
     turnsSent++;
+    await _turnArrives();
     return _turn(sessionId);
   }
 
   TurnResult _turn(String sessionId) => TurnResult(
         sessionId: sessionId,
-        audioUrl: fixedLine.isEmpty ? '/api/internalization-room/voice/turno' : '',
+        audioUrl: fixedLine.isEmpty ? turnoUrl : '',
         fixedLine: fixedLine,
         transcript: 'a equipe falou',
         peerCue: peerCue,
