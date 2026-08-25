@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -22,6 +23,13 @@ Future<void> _haltWith(
 
 int _sessionsOpened(SalaHarness harness) =>
     harness.room.calls.where((call) => call == 'createSession').length;
+
+Future<ProviderContainer> _naPassagem(SalaHarness harness, String pericope) async {
+  final container = harness.container();
+  await container.read(salaSessionProvider.notifier).goConversa(pericope: pericope);
+  await settle();
+  return container;
+}
 
 void main() {
   test('a turn spoken after a person resolves a forgotten session reaches the room',
@@ -155,5 +163,89 @@ void main() {
         reason: 'tocar o círculo antes de a sala estar de pé não pode consumir '
             'o turno: a equipe fala uma vez e a sala ouve uma vez');
     expect(read().needsPerson, isFalse);
+  });
+
+  test('a passage entered again after a resolved halt lands where they stopped',
+      () async {
+    final harness = SalaHarness();
+    final container = await _naPassagem(harness, 'P01');
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    await _haltWith(harness, notifier, read, const SessionGone());
+
+    notifier.resolveWithPerson();
+    await until(() => read().voice == VoiceState.invite);
+    await settle();
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    await settle();
+
+    notifier.leaveThePassage();
+    await settle();
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+
+    expect(read().stage, SalaStage.ensaio,
+        reason: 'a parada resolvida reabriu a passagem sem nome, entao nada do '
+            'que a equipe gravou depois dela ficou anotado na passagem: voltar '
+            'punha a equipe na conversa de novo, com o ensaio perdido');
+  });
+
+  test('a passage finished after a resolved halt leaves the wheel', () async {
+    final harness = SalaHarness();
+    final container = await _naPassagem(harness, 'P01');
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    await _haltWith(harness, notifier, read, const SessionGone());
+
+    notifier.resolveWithPerson();
+    await until(() => read().voice == VoiceState.invite);
+    await settle();
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    notifier.startRetro();
+    await settle();
+    harness.playback.finishPlayback();
+    await settle();
+    await notifier.finishBackTranslation();
+    await settle();
+
+    expect(harness.finished.done, contains('Ruth/P01'),
+        reason: 'a equipe terminou a passagem inteira; sem o nome dela por '
+            'baixo, a roda continua oferecendo a passagem que acabou de ser '
+            'conferida');
+  });
+
+  test('the room coming back opens the passage the team was already in',
+      () async {
+    final harness = SalaHarness()..network.reachable = false;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+    expect(read().offline, isTrue);
+
+    harness.network.reachable = true;
+    await until(() => read().voice == VoiceState.invite);
+    await settle();
+
+    expect(harness.room.pericopesAsked.last, 'P01',
+        reason: 'a sala voltou sozinha para dentro da mesma passagem; abrir a '
+            'sessao sem pericope nenhum e comecar outra passagem no lugar dela');
   });
 }
