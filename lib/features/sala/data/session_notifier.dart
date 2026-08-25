@@ -1909,7 +1909,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _leadThemToTheTrecho() {
-    final trecho = _trechoOfTheFinding();
+    final trecho = state.btFindingTrecho;
     if (state.partes.isEmpty || trecho == null) return;
     state = state.copyWith(btTrechoTocando: true);
     _tocarFaixaGlobal(trecho.from, trecho.to);
@@ -1950,18 +1950,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchPlayback(clipStillOpening: true);
   }
 
-  Trecho? _trechoOfTheFinding() {
-    final at = state.btFindingChunk;
-    if (at == null) return null;
-    for (final trecho in state.btTrechos) {
-      if (trecho.index == at) return trecho.to > trecho.from ? trecho : null;
-    }
-    return null;
-  }
-
   void retellChunk() {
     if (state.btPhase != BtPhase.findings) return;
-    final trecho = _trechoOfTheFinding();
+    final trecho = state.btFindingTrecho;
     if (trecho == null) return;
     _trechoStart = trecho.from;
     _trechoEnd = trecho.to;

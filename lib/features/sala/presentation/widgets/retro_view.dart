@@ -81,10 +81,7 @@ class RetroView extends ConsumerWidget {
       // a button that returns on its first line.
       final retellingCanSettleIt =
           !session.btFindings.any((finding) => finding.exitsByReRecording);
-      final namedStretch = session.btTrechos.any(
-        (trecho) =>
-            trecho.index == session.btFindingChunk && trecho.to > trecho.from,
-      );
+      final namedStretch = session.btFindingTrecho != null;
       return FadeUp(
         child: Row(
           mainAxisSize: MainAxisSize.min,
