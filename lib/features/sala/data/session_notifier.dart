@@ -608,7 +608,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _conviteOpened = false;
       beckon();
     } else if (state.sessionId == null && state.stage == SalaStage.conversa) {
-      unawaited(goConversa());
+      unawaited(goConversa(pericope: _emCurso));
     }
   }
 
@@ -625,7 +625,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(_networkWatch?.cancel());
     _networkWatch = null;
     state = state.copyWith(voice: VoiceState.invite);
-    beckon();
+    if (state.sessionId == null && state.stage == SalaStage.conversa) {
+      unawaited(goConversa(pericope: _emCurso));
+    } else {
+      beckon();
+    }
   }
 
   void _scheduleSettle() {
