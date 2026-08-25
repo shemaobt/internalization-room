@@ -1383,6 +1383,13 @@ void main() {
     expect(container.read(salaSessionProvider).btClipEnded, isFalse);
     expect(container.read(salaSessionProvider).btPhase, BtPhase.playing,
         reason: 'e a escuta volta de onde parou, em vez de ficar muda para sempre');
+
+    notifier.ouvirGravacao();
+    await settle();
+
+    expect(container.read(salaSessionProvider).btClipRodando, isTrue,
+        reason: 'o que sobrou do clipe continua alcançável: dado por terminado, '
+            'o áudio que ninguém ouviu não tinha mais como ser tocado');
   });
 
   test('asking for a person in the retro always leaves a live gesture', () async {

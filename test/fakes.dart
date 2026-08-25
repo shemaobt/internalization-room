@@ -158,12 +158,23 @@ class FakeRecorder implements RecordingRepository {
 class FakePlayback implements PlaybackRepository {
   final StreamController<void> _completions = StreamController<void>.broadcast();
   final StreamController<void> _failures = StreamController<void>.broadcast();
+  final StreamController<void> _openings = StreamController<void>.broadcast();
   final List<String> played = [];
   bool paused = false;
 
   Duration? length;
   Duration at = Duration.zero;
   final List<String> ranges = [];
+  Completer<void>? _playing;
+  Completer<void>? _opening;
+
+  /// Hold the source load, the way an old tablet with a long take does.
+  void holdNextOpening() => _opening = Completer<void>();
+
+  void finishHeldOpening() {
+    _opening?.complete();
+    _opening = null;
+  }
 
   @override
   Stream<void> get completions => _completions.stream;
@@ -171,7 +182,13 @@ class FakePlayback implements PlaybackRepository {
   @override
   Stream<void> get failures => _failures.stream;
 
-  void failPlayback() => _failures.add(null);
+  @override
+  Stream<void> get openings => _openings.stream;
+
+  void failPlayback() {
+    _failures.add(null);
+    _stopSounding();
+  }
 
   @override
   Duration? get playingLength => length;
@@ -180,27 +197,64 @@ class FakePlayback implements PlaybackRepository {
   Duration get position => at;
 
   @override
-  Future<void> play(String path) async => played.add(path);
-
-  @override
-  Future<void> playRange(String path, Duration from, Duration to) async {
+  Future<void> play(String path) {
     played.add(path);
-    ranges.add('${from.inMilliseconds}-${to.inMilliseconds}');
+    return _soundUntilItStops();
   }
 
   @override
-  Future<void> pause() async => paused = true;
+  Future<void> playRange(String path, Duration from, Duration to) {
+    played.add(path);
+    ranges.add('${from.inMilliseconds}-${to.inMilliseconds}');
+    return _soundUntilItStops();
+  }
+
+  @override
+  Future<void> pause() async {
+    paused = true;
+    _stopSounding();
+  }
 
   @override
   Future<void> resume() async => paused = false;
 
   @override
-  Future<void> stop() async {}
+  Future<void> stop() async => _stopSounding();
 
-  void finishPlayback() => _completions.add(null);
+  void finishPlayback() {
+    _completions.add(null);
+    _stopSounding();
+  }
+
+  // just_audio only completes the future of `play` when the sound stops: at the end
+  // of the clip, on a pause or on a stop. A double that returns at once hides
+  // everything hung off that future.
+  Future<void> _soundUntilItStops() {
+    _stopSounding();
+    final playing = Completer<void>();
+    _playing = playing;
+    // A clip is not open the instant it is asked for: the source loads first, and only
+    // then does the player rewind and know how long it is.
+    final held = _opening;
+    scheduleMicrotask(() async {
+      await held?.future;
+      at = Duration.zero;
+      _openings.add(null);
+    });
+    return playing.future;
+  }
+
+  void _stopSounding() {
+    final playing = _playing;
+    _playing = null;
+    playing?.complete();
+  }
 
   @override
-  Future<void> dispose() async => _completions.close();
+  Future<void> dispose() async {
+    await _completions.close();
+    await _openings.close();
+  }
 }
 
 class FakeFinished implements FinishedPassages {
