@@ -169,4 +169,46 @@ void main() {
     expect(container.read(salaSessionProvider).btTrechoTocando, isFalse,
         reason: 'e quem cala o trecho é o fim dele');
   });
+
+  test('a clip that opens after the team has already paused it does not end the part',
+      () async {
+    final harness = SalaHarness(
+      clipGrace: const Duration(milliseconds: 40),
+      playbackCeiling: const Duration(seconds: 5),
+    )..playback.length = const Duration(milliseconds: 80);
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    await gravaParte(notifier);
+    harness.playback.holdNextOpening();
+    notifier.startRetro();
+    await settle();
+
+    expect(container.read(salaSessionProvider).btClipRodando, isTrue,
+        reason: 'a sala já se diz tocando enquanto a fonte ainda carrega, e é '
+            'por isso que o toque da equipe é aceito aqui');
+
+    notifier.ouvirGravacao();
+    await settle();
+
+    expect(container.read(salaSessionProvider).btClipRodando, isFalse);
+
+    harness.playback.finishHeldOpening();
+    await settle(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).btClipEnded, isFalse,
+        reason: 'a abertura chegou depois da pausa e armou o teto por cima de '
+            'um clipe parado: a parte terminava sozinha com a equipe ainda '
+            'explicando, que é o defeito que este branch tira pela porta larga');
+
+    notifier.ouvirGravacao();
+    await settle(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).btClipEnded, isTrue,
+        reason: 'e a abertura tardia não custa o teto: ao voltar a tocar, a '
+            'parte termina no que lhe restava, senão o conserto seria não '
+            'medir mais nada');
+  });
 }

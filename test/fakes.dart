@@ -166,6 +166,15 @@ class FakePlayback implements PlaybackRepository {
   Duration at = Duration.zero;
   final List<String> ranges = [];
   Completer<void>? _playing;
+  Completer<void>? _opening;
+
+  /// Hold the source load, the way an old tablet with a long take does.
+  void holdNextOpening() => _opening = Completer<void>();
+
+  void finishHeldOpening() {
+    _opening?.complete();
+    _opening = null;
+  }
 
   @override
   Stream<void> get completions => _completions.stream;
@@ -226,7 +235,9 @@ class FakePlayback implements PlaybackRepository {
     _playing = playing;
     // A clip is not open the instant it is asked for: the source loads first, and only
     // then does the player rewind and know how long it is.
-    scheduleMicrotask(() {
+    final held = _opening;
+    scheduleMicrotask(() async {
+      await held?.future;
       at = Duration.zero;
       _openings.add(null);
     });
