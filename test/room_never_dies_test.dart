@@ -800,9 +800,33 @@ void main() {
             'mão emudecia justo quando um facilitador espera ser avisado de que a dele chegou');
   });
 
+  test('a team rehearsing in its own language is not a room in trouble', () async {
+    final harness = SalaHarness();
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.room.turnsAreCanned = true;
+    harness.room.fixedLine = 'G0';
+
+    for (var turno = 0; turno < 3; turno++) {
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+    }
+
+    expect(harness.voice.assets, contains(fixedLineAsset('G0')),
+        reason: 'sem a linha da sala tocando, o teste passaria por nunca ter havido turno');
+    expect(container.read(salaSessionProvider).needsPerson, isFalse,
+        reason: 'a equipe fazia o que a sala pediu — ensaiar na língua dela — e no terceiro '
+            'turno o app parava a sessão para um facilitador que não estava na casa');
+  });
+
   test('a room answering from the tin does not pass for a working one', () async {
     final harness = SalaHarness();
     harness.room.turnsAreCanned = true;
+    harness.room.turnsAreDegraded = true;
     final container = await inConversaHarness(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);

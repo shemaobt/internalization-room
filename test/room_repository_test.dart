@@ -7,13 +7,14 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 
-String _turnBody() => jsonEncode({
+String _turnBody({bool usedFailSafe = false, bool degraded = false}) => jsonEncode({
       'session_id': 'sessao-1',
       'audio_base64': base64Encode([1, 2, 3]),
       'mime_type': 'audio/mpeg',
       'transcript': '',
       'peer_cue': false,
-      'used_fail_safe': false,
+      'used_fail_safe': usedFailSafe,
+      'degraded': degraded,
       'coverage': {
         'engaged': 0,
         'surfaced': 0,
@@ -70,6 +71,22 @@ void main() {
         reason: 'o cabeçalho multipart é escrito mesmo sem nenhuma parte — só o '
             'corpo prova que a gravação foi junto');
     expect(seenBody, contains('filename='));
+  });
+
+  test('a canned turn says whether the room was in trouble, not only that it was canned',
+      () async {
+    final repository = RoomRepository(
+      client: MockClient((request) async =>
+          http.Response(_turnBody(usedFailSafe: true, degraded: true), 200)),
+    );
+    addTearDown(repository.dispose);
+
+    final turn = await repository.sendTurn('sessao-1', await _tempRecording());
+
+    expect(turn.usedFailSafe, isTrue);
+    expect(turn.degraded, isTrue,
+        reason: 'a sala responde da lata tanto quando falha quanto quando a equipe '
+            'ensaia na língua dela, e a diferença só existe se o campo chegar do fio');
   });
 
   test('the panorama is asked for by name, a plain session is not', () async {

@@ -20,6 +20,7 @@ class TurnResult {
   final String transcript;
   final bool peerCue;
   final bool usedFailSafe;
+  final bool degraded;
   /// Null when the turn carried no coverage at all — which is not the same as a passage
   /// with nothing in it. Reading a missing field as zero emptied the necklace, which is
   /// the only record of progress this team can perceive.
@@ -40,6 +41,7 @@ class TurnResult {
     required this.transcript,
     required this.peerCue,
     required this.usedFailSafe,
+    required this.degraded,
     required this.coverage,
     required this.done,
     this.bridgeMode = '',
@@ -67,6 +69,7 @@ class TurnResult {
         transcript: json['transcript'] as String? ?? '',
         peerCue: json['peer_cue'] as bool? ?? false,
         usedFailSafe: json['used_fail_safe'] as bool? ?? false,
+        degraded: json['degraded'] as bool? ?? false,
         coverage: json['coverage'] == null
             ? null
             : Coverage.fromJson(
