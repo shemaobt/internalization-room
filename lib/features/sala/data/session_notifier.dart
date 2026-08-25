@@ -107,6 +107,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   DateTime? _listeningSince;
   String? _emCurso;
   bool _recontando = false;
+  /// The clip is paused. `_onPlaybackComplete` deliberately survives a pause — the resume
+  /// still has to be able to end the part — so it cannot be what tells a ceiling whether
+  /// there is any sound left to measure.
+  bool _clipHeld = false;
   int _inboxSilences = 0;
   int _failSafeTurns = 0;
   Duration _trechoStart = Duration.zero;
@@ -199,6 +203,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   String _stamp() => DateTime.now().millisecondsSinceEpoch.toString();
 
   void _play(String path, {VoidCallback? onComplete, VoidCallback? onFailed}) {
+    _clipHeld = false;
     _onPlaybackComplete = onComplete;
     _onPlaybackFailed = onFailed;
     _listenForTheEnd();
@@ -230,7 +235,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _watchPlayback({bool clipStillOpening = false}) {
-    if (_onPlaybackComplete == null) return;
+    if (_onPlaybackComplete == null || _clipHeld) return;
     final length = clipStillOpening ? null : _playback.playingLength;
     final ceiling = length == null
         ? ref.read(playbackCeilingProvider)
@@ -249,11 +254,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _holdClip() {
+    _clipHeld = true;
     _timers.remove('playback')?.cancel();
     unawaited(_playback.pause());
   }
 
   void _letTheClipRun() {
+    _clipHeld = false;
     unawaited(_playback.resume());
     _watchPlayback();
   }
@@ -1933,6 +1940,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         ? () => _tocarFaixaGlobal(Duration(milliseconds: fimDaParte), to)
         : quiet;
     _onPlaybackFailed = quiet;
+    _clipHeld = false;
     _listenForTheEnd();
     unawaited(_playback.playRange(state.partes[parte].path, localFrom, localTo));
     _watchPlayback(clipStillOpening: true);
