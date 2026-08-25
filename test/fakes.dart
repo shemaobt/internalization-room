@@ -3,6 +3,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:internalization_room/features/sala/data/connectivity_service.dart';
 import 'package:internalization_room/features/sala/data/facilitator_voice_service.dart';
 import 'package:internalization_room/features/sala/data/finished_passages.dart';
@@ -584,6 +586,7 @@ class FakeScreenAwake implements ScreenAwake {
 class SalaHarness {
   final Directory takesHome = Directory.systemTemp.createTempSync('sala-tomadas');
   final FakeVoice voice = FakeVoice();
+  final FacilitatorVoiceService? voiceService;
   final FakeRecorder recorder = FakeRecorder();
   final FakePlayback playback = FakePlayback();
   final FakeInbox inbox;
@@ -600,6 +603,7 @@ class SalaHarness {
   final Duration fimLinger;
 
   SalaHarness({
+    this.voiceService,
     List<HandReply> replies = const [],
     this.settleDelay = const Duration(milliseconds: 60),
     this.retryBackoff = const [Duration(milliseconds: 20)],
@@ -621,7 +625,7 @@ class SalaHarness {
   );
 
   List<Override> get overrides => [
-        facilitatorVoiceProvider.overrideWithValue(voice),
+        facilitatorVoiceProvider.overrideWithValue(voiceService ?? voice),
         recordingRepositoryProvider.overrideWithValue(recorder),
         playbackRepositoryProvider.overrideWithValue(playback),
         handInboxRepositoryProvider.overrideWithValue(inbox),
@@ -642,4 +646,62 @@ class SalaHarness {
       ];
 
   ProviderContainer container() => ProviderContainer(overrides: overrides);
+}
+
+class SpeakingPlayer extends Fake implements AudioPlayer {
+  final _states = StreamController<PlayerState>.broadcast();
+  Completer<void>? _sounding;
+  Duration? lineLength = const Duration(milliseconds: 20);
+  bool stopsBeforeTheEnd = false;
+  ProcessingState _state = ProcessingState.ready;
+
+  @override
+  ProcessingState get processingState => _state;
+
+  @override
+  Stream<PlayerState> get playerStateStream => _states.stream;
+
+  @override
+  Future<Duration?> setFilePath(
+    String path, {
+    Duration? initialPosition,
+    bool preload = true,
+    dynamic tag,
+  }) async =>
+      lineLength;
+
+  @override
+  Future<Duration?> setAsset(
+    String assetPath, {
+    Duration? initialPosition,
+    String? package,
+    bool preload = true,
+    dynamic tag,
+  }) async =>
+      lineLength;
+
+  @override
+  Future<void> play() {
+    _sounding = Completer<void>();
+    if (stopsBeforeTheEnd) _quiet();
+    return _sounding!.future;
+  }
+
+  @override
+  Future<void> stop() async => _quiet();
+
+  void pauseIt() => _quiet();
+
+  void reachTheEnd() {
+    _state = ProcessingState.completed;
+    _states.add(PlayerState(false, ProcessingState.completed));
+    _quiet();
+  }
+
+  void _quiet() {
+    if (_sounding?.isCompleted == false) _sounding!.complete();
+  }
+
+  @override
+  Future<void> dispose() async => _states.close();
 }
