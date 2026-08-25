@@ -1,0 +1,147 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/main.dart';
+
+import 'fakes.dart';
+
+const retellStretchExit = 'Ouvir e contar esta parte de novo';
+const wholeClipExit = 'Ouvir e contar a gravação de novo';
+const reRecordExit = 'Gravar esta parte de novo';
+
+Finder bySemanticsLabelWidget(String label) => find.byWidgetPredicate(
+      (widget) => widget is Semantics && widget.properties.label == label,
+    );
+
+Future<ProviderContainer> pumpToFindings(
+  WidgetTester tester,
+  BtFindingKind? finding, {
+  int? chunk,
+}) async {
+  final harness = SalaHarness()
+    ..room.verdictChecked = false
+    ..room.verdictFinding = finding
+    ..room.verdictFindingChunk = chunk;
+  final container = harness.container();
+  addTearDown(container.dispose);
+  await tester.pumpWidget(
+    UncontrolledProviderScope(container: container, child: const SalaApp()),
+  );
+  await tester.pump(const Duration(milliseconds: 100));
+
+  final notifier = container.read(salaSessionProvider.notifier);
+  await notifier.goConversa();
+  await tester.pump(const Duration(milliseconds: 200));
+  notifier.goEnsaio();
+  await tester.pump(const Duration(milliseconds: 100));
+  notifier.ensaioTap();
+  notifier.ensaioTap();
+  await tester.pump(const Duration(milliseconds: 100));
+  notifier.takeKeep();
+  notifier.startRetro();
+  await tester.pump(const Duration(milliseconds: 200));
+
+  harness.playback.at = const Duration(seconds: 10);
+  notifier.cortarTrecho();
+  await tester.pump(const Duration(milliseconds: 200));
+  notifier.retroTap();
+  await tester.pump(const Duration(milliseconds: 600));
+  harness.playback.finishPlayback();
+  await tester.pump(const Duration(milliseconds: 200));
+  await notifier.finishBackTranslation();
+  await tester.pump(const Duration(milliseconds: 300));
+  return container;
+}
+
+int exitsOffered() =>
+    bySemanticsLabelWidget(retellStretchExit).evaluate().length +
+    bySemanticsLabelWidget(wholeClipExit).evaluate().length +
+    bySemanticsLabelWidget(reRecordExit).evaluate().length;
+
+void main() {
+  testWidgets('a verdict that names no stretch leaves the rehearsal standing',
+      (tester) async {
+    final container = await pumpToFindings(
+      tester,
+      BtFindingKind.insufficientEvidence,
+    );
+    final rehearsed = container.read(salaSessionProvider).partes.length;
+    expect(rehearsed, greaterThan(0));
+
+    await tester.tap(bySemanticsLabelWidget(wholeClipExit));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).partes.length, rehearsed);
+  });
+
+  testWidgets('a verdict that names no stretch offers a path that works',
+      (tester) async {
+    final container = await pumpToFindings(
+      tester,
+      BtFindingKind.insufficientEvidence,
+    );
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await tester.tap(bySemanticsLabelWidget(wholeClipExit));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
+
+    notifier.cortarTrecho();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);
+  });
+
+  testWidgets('a verdict that names a stretch still tells that stretch again',
+      (tester) async {
+    final container = await pumpToFindings(
+      tester,
+      BtFindingKind.missing,
+      chunk: 1,
+    );
+
+    await tester.tap(bySemanticsLabelWidget(retellStretchExit));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
+  });
+
+  testWidgets('re-recording stays on offer when no stretch was named',
+      (tester) async {
+    final container = await pumpToFindings(
+      tester,
+      BtFindingKind.insufficientEvidence,
+    );
+
+    await tester.tap(bySemanticsLabelWidget(reRecordExit));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
+  });
+
+  testWidgets('a finding only re-recording can settle, with no stretch named, '
+      'still leaves a way out that works', (tester) async {
+    final container = await pumpToFindings(tester, BtFindingKind.addition);
+
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
+    expect(exitsOffered(), greaterThan(0));
+
+    for (final label in [retellStretchExit, wholeClipExit, reRecordExit]) {
+      if (bySemanticsLabelWidget(label).evaluate().isEmpty) continue;
+      final container2 = await pumpToFindings(tester, BtFindingKind.addition);
+      final before = container2.read(salaSessionProvider);
+      await tester.tap(bySemanticsLabelWidget(label));
+      await tester.pump(const Duration(milliseconds: 300));
+      final after = container2.read(salaSessionProvider);
+      expect(
+        after.btPhase != before.btPhase || after.stage != before.stage,
+        isTrue,
+        reason: '"$label" was offered and did nothing',
+      );
+    }
+  });
+}

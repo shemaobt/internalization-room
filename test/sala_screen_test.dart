@@ -420,9 +420,34 @@ void main() {
     );
   });
 
-  testWidgets('a missing finding offers the retell and re-record exits',
+  testWidgets('a finding on a stretch offers the retell and re-record exits',
       (tester) async {
-    final container = await pumpToFindings(tester, BtFindingKind.missing);
+    final harness = SalaHarness()
+      ..room.verdictChecked = false
+      ..room.verdictFinding = BtFindingKind.missing
+      ..room.verdictFindingChunk = 1;
+    final container = await pumpSala(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.goConversa();
+    await tester.pump(const Duration(milliseconds: 200));
+    notifier.goEnsaio();
+    await tester.pump(const Duration(milliseconds: 100));
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await tester.pump(const Duration(milliseconds: 100));
+    notifier.takeKeep();
+    notifier.startRetro();
+    await tester.pump(const Duration(milliseconds: 200));
+    harness.playback.at = const Duration(seconds: 10);
+    notifier.cortarTrecho();
+    await tester.pump(const Duration(milliseconds: 200));
+    notifier.retroTap();
+    await tester.pump(const Duration(milliseconds: 600));
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 200));
+    await notifier.finishBackTranslation();
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
     expect(bySemanticsLabelWidget(retellExit), findsOneWidget);
