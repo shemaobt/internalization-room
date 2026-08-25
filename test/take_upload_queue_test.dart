@@ -33,6 +33,25 @@ void main() {
 
   File manifest() => File('${home.path}/guardadas/fila.json');
 
+  /// The tablet comes back from a backup under a container prefix it has never had.
+  void theContainerIsRenamed() {
+    final restored = Directory.systemTemp.createTempSync('fila-tomadas-restaurada');
+    Directory('${home.path}/guardadas')
+        .renameSync('${restored.path}/guardadas');
+    home.deleteSync(recursive: true);
+    home = restored;
+  }
+
+  void aQueueWrittenByTheOlderApp(String name) {
+    final dir = Directory('${home.path}/guardadas')..createSync(recursive: true);
+    File('${dir.path}/$name').writeAsStringSync('a equipe contou a passagem');
+    File('${dir.path}/fila.json').writeAsStringSync(
+      '[{"id":"antiga","path":"${dir.path}/$name","session_id":"sessao-1",'
+      '"kind":"ensaio","scope":"inteira","pass_number":null,"chunk_index":null,'
+      '"stored":false,"lost":false,"attempts":0,"waits":0,"last_try":null}]',
+    );
+  }
+
   test('a manifest it cannot read is never rewritten from scratch', () async {
     final room = FakeRoom()..reachable = false;
     final queue = queueOn(room);
@@ -314,5 +333,68 @@ void main() {
     expect(waiting, hasLength(1));
     expect(waiting.single.attempts, 0);
     expect(await queue.flush(), 1);
+  });
+
+  test('a take kept before a restore is sent after the container is renamed', () async {
+    final room = FakeRoom()..reachable = false;
+    await queueOn(room).enqueue(
+      aTake('tomada'),
+      sessionId: 'sessao-1',
+      kind: 'ensaio',
+      scope: 'inteira',
+    );
+
+    theContainerIsRenamed();
+    room.reachable = true;
+    final afterRestore = queueOn(room);
+
+    expect(await afterRestore.flush(), 1,
+        reason: 'o ensaio está em guardadas/, intacto: a restauração só trocou o prefixo '
+            'do contêiner, e a fila o dava por perdido para sempre');
+    expect(room.takesKept, ['ensaio/inteira']);
+  });
+
+  test('a take whose audio really vanished stays lost across a restore', () async {
+    final room = FakeRoom()..reachable = false;
+    final entry = await queueOn(room).enqueue(
+      aTake('tomada'),
+      sessionId: 'sessao-1',
+      kind: 'ensaio',
+      scope: 'inteira',
+    );
+    File(entry.path).deleteSync();
+
+    theContainerIsRenamed();
+    room.reachable = true;
+    final afterRestore = queueOn(room);
+    await afterRestore.flush();
+
+    expect(await afterRestore.waiting(), isEmpty,
+        reason: 'reconstruir o caminho não pode virar tentar para sempre um áudio que '
+            'não está mais no aparelho');
+    expect(await afterRestore.giveUps(), hasLength(1),
+        reason: 'um áudio que sumiu continua contando como pendente, e a sala diz isso');
+    expect(room.takesKept, isEmpty);
+  });
+
+  test('a queue written by the older app, with absolute paths, is still sent', () async {
+    aQueueWrittenByTheOlderApp('ensaio-antiga-1.m4a');
+
+    final queue = queueOn(FakeRoom());
+
+    expect(await queue.flush(), 1,
+        reason: 'os tablets do piloto já têm fila.json gravado no formato de hoje — '
+            'deixar de ler o formato antigo perde gravação em toda atualização');
+  });
+
+  test('a queue written by the older app survives the container being renamed', () async {
+    aQueueWrittenByTheOlderApp('ensaio-antiga-1.m4a');
+    final room = FakeRoom();
+
+    theContainerIsRenamed();
+
+    expect(await queueOn(room).flush(), 1,
+        reason: 'é o tablet de piloto real: manifesto no formato antigo e restauração de '
+            'backup no mesmo aparelho');
   });
 }

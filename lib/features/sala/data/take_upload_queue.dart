@@ -32,6 +32,13 @@ final takeRetryBackoffProvider = Provider<List<Duration>>(
 
 class PendingTake {
   final String id;
+  /// Where the audio is right now, resolved against `guardadas/` every time the manifest
+  /// is read.
+  ///
+  /// Only the file name is written down. The absolute path carries the container prefix
+  /// the device hands out, and that prefix changes on a restore, a reinstall, or a move
+  /// to another tablet — after which every row pointed at a directory that no longer
+  /// existed and the queue called recordings lost while the files sat untouched beside it.
   final String path;
   final String sessionId;
   final String kind;
@@ -99,7 +106,7 @@ class PendingTake {
 
   Map<String, Object?> toJson() => {
         'id': id,
-        'path': path,
+        'name': p.basename(path),
         'session_id': sessionId,
         'kind': kind,
         'scope': scope,
@@ -112,9 +119,16 @@ class PendingTake {
         'last_try': lastTry?.toIso8601String(),
       };
 
-  factory PendingTake.fromJson(Map<String, Object?> json) => PendingTake(
+  factory PendingTake.fromJson(
+    Map<String, Object?> json, {
+    required String folder,
+  }) =>
+      PendingTake(
         id: json['id'] as String,
-        path: json['path'] as String,
+        path: p.join(
+          folder,
+          p.basename((json['name'] ?? json['path']) as String),
+        ),
         sessionId: json['session_id'] as String,
         kind: json['kind'] as String,
         scope: json['scope'] as String,
@@ -164,12 +178,14 @@ class TakeUploadQueue {
   /// nothing about where the audio is, and answering "nothing pending" to that told the
   /// team their recordings were safe on the word of a file we had just failed to read.
   Future<List<PendingTake>?> _written() async {
-    final file = await _manifestFile();
+    final folder = (await _dir()).path;
+    final file = File(p.join(folder, _manifest));
     if (!await file.exists()) return const [];
     try {
       final raw = jsonDecode(await file.readAsString()) as List<Object?>;
       return [
-        for (final entry in raw) PendingTake.fromJson(entry as Map<String, Object?>),
+        for (final entry in raw)
+          PendingTake.fromJson(entry as Map<String, Object?>, folder: folder),
       ];
     } on Object {
       return null;
