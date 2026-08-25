@@ -56,11 +56,6 @@ Future<ProviderContainer> pumpToFindings(
   return container;
 }
 
-int exitsOffered() =>
-    bySemanticsLabelWidget(retellStretchExit).evaluate().length +
-    bySemanticsLabelWidget(wholeClipExit).evaluate().length +
-    bySemanticsLabelWidget(reRecordExit).evaluate().length;
-
 void main() {
   testWidgets('a verdict that names no stretch leaves the rehearsal standing',
       (tester) async {
@@ -128,15 +123,19 @@ void main() {
     final container = await pumpToFindings(tester, BtFindingKind.addition);
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
-    expect(exitsOffered(), greaterThan(0));
+    final offered = [retellStretchExit, wholeClipExit, reRecordExit]
+        .where((label) => bySemanticsLabelWidget(label).evaluate().isNotEmpty)
+        .toList();
+    expect(offered, [wholeClipExit, reRecordExit],
+        reason: 'an addition that names no stretch has two ways out, and both '
+            'have to be on the screen for either of them to be exercised');
 
-    for (final label in [retellStretchExit, wholeClipExit, reRecordExit]) {
-      if (bySemanticsLabelWidget(label).evaluate().isEmpty) continue;
-      final container2 = await pumpToFindings(tester, BtFindingKind.addition);
-      final before = container2.read(salaSessionProvider);
+    for (final label in offered) {
+      final room = await pumpToFindings(tester, BtFindingKind.addition);
+      final before = room.read(salaSessionProvider);
       await tester.tap(bySemanticsLabelWidget(label));
       await tester.pump(const Duration(milliseconds: 300));
-      final after = container2.read(salaSessionProvider);
+      final after = room.read(salaSessionProvider);
       expect(
         after.btPhase != before.btPhase || after.stage != before.stage,
         isTrue,
