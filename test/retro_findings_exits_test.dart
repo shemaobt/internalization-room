@@ -126,9 +126,13 @@ void main() {
     final offered = [retellStretchExit, wholeClipExit, reRecordExit]
         .where((label) => bySemanticsLabelWidget(label).evaluate().isNotEmpty)
         .toList();
-    expect(offered, [wholeClipExit, reRecordExit],
-        reason: 'an addition that names no stretch has two ways out, and both '
-            'have to be on the screen for either of them to be exercised');
+    expect(offered, [reRecordExit],
+        reason: 'as duas regras valem juntas aqui. A adição pertence à '
+            'gravação, e contar de novo não tira dela o que a equipe pôs — '
+            'nem um trecho, nem a gravação inteira: as duas são a mesma '
+            'família de saída, e o ponteiro do achado não muda qual família '
+            'responde ao tipo dele. Sobra regravar, que é a mesma saída que a '
+            'sala já oferece para uma adição COM trecho apontado');
 
     for (final label in offered) {
       final room = await pumpToFindings(tester, BtFindingKind.addition);
