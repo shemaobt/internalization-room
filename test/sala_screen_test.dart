@@ -38,6 +38,36 @@ Future<ProviderContainer> pumpSala(
   return container;
 }
 
+const retellExit = 'Ouvir e contar esta parte de novo';
+const reRecordExit = 'Gravar esta parte de novo';
+
+Future<ProviderContainer> pumpToFindings(
+  WidgetTester tester,
+  BtFindingKind? finding,
+) async {
+  final harness = SalaHarness()
+    ..room.verdictChecked = false
+    ..room.verdictFinding = finding;
+  final container = await pumpSala(tester, harness);
+  final notifier = container.read(salaSessionProvider.notifier);
+
+  await notifier.goConversa();
+  await tester.pump(const Duration(milliseconds: 200));
+  notifier.goEnsaio();
+  await tester.pump(const Duration(milliseconds: 100));
+  notifier.ensaioTap();
+  notifier.ensaioTap();
+  await tester.pump(const Duration(milliseconds: 100));
+  notifier.takeKeep();
+  notifier.startRetro();
+  await tester.pump(const Duration(milliseconds: 200));
+  harness.playback.finishPlayback();
+  await tester.pump(const Duration(milliseconds: 200));
+  await notifier.finishBackTranslation();
+  await tester.pump(const Duration(milliseconds: 200));
+  return container;
+}
+
 Future<void> takeATurn(WidgetTester tester, ProviderContainer container) async {
   final notifier = container.read(salaSessionProvider.notifier);
   notifier.conversaTap();
@@ -390,36 +420,50 @@ void main() {
     );
   });
 
-  testWidgets('the findings screen offers the retell and re-record exits',
+  testWidgets('a missing finding offers the retell and re-record exits',
       (tester) async {
-    final harness = SalaHarness()
-      ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.addition;
-    final container = await pumpSala(tester, harness);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    await notifier.goConversa();
-    await tester.pump(const Duration(milliseconds: 200));
-    notifier.goEnsaio();
-    await tester.pump(const Duration(milliseconds: 100));
-    notifier.ensaioTap();
-    notifier.ensaioTap();
-    await tester.pump(const Duration(milliseconds: 100));
-    notifier.takeKeep();
-    notifier.startRetro();
-    await tester.pump(const Duration(milliseconds: 200));
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(milliseconds: 200));
-    await notifier.finishBackTranslation();
-    await tester.pump(const Duration(milliseconds: 200));
+    final container = await pumpToFindings(tester, BtFindingKind.missing);
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
-    expect(
-      bySemanticsLabelWidget('Ouvir e contar esta parte de novo'),
-      findsOneWidget,
-    );
-    expect(bySemanticsLabelWidget('Gravar esta parte de novo'), findsOneWidget);
+    expect(bySemanticsLabelWidget(retellExit), findsOneWidget);
+    expect(bySemanticsLabelWidget(reRecordExit), findsOneWidget);
   });
+
+  testWidgets('an addition finding offers re-recording and nothing else',
+      (tester) async {
+    final container = await pumpToFindings(tester, BtFindingKind.addition);
+
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
+    expect(bySemanticsLabelWidget(retellExit), findsNothing);
+    expect(bySemanticsLabelWidget(reRecordExit), findsOneWidget);
+  });
+
+  for (final kind in [
+    BtFindingKind.meaningChange,
+    BtFindingKind.preservationViolation,
+  ]) {
+    testWidgets('a ${kind.name} finding offers re-recording and nothing else',
+        (tester) async {
+      final container = await pumpToFindings(tester, kind);
+
+      expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
+      expect(bySemanticsLabelWidget(retellExit), findsNothing);
+      expect(bySemanticsLabelWidget(reRecordExit), findsOneWidget);
+    });
+  }
+
+  for (final kind in <BtFindingKind?>[...BtFindingKind.values, null]) {
+    testWidgets(
+        'a ${kind?.name ?? 'kind this build does not know'} finding always '
+        'leaves the team a way out', (tester) async {
+      final container = await pumpToFindings(tester, kind);
+
+      expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
+      final offered = bySemanticsLabelWidget(retellExit).evaluate().length +
+          bySemanticsLabelWidget(reRecordExit).evaluate().length;
+      expect(offered, greaterThan(0));
+    });
+  }
 
   testWidgets('the ensaio offers ghost play before recording', (tester) async {
     final container = await pumpSala(tester, SalaHarness());
