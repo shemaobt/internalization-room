@@ -360,6 +360,7 @@ class FakeRoom implements RoomRepository {
   String? refuseTake;
   bool chunkCaptured = true;
   bool turnsAreCanned = false;
+  bool turnsAreDegraded = false;
   bool silentAboutCoverage = false;
   bool verdictChecked = true;
   BtFindingKind? verdictFinding;
@@ -496,6 +497,7 @@ class FakeRoom implements RoomRepository {
         transcript: 'a equipe falou',
         peerCue: peerCue,
         usedFailSafe: turnsAreCanned,
+        degraded: turnsAreDegraded,
         coverage: silentAboutCoverage ? null : nextCoverage,
         done: done,
         bridgeMode: bridgeMode,

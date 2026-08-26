@@ -39,8 +39,8 @@ const _slowAnswersBeforeGivingUp = 3;
 /// How many times the inbox may fail to answer before the room says so out loud.
 const _inboxSilencesBeforeSayingSo = 3;
 
-/// How many canned answers in a row before the room stops pretending it is working.
-const _failSafeTurnsBeforeAPerson = 3;
+/// How many degraded turns in a row before the room stops pretending it is working.
+const _degradedTurnsBeforeAPerson = 3;
 
 final busyStateCeilingProvider = Provider<Duration?>(
   (ref) => const Duration(seconds: 120),
@@ -112,7 +112,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// there is any sound left to measure.
   bool _clipHeld = false;
   int _inboxSilences = 0;
-  int _failSafeTurns = 0;
+  int _degradedTurns = 0;
   Duration _trechoStart = Duration.zero;
   Duration _trechoEnd = Duration.zero;
   int _retroClipMs = 0;
@@ -396,15 +396,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: turn.done ? VoiceState.done : VoiceState.invite,
       peerCue: turn.peerCue,
     );
-    if (turn.usedFailSafe) {
-      // The server is telling the room this answer is canned because the model failed.
-      // Treating it as an ordinary turn reset every failure counter and advanced the
-      // passage, so a room degraded to fallbacks looked perfectly healthy and could carry
-      // a passage all the way to done on them.
-      _failSafeTurns++;
-      if (_failSafeTurns >= _failSafeTurnsBeforeAPerson) _haltForAPerson();
+    if (turn.degraded) {
+      _degradedTurns++;
+      if (_degradedTurns >= _degradedTurnsBeforeAPerson) _haltForAPerson();
     } else {
-      _failSafeTurns = 0;
+      _degradedTurns = 0;
     }
     _scheduleSettle();
   }
@@ -2048,7 +2044,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _personAsked = false;
     _recontando = false;
     _inboxSilences = 0;
-    _failSafeTurns = 0;
+    _degradedTurns = 0;
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
     _parteTocando = 0;
