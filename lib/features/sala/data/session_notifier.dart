@@ -1104,9 +1104,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (await File(take.path).exists()) take,
     ];
     if (epoch != _epoch) return false;
-    if (_gone || here.isEmpty) {
-      // The rehearsal is gone from the tablet, so the retro cannot be told back over it.
-      // The conversa is the step that still works.
+    if (_gone || here.length != waiting.takes.length) {
+      // Not all of the rehearsal is on the tablet, so the retro cannot be told back over
+      // it. The conversa is the step that still works.
       return false;
     }
     state = state.copyWith(
@@ -1573,19 +1573,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _countUnsent() async {
     if (_gone) return;
     final epoch = _epoch;
+    final queue = _takes;
     // Whether a recording is stuck is not a question about the session in progress, and
     // asking it only when one existed meant the check at the first frame — the moment a
     // facilitator is standing there and could act — did nothing at all.
     final stranded =
-        (await _takes.giveUps()).isNotEmpty || await _takes.lostHistory();
+        (await queue.giveUps()).isNotEmpty || await queue.lostHistory();
     if (_gone) return;
     if (stranded && epoch == _epoch) _sayARecordingIsStranded();
     if (epoch != _epoch) return;
     final sessionId = state.sessionId;
     if (sessionId == null) return;
-    final takes = await _takes.unsentOf('ensaio', sessionId: sessionId);
-    final chunks = await _takes.unsentOf('retro', sessionId: sessionId);
-    final scopes = await _takes.unsentScopesOf('ensaio', sessionId: sessionId);
+    final takes = await queue.unsentOf('ensaio', sessionId: sessionId);
+    final chunks = await queue.unsentOf('retro', sessionId: sessionId);
+    final scopes = await queue.unsentScopesOf('ensaio', sessionId: sessionId);
     if (_gone || epoch != _epoch) return;
     state = state.copyWith(
       unsentTakes: takes,
