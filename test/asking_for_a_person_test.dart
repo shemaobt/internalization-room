@@ -88,15 +88,17 @@ void main() {
     await _stopForAPerson(notifier, read);
     await until(() => _callsForAPerson(harness) >= 1);
 
-    harness.room.failWith = null;
-    notifier.resolveWithPerson();
-    await settle();
     final pedidos = _callsForAPerson(harness);
+    notifier.resolveWithPerson();
     await settle(_severalStepsOfTheLadder);
 
     expect(_callsForAPerson(harness), pedidos,
         reason: 'a pessoa chegou e tocou a tela; uma sala já atendida que '
-            'continua chamando põe a mesma sessão de volta na fila da mesa');
+            'continua chamando põe a mesma sessão de volta na fila da mesa. '
+            'O pedido segue falhando depois do toque de propósito: com o '
+            'servidor de pé, um passo da escada que sobrou vivo sucederia e '
+            'encerraria a insistência por conta própria, e o teste passaria a '
+            'medir a confirmação em vez do toque');
   });
 
   test('the room says it needs a person even with no confirmation', () async {
