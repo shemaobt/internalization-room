@@ -107,6 +107,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   DateTime? _listeningSince;
   String? _emCurso;
   bool _recontando = false;
+  bool _askingForANewClip = false;
   /// The clip is paused. `_onPlaybackComplete` deliberately survives a pause — the resume
   /// still has to be able to end the part — so it cannot be what tells a ceiling whether
   /// there is any sound left to measure.
@@ -1970,12 +1971,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _leadThemToTheTrecho();
   }
 
-  void reRecordClip() {
-    if (state.btPhase != BtPhase.findings) return;
+  Future<void> reRecordClip() async {
+    if (state.btPhase != BtPhase.findings || _askingForANewClip) return;
     final sessionId = state.sessionId;
-    if (sessionId != null) {
-      unawaited(_forgetTheAbandonedClip(sessionId));
+    if (sessionId != null && !await _theRoomForgotTheAbandonedClip(sessionId)) {
+      return;
     }
+    if (state.btPhase != BtPhase.findings) return;
     _clearAll();
     _parteTocando = 0;
     _fimDaParteMs = [];
@@ -2001,12 +2003,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(_countUnsent());
   }
 
-  Future<void> _forgetTheAbandonedClip(String sessionId) async {
+  /// Whether the session itself dropped the abandoned clip, so the team's own copy can go.
+  ///
+  /// Clearing before the answer arrived was a claim about the server made without asking
+  /// it: the chunks stayed in the session, the app believed the back translation had
+  /// started over, and the next `finish` handed the analyst the old stretches concatenated
+  /// with the new ones.
+  Future<bool> _theRoomForgotTheAbandonedClip(String sessionId) async {
+    final epoch = _epoch;
+    _askingForANewClip = true;
     try {
       await _room.restartBackTranslation(sessionId);
-    } on Exception {
-      return;
+    } on Exception catch (error) {
+      if (epoch == _epoch) _handleRoomFailure(error);
+      return false;
+    } finally {
+      _askingForANewClip = false;
     }
+    return epoch == _epoch;
   }
 
   void _closeTheNecklace() {

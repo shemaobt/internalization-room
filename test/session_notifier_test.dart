@@ -1607,6 +1607,99 @@ void main() {
     expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
   });
 
+  test('a restart the room refused keeps every stretch the team already told',
+      () async {
+    final harness = SalaHarness()
+      ..room.verdictChecked = false
+      ..room.verdictFinding = BtFindingKind.addition;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await _intoFindings(harness, notifier);
+    final before = container.read(salaSessionProvider);
+
+    harness.room.failRestartWith = const RoomRefused();
+    notifier.reRecordClip();
+    await settle();
+
+    final after = container.read(salaSessionProvider);
+    expect(after.btPhase, BtPhase.findings,
+        reason: 'o servidor nao recomecou nada, entao a equipe continua nos achados');
+    expect(after.btChunkPasses, before.btChunkPasses,
+        reason: 'o app dava os trechos por descartados enquanto a sessao ainda os '
+            'guardava, e o finish seguinte mandava velhos e novos juntos ao analista');
+    expect(after.partes, before.partes,
+        reason: 'a gravacao que a equipe ainda tem e a unica que o servidor conhece');
+    expect(after.takes, before.takes);
+  });
+
+  test('a restart the room refused asks the team for a person', () async {
+    final harness = SalaHarness()
+      ..room.verdictChecked = false
+      ..room.verdictFinding = BtFindingKind.addition;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await _intoFindings(harness, notifier);
+
+    harness.room.failRestartWith = const RoomRefused();
+    notifier.reRecordClip();
+    await settle();
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'segurar o estado calado deixa a equipe tocando de novo sem entender '
+            'por que nada acontece');
+  });
+
+  test('two taps before the room answers ask for one restart', () async {
+    final harness = SalaHarness()
+      ..room.verdictChecked = false
+      ..room.verdictFinding = BtFindingKind.addition;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await _intoFindings(harness, notifier);
+
+    harness.room.holdNextTurn();
+    notifier.reRecordClip();
+    await settle();
+    notifier.reRecordClip();
+    await settle();
+    harness.room.finishHeldTurn();
+    await settle();
+
+    expect(harness.room.restartsAsked, hasLength(1),
+        reason: 'enquanto o pedido esta em voo a equipe segue nos achados, e um '
+            'segundo toque mandaria a sessao descartar o clipe duas vezes');
+  });
+
+  test('a retell told while the restart is in flight is not thrown away',
+      () async {
+    final harness = SalaHarness()
+      ..room.verdictChecked = false
+      ..room.verdictFinding = BtFindingKind.missing
+      ..room.verdictFindingChunk = 1;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await _intoFindings(harness, notifier);
+
+    harness.room.holdNextTurn();
+    notifier.reRecordClip();
+    await settle();
+    notifier.retellChunk();
+    await settle();
+    harness.room.finishHeldTurn();
+    await settle();
+
+    final after = container.read(salaSessionProvider);
+    expect(after.stage, SalaStage.retro,
+        reason: 'a equipe pediu para contar o trecho de novo e a resposta atrasada '
+            'do recomeco a mandava para o ensaio no meio da fala');
+    expect(after.partes, isNotEmpty,
+        reason: 'e levava junto a gravacao que ela estava contando');
+  });
+
   test('a room that halts for a person says so to the server', () async {
     final harness = SalaHarness()..voice.succeeds = false;
     final container = await inConversa(harness);
@@ -2530,6 +2623,8 @@ void main() {
     expect(state.partes, isEmpty,
         reason: 'o ghost play tocava o take velho depois de regravar');
     expect(state.takes, 0);
+    expect(state.btChunkPasses, isEmpty,
+        reason: 'o recomeco que o servidor confirmou limpa tudo, como sempre limpou');
   });
 
   test('the room stops touching its providers once it is gone', () async {

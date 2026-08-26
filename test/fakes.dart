@@ -367,6 +367,7 @@ class FakeRoom implements RoomRepository {
   final List<String> chunkSpans = [];
   final List<String> takesKept = [];
   String? refuseTake;
+  Exception? failRestartWith;
   bool chunkCaptured = true;
   bool turnsAreCanned = false;
   bool turnsAreDegraded = false;
@@ -466,7 +467,10 @@ class FakeRoom implements RoomRepository {
   @override
   Future<BackTranslationRestart> restartBackTranslation(String sessionId) async {
     _guard('restartBackTranslation');
+    final refusal = failRestartWith;
+    if (refusal != null) throw refusal;
     restartsAsked.add('novo-clipe');
+    await _turnArrives();
     retells = 0;
     return const BackTranslationRestart(needsPerson: false);
   }
