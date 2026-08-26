@@ -102,6 +102,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   bool _returning = false;
   bool _strandedSpoken = false;
   bool _personAsked = false;
+  bool _askingForAPerson = false;
+  int _personAskStep = 0;
   int _ackSpoken = 0;
   int _inaudibleSpoken = 0;
   DateTime? _listeningSince;
@@ -463,10 +465,40 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _tellTheRoomAPersonIsNeeded() {
+    if (_personAsked || _askingForAPerson) return;
+    unawaited(_askForAPerson());
+  }
+
+  /// The call is only made when the server says it has it.
+  ///
+  /// Most of the ways into a halt are bad network and a room that is not answering, so
+  /// the call goes out at the worst possible moment to be delivered — and a lost one left
+  /// no trace anywhere: the session never entered the desk's queue, no facilitator was
+  /// told, and nobody arrived to tap the screen that is the only thing that asked again.
+  Future<void> _askForAPerson() async {
     final sessionId = state.sessionId;
-    if (sessionId == null || _personAsked) return;
-    _personAsked = true;
-    unawaited(_room.askForAPerson(sessionId).catchError((_) {}));
+    if (sessionId == null || _personAsked || _askingForAPerson) return;
+    _askingForAPerson = true;
+    try {
+      await _room.askForAPerson(sessionId);
+      if (!_gone && state.needsPerson) _personAsked = true;
+    } on Exception {
+      _keepAskingForAPerson();
+    } finally {
+      _askingForAPerson = false;
+    }
+  }
+
+  /// Whether to try again is `state.needsPerson` and not the epoch: `_cancelTimers` runs
+  /// on the way into other halts, and an attempt still in flight when it does would
+  /// otherwise land on a room that is still stopped and stop insisting in silence.
+  void _keepAskingForAPerson() {
+    if (_gone || !state.needsPerson) return;
+    final backoff = ref.read(roomRetryBackoffProvider);
+    final step =
+        _personAskStep < backoff.length ? _personAskStep : backoff.length - 1;
+    _personAskStep++;
+    _after('person', backoff[step], () => unawaited(_askForAPerson()));
   }
 
   void _handleRoomFailure(Object error) {
@@ -616,7 +648,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void resolveWithPerson() {
     if (!state.needsPerson && !state.offline) return;
     _timers.remove('retry')?.cancel();
+    _timers.remove('person')?.cancel();
     _personAsked = false;
+    _personAskStep = 0;
     _unplayableTurns = 0;
     _roomFailures = 0;
     _retryStep = 0;
@@ -2085,6 +2119,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _noticeSpoken = false;
     _strandedSpoken = false;
     _personAsked = false;
+    _personAskStep = 0;
     _recontando = false;
     _inboxSilences = 0;
     _degradedTurns = 0;
