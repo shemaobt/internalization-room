@@ -63,6 +63,7 @@ class SalaSessionState {
   final EnsaioStatus ensaio;
   final bool micTaken;
   final int takes;
+  final int ensaioPass;
   final bool playPing;
   final BtPhase btPhase;
   final List<int> btChunkPasses;
@@ -121,6 +122,7 @@ class SalaSessionState {
     this.ensaio = EnsaioStatus.idle,
     this.micTaken = false,
     this.takes = 0,
+    this.ensaioPass = 1,
     this.playPing = false,
     this.btPhase = BtPhase.playing,
     this.btChunkPasses = const [],
@@ -247,6 +249,7 @@ class SalaSessionState {
     EnsaioStatus? ensaio,
     bool? micTaken,
     int? takes,
+    int? ensaioPass,
     bool? playPing,
     BtPhase? btPhase,
     List<int>? btChunkPasses,
@@ -290,6 +293,7 @@ class SalaSessionState {
       ensaio: ensaio ?? this.ensaio,
       micTaken: micTaken ?? this.micTaken,
       takes: takes ?? this.takes,
+      ensaioPass: ensaioPass ?? this.ensaioPass,
       playPing: playPing ?? this.playPing,
       btPhase: btPhase ?? this.btPhase,
       btChunkPasses: btChunkPasses ?? this.btChunkPasses,

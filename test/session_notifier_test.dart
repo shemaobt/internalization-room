@@ -1607,6 +1607,112 @@ void main() {
     expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
   });
 
+  test('a kept rehearsal take says which pass over the passage it is', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    await until(() => harness.room.takesKept.isNotEmpty);
+
+    expect(harness.room.takePasses, [1],
+        reason: 'o ensaio subia sem passada nenhuma, e o pacote nao tinha por onde '
+            'dizer de qual das gravacoes aquele parte-1 era');
+  });
+
+  test('a re-recorded rehearsal is a second pass, not the first one again',
+      () async {
+    final harness = SalaHarness()
+      ..room.verdictChecked = false
+      ..room.verdictFinding = BtFindingKind.addition;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await _intoFindings(harness, notifier);
+
+    await notifier.reRecordClip();
+    await settle();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    await until(() => harness.room.takesKept.length == 2);
+
+    expect(harness.room.takesKept, ['ensaio/parte-1', 'ensaio/parte-1'],
+        reason: 'o rotulo volta a ser o mesmo porque a contagem das partes recomeca');
+    expect(harness.room.takePasses, [1, 2],
+        reason: 'o ensaio jogado fora e o guardado chegavam ao Refine com o mesmo '
+            'rotulo, e quem abrisse a passagem ouvia o abandonado como o primeiro');
+  });
+
+  test('the ledger keeps which pass the rehearsal is on, not only its parts',
+      () async {
+    final harness = SalaHarness()
+      ..room.verdictChecked = false
+      ..room.verdictFinding = BtFindingKind.addition;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+    await _intoFindings(harness, notifier);
+
+    await notifier.reRecordClip();
+    await settle();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    await settle();
+
+    expect(harness.emAberto.rows['Ruth/P01']?.pass, 2,
+        reason: 'a passada so existia na memoria, e o aparelho desligado a levava junto');
+  });
+
+  test('a rehearsal picked up on its second pass does not number the next part '
+      'as the first', () async {
+    final harness = SalaHarness();
+    final gravadas = Directory.systemTemp.createTempSync('sala-ensaio-passada');
+    addTearDown(() => gravadas.deleteSync(recursive: true));
+    harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+      sessionId: 'sessao-regravada',
+      stage: SalaStage.ensaio,
+      pass: 2,
+      takes: [
+        KeptTake(
+          scopeId: KeptScope.parte(1),
+          path: (File('${gravadas.path}/parte-1.m4a')..writeAsBytesSync([1, 2, 3]))
+              .path,
+        ),
+      ],
+    );
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    await until(() => harness.room.takesKept.isNotEmpty);
+
+    expect(harness.room.takesKept, ['ensaio/parte-2']);
+    expect(harness.room.takePasses, [2],
+        reason: 'a parte 2 do ensaio novo subia como passada 1 e ia parar no meio '
+            'do ensaio que a equipe tinha jogado fora');
+  });
+
   test('a restart the room refused keeps every stretch the team already told',
       () async {
     final harness = SalaHarness()

@@ -1091,6 +1091,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
               sessionId: sessionId,
               stage: stage,
               takes: state.keptTakes,
+              pass: state.ensaioPass,
             ),
           )
           .catchError((_) {}),
@@ -1118,6 +1119,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: VoiceState.invite,
       keptTakes: here,
       takes: here.length,
+      ensaioPass: waiting.pass,
     );
     unawaited(_countUnsent());
     return true;
@@ -1472,7 +1474,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       keptTakes: [...state.keptTakes, KeptTake(scopeId: escopo, path: path)],
       takes: state.keptTakes.length + 1,
     );
-    unawaited(_guard(path, kind: 'ensaio', scope: escopo, chunkIndex: parte));
+    unawaited(_guard(
+      path,
+      kind: 'ensaio',
+      scope: escopo,
+      passNumber: state.ensaioPass,
+      chunkIndex: parte,
+    ));
     _rememberWhereTheyAre(SalaStage.ensaio);
   }
 
@@ -1989,6 +1997,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ensaio: EnsaioStatus.idle,
       takes: 0,
       keptTakes: const [],
+      ensaioPass: state.ensaioPass + 1,
       btPhase: BtPhase.playing,
       btChunkPasses: const [],
       btChunkFailures: const [],

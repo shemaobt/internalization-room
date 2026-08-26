@@ -22,16 +22,19 @@ class ResumePoint {
   final String sessionId;
   final SalaStage stage;
   final List<KeptTake> takes;
+  final int pass;
 
   const ResumePoint({
     required this.sessionId,
     required this.stage,
     this.takes = const [],
+    this.pass = 1,
   });
 
   Map<String, Object?> toJson() => {
         'session_id': sessionId,
         'stage': stage.name,
+        'pass': pass,
         'takes': [
           for (final take in takes)
             {'path': take.path, 'scope': take.scopeId},
@@ -47,6 +50,7 @@ class ResumePoint {
         (stage) => stage.name == json['stage'],
         orElse: () => SalaStage.conversa,
       ),
+      pass: json['pass'] as int? ?? 1,
       takes: [
         for (final raw in (json['takes'] as List? ?? const []))
           if (raw is Map)

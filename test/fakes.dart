@@ -366,6 +366,7 @@ class FakeRoom implements RoomRepository {
   int chunksSent = 0;
   final List<String> chunkSpans = [];
   final List<String> takesKept = [];
+  final List<int?> takePasses = [];
   String? refuseTake;
   Exception? failRestartWith;
   bool chunkCaptured = true;
@@ -493,6 +494,7 @@ class FakeRoom implements RoomRepository {
     _guard('sendTake');
     if (refuseTake == '$kind/$scope') throw const RoomRefused();
     takesKept.add('$kind/$scope');
+    takePasses.add(passNumber);
   }
 
   @override
@@ -672,6 +674,8 @@ class SpeakingPlayer extends Fake implements AudioPlayer {
 
   @override
   ProcessingState get processingState => _state;
+
+  bool get sounding => _sounding?.isCompleted == false;
 
   @override
   Stream<PlayerState> get playerStateStream => _states.stream;
