@@ -2548,6 +2548,34 @@ void main() {
   },
       timeout: const Timeout(Duration(seconds: 20)));
 
+  test('a room that goes while the count is in flight touches no provider', () async {
+    final harness = SalaHarness();
+    final queue = QueueHeldOnGiveUps(
+      room: harness.room,
+      home: () async => harness.takesHome,
+    );
+    final container = ProviderContainer(
+      overrides: [
+        ...harness.overrides,
+        takeUploadQueueProvider.overrideWithValue(queue),
+      ],
+    );
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.goConversa();
+    await settle();
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+
+    notifier.takeKeep();
+    await queue.asking.future;
+    container.dispose();
+    queue.answer.complete();
+
+    await settle(const Duration(milliseconds: 400));
+  }, timeout: const Timeout(Duration(seconds: 20)));
+
   test('a turn that comes back after the team left is not spoken', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);

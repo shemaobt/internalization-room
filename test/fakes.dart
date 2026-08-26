@@ -707,3 +707,17 @@ class SpeakingPlayer extends Fake implements AudioPlayer {
   @override
   Future<void> dispose() async => _states.close();
 }
+
+class QueueHeldOnGiveUps extends TakeUploadQueue {
+  QueueHeldOnGiveUps({required super.room, super.home});
+
+  final Completer<void> asking = Completer<void>();
+  final Completer<void> answer = Completer<void>();
+
+  @override
+  Future<List<PendingTake>> giveUps() async {
+    if (!asking.isCompleted) asking.complete();
+    await answer.future;
+    return super.giveUps();
+  }
+}
