@@ -137,6 +137,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   StreamSubscription<void>? _playbackFailed;
   StreamSubscription<void>? _playbackOpened;
   StreamSubscription<void>? _networkWatch;
+  StreamSubscription<bool>? _micWatch;
   VoidCallback? _onPlaybackComplete;
   VoidCallback? _onPlaybackFailed;
 
@@ -170,6 +171,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       unawaited(_playbackFailed?.cancel());
       unawaited(_playbackOpened?.cancel());
       unawaited(_networkWatch?.cancel());
+      unawaited(_micWatch?.cancel());
     });
     return const SalaSessionState();
   }
@@ -1529,6 +1531,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _recordOrBlock(String fileName) async {
     final epoch = _epoch;
+    _micWatch ??= _recorder.interrupted.listen(_theMicrophoneChangedHands);
     final capture = await _recorder.start(fileName);
     // The answer can arrive a minute late — `hasPermission` waits up to sixty seconds for
     // the platform — by which time the team may be on another stage entirely.
@@ -1544,6 +1547,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Capture.failed:
         _theRecorderNeverStarted();
     }
+  }
+
+  void _theMicrophoneChangedHands(bool taken) {
+    state = state.copyWith(micTaken: taken);
   }
 
   /// Put back whatever the caller set before it asked for a microphone.

@@ -38,6 +38,7 @@ class EnsaioView extends ConsumerWidget {
         const SizedBox(height: 26),
         _RecordCircle(
           recording: recording,
+          interrupted: session.micTaken,
           dimmed: ghosting,
           colors: colors,
           onTap: notifier.ensaioTap,
@@ -46,7 +47,7 @@ class EnsaioView extends ConsumerWidget {
               : null,
         ),
         const SizedBox(height: 38),
-        EqBars(active: recording),
+        EqBars(active: recording && !session.micTaken),
         const SizedBox(height: 38),
         SizedBox(
           height: 60,
@@ -184,6 +185,7 @@ class _GhostButton extends StatelessWidget {
 
 class _RecordCircle extends StatelessWidget {
   final bool recording;
+  final bool interrupted;
   final bool dimmed;
   final SalaColors colors;
   final VoidCallback onTap;
@@ -191,6 +193,7 @@ class _RecordCircle extends StatelessWidget {
 
   const _RecordCircle({
     required this.recording,
+    required this.interrupted,
     required this.dimmed,
     required this.colors,
     required this.onTap,
@@ -199,6 +202,7 @@ class _RecordCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final live = recording && !interrupted;
     return Semantics(
       button: true,
       label: switch ((recording, dimmed)) {
@@ -217,7 +221,7 @@ class _RecordCircle extends StatelessWidget {
             period: const Duration(milliseconds: 4600),
             animate: true,
             builder: (context, t) => Transform.scale(
-              scale: 1 + (recording ? 0.06 : 0.045) * t,
+              scale: 1 + (live ? 0.06 : 0.045) * t,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 400),
                 width: 160,
@@ -225,7 +229,7 @@ class _RecordCircle extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: BeadStyles.telha(colors),
-                  boxShadow: recording
+                  boxShadow: live
                       ? [
                           BoxShadow(color: colors.halo, spreadRadius: 10),
                           BoxShadow(

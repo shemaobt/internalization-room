@@ -100,6 +100,8 @@ class FakeVoice implements FacilitatorVoiceService {
 }
 
 class FakeRecorder implements RecordingRepository {
+  final StreamController<bool> _interruptions =
+      StreamController<bool>.broadcast();
   final Directory home = Directory.systemTemp.createTempSync('sala-gravacoes');
   int captures = 0;
   bool returnsNothing = false;
@@ -121,6 +123,13 @@ class FakeRecorder implements RecordingRepository {
     if (startThrows) return Capture.failed;
     return Capture.started;
   }
+
+  @override
+  Stream<bool> get interrupted => _interruptions.stream;
+
+  void takeTheMicrophone() => _interruptions.add(true);
+
+  void giveTheMicrophoneBack() => _interruptions.add(false);
 
   Completer<void>? _holdingStop;
 
@@ -154,7 +163,7 @@ class FakeRecorder implements RecordingRepository {
   Future<String> keepAs(String path, String fileName) async => path;
 
   @override
-  Future<void> dispose() async {}
+  Future<void> dispose() async => _interruptions.close();
 }
 
 class FakePlayback implements PlaybackRepository {
