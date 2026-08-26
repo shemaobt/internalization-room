@@ -1673,7 +1673,7 @@ void main() {
             'segundo toque mandaria a sessao descartar o clipe duas vezes');
   });
 
-  test('a retell told while the restart is in flight is not thrown away',
+  test('a retell tapped while the restart is in flight changes nothing',
       () async {
     final harness = SalaHarness()
       ..room.verdictChecked = false
@@ -1685,19 +1685,36 @@ void main() {
     await _intoFindings(harness, notifier);
 
     harness.room.holdNextTurn();
-    notifier.reRecordClip();
+    unawaited(notifier.reRecordClip());
     await settle();
     notifier.retellChunk();
     await settle();
     harness.room.finishHeldTurn();
     await settle();
 
-    final after = container.read(salaSessionProvider);
-    expect(after.stage, SalaStage.retro,
-        reason: 'a equipe pediu para contar o trecho de novo e a resposta atrasada '
-            'do recomeco a mandava para o ensaio no meio da fala');
-    expect(after.partes, isNotEmpty,
-        reason: 'e levava junto a gravacao que ela estava contando');
+    expect(container.read(salaSessionProvider).stage, SalaStage.ensaio,
+        reason: 'o botão de recontar fica a 28 pixels do que a equipe acabou de '
+            'tocar; enquanto o pedido está em voo ele mudava a fase, e a resposta '
+            'confirmada chegava numa sala que já não estava nos achados, deixando '
+            'a equipe segurando trechos que a sessão descartou');
+  });
+
+  test('a room that never answers the restart does not think forever', () async {
+    final harness = SalaHarness(busyCeiling: const Duration(milliseconds: 200))
+      ..room.verdictChecked = false
+      ..room.verdictFinding = BtFindingKind.addition;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await _intoFindings(harness, notifier);
+
+    harness.room.holdNextTurn();
+    unawaited(notifier.reRecordClip());
+    await settle(const Duration(milliseconds: 600));
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'esperar sem teto trocaria uma janela de segundos por uma sala '
+            'sem botão nenhum e sem saída alguma');
   });
 
   test('a room that halts for a person says so to the server', () async {

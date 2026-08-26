@@ -2009,18 +2009,39 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// it: the chunks stayed in the session, the app believed the back translation had
   /// started over, and the next `finish` handed the analyst the old stretches concatenated
   /// with the new ones.
+  ///
+  /// The wait that asking opened is a busy state like every other one in this room: the
+  /// findings exits are off the screen while it runs, and the circle says so without a
+  /// written word. A refusal puts the team back on the findings they came from, because
+  /// the stretches are still the session's — so the failure ladder is reached from there
+  /// and not from the wait, whose own way out lands on `playing`.
   Future<bool> _theRoomForgotTheAbandonedClip(String sessionId) async {
     final epoch = _epoch;
     _askingForANewClip = true;
+    state = state.copyWith(
+      btPhase: BtPhase.thinking,
+      voice: VoiceState.thinking,
+    );
+    _watchBusyState();
     try {
       await _room.restartBackTranslation(sessionId);
     } on Exception catch (error) {
-      if (epoch == _epoch) _handleRoomFailure(error);
+      if (epoch == _epoch) {
+        if (state.btPhase == BtPhase.thinking) {
+          state = state.copyWith(
+            btPhase: BtPhase.findings,
+            voice: VoiceState.invite,
+          );
+        }
+        _handleRoomFailure(error);
+      }
       return false;
     } finally {
       _askingForANewClip = false;
     }
-    return epoch == _epoch;
+    if (epoch != _epoch || state.btPhase != BtPhase.thinking) return false;
+    state = state.copyWith(btPhase: BtPhase.findings);
+    return true;
   }
 
   void _closeTheNecklace() {
