@@ -1650,6 +1650,69 @@ void main() {
             'rotulo, e quem abrisse a passagem ouvia o abandonado como o primeiro');
   });
 
+  test('the ledger keeps which pass the rehearsal is on, not only its parts',
+      () async {
+    final harness = SalaHarness()
+      ..room.verdictChecked = false
+      ..room.verdictFinding = BtFindingKind.addition;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+    await _intoFindings(harness, notifier);
+
+    await notifier.reRecordClip();
+    await settle();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    await settle();
+
+    expect(harness.emAberto.rows['Ruth/P01']?.pass, 2,
+        reason: 'a passada so existia na memoria, e o aparelho desligado a levava junto');
+  });
+
+  test('a rehearsal picked up on its second pass does not number the next part '
+      'as the first', () async {
+    final harness = SalaHarness();
+    final gravadas = Directory.systemTemp.createTempSync('sala-ensaio-passada');
+    addTearDown(() => gravadas.deleteSync(recursive: true));
+    harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+      sessionId: 'sessao-regravada',
+      stage: SalaStage.ensaio,
+      pass: 2,
+      takes: [
+        KeptTake(
+          scopeId: KeptScope.parte(1),
+          path: (File('${gravadas.path}/parte-1.m4a')..writeAsBytesSync([1, 2, 3]))
+              .path,
+        ),
+      ],
+    );
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    await until(() => harness.room.takesKept.isNotEmpty);
+
+    expect(harness.room.takesKept, ['ensaio/parte-2']);
+    expect(harness.room.takePasses, [2],
+        reason: 'a parte 2 do ensaio novo subia como passada 1 e ia parar no meio '
+            'do ensaio que a equipe tinha jogado fora');
+  });
+
   test('a restart the room refused keeps every stretch the team already told',
       () async {
     final harness = SalaHarness()

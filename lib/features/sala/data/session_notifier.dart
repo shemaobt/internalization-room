@@ -1091,6 +1091,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
               sessionId: sessionId,
               stage: stage,
               takes: state.keptTakes,
+              pass: state.ensaioPass,
             ),
           )
           .catchError((_) {}),
@@ -1118,6 +1119,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: VoiceState.invite,
       keptTakes: here,
       takes: here.length,
+      ensaioPass: waiting.pass,
     );
     unawaited(_countUnsent());
     return true;
