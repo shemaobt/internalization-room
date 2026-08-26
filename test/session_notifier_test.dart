@@ -1059,7 +1059,7 @@ void main() {
     await settle();
     harness.room.reachable = false;
     notifier.takeKeep();
-    await settle();
+    await until(() => container.read(salaSessionProvider).unsentTakes == 1);
 
     expect(container.read(salaSessionProvider).unsentTakes, 1,
         reason: 'a conta aparece quando a equipe guarda, mas ainda está só no tablet');
