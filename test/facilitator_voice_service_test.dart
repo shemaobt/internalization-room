@@ -6,6 +6,7 @@ import 'package:internalization_room/features/sala/data/facilitator_voice_servic
 import 'package:just_audio/just_audio.dart';
 
 import 'fakes.dart';
+import 'session_notifier_test.dart' show until;
 
 const _clip = '/api/internalization-room/voice/aaa';
 const _other = '/api/internalization-room/voice/bbb';
@@ -141,7 +142,10 @@ void main() {
     final voice = service(player: player);
 
     final speaking = voice.play(_clip);
-    await Future<void>.delayed(const Duration(milliseconds: 20));
+    await until(() => player.sounding);
+    expect(player.sounding, isTrue,
+        reason: 'o fim chegava antes do play e o aviso caia no vazio, entao a linha '
+            'esperava os oito segundos do teto e voltava como nao ouvida');
     player.reachTheEnd();
 
     expect(await speaking, isTrue,

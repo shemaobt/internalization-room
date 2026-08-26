@@ -675,6 +675,8 @@ class SpeakingPlayer extends Fake implements AudioPlayer {
   @override
   ProcessingState get processingState => _state;
 
+  bool get sounding => _sounding?.isCompleted == false;
+
   @override
   Stream<PlayerState> get playerStateStream => _states.stream;
 
