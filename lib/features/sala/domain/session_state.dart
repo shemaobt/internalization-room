@@ -61,6 +61,7 @@ class SalaSessionState {
   final List<KeptTake> keptTakes;
   final SpokenLine? lastSpoken;
   final EnsaioStatus ensaio;
+  final bool micTaken;
   final int takes;
   final bool playPing;
   final BtPhase btPhase;
@@ -118,6 +119,7 @@ class SalaSessionState {
     this.keptTakes = const [],
     this.lastSpoken,
     this.ensaio = EnsaioStatus.idle,
+    this.micTaken = false,
     this.takes = 0,
     this.playPing = false,
     this.btPhase = BtPhase.playing,
@@ -243,6 +245,7 @@ class SalaSessionState {
     SpokenLine? lastSpoken,
     bool clearLastSpoken = false,
     EnsaioStatus? ensaio,
+    bool? micTaken,
     int? takes,
     bool? playPing,
     BtPhase? btPhase,
@@ -285,6 +288,7 @@ class SalaSessionState {
       keptTakes: keptTakes ?? this.keptTakes,
       lastSpoken: clearLastSpoken ? null : (lastSpoken ?? this.lastSpoken),
       ensaio: ensaio ?? this.ensaio,
+      micTaken: micTaken ?? this.micTaken,
       takes: takes ?? this.takes,
       playPing: playPing ?? this.playPing,
       btPhase: btPhase ?? this.btPhase,

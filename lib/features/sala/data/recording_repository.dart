@@ -54,6 +54,9 @@ class RecordingRepository {
     }
   }
 
+  Stream<bool> get interrupted =>
+      _recorder.onStateChanged().map((state) => state == RecordState.pause);
+
   Future<String?> stop() => _recorder.stop();
 
   Future<void> discard() async {

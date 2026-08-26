@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
@@ -10,6 +11,8 @@ class RecorderSpy extends RecordPlatform {
   RecordConfig? openedWith;
   String? openedPath;
   bool refusesToOpen = false;
+  final StreamController<RecordState> states =
+      StreamController<RecordState>.broadcast();
 
   @override
   Future<void> create(String recorderId) async {}
@@ -30,7 +33,7 @@ class RecorderSpy extends RecordPlatform {
   Future<String?> stop(String recorderId) async => openedPath;
 
   @override
-  Stream<RecordState> onStateChanged(String recorderId) => const Stream.empty();
+  Stream<RecordState> onStateChanged(String recorderId) => states.stream;
 
   @override
   Future<void> dispose(String recorderId) async {}
@@ -61,6 +64,7 @@ void main() {
   tearDown(() {
     messenger.setMockMethodCallHandler(pathProvider, null);
     RecordPlatform.instance = platformBefore;
+    unawaited(microphone.states.close());
     documents.deleteSync(recursive: true);
   });
 
@@ -112,5 +116,25 @@ void main() {
     expect(await recording.start('ensaio'), Capture.failed,
         reason: 'o disco cheio escapava como erro assíncrono não tratado '
             'enquanto a tela já mostrava a sala ouvindo');
+  });
+
+  test('a recorder the system pauses says the microphone was taken, and says '
+      'it came back', () async {
+    final recording = RecordingRepository();
+    addTearDown(recording.dispose);
+    final reported = <bool>[];
+    recording.interrupted.listen(reported.add);
+
+    await recording.start('ensaio');
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+    microphone.states.add(RecordState.pause);
+    microphone.states.add(RecordState.record);
+    microphone.states.add(RecordState.stop);
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+
+    expect(reported, [true, false, false],
+        reason: 'a pausa que a ligação provoca é o único aviso que sai do '
+            'gravador; sem lê-lo a sala seguia desenhando uma captura parada, e '
+            'o fim da tomada não pode ser lido como microfone tomado');
   });
 }
