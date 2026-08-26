@@ -122,6 +122,46 @@ void main() {
     expect(state.coverage.total, totalBeads);
   });
 
+  test('a rehearsal with one part missing comes back to the conversa', () async {
+    final harness = SalaHarness();
+    final gravadas = Directory.systemTemp.createTempSync('sala-ensaio-partido');
+    addTearDown(() => gravadas.deleteSync(recursive: true));
+    final partes = [
+      for (var parte = 1; parte <= 3; parte++)
+        KeptTake(
+          scopeId: KeptScope.parte(parte),
+          path: (File('${gravadas.path}/parte-$parte.m4a')
+                ..writeAsBytesSync([1, 2, 3]))
+              .path,
+        ),
+    ];
+    File(partes[1].path).deleteSync();
+    harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.ensaio,
+      takes: partes,
+    );
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.stage, SalaStage.conversa,
+        reason: 'duas partes de um ensaio de três voltavam como se fossem o '
+            'ensaio inteiro, e a retro era contada por cima do buraco');
+    expect(state.partes, isEmpty,
+        reason: 'a próxima parte era carimbada com o número da que sumiu, e '
+            'duas gravações diferentes chegavam ao servidor com um rótulo só');
+    expect(File(partes.first.path).existsSync(), isTrue,
+        reason: 'cair na conversa é deixar de oferecer o ensaio, não apagar o '
+            'que a equipe gravou e ainda está no aparelho');
+  });
+
   test('the opening is told in two movements, and the necklace waits', () async {
     final harness = SalaHarness()..room.opensInTwoMovements = true;
     final container = await inConversa(harness);
