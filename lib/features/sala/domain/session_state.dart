@@ -95,6 +95,10 @@ class SalaSessionState {
   /// infer what the team had heard. They are two gestures now, and this is the one the
   /// listening gesture owns.
   final bool btClipRodando;
+
+  final List<int> btFimDasPartesMs;
+  final int btParteNoArMs;
+  final int btOuvidoMs;
   final List<BtFindingKind> btFindings;
   final int btPass;
   final bool fimClosed;
@@ -136,6 +140,9 @@ class SalaSessionState {
     this.btClipEnded = false,
     this.btParteFronteira = false,
     this.btClipRodando = false,
+    this.btFimDasPartesMs = const [],
+    this.btParteNoArMs = 0,
+    this.btOuvidoMs = 0,
     this.btFindings = const [],
     this.btPass = 1,
     this.fimClosed = false,
@@ -265,6 +272,9 @@ class SalaSessionState {
     bool? btClipEnded,
     bool? btParteFronteira,
     bool? btClipRodando,
+    List<int>? btFimDasPartesMs,
+    int? btParteNoArMs,
+    int? btOuvidoMs,
     List<BtFindingKind>? btFindings,
     int? btPass,
     bool? fimClosed,
@@ -309,6 +319,9 @@ class SalaSessionState {
       btClipEnded: btClipEnded ?? this.btClipEnded,
       btParteFronteira: btParteFronteira ?? this.btParteFronteira,
       btClipRodando: btClipRodando ?? this.btClipRodando,
+      btFimDasPartesMs: btFimDasPartesMs ?? this.btFimDasPartesMs,
+      btParteNoArMs: btParteNoArMs ?? this.btParteNoArMs,
+      btOuvidoMs: btOuvidoMs ?? this.btOuvidoMs,
       btFindings: btFindings ?? this.btFindings,
       btPass: btPass ?? this.btPass,
       fimClosed: fimClosed ?? this.fimClosed,
