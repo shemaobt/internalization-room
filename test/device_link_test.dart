@@ -2,10 +2,13 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/device_link_notifier.dart';
 import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
+import 'package:internalization_room/features/sala/dev/dev_skip_bar.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
 
 import 'fakes.dart';
@@ -13,6 +16,13 @@ import 'sala_screen_test.dart' show pumpSala;
 import 'session_notifier_test.dart' show settle, until;
 
 const _unclaimed = RememberedLink();
+
+void _devEnv() {
+  dotenv.testLoad(
+    fileInput: 'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
+  );
+  addTearDown(() => dotenv.testLoad(fileInput: ''));
+}
 
 void main() {
   testWidgets('a tablet nobody has linked yet shows a code and nothing else to read',
@@ -115,6 +125,44 @@ void main() {
     expect(harness.room.codesAskedFor.length, drawnBefore,
         reason: 'o vencimento era checado antes da leitura, então uma escolha feita nos '
             'últimos segundos do código era descartada pelo tique seguinte');
+  });
+
+  test('a debug build told to skip the phases is linked without asking the room', () async {
+    _devEnv();
+    final harness = SalaHarness(linkedAs: _unclaimed);
+    final container = harness.container();
+    addTearDown(container.dispose);
+
+    await container.read(deviceLinkProvider.notifier).findTheTeam();
+    await settle();
+
+    expect(container.read(deviceLinkProvider).linked, isTrue);
+    expect(harness.room.codesAskedFor, isEmpty,
+        reason: 'sem isso a sala de desenvolvimento só abre depois que alguém vincula '
+            'o aparelho pela Mesa, que é justamente o que ainda não roda local');
+    expect(harness.vinculo.remembered.team, isNull,
+        reason: 'um vínculo inventado gravado em disco sobrevive a desligar o '
+            'sinalizador, e o aparelho passa a mentir sobre a equipe para sempre');
+  });
+
+  test('a release build shows the code even when the .env says to skip', () async {
+    _devEnv();
+    final harness = SalaHarness(linkedAs: _unclaimed);
+    final container = ProviderContainer(
+      overrides: [
+        ...harness.overrides,
+        debugBuildProvider.overrideWithValue(false),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(deviceLinkProvider.notifier).findTheTeam();
+    await settle();
+
+    expect(container.read(deviceLinkProvider).code, isNotNull,
+        reason: 'o build de release empacota o .env que estiver na árvore de quem '
+            'compila, então o sinalizador sozinho deixaria um tablet entrar na sala '
+            'sem nunca ter sido vinculado');
   });
 
   test('a tablet put down mid-question is a room closing, not a room breaking', () async {
