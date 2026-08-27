@@ -6,7 +6,6 @@ import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/bt_finding.dart';
 import '../../domain/session_state.dart';
-import 'bead.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
 import 'motion.dart';
@@ -25,12 +24,6 @@ class RetroView extends ConsumerWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _ChunkBeads(
-          passes: session.btChunkPasses,
-          failures: session.btChunkFailures,
-          colors: colors,
-        ),
-        const SizedBox(height: 46),
         SizedBox(
           width: 200,
           height: 200,
@@ -214,51 +207,6 @@ class _ClipHalo extends StatelessWidget {
             width: 2,
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// One bead per stretch the team told, in the order they told them.
-///
-/// A stretch that landed is filled; one the room never took is hollow, and sits where it
-/// was actually told rather than at the end of the row. Subtracting a count of failures
-/// from a list of successes drew neither: the two never described the same stretch.
-class _ChunkBeads extends StatelessWidget {
-  final List<int> passes;
-  final List<int> failures;
-  final SalaColors colors;
-
-  const _ChunkBeads({
-    required this.passes,
-    required this.failures,
-    required this.colors,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    var told = 0;
-    return SizedBox(
-      height: 44,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var place = 1; place <= passes.length + failures.length; place++)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 7),
-              child: PingIn(
-                child: failures.contains(place)
-                    ? const Bead(size: 26, filled: false)
-                    : Bead(
-                        size: 26,
-                        filled: true,
-                        border: passes[told++] > 1
-                            ? Border.all(color: ShemaBrand.azulInk, width: 2.5)
-                            : null,
-                      ),
-              ),
-            ),
-        ],
       ),
     );
   }

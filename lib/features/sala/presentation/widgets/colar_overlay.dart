@@ -9,13 +9,18 @@ import 'motion.dart';
 const _designWidth = 390.0;
 const _designHeight = 812.0;
 
-Offset arcPoint(int i, int total) {
-  final t = total > 1 ? i / (total - 1) : 0.0;
+Offset cordPoint(double t) {
   final u = 1 - t;
   final x = u * u * 34 + 2 * u * t * 195 + t * t * 356;
   final y = u * u * 24 + 2 * u * t * 92 + t * t * 24;
   return Offset(x, y);
 }
+
+Path cordArc(double sx, double sy) => Path()
+  ..moveTo(34 * sx, 24 * sy)
+  ..quadraticBezierTo(195 * sx, 92 * sy, 356 * sx, 24 * sy);
+
+Offset arcPoint(int i, int total) => cordPoint(total > 1 ? i / (total - 1) : 0.0);
 
 Offset circlePoint(int i, int total) {
   final step = total > 0 ? 360 / total : 0.0;
@@ -220,11 +225,10 @@ class _CordPainter extends CustomPainter {
           height: 244 * sy,
         ),
       );
+      canvas.drawPath(path, paint);
     } else {
-      path.moveTo(34 * sx, 24 * sy);
-      path.quadraticBezierTo(195 * sx, 92 * sy, 356 * sx, 24 * sy);
+      canvas.drawPath(cordArc(sx, sy), paint);
     }
-    canvas.drawPath(path, paint);
   }
 
   @override

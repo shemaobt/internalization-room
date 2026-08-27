@@ -219,7 +219,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _listenForTheEnd() {
     _playbackDone ??= _playback.completions.listen((_) => _releasePlayback());
     _playbackFailed ??= _playback.failures.listen((_) => _cannotPlayTheirOwnAudio());
-    _playbackOpened ??= _playback.openings.listen((_) => _watchPlayback());
+    _playbackOpened ??= _playback.openings.listen((_) {
+      _watchPlayback();
+      _medirAParteNoAr();
+    });
   }
 
   void _cannotPlayTheirOwnAudio() {
@@ -1690,6 +1693,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btTrechoTocando: false,
       btParteFronteira: false,
       btClipRodando: false,
+      btFimDasPartesMs: const [],
+      btParteNoArMs: 0,
+      btOuvidoMs: 0,
     );
     if (state.partes.isEmpty) {
       // No rehearsal to tell back is not a rehearsal that finished playing. Calling it
@@ -1718,17 +1724,32 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// player's position at the moment it finished.
   void _pararOClipe({int? ate}) {
     _holdClip();
+    var ondeParou = state.btOuvidoMs;
     if (state.btClipRodando) {
       final fim = ate ?? _posicaoGlobal.inMilliseconds;
       if (fim > _desdeMs) _ouvido = [..._ouvido, [_desdeMs, fim]];
+      ondeParou = fim > _desdeMs ? fim : _desdeMs;
     }
-    state = state.copyWith(btClipRodando: false);
+    state = state.copyWith(btClipRodando: false, btOuvidoMs: ondeParou);
+  }
+
+  void _medirAParteNoAr() {
+    if (state.stage != SalaStage.retro) return;
+    if (!state.btClipRodando) return;
+    final medida = _playback.playingLength;
+    if (medida == null) return;
+    state = state.copyWith(btParteNoArMs: medida.inMilliseconds);
   }
 
   void _tocarParteDaRetro(int parte) {
     _parteTocando = parte;
     _desdeMs = _inicioDaParteMs(parte);
-    state = state.copyWith(btParteFronteira: false, btClipRodando: true);
+    state = state.copyWith(
+      btParteFronteira: false,
+      btClipRodando: true,
+      btOuvidoMs: _desdeMs,
+      btParteNoArMs: 0,
+    );
     _play(
       state.partes[parte].path,
       onComplete: _fimDeParte,
@@ -1755,10 +1776,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final ultima = _parteTocando >= state.partes.length - 1;
     if (ultima && _fimDaParteMs.length >= state.partes.length) {
       _retroClipMs = _fimDaParteMs.last;
-      state = state.copyWith(btClipEnded: true, btParteFronteira: false);
+      state = state.copyWith(
+        btClipEnded: true,
+        btParteFronteira: false,
+        btFimDasPartesMs: List.of(_fimDaParteMs),
+        btParteNoArMs: 0,
+      );
       return;
     }
-    state = state.copyWith(btParteFronteira: true);
+    state = state.copyWith(
+      btParteFronteira: true,
+      btFimDasPartesMs: List.of(_fimDaParteMs),
+      btParteNoArMs: 0,
+    );
   }
 
   /// Listen to the rehearsal, hold it, or cross into the next part.

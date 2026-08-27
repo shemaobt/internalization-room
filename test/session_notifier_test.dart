@@ -2569,6 +2569,91 @@ void main() {
     expect(state.canFinishBackTranslation, isTrue);
   });
 
+  test('a part says its own length the moment it opens', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    await gravaParte(notifier);
+    await gravaParte(notifier);
+    harness.playback.length = const Duration(seconds: 10);
+    notifier.startRetro();
+    await settle();
+
+    expect(container.read(salaSessionProvider).btParteNoArMs, 10000,
+        reason: 'o comprimento só existia quando a última parte acabava, então a tela '
+            'não tinha denominador justamente enquanto a equipe escutava');
+  });
+
+  test('the ends of the parts already heard reach the screen', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    await gravaParte(notifier);
+    await gravaParte(notifier);
+    harness.playback.length = const Duration(seconds: 10);
+    notifier.startRetro();
+    await settle();
+
+    harness.playback.finishPlayback();
+    await settle();
+    expect(container.read(salaSessionProvider).btFimDasPartesMs, [10000]);
+
+    notifier.proximaParte();
+    await settle();
+    harness.playback.finishPlayback();
+    await settle();
+
+    expect(container.read(salaSessionProvider).btFimDasPartesMs, [10000, 20000],
+        reason: 'as bordas das partes viviam só no notifier, e sem elas a tela não sabe '
+            'onde uma parte acaba e a próxima começa');
+  });
+
+  test('pausing writes down where the rehearsal actually stopped', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    await gravaParte(notifier);
+    notifier.startRetro();
+    await settle();
+
+    harness.playback.at = const Duration(seconds: 6);
+    notifier.ouvirGravacao();
+    await settle();
+
+    expect(container.read(salaSessionProvider).btOuvidoMs, 6000,
+        reason: 'o último trecho diz onde cortaram, não até onde escutaram — uma equipe '
+            'escuta longe antes de cortar');
+  });
+
+  test('telling a stretch again does not remeasure the part in the air', () async {
+    final harness = SalaHarness()
+      ..room.verdictChecked = false
+      ..room.verdictFinding = BtFindingKind.missing
+      ..room.verdictFindingChunk = 1;
+    final container = await inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.playback.length = const Duration(seconds: 40);
+    await _intoFindings(harness, notifier);
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
+    expect(container.read(salaSessionProvider).btParteNoArMs, 0,
+        reason: 'a parte acabou, então nada está no ar');
+
+    harness.playback.length = const Duration(seconds: 12);
+    notifier.retellChunk();
+    await settle();
+
+    expect(container.read(salaSessionProvider).btParteNoArMs, 0,
+        reason: 'o trecho tocado de novo é um pedaço da parte, e medir por ele reescalava '
+            'o cordão inteiro no meio da retro');
+  });
+
   test('a stretch told across parts carries global positions', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
