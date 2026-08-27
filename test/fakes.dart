@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,6 +20,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/coverage.dart';
+import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -390,9 +392,24 @@ class FakeRoom implements RoomRepository {
   int retells = 0;
   int retellBudget = 3;
 
+  final List<String?> codesAskedFor = [];
+  int linksRead = 0;
+  String claimCodeDeviceId = 'aparelho-1';
+  List<String> claimCodes = const ['QHF-3M7K'];
+  Duration claimCodeLife = const Duration(minutes: 15);
+  TeamLink? linkedTo;
+
   Exception? failWith;
 
   Completer<void>? _holdingTurn;
+  Completer<void>? _holdingCode;
+
+  void holdNextCode() => _holdingCode = Completer<void>();
+
+  void finishHeldCode() {
+    _holdingCode?.complete();
+    _holdingCode = null;
+  }
 
   void holdNextTurn() => _holdingTurn = Completer<void>();
 
@@ -411,6 +428,26 @@ class FakeRoom implements RoomRepository {
     final failure = failWith;
     if (failure != null) throw failure;
     if (!reachable) throw const RoomUnavailable('sem rede');
+  }
+
+  @override
+  Future<ClaimCode> askForACode(String? deviceId) async {
+    _guard('askForACode');
+    codesAskedFor.add(deviceId);
+    final held = _holdingCode;
+    if (held != null) await held.future;
+    return ClaimCode(
+      deviceId: claimCodeDeviceId,
+      code: claimCodes[min(codesAskedFor.length - 1, claimCodes.length - 1)],
+      expiresAt: DateTime.now().toUtc().add(claimCodeLife),
+    );
+  }
+
+  @override
+  Future<TeamLink?> readTheLink(String deviceId) async {
+    _guard('readTheLink');
+    linksRead++;
+    return linkedTo;
   }
 
   @override

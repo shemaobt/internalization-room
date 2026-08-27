@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 
 import '../../../core/config/env.dart';
 import '../domain/bt_finding.dart';
+import '../domain/device_link.dart';
 import '../domain/passagem.dart';
 import '../domain/session_snapshot.dart';
 import '../domain/turn_result.dart';
@@ -67,6 +68,27 @@ class RoomRepository {
       };
 
   Uri _uri(String path) => Uri.parse('${Env.backendUrl}$_basePath$path');
+
+  Future<ClaimCode> askForACode(String? deviceId) async {
+    final response = await _send(
+      () => _client.post(
+        _uri('/devices/code'),
+        headers: _headers,
+        body: jsonEncode({'device_id': ?deviceId}),
+      ),
+      _stateTimeout,
+    );
+    return _read(response, ClaimCode.fromJson);
+  }
+
+  Future<TeamLink?> readTheLink(String deviceId) async {
+    final response = await _send(
+      () => _client.get(_uri('/devices/$deviceId/link'), headers: _headers),
+      _stateTimeout,
+    );
+    if (response.statusCode == 204) return null;
+    return _read(response, TeamLink.fromJson);
+  }
 
   Future<SessionSnapshot> createSession({
     String? pericope,
