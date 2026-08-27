@@ -27,6 +27,8 @@ abstract class Env {
   static bool get devPularFases =>
       dotenv.isInitialized && _value('DEV_PULAR_FASES') == '1';
 
+  static const devAtalhos = bool.fromEnvironment('DEV_ATALHOS');
+
   static String _stripTrailingSlashes(String url) {
     var end = url.length;
     while (end > 0 && url[end - 1] == '/') {

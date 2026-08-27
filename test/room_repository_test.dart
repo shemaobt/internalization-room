@@ -134,6 +134,142 @@ void main() {
             'falta de rede');
   });
 
+  test('a tablet with no device of its own asks for a code without naming one', () async {
+    late http.BaseRequest seen;
+    late String body;
+    final repository = RoomRepository(
+      client: MockClient((request) async {
+        seen = request;
+        body = request.body;
+        return http.Response(
+          jsonEncode({
+            'device_id': 'aparelho-1',
+            'code': 'QHF-3M7K',
+            'expires_at': '2026-08-26T23:15:00Z',
+          }),
+          200,
+        );
+      }),
+    );
+    addTearDown(repository.dispose);
+
+    final asked = await repository.askForACode(null);
+
+    expect(seen.url.path, '/api/internalization-room/devices/code');
+    expect(body, '{}',
+        reason: 'um device_id nulo virava a string "null" no corpo e o servidor '
+            'procurava um aparelho com esse id');
+    expect(seen.headers['X-Room-Key'], 'k');
+    expect(asked.code, 'QHF-3M7K');
+    expect(asked.deviceId, 'aparelho-1');
+  });
+
+  test('a tablet whose code ran out asks again under the device it already has', () async {
+    late String body;
+    final repository = RoomRepository(
+      client: MockClient((request) async {
+        body = request.body;
+        return http.Response(
+          jsonEncode({
+            'device_id': 'aparelho-1',
+            'code': 'WKD-2QP4',
+            'expires_at': '2026-08-26T23:30:00Z',
+          }),
+          200,
+        );
+      }),
+    );
+    addTearDown(repository.dispose);
+
+    await repository.askForACode('aparelho-1');
+
+    expect(body, '{"device_id":"aparelho-1"}',
+        reason: 'sem o id, cada código novo abandonava um aparelho e a mesa via '
+            'um código diferente do que tinha anotado');
+  });
+
+  test('an unreadable expiry is a code with no expiry, not a code born dead', () async {
+    final repository = RoomRepository(
+      client: MockClient((_) async => http.Response(
+            jsonEncode({
+              'device_id': 'aparelho-1',
+              'code': 'QHF-3M7K',
+              'expires_at': 'sometime after lunch',
+            }),
+            200,
+          )),
+    );
+    addTearDown(repository.dispose);
+
+    final asked = await repository.askForACode(null);
+
+    expect(asked.expiresAt, isNull,
+        reason: 'um vencimento no passado como padrão pedia um código novo a cada '
+            'volta do relógio, e a mesa nunca via o mesmo duas vezes');
+  });
+
+  test('a device nobody has claimed answers nothing, and nothing is not a failure', () async {
+    late http.BaseRequest seen;
+    final repository = RoomRepository(
+      client: MockClient((request) async {
+        seen = request;
+        return http.Response('', 204);
+      }),
+    );
+    addTearDown(repository.dispose);
+
+    final link = await repository.readTheLink('aparelho-1');
+
+    expect(seen.url.path, '/api/internalization-room/devices/aparelho-1/link');
+    expect(link, isNull,
+        reason: 'um 204 caía no ramo de não-200 e virava RoomBroke, então esperar '
+            'pela mesa parecia a sala quebrada');
+  });
+
+  test('a claimed device comes back naming the team it belongs to', () async {
+    final repository = RoomRepository(
+      client: MockClient((_) async => http.Response(
+            jsonEncode({'project_id': 'equipe-terena', 'label': 'prateleira'}),
+            200,
+          )),
+    );
+    addTearDown(repository.dispose);
+
+    final link = await repository.readTheLink('aparelho-1');
+
+    expect(link?.projectId, 'equipe-terena');
+  });
+
+  test('a link with no team named is a room failure, not a team called nothing',
+      () async {
+    final repository = RoomRepository(
+      client: MockClient((_) async => http.Response('{"label":"prateleira"}', 200)),
+    );
+    addTearDown(repository.dispose);
+
+    expect(
+      () => repository.readTheLink('aparelho-1'),
+      throwsA(isA<RoomBroke>()),
+      reason: 'um project_id ausente virava equipe "" — o aparelho gravava isso em disco, '
+          'dava-se por vinculado, e a tela de instalação nunca mais voltava',
+    );
+  });
+
+  test('a code with no code in it is a room failure, not an empty screen', () async {
+    final repository = RoomRepository(
+      client: MockClient(
+        (_) async => http.Response('{"expires_at":"2026-08-26T23:15:00Z"}', 200),
+      ),
+    );
+    addTearDown(repository.dispose);
+
+    expect(
+      () => repository.askForACode(null),
+      throwsA(isA<RoomBroke>()),
+      reason: 'a mesa não pode digitar um código que a tela não mostrou',
+    );
+  });
+
   test('a malformed answer is a room failure, never a crash', () async {
     final repository = RoomRepository(
       client: MockClient((_) async => http.Response('{"nada":1}', 200)),

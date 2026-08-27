@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:internalization_room/features/sala/data/connectivity_service.dart';
+import 'package:internalization_room/features/sala/data/device_link_notifier.dart';
+import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/data/facilitator_voice_service.dart';
 import 'package:internalization_room/features/sala/data/finished_passages.dart';
 import 'package:internalization_room/features/sala/data/hand_inbox_repository.dart';
@@ -19,6 +22,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/coverage.dart';
+import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -390,9 +394,23 @@ class FakeRoom implements RoomRepository {
   int retells = 0;
   int retellBudget = 3;
 
+  final List<String?> codesAskedFor = [];
+  int linksRead = 0;
+  List<String> claimCodes = const ['QHF-3M7K'];
+  Duration claimCodeLife = const Duration(minutes: 15);
+  TeamLink? linkedTo;
+
   Exception? failWith;
 
   Completer<void>? _holdingTurn;
+  Completer<void>? _holdingCode;
+
+  void holdNextCode() => _holdingCode = Completer<void>();
+
+  void finishHeldCode() {
+    _holdingCode?.complete();
+    _holdingCode = null;
+  }
 
   void holdNextTurn() => _holdingTurn = Completer<void>();
 
@@ -411,6 +429,26 @@ class FakeRoom implements RoomRepository {
     final failure = failWith;
     if (failure != null) throw failure;
     if (!reachable) throw const RoomUnavailable('sem rede');
+  }
+
+  @override
+  Future<ClaimCode> askForACode(String? deviceId) async {
+    _guard('askForACode');
+    codesAskedFor.add(deviceId);
+    final held = _holdingCode;
+    if (held != null) await held.future;
+    return ClaimCode(
+      deviceId: 'aparelho-1',
+      code: claimCodes[min(codesAskedFor.length - 1, claimCodes.length - 1)],
+      expiresAt: DateTime.now().toUtc().add(claimCodeLife),
+    );
+  }
+
+  @override
+  Future<TeamLink?> readTheLink(String deviceId) async {
+    _guard('readTheLink');
+    linksRead++;
+    return linkedTo;
   }
 
   @override
@@ -600,6 +638,23 @@ class FakeScreenAwake implements ScreenAwake {
   Future<void> release() async => held = false;
 }
 
+class FakeLinkedTeam implements LinkedTeam {
+  RememberedLink remembered;
+
+  FakeLinkedTeam({this.remembered = const RememberedLink()});
+
+  @override
+  Future<RememberedLink> read() async => remembered;
+
+  @override
+  Future<void> rememberDevice(String deviceId) async =>
+      remembered = RememberedLink(deviceId: deviceId, team: remembered.team);
+
+  @override
+  Future<void> rememberTeam(TeamLink team) async =>
+      remembered = RememberedLink(deviceId: remembered.deviceId, team: team);
+}
+
 class SalaHarness {
   final Directory takesHome = Directory.systemTemp.createTempSync('sala-tomadas');
   final FakeVoice voice = FakeVoice();
@@ -610,6 +665,7 @@ class SalaHarness {
   final FakeRoom room = FakeRoom();
   final FakeNetwork network = FakeNetwork();
   final FakeScreenAwake awake = FakeScreenAwake();
+  final FakeLinkedTeam vinculo;
   final Duration settleDelay;
   final List<Duration> retryBackoff;
   final Duration? beckonInterval;
@@ -622,6 +678,11 @@ class SalaHarness {
   SalaHarness({
     this.voiceService,
     List<HandReply> replies = const [],
+    RememberedLink linkedAs = const RememberedLink(
+      deviceId: 'aparelho-1',
+      team: TeamLink(projectId: 'equipe-1'),
+    ),
+    this.linkPoll,
     this.settleDelay = const Duration(milliseconds: 60),
     this.retryBackoff = const [Duration(milliseconds: 20)],
     this.beckonInterval,
@@ -630,7 +691,10 @@ class SalaHarness {
     this.clipGrace = const Duration(seconds: 10),
     this.shortestSpeech = Duration.zero,
     this.fimLinger = const Duration(seconds: 30),
-  }) : inbox = FakeInbox(replies: replies);
+  })  : inbox = FakeInbox(replies: replies),
+        vinculo = FakeLinkedTeam(remembered: linkedAs);
+
+  final Duration? linkPoll;
 
   final FakeFinished finished = FakeFinished();
 
@@ -651,6 +715,8 @@ class SalaHarness {
         finishedPassagesProvider.overrideWithValue(finished),
         workInProgressProvider.overrideWithValue(emAberto),
         connectivityServiceProvider.overrideWithValue(network),
+        linkedTeamProvider.overrideWithValue(vinculo),
+        linkPollIntervalProvider.overrideWithValue(linkPoll),
         screenAwakeProvider.overrideWithValue(awake),
         beadSettleDelayProvider.overrideWithValue(settleDelay),
         roomRetryBackoffProvider.overrideWithValue(retryBackoff),
