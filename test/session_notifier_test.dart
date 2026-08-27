@@ -835,6 +835,64 @@ void main() {
     expect(harness.room.clipsFetched, isEmpty);
   });
 
+  test('a replay that works clears the strikes the failed ones left behind', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.voice.succeeds = false;
+    await notifier.hearAgain();
+    await settle();
+    await notifier.hearAgain();
+    await settle();
+
+    harness.voice.succeeds = true;
+    await notifier.hearAgain();
+    await settle();
+
+    harness.voice.succeeds = false;
+    await notifier.hearAgain();
+    await settle();
+
+    expect(container.read(salaSessionProvider).needsPerson, isFalse,
+        reason: 'a conta subia e nunca zerava, então duas falhas espalhadas pela sessão '
+            'faziam a próxima buscar alguém numa sala que acabara de falar');
+  });
+
+  test('a replay that fails leaves the team where the room had put them', () async {
+    final harness = SalaHarness()..room.peerCue = true;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    expect(container.read(salaSessionProvider).peerCue, isTrue);
+
+    harness.voice.succeeds = false;
+    await notifier.hearAgain();
+    await settle();
+
+    expect(container.read(salaSessionProvider).peerCue, isTrue,
+        reason: 'a sala mandou conversarem entre si e não conseguiu repetir a linha — '
+            'perder a instrução junto com a repetição troca a tela por baixo da equipe');
+  });
+
+  test('three replays nobody could hear fetch a person', () async {
+    final harness = SalaHarness()..room.peerCue = true;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.voice.succeeds = false;
+    for (var attempt = 0; attempt < 3; attempt++) {
+      await notifier.hearAgain();
+      await settle();
+    }
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'toda fala que não sai conta para buscar alguém, menos esta — o ouvir de '
+            'novo era o único caminho por onde a sala podia emudecer para sempre');
+  });
+
   test('replaying puts the facilitator back in the speaking state', () async {
     final harness = SalaHarness()..room.peerCue = true;
     final container = await inConversa(harness);
@@ -1010,10 +1068,15 @@ void main() {
     notifier.ensaioTap();
     await settle();
     notifier.takeKeep();
-    await settle();
+    await until(() => harness.room.takesKept.isNotEmpty);
 
     expect(harness.room.takesKept, ['ensaio/${KeptScope.parte(1)}'],
         reason: 'o ensaio é o produto — um tablet que quebra não pode levar a sessão junto');
+    final deadline = DateTime.now().add(const Duration(seconds: 5));
+    while ((await harness.takes.pending()).isNotEmpty &&
+        DateTime.now().isBefore(deadline)) {
+      await settle(const Duration(milliseconds: 20));
+    }
     expect(await harness.takes.pending(), isEmpty);
   });
 
@@ -1065,8 +1128,13 @@ void main() {
         reason: 'a conta aparece quando a equipe guarda, mas ainda está só no tablet');
 
     harness.room.reachable = true;
-    await harness.takes.flush();
-    await notifier.refreshUnsent();
+    final deadline = DateTime.now().add(const Duration(seconds: 10));
+    while (container.read(salaSessionProvider).unsentTakes != 0 &&
+        DateTime.now().isBefore(deadline)) {
+      await harness.takes.flush();
+      await notifier.refreshUnsent();
+      await settle(const Duration(milliseconds: 20));
+    }
 
     expect(container.read(salaSessionProvider).unsentTakes, 0);
   });

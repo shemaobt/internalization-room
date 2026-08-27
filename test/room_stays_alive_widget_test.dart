@@ -110,6 +110,34 @@ void main() {
     expect(seen.toSet().length, greaterThan(1));
   });
 
+  testWidgets('the room speaking is a circle that moves, not a still orange disc',
+      (tester) async {
+    await tester.pumpWidget(_circleIn(VoiceState.speaking));
+    final body = <double>{};
+    for (var frame = 0; frame < 44; frame++) {
+      await tester.pump(const Duration(milliseconds: 120));
+      final rings = tester
+          .widgetList<Transform>(
+            find.descendant(
+              of: find.byType(Ripple),
+              matching: find.byType(Transform),
+            ),
+          )
+          .toSet();
+      for (final transform in tester.widgetList<Transform>(find.byType(Transform))) {
+        if (!rings.contains(transform)) {
+          body.add(transform.transform.getMaxScaleOnAxis());
+        }
+      }
+    }
+    final swing = body.reduce((a, b) => a > b ? a : b) -
+        body.reduce((a, b) => a < b ? a : b);
+
+    expect(swing, greaterThan(0.015),
+        reason: 'falando é o único estado em que a sala está fazendo algo audível, e uma '
+            'bola parada não se distingue de uma sala que travou no meio da fala');
+  });
+
   testWidgets('a halted room is still visibly running', (tester) async {
     for (final voice in [
       VoiceState.needsPerson,
