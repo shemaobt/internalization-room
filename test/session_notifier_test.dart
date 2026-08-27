@@ -1082,8 +1082,13 @@ void main() {
         reason: 'a conta aparece quando a equipe guarda, mas ainda está só no tablet');
 
     harness.room.reachable = true;
-    await harness.takes.flush();
-    await notifier.refreshUnsent();
+    final deadline = DateTime.now().add(const Duration(seconds: 10));
+    while (container.read(salaSessionProvider).unsentTakes != 0 &&
+        DateTime.now().isBefore(deadline)) {
+      await harness.takes.flush();
+      await notifier.refreshUnsent();
+      await settle(const Duration(milliseconds: 20));
+    }
 
     expect(container.read(salaSessionProvider).unsentTakes, 0);
   });
