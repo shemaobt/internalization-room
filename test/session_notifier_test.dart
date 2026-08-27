@@ -1010,10 +1010,15 @@ void main() {
     notifier.ensaioTap();
     await settle();
     notifier.takeKeep();
-    await settle();
+    await until(() => harness.room.takesKept.isNotEmpty);
 
     expect(harness.room.takesKept, ['ensaio/${KeptScope.parte(1)}'],
         reason: 'o ensaio é o produto — um tablet que quebra não pode levar a sessão junto');
+    final deadline = DateTime.now().add(const Duration(seconds: 5));
+    while ((await harness.takes.pending()).isNotEmpty &&
+        DateTime.now().isBefore(deadline)) {
+      await settle(const Duration(milliseconds: 20));
+    }
     expect(await harness.takes.pending(), isEmpty);
   });
 
