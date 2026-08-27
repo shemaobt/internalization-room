@@ -30,8 +30,8 @@ void main() {
   });
 
   test('the claim latch is off in any build nobody handed the flag to', () {
-    expect(Env.devPularVinculo, isFalse,
-        reason: 'ele existe para o release no aparelho do desenvolvedor, então a única '
+    expect(Env.devAtalhos, isFalse,
+        reason: 'ele abre a sala e a barra de fases num build de release, então a única '
             'coisa que pode ligá-lo é alguém digitando --dart-define naquele build');
   });
 

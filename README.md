@@ -62,15 +62,19 @@ flutter run -d <iphone-id>       # on an iPhone (signing team already configured
 ```
 
 An installation nobody has linked stops at the claim code and waits for a facilitator to
-spend it from the Desk. `DEV_PULAR_FASES=1` stands in for that link, but only in a debug
-build — a release carries whatever `.env` sat in the tree of whoever compiled it, so the
-flag alone would let an unclaimed tablet into a team's room. A release build on a
-developer's own device takes the latch on the command line instead, where nothing but that
-one build can pick it up:
+spend it from the Desk, and the dev skip bar is drawn only in a debug build. `.env`'s
+`DEV_PULAR_FASES=1` opens both, and only in debug: a release carries whatever `.env` sat in
+the tree of whoever compiled it, so the file alone would let an unclaimed tablet into a
+team's room and put the phase buttons on a shipped screen. A release build on a developer's
+own device takes the latch on the command line instead, where nothing but that one build
+can pick it up:
 
 ```sh
-flutter run --release -d <iphone-id> --dart-define=DEV_PULAR_VINCULO=true
+flutter run --release -d <iphone-id> --dart-define=DEV_ATALHOS=true
 ```
+
+`DEV_ATALHOS` stands in for the device link and, with `DEV_PULAR_FASES=1` in `.env`, brings
+the skip bar with it.
 
 iOS signing uses the Shemá team (`55ZKR3YQMJ`, bundle id `com.shema.internalizationRoom`). First deploy to a personal device may require trusting the developer profile on the phone (Settings → General → VPN & Device Management).
 
