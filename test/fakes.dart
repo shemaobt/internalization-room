@@ -729,7 +729,10 @@ class SpeakingPlayer extends Fake implements AudioPlayer {
     _quiet();
   }
 
-  void pauseIt() => _quiet();
+  void pauseIt() {
+    _playing = false;
+    _quiet();
+  }
 
   void reachTheEnd() {
     _state = ProcessingState.completed;
