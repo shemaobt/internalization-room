@@ -6,6 +6,8 @@ import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/eq_bars.dart';
 
 /// What the team can actually tell apart, on a tablet on the floor.
@@ -72,6 +74,50 @@ void main() {
       expect(_ratio(painted.color!, theme.scaffoldBackgroundColor), greaterThan(7),
           reason: 'o glifo desenhado com a cor de apoio some no papel claro, e um '
               'código que não se lê é uma instalação que não acontece');
+    }
+  });
+
+  testWidgets('the room speaking does not look like the room waiting to be spoken to',
+      (tester) async {
+    Future<void> pumpCircle(VoiceState voice) => tester.pumpWidget(
+          MaterialApp(
+            key: ValueKey(voice),
+            theme: AppTheme.dark,
+            home: Scaffold(
+              body: Center(
+                child: FacilitatorCircle(
+                  size: 196,
+                  voice: voice,
+                  semanticLabel: 'circulo',
+                  onTap: () {},
+                ),
+              ),
+            ),
+          ),
+        );
+
+    List<BoxDecoration> painted() => tester
+        .widgetList<Container>(find.byType(Container))
+        .map((box) => box.decoration)
+        .whereType<BoxDecoration>()
+        .toList();
+
+    await pumpCircle(VoiceState.invite);
+    await tester.pump(const Duration(milliseconds: 80));
+    expect(painted().where((d) => d.border != null), isEmpty,
+        reason: 'esperando, o círculo é só o disco — nada em volta dele');
+
+    await pumpCircle(VoiceState.speaking);
+    for (var frame = 0; frame < 20; frame++) {
+      await tester.pump(const Duration(milliseconds: 80));
+      final decorations = painted();
+      final disc = decorations.indexWhere((d) => d.gradient != null);
+      final ring = decorations.indexWhere((d) => d.border != null);
+
+      expect(ring, greaterThan(disc),
+          reason: 'os dois estados desenham exatamente o mesmo disco, então o anel é a '
+              'única coisa que diz quem está falando — e ele passava por baixo, onde o '
+              'halo do próprio disco, telha a 0,32 com 34 de blur, o cobria');
     }
   });
 

@@ -58,9 +58,9 @@ class FacilitatorCircle extends StatelessWidget {
               clipBehavior: Clip.none,
               alignment: Alignment.center,
               children: [
-                if (voice == VoiceState.speaking) ..._ripples(colors),
                 if (beckon) ..._beckoning(colors),
                 _body(colors),
+                if (voice == VoiceState.speaking) ..._ripples(colors),
                 if (voice == VoiceState.listening) _listenRing(colors),
                 if (child != null && voice != VoiceState.listening) child!,
                 if (voice == VoiceState.listening) ..._gatheringIn(),
