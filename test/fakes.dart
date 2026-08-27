@@ -699,15 +699,35 @@ class SpeakingPlayer extends Fake implements AudioPlayer {
   }) async =>
       lineLength;
 
+  bool _playing = false;
+
+  @override
+  bool get playing => _playing;
+
   @override
   Future<void> play() {
+    // just_audio returns at once when it already believes it is playing
+    // (just_audio.dart:939), and iOS never clears that flag when a clip ends: the native
+    // `complete` sets processingState and leaves `_playing` YES. Only stop, pause or a
+    // failed session activation clear it.
+    if (_playing) return Future<void>.value();
+    _playing = true;
     _sounding = Completer<void>();
     if (stopsBeforeTheEnd) _quiet();
     return _sounding!.future;
   }
 
   @override
-  Future<void> stop() async => _quiet();
+  Future<void> stop() async {
+    _playing = false;
+    _quiet();
+  }
+
+  @override
+  Future<void> pause() async {
+    _playing = false;
+    _quiet();
+  }
 
   void pauseIt() => _quiet();
 
