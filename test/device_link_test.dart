@@ -78,6 +78,45 @@ void main() {
             'sala que já estava trabalhando');
   });
 
+  test('a tablet reopened after the claim landed reads it, it does not draw over it', () async {
+    final harness = SalaHarness(
+      linkedAs: const RememberedLink(deviceId: 'aparelho-1'),
+      linkPoll: const Duration(milliseconds: 300),
+    )..room.linkedTo = const TeamLink(projectId: 'equipe-terena');
+    final container = harness.container();
+    addTearDown(container.dispose);
+
+    await container.read(deviceLinkProvider.notifier).findTheTeam();
+    await until(() => container.read(deviceLinkProvider).linked);
+
+    expect(container.read(deviceLinkProvider).team?.projectId, 'equipe-terena');
+    expect(harness.room.codesAskedFor, isEmpty,
+        reason: 'o aparelho pedia código antes de ler o vínculo, o servidor respondia um '
+            'aparelho novo para um id já vinculado, e a equipe que o facilitador acabara '
+            'de escolher ficava numa linha que ninguém mais lê');
+  });
+
+  test('a code that ran out after it was spent is read, not redrawn', () async {
+    final harness = SalaHarness(
+      linkedAs: _unclaimed,
+      linkPoll: const Duration(milliseconds: 100),
+    )..room.claimCodeLife = Duration.zero;
+    final container = harness.container();
+    addTearDown(container.dispose);
+
+    await container.read(deviceLinkProvider.notifier).findTheTeam();
+    await settle();
+    harness.room.linkedTo = const TeamLink(projectId: 'equipe-terena');
+    final drawnBefore = harness.room.codesAskedFor.length;
+
+    await until(() => container.read(deviceLinkProvider).linked);
+
+    expect(container.read(deviceLinkProvider).team?.projectId, 'equipe-terena');
+    expect(harness.room.codesAskedFor.length, drawnBefore,
+        reason: 'o vencimento era checado antes da leitura, então uma escolha feita nos '
+            'últimos segundos do código era descartada pelo tique seguinte');
+  });
+
   test('a tablet put down mid-question is a room closing, not a room breaking', () async {
     final harness = SalaHarness(linkedAs: _unclaimed)..room.holdNextCode();
     final container = harness.container();

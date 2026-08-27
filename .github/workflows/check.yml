@@ -51,7 +51,8 @@ jobs:
       # once, at installation, and the screen is gone for good after that.
       - name: The room stays wordless
         run: |
-          if grep -rn --exclude=codigo_view.dart "Text(" lib/features/sala/presentation/; then
+          if grep -rn "Text(" lib/features/sala/presentation/ \
+              | grep -v "^lib/features/sala/presentation/widgets/codigo_view.dart:"; then
             echo "::error::A written word reached a team screen."
             exit 1
           fi

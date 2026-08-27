@@ -59,7 +59,7 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
       state = DeviceLink(team: team);
       return;
     }
-    await _showACode();
+    await _lookForTheTeam();
   }
 
   Future<void> _showACode() async {
@@ -81,14 +81,18 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     if (_closed) return;
     final deviceId = _deviceId;
     if (deviceId == null) return _showACode();
-    if (state.code?.ranOutBy(DateTime.now()) ?? false) return _showACode();
     try {
       final team = await _room.readTheLink(deviceId);
       if (_closed) return;
       _failures = 0;
-      if (team == null) return _lookAgainLater();
-      await _ledger.rememberTeam(team);
-      state = DeviceLink(team: team);
+      if (team != null) {
+        await _ledger.rememberTeam(team);
+        state = DeviceLink(team: team);
+        return;
+      }
+      final showing = state.code;
+      if (showing == null || showing.ranOutBy(DateTime.now())) return _showACode();
+      _lookAgainLater();
     } on SessionGone {
       _deviceId = null;
       await _showACode();
