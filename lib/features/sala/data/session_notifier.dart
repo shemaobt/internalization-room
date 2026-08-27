@@ -329,8 +329,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (epoch != _epoch) return;
     state = state.copyWith(voice: VoiceState.speaking);
     _watchBusyState();
-    await _speak(line.url, line.fixedLine, panoramaUrl: line.panoramaUrl);
+    final played = await _speak(line.url, line.fixedLine, panoramaUrl: line.panoramaUrl);
     if (epoch != _epoch) return;
+    if (!played) return _registerUnplayableTurn();
     state = state.copyWith(voice: VoiceState.invite);
   }
 
@@ -357,13 +358,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final played = await _speak(line.panoramaUrl, '', panoramaUrl: line.panoramaUrl);
     if (epoch != _epoch) return;
     state = state.copyWith(contasEnfiadas: true);
-    if (!played) {
-      state = state.copyWith(voice: VoiceState.invite);
-      return;
-    }
+    if (!played) return _registerUnplayableTurn();
     _watchBusyState();
-    await _speak(line.url, '', panoramaUrl: line.panoramaUrl);
+    final scene = await _speak(line.url, '', panoramaUrl: line.panoramaUrl);
     if (epoch != _epoch) return;
+    if (!scene) return _registerUnplayableTurn();
     state = state.copyWith(voice: VoiceState.invite);
   }
 
