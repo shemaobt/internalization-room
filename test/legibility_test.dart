@@ -64,9 +64,11 @@ void main() {
       await tester.pump(const Duration(milliseconds: 80));
 
       final painted = tester.widget<Text>(find.byType(Text)).style!;
-      expect(painted.fontSize, greaterThanOrEqualTo(72),
-          reason: 'o facilitador lê o código de pé, do outro lado da mesa, e digita '
-              'numa tela que não está na mão dele');
+      final drawn = tester.getRect(find.byType(Text));
+      final surface = tester.getSize(find.byType(Scaffold));
+      expect(drawn.width, greaterThan(surface.width * 0.8),
+          reason: 'o FittedBox encolhe o glifo até caber, então o tamanho declarado passava '
+              'no teste enquanto a tela desenhava um código pequeno demais para a mesa');
       expect(_ratio(painted.color!, theme.scaffoldBackgroundColor), greaterThan(7),
           reason: 'o glifo desenhado com a cor de apoio some no papel claro, e um '
               'código que não se lê é uma instalação que não acontece');

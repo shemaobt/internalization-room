@@ -240,6 +240,36 @@ void main() {
     expect(link?.projectId, 'equipe-terena');
   });
 
+  test('a link with no team named is a room failure, not a team called nothing',
+      () async {
+    final repository = RoomRepository(
+      client: MockClient((_) async => http.Response('{"label":"prateleira"}', 200)),
+    );
+    addTearDown(repository.dispose);
+
+    expect(
+      () => repository.readTheLink('aparelho-1'),
+      throwsA(isA<RoomBroke>()),
+      reason: 'um project_id ausente virava equipe "" — o aparelho gravava isso em disco, '
+          'dava-se por vinculado, e a tela de instalação nunca mais voltava',
+    );
+  });
+
+  test('a code with no code in it is a room failure, not an empty screen', () async {
+    final repository = RoomRepository(
+      client: MockClient(
+        (_) async => http.Response('{"expires_at":"2026-08-26T23:15:00Z"}', 200),
+      ),
+    );
+    addTearDown(repository.dispose);
+
+    expect(
+      () => repository.askForACode(null),
+      throwsA(isA<RoomBroke>()),
+      reason: 'a mesa não pode digitar um código que a tela não mostrou',
+    );
+  });
+
   test('a malformed answer is a room failure, never a crash', () async {
     final repository = RoomRepository(
       client: MockClient((_) async => http.Response('{"nada":1}', 200)),

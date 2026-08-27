@@ -87,9 +87,8 @@ class _SalaScreenState extends ConsumerState<SalaScreen> with WidgetsBindingObse
     final mic = ref.watch(micPermissionProvider);
     final link = ref.watch(deviceLinkProvider);
 
-    final code = link.code;
-    if (code != null && !link.linked) {
-      return Scaffold(body: SafeArea(child: CodigoView(code: code)));
+    if (!link.linked) {
+      return Scaffold(body: SafeArea(child: CodigoView(code: link.code)));
     }
 
     if (link.linked && !_roomOpened) {

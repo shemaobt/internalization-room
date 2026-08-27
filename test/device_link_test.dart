@@ -10,6 +10,7 @@ import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/dev/dev_skip_bar.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/convite_view.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
@@ -38,6 +39,22 @@ void main() {
             'na mesma tela é uma que a equipe não sabe ler');
     expect(find.byType(EditableText), findsNothing,
         reason: 'quem digita é o facilitador, na Mesa — o aparelho mostra e nunca pede');
+  });
+
+  testWidgets('a tablet still waiting for its code offers the room no way in',
+      (tester) async {
+    final harness = SalaHarness(linkedAs: _unclaimed)..room.holdNextCode();
+    await pumpSala(tester, harness);
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.byType(ConviteView), findsNothing,
+        reason: 'entre o pedido e a resposta a tela caía no convite, e um toque ali abria '
+            'sessão com a chave compartilhada — exatamente o que o vínculo existe para tirar');
+    expect(find.byType(EditableText), findsNothing);
+
+    harness.room.finishHeldCode();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byType(CodigoView), findsOneWidget);
   });
 
   testWidgets('a tablet that was already linked never sees the code screen', (tester) async {

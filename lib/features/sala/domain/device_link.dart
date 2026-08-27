@@ -10,8 +10,8 @@ class ClaimCode {
   });
 
   factory ClaimCode.fromJson(Map<String, dynamic> json) => ClaimCode(
-        deviceId: json['device_id'] as String? ?? '',
-        code: json['code'] as String? ?? '',
+        deviceId: json['device_id'] as String,
+        code: json['code'] as String,
         expiresAt: DateTime.tryParse(json['expires_at'] as String? ?? '')?.toUtc(),
       );
 
@@ -28,7 +28,7 @@ class TeamLink {
   const TeamLink({required this.projectId, this.label});
 
   factory TeamLink.fromJson(Map<String, dynamic> json) => TeamLink(
-        projectId: json['project_id'] as String? ?? '',
+        projectId: json['project_id'] as String,
         label: json['label'] as String?,
       );
 }

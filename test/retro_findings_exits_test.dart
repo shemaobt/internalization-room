@@ -27,6 +27,7 @@ Future<ProviderContainer> pumpToFindings(
     ..room.verdictFindingChunk = chunk;
   final container = harness.container();
   addTearDown(container.dispose);
+  await tester.pumpWidget(const SizedBox.shrink());
   await tester.pumpWidget(
     UncontrolledProviderScope(container: container, child: const SalaApp()),
   );
