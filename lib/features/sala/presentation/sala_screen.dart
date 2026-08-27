@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/device_link_notifier.dart';
 import '../data/facilitator_voice_service.dart';
 import '../data/mic_permission.dart';
 import '../data/screen_awake.dart';
@@ -11,6 +12,7 @@ import '../data/take_upload_queue.dart';
 import '../domain/facilitator_script.dart';
 import '../domain/session_state.dart';
 import '../dev/dev_skip_bar.dart';
+import 'widgets/codigo_view.dart';
 import 'widgets/colar_overlay.dart';
 import 'widgets/conversa_view.dart';
 import 'widgets/convite_view.dart';
@@ -33,6 +35,7 @@ class SalaScreen extends ConsumerStatefulWidget {
 
 class _SalaScreenState extends ConsumerState<SalaScreen> with WidgetsBindingObserver {
   late final ScreenAwake _awake = ref.read(screenAwakeProvider);
+  bool _roomOpened = false;
 
   @override
   void initState() {
@@ -50,7 +53,7 @@ class _SalaScreenState extends ConsumerState<SalaScreen> with WidgetsBindingObse
             .flush()
             .then((_) => ref.read(salaSessionProvider.notifier).refreshUnsent()),
       );
-      unawaited(_openRoom());
+      unawaited(ref.read(deviceLinkProvider.notifier).findTheTeam());
     });
   }
 
@@ -63,7 +66,9 @@ class _SalaScreenState extends ConsumerState<SalaScreen> with WidgetsBindingObse
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState lifecycle) {
-    if (lifecycle == AppLifecycleState.resumed) unawaited(_openRoom());
+    if (lifecycle == AppLifecycleState.resumed && ref.read(deviceLinkProvider).linked) {
+      unawaited(_openRoom());
+    }
   }
 
   Future<void> _openRoom() async {
@@ -80,6 +85,17 @@ class _SalaScreenState extends ConsumerState<SalaScreen> with WidgetsBindingObse
   Widget build(BuildContext context) {
     final session = ref.watch(salaSessionProvider);
     final mic = ref.watch(micPermissionProvider);
+    final link = ref.watch(deviceLinkProvider);
+
+    final code = link.code;
+    if (code != null && !link.linked) {
+      return Scaffold(body: SafeArea(child: CodigoView(code: code)));
+    }
+
+    if (link.linked && !_roomOpened) {
+      _roomOpened = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_openRoom()));
+    }
 
     if (mic == MicAccess.denied) {
       return const Scaffold(body: SafeArea(child: MicGateView()));

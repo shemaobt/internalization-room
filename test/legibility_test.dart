@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
+import 'package:internalization_room/features/sala/domain/device_link.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/eq_bars.dart';
 
 /// What the team can actually tell apart, on a tablet on the floor.
@@ -43,6 +45,31 @@ void main() {
     for (final colors in [SalaColors.light, SalaColors.dark]) {
       expect(_ratio(colors.oat, ShemaBrand.wood), greaterThan(1.7),
           reason: 'é essa diferença que a equipe conta ao olhar o colar');
+    }
+  });
+
+  testWidgets('the claim code is read across a table, in either light', (tester) async {
+    for (final theme in [AppTheme.light, AppTheme.dark]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          key: ValueKey(theme.brightness),
+          theme: theme,
+          home: const Scaffold(
+            body: CodigoView(
+              code: ClaimCode(deviceId: 'aparelho-1', code: 'QHF-3M7K'),
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 80));
+
+      final painted = tester.widget<Text>(find.byType(Text)).style!;
+      expect(painted.fontSize, greaterThanOrEqualTo(72),
+          reason: 'o facilitador lê o código de pé, do outro lado da mesa, e digita '
+              'numa tela que não está na mão dele');
+      expect(_ratio(painted.color!, theme.scaffoldBackgroundColor), greaterThan(7),
+          reason: 'o glifo desenhado com a cor de apoio some no papel claro, e um '
+              'código que não se lê é uma instalação que não acontece');
     }
   });
 
