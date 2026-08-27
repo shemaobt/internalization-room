@@ -53,7 +53,8 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
 
   /// Find out who this tablet belongs to, and keep asking until somebody says.
   Future<void> findTheTeam() async {
-    if (ref.read(debugBuildProvider) && Env.devPularFases) {
+    if (Env.devPularVinculo ||
+        (ref.read(debugBuildProvider) && Env.devPularFases)) {
       state = const DeviceLink(team: TeamLink(projectId: 'dev'));
       return;
     }
