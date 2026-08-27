@@ -211,9 +211,3 @@ class _ClipHalo extends StatelessWidget {
     );
   }
 }
-
-/// One bead per stretch the team told, in the order they told them.
-///
-/// A stretch that landed is filled; one the room never took is hollow, and sits where it
-/// was actually told rather than at the end of the row. Subtracting a count of failures
-/// from a list of successes drew neither: the two never described the same stretch.

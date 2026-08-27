@@ -171,10 +171,5 @@ class _CordPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_CordPainter old) =>
-      sx != old.sx ||
-      sy != old.sy ||
-      mark != old.mark ||
-      told.length != old.told.length ||
-      boundaries.length != old.boundaries.length;
+  bool shouldRepaint(_CordPainter old) => true;
 }

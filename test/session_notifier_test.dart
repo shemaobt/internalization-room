@@ -835,6 +835,47 @@ void main() {
     expect(harness.room.clipsFetched, isEmpty);
   });
 
+  test('a replay that works clears the strikes the failed ones left behind', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.voice.succeeds = false;
+    await notifier.hearAgain();
+    await settle();
+    await notifier.hearAgain();
+    await settle();
+
+    harness.voice.succeeds = true;
+    await notifier.hearAgain();
+    await settle();
+
+    harness.voice.succeeds = false;
+    await notifier.hearAgain();
+    await settle();
+
+    expect(container.read(salaSessionProvider).needsPerson, isFalse,
+        reason: 'a conta subia e nunca zerava, então duas falhas espalhadas pela sessão '
+            'faziam a próxima buscar alguém numa sala que acabara de falar');
+  });
+
+  test('a replay that fails leaves the team where the room had put them', () async {
+    final harness = SalaHarness()..room.peerCue = true;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    expect(container.read(salaSessionProvider).peerCue, isTrue);
+
+    harness.voice.succeeds = false;
+    await notifier.hearAgain();
+    await settle();
+
+    expect(container.read(salaSessionProvider).peerCue, isTrue,
+        reason: 'a sala mandou conversarem entre si e não conseguiu repetir a linha — '
+            'perder a instrução junto com a repetição troca a tela por baixo da equipe');
+  });
+
   test('three replays nobody could hear fetch a person', () async {
     final harness = SalaHarness()..room.peerCue = true;
     final container = await inConversa(harness);
