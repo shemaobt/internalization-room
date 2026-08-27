@@ -19,6 +19,7 @@ import 'widgets/escolha_view.dart';
 import 'widgets/hear_again_button.dart';
 import 'widgets/leave_passage_button.dart';
 import 'widgets/mic_gate_view.dart';
+import 'widgets/retro_cord.dart';
 import 'widgets/retro_view.dart';
 
 class SalaScreen extends ConsumerStatefulWidget {
@@ -104,6 +105,10 @@ class _SalaScreenState extends ConsumerState<SalaScreen> with WidgetsBindingObse
             if (session.colarOn)
               const Positioned.fill(
                 child: SafeArea(bottom: false, child: _ColarLayer()),
+              )
+            else if (session.stage == SalaStage.retro)
+              const Positioned.fill(
+                child: SafeArea(bottom: false, child: _RetroCordLayer()),
               ),
             const HearAgainButton(),
             const LeavePassageButton(),
@@ -145,6 +150,22 @@ class _FimView extends ConsumerWidget {
         behavior: HitTestBehavior.opaque,
         child: const SizedBox.expand(),
       ),
+    );
+  }
+}
+
+class _RetroCordLayer extends ConsumerWidget {
+  const _RetroCordLayer();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final session = ref.watch(salaSessionProvider);
+    return RetroCord(
+      partes: session.partes.length,
+      fimDasPartes: session.btFimDasPartesMs,
+      parteNoArMs: session.btParteNoArMs,
+      ouvidoMs: session.btOuvidoMs,
+      trechos: session.btTrechos,
     );
   }
 }

@@ -15,6 +15,7 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/retro_cord.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/passage_ruler.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/main.dart';
@@ -390,6 +391,31 @@ void main() {
       findsOneWidget,
     );
     expect(bySemanticsLabelWidget('Levantar a mão'), findsNothing);
+  });
+
+  testWidgets('the retro hangs one cord and the conversa necklace stays away',
+      (tester) async {
+    final harness = SalaHarness();
+    final container = await pumpSala(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goConversa();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byType(ColarOverlay), findsOneWidget);
+    expect(find.byType(RetroCord), findsNothing);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    notifier.takeKeep();
+    notifier.startRetro();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.byType(RetroCord), findsOneWidget);
+    expect(find.byType(ColarOverlay), findsNothing,
+        reason: 'duas fileiras no alto da retro liam como a mesma coisa duas vezes, que '
+            'é a razão de o colar da conversa ficar de fora daqui');
   });
 
   testWidgets('the back-translation offers terminei once the clip ends',
