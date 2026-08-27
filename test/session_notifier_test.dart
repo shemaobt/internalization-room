@@ -835,6 +835,23 @@ void main() {
     expect(harness.room.clipsFetched, isEmpty);
   });
 
+  test('three replays nobody could hear fetch a person', () async {
+    final harness = SalaHarness()..room.peerCue = true;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.voice.succeeds = false;
+    for (var attempt = 0; attempt < 3; attempt++) {
+      await notifier.hearAgain();
+      await settle();
+    }
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'toda fala que não sai conta para buscar alguém, menos esta — o ouvir de '
+            'novo era o único caminho por onde a sala podia emudecer para sempre');
+  });
+
   test('replaying puts the facilitator back in the speaking state', () async {
     final harness = SalaHarness()..room.peerCue = true;
     final container = await inConversa(harness);
