@@ -13,7 +13,9 @@ class DevSkipBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!ref.watch(debugBuildProvider)) return const SizedBox.shrink();
+    if (!ref.watch(debugBuildProvider) && !Env.devAtalhos) {
+      return const SizedBox.shrink();
+    }
     if (!Env.devPularFases) return const SizedBox.shrink();
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);

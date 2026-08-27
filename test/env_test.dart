@@ -29,6 +29,12 @@ void main() {
     expect(Env.complete, isTrue);
   });
 
+  test('the claim latch is off in any build nobody handed the flag to', () {
+    expect(Env.devAtalhos, isFalse,
+        reason: 'ele abre a sala e a barra de fases num build de release, então a única '
+            'coisa que pode ligá-lo é alguém digitando --dart-define naquele build');
+  });
+
   test('the phase-skip latch is off unless a dev build asks for it', () {
     dotenv.testLoad(
       fileInput: 'BACKEND_URL=http://10.0.0.2:8000\nINTERNALIZATION_ROOM_KEY=k',
