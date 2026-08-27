@@ -93,6 +93,7 @@ class FacilitatorVoiceService {
   /// that as success let an interrupted line clear every health counter the room keeps, and
   /// pushed the team on to answer a question they were never asked.
   Future<bool> _sayItWhole(Future<Duration?> Function() load) async {
+    await _player.stop();
     final length = await load();
     try {
       await _player.play().timeout((length ?? _unknownLineCeiling) + _grace);

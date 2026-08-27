@@ -137,6 +137,27 @@ void main() {
         reason: 'a sala para o tocador e ainda assim dizia que tinha falado');
   });
 
+  test('a second line actually sounds, instead of riding the first one\'s latch',
+      () async {
+    final player = SpeakingPlayer();
+    final voice = service(player: player);
+
+    final first = voice.play(_clip);
+    await until(() => player.sounding);
+    player.reachTheEnd();
+    expect(await first, isTrue);
+
+    final second = voice.play(_other);
+    await until(() => player.sounding);
+
+    expect(player.sounding, isTrue,
+        reason: 'o player já se julgava tocando, então o play seguinte voltava na hora '
+            'sem tocar nada, e o estado de "terminado" da linha anterior era lido como '
+            'sucesso — a sala se dava por falada em silêncio');
+    player.reachTheEnd();
+    expect(await second, isTrue);
+  });
+
   test('a line played to the end is still counted as heard', () async {
     final player = SpeakingPlayer();
     final voice = service(player: player);

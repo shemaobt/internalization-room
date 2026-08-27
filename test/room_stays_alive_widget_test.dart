@@ -110,6 +110,17 @@ void main() {
     expect(seen.toSet().length, greaterThan(1));
   });
 
+  testWidgets('the room speaking is a circle that moves, not a still orange disc',
+      (tester) async {
+    final seen = await _scalesOver(tester, _circleIn(VoiceState.speaking));
+    final swing = seen.reduce((a, b) => a > b ? a : b) -
+        seen.reduce((a, b) => a < b ? a : b);
+
+    expect(swing, greaterThan(0.015),
+        reason: 'falando é o único estado em que a sala está fazendo algo audível, e uma '
+            'bola parada não se distingue de uma sala que travou no meio da fala');
+  });
+
   testWidgets('a halted room is still visibly running', (tester) async {
     for (final voice in [
       VoiceState.needsPerson,
