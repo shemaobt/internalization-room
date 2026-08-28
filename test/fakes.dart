@@ -378,6 +378,7 @@ class FakeRoom implements RoomRepository {
   bool turnsAreDegraded = false;
   bool silentAboutCoverage = false;
   bool verdictChecked = true;
+  BackTranslationProgress retroSoFar = const BackTranslationProgress();
   BtFindingKind? verdictFinding;
   int? verdictFindingChunk;
   String? serverStatus;
@@ -493,6 +494,7 @@ class FakeRoom implements RoomRepository {
       status: serverStatus ?? (done ? 'done' : 'in_progress'),
       coverage: silentAboutCoverage ? null : (settledCoverage ?? nextCoverage),
       done: done,
+      backTranslation: retroSoFar,
     );
   }
 

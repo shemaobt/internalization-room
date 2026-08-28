@@ -12,6 +12,7 @@ import '../domain/kept_take.dart';
 import '../domain/passagem.dart';
 import '../domain/coverage.dart';
 import '../domain/room_reach.dart';
+import '../domain/session_snapshot.dart';
 import '../domain/session_state.dart';
 import '../domain/spoken_line.dart';
 import '../domain/turn_result.dart';
@@ -1076,6 +1077,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           final snapshot = await _room.fetchState(sessionId);
           if (epoch != _epoch) return;
           state = state.copyWith(coverage: snapshot.coverage);
+          if (waiting.stage == SalaStage.retro) {
+            _pickTheTellingBackUp(snapshot.backTranslation);
+          }
           return;
         }
       }
@@ -1164,6 +1168,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     unawaited(_countUnsent());
     return true;
+  }
+
+  /// Every reopening landed on the rehearsal, so a team that had stopped part-way through
+  /// telling it back recorded the whole passage a second time and the session ended
+  /// holding two of everything. A room with no stretch has no telling-back to pick up.
+  void _pickTheTellingBackUp(BackTranslationProgress told) {
+    if (told.nothingTold) return;
+    _trechoStart = told.trechos.last.to;
+    state = state.copyWith(
+      stage: SalaStage.retro,
+      voice: told.checked ? VoiceState.done : VoiceState.invite,
+      btPhase: told.checked ? BtPhase.conferida : BtPhase.playing,
+      btTrechos: told.trechos,
+      btChunkPasses: told.passes,
+    );
+    if (told.checked) {
+      _closeTheNecklace();
+      return;
+    }
+    _tocarParteDaRetro(0);
   }
 
   void conversaTap() {
@@ -1822,7 +1846,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // While telling a stretch again, its bounds are the ones the finding named. Reading the
     // position instead wrote a place inside the excerpt into a number that means a place in
     // the whole rehearsal, and every stretch after it inherited the lie.
-    if (!_recontando) _trechoEnd = _posicaoGlobal;
+    if (!_recontando) {
+      // A rehearsal picked back up plays from the top while the cursor already sits where
+      // the last stretch ended, so the playhead spends a while behind it — the one moment
+      // this room has where it can. There is nothing new to tell back there, and cutting
+      // anyway sent a stretch that ends before it begins and then walked the cursor
+      // backwards over every stretch after it.
+      if (_posicaoGlobal < _trechoStart) return;
+      _trechoEnd = _posicaoGlobal;
+    }
     _pararOClipe();
     _startChunkCapture();
   }
