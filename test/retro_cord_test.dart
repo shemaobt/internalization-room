@@ -17,8 +17,10 @@ double _at(
       parteNoArMs: parteNoArMs,
     );
 
-Trecho _trecho(int from, int to) => Trecho(
-      index: from,
+Trecho _trecho(int from, int to, {int parte = 0}) => Trecho(
+      segmentId: 'trecho-$from',
+      takeId: 'gravacao-${parte + 1}',
+      parte: parte,
       from: Duration(milliseconds: from),
       to: Duration(milliseconds: to),
     );

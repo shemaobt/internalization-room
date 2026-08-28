@@ -32,6 +32,7 @@ Future<SalaHarness> pumpToRestartInFlight(WidgetTester tester) async {
   notifier.ensaioTap();
   await tester.pump(const Duration(milliseconds: 100));
   notifier.takeKeep();
+  await letTheRehearsalReachTheRoom(tester);
   notifier.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
 

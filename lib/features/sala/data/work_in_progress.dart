@@ -37,7 +37,7 @@ class ResumePoint {
         'pass': pass,
         'takes': [
           for (final take in takes)
-            {'path': take.path, 'scope': take.scopeId},
+            {'path': take.path, 'scope': take.scopeId, 'take': ?take.takeId},
         ],
       };
 
@@ -57,6 +57,7 @@ class ResumePoint {
             KeptTake(
               path: raw['path'] as String? ?? '',
               scopeId: raw['scope'] as String? ?? KeptScope.whole,
+              takeId: raw['take'] as String?,
             ),
       ],
     );

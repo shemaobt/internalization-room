@@ -8,5 +8,14 @@ class KeptTake {
   final String scopeId;
   final String path;
 
-  const KeptTake({required this.scopeId, required this.path});
+  /// Where the room put this recording, once it has answered for it.
+  ///
+  /// A told-back stretch is a slice of one file and names it, so the retro cannot send a
+  /// stretch of a part the room has never seen. Null until the upload lands.
+  final String? takeId;
+
+  const KeptTake({required this.scopeId, required this.path, this.takeId});
+
+  KeptTake withTakeId(String? id) =>
+      KeptTake(scopeId: scopeId, path: path, takeId: id ?? takeId);
 }

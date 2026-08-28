@@ -14,12 +14,24 @@ Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) async 
   await Future<void>.delayed(delay);
 }
 
+const _gravacao = 'gravacao-1';
+
 const _contados = BackTranslationProgress(
-  trechos: [
-    Trecho(index: 1, from: Duration.zero, to: Duration(seconds: 12)),
-    Trecho(index: 2, from: Duration(seconds: 12), to: Duration(seconds: 30)),
+  segments: [
+    SegmentView(
+      segmentId: 'trecho-1',
+      takeId: _gravacao,
+      startsMs: 0,
+      endsMs: 12000,
+    ),
+    SegmentView(
+      segmentId: 'trecho-2',
+      takeId: _gravacao,
+      startsMs: 12000,
+      endsMs: 30000,
+      passNumber: 2,
+    ),
   ],
-  passes: [1, 2],
 );
 
 /// A tablet that was closed part-way and is opened again on the same passage.
@@ -38,7 +50,13 @@ Future<ProviderContainer> _reopen(
   harness.emAberto.rows['Ruth/P01'] = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: parouEm,
-    takes: [KeptTake(scopeId: KeptScope.parte(1), path: gravada.path)],
+    takes: [
+      KeptTake(
+        scopeId: KeptScope.parte(1),
+        path: gravada.path,
+        takeId: _gravacao,
+      ),
+    ],
   );
   harness.room.retroSoFar = contado;
   final container = harness.container();
@@ -83,6 +101,11 @@ void main() {
       ['0:00:00.000000-0:00:12.000000', '0:00:12.000000-0:00:30.000000'],
     );
     expect(state.btChunkPasses, [1, 2]);
+    expect(
+      [for (final trecho in state.btTrechos) trecho.takeId],
+      [_gravacao, _gravacao],
+      reason: 'cada trecho volta amarrado à gravação que ele fatia',
+    );
   });
 
   test('a telling-back the room already checked does not start over', () async {
@@ -92,10 +115,14 @@ void main() {
       harness,
       parouEm: SalaStage.retro,
       contado: const BackTranslationProgress(
-        trechos: [
-          Trecho(index: 1, from: Duration.zero, to: Duration(seconds: 30)),
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: _gravacao,
+            startsMs: 0,
+            endsMs: 30000,
+          ),
         ],
-        passes: [1],
         checked: true,
       ),
     );
@@ -157,6 +184,8 @@ void main() {
     expect(harness.room.chunkSpans, ['30000-44000'],
         reason: 'recomeçar do zero manda um segundo conjunto de trechos para a '
             'mesma passada, e o analista recebe a passagem contada duas vezes');
+    expect(harness.room.chunkTakes, [_gravacao],
+        reason: 'e continua sendo a mesma gravação que ele fatia');
   });
 
   test('cutting over ground already told back tells the room nothing', () async {

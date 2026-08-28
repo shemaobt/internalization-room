@@ -60,12 +60,16 @@ class RetroCord extends StatelessWidget {
     final contados = <int>{};
     final told = <_Span>[];
     for (final trecho in trechos) {
-      final again = !contados.add(trecho.from.inMilliseconds);
-      told.add(_Span(
-        _at(trecho.from.inMilliseconds),
-        _at(trecho.to.inMilliseconds),
-        again,
-      ));
+      if (trecho.parte < 0) continue;
+      // The stretch is addressed inside its own recording; the cord draws the whole
+      // rehearsal as one line. The offset of the part is what carries one onto the other.
+      final inicio = trecho.parte == 0 || trecho.parte > fimDasPartes.length
+          ? 0
+          : fimDasPartes[trecho.parte - 1];
+      final de = inicio + trecho.from.inMilliseconds;
+      final ate = inicio + trecho.to.inMilliseconds;
+      final again = !contados.add(de);
+      told.add(_Span(_at(de), _at(ate), again));
     }
     return IgnorePointer(
       child: LayoutBuilder(
