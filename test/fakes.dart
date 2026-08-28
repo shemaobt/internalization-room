@@ -403,6 +403,8 @@ class FakeRoom implements RoomRepository {
 
   Exception? failWith;
 
+  String? shutsThePassage;
+
   Completer<void>? _holdingTurn;
   Completer<void>? _holdingCode;
 
@@ -466,6 +468,7 @@ class FakeRoom implements RoomRepository {
     String? bridgeMode,
   }) async {
     _guard('createSession');
+    if (pericope != null && pericope == shutsThePassage) throw const PassageShut();
     pericopesAsked.add(pericope);
     metBefore.add(afterSession != null);
     bridgeModesSent.add(bridgeMode);

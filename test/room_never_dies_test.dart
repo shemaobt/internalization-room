@@ -122,6 +122,63 @@ void main() {
     expect(harness.finished.done, isEmpty);
   });
 
+  test('a passage the room refuses sends the team back to the wheel, not to a person',
+      () async {
+    final harness = SalaHarness()..room.shutsThePassage = 'P01';
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.abrirEscolha();
+    await settle();
+    notifier.entrarNaOferecida();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.stage, SalaStage.escolha,
+        reason: 'a recusa chegava como sala quebrada e prendia a equipe numa conversa '
+            'que nunca abriu');
+    expect(harness.voice.assets, isNot(contains(fixedLineAsset(needsPersonLine))),
+        reason: 'a sala pedia uma pessoa para uma passagem que pessoa nenhuma abre no tablet');
+  });
+
+  test('three passages that cannot open never spend a strike on the room', () async {
+    final harness = SalaHarness()..room.shutsThePassage = 'P01';
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.abrirEscolha();
+    await settle();
+    for (var attempt = 0; attempt < 3; attempt++) {
+      notifier.entrarNaOferecida();
+      await settle();
+    }
+
+    final state = container.read(salaSessionProvider);
+    expect(state.needsPerson, isFalse,
+        reason: 'a recusa andava na mesma escada do 500, e a terceira parava a sala '
+            'para chamar alguém');
+    expect(state.stage, SalaStage.escolha);
+  });
+
+  test('a refusal anywhere else stops for a person, never for a network that is fine',
+      () async {
+    final harness = SalaHarness()..room.failWith = const PassageShut();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.abrirEscolha();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.offline, isFalse,
+        reason: 'a recusa caía no último ramo do funil e a sala dizia, numa rede boa, '
+            'que a internet tinha ido embora');
+    expect(state.needsPerson, isTrue);
+  });
+
   test('a take that finishes playing stops its own pulse', () async {
     final harness = SalaHarness();
     final container = await inConversaHarness(harness);
