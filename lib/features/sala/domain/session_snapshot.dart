@@ -1,5 +1,32 @@
 import 'coverage.dart';
-import 'session_state.dart';
+
+/// One stretch the team told back, addressed rather than counted.
+///
+/// [takeId] with [startsMs]/[endsMs] is the whole address of the audio: which rehearsal
+/// recording, and which slice of that file.
+class SegmentView {
+  final String segmentId;
+  final String takeId;
+  final int startsMs;
+  final int endsMs;
+  final int passNumber;
+
+  const SegmentView({
+    required this.segmentId,
+    required this.takeId,
+    required this.startsMs,
+    required this.endsMs,
+    this.passNumber = 1,
+  });
+
+  factory SegmentView.fromJson(Map<String, dynamic> json) => SegmentView(
+        segmentId: json['segment_id'] as String? ?? '',
+        takeId: json['take_id'] as String? ?? '',
+        startsMs: json['starts_ms'] as int? ?? 0,
+        endsMs: json['ends_ms'] as int? ?? 0,
+        passNumber: json['pass_number'] as int? ?? 1,
+      );
+}
 
 /// Where a telling-back stopped, as the room remembers it.
 ///
@@ -7,46 +34,28 @@ import 'session_state.dart';
 /// and the team recorded the rehearsal again. All of this was already on the session and
 /// travels with every session route; the app simply threw it away.
 class BackTranslationProgress {
-  final List<Trecho> trechos;
-
-  /// The pass each stretch was told on, in the same order as [trechos].
-  final List<int> passes;
-
+  final List<SegmentView> segments;
   final bool checked;
+  final String? findingSegmentId;
 
   const BackTranslationProgress({
-    this.trechos = const [],
-    this.passes = const [],
+    this.segments = const [],
     this.checked = false,
+    this.findingSegmentId,
   });
 
-  /// The room builds `spans` and `passes` from one list of stretches, so they arrive the
-  /// same length and paired by position. Reading them apart let the app invent a
-  /// disagreement the room cannot send, and then count stretches by the shorter of the two.
-  factory BackTranslationProgress.fromJson(Map<String, dynamic> json) {
-    final spans = json['spans'] as List? ?? const [];
-    final passes = json['passes'] as List? ?? const [];
-    final trechos = <Trecho>[];
-    final told = <int>[];
-    for (var at = 0; at < spans.length; at++) {
-      if (spans[at] case final List span when span.length >= 2) {
-        trechos.add(Trecho(
-          index: at + 1,
-          from: Duration(milliseconds: span[0] as int),
-          to: Duration(milliseconds: span[1] as int),
-        ));
-        final pass = at < passes.length ? passes[at] : null;
-        told.add(pass is int ? pass : 1);
-      }
-    }
-    return BackTranslationProgress(
-      trechos: trechos,
-      passes: told,
-      checked: json['checked'] as bool? ?? false,
-    );
-  }
+  factory BackTranslationProgress.fromJson(Map<String, dynamic> json) =>
+      BackTranslationProgress(
+        segments: [
+          for (final raw in (json['segments'] as List? ?? const []))
+            if (raw is Map)
+              SegmentView.fromJson(raw.cast<String, dynamic>()),
+        ],
+        checked: json['checked'] as bool? ?? false,
+        findingSegmentId: json['finding_segment_id'] as String?,
+      );
 
-  bool get nothingTold => trechos.isEmpty;
+  bool get nothingTold => segments.isEmpty;
 }
 
 class SessionSnapshot {

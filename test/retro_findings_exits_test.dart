@@ -19,12 +19,12 @@ Finder bySemanticsLabelWidget(String label) => find.byWidgetPredicate(
 Future<ProviderContainer> pumpToFindings(
   WidgetTester tester,
   BtFindingKind? finding, {
-  int? chunk,
+  String? trecho,
 }) async {
-  final harness = SalaHarness()
+  final harness = SalaHarness(filaEmMemoria: true)
     ..room.verdictChecked = false
     ..room.verdictFinding = finding
-    ..room.verdictFindingChunk = chunk;
+    ..room.verdictFindingSegmentId = trecho;
   final container = harness.container();
   addTearDown(container.dispose);
   await tester.pumpWidget(const SizedBox.shrink());
@@ -42,6 +42,7 @@ Future<ProviderContainer> pumpToFindings(
   notifier.ensaioTap();
   await tester.pump(const Duration(milliseconds: 100));
   notifier.takeKeep();
+  await letTheRehearsalReachTheRoom(tester);
   notifier.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
 
@@ -97,7 +98,7 @@ void main() {
     final container = await pumpToFindings(
       tester,
       BtFindingKind.missing,
-      chunk: 1,
+      trecho: 'trecho-1',
     );
 
     await tester.tap(bySemanticsLabelWidget(retellStretchExit));

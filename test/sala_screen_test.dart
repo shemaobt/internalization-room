@@ -449,10 +449,10 @@ void main() {
 
   testWidgets('a finding on a stretch offers the retell and re-record exits',
       (tester) async {
-    final harness = SalaHarness()
+    final harness = SalaHarness(filaEmMemoria: true)
       ..room.verdictChecked = false
       ..room.verdictFinding = BtFindingKind.missing
-      ..room.verdictFindingChunk = 1;
+      ..room.verdictFindingSegmentId = 'trecho-1';
     final container = await pumpSala(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
@@ -464,6 +464,7 @@ void main() {
     notifier.ensaioTap();
     await tester.pump(const Duration(milliseconds: 100));
     notifier.takeKeep();
+    await letTheRehearsalReachTheRoom(tester);
     notifier.startRetro();
     await tester.pump(const Duration(milliseconds: 200));
     harness.playback.at = const Duration(seconds: 10);
@@ -548,7 +549,7 @@ void main() {
   });
 
   testWidgets('a long press unsticks a retro the room abandoned', (tester) async {
-    final harness = SalaHarness();
+    final harness = SalaHarness(filaEmMemoria: true);
     final container = await pumpSala(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
@@ -559,6 +560,7 @@ void main() {
     notifier.ensaioTap();
     await tester.pump(const Duration(milliseconds: 200));
     notifier.takeKeep();
+    await letTheRehearsalReachTheRoom(tester);
     notifier.startRetro();
     await tester.pump(const Duration(milliseconds: 300));
 

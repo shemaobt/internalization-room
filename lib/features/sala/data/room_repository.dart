@@ -150,11 +150,15 @@ class RoomRepository {
     return _read(await _sendMultipart(request), TurnResult.fromJson);
   }
 
+  /// One stretch told back: which rehearsal recording it explains, and the slice of
+  /// **that file** it covers. The three travel together — a slice with no file to be a
+  /// slice of is the global ruler under another name.
   Future<BackTranslationChunk> sendChunk(
     String sessionId,
     File audio, {
-    Duration? from,
-    Duration? to,
+    required String takeId,
+    required Duration from,
+    required Duration to,
     bool retelling = false,
   }) async {
     final request = http.MultipartRequest(
@@ -163,14 +167,19 @@ class RoomRepository {
     )
       ..headers['X-Room-Key'] = Env.roomKey
       ..headers['X-Room-Device'] = await deviceIdentity()
+      ..fields['take_id'] = takeId
+      ..fields['starts_ms'] = '${from.inMilliseconds}'
+      ..fields['ends_ms'] = '${to.inMilliseconds}'
       ..files.add(await http.MultipartFile.fromPath('file', audio.path));
-    if (from != null) request.fields['starts_ms'] = '${from.inMilliseconds}';
-    if (to != null) request.fields['ends_ms'] = '${to.inMilliseconds}';
     if (retelling) request.fields['retelling'] = 'true';
     return _read(await _sendMultipart(request), BackTranslationChunk.fromJson);
   }
 
-  Future<void> sendTake(
+  /// Store one take and answer with the name the room gave it.
+  ///
+  /// The answer used to be thrown away. A told-back stretch names the recording it came
+  /// from, and this is the only place that name is ever said.
+  Future<String> sendTake(
     String sessionId,
     File audio, {
     required String kind,
@@ -186,7 +195,10 @@ class RoomRepository {
       ..files.add(await http.MultipartFile.fromPath('file', audio.path));
     if (passNumber != null) request.fields['pass_number'] = '$passNumber';
     if (chunkIndex != null) request.fields['chunk_index'] = '$chunkIndex';
-    _read(await _sendMultipart(request), (json) => json);
+    return _read(
+      await _sendMultipart(request),
+      (json) => json['take_id'] as String,
+    );
   }
 
   Future<BackTranslationRestart> restartBackTranslation(String sessionId) async {

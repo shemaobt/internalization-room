@@ -45,6 +45,9 @@ class PendingTake {
   final String scope;
   final int? passNumber;
   final int? chunkIndex;
+  /// The name the room gave this recording, once it answered. A told-back stretch is a
+  /// slice of one file and names it, so this is what the retro sends.
+  final String? takeId;
   final bool stored;
   /// The audio this row points at is no longer on disk.
   ///
@@ -69,6 +72,7 @@ class PendingTake {
     required this.scope,
     this.passNumber,
     this.chunkIndex,
+    this.takeId,
     this.stored = false,
     this.lost = false,
     this.attempts = 0,
@@ -83,6 +87,7 @@ class PendingTake {
   int get tries => attempts + waits;
 
   PendingTake copyWith({
+    String? takeId,
     bool? stored,
     bool? lost,
     int? attempts,
@@ -97,6 +102,7 @@ class PendingTake {
         scope: scope,
         passNumber: passNumber,
         chunkIndex: chunkIndex,
+        takeId: takeId ?? this.takeId,
         stored: stored ?? this.stored,
         lost: lost ?? this.lost,
         attempts: attempts ?? this.attempts,
@@ -112,6 +118,7 @@ class PendingTake {
         'scope': scope,
         'pass_number': passNumber,
         'chunk_index': chunkIndex,
+        'take_id': takeId,
         'stored': stored,
         'lost': lost,
         'attempts': attempts,
@@ -134,6 +141,7 @@ class PendingTake {
         scope: json['scope'] as String,
         passNumber: json['pass_number'] as int?,
         chunkIndex: json['chunk_index'] as int?,
+        takeId: json['take_id'] as String?,
         stored: json['stored'] as bool? ?? false,
         lost: json['lost'] as bool? ?? false,
         attempts: json['attempts'] as int? ?? 0,
@@ -224,6 +232,24 @@ class TakeUploadQueue {
       for (final entry in written)
         if (!entry.stored && entry.kind == kind && entry.sessionId == sessionId) entry,
     ].length;
+  }
+
+  /// What the room called the recording kept under this scope, or null while it has not
+  /// answered for it yet.
+  Future<String?> takeIdOf(
+    String kind, {
+    required String sessionId,
+    required String scope,
+  }) async {
+    for (final entry in (await _written() ?? const <PendingTake>[])) {
+      if (entry.kind == kind &&
+          entry.sessionId == sessionId &&
+          entry.scope == scope &&
+          entry.takeId != null) {
+        return entry.takeId;
+      }
+    }
+    return null;
   }
 
   Future<Set<String>> unsentScopesOf(String kind, {required String sessionId}) async {
@@ -323,8 +349,9 @@ class TakeUploadQueue {
           await _replace(entry, entry.copyWith(lost: true));
           continue;
         }
+        final String landed;
         try {
-          await _room.sendTake(
+          landed = await _room.sendTake(
             entry.sessionId,
             file,
             kind: entry.kind,
@@ -351,7 +378,7 @@ class TakeUploadQueue {
           );
           continue;
         }
-        await _replace(entry, entry.copyWith(stored: true));
+        await _replace(entry, entry.copyWith(takeId: landed, stored: true));
         sent++;
       }
       return sent;
