@@ -12,6 +12,7 @@ import '../domain/kept_take.dart';
 import '../domain/passagem.dart';
 import '../domain/coverage.dart';
 import '../domain/room_reach.dart';
+import '../domain/session_snapshot.dart';
 import '../domain/session_state.dart';
 import '../domain/spoken_line.dart';
 import '../domain/turn_result.dart';
@@ -1076,6 +1077,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           final snapshot = await _room.fetchState(sessionId);
           if (epoch != _epoch) return;
           state = state.copyWith(coverage: snapshot.coverage);
+          if (waiting.stage == SalaStage.retro) {
+            _pickTheTellingBackUp(snapshot.backTranslation);
+          }
           return;
         }
       }
@@ -1164,6 +1168,34 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     unawaited(_countUnsent());
     return true;
+  }
+
+  /// Hand the team back the stretches the room is still holding for them.
+  ///
+  /// The rehearsal was where every reopening landed, so a team that had stopped part-way
+  /// through telling it back recorded the whole passage a second time, and the session
+  /// ended with two rehearsals and two tellings-back of the same passage. Nothing here is
+  /// remembered by the tablet: the room answers with all of it on every session route.
+  ///
+  /// A room holding no stretch has nothing to pick back up, and the rehearsal is the
+  /// honest place to be.
+  void _pickTheTellingBackUp(BackTranslationProgress told) {
+    if (told.nothingTold) return;
+    // Where the next stretch begins. Starting from nought again told the same piece of
+    // the rehearsal back twice, which is the duplicate on the analyst's desk.
+    _trechoStart = told.trechos.last.to;
+    state = state.copyWith(
+      stage: SalaStage.retro,
+      voice: told.checked ? VoiceState.done : VoiceState.invite,
+      btPhase: told.checked ? BtPhase.conferida : BtPhase.playing,
+      btTrechos: told.trechos,
+      btChunkPasses: told.passes,
+    );
+    if (told.checked) {
+      _closeTheNecklace();
+      return;
+    }
+    _tocarParteDaRetro(0);
   }
 
   void conversaTap() {
