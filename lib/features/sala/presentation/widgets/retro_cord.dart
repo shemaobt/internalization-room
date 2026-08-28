@@ -7,6 +7,20 @@ import 'colar_overlay.dart';
 const _designWidth = 390.0;
 const _designHeight = 812.0;
 
+/// Where a stretch sits on the whole rehearsal, or null while that cannot be known.
+///
+/// A stretch is addressed inside its own recording and the cord draws the rehearsal as
+/// one line, so the offset of the part is what carries one onto the other. That offset is
+/// only learned by playing the part.
+int? cordStartMs({
+  required int parte,
+  required int dentroMs,
+  required List<int> fimDasPartes,
+}) {
+  if (parte < 0 || parte > fimDasPartes.length) return null;
+  return (parte == 0 ? 0 : fimDasPartes[parte - 1]) + dentroMs;
+}
+
 double cordFraction({
   required int atMs,
   required int partes,
@@ -60,14 +74,21 @@ class RetroCord extends StatelessWidget {
     final contados = <int>{};
     final told = <_Span>[];
     for (final trecho in trechos) {
-      if (trecho.parte < 0) continue;
-      // The stretch is addressed inside its own recording; the cord draws the whole
-      // rehearsal as one line. The offset of the part is what carries one onto the other.
-      final inicio = trecho.parte == 0 || trecho.parte > fimDasPartes.length
-          ? 0
-          : fimDasPartes[trecho.parte - 1];
-      final de = inicio + trecho.from.inMilliseconds;
-      final ate = inicio + trecho.to.inMilliseconds;
+      // A stretch out of a part this cord has not measured yet has no place on it. Not
+      // drawing it leaves a gap that fills itself as the team plays that part through;
+      // placing it at nought piled the stretches of a picked-up retro onto the first
+      // part, on top of the ones that really are there.
+      final de = cordStartMs(
+        parte: trecho.parte,
+        dentroMs: trecho.from.inMilliseconds,
+        fimDasPartes: fimDasPartes,
+      );
+      final ate = cordStartMs(
+        parte: trecho.parte,
+        dentroMs: trecho.to.inMilliseconds,
+        fimDasPartes: fimDasPartes,
+      );
+      if (de == null || ate == null) continue;
       final again = !contados.add(de);
       told.add(_Span(_at(de), _at(ate), again));
     }
