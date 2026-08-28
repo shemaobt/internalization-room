@@ -1170,19 +1170,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return true;
   }
 
-  /// Hand the team back the stretches the room is still holding for them.
-  ///
-  /// The rehearsal was where every reopening landed, so a team that had stopped part-way
-  /// through telling it back recorded the whole passage a second time, and the session
-  /// ended with two rehearsals and two tellings-back of the same passage. Nothing here is
-  /// remembered by the tablet: the room answers with all of it on every session route.
-  ///
-  /// A room holding no stretch has nothing to pick back up, and the rehearsal is the
-  /// honest place to be.
+  /// Every reopening landed on the rehearsal, so a team that had stopped part-way through
+  /// telling it back recorded the whole passage a second time and the session ended
+  /// holding two of everything. A room with no stretch has no telling-back to pick up.
   void _pickTheTellingBackUp(BackTranslationProgress told) {
     if (told.nothingTold) return;
-    // Where the next stretch begins. Starting from nought again told the same piece of
-    // the rehearsal back twice, which is the duplicate on the analyst's desk.
     _trechoStart = told.trechos.last.to;
     state = state.copyWith(
       stage: SalaStage.retro,
@@ -1854,7 +1846,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // While telling a stretch again, its bounds are the ones the finding named. Reading the
     // position instead wrote a place inside the excerpt into a number that means a place in
     // the whole rehearsal, and every stretch after it inherited the lie.
-    if (!_recontando) _trechoEnd = _posicaoGlobal;
+    if (!_recontando) {
+      // A rehearsal picked back up plays from the top while the cursor already sits where
+      // the last stretch ended, so the playhead spends a while behind it — the one moment
+      // this room has where it can. There is nothing new to tell back there, and cutting
+      // anyway sent a stretch that ends before it begins and then walked the cursor
+      // backwards over every stretch after it.
+      if (_posicaoGlobal < _trechoStart) return;
+      _trechoEnd = _posicaoGlobal;
+    }
     _pararOClipe();
     _startChunkCapture();
   }

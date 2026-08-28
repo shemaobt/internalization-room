@@ -20,22 +20,28 @@ class BackTranslationProgress {
     this.checked = false,
   });
 
+  /// The room builds `spans` and `passes` from one list of stretches, so they arrive the
+  /// same length and paired by position. Reading them apart let the app invent a
+  /// disagreement the room cannot send, and then count stretches by the shorter of the two.
   factory BackTranslationProgress.fromJson(Map<String, dynamic> json) {
     final spans = json['spans'] as List? ?? const [];
+    final passes = json['passes'] as List? ?? const [];
+    final trechos = <Trecho>[];
+    final told = <int>[];
+    for (var at = 0; at < spans.length; at++) {
+      if (spans[at] case final List span when span.length >= 2) {
+        trechos.add(Trecho(
+          index: at + 1,
+          from: Duration(milliseconds: span[0] as int),
+          to: Duration(milliseconds: span[1] as int),
+        ));
+        final pass = at < passes.length ? passes[at] : null;
+        told.add(pass is int ? pass : 1);
+      }
+    }
     return BackTranslationProgress(
-      trechos: [
-        for (var at = 0; at < spans.length; at++)
-          if (spans[at] case final List span when span.length >= 2)
-            Trecho(
-              index: at + 1,
-              from: Duration(milliseconds: span[0] as int),
-              to: Duration(milliseconds: span[1] as int),
-            ),
-      ],
-      passes: [
-        for (final pass in (json['passes'] as List? ?? const []))
-          if (pass is int) pass,
-      ],
+      trechos: trechos,
+      passes: told,
       checked: json['checked'] as bool? ?? false,
     );
   }

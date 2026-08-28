@@ -158,4 +158,34 @@ void main() {
         reason: 'recomeçar do zero manda um segundo conjunto de trechos para a '
             'mesma passada, e o analista recebe a passagem contada duas vezes');
   });
+
+  test('cutting over ground already told back tells the room nothing', () async {
+    final harness = SalaHarness();
+    final container = await _reopen(
+      harness,
+      parouEm: SalaStage.retro,
+      contado: _contados,
+    );
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.playback.at = const Duration(seconds: 8);
+    notifier.cortarTrecho();
+    await settle();
+    notifier.retroTap();
+    await settle();
+
+    expect(harness.room.chunkSpans, isEmpty,
+        reason: 'o ensaio volta a tocar do começo enquanto o corte já está aos '
+            '30s, e um trecho que termina antes de começar sai daí');
+
+    harness.playback.at = const Duration(seconds: 44);
+    notifier.cortarTrecho();
+    await settle();
+    notifier.retroTap();
+    await settle();
+
+    expect(harness.room.chunkSpans, ['30000-44000'],
+        reason: 'o corte recusado não pode arrastar o cursor para trás e sujar '
+            'todo trecho que vier depois dele');
+  });
 }
