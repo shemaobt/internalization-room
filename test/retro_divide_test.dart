@@ -1,0 +1,232 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
+
+import 'fakes.dart';
+
+Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) async {
+  await Future<void>.delayed(delay);
+}
+
+Future<void> until(
+  bool Function() condition, {
+  Duration limit = const Duration(seconds: 5),
+}) async {
+  final deadline = DateTime.now().add(limit);
+  while (!condition() && DateTime.now().isBefore(deadline)) {
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+}
+
+Future<void> _gravaParte(SalaSessionNotifier notifier) async {
+  notifier.ensaioTap();
+  notifier.ensaioTap();
+  await settle();
+  notifier.takeKeep();
+  await settle();
+}
+
+Future<ProviderContainer> _inRetro(
+  SalaHarness harness, {
+  int partes = 1,
+}) async {
+  final container = harness.container();
+  addTearDown(container.dispose);
+  final notifier = container.read(salaSessionProvider.notifier);
+  await notifier.goConversa();
+  await settle();
+  notifier.goEnsaio();
+  for (var parte = 0; parte < partes; parte++) {
+    await _gravaParte(notifier);
+  }
+  notifier.startRetro();
+  await settle();
+  return container;
+}
+
+Future<void> _contaTrecho(
+  SalaHarness harness,
+  SalaSessionNotifier notifier, {
+  required Duration em,
+}) async {
+  harness.playback.at = em;
+  notifier.cortarTrecho();
+  await settle();
+  notifier.retroTap();
+  await settle();
+}
+
+/// The one moment a stretch the team already told plays back: the room leading them to
+/// the stretch a finding named.
+Future<void> _ouvindoOTrechoApontado(
+  SalaHarness harness,
+  SalaSessionNotifier notifier,
+  ProviderContainer container,
+) async {
+  harness.room.verdictFindingSegmentId = harness.room.segments.last.segmentId;
+  harness.playback.finishPlayback();
+  await settle();
+  await notifier.finishBackTranslation();
+  await until(() => container.read(salaSessionProvider).btTrechoTocando);
+}
+
+Future<ProviderContainer> _umTrechoContadoETocando(
+  SalaHarness harness, {
+  int partes = 1,
+  Duration ate = const Duration(seconds: 20),
+}) async {
+  final container = await _inRetro(harness, partes: partes);
+  final notifier = container.read(salaSessionProvider.notifier);
+  await _contaTrecho(harness, notifier, em: ate);
+  await until(() => harness.room.chunksSent == 1);
+  await _ouvindoOTrechoApontado(harness, notifier, container);
+  return container;
+}
+
+void main() {
+  test('a divided stretch becomes two, and the team sees both', () async {
+    final harness = SalaHarness()..room.verdictChecked = false;
+    final container = await _umTrechoContadoETocando(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    final antes = container.read(salaSessionProvider).btTrechos;
+
+    harness.playback.at = const Duration(seconds: 8);
+    await notifier.dividirTrecho();
+    await settle();
+
+    final depois = container.read(salaSessionProvider).btTrechos;
+    expect(antes.length, 1);
+    expect(depois.length, 2,
+        reason: 'a equipe ouviu duas ideias onde tinha contado uma, e agora '
+            'tem de ver as duas');
+    expect(depois.first.from, antes.first.from);
+    expect(depois.last.to, antes.first.to,
+        reason: 'os dois pedaços cobrem o mesmo áudio que o trecho cobria — '
+            'nada de gravação se perde na divisão');
+    expect(depois.first.to, depois.last.from,
+        reason: 'e nada aparece duas vezes: a borda é uma só');
+    expect(depois.map((trecho) => trecho.segmentId).toSet().length, 2,
+        reason: 'dois pedaços, dois nomes');
+  });
+
+  test('the cut falls where the team was listening, on the file scale',
+      () async {
+    final harness = SalaHarness()..room.verdictChecked = false;
+    final container = await _inRetro(harness, partes: 2);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.playback.at = const Duration(seconds: 30);
+    harness.playback.finishPlayback();
+    await settle();
+    await _contaTrecho(harness, notifier, em: const Duration(seconds: 30));
+    await until(() => harness.room.chunksSent == 1);
+
+    notifier.proximaParte();
+    await settle();
+    await _contaTrecho(harness, notifier, em: const Duration(seconds: 10));
+    await until(() => harness.room.chunksSent == 2);
+    await _ouvindoOTrechoApontado(harness, notifier, container);
+    final naSegundaGravacao = harness.room.segments.last.segmentId;
+
+    harness.playback.at = const Duration(seconds: 4);
+    await notifier.dividirTrecho();
+    await settle();
+
+    expect(harness.room.dividesAsked, ['$naSegundaGravacao@4000'],
+        reason: 'o trecho saiu da SEGUNDA gravação e o ponto conta do começo '
+            'DAQUELE arquivo. Somar a duração da parte anterior daria 34000 e '
+            'seria o tempo global com outro nome — o defeito que o trecho '
+            'existe para remover');
+  });
+
+  test('a refusal from the room is neither a jam nor a silence', () async {
+    final harness = SalaHarness()..room.verdictChecked = false;
+    harness.room.failDivideWith = const RoomRefused();
+    final container = await _umTrechoContadoETocando(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.playback.at = const Duration(seconds: 8);
+    await notifier.dividirTrecho();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.needsPerson, isTrue,
+        reason: 'a recusa cai no caminho de falha que já existe: a sala pede '
+            'uma pessoa em vez de deixar a equipe apertando sem resposta');
+    expect(state.btTrechos.length, 1,
+        reason: 'e nada foi dividido, então o que a equipe tinha continua lá');
+  });
+
+  test('dividing does not throw away what the team already told', () async {
+    final harness = SalaHarness()..room.verdictChecked = false;
+    final container = await _umTrechoContadoETocando(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    final contadoAntes = harness.room.chunksSent;
+
+    harness.playback.at = const Duration(seconds: 8);
+    await notifier.dividirTrecho();
+    await settle();
+
+    expect(harness.room.chunksSent, contadoAntes,
+        reason: 'dividir não reconta nada: a explicação que a equipe deu fica '
+            'onde está e o app não a manda de novo');
+    expect(harness.room.restartsAsked, isEmpty,
+        reason: 'nem joga a retrotradução fora para começar de novo');
+    expect(harness.room.dividesAsked.length, 1,
+        reason: 'e pede a divisão uma vez só');
+  });
+
+  test('the two cuts never answer for one another', () async {
+    final harness = SalaHarness()..room.verdictChecked = false;
+    final container = await _inRetro(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.playback.at = const Duration(seconds: 8);
+    await notifier.dividirTrecho();
+    await settle();
+
+    expect(harness.room.dividesAsked, isEmpty,
+        reason: 'sem trecho tocando não há o que dividir: dividir corta o que '
+            'está no ar, e no meio do ensaio quem corta é a outra tesoura');
+
+    await _contaTrecho(harness, notifier, em: const Duration(seconds: 20));
+    await until(() => harness.room.chunksSent == 1);
+    await _ouvindoOTrechoApontado(harness, notifier, container);
+    final contadosAntes = harness.room.chunksSent;
+
+    await notifier.dividirTrecho();
+    await settle();
+
+    expect(harness.room.dividesAsked.length, 1,
+        reason: 'o controle positivo: com o trecho no ar a divisão acontece, '
+            'senão o silêncio de cima passaria por um gesto que nunca age');
+
+    notifier.cortarTrecho();
+    await settle();
+
+    expect(harness.room.chunksSent, contadosAntes,
+        reason: 'e a tesoura do ensaio já se recusa a agir enquanto um trecho '
+            'toca, então a proteção que existe hoje não foi afrouxada');
+  });
+
+  test('the rest of the back translation goes on working', () async {
+    final harness = SalaHarness();
+    final container = await _inRetro(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await _contaTrecho(harness, notifier, em: const Duration(seconds: 10));
+    await until(() => harness.room.chunksSent == 1);
+    await _contaTrecho(harness, notifier, em: const Duration(seconds: 20));
+    await until(() => harness.room.chunksSent == 2);
+    harness.playback.finishPlayback();
+    await settle();
+    await notifier.finishBackTranslation();
+    await settle();
+
+    expect(harness.room.chunkSpans, ['0-10000', '10000-20000'],
+        reason: 'ouvir, contar e cortar um trecho novo continuam como hoje');
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
+  });
+}
