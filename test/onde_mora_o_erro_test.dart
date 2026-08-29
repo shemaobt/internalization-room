@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/onde_mora_grade.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -18,6 +20,8 @@ Finder byLabel(String label) => find.byWidgetPredicate(
       (widget) => widget is Semantics && widget.properties.label == label,
     );
 
+SalaHarness? harnessDaVez;
+
 /// A team that told two stretches back and got a finding on the first.
 Future<ProviderContainer> pumpToPergunta(
   WidgetTester tester, {
@@ -28,6 +32,7 @@ Future<ProviderContainer> pumpToPergunta(
     ..room.verdictChecked = false
     ..room.verdictFinding = finding
     ..room.verdictFindingSegmentId = trecho;
+  harnessDaVez = harness;
   final container = harness.container();
   addTearDown(container.dispose);
   await tester.pumpWidget(
@@ -61,7 +66,49 @@ Future<ProviderContainer> pumpToPergunta(
   return container;
 }
 
+Future<void> _pumpGrade(WidgetTester tester, {required bool podeOuvirRetro}) =>
+    tester.pumpWidget(MaterialApp(
+      theme: AppTheme.light,
+      home: Scaffold(
+        body: Center(
+          child: OndeMoraGrade(
+            onOuvirMaterna: () {},
+            onOuvirRetro: () {},
+            onRegravarMaterna: () {},
+            onRecontar: () {},
+            podeOuvirRetro: podeOuvirRetro,
+          ),
+        ),
+      ),
+    ));
+
 void main() {
+  testWidgets('the blue player is dark when the tablet holds no telling',
+      (tester) async {
+    await _pumpGrade(tester, podeOuvirRetro: false);
+
+    expect(tester.widget<Semantics>(byLabel(ouvirRetro)).properties.enabled,
+        isFalse,
+        reason: 'numa sessão retomada o contar existe no servidor e o arquivo '
+            'não está aqui; um player aceso que responde com silêncio não tem '
+            'como se explicar numa sala sem palavra escrita');
+    expect(tester.widget<Semantics>(byLabel(micRetro)).properties.enabled,
+        isTrue,
+        reason: 'escolher não precisa do arquivo: a equipe sabe qual voz errou '
+            'sem reouvi-la, e o contar novo é gravado do zero');
+    expect(tester.widget<Semantics>(byLabel(ouvirMaterna)).properties.enabled,
+        isTrue,
+        reason: 'a voz de madeira é fatia do ensaio, que está no tablet');
+  });
+
+  testWidgets('both players are live when the tablet holds the telling',
+      (tester) async {
+    await _pumpGrade(tester, podeOuvirRetro: true);
+
+    expect(tester.widget<Semantics>(byLabel(ouvirRetro)).properties.enabled,
+        isTrue);
+  });
+
   for (final kind in BtFindingKind.values) {
     testWidgets('both voices are offered when the finding is ${kind.name}',
         (tester) async {
@@ -108,17 +155,30 @@ void main() {
   testWidgets('listening is free and decides nothing', (tester) async {
     final container = await pumpToPergunta(tester);
 
+    final harness = harnessDaVez!;
+    harness.playback.played.clear();
+
     await tester.tap(byLabel(ouvirMaterna));
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings,
         reason: 'ouvir não é escolher — a equipe precisa poder comparar as '
             'duas vozes sem se comprometer com nenhuma');
+    expect(harness.playback.ranges, isNotEmpty,
+        reason: 'e ouvir tem de ouvir: o player de madeira toca a fatia da '
+            'gravação em língua materna');
+
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+    harness.playback.played.clear();
 
     await tester.tap(byLabel(ouvirRetro));
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
+    expect(harness.playback.played, isNotEmpty,
+        reason: 'o player azul toca o contar em português daquele trecho — '
+            'sem isso a equipe compara uma voz com o silêncio');
   });
 
   for (final kind in [BtFindingKind.missing, BtFindingKind.addition]) {

@@ -31,6 +31,11 @@ class OndeMoraGrade extends StatelessWidget {
   final bool tocandoMaterna;
   final bool tocandoRetro;
 
+  /// Whether this tablet holds the telling at all. A session picked back up carries the
+  /// room's stretches and none of its files, and a lit player that answers with silence
+  /// has no way to explain itself in a room with no written word.
+  final bool podeOuvirRetro;
+
   const OndeMoraGrade({
     super.key,
     required this.onOuvirMaterna,
@@ -39,6 +44,7 @@ class OndeMoraGrade extends StatelessWidget {
     required this.onRecontar,
     this.tocandoMaterna = false,
     this.tocandoRetro = false,
+    this.podeOuvirRetro = true,
   });
 
   bool get _algoTocando => tocandoMaterna || tocandoRetro;
@@ -68,7 +74,7 @@ class OndeMoraGrade extends StatelessWidget {
             gradiente: BeadStyles.azul,
             ouvirLabel: ouvirRetroLabel,
             micLabel: micRetroLabel,
-            onOuvir: onOuvirRetro,
+            onOuvir: podeOuvirRetro ? onOuvirRetro : null,
             onFalar: onRecontar,
             tocando: tocandoRetro,
             inerte: _algoTocando,
@@ -85,7 +91,8 @@ class _Coluna extends StatelessWidget {
   final Gradient gradiente;
   final String ouvirLabel;
   final String micLabel;
-  final VoidCallback onOuvir;
+  /// Null when there is nothing to hear on this voice.
+  final VoidCallback? onOuvir;
   final VoidCallback onFalar;
   final bool tocando;
   final bool inerte;

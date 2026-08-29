@@ -44,6 +44,7 @@ class RetroView extends ConsumerWidget {
             onRecontar: notifier.recontarEmPortugues,
             tocandoMaterna: session.btTrechoTocando,
             tocandoRetro: session.btRetroTocando,
+            podeOuvirRetro: session.btFindingTrecho?.retroPath != null,
           ),
         ],
       );
@@ -97,9 +98,6 @@ class RetroView extends ConsumerWidget {
       // Which voice needs to speak again is the team's to say. It used to be read off the
       // kind of finding — three kinds hid the retell exit outright — and the team was
       // never asked, on the one question only they can answer.
-      //
-      // The pointer still rules what can be offered: a finding that names no stretch has
-      // no stretch to replace, so it falls to the whole recording, as it always did.
       // With no stretch to ask about, the question cannot be put, and the room falls back
       // to what it always did — including reading the kind: telling the whole recording
       // again settles nothing a re-recording kind names, and the pointer being absent must
@@ -199,9 +197,11 @@ class RetroView extends ConsumerWidget {
       case BtPhase.findings:
         return 'Ouvir de novo a parte apontada';
       case BtPhase.gravandoMaterna:
-        return 'Gravar este trecho';
       case BtPhase.gravandoRetro:
-        return 'Gravar este trecho';
+        // What the touch does, not what the step is for: the recording call does not
+        // exist yet, and a circle that says "record" and returns to the question is worse
+        // than a label nobody speaks aloud.
+        return 'Voltar à pergunta';
       case BtPhase.thinking:
         return 'Um instante';
       case BtPhase.conferida:

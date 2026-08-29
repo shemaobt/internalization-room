@@ -2065,6 +2065,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _leadThemToTheTrecho();
       case BtPhase.gravandoMaterna:
       case BtPhase.gravandoRetro:
+        _voltarAPergunta();
       case BtPhase.thinking:
       case BtPhase.conferida:
         break;
@@ -2294,14 +2295,37 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final partes = state.partes;
     return [
       for (final segment in told)
-        Trecho(
-          segmentId: segment.segmentId,
-          takeId: segment.takeId,
-          parte: partes.indexWhere((parte) => parte.takeId == segment.takeId),
-          from: Duration(milliseconds: segment.startsMs),
-          to: Duration(milliseconds: segment.endsMs),
-          contado: segment.told,
-        ),
+        () {
+          final from = Duration(milliseconds: segment.startsMs);
+          final to = Duration(milliseconds: segment.endsMs);
+          // The room says what a stretch is called, where it sits and whether anyone has
+          // explained it; the tablet knows what it is holding. Taking the room's reading
+          // wholesale threw away the copy of the telling this tablet recorded, and the
+          // blue voice had nothing to play — in every session, not only in one picked
+          // back up.
+          //
+          // The two travel together or not at all: a stretch the room says is not told
+          // has no explanation to hold a file for. Its own recording was replaced, and
+          // the telling that belonged to the audio nobody will hear again does not carry
+          // over — the same rule the room keeps on its side.
+          final aqui = state.btTrechos.where(
+            (trecho) =>
+                trecho.takeId == segment.takeId &&
+                trecho.from == from &&
+                trecho.to == to,
+          );
+          final parte = partes.indexWhere((p) => p.takeId == segment.takeId);
+          return Trecho(
+            segmentId: segment.segmentId,
+            takeId: segment.takeId,
+            retroPath:
+                segment.told && aqui.isNotEmpty ? aqui.first.retroPath : null,
+            parte: parte >= 0 || aqui.isEmpty ? parte : aqui.first.parte,
+            from: from,
+            to: to,
+            contado: segment.told,
+          );
+        }(),
     ];
   }
 
@@ -2390,6 +2414,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: VoiceState.invite,
       btTrechoTocando: false,
       btRetroTocando: false,
+    );
+  }
+
+  /// Back to the question, from a step that cannot finish its work yet.
+  ///
+  /// Choosing which voice must speak again lands on a recording step whose call to the
+  /// room does not exist yet. Until it does, a team that chose could neither record nor
+  /// go back: the only way out was abandoning the whole passage.
+  void _voltarAPergunta() {
+    state = state.copyWith(
+      btPhase: BtPhase.findings,
+      voice: VoiceState.invite,
     );
   }
 
