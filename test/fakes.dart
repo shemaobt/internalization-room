@@ -385,6 +385,10 @@ class FakeRoom implements RoomRepository {
   String? refuseTake;
   Exception? failRestartWith;
   Exception? failDivideWith;
+  Exception? failReplaceWith;
+  bool replaceCaptured = true;
+  /// Which stretch each retelling named, and the slice it sent, in order.
+  final List<String> replacesAsked = [];
   /// Which stretch each division named, and where it was cut, in order.
   final List<String> dividesAsked = [];
   bool chunkCaptured = true;
@@ -523,6 +527,39 @@ class FakeRoom implements RoomRepository {
   }
 
   @override
+  Future<TellingAgain> replaceSegment(
+    String sessionId,
+    String segmentId,
+    File audio, {
+    required String takeId,
+    required Duration from,
+    required Duration to,
+  }) async {
+    _guard('replaceSegment');
+    final refusal = failReplaceWith;
+    if (refusal != null) throw refusal;
+    replacesAsked.add(
+      '$segmentId@$takeId:${from.inMilliseconds}-${to.inMilliseconds}',
+    );
+    if (!replaceCaptured) {
+      return TellingAgain(segments: List.of(segments), captured: false);
+    }
+    final at = segments.indexWhere((one) => one.segmentId == segmentId);
+    if (at >= 0) {
+      final antes = segments[at];
+      segments[at] = SegmentView(
+        segmentId: antes.segmentId,
+        takeId: antes.takeId,
+        startsMs: antes.startsMs,
+        endsMs: antes.endsMs,
+        passNumber: antes.passNumber,
+        told: true,
+      );
+    }
+    return TellingAgain(segments: List.of(segments), captured: true);
+  }
+
+  @override
   Future<List<SegmentView>> divideSegment(
     String sessionId,
     String segmentId, {
@@ -544,6 +581,7 @@ class FakeRoom implements RoomRepository {
           startsMs: whole.startsMs,
           endsMs: at.inMilliseconds,
           passNumber: whole.passNumber,
+          told: false,
         ),
         SegmentView(
           segmentId: '${whole.segmentId}-b',
@@ -551,6 +589,7 @@ class FakeRoom implements RoomRepository {
           startsMs: at.inMilliseconds,
           endsMs: whole.endsMs,
           passNumber: whole.passNumber,
+          told: false,
         ),
       ]);
     return List.of(segments);

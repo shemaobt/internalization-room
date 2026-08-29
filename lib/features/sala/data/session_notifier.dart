@@ -110,6 +110,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   DateTime? _listeningSince;
   String? _emCurso;
   bool _recontando = false;
+  Trecho? _contandoDeNovo;
   bool _askingForANewClip = false;
   /// The clip is paused. `_onPlaybackComplete` deliberately survives a pause — the resume
   /// still has to be able to end the part — so it cannot be what tells a ceiling whether
@@ -1949,6 +1950,88 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
+  /// Tell one stretch again: the same slice of the same recording, a new explanation.
+  ///
+  /// This is the correction that leaves the mother tongue where it is — the one the room
+  /// needs after a division, because the two halves are born with nothing told about them
+  /// and the first round does not run while a final stretch is missing its explanation.
+  /// Telling a stretch back the ordinary way makes a *new* one at the next position, so
+  /// it could never fill a half; this fills it.
+  ///
+  /// A stretch with no name is not offered: the route addresses one, and the room has no
+  /// way to explain a refusal to a team that cannot read.
+  Future<void> contarDeNovo(Trecho trecho) async {
+    if (state.stage != SalaStage.retro) return;
+    if (state.btPhase != BtPhase.playing) return;
+    if (state.needsPerson || state.offline) return;
+    if (state.btTrechoTocando) return;
+    if (trecho.segmentId == null) return;
+    _pararOClipe();
+    _contandoDeNovo = trecho;
+    _startChunkCapture();
+  }
+
+  Future<void> _tellThatStretchAgain(
+    Trecho alvo,
+    String path,
+    String sessionId,
+    int epoch,
+  ) async {
+    final TellingAgain told;
+    try {
+      told = await _room.replaceSegment(
+        sessionId,
+        alvo.segmentId!,
+        File(path),
+        takeId: alvo.takeId,
+        from: alvo.from,
+        to: alvo.to,
+      );
+      if (epoch != _epoch) return;
+    } on Exception catch (error) {
+      unawaited(_guard(
+        path,
+        kind: 'retro',
+        scope: KeptScope.whole,
+        passNumber: state.btPass,
+        chunkIndex: state.btChunkPasses.length + 1,
+      ));
+      if (epoch != _epoch) return;
+      state = state.copyWith(
+        btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
+      );
+      _handleRoomFailure(error);
+      return;
+    }
+
+    if (!told.captured) {
+      // The room made nothing out of it, which is also what a transcriber outage looks
+      // like from here. The stretch is left exactly as it was — an explanation is not
+      // swapped for an empty one over somebody else's failure — and their audio is kept.
+      unawaited(_guard(
+        path,
+        kind: 'retro',
+        scope: KeptScope.whole,
+        passNumber: state.btPass,
+        chunkIndex: state.btChunkPasses.length + 1,
+      ));
+      state = state.copyWith(
+        btPhase: BtPhase.playing,
+        voice: VoiceState.invite,
+        btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
+      );
+      return;
+    }
+
+    final trechos = _trechosFrom(told.segments);
+    state = state.copyWith(
+      btPhase: BtPhase.playing,
+      voice: VoiceState.invite,
+      btTrechos: trechos.isEmpty ? state.btTrechos : trechos,
+      btChunkPasses: [for (final segment in told.segments) segment.passNumber],
+    );
+  }
+
   void proximaParte() {
     if (state.stage != SalaStage.retro) return;
     if (state.btPhase != BtPhase.playing || !state.btParteFronteira) return;
@@ -1998,9 +2081,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final path = await _recorder.stop();
     if (epoch != _epoch) return;
     final sessionId = state.sessionId;
+    final contandoDeNovo = _contandoDeNovo;
+    _contandoDeNovo = null;
 
     if (path == null || sessionId == null) {
       state = state.copyWith(btPhase: BtPhase.playing, voice: VoiceState.invite);
+      return;
+    }
+
+    if (contandoDeNovo != null) {
+      await _tellThatStretchAgain(contandoDeNovo, path, sessionId, epoch);
       return;
     }
 
@@ -2188,6 +2278,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           parte: partes.indexWhere((parte) => parte.takeId == segment.takeId),
           from: Duration(milliseconds: segment.startsMs),
           to: Duration(milliseconds: segment.endsMs),
+          contado: segment.told,
         ),
     ];
   }
