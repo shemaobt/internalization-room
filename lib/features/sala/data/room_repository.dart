@@ -217,6 +217,27 @@ class RoomRepository {
     return _read(response, SegmentView.listFrom);
   }
 
+  Future<TellingAgain> replaceSegment(
+    String sessionId,
+    String segmentId,
+    File audio, {
+    required String takeId,
+    required Duration from,
+    required Duration to,
+  }) async {
+    final request = http.MultipartRequest(
+      'POST',
+      _uri('/sessions/$sessionId/segments/$segmentId/replace'),
+    )
+      ..headers['X-Room-Key'] = Env.roomKey
+      ..headers['X-Room-Device'] = await deviceIdentity()
+      ..fields['take_id'] = takeId
+      ..fields['starts_ms'] = '${from.inMilliseconds}'
+      ..fields['ends_ms'] = '${to.inMilliseconds}'
+      ..files.add(await http.MultipartFile.fromPath('file', audio.path));
+    return _read(await _sendMultipart(request), TellingAgain.fromJson);
+  }
+
   Future<BackTranslationRestart> restartBackTranslation(String sessionId) async {
     final response = await _send(
       () => _client.post(
