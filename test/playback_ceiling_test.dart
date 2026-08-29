@@ -153,6 +153,9 @@ void main() {
     await notifier.finishBackTranslation();
     await settle();
 
+    notifier.ouvirVozMaterna();
+    await settle();
+
     expect(container.read(salaSessionProvider).btTrechoTocando, isTrue);
 
     harness.playback.at = const Duration(milliseconds: 600);

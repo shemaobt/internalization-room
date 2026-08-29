@@ -51,6 +51,9 @@ class RetroCord extends StatelessWidget {
   final int ouvidoMs;
   final List<Trecho> trechos;
 
+  /// The room's name for the stretch the analyst pointed at, when it pointed at one.
+  final String? apontado;
+
   const RetroCord({
     super.key,
     required this.partes,
@@ -58,6 +61,7 @@ class RetroCord extends StatelessWidget {
     required this.parteNoArMs,
     required this.ouvidoMs,
     required this.trechos,
+    this.apontado,
   });
 
   double _at(int ms) => cordFraction(
@@ -90,10 +94,19 @@ class RetroCord extends StatelessWidget {
       );
       if (de == null || ate == null) continue;
       final again = !contados.add(de);
-      told.add(_Span(_at(de), _at(ate), again));
+      told.add(_Span(
+        _at(de),
+        _at(ate),
+        again,
+        apontado != null && trecho.segmentId == apontado,
+      ));
     }
-    return IgnorePointer(
-      child: LayoutBuilder(
+    return Semantics(
+      label: told.any((span) => span.apontado)
+          ? 'Trecho apontado pelo analista'
+          : null,
+      child: IgnorePointer(
+        child: LayoutBuilder(
         builder: (context, constraints) => CustomPaint(
           size: Size(constraints.maxWidth, constraints.maxHeight),
           painter: _CordPainter(
@@ -106,6 +119,7 @@ class RetroCord extends StatelessWidget {
               for (var i = 1; i < partes; i++) i / partes,
             ],
             colors: colors,
+            ),
           ),
         ),
       ),
@@ -117,8 +131,11 @@ class _Span {
   final double from;
   final double to;
   final bool again;
+  /// Whether this is the stretch the analyst pointed at. The room has no readable words,
+  /// so the cord is the only place the team can see *where* the problem is.
+  final bool apontado;
 
-  const _Span(this.from, this.to, this.again);
+  const _Span(this.from, this.to, this.again, [this.apontado = false]);
 }
 
 class _CordPainter extends CustomPainter {
@@ -175,10 +192,23 @@ class _CordPainter extends CustomPainter {
         final at = _on(t);
         i == 0 ? path.moveTo(at.dx, at.dy) : path.lineTo(at.dx, at.dy);
       }
+      if (span.apontado) {
+        // The stretch drains and wears a halo. Error is never red in this room: the mark
+        // is the room's own terracotta, the colour of focus, and mending is filling it in
+        // again.
+        canvas.drawPath(
+          path,
+          Paint()
+            ..color = colors.halo
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 14
+            ..strokeCap = StrokeCap.round,
+        );
+      }
       canvas.drawPath(
         path,
         Paint()
-          ..color = ShemaBrand.wood
+          ..color = span.apontado ? colors.oat : ShemaBrand.wood
           ..style = PaintingStyle.stroke
           ..strokeWidth = 6
           ..strokeCap = StrokeCap.round,

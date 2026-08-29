@@ -181,6 +181,7 @@ class _RetroCordLayer extends ConsumerWidget {
       parteNoArMs: session.btParteNoArMs,
       ouvidoMs: session.btOuvidoMs,
       trechos: session.btTrechos,
+      apontado: session.btFindingSegmentId,
     );
   }
 }

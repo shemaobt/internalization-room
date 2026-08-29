@@ -2063,6 +2063,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         unawaited(_finishChunkCapture());
       case BtPhase.findings:
         _leadThemToTheTrecho();
+      case BtPhase.gravandoMaterna:
+      case BtPhase.gravandoRetro:
       case BtPhase.thinking:
       case BtPhase.conferida:
         break;
@@ -2185,6 +2187,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final trecho = Trecho(
       segmentId: null,
       takeId: gravacao,
+      retroPath: path,
       parte: _parteTocando,
       from: _trechoStart,
       to: _trechoEnd,
@@ -2255,7 +2258,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         btFindingSegmentId: verdict.findingSegmentId,
         clearFindingSegment: verdict.findingSegmentId == null,
       );
-      _leadThemToTheTrecho();
+      // The stretch is no longer played at the team. Which voice needs to speak again is
+      // theirs to say, and they say it by comparing the two — so hearing either one is a
+      // tap they choose to make, on the screen that asks the question.
     } on Exception catch (error) {
       if (epoch != _epoch) return;
       _handleRoomFailure(error);
@@ -2332,6 +2337,60 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       trecho.to,
     ));
     _watchPlayback(clipStillOpening: true);
+  }
+
+  /// Hear the team's own voice on the stretch the analyst pointed at.
+  ///
+  /// Free, and it decides nothing: the room used to read the kind of finding and pick the
+  /// correction itself, so the team never compared the two voices before the choice was
+  /// already made for them.
+  void ouvirVozMaterna() {
+    if (state.btPhase != BtPhase.findings) return;
+    if (state.btTrechoTocando || state.btRetroTocando) return;
+    _leadThemToTheTrecho();
+  }
+
+  /// Hear the telling in Portuguese — the voice that travels to the analyst.
+  void ouvirContarEmPortugues() {
+    if (state.btPhase != BtPhase.findings) return;
+    if (state.btTrechoTocando || state.btRetroTocando) return;
+    final path = state.btFindingTrecho?.retroPath;
+    if (path == null) return;
+    void quiet() {
+      state = state.copyWith(btRetroTocando: false);
+    }
+
+    state = state.copyWith(btRetroTocando: true);
+    _play(path, onComplete: quiet, onFailed: quiet);
+  }
+
+  /// The error was born in the recording: the mother tongue is re-recorded first, and the
+  /// telling of this stretch is redone over it afterwards. Always in that order — the
+  /// server refuses a new recording that arrives carrying an explanation.
+  void regravarAVozMaterna() {
+    if (state.btPhase != BtPhase.findings) return;
+    if (state.btFindingTrecho == null) return;
+    _holdClip();
+    state = state.copyWith(
+      btPhase: BtPhase.gravandoMaterna,
+      voice: VoiceState.invite,
+      btTrechoTocando: false,
+      btRetroTocando: false,
+    );
+  }
+
+  /// The team's own voice stands and only the telling slipped: the explanation is redone
+  /// over a recording that does not move.
+  void recontarEmPortugues() {
+    if (state.btPhase != BtPhase.findings) return;
+    if (state.btFindingTrecho == null) return;
+    _holdClip();
+    state = state.copyWith(
+      btPhase: BtPhase.gravandoRetro,
+      voice: VoiceState.invite,
+      btTrechoTocando: false,
+      btRetroTocando: false,
+    );
   }
 
   void retellChunk() {

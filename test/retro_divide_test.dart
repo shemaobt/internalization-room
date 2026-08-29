@@ -69,6 +69,10 @@ Future<void> _ouvindoOTrechoApontado(
   harness.playback.finishPlayback();
   await settle();
   await notifier.finishBackTranslation();
+  await settle();
+  // The room no longer plays the pointed stretch at the team: which voice must speak
+  // again is theirs to say, so hearing either one is a tap they choose to make.
+  notifier.ouvirVozMaterna();
   await until(() => container.read(salaSessionProvider).btTrechoTocando);
 }
 

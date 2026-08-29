@@ -447,7 +447,7 @@ void main() {
     );
   });
 
-  testWidgets('a finding on a stretch offers the retell and re-record exits',
+  testWidgets('a finding on a stretch asks the team which voice must speak',
       (tester) async {
     final harness = SalaHarness(filaEmMemoria: true)
       ..room.verdictChecked = false
@@ -478,8 +478,18 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
-    expect(bySemanticsLabelWidget(retellExit), findsOneWidget);
-    expect(bySemanticsLabelWidget(reRecordExit), findsOneWidget);
+    expect(
+      bySemanticsLabelWidget('Regravar a voz na língua materna — refaz também '
+          'o contar'),
+      findsOneWidget,
+      reason: 'as duas saídas continuam ali, mas agora como as duas vozes da '
+          'grade, e é a equipe que diz qual precisa falar de novo',
+    );
+    expect(bySemanticsLabelWidget('Recontar só em português'), findsOneWidget);
+    expect(bySemanticsLabelWidget(retellExit), findsNothing,
+        reason: 'o par antigo de saídas deixou de existir para um achado com '
+            'trecho nomeado — quem decidia era o tipo, não a equipe');
+    expect(bySemanticsLabelWidget(reRecordExit), findsNothing);
   });
 
   testWidgets('an addition finding offers re-recording and nothing else',
