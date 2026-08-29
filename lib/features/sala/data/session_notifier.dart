@@ -1909,6 +1909,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// The position is read from the player, which is playing inside one file, so it is
   /// already counted from that recording's beginning. Adding the parts before it would be
   /// the global timeline under a new name.
+  ///
+  /// The finding ends here rather than being handed on. The two halves are born with no
+  /// explanation, and the first round does not run while a final stretch is missing one,
+  /// so no verdict stands until the team has told them both — and the finding that comes
+  /// back after that names the half it belongs to, decided by reading rather than by a
+  /// guess of ours. Cleared, not left unpointed: the branch for a finding with no stretch
+  /// exists for an analyst who could not attribute one, which is a different thing from a
+  /// finding that is over.
   Future<void> dividirTrecho() async {
     if (state.stage != SalaStage.retro) return;
     if (!state.btTrechoTocando) return;
@@ -1925,9 +1933,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (epoch != _epoch) return;
       final trechos = _trechosFrom(told);
       if (trechos.isEmpty) return;
+      _holdClip();
       state = state.copyWith(
         btTrechos: trechos,
         btChunkPasses: [for (final segment in told) segment.passNumber],
+        btPhase: BtPhase.playing,
+        voice: VoiceState.invite,
+        btFindings: const [],
+        btTrechoTocando: false,
+        clearFindingSegment: true,
       );
     } on Exception catch (error) {
       if (epoch != _epoch) return;

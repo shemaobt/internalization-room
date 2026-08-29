@@ -211,6 +211,31 @@ void main() {
             'toca, então a proteção que existe hoje não foi afrouxada');
   });
 
+  test('dividing ends the finding instead of leaving it pointing at nothing',
+      () async {
+    final harness = SalaHarness()..room.verdictChecked = false;
+    final container = await _umTrechoContadoETocando(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    expect(container.read(salaSessionProvider).btFindingTrecho, isNotNull);
+
+    harness.playback.at = const Duration(seconds: 8);
+    await notifier.dividirTrecho();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.btPhase, BtPhase.playing,
+        reason: 'os dois pedaços nascem sem explicação e a análise não corre '
+            'enquanto faltar contar, então o que vem depois de dividir é '
+            'contar — não continuar numa tela de veredito que já não vale');
+    expect(state.btFindingSegmentId, isNull,
+        reason: 'o achado não fica nomeando um trecho que deixou de ser '
+            'unidade: ele terminou, e o próximo nasce apontando a metade certa '
+            'porque o analista vai ler de novo');
+    expect(state.btFindings, isEmpty);
+    expect(state.btTrechoTocando, isFalse,
+        reason: 'e o áudio do trecho que acabou de deixar de existir para');
+  });
+
   test('the passes stay as long as the stretches they belong to', () async {
     final harness = SalaHarness()..room.verdictChecked = false;
     final container = await _umTrechoContadoETocando(harness);
