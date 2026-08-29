@@ -170,4 +170,63 @@ void main() {
     expect(harness.room.replacesAsked, isEmpty);
     expect(container.read(salaSessionProvider).btTrechos.length, 2);
   });
+  test('the retelling latch does not survive leaving the passage', () async {
+    final harness = SalaHarness()..room.verdictChecked = false;
+    final container = await _comDuasMetadesEsperando(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.contarDeNovo(
+        container.read(salaSessionProvider).btTrechos.first);
+    await settle();
+    notifier.leaveThePassage();
+    await settle();
+
+    await notifier.goConversa();
+    await settle();
+    notifier.goEnsaio();
+    await _gravaParte(notifier);
+    notifier.startRetro();
+    await settle();
+    final pedidosAntes = harness.room.replacesAsked.length;
+    await _contaTrecho(harness, notifier, em: const Duration(seconds: 10));
+
+    expect(harness.room.replacesAsked.length, pedidosAntes,
+        reason: 'a trava é um latch sem casa no estado, como o _recontando que '
+            'já mandou o primeiro trecho de uma retrotradução como correção de '
+            'um trecho que não existia — aqui iria para o id da passagem '
+            'anterior');
+    expect(harness.room.chunkSpans.last, '0-10000');
+  });
+
+  test('telling a stretch again does not leave the room retelling', () async {
+    final harness = SalaHarness()..room.verdictChecked = false;
+    final container = await _inRetro(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await _contaTrecho(harness, notifier, em: const Duration(seconds: 20));
+    await until(() => harness.room.chunksSent == 1);
+    harness.room.verdictFindingSegmentId = harness.room.segments.last.segmentId;
+    harness.playback.finishPlayback();
+    await settle();
+    await notifier.finishBackTranslation();
+    await until(() => container.read(salaSessionProvider).btTrechoTocando);
+
+    notifier.retellChunk();
+    await settle();
+    harness.playback.finishPlayback();
+    await until(() => !container.read(salaSessionProvider).btTrechoTocando);
+    await _contaDeNovo(
+        notifier, container.read(salaSessionProvider).btTrechos.first);
+    final recontagensAntes = harness.room.retells;
+
+    await _contaTrecho(harness, notifier, em: const Duration(seconds: 40));
+
+    expect(harness.room.retells, recontagensAntes,
+        reason: 'contar um trecho de novo encerra a recontagem: deixá-la '
+            'ligada faz o próximo corte ignorar o tocador, reaproveitar os '
+            'limites velhos e subir como recontagem');
+    expect(harness.room.chunkSpans.last, '20000-40000',
+        reason: 'e os limites são os do tocador, não os que a recontagem '
+            'tinha deixado para trás');
+  });
 }

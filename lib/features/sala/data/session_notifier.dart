@@ -2024,6 +2024,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
 
     final trechos = _trechosFrom(told.segments);
+    // Telling a stretch again adds no new ground, so the cursor goes back to the furthest
+    // stretch already told rather than staying where the excursion left it. The ordinary
+    // path walks it forward past what was just told; here there is nothing to walk past,
+    // and a cursor left behind makes the next cut begin inside ground already explained.
+    final alcancado = trechos.fold(
+      Duration.zero,
+      (ate, trecho) => trecho.to > ate ? trecho.to : ate,
+    );
+    _trechoStart = alcancado;
+    _trechoEnd = alcancado;
     state = state.copyWith(
       btPhase: BtPhase.playing,
       voice: VoiceState.invite,
@@ -2090,6 +2100,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
 
     if (contandoDeNovo != null) {
+      // Cleared on this branch too, because it returns before the ordinary path clears
+      // it. Left switched on, the next cut would ignore the player, reuse the bounds the
+      // retelling had left behind, and upload as a correction of a stretch that is not
+      // the one being told. It is cleared here rather than at the top: the ordinary path
+      // reads it when it uploads, and clearing it above that turns every retelling into
+      // an ordinary telling.
+      _recontando = false;
       await _tellThatStretchAgain(contandoDeNovo, path, sessionId, epoch);
       return;
     }
@@ -2446,6 +2463,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _personAsked = false;
     _personAskStep = 0;
     _recontando = false;
+    _contandoDeNovo = null;
     _inboxSilences = 0;
     _degradedTurns = 0;
     _trechoStart = Duration.zero;

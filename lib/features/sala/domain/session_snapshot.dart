@@ -42,11 +42,6 @@ class SegmentView {
       );
 }
 
-/// Where a telling-back stopped, as the room remembers it.
-///
-/// The session id lives only in memory, so every restart used to lose the retro entirely
-/// and the team recorded the rehearsal again. All of this was already on the session and
-/// travels with every session route; the app simply threw it away.
 /// What the room answers when a stretch is told again.
 ///
 /// [captured] is false when the room made nothing out of the recording, and then the
@@ -64,6 +59,11 @@ class TellingAgain {
       );
 }
 
+/// Where a telling-back stopped, as the room remembers it.
+///
+/// The session id lives only in memory, so every restart used to lose the retro entirely
+/// and the team recorded the rehearsal again. All of this was already on the session and
+/// travels with every session route; the app simply threw it away.
 class BackTranslationProgress {
   final List<SegmentView> segments;
   final bool checked;
