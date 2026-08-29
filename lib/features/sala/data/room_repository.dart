@@ -201,6 +201,28 @@ class RoomRepository {
     );
   }
 
+  Future<List<SegmentView>> divideSegment(
+    String sessionId,
+    String segmentId, {
+    required Duration at,
+  }) async {
+    final response = await _send(
+      () => _client.post(
+        _uri('/sessions/$sessionId/segments/$segmentId/divide'),
+        headers: _headers,
+        body: jsonEncode({'at_ms': at.inMilliseconds}),
+      ),
+      _stateTimeout,
+    );
+    return _read(
+      response,
+      (json) => [
+        for (final raw in (json['segments'] as List? ?? const []))
+          if (raw is Map) SegmentView.fromJson(raw.cast<String, dynamic>()),
+      ],
+    );
+  }
+
   Future<BackTranslationRestart> restartBackTranslation(String sessionId) async {
     final response = await _send(
       () => _client.post(
