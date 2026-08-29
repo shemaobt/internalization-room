@@ -104,10 +104,11 @@ void main() {
     await tester.tap(bySemanticsLabelWidget('Recontar só em português'));
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.gravandoRetro,
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing,
         reason: 'contar o trecho de novo continua sendo uma saída da tela de '
             'achados; deixou de ser a sala escolhendo-a pela equipe e passou a '
-            'ser a voz azul da grade, que a equipe toca');
+            'ser a voz azul da grade, que a equipe toca — e ela abre o '
+            'microfone direto, sem passo intermediário');
   });
 
   testWidgets('re-recording stays on offer when no stretch was named',

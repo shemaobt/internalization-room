@@ -1962,7 +1962,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// way to explain a refusal to a team that cannot read.
   Future<void> contarDeNovo(Trecho trecho) async {
     if (state.stage != SalaStage.retro) return;
-    if (state.btPhase != BtPhase.playing) return;
+    // Two doors reach the same verb: the cord, where a stretch is tapped while the
+    // rehearsal plays, and the question the room puts when the analyst points at one.
+    if (state.btPhase != BtPhase.playing && state.btPhase != BtPhase.findings) {
+      return;
+    }
     if (state.needsPerson || state.offline) return;
     if (state.btTrechoTocando) return;
     if (trecho.segmentId == null) return;
@@ -2064,7 +2068,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case BtPhase.findings:
         _leadThemToTheTrecho();
       case BtPhase.gravandoMaterna:
-      case BtPhase.gravandoRetro:
         _voltarAPergunta();
       case BtPhase.thinking:
       case BtPhase.conferida:
@@ -2406,15 +2409,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// The team's own voice stands and only the telling slipped: the explanation is redone
   /// over a recording that does not move.
   void recontarEmPortugues() {
-    if (state.btPhase != BtPhase.findings) return;
-    if (state.btFindingTrecho == null) return;
-    _holdClip();
-    state = state.copyWith(
-      btPhase: BtPhase.gravandoRetro,
-      voice: VoiceState.invite,
-      btTrechoTocando: false,
-      btRetroTocando: false,
-    );
+    final trecho = state.btFindingTrecho;
+    if (state.btPhase != BtPhase.findings || trecho == null) return;
+    state = state.copyWith(btTrechoTocando: false, btRetroTocando: false);
+    unawaited(contarDeNovo(trecho));
   }
 
   /// Back to the question, from a step that cannot finish its work yet.

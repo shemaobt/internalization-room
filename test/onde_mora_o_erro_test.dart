@@ -22,6 +22,9 @@ Finder byLabel(String label) => find.byWidgetPredicate(
 
 SalaHarness? harnessDaVez;
 
+SalaSessionNotifier notifier(ProviderContainer c) =>
+    c.read(salaSessionProvider.notifier);
+
 /// A team that told two stretches back and got a finding on the first.
 Future<ProviderContainer> pumpToPergunta(
   WidgetTester tester, {
@@ -127,14 +130,24 @@ void main() {
       (tester) async {
     final container = await pumpToPergunta(tester);
 
+    final harness = harnessDaVez!;
+
     await tester.tap(byLabel(micRetro));
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.gravandoRetro,
-        reason: 'só o contar escorregou, então é o contar que se refaz');
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing,
+        reason: 'só o contar escorregou, então o microfone abre para a equipe '
+            'contar aquele trecho de novo');
+
+    notifier(container).retroTap();
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(harness.room.replacesAsked, ['trecho-1@gravacao-1:0-10000'],
+        reason: 'a explicação nova cobre exatamente o mesmo recorte: mesma '
+            'gravação, mesmo início, mesmo fim — a voz em língua materna '
+            'daquele trecho não é tocada');
     expect(container.read(salaSessionProvider).stage, SalaStage.retro,
-        reason: 'a gravação em língua materna daquele trecho não é tocada — '
-            'sair para o ensaio seria refazê-la');
+        reason: 'sair para o ensaio seria refazer a gravação materna');
   });
 
   testWidgets('choosing the voice too records the mother tongue first',
@@ -148,8 +161,48 @@ void main() {
         reason: 'a ordem é regra de produto e não sugestão: regravar o nativo '
             'implica sempre refazer o contar depois, nessa ordem');
     expect(container.read(salaSessionProvider).btPhase,
-        isNot(BtPhase.gravandoRetro),
-        reason: 'a equipe não pode ser levada a contar antes de ter regravado');
+        isNot(BtPhase.capturing),
+        reason: 'a equipe não pode ser levada a contar antes de ter regravado: '
+            'o microfone do contar não abre por este caminho');
+    expect(harnessDaVez!.room.replacesAsked, isEmpty,
+        reason: 'e nada é substituído enquanto a voz nova não existe');
+  });
+
+  testWidgets('a stretch back from the room keeps both halves of itself',
+      (tester) async {
+    final container = await pumpToPergunta(tester);
+    final harness = harnessDaVez!;
+
+    // Hearing the pointed stretch is what lets the team divide it where they are
+    // listening, and dividing is what makes the room answer with stretches nobody has
+    // explained yet — the case where the two halves of this construction disagree.
+    await tester.tap(byLabel(ouvirMaterna));
+    await tester.pump(const Duration(milliseconds: 300));
+    harness.playback.at = const Duration(seconds: 4);
+    await notifier(container).dividirTrecho();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final trechos = container.read(salaSessionProvider).btTrechos;
+    expect(trechos, hasLength(3),
+        reason: 'a leitura da sala é quem manda em quantos trechos existem');
+
+    // The room's half: whether anyone has explained this stretch. It is what the first
+    // round's gate consumes, and the app used to throw it away. The two new halves are
+    // units the room counts and nobody has told back.
+    expect(trechos.map((t) => t.contado).toList(), [false, false, true],
+        reason: 'sem isto um trecho à espera é indistinguível de um já '
+            'explicado, e o portão da primeira rodada não tem o que ler');
+
+    // The tablet's half: the copy of the telling, which only this tablet holds. It was
+    // thrown away on every reading, and the blue voice had nothing to play.
+    expect(trechos.last.retroPath, isNotNull,
+        reason: 'o trecho que ninguém tocou continua com a sua explicação aqui');
+    expect(trechos.take(2).map((t) => t.retroPath).toList(), [null, null],
+        reason: 'e uma metade que ninguém contou não guarda arquivo de uma '
+            'explicação que não existe');
+
+    // Both halves live in one construction: resolving that conflict by picking a side
+    // would have lost the other in silence, and each branch was green on its own.
   });
 
   testWidgets('listening is free and decides nothing', (tester) async {

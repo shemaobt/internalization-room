@@ -197,10 +197,9 @@ class RetroView extends ConsumerWidget {
       case BtPhase.findings:
         return 'Ouvir de novo a parte apontada';
       case BtPhase.gravandoMaterna:
-      case BtPhase.gravandoRetro:
-        // What the touch does, not what the step is for: the recording call does not
-        // exist yet, and a circle that says "record" and returns to the question is worse
-        // than a label nobody speaks aloud.
+        // What the touch does, not what the step is for: re-recording the mother tongue
+        // of one stretch does not exist yet, and a circle that says "record" and returns
+        // to the question is worse than a label nobody speaks aloud.
         return 'Voltar à pergunta';
       case BtPhase.thinking:
         return 'Um instante';

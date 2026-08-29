@@ -16,17 +16,16 @@ enum EnsaioStatus { idle, ghostPlaying, recording, recorded }
 
 /// Where the telling-back is, step by step.
 ///
-/// [gravandoMaterna] and [gravandoRetro] are the two corrections the team can choose from
-/// once the analyst points at a stretch: the mother tongue re-recorded, or only the
-/// telling redone. Re-recording the mother tongue always implies telling that stretch
-/// again afterwards, so the long path passes through both, in that order.
+/// [gravandoMaterna] is the far half of the correction the team can choose once the
+/// analyst points at a stretch: the mother tongue re-recorded, which always implies
+/// telling that stretch again over it, in that order. Redoing only the telling needs no
+/// step of its own — it is the same capture the room already knows.
 enum BtPhase {
   playing,
   capturing,
   thinking,
   findings,
   gravandoMaterna,
-  gravandoRetro,
   conferida,
 }
 
