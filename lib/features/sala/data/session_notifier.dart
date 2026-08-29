@@ -1179,7 +1179,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       stage: SalaStage.retro,
       voice: told.checked ? VoiceState.done : VoiceState.invite,
       btPhase: told.checked ? BtPhase.conferida : BtPhase.playing,
-      btTrechos: _trechosFrom(told),
+      btTrechos: _trechosFrom(told.segments),
       btChunkPasses: [
         for (final segment in told.segments) segment.passNumber,
       ],
@@ -1898,6 +1898,57 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _startChunkCapture();
   }
 
+  /// Cut the stretch that is playing in two, where the team is hearing it.
+  ///
+  /// It only ever answers for the stretch in the air, which is the only stretch the team
+  /// can hear again: the room leads them to the one a finding named, and nothing else
+  /// replays a stretch they already told. So there is nothing to choose first — what is
+  /// playing is what divides — and the point is where the audio is, which is the same
+  /// relation the other pair of scissors already has.
+  ///
+  /// The position is read from the player, which is playing inside one file, so it is
+  /// already counted from that recording's beginning. Adding the parts before it would be
+  /// the global timeline under a new name.
+  ///
+  /// The finding ends here rather than being handed on. The two halves are born with no
+  /// explanation, and the first round does not run while a final stretch is missing one,
+  /// so no verdict stands until the team has told them both — and the finding that comes
+  /// back after that names the half it belongs to, decided by reading rather than by a
+  /// guess of ours. Cleared, not left unpointed: the branch for a finding with no stretch
+  /// exists for an analyst who could not attribute one, which is a different thing from a
+  /// finding that is over.
+  Future<void> dividirTrecho() async {
+    if (state.stage != SalaStage.retro) return;
+    if (!state.btTrechoTocando) return;
+    if (state.needsPerson || state.offline) return;
+    final sessionId = state.sessionId;
+    final trecho = state.btFindingTrecho;
+    final named = trecho?.segmentId;
+    if (sessionId == null || trecho == null || named == null) return;
+
+    final at = _playback.position;
+    final epoch = _epoch;
+    try {
+      final told = await _room.divideSegment(sessionId, named, at: at);
+      if (epoch != _epoch) return;
+      final trechos = _trechosFrom(told);
+      if (trechos.isEmpty) return;
+      _holdClip();
+      state = state.copyWith(
+        btTrechos: trechos,
+        btChunkPasses: [for (final segment in told) segment.passNumber],
+        btPhase: BtPhase.playing,
+        voice: VoiceState.invite,
+        btFindings: const [],
+        btTrechoTocando: false,
+        clearFindingSegment: true,
+      );
+    } on Exception catch (error) {
+      if (epoch != _epoch) return;
+      _handleRoomFailure(error);
+    }
+  }
+
   void proximaParte() {
     if (state.stage != SalaStage.retro) return;
     if (state.btPhase != BtPhase.playing || !state.btParteFronteira) return;
@@ -2121,16 +2172,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (epoch != _epoch) return;
-    final trechos = _trechosFrom(snapshot.backTranslation);
+    final trechos = _trechosFrom(snapshot.backTranslation.segments);
     if (trechos.isEmpty) return;
     state = state.copyWith(btTrechos: trechos);
   }
 
   /// The room's stretches as this tablet's own, each tied back to the recording it slices.
-  List<Trecho> _trechosFrom(BackTranslationProgress told) {
+  List<Trecho> _trechosFrom(List<SegmentView> told) {
     final partes = state.partes;
     return [
-      for (final segment in told.segments)
+      for (final segment in told)
         Trecho(
           segmentId: segment.segmentId,
           takeId: segment.takeId,
