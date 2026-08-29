@@ -37,12 +37,17 @@ class Trecho {
   final Duration from;
   final Duration to;
 
+  /// Whether the team has explained this stretch yet. False on a half a division just
+  /// made: it is a unit the room counts and nobody has told back.
+  final bool contado;
+
   const Trecho({
     required this.segmentId,
     required this.takeId,
     required this.parte,
     required this.from,
     required this.to,
+    this.contado = true,
   });
 }
 
