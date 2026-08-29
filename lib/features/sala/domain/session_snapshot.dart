@@ -19,6 +19,11 @@ class SegmentView {
     this.passNumber = 1,
   });
 
+  static List<SegmentView> listFrom(Map<String, dynamic> json) => [
+        for (final raw in (json['segments'] as List? ?? const []))
+          if (raw is Map) SegmentView.fromJson(raw.cast<String, dynamic>()),
+      ];
+
   factory SegmentView.fromJson(Map<String, dynamic> json) => SegmentView(
         segmentId: json['segment_id'] as String? ?? '',
         takeId: json['take_id'] as String? ?? '',
@@ -46,11 +51,7 @@ class BackTranslationProgress {
 
   factory BackTranslationProgress.fromJson(Map<String, dynamic> json) =>
       BackTranslationProgress(
-        segments: [
-          for (final raw in (json['segments'] as List? ?? const []))
-            if (raw is Map)
-              SegmentView.fromJson(raw.cast<String, dynamic>()),
-        ],
+        segments: SegmentView.listFrom(json),
         checked: json['checked'] as bool? ?? false,
         findingSegmentId: json['finding_segment_id'] as String?,
       );

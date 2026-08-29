@@ -214,13 +214,7 @@ class RoomRepository {
       ),
       _stateTimeout,
     );
-    return _read(
-      response,
-      (json) => [
-        for (final raw in (json['segments'] as List? ?? const []))
-          if (raw is Map) SegmentView.fromJson(raw.cast<String, dynamic>()),
-      ],
-    );
+    return _read(response, SegmentView.listFrom);
   }
 
   Future<BackTranslationRestart> restartBackTranslation(String sessionId) async {

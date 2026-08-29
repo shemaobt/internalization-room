@@ -1925,7 +1925,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (epoch != _epoch) return;
       final trechos = _trechosFrom(told);
       if (trechos.isEmpty) return;
-      state = state.copyWith(btTrechos: trechos);
+      state = state.copyWith(
+        btTrechos: trechos,
+        btChunkPasses: [for (final segment in told) segment.passNumber],
+      );
     } on Exception catch (error) {
       if (epoch != _epoch) return;
       _handleRoomFailure(error);
