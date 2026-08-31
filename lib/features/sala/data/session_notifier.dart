@@ -74,13 +74,32 @@ final playbackCeilingProvider = Provider<Duration?>(
 /// change rather than a code change — the catalogue route takes it as a parameter.
 final bookProvider = Provider<String>((ref) => 'Ruth');
 
-final roomLanguageProvider = Provider<String>(
-  (ref) => languageFor(
+final devLanguageProvider =
+    NotifierProvider<DevLanguage, String?>(DevLanguage.new);
+
+class DevLanguage extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void choose(String language) {
+    if (!Env.devPularFases) return;
+    if (!languages.contains(language)) return;
+    state = language;
+  }
+
+  String next(String current) =>
+      languages[(languages.indexOf(current) + 1) % languages.length];
+}
+
+final roomLanguageProvider = Provider<String>((ref) {
+  final chosen = ref.watch(devLanguageProvider);
+  if (chosen != null) return chosen;
+  return languageFor(
     WidgetsBinding.instance.platformDispatcher.locales.map(
       (locale) => locale.languageCode,
     ),
-  ),
-);
+  );
+});
 
 final beckonIntervalProvider = Provider<Duration?>(
   (ref) => const Duration(seconds: 25),
@@ -1449,6 +1468,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (pericope == null) return;
     unawaited(_emAberto.forget(_book, pericope).catchError((_) {}));
     unawaited(goConversa(pericope: pericope, fresh: true));
+  }
+
+  void devTrocarIdioma() {
+    if (!Env.devPularFases) return;
+    final knob = ref.read(devLanguageProvider.notifier);
+    knob.choose(knob.next(_lingua));
+    _startOver();
   }
 
   void goEnsaio() {

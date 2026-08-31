@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
@@ -128,6 +129,64 @@ void main() {
             'nome dentro do pacote do idioma — uma renderização que pulou uma fala em um '
             'idioma vira silêncio, que a equipe não distingue de um tablet morto');
     expect(shipped[floorLanguage], isNotEmpty);
+  });
+
+  test('the dev knob walks the languages the room claims and comes back round', () {
+    final container = SalaHarness(lingua: null).container();
+    addTearDown(container.dispose);
+    final knob = container.read(devLanguageProvider.notifier);
+
+    final walked = <String>[];
+    var standing = languages.first;
+    for (var step = 0; step < languages.length; step++) {
+      standing = knob.next(standing);
+      walked.add(standing);
+    }
+
+    expect(walked.toSet(), languages.toSet());
+    expect(standing, languages.first,
+        reason: 'o botão precisa voltar ao começo, senão dá para ficar preso num idioma');
+  });
+
+  test('the dev knob is refused a language the room does not speak', () {
+    dotenv.testLoad(
+      fileInput: 'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
+    );
+    addTearDown(() => dotenv.testLoad(fileInput: ''));
+    final container = SalaHarness(lingua: null).container();
+    addTearDown(container.dispose);
+
+    container.read(devLanguageProvider.notifier).choose('ja');
+
+    expect(container.read(devLanguageProvider), isNull,
+        reason: 'a sala pediria ao servidor um idioma que ele recusa, e a passagem não abre');
+  });
+
+  testWidgets('changing the language in dev opens a new room rather than moving this one',
+      (tester) async {
+    dotenv.testLoad(
+      fileInput: 'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
+    );
+    addTearDown(() => dotenv.testLoad(fileInput: ''));
+    tester.platformDispatcher.localesTestValue = const [Locale('pt')];
+    addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+    final harness = SalaHarness(filaEmMemoria: true, lingua: null);
+    final container = await pumpSala(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.conviteTap();
+    await tester.pump(const Duration(milliseconds: 300));
+    final antes = [...harness.room.languagesSent];
+    notifier.devTrocarIdioma();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(container.read(roomLanguageProvider), isNot('pt'));
+    expect(harness.room.languagesSent.take(antes.length), everyElement('pt'),
+        reason: 'a sessão que já existia não pode passar a responder noutra língua — '
+            'trocar o idioma abre uma sala nova, nunca move a que está aberta');
+    expect(container.read(salaSessionProvider).sessionId, isNull,
+        reason: 'trocar o idioma sem largar a sessão deixaria a equipe ouvindo metade '
+            'da passagem numa língua e metade noutra');
   });
 
   testWidgets('the one screen a person reads is in the language they set the tablet to',

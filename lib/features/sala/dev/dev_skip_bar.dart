@@ -33,6 +33,12 @@ class DevSkipBar extends ConsumerWidget {
         spacing: 6,
         children: [
           const _DevTag(),
+          _DevButton(
+            prefix: 'idioma',
+            label: ref.watch(roomLanguageProvider),
+            hint: 'recomeça a sala',
+            onTap: notifier.devTrocarIdioma,
+          ),
           if (emCena.contains(session.stage)) ...[
             _DevButton(
               label: 'ensaio',
@@ -87,11 +93,17 @@ class _DevTag extends StatelessWidget {
 }
 
 class _DevButton extends StatelessWidget {
+  final String prefix;
   final String label;
   final String? hint;
   final VoidCallback? onTap;
 
-  const _DevButton({required this.label, required this.hint, required this.onTap});
+  const _DevButton({
+    this.prefix = 'pular',
+    required this.label,
+    required this.hint,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -112,7 +124,7 @@ class _DevButton extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              'pular → $label',
+              '$prefix → $label',
               style: TextStyle(
                 color: habilitado ? Colors.white : const Color(0x88FFFFFF),
                 fontSize: 12,
