@@ -11,12 +11,20 @@ class SegmentView {
   final int endsMs;
   final int passNumber;
 
+  /// Whether the team has explained this stretch in the bridge language yet.
+  ///
+  /// A stretch born of a division has no explanation, and the first round does not run
+  /// while a final stretch is missing one. The app threw this away, so it could not tell
+  /// a stretch waiting to be told from one already told.
+  final bool told;
+
   const SegmentView({
     required this.segmentId,
     required this.takeId,
     required this.startsMs,
     required this.endsMs,
     this.passNumber = 1,
+    this.told = true,
   });
 
   static List<SegmentView> listFrom(Map<String, dynamic> json) => [
@@ -30,6 +38,24 @@ class SegmentView {
         startsMs: json['starts_ms'] as int? ?? 0,
         endsMs: json['ends_ms'] as int? ?? 0,
         passNumber: json['pass_number'] as int? ?? 1,
+        told: json['told'] as bool? ?? true,
+      );
+}
+
+/// What the room answers when a stretch is told again.
+///
+/// [captured] is false when the room made nothing out of the recording, and then the
+/// stretch is left exactly as it was: swapping an explanation for an empty one over a
+/// transcriber outage would lose the team's work to somebody else's failure.
+class TellingAgain {
+  final List<SegmentView> segments;
+  final bool captured;
+
+  const TellingAgain({this.segments = const [], this.captured = true});
+
+  factory TellingAgain.fromJson(Map<String, dynamic> json) => TellingAgain(
+        segments: SegmentView.listFrom(json),
+        captured: json['captured'] as bool? ?? true,
       );
 }
 
