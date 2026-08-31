@@ -22,11 +22,14 @@ SalaSessionNotifier notifier(ProviderContainer c) =>
 
 /// A team that told two stretches back and got a finding on the first, standing in front
 /// of the question about which voice must speak again.
-Future<ProviderContainer> pumpToPergunta(WidgetTester tester) async {
+Future<ProviderContainer> pumpToPergunta(
+  WidgetTester tester, {
+  String apontado = 'trecho-1',
+}) async {
   final harness = SalaHarness(filaEmMemoria: true)
     ..room.verdictChecked = false
     ..room.verdictFinding = BtFindingKind.missing
-    ..room.verdictFindingSegmentId = 'trecho-1';
+    ..room.verdictFindingSegmentId = apontado;
   harnessDaVez = harness;
   final container = harness.container();
   addTearDown(container.dispose);
@@ -84,10 +87,12 @@ void main() {
 
     await regravarONativo(tester, container);
 
-    final trecho = container
-        .read(salaSessionProvider)
-        .btTrechos
-        .firstWhere((t) => t.segmentId == 'trecho-1');
+    // The stretch has a new name: a version is a new row, and the room retired the one the
+    // finding came pointing at. The pointer moved with it, which is what this reads.
+    final trecho = container.read(salaSessionProvider).btFindingTrecho!;
+    expect(trecho.segmentId, isNot('trecho-1'),
+        reason: 'seguir o nome antigo seria seguir um trecho que a sala já '
+            'aposentou');
     expect(trecho.takeId, harness.room.takeIds.last,
         reason: 'o trecho passa a apontar para a gravação nova');
     expect(trecho.contado, isFalse,
@@ -99,6 +104,27 @@ void main() {
     expect(harness.room.replacesSemArquivo, ['trecho-1'],
         reason: 'a voz nova sobe sozinha — mandá-la junto com a explicação '
             'velha é a combinação que o servidor recusa');
+  });
+
+  testWidgets('the new slice is the new recording, not the old stretch bounds',
+      (tester) async {
+    // The second stretch on purpose: it runs from 10s to 20s, so a slice claiming the old
+    // bounds differs from the truthful one at both ends. On the first stretch, which
+    // starts at nought, half the lie would be invisible.
+    final container = await pumpToPergunta(tester, apontado: 'trecho-2');
+    final harness = harnessDaVez!;
+    harness.playback.measured = const Duration(seconds: 7);
+
+    await regravarONativo(tester, container);
+
+    expect(harness.playback.measurements, hasLength(1),
+        reason: 'a duração é medida do arquivo novo, não suposta');
+    expect(harness.room.replacesAsked, ['trecho-2@gravacao-2:0-7000'],
+        reason: 'o take novo contém só aquele trecho, então ele vai de zero à '
+            'própria duração. Alegar os limites do trecho antigo passaria no '
+            'servidor — slice_moved já considera isso regravado — e apontaria '
+            'para áudio que não existe naquele arquivo, que é a mentira que a '
+            'sonda inteira existe para não precisar contar');
   });
 
   testWidgets('the second station comes on its own', (tester) async {

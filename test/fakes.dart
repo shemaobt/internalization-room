@@ -401,6 +401,7 @@ class FakeRoom implements RoomRepository {
   /// Which stretches arrived as a new mother-tongue recording — a replacement carrying no
   /// explanation, which is the only shape the room accepts for a re-recorded voice.
   final List<String> replacesSemArquivo = [];
+  int _versoes = 0;
   /// Which stretch each division named, and where it was cut, in order.
   final List<String> dividesAsked = [];
   bool chunkCaptured = true;
@@ -565,8 +566,11 @@ class FakeRoom implements RoomRepository {
       // mother tongue was re-recorded: the stretch takes the new recording and its slice,
       // and goes back to waiting — the telling that belonged to the audio nobody will
       // hear again does not carry over.
+      // A version is a new row, not an edit in place: the room mints a fresh id for the
+      // successor and retires the one it replaces. A double that kept the id would let an
+      // app follow a pointer the room has already thrown away.
       segments[at] = SegmentView(
-        segmentId: antes.segmentId,
+        segmentId: '${antes.segmentId}-v${++_versoes}',
         takeId: audio == null ? takeId : antes.takeId,
         startsMs: audio == null ? from.inMilliseconds : antes.startsMs,
         endsMs: audio == null ? to.inMilliseconds : antes.endsMs,

@@ -6,7 +6,12 @@ abstract class KeptScope {
   /// The mother tongue of one stretch, recorded again. Its own scope rather than a part's:
   /// it is a file that stands for a slice, and a reviewer opening the session has to be
   /// able to tell it from the rehearsal it corrects.
-  static String trecho(String segmentId) => 'trecho-$segmentId';
+  ///
+  /// The stamp is part of it because the same stretch can be recorded more than once — a
+  /// replacement that fails leaves the team tapping again — and two recordings under one
+  /// scope would let the room hand back the first one's name for the second one's audio.
+  static String trecho(String segmentId, String stamp) =>
+      'trecho-$segmentId-$stamp';
 }
 
 class KeptTake {

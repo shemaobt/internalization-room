@@ -113,6 +113,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Trecho? _contandoDeNovo;
   bool _askingForANewClip = false;
   bool _regravandoAMaterna = false;
+  String _marcaDaMaterna = '';
   /// The clip is paused. `_onPlaybackComplete` deliberately survives a pause — the resume
   /// still has to be able to end the part — so it cannot be what tells a ceiling whether
   /// there is any sound left to measure.
@@ -2425,8 +2426,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _regravandoAMaterna = true;
+    // The stamp travels with the recording into its scope: the same stretch can be
+    // re-recorded twice — a replacement that fails leaves the team tapping again — and a
+    // scope that repeats would hand back the first take's name for the second file.
+    _marcaDaMaterna = _stamp();
     state = state.copyWith(voice: VoiceState.listening);
-    await _recordOrBlock('materna_${_stamp()}');
+    await _recordOrBlock('materna_$_marcaDaMaterna');
   }
 
   /// What the new recording costs, paid in the order the room insists on.
@@ -2454,7 +2459,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
 
-    final escopo = KeptScope.trecho(alvo!.segmentId!);
+    final escopo = KeptScope.trecho(alvo!.segmentId!, _marcaDaMaterna);
+    final onde = state.btTrechos.indexWhere(
+      (trecho) => trecho.segmentId == alvo.segmentId,
+    );
     await _guard(path, kind: 'ensaio', scope: escopo);
     if (epoch != _epoch) return;
     final gravacao = await _takes.takeIdOf(
@@ -2488,13 +2496,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
 
+    // A version is a new row and carries a new name, so the pointer the finding came with
+    // now names a stretch the room has retired. What stays put is the position: a
+    // replacement takes the place of the one it replaces, and that is how the successor is
+    // found and the pointer moved onto it. Following the old name would land the team back
+    // on the question with the recording already replaced.
     final trechos = _trechosFrom(trocado.segments);
-    state = state.copyWith(btPhase: BtPhase.findings, btTrechos: trechos);
-    final agora = state.btFindingTrecho;
-    if (agora == null) {
+    final agora = onde >= 0 && onde < trechos.length ? trechos[onde] : null;
+    if (agora?.segmentId == null) {
       _voltarAPergunta();
       return;
     }
+    state = state.copyWith(
+      btPhase: BtPhase.findings,
+      btTrechos: trechos,
+      btFindingSegmentId: agora!.segmentId,
+    );
     await contarDeNovo(agora);
   }
 
