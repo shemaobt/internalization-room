@@ -517,6 +517,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _haltForAPerson();
       case SessionGone():
         _haltForAPerson(sessionIsGone: true);
+      case PassageShut():
+        _haltForAPerson();
       case RoomBroke():
         _registerRoomFailure();
       case RoomSlow():
@@ -1099,6 +1101,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       // The tablet remembered a session the server has forgotten. Start clean, once.
       unawaited(goConversa(pericope: pericope, fresh: true));
+    } on PassageShut {
+      if (epoch != _epoch) return;
+      unawaited(abrirEscolha());
     } on Exception catch (error) {
       if (epoch != _epoch) return;
       _handleRoomFailure(error);

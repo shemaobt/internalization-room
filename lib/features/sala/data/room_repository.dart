@@ -57,6 +57,10 @@ class SessionGone implements Exception {
   const SessionGone();
 }
 
+class PassageShut implements Exception {
+  const PassageShut();
+}
+
 class RoomRepository {
   final http.Client _client;
 
@@ -335,6 +339,9 @@ class RoomRepository {
     }
     if (response.statusCode == 404) {
       throw const SessionGone();
+    }
+    if (response.statusCode == 400) {
+      throw const PassageShut();
     }
     if (response.statusCode != 200) {
       throw RoomBroke('HTTP ${response.statusCode}');

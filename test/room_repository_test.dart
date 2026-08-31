@@ -296,6 +296,7 @@ void main() {
     await expectStatus(401, isA<RoomRefused>());
     await expectStatus(403, isA<RoomRefused>());
     await expectStatus(404, isA<SessionGone>());
+    await expectStatus(400, isA<PassageShut>());
     await expectStatus(422, isA<RoomBroke>());
     await expectStatus(500, isA<RoomBroke>());
   });
