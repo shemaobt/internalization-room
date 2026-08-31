@@ -9,6 +9,7 @@ const ouvirMaternaLabel = 'Ouvir a voz de vocês, na língua materna';
 const ouvirRetroLabel = 'Ouvir o contar em português';
 const micMaternaLabel = 'Regravar a voz na língua materna — refaz também o contar';
 const micRetroLabel = 'Recontar só em português';
+const cortarTrechoLabel = 'Cortar este trecho em dois, aqui';
 
 /// Where the error lives: the team says it, the room does not guess.
 ///
@@ -18,7 +19,19 @@ const micRetroLabel = 'Recontar só em português';
 /// returned, with the team never asked.
 ///
 /// The path hanging under each microphone is the cost, shown before the gesture rather
-/// than after it: the wood column carries two stations, the blue one carries one.
+/// than after it: the wood column carries two stations, the blue one carries one. What
+/// hangs under a player hangs under *that* player: the scissors' slot widens the row the
+/// player is in, so everything below it carries the same slot rather than centring on a
+/// row it is not part of, which pulled the cord and the microphone 27px off their own
+/// column — on the blue one too, where the slot is always empty.
+///
+/// The scissors sits beside the wood player and only while that voice is sounding, which
+/// is what keeps the question at two answers. Listening decides nothing and puts both
+/// microphones out — so a target that exists only while a voice plays never shares the
+/// screen with the two exits, and the team is never looking at three. It is not on the
+/// cord below the player: that vertical means the cost of a path, and a cut is not a step
+/// towards choosing one. Its slot is held open whether or not it is filled, so nothing
+/// moves under a finger when the sound starts.
 class OndeMoraGrade extends StatelessWidget {
   final VoidCallback onOuvirMaterna;
   final VoidCallback onOuvirRetro;
@@ -36,6 +49,10 @@ class OndeMoraGrade extends StatelessWidget {
   /// has no way to explain itself in a room with no written word.
   final bool podeOuvirRetro;
 
+  /// Cut the stretch in two where the mother tongue is sounding, or null where there is
+  /// nothing to cut.
+  final VoidCallback? onCortar;
+
   const OndeMoraGrade({
     super.key,
     required this.onOuvirMaterna,
@@ -45,6 +62,7 @@ class OndeMoraGrade extends StatelessWidget {
     this.tocandoMaterna = false,
     this.tocandoRetro = false,
     this.podeOuvirRetro = true,
+    this.onCortar,
   });
 
   bool get _algoTocando => tocandoMaterna || tocandoRetro;
@@ -67,6 +85,7 @@ class OndeMoraGrade extends StatelessWidget {
             tocando: tocandoMaterna,
             inerte: _algoTocando,
             estacoesPenduradas: 1,
+            onCortar: onCortar,
           ),
           const SizedBox(width: 56),
           _Coluna(
@@ -97,6 +116,10 @@ class _Coluna extends StatelessWidget {
   final bool tocando;
   final bool inerte;
 
+  /// Cut what is sounding, on the voice that has a slice to cut. Null on the voice that
+  /// does not, and null while nothing is in the air.
+  final VoidCallback? onCortar;
+
   /// How many stations hang under this microphone beyond the one it opens. The wood voice
   /// costs a second one — telling the stretch back over the new recording — and that is
   /// the difference the team is being asked to weigh.
@@ -112,6 +135,7 @@ class _Coluna extends StatelessWidget {
     required this.tocando,
     required this.inerte,
     required this.estacoesPenduradas,
+    this.onCortar,
   });
 
   @override
@@ -119,36 +143,63 @@ class _Coluna extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _Player(
-          colors: colors,
-          gradiente: gradiente,
-          label: ouvirLabel,
-          onTap: inerte && !tocando ? null : onOuvir,
-          tocando: tocando,
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: _tesouraSlot,
+              child: onCortar == null
+                  ? null
+                  : _Alvo(
+                      size: _tesouraSlot,
+                      gradiente: gradiente,
+                      label: cortarTrechoLabel,
+                      onTap: onCortar,
+                      child: const Icon(
+                        LucideIcons.scissors,
+                        size: 18,
+                        color: ShemaBrand.branco,
+                      ),
+                    ),
+            ),
+            const SizedBox(width: _tesouraFolga),
+            _Player(
+              colors: colors,
+              gradiente: gradiente,
+              label: ouvirLabel,
+              onTap: inerte && !tocando ? null : onOuvir,
+              tocando: tocando,
+            ),
+          ],
         ),
-        _Corda(colors: colors, altura: 14),
-        _Alvo(
-          size: 60,
-          gradiente: gradiente,
-          label: micLabel,
-          onTap: inerte ? null : onFalar,
-          child: const Icon(LucideIcons.mic, size: 22, color: ShemaBrand.branco),
+        _SobOTocador(child: _Corda(colors: colors, altura: 14)),
+        _SobOTocador(
+          child: _Alvo(
+            size: 60,
+            gradiente: gradiente,
+            label: micLabel,
+            onTap: inerte ? null : onFalar,
+            child:
+                const Icon(LucideIcons.mic, size: 22, color: ShemaBrand.branco),
+          ),
         ),
         if (estacoesPenduradas > 0) ...[
-          _Corda(colors: colors, altura: 12),
-          Opacity(
-            opacity: 0.6,
-            child: Container(
-              width: 26,
-              height: 26,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: BeadStyles.azul,
-              ),
-              child: const Icon(
-                LucideIcons.mic,
-                size: 12,
-                color: ShemaBrand.branco,
+          _SobOTocador(child: _Corda(colors: colors, altura: 12)),
+          _SobOTocador(
+            child: Opacity(
+              opacity: 0.6,
+              child: Container(
+                width: 26,
+                height: 26,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: BeadStyles.azul,
+                ),
+                child: const Icon(
+                  LucideIcons.mic,
+                  size: 12,
+                  color: ShemaBrand.branco,
+                ),
               ),
             ),
           ),
@@ -156,6 +207,26 @@ class _Coluna extends StatelessWidget {
       ],
     );
   }
+}
+
+const _tesouraSlot = 44.0;
+const _tesouraFolga = 10.0;
+
+/// Carries the same leading slot the player's row carries, so what hangs below a player
+/// stays under it instead of centring on a wider row it is not part of.
+class _SobOTocador extends StatelessWidget {
+  final Widget child;
+
+  const _SobOTocador({required this.child});
+
+  @override
+  Widget build(BuildContext context) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(width: _tesouraSlot + _tesouraFolga),
+          child,
+        ],
+      );
 }
 
 class _Corda extends StatelessWidget {
