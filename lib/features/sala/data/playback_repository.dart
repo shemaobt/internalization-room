@@ -5,15 +5,36 @@ import 'package:just_audio/just_audio.dart';
 
 class PlaybackRepository {
   final Future<void> Function(String path)? _start;
+  final AudioPlayer Function() _newPlayer;
   final StreamController<bool> _endings = StreamController<bool>.broadcast();
   final StreamController<void> _openings = StreamController<void>.broadcast();
   StreamSubscription<PlayerState>? _states;
   AudioPlayer? _opened;
   Duration? _openedLength;
+  /// The player that only ever measures, separate from [_opened] on purpose: loading a
+  /// source replaces it, so measuring on the playing one would take the clip out of its
+  /// hands — its length, its position, and the events the room hangs off both.
+  AudioPlayer? _measurer;
 
-  PlaybackRepository({Future<void> Function(String path)? start}) : _start = start;
+  PlaybackRepository({
+    Future<void> Function(String path)? start,
+    AudioPlayer Function()? newPlayer,
+  })  : _start = start,
+        _newPlayer = newPlayer ?? AudioPlayer.new;
 
-  AudioPlayer get _player => _opened ??= AudioPlayer();
+  AudioPlayer get _player => _opened ??= _newPlayer();
+
+  /// How long an audio file is, without playing a second of it.
+  ///
+  /// Null when the file cannot be opened: no missing file is worth taking the room down
+  /// over, and the caller decides what the absence means.
+  Future<Duration?> howLong(String path) async {
+    try {
+      return await (_measurer ??= _newPlayer()).setFilePath(path);
+    } on Object {
+      return null;
+    }
+  }
 
   Stream<void> get completions =>
       _endings.stream.where((heard) => heard).map((_) {});
@@ -99,6 +120,7 @@ class PlaybackRepository {
     await _endings.close();
     await _openings.close();
     await _opened?.dispose();
+    await _measurer?.dispose();
   }
 }
 
