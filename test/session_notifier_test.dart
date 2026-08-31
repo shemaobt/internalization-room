@@ -1534,17 +1534,21 @@ void main() {
     final harness = SalaHarness()
       ..room.verdictChecked = false
       ..room.verdictFinding = BtFindingKind.missing
-      ..room.verdictFindingChunk = 2;
+      ..room.verdictFindingSegmentId = 'trecho-2';
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
     await _intoFindings(harness, notifier);
 
     final trechos = container.read(salaSessionProvider).btTrechos;
-    expect(trechos.map((t) => t.index).toList(), [1, 2],
-        reason: 'o índice vem do servidor; derivá-lo da posição na lista '
+    expect(trechos.map((t) => t.segmentId).toList(), ['trecho-1', 'trecho-2'],
+        reason: 'o nome vem do servidor; derivá-lo da posição na lista '
             'desalinha assim que uma resposta se perde depois de persistir');
-    expect(harness.playback.ranges.last, '12000-30000');
+    notifier.ouvirVozMaterna();
+    await settle();
+    expect(harness.playback.ranges.last, '12000-30000',
+        reason: 'quem toca o trecho apontado é o toque da equipe no player de '
+            'madeira; a sala parou de tocá-lo por conta própria');
   });
 
   test('the retro ignores taps once it has asked for a person', () async {
@@ -1580,7 +1584,7 @@ void main() {
     final harness = SalaHarness()
       ..room.verdictChecked = false
       ..room.verdictFinding = BtFindingKind.missing
-      ..room.verdictFindingChunk = 1;
+      ..room.verdictFindingSegmentId = 'trecho-1';
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -1604,7 +1608,7 @@ void main() {
     final harness = SalaHarness()
       ..room.verdictChecked = false
       ..room.verdictFinding = BtFindingKind.missing
-      ..room.verdictFindingChunk = 1
+      ..room.verdictFindingSegmentId = 'trecho-1'
       ..room.retells = 2
       ..room.retellBudget = 3;
     final container = await inConversa(harness);
@@ -1630,7 +1634,7 @@ void main() {
     final harness = SalaHarness()
       ..room.verdictChecked = false
       ..room.verdictFinding = BtFindingKind.missing
-      ..room.verdictFindingChunk = 1;
+      ..room.verdictFindingSegmentId = 'trecho-1';
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -1852,7 +1856,7 @@ void main() {
     final harness = SalaHarness()
       ..room.verdictChecked = false
       ..room.verdictFinding = BtFindingKind.missing
-      ..room.verdictFindingChunk = 1;
+      ..room.verdictFindingSegmentId = 'trecho-1';
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -2009,7 +2013,7 @@ void main() {
     final harness = SalaHarness()
       ..room.verdictChecked = false
       ..room.verdictFinding = BtFindingKind.missing
-      ..room.verdictFindingChunk = 2;
+      ..room.verdictFindingSegmentId = 'trecho-2';
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -2040,10 +2044,16 @@ void main() {
     await notifier.finishBackTranslation();
     await settle();
 
-    expect(container.read(salaSessionProvider).btFindingChunk, 2);
+    expect(container.read(salaSessionProvider).btFindingSegmentId, 'trecho-2');
+    expect(harness.playback.ranges, isEmpty,
+        reason: 'a sala não toca o trecho na chegada: a pergunta é qual voz '
+            'precisa falar de novo, e ouvir é um gesto da equipe');
+
+    notifier.ouvirVozMaterna();
+    await settle();
+
     expect(harness.playback.ranges, ['12000-30000'],
-        reason: 'a sala leva a equipe ao trecho apontado em vez de recomeçar '
-            'a passagem inteira');
+        reason: 'e o trecho que ela ouve é o apontado, não a passagem inteira');
   });
 
   test('a take that ran out of tries is said out loud, once', () async {
@@ -2635,7 +2645,7 @@ void main() {
     final harness = SalaHarness()
       ..room.verdictChecked = false
       ..room.verdictFinding = BtFindingKind.missing
-      ..room.verdictFindingChunk = 1;
+      ..room.verdictFindingSegmentId = 'trecho-1';
     final container = await inConversa(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
@@ -2652,40 +2662,6 @@ void main() {
     expect(container.read(salaSessionProvider).btParteNoArMs, 0,
         reason: 'o trecho tocado de novo é um pedaço da parte, e medir por ele reescalava '
             'o cordão inteiro no meio da retro');
-  });
-
-  test('a stretch told across parts carries global positions', () async {
-    final harness = SalaHarness();
-    final container = await inConversa(harness);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    notifier.goEnsaio();
-    await gravaParte(notifier);
-    await gravaParte(notifier);
-    notifier.startRetro();
-    await settle();
-
-    harness.playback.at = const Duration(seconds: 10);
-    harness.playback.finishPlayback();
-    await settle();
-    notifier.cortarTrecho();
-    await settle();
-    notifier.retroTap();
-    await until(() => harness.room.chunksSent == 1);
-    await settle();
-
-    notifier.proximaParte();
-    await settle();
-    harness.playback.at = const Duration(seconds: 5);
-    notifier.cortarTrecho();
-    await settle();
-    notifier.retroTap();
-    await until(() => harness.room.chunksSent == 2);
-    await settle();
-
-    expect(harness.room.chunkSpans, ['0-10000', '10000-15000'],
-        reason: 'a linha do tempo que o servidor vê continua única: os '
-            'deslocamentos somam as partes anteriores');
   });
 
   test('terminei reports what was heard, not the length of the clip', () async {
@@ -2741,8 +2717,11 @@ void main() {
     notifier.retroTap();
     await settle();
 
-    expect(harness.room.chunkSpans.last, '0-13000',
-        reason: 'o trecho é contado no relógio da gravação inteira');
+    expect(harness.room.chunkSpans.last, '0-3000',
+        reason: 'o trecho é contado no relógio do arquivo que estava tocando, '
+            'e a segunda parte começa do próprio zero');
+    expect(harness.room.chunkTakes.last, harness.room.takeIds[1],
+        reason: 'e é a segunda gravação que ele fatia, não a primeira');
     expect(container.read(salaSessionProvider).btClipRodando, isFalse);
   });
 
@@ -2851,8 +2830,11 @@ void main() {
     harness.playback.finishPlayback();
     await settle();
 
-    harness.room.verdictFindingChunk = 2;
+    harness.room.verdictFindingSegmentId = 'trecho-2';
     await notifier.finishBackTranslation();
+    await settle();
+
+    notifier.ouvirVozMaterna();
     await settle();
 
     expect(harness.playback.ranges, isNotEmpty);
@@ -2867,7 +2849,7 @@ void main() {
     final harness = SalaHarness()
       ..room.verdictChecked = false
       ..room.verdictFinding = BtFindingKind.missing
-      ..room.verdictFindingChunk = 1;
+      ..room.verdictFindingSegmentId = 'trecho-1';
     final container = await inConversa(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 

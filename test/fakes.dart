@@ -205,6 +205,15 @@ class FakePlayback implements PlaybackRepository {
     _stopSounding();
   }
 
+  Duration? measured = const Duration(seconds: 30);
+  final List<String> measurements = [];
+
+  @override
+  Future<Duration?> howLong(String path) async {
+    measurements.add(path);
+    return measured;
+  }
+
   @override
   Duration? get playingLength => length;
 
@@ -369,18 +378,38 @@ class FakeRoom implements RoomRepository {
   int turnsSent = 0;
   int chunksSent = 0;
   final List<String> chunkSpans = [];
+  /// Which recording each told-back stretch named, in order.
+  final List<String> chunkTakes = [];
+  /// The names this room gave the recordings it stored, in the order it stored them.
+  final List<String> takeIds = [];
+  /// The stretches this room kept, in the order they were told. A room that forgets what
+  /// it was told cannot hand a telling-back back, and cannot name the stretch a finding
+  /// lands on either.
+  final List<SegmentView> segments = [];
+
+  List<String> get segmentIds =>
+      [for (final segment in segments) segment.segmentId];
   final List<String> takesKept = [];
   final List<int?> takePasses = [];
   String? refuseTake;
   Exception? failRestartWith;
+  Exception? failDivideWith;
+  Exception? failReplaceWith;
+  bool replaceCaptured = true;
+  /// Which stretch each retelling named, and the slice it sent, in order.
+  final List<String> replacesAsked = [];
+  /// Which stretch each division named, and where it was cut, in order.
+  final List<String> dividesAsked = [];
   bool chunkCaptured = true;
   bool turnsAreCanned = false;
   bool turnsAreDegraded = false;
   bool silentAboutCoverage = false;
   bool verdictChecked = true;
-  BackTranslationProgress retroSoFar = const BackTranslationProgress();
+  /// What the room answers about the telling-back, when a test wants to state it rather
+  /// than build it up by telling stretches back.
+  BackTranslationProgress? retroSoFar;
+  String? verdictFindingSegmentId;
   BtFindingKind? verdictFinding;
-  int? verdictFindingChunk;
   String? serverStatus;
   String fixedLine = '';
   String bridgeMode = '';
@@ -497,7 +526,8 @@ class FakeRoom implements RoomRepository {
       status: serverStatus ?? (done ? 'done' : 'in_progress'),
       coverage: silentAboutCoverage ? null : (settledCoverage ?? nextCoverage),
       done: done,
-      backTranslation: retroSoFar,
+      backTranslation:
+          retroSoFar ?? BackTranslationProgress(segments: List.of(segments)),
     );
   }
 
@@ -506,6 +536,75 @@ class FakeRoom implements RoomRepository {
     _guard('openSession');
     await _turnArrives();
     return _turn(sessionId);
+  }
+
+  @override
+  Future<TellingAgain> replaceSegment(
+    String sessionId,
+    String segmentId,
+    File audio, {
+    required String takeId,
+    required Duration from,
+    required Duration to,
+  }) async {
+    _guard('replaceSegment');
+    final refusal = failReplaceWith;
+    if (refusal != null) throw refusal;
+    replacesAsked.add(
+      '$segmentId@$takeId:${from.inMilliseconds}-${to.inMilliseconds}',
+    );
+    if (!replaceCaptured) {
+      return TellingAgain(segments: List.of(segments), captured: false);
+    }
+    final at = segments.indexWhere((one) => one.segmentId == segmentId);
+    if (at >= 0) {
+      final antes = segments[at];
+      segments[at] = SegmentView(
+        segmentId: antes.segmentId,
+        takeId: antes.takeId,
+        startsMs: antes.startsMs,
+        endsMs: antes.endsMs,
+        passNumber: antes.passNumber,
+        told: true,
+      );
+    }
+    return TellingAgain(segments: List.of(segments), captured: true);
+  }
+
+  @override
+  Future<List<SegmentView>> divideSegment(
+    String sessionId,
+    String segmentId, {
+    required Duration at,
+  }) async {
+    _guard('divideSegment');
+    final refusal = failDivideWith;
+    if (refusal != null) throw refusal;
+    dividesAsked.add('$segmentId@${at.inMilliseconds}');
+    final cut = segments.indexWhere((one) => one.segmentId == segmentId);
+    if (cut < 0) return List.of(segments);
+    final whole = segments[cut];
+    segments
+      ..removeAt(cut)
+      ..insertAll(cut, [
+        SegmentView(
+          segmentId: '${whole.segmentId}-a',
+          takeId: whole.takeId,
+          startsMs: whole.startsMs,
+          endsMs: at.inMilliseconds,
+          passNumber: whole.passNumber,
+          told: false,
+        ),
+        SegmentView(
+          segmentId: '${whole.segmentId}-b',
+          takeId: whole.takeId,
+          startsMs: at.inMilliseconds,
+          endsMs: whole.endsMs,
+          passNumber: whole.passNumber,
+          told: false,
+        ),
+      ]);
+    return List.of(segments);
   }
 
   @override
@@ -526,7 +625,7 @@ class FakeRoom implements RoomRepository {
   }
 
   @override
-  Future<void> sendTake(
+  Future<String> sendTake(
     String sessionId,
     File audio, {
     required String kind,
@@ -538,6 +637,9 @@ class FakeRoom implements RoomRepository {
     if (refuseTake == '$kind/$scope') throw const RoomRefused();
     takesKept.add('$kind/$scope');
     takePasses.add(passNumber);
+    final id = 'gravacao-${takeIds.length + 1}';
+    takeIds.add(id);
+    return id;
   }
 
   @override
@@ -571,13 +673,24 @@ class FakeRoom implements RoomRepository {
   Future<BackTranslationChunk> sendChunk(
     String sessionId,
     File audio, {
-    Duration? from,
-    Duration? to,
+    required String takeId,
+    required Duration from,
+    required Duration to,
     bool retelling = false,
   }) async {
     _guard('sendChunk');
     chunksSent++;
-    chunkSpans.add('${from?.inMilliseconds}-${to?.inMilliseconds}');
+    chunkSpans.add('${from.inMilliseconds}-${to.inMilliseconds}');
+    chunkTakes.add(takeId);
+    if (chunkCaptured) {
+      segments.add(SegmentView(
+        segmentId: 'trecho-${segments.length + 1}',
+        takeId: takeId,
+        startsMs: from.inMilliseconds,
+        endsMs: to.inMilliseconds,
+        passNumber: retelling ? 2 : 1,
+      ));
+    }
     if (retelling) retells++;
     return BackTranslationChunk(
       chunks: chunksSent,
@@ -601,7 +714,7 @@ class FakeRoom implements RoomRepository {
       fixedLine: '',
       checked: verdictChecked,
       findingKind: verdictFinding,
-      findingChunk: verdictFindingChunk,
+      findingSegmentId: verdictFindingSegmentId,
       findingsRemaining: verdictFinding == null ? 0 : 1,
       usedFailSafe: false,
     );
@@ -660,6 +773,136 @@ class FakeLinkedTeam implements LinkedTeam {
       remembered = RememberedLink(deviceId: remembered.deviceId, team: team);
 }
 
+/// The upload outbox with no disk under it.
+///
+/// The real queue copies audio and writes its manifest with dart:io, and a widget test's
+/// binding never lets real IO that started under its clock finish — measured, not
+/// assumed: a rehearsal part never reaches the room in one, at any amount of pumping.
+/// That was invisible until a told-back stretch had to name the recording it came from.
+///
+/// Opt-in and never the default: a test that does not know this exists keeps the real
+/// queue, and every test that measures the outbox itself — what is still unsent, what was
+/// given up on, what is stranded — goes on measuring the real one.
+class FakeTakeQueue implements TakeUploadQueue {
+  final FakeRoom room;
+  final List<PendingTake> rows = [];
+  int _minted = 0;
+
+  FakeTakeQueue({required this.room});
+
+  @override
+  Future<PendingTake> enqueue(
+    File audio, {
+    required String sessionId,
+    required String kind,
+    required String scope,
+    int? passNumber,
+    int? chunkIndex,
+  }) async {
+    final entry = PendingTake(
+      id: '${_minted++}',
+      path: audio.path,
+      sessionId: sessionId,
+      kind: kind,
+      scope: scope,
+      passNumber: passNumber,
+      chunkIndex: chunkIndex,
+    );
+    rows.add(entry);
+    return entry;
+  }
+
+  @override
+  Future<int> flush() async {
+    var sent = 0;
+    for (var at = 0; at < rows.length; at++) {
+      final entry = rows[at];
+      if (entry.stored) continue;
+      final String landed;
+      try {
+        landed = await room.sendTake(
+          entry.sessionId,
+          File(entry.path),
+          kind: entry.kind,
+          scope: entry.scope,
+          passNumber: entry.passNumber,
+          chunkIndex: entry.chunkIndex,
+        );
+      } on Exception {
+        rows[at] = entry.copyWith(attempts: entry.attempts + 1);
+        continue;
+      }
+      rows[at] = entry.copyWith(takeId: landed, stored: true);
+      sent++;
+    }
+    return sent;
+  }
+
+  @override
+  Future<String?> takeIdOf(
+    String kind, {
+    required String sessionId,
+    required String scope,
+  }) async {
+    for (final entry in rows) {
+      if (entry.kind == kind &&
+          entry.sessionId == sessionId &&
+          entry.scope == scope &&
+          entry.takeId != null) {
+        return entry.takeId;
+      }
+    }
+    return null;
+  }
+
+  @override
+  Future<List<PendingTake>> entries() async => List.of(rows);
+
+  @override
+  Future<List<PendingTake>> pending() async =>
+      [for (final entry in rows) if (!entry.stored) entry];
+
+  @override
+  Future<List<PendingTake>> giveUps() async => const [];
+
+  @override
+  Future<bool> lostHistory() async => false;
+
+  @override
+  Future<int> unsentOf(String kind, {required String sessionId}) async => [
+        for (final entry in rows)
+          if (!entry.stored && entry.kind == kind && entry.sessionId == sessionId)
+            entry,
+      ].length;
+
+  @override
+  Future<Set<String>> unsentScopesOf(
+    String kind, {
+    required String sessionId,
+  }) async =>
+      {
+        for (final entry in rows)
+          if (!entry.stored && entry.kind == kind && entry.sessionId == sessionId)
+            entry.scope,
+      };
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// Let the tablet's real disk work finish inside a widget test.
+///
+/// Keeping a rehearsal part copies the audio and writes the upload manifest with dart:io,
+/// and a pumped clock never advances that. The room answers with the name it gave the
+/// recording across the same stretch of time, and a told-back stretch cannot name a
+/// recording the room has not answered for yet.
+Future<void> letTheRehearsalReachTheRoom(WidgetTester tester) async {
+  await tester.runAsync(
+    () => Future<void>.delayed(const Duration(milliseconds: 150)),
+  );
+  await tester.pump(const Duration(milliseconds: 100));
+}
+
 class SalaHarness {
   final Directory takesHome = Directory.systemTemp.createTempSync('sala-tomadas');
   final FakeVoice voice = FakeVoice();
@@ -679,6 +922,9 @@ class SalaHarness {
   final Duration clipGrace;
   final Duration shortestSpeech;
   final Duration fimLinger;
+  /// Whether the outbox keeps its rows in memory instead of on disk. Opt-in, for widget
+  /// tests, whose binding never lets the real queue's IO finish.
+  final bool filaEmMemoria;
 
   SalaHarness({
     this.voiceService,
@@ -696,6 +942,7 @@ class SalaHarness {
     this.clipGrace = const Duration(seconds: 10),
     this.shortestSpeech = Duration.zero,
     this.fimLinger = const Duration(seconds: 30),
+    this.filaEmMemoria = false,
   })  : inbox = FakeInbox(replies: replies),
         vinculo = FakeLinkedTeam(remembered: linkedAs);
 
@@ -705,10 +952,9 @@ class SalaHarness {
 
   final FakeWorkInProgress emAberto = FakeWorkInProgress();
 
-  late final TakeUploadQueue takes = TakeUploadQueue(
-    room: room,
-    home: () async => takesHome,
-  );
+  late final TakeUploadQueue takes = filaEmMemoria
+      ? FakeTakeQueue(room: room)
+      : TakeUploadQueue(room: room, home: () async => takesHome);
 
   List<Override> get overrides => [
         facilitatorVoiceProvider.overrideWithValue(voiceService ?? voice),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -7,6 +9,7 @@ import '../../data/session_notifier.dart';
 import '../../domain/bt_finding.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
+import 'onde_mora_grade.dart';
 import 'facilitator_circle.dart';
 import 'motion.dart';
 
@@ -20,6 +23,37 @@ class RetroView extends ConsumerWidget {
     final colors = SalaColors.of(context);
     final conferida = session.btPhase == BtPhase.conferida;
     final clipRunning = session.btClipRodando || session.btTrechoTocando;
+
+    // The question is its own composition, not a row of buttons under the usual circle:
+    // the grid is the screen, and the room's voice steps back to make room for it.
+    if (session.btPhase == BtPhase.findings && session.btFindingTrecho != null) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          FacilitatorCircle(
+            size: 54,
+            voice: session.voice,
+            semanticLabel: _circleLabel(session),
+            onTap: notifier.retroTap,
+            onLongPress:
+                session.canResolveWithPerson ? notifier.resolveWithPerson : null,
+          ),
+          const SizedBox(height: 46),
+          OndeMoraGrade(
+            onOuvirMaterna: notifier.ouvirVozMaterna,
+            onOuvirRetro: notifier.ouvirContarEmPortugues,
+            onRegravarMaterna: notifier.regravarAVozMaterna,
+            onRecontar: notifier.recontarEmPortugues,
+            tocandoMaterna: session.btTrechoTocando,
+            tocandoRetro: session.btRetroTocando,
+            podeOuvirRetro: session.btFindingTrecho?.retroPath != null,
+            onCortar: session.btTrechoTocando
+                ? () => unawaited(notifier.dividirTrecho())
+                : null,
+          ),
+        ],
+      );
+    }
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -66,44 +100,31 @@ class RetroView extends ConsumerWidget {
 
   Widget? _actions(SalaSessionState session, SalaSessionNotifier notifier) {
     if (session.btPhase == BtPhase.findings) {
-      // Two rules meet here. The outer one is about the kind: for a finding that belongs to
-      // the recording rather than to the telling, telling it again settles nothing — and
-      // that holds whether the retell would cover one stretch or the whole clip, so both
-      // go together. The inner one is about the pointer: a finding that names no stretch
-      // has nothing to retell, so the offer degrades to the whole recording instead of to
-      // a button that returns on its first line.
+      // Which voice needs to speak again is the team's to say. It used to be read off the
+      // kind of finding — three kinds hid the retell exit outright — and the team was
+      // never asked, on the one question only they can answer.
+      // With no stretch to ask about, the question cannot be put, and the room falls back
+      // to what it always did — including reading the kind: telling the whole recording
+      // again settles nothing a re-recording kind names, and the pointer being absent must
+      // not smuggle that offer back in.
       final retellingCanSettleIt =
           !session.btFindings.any((finding) => finding.exitsByReRecording);
-      final namedStretch = session.btFindingTrecho != null;
       return FadeUp(
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (retellingCanSettleIt) ...[
-              if (namedStretch)
-                RoundActionButton(
-                  size: 60,
-                  semanticLabel: 'Ouvir e contar esta parte de novo',
-                  gradient: BeadStyles.wood,
-                  onTap: notifier.retellChunk,
-                  child: const Icon(
-                    LucideIcons.rotateCcw,
-                    size: 24,
-                    color: ShemaBrand.branco,
-                  ),
-                )
-              else
-                RoundActionButton(
-                  size: 60,
-                  semanticLabel: 'Ouvir e contar a gravação de novo',
-                  gradient: BeadStyles.wood,
-                  onTap: notifier.startRetro,
-                  child: const Icon(
-                    LucideIcons.rotateCcw,
-                    size: 24,
-                    color: ShemaBrand.branco,
-                  ),
+              RoundActionButton(
+                size: 60,
+                semanticLabel: 'Ouvir e contar a gravação de novo',
+                gradient: BeadStyles.wood,
+                onTap: notifier.startRetro,
+                child: const Icon(
+                  LucideIcons.rotateCcw,
+                  size: 24,
+                  color: ShemaBrand.branco,
                 ),
+              ),
               const SizedBox(width: 28),
             ],
             RoundActionButton(
@@ -180,6 +201,11 @@ class RetroView extends ConsumerWidget {
         return 'Tocar ao terminar o pedaço';
       case BtPhase.findings:
         return 'Ouvir de novo a parte apontada';
+      case BtPhase.gravandoMaterna:
+        // What the touch does, not what the step is for: re-recording the mother tongue
+        // of one stretch does not exist yet, and a circle that says "record" and returns
+        // to the question is worse than a label nobody speaks aloud.
+        return 'Voltar à pergunta';
       case BtPhase.thinking:
         return 'Um instante';
       case BtPhase.conferida:

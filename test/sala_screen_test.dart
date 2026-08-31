@@ -447,12 +447,12 @@ void main() {
     );
   });
 
-  testWidgets('a finding on a stretch offers the retell and re-record exits',
+  testWidgets('a finding on a stretch asks the team which voice must speak',
       (tester) async {
-    final harness = SalaHarness()
+    final harness = SalaHarness(filaEmMemoria: true)
       ..room.verdictChecked = false
       ..room.verdictFinding = BtFindingKind.missing
-      ..room.verdictFindingChunk = 1;
+      ..room.verdictFindingSegmentId = 'trecho-1';
     final container = await pumpSala(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
@@ -464,6 +464,7 @@ void main() {
     notifier.ensaioTap();
     await tester.pump(const Duration(milliseconds: 100));
     notifier.takeKeep();
+    await letTheRehearsalReachTheRoom(tester);
     notifier.startRetro();
     await tester.pump(const Duration(milliseconds: 200));
     harness.playback.at = const Duration(seconds: 10);
@@ -477,8 +478,18 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
-    expect(bySemanticsLabelWidget(retellExit), findsOneWidget);
-    expect(bySemanticsLabelWidget(reRecordExit), findsOneWidget);
+    expect(
+      bySemanticsLabelWidget('Regravar a voz na língua materna — refaz também '
+          'o contar'),
+      findsOneWidget,
+      reason: 'as duas saídas continuam ali, mas agora como as duas vozes da '
+          'grade, e é a equipe que diz qual precisa falar de novo',
+    );
+    expect(bySemanticsLabelWidget('Recontar só em português'), findsOneWidget);
+    expect(bySemanticsLabelWidget(retellExit), findsNothing,
+        reason: 'o par antigo de saídas deixou de existir para um achado com '
+            'trecho nomeado — quem decidia era o tipo, não a equipe');
+    expect(bySemanticsLabelWidget(reRecordExit), findsNothing);
   });
 
   testWidgets('an addition finding offers re-recording and nothing else',
@@ -548,7 +559,7 @@ void main() {
   });
 
   testWidgets('a long press unsticks a retro the room abandoned', (tester) async {
-    final harness = SalaHarness();
+    final harness = SalaHarness(filaEmMemoria: true);
     final container = await pumpSala(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
@@ -559,6 +570,7 @@ void main() {
     notifier.ensaioTap();
     await tester.pump(const Duration(milliseconds: 200));
     notifier.takeKeep();
+    await letTheRehearsalReachTheRoom(tester);
     notifier.startRetro();
     await tester.pump(const Duration(milliseconds: 300));
 

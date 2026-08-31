@@ -67,7 +67,7 @@ class BackTranslationVerdict {
   final String fixedLine;
   final bool checked;
   final BtFindingKind? findingKind;
-  final int? findingChunk;
+  final String? findingSegmentId;
   final int findingsRemaining;
   final bool usedFailSafe;
 
@@ -76,7 +76,7 @@ class BackTranslationVerdict {
     required this.fixedLine,
     required this.checked,
     required this.findingKind,
-    required this.findingChunk,
+    required this.findingSegmentId,
     required this.findingsRemaining,
     required this.usedFailSafe,
   });
@@ -87,7 +87,7 @@ class BackTranslationVerdict {
         fixedLine: json['fixed_line'] as String? ?? '',
         checked: json['checked'] as bool? ?? false,
         findingKind: btFindingKindFrom(json['finding_kind'] as String?),
-        findingChunk: json['finding_chunk'] as int?,
+        findingSegmentId: json['finding_segment_id'] as String?,
         findingsRemaining: json['findings_remaining'] as int? ?? 0,
         usedFailSafe: json['used_fail_safe'] as bool? ?? false,
       );

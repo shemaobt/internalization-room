@@ -17,8 +17,10 @@ double _at(
       parteNoArMs: parteNoArMs,
     );
 
-Trecho _trecho(int from, int to) => Trecho(
-      index: from,
+Trecho _trecho(int from, int to, {int parte = 0}) => Trecho(
+      segmentId: 'trecho-$from',
+      takeId: 'gravacao-${parte + 1}',
+      parte: parte,
       from: Duration(milliseconds: from),
       to: Duration(milliseconds: to),
     );
@@ -65,6 +67,17 @@ void main() {
     expect(metade, inteiro / 2,
         reason: 'a fileira de contas crescia a cada corte e transbordava na décima; '
             'o cordão é o mesmo por mais fino que a equipe corte');
+  });
+
+  test('a stretch out of a part the cord has not measured is not placed', () {
+    expect(cordStartMs(parte: 0, dentroMs: 4000, fimDasPartes: const []), 4000,
+        reason: 'a primeira parte começa no zero do cordão, e isso se sabe sem '
+            'ter tocado nada');
+    expect(cordStartMs(parte: 1, dentroMs: 0, fimDasPartes: const [10000]), 10000);
+    expect(cordStartMs(parte: 1, dentroMs: 0, fimDasPartes: const []), isNull,
+        reason: 'numa retro retomada as fronteiras ainda não foram aprendidas, e '
+            'os trechos da segunda parte empilhavam no começo do cordão — em cima '
+            'dos da primeira, que é o único progresso que a sala mostra');
   });
 
   testWidgets('a stretch the room refused leaves its own length of cord bare',

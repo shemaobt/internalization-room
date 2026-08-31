@@ -27,12 +27,12 @@ void main() {
     final verdict = BackTranslationVerdict.fromJson(const {
       'checked': false,
       'finding_kind': 'algo_novo_do_servidor',
-      'finding_chunk': 2,
+      'finding_segment_id': 'trecho-2',
       'findings_remaining': 1,
     });
 
     expect(verdict.checked, isFalse);
     expect(verdict.findingKind, isNull);
-    expect(verdict.findingChunk, 2);
+    expect(verdict.findingSegmentId, 'trecho-2');
   });
 }

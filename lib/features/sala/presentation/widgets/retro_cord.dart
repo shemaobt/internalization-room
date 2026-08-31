@@ -7,6 +7,20 @@ import 'colar_overlay.dart';
 const _designWidth = 390.0;
 const _designHeight = 812.0;
 
+/// Where a stretch sits on the whole rehearsal, or null while that cannot be known.
+///
+/// A stretch is addressed inside its own recording and the cord draws the rehearsal as
+/// one line, so the offset of the part is what carries one onto the other. That offset is
+/// only learned by playing the part.
+int? cordStartMs({
+  required int parte,
+  required int dentroMs,
+  required List<int> fimDasPartes,
+}) {
+  if (parte < 0 || parte > fimDasPartes.length) return null;
+  return (parte == 0 ? 0 : fimDasPartes[parte - 1]) + dentroMs;
+}
+
 double cordFraction({
   required int atMs,
   required int partes,
@@ -37,6 +51,9 @@ class RetroCord extends StatelessWidget {
   final int ouvidoMs;
   final List<Trecho> trechos;
 
+  /// The room's name for the stretch the analyst pointed at, when it pointed at one.
+  final String? apontado;
+
   const RetroCord({
     super.key,
     required this.partes,
@@ -44,6 +61,7 @@ class RetroCord extends StatelessWidget {
     required this.parteNoArMs,
     required this.ouvidoMs,
     required this.trechos,
+    this.apontado,
   });
 
   double _at(int ms) => cordFraction(
@@ -60,15 +78,35 @@ class RetroCord extends StatelessWidget {
     final contados = <int>{};
     final told = <_Span>[];
     for (final trecho in trechos) {
-      final again = !contados.add(trecho.from.inMilliseconds);
+      // A stretch out of a part this cord has not measured yet has no place on it. Not
+      // drawing it leaves a gap that fills itself as the team plays that part through;
+      // placing it at nought piled the stretches of a picked-up retro onto the first
+      // part, on top of the ones that really are there.
+      final de = cordStartMs(
+        parte: trecho.parte,
+        dentroMs: trecho.from.inMilliseconds,
+        fimDasPartes: fimDasPartes,
+      );
+      final ate = cordStartMs(
+        parte: trecho.parte,
+        dentroMs: trecho.to.inMilliseconds,
+        fimDasPartes: fimDasPartes,
+      );
+      if (de == null || ate == null) continue;
+      final again = !contados.add(de);
       told.add(_Span(
-        _at(trecho.from.inMilliseconds),
-        _at(trecho.to.inMilliseconds),
+        _at(de),
+        _at(ate),
         again,
+        apontado != null && trecho.segmentId == apontado,
       ));
     }
-    return IgnorePointer(
-      child: LayoutBuilder(
+    return Semantics(
+      label: told.any((span) => span.apontado)
+          ? 'Trecho apontado pelo analista'
+          : null,
+      child: IgnorePointer(
+        child: LayoutBuilder(
         builder: (context, constraints) => CustomPaint(
           size: Size(constraints.maxWidth, constraints.maxHeight),
           painter: _CordPainter(
@@ -81,6 +119,7 @@ class RetroCord extends StatelessWidget {
               for (var i = 1; i < partes; i++) i / partes,
             ],
             colors: colors,
+            ),
           ),
         ),
       ),
@@ -92,8 +131,11 @@ class _Span {
   final double from;
   final double to;
   final bool again;
+  /// Whether this is the stretch the analyst pointed at. The room has no readable words,
+  /// so the cord is the only place the team can see *where* the problem is.
+  final bool apontado;
 
-  const _Span(this.from, this.to, this.again);
+  const _Span(this.from, this.to, this.again, [this.apontado = false]);
 }
 
 class _CordPainter extends CustomPainter {
@@ -150,10 +192,23 @@ class _CordPainter extends CustomPainter {
         final at = _on(t);
         i == 0 ? path.moveTo(at.dx, at.dy) : path.lineTo(at.dx, at.dy);
       }
+      if (span.apontado) {
+        // The stretch drains and wears a halo. Error is never red in this room: the mark
+        // is the room's own terracotta, the colour of focus, and mending is filling it in
+        // again.
+        canvas.drawPath(
+          path,
+          Paint()
+            ..color = colors.halo
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 14
+            ..strokeCap = StrokeCap.round,
+        );
+      }
       canvas.drawPath(
         path,
         Paint()
-          ..color = ShemaBrand.wood
+          ..color = span.apontado ? colors.oat : ShemaBrand.wood
           ..style = PaintingStyle.stroke
           ..strokeWidth = 6
           ..strokeCap = StrokeCap.round,

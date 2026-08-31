@@ -762,7 +762,7 @@ void main() {
     final harness = SalaHarness();
     harness.room.verdictChecked = false;
     harness.room.verdictFinding = BtFindingKind.missing;
-    harness.room.verdictFindingChunk = 1;
+    harness.room.verdictFindingSegmentId = 'trecho-1';
     final container = await inConversaHarness(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -1009,7 +1009,7 @@ void main() {
     final harness = SalaHarness();
     harness.room.verdictChecked = false;
     harness.room.verdictFinding = BtFindingKind.missing;
-    harness.room.verdictFindingChunk = 0;
+    harness.room.verdictFindingSegmentId = 'trecho-nenhum';
     final container = await inConversaHarness(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);

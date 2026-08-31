@@ -130,7 +130,7 @@ void main() {
       ..playback.length = const Duration(milliseconds: 600)
       ..room.verdictChecked = false
       ..room.verdictFinding = BtFindingKind.missing
-      ..room.verdictFindingChunk = 1;
+      ..room.verdictFindingSegmentId = 'trecho-1';
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -151,6 +151,9 @@ void main() {
     harness.playback.finishPlayback();
     await settle();
     await notifier.finishBackTranslation();
+    await settle();
+
+    notifier.ouvirVozMaterna();
     await settle();
 
     expect(container.read(salaSessionProvider).btTrechoTocando, isTrue);

@@ -14,14 +14,59 @@ enum ConviteStep { boasVindas, panorama, entrada }
 
 enum EnsaioStatus { idle, ghostPlaying, recording, recorded }
 
-enum BtPhase { playing, capturing, thinking, findings, conferida }
+/// Where the telling-back is, step by step.
+///
+/// [gravandoMaterna] is the far half of the correction the team can choose once the
+/// analyst points at a stretch: the mother tongue re-recorded, which always implies
+/// telling that stretch again over it, in that order. Redoing only the telling needs no
+/// step of its own — it is the same capture the room already knows.
+enum BtPhase {
+  playing,
+  capturing,
+  thinking,
+  findings,
+  gravandoMaterna,
+  conferida,
+}
 
+/// One stretch the team told back: a slice of one rehearsal recording.
+///
+/// [from] and [to] are relative to [takeId]'s own file, never to the concatenated
+/// passage. It was the globalness, not the use of intervals, that made re-recording one
+/// stretch shift every stretch after it.
+///
+/// [parte] is which recording that is, by its place in the rehearsal. The cord draws the
+/// whole rehearsal as one line — the listening ruler, which stays global — and it is the
+/// offset of the part that carries a local address onto it.
 class Trecho {
-  final int index;
+  /// The room's own name for this stretch, or null while it has not said one.
+  ///
+  /// Telling a stretch back answers with a count and no name, so a stretch is nameless
+  /// until the room's reading of the session is read back. A nameless one matches no
+  /// pointer, which is the answer a pointer naming nothing should get anyway.
+  final String? segmentId;
+  final String takeId;
+  /// The tablet's own copy of what the team said in Portuguese about this stretch, when
+  /// this tablet is the one that said it. Null on a session picked back up, where the
+  /// telling exists on the server and the file does not.
+  final String? retroPath;
+  final int parte;
   final Duration from;
   final Duration to;
 
-  const Trecho({required this.index, required this.from, required this.to});
+  /// Whether the team has explained this stretch yet. False on a half a division just
+  /// made: it is a unit the room counts and nobody has told back.
+  final bool contado;
+
+  const Trecho({
+    required this.segmentId,
+    required this.takeId,
+    this.retroPath,
+    required this.parte,
+    required this.from,
+    required this.to,
+    this.contado = true,
+  });
 }
 
 class PingRange {
@@ -84,8 +129,12 @@ class SalaSessionState {
   final Set<String> comecadas;
   final int aOferecer;
   final List<Trecho> btTrechos;
-  final int? btFindingChunk;
+  final String? btFindingSegmentId;
+  /// Whether the mother-tongue slice of the pointed stretch is sounding.
   final bool btTrechoTocando;
+  /// Whether the telling in Portuguese is sounding. Its own flag, because the two voices
+  /// are two targets and the team compares them one against the other.
+  final bool btRetroTocando;
   final bool btClipEnded;
   final bool btParteFronteira;
 
@@ -135,8 +184,9 @@ class SalaSessionState {
     this.comecadas = const {},
     this.aOferecer = 0,
     this.btTrechos = const [],
-    this.btFindingChunk,
+    this.btFindingSegmentId,
     this.btTrechoTocando = false,
+    this.btRetroTocando = false,
     this.btClipEnded = false,
     this.btParteFronteira = false,
     this.btClipRodando = false,
@@ -213,17 +263,19 @@ class SalaSessionState {
   bool get canFinishBackTranslation =>
       stage == SalaStage.retro && btPhase == BtPhase.playing && btClipEnded;
 
-  /// The stretch the finding points at, when the pointer names one that was recorded.
+  /// The stretch the finding points at, when the pointer names one the room told back.
   ///
-  /// The server does not check the pointer against the stretches that exist, so a stale
-  /// or out-of-range one reaches the app and names nothing. Every side that acts on the
-  /// finding reads this: the screen drew the rule a second time, and the day the two
-  /// copies disagreed the dead button was back.
+  /// The server does not check the pointer against the stretches this tablet knows, so a
+  /// stale name reaches the app and matches nothing. Every side that acts on the finding
+  /// reads this: the screen drew the rule a second time, and the day the two copies
+  /// disagreed the dead button was back.
   Trecho? get btFindingTrecho {
-    final at = btFindingChunk;
-    if (at == null) return null;
+    final named = btFindingSegmentId;
+    if (named == null) return null;
     for (final trecho in btTrechos) {
-      if (trecho.index == at) return trecho.to > trecho.from ? trecho : null;
+      if (trecho.segmentId == named) {
+        return trecho.to > trecho.from ? trecho : null;
+      }
     }
     return null;
   }
@@ -266,9 +318,10 @@ class SalaSessionState {
     bool clearRoda = false,
     int? aOferecer,
     List<Trecho>? btTrechos,
-    int? btFindingChunk,
-    bool clearFindingChunk = false,
+    String? btFindingSegmentId,
+    bool clearFindingSegment = false,
     bool? btTrechoTocando,
+    bool? btRetroTocando,
     bool? btClipEnded,
     bool? btParteFronteira,
     bool? btClipRodando,
@@ -312,10 +365,11 @@ class SalaSessionState {
       comecadas: comecadas ?? this.comecadas,
       aOferecer: aOferecer ?? this.aOferecer,
       btTrechos: btTrechos ?? this.btTrechos,
-      btFindingChunk: clearFindingChunk
+      btFindingSegmentId: clearFindingSegment
           ? null
-          : (btFindingChunk ?? this.btFindingChunk),
+          : (btFindingSegmentId ?? this.btFindingSegmentId),
       btTrechoTocando: btTrechoTocando ?? this.btTrechoTocando,
+      btRetroTocando: btRetroTocando ?? this.btRetroTocando,
       btClipEnded: btClipEnded ?? this.btClipEnded,
       btParteFronteira: btParteFronteira ?? this.btParteFronteira,
       btClipRodando: btClipRodando ?? this.btClipRodando,

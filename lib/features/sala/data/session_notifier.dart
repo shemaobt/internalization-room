@@ -110,6 +110,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   DateTime? _listeningSince;
   String? _emCurso;
   bool _recontando = false;
+  Trecho? _contandoDeNovo;
   bool _askingForANewClip = false;
   /// The clip is paused. `_onPlaybackComplete` deliberately survives a pause — the resume
   /// still has to be able to end the part — so it cannot be what tells a ceiling whether
@@ -1180,13 +1181,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// holding two of everything. A room with no stretch has no telling-back to pick up.
   void _pickTheTellingBackUp(BackTranslationProgress told) {
     if (told.nothingTold) return;
-    _trechoStart = told.trechos.last.to;
     state = state.copyWith(
       stage: SalaStage.retro,
       voice: told.checked ? VoiceState.done : VoiceState.invite,
       btPhase: told.checked ? BtPhase.conferida : BtPhase.playing,
-      btTrechos: told.trechos,
-      btChunkPasses: told.passes,
+      btTrechos: _trechosFrom(told.segments),
+      btChunkPasses: [
+        for (final segment in told.segments) segment.passNumber,
+      ],
     );
     if (told.checked) {
       _closeTheNecklace();
@@ -1604,6 +1606,27 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     await _countUnsent();
     await queue.flush();
     await _countUnsent();
+    if (kind == 'ensaio') await _adoptTheName(queue, sessionId, scope);
+  }
+
+  /// Take back the name the room gave a rehearsal recording.
+  ///
+  /// A told-back stretch is a slice of one recording and says which, and this is the only
+  /// moment that name is ever said. It is written beside the file rather than fetched
+  /// later because the two are halves of one thing: the retro is already local to the
+  /// tablet that recorded it — a rehearsal whose files are not here is refused a resume —
+  /// so there is no second tablet to fetch it for.
+  Future<void> _adoptTheName(
+    TakeUploadQueue queue,
+    String sessionId,
+    String scope,
+  ) async {
+    final id = await queue.takeIdOf('ensaio', sessionId: sessionId, scope: scope);
+    if (id == null || _gone) return;
+    state = state.copyWith(keptTakes: [
+      for (final take in state.keptTakes)
+        if (take.scopeId == scope) take.withTakeId(id) else take,
+    ]);
   }
 
   Future<void> refreshUnsent() => _countUnsent();
@@ -1718,7 +1741,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _retroClipMs = 0;
     state = state.copyWith(
       btTrechos: const [],
-      clearFindingChunk: true,
+      clearFindingSegment: true,
       btTrechoTocando: false,
       btParteFronteira: false,
       btClipRodando: false,
@@ -1736,6 +1759,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   int _inicioDaParteMs(int parte) => parte == 0 ? 0 : _fimDaParteMs[parte - 1];
+
+  /// How far into this recording the telling-back already got.
+  ///
+  /// The cursor belongs to the file in the air, not to the passage: crossing into a part
+  /// starts it at that part's beginning, and a part picked back up starts it after the
+  /// last stretch told out of it.
+  Duration _ondeParouNesteArquivo(int parte) {
+    var ate = Duration.zero;
+    for (final trecho in state.btTrechos) {
+      if (trecho.parte == parte && trecho.to > ate) ate = trecho.to;
+    }
+    return ate;
+  }
 
   Duration get _posicaoGlobal =>
       Duration(milliseconds: _inicioDaParteMs(_parteTocando)) +
@@ -1772,6 +1808,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _tocarParteDaRetro(int parte) {
     _parteTocando = parte;
+    _trechoStart = _ondeParouNesteArquivo(parte);
     _desdeMs = _inicioDaParteMs(parte);
     state = state.copyWith(
       btParteFronteira: false,
@@ -1852,16 +1889,166 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // position instead wrote a place inside the excerpt into a number that means a place in
     // the whole rehearsal, and every stretch after it inherited the lie.
     if (!_recontando) {
-      // A rehearsal picked back up plays from the top while the cursor already sits where
-      // the last stretch ended, so the playhead spends a while behind it — the one moment
-      // this room has where it can. There is nothing new to tell back there, and cutting
-      // anyway sent a stretch that ends before it begins and then walked the cursor
-      // backwards over every stretch after it.
-      if (_posicaoGlobal < _trechoStart) return;
-      _trechoEnd = _posicaoGlobal;
+      // The player's own position, not a place in the concatenated passage: a stretch is a
+      // slice of the file that is playing, and its two times are counted from that file's
+      // beginning.
+      //
+      // A part picked back up starts the cursor where telling-back left off in it, so the
+      // playhead can sit behind the cursor. There is nothing new to tell back there, and
+      // cutting anyway sent a stretch that ends before it begins and then walked the
+      // cursor backwards over every stretch after it.
+      if (_playback.position < _trechoStart) return;
+      _trechoEnd = _playback.position;
     }
     _pararOClipe();
     _startChunkCapture();
+  }
+
+  /// Cut the stretch that is playing in two, where the team is hearing it.
+  ///
+  /// It only ever answers for the stretch in the air, which is the only stretch the team
+  /// can hear again: the room leads them to the one a finding named, and nothing else
+  /// replays a stretch they already told. So there is nothing to choose first — what is
+  /// playing is what divides — and the point is where the audio is, which is the same
+  /// relation the other pair of scissors already has.
+  ///
+  /// The position is read from the player, which is playing inside one file, so it is
+  /// already counted from that recording's beginning. Adding the parts before it would be
+  /// the global timeline under a new name.
+  ///
+  /// The finding ends here rather than being handed on. The two halves are born with no
+  /// explanation, and the first round does not run while a final stretch is missing one,
+  /// so no verdict stands until the team has told them both — and the finding that comes
+  /// back after that names the half it belongs to, decided by reading rather than by a
+  /// guess of ours. Cleared, not left unpointed: the branch for a finding with no stretch
+  /// exists for an analyst who could not attribute one, which is a different thing from a
+  /// finding that is over.
+  Future<void> dividirTrecho() async {
+    if (state.stage != SalaStage.retro) return;
+    if (!state.btTrechoTocando) return;
+    if (state.needsPerson || state.offline) return;
+    final sessionId = state.sessionId;
+    final trecho = state.btFindingTrecho;
+    final named = trecho?.segmentId;
+    if (sessionId == null || trecho == null || named == null) return;
+
+    final at = _playback.position;
+    final epoch = _epoch;
+    try {
+      final told = await _room.divideSegment(sessionId, named, at: at);
+      if (epoch != _epoch) return;
+      final trechos = _trechosFrom(told);
+      if (trechos.isEmpty) return;
+      _holdClip();
+      state = state.copyWith(
+        btTrechos: trechos,
+        btChunkPasses: [for (final segment in told) segment.passNumber],
+        btPhase: BtPhase.playing,
+        voice: VoiceState.invite,
+        btFindings: const [],
+        btTrechoTocando: false,
+        clearFindingSegment: true,
+      );
+    } on Exception catch (error) {
+      if (epoch != _epoch) return;
+      _handleRoomFailure(error);
+    }
+  }
+
+  /// Tell one stretch again: the same slice of the same recording, a new explanation.
+  ///
+  /// This is the correction that leaves the mother tongue where it is — the one the room
+  /// needs after a division, because the two halves are born with nothing told about them
+  /// and the first round does not run while a final stretch is missing its explanation.
+  /// Telling a stretch back the ordinary way makes a *new* one at the next position, so
+  /// it could never fill a half; this fills it.
+  ///
+  /// A stretch with no name is not offered: the route addresses one, and the room has no
+  /// way to explain a refusal to a team that cannot read.
+  Future<void> contarDeNovo(Trecho trecho) async {
+    if (state.stage != SalaStage.retro) return;
+    // Two doors reach the same verb: the cord, where a stretch is tapped while the
+    // rehearsal plays, and the question the room puts when the analyst points at one.
+    if (state.btPhase != BtPhase.playing && state.btPhase != BtPhase.findings) {
+      return;
+    }
+    if (state.needsPerson || state.offline) return;
+    if (state.btTrechoTocando) return;
+    if (trecho.segmentId == null) return;
+    _pararOClipe();
+    _contandoDeNovo = trecho;
+    _startChunkCapture();
+  }
+
+  Future<void> _tellThatStretchAgain(
+    Trecho alvo,
+    String path,
+    String sessionId,
+    int epoch,
+  ) async {
+    final TellingAgain told;
+    try {
+      told = await _room.replaceSegment(
+        sessionId,
+        alvo.segmentId!,
+        File(path),
+        takeId: alvo.takeId,
+        from: alvo.from,
+        to: alvo.to,
+      );
+      if (epoch != _epoch) return;
+    } on Exception catch (error) {
+      unawaited(_guard(
+        path,
+        kind: 'retro',
+        scope: KeptScope.whole,
+        passNumber: state.btPass,
+        chunkIndex: state.btChunkPasses.length + 1,
+      ));
+      if (epoch != _epoch) return;
+      state = state.copyWith(
+        btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
+      );
+      _handleRoomFailure(error);
+      return;
+    }
+
+    if (!told.captured) {
+      // The room made nothing out of it, which is also what a transcriber outage looks
+      // like from here. The stretch is left exactly as it was — an explanation is not
+      // swapped for an empty one over somebody else's failure — and their audio is kept.
+      unawaited(_guard(
+        path,
+        kind: 'retro',
+        scope: KeptScope.whole,
+        passNumber: state.btPass,
+        chunkIndex: state.btChunkPasses.length + 1,
+      ));
+      state = state.copyWith(
+        btPhase: BtPhase.playing,
+        voice: VoiceState.invite,
+        btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
+      );
+      return;
+    }
+
+    final trechos = _trechosFrom(told.segments);
+    // Telling a stretch again adds no new ground, so the cursor goes back to the furthest
+    // stretch already told rather than staying where the excursion left it. The ordinary
+    // path walks it forward past what was just told; here there is nothing to walk past,
+    // and a cursor left behind makes the next cut begin inside ground already explained.
+    final alcancado = trechos.fold(
+      Duration.zero,
+      (ate, trecho) => trecho.to > ate ? trecho.to : ate,
+    );
+    _trechoStart = alcancado;
+    _trechoEnd = alcancado;
+    state = state.copyWith(
+      btPhase: BtPhase.playing,
+      voice: VoiceState.invite,
+      btTrechos: trechos.isEmpty ? state.btTrechos : trechos,
+      btChunkPasses: [for (final segment in told.segments) segment.passNumber],
+    );
   }
 
   void proximaParte() {
@@ -1885,6 +2072,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         unawaited(_finishChunkCapture());
       case BtPhase.findings:
         _leadThemToTheTrecho();
+      case BtPhase.gravandoMaterna:
+        _voltarAPergunta();
       case BtPhase.thinking:
       case BtPhase.conferida:
         break;
@@ -1913,9 +2102,43 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final path = await _recorder.stop();
     if (epoch != _epoch) return;
     final sessionId = state.sessionId;
+    final contandoDeNovo = _contandoDeNovo;
+    _contandoDeNovo = null;
 
     if (path == null || sessionId == null) {
       state = state.copyWith(btPhase: BtPhase.playing, voice: VoiceState.invite);
+      return;
+    }
+
+    if (contandoDeNovo != null) {
+      // Cleared on this branch too, because it returns before the ordinary path clears
+      // it. Left switched on, the next cut would ignore the player, reuse the bounds the
+      // retelling had left behind, and upload as a correction of a stretch that is not
+      // the one being told. It is cleared here rather than at the top: the ordinary path
+      // reads it when it uploads, and clearing it above that turns every retelling into
+      // an ordinary telling.
+      _recontando = false;
+      await _tellThatStretchAgain(contandoDeNovo, path, sessionId, epoch);
+      return;
+    }
+
+    final gravacao = _aGravacaoNoAr;
+    if (gravacao == null) {
+      // A stretch is a slice of a recording the room can name, and it cannot name one it
+      // has never received. Their telling is kept and the ladder runs: three of these and
+      // the room stops for a person, which is the same answer a room that will not
+      // answer gets.
+      unawaited(_guard(
+        path,
+        kind: 'retro',
+        scope: KeptScope.whole,
+        passNumber: state.btPass,
+        chunkIndex: state.btTrechos.length + 1,
+      ));
+      state = state.copyWith(
+        btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
+      );
+      _handleRoomFailure(const RoomBroke('o ensaio ainda não chegou à sala'));
       return;
     }
 
@@ -1924,6 +2147,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       captured = await _room.sendChunk(
         sessionId,
         File(path),
+        takeId: gravacao,
         from: _trechoStart,
         to: _trechoEnd,
         retelling: _recontando,
@@ -1970,7 +2194,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     final trecho = Trecho(
-      index: captured.chunks,
+      segmentId: null,
+      takeId: gravacao,
+      retroPath: path,
+      parte: _parteTocando,
       from: _trechoStart,
       to: _trechoEnd,
     );
@@ -1983,9 +2210,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
+  /// The name the room gave the recording playing now, or null while it has none.
+  ///
+  /// Adopted when the upload lands, never fetched here: reading it now would put a disk
+  /// read in the middle of telling a stretch back, and the answer would be no fresher
+  /// than the one already beside the file.
+  String? get _aGravacaoNoAr {
+    final partes = state.partes;
+    if (_parteTocando < 0 || _parteTocando >= partes.length) return null;
+    return partes[_parteTocando].takeId;
+  }
+
   /// Where the stretch just told sits in the row, counting the ones that failed.
   int _nextChunkPlace() =>
-      state.btChunkPasses.length + state.btChunkFailures.length + 1;
+      state.btTrechos.length + state.btChunkFailures.length + 1;
 
   Future<void> finishBackTranslation() async {
     if (!state.canFinishBackTranslation) return;
@@ -2017,66 +2255,188 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _closeTheNecklace();
         return;
       }
+      // The room names the stretch the finding lands on, and the name is the room's to
+      // give: nothing in the chunk it answered ever said it. The stretches are read back
+      // before the pointer is resolved, so it is resolved against names that exist.
+      await _readTheStretchesBack(sessionId, epoch);
+      if (epoch != _epoch) return;
       state = state.copyWith(
         btPhase: BtPhase.findings,
         voice: VoiceState.invite,
         btFindings: verdict.findingKind == null ? const [] : [verdict.findingKind!],
-        btFindingChunk: verdict.findingChunk,
-        clearFindingChunk: verdict.findingChunk == null,
+        btFindingSegmentId: verdict.findingSegmentId,
+        clearFindingSegment: verdict.findingSegmentId == null,
       );
-      _leadThemToTheTrecho();
+      // The stretch is no longer played at the team. Which voice needs to speak again is
+      // theirs to say, and they say it by comparing the two — so hearing either one is a
+      // tap they choose to make, on the screen that asks the question.
     } on Exception catch (error) {
       if (epoch != _epoch) return;
       _handleRoomFailure(error);
     }
   }
 
+  /// Take the room's own reading of the stretches, names and all.
+  ///
+  /// A stretch is born on the server and only the server knows what it is called; the
+  /// answer to telling one back carries a count and no name. Without this the pointer on
+  /// a finding matched nothing this tablet held, and a team that had told six stretches
+  /// back was offered the whole recording every time.
+  Future<void> _readTheStretchesBack(String sessionId, int epoch) async {
+    final SessionSnapshot snapshot;
+    try {
+      snapshot = await _room.fetchState(sessionId);
+    } on Exception {
+      // The verdict is already in hand and already spoken. Failing to re-read the names
+      // costs the pointer, not the verdict, so the findings screen still opens — on the
+      // whole recording, which is where an unnamed stretch has always landed.
+      return;
+    }
+    if (epoch != _epoch) return;
+    final trechos = _trechosFrom(snapshot.backTranslation.segments);
+    if (trechos.isEmpty) return;
+    state = state.copyWith(btTrechos: trechos);
+  }
+
+  /// The room's stretches as this tablet's own, each tied back to the recording it slices.
+  List<Trecho> _trechosFrom(List<SegmentView> told) {
+    final partes = state.partes;
+    return [
+      for (final segment in told)
+        () {
+          final from = Duration(milliseconds: segment.startsMs);
+          final to = Duration(milliseconds: segment.endsMs);
+          // The room says what a stretch is called, where it sits and whether anyone has
+          // explained it; the tablet knows what it is holding. Taking the room's reading
+          // wholesale threw away the copy of the telling this tablet recorded, and the
+          // blue voice had nothing to play — in every session, not only in one picked
+          // back up.
+          //
+          // The two travel together or not at all: a stretch the room says is not told
+          // has no explanation to hold a file for. Its own recording was replaced, and
+          // the telling that belonged to the audio nobody will hear again does not carry
+          // over — the same rule the room keeps on its side.
+          final aqui = state.btTrechos.where(
+            (trecho) =>
+                trecho.takeId == segment.takeId &&
+                trecho.from == from &&
+                trecho.to == to,
+          );
+          final parte = partes.indexWhere((p) => p.takeId == segment.takeId);
+          return Trecho(
+            segmentId: segment.segmentId,
+            takeId: segment.takeId,
+            retroPath:
+                segment.told && aqui.isNotEmpty ? aqui.first.retroPath : null,
+            parte: parte >= 0 || aqui.isEmpty ? parte : aqui.first.parte,
+            from: from,
+            to: to,
+            contado: segment.told,
+          );
+        }(),
+    ];
+  }
+
   void _leadThemToTheTrecho() {
     final trecho = state.btFindingTrecho;
-    if (state.partes.isEmpty || trecho == null) return;
+    if (trecho == null) return;
+    final partes = state.partes;
+    if (trecho.parte < 0 || trecho.parte >= partes.length) return;
     state = state.copyWith(btTrechoTocando: true);
-    _tocarFaixaGlobal(trecho.from, trecho.to);
+    _tocarOTrecho(trecho);
   }
 
-  int _parteQueContem(int posicaoMs) {
-    for (var i = 0; i < _fimDaParteMs.length; i++) {
-      if (posicaoMs < _fimDaParteMs[i]) return i;
-    }
-    return state.partes.length - 1;
-  }
-
-  void _tocarFaixaGlobal(Duration from, Duration to) {
-    // Without a state to show, the stretch played into a screen that looked exactly like
-    // the one waiting for the team to speak.
+  /// Play one stretch: a slice of the one file it came out of.
+  ///
+  /// It used to resolve which part a global millisecond fell in and stitch across the
+  /// boundary when a stretch spanned two recordings. A stretch cannot span two recordings
+  /// any more — it is a slice of one — so the resolving and the stitching are gone with
+  /// the ruler that needed them.
+  void _tocarOTrecho(Trecho trecho) {
     void quiet() {
+      // Without a state to show, the stretch played into a screen that looked exactly
+      // like the one waiting for the team to speak.
       state = state.copyWith(btTrechoTocando: false);
     }
 
-    final parte = _parteQueContem(from.inMilliseconds);
-    final inicio = _inicioDaParteMs(parte);
-    final fimDaParte = parte < _fimDaParteMs.length
-        ? _fimDaParteMs[parte]
-        : to.inMilliseconds;
-    final localFrom = Duration(milliseconds: from.inMilliseconds - inicio);
-    final atravessa = to.inMilliseconds > fimDaParte;
-    final localTo = Duration(
-      milliseconds: (atravessa ? fimDaParte : to.inMilliseconds) - inicio,
-    );
-
-    _onPlaybackComplete = atravessa
-        ? () => _tocarFaixaGlobal(Duration(milliseconds: fimDaParte), to)
-        : quiet;
+    _onPlaybackComplete = quiet;
     _onPlaybackFailed = quiet;
     _clipHeld = false;
     _listenForTheEnd();
-    unawaited(_playback.playRange(state.partes[parte].path, localFrom, localTo));
+    unawaited(_playback.playRange(
+      state.partes[trecho.parte].path,
+      trecho.from,
+      trecho.to,
+    ));
     _watchPlayback(clipStillOpening: true);
+  }
+
+  /// Hear the team's own voice on the stretch the analyst pointed at.
+  ///
+  /// Free, and it decides nothing: the room used to read the kind of finding and pick the
+  /// correction itself, so the team never compared the two voices before the choice was
+  /// already made for them.
+  void ouvirVozMaterna() {
+    if (state.btPhase != BtPhase.findings) return;
+    if (state.btTrechoTocando || state.btRetroTocando) return;
+    _leadThemToTheTrecho();
+  }
+
+  /// Hear the telling in Portuguese — the voice that travels to the analyst.
+  void ouvirContarEmPortugues() {
+    if (state.btPhase != BtPhase.findings) return;
+    if (state.btTrechoTocando || state.btRetroTocando) return;
+    final path = state.btFindingTrecho?.retroPath;
+    if (path == null) return;
+    void quiet() {
+      state = state.copyWith(btRetroTocando: false);
+    }
+
+    state = state.copyWith(btRetroTocando: true);
+    _play(path, onComplete: quiet, onFailed: quiet);
+  }
+
+  /// The error was born in the recording: the mother tongue is re-recorded first, and the
+  /// telling of this stretch is redone over it afterwards. Always in that order — the
+  /// server refuses a new recording that arrives carrying an explanation.
+  void regravarAVozMaterna() {
+    if (state.btPhase != BtPhase.findings) return;
+    if (state.btFindingTrecho == null) return;
+    _holdClip();
+    state = state.copyWith(
+      btPhase: BtPhase.gravandoMaterna,
+      voice: VoiceState.invite,
+      btTrechoTocando: false,
+      btRetroTocando: false,
+    );
+  }
+
+  /// The team's own voice stands and only the telling slipped: the explanation is redone
+  /// over a recording that does not move.
+  void recontarEmPortugues() {
+    final trecho = state.btFindingTrecho;
+    if (state.btPhase != BtPhase.findings || trecho == null) return;
+    state = state.copyWith(btTrechoTocando: false, btRetroTocando: false);
+    unawaited(contarDeNovo(trecho));
+  }
+
+  /// Back to the question, from a step that cannot finish its work yet.
+  ///
+  /// Choosing which voice must speak again lands on a recording step whose call to the
+  /// room does not exist yet. Until it does, a team that chose could neither record nor
+  /// go back: the only way out was abandoning the whole passage.
+  void _voltarAPergunta() {
+    state = state.copyWith(
+      btPhase: BtPhase.findings,
+      voice: VoiceState.invite,
+    );
   }
 
   void retellChunk() {
     if (state.btPhase != BtPhase.findings) return;
     final trecho = state.btFindingTrecho;
     if (trecho == null) return;
+    _parteTocando = trecho.parte;
     _trechoStart = trecho.from;
     _trechoEnd = trecho.to;
     _recontando = true;
@@ -2201,6 +2561,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _personAsked = false;
     _personAskStep = 0;
     _recontando = false;
+    _contandoDeNovo = null;
     _inboxSilences = 0;
     _degradedTurns = 0;
     _trechoStart = Duration.zero;
