@@ -205,6 +205,15 @@ class FakePlayback implements PlaybackRepository {
     _stopSounding();
   }
 
+  Duration? measured = const Duration(seconds: 30);
+  final List<String> measurements = [];
+
+  @override
+  Future<Duration?> howLong(String path) async {
+    measurements.add(path);
+    return measured;
+  }
+
   @override
   Duration? get playingLength => length;
 

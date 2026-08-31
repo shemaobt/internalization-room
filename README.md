@@ -32,7 +32,7 @@ Design doctrine applied: progress lives only in the colar; no numbers, percentag
 Thin-client Flutter app following [AGENTS.md](AGENTS.md): Riverpod state, feature-based clean architecture, self-documenting code.
 
 - `lib/features/sala/domain` — coverage counters, the fixed-line asset names, kept takes, hand replies, back-translation findings, session state machine types. The meaning map and the facilitator's script live on the backend; the app only renders what it is told.
-- `lib/features/sala/data` — `SalaSessionNotifier` (the session state machine), recording (mic capture via `record`), playback (`just_audio`), and `FacilitatorVoiceService`, which fetches the room's spoken lines from the backend, caches them under `voz/` (60 clips, oldest dropped) and plays the pre-approved fixed lines from `assets/audio/fixed/`.
+- `lib/features/sala/data` — `SalaSessionNotifier` (the session state machine), recording (mic capture via `record`), playback (`just_audio`, which also answers how long a file is without playing it — on a second player of its own, so measuring never disturbs the clip in the air), and `FacilitatorVoiceService`, which fetches the room's spoken lines from the backend, caches them under `voz/` (60 clips, oldest dropped) and plays the pre-approved fixed lines from `assets/audio/fixed/`.
 - `lib/features/sala/presentation` — one screen, one view per station, the colar overlay, and the facilitator circle with its voice states (invite / listening / thinking / speaking / done / needsPerson, plus team-talk mode).
 
 ### Backend seams
