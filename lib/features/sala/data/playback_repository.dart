@@ -11,10 +11,9 @@ class PlaybackRepository {
   StreamSubscription<PlayerState>? _states;
   AudioPlayer? _opened;
   Duration? _openedLength;
-  /// The player that only ever measures. Separate from [_opened] on purpose, and never
-  /// given a listener: loading a source replaces it, so asking one player how long a file
-  /// is would take the clip out of the other one's hands — its length, its position, and
-  /// the events the room hangs off both.
+  /// The player that only ever measures, separate from [_opened] on purpose: loading a
+  /// source replaces it, so measuring on the playing one would take the clip out of its
+  /// hands — its length, its position, and the events the room hangs off both.
   AudioPlayer? _measurer;
 
   PlaybackRepository({
@@ -27,15 +26,8 @@ class PlaybackRepository {
 
   /// How long an audio file is, without playing a second of it.
   ///
-  /// Loading a source is what tells you its length, and the load is where the danger was:
-  /// on the playing player it would overwrite the length of the clip in the air — the
-  /// number `_fimDaParteMs` is built from, and the room's whole account of how much
-  /// rehearsal the team has heard. A rehearsal of three parts once reported itself as
-  /// one; this is the same wound waiting to be reopened, and a second player closes it by
-  /// construction rather than by anyone remembering to put things back.
-  ///
-  /// Null when the file cannot be opened: the caller decides what that means, and no
-  /// missing file is worth taking the room down over.
+  /// Null when the file cannot be opened: no missing file is worth taking the room down
+  /// over, and the caller decides what the absence means.
   Future<Duration?> howLong(String path) async {
     try {
       return await (_measurer ??= _newPlayer()).setFilePath(path);

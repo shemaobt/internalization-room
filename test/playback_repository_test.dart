@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:internalization_room/features/sala/data/playback_repository.dart';
 
+void _nada(_Duplo _) {}
+
 void main() {
   test('a clip that cannot be opened says so, and does not pass for heard', () async {
     final playback = PlaybackRepository(
@@ -41,14 +43,23 @@ void main() {
     late List<_Duplo> feitos;
     late PlaybackRepository playback;
 
-    setUp(() {
-      feitos = [];
-      playback = PlaybackRepository(newPlayer: () {
+    /// Every repository a test builds registers its own tear-off. Registering the one
+    /// from `setUp` and then reassigning left the repository the test actually drives
+    /// undisposed, with its controllers and its players still open.
+    PlaybackRepository umRepositorio([void Function(_Duplo) afinando = _nada]) {
+      final novo = PlaybackRepository(newPlayer: () {
         final duplo = _Duplo();
+        afinando(duplo);
         feitos.add(duplo);
         return duplo;
       });
-      addTearDown(playback.dispose);
+      addTearDown(novo.dispose);
+      return novo;
+    }
+
+    setUp(() {
+      feitos = [];
+      playback = umRepositorio();
     });
 
     test('the room learns how long an audio is without playing it', () async {
@@ -82,12 +93,8 @@ void main() {
       // Two different lengths on purpose: the clip in the air is half a minute and the
       // file being asked about is four seconds. A probe on the playing player would
       // leave the room believing the rehearsal is four seconds long.
-      playback = PlaybackRepository(newPlayer: () {
-        final duplo = _Duplo()
-          ..porArquivo['/uma/gravacao/curta.m4a'] = const Duration(seconds: 4);
-        feitos.add(duplo);
-        return duplo;
-      });
+      playback = umRepositorio((duplo) =>
+          duplo.porArquivo['/uma/gravacao/curta.m4a'] = const Duration(seconds: 4));
       await playback.play('/o/clipe.m4a');
       final doClipe = playback.playingLength;
       expect(doClipe, const Duration(seconds: 30));
@@ -112,11 +119,9 @@ void main() {
     });
 
     test('a file that is not there does not bring the room down', () async {
-      playback = PlaybackRepository(newPlayer: () {
-        final duplo = _Duplo()..recusa = const FormatException('sumiu');
-        feitos.add(duplo);
-        return duplo;
-      });
+      playback = umRepositorio(
+        (duplo) => duplo.recusa = const FormatException('sumiu'),
+      );
 
       final quanto = await playback.howLong('/nao/existe.m4a');
 
