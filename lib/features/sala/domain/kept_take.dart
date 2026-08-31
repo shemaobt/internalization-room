@@ -2,6 +2,11 @@ abstract class KeptScope {
   static const whole = 'passagem-inteira';
 
   static String parte(int n) => 'parte-$n';
+
+  /// The mother tongue of one stretch, recorded again. Its own scope rather than a part's:
+  /// it is a file that stands for a slice, and a reviewer opening the session has to be
+  /// able to tell it from the rehearsal it corrects.
+  static String trecho(String segmentId) => 'trecho-$segmentId';
 }
 
 class KeptTake {

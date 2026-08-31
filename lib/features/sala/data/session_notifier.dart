@@ -112,6 +112,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   bool _recontando = false;
   Trecho? _contandoDeNovo;
   bool _askingForANewClip = false;
+  bool _regravandoAMaterna = false;
   /// The clip is paused. `_onPlaybackComplete` deliberately survives a pause — the resume
   /// still has to be able to end the part — so it cannot be what tells a ceiling whether
   /// there is any sound left to measure.
@@ -2068,7 +2069,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case BtPhase.findings:
         _leadThemToTheTrecho();
       case BtPhase.gravandoMaterna:
-        _voltarAPergunta();
+        unawaited(_gravarAVozMaterna());
       case BtPhase.thinking:
       case BtPhase.conferida:
         break;
@@ -2413,6 +2414,88 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.btPhase != BtPhase.findings || trecho == null) return;
     state = state.copyWith(btTrechoTocando: false, btRetroTocando: false);
     unawaited(contarDeNovo(trecho));
+  }
+
+  /// The far station: the mother tongue of one stretch, recorded again.
+  ///
+  /// Tap to start, tap to stop — the room's own gesture, not the design's press-and-hold.
+  Future<void> _gravarAVozMaterna() async {
+    if (_regravandoAMaterna) {
+      await _guardarAVozMaterna();
+      return;
+    }
+    _regravandoAMaterna = true;
+    state = state.copyWith(voice: VoiceState.listening);
+    await _recordOrBlock('materna_${_stamp()}');
+  }
+
+  /// What the new recording costs, paid in the order the room insists on.
+  ///
+  /// The file becomes a rehearsal take of this session, because a stretch is a slice of
+  /// one and the room checks that. Its slice runs from nought to its own length — which is
+  /// why this could not be built until the room could measure an audio without playing it.
+  /// It goes up with no explanation attached: the one that belonged to the audio it
+  /// replaces does not carry over, and sending both is the combination the room refuses.
+  ///
+  /// And the second station follows immediately. Correcting only the mother tongue is not
+  /// a state this product has: a stretch left with a new recording and no telling is a
+  /// stretch the first round's gate will hold the whole passage for.
+  Future<void> _guardarAVozMaterna() async {
+    final epoch = _epoch;
+    _regravandoAMaterna = false;
+    state = state.copyWith(btPhase: BtPhase.thinking, voice: VoiceState.thinking);
+    _watchBusyState();
+    final path = await _recorder.stop();
+    final sessionId = state.sessionId;
+    final alvo = state.btFindingTrecho;
+    if (epoch != _epoch) return;
+    if (path == null || sessionId == null || alvo?.segmentId == null) {
+      _voltarAPergunta();
+      return;
+    }
+
+    final escopo = KeptScope.trecho(alvo!.segmentId!);
+    await _guard(path, kind: 'ensaio', scope: escopo);
+    if (epoch != _epoch) return;
+    final gravacao = await _takes.takeIdOf(
+      'ensaio',
+      sessionId: sessionId,
+      scope: escopo,
+    );
+    final quanto = await _playback.howLong(path);
+    if (epoch != _epoch) return;
+    if (gravacao == null || quanto == null || quanto <= Duration.zero) {
+      // Either the room has not taken the recording yet or it cannot be measured. Their
+      // voice is kept and the ladder runs; three of these and the room stops for a person.
+      _handleRoomFailure(const RoomBroke('a voz nova não pôde ser guardada'));
+      return;
+    }
+
+    final TellingAgain trocado;
+    try {
+      trocado = await _room.replaceSegment(
+        sessionId,
+        alvo.segmentId!,
+        null,
+        takeId: gravacao,
+        from: Duration.zero,
+        to: quanto,
+      );
+      if (epoch != _epoch) return;
+    } on Exception catch (error) {
+      if (epoch != _epoch) return;
+      _handleRoomFailure(error);
+      return;
+    }
+
+    final trechos = _trechosFrom(trocado.segments);
+    state = state.copyWith(btPhase: BtPhase.findings, btTrechos: trechos);
+    final agora = state.btFindingTrecho;
+    if (agora == null) {
+      _voltarAPergunta();
+      return;
+    }
+    await contarDeNovo(agora);
   }
 
   /// Back to the question, from a step that cannot finish its work yet.
