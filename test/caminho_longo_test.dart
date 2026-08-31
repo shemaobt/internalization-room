@@ -203,6 +203,34 @@ void main() {
         reason: 'e o segundo toque encerra: tocar grava, tocar para');
   });
 
+  testWidgets('a refused microphone leaves the touch meaning what it says',
+      (tester) async {
+    final container = await pumpToPergunta(tester);
+    final harness = harnessDaVez!;
+    harness.recorder.startThrows = true;
+
+    await tester.tap(byLabel(micMaterna));
+    await tester.pump(const Duration(milliseconds: 300));
+    notifier(container).retroTap();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // The recorder never started, so the room stopped for a person. A person comes.
+    expect(container.read(salaSessionProvider).needsPerson, isTrue);
+    harness.recorder.startThrows = false;
+    notifier(container).resolveWithPerson();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final antes = harness.recorder.captures;
+    notifier(container).retroTap();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(harness.recorder.captures, antes + 1,
+        reason: 'nada estava gravando, então o toque grava — como o círculo '
+            'promete. Guardar num sinalizador em vez de ler a voz fazia o '
+            'toque seguinte encerrar uma gravação que nunca começou, e a '
+            'equipe voltava à pergunta com o passo por fazer');
+  });
+
   testWidgets('the short way stays short', (tester) async {
     final container = await pumpToPergunta(tester);
     final harness = harnessDaVez!;

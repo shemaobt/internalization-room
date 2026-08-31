@@ -112,7 +112,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   bool _recontando = false;
   Trecho? _contandoDeNovo;
   bool _askingForANewClip = false;
-  bool _regravandoAMaterna = false;
   String _marcaDaMaterna = '';
   /// The clip is paused. `_onPlaybackComplete` deliberately survives a pause — the resume
   /// still has to be able to end the part — so it cannot be what tells a ceiling whether
@@ -2421,11 +2420,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ///
   /// Tap to start, tap to stop — the room's own gesture, not the design's press-and-hold.
   Future<void> _gravarAVozMaterna() async {
-    if (_regravandoAMaterna) {
+    // Which tap this is comes from whether the room is listening, not from a flag of its
+    // own. A flag survives a capture that never started — a refused microphone, a recorder
+    // that would not open — and the next tap then stopped a recording that did not exist,
+    // dropping the team back on the question with the step still to do. The phase is the
+    // same on both sides of this gesture, so the voice is what tells them apart, and it is
+    // already what the circle reads to decide what it says.
+    if (state.voice == VoiceState.listening) {
       await _guardarAVozMaterna();
       return;
     }
-    _regravandoAMaterna = true;
     // The stamp travels with the recording into its scope: the same stretch can be
     // re-recorded twice — a replacement that fails leaves the team tapping again — and a
     // scope that repeats would hand back the first take's name for the second file.
@@ -2447,7 +2451,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// stretch the first round's gate will hold the whole passage for.
   Future<void> _guardarAVozMaterna() async {
     final epoch = _epoch;
-    _regravandoAMaterna = false;
     state = state.copyWith(btPhase: BtPhase.thinking, voice: VoiceState.thinking);
     _watchBusyState();
     final path = await _recorder.stop();
