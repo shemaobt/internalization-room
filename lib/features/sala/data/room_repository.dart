@@ -221,10 +221,16 @@ class RoomRepository {
     return _read(response, SegmentView.listFrom);
   }
 
+  /// A new version of one stretch.
+  ///
+  /// With audio over the same slice it is the explanation redone. Without audio it is the
+  /// mother tongue re-recorded, and it arrives with no explanation on purpose: the one
+  /// belonging to the recording it replaces does not carry over, and sending both is the
+  /// combination the room refuses.
   Future<TellingAgain> replaceSegment(
     String sessionId,
     String segmentId,
-    File audio, {
+    File? audio, {
     required String takeId,
     required Duration from,
     required Duration to,
@@ -237,8 +243,10 @@ class RoomRepository {
       ..headers['X-Room-Device'] = await deviceIdentity()
       ..fields['take_id'] = takeId
       ..fields['starts_ms'] = '${from.inMilliseconds}'
-      ..fields['ends_ms'] = '${to.inMilliseconds}'
-      ..files.add(await http.MultipartFile.fromPath('file', audio.path));
+      ..fields['ends_ms'] = '${to.inMilliseconds}';
+    if (audio != null) {
+      request.files.add(await http.MultipartFile.fromPath('file', audio.path));
+    }
     return _read(await _sendMultipart(request), TellingAgain.fromJson);
   }
 

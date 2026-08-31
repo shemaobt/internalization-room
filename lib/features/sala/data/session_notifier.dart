@@ -112,6 +112,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   bool _recontando = false;
   Trecho? _contandoDeNovo;
   bool _askingForANewClip = false;
+  String _marcaDaMaterna = '';
   /// The clip is paused. `_onPlaybackComplete` deliberately survives a pause — the resume
   /// still has to be able to end the part — so it cannot be what tells a ceiling whether
   /// there is any sound left to measure.
@@ -2073,7 +2074,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case BtPhase.findings:
         _leadThemToTheTrecho();
       case BtPhase.gravandoMaterna:
-        _voltarAPergunta();
+        unawaited(_gravarAVozMaterna());
       case BtPhase.thinking:
       case BtPhase.conferida:
         break;
@@ -2418,6 +2419,108 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.btPhase != BtPhase.findings || trecho == null) return;
     state = state.copyWith(btTrechoTocando: false, btRetroTocando: false);
     unawaited(contarDeNovo(trecho));
+  }
+
+  /// The far station: the mother tongue of one stretch, recorded again.
+  ///
+  /// Tap to start, tap to stop — the room's own gesture, not the design's press-and-hold.
+  Future<void> _gravarAVozMaterna() async {
+    // Which tap this is comes from whether the room is listening, not from a flag of its
+    // own. A flag survives a capture that never started — a refused microphone, a recorder
+    // that would not open — and the next tap then stopped a recording that did not exist,
+    // dropping the team back on the question with the step still to do. The phase is the
+    // same on both sides of this gesture, so the voice is what tells them apart, and it is
+    // already what the circle reads to decide what it says.
+    if (state.voice == VoiceState.listening) {
+      await _guardarAVozMaterna();
+      return;
+    }
+    // The stamp travels with the recording into its scope: the same stretch can be
+    // re-recorded twice — a replacement that fails leaves the team tapping again — and a
+    // scope that repeats would hand back the first take's name for the second file.
+    _marcaDaMaterna = _stamp();
+    state = state.copyWith(voice: VoiceState.listening);
+    await _recordOrBlock('materna_$_marcaDaMaterna');
+  }
+
+  /// What the new recording costs, paid in the order the room insists on.
+  ///
+  /// The file becomes a rehearsal take of this session, because a stretch is a slice of
+  /// one and the room checks that. Its slice runs from nought to its own length — which is
+  /// why this could not be built until the room could measure an audio without playing it.
+  /// It goes up with no explanation attached: the one that belonged to the audio it
+  /// replaces does not carry over, and sending both is the combination the room refuses.
+  ///
+  /// And the second station follows immediately. Correcting only the mother tongue is not
+  /// a state this product has: a stretch left with a new recording and no telling is a
+  /// stretch the first round's gate will hold the whole passage for.
+  Future<void> _guardarAVozMaterna() async {
+    final epoch = _epoch;
+    state = state.copyWith(btPhase: BtPhase.thinking, voice: VoiceState.thinking);
+    _watchBusyState();
+    final path = await _recorder.stop();
+    final sessionId = state.sessionId;
+    final alvo = state.btFindingTrecho;
+    if (epoch != _epoch) return;
+    if (path == null || sessionId == null || alvo?.segmentId == null) {
+      _voltarAPergunta();
+      return;
+    }
+
+    final escopo = KeptScope.trecho(alvo!.segmentId!, _marcaDaMaterna);
+    final onde = state.btTrechos.indexWhere(
+      (trecho) => trecho.segmentId == alvo.segmentId,
+    );
+    await _guard(path, kind: 'ensaio', scope: escopo);
+    if (epoch != _epoch) return;
+    final gravacao = await _takes.takeIdOf(
+      'ensaio',
+      sessionId: sessionId,
+      scope: escopo,
+    );
+    final quanto = await _playback.howLong(path);
+    if (epoch != _epoch) return;
+    if (gravacao == null || quanto == null || quanto <= Duration.zero) {
+      // Either the room has not taken the recording yet or it cannot be measured. Their
+      // voice is kept and the ladder runs; three of these and the room stops for a person.
+      _handleRoomFailure(const RoomBroke('a voz nova não pôde ser guardada'));
+      return;
+    }
+
+    final TellingAgain trocado;
+    try {
+      trocado = await _room.replaceSegment(
+        sessionId,
+        alvo.segmentId!,
+        null,
+        takeId: gravacao,
+        from: Duration.zero,
+        to: quanto,
+      );
+      if (epoch != _epoch) return;
+    } on Exception catch (error) {
+      if (epoch != _epoch) return;
+      _handleRoomFailure(error);
+      return;
+    }
+
+    // A version is a new row and carries a new name, so the pointer the finding came with
+    // now names a stretch the room has retired. What stays put is the position: a
+    // replacement takes the place of the one it replaces, and that is how the successor is
+    // found and the pointer moved onto it. Following the old name would land the team back
+    // on the question with the recording already replaced.
+    final trechos = _trechosFrom(trocado.segments);
+    final agora = onde >= 0 && onde < trechos.length ? trechos[onde] : null;
+    if (agora?.segmentId == null) {
+      _voltarAPergunta();
+      return;
+    }
+    state = state.copyWith(
+      btPhase: BtPhase.findings,
+      btTrechos: trechos,
+      btFindingSegmentId: agora!.segmentId,
+    );
+    await contarDeNovo(agora);
   }
 
   /// Back to the question, from a step that cannot finish its work yet.

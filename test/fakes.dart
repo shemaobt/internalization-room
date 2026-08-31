@@ -398,6 +398,10 @@ class FakeRoom implements RoomRepository {
   bool replaceCaptured = true;
   /// Which stretch each retelling named, and the slice it sent, in order.
   final List<String> replacesAsked = [];
+  /// Which stretches arrived as a new mother-tongue recording — a replacement carrying no
+  /// explanation, which is the only shape the room accepts for a re-recorded voice.
+  final List<String> replacesSemArquivo = [];
+  int _versoes = 0;
   /// Which stretch each division named, and where it was cut, in order.
   final List<String> dividesAsked = [];
   bool chunkCaptured = true;
@@ -542,7 +546,7 @@ class FakeRoom implements RoomRepository {
   Future<TellingAgain> replaceSegment(
     String sessionId,
     String segmentId,
-    File audio, {
+    File? audio, {
     required String takeId,
     required Duration from,
     required Duration to,
@@ -553,19 +557,28 @@ class FakeRoom implements RoomRepository {
     replacesAsked.add(
       '$segmentId@$takeId:${from.inMilliseconds}-${to.inMilliseconds}',
     );
+    if (audio == null) replacesSemArquivo.add(segmentId);
     if (!replaceCaptured) {
       return TellingAgain(segments: List.of(segments), captured: false);
     }
     final at = segments.indexWhere((one) => one.segmentId == segmentId);
     if (at >= 0) {
       final antes = segments[at];
+      // The route has two shapes and this double owes both. With audio over the same
+      // slice, the explanation was redone and the stretch is told. With no audio the
+      // mother tongue was re-recorded: the stretch takes the new recording and its slice,
+      // and goes back to waiting — the telling that belonged to the audio nobody will
+      // hear again does not carry over.
+      // A version is a new row, not an edit in place: the room mints a fresh id for the
+      // successor and retires the one it replaces. A double that kept the id would let an
+      // app follow a pointer the room has already thrown away.
       segments[at] = SegmentView(
-        segmentId: antes.segmentId,
-        takeId: antes.takeId,
-        startsMs: antes.startsMs,
-        endsMs: antes.endsMs,
+        segmentId: '${antes.segmentId}-v${++_versoes}',
+        takeId: audio == null ? takeId : antes.takeId,
+        startsMs: audio == null ? from.inMilliseconds : antes.startsMs,
+        endsMs: audio == null ? to.inMilliseconds : antes.endsMs,
         passNumber: antes.passNumber,
-        told: true,
+        told: audio != null,
       );
     }
     return TellingAgain(segments: List.of(segments), captured: true);
