@@ -19,7 +19,11 @@ const cortarTrechoLabel = 'Cortar este trecho em dois, aqui';
 /// returned, with the team never asked.
 ///
 /// The path hanging under each microphone is the cost, shown before the gesture rather
-/// than after it: the wood column carries two stations, the blue one carries one.
+/// than after it: the wood column carries two stations, the blue one carries one. What
+/// hangs under a player hangs under *that* player: the scissors' slot widens the row the
+/// player is in, so everything below it carries the same slot rather than centring on a
+/// row it is not part of, which pulled the cord and the microphone 27px off their own
+/// column — on the blue one too, where the slot is always empty.
 ///
 /// The scissors sits beside the wood player and only while that voice is sounding, which
 /// is what keeps the question at two answers. Listening decides nothing and puts both
@@ -158,7 +162,7 @@ class _Coluna extends StatelessWidget {
                       ),
                     ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: _tesouraFolga),
             _Player(
               colors: colors,
               gradiente: gradiente,
@@ -168,29 +172,34 @@ class _Coluna extends StatelessWidget {
             ),
           ],
         ),
-        _Corda(colors: colors, altura: 14),
-        _Alvo(
-          size: 60,
-          gradiente: gradiente,
-          label: micLabel,
-          onTap: inerte ? null : onFalar,
-          child: const Icon(LucideIcons.mic, size: 22, color: ShemaBrand.branco),
+        _SobOTocador(child: _Corda(colors: colors, altura: 14)),
+        _SobOTocador(
+          child: _Alvo(
+            size: 60,
+            gradiente: gradiente,
+            label: micLabel,
+            onTap: inerte ? null : onFalar,
+            child:
+                const Icon(LucideIcons.mic, size: 22, color: ShemaBrand.branco),
+          ),
         ),
         if (estacoesPenduradas > 0) ...[
-          _Corda(colors: colors, altura: 12),
-          Opacity(
-            opacity: 0.6,
-            child: Container(
-              width: 26,
-              height: 26,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: BeadStyles.azul,
-              ),
-              child: const Icon(
-                LucideIcons.mic,
-                size: 12,
-                color: ShemaBrand.branco,
+          _SobOTocador(child: _Corda(colors: colors, altura: 12)),
+          _SobOTocador(
+            child: Opacity(
+              opacity: 0.6,
+              child: Container(
+                width: 26,
+                height: 26,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: BeadStyles.azul,
+                ),
+                child: const Icon(
+                  LucideIcons.mic,
+                  size: 12,
+                  color: ShemaBrand.branco,
+                ),
               ),
             ),
           ),
@@ -201,6 +210,24 @@ class _Coluna extends StatelessWidget {
 }
 
 const _tesouraSlot = 44.0;
+const _tesouraFolga = 10.0;
+
+/// Carries the same leading slot the player's row carries, so what hangs below a player
+/// stays under it instead of centring on a wider row it is not part of.
+class _SobOTocador extends StatelessWidget {
+  final Widget child;
+
+  const _SobOTocador({required this.child});
+
+  @override
+  Widget build(BuildContext context) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(width: _tesouraSlot + _tesouraFolga),
+          child,
+        ],
+      );
+}
 
 class _Corda extends StatelessWidget {
   final SalaColors colors;

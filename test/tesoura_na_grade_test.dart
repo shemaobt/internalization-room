@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/onde_mora_grade.dart';
 import 'package:internalization_room/main.dart';
 
@@ -68,7 +69,41 @@ Future<void> ouvindoAMaterna(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 300));
 }
 
+Future<void> pumpGradeSozinha(WidgetTester tester,
+        {required bool tocandoMaterna}) =>
+    tester.pumpWidget(MaterialApp(
+      theme: AppTheme.light,
+      home: Scaffold(
+        body: Center(
+          child: OndeMoraGrade(
+            onOuvirMaterna: () {},
+            onOuvirRetro: () {},
+            onRegravarMaterna: () {},
+            onRecontar: () {},
+            tocandoMaterna: tocandoMaterna,
+            onCortar: tocandoMaterna ? () {} : null,
+          ),
+        ),
+      ),
+    ));
+
 void main() {
+  testWidgets('what hangs under a player hangs under that player',
+      (tester) async {
+    for (final tocando in [false, true]) {
+      await pumpGradeSozinha(tester, tocandoMaterna: tocando);
+
+      expect(tester.getCenter(byLabel(micMaterna)).dx,
+          tester.getCenter(byLabel(ouvirMaterna)).dx,
+          reason: 'a vertical de cada coluna é o custo do caminho, e ela só diz '
+              'isso se pender do tocador daquela voz — com o som ${tocando ? "no ar" : "parado"}');
+      expect(tester.getCenter(byLabel(micRetro)).dx,
+          tester.getCenter(byLabel(ouvirRetro)).dx,
+          reason: 'e a coluna azul não pode torta por causa de uma fenda que '
+              'nem é dela');
+    }
+  });
+
   testWidgets('the team can divide a stretch they are hearing back',
       (tester) async {
     await pumpToPergunta(tester);
