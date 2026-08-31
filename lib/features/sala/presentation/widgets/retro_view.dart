@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -45,6 +47,9 @@ class RetroView extends ConsumerWidget {
             tocandoMaterna: session.btTrechoTocando,
             tocandoRetro: session.btRetroTocando,
             podeOuvirRetro: session.btFindingTrecho?.retroPath != null,
+            onCortar: session.btTrechoTocando
+                ? () => unawaited(notifier.dividirTrecho())
+                : null,
           ),
         ],
       );

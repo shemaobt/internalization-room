@@ -9,6 +9,7 @@ const ouvirMaternaLabel = 'Ouvir a voz de vocês, na língua materna';
 const ouvirRetroLabel = 'Ouvir o contar em português';
 const micMaternaLabel = 'Regravar a voz na língua materna — refaz também o contar';
 const micRetroLabel = 'Recontar só em português';
+const cortarTrechoLabel = 'Cortar este trecho em dois, aqui';
 
 /// Where the error lives: the team says it, the room does not guess.
 ///
@@ -19,6 +20,14 @@ const micRetroLabel = 'Recontar só em português';
 ///
 /// The path hanging under each microphone is the cost, shown before the gesture rather
 /// than after it: the wood column carries two stations, the blue one carries one.
+///
+/// The scissors sits beside the wood player and only while that voice is sounding, which
+/// is what keeps the question at two answers. Listening decides nothing and puts both
+/// microphones out — so a target that exists only while a voice plays never shares the
+/// screen with the two exits, and the team is never looking at three. It is not on the
+/// cord below the player: that vertical means the cost of a path, and a cut is not a step
+/// towards choosing one. Its slot is held open whether or not it is filled, so nothing
+/// moves under a finger when the sound starts.
 class OndeMoraGrade extends StatelessWidget {
   final VoidCallback onOuvirMaterna;
   final VoidCallback onOuvirRetro;
@@ -36,6 +45,10 @@ class OndeMoraGrade extends StatelessWidget {
   /// has no way to explain itself in a room with no written word.
   final bool podeOuvirRetro;
 
+  /// Cut the stretch in two where the mother tongue is sounding, or null where there is
+  /// nothing to cut.
+  final VoidCallback? onCortar;
+
   const OndeMoraGrade({
     super.key,
     required this.onOuvirMaterna,
@@ -45,6 +58,7 @@ class OndeMoraGrade extends StatelessWidget {
     this.tocandoMaterna = false,
     this.tocandoRetro = false,
     this.podeOuvirRetro = true,
+    this.onCortar,
   });
 
   bool get _algoTocando => tocandoMaterna || tocandoRetro;
@@ -67,6 +81,7 @@ class OndeMoraGrade extends StatelessWidget {
             tocando: tocandoMaterna,
             inerte: _algoTocando,
             estacoesPenduradas: 1,
+            onCortar: onCortar,
           ),
           const SizedBox(width: 56),
           _Coluna(
@@ -97,6 +112,10 @@ class _Coluna extends StatelessWidget {
   final bool tocando;
   final bool inerte;
 
+  /// Cut what is sounding, on the voice that has a slice to cut. Null on the voice that
+  /// does not, and null while nothing is in the air.
+  final VoidCallback? onCortar;
+
   /// How many stations hang under this microphone beyond the one it opens. The wood voice
   /// costs a second one — telling the stretch back over the new recording — and that is
   /// the difference the team is being asked to weigh.
@@ -112,6 +131,7 @@ class _Coluna extends StatelessWidget {
     required this.tocando,
     required this.inerte,
     required this.estacoesPenduradas,
+    this.onCortar,
   });
 
   @override
@@ -119,12 +139,34 @@ class _Coluna extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _Player(
-          colors: colors,
-          gradiente: gradiente,
-          label: ouvirLabel,
-          onTap: inerte && !tocando ? null : onOuvir,
-          tocando: tocando,
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: _tesouraSlot,
+              child: onCortar == null
+                  ? null
+                  : _Alvo(
+                      size: _tesouraSlot,
+                      gradiente: gradiente,
+                      label: cortarTrechoLabel,
+                      onTap: onCortar,
+                      child: const Icon(
+                        LucideIcons.scissors,
+                        size: 18,
+                        color: ShemaBrand.branco,
+                      ),
+                    ),
+            ),
+            const SizedBox(width: 10),
+            _Player(
+              colors: colors,
+              gradiente: gradiente,
+              label: ouvirLabel,
+              onTap: inerte && !tocando ? null : onOuvir,
+              tocando: tocando,
+            ),
+          ],
         ),
         _Corda(colors: colors, altura: 14),
         _Alvo(
@@ -157,6 +199,8 @@ class _Coluna extends StatelessWidget {
     );
   }
 }
+
+const _tesouraSlot = 44.0;
 
 class _Corda extends StatelessWidget {
   final SalaColors colors;
