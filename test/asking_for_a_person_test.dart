@@ -111,7 +111,7 @@ void main() {
 
     await _stopForAPerson(notifier, read);
 
-    expect(harness.voice.assets, contains(fixedLineAsset(needsPersonLine)),
+    expect(harness.voice.assets, contains(fixedLineAsset(needsPersonLine, testLanguage)),
         reason: 'a equipe está numa sala física e precisa saber que deve ir '
             'buscar alguém; calar a linha até o servidor confirmar deixaria a '
             'sala muda justamente quando a rede está ruim');

@@ -52,5 +52,9 @@ flutter:
   uses-material-design: true
   assets:
     - .env
-    - assets/audio/
-    - assets/audio/fixed/
+    - assets/audio/pt/
+    - assets/audio/pt/fixed/
+    - assets/audio/en/
+    - assets/audio/en/fixed/
+    - assets/audio/es/
+    - assets/audio/es/fixed/

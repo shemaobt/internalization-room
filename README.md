@@ -32,8 +32,23 @@ Design doctrine applied: progress lives only in the colar; no numbers, percentag
 Thin-client Flutter app following [AGENTS.md](AGENTS.md): Riverpod state, feature-based clean architecture, self-documenting code.
 
 - `lib/features/sala/domain` — coverage counters, the fixed-line asset names, kept takes, hand replies, back-translation findings, session state machine types. The meaning map and the facilitator's script live on the backend; the app only renders what it is told.
-- `lib/features/sala/data` — `SalaSessionNotifier` (the session state machine), recording (mic capture via `record`), playback (`just_audio`, which also answers how long a file is without playing it — on a second player of its own, so measuring never disturbs the clip in the air), and `FacilitatorVoiceService`, which fetches the room's spoken lines from the backend, caches them under `voz/` (60 clips, oldest dropped) and plays the pre-approved fixed lines from `assets/audio/fixed/`.
+- `lib/features/sala/data` — `SalaSessionNotifier` (the session state machine), recording (mic capture via `record`), playback (`just_audio`, which also answers how long a file is without playing it — on a second player of its own, so measuring never disturbs the clip in the air), and `FacilitatorVoiceService`, which fetches the room's spoken lines from the backend, caches them under `voz/` (60 clips, oldest dropped) and plays the pre-approved fixed lines from `assets/audio/<lingua>/fixed/`.
 - `lib/features/sala/presentation` — one screen, one view per station, the colar overlay, and the facilitator circle with its voice states (invite / listening / thinking / speaking / done / needsPerson, plus team-talk mode).
+
+### The room's language
+
+The tablet decides. `roomLanguageProvider` reads the device's locale, narrows it to one of
+`languages` and falls back to English for anything else; the choice is read once per run and
+never again, because a team hearing the language change under them mid-passage is worse than
+either language. Nothing in the room is localized in the usual sense — there is no
+`localizationsDelegates` and there are no words on a team screen to localize. What the
+language decides is which bundle the fixed lines are played from, and which language the app
+asks the server for on `POST /sessions` and on the wheel, since everything the room says is
+made there.
+
+`codigo_view.dart` is the exception, and it is the same exception the CI gate already names:
+a facilitator reads it once, at installation, so it reads in the language they set the device
+to.
 
 ### Backend seams
 
