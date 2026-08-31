@@ -74,6 +74,9 @@ Future<ProviderContainer> _comDuasMetadesEsperando(SalaHarness harness) async {
   harness.playback.finishPlayback();
   await settle();
   await notifier.finishBackTranslation();
+  // The room no longer plays the pointed stretch at the team: which voice must
+  // speak again is theirs to say, so hearing it is a tap they choose to make.
+  notifier.ouvirVozMaterna();
   await until(() => container.read(salaSessionProvider).btTrechoTocando);
   harness.playback.at = const Duration(seconds: 8);
   await notifier.dividirTrecho();
@@ -209,6 +212,7 @@ void main() {
     harness.playback.finishPlayback();
     await settle();
     await notifier.finishBackTranslation();
+    notifier.ouvirVozMaterna();
     await until(() => container.read(salaSessionProvider).btTrechoTocando);
 
     notifier.retellChunk();

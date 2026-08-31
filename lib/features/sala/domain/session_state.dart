@@ -14,7 +14,20 @@ enum ConviteStep { boasVindas, panorama, entrada }
 
 enum EnsaioStatus { idle, ghostPlaying, recording, recorded }
 
-enum BtPhase { playing, capturing, thinking, findings, conferida }
+/// Where the telling-back is, step by step.
+///
+/// [gravandoMaterna] is the far half of the correction the team can choose once the
+/// analyst points at a stretch: the mother tongue re-recorded, which always implies
+/// telling that stretch again over it, in that order. Redoing only the telling needs no
+/// step of its own — it is the same capture the room already knows.
+enum BtPhase {
+  playing,
+  capturing,
+  thinking,
+  findings,
+  gravandoMaterna,
+  conferida,
+}
 
 /// One stretch the team told back: a slice of one rehearsal recording.
 ///
@@ -33,6 +46,10 @@ class Trecho {
   /// pointer, which is the answer a pointer naming nothing should get anyway.
   final String? segmentId;
   final String takeId;
+  /// The tablet's own copy of what the team said in Portuguese about this stretch, when
+  /// this tablet is the one that said it. Null on a session picked back up, where the
+  /// telling exists on the server and the file does not.
+  final String? retroPath;
   final int parte;
   final Duration from;
   final Duration to;
@@ -44,6 +61,7 @@ class Trecho {
   const Trecho({
     required this.segmentId,
     required this.takeId,
+    this.retroPath,
     required this.parte,
     required this.from,
     required this.to,
@@ -112,7 +130,11 @@ class SalaSessionState {
   final int aOferecer;
   final List<Trecho> btTrechos;
   final String? btFindingSegmentId;
+  /// Whether the mother-tongue slice of the pointed stretch is sounding.
   final bool btTrechoTocando;
+  /// Whether the telling in Portuguese is sounding. Its own flag, because the two voices
+  /// are two targets and the team compares them one against the other.
+  final bool btRetroTocando;
   final bool btClipEnded;
   final bool btParteFronteira;
 
@@ -164,6 +186,7 @@ class SalaSessionState {
     this.btTrechos = const [],
     this.btFindingSegmentId,
     this.btTrechoTocando = false,
+    this.btRetroTocando = false,
     this.btClipEnded = false,
     this.btParteFronteira = false,
     this.btClipRodando = false,
@@ -298,6 +321,7 @@ class SalaSessionState {
     String? btFindingSegmentId,
     bool clearFindingSegment = false,
     bool? btTrechoTocando,
+    bool? btRetroTocando,
     bool? btClipEnded,
     bool? btParteFronteira,
     bool? btClipRodando,
@@ -345,6 +369,7 @@ class SalaSessionState {
           ? null
           : (btFindingSegmentId ?? this.btFindingSegmentId),
       btTrechoTocando: btTrechoTocando ?? this.btTrechoTocando,
+      btRetroTocando: btRetroTocando ?? this.btRetroTocando,
       btClipEnded: btClipEnded ?? this.btClipEnded,
       btParteFronteira: btParteFronteira ?? this.btParteFronteira,
       btClipRodando: btClipRodando ?? this.btClipRodando,

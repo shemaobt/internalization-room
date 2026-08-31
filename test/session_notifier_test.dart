@@ -1544,7 +1544,11 @@ void main() {
     expect(trechos.map((t) => t.segmentId).toList(), ['trecho-1', 'trecho-2'],
         reason: 'o nome vem do servidor; derivá-lo da posição na lista '
             'desalinha assim que uma resposta se perde depois de persistir');
-    expect(harness.playback.ranges.last, '12000-30000');
+    notifier.ouvirVozMaterna();
+    await settle();
+    expect(harness.playback.ranges.last, '12000-30000',
+        reason: 'quem toca o trecho apontado é o toque da equipe no player de '
+            'madeira; a sala parou de tocá-lo por conta própria');
   });
 
   test('the retro ignores taps once it has asked for a person', () async {
@@ -2041,9 +2045,15 @@ void main() {
     await settle();
 
     expect(container.read(salaSessionProvider).btFindingSegmentId, 'trecho-2');
+    expect(harness.playback.ranges, isEmpty,
+        reason: 'a sala não toca o trecho na chegada: a pergunta é qual voz '
+            'precisa falar de novo, e ouvir é um gesto da equipe');
+
+    notifier.ouvirVozMaterna();
+    await settle();
+
     expect(harness.playback.ranges, ['12000-30000'],
-        reason: 'a sala leva a equipe ao trecho apontado em vez de recomeçar '
-            'a passagem inteira');
+        reason: 'e o trecho que ela ouve é o apontado, não a passagem inteira');
   });
 
   test('a take that ran out of tries is said out loud, once', () async {
@@ -2822,6 +2832,9 @@ void main() {
 
     harness.room.verdictFindingSegmentId = 'trecho-2';
     await notifier.finishBackTranslation();
+    await settle();
+
+    notifier.ouvirVozMaterna();
     await settle();
 
     expect(harness.playback.ranges, isNotEmpty);

@@ -1962,7 +1962,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// way to explain a refusal to a team that cannot read.
   Future<void> contarDeNovo(Trecho trecho) async {
     if (state.stage != SalaStage.retro) return;
-    if (state.btPhase != BtPhase.playing) return;
+    // Two doors reach the same verb: the cord, where a stretch is tapped while the
+    // rehearsal plays, and the question the room puts when the analyst points at one.
+    if (state.btPhase != BtPhase.playing && state.btPhase != BtPhase.findings) {
+      return;
+    }
     if (state.needsPerson || state.offline) return;
     if (state.btTrechoTocando) return;
     if (trecho.segmentId == null) return;
@@ -2063,6 +2067,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         unawaited(_finishChunkCapture());
       case BtPhase.findings:
         _leadThemToTheTrecho();
+      case BtPhase.gravandoMaterna:
+        _voltarAPergunta();
       case BtPhase.thinking:
       case BtPhase.conferida:
         break;
@@ -2185,6 +2191,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final trecho = Trecho(
       segmentId: null,
       takeId: gravacao,
+      retroPath: path,
       parte: _parteTocando,
       from: _trechoStart,
       to: _trechoEnd,
@@ -2255,7 +2262,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         btFindingSegmentId: verdict.findingSegmentId,
         clearFindingSegment: verdict.findingSegmentId == null,
       );
-      _leadThemToTheTrecho();
+      // The stretch is no longer played at the team. Which voice needs to speak again is
+      // theirs to say, and they say it by comparing the two — so hearing either one is a
+      // tap they choose to make, on the screen that asks the question.
     } on Exception catch (error) {
       if (epoch != _epoch) return;
       _handleRoomFailure(error);
@@ -2289,14 +2298,37 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final partes = state.partes;
     return [
       for (final segment in told)
-        Trecho(
-          segmentId: segment.segmentId,
-          takeId: segment.takeId,
-          parte: partes.indexWhere((parte) => parte.takeId == segment.takeId),
-          from: Duration(milliseconds: segment.startsMs),
-          to: Duration(milliseconds: segment.endsMs),
-          contado: segment.told,
-        ),
+        () {
+          final from = Duration(milliseconds: segment.startsMs);
+          final to = Duration(milliseconds: segment.endsMs);
+          // The room says what a stretch is called, where it sits and whether anyone has
+          // explained it; the tablet knows what it is holding. Taking the room's reading
+          // wholesale threw away the copy of the telling this tablet recorded, and the
+          // blue voice had nothing to play — in every session, not only in one picked
+          // back up.
+          //
+          // The two travel together or not at all: a stretch the room says is not told
+          // has no explanation to hold a file for. Its own recording was replaced, and
+          // the telling that belonged to the audio nobody will hear again does not carry
+          // over — the same rule the room keeps on its side.
+          final aqui = state.btTrechos.where(
+            (trecho) =>
+                trecho.takeId == segment.takeId &&
+                trecho.from == from &&
+                trecho.to == to,
+          );
+          final parte = partes.indexWhere((p) => p.takeId == segment.takeId);
+          return Trecho(
+            segmentId: segment.segmentId,
+            takeId: segment.takeId,
+            retroPath:
+                segment.told && aqui.isNotEmpty ? aqui.first.retroPath : null,
+            parte: parte >= 0 || aqui.isEmpty ? parte : aqui.first.parte,
+            from: from,
+            to: to,
+            contado: segment.told,
+          );
+        }(),
     ];
   }
 
@@ -2332,6 +2364,67 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       trecho.to,
     ));
     _watchPlayback(clipStillOpening: true);
+  }
+
+  /// Hear the team's own voice on the stretch the analyst pointed at.
+  ///
+  /// Free, and it decides nothing: the room used to read the kind of finding and pick the
+  /// correction itself, so the team never compared the two voices before the choice was
+  /// already made for them.
+  void ouvirVozMaterna() {
+    if (state.btPhase != BtPhase.findings) return;
+    if (state.btTrechoTocando || state.btRetroTocando) return;
+    _leadThemToTheTrecho();
+  }
+
+  /// Hear the telling in Portuguese — the voice that travels to the analyst.
+  void ouvirContarEmPortugues() {
+    if (state.btPhase != BtPhase.findings) return;
+    if (state.btTrechoTocando || state.btRetroTocando) return;
+    final path = state.btFindingTrecho?.retroPath;
+    if (path == null) return;
+    void quiet() {
+      state = state.copyWith(btRetroTocando: false);
+    }
+
+    state = state.copyWith(btRetroTocando: true);
+    _play(path, onComplete: quiet, onFailed: quiet);
+  }
+
+  /// The error was born in the recording: the mother tongue is re-recorded first, and the
+  /// telling of this stretch is redone over it afterwards. Always in that order — the
+  /// server refuses a new recording that arrives carrying an explanation.
+  void regravarAVozMaterna() {
+    if (state.btPhase != BtPhase.findings) return;
+    if (state.btFindingTrecho == null) return;
+    _holdClip();
+    state = state.copyWith(
+      btPhase: BtPhase.gravandoMaterna,
+      voice: VoiceState.invite,
+      btTrechoTocando: false,
+      btRetroTocando: false,
+    );
+  }
+
+  /// The team's own voice stands and only the telling slipped: the explanation is redone
+  /// over a recording that does not move.
+  void recontarEmPortugues() {
+    final trecho = state.btFindingTrecho;
+    if (state.btPhase != BtPhase.findings || trecho == null) return;
+    state = state.copyWith(btTrechoTocando: false, btRetroTocando: false);
+    unawaited(contarDeNovo(trecho));
+  }
+
+  /// Back to the question, from a step that cannot finish its work yet.
+  ///
+  /// Choosing which voice must speak again lands on a recording step whose call to the
+  /// room does not exist yet. Until it does, a team that chose could neither record nor
+  /// go back: the only way out was abandoning the whole passage.
+  void _voltarAPergunta() {
+    state = state.copyWith(
+      btPhase: BtPhase.findings,
+      voice: VoiceState.invite,
+    );
   }
 
   void retellChunk() {
