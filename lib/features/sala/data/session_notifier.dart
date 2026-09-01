@@ -2154,6 +2154,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _contandoDeNovo = null;
 
     if (path != null && !_hasAudio(path)) {
+      _recontando = false;
       state = state.copyWith(btPhase: BtPhase.playing);
       _haltForAPerson();
       return;

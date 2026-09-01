@@ -85,6 +85,50 @@ Future<ProviderContainer> _comDuasMetadesEsperando(SalaHarness harness) async {
 }
 
 void main() {
+  test('a retelling that came back empty does not follow the next stretch',
+      () async {
+    final harness = SalaHarness()..room.verdictChecked = false;
+    final container = await _inRetro(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await _contaTrecho(harness, notifier, em: const Duration(seconds: 20));
+    await until(() => harness.room.chunksSent == 1);
+    harness.room.verdictFindingSegmentId = harness.room.segments.last.segmentId;
+    harness.playback.finishPlayback();
+    await settle();
+    await notifier.finishBackTranslation();
+    await settle();
+
+    notifier.retellChunk();
+    await settle();
+    harness.playback.finishPlayback();
+    await settle();
+    harness.recorder.returnsEmpty = true;
+    notifier.cortarTrecho();
+    await settle();
+    notifier.retroTap();
+    await settle();
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'o trecho recontado voltou vazio, então a sala para para uma pessoa');
+
+    notifier.resolveWithPerson();
+    await settle();
+    harness.recorder.returnsEmpty = false;
+    harness.playback.at = const Duration(seconds: 40);
+    notifier.cortarTrecho();
+    await settle();
+    notifier.retroTap();
+    await until(() => harness.room.chunksSent == 2);
+
+    expect(harness.room.chunksSent, 2,
+        reason: 'o corte seguinte precisa mesmo chegar à sala, senão nada aqui é olhado');
+    expect(harness.room.retells, 0,
+        reason: 'a marca de recontar só é apagada por um trecho que chega, e sair por '
+            'cima dela deixava o corte seguinte subir como correção de um trecho que '
+            'ninguém estava contando');
+  });
+
   test('a mother-tongue take that came back empty does not replace the audio',
       () async {
     final harness = SalaHarness()..room.verdictChecked = false;
