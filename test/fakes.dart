@@ -111,6 +111,7 @@ class FakeRecorder implements RecordingRepository {
   final Directory home = Directory.systemTemp.createTempSync('sala-gravacoes');
   int captures = 0;
   bool returnsNothing = false;
+  bool returnsEmpty = false;
   final List<String> deleted = [];
   String? lastPath;
 
@@ -152,7 +153,7 @@ class FakeRecorder implements RecordingRepository {
     if (held != null) await held.future;
     if (returnsNothing) return null;
     final file = File('${home.path}/captura-$captures.m4a')
-      ..writeAsStringSync('a equipe falou');
+      ..writeAsStringSync(returnsEmpty ? '' : 'a equipe falou');
     return lastPath = file.path;
   }
 

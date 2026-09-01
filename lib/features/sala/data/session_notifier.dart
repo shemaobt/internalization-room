@@ -890,7 +890,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final path = await _recorder.stop();
     if (epoch != _epoch) return;
     final panorama = _panoramaSessionId;
-    if (path == null) {
+    if (path == null || !_hasAudio(path)) {
       state = state.copyWith(voice: VoiceState.invite);
       _haltForAPerson();
       return;
@@ -1280,12 +1280,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return DateTime.now().difference(since) >= ref.read(shortestSpeechProvider);
   }
 
+  bool _hasAudio(String path) =>
+      File(path).existsSync() && File(path).lengthSync() > 0;
+
   Future<void> _finishListening() async {
     final epoch = _epoch;
     final path = await _recorder.stop();
     if (epoch != _epoch) return;
     final sessionId = state.sessionId;
-    if (path == null) {
+    if (path == null || !_hasAudio(path)) {
       // The recorder handed nothing back after a turn the team just spoke. Reading that
       // as an ordinary return to the invite is the same silence `_finishTake` used to
       // keep, one method over.
@@ -1432,7 +1435,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final path = await _recorder.stop();
     if (epoch != _epoch) return;
     final sessionId = state.sessionId;
-    if (path == null || sessionId == null) {
+    if (path == null || !_hasAudio(path) || sessionId == null) {
       // The team raised their hand, spoke a question, and nothing came back from the
       // recorder. Returning to the invite in silence is the room forgetting they asked.
       state = state.copyWith(voice: VoiceState.invite, noteMode: false);
@@ -1547,7 +1550,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final epoch = _epoch;
     final path = await _recorder.stop();
     if (epoch != _epoch) return;
-    if (path == null) {
+    if (path == null || !_hasAudio(path)) {
       // Nothing came back. Offering keep, redo and listen over a take that does not exist
       // let a team confirm a rehearsal into nothing — the buttons vanished exactly as on a
       // good keep, no bead appeared, and the way to the retro never opened.
@@ -2150,6 +2153,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final contandoDeNovo = _contandoDeNovo;
     _contandoDeNovo = null;
 
+    if (path != null && !_hasAudio(path)) {
+      _recontando = false;
+      _trechoStart = _ondeParouNesteArquivo(_parteTocando);
+      state = state.copyWith(btPhase: BtPhase.playing);
+      _haltForAPerson();
+      return;
+    }
+
     if (path == null || sessionId == null) {
       state = state.copyWith(btPhase: BtPhase.playing, voice: VoiceState.invite);
       return;
@@ -2506,6 +2517,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     final alvo = state.btFindingTrecho;
     if (epoch != _epoch) return;
+    if (path != null && !_hasAudio(path)) {
+      _voltarAPergunta();
+      _haltForAPerson();
+      return;
+    }
+
     if (path == null || sessionId == null || alvo?.segmentId == null) {
       _voltarAPergunta();
       return;
