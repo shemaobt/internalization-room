@@ -400,6 +400,10 @@ class FakeRoom implements RoomRepository {
   Exception? failDivideWith;
   Exception? failReplaceWith;
   bool replaceCaptured = true;
+
+  /// Whether the room answers a correction by asking for a person. False is also what
+  /// a server that does not send the field at all looks like from here.
+  bool replaceNeedsPerson = false;
   /// Which stretch each retelling named, and the slice it sent, in order.
   final List<String> replacesAsked = [];
   /// Which stretches arrived as a new mother-tongue recording — a replacement carrying no
@@ -566,7 +570,11 @@ class FakeRoom implements RoomRepository {
     );
     if (audio == null) replacesSemArquivo.add(segmentId);
     if (!replaceCaptured) {
-      return TellingAgain(segments: List.of(segments), captured: false);
+      return TellingAgain(
+        segments: List.of(segments),
+        captured: false,
+        needsPerson: replaceNeedsPerson,
+      );
     }
     final at = segments.indexWhere((one) => one.segmentId == segmentId);
     if (at >= 0) {
@@ -588,7 +596,11 @@ class FakeRoom implements RoomRepository {
         told: audio != null,
       );
     }
-    return TellingAgain(segments: List.of(segments), captured: true);
+    return TellingAgain(
+      segments: List.of(segments),
+      captured: true,
+      needsPerson: replaceNeedsPerson,
+    );
   }
 
   @override

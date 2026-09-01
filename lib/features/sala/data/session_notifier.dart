@@ -2074,6 +2074,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         voice: VoiceState.invite,
         btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
       );
+      if (told.needsPerson) _haltForAPerson();
       return;
     }
 
@@ -2094,6 +2095,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btTrechos: trechos.isEmpty ? state.btTrechos : trechos,
       btChunkPasses: [for (final segment in told.segments) segment.passNumber],
     );
+    // The budget for retellings runs out on this route too, and the room says so in the
+    // same breath as the answer. It used to be read only off telling a stretch, so a team
+    // that hit the ceiling by correcting one saw nothing at all: the room had stopped
+    // taking their work and they went on making more of it.
+    //
+    // Said after the answer is in, never instead of it. Losing what became of the
+    // recording they just made, at the very moment the room stops, would be worse than
+    // the silence this fixes.
+    if (told.needsPerson) _haltForAPerson();
   }
 
   void proximaParte() {
@@ -2564,6 +2574,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btTrechos: trechos,
       btFindingSegmentId: agora!.segmentId,
     );
+    // Correcting the mother tongue is two steps over the same route, and the room can give
+    // out on either. Read only on the second, the news would arrive after this step had
+    // already opened the microphone for a telling the room would not take.
+    if (trocado.needsPerson) {
+      _haltForAPerson();
+      return;
+    }
     await contarDeNovo(agora);
   }
 

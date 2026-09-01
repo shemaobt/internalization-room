@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/onde_mora_grade.dart';
 import 'package:internalization_room/main.dart';
@@ -84,6 +85,33 @@ Future<void> _pumpGrade(WidgetTester tester, {required bool podeOuvirRetro}) =>
         ),
       ),
     ));
+
+
+/// Redo the telling of the pointed stretch, and let the capture finish. One step.
+Future<void> corrigirOContar(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  await tester.tap(byLabel(micRetro));
+  await tester.pump(const Duration(milliseconds: 300));
+  notifier(container).retroTap();
+  await tester.pump(const Duration(milliseconds: 800));
+}
+
+/// Re-record the mother tongue — the first of the two steps that correction takes. The
+/// room is asked to replace the stretch here too, so it can refuse here too.
+Future<void> regravarAMaterna(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  await tester.tap(byLabel(micMaterna));
+  await tester.pump(const Duration(milliseconds: 300));
+  notifier(container).retroTap();
+  await tester.pump(const Duration(milliseconds: 200));
+  notifier(container).retroTap();
+  await letTheRehearsalReachTheRoom(tester);
+  await tester.pump(const Duration(milliseconds: 400));
+}
 
 void main() {
   testWidgets('the blue player is dark when the tablet holds no telling',
@@ -254,6 +282,95 @@ void main() {
               'única coisa que ele ainda governa');
     });
   }
+
+
+  testWidgets('a correction that runs the room out reaches the team',
+      (tester) async {
+    final container = await pumpToPergunta(tester);
+    harnessDaVez!.room.replaceNeedsPerson = true;
+
+    await corrigirOContar(tester, container);
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'a sala parou de aceitar e a equipe não vê nada: continua '
+            'tentando corrigir numa sala que já desistiu, e ninguém chama a '
+            'pessoa que poderia destravá-la');
+    expect(harnessDaVez!.room.personsAsked, 1,
+        reason: 'e o facilitador precisa ser chamado, senão a equipe fica '
+            'parada esperando alguém que não foi avisado');
+  });
+
+  testWidgets('the answer to that correction is not lost with the warning',
+      (tester) async {
+    final container = await pumpToPergunta(tester);
+    harnessDaVez!.room.replaceNeedsPerson = true;
+
+    await corrigirOContar(tester, container);
+
+    expect(
+      container.read(salaSessionProvider).btTrechos.map((t) => t.segmentId),
+      ['trecho-1-v1', 'trecho-2'],
+      reason: 'perder a resposta junto com o aviso seria pior que o problema: '
+          'a equipe ficaria sem saber o que aconteceu com a gravação que '
+          'acabou de fazer, justamente quando a sala parou',
+    );
+  });
+
+  testWidgets('an ordinary correction changes nothing', (tester) async {
+    final container = await pumpToPergunta(tester);
+
+    await corrigirOContar(tester, container);
+
+    expect(container.read(salaSessionProvider).needsPerson, isFalse,
+        reason: 'ler um campo novo não pode mandar para uma pessoa quem só '
+            'corrigiu um trecho como sempre se corrigiu');
+    expect(harnessDaVez!.room.personsAsked, 0);
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.playing,
+        reason: 'e a correção comum termina onde sempre terminou');
+  });
+
+  testWidgets('a room that sends no such field sends nobody for a person',
+      (tester) async {
+    final container = await pumpToPergunta(tester);
+
+    // Nothing is switched on: this is the server that is in production today, which does
+    // not carry the field at all.
+    await corrigirOContar(tester, container);
+
+    expect(container.read(salaSessionProvider).needsPerson, isFalse,
+        reason: 'o campo só passa a existir quando a ENG-685 for mesclada, e '
+            'até lá toda resposta real chega sem ele — tratar essa ausência '
+            'como aviso pararia a sala contra o servidor que está no ar');
+    expect(harnessDaVez!.room.personsAsked, 0);
+  });
+
+  test('a correction answer with no such field asks for nobody', () {
+    expect(TellingAgain.fromJson(const {'captured': true}).needsPerson, isFalse,
+        reason: 'a ausência atravessa a leitura da resposta, não só o dublê: '
+            'é aqui que um "sem notícia" viraria "pare tudo"');
+    expect(
+        TellingAgain.fromJson(const {'captured': true, 'needs_person': true})
+            .needsPerson,
+        isTrue,
+        reason: 'e o controle positivo, para um campo que fosse lido do nome '
+            'errado passar despercebido');
+  });
+
+  testWidgets('the room can run out on the first of the two mother-tongue steps',
+      (tester) async {
+    final container = await pumpToPergunta(tester);
+    harnessDaVez!.room.replaceNeedsPerson = true;
+
+    await regravarAMaterna(tester, container);
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'a voz materna é substituída por uma chamada à mesma rota, e '
+            'a sala pode desistir já nela: um aviso lido só no segundo passo '
+            'abriria o microfone do contar numa sala que já parou');
+    expect(container.read(salaSessionProvider).btPhase,
+        isNot(BtPhase.capturing),
+        reason: 'e ninguém é mandado contar depois disso');
+  });
 
   testWidgets('the pointed stretch is told apart from the others',
       (tester) async {
