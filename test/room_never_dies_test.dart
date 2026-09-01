@@ -779,6 +779,27 @@ void main() {
     expect(state.noteMode, isFalse);
   });
 
+  test('a question recorded into nothing is not sent, and is not forgotten', () async {
+    final harness = SalaHarness();
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.handTap();
+    await settle();
+    harness.recorder.returnsEmpty = true;
+    notifier.conversaTap();
+    await settle();
+
+    expect(harness.inbox.questionsSent, isEmpty,
+        reason: 'a pergunta sem um byte dentro entrava na caixa e ficava esperando '
+            'resposta de um facilitador que não tinha o que ouvir');
+    final state = container.read(salaSessionProvider);
+    expect(state.needsPerson, isTrue,
+        reason: 'levantar a mão e perguntar no vazio não pode voltar ao convite calado');
+    expect(state.noteMode, isFalse);
+  });
+
   test('the next passage does not inherit the last one\'s retell', () async {
     final harness = SalaHarness();
     harness.room.verdictChecked = false;

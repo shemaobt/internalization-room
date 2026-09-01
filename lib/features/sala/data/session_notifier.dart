@@ -1435,7 +1435,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final path = await _recorder.stop();
     if (epoch != _epoch) return;
     final sessionId = state.sessionId;
-    if (path == null || sessionId == null) {
+    if (path == null || !_hasAudio(path) || sessionId == null) {
       // The team raised their hand, spoke a question, and nothing came back from the
       // recorder. Returning to the invite in silence is the room forgetting they asked.
       state = state.copyWith(voice: VoiceState.invite, noteMode: false);
