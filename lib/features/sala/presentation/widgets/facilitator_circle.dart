@@ -15,6 +15,16 @@ class FacilitatorCircle extends StatelessWidget {
   final bool noteMode;
   final bool peerCue;
   final bool beckon;
+
+  /// Whether the open microphone is taking down the team's own tongue.
+  ///
+  /// Correcting a stretch can cost two recordings in a row — the mother tongue first, the
+  /// telling of it in the bridge language after — and both are the same
+  /// `VoiceState.listening`. Blue belongs to the telling, the voice that travels to the
+  /// analyst; the team's own voice is wood, the colour their recordings already wear on
+  /// the cord. Read while listening and nowhere else: which tongue is being taken down
+  /// says nothing about a room that is thinking, waiting or done.
+  final bool motherTongue;
   final double opacity;
   final Widget? child;
   final String semanticLabel;
@@ -29,6 +39,7 @@ class FacilitatorCircle extends StatelessWidget {
     required this.semanticLabel,
     this.noteMode = false,
     this.peerCue = false,
+    this.motherTongue = false,
     this.beckon = false,
     this.opacity = 1,
     this.child,
@@ -142,10 +153,11 @@ class FacilitatorCircle extends StatelessWidget {
         );
       case VoiceState.listening:
         return _disc(
-          gradient: BeadStyles.azul,
+          gradient: motherTongue ? BeadStyles.wood : BeadStyles.azul,
           shadows: [
             BoxShadow(
-              color: ShemaBrand.azulLo.withValues(alpha: 0.3),
+              color: (motherTongue ? ShemaBrand.woodLo : ShemaBrand.azulLo)
+                  .withValues(alpha: 0.3),
               offset: const Offset(0, 10),
               blurRadius: 30,
             ),
@@ -288,7 +300,8 @@ class FacilitatorCircle extends StatelessWidget {
   }
 
   Widget _listenRing(SalaColors colors) {
-    const ringColor = ShemaBrand.azulInk;
+    final ringColor = motherTongue ? ShemaBrand.woodLo : ShemaBrand.azulInk;
+    final halo = motherTongue ? ShemaBrand.wood : ShemaBrand.azul;
     return Loop(
       period: const Duration(milliseconds: 1600),
       builder: (context, t) => Container(
@@ -299,7 +312,7 @@ class FacilitatorCircle extends StatelessWidget {
           border: Border.all(color: ringColor, width: 3),
           boxShadow: [
             BoxShadow(
-              color: ShemaBrand.azul.withValues(alpha: 0.5 * (1 - t)),
+              color: halo.withValues(alpha: 0.5 * (1 - t)),
               spreadRadius: 4 + 12 * t,
             ),
           ],
@@ -309,6 +322,7 @@ class FacilitatorCircle extends StatelessWidget {
   }
 
   List<Widget> _gatheringIn() {
+    final ringColor = motherTongue ? ShemaBrand.woodLo : ShemaBrand.azulInk;
     Widget ring(double phase) => Ripple(
           period: const Duration(milliseconds: 1900),
           phase: phase,
@@ -320,7 +334,7 @@ class FacilitatorCircle extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: ShemaBrand.azulInk.withValues(alpha: 0.55 * t),
+                  color: ringColor.withValues(alpha: 0.55 * t),
                   width: 2.5,
                 ),
               ),
