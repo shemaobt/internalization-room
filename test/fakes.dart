@@ -185,6 +185,39 @@ class FakePlayback implements PlaybackRepository {
   final List<String> ranges = [];
   Completer<void>? _playing;
   Completer<void>? _opening;
+  Timer? _walking;
+  Duration _step = Duration.zero;
+
+  /// Let the position walk on its own, the way a real player's does.
+  ///
+  /// Opt-in, because the position is otherwise a number the test writes by hand. A double
+  /// that only ever walked forward would lie about the two states that matter as much as
+  /// playing: the position stands still on a pause, a stop or the end of the clip, and it
+  /// stops at the clip's own length instead of running past it.
+  void walkWhilePlaying({Duration step = const Duration(milliseconds: 100)}) {
+    _step = step;
+    if (_playing != null) _startWalking();
+  }
+
+  void stopWalking() {
+    _walking?.cancel();
+    _walking = null;
+  }
+
+  void _startWalking() {
+    stopWalking();
+    if (_step == Duration.zero) return;
+    _walking = Timer.periodic(_step, (_) {
+      final fim = length;
+      final proximo = at + _step;
+      if (fim != null && proximo >= fim) {
+        at = fim;
+        stopWalking();
+        return;
+      }
+      at = proximo;
+    });
+  }
 
   /// Hold the source load, the way an old tablet with a long take does.
   void holdNextOpening() => _opening = Completer<void>();
@@ -243,7 +276,10 @@ class FakePlayback implements PlaybackRepository {
   }
 
   @override
-  Future<void> resume() async => paused = false;
+  Future<void> resume() async {
+    paused = false;
+    if (_playing != null) _startWalking();
+  }
 
   @override
   Future<void> stop() async => _stopSounding();
@@ -267,11 +303,13 @@ class FakePlayback implements PlaybackRepository {
       await held?.future;
       at = Duration.zero;
       _openings.add(null);
+      if (_playing == playing) _startWalking();
     });
     return playing.future;
   }
 
   void _stopSounding() {
+    stopWalking();
     final playing = _playing;
     _playing = null;
     playing?.complete();
@@ -279,6 +317,7 @@ class FakePlayback implements PlaybackRepository {
 
   @override
   Future<void> dispose() async {
+    stopWalking();
     await _completions.close();
     await _openings.close();
   }

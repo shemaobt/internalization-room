@@ -1825,6 +1825,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       Duration(milliseconds: _inicioDaParteMs(_parteTocando)) +
       _playback.position;
 
+  /// How far into the whole rehearsal the sound in the air has got, asked for right now.
+  ///
+  /// Asked many times a second by the cord while a part plays. It is a question, not a
+  /// piece of state, on purpose: an answer written into [SalaSessionState] would rebuild
+  /// everything that watches the session at that rate.
+  int get ouvidoAgoraMs => _posicaoGlobal.inMilliseconds;
+
   void _seguirOClipe() {
     _desdeMs = _posicaoGlobal.inMilliseconds;
     state = state.copyWith(btClipRodando: true);
