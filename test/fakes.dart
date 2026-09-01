@@ -418,9 +418,18 @@ class FakeRoom implements RoomRepository {
   /// than build it up by telling stretches back.
   BackTranslationProgress? retroSoFar;
   String? verdictFindingSegmentId;
+
+  /// Which place on the cord the analyst points at, when it points by place instead of by
+  /// name. Read at the moment the verdict is built, which is the only way to say "the same
+  /// stretch again": mending retires a name and mints a new one, so a test that wanted to
+  /// reprove what the team just corrected could only name it by guessing the double's
+  /// versioning scheme.
+  int? verdictFindingPlace;
+
   /// Which stretch the room says was recorded and never told back, when that is what
   /// stopped the reading. Its own field, as on the wire: a finding and an untold stretch
-  /// are never named in the same answer.
+  /// are never named in the same answer — and neither is the place above, which addresses
+  /// a stretch the team told.
   String? verdictUntoldSegmentId;
   BtFindingKind? verdictFinding;
   String? serverStatus;
@@ -725,6 +734,14 @@ class FakeRoom implements RoomRepository {
     );
   }
 
+  String? _oQueOAnalistaAponta() {
+    final place = verdictFindingPlace;
+    if (place == null) return verdictFindingSegmentId;
+    return place >= 0 && place < segments.length
+        ? segments[place].segmentId
+        : null;
+  }
+
   @override
   Future<BackTranslationVerdict> finishBackTranslation(
     String sessionId, {
@@ -739,7 +756,7 @@ class FakeRoom implements RoomRepository {
       fixedLine: '',
       checked: verdictChecked,
       findingKind: verdictFinding,
-      findingSegmentId: verdictFindingSegmentId,
+      findingSegmentId: _oQueOAnalistaAponta(),
       untoldSegmentId: verdictUntoldSegmentId,
       findingsRemaining: verdictFinding == null ? 0 : 1,
       usedFailSafe: false,

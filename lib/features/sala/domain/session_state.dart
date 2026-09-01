@@ -130,6 +130,16 @@ class SalaSessionState {
   final int aOferecer;
   final List<Trecho> btTrechos;
   final String? btFindingSegmentId;
+
+  /// Whether the team is mending the stretch the finding points at.
+  ///
+  /// Its own flag rather than a reading of the phase. The pointer is the room's working
+  /// name for that stretch and every station of the correction reads it, so it has to
+  /// stand through the whole mend; and the phase a failed mend lands on is `playing`, the
+  /// same one a delivered mend lands on. Neither answers the question the cord asks —
+  /// whether that stretch is still waiting for the team to do something about it.
+  final bool btConsertando;
+
   /// Whether the mother-tongue slice of the pointed stretch is sounding.
   final bool btTrechoTocando;
   /// Whether the telling in Portuguese is sounding. Its own flag, because the two voices
@@ -185,6 +195,7 @@ class SalaSessionState {
     this.aOferecer = 0,
     this.btTrechos = const [],
     this.btFindingSegmentId,
+    this.btConsertando = false,
     this.btTrechoTocando = false,
     this.btRetroTocando = false,
     this.btClipEnded = false,
@@ -287,6 +298,17 @@ class SalaSessionState {
     return null;
   }
 
+  /// The stretch the cord draws drained, or null while no stretch is waiting.
+  ///
+  /// An empty band means *this is the one waiting to be mended*, and the team stops it
+  /// waiting by starting the mend — not by finishing it. Reading the pointer straight left
+  /// the band empty through the choosing, the recording and the upload, so the cord said
+  /// nothing had been done while the team was doing it.
+  ///
+  /// The rule lives here and not on the screen, which is the same reason [btFindingTrecho]
+  /// gives for itself.
+  String? get btEsperandoConserto => btConsertando ? null : btFindingSegmentId;
+
   List<KeptTake> get partes => keptTakes;
 
   bool get canGhostPlay => partes.isNotEmpty && ensaio == EnsaioStatus.idle;
@@ -327,6 +349,7 @@ class SalaSessionState {
     List<Trecho>? btTrechos,
     String? btFindingSegmentId,
     bool clearFindingSegment = false,
+    bool? btConsertando,
     bool? btTrechoTocando,
     bool? btRetroTocando,
     bool? btClipEnded,
@@ -375,6 +398,7 @@ class SalaSessionState {
       btFindingSegmentId: clearFindingSegment
           ? null
           : (btFindingSegmentId ?? this.btFindingSegmentId),
+      btConsertando: btConsertando ?? this.btConsertando,
       btTrechoTocando: btTrechoTocando ?? this.btTrechoTocando,
       btRetroTocando: btRetroTocando ?? this.btRetroTocando,
       btClipEnded: btClipEnded ?? this.btClipEnded,
