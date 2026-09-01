@@ -22,8 +22,16 @@ const cortarTrechoLabel = 'Cortar este trecho em dois, aqui';
 /// than after it: the wood column carries two stations, the blue one carries one. What
 /// hangs under a player hangs under *that* player: the scissors' slot widens the row the
 /// player is in, so everything below it carries the same slot rather than centring on a
-/// row it is not part of, which pulled the cord and the microphone 27px off their own
-/// column — on the blue one too, where the slot is always empty.
+/// row it is not part of — on the blue one too, where the slot is always empty.
+///
+/// That reserved slot sits on the left edge of a column and nowhere else, and counting it
+/// as width while it stands empty is what tilted the whole block: the two players, which
+/// are the only thing the eye reads as the question, sat right of the middle of the space
+/// the block was centred in. So the block mirrors the same reserve on its right edge. The
+/// mirror holds nothing and never will; it is there so the reserved emptiness is spent
+/// evenly on both sides and the question meets the team on the axis of the screen, which
+/// is what lets it read as a question between two voices of equal weight rather than one
+/// already leaning towards an answer.
 ///
 /// The scissors sits beside the wood player and only while that voice is sounding, which
 /// is what keeps the question at two answers. Listening decides nothing and puts both
@@ -99,6 +107,7 @@ class OndeMoraGrade extends StatelessWidget {
             inerte: _algoTocando,
             estacoesPenduradas: 0,
           ),
+          const SizedBox(width: _tesouraSlot + _tesouraFolga),
         ],
       ),
     );

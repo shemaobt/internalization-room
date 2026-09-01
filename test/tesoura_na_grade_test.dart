@@ -104,6 +104,38 @@ void main() {
     }
   });
 
+  testWidgets('the grid sits centred on the screen, scissors in the air or not',
+      (tester) async {
+    for (final tocando in [false, true]) {
+      await pumpGradeSozinha(tester, tocandoMaterna: tocando);
+
+      final centroDaTela = tester.getCenter(find.byType(Scaffold)).dx;
+      final madeira = tester.getCenter(byLabel(ouvirMaterna)).dx;
+      final azul = tester.getCenter(byLabel(ouvirRetro)).dx;
+
+      expect(centroDaTela - madeira, closeTo(azul - centroDaTela, 1),
+          reason: 'a pergunta é entre duas vozes de igual peso, e uma pergunta '
+              'que chega encostada num lado da tela já responde a si mesma — '
+              'com o som ${tocando ? "no ar" : "parado"}');
+    }
+  });
+
+  testWidgets('nothing moves when the sound goes into the air', (tester) async {
+    await pumpGradeSozinha(tester, tocandoMaterna: false);
+    final maternaParada = tester.getCenter(byLabel(ouvirMaterna)).dx;
+    final retroParada = tester.getCenter(byLabel(ouvirRetro)).dx;
+
+    await pumpGradeSozinha(tester, tocandoMaterna: true);
+
+    expect(tester.getCenter(byLabel(ouvirMaterna)).dx, closeTo(maternaParada, 1),
+        reason: 'a tesoura nasce ao lado deste tocador quando a voz materna '
+            'entra no ar, e se ele escorregar nesse instante o dedo da equipe '
+            'já está a caminho do lugar antigo');
+    expect(tester.getCenter(byLabel(ouvirRetro)).dx, closeTo(retroParada, 1),
+        reason: 'e a coluna azul não tem nada a ver com a tesoura: ela mudar '
+            'de lugar seria a tela inteira saltando por causa da outra voz');
+  });
+
   testWidgets('the team can divide a stretch they are hearing back',
       (tester) async {
     await pumpToPergunta(tester);
