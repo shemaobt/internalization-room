@@ -546,6 +546,44 @@ void main() {
             'resultado como a fatia anterior a deixou');
   });
 
+  testWidgets('the call for a person outlives a verdict the network ate',
+      (tester) async {
+    final container = await pumpToPergunta(tester);
+    final harness = harnessDaVez!;
+    harness.room.replaceNeedsPerson = true;
+    harness.room.failFinishWith = const RoomUnavailable('sem rede');
+
+    await recontarAExplicacao(tester, container);
+
+    expect(harness.room.personsAsked, 1,
+        reason: 'a sala disse que parou de aceitar, e a rede caiu no pedido do '
+            'veredito que vem logo depois: se o aviso morre junto com o '
+            'veredito, ninguém é chamado para a sala que parou');
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'e a equipe tem de ver a sala parada, senão é convidada de '
+            'volta a contar trechos numa sala que não os aceita mais — a '
+            'notícia não podia depender de o veredito ter chegado');
+  });
+
+  testWidgets('a passage the team walked out of calls nobody', (tester) async {
+    final container = await pumpToPergunta(tester);
+    final harness = harnessDaVez!;
+    harness.room.replaceNeedsPerson = true;
+    harness.room.duranteOVeredito =
+        () => notifier(container).leaveThePassage();
+
+    await recontarAExplicacao(tester, container);
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(harness.room.personsAsked, 0,
+        reason: 'a equipe saiu da passagem enquanto o veredito estava no ar: '
+            'chamar um facilitador agora o manda para um tablet que já está '
+            'escolhendo outra passagem, e a fila não distingue esse chamado '
+            'de um pedido de verdade');
+    expect(container.read(salaSessionProvider).needsPerson, isFalse,
+        reason: 'e a sala que ela acabou de deixar não pode parar a próxima');
+  });
+
   testWidgets('the pointed stretch is told apart from the others',
       (tester) async {
     await pumpToPergunta(tester);

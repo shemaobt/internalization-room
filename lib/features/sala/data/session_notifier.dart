@@ -2133,7 +2133,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // Nothing had to be unlocked for this: the mark that the recording ended survives a
     // correction, so the ask is allowed the moment it is made.
     await finishBackTranslation();
-    if (epoch != _epoch) return;
+    // Not the epoch. The epoch moves whenever `_cancelTimers` runs, and going offline is
+    // the commonest way that happens — so a hiccup on the verdict request above bumped it
+    // and swallowed the news, and the team was invited back to tell stretches into a room
+    // that had stopped taking them. Losing the network is exactly the moment the room
+    // being spent still matters, so it cannot be the moment the news is dropped.
+    //
+    // Only the notifier being gone is read, because that is the only thing left that must
+    // stop this. A team who walked out of the passage is already covered twice over: the
+    // gesture empties the session, and the call for a person is only ever made when there
+    // is a session to make it about.
+    if (_gone) return;
     // The budget for retellings runs out on this route too, and the room says so in the
     // same breath as the answer. It used to be read only off telling a stretch, so a team
     // that hit the ceiling by correcting one saw nothing at all: the room had stopped

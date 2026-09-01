@@ -400,6 +400,14 @@ class FakeRoom implements RoomRepository {
   Exception? failRestartWith;
   Exception? failDivideWith;
   Exception? failReplaceWith;
+
+  /// What the ask for a verdict throws, when it is set. The one knob that lets a test put
+  /// a failure between a correction the room answered and the answer reaching the team.
+  Exception? failFinishWith;
+
+  /// Run while the ask for a verdict is still in the air. The seam for a test that needs
+  /// the team to do something — leave the passage, say — during that wait.
+  void Function()? duranteOVeredito;
   bool replaceCaptured = true;
 
   /// Whether the room answers a correction by asking for a person. False is also what
@@ -760,6 +768,9 @@ class FakeRoom implements RoomRepository {
     int? clipDurationMs,
     List<List<int>> playedRanges = const [],
   }) async {
+    duranteOVeredito?.call();
+    final refusal = failFinishWith;
+    if (refusal != null) throw refusal;
     clipDurationsSent.add(clipDurationMs);
     playedRangesSent.add(playedRanges);
     _guard('finishBackTranslation');
