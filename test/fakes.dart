@@ -30,6 +30,8 @@ import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
 const totalBeads = 12;
 
+const testLanguage = 'pt';
+
 Coverage coverage({int engaged = 0, int surfaced = 0}) => Coverage(
       engaged: engaged,
       surfaced: surfaced,
@@ -363,6 +365,8 @@ class FakeRoom implements RoomRepository {
   final List<String> calls = [];
   final List<String?> pericopesAsked = [];
   final List<String?> bridgeModesSent = [];
+  final List<String> languagesSent = [];
+  final List<String> languagesAsked = [];
   final List<int?> clipDurationsSent = [];
   final List<List<List<int>>> playedRangesSent = [];
   final List<bool> metBefore = [];
@@ -499,12 +503,14 @@ class FakeRoom implements RoomRepository {
     String? pericope,
     String? afterSession,
     String? bridgeMode,
+    required String language,
   }) async {
     _guard('createSession');
     if (pericope != null && pericope == shutsThePassage) throw const PassageShut();
     pericopesAsked.add(pericope);
     metBefore.add(afterSession != null);
     bridgeModesSent.add(bridgeMode);
+    languagesSent.add(language);
     return SessionSnapshot(
       sessionId: 'sessao-1',
       pericope: pericope ?? 'rute-1',
@@ -515,9 +521,10 @@ class FakeRoom implements RoomRepository {
   }
 
   @override
-  Future<List<Passagem>> passagesOf(String book) async {
+  Future<List<Passagem>> passagesOf(String book, {required String language}) async {
     _guard('passagesOf');
     booksAsked.add(book);
+    languagesAsked.add(language);
     return passages;
   }
 
@@ -939,6 +946,8 @@ class SalaHarness {
   /// tests, whose binding never lets the real queue's IO finish.
   final bool filaEmMemoria;
 
+  final String? lingua;
+
   SalaHarness({
     this.voiceService,
     List<HandReply> replies = const [],
@@ -956,6 +965,7 @@ class SalaHarness {
     this.shortestSpeech = Duration.zero,
     this.fimLinger = const Duration(seconds: 30),
     this.filaEmMemoria = false,
+    this.lingua = testLanguage,
   })  : inbox = FakeInbox(replies: replies),
         vinculo = FakeLinkedTeam(remembered: linkedAs);
 
@@ -990,6 +1000,7 @@ class SalaHarness {
         clipGraceProvider.overrideWithValue(clipGrace),
         shortestSpeechProvider.overrideWithValue(shortestSpeech),
         fimLingerProvider.overrideWithValue(fimLinger),
+        if (lingua != null) roomLanguageProvider.overrideWithValue(lingua!),
       ];
 
   ProviderContainer container() => ProviderContainer(overrides: overrides);

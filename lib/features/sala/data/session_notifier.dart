@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/env.dart';
@@ -73,6 +73,33 @@ final playbackCeilingProvider = Provider<Duration?>(
 /// The book the room is serving. One string, in one place, so another book is a config
 /// change rather than a code change — the catalogue route takes it as a parameter.
 final bookProvider = Provider<String>((ref) => 'Ruth');
+
+final devLanguageProvider =
+    NotifierProvider<DevLanguage, String?>(DevLanguage.new);
+
+class DevLanguage extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void choose(String language) {
+    if (!Env.devPularFases) return;
+    if (!languages.contains(language)) return;
+    state = language;
+  }
+
+  String next(String current) =>
+      languages[(languages.indexOf(current) + 1) % languages.length];
+}
+
+final roomLanguageProvider = Provider<String>((ref) {
+  final chosen = ref.watch(devLanguageProvider);
+  if (chosen != null) return chosen;
+  return languageFor(
+    WidgetsBinding.instance.platformDispatcher.locales.map(
+      (locale) => locale.languageCode,
+    ),
+  );
+});
 
 final beckonIntervalProvider = Provider<Duration?>(
   (ref) => const Duration(seconds: 25),
@@ -159,6 +186,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   String get _book => ref.read(bookProvider);
 
+  String get _lingua => ref.read(roomLanguageProvider);
+
   /// The room is gone and its providers with it.
   ///
   /// Half this class is fire-and-forget: `_guard` queues a take and counts what is left
@@ -181,6 +210,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     });
     return const SalaSessionState();
   }
+
+  void sayTheMicIsBlocked() =>
+      unawaited(_voice.playAsset(micBlockedAsset(_lingua)));
 
   void _after(String key, Duration delay, VoidCallback fn) {
     _timers[key]?.cancel();
@@ -314,7 +346,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final epoch = _epoch;
     final played = fixedLine.isEmpty
         ? await _voice.play(url)
-        : await _voice.playAsset(fixedLineAsset(fixedLine));
+        : await _voice.playAsset(fixedLineAsset(fixedLine, _lingua));
     if (played && remember && epoch == _epoch) {
       state = state.copyWith(
         lastSpoken: SpokenLine(
@@ -464,7 +496,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _haltForAPerson({bool sessionIsGone = false}) {
     _leaveThinking();
     if (!state.needsPerson) {
-      unawaited(_voice.playAsset(fixedLineAsset(needsPersonLine)));
+      unawaited(_voice.playAsset(fixedLineAsset(needsPersonLine, _lingua)));
     }
     state = state.copyWith(
       voice: VoiceState.needsPerson,
@@ -589,7 +621,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     if (!_noticeSpoken) {
       _noticeSpoken = true;
-      unawaited(_voice.playAsset(offlineNoticeAsset));
+      unawaited(_voice.playAsset(offlineNoticeAsset(_lingua)));
     }
     _watchForNetwork();
     _scheduleRetry();
@@ -745,7 +777,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.stage != SalaStage.convite) return;
     if (state.conviteStep != ConviteStep.boasVindas) return;
     if (_conviteOpened || state.offline || state.needsPerson) return;
-    unawaited(_voice.playAsset(inviteToStartAsset));
+    unawaited(_voice.playAsset(inviteToStartAsset(_lingua)));
     final again = ref.read(beckonIntervalProvider);
     if (again != null) _after('beckon', again, beckon);
   }
@@ -770,7 +802,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // used to mint another session for the same book — the server collected one
       // abandoned panorama per attempt. One launch asks for one panorama.
       final panorama = _panoramaSessionId ??
-          (await _room.createSession(pericope: panoramaPericope)).sessionId;
+          (await _room.createSession(
+                  pericope: panoramaPericope,
+                  language: _lingua,
+                ))
+              .sessionId;
       if (epoch != _epoch) return;
       _panoramaSessionId = panorama;
       final turn = await _room.openSession(panorama);
@@ -897,7 +933,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchBusyState();
     final List<Passagem> todas;
     try {
-      todas = await _room.passagesOf(ref.read(bookProvider));
+      todas = await _room.passagesOf(_book, language: _lingua);
     } on Object catch (error) {
       if (epoch != _epoch) return;
       _handleRoomFailure(error);
@@ -1056,6 +1092,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
               pericope: pericope,
               afterSession: _panoramaSessionId,
               bridgeMode: _bridgeMode,
+              language: _lingua,
             )
           : null;
       final sessionId = waiting?.sessionId ?? created!.sessionId;
@@ -1280,7 +1317,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _sayImThinking() {
     final line = rotated(instantAckLines, _ackSpoken++);
-    unawaited(_voice.playAsset(fixedLineAsset(line)));
+    unawaited(_voice.playAsset(fixedLineAsset(line, _lingua)));
   }
 
   Future<void> _askThemToRepeat(String path) async {
@@ -1289,7 +1326,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(voice: VoiceState.speaking, peerCue: false);
     _watchBusyState();
     final line = rotated(inaudibleLines, _inaudibleSpoken++);
-    await _voice.playAsset(fixedLineAsset(line));
+    await _voice.playAsset(fixedLineAsset(line, _lingua));
     if (epoch != _epoch) return;
     state = state.copyWith(voice: VoiceState.invite);
   }
@@ -1421,7 +1458,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _after('ack', const Duration(milliseconds: 3200), () {
       state = state.copyWith(handAck: false);
     });
-    await _voice.playAsset(fixedLineAsset(rotated(handoffLines, asked)));
+    await _voice.playAsset(fixedLineAsset(rotated(handoffLines, asked), _lingua));
     if (epoch != _epoch) return;
     state = state.copyWith(voice: VoiceState.invite);
   }
@@ -1432,6 +1469,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (pericope == null) return;
     unawaited(_emAberto.forget(_book, pericope).catchError((_) {}));
     unawaited(goConversa(pericope: pericope, fresh: true));
+  }
+
+  void devTrocarIdioma() {
+    if (!Env.devPularFases) return;
+    final knob = ref.read(devLanguageProvider.notifier);
+    knob.choose(knob.next(_lingua));
+    _startOver();
   }
 
   void goEnsaio() {
@@ -1708,7 +1752,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _sayARecordingIsStranded() {
     if (_strandedSpoken || _gone) return;
     _strandedSpoken = true;
-    unawaited(_voice.playAsset(strandedTakeAsset));
+    unawaited(_voice.playAsset(strandedTakeAsset(_lingua)));
   }
 
   void startRetro() {

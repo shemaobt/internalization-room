@@ -231,7 +231,7 @@ void main() {
     await tester.tap(find.byType(FacilitatorCircle));
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(harness.voice.assets, contains(micBlockedAsset),
+    expect(harness.voice.assets, contains(micBlockedAsset(testLanguage)),
         reason: 'a tela do microfone não tem texto: se o toque não fala, ela é '
             'muda e sem efeito para sempre');
   });

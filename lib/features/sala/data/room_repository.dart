@@ -98,6 +98,7 @@ class RoomRepository {
     String? pericope,
     String? afterSession,
     String? bridgeMode,
+    required String language,
   }) async {
     final response = await _send(
       () => _client.post(
@@ -107,6 +108,7 @@ class RoomRepository {
           'pericope': ?pericope,
           'after_session': ?afterSession,
           'bridge_mode': ?bridgeMode,
+          'language': language,
         }),
       ),
       _stateTimeout,
@@ -120,9 +122,12 @@ class RoomRepository {
   /// book and synthesizes a line for each, so it is generative work wearing the shape of
   /// a read. Twenty seconds turned a room that was still working into "the internet is
   /// gone" — spoken, to a team that cannot read the difference.
-  Future<List<Passagem>> passagesOf(String book) async {
+  Future<List<Passagem>> passagesOf(String book, {required String language}) async {
     final response = await _send(
-      () => _client.get(_uri('/books/$book/passages'), headers: _headers),
+      () => _client.get(
+        _uri('/books/$book/passages?language=$language'),
+        headers: _headers,
+      ),
       _turnTimeout,
     );
     return _read(response, passagensFromJson);

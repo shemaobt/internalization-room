@@ -120,15 +120,16 @@ void main() {
     );
     addTearDown(repository.dispose);
 
-    await repository.createSession(pericope: 'OV');
-    await repository.createSession(afterSession: 'panorama-1');
-    await repository.createSession();
+    await repository.createSession(pericope: 'OV', language: 'pt');
+    await repository.createSession(afterSession: 'panorama-1', language: 'pt');
+    await repository.createSession(language: 'en');
 
     expect(asked, [
-      '{"pericope":"OV"}',
-      '{"after_session":"panorama-1"}',
-      '{}',
-    ]);
+      '{"pericope":"OV","language":"pt"}',
+      '{"after_session":"panorama-1","language":"pt"}',
+      '{"language":"en"}',
+    ], reason: 'nada do que a sala fala é feito aqui — um pedido que não diz a '
+        'língua volta no idioma padrão do servidor e a equipe ouve outra');
     expect(types, everyElement(contains('application/json')),
         reason: 'sem esse cabeçalho o FastAPI responde 422 e o app desenha '
             'falta de rede');
@@ -277,7 +278,7 @@ void main() {
     addTearDown(repository.dispose);
 
     expect(
-      () => repository.createSession(),
+      () => repository.createSession(language: 'pt'),
       throwsA(isA<RoomBroke>()),
       reason: 'um TypeError escapa de todo `on Exception` e trava a sala em '
           'pensando, sem gesto e sem voz',

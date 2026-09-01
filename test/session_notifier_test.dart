@@ -508,7 +508,7 @@ void main() {
     final container = await inConversa(harness);
     addTearDown(container.dispose);
 
-    expect(harness.voice.assets, ['assets/audio/fixed/D1.mp3']);
+    expect(harness.voice.assets, [fixedLineAsset('D1', testLanguage)]);
     expect(harness.voice.played, isEmpty,
         reason: 'a linha de segurança não pede rede — a rede costuma ser o que falhou');
     expect(harness.room.clipsFetched, isEmpty);
@@ -521,7 +521,7 @@ void main() {
 
     final state = container.read(salaSessionProvider);
     expect(state.offline, isTrue);
-    expect(harness.voice.assets, [offlineNoticeAsset]);
+    expect(harness.voice.assets, [offlineNoticeAsset(testLanguage)]);
     expect(harness.room.calls, isEmpty, reason: 'nem tentou falar com o servidor');
   });
 
@@ -531,7 +531,7 @@ void main() {
     addTearDown(container.dispose);
 
     expect(container.read(salaSessionProvider).offline, isTrue);
-    expect(harness.voice.assets, [offlineNoticeAsset]);
+    expect(harness.voice.assets, [offlineNoticeAsset(testLanguage)]);
   });
 
   test('the room comes back on its own when the network returns', () async {
@@ -648,7 +648,7 @@ void main() {
     container.read(salaSessionProvider.notifier).beckon();
     await settle();
 
-    expect(harness.voice.assets, [inviteToStartAsset]);
+    expect(harness.voice.assets, [inviteToStartAsset(testLanguage)]);
     expect(harness.room.calls, isEmpty,
         reason: 'o convite falado nao pode abrir sessao — o toque é que começa');
     expect(container.read(salaSessionProvider).awaitingFirstTouch, isTrue);
@@ -676,7 +676,7 @@ void main() {
     notifier.conviteTap();
     await settle(const Duration(milliseconds: 120));
 
-    expect(harness.voice.assets, [inviteToStartAsset],
+    expect(harness.voice.assets, [inviteToStartAsset(testLanguage)],
         reason: 'depois do toque o convite nao se repete');
     expect(harness.room.pericopesAsked, [panoramaPericope]);
     expect(container.read(salaSessionProvider).showEntrada, isTrue);
@@ -722,7 +722,7 @@ void main() {
     await container.read(salaSessionProvider.notifier).openConvite();
 
     expect(container.read(salaSessionProvider).offline, isTrue);
-    expect(harness.voice.assets, [offlineNoticeAsset]);
+    expect(harness.voice.assets, [offlineNoticeAsset(testLanguage)]);
     expect(container.read(salaSessionProvider).showEntrada, isFalse);
   });
 
@@ -740,7 +740,7 @@ void main() {
         reason: 'chamar de queda de rede uma sala que respondeu errado devolve '
             'a equipe ao aceno para sempre, sem nunca pedir ajuda');
     expect(state.awaitingFirstTouch, isTrue);
-    expect(harness.voice.assets, isNot(contains(offlineNoticeAsset)));
+    expect(harness.voice.assets, isNot(contains(offlineNoticeAsset(testLanguage))));
   });
 
   test('three bad answers ask for a person, not for another touch', () async {
@@ -829,8 +829,8 @@ void main() {
     await container.read(salaSessionProvider.notifier).hearAgain();
 
     expect(harness.voice.assets, [
-      'assets/audio/fixed/D1.mp3',
-      'assets/audio/fixed/D1.mp3',
+      fixedLineAsset('D1', testLanguage),
+      fixedLineAsset('D1', testLanguage),
     ]);
     expect(harness.room.clipsFetched, isEmpty);
   });
@@ -1318,7 +1318,7 @@ void main() {
     expect(state.needsPerson, isTrue,
         reason: 'um disco verde parado, mudo, recusando todo gesto era '
             'indistinguível de um app morto — e não há texto que explique');
-    expect(harness.voice.assets, contains(fixedLineAsset(needsPersonLine)),
+    expect(harness.voice.assets, contains(fixedLineAsset(needsPersonLine, testLanguage)),
         reason: 'e a fala para chamar o facilitador já estava no pacote');
 
     notifier.resolveWithPerson();
@@ -1927,7 +1927,7 @@ void main() {
     notifier.conversaTap();
     await settle();
 
-    expect(harness.voice.assets.first, fixedLineAsset(instantAckLines.first),
+    expect(harness.voice.assets.first, fixedLineAsset(instantAckLines.first, testLanguage),
         reason: 'a fala de reconhecimento existe aprovada e no pacote desde o '
             'começo, e nada nunca a tocava — a sala esperava calada');
   });
@@ -1948,8 +1948,8 @@ void main() {
     expect(
       harness.voice.assets.where((asset) => asset.contains('/F')).toList(),
       [
-        fixedLineAsset(instantAckLines[0]),
-        fixedLineAsset(instantAckLines[1]),
+        fixedLineAsset(instantAckLines[0], testLanguage),
+        fixedLineAsset(instantAckLines[1], testLanguage),
       ],
     );
   });
@@ -1970,7 +1970,7 @@ void main() {
     expect(harness.room.calls.length, callsBefore,
         reason: 'a regra existe para que um silêncio não custe nem espera nem '
             'chamada — hoje subia tudo e o servidor decidia depois');
-    expect(harness.voice.assets, [fixedLineAsset(inaudibleLines.first)]);
+    expect(harness.voice.assets, [fixedLineAsset(inaudibleLines.first, testLanguage)]);
     expect(container.read(salaSessionProvider).voice, VoiceState.invite,
         reason: 'e a sala volta a convidar, pronta para ouvir de novo');
   });
@@ -2076,7 +2076,7 @@ void main() {
     await notifier.refreshUnsent();
     await notifier.refreshUnsent();
 
-    expect(harness.voice.assets.where((a) => a == strandedTakeAsset), hasLength(1),
+    expect(harness.voice.assets.where((a) => a == strandedTakeAsset(testLanguage)), hasLength(1),
         reason: 'a equipe precisa saber que algo ficou preso — e ouvir isso uma vez, '
             'não a cada vez que a conta é recontada');
   });
@@ -2191,7 +2191,7 @@ void main() {
     expect(state.needsPerson, isTrue);
     expect(state.offline, isFalse,
         reason: 'esperar nunca conserta chave errada — não pode virar tela de offline');
-    expect(harness.voice.assets, contains(fixedLineAsset(needsPersonLine)),
+    expect(harness.voice.assets, contains(fixedLineAsset(needsPersonLine, testLanguage)),
         reason: 'pedir uma pessoa em silêncio é um disco parado numa sala que não lê');
   });
 
