@@ -32,6 +32,26 @@ Future<ProviderContainer> _naPassagem(SalaHarness harness, String pericope) asyn
 }
 
 void main() {
+  test('a halt with no session stops the room and calls nobody', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+
+    container.read(salaSessionProvider.notifier).haltForABrokenBuild();
+    await settle();
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'parar é sempre local e não depende de sessão nenhuma: uma '
+            'sala que não consegue nem abrir uma sessão é justamente a que '
+            'precisa mostrar que parou');
+    expect(harness.room.personsAsked, 0,
+        reason: 'mas o chamado só é feito quando há sessão sobre a qual '
+            'fazê-lo, e é disto que dependem os pontos onde o pedido de '
+            'pessoa é feito depois de um await sem checar se a equipe ainda '
+            'está na passagem — sair dela esvazia a sessão, e é isto que '
+            'impede um facilitador de ser mandado atrás dela');
+  });
+
   test('a turn spoken after a person resolves a forgotten session reaches the room',
       () async {
     final harness = SalaHarness();
