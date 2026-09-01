@@ -93,7 +93,9 @@ void main() {
 
     await _contaTrecho(harness, notifier, em: const Duration(seconds: 20));
     await until(() => harness.room.chunksSent == 1);
-    harness.room.verdictFindingSegmentId = harness.room.segments.last.segmentId;
+    await _contaTrecho(harness, notifier, em: const Duration(seconds: 40));
+    await until(() => harness.room.chunksSent == 2);
+    harness.room.verdictFindingSegmentId = harness.room.segments.first.segmentId;
     harness.playback.finishPlayback();
     await settle();
     await notifier.finishBackTranslation();
@@ -115,19 +117,19 @@ void main() {
     notifier.resolveWithPerson();
     await settle();
     harness.recorder.returnsEmpty = false;
-    harness.playback.at = const Duration(seconds: 40);
+    harness.playback.at = const Duration(seconds: 60);
     notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
-    await until(() => harness.room.chunksSent == 2);
+    await until(() => harness.room.chunksSent == 3);
 
-    expect(harness.room.chunksSent, 2,
+    expect(harness.room.chunksSent, 3,
         reason: 'o corte seguinte precisa mesmo chegar à sala, senão nada aqui é olhado');
     expect(harness.room.retells, 0,
         reason: 'a marca de recontar só é apagada por um trecho que chega, e sair por '
             'cima dela deixava o corte seguinte subir como correção de um trecho que '
             'ninguém estava contando');
-    expect(harness.room.chunkSpans, ['0-20000', '20000-40000'],
+    expect(harness.room.chunkSpans, ['0-20000', '20000-40000', '40000-60000'],
         reason: 'e o cursor do corte também foi movido pelo recontar, então o trecho '
             'seguinte subia desde o começo do que ia ser recontado — os vinte primeiros '
             'segundos contados duas vezes');
