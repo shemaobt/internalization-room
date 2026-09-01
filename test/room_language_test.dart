@@ -93,13 +93,25 @@ void main() {
       () async {
     TestWidgetsFlutterBinding.ensureInitialized();
 
+    final named = RegExp(r'^[A-Z]\d+$');
     for (final language in languages) {
-      for (final line in [
+      final manifest = await rootBundle.loadString('assets/audio/$language/manifest.json');
+      final rendered = (jsonDecode(manifest) as Map<String, dynamic>).keys
+          .where(named.hasMatch)
+          .toSet();
+      final spoken = {
+        ...rendered,
         ...instantAckLines,
         ...inaudibleLines,
         ...handoffLines,
         needsPersonLine,
-      ]) {
+      };
+
+      expect(spoken.length, greaterThan(instantAckLines.length),
+          reason: 'metade das falas fixas chega do servidor pelo nome e não é citada em '
+              'nenhuma const do app — sem o manifesto, este teste só olharia as que já '
+              'estavam listadas aqui');
+      for (final line in spoken) {
         await rootBundle.load(fixedLineAsset(line, language));
       }
       for (final asset in [
