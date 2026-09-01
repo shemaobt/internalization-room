@@ -545,10 +545,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _handleRoomFailure(Object error) {
     _leaveThinking();
-    // A room that failed under a correction did not take it, whatever the ladder then
-    // decides about the failure: both stations reach the room through here. Guarded like
-    // its neighbours, because most failures reaching this room have no mend under them.
-    if (state.btConsertando) state = state.copyWith(btConsertando: false);
     switch (error) {
       case RoomRefused():
         _haltForAPerson();
@@ -608,9 +604,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _haltForAPerson();
   }
 
+  /// The room gave up on a call it was making, however it came to that.
+  ///
+  /// A correction under it is over with it, so that stretch goes back to waiting. This is
+  /// the seam rather than `_handleRoomFailure`, because the watchdog that gives up on a
+  /// busy state is not a room failure — it is this tablet deciding the wait is over — and
+  /// it is the one give-up that fires while a correction's own call is in the air, with no
+  /// refusal and no offline circle to show for it. Both stations do all their waiting in
+  /// this phase, so this is where the promise the band made is taken back.
   void _leaveThinking() {
     if (state.stage == SalaStage.retro && state.btPhase == BtPhase.thinking) {
-      state = state.copyWith(btPhase: BtPhase.playing);
+      state = state.copyWith(btPhase: BtPhase.playing, btConsertando: false);
     }
   }
 
@@ -2483,10 +2487,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.btPhase != BtPhase.findings) return;
     if (state.btFindingTrecho == null) return;
     _holdClip();
-    // The mend starts here, at the choosing, and the cord fills that stretch's band from
-    // this instant — before any microphone opens and before anything is sent. The band
-    // stands for "this is the one waiting", and it stopped waiting the moment the team
-    // took it on.
+    // The mend starts at the choosing, before any microphone opens and before anything is
+    // sent: the band stands for "this is the one waiting", and it stopped waiting here.
     state = state.copyWith(
       btPhase: BtPhase.gravandoMaterna,
       voice: VoiceState.invite,

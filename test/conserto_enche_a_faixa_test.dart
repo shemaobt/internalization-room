@@ -43,8 +43,11 @@ List<int> _faixasVazias(WidgetTester tester, ProviderContainer container) {
 }
 
 /// A session standing at the question, with a finding on the first of two stretches.
-Future<ProviderContainer> _pumpToPergunta(WidgetTester tester) async {
-  final harness = SalaHarness(filaEmMemoria: true)
+Future<ProviderContainer> _pumpToPergunta(
+  WidgetTester tester, {
+  Duration? teto,
+}) async {
+  final harness = SalaHarness(filaEmMemoria: true, busyCeiling: teto)
     ..room.verdictChecked = false
     ..room.verdictFinding = BtFindingKind.missing
     ..room.verdictFindingSegmentId = 'trecho-1';
@@ -296,6 +299,40 @@ void main() {
             'conserto e a faixa não pode ficar vazia por cima disso');
   });
 
+  testWidgets('a sala que desistiu de esperar esvazia a faixa de novo',
+      (tester) async {
+    final container = await _pumpToPergunta(
+      tester,
+      teto: const Duration(seconds: 2),
+    );
+    final harness = _harnessDaVez!;
+
+    await _escolherRecontar(tester);
+    expect(_faixasVazias(tester, container), isEmpty);
+    // The one hang the ladder never sees: the room's own watchdog gives up on a busy
+    // state, and it is not a room failure — it is this tablet deciding the wait is over.
+    // Everything the two stations await inside that window is local and has no timeout of
+    // its own, and stopping the recorder is one of them.
+    harness.recorder.holdNextStop();
+    _notifier(container).retroTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump(const Duration(seconds: 3));
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'o teto do estado ocupado para para uma pessoa — se isso mudar, '
+            'este cenário deixou de medir o que diz');
+    expect(harness.room.replacesAsked, isEmpty,
+        reason: 'e a gravação nunca chegou a subir');
+    expect(_faixasVazias(tester, container), [0],
+        reason: 'é a falha sem nenhum outro sinal na tela: nada foi recusado, o '
+            'círculo não está offline, só uma pessoa foi chamada. Se a faixa '
+            'ficar cheia aqui, o colar diz que o conserto foi feito e é a única '
+            'coisa que a equipe tem para ler');
+
+    harness.recorder.finishStop();
+    await tester.pump(const Duration(milliseconds: 200));
+  });
+
   testWidgets('uma voz materna que falhou esvazia a faixa de novo',
       (tester) async {
     final container = await _pumpToPergunta(tester);
@@ -319,13 +356,15 @@ void main() {
     final container = await _pumpToPergunta(tester);
     final harness = _harnessDaVez!;
 
+    // The analyst is set to reprove the same place before the correction is handed over,
+    // and by place rather than by name: mending retires the name it was pointing at and
+    // mints a new one. Armed beforehand because the room asks for the result itself at the
+    // end of a correction — naming the stretch afterwards would be answering a question
+    // that had already been asked, and the second one the room rightly refuses.
+    harness.room.verdictFindingPlace = 0;
     await _escolherRegravarAMaterna(tester);
     await _gravarAMaterna(tester, container);
     await _entregarOContar(tester, container);
-    expect(_faixasVazias(tester, container), isEmpty);
-
-    harness.room.verdictFindingSegmentId =
-        container.read(salaSessionProvider).btTrechos.first.segmentId;
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 200));
     await _notifier(container).finishBackTranslation();
@@ -334,6 +373,11 @@ void main() {
     expect(_faixasVazias(tester, container), [0],
         reason: 'encher não é definitivo: o analista pode apontar o mesmo '
             'trecho outra vez, e a faixa volta a esperar conserto');
+    expect(container.read(salaSessionProvider).btFindingSegmentId,
+        container.read(salaSessionProvider).btTrechos.first.segmentId,
+        reason: 'e é o trecho vivo que está apontado, não um nome que o '
+            'servidor aposentou — um ponteiro defasado esvaziaria faixa nenhuma '
+            'e este cenário passaria sem medir nada');
   });
 
   testWidgets('consertar não mexe no pedaço de cordão do vizinho',

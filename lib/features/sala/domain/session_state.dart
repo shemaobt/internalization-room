@@ -298,9 +298,8 @@ class SalaSessionState {
   /// the band empty through the choosing, the recording and the upload, so the cord said
   /// nothing had been done while the team was doing it.
   ///
-  /// The rule lives here and not on the screen. Its sibling [btFindingTrecho] carries the
-  /// scar of the day the screen kept a second copy of a rule about this pointer: the two
-  /// disagreed and the dead button came back.
+  /// The rule lives here and not on the screen, which is the same reason [btFindingTrecho]
+  /// gives for itself.
   String? get btEsperandoConserto => btConsertando ? null : btFindingSegmentId;
 
   List<KeptTake> get partes => keptTakes;
