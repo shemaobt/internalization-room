@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -87,19 +88,32 @@ Future<void> _pumpGrade(WidgetTester tester, {required bool podeOuvirRetro}) =>
     ));
 
 
-/// Redo the telling of the pointed stretch, and let the capture finish. One step.
-Future<void> corrigirOContar(
+/// How many times the room was asked for a verdict. Each entry is one such ask reaching
+/// the room, which is the whole point: the team gets an answer only because somebody
+/// asked for one.
+int vereditosPedidos(SalaHarness harness) => harness.room.clipDurationsSent.length;
+
+/// Close the microphone the room opened, which is what ends a telling.
+Future<void> terminarACaptura(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  notifier(container).retroTap();
+  await tester.pump(const Duration(milliseconds: 800));
+}
+
+/// The error was in the telling, so only the telling is redone — one step.
+Future<void> recontarAExplicacao(
   WidgetTester tester,
   ProviderContainer container,
 ) async {
   await tester.tap(byLabel(micRetro));
   await tester.pump(const Duration(milliseconds: 300));
-  notifier(container).retroTap();
-  await tester.pump(const Duration(milliseconds: 800));
+  await terminarACaptura(tester, container);
 }
 
-/// Re-record the mother tongue — the first of the two steps that correction takes. The
-/// room is asked to replace the stretch here too, so it can refuse here too.
+/// The error was in the mother tongue, so the recording is redone first. This is only the
+/// first of the two steps that correction takes; the telling still has to follow.
 Future<void> regravarAMaterna(
   WidgetTester tester,
   ProviderContainer container,
@@ -289,7 +303,7 @@ void main() {
     final container = await pumpToPergunta(tester);
     harnessDaVez!.room.replaceNeedsPerson = true;
 
-    await corrigirOContar(tester, container);
+    await recontarAExplicacao(tester, container);
 
     expect(container.read(salaSessionProvider).needsPerson, isTrue,
         reason: 'a sala parou de aceitar e a equipe não vê nada: continua '
@@ -305,7 +319,7 @@ void main() {
     final container = await pumpToPergunta(tester);
     harnessDaVez!.room.replaceNeedsPerson = true;
 
-    await corrigirOContar(tester, container);
+    await recontarAExplicacao(tester, container);
 
     expect(
       container.read(salaSessionProvider).btTrechos.map((t) => t.segmentId),
@@ -319,14 +333,16 @@ void main() {
   testWidgets('an ordinary correction changes nothing', (tester) async {
     final container = await pumpToPergunta(tester);
 
-    await corrigirOContar(tester, container);
+    await recontarAExplicacao(tester, container);
 
     expect(container.read(salaSessionProvider).needsPerson, isFalse,
         reason: 'ler um campo novo não pode mandar para uma pessoa quem só '
             'corrigiu um trecho como sempre se corrigiu');
     expect(harnessDaVez!.room.personsAsked, 0);
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.playing,
-        reason: 'e a correção comum termina onde sempre terminou');
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.findings,
+        reason: 'e a correção comum termina no veredito, que é onde a fatia '
+            'anterior a faz terminar: quem só corrigiu um trecho continua '
+            'sendo levado ao resultado dele');
   });
 
   testWidgets('a room that sends no such field sends nobody for a person',
@@ -335,7 +351,7 @@ void main() {
 
     // Nothing is switched on: this is the server that is in production today, which does
     // not carry the field at all.
-    await corrigirOContar(tester, container);
+    await recontarAExplicacao(tester, container);
 
     expect(container.read(salaSessionProvider).needsPerson, isFalse,
         reason: 'o campo só passa a existir quando a ENG-685 for mesclada, e '
@@ -370,6 +386,164 @@ void main() {
     expect(container.read(salaSessionProvider).btPhase,
         isNot(BtPhase.capturing),
         reason: 'e ninguém é mandado contar depois disso');
+  });
+
+  testWidgets('finishing a correction reaches its result on its own',
+      (tester) async {
+    final container = await pumpToPergunta(tester);
+    final harness = harnessDaVez!;
+    final antes = vereditosPedidos(harness);
+
+    await recontarAExplicacao(tester, container);
+
+    expect(vereditosPedidos(harness), antes + 1,
+        reason: 'a equipe grava a correção e a sala fica muda: para saber se '
+            'resolveu alguém precisa apertar "terminei" de novo, e ninguém '
+            'diz isso a ela — do lugar onde ela está, corrigiu e nada '
+            'aconteceu');
+  });
+
+  testWidgets('re-recording the mother tongue reaches the result only after '
+      'the retelling', (tester) async {
+    final container = await pumpToPergunta(tester);
+    final harness = harnessDaVez!;
+    final antes = vereditosPedidos(harness);
+
+    await regravarAMaterna(tester, container);
+
+    expect(vereditosPedidos(harness), antes,
+        reason: 'a correção pela voz materna tem dois passos e o primeiro não '
+            'a termina: pedir o resultado aqui seria julgar um trecho cuja '
+            'explicação ainda está por gravar');
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing,
+        reason: 'e o que vem depois da voz nova é o microfone do contar, na '
+            'ordem que o servidor exige');
+
+    await terminarACaptura(tester, container);
+
+    expect(vereditosPedidos(harness), antes + 1,
+        reason: 'terminado o segundo passo a correção acabou, e é aí — uma vez '
+            'só — que a equipe chega ao resultado dela');
+  });
+
+  for (final quebra in ['a sala recusa', 'a rede cai']) {
+    testWidgets('a correction the room did not take asks for no verdict '
+        '($quebra)', (tester) async {
+      final container = await pumpToPergunta(tester);
+      final harness = harnessDaVez!;
+      final antes = vereditosPedidos(harness);
+      if (quebra == 'a sala recusa') {
+        harness.room.replaceCaptured = false;
+      } else {
+        harness.room.failReplaceWith = const RoomUnavailable('sem rede');
+      }
+
+      await recontarAExplicacao(tester, container);
+
+      expect(vereditosPedidos(harness), antes,
+          reason: 'a correção não chegou ao servidor, então não há o que '
+              'julgar: pedir o veredito aqui gastaria uma leitura inteira da '
+              'passagem para dizer à equipe que o erro continua lá');
+      expect(container.read(salaSessionProvider).canFinishBackTranslation,
+          isTrue,
+          reason: 'e ela precisa ficar num lugar de onde consegue tentar de '
+              'novo — uma correção que falhou não pode ser um beco');
+    });
+  }
+
+  testWidgets('a correction never sends the team back to hear the whole '
+      'recording', (tester) async {
+    final container = await pumpToPergunta(tester);
+
+    await recontarAExplicacao(tester, container);
+
+    expect(container.read(salaSessionProvider).btClipEnded, isTrue,
+        reason: 'a marca de que a gravação acabou é o que dispensa a equipe de '
+            'reouvir o clipe inteiro; se a correção a apagasse, corrigir um '
+            'trecho custaria ouvir tudo outra vez para poder seguir');
+  });
+
+  // The two slices meet in the same method, and the order between them is the whole of
+  // this: the answer to the recording they just made first, the room stopping second.
+
+  testWidgets('a room still taking work carries a good correction to its result',
+      (tester) async {
+    final container = await pumpToPergunta(tester);
+    final harness = harnessDaVez!;
+    final antes = vereditosPedidos(harness);
+
+    await recontarAExplicacao(tester, container);
+
+    expect(vereditosPedidos(harness), antes + 1,
+        reason: 'sem notícia de esgotamento a correção segue direto ao '
+            'veredito: ler um campo novo não pode custar à equipe o caminho '
+            'que ela já tinha');
+    expect(container.read(salaSessionProvider).needsPerson, isFalse,
+        reason: 'e nada nesse caminho pode parar uma sala que não parou');
+  });
+
+  testWidgets('a correction that runs the room out both answers and stops',
+      (tester) async {
+    final container = await pumpToPergunta(tester);
+    final harness = harnessDaVez!;
+    harness.room.replaceNeedsPerson = true;
+    final antes = vereditosPedidos(harness);
+
+    await recontarAExplicacao(tester, container);
+
+    expect(vereditosPedidos(harness), antes + 1,
+        reason: 'a equipe descobre o que aconteceu com a gravação que acabou '
+            'de fazer: engolir o resultado junto com o aviso a deixaria parada '
+            'sem saber sequer se a correção pegou');
+    expect(
+      container.read(salaSessionProvider).btTrechos.map((t) => t.segmentId),
+      ['trecho-1-v1', 'trecho-2'],
+      reason: 'e a resposta que chegou fica de pé — é ela o que a equipe '
+          'perderia se o aviso viesse no lugar dela',
+    );
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'e o pedido de pessoa sobrevive ao caminho do veredito, que '
+            'reescreve a voz da sessão de ponta a ponta: pedido antes dele, '
+            'a sala volta a convidar a equipe a trabalhar numa sala parada');
+    expect(harness.room.personsAsked, 1,
+        reason: 'e alguém é de fato chamado, senão a sala para em silêncio');
+  });
+
+  testWidgets('the room running out on the mother tongue opens no microphone',
+      (tester) async {
+    final container = await pumpToPergunta(tester);
+    final harness = harnessDaVez!;
+    harness.room.replaceNeedsPerson = true;
+    final antes = vereditosPedidos(harness);
+
+    await regravarAMaterna(tester, container);
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'a sala pode desistir já no primeiro dos dois passos da voz '
+            'materna, e é aí que ela tem de parar');
+    expect(container.read(salaSessionProvider).btPhase, isNot(BtPhase.capturing),
+        reason: 'e o microfone não abre para uma contagem que o servidor já '
+            'não aceitaria');
+    expect(vereditosPedidos(harness), antes,
+        reason: 'nem se pede veredito de uma correção que parou no meio: a '
+            'explicação do trecho ainda está por gravar');
+  });
+
+  testWidgets('a room that sends no such field is carried to the result as ever',
+      (tester) async {
+    final container = await pumpToPergunta(tester);
+    final harness = harnessDaVez!;
+    final antes = vereditosPedidos(harness);
+
+    // Nothing switched on: the server in production today does not carry the field.
+    await recontarAExplicacao(tester, container);
+
+    expect(container.read(salaSessionProvider).needsPerson, isFalse,
+        reason: 'ausência é "sem notícia", e tratá-la como aviso pararia a '
+            'sala contra o servidor que está no ar');
+    expect(vereditosPedidos(harness), antes + 1,
+        reason: 'e contra esse servidor a correção continua chegando ao '
+            'resultado como a fatia anterior a deixou');
   });
 
   testWidgets('the pointed stretch is told apart from the others',

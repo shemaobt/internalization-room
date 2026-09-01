@@ -2095,6 +2095,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btTrechos: trechos.isEmpty ? state.btTrechos : trechos,
       btChunkPasses: [for (final segment in told.segments) segment.passNumber],
     );
+    if (epoch != _epoch) return;
+    // The correction is finished, so the room goes and finds out what it was worth. The
+    // team used to be handed back to the screen for hearing the recording, with nothing
+    // said: the only way to learn whether the fix had taken was to press "terminei"
+    // again, and nobody tells them that. From where they stand they had corrected the
+    // stretch and nothing had happened.
+    //
+    // Only a correction arrives here — an ordinary telling during the back-translation
+    // returns before this, and it should, because there is still passage left to hear and
+    // tell. And on the mother tongue route this is the second of the two steps: the
+    // re-recording does not pass through here, the retelling that follows it does, so the
+    // result is asked for once and at the end.
+    //
+    // Nothing had to be unlocked for this: the mark that the recording ended survives a
+    // correction, so the ask is allowed the moment it is made.
+    await finishBackTranslation();
+    if (epoch != _epoch) return;
     // The budget for retellings runs out on this route too, and the room says so in the
     // same breath as the answer. It used to be read only off telling a stretch, so a team
     // that hit the ceiling by correcting one saw nothing at all: the room had stopped
@@ -2102,7 +2119,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     //
     // Said after the answer is in, never instead of it. Losing what became of the
     // recording they just made, at the very moment the room stops, would be worse than
-    // the silence this fixes.
+    // the silence this fixes — so the verdict above is asked for and spoken first, and
+    // only then does the room stop. It has to be this way round and not the other: the
+    // verdict walks the session's voice from thinking to speaking to done, and a halt
+    // raised before it would be written over by that walk, leaving the team invited back
+    // to work in a room that had stopped taking any.
     if (told.needsPerson) _haltForAPerson();
   }
 
