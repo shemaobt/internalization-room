@@ -98,6 +98,13 @@ class RetroView extends ConsumerWidget {
     return 'Ouvir a gravação';
   }
 
+  IconData _tellGlyph(SalaSessionState session) =>
+      session.btClipRodando ? LucideIcons.scissors : LucideIcons.mic;
+
+  String _tellLabel(SalaSessionState session) => session.btClipRodando
+      ? 'Cortar aqui e contar esta parte'
+      : 'Contar esta parte na língua ponte';
+
   Widget? _actions(SalaSessionState session, SalaSessionNotifier notifier) {
     if (session.btPhase == BtPhase.findings) {
       // Which voice needs to speak again is the team's to say. It used to be read off the
@@ -175,13 +182,20 @@ class RetroView extends ConsumerWidget {
                 ),
               ),
             const SizedBox(width: 28),
+            // The same gesture under two names. Cutting *here* only describes something
+            // while an audio is running under the team's finger — there is an instant
+            // being pointed at, and they are choosing it. Stopped, there is no instant to
+            // point at and no place the word "here" could mean, and what is left of the
+            // gesture is telling this part. The cut still happens either way: stopped, the
+            // player sits where the team stopped listening, which is the same place they
+            // would have chosen.
             RoundActionButton(
               size: 60,
-              semanticLabel: 'Cortar aqui e contar esta parte',
+              semanticLabel: _tellLabel(session),
               gradient: BeadStyles.azul,
               onTap: notifier.cortarTrecho,
-              child: const Icon(
-                LucideIcons.scissors,
+              child: Icon(
+                _tellGlyph(session),
                 size: 24,
                 color: ShemaBrand.branco,
               ),
