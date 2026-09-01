@@ -400,7 +400,19 @@ class FakeRoom implements RoomRepository {
   Exception? failRestartWith;
   Exception? failDivideWith;
   Exception? failReplaceWith;
+
+  /// What the ask for a verdict throws, when it is set. The one knob that lets a test put
+  /// a failure between a correction the room answered and the answer reaching the team.
+  Exception? failFinishWith;
+
+  /// Run while the ask for a verdict is still in the air. The seam for a test that needs
+  /// the team to do something — leave the passage, say — during that wait.
+  void Function()? duranteOVeredito;
   bool replaceCaptured = true;
+
+  /// Whether the room answers a correction by asking for a person. False is also what
+  /// a server that does not send the field at all looks like from here.
+  bool replaceNeedsPerson = false;
   /// Which stretch each retelling named, and the slice it sent, in order.
   final List<String> replacesAsked = [];
   /// Which stretches arrived as a new mother-tongue recording — a replacement carrying no
@@ -418,6 +430,19 @@ class FakeRoom implements RoomRepository {
   /// than build it up by telling stretches back.
   BackTranslationProgress? retroSoFar;
   String? verdictFindingSegmentId;
+
+  /// Which place on the cord the analyst points at, when it points by place instead of by
+  /// name. Read at the moment the verdict is built, which is the only way to say "the same
+  /// stretch again": mending retires a name and mints a new one, so a test that wanted to
+  /// reprove what the team just corrected could only name it by guessing the double's
+  /// versioning scheme.
+  int? verdictFindingPlace;
+
+  /// Which stretch the room says was recorded and never told back, when that is what
+  /// stopped the reading. Its own field, as on the wire: a finding and an untold stretch
+  /// are never named in the same answer — and neither is the place above, which addresses
+  /// a stretch the team told.
+  String? verdictUntoldSegmentId;
   BtFindingKind? verdictFinding;
   String? serverStatus;
   String fixedLine = '';
@@ -567,7 +592,11 @@ class FakeRoom implements RoomRepository {
     );
     if (audio == null) replacesSemArquivo.add(segmentId);
     if (!replaceCaptured) {
-      return TellingAgain(segments: List.of(segments), captured: false);
+      return TellingAgain(
+        segments: List.of(segments),
+        captured: false,
+        needsPerson: replaceNeedsPerson,
+      );
     }
     final at = segments.indexWhere((one) => one.segmentId == segmentId);
     if (at >= 0) {
@@ -589,7 +618,11 @@ class FakeRoom implements RoomRepository {
         told: audio != null,
       );
     }
-    return TellingAgain(segments: List.of(segments), captured: true);
+    return TellingAgain(
+      segments: List.of(segments),
+      captured: true,
+      needsPerson: replaceNeedsPerson,
+    );
   }
 
   @override
@@ -721,12 +754,23 @@ class FakeRoom implements RoomRepository {
     );
   }
 
+  String? _oQueOAnalistaAponta() {
+    final place = verdictFindingPlace;
+    if (place == null) return verdictFindingSegmentId;
+    return place >= 0 && place < segments.length
+        ? segments[place].segmentId
+        : null;
+  }
+
   @override
   Future<BackTranslationVerdict> finishBackTranslation(
     String sessionId, {
     int? clipDurationMs,
     List<List<int>> playedRanges = const [],
   }) async {
+    duranteOVeredito?.call();
+    final refusal = failFinishWith;
+    if (refusal != null) throw refusal;
     clipDurationsSent.add(clipDurationMs);
     playedRangesSent.add(playedRanges);
     _guard('finishBackTranslation');
@@ -735,7 +779,8 @@ class FakeRoom implements RoomRepository {
       fixedLine: '',
       checked: verdictChecked,
       findingKind: verdictFinding,
-      findingSegmentId: verdictFindingSegmentId,
+      findingSegmentId: _oQueOAnalistaAponta(),
+      untoldSegmentId: verdictUntoldSegmentId,
       findingsRemaining: verdictFinding == null ? 0 : 1,
       usedFailSafe: false,
     );
