@@ -2515,6 +2515,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     final alvo = state.btFindingTrecho;
     if (epoch != _epoch) return;
+    if (path != null && !_hasAudio(path)) {
+      _voltarAPergunta();
+      _haltForAPerson();
+      return;
+    }
+
     if (path == null || sessionId == null || alvo?.segmentId == null) {
       _voltarAPergunta();
       return;

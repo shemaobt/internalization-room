@@ -85,6 +85,39 @@ Future<ProviderContainer> _comDuasMetadesEsperando(SalaHarness harness) async {
 }
 
 void main() {
+  test('a mother-tongue take that came back empty does not replace the audio',
+      () async {
+    final harness = SalaHarness()..room.verdictChecked = false;
+    final container = await _inRetro(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await _contaTrecho(harness, notifier, em: const Duration(seconds: 20));
+    await until(() => harness.room.chunksSent == 1);
+    harness.room.verdictFindingSegmentId = harness.room.segments.last.segmentId;
+    harness.playback.finishPlayback();
+    await settle();
+    await notifier.finishBackTranslation();
+    await settle();
+
+    final guardadas = harness.room.takesKept.length;
+    notifier.regravarAVozMaterna();
+    await settle();
+    harness.recorder.returnsEmpty = true;
+    notifier.retroTap();
+    await settle();
+    notifier.retroTap();
+    await settle();
+
+    expect(harness.room.takesKept, hasLength(guardadas),
+        reason: 'a voz nova sem um byte dentro era copiada para guardadas/ e entrava '
+            'no manifesto antes de qualquer coisa medir a duração dela');
+    expect(harness.room.replacesAsked, isEmpty,
+        reason: 'e o trecho bom da equipe era aposentado em troca de um arquivo vazio');
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'este ramo voltava calado para a pergunta, e a equipe tocava de novo '
+            'sem entender por que a voz não trocava');
+  });
+
   test('a stretch that was waiting stops waiting, and no stretch is added',
       () async {
     final harness = SalaHarness()..room.verdictChecked = false;
