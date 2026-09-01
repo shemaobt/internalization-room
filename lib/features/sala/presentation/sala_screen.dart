@@ -247,7 +247,7 @@ class _RetroCordLayerState extends ConsumerState<_RetroCordLayer> {
       parteNoArMs: session.btParteNoArMs,
       ouvidoMs: session.btClipRodando ? _ouvidoMs : session.btOuvidoMs,
       trechos: session.btTrechos,
-      apontado: session.btFindingSegmentId,
+      apontado: session.btEsperandoConserto,
     );
   }
 }
