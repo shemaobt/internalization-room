@@ -1288,7 +1288,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final path = await _recorder.stop();
     if (epoch != _epoch) return;
     final sessionId = state.sessionId;
-    if (path == null) {
+    if (path == null || !_hasAudio(path)) {
       // The recorder handed nothing back after a turn the team just spoke. Reading that
       // as an ordinary return to the invite is the same silence `_finishTake` used to
       // keep, one method over.

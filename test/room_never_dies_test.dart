@@ -741,6 +741,27 @@ void main() {
             'voltar ao convite em silêncio é o mesmo descarte que o ensaio tinha');
   });
 
+  test('a turn recorded into nothing stops the room instead of going up', () async {
+    final harness = SalaHarness();
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.conversaTap();
+    await settle();
+    final subiram = harness.room.turnsSent;
+    harness.recorder.returnsEmpty = true;
+    notifier.conversaTap();
+    await settle();
+
+    expect(harness.room.turnsSent, subiram,
+        reason: 'o arquivo de zero byte subia como turno e a sala respondia a um '
+            'silêncio que a equipe nunca disse');
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'gravador que devolve arquivo sem um byte é aparelho com problema, não '
+            'pessoa falando baixo — pedir para repetir não esvazia um disco cheio');
+  });
+
   test('a question the recorder never handed back is not forgotten', () async {
     final harness = SalaHarness();
     final container = await inConversaHarness(harness);
