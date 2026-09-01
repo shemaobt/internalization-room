@@ -269,8 +269,15 @@ class SalaSessionState {
   /// stale name reaches the app and matches nothing. Every side that acts on the finding
   /// reads this: the screen drew the rule a second time, and the day the two copies
   /// disagreed the dead button was back.
-  Trecho? get btFindingTrecho {
-    final named = btFindingSegmentId;
+  Trecho? get btFindingTrecho => trechoChamado(btFindingSegmentId);
+
+  /// The stretch a pointer of the room's names, when this tablet holds one by that name.
+  ///
+  /// One copy of the rule for every pointer the room can send. The findings pointer had
+  /// it inline, and the answer that names a stretch nobody told needs the same question
+  /// answered the same way — a second reading of it is the second copy that put a dead
+  /// button back on the screen the day the two disagreed.
+  Trecho? trechoChamado(String? named) {
     if (named == null) return null;
     for (final trecho in btTrechos) {
       if (trecho.segmentId == named) {
