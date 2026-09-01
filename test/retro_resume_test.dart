@@ -170,6 +170,49 @@ void main() {
     expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
   });
 
+  test('a retro nobody had told back into yet throws nothing away', () async {
+    final harness = SalaHarness();
+
+    final container = await _reopen(
+      harness,
+      parouEm: SalaStage.retro,
+      semAudio: true,
+    );
+
+    expect(harness.room.restartsAsked, isEmpty,
+        reason: 'o ponto de retomada é escrito ao entrar na retro, antes de '
+            'qualquer trecho contado, então a maior parte das retomadas pedia '
+            'à sala que descartasse um nada');
+    expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
+  });
+
+  test('a telling-back the room already checked is never thrown away', () async {
+    final harness = SalaHarness();
+
+    final container = await _reopen(
+      harness,
+      parouEm: SalaStage.retro,
+      contado: const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: _gravacao,
+            startsMs: 0,
+            endsMs: 30000,
+          ),
+        ],
+        checked: true,
+      ),
+      semAudio: true,
+    );
+
+    expect(harness.room.restartsAsked, isEmpty,
+        reason: 'a conferência já tinha passado, e recomeçar aposenta todo trecho '
+            'e desfaz o conferida: a passagem que a equipe terminou voltava a '
+            'não estar terminada');
+    expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
+  });
+
   test('a restart the room refused does not open the passage anyway', () async {
     final harness = SalaHarness()..room.failRestartWith = const RoomRefused();
 

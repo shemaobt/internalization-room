@@ -1124,8 +1124,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           return;
         }
         if (waiting.stage == SalaStage.retro) {
-          await _room.restartBackTranslation(sessionId);
+          final told = (await _room.fetchState(sessionId)).backTranslation;
           if (epoch != _epoch) return;
+          if (!told.nothingTold && !told.checked) {
+            await _room.restartBackTranslation(sessionId);
+            if (epoch != _epoch) return;
+          }
         }
       }
       // Re-opening carries the coverage back with it, so the necklace fills itself.
