@@ -127,6 +127,10 @@ void main() {
         reason: 'a marca de recontar só é apagada por um trecho que chega, e sair por '
             'cima dela deixava o corte seguinte subir como correção de um trecho que '
             'ninguém estava contando');
+    expect(harness.room.chunkSpans, ['0-20000', '20000-40000'],
+        reason: 'e o cursor do corte também foi movido pelo recontar, então o trecho '
+            'seguinte subia desde o começo do que ia ser recontado — os vinte primeiros '
+            'segundos contados duas vezes');
   });
 
   test('a mother-tongue take that came back empty does not replace the audio',
