@@ -228,8 +228,11 @@ class _RetroCordLayerState extends ConsumerState<_RetroCordLayer> {
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(salaSessionProvider);
+    // The watch above already rebuilds this layer on any session change; what the select
+    // adds is the edge — the one frame the clip starts or stops — which is when the
+    // asking has to be started or put down.
     ref.listen<bool>(
-      salaSessionProvider.select((session) => session.btClipRodando),
+      salaSessionProvider.select((sala) => sala.btClipRodando),
       (_, rodando) {
         // The part that starts is not the one that stopped, and the player still answers
         // for the old one until it has loaded the new. The room's own number is the one

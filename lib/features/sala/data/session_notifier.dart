@@ -1830,7 +1830,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// Asked many times a second by the cord while a part plays. It is a question, not a
   /// piece of state, on purpose: an answer written into [SalaSessionState] would rebuild
   /// everything that watches the session at that rate.
-  int get ouvidoAgoraMs => _posicaoGlobal.inMilliseconds;
+  ///
+  /// A part is in the air from the moment the room asks for it, and open only once it has
+  /// loaded — and until it loads the player still answers for the part before it. That
+  /// stale position, added to the new part's offset, is a place past the end of the part
+  /// being opened; measured against the part's length the moment it lands, it put the
+  /// bead on the far end of the cord for as long as a tick. A part that has not said its
+  /// length yet has not sounded, and the beginning the room wrote down is the whole of
+  /// what is known about it.
+  int get ouvidoAgoraMs {
+    final noAr = state.btParteNoArMs;
+    if (noAr == 0) return state.btOuvidoMs;
+    final inicio = _inicioDaParteMs(_parteTocando);
+    return (inicio + _playback.position.inMilliseconds)
+        .clamp(inicio, inicio + noAr);
+  }
 
   void _seguirOClipe() {
     _desdeMs = _posicaoGlobal.inMilliseconds;

@@ -187,6 +187,7 @@ class FakePlayback implements PlaybackRepository {
   Completer<void>? _opening;
   Timer? _walking;
   Duration _step = Duration.zero;
+  bool _sounding = false;
 
   /// Let the position walk on its own, the way a real player's does.
   ///
@@ -196,7 +197,7 @@ class FakePlayback implements PlaybackRepository {
   /// stops at the clip's own length instead of running past it.
   void walkWhilePlaying({Duration step = const Duration(milliseconds: 100)}) {
     _step = step;
-    if (_playing != null) _startWalking();
+    if (_sounding) _startWalking();
   }
 
   void stopWalking() {
@@ -278,7 +279,10 @@ class FakePlayback implements PlaybackRepository {
   @override
   Future<void> resume() async {
     paused = false;
-    if (_playing != null) _startWalking();
+    // Sound coming back out, not a new clip: the future `play` handed out is long since
+    // completed by the pause, so it cannot be what says whether anything is sounding.
+    _sounding = true;
+    _startWalking();
   }
 
   @override
@@ -303,12 +307,15 @@ class FakePlayback implements PlaybackRepository {
       await held?.future;
       at = Duration.zero;
       _openings.add(null);
-      if (_playing == playing) _startWalking();
+      if (_playing != playing) return;
+      _sounding = true;
+      _startWalking();
     });
     return playing.future;
   }
 
   void _stopSounding() {
+    _sounding = false;
     stopWalking();
     final playing = _playing;
     _playing = null;

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_cord.dart';
 import 'package:internalization_room/main.dart';
 
@@ -112,12 +113,18 @@ void main() {
     expect(parou, greaterThan(0));
 
     // O player segue respondendo posições — a corda é que não pode mais ouvi-las.
+    final antes = tester.widget<RetroCord>(find.byType(RetroCord));
     harness.playback.at = const Duration(seconds: 25);
     await tester.pump(const Duration(seconds: 2));
 
     expect(cabeca(tester), parou,
         reason: 'pausar é a sala guardando onde a equipe parou de ouvir; uma cabeça '
             'que anda depois disso desmente o que a pausa quer dizer');
+    expect(identical(tester.widget<RetroCord>(find.byType(RetroCord)), antes), isTrue,
+        reason: 'e a corda nem foi redesenhada: parar de ouvir é parar de perguntar. '
+            'A equipe conta um trecho por minutos a fio com a gravação em pausa, e um '
+            'timer que sobrevive a ela acorda o tablet dez vezes por segundo à toa');
+    await sairDaSala(tester, harness, container);
   });
 
   testWidgets('the bead does not walk with nothing playing', (tester) async {
@@ -133,8 +140,8 @@ void main() {
     await tester.pump(const Duration(seconds: 3));
 
     expect(cabeca(tester), fim,
-        reason: 'um timer que sobrevive ao fim do clipe é o defeito clássico desta '
-            'mudança: a bolinha continuaria andando sem áudio nenhum no ar');
+        reason: 'sem áudio no ar não há andamento a acompanhar, e a bolinha fica onde '
+            'a sala anotou que a equipe parou de ouvir');
   });
 
   testWidgets('the end of a part still leads on to the next', (tester) async {
@@ -161,6 +168,86 @@ void main() {
     expect(cabeca(tester), greaterThan(_parteInteira.inMilliseconds),
         reason: 'atravessar a fronteira continua levando a equipe à parte seguinte, e a '
             'cabeça segue de lá para a frente');
+    await sairDaSala(tester, harness, container);
+  });
+
+  testWidgets('a part slow to open does not fling the bead to the end',
+      (tester) async {
+    final harness = _umEnsaioQueCorre();
+    final container = await retroTocando(tester, harness, partes: 2);
+
+    await tester.pump(const Duration(milliseconds: 400));
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    // Um take longo num tablet velho leva mais que um tique da corda para abrir, e o
+    // player responde pela parte anterior até abrir.
+    harness.playback.holdNextOpening();
+    container.read(salaSessionProvider.notifier).proximaParte();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(cabeca(tester), _parteInteira.inMilliseconds,
+        reason: 'a parte que abre ainda não soou; enquanto o player responde pela '
+            'anterior, o único lugar que a sala sabe é o começo desta');
+
+    harness.playback.finishHeldOpening();
+    await tester.pump(const Duration(milliseconds: 16));
+
+    expect(naCorda(tester), lessThan(0.75),
+        reason: 'no quadro em que a parte abre, a sala aprende a duração dela — e uma '
+            'cabeça herdada da parte anterior, medida contra essa duração, atirava a '
+            'bolinha para a ponta do colar antes de voltar');
+    await sairDaSala(tester, harness, container);
+  });
+
+  testWidgets('the bead walks again when the take is let run on', (tester) async {
+    final harness = _umEnsaioQueCorre();
+    final container = await retroTocando(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await tester.pump(const Duration(milliseconds: 400));
+    notifier.ouvirGravacao();
+    await tester.pump(const Duration(milliseconds: 100));
+    final parou = cabeca(tester);
+
+    notifier.ouvirGravacao();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(cabeca(tester), greaterThan(parou),
+        reason: 'pausar para contar um trecho e deixar a gravação seguir é o gesto mais '
+            'comum da retro; a cabeça tem de voltar a andar com ela');
+    await sairDaSala(tester, harness, container);
+  });
+
+  testWidgets('hearing the stretch the analyst pointed at does not move the head',
+      (tester) async {
+    final harness = _umEnsaioQueCorre()
+      ..room.verdictChecked = false
+      ..room.verdictFinding = BtFindingKind.missing
+      ..room.verdictFindingSegmentId = 'trecho-1';
+    final container = await retroTocando(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    for (final em in const [Duration(seconds: 10), Duration(seconds: 20)]) {
+      harness.playback.at = em;
+      notifier.cortarTrecho();
+      await tester.pump(const Duration(milliseconds: 200));
+      notifier.retroTap();
+      await tester.pump(const Duration(milliseconds: 600));
+    }
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 200));
+    await notifier.finishBackTranslation();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final parado = cabeca(tester);
+    notifier.ouvirVozMaterna();
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(cabeca(tester), parado,
+        reason: 'o trecho apontado toca por um recorte do arquivo, e a posição que o '
+            'player responde ali é contada de dentro do recorte — lida como lugar no '
+            'ensaio, atiraria a bolinha para onde a equipe nunca esteve');
     await sairDaSala(tester, harness, container);
   });
 
