@@ -2307,7 +2307,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (epoch != _epoch) return;
 
       if (verdict.checked) {
-        state = state.copyWith(btPhase: BtPhase.conferida, voice: VoiceState.done);
+        // The finding is over, and so is the stretch it named. This branch returns above
+        // the place the pointer is resolved, so a name outlived the objection that gave it
+        // — and the cord went on drawing that stretch drained under a passage the room had
+        // just called checked. It only showed after a correction the room made nothing of:
+        // one that lands retires the name it replaces, so the pointer goes stale on its
+        // own and matches nothing.
+        state = state.copyWith(
+          btPhase: BtPhase.conferida,
+          voice: VoiceState.done,
+          clearFindingSegment: true,
+        );
         _closeTheNecklace();
         return;
       }
