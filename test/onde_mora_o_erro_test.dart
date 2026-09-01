@@ -584,6 +584,51 @@ void main() {
         reason: 'e a sala que ela acabou de deixar não pode parar a próxima');
   });
 
+  testWidgets('a passage that came back clean closes instead of calling anybody',
+      (tester) async {
+    final container = await pumpToPergunta(tester);
+    final harness = harnessDaVez!;
+    harness.room.replaceNeedsPerson = true;
+    harness.room.verdictChecked = true;
+    harness.room.verdictFinding = null;
+
+    await recontarAExplicacao(tester, container);
+    await tester.pump(const Duration(milliseconds: 900));
+
+    expect(harness.room.personsAsked, 0,
+        reason: 'o trabalho ficou correto, então o orçamento esgotado deixou '
+            'de importar: não há mais o que corrigir, e convocar alguém para '
+            'uma passagem concluída é ruído que corrói a confiança na fila do '
+            'facilitador');
+    expect(container.read(salaSessionProvider).stage, SalaStage.fim,
+        reason: 'e a passagem termina como qualquer outra que ficou limpa — '
+            'parar a sala aqui prenderia a equipe num fecho que já aconteceu');
+
+    // The closing runs on its own timers; let them out so the test does not end holding
+    // the room's clock.
+    notifier(container).leaveThePassage();
+    await tester.pump(const Duration(milliseconds: 200));
+  });
+
+  testWidgets('a clean verdict on an ordinary budget closes as it always did',
+      (tester) async {
+    final container = await pumpToPergunta(tester);
+    final harness = harnessDaVez!;
+    harness.room.verdictChecked = true;
+    harness.room.verdictFinding = null;
+
+    await recontarAExplicacao(tester, container);
+    await tester.pump(const Duration(milliseconds: 900));
+
+    expect(harness.room.personsAsked, 0);
+    expect(container.read(salaSessionProvider).stage, SalaStage.fim,
+        reason: 'o controle: sem o campo em jogo o fecho é o de sempre, senão '
+            'o caso acima passaria por um fecho que nunca acontece');
+
+    notifier(container).leaveThePassage();
+    await tester.pump(const Duration(milliseconds: 200));
+  });
+
   testWidgets('the pointed stretch is told apart from the others',
       (tester) async {
     await pumpToPergunta(tester);

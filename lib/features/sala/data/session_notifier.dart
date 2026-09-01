@@ -2144,6 +2144,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // gesture empties the session, and the call for a person is only ever made when there
     // is a session to make it about.
     if (_gone) return;
+    // A passage that came back clean wins over a room that has run dry. If the work is
+    // right there is nothing left to correct, so the spent budget has stopped mattering,
+    // and calling somebody to a passage that is over is noise in the queue the facilitator
+    // has to trust. The necklace closes and nobody is sent for.
+    if (state.btPhase == BtPhase.conferida) return;
     // The budget for retellings runs out on this route too, and the room says so in the
     // same breath as the answer. It used to be read only off telling a stretch, so a team
     // that hit the ceiling by correcting one saw nothing at all: the room had stopped
