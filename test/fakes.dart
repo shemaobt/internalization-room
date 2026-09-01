@@ -418,6 +418,10 @@ class FakeRoom implements RoomRepository {
   /// than build it up by telling stretches back.
   BackTranslationProgress? retroSoFar;
   String? verdictFindingSegmentId;
+  /// Which stretch the room says was recorded and never told back, when that is what
+  /// stopped the reading. Its own field, as on the wire: a finding and an untold stretch
+  /// are never named in the same answer.
+  String? verdictUntoldSegmentId;
   BtFindingKind? verdictFinding;
   String? serverStatus;
   String fixedLine = '';
@@ -736,6 +740,7 @@ class FakeRoom implements RoomRepository {
       checked: verdictChecked,
       findingKind: verdictFinding,
       findingSegmentId: verdictFindingSegmentId,
+      untoldSegmentId: verdictUntoldSegmentId,
       findingsRemaining: verdictFinding == null ? 0 : 1,
       usedFailSafe: false,
     );
