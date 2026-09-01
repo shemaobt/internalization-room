@@ -2119,7 +2119,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case BtPhase.capturing:
         unawaited(_finishChunkCapture());
       case BtPhase.findings:
-        _leadThemToTheTrecho();
+        final apontado = state.btFindingTrecho;
+        if (apontado != null) _leadThemToTheTrecho(apontado);
       case BtPhase.gravandoMaterna:
         unawaited(_gravarAVozMaterna());
       case BtPhase.thinking:
@@ -2316,6 +2317,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // before the pointer is resolved, so it is resolved against names that exist.
       await _readTheStretchesBack(sessionId, epoch);
       if (epoch != _epoch) return;
+
+      final naoContado = verdict.untoldSegmentId;
+      if (naoContado != null) {
+        _levarAoTrechoNaoContado(naoContado);
+        return;
+      }
       state = state.copyWith(
         btPhase: BtPhase.findings,
         voice: VoiceState.invite,
@@ -2330,6 +2337,46 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (epoch != _epoch) return;
       _handleRoomFailure(error);
     }
+  }
+
+  /// Straight to the stretch nobody told, with the rehearsal left standing.
+  ///
+  /// The answer that stops a reading over a missing explanation used to arrive with no
+  /// address, and the only way forward the screen had left was the one that starts the
+  /// rehearsal over: a team lost every recording of the passage over one stretch they had
+  /// not got to yet. Nothing is thrown away here.
+  ///
+  /// Their own voice plays the stretch, because the room said only that parts are missing
+  /// — which one is a thing they hear, not a thing anybody wrote. The room speaks no new
+  /// line: the answer already carried the one it says.
+  ///
+  /// And the telling is armed as a replacement of that very stretch. Told back the
+  /// ordinary way it would be captured at the next position, the named stretch would
+  /// still be waiting, and the same gate would stop the passage again the next time they
+  /// said they had finished.
+  void _levarAoTrechoNaoContado(String named) {
+    final trecho = state.trechoChamado(named);
+    if (trecho == null ||
+        trecho.parte < 0 ||
+        trecho.parte >= state.partes.length) {
+      // A name this tablet cannot turn into a slice of a recording it is holding. There
+      // is nothing to lead them to and no way to say so without words, and every quiet
+      // way out of here ends on the exit that empties the rehearsal.
+      _haltForAPerson();
+      return;
+    }
+    _parteTocando = trecho.parte;
+    _trechoStart = trecho.from;
+    _trechoEnd = trecho.to;
+    _recontando = true;
+    _contandoDeNovo = trecho;
+    state = state.copyWith(
+      btPhase: BtPhase.playing,
+      voice: VoiceState.invite,
+      btFindings: const [],
+      clearFindingSegment: true,
+    );
+    _leadThemToTheTrecho(trecho);
   }
 
   /// Take the room's own reading of the stretches, names and all.
@@ -2393,9 +2440,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     ];
   }
 
-  void _leadThemToTheTrecho() {
-    final trecho = state.btFindingTrecho;
-    if (trecho == null) return;
+  void _leadThemToTheTrecho(Trecho trecho) {
     final partes = state.partes;
     if (trecho.parte < 0 || trecho.parte >= partes.length) return;
     state = state.copyWith(btTrechoTocando: true);
@@ -2435,7 +2480,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void ouvirVozMaterna() {
     if (state.btPhase != BtPhase.findings) return;
     if (state.btTrechoTocando || state.btRetroTocando) return;
-    _leadThemToTheTrecho();
+    final trecho = state.btFindingTrecho;
+    if (trecho == null) return;
+    _leadThemToTheTrecho(trecho);
   }
 
   /// Hear the telling in Portuguese — the voice that travels to the analyst.
@@ -2605,7 +2652,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _trechoEnd = trecho.to;
     _recontando = true;
     state = state.copyWith(btPhase: BtPhase.playing, voice: VoiceState.invite);
-    _leadThemToTheTrecho();
+    _leadThemToTheTrecho(trecho);
   }
 
   Future<void> reRecordClip() async {
