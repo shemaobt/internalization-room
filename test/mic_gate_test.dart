@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/facilitator_voice_service.dart';
 import 'package:internalization_room/features/sala/data/mic_permission.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 
@@ -51,9 +50,10 @@ void main() {
     addTearDown(container.dispose);
 
     await container.read(micPermissionProvider.notifier).check();
-    await container.read(facilitatorVoiceProvider).playAsset('assets/audio/microfone.mp3');
+    container.read(salaSessionProvider.notifier).sayTheMicIsBlocked();
+    await settle();
 
-    expect(harness.voice.assets, ['assets/audio/microfone.mp3']);
+    expect(harness.voice.assets, [micBlockedAsset(testLanguage)]);
     expect(harness.room.calls, isEmpty, reason: 'o aviso não pode depender de rede');
   });
 
@@ -96,7 +96,7 @@ void main() {
     await tester.tap(bySemanticsLabelWidget('A sala precisa do microfone para funcionar'));
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(harness.voice.assets, contains(inviteToStartAsset),
+    expect(harness.voice.assets, contains(inviteToStartAsset(testLanguage)),
         reason: 'checar a permissão trocava a tela e não começava nada: o convite nunca '
             'acenava, e numa sala que não lê isso é um círculo mudo');
   });

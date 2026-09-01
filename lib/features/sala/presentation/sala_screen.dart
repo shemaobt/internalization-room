@@ -4,12 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/device_link_notifier.dart';
-import '../data/facilitator_voice_service.dart';
 import '../data/mic_permission.dart';
 import '../data/screen_awake.dart';
 import '../data/session_notifier.dart';
 import '../data/take_upload_queue.dart';
-import '../domain/facilitator_script.dart';
 import '../domain/session_state.dart';
 import '../dev/dev_skip_bar.dart';
 import 'widgets/codigo_view.dart';
@@ -78,7 +76,7 @@ class _SalaScreenState extends ConsumerState<SalaScreen> with WidgetsBindingObse
     if (access == MicAccess.granted) {
       unawaited(ref.read(salaSessionProvider.notifier).openTheRoom());
     } else {
-      unawaited(ref.read(facilitatorVoiceProvider).playAsset(micBlockedAsset));
+      ref.read(salaSessionProvider.notifier).sayTheMicIsBlocked();
     }
   }
 
@@ -89,7 +87,14 @@ class _SalaScreenState extends ConsumerState<SalaScreen> with WidgetsBindingObse
     final link = ref.watch(deviceLinkProvider);
 
     if (!link.linked) {
-      return Scaffold(body: SafeArea(child: CodigoView(code: link.code)));
+      return Scaffold(
+        body: SafeArea(
+          child: CodigoView(
+            code: link.code,
+            language: ref.watch(roomLanguageProvider),
+          ),
+        ),
+      );
     }
 
     if (link.linked && !_roomOpened) {

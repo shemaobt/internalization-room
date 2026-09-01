@@ -28,7 +28,7 @@ void main() {
     final state = container.read(salaSessionProvider);
     expect(state.naRoda, isEmpty);
     expect(state.needsPerson, isTrue);
-    expect(harness.voice.assets, contains(fixedLineAsset(needsPersonLine)));
+    expect(harness.voice.assets, contains(fixedLineAsset(needsPersonLine, testLanguage)));
   });
 
   test('a halted room says why it stopped, and says it once', () async {
@@ -45,7 +45,7 @@ void main() {
     await settle();
 
     final spoken = harness.voice.assets
-        .where((asset) => asset == fixedLineAsset(needsPersonLine));
+        .where((asset) => asset == fixedLineAsset(needsPersonLine, testLanguage));
     expect(spoken.length, 1);
   });
 
@@ -138,7 +138,7 @@ void main() {
     expect(state.stage, SalaStage.escolha,
         reason: 'a recusa chegava como sala quebrada e prendia a equipe numa conversa '
             'que nunca abriu');
-    expect(harness.voice.assets, isNot(contains(fixedLineAsset(needsPersonLine))),
+    expect(harness.voice.assets, isNot(contains(fixedLineAsset(needsPersonLine, testLanguage))),
         reason: 'a sala pedia uma pessoa para uma passagem que pessoa nenhuma abre no tablet');
   });
 
@@ -236,7 +236,7 @@ void main() {
     await until(() => harness.inbox.questionsSent.isNotEmpty);
     await settle();
 
-    expect(harness.voice.assets, contains(fixedLineAsset(handoffLines.first)));
+    expect(harness.voice.assets, contains(fixedLineAsset(handoffLines.first, testLanguage)));
     expect(container.read(salaSessionProvider).knots, 1);
   });
 
@@ -258,8 +258,8 @@ void main() {
         .where((asset) => asset.contains('/C'))
         .toList();
     expect(spoken, [
-      fixedLineAsset(handoffLines[0]),
-      fixedLineAsset(handoffLines[1]),
+      fixedLineAsset(handoffLines[0], testLanguage),
+      fixedLineAsset(handoffLines[1], testLanguage),
     ]);
   });
 
@@ -318,7 +318,7 @@ void main() {
     notifier.takeKeep();
     await settle();
 
-    expect(harness.voice.assets, contains(strandedTakeAsset));
+    expect(harness.voice.assets, contains(strandedTakeAsset(testLanguage)));
   });
 
   test('leaving a passage does not strand the take on disk', () async {
@@ -399,7 +399,7 @@ void main() {
     await settle();
 
     expect(container.read(salaSessionProvider).sessionId, isNull);
-    expect(harness.voice.assets, contains(strandedTakeAsset));
+    expect(harness.voice.assets, contains(strandedTakeAsset(testLanguage)));
   });
 
   test('a name already on its way does not speak over where the finger went', () async {
@@ -530,7 +530,7 @@ void main() {
 
     await until(() => container.read(salaSessionProvider).needsPerson);
 
-    expect(harness.voice.assets, contains(fixedLineAsset(needsPersonLine)),
+    expect(harness.voice.assets, contains(fixedLineAsset(needsPersonLine, testLanguage)),
         reason: 'o caminho em que o próprio servidor manda parar era o mais mudo dos seis');
   });
 
@@ -549,7 +549,7 @@ void main() {
     final state = container.read(salaSessionProvider);
     expect(state.sessionId, isNull);
     expect(state.needsPerson, isTrue);
-    expect(harness.voice.assets, contains(fixedLineAsset(needsPersonLine)));
+    expect(harness.voice.assets, contains(fixedLineAsset(needsPersonLine, testLanguage)));
     expect(harness.room.personsAsked, asked,
         reason: 'a sessão foi esquecida junto, e é a sessão nula que impede o aviso de '
             'sair — avisar um id que já deu 404 é um 404 atrás do outro');
@@ -741,6 +741,27 @@ void main() {
             'voltar ao convite em silêncio é o mesmo descarte que o ensaio tinha');
   });
 
+  test('a turn recorded into nothing stops the room instead of going up', () async {
+    final harness = SalaHarness();
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.conversaTap();
+    await settle();
+    final subiram = harness.room.turnsSent;
+    harness.recorder.returnsEmpty = true;
+    notifier.conversaTap();
+    await settle();
+
+    expect(harness.room.turnsSent, subiram,
+        reason: 'o arquivo de zero byte subia como turno e a sala respondia a um '
+            'silêncio que a equipe nunca disse');
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'gravador que devolve arquivo sem um byte é aparelho com problema, não '
+            'pessoa falando baixo — pedir para repetir não esvazia um disco cheio');
+  });
+
   test('a question the recorder never handed back is not forgotten', () async {
     final harness = SalaHarness();
     final container = await inConversaHarness(harness);
@@ -755,6 +776,27 @@ void main() {
 
     final state = container.read(salaSessionProvider);
     expect(state.needsPerson, isTrue);
+    expect(state.noteMode, isFalse);
+  });
+
+  test('a question recorded into nothing is not sent, and is not forgotten', () async {
+    final harness = SalaHarness();
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.handTap();
+    await settle();
+    harness.recorder.returnsEmpty = true;
+    notifier.conversaTap();
+    await settle();
+
+    expect(harness.inbox.questionsSent, isEmpty,
+        reason: 'a pergunta sem um byte dentro entrava na caixa e ficava esperando '
+            'resposta de um facilitador que não tinha o que ouvir');
+    final state = container.read(salaSessionProvider);
+    expect(state.needsPerson, isTrue,
+        reason: 'levantar a mão e perguntar no vazio não pode voltar ao convite calado');
     expect(state.noteMode, isFalse);
   });
 
@@ -873,7 +915,7 @@ void main() {
       await settle();
     }
 
-    final ditas = harness.voice.assets.where((a) => a == fixedLineAsset('G0')).length;
+    final ditas = harness.voice.assets.where((a) => a == fixedLineAsset('G0', testLanguage)).length;
     expect(ditas, 3,
         reason: 'a parada é na terceira; um teste que não chega lá passa sem nunca ter '
             'exercido a contagem que ele existe para prender');

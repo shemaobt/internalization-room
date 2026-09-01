@@ -59,6 +59,7 @@ void main() {
           home: const Scaffold(
             body: CodigoView(
               code: ClaimCode(deviceId: 'aparelho-1', code: 'QHF-3M7K'),
+              language: 'pt',
             ),
           ),
         ),
