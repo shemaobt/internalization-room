@@ -26,7 +26,11 @@ Gradient? _disco(WidgetTester tester) {
       .map((decoracao) => decoracao.gradient)
       .whereType<Gradient>()
       .toList();
-  return pintados.isEmpty ? null : pintados.single;
+  expect(pintados, hasLength(lessThan(2)),
+      reason: 'o corpo é o único desenho do círculo com gradiente; com dois '
+          'este ajudante não sabe qual deles é o disco, e um StateError cru '
+          'não diria isso a quem vier depois');
+  return pintados.isEmpty ? null : pintados.first;
 }
 
 /// Every colour the circle paints that is not the disc's own fill: the ring of the open
@@ -55,12 +59,13 @@ bool _mesmoTom(Color uma, Color outra) =>
 
 Future<void> _pumpCirculo(
   WidgetTester tester,
-  VoiceState voice, {
+  VoiceState voice,
+  ThemeData theme, {
   bool peerCue = false,
 }) =>
     tester.pumpWidget(MaterialApp(
-      key: ValueKey('$voice-$peerCue'),
-      theme: AppTheme.light,
+      key: ValueKey('$voice-$peerCue-${theme.brightness}'),
+      theme: theme,
       home: Scaffold(
         body: Center(
           child: FacilitatorCircle(
@@ -138,7 +143,11 @@ void main() {
 
     // A equipe escolhe regravar a voz, grava a língua materna, e a sala emenda
     // sozinha o contar daquele trecho em português. São as duas estações, uma
-    // atrás da outra, do jeito que a equipe as percorre.
+    // atrás da outra, do jeito que a equipe as percorre. Os quadros contados
+    // entre um toque e o outro são a espera: a escolha chegar à tela, o
+    // microfone da materna ficar aberto por um punhado de quadros, e a
+    // substituição no servidor — que é trabalho de disco de verdade, e por isso
+    // precisa de `letTheRehearsalReachTheRoom` no meio.
     await tester.tap(byLabel(micMaterna));
     await registrar(3);
     notifier(container).retroTap();
@@ -187,7 +196,7 @@ void main() {
             'nem o convite antes do microfone abrir');
   });
 
-  testWidgets('nada em volta do disco fica azul enquanto a voz é a materna',
+  testWidgets('tudo que o círculo desenha é madeira enquanto a voz é a materna',
       (tester) async {
     final container = await pumpToPergunta(tester);
 
@@ -198,46 +207,70 @@ void main() {
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.gravandoMaterna);
 
+    // O halo do clipe é irmão do círculo, não filho dele, e é azul: fora deste
+    // finder. Ele não desenha aqui porque cortar o trecho parou o tocador e
+    // escolher a voz limpou o que restava — o que nada mais no conjunto prende.
+    final sessao = container.read(salaSessionProvider);
+    expect(sessao.btClipRodando || sessao.btTrechoTocando, isFalse,
+        reason: 'com o clipe correndo haveria um anel azul em volta do círculo '
+            'que este teste não alcança, e a tela mentiria de novo');
+
     final emVolta = _emVolta(tester);
     expect(emVolta, isNotEmpty,
         reason: 'escutando, o círculo desenha o anel do microfone aberto, os '
             'anéis que se fecham e os haloes deles — se não desenha, este '
             'teste não olha nada');
     for (final cor in emVolta) {
-      for (final azulDoContar in [ShemaBrand.azulInk, ShemaBrand.azul, ShemaBrand.azulLo]) {
-        expect(_mesmoTom(cor, azulDoContar), isFalse,
-            reason: 'um disco âmbar sob anéis e haloes azuis continua sendo um '
-                'círculo azul para quem olha do chão');
-      }
+      expect(
+          [ShemaBrand.woodHi, ShemaBrand.wood, ShemaBrand.woodLo]
+              .any((tom) => _mesmoTom(cor, tom)),
+          isTrue,
+          reason: 'um disco âmbar sob anéis e haloes azuis continua sendo um '
+              'círculo azul para quem olha do chão. Dizer só "nada é azul" '
+              'deixaria passar um anel verde, então o que se pede é a madeira');
     }
   });
 
   testWidgets('os outros estados do círculo ficam com as cores de antes',
       (tester) async {
-    const colors = SalaColors.light;
-    final deAntes = {
-      VoiceState.invite: BeadStyles.telha(colors),
-      VoiceState.speaking: BeadStyles.telha(colors),
-      VoiceState.listening: BeadStyles.azul,
-      VoiceState.thinking: BeadStyles.clay(colors, 0),
-      VoiceState.done: BeadStyles.verde,
-      VoiceState.needsPerson: BeadStyles.clay(colors, 0),
-      VoiceState.offline: BeadStyles.clay(colors, 0),
-      VoiceState.blocked: BeadStyles.clay(colors, 0),
-    };
+    for (final tema in [
+      (AppTheme.light, SalaColors.light),
+      (AppTheme.dark, SalaColors.dark),
+    ]) {
+      final (theme, colors) = tema;
+      final deAntes = {
+        VoiceState.invite: BeadStyles.telha(colors),
+        VoiceState.speaking: BeadStyles.telha(colors),
+        VoiceState.listening: BeadStyles.azul,
+        VoiceState.thinking: BeadStyles.clay(colors, 0),
+        VoiceState.done: BeadStyles.verde,
+        VoiceState.needsPerson: BeadStyles.clay(colors, 0),
+        VoiceState.offline: BeadStyles.clay(colors, 0),
+        VoiceState.blocked: BeadStyles.clay(colors, 0),
+      };
 
-    for (final entrada in deAntes.entries) {
-      await _pumpCirculo(tester, entrada.key);
-      expect(_disco(tester), entrada.value,
-          reason: 'um switch mexido vaza pelos ramos vizinhos, e '
-              '${entrada.key.name} não tem nada a ver com a língua materna');
+      for (final entrada in deAntes.entries) {
+        // Sem quadro nenhum depois de montar: pensando respira, e o barro é
+        // clareado pela respiração. O gradiente exato só existe em t = 0, que é
+        // o quadro que `pumpWidget` desenha. Um `pump` a mais aqui e a linha do
+        // pensando falha por causa da respiração, não por causa de cor.
+        await _pumpCirculo(tester, entrada.key, theme);
+        expect(_disco(tester), entrada.value,
+            reason: 'um switch mexido vaza pelos ramos vizinhos, e '
+                '${entrada.key.name} não tem nada a ver com a língua materna');
+      }
+
+      await _pumpCirculo(tester, VoiceState.invite, theme, peerCue: true);
+      expect(_disco(tester), BeadStyles.azul,
+          reason: 'a fala da equipe é azul e continua azul');
     }
-
-    await _pumpCirculo(tester, VoiceState.invite, peerCue: true);
-    expect(_disco(tester), BeadStyles.azul,
-        reason: 'a fala da equipe é azul e continua azul');
   });
 
+  // Os dois rótulos da regravação também são lidos por
+  // `caminho_longo_test.dart`, no teste que prova o que cada toque faz. Aqui
+  // eles são o critério de aceite desta mudança: uma cor nova não pode custar a
+  // leitura em voz alta da tela, e a fase apontada, que aquele teste não cobre,
+  // entra junto.
   testWidgets('o rótulo lido em voz alta continua distinguindo as fases',
       (tester) async {
     final container = await pumpToPergunta(tester);

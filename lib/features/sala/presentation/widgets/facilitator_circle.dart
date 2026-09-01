@@ -49,6 +49,10 @@ class FacilitatorCircle extends StatelessWidget {
 
   bool get _teamTalk => peerCue && voice == VoiceState.invite;
 
+  /// The ink of the open microphone: the ring that says it is open, and the rings closing
+  /// in on it. Both draw the same line, so both read the tongue from here.
+  Color get _openMicInk => motherTongue ? ShemaBrand.woodLo : ShemaBrand.azulInk;
+
   @override
   Widget build(BuildContext context) {
     final colors = SalaColors.of(context);
@@ -300,7 +304,6 @@ class FacilitatorCircle extends StatelessWidget {
   }
 
   Widget _listenRing(SalaColors colors) {
-    final ringColor = motherTongue ? ShemaBrand.woodLo : ShemaBrand.azulInk;
     final halo = motherTongue ? ShemaBrand.wood : ShemaBrand.azul;
     return Loop(
       period: const Duration(milliseconds: 1600),
@@ -309,7 +312,7 @@ class FacilitatorCircle extends StatelessWidget {
         height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(color: ringColor, width: 3),
+          border: Border.all(color: _openMicInk, width: 3),
           boxShadow: [
             BoxShadow(
               color: halo.withValues(alpha: 0.5 * (1 - t)),
@@ -322,7 +325,6 @@ class FacilitatorCircle extends StatelessWidget {
   }
 
   List<Widget> _gatheringIn() {
-    final ringColor = motherTongue ? ShemaBrand.woodLo : ShemaBrand.azulInk;
     Widget ring(double phase) => Ripple(
           period: const Duration(milliseconds: 1900),
           phase: phase,
@@ -334,7 +336,7 @@ class FacilitatorCircle extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: ringColor.withValues(alpha: 0.55 * t),
+                  color: _openMicInk.withValues(alpha: 0.55 * t),
                   width: 2.5,
                 ),
               ),
