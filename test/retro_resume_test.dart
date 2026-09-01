@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
@@ -37,16 +38,19 @@ const _contados = BackTranslationProgress(
 /// A tablet that was closed part-way and is opened again on the same passage.
 ///
 /// The rehearsal is on disk, the ledger says where they were, and the room answers with
-/// whatever [contado] says it is holding for that session.
+/// whatever [contado] says it is holding for that session. With [semAudio] the ledger
+/// still names the rehearsal and the tablet no longer has it.
 Future<ProviderContainer> _reopen(
   SalaHarness harness, {
   required SalaStage parouEm,
   BackTranslationProgress contado = const BackTranslationProgress(),
+  bool semAudio = false,
 }) async {
   final gravada = File(
     '${Directory.systemTemp.createTempSync('sala-retro-retomada').path}/p1.m4a',
   )..writeAsBytesSync([1, 2, 3]);
   addTearDown(() => gravada.parent.deleteSync(recursive: true));
+  if (semAudio) gravada.deleteSync();
   harness.emAberto.rows['Ruth/P01'] = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: parouEm,
@@ -146,6 +150,59 @@ void main() {
         reason: 'não há retro para retomar, e inventar uma seria pior que '
             'refazer o ensaio');
     expect(state.btTrechos, isEmpty);
+  });
+
+  test('a telling-back resumed without its rehearsal starts the room over',
+      () async {
+    final harness = SalaHarness();
+
+    final container = await _reopen(
+      harness,
+      parouEm: SalaStage.retro,
+      contado: _contados,
+      semAudio: true,
+    );
+
+    expect(harness.room.restartsAsked, ['novo-clipe'],
+        reason: 'a equipe contava a passagem inteira de novo sobre trechos que '
+            'a sessão ainda guardava, e o analista recebia os velhos '
+            'concatenados com os novos');
+    expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
+  });
+
+  test('a restart the room refused does not open the passage anyway', () async {
+    final harness = SalaHarness()..room.failRestartWith = const RoomRefused();
+
+    final container = await _reopen(
+      harness,
+      parouEm: SalaStage.retro,
+      contado: _contados,
+      semAudio: true,
+    );
+
+    expect(harness.room.calls, isNot(contains('openSession')),
+        reason: 'a sessão ainda guarda os trechos, e entrar na conversa é pôr a '
+            'equipe a caminho de contar a passagem por cima deles');
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'e parar calado deixa a equipe tocando de novo sem entender por '
+            'que nada acontece');
+  });
+
+  test('a telling-back the team can pick back up throws nothing away',
+      () async {
+    final harness = SalaHarness();
+
+    final container = await _reopen(
+      harness,
+      parouEm: SalaStage.retro,
+      contado: _contados,
+    );
+
+    expect(harness.room.restartsAsked, isEmpty,
+        reason: 'os trechos que o servidor guarda são os que a equipe está '
+            'voltando para continuar, e descartá-los é mandar contar de novo '
+            'o que já estava contado');
+    expect(container.read(salaSessionProvider).stage, SalaStage.retro);
   });
 
   test('a team that stopped at the rehearsal still lands on the rehearsal',
