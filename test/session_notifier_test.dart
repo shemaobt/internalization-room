@@ -2307,6 +2307,31 @@ void main() {
         reason: 'gravar a passagem inteira e não sair nada é coisa para uma pessoa olhar');
   });
 
+  test('a take that came back empty is not a take the team can keep', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    harness.recorder.returnsEmpty = true;
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.partes, isEmpty,
+        reason: 'um arquivo de zero byte existe e tem caminho, então passava como '
+            'tomada, era copiado para guardadas/ e entrava no manifesto');
+    expect(state.takes, 0,
+        reason: 'e a conta subia por uma passagem que a equipe contou no vazio');
+    expect(state.needsPerson, isTrue,
+        reason: 'disco cheio ou microfone tomado é coisa para uma pessoa olhar, e a '
+            'equipe só descobria na quinta recusa de upload, doze minutos depois');
+  });
+
   test('the back-translation reaches conferida and closes the necklace', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);

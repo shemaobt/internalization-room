@@ -1280,6 +1280,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return DateTime.now().difference(since) >= ref.read(shortestSpeechProvider);
   }
 
+  bool _hasAudio(String path) =>
+      File(path).existsSync() && File(path).lengthSync() > 0;
+
   Future<void> _finishListening() async {
     final epoch = _epoch;
     final path = await _recorder.stop();
@@ -1547,7 +1550,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final epoch = _epoch;
     final path = await _recorder.stop();
     if (epoch != _epoch) return;
-    if (path == null) {
+    if (path == null || !_hasAudio(path)) {
       // Nothing came back. Offering keep, redo and listen over a take that does not exist
       // let a team confirm a rehearsal into nothing — the buttons vanished exactly as on a
       // good keep, no bead appeared, and the way to the retro never opened.
