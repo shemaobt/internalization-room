@@ -70,6 +70,25 @@ void main() {
     expect(harness.room.chunkSpans, ['0-10000']);
   });
 
+  test('a stretch recorded into nothing does not pass as told back', () async {
+    final harness = SalaHarness();
+    final container = await _inRetro(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.recorder.returnsEmpty = true;
+    await _contaTrecho(harness, notifier, em: const Duration(seconds: 10));
+
+    expect(harness.room.chunksSent, 0,
+        reason: 'o trecho sem um byte dentro subia, e a cobertura da passagem passava '
+            'a contar com uma explicação que ninguém deu');
+    expect(container.read(salaSessionProvider).btTrechos, isEmpty,
+        reason: 'e o trecho entrava na lista, então a tesoura seguia do fim de uma '
+            'fatia que não existe');
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'este ramo voltava calado para o player, que é a sala não dizendo '
+            'nada sobre um aparelho que parou de gravar');
+  });
+
   test('the second part of the rehearsal counts from its own beginning',
       () async {
     final harness = SalaHarness();

@@ -2153,6 +2153,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final contandoDeNovo = _contandoDeNovo;
     _contandoDeNovo = null;
 
+    if (path != null && !_hasAudio(path)) {
+      state = state.copyWith(btPhase: BtPhase.playing);
+      _haltForAPerson();
+      return;
+    }
+
     if (path == null || sessionId == null) {
       state = state.copyWith(btPhase: BtPhase.playing, voice: VoiceState.invite);
       return;
