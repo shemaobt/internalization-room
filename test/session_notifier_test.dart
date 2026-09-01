@@ -2386,6 +2386,27 @@ void main() {
         reason: 'a escolha feita no panorama viaja com a passagem do mesmo livro');
   });
 
+  test('a calibration turn that came back empty never reaches the room', () async {
+    final harness = SalaHarness()..room.bridgeMode = 'calibration_pending';
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.openConvite();
+    notifier.conviteTap();
+    await settle();
+    harness.recorder.returnsEmpty = true;
+    notifier.conviteTap();
+    await settle();
+
+    expect(harness.room.turnsSent, 0,
+        reason: 'a única resposta do método subia sem um byte dentro, e o modo da '
+            'sessão inteira era escolhido em cima dela');
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'e a equipe seguia para a passagem sem nada dizer que a pergunta da '
+            'entrada nunca foi respondida');
+  });
+
   test('skipping the method answer sends no mode and never re-asks', () async {
     final harness = SalaHarness()..room.bridgeMode = 'calibration_pending';
     final container = harness.container();

@@ -890,7 +890,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final path = await _recorder.stop();
     if (epoch != _epoch) return;
     final panorama = _panoramaSessionId;
-    if (path == null) {
+    if (path == null || !_hasAudio(path)) {
       state = state.copyWith(voice: VoiceState.invite);
       _haltForAPerson();
       return;
