@@ -29,6 +29,28 @@ import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
+/// Wait for something to happen, and say what did not when it never does.
+///
+/// A wait that gave up in silence let the test go on with a precondition that had not
+/// arrived and blow up far from here — on a List.last, in a different file on every
+/// run, because a deadline is enough or not depending on the machine's load.
+Future<void> waitFor(
+  String what,
+  FutureOr<bool> Function() ready, {
+  Duration limit = const Duration(seconds: 10),
+}) async {
+  final deadline = DateTime.now().add(limit);
+  while (!await ready()) {
+    if (DateTime.now().isAfter(deadline)) {
+      final waited = limit.inMilliseconds % 1000 == 0
+          ? '${limit.inSeconds}s'
+          : '${limit.inMilliseconds}ms';
+      throw TimeoutException('esperei $waited e $what não aconteceu', limit);
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+  }
+}
+
 const totalBeads = 12;
 
 const testLanguage = 'pt';

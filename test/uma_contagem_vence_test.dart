@@ -11,21 +11,6 @@ import 'fakes.dart';
 Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) =>
     Future<void>.delayed(delay);
 
-/// Wait for something to happen, and say what did not when it never does.
-Future<void> waitFor(
-  String what,
-  FutureOr<bool> Function() ready, {
-  Duration limit = const Duration(seconds: 10),
-}) async {
-  final deadline = DateTime.now().add(limit);
-  while (!await ready()) {
-    if (DateTime.now().isAfter(deadline)) {
-      fail('esperei ${limit.inSeconds}s e $what não aconteceu');
-    }
-    await Future<void>.delayed(const Duration(milliseconds: 5));
-  }
-}
-
 Future<({ProviderContainer container, FakeTakeQueue fila})> _inASession(
   SalaHarness harness,
 ) async {

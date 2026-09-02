@@ -14,7 +14,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/convite_
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'session_notifier_test.dart' show settle, until;
+import 'session_notifier_test.dart' show settle;
 
 const _unclaimed = RememberedLink();
 
@@ -82,7 +82,7 @@ void main() {
     await settle();
     expect(container.read(deviceLinkProvider).code?.code, 'QHF-3M7K');
 
-    await until(() => container.read(deviceLinkProvider).code?.code == 'WKD-2QP4');
+    await waitFor('o código do tablet aparecer', () => container.read(deviceLinkProvider).code?.code == 'WKD-2QP4');
 
     expect(container.read(deviceLinkProvider).code?.code, 'WKD-2QP4',
         reason: 'um código vencido seguia na tela e o facilitador digitava um que a '
@@ -114,7 +114,7 @@ void main() {
     addTearDown(container.dispose);
 
     await container.read(deviceLinkProvider.notifier).findTheTeam();
-    await until(() => container.read(deviceLinkProvider).linked);
+    await waitFor('o tablet ficar ligado à equipe', () => container.read(deviceLinkProvider).linked);
 
     expect(container.read(deviceLinkProvider).team?.projectId, 'equipe-terena');
     expect(harness.room.codesAskedFor, isEmpty,
@@ -136,7 +136,7 @@ void main() {
     harness.room.linkedTo = const TeamLink(projectId: 'equipe-terena');
     final drawnBefore = harness.room.codesAskedFor.length;
 
-    await until(() => container.read(deviceLinkProvider).linked);
+    await waitFor('o tablet ficar ligado à equipe', () => container.read(deviceLinkProvider).linked);
 
     expect(container.read(deviceLinkProvider).team?.projectId, 'equipe-terena');
     expect(harness.room.codesAskedFor.length, drawnBefore,
@@ -210,7 +210,7 @@ void main() {
     expect(container.read(deviceLinkProvider).code, isNotNull);
 
     harness.room.linkedTo = const TeamLink(projectId: 'equipe-terena', label: 'prateleira');
-    await until(() => container.read(deviceLinkProvider).linked);
+    await waitFor('o tablet ficar ligado à equipe', () => container.read(deviceLinkProvider).linked);
 
     expect(container.read(deviceLinkProvider).team?.projectId, 'equipe-terena');
     expect(harness.vinculo.remembered.team?.projectId, 'equipe-terena',
@@ -228,7 +228,7 @@ void main() {
     addTearDown(container.dispose);
 
     await container.read(deviceLinkProvider.notifier).findTheTeam();
-    await until(() => harness.room.codesAskedFor.length > 1);
+    await waitFor('um segundo código ser pedido', () => harness.room.codesAskedFor.length > 1);
 
     expect(harness.room.codesAskedFor.first, isNull);
     expect(harness.room.codesAskedFor[1], 'aparelho-1',

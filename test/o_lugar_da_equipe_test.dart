@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -8,26 +7,6 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-
-/// Wait for something to happen, and say what did not when it never does.
-///
-/// A wait that gives up in silence lets the case go on measuring a precondition that
-/// never arrived, and the failure then surfaces somewhere else entirely — far from the
-/// wait that actually timed out. Every wait here names what it is waiting for and fails
-/// on it.
-Future<void> waitFor(
-  String what,
-  FutureOr<bool> Function() ready, {
-  Duration limit = const Duration(seconds: 10),
-}) async {
-  final deadline = DateTime.now().add(limit);
-  while (!await ready()) {
-    if (DateTime.now().isAfter(deadline)) {
-      fail('esperei ${limit.inSeconds}s e $what não aconteceu');
-    }
-    await Future<void>.delayed(const Duration(milliseconds: 5));
-  }
-}
 
 Directory _home() {
   final home = Directory.systemTemp.createTempSync('sala-lugar');

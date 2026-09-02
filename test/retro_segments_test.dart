@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -7,22 +6,6 @@ import 'fakes.dart';
 
 Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) async {
   await Future<void>.delayed(delay);
-}
-
-Future<void> until(
-  bool Function() condition, {
-  Duration limit = const Duration(seconds: 5),
-}) async {
-  final deadline = DateTime.now().add(limit);
-  while (!condition()) {
-    if (DateTime.now().isAfter(deadline)) {
-      final waited = limit.inMilliseconds % 1000 == 0
-          ? '${limit.inSeconds}s'
-          : '${limit.inMilliseconds}ms';
-      throw TimeoutException('esperei $waited e a condição não aconteceu', limit);
-    }
-    await Future<void>.delayed(const Duration(milliseconds: 10));
-  }
 }
 
 Future<void> _gravaParte(SalaSessionNotifier notifier) async {
@@ -106,12 +89,12 @@ void main() {
     harness.playback.finishPlayback();
     await settle();
     await _contaTrecho(harness, notifier, em: const Duration(seconds: 10));
-    await until(() => harness.room.chunksSent == 1);
+    await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
 
     notifier.proximaParte();
     await settle();
     await _contaTrecho(harness, notifier, em: const Duration(seconds: 5));
-    await until(() => harness.room.chunksSent == 2);
+    await waitFor('o segundo trecho chegar à sala', () => harness.room.chunksSent == 2);
 
     expect(harness.room.chunkSpans, ['0-10000', '0-5000'],
         reason: 'o mesmo instante ouvido em partes diferentes não pode virar o '
