@@ -55,17 +55,23 @@ class HandInboxRepository {
     }
   }
 
-  Future<void> markHeard(String replyId) async {
+  /// Whether the desk took it.
+  ///
+  /// Any 2xx is agreement, so a desk that answers "already heard" is not read as a
+  /// refusal.
+  Future<bool> markHeard(String replyId) async {
+    final http.Response response;
     try {
-      await _client
+      response = await _client
           .post(
             Uri.parse('${Env.backendUrl}$_basePath/questions/$replyId/heard'),
             headers: await _headers,
           )
           .timeout(_timeout);
-    } on Exception {
-      return;
+    } on Object {
+      return false;
     }
+    return response.statusCode >= 200 && response.statusCode < 300;
   }
 
   Future<void> sendQuestion(String sessionId, File audio) async {

@@ -23,6 +23,7 @@ import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/coverage.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
+import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -395,8 +396,16 @@ class FakeInbox implements HandInboxRepository {
   Future<List<HandReply>?> fetchReplies() async =>
       cannotBeAsked ? null : replies;
 
+  /// Whether the desk turns the mark down — the real one answers for itself now, so the
+  /// double has to be able to say no as well as yes.
+  bool refusesMarks = false;
+
   @override
-  Future<void> markHeard(String replyId) async => heard.add(replyId);
+  Future<bool> markHeard(String replyId) async {
+    if (refusesMarks) return false;
+    heard.add(replyId);
+    return true;
+  }
 
   @override
   Future<void> sendQuestion(String sessionId, File audio) async {
@@ -500,6 +509,9 @@ class FakeRoom implements RoomRepository {
     Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
     Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
   ];
+  /// The passage the room hands back when this tablet asks for the panorama.
+  String? panoramaAnsweredWith;
+
   int personsAsked = 0;
   int retells = 0;
   int retellBudget = 3;
@@ -583,9 +595,15 @@ class FakeRoom implements RoomRepository {
     metBefore.add(afterSession != null);
     bridgeModesSent.add(bridgeMode);
     languagesSent.add(language);
+    // The server decides which passage a session is for; asking for the panorama is a
+    // request, not an instruction. Today it always honours "OV", and this is where that
+    // stops being true.
+    final answered = pericope == panoramaPericope && panoramaAnsweredWith != null
+        ? panoramaAnsweredWith
+        : pericope;
     return SessionSnapshot(
       sessionId: 'sessao-1',
-      pericope: pericope ?? 'rute-1',
+      pericope: answered ?? 'rute-1',
       status: 'in_progress',
       coverage: nextCoverage,
       done: false,
@@ -987,16 +1005,39 @@ class FakeTakeQueue implements TakeUploadQueue {
             entry,
       ].length;
 
+  Completer<void>? _armed;
+  Completer<void>? _holding;
+
+  /// Hold the next reading *after* it has looked at the queue, so a count taken while
+  /// recordings were still here can be made to arrive after a newer one.
+  void holdTheNextReading() => _armed = Completer<void>();
+
+  /// Whether a reading is parked in the hold with its numbers already taken. Waiting on
+  /// a duration here instead would let the queue change first, and the older reading
+  /// would come back as fresh as the newer one — a race the case never ran.
+  bool get readingHeld => _holding != null;
+
+  void releaseTheHeldReading() {
+    _holding?.complete();
+    _holding = null;
+  }
+
   @override
   Future<Set<String>> unsentScopesOf(
     String kind, {
     required String sessionId,
-  }) async =>
-      {
-        for (final entry in rows)
-          if (!entry.stored && entry.kind == kind && entry.sessionId == sessionId)
-            entry.scope,
-      };
+  }) async {
+    final held = _armed;
+    _armed = null;
+    if (held != null) _holding = held;
+    final scopes = {
+      for (final entry in rows)
+        if (!entry.stored && entry.kind == kind && entry.sessionId == sessionId)
+          entry.scope,
+    };
+    if (held != null) await held.future;
+    return scopes;
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -1058,6 +1099,8 @@ class SalaHarness {
     this.fimLinger = const Duration(seconds: 30),
     this.filaEmMemoria = false,
     this.lingua = testLanguage,
+    this.emAbertoNoDisco,
+    this.inboxService,
   })  : inbox = FakeInbox(replies: replies),
         vinculo = FakeLinkedTeam(remembered: linkedAs);
 
@@ -1065,7 +1108,13 @@ class SalaHarness {
 
   final FakeFinished finished = FakeFinished();
 
+  /// The real inbox, for the cases that need a server that can refuse or go away.
+  final HandInboxRepository? inboxService;
+
   final FakeWorkInProgress emAberto = FakeWorkInProgress();
+
+  /// The real ledger, for the tests that need a disk that can refuse.
+  final WorkInProgress? emAbertoNoDisco;
 
   late final TakeUploadQueue takes = filaEmMemoria
       ? FakeTakeQueue(room: room)
@@ -1075,11 +1124,11 @@ class SalaHarness {
         facilitatorVoiceProvider.overrideWithValue(voiceService ?? voice),
         recordingRepositoryProvider.overrideWithValue(recorder),
         playbackRepositoryProvider.overrideWithValue(playback),
-        handInboxRepositoryProvider.overrideWithValue(inbox),
+        handInboxRepositoryProvider.overrideWithValue(inboxService ?? inbox),
         roomRepositoryProvider.overrideWithValue(room),
         takeUploadQueueProvider.overrideWithValue(takes),
         finishedPassagesProvider.overrideWithValue(finished),
-        workInProgressProvider.overrideWithValue(emAberto),
+        workInProgressProvider.overrideWithValue(emAbertoNoDisco ?? emAberto),
         connectivityServiceProvider.overrideWithValue(network),
         linkedTeamProvider.overrideWithValue(vinculo),
         linkPollIntervalProvider.overrideWithValue(linkPoll),

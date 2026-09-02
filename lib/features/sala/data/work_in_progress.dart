@@ -37,11 +37,18 @@ class ResumePoint {
         'pass': pass,
         'takes': [
           for (final take in takes)
-            {'path': take.path, 'scope': take.scopeId, 'take': ?take.takeId},
+            {
+              'name': p.basename(take.path),
+              'scope': take.scopeId,
+              'take': ?take.takeId,
+            },
         ],
       };
 
-  static ResumePoint? fromJson(Map<String, Object?> json) {
+  static ResumePoint? fromJson(
+    Map<String, Object?> json, {
+    required String folder,
+  }) {
     final sessionId = json['session_id'];
     if (sessionId is! String || sessionId.isEmpty) return null;
     return ResumePoint(
@@ -55,7 +62,16 @@ class ResumePoint {
         for (final raw in (json['takes'] as List? ?? const []))
           if (raw is Map)
             KeptTake(
-              path: raw['path'] as String? ?? '',
+              // The name, rejoined against where the recordings live today. Storing the
+              // whole path meant a restore, a reinstall or a new tablet — each of which
+              // changes the container prefix — left every take pointing at a directory
+              // that no longer exists, and the team was sent back to the start of the
+              // conversa for good. `path` is still read so ledgers written by the
+              // shipped app keep resolving; the queue took this same shape in ENG-577.
+              path: p.join(
+                folder,
+                p.basename((raw['name'] ?? raw['path']) as String? ?? ''),
+              ),
               scopeId: raw['scope'] as String? ?? KeptScope.whole,
               takeId: raw['take'] as String?,
             ),
@@ -66,10 +82,21 @@ class ResumePoint {
 
 class WorkInProgress {
   final Future<Directory> Function() _home;
+
+  /// Where the recordings themselves live, which is not where this ledger lives: the
+  /// takes sit under the documents directory, the ledger under application support.
+  final Future<Directory> Function() _recordings;
   Future<void> _writes = Future<void>.value();
 
-  WorkInProgress({Future<Directory> Function()? home})
-      : _home = home ?? getApplicationSupportDirectory;
+  WorkInProgress({
+    Future<Directory> Function()? home,
+    Future<Directory> Function()? recordings,
+  })  : _home = home ?? getApplicationSupportDirectory,
+        _recordings = recordings ?? _recordingsHome;
+
+  static Future<Directory> _recordingsHome() async => Directory(
+        p.join((await getApplicationDocumentsDirectory()).path, 'recordings'),
+      );
 
   Future<File> _file() async {
     final dir = Directory(p.join((await _home()).path, _folder));
@@ -82,6 +109,11 @@ class WorkInProgress {
   Future<Map<String, ResumePoint>> _rows() async {
     final file = await _file();
     if (!await file.exists()) return const {};
+    // Outside the catch on purpose. That catch is for a file whose contents cannot be
+    // parsed, and answering "nothing saved" is the honest reply to that. Failing to find
+    // where the recordings live is a different thing entirely, and reporting it as an
+    // empty ledger would tell a team with work waiting that they have none.
+    final folder = (await _recordings()).path;
     try {
       final raw = jsonDecode(await file.readAsString()) as Map<String, Object?>;
       return {
@@ -89,6 +121,7 @@ class WorkInProgress {
           if (entry.value is Map)
             entry.key: ?ResumePoint.fromJson(
               (entry.value as Map).cast<String, Object?>(),
+              folder: folder,
             ),
       };
     } on Object {
@@ -119,7 +152,13 @@ class WorkInProgress {
   ) {
     final next = _writes.then((_) async {
       final file = await _file();
-      if (await file.exists() && !await _readable(file)) return;
+      if (await file.exists() && !await _readable(file)) {
+        // Not overwritten — the rows of every other passage are in there, and a read that
+        // failed must never become the base of a write. Not swallowed either: returning
+        // here reported a place as saved that was never saved, and that is the one
+        // failure on this path that raises no error at any layer.
+        throw FormatException('em_curso.json ilegível', file.path);
+      }
       final rows = change(await _rows());
       final staging = File('${file.path}.novo');
       await staging.writeAsString(
