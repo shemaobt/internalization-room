@@ -118,4 +118,28 @@ void main() {
     expect(state.btTrechos, hasLength(1));
     expect(_calledForAPerson(harness), isFalse);
   });
+
+  test('reopening into the rehearsal, halted, leaves the record circle dead',
+      () async {
+    final harness = SalaHarness()..room.serverStatus = 'needs_person';
+
+    final container = await _reopensInto(harness, SalaStage.ensaio);
+
+    await waitFor('a sala parar', () => _calledForAPerson(harness));
+
+    container.read(salaSessionProvider.notifier).ensaioTap();
+    await settle();
+
+    expect(
+      harness.recorder.captures,
+      0,
+      reason: 'a sala está parada esperando uma pessoa; abrir o microfone aqui '
+          'grava a equipe para dentro de uma sala que o servidor já parou',
+    );
+    expect(
+      container.read(salaSessionProvider).ensaio,
+      EnsaioStatus.idle,
+      reason: 'e a tela não pode dizer que está gravando',
+    );
+  });
 }

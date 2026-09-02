@@ -747,11 +747,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           state = state.copyWith(clearPing: true);
         });
       }
-      // The stage no longer gates this, and that is not a fix: the settle is only ever
-      // scheduled inside a conversa turn, and every way out of the conversa cancels its
-      // timer on the way past, so this read never runs anywhere else. The guard never
-      // chose anything — it only read as though there were a decision about where a halt
-      // counts. `done` keeps its own, which is a real one: finishing is a conversa idea.
       if (snapshot.needsPerson) {
         _haltForAPerson();
       } else if (snapshot.done && state.stage == SalaStage.conversa) {
@@ -1140,9 +1135,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           // The snapshot was fetched here and its halt never read, so a team reopening
           // into a room the server had already stopped met every gesture wide open.
           //
-          // After the telling-back is picked up, not before: every retro gesture closes
-          // on this halt, and the ensaio's record circle does not, so landing them in the
-          // ensaio would leave a live recording over a stopped room.
+          // After the telling-back is picked up, not before, so that the passage the team
+          // comes back to is the one they left: a person resolving the halt finds them in
+          // their retro rather than dropped back into the rehearsal.
           if (snapshot.needsPerson) _haltForAPerson();
           return;
         }
@@ -1626,6 +1621,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void ensaioTap() {
+    // The twelfth of these, and the last one missing. It was unreachable while nothing
+    // could stop the room here; resuming into a rehearsal the server has already halted
+    // reaches it, and a microphone opened then records the team into a stopped room.
+    if (state.needsPerson) return;
     switch (state.ensaio) {
       case EnsaioStatus.idle:
         state = state.copyWith(ensaio: EnsaioStatus.recording);
