@@ -47,6 +47,20 @@ class _Desk {
   /// What the desk answers when the mark does reach it.
   int answers = 200;
 
+  /// How many marks have reached the desk.
+  int marks = 0;
+
+  Completer<void>? _holding;
+
+  /// Keep the desk from answering, so the window between the tap and the answer can be
+  /// looked at instead of assumed away.
+  void holdsTheAnswer() => _holding = Completer<void>();
+
+  void answersAtLast() {
+    _holding?.complete();
+    _holding = null;
+  }
+
   http.Client get client => MockClient((request) async {
         if (request.url.path.endsWith('/questions/replies')) {
           reads++;
@@ -63,6 +77,8 @@ class _Desk {
           );
         }
         if (request.url.path.endsWith('/heard')) {
+          marks++;
+          await _holding?.future;
           if (unreachable) throw const SocketException('sem rede');
           final id = request.url.pathSegments[
               request.url.pathSegments.length - 2];
@@ -114,6 +130,7 @@ void main() {
 
     await _theTeamTapsTheHand(container);
     expect(_timesPlayed(harness), 1, reason: 'a equipe ouviu a resposta');
+    await waitFor('a tentativa de marca terminar', () => desk.marks == 1);
 
     expect(
       container.read(salaSessionProvider).oldestUnheardReply?.id,
@@ -140,6 +157,7 @@ void main() {
 
     await _theTeamTapsTheHand(container);
     expect(_timesPlayed(harness), 1);
+    await waitFor('a mesa recusar a marca', () => desk.marks == 1);
 
     expect(
       container.read(salaSessionProvider).oldestUnheardReply?.id,
@@ -172,5 +190,32 @@ void main() {
       reason: 'tocar de novo o que a equipe já ouviu é o dano que esta fatia '
           'existe para impedir — e nunca marcar nada faria exatamente isso',
     );
+  });
+
+  test('a reply whose mark has not been answered yet is not offered again',
+      () async {
+    final desk = _Desk()..holdsTheAnswer();
+    final harness = _tabletTalkingTo(desk);
+    final container = await _opensTheRoom(desk, harness);
+
+    await _theTeamTapsTheHand(container);
+    expect(_timesPlayed(harness), 1);
+    await waitFor('a marca chegar à mesa', () => desk.marks == 1);
+
+    // A mesa ainda não respondeu. A equipe toca de novo.
+    await _theTeamTapsTheHand(container);
+
+    expect(
+      _timesPlayed(harness),
+      1,
+      reason: 'entre o toque e a resposta da mesa a sala não pode voltar a '
+          'oferecer a mesma resposta — é a mesma repetição do terceiro caso, '
+          'dentro de uma sessão em vez de entre duas',
+    );
+    expect(desk.marks, 1, reason: 'nem marcar a mesma resposta duas vezes');
+
+    desk.answersAtLast();
+    await settle();
+    expect(container.read(salaSessionProvider).oldestUnheardReply, isNull);
   });
 }

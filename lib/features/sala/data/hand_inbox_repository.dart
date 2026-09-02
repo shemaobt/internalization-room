@@ -57,13 +57,6 @@ class HandInboxRepository {
 
   /// Whether the desk took it.
   ///
-  /// The answer used to be neither waited for nor looked at, and every failure was
-  /// swallowed, so a mark that never left the tablet and one the desk refused were both
-  /// indistinguishable from agreement. The tablet's own mark lives only as long as the
-  /// screen, so the next start read the reply back as still unheard and played it to the
-  /// team a second time. Its two siblings here already answer for themselves — one gives
-  /// back nothing useful, the other raises.
-  ///
   /// Any 2xx is agreement, so a desk that answers "already heard" is not read as a
   /// refusal.
   Future<bool> markHeard(String replyId) async {

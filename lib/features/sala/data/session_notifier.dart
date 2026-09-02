@@ -1441,11 +1441,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (epoch != _epoch) return;
     unawaited(_markHeard(reply.id));
     if (played) return;
-    // No strike count here, unlike every other line. `_markHeard` above is unconditional and
-    // tells the server too, so this answer is gone whatever happened to it — a ducked reply
-    // and a broken one cost the team the same thing, and only a person can now relay it.
-    // Giving this path the three strikes a turn gets would destroy three answers before
-    // anyone was called; a turn survives its strikes because the room can say it again.
+    // No strike count here, unlike every other line. A reply the room could not play is
+    // one only a person can now relay, so it calls for one at once; giving this path the
+    // three strikes a turn gets would lose three answers before anyone was called, and a
+    // turn survives its strikes only because the room can say it again.
+    //
+    // The mark above is no longer unconditional, so a reply that did not play and whose
+    // mark the desk turns down does come back to the list. That is the honest state and
+    // it was chosen over a retry: the desk never learned, so the reply is still owed. It
+    // is not the trap the doc above describes, because the room is halted from here and
+    // the hand answers no one until a person resolves it.
     _haltForAPerson();
   }
 
@@ -1461,21 +1466,35 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// stays in the desk's list and the next tap marks it again. An unbounded retry on
   /// bookkeeping buys nothing and is not free.
   ///
-  /// The gesture comes back before the desk answers, not after. Holding it until the
-  /// request returns would freeze the hand for as long as the request takes, and the team
-  /// has one gesture.
+  /// The mark and the gesture move together, and the mark is taken back if the desk
+  /// disagrees. Releasing the gesture first and marking afterwards opened a window as long
+  /// as the request: the hand was free again while the reply still read as unheard, so a
+  /// second touch played the same answer to the team and sent a second mark. That is the
+  /// replay this whole change exists to stop, through a door of its own making.
+  ///
+  /// The other way to close it was to hold the gesture until the desk answered, and it
+  /// costs more than it saves: up to the full timeout with the hand dead, and the hand is
+  /// the team's only one — they could not even raise a question meanwhile. This way the
+  /// room is briefly optimistic, for as long as one request, and corrects itself. That is
+  /// a different animal from the optimism this slice removes, which outlived the request
+  /// and died only with the screen, leaving the desk to contradict it on the next start.
   Future<void> _markHeard(String replyId) async {
     final epoch = _epoch;
-    state = state.copyWith(clearPlayingReply: true);
-    final agreed = await _inbox.markHeard(replyId);
-    if (_gone || epoch != _epoch || !agreed) return;
-    state = state.copyWith(
-      replies: [
-        for (final reply in state.replies)
-          reply.id == replyId ? reply.asHeard() : reply,
-      ],
-    );
+    state = state.copyWith(replies: _replies(replyId, heard: true), clearPlayingReply: true);
+    if (await _inbox.markHeard(replyId)) return;
+    if (_gone || epoch != _epoch) return;
+    state = state.copyWith(replies: _replies(replyId, heard: false));
   }
+
+  List<HandReply> _replies(String replyId, {required bool heard}) => [
+        for (final reply in state.replies)
+          if (reply.id != replyId)
+            reply
+          else if (heard)
+            reply.asHeard()
+          else
+            HandReply(id: reply.id, audioUrl: reply.audioUrl),
+      ];
 
   void _cancelQuestion() {
     unawaited(_recorder.discard());
