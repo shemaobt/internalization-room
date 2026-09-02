@@ -73,6 +73,8 @@ class OndeMoraGrade extends StatelessWidget {
   /// nothing to cut.
   final VoidCallback? onCortar;
 
+  final bool offline;
+
   const OndeMoraGrade({
     super.key,
     required this.onOuvirMaterna,
@@ -83,6 +85,7 @@ class OndeMoraGrade extends StatelessWidget {
     this.tocandoRetro = false,
     this.podeOuvirRetro = true,
     this.onCortar,
+    this.offline = false,
   });
 
   bool get _algoTocando => tocandoMaterna || tocandoRetro;
@@ -117,6 +120,7 @@ class OndeMoraGrade extends StatelessWidget {
             onFalar: onRecontar,
             tocando: tocandoRetro,
             inerte: _algoTocando,
+            micInerte: offline,
             estacoesPenduradas: 0,
           ),
           const SizedBox(width: _tesouraSlot + _tesouraFolga),
@@ -214,6 +218,12 @@ class _Coluna extends StatelessWidget {
   final bool tocando;
   final bool inerte;
 
+  /// Whether this column's own microphone is off, on top of [inerte]. Offline is the one
+  /// caller of this: it still lets the team hear what is there, but nothing they say can
+  /// be sent, so the mic that would open a recording nobody can receive stays dark
+  /// instead of swallowing the tap in silence.
+  final bool micInerte;
+
   /// Cut what is sounding, on the voice that has a slice to cut. Null on the voice that
   /// does not, and null while nothing is in the air.
   final VoidCallback? onCortar;
@@ -233,6 +243,7 @@ class _Coluna extends StatelessWidget {
     required this.tocando,
     required this.inerte,
     required this.estacoesPenduradas,
+    this.micInerte = false,
     this.onCortar,
   });
 
@@ -276,7 +287,7 @@ class _Coluna extends StatelessWidget {
             size: 60,
             gradiente: gradiente,
             label: micLabel,
-            onTap: inerte ? null : onFalar,
+            onTap: inerte || micInerte ? null : onFalar,
             child:
                 const Icon(LucideIcons.mic, size: 22, color: ShemaBrand.branco),
           ),

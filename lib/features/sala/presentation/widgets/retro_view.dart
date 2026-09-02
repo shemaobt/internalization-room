@@ -76,6 +76,7 @@ class RetroView extends ConsumerWidget {
             tocandoMaterna: session.btTrechoTocando,
             tocandoRetro: session.btRetroTocando,
             podeOuvirRetro: session.btFindingTrecho?.retroPath != null,
+            offline: session.offline,
             onCortar: session.btTrechoTocando
                 ? () => unawaited(notifier.dividirTrecho())
                 : null,
