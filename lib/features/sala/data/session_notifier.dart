@@ -2303,6 +2303,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     String sessionId,
     int epoch,
   ) async {
+    // Read before the room is asked, not after. The place is what the successor is found
+    // by, and asking for it on the far side of the wait would be asking a list that the
+    // wait itself is there to change.
+    final lugar = state.btTrechos.indexWhere(
+      (trecho) => trecho.segmentId == alvo.segmentId,
+    );
     final TellingAgain told;
     try {
       told = await _room.replaceSegment(
@@ -2357,7 +2363,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // which leaves no telling to inherit, it played nothing at all, for good.
     final trechos = _trechosFrom(
       told.segments,
-      lugar: state.btTrechos.indexWhere((t) => t.segmentId == alvo.segmentId),
+      lugar: lugar,
       noLugarDe: alvo,
       contadoEm: path,
     );
