@@ -11,6 +11,12 @@ const micMaternaLabel = 'Regravar a voz na língua materna — refaz também o c
 const micRetroLabel = 'Recontar só em português';
 const cortarTrechoLabel = 'Cortar este trecho em dois, aqui';
 
+/// The one thing to do about a stretch that is merely short: tell it again, whole.
+///
+/// Not "only in Portuguese", which named the bridge language — false in a session held in
+/// another one — and whose "only" existed by contrast with a column that is not here.
+const contarInteiroLabel = 'Contar esta parte inteira de novo';
+
 /// Where the error lives: the team says it, the room does not guess.
 ///
 /// Column is the voice — wood is the team's own tongue, blue is the telling in Portuguese
@@ -108,6 +114,83 @@ class OndeMoraGrade extends StatelessWidget {
             estacoesPenduradas: 0,
           ),
           const SizedBox(width: _tesouraSlot + _tesouraFolga),
+        ],
+      ),
+    );
+  }
+}
+
+/// What the room offers when the stretch is short rather than wrong.
+///
+/// The two players stay: hearing is free, it settles nothing, and without hearing their
+/// own voice back the team has no way to know what was left out. What goes is the
+/// *choice* between the two — the pair of microphones that asked which voice to correct —
+/// and in its place stands the single act that answers an absence: telling that stretch
+/// again, whole, with what was missing in it.
+///
+/// Its own composition rather than the grid with a column hidden, so that "the question
+/// is not put here" is a thing the screen cannot drift back out of.
+class ContarInteiroDeNovo extends StatelessWidget {
+  final VoidCallback onOuvirMaterna;
+  final VoidCallback onOuvirRetro;
+  final VoidCallback onContarInteiro;
+
+  final bool tocandoMaterna;
+  final bool tocandoRetro;
+
+  /// Whether this tablet holds the telling at all, as on the grid: a session picked back
+  /// up carries the room's stretches and none of its files.
+  final bool podeOuvirRetro;
+
+  const ContarInteiroDeNovo({
+    super.key,
+    required this.onOuvirMaterna,
+    required this.onOuvirRetro,
+    required this.onContarInteiro,
+    this.tocandoMaterna = false,
+    this.tocandoRetro = false,
+    this.podeOuvirRetro = true,
+  });
+
+  bool get _algoTocando => tocandoMaterna || tocandoRetro;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SalaColors.of(context);
+    return FadeUp(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _Player(
+                colors: colors,
+                gradiente: BeadStyles.wood,
+                label: ouvirMaternaLabel,
+                onTap: _algoTocando && !tocandoMaterna ? null : onOuvirMaterna,
+                tocando: tocandoMaterna,
+              ),
+              const SizedBox(width: 56),
+              _Player(
+                colors: colors,
+                gradiente: BeadStyles.azul,
+                label: ouvirRetroLabel,
+                onTap: !podeOuvirRetro || (_algoTocando && !tocandoRetro)
+                    ? null
+                    : onOuvirRetro,
+                tocando: tocandoRetro,
+              ),
+            ],
+          ),
+          _Corda(colors: colors, altura: 14),
+          _Alvo(
+            size: 60,
+            gradiente: BeadStyles.azul,
+            label: contarInteiroLabel,
+            onTap: _algoTocando ? null : onContarInteiro,
+            child: const Icon(LucideIcons.mic, size: 22, color: ShemaBrand.branco),
+          ),
         ],
       ),
     );

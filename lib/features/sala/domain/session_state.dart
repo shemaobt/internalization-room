@@ -302,6 +302,22 @@ class SalaSessionState {
   /// gives for itself.
   String? get btEsperandoConserto => btConsertando ? null : btFindingSegmentId;
 
+  /// Whether what the analyst found in the pointed stretch is an absence rather than a
+  /// mistake.
+  ///
+  /// A stretch told short has no wrong voice to point at: the mother tongue is right, the
+  /// telling is right, and what is missing is in neither of them. Asking which of the two
+  /// to correct put a question with no answer, the team answered it anyway, nothing they
+  /// did settled it, and the round came back — spending the budget and another analyst
+  /// call each time.
+  ///
+  /// The rule lives here, beside [btFindingTrecho], for the reason that one gives: every
+  /// side that acts on a finding reads one copy of it.
+  bool get btFaltaNoTrecho =>
+      btFindingTrecho != null &&
+      btFindings.isNotEmpty &&
+      btFindings.every((finding) => finding == BtFindingKind.missing);
+
   List<KeptTake> get partes => keptTakes;
 
   bool get canGhostPlay => partes.isNotEmpty && ensaio == EnsaioStatus.idle;
