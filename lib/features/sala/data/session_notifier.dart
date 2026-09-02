@@ -1621,9 +1621,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void ensaioTap() {
-    // The twelfth of these, and the last one missing. It was unreachable while nothing
-    // could stop the room here; resuming into a rehearsal the server has already halted
-    // reaches it, and a microphone opened then records the team into a stopped room.
     if (state.needsPerson) return;
     switch (state.ensaio) {
       case EnsaioStatus.idle:
