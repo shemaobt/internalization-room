@@ -1439,11 +1439,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final epoch = _epoch;
     final played = await _voice.play(reply.audioUrl);
     if (epoch != _epoch) return;
-    _markHeard(reply.id);
-    if (played) {
-      state = state.copyWith(clearPlayingReply: true);
-      return;
-    }
+    unawaited(_markHeard(reply.id));
+    if (played) return;
     // No strike count here, unlike every other line. `_markHeard` above is unconditional and
     // tells the server too, so this answer is gone whatever happened to it — a ducked reply
     // and a broken one cost the team the same thing, and only a person can now relay it.
@@ -1452,14 +1449,31 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _haltForAPerson();
   }
 
-  void _markHeard(String replyId) {
-    unawaited(_inbox.markHeard(replyId));
+  /// A reply is heard when the desk agrees, and not before.
+  ///
+  /// The mark was made on the tablet whatever the desk answered, and it survives only as
+  /// long as the screen does: rebuilt state reads the reply back from the desk, which
+  /// never learned, and the team is played the same answer again. Leaving it unheard is
+  /// the honest state — it is offered again, which is a small harm and self-correcting.
+  ///
+  /// No retry. The precedent for a call that must land is the one that asks for a person,
+  /// and it retries because nobody comes if it is lost. Nothing is lost here: the reply
+  /// stays in the desk's list and the next tap marks it again. An unbounded retry on
+  /// bookkeeping buys nothing and is not free.
+  ///
+  /// The gesture comes back before the desk answers, not after. Holding it until the
+  /// request returns would freeze the hand for as long as the request takes, and the team
+  /// has one gesture.
+  Future<void> _markHeard(String replyId) async {
+    final epoch = _epoch;
+    state = state.copyWith(clearPlayingReply: true);
+    final agreed = await _inbox.markHeard(replyId);
+    if (_gone || epoch != _epoch || !agreed) return;
     state = state.copyWith(
       replies: [
         for (final reply in state.replies)
           reply.id == replyId ? reply.asHeard() : reply,
       ],
-      clearPlayingReply: true,
     );
   }
 
