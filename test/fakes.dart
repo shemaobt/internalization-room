@@ -244,10 +244,20 @@ class FakePlayback implements PlaybackRepository {
 
   Duration? measured = const Duration(seconds: 30);
   final List<String> measurements = [];
+  Completer<void>? _measuring;
+
+  /// Hold the measuring, the way an old tablet holds a long file on its second player.
+  void holdNextMeasurement() => _measuring = Completer<void>();
+
+  void finishHeldMeasurement() {
+    _measuring?.complete();
+    _measuring = null;
+  }
 
   @override
   Future<Duration?> howLong(String path) async {
     measurements.add(path);
+    await _measuring?.future;
     return measured;
   }
 

@@ -134,11 +134,17 @@ class RetroView extends ConsumerWidget {
               ),
               const SizedBox(width: 28),
             ],
+            // Back to the rehearsal with the takes, the stretches and the colar kept: a
+            // finding of something missing that fits in no stretch is the end of the
+            // story never recorded, and what it asks for is more recording, not the
+            // recording again. Starting the clip over — the room retiring it, the
+            // rehearsal emptied — is `reRecordClip`, which no button on this screen
+            // reaches any more.
             RoundActionButton(
               size: 60,
               semanticLabel: 'Gravar esta parte de novo',
               gradient: BeadStyles.azul,
-              onTap: notifier.reRecordClip,
+              onTap: notifier.continuarOEnsaio,
               child: const Icon(
                 LucideIcons.mic,
                 size: 24,
