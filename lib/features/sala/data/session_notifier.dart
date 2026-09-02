@@ -817,10 +817,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           : null;
       if (epoch != _epoch) return;
       // Asking for the panorama is a request and not an instruction: which passage a
-      // session is for is the room's to say, and the answer carries it. Only the id was
-      // read, so a session for a passage was opened and spoken as though it were the
-      // panorama. The team is taken to the passage they were given, through the same door
-      // an explicit choice uses.
+      // session is for is the room's to say, and the answer carries it.
       final given = created?.pericope;
       if (given != null && given != panoramaPericope) {
         unawaited(goConversa(pericope: given));
