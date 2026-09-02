@@ -9,11 +9,8 @@ import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
+import 'esperas.dart';
 import 'fakes.dart';
-
-Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) async {
-  await Future<void>.delayed(delay);
-}
 
 const _gravacao = 'gravacao-1';
 

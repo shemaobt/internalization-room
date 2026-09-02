@@ -11,8 +11,8 @@ import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
+import 'esperas.dart' show settle, until;
 import 'fakes.dart';
-import 'session_notifier_test.dart' show settle, until;
 
 void main() {
   test('a book with nothing left to offer reaches a person out loud', () async {

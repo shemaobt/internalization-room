@@ -12,9 +12,9 @@ import 'package:internalization_room/features/sala/dev/dev_skip_bar.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/convite_view.dart';
 
+import 'esperas.dart' show settle, until;
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'session_notifier_test.dart' show settle, until;
 
 const _unclaimed = RememberedLink();
 

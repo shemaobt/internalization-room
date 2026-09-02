@@ -3,9 +3,9 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/eq_bars.dart';
 
+import 'esperas.dart' show settle;
 import 'fakes.dart';
 import 'sala_screen_test.dart' show bySemanticsLabelWidget, pumpSala;
-import 'session_notifier_test.dart' show settle;
 
 Future<void> _openTheMicrophone(
     WidgetTester tester, SalaSessionNotifier notifier) async {

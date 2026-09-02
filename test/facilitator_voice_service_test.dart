@@ -5,8 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/facilitator_voice_service.dart';
 import 'package:just_audio/just_audio.dart';
 
+import 'esperas.dart' show until;
 import 'fakes.dart';
-import 'session_notifier_test.dart' show until;
 
 const _clip = '/api/internalization-room/voice/aaa';
 const _other = '/api/internalization-room/voice/bbb';

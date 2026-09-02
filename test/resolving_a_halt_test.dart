@@ -4,8 +4,9 @@ import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
+import 'esperas.dart' show settle, until;
 import 'fakes.dart';
-import 'session_notifier_test.dart' show inConversa, settle, until;
+import 'session_notifier_test.dart' show inConversa;
 
 Future<void> _haltWith(
   SalaHarness harness,

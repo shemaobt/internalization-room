@@ -11,9 +11,9 @@ import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
 
+import 'esperas.dart' show settle, until;
 import 'fakes.dart';
 import 'sala_screen_test.dart' show bySemanticsLabelWidget, pumpSala;
-import 'session_notifier_test.dart' show settle, until;
 
 void main() {
   test('a device that speaks none of the room\'s languages is answered in English', () {
