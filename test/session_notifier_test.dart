@@ -2115,16 +2115,38 @@ void main() {
     notifier.goEnsaio();
     notifier.ensaioTap();
     notifier.ensaioTap();
-    await settle();
+    await waitFor(
+      'a gravação da parte terminar',
+      () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+    );
     notifier.takeKeep();
+    // A stretch is a slice of a recording the room can name, and the name is adopted only
+    // once the take lands. Entering the retro before that makes every cut arrive with
+    // nothing to point at, and the room drops it instead of sending it.
+    await waitFor(
+      'a sala nomear a parte',
+      () => container.read(salaSessionProvider).partes.last.takeId != null,
+    );
     notifier.startRetro();
-    await settle();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
 
     harness.room.failWith = const RoomUnavailable('sem rede');
+    final capturasAntes = harness.recorder.captures;
     notifier.cortarTrecho();
-    await settle();
+    await waitFor(
+      'o microfone abrir para o trecho',
+      () => harness.recorder.captures == capturasAntes + 1,
+    );
     notifier.retroTap();
-    await settle();
+    // The refusal parks the stretch in the outbox on disk, after the room has already
+    // let go of the thinking: the count is written when that copy lands, not before.
+    await waitFor(
+      'o trecho ficar por enviar',
+      () => container.read(salaSessionProvider).unsentChunks == 1,
+    );
 
     expect(container.read(salaSessionProvider).unsentChunks, 1,
         reason: 'o trecho subiu junto com a transcrição e falhou — a conta não pode dizer pronto');
@@ -2139,16 +2161,36 @@ void main() {
     notifier.goEnsaio();
     notifier.ensaioTap();
     notifier.ensaioTap();
-    await settle();
+    await waitFor(
+      'a gravação da parte terminar',
+      () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+    );
     notifier.takeKeep();
+    // A stretch is a slice of a recording the room can name, and the name is adopted only
+    // once the take lands. Entering the retro before that makes every cut arrive with
+    // nothing to point at, and the room drops it instead of sending it.
+    await waitFor(
+      'a sala nomear a parte',
+      () => container.read(salaSessionProvider).partes.last.takeId != null,
+    );
     notifier.startRetro();
-    await settle();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
 
     final spokenBefore = harness.voice.played.length;
+    final capturasAntes = harness.recorder.captures;
     notifier.cortarTrecho();
-    await settle();
+    await waitFor(
+      'o microfone abrir para o trecho',
+      () => harness.recorder.captures == capturasAntes + 1,
+    );
     notifier.retroTap();
-    await settle();
+    await waitFor(
+      'a sala sair do pensando',
+      () => container.read(salaSessionProvider).btPhase != BtPhase.thinking,
+    );
 
     expect(harness.room.chunksSent, 1);
     expect(harness.voice.played.length, spokenBefore,
