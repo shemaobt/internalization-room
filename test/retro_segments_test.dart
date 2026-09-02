@@ -8,12 +8,24 @@ Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) async 
   await Future<void>.delayed(delay);
 }
 
-Future<void> _gravaParte(SalaSessionNotifier notifier) async {
+/// Record one part and wait for the room to have named it.
+///
+/// A stretch is a slice of a recording the room can name, and the name is adopted only
+/// once the take lands. Going on before that makes every cut arrive with nothing to point
+/// at, and the room drops it instead of sending it.
+Future<void> _gravaParte(
+  ProviderContainer container,
+  SalaSessionNotifier notifier,
+) async {
+  final partesAntes = container.read(salaSessionProvider).partes.length;
   notifier.ensaioTap();
   notifier.ensaioTap();
   await settle();
   notifier.takeKeep();
-  await settle();
+  await waitFor('a sala nomear a parte', () {
+    final partes = container.read(salaSessionProvider).partes;
+    return partes.length > partesAntes && partes.last.takeId != null;
+  });
 }
 
 Future<ProviderContainer> _inRetro(
@@ -27,7 +39,7 @@ Future<ProviderContainer> _inRetro(
   await settle();
   notifier.goEnsaio();
   for (var parte = 0; parte < partes; parte++) {
-    await _gravaParte(notifier);
+    await _gravaParte(container, notifier);
   }
   notifier.startRetro();
   await settle();
@@ -53,6 +65,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     await _contaTrecho(harness, notifier, em: const Duration(seconds: 10));
+    await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
 
     expect(harness.room.chunkTakes, [harness.room.takeIds.first],
         reason: 'sem nomear a gravação, o trecho é uma fatia de coisa nenhuma '

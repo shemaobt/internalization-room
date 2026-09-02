@@ -24,25 +24,39 @@ Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) async 
 Future<void> _intoFindings(
   SalaHarness harness,
   SalaSessionNotifier notifier,
+  ProviderContainer container,
 ) async {
   notifier.goEnsaio();
   notifier.ensaioTap();
   notifier.ensaioTap();
   await settle();
   notifier.takeKeep();
+  // A stretch is a slice of a recording the room can name, and the name is adopted only
+  // once the take lands. Entering the retro before that makes every cut arrive with
+  // nothing to point at, and the room drops it instead of sending it.
+  await waitFor(
+    'a sala nomear a parte',
+    () => container.read(salaSessionProvider).partes.last.takeId != null,
+  );
   notifier.startRetro();
   await settle();
+  var contados = 0;
   for (final at in const [Duration(seconds: 12), Duration(seconds: 30)]) {
     harness.playback.at = at;
     notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
-    await settle();
+    contados++;
+    await waitFor('o trecho chegar à sala', () => harness.room.chunksSent == contados);
   }
   harness.playback.finishPlayback();
-  await settle();
+  // finishBackTranslation is a no-op while the clip has not ended, so the wait here is
+  // for the door it opens rather than for a slice of clock.
+  await waitFor(
+    'o clipe poder ser dado por ouvido',
+    () => container.read(salaSessionProvider).canFinishBackTranslation,
+  );
   await notifier.finishBackTranslation();
-  await settle();
 }
 
 Future<void> _intoConferida(
@@ -1509,7 +1523,7 @@ void main() {
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
-    await _intoFindings(harness, notifier);
+    await _intoFindings(harness, notifier, container);
 
     notifier.goEnsaio();
     notifier.startRetro();
@@ -1540,14 +1554,17 @@ void main() {
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
-    await _intoFindings(harness, notifier);
+    await _intoFindings(harness, notifier, container);
 
     final trechos = container.read(salaSessionProvider).btTrechos;
     expect(trechos.map((t) => t.segmentId).toList(), ['trecho-1', 'trecho-2'],
         reason: 'o nome vem do servidor; derivá-lo da posição na lista '
             'desalinha assim que uma resposta se perde depois de persistir');
     notifier.ouvirVozMaterna();
-    await settle();
+    await waitFor(
+      'o trecho apontado estar tocando',
+      () => container.read(salaSessionProvider).btTrechoTocando,
+    );
     expect(harness.playback.ranges.last, '12000-30000',
         reason: 'quem toca o trecho apontado é o toque da equipe no player de '
             'madeira; a sala parou de tocá-lo por conta própria');
@@ -1562,15 +1579,35 @@ void main() {
     notifier.goEnsaio();
     notifier.ensaioTap();
     notifier.ensaioTap();
-    await settle();
+    await waitFor(
+      'a gravação da parte terminar',
+      () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+    );
     notifier.takeKeep();
+    // A stretch is a slice of a recording the room can name, and the name is adopted only
+    // once the take lands. Entering the retro before that makes every cut arrive with
+    // nothing to point at, and the room drops it instead of sending it.
+    await waitFor(
+      'a sala nomear a parte',
+      () => container.read(salaSessionProvider).partes.last.takeId != null,
+    );
     notifier.startRetro();
-    await settle();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
     harness.room.failWith = const RoomRefused();
+    final capturasAntes = harness.recorder.captures;
     notifier.cortarTrecho();
-    await settle();
+    await waitFor(
+      'o microfone abrir para o trecho',
+      () => harness.recorder.captures == capturasAntes + 1,
+    );
     notifier.retroTap();
-    await settle();
+    await waitFor(
+      'a sala sair do pensando',
+      () => container.read(salaSessionProvider).btPhase != BtPhase.thinking,
+    );
     expect(container.read(salaSessionProvider).needsPerson, isTrue);
     final capturesBefore = harness.recorder.captures;
 
@@ -1590,7 +1627,7 @@ void main() {
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
-    await _intoFindings(harness, notifier);
+    await _intoFindings(harness, notifier, container);
 
     notifier.retellChunk();
     await settle();
@@ -1616,7 +1653,7 @@ void main() {
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
-    await _intoFindings(harness, notifier);
+    await _intoFindings(harness, notifier, container);
 
     notifier.retellChunk();
     await settle();
@@ -1640,7 +1677,7 @@ void main() {
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
-    await _intoFindings(harness, notifier);
+    await _intoFindings(harness, notifier, container);
     final before = container.read(salaSessionProvider);
     harness.room.restartsAsked.clear();
     harness.playback.ranges.clear();
@@ -1669,7 +1706,7 @@ void main() {
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
-    await _intoFindings(harness, notifier);
+    await _intoFindings(harness, notifier, container);
 
     notifier.reRecordClip();
     await waitFor(
@@ -1710,7 +1747,7 @@ void main() {
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
-    await _intoFindings(harness, notifier);
+    await _intoFindings(harness, notifier, container);
 
     await notifier.reRecordClip();
     await settle();
@@ -1739,7 +1776,7 @@ void main() {
     await settle();
     await notifier.goConversa(pericope: 'P01');
     await settle();
-    await _intoFindings(harness, notifier);
+    await _intoFindings(harness, notifier, container);
 
     await notifier.reRecordClip();
     await settle();
@@ -1798,7 +1835,7 @@ void main() {
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
-    await _intoFindings(harness, notifier);
+    await _intoFindings(harness, notifier, container);
     final before = container.read(salaSessionProvider);
 
     harness.room.failRestartWith = const RoomRefused();
@@ -1823,7 +1860,7 @@ void main() {
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
-    await _intoFindings(harness, notifier);
+    await _intoFindings(harness, notifier, container);
 
     harness.room.failRestartWith = const RoomRefused();
     notifier.reRecordClip();
@@ -1841,7 +1878,7 @@ void main() {
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
-    await _intoFindings(harness, notifier);
+    await _intoFindings(harness, notifier, container);
 
     harness.room.holdNextTurn();
     notifier.reRecordClip();
@@ -1865,7 +1902,7 @@ void main() {
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
-    await _intoFindings(harness, notifier);
+    await _intoFindings(harness, notifier, container);
 
     harness.room.holdNextTurn();
     unawaited(notifier.reRecordClip());
@@ -1889,7 +1926,7 @@ void main() {
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
-    await _intoFindings(harness, notifier);
+    await _intoFindings(harness, notifier, container);
 
     harness.room.holdNextTurn();
     unawaited(notifier.reRecordClip());
@@ -2095,16 +2132,38 @@ void main() {
     notifier.goEnsaio();
     notifier.ensaioTap();
     notifier.ensaioTap();
-    await settle();
+    await waitFor(
+      'a gravação da parte terminar',
+      () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+    );
     notifier.takeKeep();
+    // A stretch is a slice of a recording the room can name, and the name is adopted only
+    // once the take lands. Entering the retro before that makes every cut arrive with
+    // nothing to point at, and the room drops it instead of sending it.
+    await waitFor(
+      'a sala nomear a parte',
+      () => container.read(salaSessionProvider).partes.last.takeId != null,
+    );
     notifier.startRetro();
-    await settle();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
 
     harness.room.failWith = const RoomUnavailable('sem rede');
+    final capturasAntes = harness.recorder.captures;
     notifier.cortarTrecho();
-    await settle();
+    await waitFor(
+      'o microfone abrir para o trecho',
+      () => harness.recorder.captures == capturasAntes + 1,
+    );
     notifier.retroTap();
-    await settle();
+    // The refusal parks the stretch in the outbox on disk, after the room has already
+    // let go of the thinking: the count is written when that copy lands, not before.
+    await waitFor(
+      'o trecho ficar por enviar',
+      () => container.read(salaSessionProvider).unsentChunks == 1,
+    );
 
     expect(container.read(salaSessionProvider).unsentChunks, 1,
         reason: 'o trecho subiu junto com a transcrição e falhou — a conta não pode dizer pronto');
@@ -2119,16 +2178,36 @@ void main() {
     notifier.goEnsaio();
     notifier.ensaioTap();
     notifier.ensaioTap();
-    await settle();
+    await waitFor(
+      'a gravação da parte terminar',
+      () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+    );
     notifier.takeKeep();
+    // A stretch is a slice of a recording the room can name, and the name is adopted only
+    // once the take lands. Entering the retro before that makes every cut arrive with
+    // nothing to point at, and the room drops it instead of sending it.
+    await waitFor(
+      'a sala nomear a parte',
+      () => container.read(salaSessionProvider).partes.last.takeId != null,
+    );
     notifier.startRetro();
-    await settle();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
 
     final spokenBefore = harness.voice.played.length;
+    final capturasAntes = harness.recorder.captures;
     notifier.cortarTrecho();
-    await settle();
+    await waitFor(
+      'o microfone abrir para o trecho',
+      () => harness.recorder.captures == capturasAntes + 1,
+    );
     notifier.retroTap();
-    await settle();
+    await waitFor(
+      'a sala sair do pensando',
+      () => container.read(salaSessionProvider).btPhase != BtPhase.thinking,
+    );
 
     expect(harness.room.chunksSent, 1);
     expect(harness.voice.played.length, spokenBefore,
@@ -2145,15 +2224,35 @@ void main() {
     notifier.goEnsaio();
     notifier.ensaioTap();
     notifier.ensaioTap();
-    await settle();
+    await waitFor(
+      'a gravação da parte terminar',
+      () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+    );
     notifier.takeKeep();
+    // A stretch is a slice of a recording the room can name, and the name is adopted only
+    // once the take lands. Entering the retro before that makes every cut arrive with
+    // nothing to point at, and the room drops it instead of sending it.
+    await waitFor(
+      'a sala nomear a parte',
+      () => container.read(salaSessionProvider).partes.last.takeId != null,
+    );
     notifier.startRetro();
-    await settle();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
 
+    final capturasAntes = harness.recorder.captures;
     notifier.cortarTrecho();
-    await settle();
+    await waitFor(
+      'o microfone abrir para o trecho',
+      () => harness.recorder.captures == capturasAntes + 1,
+    );
     notifier.retroTap();
-    await settle();
+    await waitFor(
+      'a sala sair do pensando',
+      () => container.read(salaSessionProvider).btPhase != BtPhase.thinking,
+    );
 
     expect(container.read(salaSessionProvider).btChunkPasses, isEmpty);
     expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
@@ -2234,16 +2333,36 @@ void main() {
     notifier.goEnsaio();
     notifier.ensaioTap();
     notifier.ensaioTap();
-    await settle();
+    await waitFor(
+      'a gravação da parte terminar',
+      () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+    );
     notifier.takeKeep();
+    // A stretch is a slice of a recording the room can name, and the name is adopted only
+    // once the take lands. Entering the retro before that makes every cut arrive with
+    // nothing to point at, and the room drops it instead of sending it.
+    await waitFor(
+      'a sala nomear a parte',
+      () => container.read(salaSessionProvider).partes.last.takeId != null,
+    );
     notifier.startRetro();
-    await settle();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
 
     harness.room.reachable = false;
+    final capturasAntes = harness.recorder.captures;
     notifier.cortarTrecho();
-    await settle();
+    await waitFor(
+      'o microfone abrir para o trecho',
+      () => harness.recorder.captures == capturasAntes + 1,
+    );
     notifier.retroTap();
-    await settle();
+    await waitFor(
+      'a sala sair do pensando',
+      () => container.read(salaSessionProvider).btPhase != BtPhase.thinking,
+    );
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.playing,
         reason: 'thinking só avança pela rede — ficaria sem toque e sem volta');
@@ -2704,7 +2823,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     harness.playback.length = const Duration(seconds: 40);
-    await _intoFindings(harness, notifier);
+    await _intoFindings(harness, notifier, container);
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
     expect(container.read(salaSessionProvider).btParteNoArMs, 0,
         reason: 'a parte acabou, então nada está no ar');
