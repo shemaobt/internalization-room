@@ -3,7 +3,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 
 import 'fakes.dart';
-import 'session_notifier_test.dart' show inConversa, settle, until;
+import 'session_notifier_test.dart' show inConversa, settle;
 
 Future<void> gravaParte(SalaSessionNotifier notifier) async {
   notifier.ensaioTap();
@@ -144,7 +144,7 @@ void main() {
     notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
-    await until(() => harness.room.chunksSent == 1);
+    await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
     await settle();
 
     harness.playback.at = const Duration(milliseconds: 600);

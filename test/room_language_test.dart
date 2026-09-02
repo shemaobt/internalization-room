@@ -13,7 +13,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/codigo_v
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show bySemanticsLabelWidget, pumpSala;
-import 'session_notifier_test.dart' show settle, until;
+import 'session_notifier_test.dart' show settle;
 
 void main() {
   test('a device that speaks none of the room\'s languages is answered in English', () {
@@ -79,7 +79,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.conviteTap();
-    await until(() => harness.room.languagesSent.isNotEmpty);
+    await waitFor('a sala receber o idioma', () => harness.room.languagesSent.isNotEmpty);
     await notifier.abrirEscolha();
     await settle();
 
