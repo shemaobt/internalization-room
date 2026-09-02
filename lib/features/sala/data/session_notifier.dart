@@ -809,13 +809,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // A panorama that fails to play sends the team back to the invite, and every touch
       // used to mint another session for the same book — the server collected one
       // abandoned panorama per attempt. One launch asks for one panorama.
-      final panorama = _panoramaSessionId ??
-          (await _room.createSession(
-                  pericope: panoramaPericope,
-                  language: _lingua,
-                ))
-              .sessionId;
+      final created = _panoramaSessionId == null
+          ? await _room.createSession(
+              pericope: panoramaPericope,
+              language: _lingua,
+            )
+          : null;
       if (epoch != _epoch) return;
+      // Asking for the panorama is a request and not an instruction: which passage a
+      // session is for is the room's to say, and the answer carries it. Only the id was
+      // read, so a session for a passage was opened and spoken as though it were the
+      // panorama. The team is taken to the passage they were given, through the same door
+      // an explicit choice uses.
+      final given = created?.pericope;
+      if (given != null && given != panoramaPericope) {
+        unawaited(goConversa(pericope: given));
+        return;
+      }
+      final panorama = _panoramaSessionId ?? created!.sessionId;
       _panoramaSessionId = panorama;
       final turn = await _room.openSession(panorama);
       if (epoch != _epoch) return;
