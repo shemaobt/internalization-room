@@ -1028,6 +1028,7 @@ class SalaHarness {
     this.fimLinger = const Duration(seconds: 30),
     this.filaEmMemoria = false,
     this.lingua = testLanguage,
+    this.emAbertoNoDisco,
   })  : inbox = FakeInbox(replies: replies),
         vinculo = FakeLinkedTeam(remembered: linkedAs);
 
@@ -1036,6 +1037,9 @@ class SalaHarness {
   final FakeFinished finished = FakeFinished();
 
   final FakeWorkInProgress emAberto = FakeWorkInProgress();
+
+  /// The real ledger, for the tests that need a disk that can refuse.
+  final WorkInProgress? emAbertoNoDisco;
 
   late final TakeUploadQueue takes = filaEmMemoria
       ? FakeTakeQueue(room: room)
@@ -1049,7 +1053,7 @@ class SalaHarness {
         roomRepositoryProvider.overrideWithValue(room),
         takeUploadQueueProvider.overrideWithValue(takes),
         finishedPassagesProvider.overrideWithValue(finished),
-        workInProgressProvider.overrideWithValue(emAberto),
+        workInProgressProvider.overrideWithValue(emAbertoNoDisco ?? emAberto),
         connectivityServiceProvider.overrideWithValue(network),
         linkedTeamProvider.overrideWithValue(vinculo),
         linkPollIntervalProvider.overrideWithValue(linkPoll),
