@@ -279,16 +279,12 @@ class TakeUploadQueue {
     final now = _now();
     // A stamp we could not have written yet says nothing about when we last tried.
     //
-    // The tablet corrects its own clock, or the row comes back from disk written under a
-    // timezone ahead of this one, and the wait it is paced against never comes due. The
-    // row then fails this check, so it never reaches the send path, so its stamp is never
-    // rewritten, so it fails this check again — forever. Fifty minutes of a good network
-    // went by with nothing sent and the room said nothing about it, because a row that is
-    // merely never ready is neither exhausted, lost, nor stalled.
+    // The guard belongs here rather than in the pacing: a row that fails this check never
+    // reaches the send path, so its stamp is never rewritten, so it fails again — forever.
     //
-    // Any amount ahead, not only an implausible one: a stamp from the future is already
-    // the clock saying it moved, and there is no honest reading of it to hold a recording
-    // back on. One try follows, and that try writes a stamp that paces normally again.
+    // Any amount ahead, not only an implausible one. A corrupt stamp far in the future
+    // would stay stuck for good under a threshold rule and cures itself under this one,
+    // and flush() runs on events, never on a timer, so the extra try cannot spin.
     if (last.isAfter(now)) return true;
     final step = entry.tries - 1;
     final wait = _backoff[step < _backoff.length ? step : _backoff.length - 1];
