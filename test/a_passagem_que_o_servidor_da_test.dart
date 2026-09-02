@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -100,6 +101,61 @@ void main() {
       harness.room.sessionsSpokenTo,
       [given, given],
       reason: 'a abertura e a fala da equipe vão para a sessão que a sala deu',
+    );
+  });
+
+  test('a launch answered with a passage marks the book as opened', () async {
+    final harness = SalaHarness()..room.panoramaAnsweredWith = 'P02';
+    final first = harness.container();
+    addTearDown(first.dispose);
+    await first.read(salaSessionProvider.notifier).openTheRoom();
+    await first.read(salaSessionProvider.notifier).openConvite();
+    await waitFor(
+      'a sala abrir a conversa da passagem que devolveu',
+      () => _readyToTalk(first),
+    );
+    await waitFor(
+      'o lugar da equipe ser anotado',
+      () => harness.emAberto.rows.containsKey('Ruth/P02'),
+    );
+    final given = harness.room.sessionIds.single;
+
+    // The team's first gesture on every launch is the tap on the circle. On a tablet
+    // that has heard the panorama it lands on the wheel, where it asks for nothing.
+    final second = harness.container();
+    addTearDown(second.dispose);
+    final again = second.read(salaSessionProvider.notifier);
+    await again.openTheRoom();
+    await settle();
+    await again.openConvite();
+    await settle();
+
+    expect(
+      harness.room.pericopesAsked,
+      [panoramaPericope],
+      reason: 'a sala responder uma passagem é a prova de que o panorama foi '
+          'ouvido: pedi-lo de novo a cada lançamento cunha uma sessão nova a '
+          'cada vez e recomeça a cobertura do zero',
+    );
+    expect(second.read(salaSessionProvider).stage, SalaStage.escolha,
+        reason: 'o segundo lançamento vai direto às passagens');
+
+    await again.goConversa(pericope: 'P02');
+    await waitFor('a passagem retomada abrir', () => _readyToTalk(second));
+    again.conversaTap();
+    again.conversaTap();
+    await waitFor(
+      'a fala da equipe chegar à sala',
+      () => harness.room.turnsSent == 1,
+    );
+
+    expect(harness.room.sessionIds, [given],
+        reason: 'o segundo lançamento retoma a sessão que a sala deu no primeiro');
+    expect(
+      harness.room.sessionsSpokenTo,
+      [given, given, given],
+      reason: 'a abertura do primeiro lançamento, a abertura do segundo e a '
+          'fala da equipe vão todas para essa sessão',
     );
   });
 

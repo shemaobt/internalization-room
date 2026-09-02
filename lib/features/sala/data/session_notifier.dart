@@ -822,6 +822,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // room had just made abandoned, one ghost row per launch.
       final given = created?.pericope;
       if (given != null && given != panoramaPericope) {
+        // The room answering a passage is its word that the panorama was heard. Left
+        // unwritten, a tablet without the mark asked for the panorama on every launch and
+        // adopted a new session each time, its coverage starting over from zero.
+        unawaited(_feitas.markBookOpened(_book).catchError((_) {}));
         unawaited(goConversa(pericope: given, opened: created));
         return;
       }
