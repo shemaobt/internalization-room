@@ -26,7 +26,13 @@ Future<void> until(
   Duration limit = const Duration(seconds: 5),
 }) async {
   final deadline = DateTime.now().add(limit);
-  while (!condition() && DateTime.now().isBefore(deadline)) {
+  while (!condition()) {
+    if (DateTime.now().isAfter(deadline)) {
+      final waited = limit.inMilliseconds % 1000 == 0
+          ? '${limit.inSeconds}s'
+          : '${limit.inMilliseconds}ms';
+      throw TimeoutException('esperei $waited e a condição não aconteceu', limit);
+    }
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }
 }
