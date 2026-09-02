@@ -512,6 +512,10 @@ class FakeRoom implements RoomRepository {
   ];
   /// The passage the room hands back when this tablet asks for the panorama.
   String? panoramaAnsweredWith;
+  /// The ids this room gave the sessions it opened, in the order it opened them.
+  final List<String> sessionIds = [];
+  /// Which session each turn was spoken into, the opening one included, in order.
+  final List<String> sessionsSpokenTo = [];
 
   int personsAsked = 0;
   int retells = 0;
@@ -602,8 +606,10 @@ class FakeRoom implements RoomRepository {
     final answered = pericope == panoramaPericope && panoramaAnsweredWith != null
         ? panoramaAnsweredWith
         : pericope;
+    final sessionId = 'sessao-${sessionIds.length + 1}';
+    sessionIds.add(sessionId);
     return SessionSnapshot(
-      sessionId: 'sessao-1',
+      sessionId: sessionId,
       pericope: answered ?? 'rute-1',
       status: 'in_progress',
       coverage: nextCoverage,
@@ -636,6 +642,7 @@ class FakeRoom implements RoomRepository {
   @override
   Future<TurnResult> openSession(String sessionId) async {
     _guard('openSession');
+    sessionsSpokenTo.add(sessionId);
     await _turnArrives();
     return _turn(sessionId);
   }
@@ -756,6 +763,7 @@ class FakeRoom implements RoomRepository {
   @override
   Future<TurnResult> sendTurn(String sessionId, File audio) async {
     _guard('sendTurn');
+    sessionsSpokenTo.add(sessionId);
     turnsSent++;
     await _turnArrives();
     return _turn(sessionId);
