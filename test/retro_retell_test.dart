@@ -84,15 +84,30 @@ Future<ProviderContainer> _levadaAoTrechoApontado(SalaHarness harness) async {
   await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
   harness.room.verdictFindingSegmentId = harness.room.segments.last.segmentId;
   harness.playback.finishPlayback();
-  await settle();
+  // finishBackTranslation is a no-op while the clip has not ended, and ouvirVozMaterna and
+  // retellChunk are ones until the verdict is in: each tap is dropped in silence when it
+  // arrives early, so each waits for the door it goes through.
+  await waitFor(
+    'o clipe poder ser dado por ouvido',
+    () => container.read(salaSessionProvider).canFinishBackTranslation,
+  );
   await notifier.finishBackTranslation();
+  await waitFor(
+    'o veredito chegar',
+    () => container.read(salaSessionProvider).btPhase == BtPhase.findings,
+  );
   notifier.ouvirVozMaterna();
   await waitFor(
     'o trecho apontado estar tocando',
     () => container.read(salaSessionProvider).btTrechoTocando,
   );
   notifier.retellChunk();
-  await settle();
+  // Retelling leaves the findings for the recording and puts the stretch in the air; a
+  // tap the room dropped leaves the phase where it was, and this wait says so.
+  await waitFor('a recontagem levar a equipe ao trecho', () {
+    final state = container.read(salaSessionProvider);
+    return state.btPhase == BtPhase.playing && state.btTrechoTocando;
+  });
   harness.playback.finishPlayback();
   await waitFor(
     'o trecho apontado parar de tocar',
