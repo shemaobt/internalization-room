@@ -957,16 +957,34 @@ class FakeTakeQueue implements TakeUploadQueue {
             entry,
       ].length;
 
+  Completer<void>? _armed;
+  Completer<void>? _holding;
+
+  /// Hold the next reading *after* it has looked at the queue, so a count taken while
+  /// recordings were still here can be made to arrive after a newer one.
+  void holdTheNextReading() => _armed = Completer<void>();
+
+  void releaseTheHeldReading() {
+    _holding?.complete();
+    _holding = null;
+  }
+
   @override
   Future<Set<String>> unsentScopesOf(
     String kind, {
     required String sessionId,
-  }) async =>
-      {
-        for (final entry in rows)
-          if (!entry.stored && entry.kind == kind && entry.sessionId == sessionId)
-            entry.scope,
-      };
+  }) async {
+    final held = _armed;
+    _armed = null;
+    if (held != null) _holding = held;
+    final scopes = {
+      for (final entry in rows)
+        if (!entry.stored && entry.kind == kind && entry.sessionId == sessionId)
+          entry.scope,
+    };
+    if (held != null) await held.future;
+    return scopes;
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

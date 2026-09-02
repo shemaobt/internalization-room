@@ -1778,9 +1778,33 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _haltForAPerson();
   }
 
+  /// Which recount is the newest one asked for.
+  ///
+  /// Six things ask for the count and four of them do not wait, so two recounts can be
+  /// reading the disk at once. Whichever published last used to win whatever it had read,
+  /// which let a reading taken before the queue drained overwrite one taken after it: the
+  /// team was shown recordings still waiting that had already gone.
+  ///
+  /// The problem here is ordering a result, not overlapping a run, and this orders the
+  /// result. Serialising was the other shape on offer — the upload queue holds a flag
+  /// against two flushes overlapping and a chained future against manifest writes landing
+  /// out of order — and neither fits. A flag that skips a recount because one is already
+  /// running drops the very trigger that knew the disk had just changed, and a count
+  /// frozen at a stale value looks exactly like an app with nothing left to send. A chain
+  /// makes every trigger in a burst read the disk again in turn to produce a number only
+  /// the last of them will ever show. Taking a number on the way in and publishing only
+  /// while it is still the newest lets all six triggers run and lets the stale readings
+  /// fall on the floor.
+  ///
+  /// This is not the epoch guard below it and does not replace it. That one is about a
+  /// session that has ended publishing over the one that replaced it — a different
+  /// question, and still asked.
+  int _newestCount = 0;
+
   Future<void> _countUnsent() async {
     if (_gone) return;
     final epoch = _epoch;
+    final counting = ++_newestCount;
     final queue = _takes;
     // Whether a recording is stuck is not a question about the session in progress, and
     // asking it only when one existed meant the check at the first frame — the moment a
@@ -1795,7 +1819,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final takes = await queue.unsentOf('ensaio', sessionId: sessionId);
     final chunks = await queue.unsentOf('retro', sessionId: sessionId);
     final scopes = await queue.unsentScopesOf('ensaio', sessionId: sessionId);
-    if (_gone || epoch != _epoch) return;
+    if (_gone || epoch != _epoch || counting != _newestCount) return;
     state = state.copyWith(
       unsentTakes: takes,
       unsentChunks: chunks,
