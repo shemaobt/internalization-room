@@ -1,16 +1,31 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
 
+import 'esperas.dart' show settle, until;
 import 'fakes.dart';
-import 'session_notifier_test.dart' show inConversa, settle, until;
+import 'session_notifier_test.dart' show inConversa;
 
-Future<void> gravaParte(SalaSessionNotifier notifier) async {
+/// Record one part and wait for the room to have named it.
+///
+/// A stretch is a slice of a recording the room can name, and the name is adopted only
+/// once the take lands. Going on before that makes every cut arrive with nothing to point
+/// at, and the room drops it instead of sending it.
+Future<void> gravaParte(
+  ProviderContainer container,
+  SalaSessionNotifier notifier,
+) async {
+  final partesAntes = container.read(salaSessionProvider).partes.length;
   notifier.ensaioTap();
   notifier.ensaioTap();
   await settle();
   notifier.takeKeep();
-  await settle();
+  await until(() {
+    final partes = container.read(salaSessionProvider).partes;
+    return partes.length > partesAntes && partes.last.takeId != null;
+  });
 }
 
 void main() {
@@ -23,7 +38,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier);
+    await gravaParte(container, notifier);
     notifier.startRetro();
     await settle();
 
@@ -55,7 +70,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier);
+    await gravaParte(container, notifier);
     notifier.startRetro();
     await settle();
 
@@ -79,8 +94,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier);
-    await gravaParte(notifier);
+    await gravaParte(container, notifier);
+    await gravaParte(container, notifier);
     notifier.startRetro();
     await settle();
 
@@ -110,7 +125,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier);
+    await gravaParte(container, notifier);
     notifier.startRetro();
     await settle(const Duration(milliseconds: 300));
 
@@ -136,7 +151,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier);
+    await gravaParte(container, notifier);
     notifier.startRetro();
     await settle();
 
@@ -149,12 +164,16 @@ void main() {
 
     harness.playback.at = const Duration(milliseconds: 600);
     harness.playback.finishPlayback();
-    await settle();
+    // finishBackTranslation is a no-op while the clip has not ended, and ouvirVozMaterna
+    // is one until the verdict is in: both taps are dropped in silence when they arrive
+    // early, so each waits for the door it goes through.
+    await until(() => container.read(salaSessionProvider).canFinishBackTranslation);
     await notifier.finishBackTranslation();
-    await settle();
+    await until(
+        () => container.read(salaSessionProvider).btPhase == BtPhase.findings);
 
     notifier.ouvirVozMaterna();
-    await settle();
+    await until(() => container.read(salaSessionProvider).btTrechoTocando);
 
     expect(container.read(salaSessionProvider).btTrechoTocando, isTrue);
 
@@ -167,7 +186,7 @@ void main() {
             'anterior devolvia a tela ao repouso com o áudio ainda correndo');
 
     harness.playback.finishPlayback();
-    await settle();
+    await until(() => !container.read(salaSessionProvider).btTrechoTocando);
 
     expect(container.read(salaSessionProvider).btTrechoTocando, isFalse,
         reason: 'e quem cala o trecho é o fim dele');
@@ -184,7 +203,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier);
+    await gravaParte(container, notifier);
     harness.playback.holdNextOpening();
     notifier.startRetro();
     await settle();

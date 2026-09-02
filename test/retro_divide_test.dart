@@ -4,28 +4,27 @@ import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
+import 'esperas.dart';
 import 'fakes.dart';
 
-Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) async {
-  await Future<void>.delayed(delay);
-}
-
-Future<void> until(
-  bool Function() condition, {
-  Duration limit = const Duration(seconds: 5),
-}) async {
-  final deadline = DateTime.now().add(limit);
-  while (!condition() && DateTime.now().isBefore(deadline)) {
-    await Future<void>.delayed(const Duration(milliseconds: 10));
-  }
-}
-
-Future<void> _gravaParte(SalaSessionNotifier notifier) async {
+/// Record one part and wait for the room to have named it.
+///
+/// A stretch is a slice of a recording the room can name, and the name is adopted only
+/// once the take lands. Going on before that makes every cut arrive with nothing to point
+/// at, and the room drops it instead of sending it.
+Future<void> _gravaParte(
+  ProviderContainer container,
+  SalaSessionNotifier notifier,
+) async {
+  final partesAntes = container.read(salaSessionProvider).partes.length;
   notifier.ensaioTap();
   notifier.ensaioTap();
   await settle();
   notifier.takeKeep();
-  await settle();
+  await until(() {
+    final partes = container.read(salaSessionProvider).partes;
+    return partes.length > partesAntes && partes.last.takeId != null;
+  });
 }
 
 Future<ProviderContainer> _inRetro(
@@ -39,7 +38,7 @@ Future<ProviderContainer> _inRetro(
   await settle();
   notifier.goEnsaio();
   for (var parte = 0; parte < partes; parte++) {
-    await _gravaParte(notifier);
+    await _gravaParte(container, notifier);
   }
   notifier.startRetro();
   await settle();
@@ -67,9 +66,13 @@ Future<void> _ouvindoOTrechoApontado(
 ) async {
   harness.room.verdictFindingSegmentId = harness.room.segments.last.segmentId;
   harness.playback.finishPlayback();
-  await settle();
+  // finishBackTranslation is a no-op while the clip has not ended, and ouvirVozMaterna is
+  // one until the verdict is in: both taps are dropped in silence when they arrive early,
+  // so each waits for the door it goes through.
+  await until(() => container.read(salaSessionProvider).canFinishBackTranslation);
   await notifier.finishBackTranslation();
-  await settle();
+  await until(
+      () => container.read(salaSessionProvider).btPhase == BtPhase.findings);
   // The room no longer plays the pointed stretch at the team: which voice must speak
   // again is theirs to say, so hearing either one is a tap they choose to make.
   notifier.ouvirVozMaterna();

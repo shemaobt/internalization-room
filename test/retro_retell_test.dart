@@ -4,28 +4,27 @@ import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
+import 'esperas.dart';
 import 'fakes.dart';
 
-Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) async {
-  await Future<void>.delayed(delay);
-}
-
-Future<void> until(
-  bool Function() condition, {
-  Duration limit = const Duration(seconds: 5),
-}) async {
-  final deadline = DateTime.now().add(limit);
-  while (!condition() && DateTime.now().isBefore(deadline)) {
-    await Future<void>.delayed(const Duration(milliseconds: 10));
-  }
-}
-
-Future<void> _gravaParte(SalaSessionNotifier notifier) async {
+/// Record one part and wait for the room to have named it.
+///
+/// A stretch is a slice of a recording the room can name, and the name is adopted only
+/// once the take lands. Going on before that makes every cut arrive with nothing to point
+/// at, and the room drops it instead of sending it.
+Future<void> _gravaParte(
+  ProviderContainer container,
+  SalaSessionNotifier notifier,
+) async {
+  final partesAntes = container.read(salaSessionProvider).partes.length;
   notifier.ensaioTap();
   notifier.ensaioTap();
   await settle();
   notifier.takeKeep();
-  await settle();
+  await until(() {
+    final partes = container.read(salaSessionProvider).partes;
+    return partes.length > partesAntes && partes.last.takeId != null;
+  });
 }
 
 Future<ProviderContainer> _inRetro(SalaHarness harness) async {
@@ -35,7 +34,7 @@ Future<ProviderContainer> _inRetro(SalaHarness harness) async {
   await notifier.goConversa();
   await settle();
   notifier.goEnsaio();
-  await _gravaParte(notifier);
+  await _gravaParte(container, notifier);
   notifier.startRetro();
   await settle();
   return container;
@@ -55,13 +54,17 @@ Future<void> _contaTrecho(
 
 /// Tell one stretch again: the room listens, the team speaks, the team stops it.
 Future<void> _contaDeNovo(
+  ProviderContainer container,
   SalaSessionNotifier notifier,
   Trecho trecho,
 ) async {
   await notifier.contarDeNovo(trecho);
   await settle();
   notifier.retroTap();
-  await settle();
+  // Every way out of the telling leaves the thinking — the room answered, the room
+  // refused, the recorder came back empty — so this is the wait that spans them all.
+  await until(
+      () => container.read(salaSessionProvider).btPhase != BtPhase.thinking);
 }
 
 /// A session whose one stretch was divided, so both halves are waiting to be told.
@@ -72,15 +75,20 @@ Future<ProviderContainer> _comDuasMetadesEsperando(SalaHarness harness) async {
   await until(() => harness.room.chunksSent == 1);
   harness.room.verdictFindingSegmentId = harness.room.segments.last.segmentId;
   harness.playback.finishPlayback();
-  await settle();
+  // finishBackTranslation is a no-op while the clip has not ended, and ouvirVozMaterna is
+  // one until the verdict is in: both taps are dropped in silence when they arrive early,
+  // so each waits for the door it goes through.
+  await until(() => container.read(salaSessionProvider).canFinishBackTranslation);
   await notifier.finishBackTranslation();
+  await until(
+      () => container.read(salaSessionProvider).btPhase == BtPhase.findings);
   // The room no longer plays the pointed stretch at the team: which voice must
   // speak again is theirs to say, so hearing it is a tap they choose to make.
   notifier.ouvirVozMaterna();
   await until(() => container.read(salaSessionProvider).btTrechoTocando);
   harness.playback.at = const Duration(seconds: 8);
   await notifier.dividirTrecho();
-  await settle();
+  await until(() => container.read(salaSessionProvider).btTrechos.length == 2);
   return container;
 }
 
@@ -97,9 +105,13 @@ void main() {
     await until(() => harness.room.chunksSent == 2);
     harness.room.verdictFindingSegmentId = harness.room.segments.first.segmentId;
     harness.playback.finishPlayback();
-    await settle();
+    // Both taps are dropped in silence when they arrive early — finishBackTranslation
+    // while the clip still runs, retellChunk before the verdict is in — so each waits for
+    // the door it goes through.
+    await until(() => container.read(salaSessionProvider).canFinishBackTranslation);
     await notifier.finishBackTranslation();
-    await settle();
+    await until(
+        () => container.read(salaSessionProvider).btPhase == BtPhase.findings);
 
     notifier.retellChunk();
     await settle();
@@ -109,7 +121,8 @@ void main() {
     notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
-    await settle();
+    await until(
+        () => container.read(salaSessionProvider).btPhase != BtPhase.thinking);
 
     expect(container.read(salaSessionProvider).needsPerson, isTrue,
         reason: 'o trecho recontado voltou vazio, então a sala para para uma pessoa');
@@ -180,7 +193,7 @@ void main() {
         reason: 'as duas metades nascem sem explicação — é isso que faz o '
             'portão da primeira rodada segurar a análise');
 
-    await _contaDeNovo(notifier, esperando.first);
+    await _contaDeNovo(container, notifier, esperando.first);
 
     final depois = container.read(salaSessionProvider).btTrechos;
     expect(depois.length, 2,
@@ -196,10 +209,10 @@ void main() {
     final container = await _comDuasMetadesEsperando(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await _contaDeNovo(
-        notifier, container.read(salaSessionProvider).btTrechos.first);
-    await _contaDeNovo(
-        notifier, container.read(salaSessionProvider).btTrechos.last);
+    await _contaDeNovo(container, notifier,
+        container.read(salaSessionProvider).btTrechos.first);
+    await _contaDeNovo(container, notifier,
+        container.read(salaSessionProvider).btTrechos.last);
 
     final depois = container.read(salaSessionProvider).btTrechos;
     expect(depois.length, 2);
@@ -215,7 +228,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     final alvo = container.read(salaSessionProvider).btTrechos.last;
 
-    await _contaDeNovo(notifier, alvo);
+    await _contaDeNovo(container, notifier, alvo);
 
     expect(harness.room.replacesAsked, [
       '${alvo.segmentId}@${alvo.takeId}:'
@@ -230,8 +243,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     harness.room.failReplaceWith = const RoomRefused();
 
-    await _contaDeNovo(
-        notifier, container.read(salaSessionProvider).btTrechos.first);
+    await _contaDeNovo(container, notifier,
+        container.read(salaSessionProvider).btTrechos.first);
 
     final state = container.read(salaSessionProvider);
     expect(state.needsPerson, isTrue,
@@ -270,11 +283,13 @@ void main() {
     await notifier.goConversa();
     await settle();
     notifier.goEnsaio();
-    await _gravaParte(notifier);
+    await _gravaParte(container, notifier);
     notifier.startRetro();
     await settle();
     final pedidosAntes = harness.room.replacesAsked.length;
+    final contadosAntes = harness.room.chunksSent;
     await _contaTrecho(harness, notifier, em: const Duration(seconds: 10));
+    await until(() => harness.room.chunksSent == contadosAntes + 1);
 
     expect(harness.room.replacesAsked.length, pedidosAntes,
         reason: 'a trava é um latch sem casa no estado, como o _recontando que '
@@ -302,8 +317,8 @@ void main() {
     await settle();
     harness.playback.finishPlayback();
     await until(() => !container.read(salaSessionProvider).btTrechoTocando);
-    await _contaDeNovo(
-        notifier, container.read(salaSessionProvider).btTrechos.first);
+    await _contaDeNovo(container, notifier,
+        container.read(salaSessionProvider).btTrechos.first);
     final recontagensAntes = harness.room.retells;
 
     await _contaTrecho(harness, notifier, em: const Duration(seconds: 40));
