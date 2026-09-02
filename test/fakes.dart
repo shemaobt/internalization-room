@@ -29,11 +29,8 @@ import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
-/// Wait for something to happen, and say what did not when it never does.
-///
-/// A wait that gave up in silence let the test go on with a precondition that had not
-/// arrived and blow up far from here — on a List.last, in a different file on every
-/// run, because a deadline is enough or not depending on the machine's load.
+/// Throwing here instead of returning keeps the failure at the wait: a deadline that
+/// passes in silence surfaces as an unrelated error several lines later.
 Future<void> waitFor(
   String what,
   FutureOr<bool> Function() ready, {

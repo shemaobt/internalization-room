@@ -63,7 +63,10 @@ Future<void> _ouvindoOTrechoApontado(
   // The room no longer plays the pointed stretch at the team: which voice must speak
   // again is theirs to say, so hearing either one is a tap they choose to make.
   notifier.ouvirVozMaterna();
-  await waitFor('o trecho apontado estar tocando', () => container.read(salaSessionProvider).btTrechoTocando);
+  await waitFor(
+    'o trecho apontado estar tocando',
+    () => container.read(salaSessionProvider).btTrechoTocando,
+  );
 }
 
 Future<ProviderContainer> _umTrechoContadoETocando(

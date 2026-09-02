@@ -183,7 +183,10 @@ void main() {
             'trabalho já está posto');
 
     harness.voice.finishHeldLine();
-    await waitFor('as contas ficarem enfiadas', () => container.read(salaSessionProvider).contasEnfiadas);
+    await waitFor(
+      'as contas ficarem enfiadas',
+      () => container.read(salaSessionProvider).contasEnfiadas,
+    );
   });
 
   test('replaying takes the circle off team-talk while the room speaks', () async {
@@ -210,7 +213,7 @@ void main() {
             'já tem na mão');
 
     harness.voice.finishHeldLine();
-    await waitFor('o círculo voltar ao convite', 
+    await waitFor('o círculo voltar ao convite',
       () => container.read(salaSessionProvider).voice == VoiceState.invite,
     );
 
@@ -235,7 +238,7 @@ void main() {
             'sempre significou');
 
     harness.voice.finishHeldFetch();
-    await waitFor('o círculo voltar ao convite', 
+    await waitFor('o círculo voltar ao convite',
       () => container.read(salaSessionProvider).voice == VoiceState.invite,
     );
   });
@@ -330,7 +333,7 @@ void main() {
     notifier.conversaTap();
     await settle();
     notifier.conversaTap();
-    await waitFor('a sala dizer a primeira fala gravada', () => harness.voice.assets.isNotEmpty);
+    await waitFor('a sala dizer uma fala fixa', () => harness.voice.assets.isNotEmpty);
     await settle();
 
     expect(container.read(salaSessionProvider).lastSpoken!.url, told,
@@ -581,7 +584,7 @@ void main() {
 
     harness.room.reachable = true;
     container.read(salaSessionProvider.notifier).resolveWithPerson();
-    await waitFor('o círculo voltar ao convite', 
+    await waitFor('o círculo voltar ao convite',
       () => container.read(salaSessionProvider).voice == VoiceState.invite,
     );
 
@@ -623,7 +626,7 @@ void main() {
     final container = await inConversa(harness);
     addTearDown(container.dispose);
 
-    await waitFor('a sala dizer a primeira fala gravada', () => harness.voice.assets.isNotEmpty);
+    await waitFor('a sala dizer uma fala fixa', () => harness.voice.assets.isNotEmpty);
     await settle(const Duration(milliseconds: 200));
 
     expect(harness.voice.assets, hasLength(1),
@@ -1112,7 +1115,10 @@ void main() {
     await settle();
     harness.room.reachable = false;
     notifier.takeKeep();
-    await waitFor('uma tomada ficar por enviar', () => container.read(salaSessionProvider).unsentTakes == 1);
+    await waitFor(
+      'uma tomada ficar por enviar',
+      () => container.read(salaSessionProvider).unsentTakes == 1,
+    );
 
     expect(container.read(salaSessionProvider).unsentTakes, 1,
         reason: 'a conta aparece quando a equipe guarda, mas ainda está só no tablet');
@@ -1660,7 +1666,10 @@ void main() {
     await _intoFindings(harness, notifier);
 
     notifier.reRecordClip();
-    await waitFor('a sala receber o pedido de regravar', () => harness.room.restartsAsked.isNotEmpty);
+    await waitFor(
+      'a sala receber o pedido de regravar',
+      () => harness.room.restartsAsked.isNotEmpty,
+    );
     await settle();
 
     expect(harness.room.restartsAsked, ['novo-clipe'],
@@ -2480,7 +2489,10 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     unawaited(notifier.goConversa());
-    await waitFor('a sessão ser aberta', () => container.read(salaSessionProvider).sessionId != null);
+    await waitFor(
+      'a sessão ser aberta',
+      () => container.read(salaSessionProvider).sessionId != null,
+    );
 
     expect(container.read(salaSessionProvider).coverage.total, greaterThan(0),
         reason: 'o createSession já devolve a cobertura; o colar não espera a voz');

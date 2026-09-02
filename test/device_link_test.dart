@@ -82,7 +82,10 @@ void main() {
     await settle();
     expect(container.read(deviceLinkProvider).code?.code, 'QHF-3M7K');
 
-    await waitFor('o código do tablet aparecer', () => container.read(deviceLinkProvider).code?.code == 'WKD-2QP4');
+    await waitFor(
+      'o código do tablet aparecer',
+      () => container.read(deviceLinkProvider).code?.code == 'WKD-2QP4',
+    );
 
     expect(container.read(deviceLinkProvider).code?.code, 'WKD-2QP4',
         reason: 'um código vencido seguia na tela e o facilitador digitava um que a '
@@ -114,7 +117,10 @@ void main() {
     addTearDown(container.dispose);
 
     await container.read(deviceLinkProvider.notifier).findTheTeam();
-    await waitFor('o tablet ficar ligado à equipe', () => container.read(deviceLinkProvider).linked);
+    await waitFor(
+      'o tablet ficar ligado à equipe',
+      () => container.read(deviceLinkProvider).linked,
+    );
 
     expect(container.read(deviceLinkProvider).team?.projectId, 'equipe-terena');
     expect(harness.room.codesAskedFor, isEmpty,
@@ -136,7 +142,10 @@ void main() {
     harness.room.linkedTo = const TeamLink(projectId: 'equipe-terena');
     final drawnBefore = harness.room.codesAskedFor.length;
 
-    await waitFor('o tablet ficar ligado à equipe', () => container.read(deviceLinkProvider).linked);
+    await waitFor(
+      'o tablet ficar ligado à equipe',
+      () => container.read(deviceLinkProvider).linked,
+    );
 
     expect(container.read(deviceLinkProvider).team?.projectId, 'equipe-terena');
     expect(harness.room.codesAskedFor.length, drawnBefore,
@@ -210,7 +219,10 @@ void main() {
     expect(container.read(deviceLinkProvider).code, isNotNull);
 
     harness.room.linkedTo = const TeamLink(projectId: 'equipe-terena', label: 'prateleira');
-    await waitFor('o tablet ficar ligado à equipe', () => container.read(deviceLinkProvider).linked);
+    await waitFor(
+      'o tablet ficar ligado à equipe',
+      () => container.read(deviceLinkProvider).linked,
+    );
 
     expect(container.read(deviceLinkProvider).team?.projectId, 'equipe-terena');
     expect(harness.vinculo.remembered.team?.projectId, 'equipe-terena',

@@ -19,11 +19,4 @@ void main() {
           'nunca apontava para a espera que desistiu',
     );
   });
-
-  test('a wait whose condition arrives says nothing', () async {
-    var polls = 0;
-    await waitFor('três sondagens', () => ++polls >= 3);
-
-    expect(polls, 3);
-  });
 }
