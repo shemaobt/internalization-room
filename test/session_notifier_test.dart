@@ -1579,13 +1579,30 @@ void main() {
     notifier.goEnsaio();
     notifier.ensaioTap();
     notifier.ensaioTap();
-    await settle();
+    await waitFor(
+      'a gravação da parte terminar',
+      () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+    );
     notifier.takeKeep();
+    // A stretch is a slice of a recording the room can name, and the name is adopted only
+    // once the take lands. Entering the retro before that makes every cut arrive with
+    // nothing to point at, and the room drops it instead of sending it.
+    await waitFor(
+      'a sala nomear a parte',
+      () => container.read(salaSessionProvider).partes.last.takeId != null,
+    );
     notifier.startRetro();
-    await settle();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
     harness.room.failWith = const RoomRefused();
+    final capturasAntes = harness.recorder.captures;
     notifier.cortarTrecho();
-    await settle();
+    await waitFor(
+      'o microfone abrir para o trecho',
+      () => harness.recorder.captures == capturasAntes + 1,
+    );
     notifier.retroTap();
     await waitFor(
       'a sala sair do pensando',
@@ -2207,15 +2224,35 @@ void main() {
     notifier.goEnsaio();
     notifier.ensaioTap();
     notifier.ensaioTap();
-    await settle();
+    await waitFor(
+      'a gravação da parte terminar',
+      () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+    );
     notifier.takeKeep();
+    // A stretch is a slice of a recording the room can name, and the name is adopted only
+    // once the take lands. Entering the retro before that makes every cut arrive with
+    // nothing to point at, and the room drops it instead of sending it.
+    await waitFor(
+      'a sala nomear a parte',
+      () => container.read(salaSessionProvider).partes.last.takeId != null,
+    );
     notifier.startRetro();
-    await settle();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
 
+    final capturasAntes = harness.recorder.captures;
     notifier.cortarTrecho();
-    await settle();
+    await waitFor(
+      'o microfone abrir para o trecho',
+      () => harness.recorder.captures == capturasAntes + 1,
+    );
     notifier.retroTap();
-    await settle();
+    await waitFor(
+      'a sala sair do pensando',
+      () => container.read(salaSessionProvider).btPhase != BtPhase.thinking,
+    );
 
     expect(container.read(salaSessionProvider).btChunkPasses, isEmpty);
     expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
@@ -2296,16 +2333,36 @@ void main() {
     notifier.goEnsaio();
     notifier.ensaioTap();
     notifier.ensaioTap();
-    await settle();
+    await waitFor(
+      'a gravação da parte terminar',
+      () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+    );
     notifier.takeKeep();
+    // A stretch is a slice of a recording the room can name, and the name is adopted only
+    // once the take lands. Entering the retro before that makes every cut arrive with
+    // nothing to point at, and the room drops it instead of sending it.
+    await waitFor(
+      'a sala nomear a parte',
+      () => container.read(salaSessionProvider).partes.last.takeId != null,
+    );
     notifier.startRetro();
-    await settle();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
 
     harness.room.reachable = false;
+    final capturasAntes = harness.recorder.captures;
     notifier.cortarTrecho();
-    await settle();
+    await waitFor(
+      'o microfone abrir para o trecho',
+      () => harness.recorder.captures == capturasAntes + 1,
+    );
     notifier.retroTap();
-    await settle();
+    await waitFor(
+      'a sala sair do pensando',
+      () => container.read(salaSessionProvider).btPhase != BtPhase.thinking,
+    );
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.playing,
         reason: 'thinking só avança pela rede — ficaria sem toque e sem volta');
