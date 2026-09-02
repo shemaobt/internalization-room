@@ -2432,8 +2432,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (epoch != _epoch) return;
       state = state.copyWith(voice: VoiceState.speaking);
       _watchBusyState();
-      await _speak(verdict.audioUrl, verdict.fixedLine);
+      final spoke = await _speak(verdict.audioUrl, verdict.fixedLine);
       if (epoch != _epoch) return;
+      // A verdict the team never heard is an unspoken turn like any other, and it climbs
+      // the same ladder: three of them call a person. It counted for nothing here, so a
+      // room that had gone silent went on answering as though it were being heard, in a
+      // room with no written word to fall back on.
+      //
+      // It returns, as all five of its siblings do. Registering and carrying on was the
+      // other option and it is not one: on the third rung the halt fires, the room says
+      // out loud that a person is needed and the desk is called — and then the lines
+      // below overwrite that with the closing screen, so the team hears the call and is
+      // shown a finished passage.
+      if (!spoke) return _registerUnplayableTurn();
+      _unplayableTurns = 0;
 
       if (verdict.checked) {
         state = state.copyWith(btPhase: BtPhase.conferida, voice: VoiceState.done);
