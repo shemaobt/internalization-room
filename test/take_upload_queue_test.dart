@@ -397,4 +397,86 @@ void main() {
         reason: 'é o tablet de piloto real: manifesto no formato antigo e restauração de '
             'backup no mesmo aparelho');
   });
+
+  test('a take still uploads after the tablet clock jumps backwards', () async {
+    final room = FakeRoom()..reachable = false;
+    final queue = queueOn(room, backoff: const [Duration(minutes: 5)]);
+    clock = DateTime(2026, 8, 12, 9);
+    await queue.enqueue(aTake('tomada'),
+        sessionId: 'sessao-1', kind: 'ensaio', scope: 'inteira');
+    await queue.flush();
+
+    // A correção automática de horário chega justamente quando a rede volta.
+    clock = clock.subtract(const Duration(hours: 1));
+    room.reachable = true;
+
+    expect(await queue.flush(), 1,
+        reason: 'com o relógio atrás do instante gravado a espera nunca vencia, e a '
+            'linha nunca voltava a ser tentada: cinquenta minutos de rede boa sem um '
+            'envio, e a sala não diz nada, porque só fala de tomada esgotada, perdida '
+            'ou emperrada');
+    expect(room.takesKept, ['ensaio/inteira']);
+  });
+
+  test('the queue survives a timezone change across a restart', () async {
+    final room = FakeRoom()..reachable = false;
+    clock = DateTime(2026, 8, 12, 9);
+    final queue = queueOn(room, backoff: const [Duration(minutes: 5)]);
+    await queue.enqueue(aTake('tomada'),
+        sessionId: 'sessao-1', kind: 'ensaio', scope: 'inteira');
+    await queue.flush();
+
+    // O aparelho reabre num fuso atrás do primeiro, e o instante volta do disco
+    // adiante do relógio de agora.
+    clock = clock.subtract(const Duration(hours: 3));
+    room.reachable = true;
+    final afterRestart = queueOn(room, backoff: const [Duration(minutes: 5)]);
+
+    expect(await afterRestart.flush(), 1,
+        reason: 'o instante atravessa o disco: gravado num fuso e lido noutro, ele '
+            'volta como um horário à frente e prendia a fila para sempre');
+    expect(room.takesKept, ['ensaio/inteira']);
+  });
+
+  test('a row written before this change, its stamp now ahead of the clock, is sent',
+      () async {
+    final dir = Directory('${home.path}/guardadas')..createSync(recursive: true);
+    File('${dir.path}/ensaio-antiga-1.m4a')
+        .writeAsStringSync('a equipe contou a passagem');
+    File('${dir.path}/fila.json').writeAsStringSync(
+      '[{"id":"antiga","name":"ensaio-antiga-1.m4a","session_id":"sessao-1",'
+      '"kind":"ensaio","scope":"inteira","pass_number":null,"chunk_index":null,'
+      '"stored":false,"lost":false,"attempts":0,"waits":1,'
+      '"last_try":"2026-08-12T12:00:00.000"}]',
+    );
+    clock = DateTime(2026, 8, 12, 9);
+    final room = FakeRoom();
+    final queue = queueOn(room, backoff: const [Duration(minutes: 5)]);
+
+    expect(await queue.flush(), 1,
+        reason: 'os tablets do piloto já têm fila.json gravado sem fuso nenhum — a '
+            'atualização não pode deixar essas linhas presas');
+  });
+
+  test('a take freed by a backwards jump goes back to waiting its backoff', () async {
+    final room = FakeRoom()..reachable = false;
+    final queue = queueOn(room, backoff: const [Duration(minutes: 5)]);
+    clock = DateTime(2026, 8, 12, 9);
+    await queue.enqueue(aTake('tomada'),
+        sessionId: 'sessao-1', kind: 'ensaio', scope: 'inteira');
+    await queue.flush();
+
+    clock = clock.subtract(const Duration(hours: 1));
+    await queue.flush();
+
+    room.reachable = true;
+    expect(await queue.flush(), 0,
+        reason: 'soltar a linha de um carimbo do futuro vale uma tentativa, não todas: '
+            'essa tentativa grava um carimbo são, e a espera volta a valer — senão a '
+            'fila martela a sala a cada flush enquanto o relógio estiver atrás');
+
+    clock = clock.add(const Duration(minutes: 6));
+    expect(await queue.flush(), 1,
+        reason: 'e ela sobe quando a espera vence, contada do relógio de agora');
+  });
 }

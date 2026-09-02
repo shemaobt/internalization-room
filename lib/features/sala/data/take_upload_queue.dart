@@ -62,6 +62,12 @@ class PendingTake {
   /// them: a tablet on a weak link would otherwise spend all five tries on five slow
   /// minutes and abandon a recording the room may well have accepted.
   final int waits;
+  /// When this row was last tried, written down as UTC.
+  ///
+  /// A local ISO string carries no zone at all, so the same instant written in one
+  /// timezone and read back in one behind it comes back as a time in the future — and a
+  /// stamp in the future is what used to stop a row from ever being tried again. Rows the
+  /// older app wrote are still zoneless and are still read; they come due just the same.
   final DateTime? lastTry;
 
   const PendingTake({
@@ -123,7 +129,7 @@ class PendingTake {
         'lost': lost,
         'attempts': attempts,
         'waits': waits,
-        'last_try': lastTry?.toIso8601String(),
+        'last_try': lastTry?.toUtc().toIso8601String(),
       };
 
   factory PendingTake.fromJson(
@@ -270,9 +276,19 @@ class TakeUploadQueue {
   bool _ready(PendingTake entry) {
     final last = entry.lastTry;
     if (last == null || entry.tries == 0 || _backoff.isEmpty) return true;
+    final now = _now();
+    // A stamp we could not have written yet says nothing about when we last tried.
+    //
+    // The guard belongs here rather than in the pacing: a row that fails this check never
+    // reaches the send path, so its stamp is never rewritten, so it fails again — forever.
+    //
+    // Any amount ahead, not only an implausible one. A corrupt stamp far in the future
+    // would stay stuck for good under a threshold rule and cures itself under this one,
+    // and flush() runs on events, never on a timer, so the extra try cannot spin.
+    if (last.isAfter(now)) return true;
     final step = entry.tries - 1;
     final wait = _backoff[step < _backoff.length ? step : _backoff.length - 1];
-    return !_now().isBefore(last.add(wait));
+    return !now.isBefore(last.add(wait));
   }
 
   Future<void> _write(List<PendingTake> entries) async {
