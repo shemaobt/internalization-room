@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -9,20 +7,6 @@ import 'fakes.dart';
 
 Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) =>
     Future<void>.delayed(delay);
-
-Future<void> waitFor(
-  String what,
-  FutureOr<bool> Function() ready, {
-  Duration limit = const Duration(seconds: 10),
-}) async {
-  final deadline = DateTime.now().add(limit);
-  while (!await ready()) {
-    if (DateTime.now().isAfter(deadline)) {
-      fail('esperei ${limit.inSeconds}s e $what não aconteceu');
-    }
-    await Future<void>.delayed(const Duration(milliseconds: 5));
-  }
-}
 
 /// The app on its first breath: it asks the room for the panorama, as every launch does.
 Future<ProviderContainer> _opensAsking(SalaHarness harness) async {
