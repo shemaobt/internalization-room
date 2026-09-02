@@ -206,6 +206,12 @@ void main() {
       ),
       semAudio: true,
     );
+
+    expect(container.read(salaSessionProvider).conversaDone, isFalse,
+        reason: 'o fecho leva 700ms para chegar ao fim, e a conversa com a voz '
+            'em done é o botão verde de ir para o ensaio: um toque ali reescreve '
+            'o ponto de retomada e cancela o fecho');
+
     await settle(const Duration(seconds: 2));
 
     expect(harness.room.restartsAsked, isEmpty,
