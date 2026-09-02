@@ -2025,6 +2025,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         passNumber: state.btPass,
         chunkIndex: state.btChunkPasses.length + 1,
       ));
+      // A refusal leaves the stretches as they were, so the ground told back is the same
+      // ground the taken correction would have left: read it off what the tablet already
+      // holds rather than off an answer that carries nothing.
+      _walkTheCursorBack(state.btTrechos);
       state = state.copyWith(
         btPhase: BtPhase.playing,
         voice: VoiceState.invite,
@@ -2034,16 +2038,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
 
     final trechos = _trechosFrom(told.segments);
-    // Telling a stretch again adds no new ground, so the cursor goes back to the furthest
-    // stretch already told rather than staying where the excursion left it. The ordinary
-    // path walks it forward past what was just told; here there is nothing to walk past,
-    // and a cursor left behind makes the next cut begin inside ground already explained.
-    final alcancado = trechos.fold(
-      Duration.zero,
-      (ate, trecho) => trecho.to > ate ? trecho.to : ate,
-    );
-    _trechoStart = alcancado;
-    _trechoEnd = alcancado;
+    _walkTheCursorBack(trechos);
     state = state.copyWith(
       btPhase: BtPhase.playing,
       voice: VoiceState.invite,
@@ -2066,6 +2061,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // Nothing had to be unlocked for this: the mark that the recording ended survives a
     // correction, so the ask is allowed the moment it is made.
     await finishBackTranslation();
+  }
+
+  /// Put the cursor back on the furthest stretch already told.
+  ///
+  /// Telling a stretch again adds no new ground, so the cursor goes back rather than
+  /// staying where the excursion left it. The ordinary path walks it forward past what
+  /// was just told; here there is nothing to walk past, and a cursor left behind makes
+  /// the next cut begin inside ground already explained.
+  ///
+  /// Whether the room made anything of the correction does not change that. A refused
+  /// one used to skip this and leave the cursor on the bounds the finding had named, so
+  /// the next cut began at the start of the recording and sent the whole rehearsal as one
+  /// new stretch — the team's own telling, handed back to the room a second time.
+  void _walkTheCursorBack(List<Trecho> trechos) {
+    final alcancado = trechos.fold(
+      Duration.zero,
+      (ate, trecho) => trecho.to > ate ? trecho.to : ate,
+    );
+    _trechoStart = alcancado;
+    _trechoEnd = alcancado;
   }
 
   void proximaParte() {

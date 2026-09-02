@@ -64,6 +64,29 @@ Future<void> _contaDeNovo(
   await settle();
 }
 
+/// A session standing on a finding, with the cursor moved onto the stretch it names.
+///
+/// Being led to that stretch is what puts the cursor behind the ground already told back:
+/// it holds the finding's own bounds while the team hears it. What the room does with the
+/// correction that follows is each test's business.
+Future<ProviderContainer> _levadaAoTrechoApontado(SalaHarness harness) async {
+  final container = await _inRetro(harness);
+  final notifier = container.read(salaSessionProvider.notifier);
+  await _contaTrecho(harness, notifier, em: const Duration(seconds: 20));
+  await until(() => harness.room.chunksSent == 1);
+  harness.room.verdictFindingSegmentId = harness.room.segments.last.segmentId;
+  harness.playback.finishPlayback();
+  await settle();
+  await notifier.finishBackTranslation();
+  notifier.ouvirVozMaterna();
+  await until(() => container.read(salaSessionProvider).btTrechoTocando);
+  notifier.retellChunk();
+  await settle();
+  harness.playback.finishPlayback();
+  await until(() => !container.read(salaSessionProvider).btTrechoTocando);
+  return container;
+}
+
 /// A session whose one stretch was divided, so both halves are waiting to be told.
 Future<ProviderContainer> _comDuasMetadesEsperando(SalaHarness harness) async {
   final container = await _inRetro(harness);
@@ -203,26 +226,13 @@ void main() {
 
   test('telling a stretch again does not leave the room retelling', () async {
     final harness = SalaHarness()..room.verdictChecked = false;
-    final container = await _inRetro(harness);
+    final container = await _levadaAoTrechoApontado(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await _contaTrecho(harness, notifier, em: const Duration(seconds: 20));
-    await until(() => harness.room.chunksSent == 1);
-    harness.room.verdictFindingSegmentId = harness.room.segments.last.segmentId;
-    harness.playback.finishPlayback();
-    await settle();
-    await notifier.finishBackTranslation();
-    notifier.ouvirVozMaterna();
-    await until(() => container.read(salaSessionProvider).btTrechoTocando);
-
-    notifier.retellChunk();
-    await settle();
-    harness.playback.finishPlayback();
-    await until(() => !container.read(salaSessionProvider).btTrechoTocando);
-    // Refused on purpose. A correction the room takes now carries the team on to its
-    // result, and there is no cut after it to catch the latch with; a refused one leaves
-    // them on the recording, which is the path this still has to hold — and the latch is
-    // let go before the upload either way, so it is the same latch being watched.
+    // Refused on purpose. A correction the room takes carries the team on to its result,
+    // and there is no cut after it to catch the latch with; a refused one leaves them on
+    // the recording, which is the path this still has to hold — and the latch is let go
+    // before the upload either way, so it is the same latch being watched.
     harness.room.replaceCaptured = false;
     await _contaDeNovo(
         notifier, container.read(salaSessionProvider).btTrechos.first);
@@ -235,13 +245,54 @@ void main() {
         reason: 'contar um trecho de novo encerra a recontagem: deixá-la '
             'ligada faz o próximo corte ignorar o tocador, reaproveitar os '
             'limites velhos e subir como recontagem');
-    // Only the far end is read here. A refused correction leaves the cursor where the
-    // retelling put it — the successful path is the one that walks it back to the
-    // furthest stretch told — so the near end is that stale cursor rather than anything
-    // this test is about, and asserting it would be asserting a separate defect.
-    expect(harness.room.chunkSpans.last, endsWith('-40000'),
-        reason: 'e o corte termina onde o tocador está, não onde a recontagem '
-            'parou: herdar o fim velho mandaria como trecho novo um pedaço '
-            'que a equipe não acabou de contar');
+    expect(harness.room.chunkSpans.last, '20000-40000',
+        reason: 'e os limites são os do tocador, não os que a recontagem '
+            'tinha deixado para trás');
+  });
+
+  test('a correction the room takes leaves the next cut on untold ground', () async {
+    final harness = SalaHarness()..room.verdictChecked = false;
+    final container = await _levadaAoTrechoApontado(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    // The room takes the correction and then does not answer for it in time, so the team
+    // is left standing on the recording instead of being carried to a result. That is the
+    // one place from which the cursor a correction moved can be read at all: every other
+    // way out of a correction the room took ends the telling-back.
+    harness.room.failFinishWith = const RoomSlow();
+    await _contaDeNovo(
+        notifier, container.read(salaSessionProvider).btTrechos.first);
+    harness.room.failFinishWith = null;
+
+    await _contaTrecho(harness, notifier, em: const Duration(seconds: 40));
+
+    expect(harness.room.chunkSpans.last, '20000-40000',
+        reason: 'os dois limites são do tocador a partir do que já foi contado: '
+            'começar em zero mandaria a gravação inteira como trecho novo, e o '
+            'que a equipe acabou de contar seria contado outra vez');
+  });
+
+  test('the cursor lands in the same place whether the correction was taken or not',
+      () async {
+    Future<String> corteDepoisDaCorrecao({required bool aceita}) async {
+      final harness = SalaHarness()..room.verdictChecked = false;
+      final container = await _levadaAoTrechoApontado(harness);
+      final notifier = container.read(salaSessionProvider.notifier);
+      harness.room.replaceCaptured = aceita;
+      harness.room.failFinishWith = const RoomSlow();
+      await _contaDeNovo(
+          notifier, container.read(salaSessionProvider).btTrechos.first);
+      harness.room.replaceCaptured = true;
+      harness.room.failFinishWith = null;
+      await _contaTrecho(harness, notifier, em: const Duration(seconds: 40));
+      return harness.room.chunkSpans.last;
+    }
+
+    expect(await corteDepoisDaCorrecao(aceita: false),
+        await corteDepoisDaCorrecao(aceita: true),
+        reason: 'contar de novo não acrescenta terreno em nenhum dos dois casos, '
+            'então o corte seguinte começa no mesmo lugar: uma recusa que deixa o '
+            'cursor para trás faz a sala receber duas vezes o que a equipe contou '
+            'uma');
   });
 }

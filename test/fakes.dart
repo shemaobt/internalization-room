@@ -395,6 +395,7 @@ class FakeRoom implements RoomRepository {
   Exception? failRestartWith;
   Exception? failDivideWith;
   Exception? failReplaceWith;
+  Exception? failFinishWith;
   bool replaceCaptured = true;
   /// Which stretch each retelling named, and the slice it sent, in order.
   final List<String> replacesAsked = [];
@@ -722,6 +723,8 @@ class FakeRoom implements RoomRepository {
     clipDurationsSent.add(clipDurationMs);
     playedRangesSent.add(playedRanges);
     _guard('finishBackTranslation');
+    final refusal = failFinishWith;
+    if (refusal != null) throw refusal;
     return BackTranslationVerdict(
       audioUrl: '/api/internalization-room/voice/veredito',
       fixedLine: '',
