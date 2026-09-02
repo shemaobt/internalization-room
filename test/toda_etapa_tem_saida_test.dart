@@ -37,13 +37,25 @@ const _terminal = <SalaStage>{};
 
 /// What the team can do to leave each stage, named rather than read off the code: a table
 /// derived from the implementation proves only that the code equals itself.
-const _wayOut = <SalaStage, String>{
-  SalaStage.convite: 'abrirEscolha',
-  SalaStage.escolha: 'entrarNaOferecida',
-  SalaStage.conversa: 'goEnsaio',
-  SalaStage.ensaio: 'startRetro',
-  SalaStage.retro: 'leaveThePassage',
-  SalaStage.fim: 'beginAgain',
+///
+/// Each row carries the gesture as well as its name, so the two cannot drift. Mapping to a
+/// name that something else matched would let a row name a gesture that matcher did not
+/// know: the gesture would quietly do nothing, and the walk would report the station as
+/// having no way out — blaming the room for a hole in this table.
+final _wayOut =
+    <SalaStage, ({String name, Future<void> Function(SalaSessionNotifier) take})>{
+  SalaStage.convite: (name: 'abrirEscolha', take: (n) => n.abrirEscolha()),
+  SalaStage.escolha: (
+    name: 'entrarNaOferecida',
+    take: (n) async => n.entrarNaOferecida(),
+  ),
+  SalaStage.conversa: (name: 'goEnsaio', take: (n) async => n.goEnsaio()),
+  SalaStage.ensaio: (name: 'startRetro', take: (n) async => n.startRetro()),
+  SalaStage.retro: (
+    name: 'leaveThePassage',
+    take: (n) async => n.leaveThePassage(),
+  ),
+  SalaStage.fim: (name: 'beginAgain', take: (n) async => n.beginAgain()),
 };
 
 /// Put the room in [stage], through the gestures that really reach it.
@@ -90,24 +102,6 @@ Future<void> _standIn(
       limit: const Duration(seconds: 5));
 }
 
-/// Do the one thing the table says leaves [stage].
-Future<void> _takeTheWayOut(SalaStage stage, SalaSessionNotifier notifier) async {
-  switch (_wayOut[stage]!) {
-    case 'abrirEscolha':
-      await notifier.abrirEscolha();
-    case 'entrarNaOferecida':
-      notifier.entrarNaOferecida();
-    case 'goEnsaio':
-      notifier.goEnsaio();
-    case 'startRetro':
-      notifier.startRetro();
-    case 'leaveThePassage':
-      notifier.leaveThePassage();
-    case 'beginAgain':
-      notifier.beginAgain();
-  }
-}
-
 void main() {
   test('every stage of the room has a way out the team can take', () async {
     expect(
@@ -130,12 +124,12 @@ void main() {
       expect(container.read(salaSessionProvider).stage, stage,
           reason: 'o caso precisa começar onde diz que começa');
 
-      await _takeTheWayOut(stage, notifier);
+      await _wayOut[stage]!.take(notifier);
 
       // Espera com prazo e falha alta: uma saída que nunca chega é uma parede, e
       // tem de ser dita como tal em vez de estourar em outro lugar.
       await waitFor(
-        'a equipe sair de $stage por ${_wayOut[stage]} — uma etapa sem saída é '
+        'a equipe sair de $stage por ${_wayOut[stage]!.name} — uma etapa sem saída é '
             'uma sala que só se deixa matando o app',
         () => container.read(salaSessionProvider).stage != stage,
         limit: const Duration(seconds: 5),
