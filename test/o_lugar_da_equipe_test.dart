@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -8,10 +9,26 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 
-Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) =>
-    Future<void>.delayed(delay);
+/// Wait for something to happen, and say what did not when it never does.
+///
+/// A wait that gives up in silence lets the case go on measuring a precondition that
+/// never arrived, and the failure then surfaces somewhere else entirely — far from the
+/// wait that actually timed out. Every wait here names what it is waiting for and fails
+/// on it.
+Future<void> waitFor(
+  String what,
+  FutureOr<bool> Function() ready, {
+  Duration limit = const Duration(seconds: 10),
+}) async {
+  final deadline = DateTime.now().add(limit);
+  while (!await ready()) {
+    if (DateTime.now().isAfter(deadline)) {
+      fail('esperei ${limit.inSeconds}s e $what não aconteceu');
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+  }
+}
 
-/// A home the ledger can write into.
 Directory _home() {
   final home = Directory.systemTemp.createTempSync('sala-lugar');
   addTearDown(() => home.deleteSync(recursive: true));
@@ -34,31 +51,42 @@ void _corruptTheLedger(Directory home) {
   ).writeAsStringSync('{"Ruth/P01": isto nao e json');
 }
 
+Future<void> _placeLands(WorkInProgress ledger, SalaStage stage) => waitFor(
+  'o ponto de retomada pousar no disco como $stage',
+  () async => (await ledger.of('Ruth', 'P01'))?.stage == stage,
+);
+
+Future<void> _theRoomSays(SalaHarness harness) => waitFor(
+  'a sala dizer que uma gravação ficou presa',
+  () => harness.voice.assets.contains(strandedTakeAsset(testLanguage)),
+);
+
 void main() {
   test('a place the disk refuses to write is spoken to the team', () async {
     final home = _home();
-    final harness = SalaHarness(
-      emAbertoNoDisco: WorkInProgress(home: () async => home),
-    );
+    final ledger = WorkInProgress(home: () async => home);
+    final harness = SalaHarness(emAbertoNoDisco: ledger);
     final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
     await notifier.abrirEscolha();
-    await settle();
+
     await notifier.goConversa(pericope: 'P01');
-    await settle();
+    // The write on entering a passage is fire-and-forget. Blocking the disk while it is
+    // still in flight would make that write the one that fails, and the case would hear
+    // its line and pass for the wrong reason.
+    await _placeLands(ledger, SalaStage.conversa);
     expect(
       harness.voice.assets,
       isNot(contains(strandedTakeAsset(testLanguage))),
       reason:
-          'o disco ainda está bom aqui — se a linha já tocou, ela veio de '
-          'outro lugar e o caso não mede o ponto de retomada',
+          'o disco ainda está bom aqui: a linha só pode vir do que vem depois',
     );
 
     _blockTheDisk(home);
     notifier.goEnsaio();
-    await settle();
 
+    await _theRoomSays(harness);
     expect(
       harness.voice.assets,
       contains(strandedTakeAsset(testLanguage)),
@@ -77,11 +105,10 @@ void main() {
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
     await notifier.abrirEscolha();
-    await settle();
 
     await notifier.goConversa(pericope: 'P01');
-    await settle();
 
+    await _theRoomSays(harness);
     expect(
       await ledger.of('Ruth', 'P01'),
       isNull,
@@ -104,14 +131,14 @@ void main() {
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
     await notifier.abrirEscolha();
-    await settle();
 
     await notifier.goConversa(pericope: 'P01');
-    await settle();
+    await _placeLands(ledger, SalaStage.conversa);
     notifier.goEnsaio();
-    await settle();
 
-    expect((await ledger.of('Ruth', 'P01'))?.stage, SalaStage.ensaio);
+    // Measured after the write has actually landed, so the silence below is the room
+    // having nothing to say rather than the room not having got there yet.
+    await _placeLands(ledger, SalaStage.ensaio);
     expect(
       harness.voice.assets,
       isNot(contains(strandedTakeAsset(testLanguage))),
