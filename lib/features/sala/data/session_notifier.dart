@@ -747,7 +747,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           state = state.copyWith(clearPing: true);
         });
       }
-      if (snapshot.needsPerson && state.stage == SalaStage.conversa) {
+      if (snapshot.needsPerson) {
         _haltForAPerson();
       } else if (snapshot.done && state.stage == SalaStage.conversa) {
         state = state.copyWith(voice: VoiceState.done, peerCue: false);
@@ -1132,6 +1132,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           if (waiting.stage == SalaStage.retro) {
             _pickTheTellingBackUp(snapshot.backTranslation);
           }
+          // The snapshot was fetched here and its halt never read, so a team reopening
+          // into a room the server had already stopped met every gesture wide open.
+          //
+          // After the telling-back is picked up, not before, so that the passage the team
+          // comes back to is the one they left: a person resolving the halt finds them in
+          // their retro rather than dropped back into the rehearsal.
+          if (snapshot.needsPerson) _haltForAPerson();
           return;
         }
         if (waiting.stage == SalaStage.retro) {
@@ -1614,6 +1621,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void ensaioTap() {
+    if (state.needsPerson) return;
     switch (state.ensaio) {
       case EnsaioStatus.idle:
         state = state.copyWith(ensaio: EnsaioStatus.recording);
