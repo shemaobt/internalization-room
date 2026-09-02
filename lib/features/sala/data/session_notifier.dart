@@ -1037,8 +1037,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (moved()) return;
     state = state.copyWith(voice: VoiceState.speaking);
     _watchBusyState();
-    await _speak(passagem.audioUrl, '');
+    final spoke = await _speak(passagem.audioUrl, '');
     if (moved()) return;
+    // A wheel that has gone silent looks to the team exactly like a wheel that has
+    // stopped, and there is no written word here to tell them apart.
+    if (!spoke) return _registerUnplayableTurn();
+    _unplayableTurns = 0;
     state = state.copyWith(voice: VoiceState.invite);
   }
 
