@@ -25,7 +25,9 @@ class RetroView extends ConsumerWidget {
     final clipRunning = session.btClipRodando || session.btTrechoTocando;
 
     // An absence is not a wrong voice, so the question is not put. The same circle and
-    // the same two players, and one act under them instead of a choice between two.
+    // the same two players, and one act under them instead of a choice between two — the
+    // long way, because what is missing was most likely left out of the recording and not
+    // only out of the telling laid over it.
     if (session.btPhase == BtPhase.findings && session.btFaltaNoTrecho) {
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -39,10 +41,10 @@ class RetroView extends ConsumerWidget {
                 session.canResolveWithPerson ? notifier.resolveWithPerson : null,
           ),
           const SizedBox(height: 46),
-          ContarInteiroDeNovo(
+          RefazerAParte(
             onOuvirMaterna: notifier.ouvirVozMaterna,
             onOuvirRetro: notifier.ouvirContarEmPortugues,
-            onContarInteiro: notifier.recontarEmPortugues,
+            onRefazerAParte: notifier.regravarAVozMaterna,
             tocandoMaterna: session.btTrechoTocando,
             tocandoRetro: session.btRetroTocando,
             podeOuvirRetro: session.btFindingTrecho?.retroPath != null,

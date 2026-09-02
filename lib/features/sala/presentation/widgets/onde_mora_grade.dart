@@ -11,11 +11,17 @@ const micMaternaLabel = 'Regravar a voz na língua materna — refaz também o c
 const micRetroLabel = 'Recontar só em português';
 const cortarTrechoLabel = 'Cortar este trecho em dois, aqui';
 
-/// The one thing to do about a stretch that is merely short: tell it again, whole.
+/// The one thing to do about a stretch that came out short: record it again and tell it
+/// again over the new recording, in that order.
 ///
-/// Not "only in Portuguese", which named the bridge language — false in a session held in
-/// another one — and whose "only" existed by contrast with a column that is not here.
-const contarInteiroLabel = 'Contar esta parte inteira de novo';
+/// The long way and not the short one. What is missing was most likely left out of the
+/// recording itself, not only out of the telling laid over it, so redoing the telling
+/// alone would explain an audio that still does not carry the part.
+///
+/// It names no language. "Recontar só em português" named the bridge — false in a session
+/// held in another one — and its "only" existed by contrast with a column that is not
+/// here.
+const refazerParteLabel = 'Regravar esta parte e contá-la de novo';
 
 /// Where the error lives: the team says it, the room does not guess.
 ///
@@ -130,10 +136,10 @@ class OndeMoraGrade extends StatelessWidget {
 ///
 /// Its own composition rather than the grid with a column hidden, so that "the question
 /// is not put here" is a thing the screen cannot drift back out of.
-class ContarInteiroDeNovo extends StatelessWidget {
+class RefazerAParte extends StatelessWidget {
   final VoidCallback onOuvirMaterna;
   final VoidCallback onOuvirRetro;
-  final VoidCallback onContarInteiro;
+  final VoidCallback onRefazerAParte;
 
   final bool tocandoMaterna;
   final bool tocandoRetro;
@@ -142,11 +148,11 @@ class ContarInteiroDeNovo extends StatelessWidget {
   /// up carries the room's stretches and none of its files.
   final bool podeOuvirRetro;
 
-  const ContarInteiroDeNovo({
+  const RefazerAParte({
     super.key,
     required this.onOuvirMaterna,
     required this.onOuvirRetro,
-    required this.onContarInteiro,
+    required this.onRefazerAParte,
     this.tocandoMaterna = false,
     this.tocandoRetro = false,
     this.podeOuvirRetro = true,
@@ -187,8 +193,8 @@ class ContarInteiroDeNovo extends StatelessWidget {
           _Alvo(
             size: 60,
             gradiente: BeadStyles.azul,
-            label: contarInteiroLabel,
-            onTap: _algoTocando ? null : onContarInteiro,
+            label: refazerParteLabel,
+            onTap: _algoTocando ? null : onRefazerAParte,
             child: const Icon(LucideIcons.mic, size: 22, color: ShemaBrand.branco),
           ),
         ],

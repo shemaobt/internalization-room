@@ -151,7 +151,7 @@ void main() {
     // equipe não tem como saber o que faltou.
     expect(byLabel(ouvirMaterna), findsOneWidget);
     expect(byLabel(ouvirRetro), findsOneWidget);
-    expect(byLabel(contarInteiroLabel), findsOneWidget);
+    expect(byLabel(refazerParteLabel), findsOneWidget);
   });
 
   testWidgets('choosing only the telling leaves the mother tongue untouched',

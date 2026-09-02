@@ -62,7 +62,12 @@ Future<ProviderContainer> ateOAchado(
 }
 
 /// The one action a missing finding leaves standing.
-const contarInteiroExit = 'Contar esta parte inteira de novo';
+///
+/// The long way, not the short one: what is missing was probably left out of the
+/// recording, not only out of the telling over it, so the mother tongue is recorded again
+/// and the stretch told again over it — in that order, which is the only order the room
+/// accepts.
+const refazerParteExit = 'Regravar esta parte e contá-la de novo';
 
 /// The question the room used to put, in the two labels that put it: which voice was
 /// wrong. A stretch that is merely short has no answer to give either of them.
@@ -93,12 +98,12 @@ void main() {
     expect(bySemanticsLabelWidget(escolherRetro), findsNothing);
   });
 
-  testWidgets('num achado de falta a saída é contar aquela parte inteira de novo',
+  testWidgets('num achado de falta a saída é regravar aquela parte e contá-la de novo',
       (tester) async {
     final container = await ateOAchado(tester, SalaHarness(filaEmMemoria: true),
         BtFindingKind.missing, trecho: 'trecho-1');
 
-    expect(bySemanticsLabelWidget(contarInteiroExit), findsOneWidget);
+    expect(bySemanticsLabelWidget(refazerParteExit), findsOneWidget);
 
     // Uma ação só. As outras duas saídas que a sala tem para um achado — recontar
     // a gravação inteira e regravar o clipe — não cabem aqui: o dono do produto
@@ -106,10 +111,11 @@ void main() {
     expect(bySemanticsLabelWidget(wholeClipExit), findsNothing);
     expect(bySemanticsLabelWidget(reRecordExit), findsNothing);
 
-    await tester.tap(bySemanticsLabelWidget(contarInteiroExit));
+    await tester.tap(bySemanticsLabelWidget(refazerParteExit));
     await tester.pump(const Duration(milliseconds: 300));
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing,
-        reason: 'a saída abre o microfone naquele trecho');
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.gravandoMaterna,
+        reason: 'a saída abre a primeira das duas estações: a voz materna '
+            'daquele trecho, gravada de novo');
   });
 
   testWidgets('os dois ouvires continuam na tela num achado de falta',
@@ -123,7 +129,7 @@ void main() {
     expect(bySemanticsLabelWidget(ouvirRetroLabel), findsOneWidget);
   });
 
-  testWidgets('o que a equipe conta substitui aquele trecho, no endereço dele',
+  testWidgets('o que sai para a sala é a sequência do caminho longo',
       (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await ateOAchado(
@@ -132,21 +138,42 @@ void main() {
       BtFindingKind.missing,
       trecho: 'trecho-1',
     );
-    final gravacao = container.read(salaSessionProvider).keptTakes.first.takeId;
-
-    await tester.tap(bySemanticsLabelWidget(contarInteiroExit));
-    await tester.pump(const Duration(milliseconds: 300));
     final notifier = container.read(salaSessionProvider.notifier);
+
+    await tester.tap(bySemanticsLabelWidget(refazerParteExit));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(harness.room.replacesAsked, isEmpty,
+        reason: 'nada é substituído enquanto a voz nova não existe');
+
+    // Primeira estação: a voz materna daquele trecho, gravada de novo.
+    notifier.retroTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    notifier.retroTap();
+    await letTheRehearsalReachTheRoom(tester);
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final novaGravacao = harness.room.takeIds.last;
+    expect(harness.room.replacesSemArquivo, ['trecho-1'],
+        reason: 'a voz nova sobe sozinha — mandá-la junto com a explicação '
+            'velha é a combinação que o servidor recusa');
+
+    // Segunda estação: contar aquele trecho de novo, sobre a voz que acabou de
+    // entrar. Ela vem sozinha, sem a equipe pedir.
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);
     notifier.retroTap();
     await tester.pump(const Duration(milliseconds: 600));
 
-    expect(harness.room.replacesAsked, ['trecho-1@$gravacao:0-10000'],
-        reason: 'recontar o trecho inteiro é substituí-lo no mesmo endereço; '
-            'um pedaço novo deixaria a falta onde estava e o analista '
-            'apontaria de novo, gastando outra rodada');
+    expect(harness.room.replacesAsked, [
+      'trecho-1@$novaGravacao:0-30000',
+      'trecho-1-v1@$novaGravacao:0-30000',
+    ], reason: 'as duas estações, nesta ordem, e as duas no mesmo endereço de '
+        'áudio: a fatia inteira da gravação nova. O nome do trecho muda entre '
+        'elas porque uma versão é uma linha nova e a sala aposenta a anterior — '
+        'seguir o nome velho na segunda seria substituir um trecho que já não '
+        'conta');
     expect(harness.room.chunksSent, 1,
-        reason: 'o único chunk é o da retro original; esta saída não corta '
-            'trecho novo');
+        reason: 'o único chunk é o da retro original: as duas estações são '
+            'substituições daquele trecho, e nenhuma delas corta trecho novo');
   });
 
   for (final kind in outrosKinds) {
@@ -159,7 +186,7 @@ void main() {
               'resposta');
       expect(bySemanticsLabelWidget(escolherMaterna), findsOneWidget);
       expect(bySemanticsLabelWidget(escolherRetro), findsOneWidget);
-      expect(bySemanticsLabelWidget(contarInteiroExit), findsNothing);
+      expect(bySemanticsLabelWidget(refazerParteExit), findsNothing);
     });
   }
 
@@ -169,7 +196,7 @@ void main() {
         tester, SalaHarness(filaEmMemoria: true), BtFindingKind.missing);
 
     expect(find.byType(OndeMoraGrade), findsNothing);
-    expect(bySemanticsLabelWidget(contarInteiroExit), findsNothing,
+    expect(bySemanticsLabelWidget(refazerParteExit), findsNothing,
         reason: 'sem endereço não há trecho a recontar; a sala volta ao que '
             'sempre fez');
     expect(bySemanticsLabelWidget(wholeClipExit), findsOneWidget);
@@ -186,7 +213,7 @@ void main() {
     );
     final faladoAteAqui = List.of(harness.voice.assets);
 
-    await tester.tap(bySemanticsLabelWidget(contarInteiroExit));
+    await tester.tap(bySemanticsLabelWidget(refazerParteExit));
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(harness.voice.assets, faladoAteAqui,
