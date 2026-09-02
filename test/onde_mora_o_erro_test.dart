@@ -30,7 +30,7 @@ SalaSessionNotifier notifier(ProviderContainer c) =>
 /// A team that told two stretches back and got a finding on the first.
 Future<ProviderContainer> pumpToPergunta(
   WidgetTester tester, {
-  BtFindingKind finding = BtFindingKind.missing,
+  BtFindingKind finding = BtFindingKind.addition,
   String? trecho = 'trecho-1',
 }) async {
   final harness = SalaHarness(filaEmMemoria: true)
@@ -154,7 +154,11 @@ void main() {
         isTrue);
   });
 
-  for (final kind in BtFindingKind.values) {
+  // Todos menos um. O invariante deste laço — o tipo do achado não escolhe pela
+  // equipe qual voz corrigir — continua valendo para os outros sete, e é por isso
+  // que ele exclui um nome em vez de sumir.
+  for (final kind
+      in BtFindingKind.values.where((k) => k != BtFindingKind.missing)) {
     testWidgets('both voices are offered when the finding is ${kind.name}',
         (tester) async {
       await pumpToPergunta(tester, finding: kind);
@@ -167,6 +171,30 @@ void main() {
       expect(byLabel(ouvirRetro), findsOneWidget);
     });
   }
+
+  testWidgets('o achado de falta é a exceção, e a exceção é de produto',
+      (tester) async {
+    await pumpToPergunta(tester, finding: BtFindingKind.missing);
+
+    // ENG-710. Esta exceção não é de implementação — nada aqui é difícil de
+    // desenhar. É de produto: quando a equipe conta os trechos sem errar nada
+    // mas conta de menos, não houve erro em nenhuma das duas vozes, houve
+    // ausência. Perguntar em qual delas mora o erro é uma pergunta sem resposta:
+    // a equipe escolhia uma, o que ela fizesse não resolvia, e a rodada voltava
+    // gastando orçamento e outra chamada de modelo.
+    //
+    // Por isso o laço acima exclui este nome, e não o contrário. Se alguém
+    // 'consertar' isto devolvendo missing ao laço, a pergunta sem resposta volta
+    // com ele.
+    expect(byLabel(micMaterna), findsNothing);
+    expect(byLabel(micRetro), findsNothing);
+
+    // Ouvir continua livre: ouvir não decide nada, e sem ouvir a própria voz a
+    // equipe não tem como saber o que faltou.
+    expect(byLabel(ouvirMaterna), findsOneWidget);
+    expect(byLabel(ouvirRetro), findsOneWidget);
+    expect(byLabel(refazerParteLabel), findsOneWidget);
+  });
 
   testWidgets('choosing only the telling leaves the mother tongue untouched',
       (tester) async {

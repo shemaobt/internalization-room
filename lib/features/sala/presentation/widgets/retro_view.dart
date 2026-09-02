@@ -24,6 +24,35 @@ class RetroView extends ConsumerWidget {
     final conferida = session.btPhase == BtPhase.conferida;
     final clipRunning = session.btClipRodando || session.btTrechoTocando;
 
+    // An absence is not a wrong voice, so the question is not put. The same circle and
+    // the same two players, and one act under them instead of a choice between two — the
+    // long way, because what is missing was most likely left out of the recording and not
+    // only out of the telling laid over it.
+    if (session.btPhase == BtPhase.findings && session.btFaltaNoTrecho) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          FacilitatorCircle(
+            size: 54,
+            voice: session.voice,
+            semanticLabel: _circleLabel(session),
+            onTap: notifier.retroTap,
+            onLongPress:
+                session.canResolveWithPerson ? notifier.resolveWithPerson : null,
+          ),
+          const SizedBox(height: 46),
+          RefazerAParte(
+            onOuvirMaterna: notifier.ouvirVozMaterna,
+            onOuvirRetro: notifier.ouvirContarEmPortugues,
+            onRefazerAParte: notifier.regravarAVozMaterna,
+            tocandoMaterna: session.btTrechoTocando,
+            tocandoRetro: session.btRetroTocando,
+            podeOuvirRetro: session.btFindingTrecho?.retroPath != null,
+          ),
+        ],
+      );
+    }
+
     // The question is its own composition, not a row of buttons under the usual circle:
     // the grid is the screen, and the room's voice steps back to make room for it.
     if (session.btPhase == BtPhase.findings && session.btFindingTrecho != null) {
@@ -135,11 +164,17 @@ class RetroView extends ConsumerWidget {
               ),
               const SizedBox(width: 28),
             ],
+            // Back to the rehearsal with the takes, the stretches and the colar kept: a
+            // finding of something missing that fits in no stretch is the end of the
+            // story never recorded, and what it asks for is more recording, not the
+            // recording again. Starting the clip over — the room retiring it, the
+            // rehearsal emptied — is `reRecordClip`, which no button on this screen
+            // reaches any more.
             RoundActionButton(
               size: 60,
               semanticLabel: 'Gravar esta parte de novo',
               gradient: BeadStyles.azul,
-              onTap: notifier.reRecordClip,
+              onTap: notifier.continuarOEnsaio,
               child: const Icon(
                 LucideIcons.mic,
                 size: 24,

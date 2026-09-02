@@ -49,7 +49,7 @@ Future<ProviderContainer> _pumpToPergunta(
 }) async {
   final harness = SalaHarness(filaEmMemoria: true, busyCeiling: teto)
     ..room.verdictChecked = false
-    ..room.verdictFinding = BtFindingKind.missing
+    ..room.verdictFinding = BtFindingKind.addition
     ..room.verdictFindingSegmentId = 'trecho-1';
   _harnessDaVez = harness;
   final container = harness.container();

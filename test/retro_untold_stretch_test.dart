@@ -150,16 +150,26 @@ void main() {
         ..room.verdictFinding = BtFindingKind.insufficientEvidence;
       final container = await pumpUpToAVerdict(tester, harness);
 
-      expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
+      final antes = container.read(salaSessionProvider);
+      expect(antes.btPhase, BtPhase.findings);
       expect(byLabel(blueMic), findsOneWidget);
+      final gravacoes = [for (final take in antes.keptTakes) take.takeId];
+      expect(gravacoes, isNotEmpty);
 
       await tester.tap(byLabel(blueMic));
       await tester.pump(const Duration(milliseconds: 400));
 
+      // "Como hoje" mudou de sentido. Este caso esperava takes 0 e keptTakes vazio:
+      // o mic azul apagava o ensaio e pedia à sala que retirasse o clipe, e isso era
+      // o comportamento antigo do veredito comum sem endereço. A ENG-720 proibiu-o por
+      // decisão de produto — nenhum botão que a equipe possa tocar retira o que ela
+      // gravou — e o mic azul passou a devolver ao ensaio com tudo guardado. Devolver
+      // a este teste o takes 0 seria trazer o apagamento de volta com verde por cima.
       final depois = container.read(salaSessionProvider);
       expect(depois.stage, SalaStage.ensaio);
-      expect(depois.takes, 0);
-      expect(depois.keptTakes, isEmpty);
+      expect(depois.takes, antes.takes);
+      expect([for (final take in depois.keptTakes) take.takeId], gravacoes);
+      expect(harness.room.restartsAsked, isEmpty);
     },
   );
 
