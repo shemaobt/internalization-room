@@ -494,8 +494,10 @@ void main() {
     expect(agora.stage, SalaStage.retro);
     expect(agora.btPhase, BtPhase.findings);
     expect(agora.btFindingTrecho?.segmentId, 'trecho-2');
-    expect(find.byType(OndeMoraGrade), findsOneWidget,
-        reason: 'a falta cabe num trecho: é a pergunta de onde mora o erro');
+    expect(find.byType(RefazerAParte), findsOneWidget,
+        reason: 'a falta cabe num trecho: é aquele trecho que se regrava e se '
+            'conta de novo, não o ensaio inteiro');
+    expect(find.byType(OndeMoraGrade), findsNothing);
     expect(byLabel(microfoneAzul), findsNothing,
         reason: 'o botão que devolve ao ensaio é só para a falta sem endereço');
   });
