@@ -1118,7 +1118,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       unawaited(_pullInbox());
       _watchBusyState();
       if (resumed) {
-        final pastTheConversa = await _backToWhereTheyStopped(waiting, epoch);
+        final pastTheConversa =
+            await _backToWhereTheyStopped(waiting, epoch, pericope!);
         if (epoch != _epoch) return;
         if (pastTheConversa) {
           final snapshot = await _room.fetchState(sessionId);
@@ -1204,7 +1205,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// Put the team back on the stage they left, when the audio for it is still here.
-  Future<bool> _backToWhereTheyStopped(ResumePoint waiting, int epoch) async {
+  Future<bool> _backToWhereTheyStopped(
+    ResumePoint waiting,
+    int epoch,
+    String pericope,
+  ) async {
     if (waiting.stage == SalaStage.conversa || waiting.takes.isEmpty) {
       return false;
     }
@@ -1216,6 +1221,30 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_gone || here.length != waiting.takes.length) {
       // Not all of the rehearsal is on the tablet, so the retro cannot be told back over
       // it. The conversa is the step that still works.
+      //
+      // The row is rewritten at the conversa, with no rehearsal in it. Left as it was,
+      // the same failed resume runs on every single opening from here on, and an
+      // unbounded repeat is the harm — one failed resume is survivable.
+      //
+      // Rewritten rather than forgotten, because the session id lives nowhere else:
+      // `ir_sessions` carries no device, so dropping the row would abandon that session
+      // on the server the moment the team closed the app during the conversa, and take
+      // the passage off the wheel along with it. Nothing writes this row again until the
+      // team reaches the ensaio, which is a long way from where they now are. With no
+      // takes in it the next opening finds nothing to restore and goes straight through,
+      // so the repeat is gone and the id survives. Where the team lands is unchanged.
+      if (!_gone) {
+        unawaited(_mindingThePlace(
+          () => _emAberto.remember(
+            _book,
+            pericope,
+            ResumePoint(
+              sessionId: waiting.sessionId,
+              stage: SalaStage.conversa,
+            ),
+          ),
+        ));
+      }
       return false;
     }
     state = state.copyWith(
