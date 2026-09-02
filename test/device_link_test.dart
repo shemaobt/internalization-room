@@ -83,7 +83,7 @@ void main() {
     expect(container.read(deviceLinkProvider).code?.code, 'QHF-3M7K');
 
     await waitFor(
-      'o código do tablet aparecer',
+      'o código vencido ser trocado',
       () => container.read(deviceLinkProvider).code?.code == 'WKD-2QP4',
     );
 
