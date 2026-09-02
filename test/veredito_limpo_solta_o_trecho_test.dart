@@ -95,16 +95,21 @@ Future<void> _consertoQueNaoPegou(
   _harnessDaVez!.room.replaceCaptured = true;
 }
 
-/// A correction that lands: the room takes it and writes a new version of the stretch.
+/// The team takes the correction on: the microphone opens on that stretch.
+Future<void> _comecarOConserto(WidgetTester tester) async {
+  await tester.tap(_byLabel(_micRetro));
+  await tester.pump(const Duration(milliseconds: 300));
+}
+
+/// Hand the correction over, and let the room reach whatever result follows.
 ///
-/// The mend flag is on from the moment the team chooses the voice, and nothing on the way
-/// out of a correction that succeeds turns it off again.
-Future<void> _consertoQuePegou(
+/// Asking for the result is the room's own last step of a correction that lands, so the
+/// verdict has to be armed before this — a stretch named afterwards is answering a
+/// question that was already asked.
+Future<void> _entregarOConserto(
   WidgetTester tester,
   ProviderContainer container,
 ) async {
-  await tester.tap(_byLabel(_micRetro));
-  await tester.pump(const Duration(milliseconds: 300));
   _notifier(container).retroTap();
   await letTheRehearsalReachTheRoom(tester);
   await tester.pump(const Duration(milliseconds: 500));
@@ -181,12 +186,24 @@ void main() {
       (tester) async {
     final container = await _pumpToPergunta(tester);
 
-    await _consertoQuePegou(tester, container);
+    await _comecarOConserto(tester);
     expect(container.read(salaSessionProvider).btConsertando, isTrue,
-        reason: 'a bandeira fica ligada depois de um conserto que pegou — se '
-            'não ficar, este cenário não chega ao que mede');
+        reason: 'a bandeira acende quando a equipe assume o conserto — se não '
+            'acender, este cenário não chega ao que mede');
 
+    // Armado antes da entrega, e a equipe entrega com a bandeira acesa. Pedir o
+    // resultado é o último passo que a própria sala dá num conserto que pega, então um
+    // veredito nomeado depois responderia uma pergunta já feita. A chamada manual abaixo
+    // é o mesmo gesto para uma sala que ainda não pede sozinha: onde ela já pede, cai na
+    // guarda de `canFinishBackTranslation` e não faz nada.
+    _harnessDaVez!.room.verdictChecked = true;
+    _harnessDaVez!.room.verdictFinding = null;
+    _harnessDaVez!.room.verdictFindingSegmentId = null;
+    await _entregarOConserto(tester, container);
     await _oVeredictoVoltaLimpo(tester, container);
+
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida,
+        reason: 'e o conserto chegou mesmo ao veredito limpo');
 
     expect(container.read(salaSessionProvider).btConsertando, isFalse,
         reason: 'não há conserto em curso debaixo de uma passagem conferida. A '
