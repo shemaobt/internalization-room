@@ -1037,8 +1037,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (moved()) return;
     state = state.copyWith(voice: VoiceState.speaking);
     _watchBusyState();
-    await _speak(passagem.audioUrl, '');
+    final spoke = await _speak(passagem.audioUrl, '');
     if (moved()) return;
+    // The seventh of the same shape: a name the room could not say is an unspoken turn,
+    // and three of them call a person. It counted for nothing, so a wheel that had gone
+    // silent looked to the team exactly like a wheel that had stopped — and there is no
+    // written word here to tell them apart.
+    //
+    // Nothing to unwind before returning, unlike the verdict: the ladder hands back the
+    // same `voice: invite` this line was going to set, so the next touch on the wheel is
+    // live either way.
+    if (!spoke) return _registerUnplayableTurn();
+    _unplayableTurns = 0;
     state = state.copyWith(voice: VoiceState.invite);
   }
 
