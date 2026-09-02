@@ -2432,8 +2432,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (epoch != _epoch) return;
       state = state.copyWith(voice: VoiceState.speaking);
       _watchBusyState();
-      await _speak(verdict.audioUrl, verdict.fixedLine);
+      final spoke = await _speak(verdict.audioUrl, verdict.fixedLine);
       if (epoch != _epoch) return;
+      // It returns, as all five of its siblings do. Registering and carrying on was the
+      // other option and it is not one: on the third rung the halt fires, the room says
+      // out loud that a person is needed and the desk is called — and then the lines
+      // below overwrite that with the closing screen, so the team hears the call and is
+      // shown a finished passage.
+      //
+      // Leaving `thinking` is not decoration. The five siblings never speak from inside
+      // it, so the invitation they hand back is already a gesture; this one does, and
+      // `thinking` takes no tap and holds the finish button down — the team would be left
+      // watching "um instante" with nothing to touch. The third rung escapes only because
+      // the halt leaves it on the way past. Same door, not a new one.
+      if (!spoke) {
+        _leaveThinking();
+        return _registerUnplayableTurn();
+      }
+      _unplayableTurns = 0;
 
       if (verdict.checked) {
         state = state.copyWith(btPhase: BtPhase.conferida, voice: VoiceState.done);
