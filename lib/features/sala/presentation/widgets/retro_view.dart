@@ -68,11 +68,12 @@ class RetroView extends ConsumerWidget {
               FacilitatorCircle(
                 size: 150,
                 voice: conferida ? VoiceState.done : session.voice,
-                      semanticLabel: _circleLabel(session),
+                motherTongue: session.btPhase == BtPhase.gravandoMaterna,
+                semanticLabel: _circleLabel(session),
                 onTap: notifier.retroTap,
-              onLongPress: session.canResolveWithPerson
-              ? notifier.resolveWithPerson
-              : null,
+                onLongPress: session.canResolveWithPerson
+                    ? notifier.resolveWithPerson
+                    : null,
               ),
             ],
           ),
