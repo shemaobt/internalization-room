@@ -98,8 +98,11 @@ class FakeVoice implements FacilitatorVoiceService {
     return _answer();
   }
 
+  /// How many times the room told this voice to stop, whatever it was saying.
+  int stops = 0;
+
   @override
-  Future<void> stop() async {}
+  Future<void> stop() async => stops++;
 
   @override
   Future<void> dispose() async {}
@@ -920,12 +923,17 @@ class FakeTakeQueue implements TakeUploadQueue {
     return sent;
   }
 
+  /// Whether the room has stopped naming what it stored: the take is kept and sent,
+  /// and the name that should come back for it never does.
+  bool forgetsNames = false;
+
   @override
   Future<String?> takeIdOf(
     String kind, {
     required String sessionId,
     required String scope,
   }) async {
+    if (forgetsNames) return null;
     for (final entry in rows) {
       if (entry.kind == kind &&
           entry.sessionId == sessionId &&
