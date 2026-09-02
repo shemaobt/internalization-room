@@ -395,8 +395,16 @@ class FakeInbox implements HandInboxRepository {
   Future<List<HandReply>?> fetchReplies() async =>
       cannotBeAsked ? null : replies;
 
+  /// Whether the desk turns the mark down — the real one answers for itself now, so the
+  /// double has to be able to say no as well as yes.
+  bool refusesMarks = false;
+
   @override
-  Future<void> markHeard(String replyId) async => heard.add(replyId);
+  Future<bool> markHeard(String replyId) async {
+    if (refusesMarks) return false;
+    heard.add(replyId);
+    return true;
+  }
 
   @override
   Future<void> sendQuestion(String sessionId, File audio) async {
@@ -1052,12 +1060,16 @@ class SalaHarness {
     this.filaEmMemoria = false,
     this.lingua = testLanguage,
     this.emAbertoNoDisco,
+    this.inboxService,
   })  : inbox = FakeInbox(replies: replies),
         vinculo = FakeLinkedTeam(remembered: linkedAs);
 
   final Duration? linkPoll;
 
   final FakeFinished finished = FakeFinished();
+
+  /// The real inbox, for the cases that need a server that can refuse or go away.
+  final HandInboxRepository? inboxService;
 
   final FakeWorkInProgress emAberto = FakeWorkInProgress();
 
@@ -1072,7 +1084,7 @@ class SalaHarness {
         facilitatorVoiceProvider.overrideWithValue(voiceService ?? voice),
         recordingRepositoryProvider.overrideWithValue(recorder),
         playbackRepositoryProvider.overrideWithValue(playback),
-        handInboxRepositoryProvider.overrideWithValue(inbox),
+        handInboxRepositoryProvider.overrideWithValue(inboxService ?? inbox),
         roomRepositoryProvider.overrideWithValue(room),
         takeUploadQueueProvider.overrideWithValue(takes),
         finishedPassagesProvider.overrideWithValue(finished),
