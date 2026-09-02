@@ -152,7 +152,13 @@ class PendingTake {
         lost: json['lost'] as bool? ?? false,
         attempts: json['attempts'] as int? ?? 0,
         waits: json['waits'] as int? ?? 0,
-        lastTry: DateTime.tryParse(json['last_try'] as String? ?? ''),
+        // The row's audio and session are intact; only its pacing is unknown, and an
+        // unknown pace means due now. Raising here instead would set every pending
+        // recording aside, not this one.
+        lastTry: switch (json['last_try']) {
+          final String stamp => DateTime.tryParse(stamp),
+          _ => null,
+        },
       );
 }
 
