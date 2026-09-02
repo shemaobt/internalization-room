@@ -451,7 +451,7 @@ void main() {
       (tester) async {
     final harness = SalaHarness(filaEmMemoria: true)
       ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.missing
+      ..room.verdictFinding = BtFindingKind.addition
       ..room.verdictFindingSegmentId = 'trecho-1';
     final container = await pumpSala(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);

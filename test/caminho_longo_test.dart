@@ -28,7 +28,7 @@ Future<ProviderContainer> pumpToPergunta(
 }) async {
   final harness = SalaHarness(filaEmMemoria: true)
     ..room.verdictChecked = false
-    ..room.verdictFinding = BtFindingKind.missing
+    ..room.verdictFinding = BtFindingKind.addition
     ..room.verdictFindingSegmentId = apontado;
   harnessDaVez = harness;
   final container = harness.container();

@@ -97,7 +97,7 @@ void main() {
       (tester) async {
     final container = await pumpToFindings(
       tester,
-      BtFindingKind.missing,
+      BtFindingKind.addition,
       trecho: 'trecho-1',
     );
 
