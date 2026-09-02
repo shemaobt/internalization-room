@@ -2,27 +2,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 
-import 'esperas.dart';
 import 'fakes.dart';
 
-/// Record one part and wait for the room to have named it.
-///
-/// A stretch is a slice of a recording the room can name, and the name is adopted only
-/// once the take lands. Going on before that makes every cut arrive with nothing to point
-/// at, and the room drops it instead of sending it.
-Future<void> _gravaParte(
-  ProviderContainer container,
-  SalaSessionNotifier notifier,
-) async {
-  final partesAntes = container.read(salaSessionProvider).partes.length;
+Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) async {
+  await Future<void>.delayed(delay);
+}
+
+Future<void> _gravaParte(SalaSessionNotifier notifier) async {
   notifier.ensaioTap();
   notifier.ensaioTap();
   await settle();
   notifier.takeKeep();
-  await until(() {
-    final partes = container.read(salaSessionProvider).partes;
-    return partes.length > partesAntes && partes.last.takeId != null;
-  });
+  await settle();
 }
 
 Future<ProviderContainer> _inRetro(
@@ -36,7 +27,7 @@ Future<ProviderContainer> _inRetro(
   await settle();
   notifier.goEnsaio();
   for (var parte = 0; parte < partes; parte++) {
-    await _gravaParte(container, notifier);
+    await _gravaParte(notifier);
   }
   notifier.startRetro();
   await settle();
@@ -62,7 +53,6 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     await _contaTrecho(harness, notifier, em: const Duration(seconds: 10));
-    await until(() => harness.room.chunksSent == 1);
 
     expect(harness.room.chunkTakes, [harness.room.takeIds.first],
         reason: 'sem nomear a gravação, o trecho é uma fatia de coisa nenhuma '
@@ -99,12 +89,12 @@ void main() {
     harness.playback.finishPlayback();
     await settle();
     await _contaTrecho(harness, notifier, em: const Duration(seconds: 10));
-    await until(() => harness.room.chunksSent == 1);
+    await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
 
     notifier.proximaParte();
     await settle();
     await _contaTrecho(harness, notifier, em: const Duration(seconds: 5));
-    await until(() => harness.room.chunksSent == 2);
+    await waitFor('o segundo trecho chegar à sala', () => harness.room.chunksSent == 2);
 
     expect(harness.room.chunkSpans, ['0-10000', '0-5000'],
         reason: 'o mesmo instante ouvido em partes diferentes não pode virar o '

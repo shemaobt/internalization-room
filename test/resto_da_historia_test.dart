@@ -46,17 +46,6 @@ Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) =>
     Future<void>.delayed(delay);
 
 /// Ask, rather than guess, when the disk or the room has done its part.
-Future<void> until(
-  bool Function() condition, {
-  Duration limit = const Duration(seconds: 10),
-}) async {
-  final deadline = DateTime.now().add(limit);
-  while (!condition() && DateTime.now().isBefore(deadline)) {
-    await Future<void>.delayed(const Duration(milliseconds: 20));
-  }
-  expect(condition(), isTrue, reason: 'the wait ran out');
-}
-
 /// A tablet closed on the rehearsal of a passage told back in three parts, and opened
 /// again on it: the rehearsal is on disk, the ledger says the rehearsal, and the room
 /// holds one stretch per part, each from nought to [contadasAte]. The stretches named in
@@ -112,13 +101,17 @@ Future<KeptTake> gravarMaisUmaParte(ProviderContainer container) async {
   final notifier = container.read(salaSessionProvider.notifier);
   final antes = container.read(salaSessionProvider).keptTakes.length;
   notifier.ensaioTap();
-  await until(() =>
-      container.read(salaSessionProvider).ensaio == EnsaioStatus.recording);
+  await waitFor(
+    'a gravação da parte começar',
+    () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recording,
+  );
   notifier.ensaioTap();
-  await until(() =>
-      container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded);
+  await waitFor(
+    'a gravação da parte terminar',
+    () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+  );
   notifier.takeKeep();
-  await until(() {
+  await waitFor('a sala nomear a parte nova', () {
     final takes = container.read(salaSessionProvider).keptTakes;
     return takes.length == antes + 1 && takes.last.takeId != null;
   });
@@ -354,7 +347,7 @@ void main() {
     final nova = await gravarMaisUmaParte(container);
 
     notifier.startRetro();
-    await until(() => harness.playback.played.isNotEmpty);
+    await waitFor('a retro começar a tocar', () => harness.playback.played.isNotEmpty);
 
     expect(harness.playback.played.last, nova.path,
         reason: 'a equipe é levada à parte nova, não ao começo da história');
@@ -363,7 +356,7 @@ void main() {
     notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
-    await until(() => harness.room.chunksSent == 1);
+    await waitFor('o trecho chegar à sala', () => harness.room.chunksSent == 1);
 
     expect(harness.room.chunkTakes, [nova.takeId],
         reason: 'os três trechos que a sala guarda não são contados de novo');
@@ -377,7 +370,7 @@ void main() {
     final nova = await gravarMaisUmaParte(container);
 
     container.read(salaSessionProvider.notifier).startRetro();
-    await until(() => harness.playback.played.isNotEmpty);
+    await waitFor('a retro começar a tocar', () => harness.playback.played.isNotEmpty);
 
     expect(harness.playback.played.last, nova.path,
         reason: 'o último corte de uma parte é feito onde o clipe parou, e a '
@@ -391,7 +384,7 @@ void main() {
     await gravarMaisUmaParte(container);
 
     notifier.startRetro();
-    await until(() => harness.playback.played.isNotEmpty);
+    await waitFor('a retro começar a tocar', () => harness.playback.played.isNotEmpty);
 
     final partes = container.read(salaSessionProvider).keptTakes;
     expect(harness.playback.played.last, partes[1].path,
@@ -407,7 +400,7 @@ void main() {
     notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
-    await until(() => harness.room.chunksSent == 1);
+    await waitFor('o trecho chegar à sala', () => harness.room.chunksSent == 1);
     expect(harness.room.chunkSpans, ['25000-28000']);
     expect(harness.room.chunkTakes, [partes[1].takeId]);
   });
@@ -422,7 +415,7 @@ void main() {
     await gravarMaisUmaParte(container);
 
     container.read(salaSessionProvider.notifier).startRetro();
-    await until(() => harness.playback.played.isNotEmpty);
+    await waitFor('a retro começar a tocar', () => harness.playback.played.isNotEmpty);
 
     final partes = container.read(salaSessionProvider).keptTakes;
     expect(harness.playback.played.last, partes[2].path,
@@ -437,7 +430,7 @@ void main() {
     await gravarMaisUmaParte(container);
 
     container.read(salaSessionProvider.notifier).startRetro();
-    await until(() => harness.playback.played.isNotEmpty);
+    await waitFor('a retro começar a tocar', () => harness.playback.played.isNotEmpty);
 
     final partes = container.read(salaSessionProvider).keptTakes;
     expect(harness.playback.played.last, partes[0].path,

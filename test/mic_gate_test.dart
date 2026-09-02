@@ -2,13 +2,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/mic_permission.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 
-import 'esperas.dart' show settle;
 import 'fakes.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'sala_screen_test.dart' show bySemanticsLabelWidget, pumpSala;
-import 'session_notifier_test.dart' show inConversa;
+import 'session_notifier_test.dart' show inConversa, settle;
 
 void main() {
   test('a refused microphone is noticed before anything is recorded', () async {

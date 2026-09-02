@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/facilitator_voice_service.dart';
 import 'package:just_audio/just_audio.dart';
 
-import 'esperas.dart' show until;
 import 'fakes.dart';
 
 const _clip = '/api/internalization-room/voice/aaa';
@@ -143,12 +142,12 @@ void main() {
     final voice = service(player: player);
 
     final first = voice.play(_clip);
-    await until(() => player.sounding);
+    await waitFor('o tocador soar', () => player.sounding);
     player.reachTheEnd();
     expect(await first, isTrue);
 
     final second = voice.play(_other);
-    await until(() => player.sounding);
+    await waitFor('o tocador soar', () => player.sounding);
 
     expect(player.sounding, isTrue,
         reason: 'o player já se julgava tocando, então o play seguinte voltava na hora '
@@ -163,7 +162,7 @@ void main() {
     final voice = service(player: player);
 
     final speaking = voice.play(_clip);
-    await until(() => player.sounding);
+    await waitFor('o tocador soar', () => player.sounding);
     expect(player.sounding, isTrue,
         reason: 'o fim chegava antes do play e o aviso caia no vazio, entao a linha '
             'esperava os oito segundos do teto e voltava como nao ouvida');

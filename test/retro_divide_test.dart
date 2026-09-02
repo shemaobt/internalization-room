@@ -4,27 +4,18 @@ import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
-import 'esperas.dart';
 import 'fakes.dart';
 
-/// Record one part and wait for the room to have named it.
-///
-/// A stretch is a slice of a recording the room can name, and the name is adopted only
-/// once the take lands. Going on before that makes every cut arrive with nothing to point
-/// at, and the room drops it instead of sending it.
-Future<void> _gravaParte(
-  ProviderContainer container,
-  SalaSessionNotifier notifier,
-) async {
-  final partesAntes = container.read(salaSessionProvider).partes.length;
+Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) async {
+  await Future<void>.delayed(delay);
+}
+
+Future<void> _gravaParte(SalaSessionNotifier notifier) async {
   notifier.ensaioTap();
   notifier.ensaioTap();
   await settle();
   notifier.takeKeep();
-  await until(() {
-    final partes = container.read(salaSessionProvider).partes;
-    return partes.length > partesAntes && partes.last.takeId != null;
-  });
+  await settle();
 }
 
 Future<ProviderContainer> _inRetro(
@@ -38,7 +29,7 @@ Future<ProviderContainer> _inRetro(
   await settle();
   notifier.goEnsaio();
   for (var parte = 0; parte < partes; parte++) {
-    await _gravaParte(container, notifier);
+    await _gravaParte(notifier);
   }
   notifier.startRetro();
   await settle();
@@ -66,17 +57,16 @@ Future<void> _ouvindoOTrechoApontado(
 ) async {
   harness.room.verdictFindingSegmentId = harness.room.segments.last.segmentId;
   harness.playback.finishPlayback();
-  // finishBackTranslation is a no-op while the clip has not ended, and ouvirVozMaterna is
-  // one until the verdict is in: both taps are dropped in silence when they arrive early,
-  // so each waits for the door it goes through.
-  await until(() => container.read(salaSessionProvider).canFinishBackTranslation);
+  await settle();
   await notifier.finishBackTranslation();
-  await until(
-      () => container.read(salaSessionProvider).btPhase == BtPhase.findings);
+  await settle();
   // The room no longer plays the pointed stretch at the team: which voice must speak
   // again is theirs to say, so hearing either one is a tap they choose to make.
   notifier.ouvirVozMaterna();
-  await until(() => container.read(salaSessionProvider).btTrechoTocando);
+  await waitFor(
+    'o trecho apontado estar tocando',
+    () => container.read(salaSessionProvider).btTrechoTocando,
+  );
 }
 
 Future<ProviderContainer> _umTrechoContadoETocando(
@@ -87,7 +77,7 @@ Future<ProviderContainer> _umTrechoContadoETocando(
   final container = await _inRetro(harness, partes: partes);
   final notifier = container.read(salaSessionProvider.notifier);
   await _contaTrecho(harness, notifier, em: ate);
-  await until(() => harness.room.chunksSent == 1);
+  await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
   await _ouvindoOTrechoApontado(harness, notifier, container);
   return container;
 }
@@ -128,12 +118,12 @@ void main() {
     harness.playback.finishPlayback();
     await settle();
     await _contaTrecho(harness, notifier, em: const Duration(seconds: 30));
-    await until(() => harness.room.chunksSent == 1);
+    await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
 
     notifier.proximaParte();
     await settle();
     await _contaTrecho(harness, notifier, em: const Duration(seconds: 10));
-    await until(() => harness.room.chunksSent == 2);
+    await waitFor('o segundo trecho chegar à sala', () => harness.room.chunksSent == 2);
     await _ouvindoOTrechoApontado(harness, notifier, container);
     final naSegundaGravacao = harness.room.segments.last.segmentId;
 
@@ -199,7 +189,7 @@ void main() {
             'está no ar, e no meio do ensaio quem corta é a outra tesoura');
 
     await _contaTrecho(harness, notifier, em: const Duration(seconds: 20));
-    await until(() => harness.room.chunksSent == 1);
+    await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
     await _ouvindoOTrechoApontado(harness, notifier, container);
     final contadosAntes = harness.room.chunksSent;
 
@@ -268,9 +258,9 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     await _contaTrecho(harness, notifier, em: const Duration(seconds: 10));
-    await until(() => harness.room.chunksSent == 1);
+    await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
     await _contaTrecho(harness, notifier, em: const Duration(seconds: 20));
-    await until(() => harness.room.chunksSent == 2);
+    await waitFor('o segundo trecho chegar à sala', () => harness.room.chunksSent == 2);
     harness.playback.finishPlayback();
     await settle();
     await notifier.finishBackTranslation();

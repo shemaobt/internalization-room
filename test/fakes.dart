@@ -29,6 +29,25 @@ import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
+/// Throwing here instead of returning keeps the failure at the wait: a deadline that
+/// passes in silence surfaces as an unrelated error several lines later.
+Future<void> waitFor(
+  String what,
+  FutureOr<bool> Function() ready, {
+  Duration limit = const Duration(seconds: 10),
+}) async {
+  final deadline = DateTime.now().add(limit);
+  while (!await ready()) {
+    if (DateTime.now().isAfter(deadline)) {
+      final waited = limit.inMilliseconds % 1000 == 0
+          ? '${limit.inSeconds}s'
+          : '${limit.inMilliseconds}ms';
+      throw TimeoutException('esperei $waited e $what não aconteceu', limit);
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+  }
+}
+
 const totalBeads = 12;
 
 const testLanguage = 'pt';
