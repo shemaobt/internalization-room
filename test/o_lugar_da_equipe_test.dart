@@ -64,7 +64,11 @@ Future<void> _theRoomSays(SalaHarness harness) => waitFor(
 void main() {
   test('a place the disk refuses to write is spoken to the team', () async {
     final home = _home();
-    final ledger = WorkInProgress(home: () async => home);
+    final ledger = WorkInProgress(
+      home: () async => home,
+      recordings: () async => Directory('${home.path}/recordings')
+        ..createSync(recursive: true),
+    );
     final harness = SalaHarness(emAbertoNoDisco: ledger);
     final container = harness.container();
     addTearDown(container.dispose);
@@ -99,7 +103,11 @@ void main() {
   test('a ledger no one can read does not report a place as written', () async {
     final home = _home();
     _corruptTheLedger(home);
-    final ledger = WorkInProgress(home: () async => home);
+    final ledger = WorkInProgress(
+      home: () async => home,
+      recordings: () async => Directory('${home.path}/recordings')
+        ..createSync(recursive: true),
+    );
     final harness = SalaHarness(emAbertoNoDisco: ledger);
     final container = harness.container();
     addTearDown(container.dispose);
@@ -125,7 +133,11 @@ void main() {
 
   test('an ordinary place is written without a word', () async {
     final home = _home();
-    final ledger = WorkInProgress(home: () async => home);
+    final ledger = WorkInProgress(
+      home: () async => home,
+      recordings: () async => Directory('${home.path}/recordings')
+        ..createSync(recursive: true),
+    );
     final harness = SalaHarness(emAbertoNoDisco: ledger);
     final container = harness.container();
     addTearDown(container.dispose);

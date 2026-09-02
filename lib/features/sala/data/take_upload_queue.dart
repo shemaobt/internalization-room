@@ -211,10 +211,38 @@ class TakeUploadQueue {
   Future<List<PendingTake>> pending() async =>
       [for (final entry in await entries()) if (!entry.stored) entry];
 
-  Future<List<PendingTake>> waiting() async => [
-        for (final entry in await pending())
-          if (!entry.exhausted && !entry.lost) entry,
-      ];
+  /// Whether a written-off row's audio really is off the tablet.
+  ///
+  /// Writing a row off is a guess about the disk — it is made because the file could not
+  /// be found at flush time — and for a whole generation of rows the guess was simply
+  /// wrong: the queue stored absolute paths, a restore changed the container prefix, and
+  /// present audio read as absent. That resolution is fixed, but nothing ever revisited
+  /// the rows it had already condemned, so there are tablets holding recordings the app
+  /// decided were gone while the files sat untouched beside them. The flag alone is
+  /// therefore not the answer to "is this recording gone"; the disk is.
+  ///
+  /// Both readings of that question come through here, so there is one definition of
+  /// gone and not two: the rows a flush will try, and the rows the room speaks about. If
+  /// they could disagree, the room would call a recording stranded while the queue was
+  /// busy uploading it.
+  ///
+  /// It only ever reads — one stat per written-off row, none at all for a queue with
+  /// nothing written off, and no manifest written. Letting the flush loop find out for
+  /// itself instead would rewrite the manifest once per condemned row per flush.
+  Future<bool> _reallyGone(PendingTake entry) async =>
+      entry.lost && !await File(entry.path).exists();
+
+  /// The rows a flush will try. A written-off row is back among them the moment its
+  /// audio is on the disk again; one whose audio really is gone stays out, so the queue
+  /// still empties.
+  Future<List<PendingTake>> waiting() async {
+    final trying = <PendingTake>[];
+    for (final entry in await pending()) {
+      if (entry.exhausted || await _reallyGone(entry)) continue;
+      trying.add(entry);
+    }
+    return trying;
+  }
 
   /// Whether a manifest this queue could not read was set aside.
   ///
@@ -268,10 +296,19 @@ class TakeUploadQueue {
     };
   }
 
-  Future<List<PendingTake>> giveUps() async => [
-        for (final entry in await pending())
-          if (entry.exhausted || entry.lost || entry.stalled) entry,
-      ];
+  /// The rows the room says out loud, because nothing more will happen to them on their
+  /// own. A row written off while its audio is still on the tablet is not one of them —
+  /// the next flush picks it up, and saying it is stranded would be a false alarm on
+  /// exactly the tablets that recovery exists for.
+  Future<List<PendingTake>> giveUps() async {
+    final givenUp = <PendingTake>[];
+    for (final entry in await pending()) {
+      if (entry.exhausted || entry.stalled || await _reallyGone(entry)) {
+        givenUp.add(entry);
+      }
+    }
+    return givenUp;
+  }
 
   bool _ready(PendingTake entry) {
     final last = entry.lastTry;
@@ -362,9 +399,16 @@ class TakeUploadQueue {
         if (!_ready(entry)) continue;
         final file = File(entry.path);
         if (!await file.exists()) {
-          await _replace(entry, entry.copyWith(lost: true));
+          // Already written off and gone again between the check above and here: the row
+          // is already saying so, and rewriting the manifest to say it twice is a write
+          // for no change of state.
+          if (!entry.lost) await _replace(entry, entry.copyWith(lost: true));
           continue;
         }
+        // The audio is here, so the row stops carrying a word that is no longer true.
+        // `lost` is what the room speaks from, and a recording being sent right now is
+        // not one that was given up on. Every outcome below writes this back.
+        final row = entry.lost ? entry.copyWith(lost: false) : entry;
         final String landed;
         try {
           landed = await _room.sendTake(
@@ -378,23 +422,23 @@ class TakeUploadQueue {
         } on RoomUnavailable {
           await _replace(
             entry,
-            entry.copyWith(waits: entry.waits + 1, lastTry: _now()),
+            row.copyWith(waits: row.waits + 1, lastTry: _now()),
           );
           continue;
         } on RoomSlow {
           await _replace(
             entry,
-            entry.copyWith(waits: entry.waits + 1, lastTry: _now()),
+            row.copyWith(waits: row.waits + 1, lastTry: _now()),
           );
           continue;
         } on Exception {
           await _replace(
             entry,
-            entry.copyWith(attempts: entry.attempts + 1, lastTry: _now()),
+            row.copyWith(attempts: row.attempts + 1, lastTry: _now()),
           );
           continue;
         }
-        await _replace(entry, entry.copyWith(takeId: landed, stored: true));
+        await _replace(entry, row.copyWith(takeId: landed, stored: true));
         sent++;
       }
       return sent;
