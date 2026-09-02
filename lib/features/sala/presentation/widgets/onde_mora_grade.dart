@@ -192,11 +192,13 @@ class RefazerAParte extends StatelessWidget {
           _Corda(colors: colors, altura: 14),
           _Alvo(
             size: 60,
-            gradiente: BeadStyles.azul,
+            gradiente: BeadStyles.wood,
             label: refazerParteLabel,
             onTap: _algoTocando ? null : onRefazerAParte,
             child: const Icon(LucideIcons.mic, size: 22, color: ShemaBrand.branco),
           ),
+          _Corda(colors: colors, altura: 12),
+          const _EstacaoPendurada(),
         ],
       ),
     );
@@ -283,24 +285,7 @@ class _Coluna extends StatelessWidget {
         ),
         if (estacoesPenduradas > 0) ...[
           _SobOTocador(child: _Corda(colors: colors, altura: 12)),
-          _SobOTocador(
-            child: Opacity(
-              opacity: 0.6,
-              child: Container(
-                width: 26,
-                height: 26,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: BeadStyles.azul,
-                ),
-                child: const Icon(
-                  LucideIcons.mic,
-                  size: 12,
-                  color: ShemaBrand.branco,
-                ),
-              ),
-            ),
-          ),
+          _SobOTocador(child: const _EstacaoPendurada()),
         ],
       ],
     );
@@ -338,6 +323,32 @@ class _Corda extends StatelessWidget {
         width: 2,
         height: altura,
         color: colors.cord,
+      );
+}
+
+/// The small hanging microphone that shows a second station lies ahead of the one just
+/// above it — the mother tongue's cost in the grid, and the same shape the single-button
+/// correction borrows so a team that has already seen the grid recognizes the gesture.
+class _EstacaoPendurada extends StatelessWidget {
+  const _EstacaoPendurada();
+
+  @override
+  Widget build(BuildContext context) => Opacity(
+        key: const Key('estacaoPendurada'),
+        opacity: 0.6,
+        child: Container(
+          width: 26,
+          height: 26,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: BeadStyles.azul,
+          ),
+          child: const Icon(
+            LucideIcons.mic,
+            size: 12,
+            color: ShemaBrand.branco,
+          ),
+        ),
       );
 }
 
