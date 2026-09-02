@@ -749,7 +749,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           state = state.copyWith(clearPing: true);
         });
       }
-      if (snapshot.needsPerson && state.stage == SalaStage.conversa) {
+      if (snapshot.needsPerson) {
         _haltForAPerson();
       } else if (snapshot.done && state.stage == SalaStage.conversa) {
         state = state.copyWith(voice: VoiceState.done, peerCue: false);
@@ -811,13 +811,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // A panorama that fails to play sends the team back to the invite, and every touch
       // used to mint another session for the same book — the server collected one
       // abandoned panorama per attempt. One launch asks for one panorama.
-      final panorama = _panoramaSessionId ??
-          (await _room.createSession(
-                  pericope: panoramaPericope,
-                  language: _lingua,
-                ))
-              .sessionId;
+      final created = _panoramaSessionId == null
+          ? await _room.createSession(
+              pericope: panoramaPericope,
+              language: _lingua,
+            )
+          : null;
       if (epoch != _epoch) return;
+      // Asking for the panorama is a request and not an instruction: which passage a
+      // session is for is the room's to say, and the answer carries it.
+      final given = created?.pericope;
+      if (given != null && given != panoramaPericope) {
+        unawaited(goConversa(pericope: given));
+        return;
+      }
+      final panorama = _panoramaSessionId ?? created!.sessionId;
       _panoramaSessionId = panorama;
       final turn = await _room.openSession(panorama);
       if (epoch != _epoch) return;
@@ -1039,8 +1047,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (moved()) return;
     state = state.copyWith(voice: VoiceState.speaking);
     _watchBusyState();
-    await _speak(passagem.audioUrl, '');
+    final spoke = await _speak(passagem.audioUrl, '');
     if (moved()) return;
+    // A wheel that has gone silent looks to the team exactly like a wheel that has
+    // stopped, and there is no written word here to tell them apart.
+    if (!spoke) return _registerUnplayableTurn();
+    _unplayableTurns = 0;
     state = state.copyWith(voice: VoiceState.invite);
   }
 
@@ -1132,6 +1144,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           } else {
             _keepTheStretchesAlreadyTold(snapshot.backTranslation);
           }
+          // The snapshot was fetched here and its halt never read, so a team reopening
+          // into a room the server had already stopped met every gesture wide open.
+          //
+          // After the telling-back is picked up, not before, so that the passage the team
+          // comes back to is the one they left: a person resolving the halt finds them in
+          // their retro rather than dropped back into the rehearsal.
+          if (snapshot.needsPerson) _haltForAPerson();
           return;
         }
         if (waiting.stage == SalaStage.retro) {
@@ -1460,29 +1479,62 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final epoch = _epoch;
     final played = await _voice.play(reply.audioUrl);
     if (epoch != _epoch) return;
-    _markHeard(reply.id);
-    if (played) {
-      state = state.copyWith(clearPlayingReply: true);
-      return;
-    }
-    // No strike count here, unlike every other line. `_markHeard` above is unconditional and
-    // tells the server too, so this answer is gone whatever happened to it — a ducked reply
-    // and a broken one cost the team the same thing, and only a person can now relay it.
-    // Giving this path the three strikes a turn gets would destroy three answers before
-    // anyone was called; a turn survives its strikes because the room can say it again.
+    unawaited(_markHeard(reply.id));
+    if (played) return;
+    // No strike count here, unlike every other line. A reply the room could not play is
+    // one only a person can now relay, so it calls for one at once; giving this path the
+    // three strikes a turn gets would lose three answers before anyone was called, and a
+    // turn survives its strikes only because the room can say it again.
+    //
+    // The mark above is no longer unconditional, so a reply that did not play and whose
+    // mark the desk turns down does come back to the list. That is the honest state and
+    // it was chosen over a retry: the desk never learned, so the reply is still owed. It
+    // is not the trap the doc above describes, because the room is halted from here and
+    // the hand answers no one until a person resolves it.
     _haltForAPerson();
   }
 
-  void _markHeard(String replyId) {
-    unawaited(_inbox.markHeard(replyId));
-    state = state.copyWith(
-      replies: [
-        for (final reply in state.replies)
-          reply.id == replyId ? reply.asHeard() : reply,
-      ],
-      clearPlayingReply: true,
-    );
+  /// A reply is heard when the desk agrees, and not before.
+  ///
+  /// The mark was made on the tablet whatever the desk answered, and it survives only as
+  /// long as the screen does: rebuilt state reads the reply back from the desk, which
+  /// never learned, and the team is played the same answer again. Leaving it unheard is
+  /// the honest state — it is offered again, which is a small harm and self-correcting.
+  ///
+  /// No retry. The precedent for a call that must land is the one that asks for a person,
+  /// and it retries because nobody comes if it is lost. Nothing is lost here: the reply
+  /// stays in the desk's list and the next tap marks it again. An unbounded retry on
+  /// bookkeeping buys nothing and is not free.
+  ///
+  /// The mark and the gesture move together, and the mark is taken back if the desk
+  /// disagrees. Releasing the gesture first and marking afterwards opened a window as long
+  /// as the request: the hand was free again while the reply still read as unheard, so a
+  /// second touch played the same answer to the team and sent a second mark. That is the
+  /// replay this whole change exists to stop, through a door of its own making.
+  ///
+  /// The other way to close it was to hold the gesture until the desk answered, and it
+  /// costs more than it saves: up to the full timeout with the hand dead, and the hand is
+  /// the team's only one — they could not even raise a question meanwhile. This way the
+  /// room is briefly optimistic, for as long as one request, and corrects itself. That is
+  /// a different animal from the optimism this slice removes, which outlived the request
+  /// and died only with the screen, leaving the desk to contradict it on the next start.
+  Future<void> _markHeard(String replyId) async {
+    final epoch = _epoch;
+    state = state.copyWith(replies: _replies(replyId, heard: true), clearPlayingReply: true);
+    if (await _inbox.markHeard(replyId)) return;
+    if (_gone || epoch != _epoch) return;
+    state = state.copyWith(replies: _replies(replyId, heard: false));
   }
+
+  List<HandReply> _replies(String replyId, {required bool heard}) => [
+        for (final reply in state.replies)
+          if (reply.id != replyId)
+            reply
+          else if (heard)
+            reply.asHeard()
+          else
+            HandReply(id: reply.id, audioUrl: reply.audioUrl),
+      ];
 
   void _cancelQuestion() {
     unawaited(_recorder.discard());
@@ -1598,6 +1650,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void ensaioTap() {
+    if (state.needsPerson) return;
     switch (state.ensaio) {
       case EnsaioStatus.idle:
         state = state.copyWith(ensaio: EnsaioStatus.recording);
@@ -2571,8 +2624,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (epoch != _epoch) return;
       state = state.copyWith(voice: VoiceState.speaking);
       _watchBusyState();
-      await _speak(verdict.audioUrl, verdict.fixedLine);
+      final spoke = await _speak(verdict.audioUrl, verdict.fixedLine);
       if (epoch != _epoch) return;
+      // It returns, as all five of its siblings do. Registering and carrying on was the
+      // other option and it is not one: on the third rung the halt fires, the room says
+      // out loud that a person is needed and the desk is called — and then the lines
+      // below overwrite that with the closing screen, so the team hears the call and is
+      // shown a finished passage.
+      //
+      // Leaving `thinking` is not decoration. The five siblings never speak from inside
+      // it, so the invitation they hand back is already a gesture; this one does, and
+      // `thinking` takes no tap and holds the finish button down — the team would be left
+      // watching "um instante" with nothing to touch. The third rung escapes only because
+      // the halt leaves it on the way past. Same door, not a new one.
+      if (!spoke) {
+        _leaveThinking();
+        return _registerUnplayableTurn();
+      }
+      _unplayableTurns = 0;
 
       if (verdict.checked) {
         // The finding is over, and so is the stretch it named. This branch returns above
