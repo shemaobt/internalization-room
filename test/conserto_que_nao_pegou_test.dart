@@ -47,10 +47,14 @@ List<int> _faixasVazias(WidgetTester tester, ProviderContainer container) {
 }
 
 /// A session standing at the question, with a finding on the first of two stretches.
+///
+/// Any finding but a missing one: what these cases drive is the long way's first station,
+/// chosen from the question that offers both voices, and a missing stretch is not offered
+/// that question — it gets a single exit of its own.
 Future<ProviderContainer> _pumpToPergunta(WidgetTester tester) async {
   final harness = SalaHarness(filaEmMemoria: true)
     ..room.verdictChecked = false
-    ..room.verdictFinding = BtFindingKind.missing
+    ..room.verdictFinding = BtFindingKind.addition
     ..room.verdictFindingSegmentId = 'trecho-1';
   _harnessDaVez = harness;
   final container = harness.container();
