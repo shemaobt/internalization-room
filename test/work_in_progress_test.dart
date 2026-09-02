@@ -9,7 +9,12 @@ void main() {
   test('a resume point with several parts survives the disk in order', () async {
     final home = Directory.systemTemp.createTempSync('sala-em-curso');
     addTearDown(() => home.deleteSync(recursive: true));
-    final ledger = WorkInProgress(home: () async => home);
+    final gravacoes = Directory('${home.path}/recordings')
+      ..createSync(recursive: true);
+    final ledger = WorkInProgress(
+      home: () async => home,
+      recordings: () async => gravacoes,
+    );
 
     await ledger.remember(
       'Ruth',
@@ -31,14 +36,22 @@ void main() {
     expect(back!.sessionId, 'sessao-1');
     expect([for (final take in back.takes) take.scopeId],
         ['parte-1', 'parte-2', 'parte-3']);
-    expect([for (final take in back.takes) take.path],
-        ['/tmp/p1.m4a', '/tmp/p2.m4a', '/tmp/p3.m4a']);
+    expect([for (final take in back.takes) take.path], [
+      '${gravacoes.path}/p1.m4a',
+      '${gravacoes.path}/p2.m4a',
+      '${gravacoes.path}/p3.m4a',
+    ]);
   });
 
   test('a legacy row without a scope reads back as the whole passage', () async {
     final home = Directory.systemTemp.createTempSync('sala-em-curso-legado');
     addTearDown(() => home.deleteSync(recursive: true));
-    final ledger = WorkInProgress(home: () async => home);
+    final gravacoes = Directory('${home.path}/recordings')
+      ..createSync(recursive: true);
+    final ledger = WorkInProgress(
+      home: () async => home,
+      recordings: () async => gravacoes,
+    );
     await ledger.remember(
       'Ruth',
       'P03',
@@ -52,5 +65,28 @@ void main() {
     final back = await ledger.of('Ruth', 'P03');
 
     expect(back!.takes.single.scopeId, KeptScope.whole);
+  });
+
+  test('a row written by the shipped app still finds its audio', () async {
+    final home = Directory.systemTemp.createTempSync('sala-em-curso-formato-antigo');
+    addTearDown(() => home.deleteSync(recursive: true));
+    final gravacoes = Directory('${home.path}/recordings')
+      ..createSync(recursive: true);
+    Directory('${home.path}/guardadas').createSync(recursive: true);
+    // The shape the shipped app writes: the whole path, under a prefix this tablet no
+    // longer has.
+    File('${home.path}/guardadas/em_curso.json').writeAsStringSync(
+      '{"Ruth/P03":{"session_id":"sessao-antiga","stage":"ensaio","pass":1,'
+      '"takes":[{"path":"/var/mobile/Containers/Data/velho/recordings/p1.m4a",'
+      '"scope":"parte-1"}]}}',
+    );
+    final ledger = WorkInProgress(
+      home: () async => home,
+      recordings: () async => gravacoes,
+    );
+
+    final back = await ledger.of('Ruth', 'P03');
+
+    expect(back!.takes.single.path, '${gravacoes.path}/p1.m4a');
   });
 }
