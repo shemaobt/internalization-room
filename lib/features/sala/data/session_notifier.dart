@@ -817,10 +817,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           : null;
       if (epoch != _epoch) return;
       // Asking for the panorama is a request and not an instruction: which passage a
-      // session is for is the room's to say, and the answer carries it.
+      // session is for is the room's to say, and the answer carries it. The answer is
+      // also the session to enter: opening another for the same passage left the one the
+      // room had just made abandoned, one ghost row per launch.
       final given = created?.pericope;
       if (given != null && given != panoramaPericope) {
-        unawaited(goConversa(pericope: given));
+        unawaited(goConversa(pericope: given, opened: created));
         return;
       }
       final panorama = _panoramaSessionId ?? created!.sessionId;
@@ -1077,7 +1079,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ///
   /// `fresh` skips the resume, which is how the 404 path starts over: retrying without it
   /// looked the session up again and recursed forever.
-  Future<void> goConversa({String? pericope, bool fresh = false}) async {
+  ///
+  /// `opened` is a session the room already made for this passage, entered as it came
+  /// back rather than asked for again.
+  Future<void> goConversa({
+    String? pericope,
+    bool fresh = false,
+    SessionSnapshot? opened,
+  }) async {
     _clearAll();
     _emCurso = pericope;
     final epoch = _epoch;
@@ -1101,20 +1110,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchBusyState();
     // Only the passages the wheel already said have work waiting are looked up on disk,
     // so entering a fresh one costs no read at all.
-    final waiting = !fresh && pericope != null && state.comecadas.contains(pericope)
+    final waiting = opened == null &&
+            !fresh &&
+            pericope != null &&
+            state.comecadas.contains(pericope)
         ? await _emAberto.of(_book, pericope)
         : null;
     if (epoch != _epoch) return;
     try {
       final resumed = waiting != null;
-      final created = waiting == null
-          ? await _room.createSession(
-              pericope: pericope,
-              afterSession: _panoramaSessionId,
-              bridgeMode: _bridgeMode,
-              language: _lingua,
-            )
-          : null;
+      final created = opened ??
+          (waiting == null
+              ? await _room.createSession(
+                  pericope: pericope,
+                  afterSession: _panoramaSessionId,
+                  bridgeMode: _bridgeMode,
+                  language: _lingua,
+                )
+              : null);
       final sessionId = waiting?.sessionId ?? created!.sessionId;
       if (epoch != _epoch) return;
       state = state.copyWith(sessionId: sessionId, coverage: created?.coverage);
