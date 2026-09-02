@@ -2361,6 +2361,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           btPhase: BtPhase.conferida,
           voice: VoiceState.done,
           clearFindingSegment: true,
+          // Its other half. The flag is switched on when the team takes a correction on
+          // and nothing on the way out of one that lands switches it off, so it outlived
+          // the session it belonged to. The two are one fact — whether a stretch is
+          // waiting to be mended — and leaving one of them standing is half a cleanup for
+          // whoever comes next.
+          btConsertando: false,
         );
         _closeTheNecklace();
         return;

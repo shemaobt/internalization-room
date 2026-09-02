@@ -95,6 +95,21 @@ Future<void> _consertoQueNaoPegou(
   _harnessDaVez!.room.replaceCaptured = true;
 }
 
+/// A correction that lands: the room takes it and writes a new version of the stretch.
+///
+/// The mend flag is on from the moment the team chooses the voice, and nothing on the way
+/// out of a correction that succeeds turns it off again.
+Future<void> _consertoQuePegou(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  await tester.tap(_byLabel(_micRetro));
+  await tester.pump(const Duration(milliseconds: 300));
+  _notifier(container).retroTap();
+  await letTheRehearsalReachTheRoom(tester);
+  await tester.pump(const Duration(milliseconds: 500));
+}
+
 /// The team says they have finished, and the analyst has no more objections.
 Future<void> _oVeredictoVoltaLimpo(
   WidgetTester tester,
@@ -158,6 +173,27 @@ void main() {
             'antes de chegar onde ele é resolvido');
     expect(container.read(salaSessionProvider).btFindingTrecho, isNull,
         reason: 'e nada mais na sala pode agir sobre um achado que acabou');
+
+    await _deixarOColarFechar(tester);
+  });
+
+  testWidgets('a conferida também desliga a bandeira de conserto',
+      (tester) async {
+    final container = await _pumpToPergunta(tester);
+
+    await _consertoQuePegou(tester, container);
+    expect(container.read(salaSessionProvider).btConsertando, isTrue,
+        reason: 'a bandeira fica ligada depois de um conserto que pegou — se '
+            'não ficar, este cenário não chega ao que mede');
+
+    await _oVeredictoVoltaLimpo(tester, container);
+
+    expect(container.read(salaSessionProvider).btConsertando, isFalse,
+        reason: 'não há conserto em curso debaixo de uma passagem conferida. A '
+            'bandeira sobrevivia ao fim da sessão, e quem viesse depois '
+            'encontraria meia limpeza: o ponteiro solto e ela ainda de pé');
+    expect(container.read(salaSessionProvider).btEsperandoConserto, isNull,
+        reason: 'e as duas metades concordam — é o par que decide a faixa');
 
     await _deixarOColarFechar(tester);
   });
