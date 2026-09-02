@@ -37,10 +37,18 @@ List<int> _faixasVazias(WidgetTester tester, ProviderContainer container) {
 }
 
 /// A team standing at the question, with a finding on the first of two stretches.
+///
+/// The kind is scenery, not subject: nothing here reads it, and what every case needs is
+/// only a finding that names a stretch and a correction route out of it. It is named
+/// rather than left to a default because one kind is no longer interchangeable — a finding
+/// of *falta* draws no grid of voices at all, since asking which voice the error lives in
+/// has no answer when the team told truly and told too little. Proven by experiment before
+/// it was written down: a copy of this file with the kind swapped and nothing else changed
+/// passes, and still fails without the fix.
 Future<ProviderContainer> _pumpToPergunta(WidgetTester tester) async {
   final harness = SalaHarness(filaEmMemoria: true)
     ..room.verdictChecked = false
-    ..room.verdictFinding = BtFindingKind.missing
+    ..room.verdictFinding = BtFindingKind.addition
     ..room.verdictFindingSegmentId = 'trecho-1';
   _harnessDaVez = harness;
   final container = harness.container();
@@ -223,7 +231,7 @@ void main() {
 
     // O analista continua insatisfeito com o mesmo trecho.
     harness.room.verdictChecked = false;
-    harness.room.verdictFinding = BtFindingKind.missing;
+    harness.room.verdictFinding = BtFindingKind.addition;
     harness.room.verdictFindingSegmentId = 'trecho-1';
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 200));
