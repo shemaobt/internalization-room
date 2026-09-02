@@ -747,7 +747,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           state = state.copyWith(clearPing: true);
         });
       }
-      if (snapshot.needsPerson && state.stage == SalaStage.conversa) {
+      // The stage no longer gates this, and that is not a fix: the settle is only ever
+      // scheduled inside a conversa turn, and every way out of the conversa cancels its
+      // timer on the way past, so this read never runs anywhere else. The guard never
+      // chose anything — it only read as though there were a decision about where a halt
+      // counts. `done` keeps its own, which is a real one: finishing is a conversa idea.
+      if (snapshot.needsPerson) {
         _haltForAPerson();
       } else if (snapshot.done && state.stage == SalaStage.conversa) {
         state = state.copyWith(voice: VoiceState.done, peerCue: false);
@@ -1132,6 +1137,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           if (waiting.stage == SalaStage.retro) {
             _pickTheTellingBackUp(snapshot.backTranslation);
           }
+          // The snapshot was fetched here and its halt never read, so a team reopening
+          // into a room the server had already stopped met every gesture wide open.
+          //
+          // After the telling-back is picked up, not before: every retro gesture closes
+          // on this halt, and the ensaio's record circle does not, so landing them in the
+          // ensaio would leave a live recording over a stopped room.
+          if (snapshot.needsPerson) _haltForAPerson();
           return;
         }
         if (waiting.stage == SalaStage.retro) {
