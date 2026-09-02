@@ -211,25 +211,34 @@ class TakeUploadQueue {
   Future<List<PendingTake>> pending() async =>
       [for (final entry in await entries()) if (!entry.stored) entry];
 
-  /// The rows a flush will try.
+  /// Whether a written-off row's audio really is off the tablet.
   ///
-  /// A written-off row is back among them the moment its audio is on the disk again.
   /// Writing a row off is a guess about the disk — it is made because the file could not
-  /// be found at flush time — and for a whole generation of rows that guess was simply
+  /// be found at flush time — and for a whole generation of rows the guess was simply
   /// wrong: the queue stored absolute paths, a restore changed the container prefix, and
   /// present audio read as absent. That resolution is fixed, but nothing ever revisited
   /// the rows it had already condemned, so there are tablets holding recordings the app
-  /// decided were gone while the files sat untouched beside it.
+  /// decided were gone while the files sat untouched beside them. The flag alone is
+  /// therefore not the answer to "is this recording gone"; the disk is.
   ///
-  /// The re-check lives here rather than inside the flush loop because here it only
-  /// reads: one stat per written-off row, no manifest written. Letting the loop find out
-  /// for itself would rewrite the manifest once per condemned row per flush. A row whose
-  /// audio really is gone still falls out, so the queue still empties.
+  /// Both readings of that question come through here, so there is one definition of
+  /// gone and not two: the rows a flush will try, and the rows the room speaks about. If
+  /// they could disagree, the room would call a recording stranded while the queue was
+  /// busy uploading it.
+  ///
+  /// It only ever reads — one stat per written-off row, none at all for a queue with
+  /// nothing written off, and no manifest written. Letting the flush loop find out for
+  /// itself instead would rewrite the manifest once per condemned row per flush.
+  Future<bool> _reallyGone(PendingTake entry) async =>
+      entry.lost && !await File(entry.path).exists();
+
+  /// The rows a flush will try. A written-off row is back among them the moment its
+  /// audio is on the disk again; one whose audio really is gone stays out, so the queue
+  /// still empties.
   Future<List<PendingTake>> waiting() async {
     final trying = <PendingTake>[];
     for (final entry in await pending()) {
-      if (entry.exhausted) continue;
-      if (entry.lost && !await File(entry.path).exists()) continue;
+      if (entry.exhausted || await _reallyGone(entry)) continue;
       trying.add(entry);
     }
     return trying;
@@ -287,10 +296,19 @@ class TakeUploadQueue {
     };
   }
 
-  Future<List<PendingTake>> giveUps() async => [
-        for (final entry in await pending())
-          if (entry.exhausted || entry.lost || entry.stalled) entry,
-      ];
+  /// The rows the room says out loud, because nothing more will happen to them on their
+  /// own. A row written off while its audio is still on the tablet is not one of them —
+  /// the next flush picks it up, and saying it is stranded would be a false alarm on
+  /// exactly the tablets that recovery exists for.
+  Future<List<PendingTake>> giveUps() async {
+    final givenUp = <PendingTake>[];
+    for (final entry in await pending()) {
+      if (entry.exhausted || entry.stalled || await _reallyGone(entry)) {
+        givenUp.add(entry);
+      }
+    }
+    return givenUp;
+  }
 
   bool _ready(PendingTake entry) {
     final last = entry.lastTry;

@@ -401,6 +401,36 @@ void main() {
         reason: 'dar uma gravação por perdida em silêncio é perdê-la duas vezes');
   });
 
+  test('a recording written off with its audio still there is not called stranded',
+      () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+
+    final entry = await harness.takes.enqueue(
+      harness.recorder.aFile('condenada'),
+      sessionId: 'sessao-de-ontem',
+      kind: 'ensaio',
+      scope: 'inteira',
+    );
+    final audio = File(entry.path);
+    final gravado = audio.readAsBytesSync();
+    audio.deleteSync();
+    await harness.takes.flush();
+    // O áudio está de volta — é o tablet de campo, onde ele nunca chegou a sair.
+    audio.writeAsBytesSync(gravado);
+
+    // A conta corre ANTES do flush que vai recuperar a linha: é essa ordem, em
+    // session_notifier, que decide se a sala fala.
+    await container.read(salaSessionProvider.notifier).refreshUnsent();
+    await settle();
+
+    expect(harness.voice.assets, isNot(contains(strandedTakeAsset(testLanguage))),
+        reason: 'a linha encalhada existe para dizer que uma gravação não vai subir; '
+            'dizê-la de uma que sobe no flush seguinte é dar um susto falso à equipe '
+            'justamente nos aparelhos que este conserto veio resgatar');
+  });
+
   test('a stranded recording is spoken before any session exists', () async {
     final harness = SalaHarness();
     final container = harness.container();
