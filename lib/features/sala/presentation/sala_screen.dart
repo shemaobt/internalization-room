@@ -174,19 +174,80 @@ class _FimView extends ConsumerWidget {
   }
 }
 
-class _RetroCordLayer extends ConsumerWidget {
+/// How often the cord asks the player where the sound is.
+///
+/// Ten times a second is what a bead crossing a whole rehearsal needs: finer redraws the
+/// same pixel, coarser reads as a bead that jumps rather than one that walks.
+const _playheadTick = Duration(milliseconds: 100);
+
+class _RetroCordLayer extends ConsumerStatefulWidget {
   const _RetroCordLayer();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_RetroCordLayer> createState() => _RetroCordLayerState();
+}
+
+/// The cord's reading head, kept here rather than in [SalaSessionState].
+///
+/// The head moves ten times a second and only this layer draws it. Carried in the session
+/// it would rebuild every widget in the room at that rate — and the room watches the
+/// session from everywhere. The asking dies with the layer, so nothing walks after the
+/// team leaves the passage.
+///
+/// Out of a part being played the head is where the room wrote the sound down: pausing,
+/// crossing a boundary and picking a part back up all say where the team stopped hearing,
+/// and none of them are guesses the player can be asked for.
+class _RetroCordLayerState extends ConsumerState<_RetroCordLayer> {
+  Timer? _asking;
+  int _ouvidoMs = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    final session = ref.read(salaSessionProvider);
+    _ouvidoMs = session.btOuvidoMs;
+    _followTheAudio(session.btClipRodando);
+  }
+
+  @override
+  void dispose() {
+    _asking?.cancel();
+    super.dispose();
+  }
+
+  void _followTheAudio(bool rodando) {
+    _asking?.cancel();
+    _asking = null;
+    if (!rodando) return;
+    _asking = Timer.periodic(_playheadTick, (_) {
+      final agora = ref.read(salaSessionProvider.notifier).ouvidoAgoraMs;
+      if (agora != _ouvidoMs) setState(() => _ouvidoMs = agora);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final session = ref.watch(salaSessionProvider);
+    // The watch above already rebuilds this layer on any session change; what the select
+    // adds is the edge — the one frame the clip starts or stops — which is when the
+    // asking has to be started or put down.
+    ref.listen<bool>(
+      salaSessionProvider.select((sala) => sala.btClipRodando),
+      (_, rodando) {
+        // The part that starts is not the one that stopped, and the player still answers
+        // for the old one until it has loaded the new. The room's own number is the one
+        // that is right on this frame.
+        if (rodando) _ouvidoMs = ref.read(salaSessionProvider).btOuvidoMs;
+        _followTheAudio(rodando);
+      },
+    );
     return RetroCord(
       partes: session.partes.length,
       fimDasPartes: session.btFimDasPartesMs,
       parteNoArMs: session.btParteNoArMs,
-      ouvidoMs: session.btOuvidoMs,
+      ouvidoMs: session.btClipRodando ? _ouvidoMs : session.btOuvidoMs,
       trechos: session.btTrechos,
-      apontado: session.btFindingSegmentId,
+      apontado: session.btEsperandoConserto,
     );
   }
 }

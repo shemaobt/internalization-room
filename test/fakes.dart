@@ -185,6 +185,40 @@ class FakePlayback implements PlaybackRepository {
   final List<String> ranges = [];
   Completer<void>? _playing;
   Completer<void>? _opening;
+  Timer? _walking;
+  Duration _step = Duration.zero;
+  bool _sounding = false;
+
+  /// Let the position walk on its own, the way a real player's does.
+  ///
+  /// Opt-in, because the position is otherwise a number the test writes by hand. A double
+  /// that only ever walked forward would lie about the two states that matter as much as
+  /// playing: the position stands still on a pause, a stop or the end of the clip, and it
+  /// stops at the clip's own length instead of running past it.
+  void walkWhilePlaying({Duration step = const Duration(milliseconds: 100)}) {
+    _step = step;
+    if (_sounding) _startWalking();
+  }
+
+  void stopWalking() {
+    _walking?.cancel();
+    _walking = null;
+  }
+
+  void _startWalking() {
+    stopWalking();
+    if (_step == Duration.zero) return;
+    _walking = Timer.periodic(_step, (_) {
+      final fim = length;
+      final proximo = at + _step;
+      if (fim != null && proximo >= fim) {
+        at = fim;
+        stopWalking();
+        return;
+      }
+      at = proximo;
+    });
+  }
 
   /// Hold the source load, the way an old tablet with a long take does.
   void holdNextOpening() => _opening = Completer<void>();
@@ -243,7 +277,13 @@ class FakePlayback implements PlaybackRepository {
   }
 
   @override
-  Future<void> resume() async => paused = false;
+  Future<void> resume() async {
+    paused = false;
+    // Sound coming back out, not a new clip: the future `play` handed out is long since
+    // completed by the pause, so it cannot be what says whether anything is sounding.
+    _sounding = true;
+    _startWalking();
+  }
 
   @override
   Future<void> stop() async => _stopSounding();
@@ -267,11 +307,16 @@ class FakePlayback implements PlaybackRepository {
       await held?.future;
       at = Duration.zero;
       _openings.add(null);
+      if (_playing != playing) return;
+      _sounding = true;
+      _startWalking();
     });
     return playing.future;
   }
 
   void _stopSounding() {
+    _sounding = false;
+    stopWalking();
     final playing = _playing;
     _playing = null;
     playing?.complete();
@@ -279,6 +324,7 @@ class FakePlayback implements PlaybackRepository {
 
   @override
   Future<void> dispose() async {
+    stopWalking();
     await _completions.close();
     await _openings.close();
   }
@@ -418,6 +464,13 @@ class FakeRoom implements RoomRepository {
   /// than build it up by telling stretches back.
   BackTranslationProgress? retroSoFar;
   String? verdictFindingSegmentId;
+
+  /// Which place on the cord the analyst points at, when it points by place instead of by
+  /// name. Read at the moment the verdict is built, which is the only way to say "the same
+  /// stretch again": mending retires a name and mints a new one, so a test that wanted to
+  /// reprove what the team just corrected could only name it by guessing the double's
+  /// versioning scheme.
+  int? verdictFindingPlace;
   BtFindingKind? verdictFinding;
   String? serverStatus;
   String fixedLine = '';
@@ -721,6 +774,14 @@ class FakeRoom implements RoomRepository {
     );
   }
 
+  String? _oQueOAnalistaAponta() {
+    final place = verdictFindingPlace;
+    if (place == null) return verdictFindingSegmentId;
+    return place >= 0 && place < segments.length
+        ? segments[place].segmentId
+        : null;
+  }
+
   @override
   Future<BackTranslationVerdict> finishBackTranslation(
     String sessionId, {
@@ -735,7 +796,7 @@ class FakeRoom implements RoomRepository {
       fixedLine: '',
       checked: verdictChecked,
       findingKind: verdictFinding,
-      findingSegmentId: verdictFindingSegmentId,
+      findingSegmentId: _oQueOAnalistaAponta(),
       findingsRemaining: verdictFinding == null ? 0 : 1,
       usedFailSafe: false,
     );
