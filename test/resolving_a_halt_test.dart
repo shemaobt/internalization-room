@@ -5,7 +5,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'session_notifier_test.dart' show inConversa, settle, until;
+import 'session_notifier_test.dart' show inConversa, settle;
 
 Future<void> _haltWith(
   SalaHarness harness,
@@ -17,7 +17,7 @@ Future<void> _haltWith(
   notifier.conversaTap();
   await settle();
   notifier.conversaTap();
-  await until(() => read().needsPerson);
+  await waitFor('a sala pedir uma pessoa', () => read().needsPerson);
   harness.room.failWith = null;
 }
 
@@ -44,13 +44,13 @@ void main() {
     final turns = harness.room.turnsSent;
 
     notifier.resolveWithPerson();
-    await until(() => read().voice == VoiceState.invite);
+    await waitFor('o círculo voltar ao convite', () => read().voice == VoiceState.invite);
     await settle();
 
     notifier.conversaTap();
     await settle();
     notifier.conversaTap();
-    await until(() => harness.room.turnsSent > turns);
+    await waitFor('mais um turno chegar à sala', () => harness.room.turnsSent > turns);
 
     expect(harness.room.turnsSent, turns + 1,
         reason: 'a pessoa resolveu a parada e a equipe falou um turno inteiro; '
@@ -87,7 +87,7 @@ void main() {
     await _haltWith(harness, notifier, read, const SessionGone());
 
     notifier.resolveWithPerson();
-    await until(() => read().voice == VoiceState.invite);
+    await waitFor('o círculo voltar ao convite', () => read().voice == VoiceState.invite);
     await settle();
 
     notifier.conversaTap();
@@ -124,13 +124,13 @@ void main() {
             'tela de queda é uma nova tentativa, não uma gravação');
 
     harness.room.reachable = true;
-    await until(() => read().voice == VoiceState.invite);
+    await waitFor('o círculo voltar ao convite', () => read().voice == VoiceState.invite);
     await settle();
 
     notifier.conversaTap();
     await settle();
     notifier.conversaTap();
-    await until(() => harness.room.turnsSent > turns);
+    await waitFor('mais um turno chegar à sala', () => harness.room.turnsSent > turns);
 
     expect(harness.room.turnsSent, turns + 1,
         reason: 'e quando o servidor volta, a sala volta com sessão e o '
@@ -151,13 +151,13 @@ void main() {
     notifier.resolveWithPerson();
     notifier.conversaTap();
 
-    await until(() => read().voice == VoiceState.invite);
+    await waitFor('o círculo voltar ao convite', () => read().voice == VoiceState.invite);
     await settle();
 
     notifier.conversaTap();
     await settle();
     notifier.conversaTap();
-    await until(() => harness.room.turnsSent > turns);
+    await waitFor('mais um turno chegar à sala', () => harness.room.turnsSent > turns);
 
     expect(harness.room.turnsSent, turns + 1,
         reason: 'tocar o círculo antes de a sala estar de pé não pode consumir '
@@ -176,7 +176,7 @@ void main() {
     await _haltWith(harness, notifier, read, const SessionGone());
 
     notifier.resolveWithPerson();
-    await until(() => read().voice == VoiceState.invite);
+    await waitFor('o círculo voltar ao convite', () => read().voice == VoiceState.invite);
     await settle();
 
     notifier.goEnsaio();
@@ -207,7 +207,7 @@ void main() {
     await _haltWith(harness, notifier, read, const SessionGone());
 
     notifier.resolveWithPerson();
-    await until(() => read().voice == VoiceState.invite);
+    await waitFor('o círculo voltar ao convite', () => read().voice == VoiceState.invite);
     await settle();
 
     notifier.goEnsaio();
@@ -241,7 +241,7 @@ void main() {
     expect(read().offline, isTrue);
 
     harness.network.reachable = true;
-    await until(() => read().voice == VoiceState.invite);
+    await waitFor('o círculo voltar ao convite', () => read().voice == VoiceState.invite);
     await settle();
 
     expect(harness.room.pericopesAsked.last, 'P01',

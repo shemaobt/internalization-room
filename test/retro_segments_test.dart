@@ -8,16 +8,6 @@ Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) async 
   await Future<void>.delayed(delay);
 }
 
-Future<void> until(
-  bool Function() condition, {
-  Duration limit = const Duration(seconds: 5),
-}) async {
-  final deadline = DateTime.now().add(limit);
-  while (!condition() && DateTime.now().isBefore(deadline)) {
-    await Future<void>.delayed(const Duration(milliseconds: 10));
-  }
-}
-
 Future<void> _gravaParte(SalaSessionNotifier notifier) async {
   notifier.ensaioTap();
   notifier.ensaioTap();
@@ -99,12 +89,12 @@ void main() {
     harness.playback.finishPlayback();
     await settle();
     await _contaTrecho(harness, notifier, em: const Duration(seconds: 10));
-    await until(() => harness.room.chunksSent == 1);
+    await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
 
     notifier.proximaParte();
     await settle();
     await _contaTrecho(harness, notifier, em: const Duration(seconds: 5));
-    await until(() => harness.room.chunksSent == 2);
+    await waitFor('o segundo trecho chegar à sala', () => harness.room.chunksSent == 2);
 
     expect(harness.room.chunkSpans, ['0-10000', '0-5000'],
         reason: 'o mesmo instante ouvido em partes diferentes não pode virar o '

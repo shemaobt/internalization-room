@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,20 +10,6 @@ import 'fakes.dart';
 
 Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) =>
     Future<void>.delayed(delay);
-
-Future<void> waitFor(
-  String what,
-  FutureOr<bool> Function() ready, {
-  Duration limit = const Duration(seconds: 10),
-}) async {
-  final deadline = DateTime.now().add(limit);
-  while (!await ready()) {
-    if (DateTime.now().isAfter(deadline)) {
-      fail('esperei ${limit.inSeconds}s e $what não aconteceu');
-    }
-    await Future<void>.delayed(const Duration(milliseconds: 5));
-  }
-}
 
 /// Stages the room is meant never to leave.
 ///
