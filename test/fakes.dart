@@ -964,6 +964,11 @@ class FakeTakeQueue implements TakeUploadQueue {
   /// recordings were still here can be made to arrive after a newer one.
   void holdTheNextReading() => _armed = Completer<void>();
 
+  /// Whether a reading is parked in the hold with its numbers already taken. Waiting on
+  /// a duration here instead would let the queue change first, and the older reading
+  /// would come back as fresh as the newer one — a race the case never ran.
+  bool get readingHeld => _holding != null;
+
   void releaseTheHeldReading() {
     _holding?.complete();
     _holding = null;

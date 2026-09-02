@@ -57,9 +57,13 @@ void main() {
     await _waiting(fila, read().sessionId!, 2);
 
     // A lê o disco com as duas gravações ainda lá e fica presa antes de publicar.
+    // A espera é sobre A estar provadamente parada na retenção, com os números
+    // já tomados — esperar uma duração deixaria a fila esvaziar primeiro, e A
+    // leria o disco novo junto com B: verde, e sem corrida nenhuma.
     fila.holdTheNextReading();
     unawaited(notifier.refreshUnsent());
-    await settle();
+    await waitFor('a leitura mais velha ficar presa com os números na mão',
+        () => fila.readingHeld);
 
     // As gravações vão embora e B lê o disco já vazio, e publica.
     fila.rows.clear();
