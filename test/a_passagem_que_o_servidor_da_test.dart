@@ -62,6 +62,8 @@ void main() {
     );
     expect(container.read(salaSessionProvider).stage, SalaStage.convite,
         reason: 'todo lançamento de hoje passa por aqui e não pode mudar');
+    expect(harness.room.sessionIds, hasLength(1),
+        reason: 'um lançamento pede um panorama e recebe uma sessão');
     expect(
       harness.room.sessionsSpokenTo,
       [harness.room.sessionIds.single],
@@ -93,9 +95,10 @@ void main() {
       reason: 'a sala já abriu uma sessão para a passagem que devolveu: abrir '
           'outra deixa a primeira abandonada, uma linha fantasma por lançamento',
     );
+    final given = harness.room.sessionIds.single;
     expect(
       harness.room.sessionsSpokenTo,
-      everyElement(harness.room.sessionIds.single),
+      [given, given],
       reason: 'a abertura e a fala da equipe vão para a sessão que a sala deu',
     );
   });
@@ -129,7 +132,7 @@ void main() {
     );
     expect(
       harness.room.sessionsSpokenTo,
-      everyElement('sessao-lembrada'),
+      ['sessao-lembrada', 'sessao-lembrada'],
       reason: 'a abertura e a fala da equipe voltam para a sessão lembrada',
     );
   });
