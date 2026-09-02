@@ -1107,15 +1107,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (epoch != _epoch) return;
       state = state.copyWith(sessionId: sessionId, coverage: created?.coverage);
       if (pericope != null && !resumed) {
-        unawaited(
-          _emAberto
-              .remember(
-                _book,
-                pericope,
-                ResumePoint(sessionId: sessionId, stage: SalaStage.conversa),
-              )
-              .catchError((_) {}),
-        );
+        unawaited(_mindingThePlace(
+          () => _emAberto.remember(
+            _book,
+            pericope,
+            ResumePoint(sessionId: sessionId, stage: SalaStage.conversa),
+          ),
+        ));
       }
       unawaited(_pullInbox());
       _watchBusyState();
@@ -1149,7 +1147,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     } on SessionGone {
       if (epoch != _epoch) return;
       if (pericope != null) {
-        unawaited(_emAberto.forget(_book, pericope).catchError((_) {}));
+        unawaited(_mindingThePlace(() => _emAberto.forget(_book, pericope)));
       }
       if (fresh) {
         // Already the clean attempt: the server is refusing the passage itself, not the
@@ -1191,20 +1189,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final pericope = _emCurso;
     final sessionId = state.sessionId;
     if (pericope == null || sessionId == null) return;
-    unawaited(
-      _emAberto
-          .remember(
-            _book,
-            pericope,
-            ResumePoint(
-              sessionId: sessionId,
-              stage: stage,
-              takes: state.keptTakes,
-              pass: state.ensaioPass,
-            ),
-          )
-          .catchError((_) {}),
-    );
+    unawaited(_mindingThePlace(
+      () => _emAberto.remember(
+        _book,
+        pericope,
+        ResumePoint(
+          sessionId: sessionId,
+          stage: stage,
+          takes: state.keptTakes,
+          pass: state.ensaioPass,
+        ),
+      ),
+    ));
   }
 
   /// Put the team back on the stage they left, when the audio for it is still here.
@@ -1490,6 +1486,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!Env.devPularFases) return;
     final pericope = _emCurso;
     if (pericope == null) return;
+    // The one discarded erasure that stays discarded: this is behind `devPularFases`, on
+    // no team's path, and the entry it drops is rewritten by the fresh entry two lines
+    // down. There is nobody here to speak to.
     unawaited(_emAberto.forget(_book, pericope).catchError((_) {}));
     unawaited(goConversa(pericope: pericope, fresh: true));
   }
@@ -1773,6 +1772,27 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       unsentChunks: chunks,
       unsentTakeScopes: scopes,
     );
+  }
+
+  /// Mind the team's place on disk, and say so when the disk will not take it.
+  ///
+  /// This tablet is the only thing that knows which session belongs to which passage —
+  /// `ir_sessions` carries no device — so a write that fails and is thrown away loses the
+  /// team's place with nothing left to recover it from and no sign anything went wrong.
+  /// It is the same disk, and the same silence, the upload queue used to have when it
+  /// could not store audio, so it borrows that voice instead of inventing a second one.
+  ///
+  /// An erasure that fails is spoken too. It leaves a stale entry, which is a different
+  /// harm from losing the place and not a smaller one: the wheel goes on offering a
+  /// passage the team already closed, and walking back into it resumes a session the
+  /// server has forgotten. Nothing else in the room ever notices that entry, so if this
+  /// does not say it, no one does.
+  Future<void> _mindingThePlace(Future<void> Function() write) async {
+    try {
+      await write();
+    } on Object {
+      _sayARecordingIsStranded();
+    }
   }
 
   void _sayARecordingIsStranded() {
@@ -2754,7 +2774,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final feita = _emCurso;
     if (feita != null) {
       unawaited(_feitas.add(_book, feita).catchError((_) {}));
-      unawaited(_emAberto.forget(_book, feita).catchError((_) {}));
+      unawaited(_mindingThePlace(() => _emAberto.forget(_book, feita)));
     }
     _after('fim', const Duration(milliseconds: 700), () {
       state = state.copyWith(stage: SalaStage.fim, voice: VoiceState.done);

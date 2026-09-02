@@ -119,7 +119,13 @@ class WorkInProgress {
   ) {
     final next = _writes.then((_) async {
       final file = await _file();
-      if (await file.exists() && !await _readable(file)) return;
+      if (await file.exists() && !await _readable(file)) {
+        // Not overwritten — the rows of every other passage are in there, and a read that
+        // failed must never become the base of a write. Not swallowed either: returning
+        // here reported a place as saved that was never saved, and that is the one
+        // failure on this path that raises no error at any layer.
+        throw FormatException('em_curso.json ilegível', file.path);
+      }
       final rows = change(await _rows());
       final staging = File('${file.path}.novo');
       await staging.writeAsString(
