@@ -1126,7 +1126,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (waiting.stage == SalaStage.retro) {
           final told = (await _room.fetchState(sessionId)).backTranslation;
           if (epoch != _epoch) return;
-          if (!told.nothingTold && !told.checked) {
+          if (told.checked) {
+            state = state.copyWith(voice: VoiceState.done);
+            _closeTheNecklace();
+            return;
+          }
+          if (!told.nothingTold) {
             await _room.restartBackTranslation(sessionId);
             if (epoch != _epoch) return;
           }

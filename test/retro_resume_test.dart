@@ -186,7 +186,8 @@ void main() {
     expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
   });
 
-  test('a telling-back the room already checked is never thrown away', () async {
+  test('a passage the room already checked comes back finished, not to be told again',
+      () async {
     final harness = SalaHarness();
 
     final container = await _reopen(
@@ -205,12 +206,19 @@ void main() {
       ),
       semAudio: true,
     );
+    await settle(const Duration(seconds: 2));
 
     expect(harness.room.restartsAsked, isEmpty,
-        reason: 'a conferência já tinha passado, e recomeçar aposenta todo trecho '
-            'e desfaz o conferida: a passagem que a equipe terminou voltava a '
-            'não estar terminada');
-    expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
+        reason: 'recomeçar aposenta todo trecho e desfaz o conferida: a passagem '
+            'que a equipe terminou voltava a não estar terminada');
+    expect(container.read(salaSessionProvider).stage, SalaStage.fim,
+        reason: 'a conferência passou, então a passagem acabou — deixar a equipe '
+            'na conversa é mandá-la gravar e contar tudo de novo por cima dos '
+            'trechos que a sessão ainda guarda');
+    expect(harness.finished.done, contains('Ruth/P01'));
+    expect(harness.emAberto.rows, isNot(contains('Ruth/P01')),
+        reason: 'e o ponto de retomada que sobreviveu ao fecho é o que trouxe a '
+            'equipe de volta a uma passagem terminada');
   });
 
   test('a restart the room refused does not open the passage anyway', () async {
