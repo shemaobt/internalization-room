@@ -193,7 +193,7 @@ void main() {
     expect(await queue.pending(), isEmpty);
   });
 
-  test('a take whose file vanished stops being retried', () async {
+  test('a take whose audio is gone stops being retried', () async {
     final room = FakeRoom()..reachable = false;
     final queue = queueOn(room);
     final entry = await queue.enqueue(
@@ -213,6 +213,33 @@ void main() {
         reason: 'um áudio que sumiu não é um áudio entregue, e a sala precisa dizer isso');
     expect(await queue.unsentOf('ensaio', sessionId: 'sessao-1'), 1);
     expect(room.takesKept, isEmpty);
+  });
+
+  test('audio that is back on the tablet is sent, even after being written off', () async {
+    final room = FakeRoom()..reachable = false;
+    final queue = queueOn(room);
+    final entry = await queue.enqueue(
+      aTake('tomada'),
+      sessionId: 'sessao-1',
+      kind: 'ensaio',
+      scope: 'inteira',
+    );
+
+    // O flush não acha o arquivo — que é o que acontecia quando o prefixo do contêiner
+    // mudava e o áudio seguia inteiro no aparelho.
+    final audio = File(entry.path);
+    final gravado = audio.readAsBytesSync();
+    audio.deleteSync();
+    room.reachable = true;
+    await queue.flush();
+
+    // E o áudio está de volta no caminho em que a fila procura.
+    audio.writeAsBytesSync(gravado);
+
+    expect(await queue.flush(), 1,
+        reason: 'há tablets no campo agora segurando áudio que o app já deu por perdido: '
+            'dar por perdido foi um palpite sobre o disco, e o disco desmentiu');
+    expect(room.takesKept, ['ensaio/inteira']);
   });
 
   test('one take that will not go never blocks the ones behind it', () async {
@@ -385,6 +412,50 @@ void main() {
     expect(await queue.flush(), 1,
         reason: 'os tablets do piloto já têm fila.json gravado no formato de hoje — '
             'deixar de ler o formato antigo perde gravação em toda atualização');
+  });
+
+  test('a row the older app condemned is sent when its audio is still there', () async {
+    final dir = Directory('${home.path}/guardadas')..createSync(recursive: true);
+    File('${dir.path}/ensaio-antiga-1.m4a')
+        .writeAsStringSync('a equipe contou a passagem');
+    // O manifesto do campo: caminho absoluto de um contêiner que já não existe, e a
+    // linha condenada justamente por isso — com o áudio ali do lado o tempo todo.
+    File('${dir.path}/fila.json').writeAsStringSync(
+      '[{"id":"antiga","path":"/var/mobile/Containers/Data/antigo/ensaio-antiga-1.m4a",'
+      '"session_id":"sessao-1","kind":"ensaio","scope":"inteira","pass_number":null,'
+      '"chunk_index":null,"stored":false,"lost":true,"attempts":0,"waits":0,'
+      '"last_try":null}]',
+    );
+
+    final room = FakeRoom();
+
+    expect(await queueOn(room).flush(), 1,
+        reason: 'é o tablet de piloto real: a resolução de caminho que condenou essa '
+            'linha já foi consertada, mas nada nunca voltou para olhar a linha');
+    expect(room.takesKept, ['ensaio/inteira']);
+  });
+
+  test('a take recovered from the write-off is no longer called given up', () async {
+    final dir = Directory('${home.path}/guardadas')..createSync(recursive: true);
+    File('${dir.path}/ensaio-antiga-1.m4a')
+        .writeAsStringSync('a equipe contou a passagem');
+    File('${dir.path}/fila.json').writeAsStringSync(
+      '[{"id":"antiga","path":"/var/mobile/Containers/Data/antigo/ensaio-antiga-1.m4a",'
+      '"session_id":"sessao-1","kind":"ensaio","scope":"inteira","pass_number":null,'
+      '"chunk_index":null,"stored":false,"lost":true,"attempts":0,"waits":0,'
+      '"last_try":null}]',
+    );
+    final room = FakeRoom()..reachable = false;
+    final queue = queueOn(room);
+
+    // O áudio está lá, então a linha é tentada — e a sala é que não responde.
+    await queue.flush();
+
+    expect(await queue.giveUps(), isEmpty,
+        reason: 'a sala fala a partir dessa conta: uma gravação que está sendo enviada '
+            'agora não pode seguir contada como abandonada');
+    expect(await queue.waiting(), hasLength(1),
+        reason: 'e ela continua na fila, sendo tentada');
   });
 
   test('a queue written by the older app survives the container being renamed', () async {

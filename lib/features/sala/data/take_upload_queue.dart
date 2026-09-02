@@ -211,10 +211,29 @@ class TakeUploadQueue {
   Future<List<PendingTake>> pending() async =>
       [for (final entry in await entries()) if (!entry.stored) entry];
 
-  Future<List<PendingTake>> waiting() async => [
-        for (final entry in await pending())
-          if (!entry.exhausted && !entry.lost) entry,
-      ];
+  /// The rows a flush will try.
+  ///
+  /// A written-off row is back among them the moment its audio is on the disk again.
+  /// Writing a row off is a guess about the disk — it is made because the file could not
+  /// be found at flush time — and for a whole generation of rows that guess was simply
+  /// wrong: the queue stored absolute paths, a restore changed the container prefix, and
+  /// present audio read as absent. That resolution is fixed, but nothing ever revisited
+  /// the rows it had already condemned, so there are tablets holding recordings the app
+  /// decided were gone while the files sat untouched beside it.
+  ///
+  /// The re-check lives here rather than inside the flush loop because here it only
+  /// reads: one stat per written-off row, no manifest written. Letting the loop find out
+  /// for itself would rewrite the manifest once per condemned row per flush. A row whose
+  /// audio really is gone still falls out, so the queue still empties.
+  Future<List<PendingTake>> waiting() async {
+    final trying = <PendingTake>[];
+    for (final entry in await pending()) {
+      if (entry.exhausted) continue;
+      if (entry.lost && !await File(entry.path).exists()) continue;
+      trying.add(entry);
+    }
+    return trying;
+  }
 
   /// Whether a manifest this queue could not read was set aside.
   ///
@@ -362,9 +381,16 @@ class TakeUploadQueue {
         if (!_ready(entry)) continue;
         final file = File(entry.path);
         if (!await file.exists()) {
-          await _replace(entry, entry.copyWith(lost: true));
+          // Already written off and gone again between the check above and here: the row
+          // is already saying so, and rewriting the manifest to say it twice is a write
+          // for no change of state.
+          if (!entry.lost) await _replace(entry, entry.copyWith(lost: true));
           continue;
         }
+        // The audio is here, so the row stops carrying a word that is no longer true.
+        // `lost` is what the room speaks from, and a recording being sent right now is
+        // not one that was given up on. Every outcome below writes this back.
+        final row = entry.lost ? entry.copyWith(lost: false) : entry;
         final String landed;
         try {
           landed = await _room.sendTake(
@@ -378,23 +404,23 @@ class TakeUploadQueue {
         } on RoomUnavailable {
           await _replace(
             entry,
-            entry.copyWith(waits: entry.waits + 1, lastTry: _now()),
+            row.copyWith(waits: row.waits + 1, lastTry: _now()),
           );
           continue;
         } on RoomSlow {
           await _replace(
             entry,
-            entry.copyWith(waits: entry.waits + 1, lastTry: _now()),
+            row.copyWith(waits: row.waits + 1, lastTry: _now()),
           );
           continue;
         } on Exception {
           await _replace(
             entry,
-            entry.copyWith(attempts: entry.attempts + 1, lastTry: _now()),
+            row.copyWith(attempts: row.attempts + 1, lastTry: _now()),
           );
           continue;
         }
-        await _replace(entry, entry.copyWith(takeId: landed, stored: true));
+        await _replace(entry, row.copyWith(takeId: landed, stored: true));
         sent++;
       }
       return sent;

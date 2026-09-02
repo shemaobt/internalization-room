@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -377,6 +378,27 @@ void main() {
       2,
       reason: 'uma conta por trecho contado — nem a mais, nem a menos',
     );
+  });
+
+  test('a recording written off for a missing file is spoken about too', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+
+    final entry = await harness.takes.enqueue(
+      harness.recorder.aFile('sumida'),
+      sessionId: 'sessao-de-ontem',
+      kind: 'ensaio',
+      scope: 'inteira',
+    );
+    File(entry.path).deleteSync();
+    await harness.takes.flush();
+
+    await container.read(salaSessionProvider.notifier).refreshUnsent();
+    await settle();
+
+    expect(harness.voice.assets, contains(strandedTakeAsset(testLanguage)),
+        reason: 'dar uma gravação por perdida em silêncio é perdê-la duas vezes');
   });
 
   test('a stranded recording is spoken before any session exists', () async {
