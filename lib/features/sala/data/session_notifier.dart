@@ -1118,7 +1118,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       unawaited(_pullInbox());
       _watchBusyState();
       if (resumed) {
-        final pastTheConversa = await _backToWhereTheyStopped(waiting, epoch);
+        final pastTheConversa =
+            await _backToWhereTheyStopped(waiting, epoch, pericope!);
         if (epoch != _epoch) return;
         if (pastTheConversa) {
           final snapshot = await _room.fetchState(sessionId);
@@ -1204,7 +1205,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// Put the team back on the stage they left, when the audio for it is still here.
-  Future<bool> _backToWhereTheyStopped(ResumePoint waiting, int epoch) async {
+  Future<bool> _backToWhereTheyStopped(
+    ResumePoint waiting,
+    int epoch,
+    String pericope,
+  ) async {
     if (waiting.stage == SalaStage.conversa || waiting.takes.isEmpty) {
       return false;
     }
@@ -1216,6 +1221,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_gone || here.length != waiting.takes.length) {
       // Not all of the rehearsal is on the tablet, so the retro cannot be told back over
       // it. The conversa is the step that still works.
+      //
+      // The entry goes with it. Left in place, the wheel goes on offering a passage whose
+      // resume has already proved impossible, and the same failed resume runs on every
+      // single opening from here on. One failed resume is survivable; an unbounded repeat
+      // is the harm. Where the team lands is unchanged — only the repeat is fixed.
+      if (!_gone) {
+        unawaited(_mindingThePlace(() => _emAberto.forget(_book, pericope)));
+      }
       return false;
     }
     state = state.copyWith(
