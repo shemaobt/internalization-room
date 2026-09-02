@@ -149,21 +149,25 @@ void main() {
             'ainda funciona');
 
     // A segunda vez é a que importa: a falha de retomada que se repete para
-    // sempre é o dano, não a primeira. A limpeza é fire-and-forget, então a
-    // espera é sobre ela ter pousado, não sobre o que a equipe vê.
+    // sempre é o dano, não a primeira. A reescrita é fire-and-forget, então a
+    // espera é sobre ela ter pousado.
     await waitFor(
-      'a sala esquecer o ponto que não pode mais ser honrado',
-      () async => await ledger.of('Ruth', 'P01') == null,
+      'o ponto guardado deixar de prometer um ensaio que não está no tablet',
+      () async => (await ledger.of('Ruth', 'P01'))?.takes.isEmpty ?? false,
     );
+
     await notifier.abrirEscolha();
     await waitFor('a roda abrir de novo',
         () => container.read(salaSessionProvider).naRoda != null);
+    await notifier.goConversa(pericope: 'P01');
 
+    expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
     expect(
-      container.read(salaSessionProvider).comecadas,
-      isNot(contains('P01')),
-      reason: 'a roda não pode seguir prometendo uma retomada que já se provou '
-          'impossível — é isso que prende a equipe indefinidamente',
+      container.read(salaSessionProvider).sessionId,
+      'sessao-de-ontem',
+      reason: 'o id da sessão não mora em nenhum outro lugar — o servidor não '
+          'guarda aparelho — então esquecer a linha abandonaria de vez o '
+          'trabalho que já subiu',
     );
   });
 
