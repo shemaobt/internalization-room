@@ -2854,10 +2854,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _leadThemToTheTrecho(Trecho trecho) {
-    final partes = state.partes;
-    if (trecho.parte < 0 || trecho.parte >= partes.length) return;
+    if (_pathForTrecho(trecho) == null) return;
     state = state.copyWith(btTrechoTocando: true);
     _tocarOTrecho(trecho);
+  }
+
+  /// Which take answers for a stretch's audio: the one its own id names, never the one
+  /// sitting at its place in the rehearsal. A correction moves the file without moving
+  /// the place — [Trecho.parte] stays the cord's address, and has nothing to do with
+  /// which recording plays.
+  String? _pathForTrecho(Trecho trecho) {
+    for (final take in state.keptTakes) {
+      if (take.takeId == trecho.takeId) return take.path;
+    }
+    return null;
   }
 
   /// Play one stretch: a slice of the one file it came out of.
@@ -2873,15 +2883,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(btTrechoTocando: false);
     }
 
+    final path = _pathForTrecho(trecho);
+    if (path == null) {
+      quiet();
+      return;
+    }
     _onPlaybackComplete = quiet;
     _onPlaybackFailed = quiet;
     _clipHeld = false;
     _listenForTheEnd();
-    unawaited(_playback.playRange(
-      state.partes[trecho.parte].path,
-      trecho.from,
-      trecho.to,
-    ));
+    unawaited(_playback.playRange(path, trecho.from, trecho.to));
     _watchPlayback(clipStillOpening: true);
   }
 
@@ -3054,6 +3065,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btPhase: BtPhase.findings,
       btTrechos: trechos,
       btFindingSegmentId: agora!.segmentId,
+      // The corrected voice is its own take, kept beside the rehearsal's — never added
+      // before this, which is why the trecho it corrects had no file of its own to be
+      // found by and fell back to the part it used to share a place with.
+      keptTakes: [
+        ...state.keptTakes,
+        KeptTake(scopeId: escopo, path: path, takeId: gravacao),
+      ],
     );
     // Correcting the mother tongue is two steps over the same route, and the room can give
     // out on either. Read only on the second, the news would arrive after this step had
