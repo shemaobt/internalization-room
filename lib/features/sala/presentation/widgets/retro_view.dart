@@ -24,35 +24,6 @@ class RetroView extends ConsumerWidget {
     final conferida = session.btPhase == BtPhase.conferida;
     final clipRunning = session.btClipRodando || session.btTrechoTocando;
 
-    // An absence is not a wrong voice, so the question is not put. The same circle and
-    // the same two players, and one act under them instead of a choice between two — the
-    // long way, because what is missing was most likely left out of the recording and not
-    // only out of the telling laid over it.
-    if (session.btPhase == BtPhase.findings && session.btFaltaNoTrecho) {
-      return Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          FacilitatorCircle(
-            size: 54,
-            voice: session.voice,
-            semanticLabel: _circleLabel(session),
-            onTap: notifier.retroTap,
-            onLongPress:
-                session.canResolveWithPerson ? notifier.resolveWithPerson : null,
-          ),
-          const SizedBox(height: 46),
-          RefazerAParte(
-            onOuvirMaterna: notifier.ouvirVozMaterna,
-            onOuvirRetro: notifier.ouvirContarEmPortugues,
-            onRefazerAParte: notifier.regravarAVozMaterna,
-            tocandoMaterna: session.btTrechoTocando,
-            tocandoRetro: session.btRetroTocando,
-            podeOuvirRetro: session.btFindingTrecho?.retroPath != null,
-          ),
-        ],
-      );
-    }
-
     // The question is its own composition, not a row of buttons under the usual circle:
     // the grid is the screen, and the room's voice steps back to make room for it.
     if (session.btPhase == BtPhase.findings && session.btFindingTrecho != null) {
