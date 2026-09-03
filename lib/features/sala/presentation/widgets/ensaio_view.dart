@@ -11,6 +11,20 @@ import 'bead_styles.dart';
 import 'eq_bars.dart';
 import 'motion.dart';
 
+/// The rehearsal picked back up after a telling-back, with a stretch the analyst could
+/// not place in the story: the takes and the stretches already told stay, and what is
+/// left is recording the rest. The narrator used to say this in voice and the screen
+/// stayed mute once the voice had finished, so the team faced the same buttons with
+/// nothing on screen to say what they were for.
+String _oQueFazerNoEnsaio(String language) => switch (language) {
+      'pt' =>
+        'Gravem o que ainda falta da história. Quando terminarem, toquem no verde.',
+      'es' =>
+        'Graben lo que aún falta de la historia. Cuando terminen, toquen el verde.',
+      _ =>
+        'Record what is still missing from the story. When you finish, tap the green button.',
+    };
+
 class EnsaioView extends ConsumerWidget {
   const EnsaioView({super.key});
 
@@ -18,6 +32,7 @@ class EnsaioView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);
+    final lingua = ref.watch(roomLanguageProvider);
     final colors = SalaColors.of(context);
     final recording = session.ensaio == EnsaioStatus.recording;
     final ghosting = session.ensaio == EnsaioStatus.ghostPlaying;
@@ -36,6 +51,15 @@ class EnsaioView extends ConsumerWidget {
               : null,
         ),
         const SizedBox(height: 26),
+        if (session.btTrechos.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              _oQueFazerNoEnsaio(lingua),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.mut, fontSize: 14, height: 1.3),
+            ),
+          ),
         _RecordCircle(
           recording: recording,
           interrupted: session.micTaken,
