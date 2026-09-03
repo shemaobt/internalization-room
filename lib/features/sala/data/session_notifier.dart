@@ -1275,7 +1275,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ensaio: EnsaioStatus.idle,
       voice: VoiceState.invite,
       keptTakes: here,
-      takes: here.length,
+      // Counted among the rehearsal's own parts — `here` can also carry a correction's
+      // own take, kept beside the parts but not one of them.
+      takes: here.where((take) => KeptScope.isParte(take.scopeId)).length,
       ensaioPass: waiting.pass,
     );
     unawaited(_countUnsent());
@@ -1624,7 +1626,43 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.partes.isEmpty || state.ensaio != EnsaioStatus.idle) return;
     state = state.copyWith(ensaio: EnsaioStatus.ghostPlaying);
     _ghostParte = 0;
-    _tocarParteFantasma();
+    // The retro's own stretches, once it has any, are the passage: a correction lives in
+    // one of them and nowhere among the raw parts, so hearing the passage means hearing
+    // them, in the order the necklace already holds them.
+    if (state.btTrechos.isNotEmpty) {
+      _tocarTrechoFantasma();
+    } else {
+      _tocarParteFantasma();
+    }
+  }
+
+  void _tocarTrechoFantasma() {
+    void backToTheCircle() {
+      state = state.copyWith(ensaio: EnsaioStatus.idle);
+    }
+
+    void aProximo() {
+      _ghostParte++;
+      if (_ghostParte >= state.btTrechos.length ||
+          state.ensaio != EnsaioStatus.ghostPlaying) {
+        backToTheCircle();
+        return;
+      }
+      _tocarTrechoFantasma();
+    }
+
+    final trecho = state.btTrechos[_ghostParte];
+    final path = _pathForTrecho(trecho);
+    if (path == null) {
+      aProximo();
+      return;
+    }
+    _clipHeld = false;
+    _onPlaybackComplete = aProximo;
+    _onPlaybackFailed = backToTheCircle;
+    _listenForTheEnd();
+    unawaited(_playback.playRange(path, trecho.from, trecho.to));
+    _watchPlayback(clipStillOpening: true);
   }
 
   void _tocarParteFantasma() {
@@ -1709,12 +1747,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(ensaio: EnsaioStatus.idle);
       return;
     }
-    final parte = state.keptTakes.length + 1;
+    // Counted among the rehearsal's own parts, never among the corrections a trecho may
+    // already have picked up in this same ensaio — those live in keptTakes too, but are
+    // not parts of the rehearsal in their own right.
+    final parte = state.partes.length + 1;
     final escopo = KeptScope.parte(parte);
     state = state.copyWith(
       ensaio: EnsaioStatus.idle,
       keptTakes: [...state.keptTakes, KeptTake(scopeId: escopo, path: path)],
-      takes: state.keptTakes.length + 1,
+      takes: parte,
     );
     unawaited(_guard(
       path,

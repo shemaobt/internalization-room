@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -408,16 +409,24 @@ void main() {
     },
   );
 
-  test('ghostPlay existe, mas continua tocando a parte inteira original — não '
-      'compõe os trechos corrigidos', () async {
+  test('"ouvir a passagem" no ensaio retomado toca a passagem atual — a '
+      'materna corrigida no lugar do trecho 2', () async {
     final it = await _aSalaNaPergunta();
-    final parte0Antes = it.estado.partes[0].path;
-    final parte1Antes = it.estado.partes[1].path;
+    final parte0 = it.estado.partes[0];
+    final trecho0Antes = it.estado.btTrechos[0];
+    final trecho2Antes = it.estado.btTrechos[2];
+    final parte1 = it.estado.partes[1];
 
+    it.harness.playback.measured = const Duration(seconds: 7);
     await _regravarAMaterna(it);
+    final materna = it.harness.recorder.lastPath!;
     await _entregarAPonte(it);
 
-    it.sala.goEnsaio();
+    it.sala.continuarOEnsaio();
+    await waitFor(
+      'a sala voltar para o ensaio',
+      () => it.estado.stage == SalaStage.ensaio,
+    );
     expect(
       it.estado.canGhostPlay,
       isTrue,
@@ -425,28 +434,66 @@ void main() {
     );
 
     it.harness.playback.played.clear();
+    it.harness.playback.ranges.clear();
     it.sala.ghostPlay();
     await waitFor(
-      'a passagem fantasma tocar a primeira parte',
+      'a passagem fantasma tocar o primeiro trecho',
       () => it.harness.playback.played.isNotEmpty,
     );
-    expect(it.harness.playback.played.first, parte0Antes);
-
     it.harness.playback.finishPlayback();
     await waitFor(
-      'a passagem fantasma tocar a segunda parte',
+      'a passagem fantasma tocar o segundo trecho',
       () => it.harness.playback.played.length >= 2,
+    );
+    it.harness.playback.finishPlayback();
+    await waitFor(
+      'a passagem fantasma tocar o terceiro trecho',
+      () => it.harness.playback.played.length >= 3,
     );
 
     expect(
-      it.harness.playback.played[1],
-      parte1Antes,
+      it.harness.playback.played,
+      [parte0.path, materna, parte1.path],
       reason:
-          'medido, não construído: ghostPlay percorre state.partes '
-          'inteiras, uma a uma, sem olhar para btTrechos — não existe '
-          'composição por trecho nesta sala, então "ouvir a passagem" não '
-          'passa a tocar a materna nova no lugar do trecho 2 dentro da '
-          'parte; toca a parte inteira original, como sempre tocou',
+          'a sequência de playRange segue os trechos em ordem, com a '
+          'materna corrigida no lugar do trecho 2 — nunca a parte original '
+          'ali',
+    );
+    expect(it.harness.playback.ranges, [
+      '${trecho0Antes.from.inMilliseconds}-${trecho0Antes.to.inMilliseconds}',
+      '0-7000',
+      '${trecho2Antes.from.inMilliseconds}-${trecho2Antes.to.inMilliseconds}',
+    ]);
+  });
+
+  test('gravar uma parte nova depois de um conserto não pula número nem conta '
+      'o conserto como parte', () async {
+    final it = await _aSalaNaPergunta();
+    await _regravarAMaterna(it);
+    await _entregarAPonte(it);
+
+    it.sala.continuarOEnsaio();
+    await waitFor(
+      'a sala voltar para o ensaio',
+      () => it.estado.stage == SalaStage.ensaio,
+    );
+
+    await _gravarUmaParte(it);
+
+    expect(
+      it.estado.keptTakes.last.scopeId,
+      KeptScope.parte(3),
+      reason:
+          'só duas partes de ensaio existiam antes desta — o conserto '
+          'já guardado em keptTakes não é uma delas, e não pode empurrar '
+          'a numeração',
+    );
+    expect(
+      it.estado.takes,
+      3,
+      reason:
+          'a contagem de partes mostrada à equipe também não conta o '
+          'conserto como se fosse uma parte a mais',
     );
   });
 }
