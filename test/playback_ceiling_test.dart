@@ -139,7 +139,8 @@ void main() {
             'mais a margem, a parte termina mesmo sem aviso de fim');
   });
 
-  test('hearing a stretch again does not cut it short', () async {
+  test('pausing the pointed stretch and resuming it does not cut it short',
+      () async {
     final harness = SalaHarness(clipGrace: const Duration(milliseconds: 60))
       ..playback.length = const Duration(milliseconds: 600)
       ..room.verdictChecked = false
@@ -184,13 +185,19 @@ void main() {
 
     expect(container.read(salaSessionProvider).btTrechoTocando, isTrue);
 
-    harness.playback.at = const Duration(milliseconds: 600);
+    // The circle pauses the stretch rather than restarting it: a second tap while it is
+    // sounding no longer sends a fresh playRange.
+    notifier.retroTap();
+    await settle();
+    expect(container.read(salaSessionProvider).btTrechoTocando, isFalse);
+
     notifier.retroTap();
     await settle(const Duration(milliseconds: 250));
 
     expect(container.read(salaSessionProvider).btTrechoTocando, isTrue,
-        reason: 'o trecho pedido de novo toca até o fim: o teto herdado do '
-            'anterior devolvia a tela ao repouso com o áudio ainda correndo');
+        reason: 'retomado, o trecho toca até o fim: o teto herdado da '
+            'primeira vez não pode devolver a tela ao repouso com o áudio '
+            'ainda correndo');
 
     harness.playback.finishPlayback();
     await waitFor(

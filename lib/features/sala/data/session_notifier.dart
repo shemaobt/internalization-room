@@ -2468,8 +2468,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case BtPhase.capturing:
         unawaited(_finishChunkCapture());
       case BtPhase.findings:
-        final apontado = state.btFindingTrecho;
-        if (apontado != null) _leadThemToTheTrecho(apontado);
+        ouvirVozMaterna();
       case BtPhase.gravandoMaterna:
         unawaited(_gravarAVozMaterna());
       case BtPhase.thinking:
@@ -2870,7 +2869,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     void quiet() {
       // Without a state to show, the stretch played into a screen that looked exactly
       // like the one waiting for the team to speak.
-      state = state.copyWith(btTrechoTocando: false);
+      //
+      // The stop is not only for a real end: the ceiling can call this same callback
+      // while the clip is still sounding, and without it the state said "stopped" over
+      // a player still in the air.
+      unawaited(_playback.stop());
+      state = state.copyWith(btTrechoTocando: false, btTrechoPausada: false);
     }
 
     _onPlaybackComplete = quiet;
@@ -2892,7 +2896,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// already made for them.
   void ouvirVozMaterna() {
     if (state.btPhase != BtPhase.findings) return;
-    if (state.btTrechoTocando || state.btRetroTocando) return;
+    if (state.btTrechoTocando) {
+      _holdClip();
+      state = state.copyWith(btTrechoTocando: false, btTrechoPausada: true);
+      return;
+    }
+    if (state.btRetroTocando) return;
+    if (state.btTrechoPausada) {
+      state = state.copyWith(btTrechoTocando: true, btTrechoPausada: false);
+      _letTheClipRun();
+      return;
+    }
     final trecho = state.btFindingTrecho;
     if (trecho == null) return;
     _leadThemToTheTrecho(trecho);
@@ -2901,11 +2915,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// Hear the telling in Portuguese — the voice that travels to the analyst.
   void ouvirContarEmPortugues() {
     if (state.btPhase != BtPhase.findings) return;
-    if (state.btTrechoTocando || state.btRetroTocando) return;
+    if (state.btRetroTocando) {
+      _holdClip();
+      state = state.copyWith(btRetroTocando: false, btRetroPausada: true);
+      return;
+    }
+    if (state.btTrechoTocando) return;
     final path = state.btFindingTrecho?.retroPath;
     if (path == null) return;
+    if (state.btRetroPausada) {
+      state = state.copyWith(btRetroTocando: true, btRetroPausada: false);
+      _letTheClipRun();
+      return;
+    }
     void quiet() {
-      state = state.copyWith(btRetroTocando: false);
+      unawaited(_playback.stop());
+      state = state.copyWith(btRetroTocando: false, btRetroPausada: false);
     }
 
     state = state.copyWith(btRetroTocando: true);
