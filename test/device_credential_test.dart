@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -414,5 +415,84 @@ void main() {
     final remembered = await ledger.read();
     expect(remembered.deviceId, 'aparelho-1');
     expect(remembered.team?.projectId, 'equipe-terena');
+  });
+
+  test('a device the room does not know leaves nothing behind on this tablet', () async {
+    final ledger = await _alreadyLinked();
+    final firstRoom = FakeRoom()
+      ..linkedTo = const TeamLink(projectId: 'equipe-terena')
+      ..refuseCredentialWith = const SessionGone();
+    final firstRun = _tablet(room: firstRoom, ledger: ledger);
+    await firstRun.read(deviceLinkProvider.notifier).findTheTeam();
+    await waitFor(
+      'um código novo aparecer',
+      () => firstRun.read(deviceLinkProvider).code != null,
+    );
+    firstRun.dispose();
+
+    final nextRun = _tablet(room: FakeRoom(), ledger: ledger, linkPoll: _quickPoll);
+    addTearDown(nextRun.dispose);
+    await nextRun.read(deviceLinkProvider.notifier).findTheTeam();
+
+    expect(nextRun.read(deviceLinkProvider).team, isNull,
+        reason: 'a sala não conhece este aparelho; entrar como vinculado na abertura '
+            'seguinte esconde do facilitador o código que ele precisaria anotar');
+    await waitFor(
+      'a abertura seguinte pedir um código',
+      () => nextRun.read(deviceLinkProvider).code != null,
+    );
+    final remembered = await ledger.read();
+    expect(remembered.team, isNull);
+    expect(remembered.credential, isNull);
+  });
+
+  test('a credential that arrives after the tablet was put down is still kept', () async {
+    final ledger = await _alreadyLinked();
+    final arrives = Completer<void>();
+    var asked = false;
+    final firstRoom = RoomRepository(
+      client: MockClient((request) async {
+        if (!request.url.path.endsWith('/credential')) {
+          return http.Response(_anyAnswer(), 200);
+        }
+        asked = true;
+        await arrives.future;
+        return http.Response(
+          jsonEncode({'device_id': 'aparelho-1', 'credential': 'credencial-tardia'}),
+          200,
+        );
+      }),
+    );
+    addTearDown(firstRoom.dispose);
+    final firstRun = _tablet(room: firstRoom, ledger: ledger);
+    unawaited(firstRun.read(deviceLinkProvider.notifier).findTheTeam());
+    await waitFor('a coleta sair do tablet', () => asked);
+    firstRun.dispose();
+    arrives.complete();
+    await waitFor(
+      'a credencial tardia chegar ao disco — a única cópia já foi gasta no '
+          'servidor, e jogá-la fora porque o tablet foi baixado transforma a '
+          'abertura seguinte num 403 e num vínculo perdido',
+      () async => (await ledger.read()).credential != null,
+    );
+
+    final seen = <http.BaseRequest>[];
+    final repository = RoomRepository(
+      client: MockClient((request) async {
+        seen.add(request);
+        return http.Response(_anyAnswer(), 200);
+      }),
+    );
+    addTearDown(repository.dispose);
+    final nextRun = _tablet(room: repository, ledger: ledger);
+    addTearDown(nextRun.dispose);
+
+    await nextRun.read(deviceLinkProvider.notifier).findTheTeam();
+    await repository.fetchState('sessao-1');
+
+    expect(seen.where((request) => request.url.path.endsWith('/credential')), isEmpty,
+        reason: 'a credencial já está em disco; recolher de novo pede ao servidor '
+            'uma que ele já entregou');
+    expect(seen.last.headers['X-Device-Credential'], 'credencial-tardia');
   });
 }

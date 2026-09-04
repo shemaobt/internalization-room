@@ -84,34 +84,46 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     if (_closed || _credential != null) return;
     final deviceId = _deviceId;
     if (deviceId == null) return;
+    // Held before the ask, because the ledger is read off a container the tablet being
+    // put down disposes. The disk is what the answer has to reach, and it outlives both.
+    final ledger = _ledger;
     try {
       final credential = await _room.collectTheCredential(deviceId);
+      // Written before anything asks whether the tablet is still up. The one copy was
+      // spent on the server the moment it was handed over, so a credential dropped
+      // because nobody was there to receive it is a credential lost for good: the next
+      // opening asks again, is answered 403, and forgets the whole vínculo.
+      await ledger.rememberCredential(credential);
       if (_closed) return;
       _failures = 0;
-      await _ledger.rememberCredential(credential);
-      if (_closed) return;
       _present(credential);
     } on CredentialNotYet {
       _lookAgainLater();
     } on CredentialTaken {
-      await _startOver();
+      await _startOver(ledger);
     } on SessionGone {
-      _deviceId = null;
-      await _showACode();
+      // The server does not know this device at all. Keeping the team beside an id
+      // nobody claimed is a lie the next opening believes: it walks into the room as
+      // linked, and the code the facilitator would have to write down never shows.
+      await _startOver(ledger);
     } on Exception {
       _tryAgainLater(_collectTheCredential);
     }
   }
 
-  /// The credential is spent, and the device id is spent with it: that row will never
-  /// hand one out again. Everything the tablet knew about being itself goes at once —
-  /// keeping the team beside a device it can no longer prove leaves it linked to a room
-  /// no request of its will be let into.
-  Future<void> _startOver() async {
+  /// Everything the tablet knew about being itself, dropped at once, and a fresh code
+  /// asked for.
+  ///
+  /// Two answers end here. The credential is spent and that row will never hand one out
+  /// again; or the server does not know the device at all. Either way the id can prove
+  /// nothing, and a team kept beside it leaves the tablet believing in a vínculo no
+  /// request of its will be let into — believing it hard enough that the next opening
+  /// walks into the room instead of showing the code that would fix it.
+  Future<void> _startOver(LinkedTeam ledger) async {
     _deviceId = null;
-    _present(null);
-    await _ledger.forgetTheLink();
+    await ledger.forgetTheLink();
     if (_closed) return;
+    _present(null);
     await _showACode();
   }
 
