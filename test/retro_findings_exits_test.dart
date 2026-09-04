@@ -20,8 +20,10 @@ Future<ProviderContainer> pumpToFindings(
   WidgetTester tester,
   BtFindingKind? finding, {
   String? trecho,
+  SalaHarness? harness,
 }) async {
-  final harness = SalaHarness(filaEmMemoria: true)
+  harness ??= SalaHarness(filaEmMemoria: true);
+  harness
     ..room.verdictChecked = false
     ..room.verdictFinding = finding
     ..room.verdictFindingSegmentId = trecho;
@@ -76,9 +78,11 @@ void main() {
 
   testWidgets('a verdict that names no stretch offers a path that works',
       (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
     final container = await pumpToFindings(
       tester,
       BtFindingKind.insufficientEvidence,
+      harness: harness,
     );
     final notifier = container.read(salaSessionProvider.notifier);
 
@@ -87,6 +91,12 @@ void main() {
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
 
+    // The cut is made past the ten seconds already told back, not at nought. Cutting at
+    // nought used to work because this exit forgot every stretch and started the clip
+    // over — and the room had not forgotten them, so the analyst received the passage
+    // twice, the old stretches concatenated with the new. The stretches stay now, and
+    // the exit only takes a cut over ground nobody has told back yet.
+    harness.playback.at = const Duration(seconds: 20);
     notifier.cortarTrecho();
     await tester.pump(const Duration(milliseconds: 200));
 
@@ -97,7 +107,7 @@ void main() {
       (tester) async {
     final container = await pumpToFindings(
       tester,
-      BtFindingKind.missing,
+      BtFindingKind.addition,
       trecho: 'trecho-1',
     );
 

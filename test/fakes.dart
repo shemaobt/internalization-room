@@ -275,10 +275,20 @@ class FakePlayback implements PlaybackRepository {
 
   Duration? measured = const Duration(seconds: 30);
   final List<String> measurements = [];
+  Completer<void>? _measuring;
+
+  /// Hold the measuring, the way an old tablet holds a long file on its second player.
+  void holdNextMeasurement() => _measuring = Completer<void>();
+
+  void finishHeldMeasurement() {
+    _measuring?.complete();
+    _measuring = null;
+  }
 
   @override
   Future<Duration?> howLong(String path) async {
     measurements.add(path);
+    await _measuring?.future;
     return measured;
   }
 
@@ -492,7 +502,19 @@ class FakeRoom implements RoomRepository {
   Exception? failRestartWith;
   Exception? failDivideWith;
   Exception? failReplaceWith;
+
+  /// What the ask for a verdict throws, when it is set. The one knob that lets a test put
+  /// a failure between a correction the room answered and the answer reaching the team.
+  Exception? failFinishWith;
+
+  /// Run while the ask for a verdict is still in the air. The seam for a test that needs
+  /// the team to do something — leave the passage, say — during that wait.
+  void Function()? duranteOVeredito;
   bool replaceCaptured = true;
+
+  /// Whether the room answers a correction by asking for a person. False is also what
+  /// a server that does not send the field at all looks like from here.
+  bool replaceNeedsPerson = false;
   /// Which stretch each retelling named, and the slice it sent, in order.
   final List<String> replacesAsked = [];
   /// Which stretches arrived as a new mother-tongue recording — a replacement carrying no
@@ -517,6 +539,12 @@ class FakeRoom implements RoomRepository {
   /// reprove what the team just corrected could only name it by guessing the double's
   /// versioning scheme.
   int? verdictFindingPlace;
+
+  /// Which stretch the room says was recorded and never told back, when that is what
+  /// stopped the reading. Its own field, as on the wire: a finding and an untold stretch
+  /// are never named in the same answer — and neither is the place above, which addresses
+  /// a stretch the team told.
+  String? verdictUntoldSegmentId;
   BtFindingKind? verdictFinding;
   String? serverStatus;
   /// Which kind of halt the room reports beside `serverStatus`. A server older than
@@ -722,7 +750,11 @@ class FakeRoom implements RoomRepository {
     );
     if (audio == null) replacesSemArquivo.add(segmentId);
     if (!replaceCaptured) {
-      return TellingAgain(segments: List.of(segments), captured: false);
+      return TellingAgain(
+        segments: List.of(segments),
+        captured: false,
+        needsPerson: replaceNeedsPerson,
+      );
     }
     final at = segments.indexWhere((one) => one.segmentId == segmentId);
     if (at >= 0) {
@@ -744,7 +776,11 @@ class FakeRoom implements RoomRepository {
         told: audio != null,
       );
     }
-    return TellingAgain(segments: List.of(segments), captured: true);
+    return TellingAgain(
+      segments: List.of(segments),
+      captured: true,
+      needsPerson: replaceNeedsPerson,
+    );
   }
 
   @override
@@ -930,6 +966,9 @@ class FakeRoom implements RoomRepository {
     int? clipDurationMs,
     List<List<int>> playedRanges = const [],
   }) async {
+    duranteOVeredito?.call();
+    final refusal = failFinishWith;
+    if (refusal != null) throw refusal;
     clipDurationsSent.add(clipDurationMs);
     playedRangesSent.add(playedRanges);
     _guard('finishBackTranslation');
@@ -939,6 +978,7 @@ class FakeRoom implements RoomRepository {
       checked: verdictChecked,
       findingKind: verdictFinding,
       findingSegmentId: _oQueOAnalistaAponta(),
+      untoldSegmentId: verdictUntoldSegmentId,
       findingsRemaining: verdictFinding == null ? 0 : 1,
       usedFailSafe: false,
     );

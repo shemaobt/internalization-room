@@ -51,11 +51,24 @@ class TellingAgain {
   final List<SegmentView> segments;
   final bool captured;
 
-  const TellingAgain({this.segments = const [], this.captured = true});
+  /// Whether the room has stopped taking corrections and wants somebody to come.
+  ///
+  /// The budget for retellings runs out on this route as it does on the one for telling a
+  /// stretch, and the answer says so the same way. Absent means no such news: the field
+  /// arrives only from a room that knows how to send it, and every other answer has to go
+  /// on working.
+  final bool needsPerson;
+
+  const TellingAgain({
+    this.segments = const [],
+    this.captured = true,
+    this.needsPerson = false,
+  });
 
   factory TellingAgain.fromJson(Map<String, dynamic> json) => TellingAgain(
         segments: SegmentView.listFrom(json),
         captured: json['captured'] as bool? ?? true,
+        needsPerson: json['needs_person'] as bool? ?? false,
       );
 }
 

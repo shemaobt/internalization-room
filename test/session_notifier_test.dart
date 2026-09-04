@@ -1515,6 +1515,12 @@ void main() {
     notifier.startRetro();
     await settle();
     harness.room.failWith = const RoomRefused();
+    // Past the thirty seconds already told back, not at nought. Entering the retro used
+    // to forget every stretch and start the clip over, so a cut at nought reached the
+    // room — and the room, which had forgotten nothing, ended up holding the passage
+    // twice. The stretches stay now and a cut over told ground never leaves the tablet,
+    // so the refusal this test is about only happens over ground nobody has told yet.
+    harness.playback.at = const Duration(seconds: 40);
     notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
