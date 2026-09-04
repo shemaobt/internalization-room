@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -168,7 +169,11 @@ Future<_Sala> _aSalaNaPergunta({
 
 /// The long way, both stations: the mother tongue recorded again, then the telling redone
 /// over it.
-Future<void> _consertarPeloCaminhoLongo(_Sala it, {int apontaDepois = 0}) async {
+///
+/// Answers with the path of the mother tongue's own recording — the one audio a stretch
+/// this mend touches can always fall back to, whether or not the composed passage it asks
+/// for ever reaches this tablet.
+Future<String> _consertarPeloCaminhoLongo(_Sala it, {int apontaDepois = 0}) async {
   final semArquivo = it.harness.room.replacesSemArquivo.length;
   it.sala.regravarAVozMaterna();
   it.sala.retroTap();
@@ -182,6 +187,7 @@ Future<void> _consertarPeloCaminhoLongo(_Sala it, {int apontaDepois = 0}) async 
     'a voz materna nova substituir o trecho',
     () => it.harness.room.replacesSemArquivo.length == semArquivo + 1,
   );
+  final materna = it.harness.recorder.lastPath!;
   await waitFor(
     'a segunda estação abrir sozinha',
     () => it.estado.btPhase == BtPhase.capturing,
@@ -202,6 +208,7 @@ Future<void> _consertarPeloCaminhoLongo(_Sala it, {int apontaDepois = 0}) async 
   if (it.parteUm.takeId == _composta) {
     it.harness.playback.lengths[it.parteUm.path] = _aComposta;
   }
+  return materna;
 }
 
 /// The tablet closed and opened again on the same passage.
@@ -570,5 +577,178 @@ void main() {
     expect(it.harness.room.clipsFetched, isEmpty,
         reason: 'o arquivo já está no tablet, e baixá-lo de novo a cada '
             'abertura gasta a rede de uma equipe que costuma não ter nenhuma');
+  });
+
+  test('8b: um 500 no download não para a sala', () async {
+    final it = await _aSalaNaPergunta(apontado: 0);
+    it.harness.room.failClipWith = const RoomBroke('HTTP 500');
+    final avisos = <String>[];
+    final antes = debugPrint;
+    debugPrint = (String? message, {int? wrapWidth}) {
+      if (message != null) avisos.add(message);
+    };
+    addTearDown(() => debugPrint = antes);
+
+    await _consertarPeloCaminhoLongo(it);
+
+    expect(it.estado.needsPerson, isFalse,
+        reason: 'um download que falha é melhor-esforço; a sala nunca para '
+            'por uma pessoa por causa dele');
+    expect(it.estado.offline, isFalse,
+        reason: 'a rede que baixou a materna e a ponte está boa; só a busca '
+            'da composta falhou');
+    expect(it.estado.canResolveWithPerson, isFalse,
+        reason: 'sem needsPerson nem offline, não há nada para uma pessoa '
+            'resolver');
+    expect(avisos, isNotEmpty,
+        reason: 'ninguém na sala lê; o log é o único lugar onde isso se sabe');
+  });
+
+  test('8c: idem para RoomUnavailable e timeout', () async {
+    for (final erro in <Exception>[
+      const RoomUnavailable('sem rede'),
+      TimeoutException('demorou demais'),
+    ]) {
+      final it = await _aSalaNaPergunta(apontado: 0);
+      it.harness.room.failClipWith = erro;
+
+      await _consertarPeloCaminhoLongo(it);
+
+      expect(it.estado.needsPerson, isFalse,
+          reason: '$erro no download da composta também é melhor-esforço');
+      expect(it.estado.offline, isFalse,
+          reason: '$erro no download da composta não tira a sala do ar');
+    }
+  });
+
+  test('9b: no resume frio, download que falha não para a sala', () async {
+    final it = await _aSalaNaPergunta(apontado: 0);
+    it.harness.room.failClipWith = const RoomBroke('o balde sumiu');
+
+    await _consertarPeloCaminhoLongo(it);
+    expect(it.parteUm.takeId, isNot(_composta),
+        reason: 'este ensaio nunca alcançou a passagem composta: o download '
+            'já falhou na estação que a compôs');
+
+    await _retomar(it);
+
+    expect(it.estado.needsPerson, isFalse,
+        reason: 'a retomada fria não para a sala só porque a composta não '
+            'baixou de novo');
+    expect(
+      [
+        _no(it, 0).parte,
+        _no(it, 0).contado,
+        _no(it, 1).parte,
+        _no(it, 1).contado,
+      ],
+      [0, true, 0, true],
+      reason: 'os dois trechos continuam no lugar e contados: o trecho '
+          'corrigido não é fatia de parte nenhuma que este tablet tenha, mas '
+          'o lugar onde ele mora no ensaio não depende do arquivo existir',
+    );
+    expect(_naFaixa(it.estado, 0), isNotNull,
+        reason: 'o colar precisa de uma faixa para desenhar o trecho '
+            'corrigido, mesmo sem o arquivo local');
+    expect(_naFaixa(it.estado, 1), isNotNull, reason: 'idem para o vizinho');
+  });
+
+  test(
+      '9b-ii: tocar o trecho corrigido sem a composta toca a materna própria',
+      () async {
+    final it = await _aSalaNaPergunta(apontado: 0);
+    it.harness.room.failClipWith = const RoomBroke('o balde sumiu');
+
+    final materna = await _consertarPeloCaminhoLongo(it);
+    await _retomar(it);
+
+    it.harness.room.verdictFindingPlace = 0;
+    await _pedirOVeredito(it);
+    it.harness.playback.played.clear();
+    it.harness.playback.ranges.clear();
+
+    it.sala.ouvirVozMaterna();
+    await waitFor(
+      'a materna do trecho corrigido tocar',
+      () => it.estado.btTrechoTocando,
+    );
+
+    expect(
+      [it.harness.playback.played.last, it.harness.playback.ranges.last],
+      [materna, '0-9000'],
+      reason: 'sem a composta no tablet, a melhor voz local para o trecho '
+          'que ela reendereça é a materna que a equipe regravou — não a '
+          'fatia velha da parte, que é a gravação sem a correção',
+    );
+  });
+
+  test(
+      '9b-iii: quando o download passa a funcionar, a composta substitui o '
+      'fallback', () async {
+    final it = await _aSalaNaPergunta(apontado: 0);
+    it.harness.room.failClipWith = const RoomBroke('o balde sumiu');
+    await _consertarPeloCaminhoLongo(it);
+    await _retomar(it);
+    expect(it.parteUm.takeId, isNot(_composta));
+
+    it.harness.room.failClipWith = null;
+    await _retomar(it);
+    await waitFor(
+      'a sala buscar a passagem composta que ela não tinha',
+      () => it.parteUm.takeId == _composta,
+    );
+    expect(_baixou(it, _composta), isTrue);
+
+    it.harness.room.verdictFindingPlace = 0;
+    await _pedirOVeredito(it);
+    it.harness.playback.played.clear();
+    it.harness.playback.ranges.clear();
+
+    it.sala.ouvirVozMaterna();
+    await waitFor(
+      'a materna do trecho corrigido tocar',
+      () => it.estado.btTrechoTocando,
+    );
+
+    expect(
+      [
+        File(it.harness.playback.played.last).readAsBytesSync(),
+        it.harness.playback.ranges.last,
+      ],
+      [it.harness.room.takeAudio[_composta], '0-9000'],
+      reason: 'com a composta finalmente no tablet, tocar o trecho lê o '
+          'arquivo real, não mais o fallback da materna',
+    );
+  });
+
+  test(
+      '9b-iv: precisar de uma pessoa logo após a materna, com a composta '
+      'sem baixar, também sobrevive à retomada fria', () async {
+    final it = await _aSalaNaPergunta(apontado: 0);
+    it.harness.room.failClipWith = const RoomBroke('o balde sumiu');
+    it.sala.regravarAVozMaterna();
+    it.sala.retroTap();
+    await waitFor(
+      'o microfone abrir na materna',
+      () => it.estado.voice == VoiceState.listening,
+    );
+    it.harness.room.replaceNeedsPerson = true;
+    it.sala.retroTap();
+    await waitFor(
+      'a sala parar por uma pessoa antes da ponte',
+      () => it.estado.needsPerson,
+    );
+
+    await _retomar(it);
+
+    expect(
+      [_no(it, 0).parte, _no(it, 1).parte],
+      [0, 0],
+      reason: 'a materna já trocou o trecho e a composição já aconteceu no '
+          'servidor antes de a sala parar por uma pessoa; a ponte nunca '
+          'rodou para migrar o lugar guardado para o nome novo que o '
+          'servidor deu ao segmento, e a retomada — com a composta ainda '
+          'sem baixar — não pode perder o lugar por causa disso',
+    );
   });
 }
