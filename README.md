@@ -55,7 +55,7 @@ to.
 
 ### Backend seams
 
-The room is wired to `tripod-backend` at `/api/internalization-room`, addressed by `BACKEND_URL` and authenticated with `INTERNALIZATION_ROOM_KEY` (see `.env.example`). Every provider below is overridden in tests — see `test/fakes.dart`.
+The room is wired to `tripod-backend` at `/api/internalization-room`, addressed by `BACKEND_URL` and authenticated with `INTERNALIZATION_ROOM_KEY` (see `.env.example`), sent as `X-Room-Key` on every request. A tablet that has already been linked also carries a credential of its own — collected once and sent as `X-Device-Credential` — and when that header is there the server judges the device by it alone; the room key still rides along beside it, because retiring it is a separate change (ENG-455), not this one. The credential is handed to every client that speaks to the room, not only the first: `handInboxRepositoryProvider` keeps a client and a header block of its own, so a credential that reached only `roomRepositoryProvider` would leave the team's questions as the one thing still arriving unnamed. Every provider below is overridden in tests — see `test/fakes.dart`.
 
 | Provider | What it owns |
 | --- | --- |
@@ -96,6 +96,26 @@ flutter run --release -d <iphone-id> --dart-define=DEV_ATALHOS=true
 
 `DEV_ATALHOS` stands in for the device link and, with `DEV_PULAR_FASES=1` in `.env`, brings
 the skip bar with it.
+
+Once the facilitator spends the code and the link answers with a team, the tablet draws its
+own credential exactly once, keyed by the device id the claim code was minted for — a
+server-issued id kept in `guardadas/vinculo.json`, not the hex id `device_identity.dart`
+mints locally and sends as `X-Room-Device`; the two are different ids today. The server hands
+that credential out a single time and keeps only its hash afterward, so a second draw is
+never a retry: 409 means the row is not claimed yet, or was pulled out of service, either of
+which may still change, and the tablet leaves the screen and both memories alone and tries
+again next cycle; 403 means the credential is already out — permanently, and it is also what
+a 200 lost on the way back turns into — so the tablet forgets both the device and the team
+and asks for a fresh code with no device id attached, since the old one can prove nothing
+again; 404 means the server does not know this device at all, and ends in the same place as
+403 for the same reason — a team left on disk beside an id nobody claimed is a lie the next
+opening believes, walking into the room as linked while the code that would fix it never
+shows. A network failure is none of these; it is retried on the ordinary backoff and never
+mistaken for the credential having been spent. A tablet that already remembered a team from
+before this existed, with no credential on file, draws one the next time it opens. A
+credential that arrives after the tablet was put down is written to disk anyway, before
+anything asks whether anyone is still there to see it: the one copy was spent on the server
+the moment it was handed over, so dropping it would cost the whole vínculo.
 
 iOS signing uses the Shemá team (`55ZKR3YQMJ`, bundle id `com.shema.internalizationRoom`). First deploy to a personal device may require trusting the developer profile on the phone (Settings → General → VPN & Device Management).
 
