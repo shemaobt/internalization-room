@@ -345,6 +345,36 @@ void main() {
         reason: 'o TypeError do fromJson nem era capturado');
   });
 
+  test('a stamp that is not a string costs neither its row nor the queue', () async {
+    final dir = Directory('${home.path}/guardadas')..createSync(recursive: true);
+    for (final scope in ['primeira', 'segunda', 'terceira']) {
+      File('${dir.path}/ensaio-$scope.m4a')
+          .writeAsStringSync('a equipe contou a passagem');
+    }
+    String row(String scope, String lastTry) =>
+        '{"id":"$scope","name":"ensaio-$scope.m4a","session_id":"sessao-1",'
+        '"kind":"ensaio","scope":"$scope","pass_number":null,"chunk_index":null,'
+        '"stored":false,"lost":false,"attempts":0,"waits":0,"last_try":$lastTry}';
+    File('${dir.path}/fila.json').writeAsStringSync(
+      '[${row('primeira', 'null')},'
+      '${row('segunda', '1755000000000')},'
+      '${row('terceira', 'null')}]',
+    );
+    final room = FakeRoom();
+    final queue = queueOn(room);
+
+    await queue.flush();
+
+    expect(
+        room.takesKept,
+        unorderedEquals(['ensaio/primeira', 'ensaio/segunda', 'ensaio/terceira']),
+        reason: 'um carimbo que não é texto numa linha punha a fila inteira em '
+            'quarentena — as outras duas gravações não iam a lugar nenhum por '
+            'causa de um byte. E a própria linha também sobe: o áudio e a sessão '
+            'dela estão intactos, só o ritmo é que ninguém sabe, e ritmo '
+            'desconhecido vence agora');
+  });
+
   test('a manifest written before attempts existed is still read', () async {
     final dir = Directory('${home.path}/guardadas')..createSync(recursive: true);
     File('${dir.path}/fila.json').writeAsStringSync(

@@ -152,7 +152,13 @@ class PendingTake {
         lost: json['lost'] as bool? ?? false,
         attempts: json['attempts'] as int? ?? 0,
         waits: json['waits'] as int? ?? 0,
-        lastTry: DateTime.tryParse(json['last_try'] as String? ?? ''),
+        // The row's audio and session are intact; only its pacing is unknown, and an
+        // unknown pace means due now. Raising here instead would set every pending
+        // recording aside, not this one.
+        lastTry: switch (json['last_try']) {
+          final String stamp => DateTime.tryParse(stamp),
+          _ => null,
+        },
       );
 }
 
@@ -166,13 +172,11 @@ class TakeUploadQueue {
   int _minted = 0;
 
   TakeUploadQueue({
-    required RoomRepository room,
+    required this._room,
     Future<Directory> Function()? home,
-    List<Duration> backoff = const [],
+    this._backoff = const [],
     DateTime Function()? now,
-  })  : _room = room,
-        _home = home ?? getApplicationSupportDirectory,
-        _backoff = backoff,
+  })  : _home = home ?? getApplicationSupportDirectory,
         _now = now ?? DateTime.now;
 
   Future<Directory> _dir() async {
