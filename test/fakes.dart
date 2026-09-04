@@ -767,9 +767,22 @@ class FakeRoom implements RoomRepository {
   /// only the ask itself to fail, and `failWith` is shared by every guarded call.
   Exception? askForAPersonFailsWith;
 
+  Completer<void>? _holdingAskForAPerson;
+
+  /// Holds the next session-scoped ask in flight, so a test can act — resolve the halt,
+  /// change `askForAPersonFailsWith` — before the answer lands.
+  void holdNextAskForAPerson() => _holdingAskForAPerson = Completer<void>();
+
+  void finishHeldAskForAPerson() {
+    _holdingAskForAPerson?.complete();
+    _holdingAskForAPerson = null;
+  }
+
   @override
   Future<void> askForAPerson(String sessionId) async {
     _guard('askForAPerson');
+    final held = _holdingAskForAPerson;
+    if (held != null) await held.future;
     final failure = askForAPersonFailsWith;
     if (failure != null) throw failure;
     personsAsked++;

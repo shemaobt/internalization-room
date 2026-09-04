@@ -233,6 +233,57 @@ void main() {
         reason: 'nenhuma nova tentativa pela sessão depois do backoff');
   });
 
+  test(
+      'case 8 (Emenda 3): um 404 tardio na sessão não repara a sala depois '
+      'que a pessoa já chegou', () async {
+    // Emenda 3: o ramo SessionGone do caso 7 re-parava a sala mesmo quando
+    // resolveWithPerson() já tinha voltado o estado para invite — o pedido
+    // pela sessão seguia em voo, sem como ser cancelado, e a resposta tardia
+    // reabria a parada e replicava a linha de precisa-de-pessoa.
+    final ledger = _ledgerOnDisk();
+    await ledger.rememberDevice('aparelho-D');
+    final harness = SalaHarness(retryBackoff: const [Duration(milliseconds: 20)])
+      ..voice.succeeds = false;
+    final container = await _inConversa(harness, ledger);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    expect(container.read(salaSessionProvider).sessionId, isNotNull);
+
+    harness.room.holdNextAskForAPerson();
+    notifier.conversaTap();
+    await settle();
+    for (var attempt = 0; attempt < 3; attempt++) {
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+    }
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'a parada chegou; o pedido pela sessão está em voo, seguro');
+    final playedBeforeResolve = harness.voice.assets.length;
+
+    notifier.resolveWithPerson();
+    await settle();
+    expect(container.read(salaSessionProvider).needsPerson, isFalse,
+        reason: 'a pessoa chegou e apertou — a sala volta para invite');
+
+    harness.room.askForAPersonFailsWith = const SessionGone();
+    harness.room.finishHeldAskForAPerson();
+    await settle();
+    await settle(const Duration(milliseconds: 200));
+
+    final state = container.read(salaSessionProvider);
+    expect(state.needsPerson, isFalse,
+        reason: 'a resposta tardia não pode reabrir uma parada que já foi resolvida');
+    expect(state.sessionId, isNotNull,
+        reason: 'nada limpa uma sessão depois que a pessoa já chegou por ela');
+    expect(harness.room.deviceAsksReceived, isEmpty,
+        reason: 'sem parada, não há por que pedir a ninguém');
+    expect(harness.voice.assets.length, playedBeforeResolve,
+        reason: 'a linha de precisa-de-pessoa não pode tocar uma segunda vez para '
+            'uma parada que a equipe já resolveu');
+  });
+
   group('askForAPersonWithoutASession (repositório)', () {
     setUpAll(() {
       dotenv.testLoad(

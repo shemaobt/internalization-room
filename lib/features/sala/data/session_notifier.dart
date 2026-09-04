@@ -543,7 +543,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     } finally {
       _askingForAPerson = false;
     }
-    if (sessionGone && !_gone) _haltForAPerson(sessionIsGone: true);
+    // A person may have arrived and resolved the halt while this ask was still in
+    // flight — `resolveWithPerson()` cannot cancel it. A late 404 must not reopen a
+    // halt nobody is in anymore, the same guard the two branches around this one lean on.
+    if (sessionGone && !_gone && state.needsPerson) {
+      _haltForAPerson(sessionIsGone: true);
+    }
   }
 
   /// The same ask, for a halt with no session to name: the server forgot it, or the
