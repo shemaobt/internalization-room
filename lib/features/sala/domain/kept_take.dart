@@ -12,6 +12,11 @@ abstract class KeptScope {
   /// scope would let the room hand back the first one's name for the second one's audio.
   static String trecho(String segmentId, String stamp) =>
       'trecho-$segmentId-$stamp';
+
+  /// What the room calls the recording of the passage it rebuilt around a correction. Its
+  /// own name on the room's side, kept here because this tablet has to recognise one
+  /// coming back to it in a session it did not rebuild.
+  static const composed = 'composed';
 }
 
 class KeptTake {

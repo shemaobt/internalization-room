@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
@@ -25,6 +26,7 @@ import 'package:internalization_room/features/sala/domain/coverage.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
@@ -185,6 +187,12 @@ class FakeRecorder implements RecordingRepository {
 
   @override
   Future<void> delete(String path) async => deleted.add(path);
+
+  @override
+  Future<String> keepBytes(Uint8List bytes, String fileName) async {
+    final file = File('${home.path}/$fileName.m4a')..writeAsBytesSync(bytes);
+    return file.path;
+  }
 
   @override
   Future<String> keepAs(String path, String fileName) async => path;
@@ -479,6 +487,19 @@ class FakeRoom implements RoomRepository {
   final List<String> chunkTakes = [];
   /// The names this room gave the recordings it stored, in the order it stored them.
   final List<String> takeIds = [];
+
+  /// Every recording this room is holding, as the route that lists them answers.
+  final List<TakeView> takes = [];
+
+  /// The bytes each take's audio comes back as, so a test can tell one file from another.
+  final Map<String, Uint8List> takeAudio = {};
+
+  /// The name the rebuilt passage gets, when this room rebuilds one. Null is a room that
+  /// composes nothing — a short correction, or a rebuilding that could not be done.
+  String? composesInto;
+
+  /// What listing the takes throws, when it is set.
+  Exception? failTakesWith;
   /// The stretches this room kept, in the order they were told. A room that forgets what
   /// it was told cannot hand a telling-back back, and cannot name the stretch a finding
   /// lands on either.
@@ -620,7 +641,23 @@ class FakeRoom implements RoomRepository {
   Future<Uint8List> fetchClip(String url) async {
     _guard('fetchClip');
     clipsFetched.add(url);
+    final refusal = failClipWith;
+    if (refusal != null) throw refusal;
+    for (final entry in takeAudio.entries) {
+      if (url.endsWith('/takes/${entry.key}/audio')) return entry.value;
+    }
     return Uint8List.fromList([1, 2, 3]);
+  }
+
+  /// What fetching audio throws, when it is set.
+  Exception? failClipWith;
+
+  @override
+  Future<List<TakeView>> takesOf(String sessionId) async {
+    _guard('takesOf');
+    final refusal = failTakesWith;
+    if (refusal != null) throw refusal;
+    return List.of(takes);
   }
 
   @override
@@ -704,8 +741,8 @@ class FakeRoom implements RoomRepository {
       );
     }
     final at = segments.indexWhere((one) => one.segmentId == segmentId);
-    if (at >= 0) {
-      final antes = segments[at];
+    final antes = at >= 0 ? segments[at] : null;
+    if (antes != null) {
       // The route has two shapes and this double owes both. With audio over the same
       // slice, the explanation was redone and the stretch is told. With no audio the
       // mother tongue was re-recorded: the stretch takes the new recording and its slice,
@@ -727,8 +764,58 @@ class FakeRoom implements RoomRepository {
       segments: List.of(segments),
       captured: true,
       needsPerson: replaceNeedsPerson,
+      composedTakeId: audio == null ? _recompose(antes, at) : null,
     );
   }
+
+  /// Rebuild the passage under a stretch just re-recorded, and re-point every stretch that
+  /// was a slice of the recording it replaced.
+  ///
+  /// The room's own arithmetic: a boundary at or before the start of the corrected stretch
+  /// stays put, and one past it moves by the difference the correction made. Not a new
+  /// version of any of them — the same sound at a different offset in a different file —
+  /// so every neighbour keeps the name it already had.
+  ///
+  /// Nothing is rebuilt when the mother tongue did not move to another recording, which is
+  /// the short correction, and nothing is rebuilt when [composesInto] is unset, which is
+  /// how a room without an encoder answers.
+  String? _recompose(SegmentView? replaced, int at) {
+    final rebuilt = composesInto;
+    if (rebuilt == null || replaced == null || at < 0) return null;
+    final version = segments[at];
+    if (version.takeId == replaced.takeId) return null;
+    final started = replaced.startsMs;
+    final grew = (version.endsMs - version.startsMs) -
+        (replaced.endsMs - replaced.startsMs);
+    int moved(int ms) => ms <= started ? ms : ms + grew;
+    for (var onde = 0; onde < segments.length; onde++) {
+      final row = segments[onde];
+      if (onde == at) {
+        segments[onde] = _pointedAt(row, rebuilt, started, moved(replaced.endsMs));
+      } else if (row.takeId == replaced.takeId) {
+        segments[onde] =
+            _pointedAt(row, rebuilt, moved(row.startsMs), moved(row.endsMs));
+      }
+    }
+    final was = takes.where((take) => take.takeId == replaced.takeId);
+    takes.add(TakeView(
+      takeId: rebuilt,
+      scope: KeptScope.composed,
+      chunkIndex: was.isEmpty ? null : was.first.chunkIndex,
+    ));
+    takeAudio[rebuilt] = Uint8List.fromList(utf8.encode('áudio de $rebuilt'));
+    return rebuilt;
+  }
+
+  SegmentView _pointedAt(SegmentView row, String takeId, int starts, int ends) =>
+      SegmentView(
+        segmentId: row.segmentId,
+        takeId: takeId,
+        startsMs: starts,
+        endsMs: ends,
+        passNumber: row.passNumber,
+        told: row.told,
+      );
 
   @override
   Future<List<SegmentView>> divideSegment(
@@ -798,6 +885,8 @@ class FakeRoom implements RoomRepository {
     takePasses.add(passNumber);
     final id = 'gravacao-${takeIds.length + 1}';
     takeIds.add(id);
+    takes.add(TakeView(takeId: id, scope: scope, chunkIndex: chunkIndex));
+    takeAudio[id] = Uint8List.fromList(utf8.encode('áudio de $id'));
     return id;
   }
 
