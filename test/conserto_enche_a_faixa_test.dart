@@ -202,6 +202,7 @@ void main() {
     expect(_faixasVazias(tester, container), [0],
         reason: 'o enchimento é uma promessa, e uma promessa quebrada tem de '
             'ser retirada: nada foi consertado');
+    closeTheRoom(container);
   });
 
   testWidgets('um upload que a sala recusou esvazia a faixa de novo',
@@ -216,6 +217,7 @@ void main() {
 
     expect(_faixasVazias(tester, container), [0],
         reason: 'a sala recusou o conserto, então ele não aconteceu');
+    closeTheRoom(container);
   });
 
   testWidgets('uma captura que a sala não aproveitou esvazia a faixa de novo',
@@ -270,6 +272,7 @@ void main() {
         reason: 'a equipe se ofereceu para consertar e a sala não conseguiu '
             'ouvir: a faixa cheia prometeria um trabalho que o microfone nunca '
             'deixou começar');
+    closeTheRoom(container);
   });
 
   testWidgets('voltar a gravar depois do microfone recusado enche a faixa',
@@ -284,6 +287,9 @@ void main() {
     expect(_faixasVazias(tester, container), [0]);
 
     harness.recorder.startThrows = false;
+    // The halt is the desk's to lift, and the long press only asks: a facilitator
+    // marks the session attended, and the touch brings that answer back at once.
+    harness.room.theDeskAttended();
     _notifier(container).resolveWithPerson();
     await tester.pump(const Duration(milliseconds: 300));
     final capturasAntes = harness.recorder.captures;
@@ -331,6 +337,7 @@ void main() {
 
     harness.recorder.finishStop();
     await tester.pump(const Duration(milliseconds: 200));
+    closeTheRoom(container);
   });
 
   testWidgets('uma voz materna que falhou esvazia a faixa de novo',
@@ -349,6 +356,7 @@ void main() {
     expect(_faixasVazias(tester, container), [0],
         reason: 'a primeira estação do caminho longo falhou, e a equipe voltou '
             'para a pergunta com o trecho ainda esperando conserto');
+    closeTheRoom(container);
   });
 
   testWidgets('um veredito que reprova o mesmo trecho esvazia a faixa de novo',
