@@ -1,12 +1,12 @@
 # Sala de Internalização
 
-Voice-first Flutter app for the internalization room of the Shemá oral Bible translation flow. The visual language comes from the Claude Design prototype `Sala de Internalização.dc.html` (Shemá design system); the interaction model follows the client-validated *Tripod Internalization · Interaction Flows* document.
+Voice-first Flutter app for the internalization room of the Shemá oral Bible translation flow. The visual language comes from the Claude Design prototype `docs/spec/prototype/Sala de Internalização.dc.html` (Shemá design system); the interaction model follows the client-validated *Tripod Internalization · Interaction Flows* document, vendored at `docs/spec/interaction-flows.html` (`docs/spec/interaction-flows.md` for a text extraction).
 
-> **Neither reference artifact is in this workspace.** Until they are, the rules below cannot be checked against their source, and where the code diverges nobody can tell from here whether it was a deliberate cut. The rules were written as the target, not as a description of the code: the notes marking drift say which is which today.
+> Where the code diverges from those sources, the notes marking drift say which is which today. The rules below were written as the target, not as a description of the code.
 
 The room walks a team through a passage in five stations, with **zero readable words on team screens** — one terracotta circle, a bead necklace (colar) as the only progress indicator, and everything else spoken:
 
-1. **Convite** — the breathing circle welcomes the team and asks the room for the book panorama; a wooden bead opens the passage. Asking is a request and not an instruction: which passage a session is for is the room's to say, and if it answers with a passage instead, the team is taken into that passage through the same door an explicit choice uses. The room always honours the request for the panorama today, so this only shows once the server begins to decide.
+1. **Convite** — the breathing circle welcomes the team and asks the room for the book panorama; a wooden bead opens the passage. Asking is a request and not an instruction: which passage a session is for is the room's to say, and if it answers with a passage instead, the team is taken into that passage through the same door an explicit choice uses — and into the session the room opened for it: the app opens no session of its own for a passage the room already opened. The room decides this since the server half landed (shema-api #308).
 2. **Conversa** — tap the circle to speak, tap again when finished. Each engaged meaning-map element warms a bead on the colar (oat → half → wood; one bead is a ring: the significant absence — the backend says how many beads there are and which one it is). Tapping the hand records a question that becomes a blue knot on the cord.
 3. **Ensaio** — tap to record the whole passage; listen, re-record, or keep. The listen button follows the same rule as ghost play below: a second tap pauses the take instead of restarting it, a third resumes from where it stopped, and only a take that finished on its own starts over on the next tap. Kept takes become ghost beads on the thread.
 4. **Retrotradução** — the team's own recording plays; a tap pauses it and captures a piece told back in Portuguese, and a tap sets the clip running again from where it stopped. When the clip ends, *terminei* runs the check, which lands on findings, on *conferida*, or — when a stretch was recorded and never told back — straight at that stretch. The room names it (`untold_segment_id`, its own address and never the finding's, because a finding is a stretch the team told and this is one with no telling at all), plays the team's own voice over it, and arms the next capture as a replacement of that stretch rather than as a new one. Nothing of the rehearsal is touched: this answer used to arrive with no address, the only exit left on the screen was the one that started the rehearsal over, and a team lost every recording of the passage over one explanation they had not got to yet. An address this tablet cannot turn into a slice of a recording it holds stops for a person instead: there is nothing to lead them to. A finding that names a stretch sends the team to the grid described below — or, when what it names is something missing, to the one act that answers an absence: recording that stretch again and telling it again over the new recording. On that screen the terracotta circle no longer plays a stretch itself — the grid's own wood and blue players do that — it repeats the verdict's own line instead, the same way the "ouvir de novo" gesture elsewhere in the room repeats the last thing said; a verdict spoken from a canned fail-safe line is never kept for the circle to repeat, and a tap on it then does nothing rather than falling back to a stretch. A finding that names none — the analyst could not attribute it, or there was too little telling-back to judge — offers telling the whole recording again, unless the kind is an addition, a meaning change or a preservation violation; that short list is the room's own rule and not a classification the server makes, since the analyst reads the telling-back against the meaning map and never hears the mother-tongue recording, so it does not say whether a difference came from the telling or from the recording under it. The other exit in that fallback is not a restart: it sends the team back to the rehearsal with every take, stretch and bead kept, to record what the passage still lacks (see *the end of the story*, below). A true restart — dropping the recorded clip, emptying the rehearsal, and waiting for the session's answer while the exits leave the screen and the circle shows the room is busy — still exists as `reRecordClip`, but nothing on this screen calls it anymore.
@@ -56,7 +56,7 @@ to.
 
 ### Backend seams
 
-The room is wired to `tripod-backend` at `/api/internalization-room`, addressed by `BACKEND_URL` and authenticated with `INTERNALIZATION_ROOM_KEY` (see `.env.example`). Every provider below is overridden in tests — see `test/fakes.dart`.
+The room is wired to `tripod-backend` at `/api/internalization-room`, addressed by `BACKEND_URL` and authenticated with `INTERNALIZATION_ROOM_KEY` (see `.env.example`), sent as `X-Room-Key` on every request. A tablet that has already been linked also carries a credential of its own — collected once and sent as `X-Device-Credential` — and when that header is there the server judges the device by it alone; the room key still rides along beside it, because retiring it is a separate change (ENG-455), not this one. The credential is handed to every client that speaks to the room, not only the first: `handInboxRepositoryProvider` keeps a client and a header block of its own, so a credential that reached only `roomRepositoryProvider` would leave the team's questions as the one thing still arriving unnamed. Every provider below is overridden in tests — see `test/fakes.dart`.
 
 | Provider | What it owns |
 | --- | --- |
@@ -97,6 +97,26 @@ flutter run --release -d <iphone-id> --dart-define=DEV_ATALHOS=true
 
 `DEV_ATALHOS` stands in for the device link and, with `DEV_PULAR_FASES=1` in `.env`, brings
 the skip bar with it.
+
+Once the facilitator spends the code and the link answers with a team, the tablet draws its
+own credential exactly once, keyed by the device id the claim code was minted for — a
+server-issued id kept in `guardadas/vinculo.json`, not the hex id `device_identity.dart`
+mints locally and sends as `X-Room-Device`; the two are different ids today. The server hands
+that credential out a single time and keeps only its hash afterward, so a second draw is
+never a retry: 409 means the row is not claimed yet, or was pulled out of service, either of
+which may still change, and the tablet leaves the screen and both memories alone and tries
+again next cycle; 403 means the credential is already out — permanently, and it is also what
+a 200 lost on the way back turns into — so the tablet forgets both the device and the team
+and asks for a fresh code with no device id attached, since the old one can prove nothing
+again; 404 means the server does not know this device at all, and ends in the same place as
+403 for the same reason — a team left on disk beside an id nobody claimed is a lie the next
+opening believes, walking into the room as linked while the code that would fix it never
+shows. A network failure is none of these; it is retried on the ordinary backoff and never
+mistaken for the credential having been spent. A tablet that already remembered a team from
+before this existed, with no credential on file, draws one the next time it opens. A
+credential that arrives after the tablet was put down is written to disk anyway, before
+anything asks whether anyone is still there to see it: the one copy was spent on the server
+the moment it was handed over, so dropping it would cost the whole vínculo.
 
 iOS signing uses the Shemá team (`55ZKR3YQMJ`, bundle id `com.shema.internalizationRoom`). First deploy to a personal device may require trusting the developer profile on the phone (Settings → General → VPN & Device Management).
 

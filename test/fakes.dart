@@ -418,6 +418,13 @@ class FakeWorkInProgress implements WorkInProgress {
 }
 
 class FakeInbox implements HandInboxRepository {
+  /// What this tablet last told the hand to present as itself. What the header actually
+  /// carries is measured against real HTTP, not here.
+  String? presented;
+
+  @override
+  void presents(String? credential) => presented = credential;
+
   List<HandReply> replies;
   final List<String> heard = [];
   final List<String> questionsSent = [];
@@ -549,12 +556,23 @@ class FakeRoom implements RoomRepository {
   ];
   /// The passage the room hands back when this tablet asks for the panorama.
   String? panoramaAnsweredWith;
+  /// The ids this room gave the sessions it opened, in the order it opened them.
+  final List<String> sessionIds = [];
+  /// Which session each turn was spoken into, the opening one included, in order.
+  final List<String> sessionsSpokenTo = [];
 
   int personsAsked = 0;
   int retells = 0;
   int retellBudget = 3;
 
   final List<String?> codesAskedFor = [];
+  /// Which device this room was asked to hand a credential to, in order.
+  final List<String> credentialsCollected = [];
+  /// What this tablet last told the room to present as itself. What the header actually
+  /// carries is measured against real HTTP, not here.
+  String? presented;
+  String credential = 'credencial-1';
+  Exception? refuseCredentialWith;
   int linksRead = 0;
   List<String> claimCodes = const ['QHF-3M7K'];
   Duration claimCodeLife = const Duration(minutes: 15);
@@ -614,6 +632,18 @@ class FakeRoom implements RoomRepository {
   }
 
   @override
+  Future<String> collectTheCredential(String deviceId) async {
+    _guard('collectTheCredential');
+    credentialsCollected.add(deviceId);
+    final refusal = refuseCredentialWith;
+    if (refusal != null) throw refusal;
+    return credential;
+  }
+
+  @override
+  void presents(String? credential) => presented = credential;
+
+  @override
   Future<Uint8List> fetchClip(String url) async {
     _guard('fetchClip');
     clipsFetched.add(url);
@@ -639,8 +669,10 @@ class FakeRoom implements RoomRepository {
     final answered = pericope == panoramaPericope && panoramaAnsweredWith != null
         ? panoramaAnsweredWith
         : pericope;
+    final sessionId = 'sessao-${sessionIds.length + 1}';
+    sessionIds.add(sessionId);
     return SessionSnapshot(
-      sessionId: 'sessao-1',
+      sessionId: sessionId,
       pericope: answered ?? 'rute-1',
       status: 'in_progress',
       coverage: nextCoverage,
@@ -673,6 +705,7 @@ class FakeRoom implements RoomRepository {
   @override
   Future<TurnResult> openSession(String sessionId) async {
     _guard('openSession');
+    sessionsSpokenTo.add(sessionId);
     await _turnArrives();
     return _turn(sessionId);
   }
@@ -774,10 +807,45 @@ class FakeRoom implements RoomRepository {
     return const BackTranslationRestart(needsPerson: false);
   }
 
+  /// What the next call to the session-scoped ask throws, independent of `failWith` —
+  /// a case needs a turn to succeed (so the halt is reached with a live session) and
+  /// only the ask itself to fail, and `failWith` is shared by every guarded call.
+  Exception? askForAPersonFailsWith;
+
+  Completer<void>? _holdingAskForAPerson;
+
+  /// Holds the next session-scoped ask in flight, so a test can act — resolve the halt,
+  /// change `askForAPersonFailsWith` — before the answer lands.
+  void holdNextAskForAPerson() => _holdingAskForAPerson = Completer<void>();
+
+  void finishHeldAskForAPerson() {
+    _holdingAskForAPerson?.complete();
+    _holdingAskForAPerson = null;
+  }
+
   @override
   Future<void> askForAPerson(String sessionId) async {
     _guard('askForAPerson');
+    final held = _holdingAskForAPerson;
+    if (held != null) await held.future;
+    final failure = askForAPersonFailsWith;
+    if (failure != null) throw failure;
     personsAsked++;
+  }
+
+  /// Every device id the device-scoped ask was made for, one entry per attempt —
+  /// including one that is about to fail, the way `calls` tracks `askForAPerson`.
+  final List<String> deviceAsksReceived = [];
+
+  /// What the next calls to the device-scoped ask throw, consumed in order. Separate
+  /// from `failWith` because a case has to fail this route without touching the
+  /// session-scoped one, and has to fail it a fixed number of times and then stop.
+  final List<Object> deviceAskFailures = [];
+
+  @override
+  Future<void> askForAPersonWithoutASession(String deviceId) async {
+    deviceAsksReceived.add(deviceId);
+    if (deviceAskFailures.isNotEmpty) throw deviceAskFailures.removeAt(0);
   }
 
   @override
@@ -801,6 +869,7 @@ class FakeRoom implements RoomRepository {
   @override
   Future<TurnResult> sendTurn(String sessionId, File audio) async {
     _guard('sendTurn');
+    sessionsSpokenTo.add(sessionId);
     turnsSent++;
     await _turnArrives();
     return _turn(sessionId);
@@ -933,12 +1002,29 @@ class FakeLinkedTeam implements LinkedTeam {
   Future<RememberedLink> read() async => remembered;
 
   @override
-  Future<void> rememberDevice(String deviceId) async =>
-      remembered = RememberedLink(deviceId: deviceId, team: remembered.team);
+  Future<void> rememberDevice(String deviceId) async => _keep(deviceId: deviceId);
 
   @override
-  Future<void> rememberTeam(TeamLink team) async =>
-      remembered = RememberedLink(deviceId: remembered.deviceId, team: team);
+  Future<void> rememberTeam(TeamLink team) async => _keep(team: team);
+
+  @override
+  Future<void> rememberCredential(String credential) async =>
+      _keep(credential: credential);
+
+  @override
+  Future<void> forgetTheLink() async => remembered = const RememberedLink();
+
+  /// One place where a write keeps what it did not touch.
+  ///
+  /// Spelled out at each writer, the three halves were three chances to drop one of the
+  /// other two — and a double that forgets a half the real ledger keeps is a double that
+  /// reads green over a tablet which has lost its device id.
+  void _keep({String? deviceId, TeamLink? team, String? credential}) =>
+      remembered = RememberedLink(
+        deviceId: deviceId ?? remembered.deviceId,
+        team: team ?? remembered.team,
+        credential: credential ?? remembered.credential,
+      );
 }
 
 /// The upload outbox with no disk under it.
