@@ -768,6 +768,21 @@ class FakeRoom implements RoomRepository {
     personsAsked++;
   }
 
+  /// Every device id the device-scoped ask was made for, one entry per attempt —
+  /// including one that is about to fail, the way `calls` tracks `askForAPerson`.
+  final List<String> deviceAsksReceived = [];
+
+  /// What the next calls to the device-scoped ask throw, consumed in order. Separate
+  /// from `failWith` because a case has to fail this route without touching the
+  /// session-scoped one, and has to fail it a fixed number of times and then stop.
+  final List<Object> deviceAskFailures = [];
+
+  @override
+  Future<void> askForAPersonWithoutASession(String deviceId) async {
+    deviceAsksReceived.add(deviceId);
+    if (deviceAskFailures.isNotEmpty) throw deviceAskFailures.removeAt(0);
+  }
+
   @override
   Future<String> sendTake(
     String sessionId,

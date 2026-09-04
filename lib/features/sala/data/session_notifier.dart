@@ -20,6 +20,7 @@ import 'connectivity_service.dart';
 import 'facilitator_voice_service.dart';
 import 'finished_passages.dart';
 import 'hand_inbox_repository.dart';
+import 'linked_team.dart';
 import 'mic_permission.dart';
 import 'playback_repository.dart';
 import 'recording_repository.dart';
@@ -179,6 +180,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   PlaybackRepository get _playback => ref.read(playbackRepositoryProvider);
   HandInboxRepository get _inbox => ref.read(handInboxRepositoryProvider);
   RoomRepository get _room => ref.read(roomRepositoryProvider);
+  LinkedTeam get _ledger => ref.read(linkedTeamProvider);
   TakeUploadQueue get _takes => ref.read(takeUploadQueueProvider);
   ConnectivityService get _network => ref.read(connectivityServiceProvider);
   FinishedPassages get _feitas => ref.read(finishedPassagesProvider);
@@ -490,10 +492,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ///
   /// Reached before the room opens, because the alternative is discovering it one failed
   /// request at a time — and `Env`'s throw is an `Error`, which the network layer's
-  /// catches all miss.
-  void haltForABrokenBuild() => _haltForAPerson();
+  /// catches all miss. That is why this halt never asks: touching `Env` for a device-scoped
+  /// ask would throw that same uncatchable `Error`, and this method is itself the only
+  /// signal that there is no server to reach.
+  void haltForABrokenBuild() => _haltForAPerson(reachable: false);
 
-  void _haltForAPerson({bool sessionIsGone = false}) {
+  void _haltForAPerson({bool sessionIsGone = false, bool reachable = true}) {
     _leaveThinking();
     if (!state.needsPerson) {
       unawaited(_voice.playAsset(fixedLineAsset(needsPersonLine, _lingua)));
@@ -503,12 +507,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       peerCue: false,
       clearSession: sessionIsGone,
     );
-    _tellTheRoomAPersonIsNeeded();
+    if (reachable) _tellTheRoomAPersonIsNeeded();
   }
 
   void _tellTheRoomAPersonIsNeeded() {
     if (_personAsked || _askingForAPerson) return;
-    unawaited(_askForAPerson());
+    if (state.sessionId == null) {
+      unawaited(_askForAPersonWithoutASession());
+    } else {
+      unawaited(_askForAPerson());
+    }
   }
 
   /// The call is only made when the server says it has it.
@@ -525,7 +533,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       await _room.askForAPerson(sessionId);
       if (!_gone && state.needsPerson) _personAsked = true;
     } on Exception {
-      _keepAskingForAPerson();
+      _keepAskingForAPerson(_askForAPerson);
+    } finally {
+      _askingForAPerson = false;
+    }
+  }
+
+  /// The same ask, for a halt with no session to name: the server forgot it, or the
+  /// build never opened one. Asks by the tablet's own device id, from the link ledger.
+  Future<void> _askForAPersonWithoutASession() async {
+    if (_personAsked || _askingForAPerson) return;
+    _askingForAPerson = true;
+    try {
+      final deviceId = (await _ledger.read()).deviceId;
+      if (deviceId == null || _gone) return;
+      await _room.askForAPersonWithoutASession(deviceId);
+      if (!_gone && state.needsPerson) _personAsked = true;
+    } on NobodyToReach {
+      // No team can be reached for this device; asking again cannot change that.
+    } on Exception {
+      _keepAskingForAPerson(_askForAPersonWithoutASession);
     } finally {
       _askingForAPerson = false;
     }
@@ -534,13 +561,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// Whether to try again is `state.needsPerson` and not the epoch: `_cancelTimers` runs
   /// on the way into other halts, and an attempt still in flight when it does would
   /// otherwise land on a room that is still stopped and stop insisting in silence.
-  void _keepAskingForAPerson() {
+  void _keepAskingForAPerson(Future<void> Function() retry) {
     if (_gone || !state.needsPerson) return;
     final backoff = ref.read(roomRetryBackoffProvider);
     final step =
         _personAskStep < backoff.length ? _personAskStep : backoff.length - 1;
     _personAskStep++;
-    _after('person', backoff[step], () => unawaited(_askForAPerson()));
+    _after('person', backoff[step], () => unawaited(retry()));
   }
 
   void _handleRoomFailure(Object error) {
