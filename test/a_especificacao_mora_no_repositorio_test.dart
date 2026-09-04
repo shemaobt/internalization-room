@@ -2,9 +2,6 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// The README used to concede that neither reference artefact was in the
-/// workspace. This guard exists so the vendored spec cannot be silently
-/// deleted, or the concession quietly reintroduced.
 void main() {
   test('the interaction flows document is vendored in the repo', () {
     final file = File('docs/spec/interaction-flows.html');

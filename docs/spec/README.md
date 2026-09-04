@@ -6,10 +6,10 @@ so the code and its source can be read side by side.
 - `interaction-flows.html` — *Tripod Internalization · Interaction Flows*, the client-validated
   interaction flows, byte-for-byte from a saved Claude artifact page.
   Origin: <https://claude.ai/code/artifact/1fc144ec-2a7c-4614-85e4-d745838fd4d6>.
-- `interaction-flows.md` — a text extraction of the file above (every heading and every
-  paragraph/list item, in document order, unreworded), for grep-ability. The HTML is canonical;
-  this file is derived and does not carry the diagrams, the §10 role table, or the verbatim
-  prompt bodies.
+- `interaction-flows.md` — a text extraction of the file above (every heading, every diagram's
+  text content as "Legenda do diagrama:", and every paragraph/list item, in document order,
+  unreworded), for grep-ability. The HTML is canonical; this file is derived and does not carry
+  the diagrams themselves (only their text), the §10 role table, or the verbatim prompt bodies.
 - `prototype/Sala de Internalização.dc.html` — the Claude Design prototype: template, the
   spoken script per state, design notes, and the Meaning Map of Ruth 1. Byte-for-byte from the
   source. **Does not render outside Claude Design** — it needs React and the Claude Design

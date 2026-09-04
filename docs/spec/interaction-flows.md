@@ -1,11 +1,12 @@
 <!--
 `interaction-flows.html` is the canonical source — this file is a derived text
 extraction, produced for grep-ability, not a replacement. It carries every
-heading (with its § number) and every paragraph/list item from the HTML, in
-document order, unreworded. The diagrams (SVG figures and their captions), the
-role table in §10, and the verbatim prompt bodies (the `<pre>` blocks §10
-carries per role) are content only the HTML has — this file names the section
-they live under and stops there.
+heading (with its § number), every diagram's text content (as "Legenda do
+diagrama:", in document order, right below the section title), and every
+paragraph/list item from the HTML, in document order, unreworded. The role
+table in §10 and the verbatim prompt bodies (the `<pre>` blocks §10 carries
+per role) are content only the HTML has — this file names the section they
+live under and stops there.
 -->
 
 shemaobt / Tripod-Internalization
@@ -16,13 +17,120 @@ The interaction flows behind the internalization room — the live turn loop, th
 
 ## §1 The cast: one voice, six prompts
 
+**Legenda do diagrama:**
+
+- Team
+- speech only — never
+- reads or types
+- VOICED · HEARD BY THE TEAM
+- Guide
+- the internalization session
+- Book Panorama
+- pre-book overview · no spoilers
+- BT Verdict Speaker
+- one finding per turn, then stop
+- Fail-safe lines
+- pre-approved · content-free
+- INTERNAL · JSON ONLY, NEVER HEARD
+- Validator — three gates
+- map grounding · fixed policies
+- · coherence with the exchange
+- Coverage Classifier
+- surfaced vs engaged
+- BT Analyst
+- missing · addition · unclear
+- MEANING MAP + story-so-far
+- the only standard of truth — for every role
+- speech → STT
+- every draft
+- only validated text is voiced (TTS)
+- coverage status, next turn
+- findings to speak
+
 Everything the team hears is one persona — o Facilitador Digital — but each prompt has exactly one job. Every voiced role passes through the same Validator before TTS; internal roles return JSON only.
 
 ## §2 The live turn loop
 
+**Legenda do diagrama:**
+
+- CLIENT · ONE CIRCLE
+- SERVER · VOICE PATH
+- AFTER( ) · OFF THE VOICE PATH (~28s)
+- Team taps · speaks · taps
+- phases: invite → listening
+- Instant ack (0 ms)
+- “Hmm — deixa eu pensar…”
+- pre-synthesized · cached · rotated
+- on stop-tap
+- Team hears the reply
+- thinking → speaking → invite
+- PEER_CUE ⇒ team-talk glyph
+- STT · Scribe
+- language-hinted (pt)
+- GUIDE drafts the turn
+- map + story-so-far · history
+- coverage status, every turn:
+- CURRENT SCENE · COVERED · REMAINING
+- VALIDATOR · 3 gates
+- map · fixed policies (languages,
+- handoff, Refine) · coherence —
+- sees the recent exchange too
+- TTS · streamed
+- playback starts on the
+- first bytes, not at the end
+- pass / corrected
+- regenerate — ≤2 retries with a redraft note
+- Fail-safe line
+- pre-approved · re-anchored to the scene · logged
+- still failing
+- the Guide’s validated voice — ~15 s of speech, one idea, then the talking is handed back
+- Coverage Classifier
+- surfaced vs engaged · never
+- backward · never grades the team
+- transcript + validated reply
+- Tracker merge
+- monotonic: not_encountered
+- → surfaced → engaged
+- Beads settle
+- client refresh +30 s,
+- during the reflection pause
+- Kept take
+- approved retelling
+- → save team audio
+
 One exchange, tap to tap. The voice path is kept short and honest; the expensive classifier runs after the reply ships and the beads settle during the team's reflection pause.
 
 ## §3 The screen’s state machine
+
+**Legenda do diagrama:**
+
+- invite
+- the breathing circle
+- listening
+- the team speaks
+- thinking
+- calm clay — never a spinner
+- speaking
+- the voice is theirs to hear
+- done
+- calm stillness
+- tap
+- tap again
+- ack plays
+- reply
+- starts
+- floor
+- met
+- audio ends — the turn is the team’s again
+- needsPerson
+- a moment for a person —
+- never an error screen
+- error · timeout · repeated fail-safes
+- a person resolves it
+- PEER_CUE — team-talk mode
+- when the reply sends them to talk among themselves
+- (“conversem”, “entre vocês”), the circle shows the
+- team-talk glyph: this is their conversation now
 
 The team never reads these words — each phase is a color-and-motion state on the single canvas, readable from across the room.
 
@@ -30,13 +138,125 @@ How long does this loop spin? This is the innermost of three nested loops. The t
 
 ## §4 The session arc — beginning to completion
 
+**Legenda do diagrama:**
+
+- 1 · Begin with the whole
+- arc · tone · place in the book
+- the shape before the parts
+- 2 · Open a scene
+- a sentence or two, from the map
+- frame first, elicit second
+- 3 · Rehearse — mother tongue
+- among themselves, off the mic —
+- the model may not understand it
+- 4 · Tell back — bridge lang.
+- only what they actually said —
+- into the circle · mic → AI
+- The report vs the map
+- every person, place, event,
+- detail — never the audio itself
+- when ready — tap, and report:
+- not a summary, not what they meant
+- A voiced turn: affirm + boundary question
+- 1–2 gaps, framed from the map — never a quiz:
+- “isso entrou no ensaio na língua de vocês?”
+- report slip → tell back again · else rehearse
+- not whole
+- ↺ LOOP · rehearse again
+- 5 · Raise the quiet things
+- significant absences · names spoken
+- or withheld — at the right moments
+- whole and sound
+- ↺ LOOP · while scenes remain:
+- open the next scene
+- 6 · First team rehearsal
+- mother tongue, for OBT Refine — whole
+- passage or scene by scene, their choice
+- nothing left to open
+- 7 · The handoff — a cue, then stop
+- “o aplicativo vai mostrar onde gravar” — the app
+- plays the fixed directions (red-circle button)
+- ready
+- Recorded → ready for Refine
+- completion floor met (every concrete element ENGAGED) ·
+- the first rehearsal travels on — never called “final”
+
 The Guide drives the pedagogy (frame first, elicit second); the app owns completion. Coverage lives in application code and is injected back into the prompt each turn. Since 65ec920 the session runs on two languages: rehearsal happens in the mother tongue; every exchange with the Guide — including the telling-back of what was rehearsed — happens in the bridge language.
 
 ## §5 Kept Rehearsal (Ensaio Guardado)
 
+**Legenda do diagrama:**
+
+- Turn ends
+- the classifier reads the
+- exchange, off the voice path
+- Was it a retelling?
+- the telling itself, in this utterance,
+- with a clean scope —
+- one scene, or the whole
+- Did the Guide approve?
+- nothing named missing,
+- nothing corrected — any
+- push-back = not approved
+- Keep the take
+- the team’s own audio, saved
+- per scope — the freshest
+- passing take wins
+- yes
+- yes
+- Do nothing
+- under-save, never over-save — the house bias
+- no / unsure
+- any gap named,
+- any correction
+- Replay chips
+- before the final
+- rehearsal — hear your
+- own telling of a
+- scene gone cold
+- Ghost play
+- at recording time:
+- listen → pause → record
+- never a live dub of
+- the bridge language
+
 When a retelling passes, that turn’s team audio becomes a memory aid — nothing is ever generated.
 
 ## §6 Back-translation (Retrotradução)
+
+**Legenda do diagrama:**
+
+- CHUNK BY CHUNK · PLAYED RANGES RECORDED (ANTI-THEATER)
+- Terena clip plays
+- the team’s own recording —
+- opaque to the system
+- Tap — pause + record
+- the piece told back
+- in the bridge language (LWC)
+- STT
+- 15 s abort · empty →
+- “conta de novo esse pedaço”
+- non-empty transcript → the clip auto-resumes — the resumption IS the acknowledgment (no model, no voice)
+- “terminei” — promoted when the clip ends
+- ANALYST — internal, never voiced
+- chunks vs the map → JSON findings:
+- missing · addition · unclear
+- SPEAKER — ONE finding per turn
+- a boundary question, then stop — the next turn chooses
+- the path · same Validator, telling-back as labeled evidence
+- findings
+- Missing X — one boundary question
+- “X está na gravação, ou não entrou?” — ask, stop,
+- and let the answer choose the path next turn:
+- retell it · re-record it · or “me conta de novo”
+- Addition confirmed in the audio
+- “você me contou X — e isso a história não conta”
+- exits ONLY by re-recording that part — retelling
+- cannot take it out of the recording
+- No findings + verdict passed ✓
+- “contada de volta e conferida” — map-complete per the
+- telling-back · not required for handoff: the team may
+- “levar ao Refine com perguntas” · pass-2 kept separate
 
 The epistemic law: the system never knows what the Terena recording says — only what the team told back in the bridge language (língua ponte / língua de grande recurso — Portuguese, in this pilot). Every verdict is phrased “no que você me contou de volta…”. What it checks is the first team rehearsal, whole or scene by scene, before it travels to OBT Refine — a light but mandatory gate: every current clip needs a told-back pass, but conferida is not required to hand off (open questions stay visible as “levar ao Refine com perguntas”).
 
@@ -45,6 +265,33 @@ Three verification layers, three different objects. Understanding ≠ recording:
 So the §9 remainder sweep does not eliminate the back-translation — it makes it cheaper. Complete internalization reduces how many findings the check meets, but the verification role survives any amount of coverage (understanding is not performing), and the artifact the loop produces — time-aligned bridge-language chunks with pass-1/pass-2 labels, attempt history included — is the evidence packet that travels with the rehearsal into OBT Refine, where peers and community examine the work. The system’s recurring pattern, again: one half makes success likely (internalization), the other makes confidence verifiable (back-translation).
 
 ## §7 The Raised Hand (Mão Erguida)
+
+**Legenda do diagrama:**
+
+- Team
+- taps the hand → note mode:
+- azul border + hand glyph —
+- visibly NOT the Guide’s
+- conversation
+- Spoken question — verbatim
+- the circle finishes and sends · the hand
+- cancels — a half question never sends
+- Inbox
+- + STT transcript — doubles as the
+- “questions the map couldn’t answer” log
+- Human facilitator
+- part of the circle, maybe
+- far away — listens and
+- records a voice reply,
+- re-recordable
+- Voice reply — verbatim
+- no polling: fetched on session
+- mount + the 30 s settle pull
+- A quiet dot on the hand
+- sand/olive, ambient — never terracotta ·
+- never auto-played, never announced
+- hears it
+- playback ends → marked heard
 
 Deliberately not an AI channel — “not a doorbell but a mailbox.” Human speech carried verbatim, both directions; the only model touch is STT for the inbox.
 
@@ -63,6 +310,44 @@ The fail-safe embodies the whole stance in miniature: when the system cannot be 
 The miniature of the whole system: saying “let’s look again at this part of the passage” forever would be a poor tool, but never an unsafe one. The rest of the system exists to make the fail-safe rarely needed; the fail-safe exists to make its rare firings harmless.
 
 ## §9 Proposals — a developer’s observations
+
+**Legenda do diagrama 1:**
+
+- Parametric Bible knowledge — in the weights
+- cannot be removed, only suppressed · present in BOTH models
+- Leak 1 · the Guide’s draft
+- a remembered detail, a cause,
+- a withheld pairing surfacing
+- under the team’s questions
+- Leak 2 · the Validator’s judgment
+- plausibility bias: a claim that is
+- true-in-the-Bible but absent from
+- the map can “feel grounded”
+- Leak 3 · the rendering
+- paraphrase drift into pt-BR can
+- import wording from Portuguese
+- Bible translations in training data
+- The defense line is the OUTPUT BOUNDARY — prompts + Validator + fail-safes + logging
+- a probabilistic filter on what reaches the team’s ears — never a proof about what happens inside the model
+
+**Legenda do diagrama 2:**
+
+- As contas preparadas
+- breathes —
+- the recommended one
+- the others rest in sand
+- Tap a bead → the voice names it
+- “Rute, capítulo um — a viagem de Noemi.”
+- identification is auditory, never written —
+- tap another bead to hear that one instead
+- The entry bead fades in
+- the same wooden bead the convite
+- already taught — tap it and that
+- passage’s invitation begins
+- tap
+- after it speaks
+- Degenerate cases: one prepared bead → skip this screen, open its convite directly ·
+- none prepared → the next unfinished passage, canonical order — never a dead end
 
 Starting from João’s observation: “it is impossible to make sure the Bible will never be queried, even if the LLM follows the Meaning Map strictly — or am I wrong?”
 
