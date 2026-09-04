@@ -194,8 +194,10 @@ void main() {
     expect(container.read(salaSessionProvider).needsPerson, isTrue,
         reason: 'o trecho recontado voltou vazio, então a sala para para uma pessoa');
 
+    harness.room.theDeskAttended();
     notifier.resolveWithPerson();
-    await settle();
+    await waitFor('a sala sair da parada',
+        () => !container.read(salaSessionProvider).needsPerson);
     harness.recorder.returnsEmpty = false;
     harness.playback.at = const Duration(seconds: 60);
     notifier.cortarTrecho();
