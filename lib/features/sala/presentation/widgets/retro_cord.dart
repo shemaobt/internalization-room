@@ -21,6 +21,28 @@ int? cordStartMs({
   return (parte == 0 ? 0 : fimDasPartes[parte - 1]) + dentroMs;
 }
 
+/// The band the cord draws for one stretch, or null while it cannot be placed.
+///
+/// Its place, never what it plays: a stretch told again over a recording of its own plays
+/// a whole file where it occupies a few seconds of one, and drawn by what it plays it
+/// covered the neighbours the team never touched.
+(int, int)? cordSpanMs({
+  required Trecho trecho,
+  required List<int> fimDasPartes,
+}) {
+  final de = cordStartMs(
+    parte: trecho.parte,
+    dentroMs: trecho.lugarFrom.inMilliseconds,
+    fimDasPartes: fimDasPartes,
+  );
+  final ate = cordStartMs(
+    parte: trecho.parte,
+    dentroMs: trecho.lugarTo.inMilliseconds,
+    fimDasPartes: fimDasPartes,
+  );
+  return de == null || ate == null ? null : (de, ate);
+}
+
 double cordFraction({
   required int atMs,
   required int partes,
@@ -82,17 +104,9 @@ class RetroCord extends StatelessWidget {
       // drawing it leaves a gap that fills itself as the team plays that part through;
       // placing it at nought piled the stretches of a picked-up retro onto the first
       // part, on top of the ones that really are there.
-      final de = cordStartMs(
-        parte: trecho.parte,
-        dentroMs: trecho.from.inMilliseconds,
-        fimDasPartes: fimDasPartes,
-      );
-      final ate = cordStartMs(
-        parte: trecho.parte,
-        dentroMs: trecho.to.inMilliseconds,
-        fimDasPartes: fimDasPartes,
-      );
-      if (de == null || ate == null) continue;
+      final faixa = cordSpanMs(trecho: trecho, fimDasPartes: fimDasPartes);
+      if (faixa == null) continue;
+      final (de, ate) = faixa;
       final again = !contados.add(de);
       told.add(_Span(
         _at(de),

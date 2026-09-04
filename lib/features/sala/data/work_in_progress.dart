@@ -24,11 +24,19 @@ class ResumePoint {
   final List<KeptTake> takes;
   final int pass;
 
+  /// Where the stretches mended by the long way sit in the rehearsal.
+  ///
+  /// The one thing about a telling-back that the server cannot hand back: a mend's take
+  /// is no part of the rehearsal, so the place of the stretch it replaced is known here
+  /// and nowhere else, and closing the tablet used to lose it.
+  final List<LugarDoTrecho> lugares;
+
   const ResumePoint({
     required this.sessionId,
     required this.stage,
     this.takes = const [],
     this.pass = 1,
+    this.lugares = const [],
   });
 
   Map<String, Object?> toJson() => {
@@ -41,6 +49,22 @@ class ResumePoint {
               'name': p.basename(take.path),
               'scope': take.scopeId,
               'take': ?take.takeId,
+            },
+        ],
+        'lugares': [
+          for (final lugar in lugares)
+            {
+              'take': lugar.takeId,
+              'parte': lugar.parte,
+              'de': lugar.from.inMilliseconds,
+              'ate': lugar.to.inMilliseconds,
+              'segmento': ?lugar.segmentId,
+              if (lugar.fallbackPath != null)
+                'fallback_arquivo': p.basename(lugar.fallbackPath!),
+              if (lugar.fallbackFrom != null)
+                'fallback_de': lugar.fallbackFrom!.inMilliseconds,
+              if (lugar.fallbackTo != null)
+                'fallback_ate': lugar.fallbackTo!.inMilliseconds,
             },
         ],
       };
@@ -74,6 +98,26 @@ class ResumePoint {
               ),
               scopeId: raw['scope'] as String? ?? KeptScope.whole,
               takeId: raw['take'] as String?,
+            ),
+      ],
+      lugares: [
+        for (final raw in (json['lugares'] as List? ?? const []))
+          if (raw is Map && raw['take'] is String && raw['parte'] is int)
+            LugarDoTrecho(
+              takeId: raw['take'] as String,
+              parte: raw['parte'] as int,
+              from: Duration(milliseconds: raw['de'] as int? ?? 0),
+              to: Duration(milliseconds: raw['ate'] as int? ?? 0),
+              segmentId: raw['segmento'] as String?,
+              fallbackPath: raw['fallback_arquivo'] is String
+                  ? p.join(folder, raw['fallback_arquivo'] as String)
+                  : null,
+              fallbackFrom: raw['fallback_de'] is int
+                  ? Duration(milliseconds: raw['fallback_de'] as int)
+                  : null,
+              fallbackTo: raw['fallback_ate'] is int
+                  ? Duration(milliseconds: raw['fallback_ate'] as int)
+                  : null,
             ),
       ],
     );

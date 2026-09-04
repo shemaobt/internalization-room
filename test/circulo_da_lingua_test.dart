@@ -275,7 +275,7 @@ void main() {
       (tester) async {
     final container = await pumpToPergunta(tester);
 
-    expect(byLabel('Ouvir de novo a parte apontada'), findsOneWidget);
+    expect(byLabel('Ouvir a pergunta de novo'), findsOneWidget);
 
     await tester.tap(byLabel(micMaterna));
     await tester.pump(const Duration(milliseconds: 300));

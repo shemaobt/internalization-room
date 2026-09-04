@@ -61,7 +61,7 @@ class EnsaioView extends ConsumerWidget {
                         semanticLabel: 'Ouvir a gravação',
                         pulsing: session.playPing,
                         icon: Icon(
-                          LucideIcons.play,
+                          session.playPing ? LucideIcons.pause : LucideIcons.play,
                           size: 24,
                           color: colors.ink,
                         ),

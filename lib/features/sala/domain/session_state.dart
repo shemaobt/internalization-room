@@ -54,6 +54,20 @@ class Trecho {
   final Duration from;
   final Duration to;
 
+  /// Where this stretch begins in [parte], and where it ends there.
+  ///
+  /// Its place, which a correction never moves — as against [from] and [to], which say
+  /// what plays and which a correction by the long way replaces outright. Told again over
+  /// a recording of its own, a stretch of six seconds became a take of twenty-seven, and
+  /// with one number for both the cord drew those twenty-seven seconds over its
+  /// neighbours and the room counted the part as told that far.
+  ///
+  /// On a stretch nobody has corrected the two are the same interval, and it is said so
+  /// at each of the three places one is built rather than defaulted quietly: a stretch
+  /// with no place is not a thing this room has.
+  final Duration lugarFrom;
+  final Duration lugarTo;
+
   /// Whether the team has explained this stretch yet. False on a half a division just
   /// made: it is a unit the room counts and nobody has told back.
   final bool contado;
@@ -66,6 +80,59 @@ class Trecho {
     required this.from,
     required this.to,
     this.contado = true,
+    required this.lugarFrom,
+    required this.lugarTo,
+  });
+}
+
+/// Where a stretch mended by the long way, or rebuilt into a composed passage, sits in
+/// the rehearsal.
+///
+/// Kept beside the recordings because nothing else can say it. Both kinds of mend name a
+/// take that is no part of the rehearsal until its download lands — a take of its own for
+/// the long way, the composed passage for the other — and the room answers for a stretch
+/// with the recording and the slice, never with the place. In the round that made the
+/// mend the place is inherited from the stretch replaced; a tablet opened again, or one
+/// whose download of the composed passage keeps failing, has no such round behind it, and
+/// the stretch came back belonging to no part at all.
+class LugarDoTrecho {
+  /// The mend's own take, which is what a stretch with no place is found by on the older
+  /// kind of mend — one that never learned to name a segment.
+  final String takeId;
+  final int parte;
+  final Duration from;
+  final Duration to;
+
+  /// The stretch this place belongs to, when it is found by segment rather than by take.
+  ///
+  /// A composed passage is asked for again on every failed download, and the take it is
+  /// asked under does not change between tries — but the segment is the identity a place
+  /// is kept under regardless, because it is the one name a mend of any kind never loses.
+  final String? segmentId;
+
+  /// The best local audio to play for this stretch while [takeId] itself is not on the
+  /// tablet: a file already on it, and the range of that file to play.
+  ///
+  /// A raw path rather than another take id, because the mother tongue's own recording is
+  /// never kept as a take of the rehearsal — nothing else would resolve it back to a
+  /// file — and a rebuilt part overwrites its own take in place, leaving no take id for a
+  /// neighbour's old audio to be found by either.
+  ///
+  /// Null on a stretch with nothing better to offer, which plays nothing rather than the
+  /// wrong recording.
+  final String? fallbackPath;
+  final Duration? fallbackFrom;
+  final Duration? fallbackTo;
+
+  const LugarDoTrecho({
+    required this.takeId,
+    required this.parte,
+    required this.from,
+    required this.to,
+    this.segmentId,
+    this.fallbackPath,
+    this.fallbackFrom,
+    this.fallbackTo,
   });
 }
 
@@ -110,6 +177,12 @@ class SalaSessionState {
   final int takes;
   final int ensaioPass;
   final bool playPing;
+  /// Whether the take player is holding a position rather than sitting at rest.
+  ///
+  /// [playPing] already says whether the take is sounding; this is the second half
+  /// [btTrechoPausada] gives for its own player — the next tap needs to tell a resume from
+  /// a restart, and nothing else here carries that.
+  final bool takePaused;
   final BtPhase btPhase;
   final List<int> btChunkPasses;
   /// Which stretch numbers the room never took, in the order they were told.
@@ -145,6 +218,15 @@ class SalaSessionState {
   /// Whether the telling in Portuguese is sounding. Its own flag, because the two voices
   /// are two targets and the team compares them one against the other.
   final bool btRetroTocando;
+
+  /// Whether the mother-tongue player is holding a position rather than sitting at rest.
+  ///
+  /// Neither `tocando` nor a fresh player answers this: the next tap needs to tell a
+  /// resume from a restart, and nothing else in this state carries that.
+  final bool btTrechoPausada;
+  /// Whether the Portuguese player is holding a position. Its own flag, for the reason
+  /// [btTrechoPausada] gives.
+  final bool btRetroPausada;
   final bool btClipEnded;
   final bool btParteFronteira;
 
@@ -187,6 +269,7 @@ class SalaSessionState {
     this.takes = 0,
     this.ensaioPass = 1,
     this.playPing = false,
+    this.takePaused = false,
     this.btPhase = BtPhase.playing,
     this.btChunkPasses = const [],
     this.btChunkFailures = const [],
@@ -198,6 +281,8 @@ class SalaSessionState {
     this.btConsertando = false,
     this.btTrechoTocando = false,
     this.btRetroTocando = false,
+    this.btTrechoPausada = false,
+    this.btRetroPausada = false,
     this.btClipEnded = false,
     this.btParteFronteira = false,
     this.btClipRodando = false,
@@ -358,6 +443,7 @@ class SalaSessionState {
     int? takes,
     int? ensaioPass,
     bool? playPing,
+    bool? takePaused,
     BtPhase? btPhase,
     List<int>? btChunkPasses,
     List<int>? btChunkFailures,
@@ -371,6 +457,8 @@ class SalaSessionState {
     bool? btConsertando,
     bool? btTrechoTocando,
     bool? btRetroTocando,
+    bool? btTrechoPausada,
+    bool? btRetroPausada,
     bool? btClipEnded,
     bool? btParteFronteira,
     bool? btClipRodando,
@@ -407,6 +495,7 @@ class SalaSessionState {
       takes: takes ?? this.takes,
       ensaioPass: ensaioPass ?? this.ensaioPass,
       playPing: playPing ?? this.playPing,
+      takePaused: takePaused ?? this.takePaused,
       btPhase: btPhase ?? this.btPhase,
       btChunkPasses: btChunkPasses ?? this.btChunkPasses,
       btChunkFailures: btChunkFailures ?? this.btChunkFailures,
@@ -420,6 +509,8 @@ class SalaSessionState {
       btConsertando: btConsertando ?? this.btConsertando,
       btTrechoTocando: btTrechoTocando ?? this.btTrechoTocando,
       btRetroTocando: btRetroTocando ?? this.btRetroTocando,
+      btTrechoPausada: btTrechoPausada ?? this.btTrechoPausada,
+      btRetroPausada: btRetroPausada ?? this.btRetroPausada,
       btClipEnded: btClipEnded ?? this.btClipEnded,
       btParteFronteira: btParteFronteira ?? this.btParteFronteira,
       btClipRodando: btClipRodando ?? this.btClipRodando,
