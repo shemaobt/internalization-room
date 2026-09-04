@@ -102,7 +102,7 @@ void main() {
   test('the desk lifting the halt gives the room back without a touch', () async {
     final harness = SalaHarness()
       ..room.serverStatus = 'needs_person'
-      ..room.serverHalt = 'blocking';
+      ..room.serverHalt = HaltKind.blocking;
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -113,8 +113,7 @@ void main() {
     final turns = harness.room.turnsSent;
 
     // The facilitator marked the session attended on the desk; nobody touched the tablet.
-    harness.room.serverStatus = null;
-    harness.room.serverHalt = null;
+    harness.room.theDeskAttended();
 
     await waitFor('o círculo voltar ao convite',
         () => read().voice == VoiceState.invite);
@@ -139,7 +138,7 @@ void main() {
     // is measured by the touch and not by the next beat of the watch arriving under it.
     final harness = SalaHarness(settleDelay: const Duration(seconds: 5))
       ..room.serverStatus = 'needs_person'
-      ..room.serverHalt = 'blocking';
+      ..room.serverHalt = HaltKind.blocking;
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -160,8 +159,7 @@ void main() {
     expect(_haltLines(harness), lines,
         reason: 'e a parada que continua não é anunciada de novo a cada toque');
 
-    harness.room.serverStatus = null;
-    harness.room.serverHalt = null;
+    harness.room.theDeskAttended();
 
     notifier.resolveWithPerson();
     await waitFor('o toque devolver a sala na hora',
@@ -176,7 +174,7 @@ void main() {
   test('a warning from the server never stops the room', () async {
     final harness = SalaHarness()
       ..room.serverStatus = 'needs_person'
-      ..room.serverHalt = 'warning';
+      ..room.serverHalt = HaltKind.warning;
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -251,7 +249,7 @@ void main() {
 
     // The desk sees the same halt the tablet raised, and has not attended it yet.
     harness.room.serverStatus = 'needs_person';
-    harness.room.serverHalt = 'blocking';
+    harness.room.serverHalt = HaltKind.blocking;
     final asked = _stateReads(harness);
     await waitFor('a vigia reler o estado', () => _stateReads(harness) > asked);
 
@@ -260,8 +258,7 @@ void main() {
             'sozinha devolveria a sala sem que ninguém tivesse olhado');
 
     harness.voice.succeeds = true;
-    harness.room.serverStatus = null;
-    harness.room.serverHalt = null;
+    harness.room.theDeskAttended();
 
     await waitFor('o círculo voltar ao convite',
         () => read().voice == VoiceState.invite);
@@ -294,14 +291,13 @@ void main() {
   test('the watch ends with the halt and with the room', () async {
     final harness = SalaHarness()
       ..room.serverStatus = 'needs_person'
-      ..room.serverHalt = 'blocking';
+      ..room.serverHalt = HaltKind.blocking;
     final container = await inConversa(harness);
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
     await waitFor('a sala parar', () => read().needsPerson);
-    harness.room.serverStatus = null;
-    harness.room.serverHalt = null;
+    harness.room.theDeskAttended();
     await waitFor('o círculo voltar ao convite',
         () => read().voice == VoiceState.invite);
 
@@ -329,7 +325,7 @@ void main() {
   test('a room reopened into a halt is watched like any other', () async {
     final harness = SalaHarness()
       ..room.serverStatus = 'needs_person'
-      ..room.serverHalt = 'blocking';
+      ..room.serverHalt = HaltKind.blocking;
     final container = await _reopensInto(harness, SalaStage.retro);
     addTearDown(container.dispose);
     SalaSessionState read() => container.read(salaSessionProvider);
@@ -337,8 +333,7 @@ void main() {
     await waitFor('a sala parar ao reabrir', () => read().needsPerson);
     final asked = _stateReads(harness);
 
-    harness.room.serverStatus = null;
-    harness.room.serverHalt = null;
+    harness.room.theDeskAttended();
 
     await waitFor('o círculo voltar ao convite',
         () => read().voice == VoiceState.invite);
@@ -348,6 +343,47 @@ void main() {
             'a equipe volta na manhã seguinte, a mesa já atendeu, e sem vigia a '
             'sala só sairia dali por um toque que ninguém sabe dar');
     expect(read().needsPerson, isFalse);
+  });
+
+  test('leaving the passage takes the watch with it', () async {
+    final harness = SalaHarness()..voice.succeeds = false;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    for (var i = 0; i < 3; i++) {
+      await _aTurn(notifier);
+    }
+    await waitFor('a sala parar na primeira passagem', () => read().needsPerson);
+    await waitFor('a sala vigiar a parada', () => _stateReads(harness) > 0);
+
+    // The team walks out of the passage they were held in, which is what that gesture is
+    // for, and the desk attends the session they left behind.
+    notifier.leaveThePassage();
+    await settle();
+    harness.room.theDeskAttended();
+
+    // In the new passage the call for a person never lands, so nobody was told and there
+    // is nothing to watch.
+    harness.room.askForAPersonFailsWith = const RoomRefused();
+    await notifier.goConversa(pericope: 'P02');
+    await settle();
+    for (var i = 0; i < 3; i++) {
+      await _aTurn(notifier);
+    }
+    await waitFor('a sala parar na segunda passagem', () => read().needsPerson);
+
+    harness.voice.succeeds = true;
+    final asked = _stateReads(harness);
+    notifier.resolveWithPerson();
+    await waitFor('o círculo voltar ao convite',
+        () => read().voice == VoiceState.invite);
+
+    expect(_stateReads(harness), asked,
+        reason: 'a vigia da passagem anterior tinha de sair com ela: mantida, o '
+            'toque nesta parada pergunta por uma sessão que não é desta sala — '
+            'e a resposta que soltar a equipe será sobre o trabalho de outra');
   });
 
   test('a halt with no session releases on the long press, as it always did',

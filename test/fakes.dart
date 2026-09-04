@@ -516,15 +516,15 @@ class FakeRoom implements RoomRepository {
   int? verdictFindingPlace;
   BtFindingKind? verdictFinding;
   String? serverStatus;
-  /// Which kind of halt the room reports beside `serverStatus`: `blocking`,
-  /// `warning`, or none — a server older than #336 names none.
-  String? serverHalt;
+  /// Which kind of halt the room reports beside `serverStatus`. A server older than
+  /// #336 names none, which is `HaltKind.unnamed`.
+  HaltKind serverHalt = HaltKind.unnamed;
 
   /// A facilitator marked the session attended on the desk, and the room stops
   /// answering that it is halted.
   void theDeskAttended() {
     serverStatus = null;
-    serverHalt = null;
+    serverHalt = HaltKind.unnamed;
   }
   String fixedLine = '';
   String bridgeMode = '';
@@ -808,7 +808,7 @@ class FakeRoom implements RoomRepository {
     // The route is what raises the blocking halt on the server: a double that only
     // counted the call answered the next state read as if nobody had asked.
     serverStatus = 'needs_person';
-    serverHalt = 'blocking';
+    serverHalt = HaltKind.blocking;
   }
 
   /// Every device id the device-scoped ask was made for, one entry per attempt —

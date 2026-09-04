@@ -121,7 +121,6 @@ final roomRetryBackoffProvider = Provider<List<Duration>>(
 
 class SalaSessionNotifier extends Notifier<SalaSessionState> {
   final Map<String, Timer> _timers = {};
-  /// The session this room is waiting to be let out of, while it is halted.
   String? _haltWatched;
   int _epoch = 0;
   int _unplayableTurns = 0;
@@ -516,10 +515,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_personAsked) _watchTheHalt();
   }
 
-  /// A blocking halt is lifted by a facilitator on the desk, not by this tablet, so the
-  /// room asks the server what it is doing until the answer stops being `needs_person`.
+  /// A blocking halt is lifted by a facilitator at the desk, not by this tablet.
   ///
-  /// Without it the only way out was a long press, which asked nobody: the team let
+  /// The only way out used to be a long press, which asked nobody: the team let
   /// themselves out of a room no one had looked at, and a room already attended stayed
   /// shut until somebody thought to hold the screen.
   void _watchTheHalt() {
@@ -790,13 +788,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void beginAgain() => _startOver();
 
-  /// What the long press does with the screen the room stopped on.
-  ///
-  /// On a blocking halt it no longer lets the team out: it asks the room now, so a
-  /// facilitator who has just marked the session attended hands the room back at once
-  /// instead of on the next beat of the watch. With no session there is nobody to ask,
-  /// and the press keeps the local release it always had — the rule `offline` has, for
-  /// the same reason.
+  /// The press asks rather than answers: a facilitator who has just marked the session
+  /// attended hands the room back at once, instead of on the next beat of the watch.
+  /// Where there is nobody to ask it keeps the local release, the rule `offline` has.
   void resolveWithPerson() {
     if (!state.needsPerson && !state.offline) return;
     if (state.needsPerson && _haltWatched != null) {
@@ -3060,6 +3054,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _strandedSpoken = false;
     _personAsked = false;
     _personAskStep = 0;
+    _haltWatched = null;
     _recontando = false;
     _contandoDeNovo = null;
     _inboxSilences = 0;
