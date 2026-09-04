@@ -529,14 +529,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     if (sessionId == null || _personAsked || _askingForAPerson) return;
     _askingForAPerson = true;
+    var sessionGone = false;
     try {
       await _room.askForAPerson(sessionId);
       if (!_gone && state.needsPerson) _personAsked = true;
+    } on SessionGone {
+      // The server has already said this session is gone; insisting on the same route
+      // just spends the backoff. Clearing it here — the way the state poll's SessionGone
+      // path does — is what gives the device-scoped ask its turn.
+      sessionGone = true;
     } on Exception {
       _keepAskingForAPerson(_askForAPerson);
     } finally {
       _askingForAPerson = false;
     }
+    if (sessionGone && !_gone) _haltForAPerson(sessionIsGone: true);
   }
 
   /// The same ask, for a halt with no session to name: the server forgot it, or the

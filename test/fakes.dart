@@ -762,9 +762,16 @@ class FakeRoom implements RoomRepository {
     return const BackTranslationRestart(needsPerson: false);
   }
 
+  /// What the next call to the session-scoped ask throws, independent of `failWith` —
+  /// a case needs a turn to succeed (so the halt is reached with a live session) and
+  /// only the ask itself to fail, and `failWith` is shared by every guarded call.
+  Exception? askForAPersonFailsWith;
+
   @override
   Future<void> askForAPerson(String sessionId) async {
     _guard('askForAPerson');
+    final failure = askForAPersonFailsWith;
+    if (failure != null) throw failure;
     personsAsked++;
   }
 

@@ -193,6 +193,46 @@ void main() {
     expect(harness.room.personsAsked, 0);
   });
 
+  test(
+      'case 7 (Emenda 2): um 404 no pedido pela sessão limpa a sessão e vira '
+      'um pedido pelo aparelho', () async {
+    // Emenda 2: SessionGone é uma Exception como outra qualquer para o catch
+    // genérico de _askForAPerson, então o backoff insistia pela mesma sessão
+    // que a sala já disse não ter mais — nada limpava state.sessionId, e o
+    // pedido pelo aparelho nunca tinha vez.
+    final ledger = _ledgerOnDisk();
+    await ledger.rememberDevice('aparelho-D');
+    final harness = SalaHarness(retryBackoff: const [Duration(milliseconds: 20)])
+      ..voice.succeeds = false;
+    final container = await _inConversa(harness, ledger);
+    addTearDown(container.dispose);
+    expect(container.read(salaSessionProvider).sessionId, isNotNull);
+
+    harness.room.askForAPersonFailsWith = const SessionGone();
+    final notifier = container.read(salaSessionProvider.notifier);
+    notifier.conversaTap();
+    await settle();
+    for (var attempt = 0; attempt < 3; attempt++) {
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+    }
+
+    final state = container.read(salaSessionProvider);
+    expect(state.needsPerson, isTrue);
+    expect(state.sessionId, isNull,
+        reason: 'a sala respondeu que não tem mais essa sessão');
+    expect(harness.room.deviceAsksReceived, ['aparelho-D']);
+    expect(harness.room.calls.where((call) => call == 'askForAPerson').length, 1,
+        reason: 'reinsistir pela mesma sessão é pedir por um id que a sala já '
+            'disse não ter mais');
+
+    await settle(const Duration(milliseconds: 200));
+    expect(harness.room.calls.where((call) => call == 'askForAPerson').length, 1,
+        reason: 'nenhuma nova tentativa pela sessão depois do backoff');
+  });
+
   group('askForAPersonWithoutASession (repositório)', () {
     setUpAll(() {
       dotenv.testLoad(
