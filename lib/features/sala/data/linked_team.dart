@@ -20,8 +20,9 @@ const _ledger = 'vinculo.json';
 class RememberedLink {
   final String? deviceId;
   final TeamLink? team;
+  final String? credential;
 
-  const RememberedLink({this.deviceId, this.team});
+  const RememberedLink({this.deviceId, this.team, this.credential});
 
   factory RememberedLink.fromJson(Map<String, Object?> json) => RememberedLink(
         deviceId: json['device_id'] as String?,
@@ -31,12 +32,14 @@ class RememberedLink {
                 label: json['label'] as String?,
               )
             : null,
+        credential: json['credential'] as String?,
       );
 
   Map<String, Object?> toJson() => {
         'device_id': ?deviceId,
         'project_id': ?team?.projectId,
         'label': ?team?.label,
+        'credential': ?credential,
       };
 }
 
@@ -65,11 +68,36 @@ class LinkedTeam {
     }
   }
 
-  Future<void> rememberDevice(String deviceId) =>
-      _write((was) => RememberedLink(deviceId: deviceId, team: was.team));
+  Future<void> rememberDevice(String deviceId) => _write(
+        (was) => RememberedLink(
+          deviceId: deviceId,
+          team: was.team,
+          credential: was.credential,
+        ),
+      );
 
-  Future<void> rememberTeam(TeamLink team) =>
-      _write((was) => RememberedLink(deviceId: was.deviceId, team: team));
+  Future<void> rememberTeam(TeamLink team) => _write(
+        (was) => RememberedLink(
+          deviceId: was.deviceId,
+          team: team,
+          credential: was.credential,
+        ),
+      );
+
+  Future<void> rememberCredential(String credential) => _write(
+        (was) => RememberedLink(
+          deviceId: was.deviceId,
+          team: was.team,
+          credential: credential,
+        ),
+      );
+
+  /// Everything this tablet knew about being itself, dropped in one write.
+  ///
+  /// The three are one fact: a device id whose credential is spent cannot be linked
+  /// again, so keeping the team beside it would leave the tablet unable to prove a
+  /// vínculo it still believes in.
+  Future<void> forgetTheLink() => _write((_) => const RememberedLink());
 
   /// Serialised, staged and flushed, like the other three ledgers, and for their reason:
   /// a read that fails must never become the base of a write.

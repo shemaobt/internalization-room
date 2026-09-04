@@ -340,6 +340,7 @@ void main() {
     expect(harnessDaVez!.room.personsAsked, 1,
         reason: 'e o facilitador precisa ser chamado, senão a equipe fica '
             'parada esperando alguém que não foi avisado');
+    closeTheRoom(container);
   });
 
   testWidgets('the answer to that correction is not lost with the warning',
@@ -356,6 +357,7 @@ void main() {
           'a equipe ficaria sem saber o que aconteceu com a gravação que '
           'acabou de fazer, justamente quando a sala parou',
     );
+    closeTheRoom(container);
   });
 
   testWidgets('an ordinary correction changes nothing', (tester) async {
@@ -414,6 +416,7 @@ void main() {
     expect(container.read(salaSessionProvider).btPhase,
         isNot(BtPhase.capturing),
         reason: 'e ninguém é mandado contar depois disso');
+    closeTheRoom(container);
   });
 
   testWidgets('finishing a correction reaches its result on its own',
@@ -535,6 +538,7 @@ void main() {
             'a sala volta a convidar a equipe a trabalhar numa sala parada');
     expect(harness.room.personsAsked, 1,
         reason: 'e alguém é de fato chamado, senão a sala para em silêncio');
+    closeTheRoom(container);
   });
 
   testWidgets('the room running out on the mother tongue opens no microphone',
@@ -555,6 +559,7 @@ void main() {
     expect(vereditosPedidos(harness), antes,
         reason: 'nem se pede veredito de uma correção que parou no meio: a '
             'explicação do trecho ainda está por gravar');
+    closeTheRoom(container);
   });
 
   testWidgets('a room that sends no such field is carried to the result as ever',
@@ -591,6 +596,7 @@ void main() {
         reason: 'e a equipe tem de ver a sala parada, senão é convidada de '
             'volta a contar trechos numa sala que não os aceita mais — a '
             'notícia não podia depender de o veredito ter chegado');
+    closeTheRoom(container);
   });
 
   testWidgets('a passage the team walked out of calls nobody', (tester) async {
