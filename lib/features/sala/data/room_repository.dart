@@ -57,6 +57,24 @@ class SessionGone implements Exception {
   const SessionGone();
 }
 
+/// The row is not claimed yet, or was taken out of service. Temporary: the answer to it
+/// is to go on asking whose the tablet is, and to try collecting again next cycle.
+class CredentialNotYet implements Exception {
+  const CredentialNotYet();
+
+  @override
+  String toString() => 'CredentialNotYet';
+}
+
+/// The credential was handed out already, and the server keeps only its hash — so there
+/// is nothing left to hand out again. Permanent, and what a lost 200 turns into.
+class CredentialTaken implements Exception {
+  const CredentialTaken();
+
+  @override
+  String toString() => 'CredentialTaken';
+}
+
 class PassageShut implements Exception {
   const PassageShut();
 }
@@ -68,10 +86,41 @@ class RoomRepository {
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
-        'X-Room-Key': Env.roomKey,
+        ..._whoWeAre,
       };
 
+  /// Who this tablet is, on every request it makes.
+  ///
+  /// One builder rather than nine here and five written out by hand at the call sites:
+  /// a header each site spells for itself is a header the next site forgets, and the
+  /// omission only ever shows against a real server.
+  Map<String, String> get _whoWeAre => {
+        'X-Room-Key': Env.roomKey,
+        'X-Device-Credential': ?_credential,
+      };
+
+  String? _credential;
+
+  /// What this tablet presents as itself from now on, or nothing until it has collected
+  /// one. The only place the credential enters the repository.
+  void presents(String? credential) => _credential = credential;
+
   Uri _uri(String path) => Uri.parse('${Env.backendUrl}$_basePath$path');
+
+  /// The one and only copy of this tablet's credential, drawn once for the device id the
+  /// claim code was minted for.
+  Future<String> collectTheCredential(String deviceId) async {
+    final response = await _send(
+      () => _client.post(
+        _uri('/devices/$deviceId/credential'),
+        headers: _headers,
+      ),
+      _stateTimeout,
+    );
+    if (response.statusCode == 409) throw const CredentialNotYet();
+    if (response.statusCode == 403) throw const CredentialTaken();
+    return _read(response, (json) => json['credential'] as String);
+  }
 
   Future<ClaimCode> askForACode(String? deviceId) async {
     final response = await _send(
@@ -145,7 +194,7 @@ class RoomRepository {
     final response = await _send(
       () => _client.post(
         _uri('/sessions/$sessionId/turns'),
-        headers: {'X-Room-Key': Env.roomKey},
+        headers: _whoWeAre,
       ),
       _turnTimeout,
     );
@@ -154,7 +203,7 @@ class RoomRepository {
 
   Future<TurnResult> sendTurn(String sessionId, File audio) async {
     final request = http.MultipartRequest('POST', _uri('/sessions/$sessionId/turns'))
-      ..headers['X-Room-Key'] = Env.roomKey
+      ..headers.addAll(_whoWeAre)
       ..files.add(await http.MultipartFile.fromPath('file', audio.path));
     return _read(await _sendMultipart(request), TurnResult.fromJson);
   }
@@ -174,7 +223,7 @@ class RoomRepository {
       'POST',
       _uri('/sessions/$sessionId/back-translation/chunks'),
     )
-      ..headers['X-Room-Key'] = Env.roomKey
+      ..headers.addAll(_whoWeAre)
       ..headers['X-Room-Device'] = await deviceIdentity()
       ..fields['take_id'] = takeId
       ..fields['starts_ms'] = '${from.inMilliseconds}'
@@ -197,7 +246,7 @@ class RoomRepository {
     int? chunkIndex,
   }) async {
     final request = http.MultipartRequest('POST', _uri('/sessions/$sessionId/takes'))
-      ..headers['X-Room-Key'] = Env.roomKey
+      ..headers.addAll(_whoWeAre)
       ..headers['X-Room-Device'] = await deviceIdentity()
       ..fields['kind'] = kind
       ..fields['scope'] = scope
@@ -264,7 +313,7 @@ class RoomRepository {
       'POST',
       _uri('/sessions/$sessionId/segments/$segmentId/replace'),
     )
-      ..headers['X-Room-Key'] = Env.roomKey
+      ..headers.addAll(_whoWeAre)
       ..headers['X-Room-Device'] = await deviceIdentity()
       ..fields['take_id'] = takeId
       ..fields['starts_ms'] = '${from.inMilliseconds}'
@@ -324,7 +373,7 @@ class RoomRepository {
     final response = await _send(
       () => _client.get(
         Uri.parse('${Env.backendUrl}$url'),
-        headers: {'X-Room-Key': Env.roomKey},
+        headers: _whoWeAre,
       ),
       _turnTimeout,
     );
