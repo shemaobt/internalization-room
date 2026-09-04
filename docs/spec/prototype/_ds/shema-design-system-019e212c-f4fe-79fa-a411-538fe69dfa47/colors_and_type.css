@@ -1,0 +1,303 @@
+/* ============================================================
+   Shemá Design System — Colors & Type
+   Multimodal Bible Translation • Brazil
+   ============================================================ */
+
+/* ---------- FONTS ---------- */
+
+@font-face {
+  font-family: 'Montserrat';
+  src: url('fonts/Montserrat-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Montserrat';
+  src: url('fonts/Montserrat-Italic.ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Montserrat';
+  src: url('fonts/Montserrat-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Montserrat';
+  src: url('fonts/Montserrat-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Montserrat';
+  src: url('fonts/Montserrat-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Montserrat';
+  src: url('fonts/Montserrat-Black.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Merriweather';
+  src: url('fonts/Merriweather-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Merriweather';
+  src: url('fonts/Merriweather-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Merriweather';
+  src: url('fonts/Merriweather-Italic.ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Merriweather';
+  src: url('fonts/Merriweather-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ---------- TOKENS ---------- */
+
+:root {
+  /* Brand palette (named exactly as in the brand manual) */
+  --shema-branco:      #F6F5EB;  /* off-white, warm cream — base background */
+  --shema-areia:       #C5C29F;  /* sand — secondary, calm neutrals */
+  --shema-azul:        #89AAA3;  /* sage blue — cool accent, contrast */
+  --shema-telha:       #BE4A01;  /* terracotta — signature warm, calls to action */
+  --shema-verde-claro: #777D45;  /* olive — primary brand green */
+  --shema-verde:       #3F3E20;  /* deep olive — text on light bg, dark surface */
+  --shema-preto:       #0A0703;  /* warm near-black */
+
+  /* Semantic — backgrounds */
+  --bg:                var(--shema-branco);
+  --bg-elevated:       #FFFFFF;
+  --bg-muted:          #ECEADF;          /* slightly cooler than branco */
+  --bg-inverse:        var(--shema-verde);
+  --bg-brand:          var(--shema-telha);
+  --bg-quiet:          var(--shema-areia);
+
+  /* Semantic — foreground */
+  --fg:                var(--shema-verde);
+  --fg-strong:         var(--shema-preto);
+  --fg-muted:          #5A5A3E;
+  --fg-subtle:         #8A8970;
+  --fg-on-brand:       var(--shema-branco);
+  --fg-on-dark:        var(--shema-branco);
+  --fg-on-light:       var(--shema-verde);
+  --fg-link:           var(--shema-telha);
+
+  /* Semantic — accents */
+  --accent:            var(--shema-telha);
+  --accent-hover:      #A23E00;
+  --accent-press:      #872F00;
+  --accent-soft:       #F2D8C2;          /* tinted telha for surfaces */
+
+  /* Lines */
+  --line:              rgba(63, 62, 32, 0.16);    /* verde @ 16% */
+  --line-strong:       rgba(63, 62, 32, 0.32);
+  --line-on-dark:      rgba(246, 245, 235, 0.18); /* branco @ 18% */
+
+  /* Type families */
+  --font-sans:    'Montserrat', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif:   'Merriweather', Georgia, 'Times New Roman', serif;
+  --font-display: 'Montserrat', system-ui, sans-serif;
+
+  /* Type scale — pixel sizes */
+  --fs-display: 88px;
+  --fs-h1:      56px;
+  --fs-h2:      40px;
+  --fs-h3:      28px;
+  --fs-h4:      22px;
+  --fs-lead:    20px;
+  --fs-body:    16px;
+  --fs-small:   14px;
+  --fs-micro:   12px;
+  --fs-eyebrow: 13px;
+
+  /* Type rhythm */
+  --lh-tight:   1.05;
+  --lh-snug:    1.2;
+  --lh-body:    1.55;
+  --lh-loose:   1.7;
+  --tracking-eyebrow: 0.14em;
+  --tracking-button:  0.04em;
+
+  /* Spacing — 4px base */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  24px;
+  --space-6:  32px;
+  --space-7:  48px;
+  --space-8:  64px;
+  --space-9:  96px;
+  --space-10: 128px;
+
+  /* Radii — generous, friendly curves matching the wordmark */
+  --radius-xs:  4px;
+  --radius-sm:  8px;
+  --radius-md:  14px;
+  --radius-lg:  22px;
+  --radius-xl:  32px;
+  --radius-pill: 999px;
+
+  /* Shadows — warm, low */
+  --shadow-sm: 0 1px 2px rgba(10, 7, 3, 0.06), 0 1px 1px rgba(10, 7, 3, 0.04);
+  --shadow-md: 0 4px 12px rgba(10, 7, 3, 0.08), 0 1px 2px rgba(10, 7, 3, 0.05);
+  --shadow-lg: 0 16px 40px -8px rgba(10, 7, 3, 0.18), 0 4px 10px rgba(10, 7, 3, 0.06);
+  --shadow-card: 0 2px 6px rgba(63, 62, 32, 0.08);
+
+  /* Motion — gentle, never bouncy */
+  --ease-out: cubic-bezier(.2, .8, .25, 1);
+  --ease-in:  cubic-bezier(.5, 0, .8, .3);
+  --duration-fast: 140ms;
+  --duration:      220ms;
+  --duration-slow: 380ms;
+
+  /* Layout */
+  --container-max: 1200px;
+  --container-narrow: 760px;
+  --container-pad: clamp(20px, 4vw, 56px);
+}
+
+/* ---------- BASE ---------- */
+
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---------- TYPOGRAPHY ---------- */
+
+h1, .h1 {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: var(--fs-h1);
+  line-height: var(--lh-tight);
+  letter-spacing: -0.01em;
+  color: var(--fg-strong);
+  text-wrap: balance;
+}
+h2, .h2 {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: var(--fs-h2);
+  line-height: var(--lh-snug);
+  letter-spacing: -0.005em;
+  color: var(--fg-strong);
+  text-wrap: balance;
+}
+h3, .h3 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: var(--fs-h3);
+  line-height: var(--lh-snug);
+  color: var(--fg-strong);
+}
+h4, .h4 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: var(--fs-h4);
+  line-height: 1.3;
+  color: var(--fg-strong);
+}
+
+.display {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--fs-display);
+  line-height: 0.98;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.display-serif {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: clamp(40px, 6vw, 72px);
+  line-height: 1.1;
+  font-style: italic;
+  letter-spacing: -0.005em;
+}
+
+.eyebrow {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: var(--fs-eyebrow);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+.lead {
+  font-size: var(--fs-lead);
+  line-height: 1.5;
+  color: var(--fg);
+}
+
+.serif {
+  font-family: var(--font-serif);
+}
+
+.quote {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--fs-h3);
+  line-height: 1.4;
+  color: var(--fg-strong);
+}
+
+p, .body {
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--fg);
+}
+
+small, .small { font-size: var(--fs-small); }
+.micro { font-size: var(--fs-micro); letter-spacing: 0.02em; }
+
+a {
+  color: var(--fg-link);
+  text-decoration: none;
+  text-underline-offset: 3px;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+/* ---------- UTILITIES ---------- */
+
+.surface       { background: var(--bg); color: var(--fg); }
+.surface-quiet { background: var(--bg-quiet); color: var(--shema-verde); }
+.surface-dark  { background: var(--bg-inverse); color: var(--fg-on-dark); }
+.surface-brand { background: var(--bg-brand); color: var(--fg-on-brand); }
+.surface-black { background: var(--shema-preto); color: var(--shema-branco); }
+
+.container        { max-width: var(--container-max); margin-inline: auto; padding-inline: var(--container-pad); }
+.container-narrow { max-width: var(--container-narrow); margin-inline: auto; padding-inline: var(--container-pad); }

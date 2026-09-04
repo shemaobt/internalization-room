@@ -20,6 +20,7 @@ import 'connectivity_service.dart';
 import 'facilitator_voice_service.dart';
 import 'finished_passages.dart';
 import 'hand_inbox_repository.dart';
+import 'linked_team.dart';
 import 'mic_permission.dart';
 import 'playback_repository.dart';
 import 'recording_repository.dart';
@@ -188,6 +189,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   PlaybackRepository get _playback => ref.read(playbackRepositoryProvider);
   HandInboxRepository get _inbox => ref.read(handInboxRepositoryProvider);
   RoomRepository get _room => ref.read(roomRepositoryProvider);
+  LinkedTeam get _ledger => ref.read(linkedTeamProvider);
   TakeUploadQueue get _takes => ref.read(takeUploadQueueProvider);
   ConnectivityService get _network => ref.read(connectivityServiceProvider);
   FinishedPassages get _feitas => ref.read(finishedPassagesProvider);
@@ -515,10 +517,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ///
   /// Reached before the room opens, because the alternative is discovering it one failed
   /// request at a time — and `Env`'s throw is an `Error`, which the network layer's
-  /// catches all miss.
-  void haltForABrokenBuild() => _haltForAPerson();
+  /// catches all miss. That is why this halt never asks: touching `Env` for a device-scoped
+  /// ask would throw that same uncatchable `Error`, and this method is itself the only
+  /// signal that there is no server to reach.
+  void haltForABrokenBuild() => _haltForAPerson(reachable: false);
 
-  void _haltForAPerson({bool sessionIsGone = false}) {
+  void _haltForAPerson({bool sessionIsGone = false, bool reachable = true}) {
     _leaveThinking();
     if (!state.needsPerson) {
       unawaited(_voice.playAsset(fixedLineAsset(needsPersonLine, _lingua)));
@@ -528,12 +532,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       peerCue: false,
       clearSession: sessionIsGone,
     );
-    _tellTheRoomAPersonIsNeeded();
+    if (reachable) _tellTheRoomAPersonIsNeeded();
   }
 
   void _tellTheRoomAPersonIsNeeded() {
     if (_personAsked || _askingForAPerson) return;
-    unawaited(_askForAPerson());
+    if (state.sessionId == null) {
+      unawaited(_askForAPersonWithoutASession());
+    } else {
+      unawaited(_askForAPerson());
+    }
   }
 
   /// The call is only made when the server says it has it.
@@ -546,11 +554,42 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     if (sessionId == null || _personAsked || _askingForAPerson) return;
     _askingForAPerson = true;
+    var sessionGone = false;
     try {
       await _room.askForAPerson(sessionId);
       if (!_gone && state.needsPerson) _personAsked = true;
+    } on SessionGone {
+      // The server has already said this session is gone; insisting on the same route
+      // just spends the backoff. Clearing it here — the way the state poll's SessionGone
+      // path does — is what gives the device-scoped ask its turn.
+      sessionGone = true;
     } on Exception {
-      _keepAskingForAPerson();
+      _keepAskingForAPerson(_askForAPerson);
+    } finally {
+      _askingForAPerson = false;
+    }
+    // A person may have arrived and resolved the halt while this ask was still in
+    // flight — `resolveWithPerson()` cannot cancel it. A late 404 must not reopen a
+    // halt nobody is in anymore, the same guard the two branches around this one lean on.
+    if (sessionGone && !_gone && state.needsPerson) {
+      _haltForAPerson(sessionIsGone: true);
+    }
+  }
+
+  /// The same ask, for a halt with no session to name: the server forgot it, or the
+  /// build never opened one. Asks by the tablet's own device id, from the link ledger.
+  Future<void> _askForAPersonWithoutASession() async {
+    if (_personAsked || _askingForAPerson) return;
+    _askingForAPerson = true;
+    try {
+      final deviceId = (await _ledger.read()).deviceId;
+      if (deviceId == null || _gone) return;
+      await _room.askForAPersonWithoutASession(deviceId);
+      if (!_gone && state.needsPerson) _personAsked = true;
+    } on NobodyToReach {
+      // No team can be reached for this device; asking again cannot change that.
+    } on Exception {
+      _keepAskingForAPerson(_askForAPersonWithoutASession);
     } finally {
       _askingForAPerson = false;
     }
@@ -559,13 +598,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// Whether to try again is `state.needsPerson` and not the epoch: `_cancelTimers` runs
   /// on the way into other halts, and an attempt still in flight when it does would
   /// otherwise land on a room that is still stopped and stop insisting in silence.
-  void _keepAskingForAPerson() {
+  void _keepAskingForAPerson(Future<void> Function() retry) {
     if (_gone || !state.needsPerson) return;
     final backoff = ref.read(roomRetryBackoffProvider);
     final step =
         _personAskStep < backoff.length ? _personAskStep : backoff.length - 1;
     _personAskStep++;
-    _after('person', backoff[step], () => unawaited(_askForAPerson()));
+    _after('person', backoff[step], () => unawaited(retry()));
   }
 
   void _handleRoomFailure(Object error) {
@@ -842,10 +881,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           : null;
       if (epoch != _epoch) return;
       // Asking for the panorama is a request and not an instruction: which passage a
-      // session is for is the room's to say, and the answer carries it.
+      // session is for is the room's to say, and the answer carries it. The answer is
+      // also the session to enter: opening another for the same passage left the one the
+      // room had just made abandoned, one ghost row per launch.
       final given = created?.pericope;
       if (given != null && given != panoramaPericope) {
-        unawaited(goConversa(pericope: given));
+        // The room answering a passage is its word that the panorama was heard. Left
+        // unwritten, a tablet without the mark asked for the panorama on every launch and
+        // adopted a new session each time, its coverage starting over from zero.
+        unawaited(_feitas.markBookOpened(_book).catchError((_) {}));
+        unawaited(goConversa(pericope: given, opened: created));
         return;
       }
       final panorama = _panoramaSessionId ?? created!.sessionId;
@@ -1102,7 +1147,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ///
   /// `fresh` skips the resume, which is how the 404 path starts over: retrying without it
   /// looked the session up again and recursed forever.
-  Future<void> goConversa({String? pericope, bool fresh = false}) async {
+  ///
+  /// `opened` is a session the room already made for this passage, entered as it came
+  /// back rather than asked for again.
+  Future<void> goConversa({
+    String? pericope,
+    bool fresh = false,
+    SessionSnapshot? opened,
+  }) async {
     _clearAll();
     // A place belongs to the passage it was mended in. Carried into the next one they
     // enter, the places of the last would be written into its row of the ledger.
@@ -1129,20 +1181,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchBusyState();
     // Only the passages the wheel already said have work waiting are looked up on disk,
     // so entering a fresh one costs no read at all.
-    final waiting = !fresh && pericope != null && state.comecadas.contains(pericope)
+    final waiting = opened == null &&
+            !fresh &&
+            pericope != null &&
+            state.comecadas.contains(pericope)
         ? await _emAberto.of(_book, pericope)
         : null;
     if (epoch != _epoch) return;
     try {
       final resumed = waiting != null;
-      final created = waiting == null
-          ? await _room.createSession(
-              pericope: pericope,
-              afterSession: _panoramaSessionId,
-              bridgeMode: _bridgeMode,
-              language: _lingua,
-            )
-          : null;
+      final created = opened ??
+          (waiting == null
+              ? await _room.createSession(
+                  pericope: pericope,
+                  afterSession: _panoramaSessionId,
+                  bridgeMode: _bridgeMode,
+                  language: _lingua,
+                )
+              : null);
       final sessionId = waiting?.sessionId ?? created!.sessionId;
       if (epoch != _epoch) return;
       state = state.copyWith(sessionId: sessionId, coverage: created?.coverage);
