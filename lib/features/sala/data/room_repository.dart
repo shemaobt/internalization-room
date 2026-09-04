@@ -79,6 +79,13 @@ class PassageShut implements Exception {
   const PassageShut();
 }
 
+/// The device has no team to reach: nobody claimed it, it was taken out of service, or
+/// the id was never minted. Asking again cannot change that, the way a spent credential
+/// cannot be handed out twice — final, not retried.
+class NobodyToReach implements Exception {
+  const NobodyToReach();
+}
+
 class RoomRepository {
   final http.Client _client;
 
@@ -343,6 +350,22 @@ class RoomRepository {
       ),
       _stateTimeout,
     );
+    _read(response, (json) => json);
+  }
+
+  /// The device-scoped ask, for a halt that has no session to ask through: the server
+  /// forgot it, or the build never opened one.
+  Future<void> askForAPersonWithoutASession(String deviceId) async {
+    final response = await _send(
+      () => _client.post(
+        _uri('/devices/$deviceId/needs-person'),
+        headers: _headers,
+      ),
+      _stateTimeout,
+    );
+    if (response.statusCode == 404 || response.statusCode == 409) {
+      throw const NobodyToReach();
+    }
     _read(response, (json) => json);
   }
 
