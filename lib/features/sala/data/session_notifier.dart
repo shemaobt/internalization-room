@@ -2647,9 +2647,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final gravacao = _aGravacaoNoAr;
     if (gravacao == null) {
       // A stretch is a slice of a recording the room can name, and it cannot name one it
-      // has never received. Their telling is kept and the ladder runs: three of these and
-      // the room stops for a person, which is the same answer a room that will not
-      // answer gets.
+      // has never received — but the recording itself did reach this tablet, and the
+      // rehearsal it belongs to is either still uploading or waiting for its own guard()
+      // to adopt the name. That is not the room being broken, and a corte landing here
+      // must not read as one: it kept the room open for a team that had done nothing
+      // wrong, over a name that is (almost always) already on its way.
       unawaited(_guard(
         path,
         kind: 'retro',
@@ -2658,9 +2660,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         chunkIndex: state.btTrechos.length + 1,
       ));
       state = state.copyWith(
+        btPhase: BtPhase.playing,
+        voice: VoiceState.invite,
         btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
       );
-      _handleRoomFailure(const RoomBroke('o ensaio ainda não chegou à sala'));
       return;
     }
 
