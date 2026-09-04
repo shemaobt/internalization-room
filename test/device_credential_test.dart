@@ -430,7 +430,7 @@ void main() {
     );
     firstRun.dispose();
 
-    final nextRun = _tablet(room: FakeRoom(), ledger: ledger, linkPoll: _quickPoll);
+    final nextRun = _tablet(room: FakeRoom(), ledger: ledger);
     addTearDown(nextRun.dispose);
     await nextRun.read(deviceLinkProvider.notifier).findTheTeam();
 
