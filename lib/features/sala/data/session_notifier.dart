@@ -2662,6 +2662,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       parte: _parteTocando,
       from: _trechoStart,
       to: _trechoEnd,
+      // Nobody has corrected it: the slice it plays is the slice of the part it occupies.
+      lugarFrom: _trechoStart,
+      lugarTo: _trechoEnd,
     );
     _trechoStart = _trechoEnd;
     state = state.copyWith(
@@ -2913,9 +2916,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             from: from,
             to: to,
             lugarFrom: naParte >= 0
-                ? null
-                : (antes?.lugarFrom ?? guardado?.from),
-            lugarTo: naParte >= 0 ? null : (antes?.lugarTo ?? guardado?.to),
+                ? from
+                : (antes?.lugarFrom ?? guardado?.from ?? from),
+            lugarTo:
+                naParte >= 0 ? to : (antes?.lugarTo ?? guardado?.to ?? to),
             contado: segment.told,
           );
         }(),

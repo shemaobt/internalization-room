@@ -54,11 +54,19 @@ class Trecho {
   final Duration from;
   final Duration to;
 
-  /// Where in [parte] this stretch sits, when that is not where it plays from.
+  /// Where this stretch begins in [parte], and where it ends there.
   ///
-  /// Null on a stretch nobody has corrected, whose two intervals are the same one.
-  final Duration? _lugarFrom;
-  final Duration? _lugarTo;
+  /// Its place, which a correction never moves — as against [from] and [to], which say
+  /// what plays and which a correction by the long way replaces outright. Told again over
+  /// a recording of its own, a stretch of six seconds became a take of twenty-seven, and
+  /// with one number for both the cord drew those twenty-seven seconds over its
+  /// neighbours and the room counted the part as told that far.
+  ///
+  /// On a stretch nobody has corrected the two are the same interval, and it is said so
+  /// at each of the three places one is built rather than defaulted quietly: a stretch
+  /// with no place is not a thing this room has.
+  final Duration lugarFrom;
+  final Duration lugarTo;
 
   /// Whether the team has explained this stretch yet. False on a half a division just
   /// made: it is a unit the room counts and nobody has told back.
@@ -72,21 +80,9 @@ class Trecho {
     required this.from,
     required this.to,
     this.contado = true,
-    Duration? lugarFrom,
-    Duration? lugarTo,
-  })  : _lugarFrom = lugarFrom,
-        _lugarTo = lugarTo;
-
-  /// Where this stretch begins in [parte], and where it ends there.
-  ///
-  /// Its place, which a correction never moves — as against [from] and [to], which say
-  /// what plays and which a correction by the long way replaces outright. Told again over
-  /// a recording of its own, a stretch of six seconds became a take of twenty-seven, and
-  /// with one number for both the cord drew those twenty-seven seconds over its
-  /// neighbours and the room counted the part as told that far.
-  Duration get lugarFrom => _lugarFrom ?? from;
-
-  Duration get lugarTo => _lugarTo ?? to;
+    required this.lugarFrom,
+    required this.lugarTo,
+  });
 }
 
 /// Where a stretch mended by the long way sits in the rehearsal.
