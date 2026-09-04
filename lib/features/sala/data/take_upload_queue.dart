@@ -167,7 +167,8 @@ class TakeUploadQueue {
   final Future<Directory> Function() _home;
   final List<Duration> _backoff;
   final DateTime Function() _now;
-  bool _flushing = false;
+  Future<int>? _flushInFlight;
+  bool _flushAgainRequested = false;
   Future<void> _writes = Future<void>.value();
   int _minted = 0;
 
@@ -394,61 +395,86 @@ class TakeUploadQueue {
     return entry;
   }
 
-  Future<int> flush() async {
-    if (_flushing) return 0;
-    _flushing = true;
-    try {
-      var sent = 0;
-      for (final entry in await waiting()) {
-        if (!_ready(entry)) continue;
-        final file = File(entry.path);
-        if (!await file.exists()) {
-          // Already written off and gone again between the check above and here: the row
-          // is already saying so, and rewriting the manifest to say it twice is a write
-          // for no change of state.
-          if (!entry.lost) await _replace(entry, entry.copyWith(lost: true));
-          continue;
-        }
-        // The audio is here, so the row stops carrying a word that is no longer true.
-        // `lost` is what the room speaks from, and a recording being sent right now is
-        // not one that was given up on. Every outcome below writes this back.
-        final row = entry.lost ? entry.copyWith(lost: false) : entry;
-        final String landed;
-        try {
-          landed = await _room.sendTake(
-            entry.sessionId,
-            file,
-            kind: entry.kind,
-            scope: entry.scope,
-            passNumber: entry.passNumber,
-            chunkIndex: entry.chunkIndex,
-          );
-        } on RoomUnavailable {
-          await _replace(
-            entry,
-            row.copyWith(waits: row.waits + 1, lastTry: _now()),
-          );
-          continue;
-        } on RoomSlow {
-          await _replace(
-            entry,
-            row.copyWith(waits: row.waits + 1, lastTry: _now()),
-          );
-          continue;
-        } on Exception {
-          await _replace(
-            entry,
-            row.copyWith(attempts: row.attempts + 1, lastTry: _now()),
-          );
-          continue;
-        }
-        await _replace(entry, row.copyWith(takeId: landed, stored: true));
-        sent++;
-      }
-      return sent;
-    } finally {
-      _flushing = false;
+  /// Send every row a caller that only asked while this call was already running would
+  /// otherwise miss.
+  ///
+  /// A second `flush()` called while the first is still talking to the room used to
+  /// return at once, on the strength of the first one's own sweep — but a row enqueued
+  /// after that sweep already started is not in it, and the caller who just enqueued it
+  /// read the empty answer as "the room has this" and never asked again. It now waits on
+  /// the flush already running and, if anything was asked for while it waited, that flush
+  /// takes one more pass before either caller is told it is done.
+  Future<int> flush() {
+    final running = _flushInFlight;
+    if (running != null) {
+      _flushAgainRequested = true;
+      return running;
     }
+    return _flushInFlight = _flushUntilSettled();
+  }
+
+  Future<int> _flushUntilSettled() async {
+    var sent = 0;
+    try {
+      do {
+        _flushAgainRequested = false;
+        sent += await _flushOnce();
+      } while (_flushAgainRequested);
+    } finally {
+      _flushInFlight = null;
+    }
+    return sent;
+  }
+
+  Future<int> _flushOnce() async {
+    var sent = 0;
+    for (final entry in await waiting()) {
+      if (!_ready(entry)) continue;
+      final file = File(entry.path);
+      if (!await file.exists()) {
+        // Already written off and gone again between the check above and here: the row
+        // is already saying so, and rewriting the manifest to say it twice is a write
+        // for no change of state.
+        if (!entry.lost) await _replace(entry, entry.copyWith(lost: true));
+        continue;
+      }
+      // The audio is here, so the row stops carrying a word that is no longer true.
+      // `lost` is what the room speaks from, and a recording being sent right now is
+      // not one that was given up on. Every outcome below writes this back.
+      final row = entry.lost ? entry.copyWith(lost: false) : entry;
+      final String landed;
+      try {
+        landed = await _room.sendTake(
+          entry.sessionId,
+          file,
+          kind: entry.kind,
+          scope: entry.scope,
+          passNumber: entry.passNumber,
+          chunkIndex: entry.chunkIndex,
+        );
+      } on RoomUnavailable {
+        await _replace(
+          entry,
+          row.copyWith(waits: row.waits + 1, lastTry: _now()),
+        );
+        continue;
+      } on RoomSlow {
+        await _replace(
+          entry,
+          row.copyWith(waits: row.waits + 1, lastTry: _now()),
+        );
+        continue;
+      } on Exception {
+        await _replace(
+          entry,
+          row.copyWith(attempts: row.attempts + 1, lastTry: _now()),
+        );
+        continue;
+      }
+      await _replace(entry, row.copyWith(takeId: landed, stored: true));
+      sent++;
+    }
+    return sent;
   }
 
   Future<void> _replace(PendingTake target, PendingTake updated) =>
