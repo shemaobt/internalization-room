@@ -23,12 +23,11 @@ class FacilitatorVoiceService {
   final Map<String, Future<File>> _arriving = {};
 
   FacilitatorVoiceService({
-    required Future<Uint8List> Function(String url) fetch,
+    required this._fetch,
     Future<Directory> Function()? libraryDir,
     AudioPlayer? player,
     Duration? lineGrace,
-  })  : _fetch = fetch,
-        _libraryDir = libraryDir ?? _defaultLibraryDir,
+  })  : _libraryDir = libraryDir ?? _defaultLibraryDir,
         _opened = player,
         _grace = lineGrace ?? _lineGrace;
 
