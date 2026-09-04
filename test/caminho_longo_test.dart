@@ -217,6 +217,9 @@ void main() {
     // The recorder never started, so the room stopped for a person. A person comes.
     expect(container.read(salaSessionProvider).needsPerson, isTrue);
     harness.recorder.startThrows = false;
+    // The desk is what lifts a blocking halt now; the long press only asks the room
+    // whether it has been lifted, which is what brings the team back at once.
+    harness.room.theDeskAttended();
     notifier(container).resolveWithPerson();
     await tester.pump(const Duration(milliseconds: 300));
 

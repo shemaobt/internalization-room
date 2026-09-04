@@ -48,6 +48,14 @@ Future<void> waitFor(
   }
 }
 
+/// Ends the room before the binding looks for a timer still in the air.
+///
+/// A room stopped for a person keeps asking the server whether the halt is still
+/// standing, on a cadence that ends only with the halt or with the room. A widget test
+/// that leaves the team on a halt therefore always has one timer pending, and the
+/// `addTearDown` that disposes the container runs after the check that would see it.
+void closeTheRoom(ProviderContainer container) => container.dispose();
+
 const totalBeads = 12;
 
 const testLanguage = 'pt';
@@ -508,6 +516,16 @@ class FakeRoom implements RoomRepository {
   int? verdictFindingPlace;
   BtFindingKind? verdictFinding;
   String? serverStatus;
+  /// Which kind of halt the room reports beside `serverStatus`: `blocking`,
+  /// `warning`, or none — a server older than #336 names none.
+  String? serverHalt;
+
+  /// A facilitator marked the session attended on the desk, and the room stops
+  /// answering that it is halted.
+  void theDeskAttended() {
+    serverStatus = null;
+    serverHalt = null;
+  }
   String fixedLine = '';
   String bridgeMode = '';
   final List<String> restartsAsked = [];
@@ -660,6 +678,7 @@ class FakeRoom implements RoomRepository {
       status: serverStatus ?? (done ? 'done' : 'in_progress'),
       coverage: silentAboutCoverage ? null : (settledCoverage ?? nextCoverage),
       done: done,
+      halt: serverHalt,
       backTranslation:
           retroSoFar ?? BackTranslationProgress(segments: List.of(segments)),
     );
@@ -786,6 +805,10 @@ class FakeRoom implements RoomRepository {
     final failure = askForAPersonFailsWith;
     if (failure != null) throw failure;
     personsAsked++;
+    // The route is what raises the blocking halt on the server: a double that only
+    // counted the call answered the next state read as if nobody had asked.
+    serverStatus = 'needs_person';
+    serverHalt = 'blocking';
   }
 
   /// Every device id the device-scoped ask was made for, one entry per attempt —

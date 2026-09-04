@@ -93,6 +93,9 @@ class SessionSnapshot {
   final bool done;
   final BackTranslationProgress backTranslation;
 
+  /// Which kind of halt the room is under: `blocking`, `warning`, or none.
+  final String? halt;
+
   const SessionSnapshot({
     required this.sessionId,
     required this.pericope,
@@ -100,6 +103,7 @@ class SessionSnapshot {
     required this.coverage,
     required this.done,
     this.backTranslation = const BackTranslationProgress(),
+    this.halt,
   });
 
   factory SessionSnapshot.fromJson(Map<String, dynamic> json) => SessionSnapshot(
@@ -117,7 +121,13 @@ class SessionSnapshot {
             : BackTranslationProgress.fromJson(
                 (json['back_translation'] as Map).cast<String, dynamic>(),
               ),
+        halt: json['halt'] as String?,
       );
 
-  bool get needsPerson => status == 'needs_person';
+  /// Whether the room is stopped and waiting for a facilitator to lift it.
+  ///
+  /// A halt the server calls a warning asks for a person to come and watch, and refuses
+  /// the team nothing — reading it as a stop closed the room over a note. A halt with no
+  /// kind comes from a server older than the field, and is read as blocking.
+  bool get needsPerson => status == 'needs_person' && halt != 'warning';
 }

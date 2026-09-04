@@ -121,6 +121,8 @@ final roomRetryBackoffProvider = Provider<List<Duration>>(
 
 class SalaSessionNotifier extends Notifier<SalaSessionState> {
   final Map<String, Timer> _timers = {};
+  /// The session this room is waiting to be let out of, while it is halted.
+  String? _haltWatched;
   int _epoch = 0;
   int _unplayableTurns = 0;
   int _roomFailures = 0;
@@ -508,6 +510,52 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       clearSession: sessionIsGone,
     );
     if (reachable) _tellTheRoomAPersonIsNeeded();
+    // A halt the desk has already been told about is watched from here; one still being
+    // called in starts its watch when the call lands, and a halt nobody could be told
+    // about is not watched at all.
+    if (_personAsked) _watchTheHalt();
+  }
+
+  /// A blocking halt is lifted by a facilitator on the desk, not by this tablet, so the
+  /// room asks the server what it is doing until the answer stops being `needs_person`.
+  ///
+  /// Without it the only way out was a long press, which asked nobody: the team let
+  /// themselves out of a room no one had looked at, and a room already attended stayed
+  /// shut until somebody thought to hold the screen.
+  void _watchTheHalt() {
+    final sessionId = state.sessionId;
+    if (sessionId == null) return;
+    _haltWatched = sessionId;
+    _after('halt', ref.read(beadSettleDelayProvider), () {
+      unawaited(_askIfTheHaltIsOver());
+    });
+  }
+
+  Future<void> _askIfTheHaltIsOver() async {
+    final sessionId = _haltWatched;
+    if (sessionId == null || !state.needsPerson) return;
+    final epoch = _epoch;
+    try {
+      final snapshot = await _room.fetchState(sessionId);
+      if (epoch != _epoch || _haltWatched != sessionId) return;
+      if (!snapshot.needsPerson) {
+        _leaveTheHalt();
+        return;
+      }
+    } on SessionGone {
+      // There is no longer a session to be let out of, so there is nothing left to ask:
+      // the room keeps the halt and the long press is the way out of it, as it is for a
+      // build with no session at all.
+      if (epoch != _epoch || _haltWatched != sessionId) return;
+      _haltWatched = null;
+      state = state.copyWith(clearSession: true);
+      return;
+    } on Exception {
+      // A read that failed says nothing about the halt. Asking again on the same beat is
+      // the whole answer; counting it as a second halt would talk over the first.
+      if (epoch != _epoch || _haltWatched != sessionId) return;
+    }
+    _watchTheHalt();
   }
 
   void _tellTheRoomAPersonIsNeeded() {
@@ -532,7 +580,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     var sessionGone = false;
     try {
       await _room.askForAPerson(sessionId);
-      if (!_gone && state.needsPerson) _personAsked = true;
+      // The watch begins here and not at the halt: releasing on a state read that went
+      // out before the call landed would let the team out of a room whose halt the desk
+      // has not heard of yet, and nobody would ever come.
+      if (!_gone && state.needsPerson) {
+        _personAsked = true;
+        _watchTheHalt();
+      }
     } on SessionGone {
       // The server has already said this session is gone; insisting on the same route
       // just spends the backoff. Clearing it here — the way the state poll's SessionGone
@@ -736,8 +790,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void beginAgain() => _startOver();
 
+  /// What the long press does with the screen the room stopped on.
+  ///
+  /// On a blocking halt it no longer lets the team out: it asks the room now, so a
+  /// facilitator who has just marked the session attended hands the room back at once
+  /// instead of on the next beat of the watch. With no session there is nobody to ask,
+  /// and the press keeps the local release it always had — the rule `offline` has, for
+  /// the same reason.
   void resolveWithPerson() {
     if (!state.needsPerson && !state.offline) return;
+    if (state.needsPerson && _haltWatched != null) {
+      unawaited(_askIfTheHaltIsOver());
+      return;
+    }
+    _leaveTheHalt();
+  }
+
+  void _leaveTheHalt() {
+    _haltWatched = null;
+    _timers.remove('halt')?.cancel();
     _timers.remove('retry')?.cancel();
     _timers.remove('person')?.cancel();
     _personAsked = false;
@@ -2483,10 +2554,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
 
     _recontando = false;
-    if (captured.needsPerson) {
-      _haltForAPerson();
-      return;
-    }
+    // The room asking for a person over a retold stretch is a warning: somebody is called
+    // to come and watch, and the team is refused nothing. Stopping the retro on it ended
+    // the telling-back over a note nobody had read yet.
     final trecho = Trecho(
       segmentId: null,
       takeId: gravacao,
