@@ -522,8 +522,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// shut until somebody thought to hold the screen.
   void _watchTheHalt() {
     final sessionId = state.sessionId;
-    if (sessionId == null) return;
+    if (sessionId == null || _haltWatched == sessionId) return;
     _haltWatched = sessionId;
+    _beatTheWatch();
+  }
+
+  /// Starting the watch again on a halt already being watched would push the next read
+  /// away by a whole beat, every time. A settle scheduled by an older turn still lands
+  /// inside a halt, finds `needs_person`, and halts a second time for the same reason —
+  /// so the answer that lets the team out would keep being deferred by the room noticing
+  /// again what it already knew.
+  void _beatTheWatch() {
     _after('halt', ref.read(beadSettleDelayProvider), () {
       unawaited(_askIfTheHaltIsOver());
     });
@@ -553,7 +562,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // the whole answer; counting it as a second halt would talk over the first.
       if (epoch != _epoch || _haltWatched != sessionId) return;
     }
-    _watchTheHalt();
+    _beatTheWatch();
   }
 
   void _tellTheRoomAPersonIsNeeded() {
