@@ -17,10 +17,9 @@ class PlaybackRepository {
   AudioPlayer? _measurer;
 
   PlaybackRepository({
-    Future<void> Function(String path)? start,
+    this._start,
     AudioPlayer Function()? newPlayer,
-  })  : _start = start,
-        _newPlayer = newPlayer ?? AudioPlayer.new;
+  }) : _newPlayer = newPlayer ?? AudioPlayer.new;
 
   AudioPlayer get _player => _opened ??= _newPlayer();
 
