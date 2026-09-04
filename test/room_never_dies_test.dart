@@ -559,8 +559,12 @@ void main() {
             'nada, e o ensaio não desenha o glifo de parada — a tela move e não responde');
     expect(container.read(salaSessionProvider).needsPerson, isTrue);
 
+    // A person comes, marks the session attended on the desk, and holds the screen: the
+    // touch asks the room now and brings back the answer the facilitator just wrote.
+    harness.room.theDeskAttended();
     notifier.resolveWithPerson();
-    await settle();
+    await waitFor('a sala sair da parada',
+        () => !container.read(salaSessionProvider).needsPerson);
     notifier.ensaioTap();
     expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.recording,
         reason: 'e depois que a pessoa resolve, gravar volta a funcionar');

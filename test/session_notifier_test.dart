@@ -1643,7 +1643,8 @@ void main() {
             'conta nunca aparecia e o pacote de evidência perdia o rótulo');
   });
 
-  test('the retells run out and the room asks for a person', () async {
+  test('the retells running out asks for a person to watch, and refuses nothing',
+      () async {
     final harness = SalaHarness()
       ..room.verdictChecked = false
       ..room.verdictFinding = BtFindingKind.missing
@@ -1664,9 +1665,16 @@ void main() {
     notifier.retroTap();
     await settle();
 
-    expect(container.read(salaSessionProvider).needsPerson, isTrue,
-        reason: 'contar o mesmo trecho de novo era o único ciclo sem teto, e o '
-            'orçamento que existia estava numa rota que ninguém chamava');
+    expect(container.read(salaSessionProvider).needsPerson, isFalse,
+        reason: 'o orçamento esgotado é o aviso do ENG-706: uma pessoa é chamada '
+            'para vir olhar, e nada é recusado à equipe. Fechar a retro em cima '
+            'dele tirava a equipe do trabalho por um bilhete que ninguém leu');
+    expect(
+      harness.voice.assets,
+      isNot(contains(fixedLineAsset(needsPersonLine, testLanguage))),
+      reason: 'e a sala não anuncia parada nenhuma: dita em voz alta, a equipe '
+          'para sozinha, que é exatamente o que o aviso não quer',
+    );
   });
 
   test('retelling one stretch keeps every other explanation', () async {

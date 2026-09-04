@@ -96,6 +96,7 @@ void main() {
     depois = container.read(salaSessionProvider);
     expect([for (final take in depois.keptTakes) take.takeId], gravacoes);
     expect(depois.takes, antes.takes);
+    closeTheRoom(container);
   });
 
   testWidgets('a equipe é levada ao trecho nomeado, nos limites dele', (
@@ -140,6 +141,7 @@ void main() {
           'dele; um pedaço novo deixaria o trecho por contar e o portão '
           'pararia a passagem de novo',
     );
+    closeTheRoom(container);
   });
 
   testWidgets(
@@ -197,6 +199,7 @@ void main() {
       expect([for (final take in depois.keptTakes) take.takeId], gravacoes);
       expect(depois.takes, antes.takes);
       expect(depois.stage, SalaStage.retro);
+      closeTheRoom(container);
     },
   );
 

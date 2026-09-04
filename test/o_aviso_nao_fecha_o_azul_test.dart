@@ -161,20 +161,51 @@ void main() {
   });
 
   test(
-    'o aviso continua visível e o toque longo continua resolvendo',
+    'o aviso continua visível; o toque longo só pergunta na hora, e é a '
+    'mesa quem levanta a parada',
     () async {
       final harness = SalaHarness();
       final container = await _achadoComAvisoAtivo(harness);
       final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
 
-      final antes = container.read(salaSessionProvider);
-      expect(antes.voice, VoiceState.needsPerson);
-      expect(antes.canResolveWithPerson, isTrue);
+      expect(read().voice, VoiceState.needsPerson);
+      expect(read().canResolveWithPerson, isTrue);
+      final antes =
+          harness.room.calls.where((call) => call == 'fetchState').length;
 
+      // O toque longo, com a sessão viva e a parada confirmada pelo servidor,
+      // só pede uma releitura na hora — não derruba o aviso por si.
       notifier.resolveWithPerson();
-      await settle();
+      await waitFor(
+        'a sala perguntar ao servidor na hora',
+        () =>
+            harness.room.calls.where((call) => call == 'fetchState').length >
+            antes,
+      );
 
-      expect(container.read(salaSessionProvider).needsPerson, isFalse);
+      expect(
+        container.read(salaSessionProvider).needsPerson,
+        isTrue,
+        reason: 'o servidor ainda segura a parada; soltar no toque poria a '
+            'equipe de volta a falar dentro de uma sala que a mesa não '
+            'atendeu',
+      );
+
+      // Quando o servidor deixa de dizer needs_person — a mesa atendeu —, a
+      // sala volta sozinha ao convite, sem precisar de um novo toque.
+      harness.room.theDeskAttended();
+      await waitFor(
+        'o círculo voltar ao convite sozinho',
+        () => read().voice == VoiceState.invite,
+      );
+
+      expect(
+        read().needsPerson,
+        isFalse,
+        reason: 'a vigia lê o estado sozinha; quem levanta a parada é a '
+            'mesa, não o toque',
+      );
     },
   );
 
