@@ -92,8 +92,6 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
       if (_closed) return;
       _present(credential);
     } on CredentialNotYet {
-      // Not claimed yet, or out of service — both may change. Going on asking whose the
-      // tablet is is the answer, and the next cycle tries to collect again.
       _lookAgainLater();
     } on CredentialTaken {
       await _startOver();
