@@ -1,8 +1,8 @@
 # Sala de Internalização
 
-Voice-first Flutter app for the internalization room of the Shemá oral Bible translation flow. The visual language comes from the Claude Design prototype `Sala de Internalização.dc.html` (Shemá design system); the interaction model follows the client-validated *Tripod Internalization · Interaction Flows* document.
+Voice-first Flutter app for the internalization room of the Shemá oral Bible translation flow. The visual language comes from the Claude Design prototype `docs/spec/prototype/Sala de Internalização.dc.html` (Shemá design system); the interaction model follows the client-validated *Tripod Internalization · Interaction Flows* document, vendored at `docs/spec/interaction-flows.html` (`docs/spec/interaction-flows.md` for a text extraction).
 
-> **Neither reference artifact is in this workspace.** Until they are, the rules below cannot be checked against their source, and where the code diverges nobody can tell from here whether it was a deliberate cut. The rules were written as the target, not as a description of the code: the notes marking drift say which is which today.
+> Where the code diverges from those sources, the notes marking drift say which is which today. The rules below were written as the target, not as a description of the code.
 
 The room walks a team through a passage in five stations, with **zero readable words on team screens** — one terracotta circle, a bead necklace (colar) as the only progress indicator, and everything else spoken:
 
