@@ -147,6 +147,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _inboxSilences = 0;
   int _degradedTurns = 0;
   Duration _trechoStart = Duration.zero;
+
+  /// Where each stretch mended by the long way sits, by the take the mend recorded.
+  ///
+  /// Carried in the resume point rather than only here: the room answers for a mended
+  /// stretch with a recording that is no part of the rehearsal, so a tablet opened again
+  /// has nothing on the wire to place it by.
+  final Map<String, LugarDoTrecho> _lugares = {};
   Duration _trechoEnd = Duration.zero;
   int _retroClipMs = 0;
   int _parteTocando = 0;
@@ -1097,6 +1104,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// looked the session up again and recursed forever.
   Future<void> goConversa({String? pericope, bool fresh = false}) async {
     _clearAll();
+    // A place belongs to the passage it was mended in. Carried into the next one they
+    // enter, the places of the last would be written into its row of the ledger.
+    _lugares.clear();
     _emCurso = pericope;
     final epoch = _epoch;
     state = state.copyWith(
@@ -1238,6 +1248,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           stage: stage,
           takes: state.keptTakes,
           pass: state.ensaioPass,
+          lugares: List.of(_lugares.values),
         ),
       ),
     ));
@@ -1286,6 +1297,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       return false;
     }
+    _lugares
+      ..clear()
+      ..addEntries([
+        for (final lugar in waiting.lugares) MapEntry(lugar.takeId, lugar),
+      ]);
     state = state.copyWith(
       stage: SalaStage.ensaio,
       ensaio: EnsaioStatus.idle,
@@ -2000,7 +2016,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Duration _chaoExplicadoDe(int parte) {
     var ate = Duration.zero;
     for (final trecho in state.btTrechos) {
-      if (trecho.parte == parte && trecho.contado && trecho.to > ate) ate = trecho.to;
+      if (trecho.parte == parte && trecho.contado && trecho.lugarTo > ate) {
+        ate = trecho.lugarTo;
+      }
     }
     return ate;
   }
@@ -2092,7 +2110,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Duration _ondeParouNesteArquivo(int parte) {
     var ate = Duration.zero;
     for (final trecho in state.btTrechos) {
-      if (trecho.parte == parte && trecho.to > ate) ate = trecho.to;
+      if (trecho.parte == parte && trecho.lugarTo > ate) ate = trecho.lugarTo;
     }
     return ate;
   }
@@ -2873,7 +2891,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           // the very thing the mend broke, by the place the replacement took.
           final antes =
               aqui.isNotEmpty ? aqui.first : (onde == lugar ? noLugarDe : null);
-          final parte = partes.indexWhere((p) => p.takeId == segment.takeId);
+          // Where it sits, which is the slice of a part it covers, and has nothing to do
+          // with the file it plays. A stretch out of a rehearsal part sits where it
+          // plays; a mended one keeps the place of the stretch it replaced — carried
+          // from that stretch inside the round that mends it, and read back out of the
+          // resume point on a tablet that has no such round behind it.
+          final naParte = partes.indexWhere((p) => p.takeId == segment.takeId);
+          final guardado = _lugares[segment.takeId];
+          final parte = naParte >= 0
+              ? naParte
+              : (antes?.parte ?? guardado?.parte ?? naParte);
           return Trecho(
             segmentId: segment.segmentId,
             takeId: segment.takeId,
@@ -2882,9 +2909,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
                 : onde == lugar && contadoEm != null
                     ? contadoEm
                     : (aqui.isNotEmpty ? aqui.first.retroPath : null),
-            parte: parte >= 0 || antes == null ? parte : antes.parte,
+            parte: parte,
             from: from,
             to: to,
+            lugarFrom: naParte >= 0
+                ? null
+                : (antes?.lugarFrom ?? guardado?.from),
+            lugarTo: naParte >= 0 ? null : (antes?.lugarTo ?? guardado?.to),
             contado: segment.told,
           );
         }(),
@@ -3104,6 +3135,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // stretch and no part of the rehearsal, so the cord cannot situate the successor by
     // its name and used to drop it: a team came out of the far station with the band they
     // were mending gone off the necklace altogether.
+    // Kept by the take the mend recorded, which is the only name the successor and this
+    // tablet will still agree on after the app is closed: the stretch's own is minted
+    // fresh by every mend, and the place is what the team sees on the necklace.
+    _lugares[gravacao] = LugarDoTrecho(
+      takeId: gravacao,
+      parte: alvo.parte,
+      from: alvo.lugarFrom,
+      to: alvo.lugarTo,
+    );
     final trechos = _trechosFrom(
       trocado.segments,
       lugar: onde,
@@ -3119,6 +3159,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btTrechos: trechos,
       btFindingSegmentId: agora!.segmentId,
     );
+    _rememberWhereTheyAre(SalaStage.retro);
     // Correcting the mother tongue is two steps over the same route, and the room can give
     // out on either. Read only on the second, the news would arrive after this step had
     // already opened the microphone for a telling the room would not take.

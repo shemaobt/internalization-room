@@ -279,11 +279,14 @@ class FakePlayback implements PlaybackRepository {
     _measuring = null;
   }
 
+  /// How long a particular file is, for a test whose files are not all the same length.
+  final Map<String, Duration> lengths = {};
+
   @override
   Future<Duration?> howLong(String path) async {
     measurements.add(path);
     await _measuring?.future;
-    return measured;
+    return lengths[path] ?? measured;
   }
 
   @override

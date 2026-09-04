@@ -54,6 +54,12 @@ class Trecho {
   final Duration from;
   final Duration to;
 
+  /// Where in [parte] this stretch sits, when that is not where it plays from.
+  ///
+  /// Null on a stretch nobody has corrected, whose two intervals are the same one.
+  final Duration? _lugarFrom;
+  final Duration? _lugarTo;
+
   /// Whether the team has explained this stretch yet. False on a half a division just
   /// made: it is a unit the room counts and nobody has told back.
   final bool contado;
@@ -66,6 +72,42 @@ class Trecho {
     required this.from,
     required this.to,
     this.contado = true,
+    Duration? lugarFrom,
+    Duration? lugarTo,
+  })  : _lugarFrom = lugarFrom,
+        _lugarTo = lugarTo;
+
+  /// Where this stretch begins in [parte], and where it ends there.
+  ///
+  /// Its place, which a correction never moves — as against [from] and [to], which say
+  /// what plays and which a correction by the long way replaces outright. Told again over
+  /// a recording of its own, a stretch of six seconds became a take of twenty-seven, and
+  /// with one number for both the cord drew those twenty-seven seconds over its
+  /// neighbours and the room counted the part as told that far.
+  Duration get lugarFrom => _lugarFrom ?? from;
+
+  Duration get lugarTo => _lugarTo ?? to;
+}
+
+/// Where a stretch mended by the long way sits in the rehearsal.
+///
+/// Kept beside the recordings because nothing else can say it. A mend records a take of
+/// its own, which is no part of the rehearsal, and the room answers for a stretch with
+/// the recording and the slice — never with the place. In the round that made the mend
+/// the place is inherited from the stretch replaced; a tablet opened again has no such
+/// round behind it, and the stretch came back belonging to no part at all.
+class LugarDoTrecho {
+  /// The mend's own take, which is what a stretch with no place is found by.
+  final String takeId;
+  final int parte;
+  final Duration from;
+  final Duration to;
+
+  const LugarDoTrecho({
+    required this.takeId,
+    required this.parte,
+    required this.from,
+    required this.to,
   });
 }
 
