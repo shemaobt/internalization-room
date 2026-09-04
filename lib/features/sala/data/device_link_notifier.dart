@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/config/env.dart';
 import '../dev/dev_skip_bar.dart';
 import '../domain/device_link.dart';
+import 'hand_inbox_repository.dart';
 import 'linked_team.dart';
 import 'room_repository.dart';
 import 'session_notifier.dart';
@@ -35,12 +36,15 @@ class DeviceLink {
 class DeviceLinkNotifier extends Notifier<DeviceLink> {
   Timer? _next;
   String? _deviceId;
+  String? _credential;
   int _failures = 0;
   bool _closed = false;
 
   RoomRepository get _room => ref.read(roomRepositoryProvider);
 
   LinkedTeam get _ledger => ref.read(linkedTeamProvider);
+
+  HandInboxRepository get _inbox => ref.read(handInboxRepositoryProvider);
 
   @override
   DeviceLink build() {
@@ -61,12 +65,65 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     final remembered = await _ledger.read();
     if (_closed) return;
     _deviceId = remembered.deviceId;
+    _present(remembered.credential);
     final team = remembered.team;
     if (team != null) {
       state = DeviceLink(team: team);
-      return;
+      return _collectTheCredential();
     }
     await _lookForTheTeam();
+  }
+
+  /// Draw the one copy of this tablet's credential, and never draw it twice.
+  ///
+  /// The server keeps only a hash of what it hands over, so a second ask is answered 403
+  /// forever — which is also what a 200 lost on the way back turns into. Collecting is
+  /// therefore something a tablet does once in its life, right after it learns whose it
+  /// is, and a tablet linked before any of this existed does it on its next start.
+  Future<void> _collectTheCredential() async {
+    if (_closed || _credential != null) return;
+    final deviceId = _deviceId;
+    if (deviceId == null) return;
+    try {
+      final credential = await _room.collectTheCredential(deviceId);
+      if (_closed) return;
+      _failures = 0;
+      await _ledger.rememberCredential(credential);
+      if (_closed) return;
+      _present(credential);
+    } on CredentialNotYet {
+      // Not claimed yet, or out of service — both may change. Going on asking whose the
+      // tablet is is the answer, and the next cycle tries to collect again.
+      _lookAgainLater();
+    } on CredentialTaken {
+      await _startOver();
+    } on SessionGone {
+      _deviceId = null;
+      await _showACode();
+    } on Exception {
+      _tryAgainLater(_collectTheCredential);
+    }
+  }
+
+  /// The credential is spent, and the device id is spent with it: that row will never
+  /// hand one out again. Everything the tablet knew about being itself goes at once —
+  /// keeping the team beside a device it can no longer prove leaves it linked to a room
+  /// no request of its will be let into.
+  Future<void> _startOver() async {
+    _deviceId = null;
+    _present(null);
+    await _ledger.forgetTheLink();
+    if (_closed) return;
+    await _showACode();
+  }
+
+  /// Told to everything that speaks to the room. The hand keeps a client and a header of
+  /// its own, so a credential that reached only the room would leave the team's questions
+  /// as the one thing still arriving unnamed.
+  void _present(String? credential) {
+    _credential = credential;
+    _room.presents(credential);
+    _inbox.presents(credential);
   }
 
   Future<void> _showACode() async {
@@ -94,8 +151,9 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
       _failures = 0;
       if (team != null) {
         await _ledger.rememberTeam(team);
+        if (_closed) return;
         state = DeviceLink(team: team);
-        return;
+        return _collectTheCredential();
       }
       final showing = state.code;
       if (showing == null || showing.ranOutBy(DateTime.now())) return _showACode();
