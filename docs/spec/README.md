@@ -20,7 +20,9 @@ so the code and its source can be read side by side.
   (`colors_and_type.css`) and the two icons (`assets/icon-branco.svg`, `assets/icon-telha.svg`)
   the prototype references, plus the design system's own `README.md` (doctrine). Kept at the
   relative path the prototype's `<link>`/`<script>`/`<img>` tags use, so a reader can see which
-  files it expects.
+  files it expects. That doctrine `README.md` also names `fonts/`, `preview/`, `ui_kits/website/`,
+  a few more assets, and a `SKILL.md` — none of those are part of this design system export and
+  none are vendored here; only the three files above are.
 - `github.md` — provenance: which `sound-necklace` files the prototype was built from.
 
 ## Not vendored
