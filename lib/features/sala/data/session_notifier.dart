@@ -231,6 +231,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       timer.cancel();
     }
     _timers.clear();
+    // The mark says the room is being watched out of a halt, and the beat it names has
+    // just been cancelled with the rest. Left standing, it told the next halt in the same
+    // session that a watch was already running — a room that lost the network under a
+    // halt came back stopped, unwatched, and the desk's mark never reached it again.
+    _haltWatched = null;
   }
 
   void _clearAll() {

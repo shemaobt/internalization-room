@@ -386,6 +386,50 @@ void main() {
             'e a resposta que soltar a equipe será sobre o trabalho de outra');
   });
 
+  test('a watched halt that goes offline is watched again when the room returns',
+      () async {
+    // A cadence wide enough to hold a turn in the air across the settle that stops the
+    // room: every gesture is barred once it is stopped, so a call already in flight is
+    // the only way a stopped room reaches the offline circle at all.
+    final harness = SalaHarness(settleDelay: const Duration(seconds: 2));
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    harness.room.holdNextTurn();
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    await settle();
+    harness.room.serverStatus = 'needs_person';
+    harness.room.serverHalt = HaltKind.blocking;
+
+    await waitFor('a sala parar com o turno no ar', () => read().needsPerson);
+    await waitFor('a vigia reler o estado', () => _stateReads(harness) > 1);
+
+    harness.room.failHeldTurnWith = const RoomUnavailable('sem rede');
+    harness.room.finishHeldTurn();
+    await waitFor('a sala cair', () => read().offline);
+    await waitFor('a sala voltar', () => !read().offline);
+
+    // The room is up again and the server is still holding the halt, so the next turn
+    // stops the team once more — this time in a room that has been offline under it.
+    await _aTurn(notifier);
+    await waitFor('a sala parar de novo', () => read().needsPerson);
+    final asked = _stateReads(harness);
+    harness.room.theDeskAttended();
+
+    await waitFor('o círculo voltar ao convite',
+        () => read().voice == VoiceState.invite);
+
+    expect(_stateReads(harness), greaterThan(asked),
+        reason: 'a queda levou o timer da vigia e deixou a marca dela de pé: a '
+            'sala voltava parada e sem vigia nenhuma, e a marca da mesa não '
+            'chegava mais nela — só um toque longo, que é o gesto que esta '
+            'fatia existe para tirar do caminho');
+  });
+
   test('a halt with no session releases on the long press, as it always did',
       () async {
     final harness = SalaHarness();

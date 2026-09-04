@@ -580,9 +580,19 @@ class FakeRoom implements RoomRepository {
     _holdingTurn = null;
   }
 
-  Future<void> _turnArrives() {
+  /// What a held call throws when it is let go. A room that always succeeded once the
+  /// wait was over could not be asked what the app does when a call already in the air
+  /// fails — which is the only way the room reaches some of its own states.
+  Exception? failHeldTurnWith;
+
+  Future<void> _turnArrives() async {
     final held = _holdingTurn;
-    return held == null ? Future<void>.value() : held.future;
+    if (held != null) await held.future;
+    final failure = failHeldTurnWith;
+    if (failure != null) {
+      failHeldTurnWith = null;
+      throw failure;
+    }
   }
 
   void _guard(String call) {
