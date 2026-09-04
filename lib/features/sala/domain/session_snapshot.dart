@@ -98,6 +98,23 @@ class BackTranslationProgress {
   bool get nothingTold => segments.isEmpty;
 }
 
+/// Which kind of halt the room is under.
+///
+/// [unnamed] is a halt a server older than the field raised: it carries no kind, and the
+/// room reads it as blocking. Walking past a stop this tablet cannot name would leave the
+/// team working inside a room somebody stopped for a reason nobody here can see.
+enum HaltKind {
+  blocking,
+  warning,
+  unnamed;
+
+  static HaltKind fromJson(Object? raw) => switch (raw) {
+        'blocking' => HaltKind.blocking,
+        'warning' => HaltKind.warning,
+        _ => HaltKind.unnamed,
+      };
+}
+
 class SessionSnapshot {
   final String sessionId;
   final String pericope;
@@ -106,6 +123,8 @@ class SessionSnapshot {
   final bool done;
   final BackTranslationProgress backTranslation;
 
+  final HaltKind halt;
+
   const SessionSnapshot({
     required this.sessionId,
     required this.pericope,
@@ -113,6 +132,7 @@ class SessionSnapshot {
     required this.coverage,
     required this.done,
     this.backTranslation = const BackTranslationProgress(),
+    this.halt = HaltKind.unnamed,
   });
 
   factory SessionSnapshot.fromJson(Map<String, dynamic> json) => SessionSnapshot(
@@ -130,7 +150,11 @@ class SessionSnapshot {
             : BackTranslationProgress.fromJson(
                 (json['back_translation'] as Map).cast<String, dynamic>(),
               ),
+        halt: HaltKind.fromJson(json['halt']),
       );
 
-  bool get needsPerson => status == 'needs_person';
+  /// A halt the server calls a warning asks for a person to come and watch and refuses
+  /// the team nothing; reading it as a stop closed the room over a note.
+  bool get needsPerson =>
+      status == 'needs_person' && halt != HaltKind.warning;
 }

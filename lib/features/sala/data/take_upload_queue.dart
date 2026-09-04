@@ -172,13 +172,11 @@ class TakeUploadQueue {
   int _minted = 0;
 
   TakeUploadQueue({
-    required RoomRepository room,
+    required this._room,
     Future<Directory> Function()? home,
-    List<Duration> backoff = const [],
+    this._backoff = const [],
     DateTime Function()? now,
-  })  : _room = room,
-        _home = home ?? getApplicationSupportDirectory,
-        _backoff = backoff,
+  })  : _home = home ?? getApplicationSupportDirectory,
         _now = now ?? DateTime.now;
 
   Future<Directory> _dir() async {
