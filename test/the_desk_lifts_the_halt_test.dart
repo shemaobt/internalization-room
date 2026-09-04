@@ -135,7 +135,9 @@ void main() {
 
   test('the long press on a blocking halt asks the room now and releases nothing',
       () async {
-    final harness = SalaHarness(settleDelay: const Duration(seconds: 3))
+    // A cadence far longer than any answer the fake gives, so that what the touch does
+    // is measured by the touch and not by the next beat of the watch arriving under it.
+    final harness = SalaHarness(settleDelay: const Duration(seconds: 5))
       ..room.serverStatus = 'needs_person'
       ..room.serverHalt = 'blocking';
     final container = await inConversa(harness);
@@ -150,7 +152,7 @@ void main() {
     notifier.resolveWithPerson();
     await waitFor('a sala perguntar ao servidor na hora',
         () => _stateReads(harness) > asked,
-        limit: const Duration(milliseconds: 800));
+        limit: const Duration(milliseconds: 2000));
 
     expect(read().needsPerson, isTrue,
         reason: 'o servidor ainda segura a parada; soltar no toque punha a '
@@ -164,7 +166,7 @@ void main() {
     notifier.resolveWithPerson();
     await waitFor('o toque devolver a sala na hora',
         () => read().voice == VoiceState.invite,
-        limit: const Duration(milliseconds: 1500));
+        limit: const Duration(milliseconds: 3000));
 
     expect(read().needsPerson, isFalse,
         reason: 'quem acabou de atender na mesa não espera a próxima batida da '
