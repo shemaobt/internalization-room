@@ -26,9 +26,16 @@ class HandInboxRepository {
   })  : _client = client ?? http.Client(),
         _deviceId = deviceId ?? deviceIdentity;
 
+  String? _credential;
+
+  /// What this tablet presents as itself from now on. The hand keeps a client and a
+  /// header of its own, so the credential has to arrive here as well as at the room.
+  void presents(String? credential) => _credential = credential;
+
   Future<Map<String, String>> get _headers async => {
         'X-Room-Key': Env.roomKey,
         'X-Room-Device': await _deviceId(),
+        'X-Device-Credential': ?_credential,
       };
 
   Future<List<HandReply>?> fetchReplies() async {
@@ -55,17 +62,23 @@ class HandInboxRepository {
     }
   }
 
-  Future<void> markHeard(String replyId) async {
+  /// Whether the desk took it.
+  ///
+  /// Any 2xx is agreement, so a desk that answers "already heard" is not read as a
+  /// refusal.
+  Future<bool> markHeard(String replyId) async {
+    final http.Response response;
     try {
-      await _client
+      response = await _client
           .post(
             Uri.parse('${Env.backendUrl}$_basePath/questions/$replyId/heard'),
             headers: await _headers,
           )
           .timeout(_timeout);
-    } on Exception {
-      return;
+    } on Object {
+      return false;
     }
+    return response.statusCode >= 200 && response.statusCode < 300;
   }
 
   Future<void> sendQuestion(String sessionId, File audio) async {

@@ -10,16 +10,6 @@ Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) async 
   await Future<void>.delayed(delay);
 }
 
-Future<void> until(
-  bool Function() condition, {
-  Duration limit = const Duration(seconds: 5),
-}) async {
-  final deadline = DateTime.now().add(limit);
-  while (!condition() && DateTime.now().isBefore(deadline)) {
-    await Future<void>.delayed(const Duration(milliseconds: 10));
-  }
-}
-
 Future<void> _gravaParte(SalaSessionNotifier notifier) async {
   notifier.ensaioTap();
   notifier.ensaioTap();
@@ -69,7 +59,7 @@ Future<ProviderContainer> _comDuasMetadesEsperando(SalaHarness harness) async {
   final container = await _inRetro(harness);
   final notifier = container.read(salaSessionProvider.notifier);
   await _contaTrecho(harness, notifier, em: const Duration(seconds: 20));
-  await until(() => harness.room.chunksSent == 1);
+  await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
   harness.room.verdictFindingSegmentId = harness.room.segments.last.segmentId;
   harness.playback.finishPlayback();
   await settle();
@@ -77,7 +67,10 @@ Future<ProviderContainer> _comDuasMetadesEsperando(SalaHarness harness) async {
   // The room no longer plays the pointed stretch at the team: which voice must
   // speak again is theirs to say, so hearing it is a tap they choose to make.
   notifier.ouvirVozMaterna();
-  await until(() => container.read(salaSessionProvider).btTrechoTocando);
+  await waitFor(
+    'o trecho apontado estar tocando',
+    () => container.read(salaSessionProvider).btTrechoTocando,
+  );
   harness.playback.at = const Duration(seconds: 8);
   await notifier.dividirTrecho();
   await settle();
@@ -92,9 +85,9 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     await _contaTrecho(harness, notifier, em: const Duration(seconds: 20));
-    await until(() => harness.room.chunksSent == 1);
+    await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
     await _contaTrecho(harness, notifier, em: const Duration(seconds: 40));
-    await until(() => harness.room.chunksSent == 2);
+    await waitFor('o segundo trecho chegar à sala', () => harness.room.chunksSent == 2);
     harness.room.verdictFindingSegmentId = harness.room.segments.first.segmentId;
     harness.playback.finishPlayback();
     await settle();
@@ -114,14 +107,16 @@ void main() {
     expect(container.read(salaSessionProvider).needsPerson, isTrue,
         reason: 'o trecho recontado voltou vazio, então a sala para para uma pessoa');
 
+    harness.room.theDeskAttended();
     notifier.resolveWithPerson();
-    await settle();
+    await waitFor('a sala sair da parada',
+        () => !container.read(salaSessionProvider).needsPerson);
     harness.recorder.returnsEmpty = false;
     harness.playback.at = const Duration(seconds: 60);
     notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
-    await until(() => harness.room.chunksSent == 3);
+    await waitFor('o terceiro trecho chegar à sala', () => harness.room.chunksSent == 3);
 
     expect(harness.room.chunksSent, 3,
         reason: 'o corte seguinte precisa mesmo chegar à sala, senão nada aqui é olhado');
@@ -142,7 +137,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     await _contaTrecho(harness, notifier, em: const Duration(seconds: 20));
-    await until(() => harness.room.chunksSent == 1);
+    await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
     harness.room.verdictFindingSegmentId = harness.room.segments.last.segmentId;
     harness.playback.finishPlayback();
     await settle();
@@ -247,9 +242,9 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     await _contaTrecho(harness, notifier, em: const Duration(seconds: 10));
-    await until(() => harness.room.chunksSent == 1);
+    await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
     await _contaTrecho(harness, notifier, em: const Duration(seconds: 20));
-    await until(() => harness.room.chunksSent == 2);
+    await waitFor('o segundo trecho chegar à sala', () => harness.room.chunksSent == 2);
 
     expect(harness.room.chunkSpans, ['0-10000', '10000-20000'],
         reason: 'o caminho de sempre não vira substituição por engano');
@@ -290,18 +285,24 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     await _contaTrecho(harness, notifier, em: const Duration(seconds: 20));
-    await until(() => harness.room.chunksSent == 1);
+    await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
     harness.room.verdictFindingSegmentId = harness.room.segments.last.segmentId;
     harness.playback.finishPlayback();
     await settle();
     await notifier.finishBackTranslation();
     notifier.ouvirVozMaterna();
-    await until(() => container.read(salaSessionProvider).btTrechoTocando);
+    await waitFor(
+      'o trecho apontado estar tocando',
+      () => container.read(salaSessionProvider).btTrechoTocando,
+    );
 
     notifier.retellChunk();
     await settle();
     harness.playback.finishPlayback();
-    await until(() => !container.read(salaSessionProvider).btTrechoTocando);
+    await waitFor(
+      'o trecho apontado parar de tocar',
+      () => !container.read(salaSessionProvider).btTrechoTocando,
+    );
     await _contaDeNovo(
         notifier, container.read(salaSessionProvider).btTrechos.first);
     final recontagensAntes = harness.room.retells;

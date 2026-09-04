@@ -21,16 +21,6 @@ Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) async 
   await Future<void>.delayed(delay);
 }
 
-Future<void> until(
-  bool Function() condition, {
-  Duration limit = const Duration(seconds: 5),
-}) async {
-  final deadline = DateTime.now().add(limit);
-  while (!condition() && DateTime.now().isBefore(deadline)) {
-    await Future<void>.delayed(const Duration(milliseconds: 10));
-  }
-}
-
 Future<void> _intoFindings(
   SalaHarness harness,
   SalaSessionNotifier notifier,
@@ -184,7 +174,7 @@ void main() {
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
     unawaited(notifier.goConversa(pericope: 'P01'));
-    await until(() => harness.voice.played.isNotEmpty);
+    await waitFor('a primeira fala tocar', () => harness.voice.played.isNotEmpty);
     await settle();
 
     expect(harness.voice.played, [panoramaUrl]);
@@ -193,7 +183,10 @@ void main() {
             'trabalho já está posto');
 
     harness.voice.finishHeldLine();
-    await until(() => container.read(salaSessionProvider).contasEnfiadas);
+    await waitFor(
+      'as contas ficarem enfiadas',
+      () => container.read(salaSessionProvider).contasEnfiadas,
+    );
   });
 
   test('replaying takes the circle off team-talk while the room speaks', () async {
@@ -209,7 +202,7 @@ void main() {
     harness.voice.fetched.clear();
     harness.voice.holdNextLine();
     unawaited(notifier.hearAgain());
-    await until(() => harness.voice.played.length > 1);
+    await waitFor('a segunda fala tocar', () => harness.voice.played.length > 1);
     await settle();
 
     expect(container.read(salaSessionProvider).voice, VoiceState.speaking,
@@ -220,7 +213,7 @@ void main() {
             'já tem na mão');
 
     harness.voice.finishHeldLine();
-    await until(
+    await waitFor('o círculo voltar ao convite',
       () => container.read(salaSessionProvider).voice == VoiceState.invite,
     );
 
@@ -245,7 +238,7 @@ void main() {
             'sempre significou');
 
     harness.voice.finishHeldFetch();
-    await until(
+    await waitFor('o círculo voltar ao convite',
       () => container.read(salaSessionProvider).voice == VoiceState.invite,
     );
   });
@@ -287,7 +280,7 @@ void main() {
     harness.voice.holdNextLine();
 
     unawaited(notifier.hearTheWholeOpening());
-    await until(() => harness.voice.played.isNotEmpty);
+    await waitFor('a primeira fala tocar', () => harness.voice.played.isNotEmpty);
     await settle();
 
     expect(harness.voice.played, [panoramaUrl]);
@@ -296,7 +289,7 @@ void main() {
             'o que faz o gesto ser percebido sem uma palavra');
 
     harness.voice.finishHeldLine();
-    await until(() => harness.voice.played.length > 1);
+    await waitFor('a segunda fala tocar', () => harness.voice.played.length > 1);
     await settle();
 
     expect(harness.voice.played, [panoramaUrl, sceneUrl]);
@@ -340,7 +333,7 @@ void main() {
     notifier.conversaTap();
     await settle();
     notifier.conversaTap();
-    await until(() => harness.voice.assets.isNotEmpty);
+    await waitFor('a sala dizer uma fala fixa', () => harness.voice.assets.isNotEmpty);
     await settle();
 
     expect(container.read(salaSessionProvider).lastSpoken!.url, told,
@@ -591,7 +584,7 @@ void main() {
 
     harness.room.reachable = true;
     container.read(salaSessionProvider.notifier).resolveWithPerson();
-    await until(
+    await waitFor('o círculo voltar ao convite',
       () => container.read(salaSessionProvider).voice == VoiceState.invite,
     );
 
@@ -633,7 +626,7 @@ void main() {
     final container = await inConversa(harness);
     addTearDown(container.dispose);
 
-    await until(() => harness.voice.assets.isNotEmpty);
+    await waitFor('a sala dizer uma fala fixa', () => harness.voice.assets.isNotEmpty);
     await settle(const Duration(milliseconds: 200));
 
     expect(harness.voice.assets, hasLength(1),
@@ -1068,7 +1061,7 @@ void main() {
     notifier.ensaioTap();
     await settle();
     notifier.takeKeep();
-    await until(() => harness.room.takesKept.isNotEmpty);
+    await waitFor('a sala guardar a tomada', () => harness.room.takesKept.isNotEmpty);
 
     expect(harness.room.takesKept, ['ensaio/${KeptScope.parte(1)}'],
         reason: 'o ensaio é o produto — um tablet que quebra não pode levar a sessão junto');
@@ -1122,7 +1115,10 @@ void main() {
     await settle();
     harness.room.reachable = false;
     notifier.takeKeep();
-    await until(() => container.read(salaSessionProvider).unsentTakes == 1);
+    await waitFor(
+      'uma tomada ficar por enviar',
+      () => container.read(salaSessionProvider).unsentTakes == 1,
+    );
 
     expect(container.read(salaSessionProvider).unsentTakes, 1,
         reason: 'a conta aparece quando a equipe guarda, mas ainda está só no tablet');
@@ -1604,7 +1600,8 @@ void main() {
             'conta nunca aparecia e o pacote de evidência perdia o rótulo');
   });
 
-  test('the retells run out and the room asks for a person', () async {
+  test('the retells running out asks for a person to watch, and refuses nothing',
+      () async {
     final harness = SalaHarness()
       ..room.verdictChecked = false
       ..room.verdictFinding = BtFindingKind.missing
@@ -1625,9 +1622,16 @@ void main() {
     notifier.retroTap();
     await settle();
 
-    expect(container.read(salaSessionProvider).needsPerson, isTrue,
-        reason: 'contar o mesmo trecho de novo era o único ciclo sem teto, e o '
-            'orçamento que existia estava numa rota que ninguém chamava');
+    expect(container.read(salaSessionProvider).needsPerson, isFalse,
+        reason: 'o orçamento esgotado é o aviso do ENG-706: uma pessoa é chamada '
+            'para vir olhar, e nada é recusado à equipe. Fechar a retro em cima '
+            'dele tirava a equipe do trabalho por um bilhete que ninguém leu');
+    expect(
+      harness.voice.assets,
+      isNot(contains(fixedLineAsset(needsPersonLine, testLanguage))),
+      reason: 'e a sala não anuncia parada nenhuma: dita em voz alta, a equipe '
+          'para sozinha, que é exatamente o que o aviso não quer',
+    );
   });
 
   test('retelling one stretch keeps every other explanation', () async {
@@ -1670,7 +1674,10 @@ void main() {
     await _intoFindings(harness, notifier);
 
     notifier.reRecordClip();
-    await until(() => harness.room.restartsAsked.isNotEmpty);
+    await waitFor(
+      'a sala receber o pedido de regravar',
+      () => harness.room.restartsAsked.isNotEmpty,
+    );
     await settle();
 
     expect(harness.room.restartsAsked, ['novo-clipe'],
@@ -1690,7 +1697,7 @@ void main() {
     notifier.ensaioTap();
     await settle();
     notifier.takeKeep();
-    await until(() => harness.room.takesKept.isNotEmpty);
+    await waitFor('a sala guardar a tomada', () => harness.room.takesKept.isNotEmpty);
 
     expect(harness.room.takePasses, [1],
         reason: 'o ensaio subia sem passada nenhuma, e o pacote nao tinha por onde '
@@ -1713,7 +1720,7 @@ void main() {
     notifier.ensaioTap();
     await settle();
     notifier.takeKeep();
-    await until(() => harness.room.takesKept.length == 2);
+    await waitFor('a sala guardar a segunda tomada', () => harness.room.takesKept.length == 2);
 
     expect(harness.room.takesKept, ['ensaio/parte-1', 'ensaio/parte-1'],
         reason: 'o rotulo volta a ser o mesmo porque a contagem das partes recomeca');
@@ -1777,7 +1784,7 @@ void main() {
     notifier.ensaioTap();
     await settle();
     notifier.takeKeep();
-    await until(() => harness.room.takesKept.isNotEmpty);
+    await waitFor('a sala guardar a tomada', () => harness.room.takesKept.isNotEmpty);
 
     expect(harness.room.takesKept, ['ensaio/parte-2']);
     expect(harness.room.takePasses, [2],
@@ -2375,7 +2382,7 @@ void main() {
     expect(container.read(salaSessionProvider).voice, VoiceState.listening,
         reason: 'a pergunta do método foi feita; o círculo escuta a única resposta');
     notifier.conviteTap();
-    await until(() => harness.room.turnsSent == 1);
+    await waitFor('o turno chegar à sala', () => harness.room.turnsSent == 1);
     await settle();
 
     expect(harness.room.turnsSent, 1,
@@ -2431,7 +2438,7 @@ void main() {
     notifier.conversaTap();
     await settle();
     notifier.conversaTap();
-    await until(() => harness.room.turnsSent == 1);
+    await waitFor('o turno chegar à sala', () => harness.room.turnsSent == 1);
     await settle();
     await notifier.goConversa();
     await settle();
@@ -2490,7 +2497,10 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     unawaited(notifier.goConversa());
-    await until(() => container.read(salaSessionProvider).sessionId != null);
+    await waitFor(
+      'a sessão ser aberta',
+      () => container.read(salaSessionProvider).sessionId != null,
+    );
 
     expect(container.read(salaSessionProvider).coverage.total, greaterThan(0),
         reason: 'o createSession já devolve a cobertura; o colar não espera a voz');
@@ -2522,7 +2532,7 @@ void main() {
         ['parte-1', 'parte-2', 'parte-3']);
     expect(state.ensaio, EnsaioStatus.idle,
         reason: 'guardar uma parte já deixa o círculo pronto para a próxima');
-    await until(() => harness.room.takesKept.length == 3);
+    await waitFor('a sala guardar a terceira tomada', () => harness.room.takesKept.length == 3);
     expect(harness.room.takesKept,
         ['ensaio/parte-1', 'ensaio/parte-2', 'ensaio/parte-3']);
     expect(state.ensaioDone, isTrue);
@@ -2862,7 +2872,7 @@ void main() {
     notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
-    await until(() => harness.room.chunksSent == 1);
+    await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
     await settle();
     notifier.proximaParte();
     await settle();
@@ -2870,7 +2880,7 @@ void main() {
     notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
-    await until(() => harness.room.chunksSent == 2);
+    await waitFor('o segundo trecho chegar à sala', () => harness.room.chunksSent == 2);
     await settle();
     harness.playback.at = const Duration(seconds: 8);
     harness.playback.finishPlayback();
@@ -2908,7 +2918,7 @@ void main() {
     notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
-    await until(() => harness.room.chunksSent == 1);
+    await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
     harness.playback.at = const Duration(seconds: 10);
     harness.playback.finishPlayback();
     await settle();
