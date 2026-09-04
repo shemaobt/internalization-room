@@ -112,6 +112,7 @@ void main() {
       expect(body.width, greaterThan(0));
       expect(body.height, greaterThan(0));
     }
+    closeTheRoom(container);
   });
 
   testWidgets('the choice screen is the circle, the wood and nothing else',
@@ -191,6 +192,7 @@ void main() {
           reason: 'a sala é falada de ponta a ponta: uma palavra escrita é uma '
               'palavra que esta equipe não pode ler');
     }
+    closeTheRoom(container);
   });
 
   testWidgets('no stage is a dead end — every screen answers a touch',
@@ -218,6 +220,7 @@ void main() {
     await expectALiveGesture('ensaio');
     notifier.startRetro();
     await expectALiveGesture('retro');
+    closeTheRoom(container);
   });
 
   testWidgets('the mic gate answers a touch out loud, not in silence',
