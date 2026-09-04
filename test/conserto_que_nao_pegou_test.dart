@@ -266,8 +266,9 @@ void main() {
             'não pede nada');
   });
 
-  testWidgets('uma recusa na substituição chama uma pessoa, sem pedir para repetir',
-      (tester) async {
+  testWidgets(
+      'uma recusa na substituição chama uma pessoa; o toque longo só '
+      'pergunta, e é a mesa quem resolve', (tester) async {
     final container = await _pumpToPergunta(tester);
     final harness = _harnessDaVez!;
 
@@ -283,16 +284,35 @@ void main() {
     expect(harness.voice.assets, [_falaDePessoa],
         reason: 'a sala já falou ao chamar alguém; não fala por cima');
 
+    // O toque longo, com a sessão viva e a parada confirmada pelo servidor,
+    // só pede uma releitura na hora — não derruba o aviso por si.
     _notifier(container).resolveWithPerson();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      container.read(salaSessionProvider).needsPerson,
+      isTrue,
+      reason: 'o servidor ainda segura a parada; soltar no toque poria a '
+          'equipe de volta a falar dentro de uma sala que a mesa não '
+          'atendeu',
+    );
+    expect(harness.voice.assets, [_falaDePessoa],
+        reason: 'sem pedir para repetir: a mesma linha de chamar alguém, e '
+            'nenhuma outra por cima');
+
+    // Quando o servidor deixa de dizer needs_person — a mesa atendeu —, a
+    // sala volta sozinha ao convite, sem precisar de um novo toque.
+    harness.room.theDeskAttended();
     await tester.pump(const Duration(milliseconds: 300));
 
     final depois = container.read(salaSessionProvider);
     expect(depois.btPhase, BtPhase.findings);
     expect(depois.voice, VoiceState.invite,
-        reason: 'resolvida a parada, a equipe está na pergunta com o toque '
-            'valendo de novo');
+        reason: 'a vigia lê o estado sozinha; quem levanta a parada é a '
+            'mesa, não o toque');
     expect(_byLabel(_micMaterna), findsOneWidget);
     expect(_byLabel(_micRetro), findsOneWidget);
+    closeTheRoom(container);
   });
 
   testWidgets('a rede que cai na substituição não pede para repetir',
@@ -331,6 +351,7 @@ void main() {
         reason: 'nas duas primeiras a sala pede para repetir; na terceira ela '
             'chama alguém, e não diz as duas coisas ao mesmo tempo');
     expect(harness.voice.assets.where((a) => a == _falaDePessoa), hasLength(1));
+    closeTheRoom(container);
   });
 
   testWidgets('a captura vazia continua como estava', (tester) async {
@@ -349,5 +370,6 @@ void main() {
     expect(harness.voice.assets, [_falaDePessoa],
         reason: 'ela diz só a linha de chamar alguém; a linha de repetir '
             'pertence à falha da sala, não ao arquivo sem byte');
+    closeTheRoom(container);
   });
 }
