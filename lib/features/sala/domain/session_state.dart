@@ -410,7 +410,10 @@ class SalaSessionState {
       btFindings.isNotEmpty &&
       btFindings.every((finding) => finding == BtFindingKind.missing);
 
-  List<KeptTake> get partes => keptTakes;
+  /// The rehearsal's own recordings, in order — never a correction's own take, which is a
+  /// slice of one of these and not a part of the rehearsal in its own right.
+  List<KeptTake> get partes =>
+      [for (final take in keptTakes) if (KeptScope.isParte(take.scopeId)) take];
 
   bool get canGhostPlay => partes.isNotEmpty && ensaio == EnsaioStatus.idle;
 

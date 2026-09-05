@@ -3,6 +3,10 @@ abstract class KeptScope {
 
   static String parte(int n) => 'parte-$n';
 
+  /// Whether a scope names one of the rehearsal's own parts — never a correction's, which
+  /// is a slice of one of these and not a part of the rehearsal in its own right.
+  static bool isParte(String scopeId) => scopeId.startsWith('parte-');
+
   /// The mother tongue of one stretch, recorded again. Its own scope rather than a part's:
   /// it is a file that stands for a slice, and a reviewer opening the session has to be
   /// able to tell it from the rehearsal it corrects.

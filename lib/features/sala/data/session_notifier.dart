@@ -1443,7 +1443,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ensaio: EnsaioStatus.idle,
       voice: VoiceState.invite,
       keptTakes: here,
-      takes: here.length,
+      // Counted among the rehearsal's own parts — `here` can also carry a correction's
+      // own take, kept beside the parts but not one of them.
+      takes: here.where((take) => KeptScope.isParte(take.scopeId)).length,
       ensaioPass: waiting.pass,
     );
     unawaited(_countUnsent());
@@ -1796,7 +1798,43 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.partes.isEmpty || state.ensaio != EnsaioStatus.idle) return;
     state = state.copyWith(ensaio: EnsaioStatus.ghostPlaying);
     _ghostParte = 0;
-    _tocarParteFantasma();
+    // The retro's own stretches, once it has any, are the passage: a correction lives in
+    // one of them and nowhere among the raw parts, so hearing the passage means hearing
+    // them, in the order the necklace already holds them.
+    if (state.btTrechos.isNotEmpty) {
+      _tocarTrechoFantasma();
+    } else {
+      _tocarParteFantasma();
+    }
+  }
+
+  void _tocarTrechoFantasma() {
+    void backToTheCircle() {
+      state = state.copyWith(ensaio: EnsaioStatus.idle);
+    }
+
+    void aProximo() {
+      _ghostParte++;
+      if (_ghostParte >= state.btTrechos.length ||
+          state.ensaio != EnsaioStatus.ghostPlaying) {
+        backToTheCircle();
+        return;
+      }
+      _tocarTrechoFantasma();
+    }
+
+    final trecho = state.btTrechos[_ghostParte];
+    final path = _pathForTrecho(trecho);
+    if (path == null) {
+      aProximo();
+      return;
+    }
+    _clipHeld = false;
+    _onPlaybackComplete = aProximo;
+    _onPlaybackFailed = backToTheCircle;
+    _listenForTheEnd();
+    unawaited(_playback.playRange(path, trecho.from, trecho.to));
+    _watchPlayback(clipStillOpening: true);
   }
 
   void _tocarParteFantasma() {
@@ -1900,12 +1938,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(ensaio: EnsaioStatus.idle);
       return;
     }
-    final parte = state.keptTakes.length + 1;
+    // Counted among the rehearsal's own parts, never among the corrections a trecho may
+    // already have picked up in this same ensaio — those live in keptTakes too, but are
+    // not parts of the rehearsal in their own right.
+    final parte = state.partes.length + 1;
     final escopo = KeptScope.parte(parte);
     state = state.copyWith(
       ensaio: EnsaioStatus.idle,
       keptTakes: [...state.keptTakes, KeptTake(scopeId: escopo, path: path)],
-      takes: state.keptTakes.length + 1,
+      takes: parte,
     );
     unawaited(_guard(
       path,
@@ -3230,30 +3271,37 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _leadThemToTheTrecho(Trecho trecho) {
-    final partes = state.partes;
-    if (trecho.parte < 0 || trecho.parte >= partes.length) return;
+    if (_ondeTocar(trecho) == null) return;
     state = state.copyWith(btTrechoTocando: true);
     _tocarOTrecho(trecho);
+  }
+
+  /// Which take answers for a stretch's audio: the one its own id names, never the one
+  /// sitting at its place in the rehearsal. A correction moves the file without moving
+  /// the place — [Trecho.parte] stays the cord's address, and has nothing to do with
+  /// which recording plays.
+  String? _pathForTrecho(Trecho trecho) {
+    for (final take in state.keptTakes) {
+      if (take.takeId == trecho.takeId) return take.path;
+    }
+    return null;
   }
 
   /// The file and range that best play [trecho] right now, or null when this tablet has
   /// nothing that does.
   ///
-  /// The part it sits in when that part's own take is the one [trecho] names — the
-  /// ordinary case, true of every stretch nobody has corrected and of a corrected one
-  /// whose composed passage has landed. Otherwise the place [_lugares] kept for its
-  /// segment, if a mend ever passed through here: the mother tongue recorded for the
-  /// stretch that was corrected, the part's own audio still under it for a neighbour
-  /// that only moved on paper. Nothing plays a part that does not hold what [trecho]
-  /// claims and has no fallback to fall back to — that would be some other stretch's
-  /// recording, not this one's.
+  /// [trecho.takeId]'s own file first, wherever it sits in `keptTakes` — the ordinary
+  /// case, true of every stretch nobody has corrected, and of a corrected one whose own
+  /// take or composed passage has already reached this tablet. Otherwise the place
+  /// [_lugares] kept for its segment, for a mend or a composed passage that has not
+  /// reached `keptTakes` yet: the mother tongue recorded for the stretch that was
+  /// corrected, the part's own audio still under it for a neighbour that only moved on
+  /// paper. Nothing plays a part that does not hold what [trecho] claims and has no
+  /// fallback to fall back to — that would be some other stretch's recording, not this
+  /// one's.
   (String, Duration, Duration)? _ondeTocar(Trecho trecho) {
-    if (trecho.parte >= 0 && trecho.parte < state.partes.length) {
-      final parte = state.partes[trecho.parte];
-      if (parte.takeId == trecho.takeId) {
-        return (parte.path, trecho.from, trecho.to);
-      }
-    }
+    final path = _pathForTrecho(trecho);
+    if (path != null) return (path, trecho.from, trecho.to);
     final lugar = (trecho.segmentId != null ? _lugares[trecho.segmentId] : null) ??
         _lugares[trecho.takeId];
     final fallbackPath = lugar?.fallbackPath;
@@ -3556,6 +3604,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btPhase: BtPhase.findings,
       btTrechos: trechos,
       btFindingSegmentId: agora.segmentId,
+      // The corrected voice is its own take, kept beside the rehearsal's — never added
+      // before this, which is why the trecho it corrects had no file of its own to be
+      // found by and fell back to the part it used to share a place with.
+      keptTakes: [
+        ...state.keptTakes,
+        KeptTake(scopeId: escopo, path: path, takeId: gravacao),
+      ],
     );
     _rememberWhereTheyAre(SalaStage.retro);
     // Correcting the mother tongue is two steps over the same route, and the room can give
