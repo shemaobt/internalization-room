@@ -58,6 +58,13 @@ class ResumePoint {
               'parte': lugar.parte,
               'de': lugar.from.inMilliseconds,
               'ate': lugar.to.inMilliseconds,
+              'segmento': ?lugar.segmentId,
+              if (lugar.fallbackPath != null)
+                'fallback_arquivo': p.basename(lugar.fallbackPath!),
+              if (lugar.fallbackFrom != null)
+                'fallback_de': lugar.fallbackFrom!.inMilliseconds,
+              if (lugar.fallbackTo != null)
+                'fallback_ate': lugar.fallbackTo!.inMilliseconds,
             },
         ],
       };
@@ -101,6 +108,16 @@ class ResumePoint {
               parte: raw['parte'] as int,
               from: Duration(milliseconds: raw['de'] as int? ?? 0),
               to: Duration(milliseconds: raw['ate'] as int? ?? 0),
+              segmentId: raw['segmento'] as String?,
+              fallbackPath: raw['fallback_arquivo'] is String
+                  ? p.join(folder, raw['fallback_arquivo'] as String)
+                  : null,
+              fallbackFrom: raw['fallback_de'] is int
+                  ? Duration(milliseconds: raw['fallback_de'] as int)
+                  : null,
+              fallbackTo: raw['fallback_ate'] is int
+                  ? Duration(milliseconds: raw['fallback_ate'] as int)
+                  : null,
             ),
       ],
     );

@@ -42,6 +42,31 @@ class SegmentView {
       );
 }
 
+/// One recording the room is holding for a session.
+///
+/// [chunkIndex] is which part of the rehearsal it is, as the tablet numbered it when it
+/// sent it up. A passage the room rebuilt carries the number of the recording it was
+/// rebuilt from, which is how a tablet that was not there for the rebuilding finds out
+/// which of its parts the new file answers for.
+class TakeView {
+  final String takeId;
+  final String scope;
+  final int? chunkIndex;
+
+  const TakeView({required this.takeId, required this.scope, this.chunkIndex});
+
+  static List<TakeView> listFrom(Map<String, dynamic> json) => [
+        for (final raw in (json['takes'] as List? ?? const []))
+          if (raw is Map) TakeView.fromJson(raw.cast<String, dynamic>()),
+      ];
+
+  factory TakeView.fromJson(Map<String, dynamic> json) => TakeView(
+        takeId: json['take_id'] as String? ?? '',
+        scope: json['scope'] as String? ?? '',
+        chunkIndex: json['chunk_index'] as int?,
+      );
+}
+
 /// What the room answers when a stretch is told again.
 ///
 /// [captured] is false when the room made nothing out of the recording, and then the
@@ -50,6 +75,16 @@ class SegmentView {
 class TellingAgain {
   final List<SegmentView> segments;
   final bool captured;
+
+  /// The recording of the passage the room rebuilt around the stretch just re-recorded,
+  /// when it rebuilt one.
+  ///
+  /// Every stretch that was a slice of the recording this one replaces is a slice of it
+  /// now, at the time it sits there — the room re-points them all in one place, and the
+  /// answer carries them already re-pointed. Null when nothing was rebuilt: the
+  /// correction touched no mother-tongue audio, or the rebuilding could not be done and
+  /// the correction stands on its own recording.
+  final String? composedTakeId;
 
   /// Whether the room has stopped taking corrections and wants somebody to come.
   ///
@@ -63,12 +98,14 @@ class TellingAgain {
     this.segments = const [],
     this.captured = true,
     this.needsPerson = false,
+    this.composedTakeId,
   });
 
   factory TellingAgain.fromJson(Map<String, dynamic> json) => TellingAgain(
         segments: SegmentView.listFrom(json),
         captured: json['captured'] as bool? ?? true,
         needsPerson: json['needs_person'] as bool? ?? false,
+        composedTakeId: json['composed_take_id'] as String?,
       );
 }
 

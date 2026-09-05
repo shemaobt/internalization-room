@@ -266,6 +266,26 @@ class RoomRepository {
     );
   }
 
+  /// Every recording the room is holding for this session.
+  ///
+  /// Asked for the one thing the stretches cannot say: which part of the rehearsal a
+  /// recording answers for. A passage the room rebuilt is named by the stretches and by
+  /// nothing else, so a tablet opened again knows it has to fetch it and not which of its
+  /// own parts it replaces.
+  Future<List<TakeView>> takesOf(String sessionId) async {
+    final response = await _send(
+      () => _client.get(_uri('/sessions/$sessionId/takes'), headers: _headers),
+      _stateTimeout,
+    );
+    return _read(response, TakeView.listFrom);
+  }
+
+  /// Where the audio of one take is, for [fetchClip] to go and get.
+  ///
+  /// The route answers a signed redirect, which the client follows on its own.
+  static String takeAudioUrl(String sessionId, String takeId) =>
+      '$_basePath/sessions/$sessionId/takes/$takeId/audio';
+
   Future<List<SegmentView>> divideSegment(
     String sessionId,
     String segmentId, {

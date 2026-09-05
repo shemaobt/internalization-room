@@ -1435,7 +1435,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _lugares
       ..clear()
       ..addEntries([
-        for (final lugar in waiting.lugares) MapEntry(lugar.takeId, lugar),
+        for (final lugar in waiting.lugares)
+          MapEntry(lugar.segmentId ?? lugar.takeId, lugar),
       ]);
     state = state.copyWith(
       stage: SalaStage.ensaio,
@@ -1463,6 +1464,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         for (final segment in told.segments) segment.passNumber,
       ],
     );
+    final sessionId = state.sessionId;
+    if (sessionId != null) {
+      unawaited(_alcancarAsCompostas(sessionId, told.segments, _epoch));
+    }
     if (told.checked) {
       _closeTheNecklace();
       return;
@@ -2562,6 +2567,29 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       noLugarDe: alvo,
       contadoEm: path,
     );
+    // A version is minted on every route through this replace, composed or not, so the
+    // stretch just retold names a segment [alvo] never carried. The place kept for it —
+    // written when the mother tongue was corrected, if it was — has to move to the new
+    // name too, or a resume between here and the next mend finds nothing under it. Read
+    // by [alvo]'s own name first — the one the mend that set it wrote under — and by its
+    // take for the older mend that never named a segment.
+    if (lugar >= 0 && lugar < trechos.length) {
+      final novo = trechos[lugar];
+      final antigo = (alvo.segmentId != null ? _lugares[alvo.segmentId] : null) ??
+          _lugares[alvo.takeId];
+      if (novo.segmentId != null && antigo != null) {
+        _lugares[novo.segmentId!] = LugarDoTrecho(
+          takeId: novo.takeId,
+          segmentId: novo.segmentId,
+          parte: novo.parte,
+          from: novo.lugarFrom,
+          to: novo.lugarTo,
+          fallbackPath: antigo.fallbackPath,
+          fallbackFrom: antigo.fallbackFrom,
+          fallbackTo: antigo.fallbackTo,
+        );
+      }
+    }
     _walkTheCursorBack(trechos);
     state = state.copyWith(
       btPhase: BtPhase.playing,
@@ -2569,6 +2597,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btTrechos: trechos.isEmpty ? state.btTrechos : trechos,
       btChunkPasses: [for (final segment in told.segments) segment.passNumber],
     );
+    _rememberWhereTheyAre(SalaStage.retro);
     if (epoch != _epoch) return;
     // The correction is finished, so the room goes and finds out what it was worth. The
     // team used to be handed back to the screen for hearing the recording, with nothing
@@ -3018,12 +3047,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           // has no explanation to hold a file for. Its own recording was replaced, and
           // the telling that belonged to the audio nobody will hear again does not carry
           // over — the same rule the room keeps on its side.
-          final aqui = state.btTrechos.where(
+          //
+          // By name where the room said one, and by the slice where it did not. The
+          // slice alone stopped answering the day the room began rebuilding the
+          // recording under a correction: every stretch of that part moves to another
+          // file at another time at once, and a stretch nobody touched came back
+          // matching nothing and lost the telling this tablet holds for it.
+          final chamado = state.btTrechos.where(
+            (trecho) =>
+                trecho.segmentId != null &&
+                trecho.segmentId == segment.segmentId,
+          );
+          final aFatia = state.btTrechos.where(
             (trecho) =>
                 trecho.takeId == segment.takeId &&
                 trecho.from == from &&
                 trecho.to == to,
           );
+          final aqui = chamado.isNotEmpty ? chamado : aFatia;
           // What this stretch was a moment ago: found by identity, and where identity was
           // the very thing the mend broke, by the place the replacement took.
           final antes =
@@ -3033,8 +3074,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           // plays; a mended one keeps the place of the stretch it replaced — carried
           // from that stretch inside the round that mends it, and read back out of the
           // resume point on a tablet that has no such round behind it.
+          //
+          // By segment first: a mend gives its stretch a new take every time it is
+          // asked for again, so the name that survives from one round to the next is
+          // the stretch's own, not what it happened to be called last. The take is
+          // still tried, for the older kind of mend that never learned to name a
+          // segment at all.
           final naParte = partes.indexWhere((p) => p.takeId == segment.takeId);
-          final guardado = _lugares[segment.takeId];
+          final guardado =
+              _lugares[segment.segmentId] ?? _lugares[segment.takeId];
           final parte = naParte >= 0
               ? naParte
               : (antes?.parte ?? guardado?.parte ?? naParte);
@@ -3060,6 +3108,124 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     ];
   }
 
+  /// The passage the room rebuilt, put in the place of the part it was rebuilt from.
+  ///
+  /// The same scope, because a stretch addresses its part by where it sits in the row and
+  /// a part that changed places would take every stretch of the rehearsal with it. What
+  /// changes is the file and the name: from here the part *is* the rebuilt passage, and
+  /// every play, every cut and every resume reads it without knowing there was ever a
+  /// rebuilding.
+  ///
+  /// The part's own recording is left on the tablet. It is what the correction was made
+  /// out of, nothing points at it any more, and deleting audio a team recorded is not a
+  /// thing this room does quietly.
+  ///
+  /// Answers whether the swap happened. It does not when the audio cannot be fetched or
+  /// cannot be written, and that is not a failed correction: the correction is already
+  /// the team's, on the server and on its own recording, and the room goes on playing the
+  /// passage stretch by stretch the way it did before there were rebuilt ones. Nobody in
+  /// this room can read, so the log is the only place it can be said at all.
+  Future<bool> _aParteViraAComposta(
+    String sessionId,
+    String composta,
+    int epoch, {
+    required String noLugarDe,
+  }) async {
+    if (!state.keptTakes.any((take) => take.takeId == noLugarDe)) return false;
+    final String arquivo;
+    try {
+      arquivo = await _recorder.keepBytes(
+        await _room.fetchClip(RoomRepository.takeAudioUrl(sessionId, composta)),
+        'composta-$composta',
+      );
+    } on Exception catch (error) {
+      debugPrint(
+        'A passagem composta $composta da sessão $sessionId não pôde ser '
+        'trazida; a parte continua sendo a gravação do ensaio: $error',
+      );
+      return false;
+    }
+    if (epoch != _epoch) return false;
+    // Found again on the far side of the wait, by the name and not by where it sat. Two
+    // round trips is long enough for the rehearsal to have been thrown away and started
+    // over under this, and a position read before them addresses a row that may no longer
+    // be there — or may now be somebody else's part.
+    final parte = state.keptTakes.where((take) => take.takeId == noLugarDe);
+    if (parte.isEmpty) return false;
+    final escopo = parte.first.scopeId;
+    state = state.copyWith(keptTakes: [
+      for (final take in state.keptTakes)
+        if (take.scopeId == escopo)
+          KeptTake(scopeId: escopo, path: arquivo, takeId: composta)
+        else
+          take,
+    ]);
+    return true;
+  }
+
+  /// Fetch the rebuilt passages this tablet does not have, on a session picked back up.
+  ///
+  /// Stretches naming a recording that is not here is what a rebuilding this tablet never
+  /// saw the answer to looks like afterwards. Which part such a recording answers for is
+  /// the one thing the stretches cannot say, so the room's own list of them is read for
+  /// it: a rebuilt passage is kept under the number of the part it was rebuilt from, which
+  /// is the number this tablet gave that part when it sent it up.
+  Future<void> _alcancarAsCompostas(
+    String sessionId,
+    List<SegmentView> segments,
+    int epoch,
+  ) async {
+    final faltando = {
+      for (final segment in segments)
+        if (segment.takeId.isNotEmpty &&
+            !state.keptTakes.any((take) => take.takeId == segment.takeId))
+          segment.takeId,
+    };
+    if (faltando.isEmpty) return;
+    // The row of stretches as it stands before any of this waits. Fetching a passage is
+    // two round trips, the rehearsal goes on playing under them, and a team that cuts a
+    // stretch inside that window has it in this list and nowhere else yet.
+    final eram = state.btTrechos;
+    final List<TakeView> guardadas;
+    try {
+      guardadas = await _room.takesOf(sessionId);
+    } on Exception catch (error) {
+      debugPrint(
+        'A sessão $sessionId tem trechos numa gravação que este tablet não '
+        'tem, e as gravações dela não puderam ser lidas: $error',
+      );
+      return;
+    }
+    if (epoch != _epoch) return;
+    for (final guardada in guardadas) {
+      if (!faltando.contains(guardada.takeId)) continue;
+      if (guardada.scope != KeptScope.composed) continue;
+      final numero = guardada.chunkIndex;
+      if (numero == null) continue;
+      final parte = state.keptTakes
+          .where((take) => take.scopeId == KeptScope.parte(numero));
+      final era = parte.isEmpty ? null : parte.first.takeId;
+      if (era == null) continue;
+      await _aParteViraAComposta(sessionId, guardada.takeId, epoch,
+          noLugarDe: era);
+      if (epoch != _epoch) return;
+    }
+    // Rebuilt whether or not any of those downloads landed: a stretch this tablet has no
+    // file for yet is still one the room told back, and it keeps the place [_lugares]
+    // remembers for it rather than falling out of the necklace until the next download
+    // that succeeds.
+    //
+    // Only over a row nothing else has touched. This reading is built out of the answer
+    // the resume came in with, so writing it over a row that moved meanwhile would take
+    // the stretch the team just told back off the screen — it is on the server, and this
+    // list is the only place the room draws it from.
+    if (!identical(state.btTrechos, eram)) return;
+    // Read again over the parts as they now are: what was a stretch of no part of this
+    // rehearsal is a stretch of one, and its place is the ground it covers there.
+    state = state.copyWith(btTrechos: _trechosFrom(segments));
+    _rememberWhereTheyAre(state.stage);
+  }
+
   void _leadThemToTheTrecho(Trecho trecho) {
     final partes = state.partes;
     if (trecho.parte < 0 || trecho.parte >= partes.length) return;
@@ -3067,13 +3233,49 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _tocarOTrecho(trecho);
   }
 
-  /// Play one stretch: a slice of the one file it came out of.
+  /// The file and range that best play [trecho] right now, or null when this tablet has
+  /// nothing that does.
+  ///
+  /// The part it sits in when that part's own take is the one [trecho] names — the
+  /// ordinary case, true of every stretch nobody has corrected and of a corrected one
+  /// whose composed passage has landed. Otherwise the place [_lugares] kept for its
+  /// segment, if a mend ever passed through here: the mother tongue recorded for the
+  /// stretch that was corrected, the part's own audio still under it for a neighbour
+  /// that only moved on paper. Nothing plays a part that does not hold what [trecho]
+  /// claims and has no fallback to fall back to — that would be some other stretch's
+  /// recording, not this one's.
+  (String, Duration, Duration)? _ondeTocar(Trecho trecho) {
+    if (trecho.parte >= 0 && trecho.parte < state.partes.length) {
+      final parte = state.partes[trecho.parte];
+      if (parte.takeId == trecho.takeId) {
+        return (parte.path, trecho.from, trecho.to);
+      }
+    }
+    final lugar = (trecho.segmentId != null ? _lugares[trecho.segmentId] : null) ??
+        _lugares[trecho.takeId];
+    final fallbackPath = lugar?.fallbackPath;
+    if (fallbackPath == null) return null;
+    return (
+      fallbackPath,
+      lugar!.fallbackFrom ?? Duration.zero,
+      lugar.fallbackTo ?? Duration.zero,
+    );
+  }
+
+  /// Play one stretch: a slice of the one file it came out of, or the best local
+  /// stand-in [_ondeTocar] finds for it when that file is not here yet.
   ///
   /// It used to resolve which part a global millisecond fell in and stitch across the
   /// boundary when a stretch spanned two recordings. A stretch cannot span two recordings
   /// any more — it is a slice of one — so the resolving and the stitching are gone with
   /// the ruler that needed them.
   void _tocarOTrecho(Trecho trecho) {
+    final onde = _ondeTocar(trecho);
+    if (onde == null) {
+      state = state.copyWith(btTrechoTocando: false, btTrechoPausada: false);
+      return;
+    }
+
     void quiet() {
       // Without a state to show, the stretch played into a screen that looked exactly
       // like the one waiting for the team to speak.
@@ -3089,11 +3291,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _onPlaybackFailed = quiet;
     _clipHeld = false;
     _listenForTheEnd();
-    unawaited(_playback.playRange(
-      state.partes[trecho.parte].path,
-      trecho.from,
-      trecho.to,
-    ));
+    unawaited(_playback.playRange(onde.$1, onde.$2, onde.$3));
     _watchPlayback(clipStillOpening: true);
   }
 
@@ -3281,7 +3479,47 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       parte: alvo.parte,
       from: alvo.lugarFrom,
       to: alvo.lugarTo,
+      fallbackPath: path,
+      fallbackFrom: Duration.zero,
+      fallbackTo: quanto,
     );
+    // Every stretch of the part this mend is about to rebuild, kept by its own segment
+    // rather than the take: the take a composed passage answers to is a name the server
+    // can give and take away across as many failed downloads as it likes, but the
+    // segment is the one identity that survives all of them. Written before the fetch
+    // below is even tried, because a place remembered only on success is no place at all
+    // on the download that fails.
+    //
+    // The stretch being mended falls back to the mother tongue it was just recorded
+    // into, played whole — the take of its own the room would have played had nothing
+    // been composed. Its neighbours fall back to the part's own file, at the place they
+    // already played: the audio has not moved for them, only its name is about to, and
+    // that file is never overwritten under a failed download the way the part's `KeptTake`
+    // is left pointing nowhere once the swap succeeds.
+    for (final vizinho in state.btTrechos) {
+      if (vizinho.parte != alvo.parte || vizinho.segmentId == null) continue;
+      if (vizinho.parte < 0 || vizinho.parte >= state.partes.length) continue;
+      final ehAlvo = vizinho.segmentId == alvo.segmentId;
+      _lugares[vizinho.segmentId!] = LugarDoTrecho(
+        takeId: ehAlvo ? gravacao : vizinho.takeId,
+        segmentId: vizinho.segmentId,
+        parte: vizinho.parte,
+        from: vizinho.lugarFrom,
+        to: vizinho.lugarTo,
+        fallbackPath: ehAlvo ? path : state.partes[vizinho.parte].path,
+        fallbackFrom: ehAlvo ? Duration.zero : vizinho.from,
+        fallbackTo: ehAlvo ? quanto : vizinho.to,
+      );
+    }
+    // Before the stretches are rebuilt, not after: a stretch sitting in a part of the
+    // rehearsal is read off that part, and a swap that came later would have every stretch
+    // of this one already reading as a slice of no part at all.
+    final composta = trocado.composedTakeId;
+    if (composta != null) {
+      await _aParteViraAComposta(sessionId, composta, epoch,
+          noLugarDe: alvo.takeId);
+      if (epoch != _epoch) return;
+    }
     final trechos = _trechosFrom(
       trocado.segments,
       lugar: onde,
@@ -3292,10 +3530,29 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _voltarAPergunta();
       return;
     }
+    // The mended stretch itself is renamed by this very replace — the second station
+    // renames it again, and its own migration is not reached when the room halts before
+    // the second station ever runs. Done here too, so the entry above survives under a
+    // name a resume can actually find, whichever station this correction stops at.
+    if (agora!.segmentId != alvo.segmentId) {
+      final antigo = _lugares[alvo.segmentId] ?? _lugares[alvo.takeId];
+      if (antigo != null) {
+        _lugares[agora.segmentId!] = LugarDoTrecho(
+          takeId: agora.takeId,
+          segmentId: agora.segmentId,
+          parte: agora.parte,
+          from: agora.lugarFrom,
+          to: agora.lugarTo,
+          fallbackPath: antigo.fallbackPath,
+          fallbackFrom: antigo.fallbackFrom,
+          fallbackTo: antigo.fallbackTo,
+        );
+      }
+    }
     state = state.copyWith(
       btPhase: BtPhase.findings,
       btTrechos: trechos,
-      btFindingSegmentId: agora!.segmentId,
+      btFindingSegmentId: agora.segmentId,
     );
     _rememberWhereTheyAre(SalaStage.retro);
     // Correcting the mother tongue is two steps over the same route, and the room can give
