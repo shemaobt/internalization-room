@@ -2438,6 +2438,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     String sessionId,
     int epoch,
   ) async {
+    // Read before the room is asked, not after. The place is what the successor is found
+    // by, and asking for it on the far side of the wait would be asking a list that the
+    // wait itself is there to change.
+    final lugar = state.btTrechos.indexWhere(
+      (trecho) => trecho.segmentId == alvo.segmentId,
+    );
     final TellingAgain told;
     try {
       told = await _room.replaceSegment(
@@ -2490,7 +2496,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
 
-    final trechos = _trechosFrom(told.segments);
+    // The telling just recorded is this stretch's own. Only a first telling used to keep
+    // its file, so from the first correction on the blue voice played back the very
+    // explanation the analyst had refused — and after the mother tongue was told again,
+    // which leaves no telling to inherit, it played nothing at all, for good.
+    final trechos = _trechosFrom(
+      told.segments,
+      lugar: lugar,
+      noLugarDe: alvo,
+      contadoEm: path,
+    );
     _walkTheCursorBack(trechos);
     state = state.copyWith(
       btPhase: BtPhase.playing,
@@ -2908,11 +2923,27 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// The room's stretches as this tablet's own, each tied back to the recording it slices.
-  List<Trecho> _trechosFrom(List<SegmentView> told) {
+  ///
+  /// [noLugarDe] is the stretch a replacement took the place of and [lugar] where it sat,
+  /// on the routes that know. Identity is what ties the room's reading back to what this
+  /// tablet holds, and a mend can break it: the mother tongue told again becomes a take
+  /// of its own, which is no part of the rehearsal, so nothing about the successor
+  /// matches. Its place on the cord has to survive that — it is the same stretch, and the
+  /// necklace is where a team who cannot read sees where their correction went.
+  ///
+  /// [contadoEm] is the file a telling was just recorded into. It belongs to the stretch
+  /// that replaced the one it was told over, and to no other.
+  List<Trecho> _trechosFrom(
+    List<SegmentView> told, {
+    int lugar = -1,
+    Trecho? noLugarDe,
+    String? contadoEm,
+  }) {
     final partes = state.partes;
     return [
-      for (final segment in told)
+      for (var onde = 0; onde < told.length; onde++)
         () {
+          final segment = told[onde];
           final from = Duration(milliseconds: segment.startsMs);
           final to = Duration(milliseconds: segment.endsMs);
           // The room says what a stretch is called, where it sits and whether anyone has
@@ -2931,13 +2962,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
                 trecho.from == from &&
                 trecho.to == to,
           );
+          // What this stretch was a moment ago: found by identity, and where identity was
+          // the very thing the mend broke, by the place the replacement took.
+          final antes =
+              aqui.isNotEmpty ? aqui.first : (onde == lugar ? noLugarDe : null);
           final parte = partes.indexWhere((p) => p.takeId == segment.takeId);
           return Trecho(
             segmentId: segment.segmentId,
             takeId: segment.takeId,
-            retroPath:
-                segment.told && aqui.isNotEmpty ? aqui.first.retroPath : null,
-            parte: parte >= 0 || aqui.isEmpty ? parte : aqui.first.parte,
+            retroPath: !segment.told
+                ? null
+                : onde == lugar && contadoEm != null
+                    ? contadoEm
+                    : (aqui.isNotEmpty ? aqui.first.retroPath : null),
+            parte: parte >= 0 || antes == null ? parte : antes.parte,
             from: from,
             to: to,
             contado: segment.told,
@@ -3129,7 +3167,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // replacement takes the place of the one it replaces, and that is how the successor is
     // found and the pointer moved onto it. Following the old name would land the team back
     // on the question with the recording already replaced.
-    final trechos = _trechosFrom(trocado.segments);
+    // The place carries more than the pointer. The new recording is a take of this
+    // stretch and no part of the rehearsal, so the cord cannot situate the successor by
+    // its name and used to drop it: a team came out of the far station with the band they
+    // were mending gone off the necklace altogether.
+    final trechos = _trechosFrom(
+      trocado.segments,
+      lugar: onde,
+      noLugarDe: alvo,
+    );
     final agora = onde >= 0 && onde < trechos.length ? trechos[onde] : null;
     if (agora?.segmentId == null) {
       _voltarAPergunta();
