@@ -110,6 +110,12 @@ class SalaSessionState {
   final int takes;
   final int ensaioPass;
   final bool playPing;
+  /// Whether the take player is holding a position rather than sitting at rest.
+  ///
+  /// [playPing] already says whether the take is sounding; this is the second half
+  /// [btTrechoPausada] gives for its own player — the next tap needs to tell a resume from
+  /// a restart, and nothing else here carries that.
+  final bool takePaused;
   final BtPhase btPhase;
   final List<int> btChunkPasses;
   /// Which stretch numbers the room never took, in the order they were told.
@@ -196,6 +202,7 @@ class SalaSessionState {
     this.takes = 0,
     this.ensaioPass = 1,
     this.playPing = false,
+    this.takePaused = false,
     this.btPhase = BtPhase.playing,
     this.btChunkPasses = const [],
     this.btChunkFailures = const [],
@@ -366,6 +373,7 @@ class SalaSessionState {
     int? takes,
     int? ensaioPass,
     bool? playPing,
+    bool? takePaused,
     BtPhase? btPhase,
     List<int>? btChunkPasses,
     List<int>? btChunkFailures,
@@ -417,6 +425,7 @@ class SalaSessionState {
       takes: takes ?? this.takes,
       ensaioPass: ensaioPass ?? this.ensaioPass,
       playPing: playPing ?? this.playPing,
+      takePaused: takePaused ?? this.takePaused,
       btPhase: btPhase ?? this.btPhase,
       btChunkPasses: btChunkPasses ?? this.btChunkPasses,
       btChunkFailures: btChunkFailures ?? this.btChunkFailures,

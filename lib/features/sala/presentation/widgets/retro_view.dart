@@ -222,7 +222,7 @@ class RetroView extends ConsumerWidget {
       case BtPhase.capturing:
         return 'Tocar ao terminar o pedaço';
       case BtPhase.findings:
-        return 'Ouvir de novo a parte apontada';
+        return 'Ouvir a pergunta de novo';
       case BtPhase.gravandoMaterna:
         return session.voice == VoiceState.listening
             ? 'Tocar ao terminar a gravação'

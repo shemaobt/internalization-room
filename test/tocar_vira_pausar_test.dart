@@ -199,48 +199,11 @@ void main() {
     });
   });
 
-  group('o círculo "Ouvir de novo a parte apontada"', () {
-    test('tocar de novo pausa em vez de recomeçar', () async {
-      final harness = harnessApontando();
-      final container = await pumpAoApontado(harness);
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      notifier.retroTap();
-      await waitFor(
-        'o trecho apontado estar tocando',
-        () => container.read(salaSessionProvider).btTrechoTocando,
-      );
-
-      notifier.retroTap();
-      await settle();
-
-      expect(harness.playback.paused, isTrue);
-      expect(harness.playback.ranges.length, 1);
-      expect(container.read(salaSessionProvider).btTrechoTocando, isFalse);
-    });
-
-    test('tocar uma terceira vez retoma de onde parou', () async {
-      final harness = harnessApontando();
-      final container = await pumpAoApontado(harness);
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      notifier.retroTap();
-      await waitFor(
-        'o trecho apontado estar tocando',
-        () => container.read(salaSessionProvider).btTrechoTocando,
-      );
-      notifier.retroTap();
-      await settle();
-      notifier.retroTap();
-      await settle();
-
-      expect(harness.playback.paused, isFalse);
-      expect(harness.playback.ranges.length, 1);
-      expect(container.read(salaSessionProvider).btTrechoTocando, isTrue);
-    });
-  });
+  // The two cases that lived here for the circle "Ouvir de novo a parte apontada" —
+  // pause-instead-of-restart and resume-from-where-it-stopped — asserted that a tap on it
+  // played the trecho. That decision changed: the circle now repeats the verdict's own
+  // line instead, and `a_esfera_repete_a_pergunta_test.dart` covers it (cases 6 and 8 of
+  // the R16 testing plan).
 
   test(
     'os players não se atropelam: tocando a materna, a ponte não entra',

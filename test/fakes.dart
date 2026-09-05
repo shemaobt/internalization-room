@@ -530,6 +530,10 @@ class FakeRoom implements RoomRepository {
   bool turnsAreDegraded = false;
   bool silentAboutCoverage = false;
   bool verdictChecked = true;
+  /// Whether the verdict itself is a canned line the room could not compose — the wire
+  /// twin of [turnsAreCanned] for the turn that closes a telling-back, and the only way a
+  /// test can make the findings screen open with nothing worth repeating.
+  bool verdictUsedFailSafe = false;
   /// What the room answers about the telling-back, when a test wants to state it rather
   /// than build it up by telling stretches back.
   BackTranslationProgress? retroSoFar;
@@ -982,7 +986,7 @@ class FakeRoom implements RoomRepository {
       findingSegmentId: _oQueOAnalistaAponta(),
       untoldSegmentId: verdictUntoldSegmentId,
       findingsRemaining: verdictFinding == null ? 0 : 1,
-      usedFailSafe: false,
+      usedFailSafe: verdictUsedFailSafe,
     );
   }
 

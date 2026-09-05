@@ -370,8 +370,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> hearAgain() async {
+    if (!state.canHearAgain) return;
+    await _repeatLastSpoken(state.lastSpoken!);
+  }
+
+  /// Repeat the narrator's last line on the circle in `findings`, instead of the stretch
+  /// the grid's own players already offer.
+  ///
+  /// [canHearAgain] hides its button for the whole retro stage, so this reaches
+  /// [_repeatLastSpoken] on its own guard: a stored line and a room not already speaking
+  /// one. Nothing plays when there is none — a fail-safe verdict is never remembered, and
+  /// the circle answers a tap on it with nothing rather than falling back to the trecho.
+  Future<void> _repeatTheFinding() async {
     final line = state.lastSpoken;
-    if (line == null || !state.canHearAgain) return;
+    if (line == null || state.voice != VoiceState.invite) return;
+    await _repeatLastSpoken(line);
+  }
+
+  Future<void> _repeatLastSpoken(SpokenLine line) async {
     final epoch = _epoch;
     await _readyToRepeat(line.url, line.fixedLine);
     if (epoch != _epoch) return;
@@ -1816,15 +1832,34 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _pendingTakePath = path;
-    state = state.copyWith(ensaio: EnsaioStatus.recorded);
+    state = state.copyWith(
+      ensaio: EnsaioStatus.recorded,
+      playPing: false,
+      takePaused: false,
+    );
   }
 
+  /// Play the take, pausing and resuming it on the taps after the first.
+  ///
+  /// Modelled on [ouvirVozMaterna]: the same [_holdClip]/[_letTheClipRun] pair, and its own
+  /// pair of flags for the same reason — a tap has to tell a resume from a restart, and
+  /// nothing else here carries that.
   void takePlay() {
     final path = _pendingTakePath;
     if (path == null) return;
-    state = state.copyWith(playPing: true);
+    if (state.playPing) {
+      _holdClip();
+      state = state.copyWith(playPing: false, takePaused: true);
+      return;
+    }
+    if (state.takePaused) {
+      state = state.copyWith(playPing: true, takePaused: false);
+      _letTheClipRun();
+      return;
+    }
+    state = state.copyWith(playPing: true, takePaused: false);
     void stopThePulse() {
-      state = state.copyWith(playPing: false);
+      state = state.copyWith(playPing: false, takePaused: false);
     }
 
     _play(path, onComplete: stopThePulse, onFailed: stopThePulse);
@@ -2603,7 +2638,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case BtPhase.capturing:
         unawaited(_finishChunkCapture());
       case BtPhase.findings:
-        ouvirVozMaterna();
+        unawaited(_repeatTheFinding());
       case BtPhase.gravandoMaterna:
         unawaited(_gravarAVozMaterna());
       case BtPhase.thinking:
@@ -2790,7 +2825,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (epoch != _epoch) return;
       state = state.copyWith(voice: VoiceState.speaking);
       _watchBusyState();
-      final spoke = await _speak(verdict.audioUrl, verdict.fixedLine);
+      final spoke = await _speak(
+        verdict.audioUrl,
+        verdict.fixedLine,
+        remember: !verdict.usedFailSafe,
+      );
       if (epoch != _epoch) return;
       // It returns, as all five of its siblings do. Registering and carrying on was the
       // other option and it is not one: on the third rung the halt fires, the room says
