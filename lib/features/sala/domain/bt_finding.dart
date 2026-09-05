@@ -68,6 +68,17 @@ class BackTranslationVerdict {
   final bool checked;
   final BtFindingKind? findingKind;
   final String? findingSegmentId;
+
+  /// The stretch the team recorded in the mother tongue and never told back, when that is
+  /// what stopped the reading.
+  ///
+  /// Its own address rather than [findingSegmentId], and the two are never both named: a
+  /// finding is a stretch the team told and the analyst has a correction about, and this
+  /// is a stretch with no telling at all. Reading one from the absence of the other is
+  /// the inference that cost a team their morning — with no address the app had one move
+  /// left, sending them back to the rehearsal, which threw away every recording of the
+  /// passage.
+  final String? untoldSegmentId;
   final int findingsRemaining;
   final bool usedFailSafe;
 
@@ -77,6 +88,7 @@ class BackTranslationVerdict {
     required this.checked,
     required this.findingKind,
     required this.findingSegmentId,
+    this.untoldSegmentId,
     required this.findingsRemaining,
     required this.usedFailSafe,
   });
@@ -88,6 +100,7 @@ class BackTranslationVerdict {
         checked: json['checked'] as bool? ?? false,
         findingKind: btFindingKindFrom(json['finding_kind'] as String?),
         findingSegmentId: json['finding_segment_id'] as String?,
+        untoldSegmentId: json['untold_segment_id'] as String?,
         findingsRemaining: json['findings_remaining'] as int? ?? 0,
         usedFailSafe: json['used_fail_safe'] as bool? ?? false,
       );

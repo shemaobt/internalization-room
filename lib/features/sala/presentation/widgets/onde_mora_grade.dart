@@ -11,6 +11,18 @@ const micMaternaLabel = 'Regravar a voz na língua materna — refaz também o c
 const micRetroLabel = 'Recontar só em português';
 const cortarTrechoLabel = 'Cortar este trecho em dois, aqui';
 
+/// The one thing to do about a stretch that came out short: record it again and tell it
+/// again over the new recording, in that order.
+///
+/// The long way and not the short one. What is missing was most likely left out of the
+/// recording itself, not only out of the telling laid over it, so redoing the telling
+/// alone would explain an audio that still does not carry the part.
+///
+/// It names no language. "Recontar só em português" named the bridge — false in a session
+/// held in another one — and its "only" existed by contrast with a column that is not
+/// here.
+const refazerParteLabel = 'Regravar esta parte e contá-la de novo';
+
 /// Where the error lives: the team says it, the room does not guess.
 ///
 /// Column is the voice — wood is the team's own tongue, blue is the telling in Portuguese
@@ -108,6 +120,83 @@ class OndeMoraGrade extends StatelessWidget {
             estacoesPenduradas: 0,
           ),
           const SizedBox(width: _tesouraSlot + _tesouraFolga),
+        ],
+      ),
+    );
+  }
+}
+
+/// What the room offers when the stretch is short rather than wrong.
+///
+/// The two players stay: hearing is free, it settles nothing, and without hearing their
+/// own voice back the team has no way to know what was left out. What goes is the
+/// *choice* between the two — the pair of microphones that asked which voice to correct —
+/// and in its place stands the single act that answers an absence: telling that stretch
+/// again, whole, with what was missing in it.
+///
+/// Its own composition rather than the grid with a column hidden, so that "the question
+/// is not put here" is a thing the screen cannot drift back out of.
+class RefazerAParte extends StatelessWidget {
+  final VoidCallback onOuvirMaterna;
+  final VoidCallback onOuvirRetro;
+  final VoidCallback onRefazerAParte;
+
+  final bool tocandoMaterna;
+  final bool tocandoRetro;
+
+  /// Whether this tablet holds the telling at all, as on the grid: a session picked back
+  /// up carries the room's stretches and none of its files.
+  final bool podeOuvirRetro;
+
+  const RefazerAParte({
+    super.key,
+    required this.onOuvirMaterna,
+    required this.onOuvirRetro,
+    required this.onRefazerAParte,
+    this.tocandoMaterna = false,
+    this.tocandoRetro = false,
+    this.podeOuvirRetro = true,
+  });
+
+  bool get _algoTocando => tocandoMaterna || tocandoRetro;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SalaColors.of(context);
+    return FadeUp(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _Player(
+                colors: colors,
+                gradiente: BeadStyles.wood,
+                label: ouvirMaternaLabel,
+                onTap: _algoTocando && !tocandoMaterna ? null : onOuvirMaterna,
+                tocando: tocandoMaterna,
+              ),
+              const SizedBox(width: 56),
+              _Player(
+                colors: colors,
+                gradiente: BeadStyles.azul,
+                label: ouvirRetroLabel,
+                onTap: !podeOuvirRetro || (_algoTocando && !tocandoRetro)
+                    ? null
+                    : onOuvirRetro,
+                tocando: tocandoRetro,
+              ),
+            ],
+          ),
+          _Corda(colors: colors, altura: 14),
+          _Alvo(
+            size: 60,
+            gradiente: BeadStyles.azul,
+            label: refazerParteLabel,
+            onTap: _algoTocando ? null : onRefazerAParte,
+            child: const Icon(LucideIcons.mic, size: 22, color: ShemaBrand.branco),
+          ),
         ],
       ),
     );
