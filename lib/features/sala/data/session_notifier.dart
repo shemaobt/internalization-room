@@ -1824,8 +1824,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
 
     final trecho = state.btTrechos[_ghostParte];
-    final path = _pathForTrecho(trecho);
-    if (path == null) {
+    final onde = _ondeTocar(trecho);
+    if (onde == null) {
       aProximo();
       return;
     }
@@ -1833,7 +1833,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _onPlaybackComplete = aProximo;
     _onPlaybackFailed = backToTheCircle;
     _listenForTheEnd();
-    unawaited(_playback.playRange(path, trecho.from, trecho.to));
+    unawaited(_playback.playRange(onde.$1, onde.$2, onde.$3));
     _watchPlayback(clipStillOpening: true);
   }
 
@@ -3296,21 +3296,35 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// [_lugares] kept for its segment, for a mend or a composed passage that has not
   /// reached `keptTakes` yet: the mother tongue recorded for the stretch that was
   /// corrected, the part's own audio still under it for a neighbour that only moved on
-  /// paper. Nothing plays a part that does not hold what [trecho] claims and has no
-  /// fallback to fall back to — that would be some other stretch's recording, not this
-  /// one's.
+  /// paper.
+  ///
+  /// Last, the part [trecho] sits in, at the place ([Trecho.lugarFrom]..[Trecho.lugarTo])
+  /// rather than the file's own slice — the part's audio has not moved for a stretch this
+  /// tablet has never been told a fallback for, so its own place in the rehearsal is the
+  /// best guess left. Null only for a stretch belonging to no part at all: that would be
+  /// some other stretch's recording, not this one's, and playing it is worse than the
+  /// silence a skip is.
   (String, Duration, Duration)? _ondeTocar(Trecho trecho) {
     final path = _pathForTrecho(trecho);
     if (path != null) return (path, trecho.from, trecho.to);
     final lugar = (trecho.segmentId != null ? _lugares[trecho.segmentId] : null) ??
         _lugares[trecho.takeId];
     final fallbackPath = lugar?.fallbackPath;
-    if (fallbackPath == null) return null;
-    return (
-      fallbackPath,
-      lugar!.fallbackFrom ?? Duration.zero,
-      lugar.fallbackTo ?? Duration.zero,
-    );
+    if (fallbackPath != null) {
+      return (
+        fallbackPath,
+        lugar!.fallbackFrom ?? Duration.zero,
+        lugar.fallbackTo ?? Duration.zero,
+      );
+    }
+    if (trecho.parte >= 0 && trecho.parte < state.partes.length) {
+      return (
+        state.partes[trecho.parte].path,
+        trecho.lugarFrom,
+        trecho.lugarTo,
+      );
+    }
+    return null;
   }
 
   /// Play one stretch: a slice of the one file it came out of, or the best local
