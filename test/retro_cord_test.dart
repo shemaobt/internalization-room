@@ -23,6 +23,8 @@ Trecho _trecho(int from, int to, {int parte = 0}) => Trecho(
       parte: parte,
       from: Duration(milliseconds: from),
       to: Duration(milliseconds: to),
+      lugarFrom: Duration(milliseconds: from),
+      lugarTo: Duration(milliseconds: to),
     );
 
 Future<void> _pump(WidgetTester tester, RetroCord cord) async {
