@@ -291,8 +291,8 @@ class _Player extends StatelessWidget {
           label: label,
           onTap: onTap,
           halo: tocando ? colors.halo : null,
-          child: const Icon(
-            LucideIcons.play,
+          child: Icon(
+            tocando ? LucideIcons.pause : LucideIcons.play,
             size: 26,
             color: ShemaBrand.branco,
           ),

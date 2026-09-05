@@ -145,6 +145,15 @@ class SalaSessionState {
   /// Whether the telling in Portuguese is sounding. Its own flag, because the two voices
   /// are two targets and the team compares them one against the other.
   final bool btRetroTocando;
+
+  /// Whether the mother-tongue player is holding a position rather than sitting at rest.
+  ///
+  /// Neither `tocando` nor a fresh player answers this: the next tap needs to tell a
+  /// resume from a restart, and nothing else in this state carries that.
+  final bool btTrechoPausada;
+  /// Whether the Portuguese player is holding a position. Its own flag, for the reason
+  /// [btTrechoPausada] gives.
+  final bool btRetroPausada;
   final bool btClipEnded;
   final bool btParteFronteira;
 
@@ -198,6 +207,8 @@ class SalaSessionState {
     this.btConsertando = false,
     this.btTrechoTocando = false,
     this.btRetroTocando = false,
+    this.btTrechoPausada = false,
+    this.btRetroPausada = false,
     this.btClipEnded = false,
     this.btParteFronteira = false,
     this.btClipRodando = false,
@@ -368,6 +379,8 @@ class SalaSessionState {
     bool? btConsertando,
     bool? btTrechoTocando,
     bool? btRetroTocando,
+    bool? btTrechoPausada,
+    bool? btRetroPausada,
     bool? btClipEnded,
     bool? btParteFronteira,
     bool? btClipRodando,
@@ -417,6 +430,8 @@ class SalaSessionState {
       btConsertando: btConsertando ?? this.btConsertando,
       btTrechoTocando: btTrechoTocando ?? this.btTrechoTocando,
       btRetroTocando: btRetroTocando ?? this.btRetroTocando,
+      btTrechoPausada: btTrechoPausada ?? this.btTrechoPausada,
+      btRetroPausada: btRetroPausada ?? this.btRetroPausada,
       btClipEnded: btClipEnded ?? this.btClipEnded,
       btParteFronteira: btParteFronteira ?? this.btParteFronteira,
       btClipRodando: btClipRodando ?? this.btClipRodando,

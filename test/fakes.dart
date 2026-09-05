@@ -208,6 +208,11 @@ class FakePlayback implements PlaybackRepository {
   final List<String> played = [];
   bool paused = false;
 
+  /// Whether the real player would be making sound right now. False on a pause, a stop,
+  /// or a completion, however it was reached — including a ceiling that fired before the
+  /// clip itself said it was done.
+  bool get sounding => _sounding;
+
   Duration? length;
   Duration at = Duration.zero;
   final List<String> ranges = [];
