@@ -154,47 +154,22 @@ void main() {
         isTrue);
   });
 
-  // Todos menos um. O invariante deste laço — o tipo do achado não escolhe pela
-  // equipe qual voz corrigir — continua valendo para os outros sete, e é por isso
-  // que ele exclui um nome em vez de sumir.
-  for (final kind
-      in BtFindingKind.values.where((k) => k != BtFindingKind.missing)) {
+  // O invariante deste laço — o tipo do achado não escolhe pela equipe qual voz
+  // corrigir — vale para todos os oito, falta incluída desde 03/09: a materna
+  // pode já ter a parte que a ponte pulou, e só a equipe sabe se é o caso.
+  for (final kind in BtFindingKind.values) {
     testWidgets('both voices are offered when the finding is ${kind.name}',
         (tester) async {
       await pumpToPergunta(tester, finding: kind);
 
       expect(byLabel(micMaterna), findsOneWidget,
-          reason: 'o tipo do achado decidia sozinho pela equipe, e três tipos '
-              'escondiam a saída de recontar');
+          reason: 'o tipo do achado decidia sozinho pela equipe, e um tipo '
+              'escondia a saída de recontar');
       expect(byLabel(micRetro), findsOneWidget);
       expect(byLabel(ouvirMaterna), findsOneWidget);
       expect(byLabel(ouvirRetro), findsOneWidget);
     });
   }
-
-  testWidgets('o achado de falta é a exceção, e a exceção é de produto',
-      (tester) async {
-    await pumpToPergunta(tester, finding: BtFindingKind.missing);
-
-    // ENG-710. Esta exceção não é de implementação — nada aqui é difícil de
-    // desenhar. É de produto: quando a equipe conta os trechos sem errar nada
-    // mas conta de menos, não houve erro em nenhuma das duas vozes, houve
-    // ausência. Perguntar em qual delas mora o erro é uma pergunta sem resposta:
-    // a equipe escolhia uma, o que ela fizesse não resolvia, e a rodada voltava
-    // gastando orçamento e outra chamada de modelo.
-    //
-    // Por isso o laço acima exclui este nome, e não o contrário. Se alguém
-    // 'consertar' isto devolvendo missing ao laço, a pergunta sem resposta volta
-    // com ele.
-    expect(byLabel(micMaterna), findsNothing);
-    expect(byLabel(micRetro), findsNothing);
-
-    // Ouvir continua livre: ouvir não decide nada, e sem ouvir a própria voz a
-    // equipe não tem como saber o que faltou.
-    expect(byLabel(ouvirMaterna), findsOneWidget);
-    expect(byLabel(ouvirRetro), findsOneWidget);
-    expect(byLabel(refazerParteLabel), findsOneWidget);
-  });
 
   testWidgets('choosing only the telling leaves the mother tongue untouched',
       (tester) async {
