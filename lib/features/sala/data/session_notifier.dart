@@ -3453,6 +3453,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // re-recorded twice — a replacement that fails leaves the team tapping again — and a
     // scope that repeats would hand back the first take's name for the second file.
     _marcaDaMaterna = _stamp();
+    // The room may still be asking them to say it again; a microphone opened over that
+    // would keep the tablet's own line inside the new voice.
+    unawaited(_voice.stop());
     // Taken on again, because a microphone that refused took it back: the team lands on
     // the same question and taps to record a second time, and the band has to follow them
     // rather than stay empty over a recording that is now running.
@@ -3506,7 +3509,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (gravacao == null || quanto == null || quanto <= Duration.zero) {
       // Either the room has not taken the recording yet or it cannot be measured. Their
       // voice is kept and the ladder runs; three of these and the room stops for a person.
-      _handleRoomFailure(const RoomBroke('a voz nova não pôde ser guardada'));
+      await _oConsertoNaoPegou(const RoomBroke('a voz nova não pôde ser guardada'));
       return;
     }
 
@@ -3523,7 +3526,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (epoch != _epoch) return;
     } on Exception catch (error) {
       if (epoch != _epoch) return;
-      _handleRoomFailure(error);
+      await _oConsertoNaoPegou(error);
       return;
     }
 
@@ -3648,6 +3651,27 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: VoiceState.invite,
       btConsertando: false,
     );
+  }
+
+  /// A new mother-tongue recording the room did not take: back to the question, said.
+  ///
+  /// The band drains, because the promise it made was withdrawn — and the team is told so
+  /// with the line an inaudible turn gets, standing on the question they left, where the
+  /// way to try again is on screen. The failure still runs its ladder underneath, and the
+  /// ladder now lands on the question too: a refusal, a lost session or a third failure
+  /// in this passage stop for a person, a lost network goes offline, and the room has
+  /// spoken for each of those already, so nothing is said on top.
+  Future<void> _oConsertoNaoPegou(Object error) async {
+    _voltarAPergunta();
+    _handleRoomFailure(error);
+    if (state.needsPerson || state.offline) return;
+    final epoch = _epoch;
+    state = state.copyWith(voice: VoiceState.speaking, peerCue: false);
+    _watchBusyState();
+    final line = rotated(inaudibleLines, _inaudibleSpoken++);
+    await _voice.playAsset(fixedLineAsset(line, _lingua));
+    if (epoch != _epoch) return;
+    state = state.copyWith(voice: VoiceState.invite);
   }
 
   void retellChunk() {
