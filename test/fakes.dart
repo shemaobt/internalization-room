@@ -971,6 +971,28 @@ class FakeRoom implements RoomRepository {
     if (deviceAskFailures.isNotEmpty) throw deviceAskFailures.removeAt(0);
   }
 
+  /// Which scope's upload to hold, and until when. Lets a test put a real gap between
+  /// one take reaching the room and another guard() call finding the outbox already
+  /// mid-flush — the overlap a slow network opens and a fast fake never does on its own.
+  String? holdTakeScope;
+  Completer<void>? _holdingTake;
+  Completer<void>? _reachedTakeHold;
+
+  void holdNextTake(String scope) {
+    holdTakeScope = scope;
+    _holdingTake = Completer<void>();
+    _reachedTakeHold = Completer<void>();
+  }
+
+  /// Waits until the held scope's sendTake is the one actually blocking, not just asked.
+  Future<void> untilTakeHeld() async => _reachedTakeHold?.future;
+
+  void finishHeldTake() {
+    _holdingTake?.complete();
+    _holdingTake = null;
+    holdTakeScope = null;
+  }
+
   @override
   Future<String> sendTake(
     String sessionId,
@@ -981,6 +1003,10 @@ class FakeRoom implements RoomRepository {
     int? chunkIndex,
   }) async {
     _guard('sendTake');
+    if (scope == holdTakeScope) {
+      _reachedTakeHold?.complete();
+      await _holdingTake?.future;
+    }
     if (refuseTake == '$kind/$scope') throw const RoomRefused();
     takesKept.add('$kind/$scope');
     takePasses.add(passNumber);
