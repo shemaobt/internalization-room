@@ -2417,7 +2417,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.btPhase != BtPhase.playing && state.btPhase != BtPhase.findings) {
       return;
     }
-    if (state.needsPerson || state.offline) return;
+    // The warning asks for a person; it is not a ceiling. Both microphones keep
+    // opening while it is up — only offline, which cannot record anything to send,
+    // closes this one.
+    if (state.offline) return;
     if (state.btTrechoTocando) return;
     if (trecho.segmentId == null) return;
     _pararOClipe();
