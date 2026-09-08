@@ -8,8 +8,9 @@ The question is who ends it: the tablet in front of the team, or the **Facilitat
 
 ## Considered Options
 
-Letting the tablet lift its own halt. Two existing tests encoded that behaviour; both were
-rewritten rather than the rule bent to fit them.
+Letting the tablet lift its own halt. Rejected because the room halts precisely when it
+cannot judge its own state, so the tablet is the one party that cannot say the reason is
+gone.
 
 ## Decision
 

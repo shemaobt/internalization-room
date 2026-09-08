@@ -22,35 +22,31 @@ The room needs the server: every turn, every verdict and every line the **Guide*
 made there, and none of it happens without a connection. What the outbox answers is a
 connection that comes and goes, never a session worked without one.
 
-Takes and chunks waiting to reach the server are copied into an outbox with a manifest that
+Takes and stretches waiting to reach the server are copied into the outbox, whose manifest
 survives the app closing. Each row names its file rather than an absolute path, so the
-queue still finds the audio after a restore or a reinstall changes the container prefix.
+outbox still finds the audio after a restore or a reinstall changes the container prefix.
 The copy is kept after upload: the Rehearsal and the back-translation are the team's
 product.
 
-Each row's last attempt is stamped in UTC. A stamp sitting ahead of the tablet's own clock
-counts as already due — otherwise a clock moved backwards, or a timezone change across a
-restart, would leave every queued recording waiting on a moment that never comes, and
-silently, because a row that is merely never ready is neither exhausted, lost, nor stalled,
-and those three are the only states the room says out loud. A stamp that is not text at all
-reads as no stamp, so the row comes due now. Only the stamp gets that tolerance: every
-other field is read strictly, and a bad one still sets the whole manifest aside, because a
-row whose file or session cannot be read points at nothing the queue could send.
+Each row's last attempt is stamped in UTC, and the stamp alone is read leniently while every
+other field is read strictly. Why that asymmetry is worth having is
+`docs/adr/0016-queue-timestamps-are-utc-and-read-leniently.md`.
 
 Writing a recording off is a guess about the disk, never a verdict. A row whose audio the
-queue could not find is looked at again on every flush, and the moment the file is back at
-the path the queue reads, it is sent. Audio that is genuinely gone still falls out, so the
-queue still empties, and the team is still told.
+outbox could not find is looked at again on every flush, and the moment the file is back at
+the path it reads, it is sent. Audio that is genuinely gone still falls out, so the outbox
+still empties, and the team is still told.
 
 ## The resume point
 
 The outbox directory also holds the resume point: where each passage was left, so leaving
 one lands the team back there rather than at the start. It carries the place of every
-stretch mended by the Long way, because that is the one thing about a telling-back the
-server cannot hand back. It follows the outbox's rule for the same reason — each take is
-stored by name and rejoined against the recordings folder at read time, so a restore, a
-reinstall or a new tablet never leaves the whole Rehearsal pointing at a container prefix
-that is gone. Rows written by earlier builds carried the whole path and are still read.
+stretch mended by the Long way, for the reason
+`docs/adr/0007-a-stretch-place-is-separate-from-what-it-plays.md` gives. It follows the
+outbox's own rule — each take stored by name and rejoined against the recordings folder at
+read time — so a restore, a reinstall or a new tablet never leaves the whole Rehearsal
+pointing at a container prefix that is gone. Rows written by earlier builds carried the
+whole path and are still read.
 
 A resume point whose recordings are genuinely absent is rewritten, at the Conversation and
 with no Rehearsal in it, as it fails: the next opening then finds nothing to restore and

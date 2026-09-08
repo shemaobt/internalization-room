@@ -11,9 +11,8 @@ defect.
 ## Considered Options
 
 Keeping the previous telling audible across the window, so the team could still hear what
-it had said before. An existing test already asserted the opposite — that the old telling
-no longer counts — and that assertion was kept over the implementation plan that would
-have restored playback.
+it had said before. Rejected because it offers the team a telling that no longer describes
+the recording underneath it, which is the one thing the **Analyst** will be asked to judge.
 
 ## Decision
 

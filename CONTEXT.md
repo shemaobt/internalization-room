@@ -122,6 +122,10 @@ _Avoid_: cursor da retro, playhead, reading head (what the necklace draws above 
 The numbered position of a stretch in the list the analyst receives in one reading. It exists only during that reading; the server turns the number back into a segment.
 _Avoid_: trecho, stretch, segmento, segment (the persistent objects)
 
+**Part**:
+One of the pieces the rehearsal recording is divided into, and the unit a stretch sits in. A stretch addresses its part by where the part sits in the row, so a part that moved would take the whole rehearsal with it.
+_Avoid_: parte, chunk (a position in one reading), take (what holds a part), stretch
+
 **Necklace**:
 The cord of beads that is the room's only progress indicator: lit beads show the conversation's coverage, ghost beads show kept takes.
 _Avoid_: colar, progress bar
@@ -152,6 +156,10 @@ _Avoid_: ponto de retomada, em curso, checkpoint, snapshot (the session's own li
 
 ### Findings and mends
 
+**Verdict**:
+The check's answer when the team says it has finished telling back: the passage is clean, or it carries findings, or it names an untold stretch to go straight to.
+_Avoid_: veredito, result, finding (one item a verdict may carry), correction check (the server entity)
+
 **Finding**:
 The analyst's result on what was told back: missing, addition, meaning change, wrong relation, reordered event, preservation violation, insufficient evidence or unclear.
 _Avoid_: achado, error, problem
@@ -169,7 +177,7 @@ The correction of a stretch pointed at by a finding, through one of the two ways
 _Avoid_: conserto, correction (reserved for the server's check), repair, fix
 
 **Long way**:
-The mend that re-records the stretch's mother tongue and then tells that same stretch again in the bridge language. It is the only exit for addition, meaning change and preservation violation.
+The mend that re-records the stretch's mother tongue and then tells that same stretch again in the bridge language. It is the only exit the fallback offers for addition, meaning change and preservation violation; a finding that names a stretch offers both ways instead, and the team chooses.
 _Avoid_: the long way round, caminho longo, redoing the part (the old screen), mother tongue plus bridge
 
 **Short way**:
@@ -191,7 +199,7 @@ The kind of halt that asks for someone to come and watch while refusing the team
 _Avoid_: aviso, cap, block, halt (the state, of which this is one kind)
 
 **Call for a person**:
-The room's action of signalling it needs someone, resolved by a long press on the circle or by the Desk marking the halt as answered.
+The room's action of signalling it needs someone, insisted on at intervals until it is answered. A long press on the circle asks the room to read its state again rather than lifting a blocking halt, which only the Desk lifts.
 _Avoid_: pedir uma pessoa, calling a human, SOS, `needsPerson` (the internal name)
 
 **Meaning Map**:

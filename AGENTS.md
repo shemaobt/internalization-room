@@ -12,7 +12,7 @@ translation flow. Team screens carry no readable words; the necklace is the only
 flutter pub get
 flutter run                                                          # pick a device
 flutter run -d <iphone-id>
-flutter run --release -d <iphone-id> --dart-define=DEV_ATALHOS=true   # dev skip bar
+flutter run --release -d <iphone-id> --dart-define=DEV_ATALHOS=true   # stands in for the device link
 flutter analyze
 flutter test
 flutter build appbundle --release                # reads android/key.properties
