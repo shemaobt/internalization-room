@@ -127,8 +127,8 @@ One of the pieces the rehearsal recording is divided into, and the unit a stretc
 _Avoid_: parte, chunk (a position in one reading), take (what holds a part), stretch
 
 **Necklace**:
-The cord of beads that is the room's only progress indicator: lit beads show the conversation's coverage, ghost beads show kept takes.
-_Avoid_: colar, progress bar
+The cord of beads that is the room's only progress indicator: lit beads show the conversation's coverage, and during the back-translation each stretch is drawn as a band.
+_Avoid_: colar, progress bar, ghost bead
 
 **Bead**:
 A Meaning Map element represented on the necklace, moving through not encountered, surfaced (the Guide said it) and engaged (the team said it).
