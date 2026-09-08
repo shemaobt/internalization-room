@@ -20,6 +20,6 @@ mark is passed: it asks for someone to come and watch, and goes on taking turns 
 
 ## Consequences
 
-The guard came out of the **Short way** microphone. Being offline still closes that button,
-but now it is visibly inert rather than silently dead, which is the difference between a
-team that waits and a team that goes the wrong way round.
+The guard came out of the **Short way** microphone. A server the room cannot reach still
+closes that button, but now it is visibly inert rather than silently dead, which is the
+difference between a team that waits and a team that goes the wrong way round.

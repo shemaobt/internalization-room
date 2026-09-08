@@ -19,9 +19,9 @@ Every seam below is a provider, and every one of them is overridden in the suite
   by redirecting to a signed URL the client follows on its own.
 - `handInboxRepositoryProvider` — the facilitator inbox: raising a question, fetching
   replies, marking one heard. It keeps a client and a header block of its own.
-- `takeUploadQueueProvider` — the durable outbox for kept takes and back-translation
-  chunks, with retry and give-up.
-- `connectivityServiceProvider` — whether the room is reachable, answered before the team
+- `takeUploadQueueProvider` — the outbox that carries kept takes and back-translation
+  chunks through a flaky connection, retrying and eventually giving up.
+- `connectivityServiceProvider` — whether the server is reachable, answered before the team
   ever taps.
 - `workInProgressProvider` — the resume point, one row per passage.
 

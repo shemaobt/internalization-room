@@ -15,8 +15,8 @@ rewritten rather than the rule bent to fit them.
 
 Only the **Desk** lifts a blocking **Halt**. On the tablet the long press asks the server to
 read the session's state again; it never releases the halt itself. Where there is nobody to
-ask — the session gone with the halt, or the room offline — the long press keeps the local
-release it always had.
+ask — the session gone with the halt, or the server out of reach — the long press keeps the
+local release it always had.
 
 ## Consequences
 

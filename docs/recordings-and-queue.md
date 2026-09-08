@@ -18,7 +18,11 @@ the take is still open.
 
 ## The outbox
 
-Takes and chunks waiting to reach the room are copied into an outbox with a manifest that
+The room needs the server: every turn, every verdict and every line the **Guide** says is
+made there, and none of it happens without a connection. What the outbox answers is a
+connection that comes and goes, never a session worked without one.
+
+Takes and chunks waiting to reach the server are copied into an outbox with a manifest that
 survives the app closing. Each row names its file rather than an absolute path, so the
 queue still finds the audio after a restore or a reinstall changes the container prefix.
 The copy is kept after upload: the Rehearsal and the back-translation are the team's
