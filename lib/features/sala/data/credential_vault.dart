@@ -14,7 +14,14 @@ abstract class CredentialVault {
   Future<void> forget();
 }
 
-/// The only implementation that talks to the platform, over `FlutterSecureStorage`.
+/// Thrown by [CredentialVault] when the store could not answer at all — distinct from a
+/// confirmed-empty read. On iOS, `first_unlock_this_device` refuses every access before
+/// the device's first unlock since a reboot; a call landing in that window must not be
+/// read as "there is no credential."
+class VaultUnavailable implements Exception {
+  const VaultUnavailable();
+}
+
 class KeychainCredentialVault implements CredentialVault {
   final FlutterSecureStorage _storage;
 
@@ -36,19 +43,27 @@ class KeychainCredentialVault implements CredentialVault {
     try {
       return await _storage.read(key: _key);
     } on Object {
-      // Before first unlock the Keychain can refuse to answer; that is not the same as
-      // "no credential", but the tablet cannot tell the difference from here, and must
-      // not delete anything on the strength of a read it could not complete.
-      return null;
+      throw const VaultUnavailable();
     }
   }
 
   @override
-  Future<void> keep(String credential) =>
-      _storage.write(key: _key, value: credential);
+  Future<void> keep(String credential) async {
+    try {
+      await _storage.write(key: _key, value: credential);
+    } on Object {
+      throw const VaultUnavailable();
+    }
+  }
 
   @override
-  Future<void> forget() => _storage.delete(key: _key);
+  Future<void> forget() async {
+    try {
+      await _storage.delete(key: _key);
+    } on Object {
+      throw const VaultUnavailable();
+    }
+  }
 }
 
 final credentialVaultProvider = Provider<CredentialVault>(

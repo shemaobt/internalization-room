@@ -23,7 +23,19 @@ class RememberedLink {
   final TeamLink? team;
   final String? credential;
 
-  const RememberedLink({this.deviceId, this.team, this.credential});
+  /// Set only by [LinkedTeam.read] — never persisted, never produced by [fromJson] —
+  /// when the vault could not answer at all. `credential` is `null` in that case too, but
+  /// this is what tells a caller the difference between "unavailable" and "confirmed
+  /// empty": collecting a fresh one, or forgetting the link, would be wrong for the
+  /// former and right for the latter.
+  final bool credentialUnavailable;
+
+  const RememberedLink({
+    this.deviceId,
+    this.team,
+    this.credential,
+    this.credentialUnavailable = false,
+  });
 
   factory RememberedLink.fromJson(Map<String, Object?> json) => RememberedLink(
         deviceId: json['device_id'] as String?,
@@ -83,17 +95,37 @@ class LinkedTeam {
   /// `credential`, which moves into the vault here and is rewritten out of the file — and
   /// the same line clears a credential left behind by a migration interrupted between the
   /// vault write and the file rewrite, where both would otherwise hold one.
+  ///
+  /// Never throws on a vault that cannot answer (before the tablet's first unlock since a
+  /// reboot, the Keychain refuses every access): `credentialUnavailable` says so instead,
+  /// and nothing is written — not the vault, not the file — so an old file still carrying
+  /// its credential migrates on the next look that finds the vault reachable.
   Future<RememberedLink> read() async {
     final onDisk = await _readFile();
-    final vaulted = await _vault.read();
-    if (onDisk.credential != null) {
-      if (vaulted == null) await _vault.keep(onDisk.credential!);
-      await _write((was) => RememberedLink(deviceId: was.deviceId, team: was.team));
+    String? vaulted;
+    var unavailable = false;
+    try {
+      vaulted = await _vault.read();
+    } on VaultUnavailable {
+      unavailable = true;
+    }
+    if (!unavailable && onDisk.credential != null) {
+      if (vaulted == null) {
+        try {
+          await _vault.keep(onDisk.credential!);
+        } on VaultUnavailable {
+          unavailable = true;
+        }
+      }
+      if (!unavailable) {
+        await _write((was) => RememberedLink(deviceId: was.deviceId, team: was.team));
+      }
     }
     return RememberedLink(
       deviceId: onDisk.deviceId,
       team: onDisk.team,
-      credential: vaulted ?? onDisk.credential,
+      credential: unavailable ? null : (vaulted ?? onDisk.credential),
+      credentialUnavailable: unavailable,
     );
   }
 

@@ -64,6 +64,15 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     }
     final remembered = await _ledger.read();
     if (_closed) return;
+    if (remembered.credentialUnavailable) {
+      // The vault could not say whether this device already holds a credential. Asking
+      // the server for one now risks a 403 for a credential that is not actually lost —
+      // only unreadable right now — which would forget a vínculo that is not broken.
+      // Looked at again on the same cadence a network failure already uses.
+      _tryAgainLater(findTheTeam);
+      return;
+    }
+    _failures = 0;
     _deviceId = remembered.deviceId;
     _present(remembered.credential);
     final team = remembered.team;

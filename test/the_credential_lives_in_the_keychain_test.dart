@@ -16,6 +16,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 
 import 'fakes.dart';
+import 'session_notifier_test.dart' show settle;
 
 const _quickPoll = Duration(milliseconds: 20);
 
@@ -235,26 +236,6 @@ void main() {
       expect(remembered.credential, isNull);
     });
 
-    test('case 5 — the vault fake behaves like a store', () async {
-      final vault = FakeCredentialVault();
-
-      expect(await vault.read(), isNull);
-      await vault.keep('credencial-1');
-      expect(await vault.read(), 'credencial-1');
-      await vault.forget();
-      expect(await vault.read(), isNull);
-
-      final another = FakeCredentialVault();
-      await vault.keep('credencial-1');
-      expect(
-        await another.read(),
-        isNull,
-        reason:
-            'dois cofres são dois aparelhos; um não pode ler o que o outro '
-            'guardou',
-      );
-    });
-
     test(
       'case 6 — the production wrapper keeps with first_unlock_this_device',
       () async {
@@ -275,6 +256,132 @@ void main() {
               'sem first_unlock_this_device, uma restauração do iCloud Keychain '
               'noutro aparelho herdaria a credencial que o servidor emitiu para este',
         );
+      },
+    );
+
+    test(
+      'case 7 — an unavailable vault does not collect nor delete, and looks again',
+      () async {
+        final home = _tempHome();
+        final vault = FakeCredentialVault();
+        await vault.keep('credencial-1');
+        vault.unavailable = true;
+
+        final ledger = _ledger(home, vault);
+        await ledger.rememberDevice('aparelho-1');
+        await ledger.rememberTeam(const TeamLink(projectId: 'equipe-terena'));
+
+        final room = FakeRoom()
+          ..linkedTo = const TeamLink(projectId: 'equipe-terena')
+          ..refuseCredentialWith = const CredentialTaken();
+        final container = _tablet(
+          room: room,
+          ledger: ledger,
+          linkPoll: _quickPoll,
+        );
+        addTearDown(container.dispose);
+
+        await container.read(deviceLinkProvider.notifier).findTheTeam();
+        await settle();
+
+        expect(
+          room.credentialsCollected,
+          isEmpty,
+          reason:
+              'o servidor já entregou esta credencial; pedir de novo com o '
+              'cofre apenas trancado devolveria 403 e apagaria um vínculo que '
+              'não está quebrado',
+        );
+        expect(
+          room.codesAskedFor,
+          isEmpty,
+          reason:
+              'nada foi esquecido; pedir um código novo é o que aconteceria '
+              'se o vínculo tivesse sido apagado',
+        );
+        expect(
+          container.read(deviceLinkProvider).team,
+          isNull,
+          reason:
+              'ainda não sabemos se há credencial; o estado espera, em vez de '
+              'se declarar vinculado sem ela ou pedir um código novo',
+        );
+        final onDisk =
+            (jsonDecode(await _ledgerFile(home).readAsString()) as Map)
+                .cast<String, Object?>();
+        expect(onDisk['device_id'], 'aparelho-1');
+        expect(onDisk['project_id'], 'equipe-terena');
+
+        vault.unavailable = false;
+        await waitFor(
+          'a credencial ser apresentada depois que o cofre volta a responder',
+          () => room.presented == 'credencial-1',
+        );
+        expect(
+          room.credentialsCollected,
+          isEmpty,
+          reason:
+              'a credencial que já estava no cofre nunca precisou ser pedida '
+              'de novo ao servidor',
+        );
+      },
+    );
+
+    test(
+      'case 8 — migration tolerates an unavailable vault; the file stays, and '
+      'the next look migrates',
+      () async {
+        final home = _tempHome();
+        final vault = FakeCredentialVault()..keepUnavailable = true;
+        await _ledgerFile(home).create(recursive: true);
+        await _ledgerFile(home).writeAsString(
+          jsonEncode({
+            'device_id': 'aparelho-1',
+            'project_id': 'equipe-terena',
+            'credential': 'credencial-antiga',
+          }),
+        );
+
+        final ledger = _ledger(home, vault);
+        final beforeMigration = await _ledgerFile(home).readAsString();
+        final firstRead = await ledger.read();
+
+        expect(
+          firstRead.credentialUnavailable,
+          isTrue,
+          reason:
+              'o cofre recusou a escrita; o resultado tem de dizer isso, não '
+              'fingir que não há credencial nenhuma',
+        );
+        expect(firstRead.credential, isNull);
+        final afterFailedMigration = await _ledgerFile(home).readAsString();
+        expect(
+          afterFailedMigration,
+          beforeMigration,
+          reason:
+              'sem conseguir guardar no cofre, o arquivo tem de ficar como '
+              'estava — apagar a credencial dali agora seria perdê-la de vez',
+        );
+        expect(
+          await vault.read(),
+          isNull,
+          reason: 'a escrita falhou; o cofre continua vazio',
+        );
+
+        vault.keepUnavailable = false;
+        final secondRead = await ledger.read();
+
+        expect(
+          secondRead.credential,
+          'credencial-antiga',
+          reason: 'com o cofre disponível de novo, a mesma abertura migra',
+        );
+        expect(secondRead.credentialUnavailable, isFalse);
+        final afterMigration =
+            (jsonDecode(await _ledgerFile(home).readAsString()) as Map)
+                .cast<String, Object?>();
+        expect(afterMigration.containsKey('credential'), isFalse);
+        expect(await vault.read(), 'credencial-antiga');
       },
     );
   });

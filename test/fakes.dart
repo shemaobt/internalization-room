@@ -1184,17 +1184,32 @@ class FakeLinkedTeam implements LinkedTeam {
 
 /// A vault kept in a field, for a test that needs to see or seed a credential without a
 /// Keychain under it.
+///
+/// [unavailable] and [keepUnavailable] simulate the Keychain refusing to answer before
+/// first unlock — the former for every call, the latter for `keep` alone, since a read
+/// can succeed (confirmed empty) while a write to the same item still cannot.
 class FakeCredentialVault implements CredentialVault {
   String? _credential;
+  bool unavailable = false;
+  bool keepUnavailable = false;
 
   @override
-  Future<String?> read() async => _credential;
+  Future<String?> read() async {
+    if (unavailable) throw const VaultUnavailable();
+    return _credential;
+  }
 
   @override
-  Future<void> keep(String credential) async => _credential = credential;
+  Future<void> keep(String credential) async {
+    if (unavailable || keepUnavailable) throw const VaultUnavailable();
+    _credential = credential;
+  }
 
   @override
-  Future<void> forget() async => _credential = null;
+  Future<void> forget() async {
+    if (unavailable) throw const VaultUnavailable();
+    _credential = null;
+  }
 }
 
 /// The upload outbox with no disk under it.
