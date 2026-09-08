@@ -2367,12 +2367,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// A part nobody has told back has its cursor at nought, so this is the ordinary start
   /// for every part of a rehearsal being told back for the first time.
   ///
-  /// What was heard is counted from the same place. The room's gate reads `played_ranges`
-  /// as this round's listening, and ground nobody put in the air is not listening.
+  /// What is reported as heard is **not** moved with it: the heard range still opens at
+  /// the part's own beginning. The room's gate reads `played_ranges` as what the team has
+  /// heard of this rehearsal, across every round — it wants a cover from nought to the
+  /// end of the clip, it refuses an empty report, and it keeps only the last report sent,
+  /// so nothing an earlier round said is still standing. The ground this part was told
+  /// back on *was* heard, in the round that told it; this is the same truth
+  /// [_playFromTheUntoldGround] tells about the parts it steps over, and the app is the
+  /// only one who can tell it. Reporting from the cursor left the picked-up part's own
+  /// beginning uncovered and the finish was refused.
   void _tocarParteDaRetro(int parte) {
     _parteTocando = parte;
     _trechoStart = _ondeParouNesteArquivo(parte);
-    _desdeMs = _inicioDaParteMs(parte) + _trechoStart.inMilliseconds;
+    _desdeMs = _inicioDaParteMs(parte);
     state = state.copyWith(
       btParteFronteira: false,
       btClipRodando: true,

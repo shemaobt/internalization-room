@@ -56,6 +56,57 @@ SegmentView _contado(String gravacao, int de, int ate) => SegmentView(
       endsMs: ate,
     );
 
+/// A team recording a part and entering the telling-back for the first time, with no
+/// resume point and nothing told back yet.
+Future<ProviderContainer> _primeiraRetro(SalaHarness harness) async {
+  final container = harness.container();
+  addTearDown(container.dispose);
+  final notifier = container.read(salaSessionProvider.notifier);
+  await notifier.goConversa();
+  await settle();
+  notifier.goEnsaio();
+  notifier.ensaioTap();
+  notifier.ensaioTap();
+  await settle();
+  notifier.takeKeep();
+  await waitFor('a sala nomear a parte', () {
+    final partes = container.read(salaSessionProvider).partes;
+    return partes.isNotEmpty && partes.last.takeId != null;
+  });
+  notifier.startRetro();
+  await settle();
+  return container;
+}
+
+/// The rule the room's gate applies to a report, as `played_ranges_cover_clip`
+/// (`services/internalization_room/back_translation.py:194`) states it: sorted and
+/// merged, the ranges must run from the clip's beginning to its end, with no more than
+/// 750 ms of slack at the start, inside, or at the end. `playback_confirms_rehearsal`
+/// refuses an empty report outright, and `report_playback` (`sessions.py:495`) *replaces*
+/// what the session holds on every report, so nothing a previous round sent is still
+/// there to help.
+void _cobreOClipe(List<List<int>> faixas, int clipeMs) {
+  const folga = 750;
+  expect(faixas, isNotEmpty, reason: 'a sala recusa um relato vazio');
+  final ordenadas = [for (final faixa in faixas) [faixa[0], faixa[1]]]
+    ..sort((uma, outra) => uma[0].compareTo(outra[0]));
+  final unidas = <List<int>>[];
+  for (final faixa in ordenadas) {
+    if (unidas.isNotEmpty && faixa[0] <= unidas.last[1] + folga) {
+      if (faixa[1] > unidas.last[1]) unidas.last[1] = faixa[1];
+    } else {
+      unidas.add(faixa);
+    }
+  }
+  expect(unidas, hasLength(1),
+      reason: 'um buraco maior que a folga parte a cobertura em duas, e o '
+          'portão pede uma que vá de ponta a ponta: $faixas');
+  expect(unidas.single.first, lessThanOrEqualTo(folga),
+      reason: 'a cobertura começa no começo do ensaio: $faixas');
+  expect(unidas.single.last, greaterThanOrEqualTo(clipeMs - folga),
+      reason: 'e alcança o fim dele ($clipeMs ms): $faixas');
+}
+
 /// Where the cursor is, read the only way the room lets anyone read it from outside: the
 /// beginning of the span the next cut sends.
 ///
@@ -107,7 +158,7 @@ void main() {
             'contou, e a tesoura é recusada calada enquanto isso');
   });
 
-  test('what the team heard on the way back is counted from the cursor',
+  test('the told ground of a part picked back up is still reported as heard',
       () async {
     final harness = SalaHarness()..playback.length = const Duration(seconds: 40);
     final container = await _retomar(
@@ -122,11 +173,12 @@ void main() {
     await settle();
 
     expect(harness.room.playedRangesSent.last, [
-      [30000, 40000]
+      [0, 40000]
     ],
-        reason: 'o portão da sala lê o que foi ouvido nesta rodada, e contar os '
-            'trinta segundos que ninguém tocou é dizer que se ouviu áudio que '
-            'não saiu do tablet');
+        reason: 'o portão lê o relato como o que a equipe ouviu deste ensaio, '
+            'não como a escuta de uma rodada: report_playback substitui os '
+            'ranges a cada relato e a cobertura tem de ir de zero ao fim, então '
+            'calar o chão contado antes recusa o terminei');
   });
 
   test('parts told back whole are stepped over, and the next one starts at nought',
@@ -217,27 +269,95 @@ void main() {
         reason: 'e a posição fica onde a equipe pausou');
   });
 
-  test('a rehearsal with nothing left to tell still reaches its end', () async {
+  test('a rehearsal with nothing left to tell ends without being heard again',
+      () async {
     // The last part is never stepped over, so one told back whole now opens at its own
     // end — and what says the clip finished stops being the player's own completion and
-    // becomes the ceiling that counts what is left of it. `terminei` is offered either
-    // way, which is the promise this holds down.
+    // becomes the ceiling that counts what is left of it.
     final harness = SalaHarness(clipGrace: const Duration(milliseconds: 100))
       ..playback.length = const Duration(seconds: 30);
     final container = await _retomar(
       harness,
       contado: [_contado('gravacao-1', 0, 30000)],
     );
+    final notifier = container.read(salaSessionProvider.notifier);
 
     await waitFor(
       'a sala oferecer o terminei',
       () => container.read(salaSessionProvider).canFinishBackTranslation,
     );
+    await notifier.finishBackTranslation();
+    await settle();
 
     expect(harness.playback.at, const Duration(seconds: 30),
         reason: 'não sobrou nada para contar nesta gravação, e ouvi-la inteira '
             'outra vez para poder encerrar é exatamente a duplicação que a '
             'retomada existe para evitar');
+    expect(harness.room.playedRangesSent.last, [
+      [0, 30000]
+    ],
+        reason: 'e o relato tem de cobrir o ensaio inteiro: playback_confirms_'
+            'rehearsal recusa relato vazio, então uma retomada em que tudo já '
+            'foi contado ficaria sem saída nenhuma');
+  });
+
+  group('the report the finish sends covers the rehearsal', () {
+    test('a telling-back done in one go', () async {
+      final harness = SalaHarness()..playback.length = const Duration(seconds: 30);
+      final container = await _primeiraRetro(harness);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.playback.finishPlayback();
+      await settle();
+      await notifier.finishBackTranslation();
+      await settle();
+
+      _cobreOClipe(
+        harness.room.playedRangesSent.last,
+        harness.room.clipDurationsSent.last!,
+      );
+    });
+
+    test('a telling-back picked back up inside a part', () async {
+      final harness = SalaHarness()..playback.length = const Duration(seconds: 40);
+      final container = await _retomar(
+        harness,
+        contado: [_contado('gravacao-1', 0, 30000)],
+      );
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.playback.finishPlayback();
+      await settle();
+      await notifier.finishBackTranslation();
+      await settle();
+
+      _cobreOClipe(
+        harness.room.playedRangesSent.last,
+        harness.room.clipDurationsSent.last!,
+      );
+    });
+
+    test('a telling-back picked back up with nothing left to tell', () async {
+      final harness = SalaHarness(clipGrace: const Duration(milliseconds: 100))
+        ..playback.length = const Duration(seconds: 30);
+      final container = await _retomar(
+        harness,
+        contado: [_contado('gravacao-1', 0, 30000)],
+      );
+      final notifier = container.read(salaSessionProvider.notifier);
+      await waitFor(
+        'a sala oferecer o terminei',
+        () => container.read(salaSessionProvider).canFinishBackTranslation,
+      );
+
+      await notifier.finishBackTranslation();
+      await settle();
+
+      _cobreOClipe(
+        harness.room.playedRangesSent.last,
+        harness.room.clipDurationsSent.last!,
+      );
+    });
   });
 
   group('nothing in the telling-back is born behind the cursor', () {
