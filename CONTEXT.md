@@ -124,13 +124,13 @@ _Avoid_: falta sem endereço, external missing, missing at the end, missing with
 The correction of a stretch pointed at by a finding, through one of the two ways below.
 _Avoid_: conserto, correction (reserved for the server's check), repair, fix
 
-**The long way round**:
+**Long way**:
 The mend that re-records the stretch's mother tongue and then tells that same stretch again in the bridge language. It is the only exit for addition, meaning change and preservation violation.
-_Avoid_: caminho longo, redoing the part (the old screen), mother tongue plus bridge
+_Avoid_: the long way round, caminho longo, redoing the part (the old screen), mother tongue plus bridge
 
-**The short path**:
+**Short way**:
 The mend that only tells the stretch again in the bridge language, over the mother tongue recording already there.
-_Avoid_: caminho curto, retell only, simple correction
+_Avoid_: the short path, caminho curto, retell only, simple correction
 
 **Resumed back-translation**:
 A back-translation carrying on from where it stopped in a reopened session: playback restarts at the cursor and the stretches already told come back from the server.
