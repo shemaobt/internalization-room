@@ -57,9 +57,25 @@ class PlaybackRepository {
     });
   }
 
-  Future<void> play(String path) async {
+  /// Play [path], starting [from] into the file.
+  ///
+  /// The offset is handed to the load, not sought after it. A seek issued against a
+  /// source that has only just been set races the load that is still settling, and the
+  /// clip starts at nought anyway — on a fresh load the player has nowhere to seek to
+  /// yet. Given at load, the position is already there when the first sound comes out.
+  ///
+  /// Not a [ClippingAudioSource] either, which would also start the sound at [from]: a
+  /// clip answers `position` counted from its own start, and every place the room holds —
+  /// the cursor a stretch begins at, the two times a stretch is sent with — is counted
+  /// from the beginning of the file. The two would agree only while [from] was nought.
+  Future<void> play(String path, {Duration from = Duration.zero}) async {
     try {
-      await (_start ?? _open)(path);
+      final start = _start;
+      if (start != null) {
+        await start(path);
+      } else {
+        await _open(path, from);
+      }
     } on Object {
       _endings.add(false);
     }
@@ -84,10 +100,10 @@ class PlaybackRepository {
     }
   }
 
-  Future<void> _open(String path) async {
+  Future<void> _open(String path, Duration from) async {
     _watchCompletion();
     await _player.stop();
-    _openedLength = await _player.setFilePath(path);
+    _openedLength = await _player.setFilePath(path, initialPosition: from);
     _openings.add(null);
     await _player.play();
   }

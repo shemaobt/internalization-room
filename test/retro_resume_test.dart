@@ -318,8 +318,10 @@ void main() {
     await settle();
 
     expect(harness.room.chunkSpans, isEmpty,
-        reason: 'o ensaio volta a tocar do começo enquanto o corte já está aos '
-            '30s, e um trecho que termina antes de começar sai daí');
+        reason: 'nenhum gesto da retro nasce atrás do cursor — só a mão que '
+            'escreve a posição nesta linha chega a este estado —, mas a posição '
+            'vem do player, e um player que responda de trás manda um trecho '
+            'que termina antes de começar');
 
     harness.playback.at = const Duration(seconds: 44);
     notifier.cortarTrecho();

@@ -315,16 +315,18 @@ class FakePlayback implements PlaybackRepository {
   Duration get position => at;
 
   @override
-  Future<void> play(String path) {
+  Future<void> play(String path, {Duration from = Duration.zero}) {
     played.add(path);
-    return _soundUntilItStops();
+    return _soundUntilItStops(from);
   }
 
   @override
   Future<void> playRange(String path, Duration from, Duration to) {
     played.add(path);
     ranges.add('${from.inMilliseconds}-${to.inMilliseconds}');
-    return _soundUntilItStops();
+    // At nought, not at [from]: a clip answers its position counted from its own start,
+    // which is the very reason the resumed telling-back is not built on one.
+    return _soundUntilItStops(Duration.zero);
   }
 
   @override
@@ -353,16 +355,16 @@ class FakePlayback implements PlaybackRepository {
   // just_audio only completes the future of `play` when the sound stops: at the end
   // of the clip, on a pause or on a stop. A double that returns at once hides
   // everything hung off that future.
-  Future<void> _soundUntilItStops() {
+  Future<void> _soundUntilItStops(Duration from) {
     _stopSounding();
     final playing = Completer<void>();
     _playing = playing;
     // A clip is not open the instant it is asked for: the source loads first, and only
-    // then does the player rewind and know how long it is.
+    // then does the player know where it starts and how long it is.
     final held = _opening;
     scheduleMicrotask(() async {
       await held?.future;
-      at = Duration.zero;
+      at = from;
       _openings.add(null);
       if (_playing != playing) return;
       _sounding = true;
