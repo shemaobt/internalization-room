@@ -234,6 +234,20 @@ void main() {
       final remembered = await ledger.read();
       expect(remembered.team, isNull);
       expect(remembered.credential, isNull);
+
+      // The flow above can never reach _startOver with a credential already in the
+      // vault — one present on read short-circuits collection before a 403 can arrive —
+      // so forgetTheLink's own contract at the vault is checked directly here too.
+      await vault.keep('credencial-2');
+      await ledger.forgetTheLink();
+      expect(
+        await vault.read(),
+        isNull,
+        reason:
+            'forgetTheLink apaga os dois — o arquivo e o cofre — mesmo quando '
+            'o cofre chega com uma credencial que a rota pelo notifier acima '
+            'nunca deixaria chegar até aqui',
+      );
     });
 
     test(
