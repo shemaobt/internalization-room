@@ -259,12 +259,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   String _stamp() => DateTime.now().millisecondsSinceEpoch.toString();
 
-  void _play(String path, {VoidCallback? onComplete, VoidCallback? onFailed}) {
+  void _play(
+    String path, {
+    Duration from = Duration.zero,
+    VoidCallback? onComplete,
+    VoidCallback? onFailed,
+  }) {
     _clipHeld = false;
     _onPlaybackComplete = onComplete;
     _onPlaybackFailed = onFailed;
     _listenForTheEnd();
-    unawaited(_playback.play(path));
+    unawaited(_playback.play(path, from: from));
     _watchPlayback(clipStillOpening: true);
   }
 
@@ -2215,8 +2220,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// left to tell, so the clip still reaches its end and `terminei` is still offered.
   ///
   /// A part is covered whole when the told ground reaches its length, measured without
-  /// playing it. A part that cannot be measured is played from its beginning with the
-  /// cursor after its told ground, which is where a picked-up retro lands anyway.
+  /// playing it. A part that cannot be measured is not stepped over — it is put in the
+  /// air like any other part picked back up, at the cursor its told ground leaves, so the
+  /// team hears whatever of it is still untold and nothing that is not.
   ///
   /// The parts stepped over are reported as heard. The room's gate wants evidence that
   /// the rehearsal was heard end to end before it reads the passage, and the team did hear
@@ -2350,10 +2356,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(btParteNoArMs: medida.inMilliseconds);
   }
 
+  /// Put a part in the air, at the cursor it already has.
+  ///
+  /// The sound starts where the telling-back stopped inside this file, so a part picked
+  /// back up does not make the team sit through the ground they told in the round before.
+  /// It used to start at nought with the cursor already ahead of it, and everything the
+  /// team could do in that stretch was refused: the scissors read a playhead behind the
+  /// cursor and said nothing.
+  ///
+  /// A part nobody has told back has its cursor at nought, so this is the ordinary start
+  /// for every part of a rehearsal being told back for the first time.
+  ///
+  /// What was heard is counted from the same place. The room's gate reads `played_ranges`
+  /// as this round's listening, and ground nobody put in the air is not listening.
   void _tocarParteDaRetro(int parte) {
     _parteTocando = parte;
     _trechoStart = _ondeParouNesteArquivo(parte);
-    _desdeMs = _inicioDaParteMs(parte);
+    _desdeMs = _inicioDaParteMs(parte) + _trechoStart.inMilliseconds;
     state = state.copyWith(
       btParteFronteira: false,
       btClipRodando: true,
@@ -2362,6 +2381,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     _play(
       state.partes[parte].path,
+      from: _trechoStart,
       onComplete: _fimDeParte,
       onFailed: () {
         state = state.copyWith(
@@ -2437,9 +2457,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // slice of the file that is playing, and its two times are counted from that file's
       // beginning.
       //
-      // A part picked back up starts the cursor where telling-back left off in it, so the
-      // playhead can sit behind the cursor. There is nothing new to tell back there, and
-      // cutting anyway sent a stretch that ends before it begins and then walked the
+      // A belt. No way the room starts playback puts the playhead behind the cursor any
+      // more — a part picked back up opens at its cursor, crossing into a part opens at
+      // that part's, and holding the clip and letting it run again never rewinds — but
+      // the position is the player's answer, not the room's, and a player that comes back
+      // from behind it would send a stretch that ends before it begins and then walk the
       // cursor backwards over every stretch after it.
       if (_playback.position < _trechoStart) return;
       _trechoEnd = _playback.position;

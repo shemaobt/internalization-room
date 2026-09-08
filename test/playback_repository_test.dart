@@ -130,6 +130,19 @@ void main() {
               'por um arquivo que sumiu é perder a passagem inteira');
     });
 
+    test('a clip asked for from a place opens there', () async {
+      await playback.play('/o/clipe.m4a', from: const Duration(seconds: 30));
+
+      expect(feitos.single.iniciais, [const Duration(seconds: 30)],
+          reason: 'a retro retomada pede a parte a partir do chão já contado, e '
+              'a posição tem de valer no instante em que o arquivo abre — '
+              'mandar tocar e só depois pular deixa o começo do ensaio no ar');
+      expect(playback.position, const Duration(seconds: 30),
+          reason: 'e a posição segue contada do começo do arquivo: cortarTrecho '
+              'compara esta leitura com o cursor');
+      expect(feitos.single.tocando, isTrue);
+    });
+
     test('the ordinary playback still answers as it always did', () async {
       await playback.play('/o/clipe.m4a');
       expect(feitos.single.tocando, isTrue);
@@ -163,6 +176,10 @@ void main() {
 /// with it — which player it loads a file into, and what it leaves behind.
 class _Duplo extends Fake implements AudioPlayer {
   final List<String> carregados = [];
+
+  /// Where each load was told to open. The position a real player answers with is the one
+  /// it was given at load, so the double sets [at] from it too.
+  final List<Duration?> iniciais = [];
   final _states = StreamController<PlayerState>.broadcast();
   Duration? length = const Duration(seconds: 30);
   /// So a test can give the clip in the air one length and the file being asked about
@@ -192,6 +209,8 @@ class _Duplo extends Fake implements AudioPlayer {
     final no = recusa;
     if (no != null) throw no;
     carregados.add(filePath);
+    iniciais.add(initialPosition);
+    at = initialPosition ?? Duration.zero;
     return porArquivo[filePath] ?? length;
   }
 
