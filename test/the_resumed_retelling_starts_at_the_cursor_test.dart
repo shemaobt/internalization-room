@@ -217,6 +217,29 @@ void main() {
         reason: 'e a posição fica onde a equipe pausou');
   });
 
+  test('a rehearsal with nothing left to tell still reaches its end', () async {
+    // The last part is never stepped over, so one told back whole now opens at its own
+    // end — and what says the clip finished stops being the player's own completion and
+    // becomes the ceiling that counts what is left of it. `terminei` is offered either
+    // way, which is the promise this holds down.
+    final harness = SalaHarness(clipGrace: const Duration(milliseconds: 100))
+      ..playback.length = const Duration(seconds: 30);
+    final container = await _retomar(
+      harness,
+      contado: [_contado('gravacao-1', 0, 30000)],
+    );
+
+    await waitFor(
+      'a sala oferecer o terminei',
+      () => container.read(salaSessionProvider).canFinishBackTranslation,
+    );
+
+    expect(harness.playback.at, const Duration(seconds: 30),
+        reason: 'não sobrou nada para contar nesta gravação, e ouvi-la inteira '
+            'outra vez para poder encerrar é exatamente a duplicação que a '
+            'retomada existe para evitar');
+  });
+
   group('nothing in the telling-back is born behind the cursor', () {
     test('resuming into a part with told ground', () async {
       final harness = SalaHarness();
