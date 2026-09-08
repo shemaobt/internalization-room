@@ -353,6 +353,17 @@ class RoomRepository {
     _read(response, (json) => json);
   }
 
+  Future<void> personArrived(String sessionId) async {
+    final response = await _send(
+      () => _client.post(
+        _uri('/sessions/$sessionId/person-arrived'),
+        headers: _headers,
+      ),
+      _stateTimeout,
+    );
+    _read(response, (json) => json);
+  }
+
   /// The device-scoped ask, for a halt that has no session to ask through: the server
   /// forgot it, or the build never opened one.
   Future<void> askForAPersonWithoutASession(String deviceId) async {
