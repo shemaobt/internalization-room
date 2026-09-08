@@ -102,25 +102,33 @@ flutter run --release -d <iphone-id> --dart-define=DEV_ATALHOS=true
 `DEV_ATALHOS` stands in for the device link and, with `DEV_PULAR_FASES=1` in `.env`, brings
 the skip bar with it.
 
-Once the facilitator spends the code and the link answers with a team, the tablet draws its
-own credential exactly once, keyed by the device id the claim code was minted for — a
+Once the facilitator spends the code and the link answers with a team, the tablet draws
+its own credential exactly once, keyed by the device id the claim code was minted for — a
 server-issued id kept in `guardadas/vinculo.json`, not the hex id `device_identity.dart`
-mints locally and sends as `X-Room-Device`; the two are different ids today. The server hands
-that credential out a single time and keeps only its hash afterward, so a second draw is
-never a retry: 409 means the row is not claimed yet, or was pulled out of service, either of
-which may still change, and the tablet leaves the screen and both memories alone and tries
-again next cycle; 403 means the credential is already out — permanently, and it is also what
-a 200 lost on the way back turns into — so the tablet forgets both the device and the team
-and asks for a fresh code with no device id attached, since the old one can prove nothing
-again; 404 means the server does not know this device at all, and ends in the same place as
-403 for the same reason — a team left on disk beside an id nobody claimed is a lie the next
-opening believes, walking into the room as linked while the code that would fix it never
-shows. A network failure is none of these; it is retried on the ordinary backoff and never
-mistaken for the credential having been spent. A tablet that already remembered a team from
-before this existed, with no credential on file, draws one the next time it opens. A
-credential that arrives after the tablet was put down is written to disk anyway, before
-anything asks whether anyone is still there to see it: the one copy was spent on the server
-the moment it was handed over, so dropping it would cost the whole vínculo.
+mints locally and sends as `X-Room-Device`; the two are different ids today. The
+credential itself is not kept beside that id: it lives in the iOS Keychain, behind the
+`CredentialVault` boundary in `lib/features/sala/data/credential_vault.dart`, reached with
+`KeychainAccessibility.first_unlock_this_device` so a reboot cannot lose it before anyone
+unlocks the tablet, but an iCloud Keychain restore onto a different tablet cannot hand it
+a credential the server issued to another row. A `vinculo.json` written before the vault
+existed still carries a `credential` field; `LinkedTeam.read()` moves that copy into the
+vault and rewrites the file without it the first time such a file is read, once per file.
+The server hands that credential out a single time and keeps only its hash afterward, so a
+second draw is never a retry: 409 means the row is not claimed yet, or was pulled out of
+service, either of which may still change, and the tablet leaves the screen and both
+memories alone and tries again next cycle; 403 means the credential is already out —
+permanently, and it is also what a 200 lost on the way back turns into — so the tablet
+forgets both the device and the team and asks for a fresh code with no device id attached,
+since the old one can prove nothing again; 404 means the server does not know this device
+at all, and ends in the same place as 403 for the same reason — a team left on disk beside
+an id nobody claimed is a lie the next opening believes, walking into the room as linked
+while the code that would fix it never shows. A network failure is none of these; it is
+retried on the ordinary backoff and never mistaken for the credential having been spent. A
+tablet that already remembered a team from before this existed, with no credential in the
+vault, draws one the next time it opens. A credential that arrives after the tablet was
+put down is written to the vault anyway, before anything asks whether anyone is still
+there to see it: the one copy was spent on the server the moment it was handed over, so
+dropping it would cost the whole vínculo.
 
 iOS signing uses the Shemá team (`55ZKR3YQMJ`, bundle id `com.shema.internalizationRoom`). First deploy to a personal device may require trusting the developer profile on the phone (Settings → General → VPN & Device Management).
 
