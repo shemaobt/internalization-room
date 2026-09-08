@@ -163,8 +163,11 @@ class FacilitatorCircle extends StatelessWidget {
   Widget _body(SalaColors colors) {
     if (voice == VoiceState.needsPerson) return _haltedBody(colors, LucideIcons.userCheck);
     if (voice == VoiceState.offline) return _haltedBody(colors, _offlineGlyph);
-    if (warning && !_halted) return _doneDisc();
+    // The cue is a live turn signal — it is the team's own turn to speak — and a
+    // warning is only a background notice; it wins over the green the same way a
+    // halted voice does.
     if (_teamTalk) return _teamTalkBody(colors);
+    if (warning && !_halted) return _doneDisc();
 
     switch (voice) {
       case VoiceState.invite:

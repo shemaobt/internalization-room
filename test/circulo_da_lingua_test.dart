@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -363,5 +364,20 @@ void main() {
             'parado que a lista promete e o teste não olha é onde uma '
             'reordenação futura do corpo do círculo passaria despercebida');
     expect(_haltedGlyph(tester), isTrue);
+  });
+
+  // Caso 6 (Emenda 1, 07/09): a deixa ao vivo da equipe ("é sua vez de falar")
+  // é um sinal de turno, e o aviso é uma notícia de fundo — a deixa vence o
+  // verde da mesma forma que uma voz parada vence.
+  testWidgets('a deixa da equipe não some atrás de um aviso', (tester) async {
+    for (final aviso in [true, false]) {
+      await _pumpCirculo(tester, VoiceState.invite, AppTheme.light,
+          peerCue: true, warning: aviso);
+
+      expect(find.byIcon(LucideIcons.users), findsOneWidget,
+          reason: 'aviso=$aviso: a marca da deixa ao vivo não é negociável — '
+              'sumir atrás de um aviso de fundo tira da equipe o único sinal '
+              'de que é a vez dela de falar');
+    }
   });
 }
