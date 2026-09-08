@@ -1,148 +1,54 @@
-# Sala de Internalização
+# Internalization Room
 
-Voice-first Flutter app for the internalization room of the Shemá oral Bible translation flow. The visual language comes from the Claude Design prototype `docs/spec/prototype/Sala de Internalização.dc.html` (Shemá design system); the interaction model follows the client-validated *Tripod Internalization · Interaction Flows* document, vendored at `docs/spec/interaction-flows.html` (`docs/spec/interaction-flows.md` for a text extraction).
+Voice-first Flutter tablet app for the internalization room of the Shemá oral Bible
+translation flow. A team of oral translators works through a passage of Scripture without
+ever being shown text: the room speaks, the team speaks back, and everything the room knows
+about their progress it shows as beads on a cord.
 
-> Where the code diverges from those sources, the notes marking drift say which is which today. The rules below were written as the target, not as a description of the code.
+There are **zero readable words on team screens**, and progress lives only in the necklace —
+no numbers, no percentages, no lists.
 
-The room walks a team through a passage in five stations, with **zero readable words on team screens** — one terracotta circle, a bead necklace (colar) as the only progress indicator, and everything else spoken:
+## Where the design comes from
 
-1. **Convite** — the breathing circle welcomes the team and asks the room for the book panorama; a wooden bead opens the passage. Asking is a request and not an instruction: which passage a session is for is the room's to say, and if it answers with a passage instead, the team is taken into that passage through the same door an explicit choice uses — and into the session the room opened for it: the app opens no session of its own for a passage the room already opened. The room decides this since the server half landed (shema-api #308).
-2. **Conversa** — tap the circle to speak, tap again when finished. Each engaged meaning-map element warms a bead on the colar (oat → half → wood; one bead is a ring: the significant absence — the backend says how many beads there are and which one it is). Tapping the hand records a question that becomes a blue knot on the cord.
-3. **Ensaio** — tap to record the whole passage; listen, re-record, or keep. The listen button follows the same rule as ghost play below: a second tap pauses the take instead of restarting it, a third resumes from where it stopped, and only a take that finished on its own starts over on the next tap. Kept takes become ghost beads on the thread.
-4. **Retrotradução** — the team's own recording plays; a tap pauses it and captures a piece told back in Portuguese, and a tap sets the clip running again from where it stopped. When the clip ends, *terminei* runs the check, which lands on findings, on *conferida*, or — when a stretch was recorded and never told back — straight at that stretch. The room names it (`untold_segment_id`, its own address and never the finding's, because a finding is a stretch the team told and this is one with no telling at all), plays the team's own voice over it, and arms the next capture as a replacement of that stretch rather than as a new one. Nothing of the rehearsal is touched: this answer used to arrive with no address, the only exit left on the screen was the one that started the rehearsal over, and a team lost every recording of the passage over one explanation they had not got to yet. An address this tablet cannot turn into a slice of a recording it holds stops for a person instead: there is nothing to lead them to. A finding that names a stretch sends the team to the grid described below — or, when what it names is something missing, to the one act that answers an absence: recording that stretch again and telling it again over the new recording. On that screen the terracotta circle no longer plays a stretch itself — the grid's own wood and blue players do that — it repeats the verdict's own line instead, the same way the "ouvir de novo" gesture elsewhere in the room repeats the last thing said; a verdict spoken from a canned fail-safe line is never kept for the circle to repeat, and a tap on it then does nothing rather than falling back to a stretch. A finding that names none — the analyst could not attribute it, or there was too little telling-back to judge — offers telling the whole recording again, unless the kind is an addition, a meaning change or a preservation violation; that short list is the room's own rule and not a classification the server makes, since the analyst reads the telling-back against the meaning map and never hears the mother-tongue recording, so it does not say whether a difference came from the telling or from the recording under it. The other exit in that fallback is not a restart: it sends the team back to the rehearsal with every take, stretch and bead kept, to record what the passage still lacks (see *the end of the story*, below). A true restart — dropping the recorded clip, emptying the rehearsal, and waiting for the session's answer while the exits leave the screen and the circle shows the room is busy — still exists as `reRecordClip`, but nothing on this screen calls it anymore.
-5. **Fecho** — the cord closes into a circle and the beads glow slowly. It is not where the team stays: the wheel reopens on its own after `fimLingerProvider`, and a touch anywhere on the screen reopens it at once. No station of the room is a dead end, and `test/toda_etapa_tem_saida_test.dart` walks `SalaStage.values` to keep it that way — a station added later is covered without anyone remembering to.
+The visual language is the Claude Design prototype vendored at
+`docs/spec/prototype/`, built on the Shemá design system. The interaction model follows the
+client-validated *Tripod Internalization · Interaction Flows* document, vendored at
+`docs/spec/interaction-flows.html`, with a text extraction beside it for searching. Both are
+byte-for-byte copies of their sources; `docs/spec/README.md` records where each came from.
 
-### Interaction rules taken from the flows document
+## The six stations
 
-- **Two taps, not a hold** — the first tap is the addressing gesture, the second says "I'm finished". Most speech in the room is deliberately not for the machine.
-- **Latency is honesty** — a 0 ms acknowledgement ("Hmm — deixa eu pensar…", rotated) turns the wait into conversation; thinking is calm clay, never a spinner. The line is played from the bundle (`F0`–`F3`, rotated) the moment the recorder stops, before any request leaves the tablet.
-- **Beads settle late** — coverage is classified off the voice path, so beads move ~30 s after the turn, during the team's reflection pause. `surfaced` (the Guide said it) is a half bead; only `engaged` (the team worked with it) fills.
-- **Team-talk mode** — when a turn sends the team to rehearse among themselves, the circle becomes a dashed blue ring with the team glyph and the app simply waits. Nothing is recorded. *Drift: the code draws a **solid** blue disc; `dashed_ring.dart` exists but is never used.*
-- **Failure never looks like failure** — repeated voice failures land on `needsPerson`, a calm still circle; the room says the line to the team at once and tells the server the session needs someone, asking again down `roomRetryBackoffProvider` for as long as it is stopped and the server has not confirmed it has the call; a halt that blocks is lifted by the facilitator at the desk, not by the tablet: while the room is stopped it re-reads the session's state on `beadSettleDelayProvider` and goes on by itself — voice back to `invite` — the moment the server stops saying `needs_person`. A long press asks the room that question now rather than answering it, so a facilitator who has just marked the session attended hands the room back at once; if the server still says halted, the room stays halted and the line is not said again. On a halt the desk has already been told about that same press also tells the server a person arrived (`person-arrived`) before asking, once per press — a failed one changes nothing and is not retried, since the read that follows is what actually lifts the halt. The watch begins when the server has been told about the halt and ends with the halt or with the room. Where there is nobody to ask — the session gone with the halt, a build with no address, the room offline — the long press keeps the local release it always had, which is also what stops the asking, and in the conversa the room opens another session before inviting the team back — in the ensaio and the retro a fresh session would strand what the team has already recorded, so the way back to a live session is the wheel. A halt the server calls a warning (`halt: "warning"`, which is what the telling-back's retell budget raises) asks for someone to come and watch and refuses the team nothing: the room says no line and takes turns as before. A capture shorter than `shortestSpeechProvider` never leaves the tablet: the room answers "podem repetir?" from the bundle (`D0`–`D2`, rotated). The server keeps the same lines for a capture that reaches it and turns out to be silent.
-- **The hand is a mailbox, not a doorbell** — a tap opens note mode (the circle sends, the hand cancels: a half question never sends). When a facilitator reply is waiting, a quiet sand/olive dot appears on the hand and a tap plays the oldest unheard reply. Never auto-played, never announced.
-- **Kept rehearsals are the team's own audio** — nothing is generated. They come back as ghost play (listen → pause → record) before recording. The way back to another passage is the wheel, reached by the leave button.
-- **The long way round is two stations, never one** — when the error was born in the recording, the mother tongue of that stretch is recorded again and that stretch is told again over it, in that order, with the second station following on its own — unless the room ran out of retellings at the first, in which case it stops there and asks for a person rather than opening a microphone for a telling it would not take. Which language the open microphone is taking down is the colour of the circle: their own tongue is wood, the telling in Portuguese is blue — the same two colours the grid uses to put the question. Both stations are the same open microphone, so a circle that reads only the voice state painted them identically, and the team was given no way to know which language to speak. A correction the room does take ends at the verdict — wherever that verdict lands, the three destinations above included — and when that same answer says the room is spent, the team hears what became of their recording first and the room stops after: the two things in that order, never one in place of the other. Correcting only the recording is not a state this product has: the room refuses a new recording that arrives carrying the old explanation, and a stretch left with a new voice and no telling is one the first round's gate holds the whole passage for. The new recording becomes a rehearsal take of its own, sliced from nought to its own length — which is why it waited on the room being able to measure an audio without playing it.
-- **The team says where the error lives** — when the analyst points at a stretch, the room asks instead of guessing. A grid of two voices: column is the voice — wood is the team's own tongue, blue is the telling in Portuguese — and row is the verb, listen on top and speak below. Hearing either one is free and settles nothing. The wood microphone means the error was born in the recording, so the mother tongue is re-recorded and that stretch is told again over it, always in that order; the blue one means only the telling slipped. Correcting the recording alone does not exist, and the server refuses it. The kind of finding used to decide this alone, and three of the eight kinds hid the retell outright — it now governs only the fallback, for a finding that names no stretch at all.
-- **A drained band means "waiting to be mended", not "wrong"** — during the telling-back the cord draws each stretch as a band, and the one the analyst pointed at is drained and wears a halo. It fills again the moment the team takes the correction on — choosing which voice speaks again, or opening the microphone — and not when the recording is delivered: choosing, recording and uploading is the whole span the team is working, and the colar was reporting it as nothing done. The cost was weighed and accepted: while the recording runs the band does not tell "mended" apart from "mending", and the circle is what says a capture is in the air. If the capture fails — no file back from the recorder, an upload the room refused, a room that made nothing of what arrived, or the room giving up on a wait that ran past its ceiling — the band drains again, because filling it is a promise and a promise nobody kept has to be taken back. A verdict pointing at the same stretch a second time drains it too: filling is never final.
-- **A stretch is a slice of one recording** — a told-back stretch names the rehearsal recording it explains and the two times inside **that file**, never a position on the concatenated passage. Times relative to a file that never changes never shift, which is what lets one stretch be corrected without moving every stretch after it. The listening ruler stays whole: what the room reports as heard, and the length it measures the clip against, are still the rehearsal end to end.
+**Invitation** — the breathing circle welcomes the team, and the room's voice presents the
+book and then the passage. Which passage a session is for is the room's to say.
 
-- **A stretch's place is not what it plays** — the long way round records the mother tongue as a take of its own, so what a mended stretch plays is a whole new file from nought to its own length, while what it *occupies* is still the few seconds of the rehearsal part it always was. Those are two pairs of numbers, not one: the cord draws the place, the room counts told ground by the place, and the recording that plays and the slice of it are what the correction replaced. Read as one, a six-second stretch mended into a twenty-seven-second take drew twenty-seven seconds of cord over the neighbours nobody had touched, and the part read as told far past its own end. The place survives the tablet being closed, because nothing on the wire can say it: the mend's take is no part of the rehearsal, so the room answers for that stretch with a recording that belongs to no part, and only this tablet ever knew which part it stood in. It is written into the resume point, held by the take the mend recorded — the one name the successor and this tablet still agree on afterwards, since the stretch's own is minted fresh by every mend. That is the whole of it when the room hands back no rebuilt passage — the short way, which leaves the mother tongue on the recording it was already on, or a rebuilding the room could not do — and the place kept in `em_curso.json` is what carries a stretch through that case, because the mend's take is no part of the rehearsal then. When the room does rebuild, the part *becomes* the passage it rebuilt: every stretch of that recording, the mended one included, comes back pointed at the new file at the time it now sits there, and the tablet puts that take where the part's own already sat — the same scope, because a stretch addresses its part by where the part sits in the row, and a part that moved would take the whole rehearsal with it. From there the mended stretch is a slice of its part exactly as its neighbours always were, and the two pairs of numbers this bullet opens with are one pair again. What is stored in the resume point is not made redundant by that: it is what still answers for a stretch as long as the rebuilt passage has not reached the tablet, or never does — see *Recordings*, below.
-- **Reopening lands where they stopped** — a passage left part-way comes back at the stage the tablet wrote down, not at its start. When that stage is the retro, the stretches already told come back from the room, which carries the whole telling-back on every session route; the next stretch begins where the last one ended, so no piece of the rehearsal is told back twice and the session never ends with two of everything. Landing in the ensaio carries those same stretches too, so the way back opened by *the end of the story* (below) does not forget them either. Any entry into the retro — out of the ensaio, that same way back, the fallback's "tell it again", or a reopening that lands on the retro itself — plays from the first ground nobody has told back yet: parts whose every stretch is explained are stepped over (a half born of a division that nobody has told yet holds its part), all but the last (kept so the clip still reaches its end and `terminei` is still offered), and reported to the room as heard, with the full clip length; while the parts are being measured the room shows itself busy, so no cut lands on a clip about to start. That is deliberate: the team did hear those parts, in the round that told them, and the room's own check that the rehearsal was heard end to end cannot tell one round from the next — reporting only this round's listening would fail a passage whose every stretch is already told, and the only way through would be hearing the whole story again, exactly the duplication this path exists to avoid. The part the team lands in is not stepped over, but it does not start at its own beginning either: it starts where the telling-back stopped inside that file, the cursor, so nothing already told in it is heard again and the scissors are not refused for sitting behind a place already passed; what is reported to the room as heard for that part is counted from the cursor too, not from the part's own start. A retro the room holds no stretch for is not a retro to resume, and the rehearsal is where the team lands.
-- **The end of the story** — a finding that names no stretch at all is not always a wrong telling; it can be an ending the team never rehearsed, so the analyst has nothing to point at. The fallback's other exit answers that directly: back to the rehearsal, takes and stretches and colar untouched, to record the missing ground — and only that new ground gets told back on the next pass into the retro.
-- **The bead walks while it plays** — in the retro, the reading head above the cord follows the sound continuously while a part is in the air, asked of the player ten times a second by the cord layer alone so the rest of the room does not repaint at that rate. Outside a part playing the head holds the room's own record of where the team stopped hearing — a pause, a part's end, picking one back up — none of them a guess the player is asked for.
+**Conversation** — the team describes the passage out loud. Every element of the meaning map
+the team engages warms a bead on the necklace; a tap on the hand records a question for the
+facilitator, which becomes a knot on the cord.
 
-Design doctrine applied: progress lives only in the colar; no numbers, percentages, or lists are ever shown.
+**Rehearsal** — the team records the whole passage in its own tongue, listens, and either
+records it again or keeps it. Kept recordings can be replayed before recording anew.
 
-## Architecture
+**Back-translation** — the team's own recording plays back, and a tap pauses it to capture a
+piece told back in the bridge language. When the clip ends, the check runs: it lands on a
+clean verdict, on findings, or straight at a stretch that was recorded and never told back.
+A finding that names a stretch asks the team where the error lives; a finding that names
+none offers telling the whole recording again, or going back to the rehearsal to record
+ground the passage still lacks.
 
-Thin-client Flutter app following [AGENTS.md](AGENTS.md): Riverpod state, feature-based clean architecture, self-documenting code.
+**Choice** — the team picks the next passage from the wheel.
 
-- `lib/features/sala/domain` — coverage counters, the fixed-line asset names, kept takes, hand replies, back-translation findings, session state machine types. The meaning map and the facilitator's script live on the backend; the app only renders what it is told.
-- `lib/features/sala/data` — `SalaSessionNotifier` (the session state machine), recording (mic capture via `record`), playback (`just_audio`, which also answers how long a file is without playing it — on a second player of its own, so measuring never disturbs the clip in the air), and `FacilitatorVoiceService`, which fetches the room's spoken lines from the backend, caches them under `voz/` (60 clips, oldest dropped) and plays the pre-approved fixed lines from `assets/audio/<lingua>/fixed/`.
-- `lib/features/sala/presentation` — one screen, one view per station, the colar overlay, and the facilitator circle with its voice states (invite / listening / thinking / speaking / done / needsPerson, plus team-talk mode and, while listening, which tongue is being recorded).
+**Closing** — the cord closes into a circle and the beads glow slowly. It is not where the
+team stays: the wheel reopens on its own, and a touch anywhere reopens it at once.
 
-### The room's language
+## Running it
 
-The tablet decides. `roomLanguageProvider` reads the device's locale, narrows it to one of
-`languages` and falls back to English for anything else; the choice is read once per run and
-never again, because a team hearing the language change under them mid-passage is worse than
-either language. Nothing in the room is localized in the usual sense — there is no
-`localizationsDelegates` and there are no words on a team screen to localize. What the
-language decides is which bundle the fixed lines are played from, and which language the app
-asks the server for on `POST /sessions` and on the wheel, since everything the room says is
-made there.
+`AGENTS.md` has the commands and the toolchain; `docs/setup.md` has signing, the
+environment file and the developer shortcuts.
 
-`codigo_view.dart` is the exception, and it is the same exception the CI gate already names:
-a facilitator reads it once, at installation, so it reads in the language they set the device
-to.
+## Where the rest is
 
-### Backend seams
-
-The room is wired to `tripod-backend` at `/api/internalization-room`, addressed by `BACKEND_URL` and authenticated with `INTERNALIZATION_ROOM_KEY` (see `.env.example`), sent as `X-Room-Key` on every request. A tablet that has already been linked also carries a credential of its own — collected once and sent as `X-Device-Credential` — and when that header is there the server judges the device by it alone; the room key still rides along beside it, because retiring it is a separate change (ENG-455), not this one. The credential is handed to every client that speaks to the room, not only the first: `handInboxRepositoryProvider` keeps a client and a header block of its own, so a credential that reached only `roomRepositoryProvider` would leave the team's questions as the one thing still arriving unnamed. Every provider below is overridden in tests — see `test/fakes.dart`.
-
-| Provider | What it owns |
-| --- | --- |
-| `roomRepositoryProvider` | sessions, turns, back-translation chunks and verdict, takes, voice clips |
-| `handInboxRepositoryProvider` | the facilitator inbox: raise a question, fetch replies, mark heard |
-| `takeUploadQueueProvider` | the durable outbox for kept takes and retro chunks, with retry and give-up |
-| `connectivityServiceProvider` | whether the room is reachable, before the team ever taps |
-| `workInProgressProvider` | the resume point per passage, in `guardadas/em_curso.json` |
-
-Two routes under `roomRepositoryProvider` exist only for the passage the room composes around a correction: `GET /sessions/{id}/takes` is how a tablet picking a session back up learns which part a composed recording answers for, when the stretches on that session name a take it does not hold — the answer carries the same `chunk_index` the tablet numbered that part with when it sent it up, since the composed take is kept under the number of the recording it replaced. `GET /sessions/{id}/takes/{take_id}/audio` is where the bytes of any take are fetched from, composed or not: it answers a redirect to a signed URL, which the client follows on its own.
-
-Timing and escalation policy also live in providers so tests can shrink them: `beadSettleDelayProvider`, `beckonIntervalProvider`, `busyStateCeilingProvider`, `playbackCeilingProvider`, `clipGraceProvider`, `roomRetryBackoffProvider`, `fimLingerProvider`.
-
-Recordings (conversa utterances, questions, ensaio takes, retro segments) are captured under the app documents directory in `recordings/`. The directory holds more than what this tablet captured, too: a passage the room composed around a correction is fetched and written in there as well, under the composed take's own name, because the resume point checks that every part's file is still on disk before it will pick a session back up, and a second directory would be a second thing to keep alive — see *a stretch's place is not what it plays*, above. The part's older recording, the one the correction was cut out of, is left beside it; nothing in this room deletes audio a team made. Capture is opened in `pauseResume`: a call, an alarm or another app taking the microphone pauses the take and the recorder comes back on its own when the interruption ends, instead of staying paused for the rest of the rehearsal. The room reads the recorder's own state stream while it is doing that, so the eq bars and the record circle stop drawing a live capture for as long as the microphone is held elsewhere; the circle keeps saying the touch that ends the take, because the take is still open. Takes and chunks waiting to reach the room are copied to `guardadas/` with a `fila.json` manifest that survives the app closing; each row names the file, not its absolute path, so the queue still finds the audio after a restore or a reinstall changes the container prefix. That copy is deliberately kept after upload — the rehearsal and the back-translation are the team's product. The instant of a row's last try is written down as UTC rather than as a bare local time, and a stamp that sits ahead of the tablet's own clock is taken as already due: a time correction that moves the clock backwards, or a timezone change across a restart, would otherwise leave every queued recording paced against a wait that never comes due — silently, because a row that is merely never ready is neither exhausted, lost, nor stalled, and those are the only three the room says out loud. A stamp that is not text at all is read as no stamp, so the row comes due now, instead of one wrong byte in one row setting the whole manifest aside as unreadable, every pending recording with it. Only the stamp has that tolerance: every other field is still read strictly, and a row that fails there still sets the whole manifest aside — a row whose name or session cannot be read points at nothing the queue can send. Writing a recording off is a guess about the disk and not a verdict: a row the queue could not find is looked at again on every flush, and the moment its audio is back at the path the queue reads, it is sent. That is what reaches the rows the old absolute-path resolution condemned while their files sat untouched beside them. Audio that is genuinely gone still falls out, so the queue still empties, and the team is still told about it. `guardadas/` also holds `em_curso.json`, the resume point: where each passage was left, so leaving one lands the team back there rather than at the start. It also carries the place of every stretch mended by the long way, because that is the one thing about a telling-back the server cannot hand back — see *a stretch's place is not what it plays* above. It follows the queue's rule for the same reason — each take is stored by name and rejoined against the recordings folder at read time, so a restore, a reinstall or a new tablet does not leave the whole rehearsal pointing at a container prefix that is gone. Rows written by earlier builds carried the whole path and are still read. A resume point whose recordings are genuinely absent is rewritten at the conversa with no rehearsal in it as it fails, so the next opening finds nothing to restore and goes straight through instead of running the same failed resume every time. It is rewritten rather than dropped because the session id lives only in it, and dropping the row would abandon that session on the server the moment the team closed the app before reaching the ensaio. The session id lives nowhere else — `ir_sessions` carries no device, so nothing but this tablet can say which session belonged to which passage — which is why a resume point that cannot be written speaks. It is the same folder on the same disk as the queue, so it borrows the queue's stranded-recording line rather than adding a second one, and that line is guarded to play once per session so a failing disk does not become a chant. A `em_curso.json` that exists but cannot be parsed is never used as the base of a write: the rows of every other passage are in it. The write refuses and speaks instead of reporting a place it did not save.
-
-### Known gaps
-
-- The call for a person lives in memory: it is kept up by the running room, so a tablet that is closed and reopened while it is stopped forgets it was asking and only calls again the next time it halts.
-- `dashed_ring.dart` is written but unused — it encodes a design rule the running code does not apply. `BtFindingKind.exitsByReRecording` now governs only the fallback for a finding that names no stretch; where a stretch is named, the team decides.
-
-## Run
-
-```sh
-flutter pub get
-flutter run                      # pick a device
-flutter run -d <iphone-id>       # on an iPhone (signing team already configured)
-```
-
-An installation nobody has linked stops at the claim code and waits for a facilitator to
-spend it from the Desk, and the dev skip bar is drawn only in a debug build. `.env`'s
-`DEV_PULAR_FASES=1` opens both, and only in debug: a release carries whatever `.env` sat in
-the tree of whoever compiled it, so the file alone would let an unclaimed tablet into a
-team's room and put the phase buttons on a shipped screen. A release build on a developer's
-own device takes the latch on the command line instead, where nothing but that one build
-can pick it up:
-
-```sh
-flutter run --release -d <iphone-id> --dart-define=DEV_ATALHOS=true
-```
-
-`DEV_ATALHOS` stands in for the device link and, with `DEV_PULAR_FASES=1` in `.env`, brings
-the skip bar with it.
-
-Once the facilitator spends the code and the link answers with a team, the tablet draws
-its own credential exactly once, keyed by the device id the claim code was minted for — a
-server-issued id kept in `guardadas/vinculo.json`, not the hex id `device_identity.dart`
-mints locally and sends as `X-Room-Device`; the two are different ids today. The
-credential itself is not kept beside that id: it lives in the iOS Keychain, behind the
-`CredentialVault` boundary in `lib/features/sala/data/credential_vault.dart`, reached with
-`KeychainAccessibility.first_unlock_this_device` so a reboot cannot lose it before anyone
-unlocks the tablet, but an iCloud Keychain restore onto a different tablet cannot hand it
-a credential the server issued to another row. A `vinculo.json` written before the vault
-existed still carries a `credential` field; `LinkedTeam.read()` moves that copy into the
-vault and rewrites the file without it the first time such a file is read, once per file.
-The server hands that credential out a single time and keeps only its hash afterward, so a
-second draw is never a retry: 409 means the row is not claimed yet, or was pulled out of
-service, either of which may still change, and the tablet leaves the screen and both
-memories alone and tries again next cycle; 403 means the credential is already out —
-permanently, and it is also what a 200 lost on the way back turns into — so the tablet
-forgets both the device and the team and asks for a fresh code with no device id attached,
-since the old one can prove nothing again; 404 means the server does not know this device
-at all, and ends in the same place as 403 for the same reason — a team left on disk beside
-an id nobody claimed is a lie the next opening believes, walking into the room as linked
-while the code that would fix it never shows. A network failure is none of these; it is
-retried on the ordinary backoff and never mistaken for the credential having been spent. A
-tablet that already remembered a team from before this existed, with no credential in the
-vault, draws one the next time it opens. A credential that arrives after the tablet was
-put down is written to the vault anyway, before anything asks whether anyone is still
-there to see it: the one copy was spent on the server the moment it was handed over, so
-dropping it would cost the whole vínculo.
-
-iOS signing uses the Shemá team (`55ZKR3YQMJ`, bundle id `com.shema.internalizationRoom`). First deploy to a personal device may require trusting the developer profile on the phone (Settings → General → VPN & Device Management).
-
-Android release signing reads `android/key.properties`, which is gitignored and absent from a
-fresh checkout: copy `android/key.properties.example` and fill in the four values. Without it
-`flutter build appbundle --release` stops with a message naming the file rather than producing
-an unsigned artifact, and `flutter run --release` stops with it too — debug and profile builds
-are unaffected. `storeFile` resolves against `android/app/` when relative, so an absolute path
-is the one that does what it looks like. The keystore and its passwords belong in the team's
-secret store: an install can only ever be replaced by a build carrying the same key.
-
-## Test and lint
-
-```sh
-flutter analyze
-flutter test
-```
+- `CONTEXT.md` — the glossary. Every term above is defined there.
+- `docs/adr/` — why the room behaves as it does, one decision per file.
+- `docs/setup.md`, `docs/backend-seams.md`, `docs/recordings-and-queue.md` — the conventions
+  that are neither a decision nor a command.
+- `docs/spec/` — the vendored prototype and interaction flows.
