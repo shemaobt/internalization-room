@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../domain/device_link.dart';
+import 'credential_vault.dart';
 
 const _folder = 'guardadas';
 const _ledger = 'vinculo.json';
@@ -32,23 +33,31 @@ class RememberedLink {
                 label: json['label'] as String?,
               )
             : null,
+        // Read, never written back: a file from before this change still carries one,
+        // and `LinkedTeam.read()` is where that copy is moved into the vault.
         credential: json['credential'] as String?,
       );
 
+  /// The file's own shape — and the one thing missing from it on purpose.
+  ///
+  /// AGENTS.md §9 names the credential as the one local secret that belongs in
+  /// `flutter_secure_storage`, not beside it in a file `pub get`'s dependency tree can
+  /// read as plainly as the team that owns the tablet can.
   Map<String, Object?> toJson() => {
         'device_id': ?deviceId,
         'project_id': ?team?.projectId,
         'label': ?team?.label,
-        'credential': ?credential,
       };
 }
 
 class LinkedTeam {
   final Future<Directory> Function() _home;
+  final CredentialVault _vault;
   Future<void> _writes = Future<void>.value();
 
-  LinkedTeam({Future<Directory> Function()? home})
-      : _home = home ?? getApplicationSupportDirectory;
+  LinkedTeam({Future<Directory> Function()? home, CredentialVault? vault})
+      : _home = home ?? getApplicationSupportDirectory,
+        _vault = vault ?? KeychainCredentialVault();
 
   Future<File> _file() async {
     final dir = Directory(p.join((await _home()).path, _folder));
@@ -56,7 +65,7 @@ class LinkedTeam {
     return File(p.join(dir.path, _ledger));
   }
 
-  Future<RememberedLink> read() async {
+  Future<RememberedLink> _readFile() async {
     final file = await _file();
     if (!await file.exists()) return const RememberedLink();
     try {
@@ -68,45 +77,60 @@ class LinkedTeam {
     }
   }
 
+  /// The file for who this tablet is, the vault for what proves it.
+  ///
+  /// Migration is on read, once: a file written before the vault existed still carries a
+  /// `credential`, which moves into the vault here and is rewritten out of the file — and
+  /// the same line clears a credential left behind by a migration interrupted between the
+  /// vault write and the file rewrite, where both would otherwise hold one.
+  Future<RememberedLink> read() async {
+    final onDisk = await _readFile();
+    final vaulted = await _vault.read();
+    if (onDisk.credential != null) {
+      if (vaulted == null) await _vault.keep(onDisk.credential!);
+      await _write((was) => RememberedLink(deviceId: was.deviceId, team: was.team));
+    }
+    return RememberedLink(
+      deviceId: onDisk.deviceId,
+      team: onDisk.team,
+      credential: vaulted ?? onDisk.credential,
+    );
+  }
+
   Future<void> rememberDevice(String deviceId) => _write(
-        (was) => RememberedLink(
-          deviceId: deviceId,
-          team: was.team,
-          credential: was.credential,
-        ),
+        (was) => RememberedLink(deviceId: deviceId, team: was.team),
       );
 
   Future<void> rememberTeam(TeamLink team) => _write(
-        (was) => RememberedLink(
-          deviceId: was.deviceId,
-          team: team,
-          credential: was.credential,
-        ),
+        (was) => RememberedLink(deviceId: was.deviceId, team: team),
       );
 
-  Future<void> rememberCredential(String credential) => _write(
-        (was) => RememberedLink(
-          deviceId: was.deviceId,
-          team: was.team,
-          credential: credential,
-        ),
-      );
+  Future<void> rememberCredential(String credential) => _vault.keep(credential);
 
   /// Everything this tablet knew about being itself, dropped in one write.
   ///
   /// The three are one fact: a device id whose credential is spent cannot be linked
   /// again, so keeping the team beside it would leave the tablet unable to prove a
-  /// vínculo it still believes in.
-  Future<void> forgetTheLink() => _write((_) => const RememberedLink());
+  /// vínculo it still believes in. The credential's copy lives in the vault now, so
+  /// forgetting it is a second, separate erasure — not a line in the file's write.
+  Future<void> forgetTheLink() async {
+    await _vault.forget();
+    await _write((_) => const RememberedLink());
+  }
 
-  /// Serialised, staged and flushed, like the other three ledgers, and for their reason:
-  /// a read that fails must never become the base of a write.
+  /// Serialised, staged and flushed, like the other ledgers, and for their reason: a read
+  /// that fails must never become the base of a write. Reads `_readFile` rather than
+  /// `read`, which this itself is called from during migration — `read` calling back into
+  /// `_write` calling back into `read` would never return.
   Future<void> _write(RememberedLink Function(RememberedLink) change) {
     final next = _writes.then((_) async {
       final file = await _file();
       if (await file.exists() && !await _readable(file)) return;
       final staging = File('${file.path}.novo');
-      await staging.writeAsString(jsonEncode(change(await read()).toJson()), flush: true);
+      await staging.writeAsString(
+        jsonEncode(change(await _readFile()).toJson()),
+        flush: true,
+      );
       await staging.rename(file.path);
     });
     _writes = next.then((_) {}, onError: (_) {});
@@ -123,4 +147,6 @@ class LinkedTeam {
   }
 }
 
-final linkedTeamProvider = Provider<LinkedTeam>((ref) => LinkedTeam());
+final linkedTeamProvider = Provider<LinkedTeam>(
+  (ref) => LinkedTeam(vault: ref.watch(credentialVaultProvider)),
+);

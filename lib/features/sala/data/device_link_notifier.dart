@@ -85,7 +85,8 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     final deviceId = _deviceId;
     if (deviceId == null) return;
     // Held before the ask, because the ledger is read off a container the tablet being
-    // put down disposes. The disk is what the answer has to reach, and it outlives both.
+    // put down disposes. The vault behind it is what the answer has to reach, and it
+    // outlives both.
     final ledger = _ledger;
     try {
       final credential = await _room.collectTheCredential(deviceId);
