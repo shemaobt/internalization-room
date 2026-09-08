@@ -247,6 +247,17 @@ class SalaSessionState {
   final int unsentChunks;
   final Set<String> unsentTakeScopes;
 
+  /// Whether the server's last word about this session was a warning rather than
+  /// silence.
+  ///
+  /// The room has no text on screen, so a warning that asks nobody to stop still needs
+  /// a way to be seen — this follows the last state read (`halt: "warning"`), the last
+  /// chunk and the last restart of the telling-back the same way: true the moment one
+  /// of them says so, false the moment a state read does not. A blocking halt never
+  /// sets it; [FacilitatorCircle] draws its own halted body over this regardless of
+  /// what it says.
+  final bool warning;
+
   const SalaSessionState({
     this.stage = SalaStage.convite,
     this.voice = VoiceState.invite,
@@ -295,6 +306,7 @@ class SalaSessionState {
     this.unsentTakes = 0,
     this.unsentChunks = 0,
     this.unsentTakeScopes = const {},
+    this.warning = false,
   });
 
   bool get colarOn =>
@@ -471,6 +483,7 @@ class SalaSessionState {
     int? unsentTakes,
     int? unsentChunks,
     Set<String>? unsentTakeScopes,
+    bool? warning,
   }) {
     return SalaSessionState(
       stage: stage ?? this.stage,
@@ -523,6 +536,7 @@ class SalaSessionState {
       unsentTakes: unsentTakes ?? this.unsentTakes,
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentTakeScopes: unsentTakeScopes ?? this.unsentTakeScopes,
+      warning: warning ?? this.warning,
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -62,9 +63,10 @@ Future<void> _pumpCirculo(
   VoiceState voice,
   ThemeData theme, {
   bool peerCue = false,
+  bool warning = false,
 }) =>
     tester.pumpWidget(MaterialApp(
-      key: ValueKey('$voice-$peerCue-${theme.brightness}'),
+      key: ValueKey('$voice-$peerCue-$warning-${theme.brightness}'),
       theme: theme,
       home: Scaffold(
         body: Center(
@@ -72,12 +74,22 @@ Future<void> _pumpCirculo(
             size: 150,
             voice: voice,
             peerCue: peerCue,
+            warning: warning,
             semanticLabel: 'circulo',
             onTap: () {},
           ),
         ),
       ),
     ));
+
+/// Whether the circle drew one of the glyphs a halted state wears — the userCheck,
+/// the cloudOff/serverOff, or the micOff — the mark a warning must never cover.
+bool _haltedGlyph(WidgetTester tester) => tester
+    .widgetList<Icon>(find.descendant(
+      of: find.byType(FacilitatorCircle),
+      matching: find.byType(Icon),
+    ))
+    .isNotEmpty;
 
 /// One pumped frame, with what the room was doing on it.
 class _Quadro {
@@ -288,5 +300,84 @@ void main() {
     expect(byLabel('Tocar ao terminar a gravação'), findsOneWidget,
         reason: 'gravando, ele é o botão de parar — uma cor nova não pode '
             'custar a leitura em voz alta da tela');
+  });
+
+  testWidgets(
+      'uma parada bloqueante nunca é verde, mesmo com o aviso ligado',
+      (tester) async {
+    await _pumpCirculo(tester, VoiceState.needsPerson, AppTheme.light,
+        warning: true);
+
+    expect(_disco(tester), isNot(BeadStyles.verde),
+        reason: 'uma parada de verdade pede uma pessoa e recusa o gesto; um '
+            'aviso de segundos atrás não desfaz isso, então o disco continua '
+            'sendo o do corpo parado');
+    expect(_haltedGlyph(tester), isTrue,
+        reason: 'e o corpo parado continua desenhando o seu ícone — o aviso '
+            'nunca chega a competir com uma parada que já está na tela');
+  });
+
+  testWidgets('o disco só fica verde com o aviso ligado e a voz solta',
+      (tester) async {
+    const halted = {VoiceState.needsPerson, VoiceState.offline};
+    const vozes = [
+      VoiceState.invite,
+      VoiceState.listening,
+      VoiceState.speaking,
+      VoiceState.done,
+      VoiceState.needsPerson,
+      VoiceState.offline,
+    ];
+
+    for (final voz in vozes) {
+      for (final aviso in [true, false]) {
+        await _pumpCirculo(tester, voz, AppTheme.light, warning: aviso);
+        final verde = aviso && !halted.contains(voz) || voz == VoiceState.done;
+
+        expect(_disco(tester) == BeadStyles.verde, verde,
+            reason: verde
+                ? '${voz.name} com aviso=$aviso tinha de acender o disco de '
+                    '"pronto" — é o único sinal que o aviso tem, já que a sala '
+                    'não fala'
+                : '${voz.name} com aviso=$aviso não pode acender o disco de '
+                    '"pronto": ou o aviso está desligado, ou a voz já é uma '
+                    'parada que o aviso não supera');
+
+        if (halted.contains(voz)) {
+          expect(_haltedGlyph(tester), isTrue,
+              reason: '${voz.name} sempre desenha o seu ícone, com aviso ou '
+                  'sem ele');
+        }
+      }
+    }
+  });
+
+  testWidgets(
+      'o microfone bloqueado também vence o aviso — a terceira parada da lista',
+      (tester) async {
+    await _pumpCirculo(tester, VoiceState.blocked, AppTheme.light,
+        warning: true);
+
+    expect(_disco(tester), isNot(BeadStyles.verde),
+        reason: '_halted lista needsPerson, offline e blocked juntos; a '
+            'matriz acima só cobre os dois primeiros, e um terceiro estado '
+            'parado que a lista promete e o teste não olha é onde uma '
+            'reordenação futura do corpo do círculo passaria despercebida');
+    expect(_haltedGlyph(tester), isTrue);
+  });
+
+  // Caso 6 (Emenda 1, 07/09): a deixa ao vivo da equipe ("é sua vez de falar")
+  // é um sinal de turno, e o aviso é uma notícia de fundo — a deixa vence o
+  // verde da mesma forma que uma voz parada vence.
+  testWidgets('a deixa da equipe não some atrás de um aviso', (tester) async {
+    for (final aviso in [true, false]) {
+      await _pumpCirculo(tester, VoiceState.invite, AppTheme.light,
+          peerCue: true, warning: aviso);
+
+      expect(find.byIcon(LucideIcons.users), findsOneWidget,
+          reason: 'aviso=$aviso: a marca da deixa ao vivo não é negociável — '
+              'sumir atrás de um aviso de fundo tira da equipe o único sinal '
+              'de que é a vez dela de falar');
+    }
   });
 }

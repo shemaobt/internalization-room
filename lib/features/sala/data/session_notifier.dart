@@ -895,6 +895,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           state = state.copyWith(clearPing: true);
         });
       }
+      // A warning follows the last state read, and only the last one: a turn landing
+      // or the facilitator attending the session on the Desk both show up here as a
+      // read that no longer says it, and that is what turns the circle back.
+      state = state.copyWith(warning: snapshot.halt == HaltKind.warning);
       if (snapshot.needsPerson) {
         _haltForAPerson();
       } else if (snapshot.done && state.stage == SalaStage.conversa) {
@@ -1304,7 +1308,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (pastTheConversa) {
           final snapshot = await _room.fetchState(sessionId);
           if (epoch != _epoch) return;
-          state = state.copyWith(coverage: snapshot.coverage);
+          state = state.copyWith(
+            coverage: snapshot.coverage,
+            warning: snapshot.halt == HaltKind.warning,
+          );
           if (waiting.stage == SalaStage.retro) {
             _pickTheTellingBackUp(snapshot.backTranslation);
           } else {
@@ -1327,8 +1334,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             return;
           }
           if (!told.nothingTold) {
-            await _room.restartBackTranslation(sessionId);
+            final restarted = await _room.restartBackTranslation(sessionId);
             if (epoch != _epoch) return;
+            if (restarted.needsPerson) state = state.copyWith(warning: true);
           }
         }
       }
@@ -2868,6 +2876,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           btPhase: BtPhase.playing,
           voice: VoiceState.invite,
           btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
+          // The room can ask for a person over a chunk it never captured — the two
+          // are independent — and that ask is a warning like any other.
+          warning: captured.needsPerson ? true : null,
         );
           return;
       }
@@ -2908,6 +2919,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: VoiceState.invite,
       btChunkPasses: [...state.btChunkPasses, captured.passNumber],
       btTrechos: [...state.btTrechos, trecho],
+      // Only ever set here, never cleared: the next state read is the one that says
+      // the warning is over, the same way it would for one raised on a state read.
+      warning: captured.needsPerson ? true : null,
     );
   }
 
@@ -3799,8 +3813,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: VoiceState.thinking,
     );
     _watchBusyState();
+    final BackTranslationRestart restarted;
     try {
-      await _room.restartBackTranslation(sessionId);
+      restarted = await _room.restartBackTranslation(sessionId);
     } on Exception catch (error) {
       if (epoch == _epoch) {
         if (state.btPhase == BtPhase.thinking) {
@@ -3816,7 +3831,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _askingForANewClip = false;
     }
     if (epoch != _epoch || state.btPhase != BtPhase.thinking) return false;
-    state = state.copyWith(btPhase: BtPhase.findings);
+    state = state.copyWith(
+      btPhase: BtPhase.findings,
+      warning: restarted.needsPerson ? true : null,
+    );
     return true;
   }
 

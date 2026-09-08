@@ -33,6 +33,7 @@ class RetroView extends ConsumerWidget {
           FacilitatorCircle(
             size: 54,
             voice: session.voice,
+            warning: session.warning,
             semanticLabel: _circleLabel(session),
             onTap: notifier.retroTap,
             onLongPress:
@@ -69,6 +70,7 @@ class RetroView extends ConsumerWidget {
               FacilitatorCircle(
                 size: 150,
                 voice: conferida ? VoiceState.done : session.voice,
+                warning: session.warning,
                 motherTongue: session.btPhase == BtPhase.gravandoMaterna,
                 semanticLabel: _circleLabel(session),
                 onTap: notifier.retroTap,

@@ -920,6 +920,10 @@ class FakeRoom implements RoomRepository {
     return List.of(segments);
   }
 
+  /// Whether the room asks for a person to come and watch on the next restart of the
+  /// telling-back — a warning, the same as [serverHalt]'s and the retold chunk's.
+  bool restartNeedsPerson = false;
+
   @override
   Future<BackTranslationRestart> restartBackTranslation(String sessionId) async {
     _guard('restartBackTranslation');
@@ -928,7 +932,7 @@ class FakeRoom implements RoomRepository {
     restartsAsked.add('novo-clipe');
     await _turnArrives();
     retells = 0;
-    return const BackTranslationRestart(needsPerson: false);
+    return BackTranslationRestart(needsPerson: restartNeedsPerson);
   }
 
   /// What the next call to the session-scoped ask throws, independent of `failWith` —
