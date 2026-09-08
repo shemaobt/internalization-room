@@ -1,5 +1,5 @@
 ---
-status: superseded by 0005
+status: superseded by ADR-0005
 ---
 
 # One button for a missing with an address
@@ -27,7 +27,6 @@ screen shows both stations before the team commits to either.
 The **Short way** stopped being reachable from a missing that named a **Stretch**. That is
 what made the decision short-lived: a day later the product owner reopened the question —
 a gap in the content need not mean the recording was wrong — and the answer reversed. The
-single-microphone screen was removed and both microphones came back, which is
-`0005-a-missing-inside-a-stretch-offers-both-microphones.md`. The change that would have
-shipped this one was closed without ever merging. Kept here because a reader finding the
-grid may otherwise reopen the same question a third time.
+single-microphone screen was removed and both microphones came back, which is ADR 0005.
+Kept here because a reader finding the grid may otherwise reopen the same question a third
+time.

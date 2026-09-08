@@ -29,8 +29,7 @@ The copy is kept after upload: the Rehearsal and the back-translation are the te
 product.
 
 Each row's last attempt is stamped in UTC, and the stamp alone is read leniently while every
-other field is read strictly. Why that asymmetry is worth having is
-`docs/adr/0016-queue-timestamps-are-utc-and-read-leniently.md`.
+other field is read strictly. Why that asymmetry is worth having is in ADR 0016.
 
 Writing a recording off is a guess about the disk, never a verdict. A row whose audio the
 outbox could not find is looked at again on every flush, and the moment the file is back at
@@ -41,8 +40,7 @@ still empties, and the team is still told.
 
 The outbox directory also holds the resume point: where each passage was left, so leaving
 one lands the team back there rather than at the start. It carries the place of every
-stretch mended by the Long way, for the reason
-`docs/adr/0007-a-stretch-place-is-separate-from-what-it-plays.md` gives. It follows the
+stretch mended by the Long way, for the reason ADR 0007 gives. It follows the
 outbox's own rule — each take stored by name and rejoined against the recordings folder at
 read time — so a restore, a reinstall or a new tablet never leaves the whole Rehearsal
 pointing at a container prefix that is gone. Rows written by earlier builds carried the

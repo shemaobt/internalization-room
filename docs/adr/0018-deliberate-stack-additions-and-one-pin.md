@@ -2,9 +2,10 @@
 
 ## Context
 
-The stack this app inherited was a closed list, and three departures from it would otherwise
-read as drift a later reader would tidy away. Two are packages the list never named; the
-third is a version held back.
+The app inherited a closed list of approved packages, which lived in the long `AGENTS.md`
+this change replaced. Three departures from that list would otherwise read as drift a later
+reader would tidy away, and the list itself is now gone, so the departures are recorded here
+instead. Two are packages the list never named; the third is a version held back.
 
 ## Decision
 

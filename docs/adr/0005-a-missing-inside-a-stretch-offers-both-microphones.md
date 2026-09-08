@@ -23,8 +23,8 @@ over, and the second station follows on its own.
 
 ## Consequences
 
-The single-microphone screen was removed, which retired
-`0003-one-button-for-a-missing-with-an-address.md`. The routing lost its last dependence on
+The single-microphone screen was removed, which retired ADR 0003. The routing lost its last
+dependence on
 the kind of **Finding**, so every addressed finding now takes one path. The refusal is a
 contract rather than a guard the team can see: nothing on the tablet offers the combination
 in the first place, because the station that records the **Mother tongue** cannot end there.

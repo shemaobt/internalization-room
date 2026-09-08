@@ -26,10 +26,6 @@ _Avoid_: retrotradução, retro in prose (`retro` is the code prefix, not the te
 The station where the team picks the next passage among those on the wheel.
 _Avoid_: escolha in prose (`escolha` is the enum value), selection, wheel (the wheel is the list of passages, not the station)
 
-**Wheel**:
-The list of passages still to be worked, which the room offers at the Choice and reopens on its own after the Closing. Not yet read and empty are different states: empty means the book is finished.
-_Avoid_: roda, passage list, carousel, choice (the station that shows it)
-
 **Closing** (`fim`):
 The last station, where the necklace's cord closes into a circle and the session ends.
 _Avoid_: fecho, ending, fim in prose (`SalaStage.fim` is the enum, not the term)
@@ -86,6 +82,10 @@ _Avoid_: passagem, pericope (the passage's identifier, not the passage), text
 One team's work on one passage, with state and a persisted snapshot allowing it to resume at the exact station where it stopped.
 _Avoid_: sessão, passage, round
 
+**Wheel**:
+The list of passages still to be worked, which the room offers at the Choice and reopens on its own after the Closing. Not yet read and empty are different states: empty means the book is finished.
+_Avoid_: roda, passage list, carousel, choice (the station that shows it)
+
 **Take**:
 A recording the team kept, identified locally by its scope (part, stretch or whole passage) and, after upload, by the server's identifier.
 _Avoid_: gravação, recording (too general), audio
@@ -133,6 +133,10 @@ _Avoid_: colar, progress bar
 **Bead**:
 A Meaning Map element represented on the necklace, moving through not encountered, surfaced (the Guide said it) and engaged (the team said it).
 _Avoid_: conta, pearl, item
+
+**Knot**:
+A question the team raised, recorded by a tap on the hand and drawn on the necklace's cord so an unanswered question is visible without a word.
+_Avoid_: nó, question, bead (a knot is not one)
 
 **Band**:
 A stretch's stroke along the cord during the back-translation: full while the stretch stands, drained while it waits to be mended.

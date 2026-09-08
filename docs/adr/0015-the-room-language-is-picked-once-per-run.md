@@ -14,8 +14,9 @@ change under them mid-**Passage** is worse than either language would have been.
 
 ## Decision
 
-The tablet reads the device's locale once per run, narrows it to a language the room
-speaks, and falls back to English for anything else. The choice is never re-read.
+Once per run, the tablet walks the device's ordered language preferences and takes the
+first one the room speaks, falling back to English when it speaks none of them. The choice
+is never re-read.
 
 ## Consequences
 

@@ -14,8 +14,7 @@ Every seam below is a provider, and every one of them is overridden in the suite
 
 - `roomRepositoryProvider` — sessions, turns, back-translation chunks and the verdict,
   takes, and the room's spoken clips. Two of its routes serve only the passage the server
-  composes around a mend, for the reason
-  `docs/adr/0008-the-mend-becomes-the-passage-audio.md` gives.
+  composes around a mend, for the reason ADR 0008 gives.
 - `handInboxRepositoryProvider` — the facilitator inbox: raising a question, fetching
   replies, marking one heard. It keeps a client and a header block of its own.
 - `takeUploadQueueProvider` — the outbox that carries kept takes and back-translation
