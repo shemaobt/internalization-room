@@ -838,10 +838,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void resolveWithPerson() {
     if (!state.needsPerson && !state.offline) return;
     if (state.needsPerson && _haltWatched != null) {
+      unawaited(_tellTheRoomAPersonArrived(_haltWatched!));
       unawaited(_askIfTheHaltIsOver());
       return;
     }
     _leaveTheHalt();
+  }
+
+  /// One attempt per press. The re-read above is what actually lifts the halt, so a
+  /// failed ping here is not retried — it would just spend the backoff on a signal the
+  /// desk already has another way to get.
+  Future<void> _tellTheRoomAPersonArrived(String sessionId) async {
+    try {
+      await _room.personArrived(sessionId);
+    } on Exception {
+      // Silent: the re-read still happens and the halt still ends the normal way.
+    }
   }
 
   void _leaveTheHalt() {
