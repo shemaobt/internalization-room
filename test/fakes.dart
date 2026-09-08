@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:internalization_room/features/sala/data/connectivity_service.dart';
+import 'package:internalization_room/features/sala/data/credential_vault.dart';
 import 'package:internalization_room/features/sala/data/device_link_notifier.dart';
 import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/data/facilitator_voice_service.dart';
@@ -1179,6 +1180,21 @@ class FakeLinkedTeam implements LinkedTeam {
         team: team ?? remembered.team,
         credential: credential ?? remembered.credential,
       );
+}
+
+/// A vault kept in a field, for a test that needs to see or seed a credential without a
+/// Keychain under it.
+class FakeCredentialVault implements CredentialVault {
+  String? _credential;
+
+  @override
+  Future<String?> read() async => _credential;
+
+  @override
+  Future<void> keep(String credential) async => _credential = credential;
+
+  @override
+  Future<void> forget() async => _credential = null;
 }
 
 /// The upload outbox with no disk under it.
