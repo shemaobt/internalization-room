@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/config/env.dart';
 import '../dev/dev_skip_bar.dart';
 import '../domain/device_link.dart';
+import 'credential_vault.dart';
 import 'hand_inbox_repository.dart';
 import 'linked_team.dart';
 import 'room_repository.dart';
@@ -64,6 +65,15 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     }
     final remembered = await _ledger.read();
     if (_closed) return;
+    if (remembered.credentialUnavailable) {
+      // The vault could not say whether this device already holds a credential. Asking
+      // the server for one now risks a 403 for a credential that is not actually lost —
+      // only unreadable right now — which would forget a vínculo that is not broken.
+      // Looked at again on the same cadence a network failure already uses.
+      _tryAgainLater(findTheTeam);
+      return;
+    }
+    _failures = 0;
     _deviceId = remembered.deviceId;
     _present(remembered.credential);
     final team = remembered.team;
@@ -85,29 +95,47 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     final deviceId = _deviceId;
     if (deviceId == null) return;
     // Held before the ask, because the ledger is read off a container the tablet being
-    // put down disposes. The disk is what the answer has to reach, and it outlives both.
+    // put down disposes. The vault behind it is what the answer has to reach, and it
+    // outlives both.
     final ledger = _ledger;
+    final String credential;
     try {
-      final credential = await _room.collectTheCredential(deviceId);
-      // Written before anything asks whether the tablet is still up. The one copy was
-      // spent on the server the moment it was handed over, so a credential dropped
-      // because nobody was there to receive it is a credential lost for good: the next
-      // opening asks again, is answered 403, and forgets the whole vínculo.
-      await ledger.rememberCredential(credential);
-      if (_closed) return;
-      _failures = 0;
-      _present(credential);
+      credential = await _room.collectTheCredential(deviceId);
     } on CredentialNotYet {
       _lookAgainLater();
+      return;
     } on CredentialTaken {
       await _startOver(ledger);
+      return;
     } on SessionGone {
       // The server does not know this device at all. Keeping the team beside an id
       // nobody claimed is a lie the next opening believes: it walks into the room as
       // linked, and the code the facilitator would have to write down never shows.
       await _startOver(ledger);
+      return;
     } on Exception {
       _tryAgainLater(_collectTheCredential);
+      return;
+    }
+    // The one copy was spent on the server the moment it was handed over: kept down
+    // regardless of whether the tablet is still up (a credential dropped because nobody
+    // was there to receive it is a credential lost for good — the next opening asks
+    // again and is answered 403), and never drawn a second time from here on — asking
+    // again over a write the vault merely could not finish yet would draw that same 403
+    // for a credential that is not actually lost.
+    await _keepCredential(ledger, credential);
+    if (_closed) return;
+    _failures = 0;
+    _present(credential);
+  }
+
+  /// Persists a credential the server will never hand over again — retried on its own,
+  /// never by asking `_room` for another one.
+  Future<void> _keepCredential(LinkedTeam ledger, String credential) async {
+    try {
+      await ledger.rememberCredential(credential);
+    } on VaultUnavailable {
+      _tryAgainLater(() => _keepCredential(ledger, credential));
     }
   }
 

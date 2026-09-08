@@ -123,7 +123,7 @@ HandInboxRepository _inboxSeenBy(List<http.BaseRequest> seen) {
 LinkedTeam _ledgerOnDisk() {
   final home = Directory.systemTemp.createTempSync('sala-credencial');
   addTearDown(() => home.deleteSync(recursive: true));
-  return LinkedTeam(home: () async => home);
+  return LinkedTeam(home: () async => home, vault: FakeCredentialVault());
 }
 
 /// A tablet that already knows whose it is and has never held a credential.

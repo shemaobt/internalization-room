@@ -27,6 +27,7 @@ dependencies:
   # hold the screen, and the team leaves the tablet untouched for minutes at a time. It
   # raises the Flutter floor to 3.41.0 — below that, `pub get` fails without saying why.
   wakelock_plus: ^1.7.0
+  flutter_secure_storage: ^11.0.0
 
 # path_provider_foundation 2.6.0 pulls objective_c as a native asset, and that
 # framework ships ad-hoc signed — iOS rejects the install with
@@ -39,6 +40,9 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.3
+  # Already pulled in transitively by flutter_secure_storage; named directly because the
+  # Keychain vault's test seam (FlutterSecureStoragePlatform.instance) is its type.
+  flutter_secure_storage_platform_interface: ^2.0.3
 
 flutter_launcher_icons:
   image_path: "assets/icon/app_icon.png"

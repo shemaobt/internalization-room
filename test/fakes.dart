@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:internalization_room/features/sala/data/connectivity_service.dart';
+import 'package:internalization_room/features/sala/data/credential_vault.dart';
 import 'package:internalization_room/features/sala/data/device_link_notifier.dart';
 import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/data/facilitator_voice_service.dart';
@@ -1185,6 +1186,36 @@ class FakeLinkedTeam implements LinkedTeam {
         team: team ?? remembered.team,
         credential: credential ?? remembered.credential,
       );
+}
+
+/// A vault kept in a field, for a test that needs to see or seed a credential without a
+/// Keychain under it.
+///
+/// [unavailable] and [keepUnavailable] simulate the Keychain refusing to answer before
+/// first unlock — the former for every call, the latter for `keep` alone, since a read
+/// can succeed (confirmed empty) while a write to the same item still cannot.
+class FakeCredentialVault implements CredentialVault {
+  String? _credential;
+  bool unavailable = false;
+  bool keepUnavailable = false;
+
+  @override
+  Future<String?> read() async {
+    if (unavailable) throw const VaultUnavailable();
+    return _credential;
+  }
+
+  @override
+  Future<void> keep(String credential) async {
+    if (unavailable || keepUnavailable) throw const VaultUnavailable();
+    _credential = credential;
+  }
+
+  @override
+  Future<void> forget() async {
+    if (unavailable) throw const VaultUnavailable();
+    _credential = null;
+  }
 }
 
 /// The upload outbox with no disk under it.
