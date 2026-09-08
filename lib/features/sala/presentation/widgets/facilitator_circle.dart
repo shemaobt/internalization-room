@@ -25,6 +25,14 @@ class FacilitatorCircle extends StatelessWidget {
   /// the cord. Read while listening and nowhere else: which tongue is being taken down
   /// says nothing about a room that is thinking, waiting or done.
   final bool motherTongue;
+
+  /// Whether the server's last word was a warning rather than silence.
+  ///
+  /// The room has no text on screen, so the only way to show a warning is the colour
+  /// it already wears when a passage is done: green asks nobody to stop, only to
+  /// notice. Read only while [voice] is not one of the halted states — a room the
+  /// team cannot use yet is still a stop, whatever the last warning said.
+  final bool warning;
   final double opacity;
   final Widget? child;
   final String semanticLabel;
@@ -41,6 +49,7 @@ class FacilitatorCircle extends StatelessWidget {
     this.peerCue = false,
     this.motherTongue = false,
     this.beckon = false,
+    this.warning = false,
     this.opacity = 1,
     this.child,
     this.onTap,
@@ -141,9 +150,20 @@ class FacilitatorCircle extends StatelessWidget {
       ? LucideIcons.serverOff
       : LucideIcons.cloudOff;
 
+  /// Whether the room is already showing a stop for this voice.
+  ///
+  /// A warning is a lesser thing than any of these — it asks somebody to come and
+  /// look, and refuses nothing — so it never draws over a state that has already
+  /// told the team to stop.
+  bool get _halted =>
+      voice == VoiceState.needsPerson ||
+      voice == VoiceState.offline ||
+      voice == VoiceState.blocked;
+
   Widget _body(SalaColors colors) {
     if (voice == VoiceState.needsPerson) return _haltedBody(colors, LucideIcons.userCheck);
     if (voice == VoiceState.offline) return _haltedBody(colors, _offlineGlyph);
+    if (warning && !_halted) return _doneDisc();
     if (_teamTalk) return _teamTalkBody(colors);
 
     switch (voice) {
@@ -198,16 +218,7 @@ class FacilitatorCircle extends StatelessWidget {
           ),
         );
       case VoiceState.done:
-        return _disc(
-          gradient: BeadStyles.verde,
-          shadows: [
-            BoxShadow(
-              color: ShemaBrand.verdeLo.withValues(alpha: 0.28),
-              offset: const Offset(0, 10),
-              blurRadius: 34,
-            ),
-          ],
-        );
+        return _doneDisc();
       case VoiceState.needsPerson:
         return _haltedBody(colors, LucideIcons.userCheck);
       case VoiceState.offline:
@@ -216,6 +227,17 @@ class FacilitatorCircle extends StatelessWidget {
         return _haltedBody(colors, LucideIcons.micOff);
     }
   }
+
+  Widget _doneDisc() => _disc(
+        gradient: BeadStyles.verde,
+        shadows: [
+          BoxShadow(
+            color: ShemaBrand.verdeLo.withValues(alpha: 0.28),
+            offset: const Offset(0, 10),
+            blurRadius: 34,
+          ),
+        ],
+      );
 
   Widget _liveDisc(SalaColors colors) => _disc(
         gradient: noteMode ? BeadStyles.azul : BeadStyles.telha(colors),
