@@ -398,6 +398,62 @@ void main() {
         expect(await vault.read(), 'credencial-antiga');
       },
     );
+
+    test('case 9 — a vault that cannot keep does not draw a second credential '
+        'from the server', () async {
+      final home = _tempHome();
+      final vault = FakeCredentialVault()..keepUnavailable = true;
+      final ledger = _ledger(home, vault);
+      await ledger.rememberDevice('aparelho-1');
+      await ledger.rememberTeam(const TeamLink(projectId: 'equipe-terena'));
+
+      final room = FakeRoom()
+        ..linkedTo = const TeamLink(projectId: 'equipe-terena');
+      final container = _tablet(
+        room: room,
+        ledger: ledger,
+        linkPoll: _quickPoll,
+      );
+      addTearDown(container.dispose);
+
+      await container.read(deviceLinkProvider.notifier).findTheTeam();
+      await waitFor(
+        'a credencial ser apresentada mesmo sem conseguir gravar no cofre',
+        () => room.presented == 'credencial-1',
+      );
+      await settle(const Duration(milliseconds: 100));
+      await settle(const Duration(milliseconds: 100));
+
+      expect(
+        room.credentialsCollected,
+        ['aparelho-1'],
+        reason:
+            'o servidor já entregou a única cópia; pedir de novo por causa '
+            'de uma escrita que falhou no cofre desperdiça a credencial e '
+            'arrisca um 403 sobre um vínculo que não está quebrado',
+      );
+      expect(
+        container.read(deviceLinkProvider).code,
+        isNull,
+        reason:
+            'nada foi apagado — a credencial está em memória, só a '
+            'gravação no cofre falhou',
+      );
+      expect(
+        container.read(deviceLinkProvider).team?.projectId,
+        'equipe-terena',
+      );
+
+      vault.keepUnavailable = false;
+      await waitFor(
+        'a credencial finalmente ser guardada, quando o cofre volta a '
+        'responder',
+        () async => await vault.read() == 'credencial-1',
+      );
+      expect(room.credentialsCollected, [
+        'aparelho-1',
+      ], reason: 'guardar de novo não é pedir de novo');
+    });
   });
 }
 
