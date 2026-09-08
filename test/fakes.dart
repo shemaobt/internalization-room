@@ -965,6 +965,21 @@ class FakeRoom implements RoomRepository {
     serverHalt = HaltKind.blocking;
   }
 
+  /// What the next call to `personArrived` throws, independent of `failWith` — a case
+  /// needs the halt to stay reachable and only the arrival ping itself to fail.
+  Exception? personArrivedFailsWith;
+
+  /// Every session id `personArrived` was called for, one entry per attempt.
+  final List<String> personArrivedSessions = [];
+
+  @override
+  Future<void> personArrived(String sessionId) async {
+    _guard('personArrived');
+    personArrivedSessions.add(sessionId);
+    final failure = personArrivedFailsWith;
+    if (failure != null) throw failure;
+  }
+
   /// Every device id the device-scoped ask was made for, one entry per attempt —
   /// including one that is about to fail, the way `calls` tracks `askForAPerson`.
   final List<String> deviceAsksReceived = [];
