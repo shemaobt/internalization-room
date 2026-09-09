@@ -1,4 +1,4 @@
-enum Rule { mode }
+enum Rule { mode, ceiling }
 
 class AllowlistEntry {
   final String file;
@@ -58,5 +58,15 @@ const allowlist = <AllowlistEntry>[
     'lib/features/sala/domain/turn_result.dart',
     Rule.mode,
     "bridgeMode: json['bridge_mode'] as String? ?? '',",
+  ),
+  AllowlistEntry(
+    'lib/features/sala/data/room_repository.dart',
+    Rule.ceiling,
+    'const _turnTimeout = Duration(seconds: 90);',
+  ),
+  AllowlistEntry(
+    'lib/features/sala/data/session_notifier.dart',
+    Rule.ceiling,
+    'final busyStateCeilingProvider = Provider<Duration?>(',
   ),
 ];

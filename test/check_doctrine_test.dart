@@ -11,10 +11,11 @@ void main() {
       () {
     final hits = scan(const ['lib']);
     final result = evaluate(hits, allowlist);
+    final modeHits = hits.where((h) => h.rule == Rule.mode).toList();
 
     expect(
-      hits.length,
-      10,
+      modeHits,
+      hasLength(10),
       reason: 'as dez linhas de bridgeMode conhecidas hoje mudaram de número',
     );
     expect(
@@ -26,6 +27,34 @@ void main() {
       result.stale,
       isEmpty,
       reason: 'uma entrada da allowlist não bate mais nenhuma linha real',
+    );
+  });
+
+  test('the guard finds the two turn-clock declarations, matching the allowlist',
+      () {
+    final result = evaluate(scan(const ['lib']), allowlist);
+    final ceilingHits =
+        scan(const ['lib']).where((h) => h.rule == Rule.ceiling).toList();
+
+    expect(
+      ceilingHits,
+      hasLength(2),
+      reason: 'só _turnTimeout e busyStateCeilingProvider são o relógio do turno',
+    );
+    expect(
+      ceilingHits.any((h) => h.text.contains('_stateTimeout')),
+      isFalse,
+      reason: '_stateTimeout não é o caminho do turno, não deveria bater',
+    );
+    expect(
+      result.violations,
+      isEmpty,
+      reason: 'um relógio de turno fora da allowlist deveria falhar a build',
+    );
+    expect(
+      result.stale,
+      isEmpty,
+      reason: 'as duas entradas de ceiling ainda batem o código real',
     );
   });
 

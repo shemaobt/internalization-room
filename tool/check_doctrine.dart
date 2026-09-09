@@ -18,6 +18,15 @@ final rules = <DoctrineRule>[
     RegExp(r'bridgeMode|bridge_mode|guided_microchecks|full_retell'),
     'no app-owned bridge-language modes',
   ),
+  DoctrineRule(
+    Rule.ceiling,
+    RegExp(
+      r'MAX_SPOKEN_[A-Z_]*|SpeechBudget|overSpeechBudget|_brokenCeiling'
+      r'|speechBudgetFor|[A-Z][A-Z_]*_BUDGET'
+      r'|_turnTimeout\s*=|busyStateCeilingProvider\s*=',
+    ),
+    'no speech ceilings in code — length is prompt style, never a reject',
+  ),
 ];
 
 class Hit {
