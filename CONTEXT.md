@@ -165,8 +165,8 @@ The check's answer when the team says it has finished telling back: the passage 
 _Avoid_: veredito, result, finding (one item a verdict may carry), correction check (the server entity)
 
 **Finding**:
-The analyst's result on what was told back: missing, addition, meaning change, wrong relation, reordered event, preservation violation, insufficient evidence or unclear.
-_Avoid_: achado, error, problem
+The analyst's result on what was told back, in Marcia's words: missing, addition or unclear.
+_Avoid_: achado, error, problem, the retired kinds meaning change, wrong relation, reordered event, preservation violation and insufficient evidence
 
 **Missing with an address**:
 A missing finding whose place (before, inside or after) fits a stretch already told. It goes to the "where the error lives" screen.
