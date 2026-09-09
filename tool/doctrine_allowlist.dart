@@ -1,4 +1,4 @@
-enum Rule { mode, ceiling }
+enum Rule { mode, ceiling, probe }
 
 class AllowlistEntry {
   final String file;

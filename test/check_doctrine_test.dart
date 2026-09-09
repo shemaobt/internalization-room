@@ -6,6 +6,34 @@ import 'package:path/path.dart' as p;
 import '../tool/check_doctrine.dart';
 import '../tool/doctrine_allowlist.dart';
 
+void _expectAFixtureViolatingOneRule(
+  String label,
+  Rule rule,
+  String triggerLine,
+) {
+  test(
+      'a $label mechanism reintroduced outside the allowlist fails with '
+      "its doctrine sentence", () {
+    final dir = Directory.systemTemp.createTempSync('doctrine_fixture_');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    File(p.join(dir.path, 'reintroduced.dart'))
+        .writeAsStringSync('$triggerLine\n');
+
+    final result = evaluate(scan([dir.path]), allowlist);
+
+    expect(
+      result.violations,
+      hasLength(1),
+      reason: 'o gatilho de $label deveria bater uma vez, nenhuma allowlist cobre um arquivo novo',
+    );
+    expect(
+      result.violations.single.rule,
+      rule,
+      reason: 'a violação precisa vir da regra $label, não de outra',
+    );
+  });
+}
+
 void main() {
   test('the guard finds every bridgeMode site the allowlist already names',
       () {
@@ -57,6 +85,12 @@ void main() {
       reason: 'as duas entradas de ceiling ainda batem o código real',
     );
   });
+
+  _expectAFixtureViolatingOneRule(
+    'probe',
+    Rule.probe,
+    'const _kind = ProbePurpose.processOnly;',
+  );
 
   test(
       'an allowlist entry the scan can no longer confirm is reported stale, '

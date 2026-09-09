@@ -27,6 +27,15 @@ final rules = <DoctrineRule>[
     ),
     'no speech ceilings in code — length is prompt style, never a reject',
   ),
+  DoctrineRule(
+    Rule.probe,
+    RegExp(
+      r'PROCESS_ONLY|ProbePurpose|MOTHER_TONGUE_PRACTICE|SCENE_OPENING'
+      r'|planNextProbe|renderActiveProbeContract|isProcessOnly'
+      r'|ACTIVE COMPREHENSION PROBE|BRIDGE MODE',
+    ),
+    'no probe/station contracts that forbid the Guide content',
+  ),
 ];
 
 class Hit {
