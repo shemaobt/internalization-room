@@ -17,13 +17,19 @@ flutter run --release -d <iphone-id> --dart-define=DEV_ATALHOS=true   # stands i
 flutter analyze
 flutter test
 flutter build appbundle --release                # reads android/key.properties
+dart run tool/check_doctrine.dart                # the doctrine guard, on demand
 ```
+
+Run `git config core.hooksPath tool/git-hooks` once to get the doctrine guard on every commit.
 
 ## What CI enforces beyond the suite
 
 - No test is skipped.
 - The room stays wordless: no `Text(` widget in the room's presentation layer, the claim
   code screen being the one named exception.
+- Nothing forbidden returns to `lib/`: `tool/check_doctrine.dart` mirrors the backend's
+  doctrine guard (`tripod-backend`, `scripts/check_doctrine.py`) against Marcia's six rules,
+  spelled in Dart, against a typed allowlist in `tool/doctrine_allowlist.dart`.
 
 ## Secrets
 

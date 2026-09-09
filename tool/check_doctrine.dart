@@ -145,16 +145,16 @@ List<Hit> scan(Iterable<String> roots) {
 void main() {
   final result = evaluate(scan(const ['lib']), allowlist);
   if (result.violations.isEmpty && result.stale.isEmpty) {
-    print(
+    stdout.writeln(
       'doctrine guard passed — every hit is on the allowlist, every entry still matches',
     );
     exit(0);
   }
   for (final hit in result.violations) {
-    print('✗ ${hit.file}:${hit.line}  [${hit.rule.name}] ${hit.message}');
+    stdout.writeln('✗ ${hit.file}:${hit.line}  [${hit.rule.name}] ${hit.message}');
   }
   for (final entry in result.stale) {
-    print(
+    stdout.writeln(
       "✗ ${entry.file}  [${entry.rule.name}] allowlist entry no longer matches any hit: "
       "'${entry.text}' — remove it or the mechanism it named moved without the list updating",
     );
