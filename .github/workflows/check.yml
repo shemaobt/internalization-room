@@ -57,6 +57,9 @@ jobs:
             exit 1
           fi
 
+      - name: Nothing forbidden returns to lib/
+        run: dart run tool/check_doctrine.dart
+
       - name: Keep the coverage report
         if: always()
         uses: actions/upload-artifact@v4

@@ -1,0 +1,2 @@
+#!/bin/sh
+dart run tool/check_doctrine.dart
