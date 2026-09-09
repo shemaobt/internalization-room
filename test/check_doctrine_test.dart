@@ -93,6 +93,37 @@ void main() {
   );
 
   test(
+      'a sublist cut into the conversation fails, and the audio cache limit '
+      'does not', () {
+    final dir = Directory.systemTemp.createTempSync('doctrine_fixture_');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    File(p.join(dir.path, 'reintroduced.dart')).writeAsStringSync(
+      'final recent = turns.sublist(turns.length - 5);\n',
+    );
+
+    final result = evaluate(scan([dir.path]), allowlist);
+    final realHits = scan(const ['lib']);
+
+    expect(
+      result.violations,
+      hasLength(1),
+      reason: 'sublist() num arquivo novo não está em nenhuma allowlist',
+    );
+    expect(
+      result.violations.single.rule,
+      Rule.memoryWindow,
+      reason: 'a violação precisa vir da regra de janela de memória',
+    );
+    expect(
+      realHits.any((h) =>
+          h.rule == Rule.memoryWindow &&
+          h.file.endsWith('facilitator_voice_service.dart')),
+      isFalse,
+      reason: 'clips.take() apaga arquivos de áudio velhos, não corta o histórico da conversa',
+    );
+  });
+
+  test(
       'an allowlist entry the scan can no longer confirm is reported stale, '
       'and the reworded line is its own new violation', () {
     final dir = Directory.systemTemp.createTempSync('doctrine_fixture_');

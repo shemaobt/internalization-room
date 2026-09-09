@@ -36,6 +36,11 @@ final rules = <DoctrineRule>[
     ),
     'no probe/station contracts that forbid the Guide content',
   ),
+  DoctrineRule(
+    Rule.memoryWindow,
+    RegExp(r'_RECENT_TURNS|MAX_MESSAGES|\.sublist\(|takeLast'),
+    'whole conversation in context — no memory window',
+  ),
 ];
 
 class Hit {
