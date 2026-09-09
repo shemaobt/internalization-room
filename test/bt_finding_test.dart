@@ -6,10 +6,6 @@ void main() {
     const wire = {
       'missing': BtFindingKind.missing,
       'addition': BtFindingKind.addition,
-      'meaning_change': BtFindingKind.meaningChange,
-      'wrong_relation': BtFindingKind.wrongRelation,
-      'reordered_event': BtFindingKind.reorderedEvent,
-      'preservation_violation': BtFindingKind.preservationViolation,
       'insufficient_evidence': BtFindingKind.insufficientEvidence,
       'unclear': BtFindingKind.unclear,
     };
@@ -18,10 +14,39 @@ void main() {
     });
   });
 
+  test('exitsByReRecording is true for addition alone', () {
+    for (final kind in BtFindingKind.values) {
+      expect(kind.exitsByReRecording, kind == BtFindingKind.addition,
+          reason: '${kind.name} deveria ${kind == BtFindingKind.addition ? '' : 'não '}'
+              'esconder a saída de recontar');
+    }
+  });
+
   test('a kind this build does not know yet degrades to null, not a crash', () {
     expect(btFindingKindFrom('algo_novo_do_servidor'), isNull);
     expect(btFindingKindFrom(null), isNull);
   });
+
+  for (final retired in [
+    'meaning_change',
+    'wrong_relation',
+    'reordered_event',
+    'preservation_violation',
+  ]) {
+    test('a retired wire name, $retired, resolves to no kind', () {
+      expect(btFindingKindFrom(retired), isNull);
+
+      final verdict = BackTranslationVerdict.fromJson({
+        'checked': false,
+        'finding_kind': retired,
+        'finding_segment_id': 'trecho-2',
+        'findings_remaining': 1,
+      });
+
+      expect(verdict.findingKind, isNull);
+      expect(verdict.findingSegmentId, 'trecho-2');
+    });
+  }
 
   test('a verdict with an unknown kind still enters the findings phase', () {
     final verdict = BackTranslationVerdict.fromJson(const {

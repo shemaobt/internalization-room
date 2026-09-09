@@ -510,16 +510,15 @@ void main() {
   });
 
   for (final kind in [
-    BtFindingKind.meaningChange,
-    BtFindingKind.preservationViolation,
+    BtFindingKind.missing,
+    BtFindingKind.unclear,
   ]) {
-    testWidgets('a ${kind.name} finding offers re-recording and nothing else',
+    testWidgets('a ${kind.name} finding offers both exits',
         (tester) async {
       final container = await pumpToFindings(tester, kind);
 
       expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
-      expect(bySemanticsLabelWidget(retellExit), findsNothing);
-      expect(bySemanticsLabelWidget(wholeClipExit), findsNothing);
+      expect(bySemanticsLabelWidget(wholeClipExit), findsOneWidget);
       expect(bySemanticsLabelWidget(reRecordExit), findsOneWidget);
     });
   }

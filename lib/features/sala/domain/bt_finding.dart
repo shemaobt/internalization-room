@@ -1,10 +1,6 @@
 enum BtFindingKind {
   missing,
   addition,
-  meaningChange,
-  wrongRelation,
-  reorderedEvent,
-  preservationViolation,
   insufficientEvidence,
   unclear,
 }
@@ -12,10 +8,6 @@ enum BtFindingKind {
 const _wireNames = {
   'missing': BtFindingKind.missing,
   'addition': BtFindingKind.addition,
-  'meaning_change': BtFindingKind.meaningChange,
-  'wrong_relation': BtFindingKind.wrongRelation,
-  'reordered_event': BtFindingKind.reorderedEvent,
-  'preservation_violation': BtFindingKind.preservationViolation,
   'insufficient_evidence': BtFindingKind.insufficientEvidence,
   'unclear': BtFindingKind.unclear,
 };
@@ -23,10 +15,7 @@ const _wireNames = {
 BtFindingKind? btFindingKindFrom(String? raw) => _wireNames[raw];
 
 extension BtFindingExit on BtFindingKind {
-  bool get exitsByReRecording =>
-      this == BtFindingKind.addition ||
-      this == BtFindingKind.meaningChange ||
-      this == BtFindingKind.preservationViolation;
+  bool get exitsByReRecording => this == BtFindingKind.addition;
 }
 
 class BackTranslationChunk {

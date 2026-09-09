@@ -114,7 +114,7 @@ void main() {
   });
 
   testWidgets('os outros achados não mudam', (tester) async {
-    await pumpToPergunta(tester, finding: BtFindingKind.meaningChange);
+    await pumpToPergunta(tester, finding: BtFindingKind.unclear);
 
     expect(byLabel(micMaternaLabel), findsOneWidget);
     expect(byLabel(micRetroLabel), findsOneWidget);

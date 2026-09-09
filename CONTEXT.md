@@ -181,7 +181,7 @@ The correction of a stretch pointed at by a finding, through one of the two ways
 _Avoid_: conserto, correction (reserved for the server's check), repair, fix
 
 **Long way**:
-The mend that re-records the stretch's mother tongue and then tells that same stretch again in the bridge language. It is the only exit the fallback offers for addition, meaning change and preservation violation; a finding that names a stretch offers both ways instead, and the team chooses.
+The mend that re-records the stretch's mother tongue and then tells that same stretch again in the bridge language. It is the only exit the fallback offers for an addition; a finding that names a stretch offers both ways instead, and the team chooses.
 _Avoid_: the long way round, caminho longo, redoing the part (the old screen), mother tongue plus bridge
 
 **Short way**:

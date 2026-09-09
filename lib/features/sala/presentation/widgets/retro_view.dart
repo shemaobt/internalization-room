@@ -112,7 +112,7 @@ class RetroView extends ConsumerWidget {
   Widget? _actions(SalaSessionState session, SalaSessionNotifier notifier) {
     if (session.btPhase == BtPhase.findings) {
       // Which voice needs to speak again is the team's to say. It used to be read off the
-      // kind of finding — three kinds hid the retell exit outright — and the team was
+      // kind of finding — one kind hid the retell exit outright — and the team was
       // never asked, on the one question only they can answer.
       // With no stretch to ask about, the question cannot be put, and the room falls back
       // to what it always did — including reading the kind: telling the whole recording
