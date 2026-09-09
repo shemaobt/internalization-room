@@ -155,7 +155,7 @@ void main() {
   });
 
   // O invariante deste laço — o tipo do achado não escolhe pela equipe qual voz
-  // corrigir — vale para todos os quatro, falta incluída desde 03/09: a materna
+  // corrigir — vale para cada tipo, falta incluída desde 03/09: a materna
   // pode já ter a parte que a ponte pulou, e só a equipe sabe se é o caso.
   for (final kind in BtFindingKind.values) {
     testWidgets('both voices are offered when the finding is ${kind.name}',

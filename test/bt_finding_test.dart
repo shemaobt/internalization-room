@@ -16,9 +16,7 @@ void main() {
 
   test('exitsByReRecording is true for addition alone', () {
     for (final kind in BtFindingKind.values) {
-      expect(kind.exitsByReRecording, kind == BtFindingKind.addition,
-          reason: '${kind.name} deveria ${kind == BtFindingKind.addition ? '' : 'não '}'
-              'esconder a saída de recontar');
+      expect(kind.exitsByReRecording, kind == BtFindingKind.addition);
     }
   });
 
