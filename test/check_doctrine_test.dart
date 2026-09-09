@@ -123,6 +123,12 @@ void main() {
     );
   });
 
+  _expectAFixtureViolatingOneRule(
+    'say-less',
+    Rule.sayLess,
+    "const _hint = 'please say less next time';",
+  );
+
   test(
       'an allowlist entry the scan can no longer confirm is reported stale, '
       'and the reworded line is its own new violation', () {

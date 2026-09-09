@@ -41,6 +41,14 @@ final rules = <DoctrineRule>[
     RegExp(r'_RECENT_TURNS|MAX_MESSAGES|\.sublist\(|takeLast'),
     'whole conversation in context — no memory window',
   ),
+  DoctrineRule(
+    Rule.sayLess,
+    RegExp(
+      r'say less|saying less|dizendo menos|diga menos',
+      caseSensitive: false,
+    ),
+    "no 'say less' notes — a request to understand is answered fully",
+  ),
 ];
 
 class Hit {
