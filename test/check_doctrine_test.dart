@@ -129,6 +129,12 @@ void main() {
     "const _hint = 'please say less next time';",
   );
 
+  _expectAFixtureViolatingOneRule(
+    'model',
+    Rule.model,
+    "const _model = 'gemini_flash';",
+  );
+
   test(
       'an allowlist entry the scan can no longer confirm is reported stale, '
       'and the reworded line is its own new violation', () {

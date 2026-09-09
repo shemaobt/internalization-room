@@ -49,6 +49,11 @@ final rules = <DoctrineRule>[
     ),
     "no 'say less' notes — a request to understand is answered fully",
   ),
+  DoctrineRule(
+    Rule.model,
+    RegExp(r'gemini_\w+|ThinkingLevel\.LOW|thinkingBudget|maxTokens|tokenBudget'),
+    'frontier Claude with adaptive thinking on the voice',
+  ),
 ];
 
 class Hit {
