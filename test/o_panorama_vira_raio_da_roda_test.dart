@@ -1,6 +1,13 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+
+import 'fakes.dart';
+
+Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) =>
+    Future<void>.delayed(delay);
 
 const _panorama = Passagem(
   pericope: 'panorama',
@@ -77,5 +84,42 @@ void main() {
     );
 
     expect(state.livroInteiroFeito, isFalse);
+  });
+
+  test('a wheel with only the panorama left still calls a person', () async {
+    final harness = SalaHarness()..room.passages = const [_panorama];
+    final container = harness.container();
+    addTearDown(container.dispose);
+
+    await container.read(salaSessionProvider.notifier).abrirEscolha();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(
+      state.needsPerson,
+      isTrue,
+      reason: 'abrirEscolha counted the panorama as a passage still to '
+          'work, the same bug livroInteiroFeito carried',
+    );
+    expect(state.naRoda, [_panorama],
+        reason: 'the spoke to hear the book again stays on the wheel even '
+            'once the book itself is done');
+  });
+
+  test('the panorama alongside real passages calls nobody', () async {
+    final harness = SalaHarness()
+      ..room.passages = const [_panorama, _p01];
+    final container = harness.container();
+    addTearDown(container.dispose);
+
+    await container.read(salaSessionProvider.notifier).abrirEscolha();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.needsPerson, isFalse);
+    expect(state.naRoda, [_panorama, _p01]);
+    expect(state.oferecida, _panorama,
+        reason: 'the panorama is first on the wheel, ahead of every '
+            "passage — it's the wheel's front door");
   });
 }

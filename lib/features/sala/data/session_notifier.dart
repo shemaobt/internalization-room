@@ -1146,10 +1146,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       aOferecer: 0,
       voice: VoiceState.invite,
     );
-    if (roda.isEmpty) {
+    if (roda.every((passagem) => passagem.isPanorama)) {
       // Nothing left for the room to offer, which is exactly what needsPerson means —
       // and it is the only state here with a glyph, a spoken line and a way out. A green
       // disc that refused every gesture in silence looked like a room that had died.
+      //
+      // The panorama's own spoke is not a passage: a book with every real passage done
+      // still calls a person even while that spoke sits on the wheel.
       _haltForAPerson();
       return;
     }
