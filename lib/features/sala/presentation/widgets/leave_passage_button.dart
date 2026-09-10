@@ -15,30 +15,46 @@ class LeavePassageButton extends ConsumerWidget {
     SalaStage.retro,
   };
 
+  static const _busy = {
+    VoiceState.listening,
+    VoiceState.thinking,
+    VoiceState.speaking,
+    VoiceState.needsPerson,
+  };
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(salaSessionProvider);
     if (!_inside.contains(session.stage)) return const SizedBox.shrink();
     final colors = SalaColors.of(context);
 
+    final away = _busy.contains(session.voice);
+
     return Positioned(
       left: 14,
       top: 118 + MediaQuery.viewPaddingOf(context).top,
-      child: Semantics(
-        button: true,
-        label: 'Deixar esta passagem e escolher outra',
-        child: GestureDetector(
-          onTap: ref.read(salaSessionProvider.notifier).leaveThePassage,
-          behavior: HitTestBehavior.opaque,
-          child: Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: colors.oat,
-              border: Border.all(color: colors.cord, width: 2),
+      child: IgnorePointer(
+        ignoring: away,
+        child: AnimatedOpacity(
+          opacity: away ? 0 : 1,
+          duration: const Duration(milliseconds: 400),
+          child: Semantics(
+            button: true,
+            label: 'Deixar esta passagem e escolher outra',
+            child: GestureDetector(
+              onTap: ref.read(salaSessionProvider.notifier).leaveThePassage,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: colors.oat,
+                  border: Border.all(color: colors.cord, width: 2),
+                ),
+                child: Icon(LucideIcons.undo2, size: 20, color: colors.mut),
+              ),
             ),
-            child: Icon(LucideIcons.undo2, size: 20, color: colors.mut),
           ),
         ),
       ),

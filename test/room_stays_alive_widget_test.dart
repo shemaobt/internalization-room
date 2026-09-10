@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
+import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/eq_bars.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
 
@@ -152,5 +154,121 @@ void main() {
           reason: '$voice fala sua linha uma vez e depois nunca mais; sem movimento, '
               'olhar para essa tela não distingue uma sala esperando de um app morto');
     }
+  });
+
+  testWidgets('a thing that arrives fades in, and never slides up into place',
+      (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Center(child: FadeUp(child: SizedBox(width: 120, height: 120))),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      find.descendant(of: find.byType(FadeUp), matching: find.byType(Transform)),
+      findsNothing,
+      reason: 'tudo o que aparecia na sala subia dez pixels enquanto aparecia, '
+          'e um deslize é a única coisa que o olho de quem está concentrado na '
+          'conversa pega sem querer olhar',
+    );
+
+    final veu = tester.widget<Opacity>(
+      find.descendant(of: find.byType(FadeUp), matching: find.byType(Opacity)),
+    );
+    expect(veu.opacity, greaterThan(0.0),
+        reason: 'e ele continua sendo uma chegada, não um corte');
+    expect(veu.opacity, lessThan(1.0),
+        reason: 'no meio da chegada ela ainda está acontecendo — sem isto o '
+            'caso passaria com o esmaecer arrancado junto com o deslize');
+  });
+
+  testWidgets('the small motions stop too when the tablet asks for less of them',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: Column(
+            children: const [
+              Pulse(child: SizedBox(width: 10, height: 10)),
+              PingIn(child: SizedBox(width: 10, height: 10)),
+              FadeUp(child: SizedBox(width: 10, height: 10)),
+              ThreadIn(
+                index: 0,
+                total: 3,
+                threaded: false,
+                child: SizedBox(width: 10, height: 10),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.byType(Loop), findsNothing,
+        reason: 'o pulsar de um botão continua sendo movimento para quem '
+            'desligou o movimento');
+    expect(find.byType(TweenAnimationBuilder<double>), findsNothing,
+        reason: 'e o aparecer, o chegar e o enfiar da conta no cordão também — '
+            'quatro portões escritos e nenhum caso: apagar os quatro deixava a '
+            'suíte inteira verde');
+    expect(find.byType(Transform), findsNothing,
+        reason: 'nada cresce, nada encolhe e nada anda de lugar');
+
+    final veu = tester.widget<Opacity>(
+      find.descendant(of: find.byType(ThreadIn), matching: find.byType(Opacity)),
+    );
+    expect(veu.opacity, 0.0,
+        reason: 'e a conta que ainda não foi enfiada continua escondida: este é '
+            'o único dos quatro que desenha coisa diferente de acordo com o '
+            'estado, e parar a animação não pode acender o cordão inteiro');
+  });
+
+  testWidgets('the microphone meter stops dancing when the tablet asks for less motion',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const MediaQuery(
+          data: MediaQueryData(disableAnimations: true),
+          child: Scaffold(body: Center(child: EqBars(active: true))),
+        ),
+      ),
+    );
+
+    Set<double> alturas() => tester
+        .widgetList<AnimatedContainer>(find.descendant(
+          of: find.byType(EqBars),
+          matching: find.byType(AnimatedContainer),
+        ))
+        .map((barra) => barra.constraints!.maxHeight)
+        .toSet();
+
+    final primeiras = alturas();
+    expect(primeiras, isNotEmpty,
+        reason: 'sem barras desenhadas não há o que medir');
+
+    for (var frame = 0; frame < 30; frame++) {
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(alturas(), primeiras,
+          reason: 'o medidor tem o seu próprio controlador e nunca passou pelo '
+              'portão de motion.dart: vinte e quatro barras dançando num laço '
+              'de 1200 ms, vivas exatamente enquanto o microfone está aberto, '
+              'que é o momento mais longo que a equipe passa olhando a tela');
+    }
+
+    final acesas = tester
+        .widgetList<AnimatedContainer>(find.descendant(
+          of: find.byType(EqBars),
+          matching: find.byType(AnimatedContainer),
+        ))
+        .map((barra) => (barra.decoration! as BoxDecoration).color)
+        .toSet();
+    expect(acesas, {SalaColors.light.telha},
+        reason: 'e o medidor continua dizendo que o microfone está aberto — '
+            'parar o movimento não pode apagar o aviso, que é a razão de ele '
+            'existir');
   });
 }

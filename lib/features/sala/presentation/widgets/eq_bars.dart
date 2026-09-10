@@ -17,18 +17,24 @@ class _EqBarsState extends State<EqBars> with SingleTickerProviderStateMixin {
     duration: const Duration(milliseconds: 1200),
   );
 
+  bool get _still => MediaQuery.disableAnimationsOf(context);
+
   @override
-  void initState() {
-    super.initState();
-    if (widget.active) _controller.repeat();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _follow();
   }
 
   @override
   void didUpdateWidget(EqBars oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.active && !_controller.isAnimating) {
-      _controller.repeat();
-    } else if (!widget.active) {
+    _follow();
+  }
+
+  void _follow() {
+    if (widget.active && !_still) {
+      if (!_controller.isAnimating) _controller.repeat();
+    } else if (_controller.isAnimating) {
       _controller.stop();
       _controller.value = 0;
     }
@@ -70,7 +76,7 @@ class _EqBarsState extends State<EqBars> with SingleTickerProviderStateMixin {
   Widget _bar(int i, SalaColors colors, Color activeColor) {
     final baseHeight = 10.0 + (i * 7) % 26;
     var height = baseHeight;
-    if (widget.active) {
+    if (widget.active && !_still) {
       final phase = (_controller.value * (2 + i % 3) + i * 0.11) % 1.0;
       final wave = (0.35 + 0.65 * (0.5 + 0.5 * _triangle(phase)));
       height = baseHeight * wave;
