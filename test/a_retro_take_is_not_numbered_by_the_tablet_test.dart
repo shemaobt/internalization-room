@@ -114,16 +114,23 @@ void main() {
       return state.btPhase == BtPhase.playing && state.btTrechoTocando;
     });
     harness.playback.finishPlayback();
-    await waitFor(
-      'o trecho apontado parar de tocar',
-      () => !container.read(salaSessionProvider).btTrechoTocando,
-    );
+    // The verb refuses a stretch still sounding or a phase in transit, silently. Waiting on
+    // the sound alone let the call land a beat early on CI, do nothing, and the tap that
+    // followed opened a fresh capture instead of ending a retelling — no retro entry.
+    await waitFor('o trecho apontado parar de tocar, com a fase assentada', () {
+      final state = container.read(salaSessionProvider);
+      return !state.btTrechoTocando &&
+          (state.btPhase == BtPhase.playing || state.btPhase == BtPhase.findings);
+    });
 
     harness.room.replaceCaptured = false;
     await notifier.traduzirDeNovo(
       container.read(salaSessionProvider).btTrechos.first,
     );
-    await settle();
+    await waitFor(
+      'o microfone abrir no trecho',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
+    );
     notifier.retroTap();
     await waitFor(
       'a sala sair do pensando',
