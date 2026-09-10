@@ -8,8 +8,8 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 
-const retellStretchExit = 'Ouvir e contar esta parte de novo';
-const wholeClipExit = 'Ouvir e contar a gravação de novo';
+const retellStretchExit = 'Ouvir e traduzir esta parte de novo';
+const wholeClipExit = 'Ouvir e traduzir a gravação de novo';
 const reRecordExit = 'Gravar esta parte de novo';
 
 Finder bySemanticsLabelWidget(String label) => find.byWidgetPredicate(
@@ -111,7 +111,7 @@ void main() {
       trecho: 'trecho-1',
     );
 
-    await tester.tap(bySemanticsLabelWidget('Recontar só em português'));
+    await tester.tap(bySemanticsLabelWidget('Traduzir de novo só em português'));
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing,

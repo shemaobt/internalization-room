@@ -6,7 +6,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/onde_mor
 import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
 
 const ouvirMaterna = 'Ouvir a voz de vocês, na língua materna';
-const ouvirRetro = 'Ouvir o contar em português';
+const ouvirRetro = 'Ouvir a tradução em português';
 
 Finder byLabel(String label) => find.byWidgetPredicate(
   (widget) => widget is Semantics && widget.properties.label == label,
@@ -39,7 +39,7 @@ Future<void> pumpGradeSozinha(
           onOuvirMaterna: () {},
           onOuvirRetro: () {},
           onRegravarMaterna: () {},
-          onRecontar: () {},
+          onTraduzirDeNovo: () {},
           tocandoMaterna: tocandoMaterna,
           tocandoRetro: tocandoRetro,
         ),
