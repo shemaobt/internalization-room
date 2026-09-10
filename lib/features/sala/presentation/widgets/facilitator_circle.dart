@@ -87,8 +87,17 @@ class FacilitatorCircle extends StatelessWidget {
                 if (voice == VoiceState.listening) _listenRing(colors),
                 if (child != null && voice != VoiceState.listening) child!,
                 if (voice == VoiceState.listening) ..._gatheringIn(),
-                if (_modeGlyph != null)
-                  Icon(_modeGlyph, size: size * 0.3, color: ShemaBrand.branco),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 1000),
+                  child: _modeGlyph == null
+                      ? const SizedBox.shrink()
+                      : Icon(
+                          _modeGlyph,
+                          key: ValueKey(_modeGlyph),
+                          size: size * 0.3,
+                          color: ShemaBrand.branco,
+                        ),
+                ),
               ],
             ),
           ),

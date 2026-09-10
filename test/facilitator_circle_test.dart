@@ -12,9 +12,12 @@ Future<void> _pumpCircle(
   VoiceState voice, {
   bool peerCue = false,
   bool noteMode = false,
+  bool inPlace = false,
 }) =>
     tester.pumpWidget(MaterialApp(
-      key: ValueKey('$voice-$peerCue-$noteMode'),
+      key: inPlace
+          ? const ValueKey('o mesmo círculo')
+          : ValueKey('$voice-$peerCue-$noteMode'),
       theme: AppTheme.light,
       home: Scaffold(
         body: Center(
@@ -91,6 +94,26 @@ void main() {
         reason: 'o modo nota era só um disco azul, e azul é também a cor do '
             'microfone aberto: nada na tela dizia que aquela fala vai para o '
             'facilitador e não para a sala');
+  });
+
+  testWidgets('a mark that replaces another crosses it slowly, and never cuts to it',
+      (tester) async {
+    await _pumpCircle(tester, VoiceState.invite, inPlace: true);
+    expect(_glyphs(tester), [LucideIcons.volume2],
+        reason: 'o caso precisa começar na marca que vai sair');
+
+    await _pumpCircle(tester, VoiceState.invite, peerCue: true, inPlace: true);
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(_glyphs(tester), containsAll(const [LucideIcons.volume2, LucideIcons.users]),
+        reason: 'meio segundo depois da deixa as duas marcas ainda dividem o '
+            'disco: um corte seco no meio de uma tela sem palavra nenhuma é '
+            'exatamente o piscar que a sala não pode ter');
+
+    await tester.pump(const Duration(milliseconds: 700));
+    expect(_glyphs(tester), [LucideIcons.users],
+        reason: 'e um segundo depois só a nova ficou — a travessia acaba, não '
+            'deixa a marca velha pendurada');
   });
 
   testWidgets('a peer cue changes the glyph in the circle, never the circle itself',
