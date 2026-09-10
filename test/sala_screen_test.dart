@@ -718,4 +718,61 @@ void main() {
         reason: 'e translúcido, que é o que o mantém fora do caminho do olho '
             'que está na conversa');
   });
+
+  testWidgets('the way out of a passage cannot be taken while the microphone is open',
+      (tester) async {
+    final container = await pumpSala(tester, SalaHarness());
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.goConversa(pericope: 'P01');
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final sair = bySemanticsLabelWidget('Deixar esta passagem e escolher outra');
+    expect(sair, findsOneWidget,
+        reason: 'com a sala parada a saída está na tela, que é de onde este '
+            'caso parte');
+
+    notifier.conversaTap();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(container.read(salaSessionProvider).voice, VoiceState.listening,
+        reason: 'o caso precisa mesmo abrir o microfone para medir o que '
+            'acontece com o dedo enquanto ele está aberto');
+
+    expect(
+      tester
+          .widgetList<AnimatedOpacity>(
+              find.ancestor(of: sair, matching: find.byType(AnimatedOpacity)))
+          .map((veu) => veu.opacity),
+      contains(0.0),
+      reason: 'gravando, a saída sai da vista',
+    );
+
+    await tester.tap(sair, warnIfMissed: false);
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).stage, SalaStage.conversa,
+        reason: 'o botão ficava vivo com o microfone aberto, no canto onde a '
+            'mão descansa: um toque errado descartava a gravação em curso e '
+            'jogava a equipe de volta na roda, sem uma palavra na tela '
+            'dizendo o que tinha acabado de acontecer');
+  });
+
+  testWidgets('the way out answers the finger when the room is not listening',
+      (tester) async {
+    final container = await pumpSala(tester, SalaHarness());
+    await container
+        .read(salaSessionProvider.notifier)
+        .goConversa(pericope: 'P01');
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(
+      bySemanticsLabelWidget('Deixar esta passagem e escolher outra'),
+      warnIfMissed: false,
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).stage, SalaStage.escolha,
+        reason: 'e fora do turno ele continua sendo um botão de verdade — sem '
+            'isto, o caso vizinho passaria de graça num botão que nunca '
+            'funcionou');
+  });
 }
