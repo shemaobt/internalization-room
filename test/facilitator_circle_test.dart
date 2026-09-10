@@ -170,13 +170,9 @@ void main() {
     }
   });
 
-  testWidgets('every voice the room has says itself with a mark, and the wait says nothing',
+  testWidgets('only a stop says itself with a mark; the room\'s own voices draw none',
       (tester) async {
     const marks = {
-      VoiceState.invite: LucideIcons.volume2,
-      VoiceState.listening: LucideIcons.volume2,
-      VoiceState.speaking: LucideIcons.volume2,
-      VoiceState.done: LucideIcons.volume2,
       VoiceState.needsPerson: LucideIcons.userCheck,
       VoiceState.offline: LucideIcons.cloudOff,
       VoiceState.blocked: LucideIcons.micOff,
@@ -185,16 +181,24 @@ void main() {
     for (final voice in marks.entries) {
       await _pumpCircle(tester, voice.key);
       expect(_glyphs(tester), [voice.value],
-          reason: 'fora do modo de conversa entre a equipe o círculo não tinha '
-              'símbolo nenhum, e ${voice.key.name} só se distinguia dos '
-              'vizinhos pela cor — que é o que uma tela lida de longe perde '
-              'primeiro');
+          reason: 'uma parada pede algo de alguém, e ${voice.key.name} só se '
+              'distinguia dos vizinhos pela cor — que é o que uma tela lida de '
+              'longe perde primeiro');
     }
 
-    await _pumpCircle(tester, VoiceState.thinking);
-    expect(_glyphs(tester), isEmpty,
-        reason: 'a espera é o único estado sem marca: nada está acontecendo '
-            'que a equipe possa fazer, e um símbolo ali seria um pedido');
+    for (final voice in const [
+      VoiceState.invite,
+      VoiceState.listening,
+      VoiceState.speaking,
+      VoiceState.done,
+      VoiceState.thinking,
+    ]) {
+      await _pumpCircle(tester, voice);
+      expect(_glyphs(tester), isEmpty,
+          reason: 'a voz da própria sala não é um pedido: ${voice.name} se diz '
+              'pela cor e pela respiração, e o alto-falante que ficou aqui um '
+              'dia lia como um botão que a equipe devia apertar (João, 10/09)');
+    }
   });
 
   testWidgets('a question being left to a person shows the hand, never the sound of a voice',
@@ -211,14 +215,14 @@ void main() {
 
   testWidgets('a mark that replaces another crosses it slowly, and never cuts to it',
       (tester) async {
-    await _pumpCircle(tester, VoiceState.invite, inPlace: true);
-    expect(_glyphs(tester), [LucideIcons.volume2],
+    await _pumpCircle(tester, VoiceState.listening, noteMode: true, inPlace: true);
+    expect(_glyphs(tester), [LucideIcons.hand],
         reason: 'o caso precisa começar na marca que vai sair');
 
     await _pumpCircle(tester, VoiceState.invite, peerCue: true, inPlace: true);
     await tester.pump(const Duration(milliseconds: 500));
 
-    expect(_glyphs(tester), containsAll(const [LucideIcons.volume2, LucideIcons.users]),
+    expect(_glyphs(tester), containsAll(const [LucideIcons.hand, LucideIcons.users]),
         reason: 'meio segundo depois da deixa as duas marcas ainda dividem o '
             'disco: um corte seco no meio de uma tela sem palavra nenhuma é '
             'exatamente o piscar que a sala não pode ter');

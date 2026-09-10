@@ -173,7 +173,10 @@ class FacilitatorCircle extends StatelessWidget {
     if (_halted) return null;
     if (noteMode) return LucideIcons.hand;
     if (_teamTalk) return LucideIcons.users;
-    return voice == VoiceState.thinking ? null : LucideIcons.volume2;
+    // A voice that is only the room's own — speaking, inviting, listening, done — draws
+    // no mark: the colour and the breath already say it, and the loudspeaker read as a
+    // control the team could press. Only a mode says itself with a glyph.
+    return null;
   }
 
   Widget _body(SalaColors colors, bool still) {
