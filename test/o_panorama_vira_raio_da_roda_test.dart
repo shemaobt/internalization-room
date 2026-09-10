@@ -1,5 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
+
+const _panorama = Passagem(
+  pericope: 'panorama',
+  audioUrl: '/voice/panorama',
+  kind: PassagemKind.panorama,
+);
+const _p01 = Passagem(pericope: 'P01', audioUrl: '/voice/p01');
 
 /// The wheel's answer for a book, when its panorama has a line to say: the panorama comes
 /// first and every entry, passage or panorama, says its own kind.
@@ -45,5 +53,29 @@ void main() {
 
     expect(passagem.kind, PassagemKind.passage);
     expect(passagem.isPanorama, isFalse);
+  });
+
+  test('a wheel with only the panorama left is still a finished book', () {
+    const state = SalaSessionState(
+      stage: SalaStage.escolha,
+      naRoda: [_panorama],
+    );
+
+    expect(
+      state.livroInteiroFeito,
+      isTrue,
+      reason: 'the panorama is not a passage — every real passage done is a '
+          'finished book, whether or not the spoke to hear the whole book '
+          'again is still sitting on the wheel',
+    );
+  });
+
+  test('a wheel with the panorama and a passage left is not finished', () {
+    const state = SalaSessionState(
+      stage: SalaStage.escolha,
+      naRoda: [_panorama, _p01],
+    );
+
+    expect(state.livroInteiroFeito, isFalse);
   });
 }
