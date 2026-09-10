@@ -149,14 +149,14 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      notifier.ouvirContarEmPortugues();
+      notifier.ouvirTraducaoEmPortugues();
       await waitFor(
         'a ponte estar tocando',
         () => container.read(salaSessionProvider).btRetroTocando,
       );
       final tocadosAntes = harness.playback.played.length;
 
-      notifier.ouvirContarEmPortugues();
+      notifier.ouvirTraducaoEmPortugues();
       await settle();
 
       expect(harness.playback.paused, isTrue);
@@ -177,16 +177,16 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      notifier.ouvirContarEmPortugues();
+      notifier.ouvirTraducaoEmPortugues();
       await waitFor(
         'a ponte estar tocando',
         () => container.read(salaSessionProvider).btRetroTocando,
       );
       final tocadosAntes = harness.playback.played.length;
 
-      notifier.ouvirContarEmPortugues();
+      notifier.ouvirTraducaoEmPortugues();
       await settle();
-      notifier.ouvirContarEmPortugues();
+      notifier.ouvirTraducaoEmPortugues();
       await settle();
 
       expect(harness.playback.paused, isFalse);
@@ -219,7 +219,7 @@ void main() {
         () => container.read(salaSessionProvider).btTrechoTocando,
       );
 
-      notifier.ouvirContarEmPortugues();
+      notifier.ouvirTraducaoEmPortugues();
       await settle();
 
       expect(

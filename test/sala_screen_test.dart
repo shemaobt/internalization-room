@@ -96,8 +96,8 @@ Future<ProviderContainer> pumpSala(
   return container;
 }
 
-const retellExit = 'Ouvir e contar esta parte de novo';
-const wholeClipExit = 'Ouvir e contar a gravação de novo';
+const retellExit = 'Ouvir e traduzir esta parte de novo';
+const wholeClipExit = 'Ouvir e traduzir a gravação de novo';
 const reRecordExit = 'Gravar esta parte de novo';
 
 Future<ProviderContainer> pumpToFindings(
@@ -494,7 +494,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(
-      bySemanticsLabelWidget('Terminei de contar de volta'),
+      bySemanticsLabelWidget('Terminei de traduzir'),
       findsNothing,
     );
 
@@ -502,7 +502,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(
-      bySemanticsLabelWidget('Terminei de contar de volta'),
+      bySemanticsLabelWidget('Terminei de traduzir'),
       findsOneWidget,
     );
   });
@@ -540,12 +540,14 @@ void main() {
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
     expect(
       bySemanticsLabelWidget('Regravar a voz na língua materna — refaz também '
-          'o contar'),
+          'a tradução'),
       findsOneWidget,
       reason: 'as duas saídas continuam ali, mas agora como as duas vozes da '
           'grade, e é a equipe que diz qual precisa falar de novo',
     );
-    expect(bySemanticsLabelWidget('Recontar só em português'), findsOneWidget);
+    expect(
+        bySemanticsLabelWidget('Traduzir de novo só em português'),
+        findsOneWidget);
     expect(bySemanticsLabelWidget(retellExit), findsNothing,
         reason: 'o par antigo de saídas deixou de existir para um achado com '
             'trecho nomeado — quem decidia era o tipo, não a equipe');

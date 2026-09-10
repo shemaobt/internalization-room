@@ -42,9 +42,9 @@ class RetroView extends ConsumerWidget {
           const SizedBox(height: 46),
           OndeMoraGrade(
             onOuvirMaterna: notifier.ouvirVozMaterna,
-            onOuvirRetro: notifier.ouvirContarEmPortugues,
+            onOuvirRetro: notifier.ouvirTraducaoEmPortugues,
             onRegravarMaterna: notifier.regravarAVozMaterna,
-            onRecontar: notifier.recontarEmPortugues,
+            onTraduzirDeNovo: notifier.traduzirDeNovoEmPortugues,
             tocandoMaterna: session.btTrechoTocando,
             tocandoRetro: session.btRetroTocando,
             podeOuvirRetro: session.btFindingTrecho?.retroPath != null,
@@ -106,8 +106,8 @@ class RetroView extends ConsumerWidget {
       session.btClipRodando ? LucideIcons.scissors : LucideIcons.mic;
 
   String _tellLabel(SalaSessionState session) => session.btClipRodando
-      ? 'Cortar aqui e contar esta parte'
-      : 'Contar esta parte na língua ponte';
+      ? 'Cortar aqui e traduzir esta parte'
+      : 'Traduzir esta parte na língua ponte';
 
   Widget? _actions(SalaSessionState session, SalaSessionNotifier notifier) {
     if (session.btPhase == BtPhase.findings) {
@@ -127,7 +127,7 @@ class RetroView extends ConsumerWidget {
             if (retellingCanSettleIt) ...[
               RoundActionButton(
                 size: 60,
-                semanticLabel: 'Ouvir e contar a gravação de novo',
+                semanticLabel: 'Ouvir e traduzir a gravação de novo',
                 gradient: BeadStyles.wood,
                 onTap: notifier.startRetro,
                 child: const Icon(
@@ -170,7 +170,7 @@ class RetroView extends ConsumerWidget {
             if (session.canFinishBackTranslation)
               RoundActionButton(
                 size: 60,
-                semanticLabel: 'Terminei de contar de volta',
+                semanticLabel: 'Terminei de traduzir',
                 gradient: BeadStyles.verde,
                 onTap: notifier.finishBackTranslation,
                 child: const Icon(
@@ -220,7 +220,7 @@ class RetroView extends ConsumerWidget {
   String _circleLabel(SalaSessionState session) {
     switch (session.btPhase) {
       case BtPhase.playing:
-        return 'Tocar para contar este pedaço em português';
+        return 'Tocar para traduzir este pedaço em português';
       case BtPhase.capturing:
         return 'Tocar ao terminar o pedaço';
       case BtPhase.findings:
@@ -232,7 +232,7 @@ class RetroView extends ConsumerWidget {
       case BtPhase.thinking:
         return 'Um instante';
       case BtPhase.conferida:
-        return 'Contada de volta';
+        return 'Traduzida';
     }
   }
 }

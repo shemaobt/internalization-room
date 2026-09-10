@@ -13,9 +13,10 @@ import 'package:internalization_room/main.dart';
 import 'fakes.dart';
 
 const ouvirMaterna = 'Ouvir a voz de vocês, na língua materna';
-const ouvirRetro = 'Ouvir o contar em português';
-const micMaterna = 'Regravar a voz na língua materna — refaz também o contar';
-const micRetro = 'Recontar só em português';
+const ouvirRetro = 'Ouvir a tradução em português';
+const micMaterna =
+    'Regravar a voz na língua materna — refaz também a tradução';
+const micRetro = 'Traduzir de novo só em português';
 const contaApontada = 'Trecho apontado pelo analista';
 
 Finder byLabel(String label) => find.byWidgetPredicate(
@@ -80,7 +81,7 @@ Future<void> _pumpGrade(WidgetTester tester, {required bool podeOuvirRetro}) =>
             onOuvirMaterna: () {},
             onOuvirRetro: () {},
             onRegravarMaterna: () {},
-            onRecontar: () {},
+            onTraduzirDeNovo: () {},
             podeOuvirRetro: podeOuvirRetro,
           ),
         ),

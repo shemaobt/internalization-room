@@ -9,8 +9,9 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 
-const _micMaterna = 'Regravar a voz na língua materna — refaz também o contar';
-const _micRetro = 'Recontar só em português';
+const _micMaterna =
+    'Regravar a voz na língua materna — refaz também a tradução';
+const _micRetro = 'Traduzir de novo só em português';
 
 Finder _byLabel(String label) => find.byWidgetPredicate(
       (widget) => widget is Semantics && widget.properties.label == label,

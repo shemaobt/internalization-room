@@ -2558,7 +2558,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ///
   /// A stretch with no name is not offered: the route addresses one, and the room has no
   /// way to explain a refusal to a team that cannot read.
-  Future<void> contarDeNovo(Trecho trecho) async {
+  Future<void> traduzirDeNovo(Trecho trecho) async {
     if (state.stage != SalaStage.retro) return;
     // Two doors reach the same verb: the cord, where a stretch is tapped while the
     // rehearsal plays, and the question the room puts when the analyst points at one.
@@ -3434,7 +3434,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// Hear the telling in Portuguese — the voice that travels to the analyst.
-  void ouvirContarEmPortugues() {
+  void ouvirTraducaoEmPortugues() {
     if (state.btPhase != BtPhase.findings) return;
     if (state.btRetroTocando) {
       _holdClip();
@@ -3478,11 +3478,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// The team's own voice stands and only the telling slipped: the explanation is redone
   /// over a recording that does not move.
-  void recontarEmPortugues() {
+  void traduzirDeNovoEmPortugues() {
     final trecho = state.btFindingTrecho;
     if (state.btPhase != BtPhase.findings || trecho == null) return;
     state = state.copyWith(btTrechoTocando: false, btRetroTocando: false);
-    unawaited(contarDeNovo(trecho));
+    unawaited(traduzirDeNovo(trecho));
   }
 
   /// The far station: the mother tongue of one stretch, recorded again.
@@ -3687,7 +3687,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _haltForAPerson();
       return;
     }
-    await contarDeNovo(agora);
+    await traduzirDeNovo(agora);
   }
 
   /// Back to the question, from a step that cannot finish its work yet.

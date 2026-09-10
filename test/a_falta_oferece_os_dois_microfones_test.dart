@@ -10,7 +10,7 @@ import 'package:internalization_room/main.dart';
 import 'fakes.dart';
 
 const ouvirMaterna = 'Ouvir a voz de vocês, na língua materna';
-const ouvirRetro = 'Ouvir o contar em português';
+const ouvirRetro = 'Ouvir a tradução em português';
 const microfoneAzul = 'Gravar esta parte de novo';
 
 Finder byLabel(String label) => find.byWidgetPredicate(

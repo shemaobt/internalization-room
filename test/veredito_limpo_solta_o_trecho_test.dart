@@ -9,7 +9,7 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 
-const _micRetro = 'Recontar só em português';
+const _micRetro = 'Traduzir de novo só em português';
 
 Finder _byLabel(String label) => find.byWidgetPredicate(
       (widget) => widget is Semantics && widget.properties.label == label,
