@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -15,9 +16,13 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/conversa_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_cord.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/passage_ruler.dart';
+import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/hear_again_button.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -25,6 +30,58 @@ import 'fakes.dart';
 Finder bySemanticsLabelWidget(String label) => find.byWidgetPredicate(
       (widget) => widget is Semantics && widget.properties.label == label,
     );
+
+
+Set<Color> paintedBy(WidgetTester tester, Finder corner) {
+  final colours = <Color>{};
+  for (final box in tester.widgetList<Container>(
+      find.descendant(of: corner, matching: find.byType(Container)))) {
+    final decoration = box.decoration;
+    if (decoration is! BoxDecoration) continue;
+    if (decoration.color != null) colours.add(decoration.color!);
+    final gradient = decoration.gradient;
+    if (gradient != null) colours.addAll(gradient.colors);
+    if (decoration.border != null) colours.add(decoration.border!.top.color);
+    colours.addAll(decoration.boxShadow?.map((halo) => halo.color) ?? const []);
+  }
+  for (final mark in tester.widgetList<Icon>(
+      find.descendant(of: corner, matching: find.byType(Icon)))) {
+    if (mark.color != null) colours.add(mark.color!);
+  }
+  return colours;
+}
+
+bool sameTone(Color one, Color other) =>
+    one.r == other.r && one.g == other.g && one.b == other.b;
+
+double contrastOf(Color one, Color other) {
+  double channel(double value) => value <= 0.03928
+      ? value / 12.92
+      : math.pow((value + 0.055) / 1.055, 2.4).toDouble();
+  double light(Color tone) =>
+      0.2126 * channel(tone.r) + 0.7152 * channel(tone.g) + 0.0722 * channel(tone.b);
+  final one0 = light(one);
+  final other0 = light(other);
+  return (math.max(one0, other0) + 0.05) / (math.min(one0, other0) + 0.05);
+}
+
+Color markAsSeen(WidgetTester tester, Finder corner, Color background) {
+  final marca = find.descendant(of: corner, matching: find.byType(Icon));
+  final tinta = tester.widget<Icon>(marca).color!;
+  var alpha = tinta.a;
+  for (final veu in tester.widgetList<Opacity>(
+      find.ancestor(of: marca, matching: find.byType(Opacity)))) {
+    alpha *= veu.opacity;
+  }
+  return Color.alphaBlend(tinta.withValues(alpha: alpha), background);
+}
+
+bool leaveIsDeaf(WidgetTester tester) => tester
+    .widgetList<IgnorePointer>(find.ancestor(
+      of: bySemanticsLabelWidget('Deixar esta passagem e escolher outra'),
+      matching: find.byType(IgnorePointer),
+    ))
+    .any((portao) => portao.ignoring);
 
 Future<ProviderContainer> pumpSala(
   WidgetTester tester,
@@ -39,8 +96,8 @@ Future<ProviderContainer> pumpSala(
   return container;
 }
 
-const retellExit = 'Ouvir e contar esta parte de novo';
-const wholeClipExit = 'Ouvir e contar a gravação de novo';
+const retellExit = 'Ouvir e traduzir esta parte de novo';
+const wholeClipExit = 'Ouvir e traduzir a gravação de novo';
 const reRecordExit = 'Gravar esta parte de novo';
 
 Future<ProviderContainer> pumpToFindings(
@@ -437,7 +494,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(
-      bySemanticsLabelWidget('Terminei de contar de volta'),
+      bySemanticsLabelWidget('Terminei de traduzir'),
       findsNothing,
     );
 
@@ -445,7 +502,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(
-      bySemanticsLabelWidget('Terminei de contar de volta'),
+      bySemanticsLabelWidget('Terminei de traduzir'),
       findsOneWidget,
     );
   });
@@ -483,12 +540,14 @@ void main() {
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
     expect(
       bySemanticsLabelWidget('Regravar a voz na língua materna — refaz também '
-          'o contar'),
+          'a tradução'),
       findsOneWidget,
       reason: 'as duas saídas continuam ali, mas agora como as duas vozes da '
           'grade, e é a equipe que diz qual precisa falar de novo',
     );
-    expect(bySemanticsLabelWidget('Recontar só em português'), findsOneWidget);
+    expect(
+        bySemanticsLabelWidget('Traduzir de novo só em português'),
+        findsOneWidget);
     expect(bySemanticsLabelWidget(retellExit), findsNothing,
         reason: 'o par antigo de saídas deixou de existir para um achado com '
             'trecho nomeado — quem decidia era o tipo, não a equipe');
@@ -660,5 +719,211 @@ void main() {
     expect(harness.awake.held, isFalse,
         reason: 'segurar a tela e nunca soltar deixa o tablet aceso muito '
             'depois de a sala ter saído da frente');
+  });
+
+  testWidgets('hearing a line again is a quiet green mark, never a second terracotta disc',
+      (tester) async {
+    final container = await pumpSala(tester, SalaHarness());
+    container.read(salaSessionProvider.notifier).conviteTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(container.read(salaSessionProvider).canHearAgain, isTrue,
+        reason: 'o caso precisa mesmo estar oferecendo ouvir de novo para '
+            'poder olhar para ele');
+
+    final ouvir = find.byType(HearAgainButton);
+    final pintado = paintedBy(tester, ouvir);
+
+    expect(pintado, isNotEmpty,
+        reason: 'sem nada pintado no canto este teste não olha coisa nenhuma');
+    expect(pintado.any((cor) => sameTone(cor, SalaColors.light.telha)), isFalse,
+        reason: 'a tela em repouso tinha dois discos de telha cheios, e a telha '
+            'é a cor que diz qual é a coisa viva agora — com dois, ela deixa '
+            'de dizer qualquer coisa');
+    expect(pintado.any((cor) => sameTone(cor, ShemaBrand.verdeClaro)), isTrue,
+        reason: 'o repetir é verde e periférico: presente para quem procura, '
+            'invisível para quem não está procurando');
+
+    expect(
+      contrastOf(markAsSeen(tester, ouvir, SalaColors.light.paper),
+          SalaColors.light.paper),
+      greaterThanOrEqualTo(2.5),
+      reason: 'quieto não é invisível: com o disco fora, a marca ficou em '
+          '1,65:1 sobre o papel, metade da barra que o medidor do microfone '
+          'fixou em 2,5:1 depois de um laranja afinado no fundo escuro sumir '
+          'num tablet ao sol, que é onde esta sala roda',
+    );
+  });
+
+  testWidgets('the way out of a passage cannot be taken while the microphone is open',
+      (tester) async {
+    final container = await pumpSala(tester, SalaHarness());
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.goConversa(pericope: 'P01');
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final sair = bySemanticsLabelWidget('Deixar esta passagem e escolher outra');
+    expect(sair, findsOneWidget,
+        reason: 'com a sala parada a saída está na tela, que é de onde este '
+            'caso parte');
+
+    notifier.conversaTap();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(container.read(salaSessionProvider).voice, VoiceState.listening,
+        reason: 'o caso precisa mesmo abrir o microfone para medir o que '
+            'acontece com o dedo enquanto ele está aberto');
+
+    expect(
+      tester
+          .widgetList<AnimatedOpacity>(
+              find.ancestor(of: sair, matching: find.byType(AnimatedOpacity)))
+          .map((veu) => veu.opacity),
+      contains(0.0),
+      reason: 'gravando, a saída sai da vista',
+    );
+
+    await tester.tap(sair, warnIfMissed: false);
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).stage, SalaStage.conversa,
+        reason: 'o botão ficava vivo com o microfone aberto, no canto onde a '
+            'mão descansa: um toque errado descartava a gravação em curso e '
+            'jogava a equipe de volta na roda, sem uma palavra na tela '
+            'dizendo o que tinha acabado de acontecer');
+  });
+
+  testWidgets('the way out answers the finger when the room is not listening',
+      (tester) async {
+    final container = await pumpSala(tester, SalaHarness());
+    await container
+        .read(salaSessionProvider.notifier)
+        .goConversa(pericope: 'P01');
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(
+      bySemanticsLabelWidget('Deixar esta passagem e escolher outra'),
+      warnIfMissed: false,
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).stage, SalaStage.escolha,
+        reason: 'e fora do turno ele continua sendo um botão de verdade — sem '
+            'isto, o caso vizinho passaria de graça num botão que nunca '
+            'funcionou');
+  });
+
+  testWidgets('a stage arrives over the one it replaces, slowly enough that nothing jumps',
+      (tester) async {
+    final container = await pumpSala(tester, SalaHarness());
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.goConversa(pericope: 'P01');
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.byType(ConversaView), findsOneWidget,
+        reason: 'o caso precisa mesmo começar numa etapa já assentada: uma '
+            'etapa que ainda está entrando sai de onde entrou, e o que se '
+            'mediria seria o resto da travessia anterior');
+
+    notifier.goEnsaio();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(find.byType(EnsaioView), findsOneWidget,
+        reason: 'a etapa nova entra na hora');
+    expect(find.byType(ConversaView), findsOneWidget,
+        reason: 'meio segundo depois a etapa que sai ainda está na tela: a '
+            'troca acontecia em 400 milissegundos, que numa sala sem palavra '
+            'nenhuma é a tela inteira sendo substituída num piscar');
+
+    await tester.pump(const Duration(milliseconds: 1200));
+    expect(find.byType(ConversaView), findsNothing,
+        reason: 'e a travessia acaba — uma etapa que nunca sai é duas telas '
+            'empilhadas, não um esmaecer');
+    closeTheRoom(container);
+  });
+
+  testWidgets('the finger still opens the microphone while the team is talking among themselves',
+      (tester) async {
+    final harness = SalaHarness()..room.peerCue = true;
+    final container = await pumpSala(tester, harness);
+    container.read(salaSessionProvider.notifier).goConversa();
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump(const Duration(seconds: 2));
+    expect(container.read(salaSessionProvider).peerCue, isTrue,
+        reason: 'o caso precisa mesmo estar no modo de conversa entre a equipe');
+
+    await tester.tap(find.byType(FacilitatorCircle));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).voice, VoiceState.listening,
+        reason: 'a deixa manda a equipe conversar entre si e o círculo continua '
+            'sendo o mesmo botão: é assim que ela volta para contar o que '
+            'combinou, e a marca desenhada por cima dele não pode ficar no '
+            'caminho do dedo');
+  });
+
+  testWidgets('the way out stays out of reach through every voice of a turn',
+      (tester) async {
+    final harness = SalaHarness();
+    final container = await pumpSala(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    VoiceState voz() => container.read(salaSessionProvider).voice;
+    await notifier.goConversa(pericope: 'P01');
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(seconds: 2));
+
+    harness.room.holdNextTurn();
+    harness.voice.holdNextLine();
+
+    notifier.conversaTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(voz(), VoiceState.listening);
+    expect(leaveIsDeaf(tester), isTrue,
+        reason: 'com o microfone aberto');
+
+    notifier.conversaTap();
+    await letTheRehearsalReachTheRoom(tester);
+    expect(voz(), VoiceState.thinking);
+    expect(leaveIsDeaf(tester), isTrue,
+        reason: 'e com a fala da equipe já a caminho da sala: o turno inteiro é '
+            'trabalho que se perde, não só o pedaço em que o microfone está '
+            'aberto');
+
+    harness.room.finishHeldTurn();
+    await letTheRehearsalReachTheRoom(tester);
+    expect(voz(), VoiceState.speaking);
+    expect(leaveIsDeaf(tester), isTrue,
+        reason: 'e com a sala falando, que é quando a equipe está ouvindo e '
+            'não olhando para a tela — a mão descansa exatamente no canto onde '
+            'o botão fica');
+    closeTheRoom(container);
+  });
+
+  testWidgets('the way out stays out of reach while the room waits for a person',
+      (tester) async {
+    final harness = SalaHarness()..room.failWith = const RoomRefused();
+    final container = await pumpSala(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.goConversa(pericope: 'P01');
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(seconds: 2));
+
+    notifier.conversaTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    notifier.conversaTap();
+    for (var frame = 0; frame < 30; frame++) {
+      await tester.pump(const Duration(milliseconds: 200));
+      if (container.read(salaSessionProvider).needsPerson) break;
+    }
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'o caso precisa mesmo chegar ao pedido de uma pessoa');
+    expect(leaveIsDeaf(tester), isTrue,
+        reason: 'e este é o estado que dura mais: a sala fica esperando '
+            'alguém chegar, e é o mais fácil de a equipe cutucar até deixar a '
+            'passagem sem querer');
+    closeTheRoom(container);
   });
 }

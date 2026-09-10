@@ -84,8 +84,6 @@ class ColarOverlay extends StatelessWidget {
     final p = map(onFim ? circlePoint(i, total) : arcPoint(i, total));
     final isAbsence = session.coverage.isAbsence(i);
     final engaged = i < session.coverage.engaged;
-    final surfacedOnly = i >= session.coverage.engaged &&
-        i < session.coverage.surfaced;
 
     BoxDecoration decoration;
     if (engaged && isAbsence) {
@@ -106,17 +104,6 @@ class ColarOverlay extends StatelessWidget {
         gradient: BeadStyles.wood,
         boxShadow: BeadStyles.matte,
       );
-    } else if (surfacedOnly) {
-      decoration = BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [colors.card, colors.card, ShemaBrand.wood, ShemaBrand.wood],
-          stops: const [0, 0.5, 0.5, 1],
-        ),
-        border: Border.all(color: colors.cord, width: 2),
-      );
     } else {
       decoration = BoxDecoration(
         shape: BoxShape.circle,
@@ -132,39 +119,20 @@ class ColarOverlay extends StatelessWidget {
       );
     }
 
-    final pinged = session.ping?.contains(i) ?? false;
-    final glowing = onFim && session.fimClosed;
-
-    Widget bead = AnimatedContainer(
+    // The fill settles over 1.3 s; the arc-to-circle growth at the close keeps its own
+    // 700 ms, so no bead is still growing once the passage is done.
+    final bead = AnimatedSize(
       duration: const Duration(milliseconds: 700),
-      width: size,
-      height: size,
-      decoration: decoration,
-    );
-    if (pinged) {
-      bead = PingIn(
-        key: ValueKey('ping-$i-${session.coverage.engaged}'),
-        child: bead,
-      );
-    } else if (glowing) {
-      bead = Loop(
-        period: const Duration(milliseconds: 3000),
-        builder: (context, t) => Container(
-          width: size,
-          height: size,
-          decoration: decoration.copyWith(
-            boxShadow: [
-              ...?decoration.boxShadow,
-              BoxShadow(
-                color: ShemaBrand.verdeClaro
-                    .withValues(alpha: 0.25 * (1 - t)),
-                spreadRadius: 3 + 6 * t,
-              ),
-            ],
-          ),
+      curve: Curves.easeInOut,
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 1300),
+          decoration: decoration,
         ),
-      );
-    }
+      ),
+    );
 
     return AnimatedPositioned(
       duration: const Duration(milliseconds: 900),

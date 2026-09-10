@@ -44,16 +44,16 @@ class SegmentView {
 
 /// One recording the room is holding for a session.
 ///
-/// [chunkIndex] is which part of the rehearsal it is, as the tablet numbered it when it
-/// sent it up. A passage the room rebuilt carries the number of the recording it was
-/// rebuilt from, which is how a tablet that was not there for the rebuilding finds out
+/// [ordinal] is the number the server holds for the take: the part's, for a rehearsal or
+/// a composed passage. A passage the room rebuilt carries the number of the recording it
+/// was rebuilt from, which is how a tablet that was not there for the rebuilding finds out
 /// which of its parts the new file answers for.
 class TakeView {
   final String takeId;
   final String scope;
-  final int? chunkIndex;
+  final int? ordinal;
 
-  const TakeView({required this.takeId, required this.scope, this.chunkIndex});
+  const TakeView({required this.takeId, required this.scope, this.ordinal});
 
   static List<TakeView> listFrom(Map<String, dynamic> json) => [
         for (final raw in (json['takes'] as List? ?? const []))
@@ -63,7 +63,7 @@ class TakeView {
   factory TakeView.fromJson(Map<String, dynamic> json) => TakeView(
         takeId: json['take_id'] as String? ?? '',
         scope: json['scope'] as String? ?? '',
-        chunkIndex: json['chunk_index'] as int?,
+        ordinal: json['ordinal'] as int?,
       );
 }
 

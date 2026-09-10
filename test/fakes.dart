@@ -869,7 +869,7 @@ class FakeRoom implements RoomRepository {
     takes.add(TakeView(
       takeId: rebuilt,
       scope: KeptScope.composed,
-      chunkIndex: was.isEmpty ? null : was.first.chunkIndex,
+      ordinal: was.isEmpty ? null : was.first.ordinal,
     ));
     takeAudio[rebuilt] = Uint8List.fromList(utf8.encode('áudio de $rebuilt'));
     return rebuilt;
@@ -1037,7 +1037,7 @@ class FakeRoom implements RoomRepository {
     takePasses.add(passNumber);
     final id = 'gravacao-${takeIds.length + 1}';
     takeIds.add(id);
-    takes.add(TakeView(takeId: id, scope: scope, chunkIndex: chunkIndex));
+    takes.add(TakeView(takeId: id, scope: scope, ordinal: chunkIndex));
     takeAudio[id] = Uint8List.fromList(utf8.encode('áudio de $id'));
     return id;
   }
@@ -1497,14 +1497,17 @@ class SpeakingPlayer extends Fake implements AudioPlayer {
   @override
   Stream<PlayerState> get playerStateStream => _states.stream;
 
+  /// A load that never settles, for the line the player never manages to open.
+  bool neverLoads = false;
+
   @override
   Future<Duration?> setFilePath(
     String path, {
     Duration? initialPosition,
     bool preload = true,
     dynamic tag,
-  }) async =>
-      lineLength;
+  }) =>
+      neverLoads ? Completer<Duration?>().future : Future.value(lineLength);
 
   @override
   Future<Duration?> setAsset(
@@ -1534,10 +1537,15 @@ class SpeakingPlayer extends Fake implements AudioPlayer {
     return _sounding!.future;
   }
 
+  /// A stop that never settles, for the player that wedges on the way out.
+  bool neverStops = false;
+
   @override
-  Future<void> stop() async {
+  Future<void> stop() {
+    if (neverStops) return Completer<void>().future;
     _playing = false;
     _quiet();
+    return Future.value();
   }
 
   @override

@@ -6,12 +6,19 @@ void main() {
     const wire = {
       'missing': BtFindingKind.missing,
       'addition': BtFindingKind.addition,
-      'insufficient_evidence': BtFindingKind.insufficientEvidence,
       'unclear': BtFindingKind.unclear,
     };
     wire.forEach((raw, kind) {
       expect(btFindingKindFrom(raw), kind);
     });
+  });
+
+  test('the enum and the wire map are the same three members', () {
+    expect(BtFindingKind.values, [
+      BtFindingKind.missing,
+      BtFindingKind.addition,
+      BtFindingKind.unclear,
+    ]);
   });
 
   test('exitsByReRecording is true for addition alone', () {
@@ -30,6 +37,7 @@ void main() {
     'wrong_relation',
     'reordered_event',
     'preservation_violation',
+    'insufficient_evidence',
   ]) {
     test('a retired wire name, $retired, resolves to no kind', () {
       expect(btFindingKindFrom(retired), isNull);

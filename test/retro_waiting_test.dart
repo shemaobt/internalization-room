@@ -17,8 +17,8 @@ Finder byLabel(String label) => find.byWidgetPredicate(
       (widget) => widget is Semantics && widget.properties.label == label,
     );
 
-const cortar = 'Cortar aqui e contar esta parte';
-const contar = 'Contar esta parte na língua ponte';
+const cortar = 'Cortar aqui e traduzir esta parte';
+const contar = 'Traduzir esta parte na língua ponte';
 
 /// A team told the rehearsal and is standing in the telling-back, with the recording in
 /// the air — which is how the room hands the phase over.

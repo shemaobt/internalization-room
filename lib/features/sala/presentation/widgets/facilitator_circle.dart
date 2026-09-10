@@ -4,7 +4,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/theme/sala_colors.dart';
 import '../../domain/room_reach.dart';
 import '../../domain/session_state.dart';
-import 'bead.dart';
 import 'bead_styles.dart';
 import 'motion.dart';
 
@@ -65,6 +64,7 @@ class FacilitatorCircle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = SalaColors.of(context);
+    final still = MediaQuery.disableAnimationsOf(context);
     return AnimatedOpacity(
       opacity: opacity,
       duration: const Duration(milliseconds: 500),
@@ -83,13 +83,22 @@ class FacilitatorCircle extends StatelessWidget {
               alignment: Alignment.center,
               children: [
                 if (beckon) ..._beckoning(colors),
-                _body(colors),
+                _body(colors, still),
                 if (voice == VoiceState.speaking) ..._ripples(colors),
                 if (voice == VoiceState.listening) _listenRing(colors),
                 if (child != null && voice != VoiceState.listening) child!,
                 if (voice == VoiceState.listening) ..._gatheringIn(),
-                if (voice == VoiceState.listening && noteMode)
-                  KnotMark(size: size * 0.16),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 1000),
+                  child: _modeGlyph == null
+                      ? const SizedBox.shrink()
+                      : Icon(
+                          _modeGlyph,
+                          key: ValueKey(_modeGlyph),
+                          size: size * 0.3,
+                          color: ShemaBrand.branco,
+                        ),
+                ),
               ],
             ),
           ),
@@ -100,7 +109,7 @@ class FacilitatorCircle extends StatelessWidget {
 
   List<Widget> _ripples(SalaColors colors) {
     Widget ring(double phase) => Ripple(
-          period: const Duration(milliseconds: 1600),
+          period: const Duration(milliseconds: 3400),
           phase: phase,
           builder: (context, t) => Transform.scale(
             scale: 1 + 0.46 * t,
@@ -160,24 +169,28 @@ class FacilitatorCircle extends StatelessWidget {
       voice == VoiceState.offline ||
       voice == VoiceState.blocked;
 
-  Widget _body(SalaColors colors) {
+  IconData? get _modeGlyph {
+    if (_halted) return null;
+    if (noteMode) return LucideIcons.hand;
+    if (_teamTalk) return LucideIcons.users;
+    // A voice that is only the room's own — speaking, inviting, listening, done — draws
+    // no mark: the colour and the breath already say it, and the loudspeaker read as a
+    // control the team could press. Only a mode says itself with a glyph.
+    return null;
+  }
+
+  Widget _body(SalaColors colors, bool still) {
     if (voice == VoiceState.needsPerson) return _haltedBody(colors, LucideIcons.userCheck);
     if (voice == VoiceState.offline) return _haltedBody(colors, _offlineGlyph);
     // The cue is a live turn signal — it is the team's own turn to speak — and a
     // warning is only a background notice; it wins over the green the same way a
     // halted voice does.
-    if (_teamTalk) return _teamTalkBody(colors);
+    if (_teamTalk) return _liveBreath(colors);
     if (warning && !_halted) return _doneDisc();
 
     switch (voice) {
       case VoiceState.invite:
-        return Loop(
-          period: Duration(milliseconds: beckon ? 1800 : 4600),
-          builder: (context, t) => Transform.scale(
-            scale: 1 + (beckon ? 0.09 : 0.045) * t,
-            child: _liveDisc(colors),
-          ),
-        );
+        return _liveBreath(colors);
       case VoiceState.listening:
         return _disc(
           gradient: motherTongue ? BeadStyles.wood : BeadStyles.azul,
@@ -191,30 +204,10 @@ class FacilitatorCircle extends StatelessWidget {
           ],
         );
       case VoiceState.thinking:
-        return Loop(
-          period: const Duration(milliseconds: 2600),
-          builder: (context, t) => Transform.scale(
-            scale: 1 + 0.06 * t,
-            child: _disc(
-              gradient: BeadStyles.clay(colors, t),
-              shadows: [
-                const BoxShadow(
-                  color: Color(0x260A0703),
-                  offset: Offset(0, 6),
-                  blurRadius: 20,
-                ),
-                BoxShadow(
-                  color: colors.clayHi.withValues(alpha: 0.30 * t),
-                  spreadRadius: 2 + 10 * t,
-                  blurRadius: 18,
-                ),
-              ],
-            ),
-          ),
-        );
+        return _waiting(colors, still);
       case VoiceState.speaking:
         return Loop(
-          period: const Duration(milliseconds: 900),
+          period: const Duration(milliseconds: 3400),
           builder: (context, t) => Transform.scale(
             scale: 1 + 0.02 * t,
             child: _liveDisc(colors),
@@ -254,30 +247,42 @@ class FacilitatorCircle extends StatelessWidget {
         ],
       );
 
-  Widget _teamTalkBody(SalaColors colors) {
+  Widget _waiting(SalaColors colors, bool still) {
+    Widget clay(double t) => _disc(
+          gradient: BeadStyles.clay(colors, t),
+          shadows: [
+            const BoxShadow(
+              color: Color(0x260A0703),
+              offset: Offset(0, 6),
+              blurRadius: 20,
+            ),
+            BoxShadow(
+              color: colors.clayHi.withValues(alpha: 0.30 * t),
+              spreadRadius: 2 + 10 * t,
+              blurRadius: 18,
+            ),
+          ],
+        );
+    if (still) {
+      return Loop(
+        period: const Duration(milliseconds: 3600),
+        reducible: false,
+        builder: (context, t) => Opacity(opacity: 0.72 + 0.24 * t, child: clay(0)),
+      );
+    }
     return Loop(
       period: const Duration(milliseconds: 4600),
-      builder: (context, t) => Transform.scale(
-        scale: 1 + 0.045 * t,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            _disc(
-              gradient: BeadStyles.azul,
-              shadows: [
-                BoxShadow(
-                  color: ShemaBrand.azulLo.withValues(alpha: 0.32),
-                  offset: const Offset(0, 10),
-                  blurRadius: 30,
-                ),
-              ],
-            ),
-            Icon(LucideIcons.users, size: size * 0.3, color: ShemaBrand.branco),
-          ],
-        ),
-      ),
+      builder: (context, t) => Transform.scale(scale: 1 + 0.06 * t, child: clay(t)),
     );
   }
+
+  Widget _liveBreath(SalaColors colors) => Loop(
+        period: Duration(milliseconds: beckon ? 1800 : 4600),
+        builder: (context, t) => Transform.scale(
+          scale: 1 + (beckon ? 0.09 : 0.045) * t,
+          child: _liveDisc(colors),
+        ),
+      );
 
   /// A room that has stopped, and is still running.
   ///
@@ -331,7 +336,7 @@ class FacilitatorCircle extends StatelessWidget {
   Widget _listenRing(SalaColors colors) {
     final halo = motherTongue ? ShemaBrand.wood : ShemaBrand.azul;
     return Loop(
-      period: const Duration(milliseconds: 1600),
+      period: const Duration(milliseconds: 3200),
       builder: (context, t) => Container(
         width: size,
         height: size,
@@ -351,7 +356,7 @@ class FacilitatorCircle extends StatelessWidget {
 
   List<Widget> _gatheringIn() {
     Widget ring(double phase) => Ripple(
-          period: const Duration(milliseconds: 1900),
+          period: const Duration(milliseconds: 3200),
           phase: phase,
           builder: (context, t) => Transform.scale(
             scale: 1.46 - 0.46 * t,

@@ -381,7 +381,7 @@ void main() {
       final antes = _no(it.container, 1);
       final parteAntes = it.estado.partes[antes.parte].path;
 
-      it.sala.recontarEmPortugues();
+      it.sala.traduzirDeNovoEmPortugues();
       await waitFor(
         'o microfone abrir para recontar',
         () => it.estado.btPhase == BtPhase.capturing,
