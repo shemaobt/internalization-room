@@ -149,7 +149,7 @@ void main() {
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true)
         ..room.verdictChecked = false
-        ..room.verdictFinding = BtFindingKind.insufficientEvidence;
+        ..room.verdictFinding = BtFindingKind.unclear;
       final container = await pumpUpToAVerdict(tester, harness);
 
       final antes = container.read(salaSessionProvider);

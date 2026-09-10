@@ -1,14 +1,12 @@
 enum BtFindingKind {
   missing,
   addition,
-  insufficientEvidence,
   unclear,
 }
 
 const _wireNames = {
   'missing': BtFindingKind.missing,
   'addition': BtFindingKind.addition,
-  'insufficient_evidence': BtFindingKind.insufficientEvidence,
   'unclear': BtFindingKind.unclear,
 };
 

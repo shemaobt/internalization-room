@@ -65,7 +65,7 @@ void main() {
       (tester) async {
     final container = await pumpToFindings(
       tester,
-      BtFindingKind.insufficientEvidence,
+      BtFindingKind.unclear,
     );
     final rehearsed = container.read(salaSessionProvider).partes.length;
     expect(rehearsed, greaterThan(0));
@@ -81,7 +81,7 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await pumpToFindings(
       tester,
-      BtFindingKind.insufficientEvidence,
+      BtFindingKind.unclear,
       harness: harness,
     );
     final notifier = container.read(salaSessionProvider.notifier);
@@ -125,7 +125,7 @@ void main() {
       (tester) async {
     final container = await pumpToFindings(
       tester,
-      BtFindingKind.insufficientEvidence,
+      BtFindingKind.unclear,
     );
 
     await tester.tap(bySemanticsLabelWidget(reRecordExit));
