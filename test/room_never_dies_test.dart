@@ -17,8 +17,7 @@ import 'session_notifier_test.dart' show settle;
 
 void main() {
   test('a book with nothing left to offer reaches a person out loud', () async {
-    final harness = SalaHarness();
-    harness.finished.done.addAll({'Ruth/P01', 'Ruth/P02', 'Ruth/P03'});
+    final harness = SalaHarness()..room.passages = const [];
     final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -33,8 +32,7 @@ void main() {
   });
 
   test('a halted room says why it stopped, and says it once', () async {
-    final harness = SalaHarness();
-    harness.finished.done.addAll({'Ruth/P01', 'Ruth/P02', 'Ruth/P03'});
+    final harness = SalaHarness()..room.passages = const [];
     final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -50,9 +48,9 @@ void main() {
     expect(spoken.length, 1);
   });
 
-  test('a long press is still a way out of the finished book', () async {
-    final harness = SalaHarness();
-    harness.finished.done.addAll({'Ruth/P01', 'Ruth/P02', 'Ruth/P03'});
+  test('a long press is still a way out of a book with nothing to offer',
+      () async {
+    final harness = SalaHarness()..room.passages = const [];
     final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
