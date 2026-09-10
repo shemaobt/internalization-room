@@ -2612,7 +2612,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         kind: 'retro',
         scope: KeptScope.whole,
         passNumber: state.btPass,
-        chunkIndex: state.btChunkPasses.length + 1,
       ));
       if (epoch != _epoch) return;
       state = state.copyWith(
@@ -2631,7 +2630,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         kind: 'retro',
         scope: KeptScope.whole,
         passNumber: state.btPass,
-        chunkIndex: state.btChunkPasses.length + 1,
       ));
       // A refusal leaves the stretches as they were, so the ground told back is the same
       // ground the taken correction would have left: read it off what the tablet already
@@ -2851,7 +2849,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         kind: 'retro',
         scope: KeptScope.whole,
         passNumber: state.btPass,
-        chunkIndex: state.btTrechos.length + 1,
       ));
       state = state.copyWith(
         btPhase: BtPhase.playing,
@@ -2882,7 +2879,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           kind: 'retro',
           scope: KeptScope.whole,
           passNumber: state.btPass,
-          chunkIndex: state.btChunkPasses.length + 1,
         ));
         state = state.copyWith(
           btPhase: BtPhase.playing,
@@ -2900,7 +2896,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         kind: 'retro',
         scope: KeptScope.whole,
         passNumber: state.btPass,
-        chunkIndex: state.btChunkPasses.length + 1,
       ));
       if (epoch != _epoch) return;
       state = state.copyWith(
@@ -3299,7 +3294,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     for (final guardada in guardadas) {
       if (!faltando.contains(guardada.takeId)) continue;
       if (guardada.scope != KeptScope.composed) continue;
-      final numero = guardada.chunkIndex;
+      final numero = guardada.ordinal;
       if (numero == null) continue;
       final parte = state.keptTakes
           .where((take) => take.scopeId == KeptScope.parte(numero));
