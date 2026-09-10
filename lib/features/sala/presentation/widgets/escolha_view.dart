@@ -61,6 +61,10 @@ class EscolhaView extends ConsumerWidget {
             for (var index = 0; index < roda.length; index++)
               if (session.comecadas.contains(roda[index].pericope)) index,
           },
+          finished: {
+            for (var index = 0; index < roda.length; index++)
+              if (session.feitas.contains(roda[index].pericope)) index,
+          },
           hint: podeEntrar,
           onAim: notifier.apontarPassagem,
           onSettle: notifier.dizerAPassagem,

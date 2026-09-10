@@ -21,6 +21,8 @@ class PassageRuler extends StatefulWidget {
   /// own colour, because going back to one is a different act from starting one.
   final Set<int> started;
 
+  final Set<int> finished;
+
   /// While the finger is down: move, and stay quiet.
   final ValueChanged<int> onAim;
 
@@ -37,6 +39,7 @@ class PassageRuler extends StatefulWidget {
     required this.onAim,
     required this.onSettle,
     this.started = const {},
+    this.finished = const {},
     this.hint = false,
   });
 
@@ -114,6 +117,7 @@ class _PassageRulerState extends State<PassageRuler> {
                     total: total,
                     at: widget.at,
                     started: widget.started,
+                    finished: widget.finished,
                     // Toward the end that has room, so the mark never drifts off the row.
                     nudge: hinting
                         ? 7 * t * (widget.at < total - 1 ? 1 : -1)
@@ -135,6 +139,7 @@ class _RulerPainter extends CustomPainter {
   final int total;
   final int at;
   final Set<int> started;
+  final Set<int> finished;
   final double nudge;
   final Color cord;
   final Color mark;
@@ -143,6 +148,7 @@ class _RulerPainter extends CustomPainter {
     required this.total,
     required this.at,
     required this.started,
+    required this.finished,
     required this.nudge,
     required this.cord,
     required this.mark,
@@ -167,12 +173,17 @@ class _RulerPainter extends CustomPainter {
       // A passage with work waiting stands taller and wears the room's own colour, so a
       // team can find the one they left without anyone reading them a list.
       final waiting = started.contains(index);
+      final carried = finished.contains(index);
       final reach = waiting ? 9.0 : 5.0;
       canvas.drawLine(
         Offset(x, y - reach),
         Offset(x, y + reach),
         Paint()
-          ..color = waiting ? mark : cord
+          ..color = waiting
+              ? mark
+              : carried
+                  ? ShemaBrand.wood
+                  : cord
           ..strokeWidth = waiting ? 2.5 : 2
           ..strokeCap = StrokeCap.round,
       );
@@ -190,5 +201,7 @@ class _RulerPainter extends CustomPainter {
       old.cord != cord ||
       old.mark != mark ||
       old.started.length != started.length ||
-      !old.started.containsAll(started);
+      !old.started.containsAll(started) ||
+      old.finished.length != finished.length ||
+      !old.finished.containsAll(finished);
 }

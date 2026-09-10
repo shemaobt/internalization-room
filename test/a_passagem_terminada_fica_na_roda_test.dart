@@ -1,8 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/passage_ruler.dart';
 
 import 'fakes.dart';
+import 'sala_screen_test.dart' show pumpSala;
 import 'session_notifier_test.dart' show settle;
 
 const _todasFeitas = {'Ruth/P01', 'Ruth/P02', 'Ruth/P03'};
@@ -26,5 +28,22 @@ void main() {
         isNot(contains(fixedLineAsset(needsPersonLine, testLanguage))),
         reason: 'o círculo é alive at done: o registro informa, ele não fecha '
             'a conversa');
+  });
+
+  testWidgets('the row is told which notch the team already carried to the end',
+      (tester) async {
+    final harness = SalaHarness();
+    harness.finished.done.add('Ruth/P01');
+    final container = await pumpSala(tester, harness);
+    await container.read(salaSessionProvider.notifier).abrirEscolha();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final regua = tester.widget<PassageRuler>(find.byType(PassageRuler));
+    expect(regua.finished, {0},
+        reason: 'a P01 é a primeira da roda, e sem o índice a régua desenha a '
+            'passagem terminada igual a uma que ninguém tocou');
+    expect(regua.started, isEmpty,
+        reason: 'terminar apaga o ponto de retomada: trabalho parado e trabalho '
+            'terminado são dois atos diferentes e a régua não pode confundi-los');
   });
 }
