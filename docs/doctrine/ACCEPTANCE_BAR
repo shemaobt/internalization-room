@@ -1,0 +1,37 @@
+# DOCTRINE.md §4 — what must not regress — as the tests that hold it.
+#
+# The lines are not listed here: they are parsed out of the vendored DOCTRINE.md on every run, so
+# a line she adds on the next re-pin arrives as a red build and not as a line nobody transcribed.
+# Each row is a fragment of one §4 line, two spaces, then the claims separated by " | ": a test
+# file and the description of the test, or one of two words.
+#
+# BACKEND — the line is held in tripod-backend, where the prompts and the model seam live. That
+# repo's own ACCEPTANCE_BAR names the test.
+# PENDING — this repo does not hold the line today. There is one, and it is not a gap in the
+# record: at `done` the conversa stops taking speech (`lib/features/sala/data/session_notifier.dart`,
+# `conversaTap` case `VoiceState.done`) and the screen offers the way on to the ensaio. Her line
+# says the circle is alive there. ENG-835 records whose decision each line is and adds no
+# behaviour to the room, so the divergence is written down rather than fixed here.
+#
+# A fragment is matched against the line, never compared to it: a guard on her wording would go
+# red for a rename that leaves the ruling untouched.
+#
+# Read by `dart run tool/sync_doctrine.dart --check`.
+
+Facilitador Digital persona  BACKEND
+peer-mediated  BACKEND
+frame-before-elicit  BACKEND
+a request to understand is always answered from the map  BACKEND
+an omission in a retelling never passes  BACKEND
+the send-off is always  BACKEND
+the first rehearsal is the first oral draft  BACKEND
+no blessings  BACKEND
+never "o mapa"  BACKEND
+ALFE 8th-grade register  BACKEND
+spoken-BR proclisis  BACKEND
+YHWH  BACKEND
+The two languages never confused  BACKEND
+the circle is alive at `done`  PENDING
+The voice opens the session  test/session_notifier_test.dart::the sala asks out loud to be touched, and waits
+the team is never left in front of a silent circle  test/mic_gate_test.dart::clearing the gate opens the room, not just the screen
+P01 (Ruth 1:1–5) completes  BACKEND
