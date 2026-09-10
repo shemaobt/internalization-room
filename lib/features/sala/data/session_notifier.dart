@@ -1233,7 +1233,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final passagem = state.oferecida;
     if (passagem == null || state.voice != VoiceState.invite) return;
     if (passagem.isPanorama) {
-      unawaited(_entrarNoPanorama(passagem.pericope));
+      unawaited(_entrarNoPanorama());
       return;
     }
     unawaited(goConversa(pericope: passagem.pericope));
@@ -1242,7 +1242,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// Enter the panorama from its own spoke on the wheel, instead of falling into a
   /// passage. It has no foreseen end, and nothing here schedules one: the team leaves it
   /// the same way it leaves any session, by turning the wheel to a passage.
-  Future<void> _entrarNoPanorama(String pericope) async {
+  ///
+  /// Asked for by `panoramaPericope`, the same alias `openConvite` already asks for it
+  /// by — not by whatever id the wheel happens to label the spoke with — and the session
+  /// is reused rather than asked for again on every tap, for the reason `openConvite`'s
+  /// own guard gives: a retried touch would otherwise mint one abandoned panorama session
+  /// per attempt.
+  Future<void> _entrarNoPanorama() async {
     final epoch = _epoch;
     state = state.copyWith(voice: VoiceState.thinking);
     _watchBusyState();
@@ -1254,11 +1260,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     _watchBusyState();
     try {
-      final created =
-          await _room.createSession(pericope: pericope, language: _lingua);
+      final created = _panoramaSessionId == null
+          ? await _room.createSession(
+              pericope: panoramaPericope,
+              language: _lingua,
+            )
+          : null;
       if (epoch != _epoch) return;
-      _panoramaSessionId = created.sessionId;
-      final turn = await _room.openSession(created.sessionId);
+      // Which passage a session is for is the room's to say, and the answer carries it —
+      // the same swap openConvite already honours. A team touching this spoke while the
+      // room decides otherwise lands where the room answered, rather than being left on
+      // the wheel mid an opening turn nothing here is set up to answer.
+      final given = created?.pericope;
+      if (given != null && given != panoramaPericope) {
+        unawaited(goConversa(pericope: given, opened: created));
+        return;
+      }
+      final panorama = _panoramaSessionId ?? created!.sessionId;
+      _panoramaSessionId = panorama;
+      final turn = await _room.openSession(panorama);
       if (epoch != _epoch) return;
       await _readyToSpeak(turn.audioUrl, turn.fixedLine);
       if (epoch != _epoch) return;

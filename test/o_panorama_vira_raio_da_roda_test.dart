@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -134,9 +135,10 @@ void main() {
     notifier.entrarNaOferecida();
     await settle();
 
-    expect(harness.room.pericopesAsked, contains('panorama'),
-        reason: 'o panorama é pedido pelo id que a roda deu a ele, do '
-            'mesmo jeito que qualquer outro raio dela');
+    expect(harness.room.pericopesAsked, contains(panoramaPericope),
+        reason: 'o panorama é pedido pelo mesmo alias que o convite já '
+            'usa (panoramaPericope), não pelo id que a roda pôs nele — '
+            'é o mesmo pedido, venha de onde vier');
     expect(
       container.read(salaSessionProvider).stage,
       SalaStage.escolha,
@@ -192,6 +194,58 @@ void main() {
             'esperar não move a equipe para lugar nenhum');
     expect(state.voice, VoiceState.invite);
     expect(state.needsPerson, isFalse);
+  });
+
+  test('entering the panorama spoke twice reuses the same session', () async {
+    final harness = SalaHarness()..room.passages = const [_panorama, _p01];
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+
+    notifier.entrarNaOferecida();
+    await settle();
+    notifier.entrarNaOferecida();
+    await settle();
+
+    expect(harness.room.sessionIds, hasLength(1),
+        reason: 'o mesmo toque repetido sem sair da roda não pode cunhar '
+            'uma segunda sessão de panorama — é exatamente o defeito que '
+            'a guarda do openConvite existe para evitar, um panorama '
+            'abandonado por toque');
+    expect(harness.room.sessionsSpokenTo, hasLength(2),
+        reason: 'cada toque ainda pede o turno de novo — só a sessão é '
+            'reaproveitada, não o pedido de abrir');
+  });
+
+  test(
+      'when the room answers the panorama with a passage instead, the team '
+      'lands there, not stuck on the wheel', () async {
+    final harness = SalaHarness()
+      ..room.passages = const [_panorama, _p01]
+      ..room.panoramaAnsweredWith = 'P02';
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+
+    notifier.entrarNaOferecida();
+    await settle();
+
+    expect(harness.room.pericopesAsked, contains(panoramaPericope));
+    expect(
+      container.read(salaSessionProvider).stage,
+      SalaStage.conversa,
+      reason: 'pedir o panorama é um pedido, não uma ordem — a sala pode '
+          'responder com a passagem em que a equipe já está, e ficar na '
+          'roda tocando um turno de abertura que ninguém está pronto '
+          'para responder é pior do que segui-la para onde respondeu',
+    );
+    expect(harness.room.sessionIds, hasLength(1),
+        reason: 'a sessão que a sala já abriu é a que a equipe entra — '
+            'pedir outra abandonaria a primeira');
   });
 
   test('the team leaves the panorama by turning the wheel to a passage',
