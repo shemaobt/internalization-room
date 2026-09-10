@@ -1232,7 +1232,47 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void entrarNaOferecida() {
     final passagem = state.oferecida;
     if (passagem == null || state.voice != VoiceState.invite) return;
+    if (passagem.isPanorama) {
+      unawaited(_entrarNoPanorama(passagem.pericope));
+      return;
+    }
     unawaited(goConversa(pericope: passagem.pericope));
+  }
+
+  /// Enter the panorama from its own spoke on the wheel, instead of falling into a
+  /// passage. It has no foreseen end, and nothing here schedules one: the team leaves it
+  /// the same way it leaves any session, by turning the wheel to a passage.
+  Future<void> _entrarNoPanorama(String pericope) async {
+    final epoch = _epoch;
+    state = state.copyWith(voice: VoiceState.thinking);
+    _watchBusyState();
+    final reach = await _network.reachRoom();
+    if (epoch != _epoch) return;
+    if (reach != RoomReach.fine) {
+      _goOffline(reach);
+      return;
+    }
+    _watchBusyState();
+    try {
+      final created =
+          await _room.createSession(pericope: pericope, language: _lingua);
+      if (epoch != _epoch) return;
+      _panoramaSessionId = created.sessionId;
+      final turn = await _room.openSession(created.sessionId);
+      if (epoch != _epoch) return;
+      await _readyToSpeak(turn.audioUrl, turn.fixedLine);
+      if (epoch != _epoch) return;
+      state = state.copyWith(voice: VoiceState.speaking);
+      _watchBusyState();
+      final spoke = await _speak(turn.audioUrl, turn.fixedLine);
+      if (epoch != _epoch) return;
+      if (!spoke) return _registerUnplayableTurn();
+      _unplayableTurns = 0;
+      state = state.copyWith(voice: VoiceState.invite);
+    } on Object catch (error) {
+      if (epoch != _epoch) return;
+      _handleRoomFailure(error);
+    }
   }
 
   /// Leave a passage part-way and go pick another one.

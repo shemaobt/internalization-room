@@ -1,4 +1,3 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
@@ -121,5 +120,108 @@ void main() {
     expect(state.oferecida, _panorama,
         reason: 'the panorama is first on the wheel, ahead of every '
             "passage — it's the wheel's front door");
+  });
+
+  test('entering the panorama spoke opens a panorama session, not a passage',
+      () async {
+    final harness = SalaHarness()..room.passages = const [_panorama, _p01];
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+
+    notifier.entrarNaOferecida();
+    await settle();
+
+    expect(harness.room.pericopesAsked, contains('panorama'),
+        reason: 'the panorama is asked for by the id the wheel gave it, '
+            'exactly as any other spoke on it is');
+    expect(
+      container.read(salaSessionProvider).stage,
+      SalaStage.escolha,
+      reason: 'entering the panorama never falls into a passage — the '
+          'team is still standing at the wheel once it has spoken',
+    );
+    expect(harness.room.sessionsSpokenTo, hasLength(1),
+        reason: 'the panorama session the room opened is the one the '
+            'voice speaks into');
+    expect(container.read(salaSessionProvider).voice, VoiceState.invite);
+    expect(
+      harness.voice.played,
+      [_panorama.audioUrl, turnoUrl],
+      reason: 'the ruler names the panorama first, aiming at it; entering '
+          "it is the room's own turn, spoken second",
+    );
+  });
+
+  test('entering the panorama writes no ledger row and no resume point',
+      () async {
+    final harness = SalaHarness()..room.passages = const [_panorama, _p01];
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+
+    notifier.entrarNaOferecida();
+    await settle();
+
+    expect(harness.finished.done, isNot(contains('Ruth/panorama')),
+        reason: 'the panorama is not a passage — it never leaves the '
+            "wheel, so it must never mark itself as one of the book's "
+            'finished passages');
+    expect(harness.emAberto.rows.containsKey('Ruth/panorama'), isFalse,
+        reason: 'nothing about the panorama is a resume point to come '
+            'back to; the wheel itself is where the team returns to it');
+  });
+
+  test('nothing ends the panorama on a timer or a turn count', () async {
+    final harness = SalaHarness()..room.passages = const [_panorama, _p01];
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+
+    notifier.entrarNaOferecida();
+    await settle(const Duration(seconds: 5));
+
+    final state = container.read(salaSessionProvider);
+    expect(state.stage, SalaStage.escolha,
+        reason: 'the panorama has no foreseen end and nothing here '
+            'schedules one — waiting does not move the team anywhere');
+    expect(state.voice, VoiceState.invite);
+    expect(state.needsPerson, isFalse);
+  });
+
+  test('the team leaves the panorama by turning the wheel to a passage',
+      () async {
+    final harness = SalaHarness()..room.passages = const [_panorama, _p01];
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+    notifier.entrarNaOferecida();
+    await settle();
+    final panoramaSession = harness.room.sessionIds.single;
+
+    notifier.apontarPassagem(1);
+    notifier.dizerAPassagem();
+    await settle();
+    notifier.entrarNaOferecida();
+    await settle();
+
+    expect(container.read(salaSessionProvider).stage, SalaStage.conversa,
+        reason: 'leaving the panorama is exactly like leaving any other '
+            'session: turning the wheel to a passage and entering it');
+    expect(harness.room.metBefore.last, isTrue,
+        reason: 'the passage session carries the panorama session it '
+            'followed, the same way it always has');
+    expect(harness.room.sessionIds, hasLength(2));
+    expect(harness.room.sessionIds.last, isNot(panoramaSession),
+        reason: 'the passage gets its own session — it never reuses the '
+            "panorama's");
   });
 }
