@@ -34,8 +34,6 @@ Future<void> _pumpCircle(
       ),
     ));
 
-/// The fill of the disc at the centre, which is the only painting in the circle that
-/// carries a gradient — the rings around it are borders on nothing.
 Gradient? _disc(WidgetTester tester) {
   final painted = tester
       .widgetList<Container>(find.descendant(
@@ -50,7 +48,6 @@ Gradient? _disc(WidgetTester tester) {
   return painted.isEmpty ? null : painted.first;
 }
 
-/// Every mark the circle draws inside itself, in the order it draws them.
 List<IconData> _glyphs(WidgetTester tester) => tester
     .widgetList<Icon>(find.descendant(
       of: find.byType(FacilitatorCircle),
@@ -59,9 +56,13 @@ List<IconData> _glyphs(WidgetTester tester) => tester
     .map((mark) => mark.icon!)
     .toList();
 
-Future<void> _pumpStillCircle(WidgetTester tester, VoiceState voice) =>
+Future<void> _pumpStillCircle(
+  WidgetTester tester,
+  VoiceState voice, {
+  bool inPlace = false,
+}) =>
     tester.pumpWidget(MaterialApp(
-      key: ValueKey('parado-$voice'),
+      key: inPlace ? const ValueKey('o mesmo círculo parado') : ValueKey('parado-$voice'),
       theme: AppTheme.light,
       home: MediaQuery(
         data: const MediaQueryData(disableAnimations: true),
@@ -78,8 +79,6 @@ Future<void> _pumpStillCircle(WidgetTester tester, VoiceState voice) =>
       ),
     ));
 
-/// Every distinct scale the circle draws over a long stretch of frames, and every
-/// distinct veil of light it draws under them.
 Future<({Set<double> scales, Set<double> veils})> _overAMinuteOfFrames(
   WidgetTester tester,
 ) async {
@@ -103,7 +102,6 @@ Future<({Set<double> scales, Set<double> veils})> _overAMinuteOfFrames(
   return (scales: scales, veils: veils);
 }
 
-/// How long every moving thing the circle draws takes to go once round.
 List<Duration> _periods(WidgetTester tester) => [
       for (final breath in tester.widgetList<Loop>(find.descendant(
         of: find.byType(FacilitatorCircle),
@@ -201,12 +199,14 @@ void main() {
 
   testWidgets('a question being left to a person shows the hand, never the sound of a voice',
       (tester) async {
-    await _pumpCircle(tester, VoiceState.invite, noteMode: true);
+    await _pumpCircle(tester, VoiceState.listening, noteMode: true);
 
     expect(_glyphs(tester), [LucideIcons.hand],
         reason: 'o modo nota era só um disco azul, e azul é também a cor do '
             'microfone aberto: nada na tela dizia que aquela fala vai para o '
-            'facilitador e não para a sala');
+            'facilitador e não para a sala. E a pergunta só existe com o '
+            'microfone aberto — pedi-la num convite mediria um degrau que a '
+            'sala nunca pisa, e deixaria a escuta passar na frente da mão');
   });
 
   testWidgets('a mark that replaces another crosses it slowly, and never cuts to it',
@@ -241,5 +241,26 @@ void main() {
     expect(find.byIcon(LucideIcons.users), findsOneWidget,
         reason: 'e quem diz que a vez é deles é o glifo, que é a única coisa '
             'que tem de mudar');
+  });
+
+  testWidgets('a circle that changes voice under less motion is as still as one that opened there',
+      (tester) async {
+    await _pumpStillCircle(tester, VoiceState.thinking, inPlace: true);
+    await tester.pump(const Duration(milliseconds: 400));
+    await _pumpStillCircle(tester, VoiceState.invite, inPlace: true);
+    final depois = await _overAMinuteOfFrames(tester);
+
+    expect(depois.scales.length, lessThan(2),
+        reason: 'a sala passa a sessão inteira trocando de voz no mesmo '
+            'círculo, e nunca abre de novo numa voz — um convite que só fica '
+            'parado quando a tela nasce nele é a preferência valendo no '
+            'primeiro quadro da sessão e em nenhum outro');
+
+    await _pumpStillCircle(tester, VoiceState.thinking, inPlace: true);
+    final voltando = await _overAMinuteOfFrames(tester);
+
+    expect(voltando.veils.length, greaterThan(1),
+        reason: 'e a respiração de luz da espera tem de chegar quando a espera '
+            'chega, que é sempre de dentro de outra voz');
   });
 }

@@ -180,4 +180,47 @@ void main() {
         reason: 'no meio da chegada ela ainda está acontecendo — sem isto o '
             'caso passaria com o esmaecer arrancado junto com o deslize');
   });
+
+  testWidgets('the small motions stop too when the tablet asks for less of them',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: Column(
+            children: const [
+              Pulse(child: SizedBox(width: 10, height: 10)),
+              PingIn(child: SizedBox(width: 10, height: 10)),
+              FadeUp(child: SizedBox(width: 10, height: 10)),
+              ThreadIn(
+                index: 0,
+                total: 3,
+                threaded: false,
+                child: SizedBox(width: 10, height: 10),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.byType(Loop), findsNothing,
+        reason: 'o pulsar de um botão continua sendo movimento para quem '
+            'desligou o movimento');
+    expect(find.byType(TweenAnimationBuilder<double>), findsNothing,
+        reason: 'e o aparecer, o chegar e o enfiar da conta no cordão também — '
+            'quatro portões escritos e nenhum caso: apagar os quatro deixava a '
+            'suíte inteira verde');
+    expect(find.byType(Transform), findsNothing,
+        reason: 'nada cresce, nada encolhe e nada anda de lugar');
+
+    final veu = tester.widget<Opacity>(
+      find.descendant(of: find.byType(ThreadIn), matching: find.byType(Opacity)),
+    );
+    expect(veu.opacity, 0.0,
+        reason: 'e a conta que ainda não foi enfiada continua escondida: este é '
+            'o único dos quatro que desenha coisa diferente de acordo com o '
+            'estado, e parar a animação não pode acender o cordão inteiro');
+  });
 }

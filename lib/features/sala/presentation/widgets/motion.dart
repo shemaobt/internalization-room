@@ -23,12 +23,12 @@ class _LoopState extends State<Loop> with SingleTickerProviderStateMixin {
     vsync: this,
     duration: widget.period,
   );
-  bool _still = false;
+  bool get _still =>
+      widget.reducible && MediaQuery.disableAnimationsOf(context);
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _still = widget.reducible && MediaQuery.disableAnimationsOf(context);
     _follow();
   }
 
