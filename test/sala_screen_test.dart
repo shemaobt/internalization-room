@@ -17,7 +17,9 @@ import 'package:internalization_room/features/sala/presentation/widgets/bead_sty
 import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_cord.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/passage_ruler.dart';
+import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/hear_again_button.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -25,6 +27,31 @@ import 'fakes.dart';
 Finder bySemanticsLabelWidget(String label) => find.byWidgetPredicate(
       (widget) => widget is Semantics && widget.properties.label == label,
     );
+
+
+/// Every colour a corner of the screen actually paints: fills, gradients, borders, the
+/// haloes under them, and the mark on top.
+Set<Color> paintedBy(WidgetTester tester, Finder corner) {
+  final colours = <Color>{};
+  for (final box in tester.widgetList<Container>(
+      find.descendant(of: corner, matching: find.byType(Container)))) {
+    final decoration = box.decoration;
+    if (decoration is! BoxDecoration) continue;
+    if (decoration.color != null) colours.add(decoration.color!);
+    final gradient = decoration.gradient;
+    if (gradient != null) colours.addAll(gradient.colors);
+    if (decoration.border != null) colours.add(decoration.border!.top.color);
+    colours.addAll(decoration.boxShadow?.map((halo) => halo.color) ?? const []);
+  }
+  for (final mark in tester.widgetList<Icon>(
+      find.descendant(of: corner, matching: find.byType(Icon)))) {
+    if (mark.color != null) colours.add(mark.color!);
+  }
+  return colours;
+}
+
+bool sameTone(Color one, Color other) =>
+    one.r == other.r && one.g == other.g && one.b == other.b;
 
 Future<ProviderContainer> pumpSala(
   WidgetTester tester,
@@ -660,5 +687,35 @@ void main() {
     expect(harness.awake.held, isFalse,
         reason: 'segurar a tela e nunca soltar deixa o tablet aceso muito '
             'depois de a sala ter saído da frente');
+  });
+
+  testWidgets('hearing a line again is a quiet green mark, never a second terracotta disc',
+      (tester) async {
+    final container = await pumpSala(tester, SalaHarness());
+    container.read(salaSessionProvider.notifier).conviteTap();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(container.read(salaSessionProvider).canHearAgain, isTrue,
+        reason: 'o caso precisa mesmo estar oferecendo ouvir de novo para '
+            'poder olhar para ele');
+
+    final ouvir = find.byType(HearAgainButton);
+    final pintado = paintedBy(tester, ouvir);
+
+    expect(pintado, isNotEmpty,
+        reason: 'sem nada pintado no canto este teste não olha coisa nenhuma');
+    expect(pintado.any((cor) => sameTone(cor, SalaColors.light.telha)), isFalse,
+        reason: 'a tela em repouso tinha dois discos de telha cheios, e a telha '
+            'é a cor que diz qual é a coisa viva agora — com dois, ela deixa '
+            'de dizer qualquer coisa');
+    expect(pintado.any((cor) => sameTone(cor, ShemaBrand.verdeClaro)), isTrue,
+        reason: 'o repetir é verde e periférico: presente para quem procura, '
+            'invisível para quem não está procurando');
+
+    final velado = tester.widgetList<Opacity>(
+        find.descendant(of: ouvir, matching: find.byType(Opacity)));
+    expect(velado.map((veu) => veu.opacity), everyElement(lessThan(0.5)),
+        reason: 'e translúcido, que é o que o mantém fora do caminho do olho '
+            'que está na conversa');
   });
 }
