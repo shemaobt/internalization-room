@@ -70,9 +70,9 @@ void main() {
     expect(
       state.livroInteiroFeito,
       isTrue,
-      reason: 'the panorama is not a passage — every real passage done is a '
-          'finished book, whether or not the spoke to hear the whole book '
-          'again is still sitting on the wheel',
+      reason: 'o panorama não é uma passagem — todas as passagens feitas é '
+          'livro terminado, esteja ou não o raio de ouvir o livro de novo '
+          'ainda na roda',
     );
   });
 
@@ -97,12 +97,12 @@ void main() {
     expect(
       state.needsPerson,
       isTrue,
-      reason: 'abrirEscolha counted the panorama as a passage still to '
-          'work, the same bug livroInteiroFeito carried',
+      reason: 'abrirEscolha contava o panorama como passagem ainda por '
+          'fazer, o mesmo defeito que livroInteiroFeito carregava',
     );
     expect(state.naRoda, [_panorama],
-        reason: 'the spoke to hear the book again stays on the wheel even '
-            'once the book itself is done');
+        reason: 'o raio de ouvir o livro de novo fica na roda mesmo com o '
+            'livro inteiro terminado');
   });
 
   test('the panorama alongside real passages calls nobody', () async {
@@ -118,8 +118,8 @@ void main() {
     expect(state.needsPerson, isFalse);
     expect(state.naRoda, [_panorama, _p01]);
     expect(state.oferecida, _panorama,
-        reason: 'the panorama is first on the wheel, ahead of every '
-            "passage — it's the wheel's front door");
+        reason: 'o panorama vem em primeiro na roda, à frente de toda '
+            'passagem — é a porta de entrada da roda');
   });
 
   test('entering the panorama spoke opens a panorama session, not a passage',
@@ -135,23 +135,22 @@ void main() {
     await settle();
 
     expect(harness.room.pericopesAsked, contains('panorama'),
-        reason: 'the panorama is asked for by the id the wheel gave it, '
-            'exactly as any other spoke on it is');
+        reason: 'o panorama é pedido pelo id que a roda deu a ele, do '
+            'mesmo jeito que qualquer outro raio dela');
     expect(
       container.read(salaSessionProvider).stage,
       SalaStage.escolha,
-      reason: 'entering the panorama never falls into a passage — the '
-          'team is still standing at the wheel once it has spoken',
+      reason: 'entrar no panorama nunca cai numa passagem — a equipe '
+          'continua na roda depois de ele falar',
     );
     expect(harness.room.sessionsSpokenTo, hasLength(1),
-        reason: 'the panorama session the room opened is the one the '
-            'voice speaks into');
+        reason: 'a sessão de panorama que a sala abriu é a que a voz fala');
     expect(container.read(salaSessionProvider).voice, VoiceState.invite);
     expect(
       harness.voice.played,
       [_panorama.audioUrl, turnoUrl],
-      reason: 'the ruler names the panorama first, aiming at it; entering '
-          "it is the room's own turn, spoken second",
+      reason: 'a régua diz o nome do panorama primeiro, ao apontar; entrar '
+          'nele é o turno da sala, falado depois',
     );
   });
 
@@ -168,12 +167,12 @@ void main() {
     await settle();
 
     expect(harness.finished.done, isNot(contains('Ruth/panorama')),
-        reason: 'the panorama is not a passage — it never leaves the '
-            "wheel, so it must never mark itself as one of the book's "
-            'finished passages');
+        reason: 'o panorama não é uma passagem — nunca sai da roda, '
+            'então nunca pode se marcar como uma das passagens feitas do '
+            'livro');
     expect(harness.emAberto.rows.containsKey('Ruth/panorama'), isFalse,
-        reason: 'nothing about the panorama is a resume point to come '
-            'back to; the wheel itself is where the team returns to it');
+        reason: 'nada no panorama é um lugar para retomar; é a própria '
+            'roda o lugar onde a equipe volta a ele');
   });
 
   test('nothing ends the panorama on a timer or a turn count', () async {
@@ -189,8 +188,8 @@ void main() {
 
     final state = container.read(salaSessionProvider);
     expect(state.stage, SalaStage.escolha,
-        reason: 'the panorama has no foreseen end and nothing here '
-            'schedules one — waiting does not move the team anywhere');
+        reason: 'o panorama não tem fim previsto e nada aqui agenda um — '
+            'esperar não move a equipe para lugar nenhum');
     expect(state.voice, VoiceState.invite);
     expect(state.needsPerson, isFalse);
   });
@@ -214,14 +213,14 @@ void main() {
     await settle();
 
     expect(container.read(salaSessionProvider).stage, SalaStage.conversa,
-        reason: 'leaving the panorama is exactly like leaving any other '
-            'session: turning the wheel to a passage and entering it');
+        reason: 'sair do panorama é exatamente como sair de qualquer '
+            'outra sessão: virar a roda para uma passagem e entrar nela');
     expect(harness.room.metBefore.last, isTrue,
-        reason: 'the passage session carries the panorama session it '
-            'followed, the same way it always has');
+        reason: 'a sessão da passagem carrega a sessão de panorama que a '
+            'precedeu, do mesmo jeito que sempre carregou');
     expect(harness.room.sessionIds, hasLength(2));
     expect(harness.room.sessionIds.last, isNot(panoramaSession),
-        reason: 'the passage gets its own session — it never reuses the '
-            "panorama's");
+        reason: 'a passagem ganha sua própria sessão — nunca reaproveita '
+            'a do panorama');
   });
 }
