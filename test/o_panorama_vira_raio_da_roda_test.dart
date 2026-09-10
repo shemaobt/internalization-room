@@ -1,0 +1,49 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/domain/passagem.dart';
+
+/// The wheel's answer for a book, when its panorama has a line to say: the panorama comes
+/// first and every entry, passage or panorama, says its own kind.
+void main() {
+  test('a panorama entry parses its own kind', () {
+    final panorama = Passagem.fromJson(const {
+      'pericope': 'panorama',
+      'kind': 'panorama',
+      'audio_url': '/voice/panorama',
+      'beads': 0,
+      'absence_index': -1,
+    });
+
+    expect(panorama.kind, PassagemKind.panorama);
+    expect(panorama.isPanorama, isTrue);
+  });
+
+  test('a passage entry parses its own kind too', () {
+    final passagem = Passagem.fromJson(const {
+      'pericope': 'P01',
+      'kind': 'passage',
+      'audio_url': '/voice/p01',
+    });
+
+    expect(passagem.kind, PassagemKind.passage);
+    expect(passagem.isPanorama, isFalse);
+  });
+
+  test('an entry with no kind at all is read as a passage', () {
+    // The wire always sends `kind` today, but every fixture and every fake room built
+    // before this ticket constructs a `Passagem` with none — a server that has not
+    // deployed the field yet must still read as the wheel always has.
+    final passagem = Passagem.fromJson(const {
+      'pericope': 'P01',
+      'audio_url': '/voice/p01',
+    });
+
+    expect(passagem.kind, PassagemKind.passage);
+  });
+
+  test('the constructor itself defaults to a passage', () {
+    const passagem = Passagem(pericope: 'P01', audioUrl: '/voice/p01');
+
+    expect(passagem.kind, PassagemKind.passage);
+    expect(passagem.isPanorama, isFalse);
+  });
+}
