@@ -89,7 +89,12 @@ bool _haltedGlyph(WidgetTester tester) => tester
       of: find.byType(FacilitatorCircle),
       matching: find.byType(Icon),
     ))
-    .isNotEmpty;
+    .any((marca) => const [
+          LucideIcons.userCheck,
+          LucideIcons.cloudOff,
+          LucideIcons.serverOff,
+          LucideIcons.micOff,
+        ].contains(marca.icon));
 
 /// One pumped frame, with what the room was doing on it.
 class _Quadro {

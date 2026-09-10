@@ -4,7 +4,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/theme/sala_colors.dart';
 import '../../domain/room_reach.dart';
 import '../../domain/session_state.dart';
-import 'bead.dart';
 import 'bead_styles.dart';
 import 'motion.dart';
 
@@ -88,8 +87,8 @@ class FacilitatorCircle extends StatelessWidget {
                 if (voice == VoiceState.listening) _listenRing(colors),
                 if (child != null && voice != VoiceState.listening) child!,
                 if (voice == VoiceState.listening) ..._gatheringIn(),
-                if (voice == VoiceState.listening && noteMode)
-                  KnotMark(size: size * 0.16),
+                if (_modeGlyph != null)
+                  Icon(_modeGlyph, size: size * 0.3, color: ShemaBrand.branco),
               ],
             ),
           ),
@@ -160,24 +159,25 @@ class FacilitatorCircle extends StatelessWidget {
       voice == VoiceState.offline ||
       voice == VoiceState.blocked;
 
+  IconData? get _modeGlyph {
+    if (_halted) return null;
+    if (noteMode) return LucideIcons.hand;
+    if (_teamTalk) return LucideIcons.users;
+    return voice == VoiceState.thinking ? null : LucideIcons.volume2;
+  }
+
   Widget _body(SalaColors colors) {
     if (voice == VoiceState.needsPerson) return _haltedBody(colors, LucideIcons.userCheck);
     if (voice == VoiceState.offline) return _haltedBody(colors, _offlineGlyph);
     // The cue is a live turn signal — it is the team's own turn to speak — and a
     // warning is only a background notice; it wins over the green the same way a
     // halted voice does.
-    if (_teamTalk) return _teamTalkBody(colors);
+    if (_teamTalk) return _liveBreath(colors);
     if (warning && !_halted) return _doneDisc();
 
     switch (voice) {
       case VoiceState.invite:
-        return Loop(
-          period: Duration(milliseconds: beckon ? 1800 : 4600),
-          builder: (context, t) => Transform.scale(
-            scale: 1 + (beckon ? 0.09 : 0.045) * t,
-            child: _liveDisc(colors),
-          ),
-        );
+        return _liveBreath(colors);
       case VoiceState.listening:
         return _disc(
           gradient: motherTongue ? BeadStyles.wood : BeadStyles.azul,
@@ -254,21 +254,13 @@ class FacilitatorCircle extends StatelessWidget {
         ],
       );
 
-  Widget _teamTalkBody(SalaColors colors) {
-    return Loop(
-      period: const Duration(milliseconds: 4600),
-      builder: (context, t) => Transform.scale(
-        scale: 1 + 0.045 * t,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            _liveDisc(colors),
-            Icon(LucideIcons.users, size: size * 0.3, color: ShemaBrand.branco),
-          ],
+  Widget _liveBreath(SalaColors colors) => Loop(
+        period: Duration(milliseconds: beckon ? 1800 : 4600),
+        builder: (context, t) => Transform.scale(
+          scale: 1 + (beckon ? 0.09 : 0.045) * t,
+          child: _liveDisc(colors),
         ),
-      ),
-    );
-  }
+      );
 
   /// A room that has stopped, and is still running.
   ///

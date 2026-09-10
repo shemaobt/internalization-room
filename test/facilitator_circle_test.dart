@@ -46,7 +46,53 @@ Gradient? _disc(WidgetTester tester) {
   return painted.isEmpty ? null : painted.first;
 }
 
+/// Every mark the circle draws inside itself, in the order it draws them.
+List<IconData> _glyphs(WidgetTester tester) => tester
+    .widgetList<Icon>(find.descendant(
+      of: find.byType(FacilitatorCircle),
+      matching: find.byType(Icon),
+    ))
+    .map((mark) => mark.icon!)
+    .toList();
+
 void main() {
+  testWidgets('every voice the room has says itself with a mark, and the wait says nothing',
+      (tester) async {
+    const marks = {
+      VoiceState.invite: LucideIcons.volume2,
+      VoiceState.listening: LucideIcons.volume2,
+      VoiceState.speaking: LucideIcons.volume2,
+      VoiceState.done: LucideIcons.volume2,
+      VoiceState.needsPerson: LucideIcons.userCheck,
+      VoiceState.offline: LucideIcons.cloudOff,
+      VoiceState.blocked: LucideIcons.micOff,
+    };
+
+    for (final voice in marks.entries) {
+      await _pumpCircle(tester, voice.key);
+      expect(_glyphs(tester), [voice.value],
+          reason: 'fora do modo de conversa entre a equipe o círculo não tinha '
+              'símbolo nenhum, e ${voice.key.name} só se distinguia dos '
+              'vizinhos pela cor — que é o que uma tela lida de longe perde '
+              'primeiro');
+    }
+
+    await _pumpCircle(tester, VoiceState.thinking);
+    expect(_glyphs(tester), isEmpty,
+        reason: 'a espera é o único estado sem marca: nada está acontecendo '
+            'que a equipe possa fazer, e um símbolo ali seria um pedido');
+  });
+
+  testWidgets('a question being left to a person shows the hand, never the sound of a voice',
+      (tester) async {
+    await _pumpCircle(tester, VoiceState.invite, noteMode: true);
+
+    expect(_glyphs(tester), [LucideIcons.hand],
+        reason: 'o modo nota era só um disco azul, e azul é também a cor do '
+            'microfone aberto: nada na tela dizia que aquela fala vai para o '
+            'facilitador e não para a sala');
+  });
+
   testWidgets('a peer cue changes the glyph in the circle, never the circle itself',
       (tester) async {
     await _pumpCircle(tester, VoiceState.invite, peerCue: true);
