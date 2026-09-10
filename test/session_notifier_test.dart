@@ -647,46 +647,20 @@ void main() {
         reason: 'a sala repetindo o aviso a cada 20ms é um alarme, não um recado');
   });
 
-  test('the sala asks out loud to be touched, and waits', () async {
+  test('a team that stays silent is never asked twice to begin', () async {
     final harness = SalaHarness();
     final container = harness.container();
     addTearDown(container.dispose);
 
-    container.read(salaSessionProvider.notifier).beckon();
-    await settle();
+    await container.read(salaSessionProvider.notifier).openTheRoom();
+    await settle(const Duration(milliseconds: 200));
 
-    expect(harness.voice.assets, [inviteToStartAsset(testLanguage)]);
+    expect(harness.voice.assets, isEmpty,
+        reason: 'um convite repetido vira cobrança; quem abre a sessão agora é a fala '
+            'que começa a passagem, não um lembrete sozinho');
     expect(harness.room.calls, isEmpty,
-        reason: 'o convite falado nao pode abrir sessao — o toque é que começa');
+        reason: 'nada que a sala diz sozinha pode abrir sessao — o toque é que começa');
     expect(container.read(salaSessionProvider).awaitingFirstTouch, isTrue);
-  });
-
-  test('the invitation is repeated while nobody touches', () async {
-    final harness = SalaHarness(beckonInterval: const Duration(milliseconds: 30));
-    final container = harness.container();
-    addTearDown(container.dispose);
-
-    container.read(salaSessionProvider.notifier).beckon();
-    await settle(const Duration(milliseconds: 100));
-
-    expect(harness.voice.assets.length, greaterThan(1),
-        reason: 'uma sala em silêncio deixa a equipe sem saber o que fazer');
-  });
-
-  test('the touch stops the invitation and starts the panorama', () async {
-    final harness = SalaHarness(beckonInterval: const Duration(milliseconds: 30));
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    notifier.beckon();
-    notifier.conviteTap();
-    await settle(const Duration(milliseconds: 120));
-
-    expect(harness.voice.assets, [inviteToStartAsset(testLanguage)],
-        reason: 'depois do toque o convite nao se repete');
-    expect(harness.room.pericopesAsked, [panoramaPericope]);
-    expect(container.read(salaSessionProvider).showEntrada, isTrue);
   });
 
   test('the convite speaks the panorama before offering the way in', () async {
