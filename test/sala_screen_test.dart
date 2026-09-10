@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -52,6 +53,28 @@ Set<Color> paintedBy(WidgetTester tester, Finder corner) {
 
 bool sameTone(Color one, Color other) =>
     one.r == other.r && one.g == other.g && one.b == other.b;
+
+double contrastOf(Color one, Color other) {
+  double channel(double value) => value <= 0.03928
+      ? value / 12.92
+      : math.pow((value + 0.055) / 1.055, 2.4).toDouble();
+  double light(Color tone) =>
+      0.2126 * channel(tone.r) + 0.7152 * channel(tone.g) + 0.0722 * channel(tone.b);
+  final one0 = light(one);
+  final other0 = light(other);
+  return (math.max(one0, other0) + 0.05) / (math.min(one0, other0) + 0.05);
+}
+
+Color markAsSeen(WidgetTester tester, Finder corner, Color background) {
+  final marca = find.descendant(of: corner, matching: find.byType(Icon));
+  final tinta = tester.widget<Icon>(marca).color!;
+  var alpha = tinta.a;
+  for (final veu in tester.widgetList<Opacity>(
+      find.ancestor(of: marca, matching: find.byType(Opacity)))) {
+    alpha *= veu.opacity;
+  }
+  return Color.alphaBlend(tinta.withValues(alpha: alpha), background);
+}
 
 bool leaveIsDeaf(WidgetTester tester) => tester
     .widgetList<IgnorePointer>(find.ancestor(
@@ -701,6 +724,7 @@ void main() {
     final container = await pumpSala(tester, SalaHarness());
     container.read(salaSessionProvider.notifier).conviteTap();
     await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump(const Duration(seconds: 1));
 
     expect(container.read(salaSessionProvider).canHearAgain, isTrue,
         reason: 'o caso precisa mesmo estar oferecendo ouvir de novo para '
@@ -719,11 +743,15 @@ void main() {
         reason: 'o repetir é verde e periférico: presente para quem procura, '
             'invisível para quem não está procurando');
 
-    final velado = tester.widgetList<Opacity>(
-        find.descendant(of: ouvir, matching: find.byType(Opacity)));
-    expect(velado.map((veu) => veu.opacity), everyElement(lessThan(0.5)),
-        reason: 'e translúcido, que é o que o mantém fora do caminho do olho '
-            'que está na conversa');
+    expect(
+      contrastOf(markAsSeen(tester, ouvir, SalaColors.light.paper),
+          SalaColors.light.paper),
+      greaterThanOrEqualTo(2.5),
+      reason: 'quieto não é invisível: com o disco fora, a marca ficou em '
+          '1,65:1 sobre o papel, metade da barra que o medidor do microfone '
+          'fixou em 2,5:1 depois de um laranja afinado no fundo escuro sumir '
+          'num tablet ao sol, que é onde esta sala roda',
+    );
   });
 
   testWidgets('the way out of a passage cannot be taken while the microphone is open',

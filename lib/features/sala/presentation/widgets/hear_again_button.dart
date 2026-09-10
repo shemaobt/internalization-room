@@ -32,22 +32,19 @@ class HearAgainButton extends ConsumerWidget {
         child: canHear
             ? Center(
                 child: FadeUp(
-                  child: Opacity(
-                    opacity: 0.42,
-                    child: RoundActionButton(
-                      size: 44,
-                      semanticLabel: 'Ouvir de novo',
-                      onTap: ref.read(salaSessionProvider.notifier).hearAgain,
-                      onLongPress: twoMovements
-                          ? ref
-                              .read(salaSessionProvider.notifier)
-                              .hearTheWholeOpening
-                          : null,
-                      child: const Icon(
-                        LucideIcons.rotateCcw,
-                        size: 22,
-                        color: ShemaBrand.verdeClaro,
-                      ),
+                  child: RoundActionButton(
+                    size: 44,
+                    semanticLabel: 'Ouvir de novo',
+                    onTap: ref.read(salaSessionProvider.notifier).hearAgain,
+                    onLongPress: twoMovements
+                        ? ref
+                            .read(salaSessionProvider.notifier)
+                            .hearTheWholeOpening
+                        : null,
+                    child: const Icon(
+                      LucideIcons.rotateCcw,
+                      size: 22,
+                      color: ShemaBrand.verdeClaro,
                     ),
                   ),
                 ),
