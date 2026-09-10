@@ -7,13 +7,11 @@ import 'facilitator_circle.dart';
 
 String _preparing(String language) => switch (language) {
       'pt' => 'A sala está preparando o código deste aparelho',
-      'es' => 'La sala está preparando el código de este aparato',
       _ => 'The room is getting a code for this tablet',
     };
 
 String _showIt(String language) => switch (language) {
       'pt' => 'Mostre este código ao facilitador',
-      'es' => 'Muestre este código al facilitador',
       _ => 'Show this code to the facilitator',
     };
 
