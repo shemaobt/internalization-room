@@ -26,7 +26,6 @@ class MicGateView extends ConsumerWidget {
   /// Ask the platform again, and if the answer changed, open the room properly.
   ///
   /// Checking alone was enough to swap the screen and not enough to start anything: the
-  /// invite never beckoned, so a team that cannot read got a silent circle, and the
   /// once-per-book rule for the panorama was bypassed — the next touch minted a fresh
   /// panorama session and replayed the whole book overview.
   Future<void> _askAgain(WidgetRef ref) async {

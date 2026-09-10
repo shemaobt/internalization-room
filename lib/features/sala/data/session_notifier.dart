@@ -926,9 +926,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  /// Open the room: go straight to the passages if the book was already opened this
-  /// launch. The panorama belongs to a book, not to a launch. On a first launch the room
-  /// says nothing and waits for the touch that opens the convite.
+  /// Open the room: go straight to the passages if the book was already opened on this
+  /// tablet. The panorama belongs to a book, not to a launch. Otherwise the room says
+  /// nothing and waits for the touch that opens the convite.
   Future<void> openTheRoom() async {
     if (state.stage != SalaStage.convite) return;
     if (state.conviteStep != ConviteStep.boasVindas) return;
