@@ -794,7 +794,7 @@ void main() {
         reason: 'tentar de novo não é abrir outro panorama: cada toque deixava uma sessão abandonada no servidor');
   });
 
-  test('the convite does not stay stuck thinking forever', () async {
+  test('a line longer than the busy ceiling is not a stuck room', () async {
     final harness = SalaHarness(busyCeiling: const Duration(milliseconds: 40));
     final container = harness.container();
     addTearDown(container.dispose);
@@ -807,8 +807,37 @@ void main() {
 
     await settle(const Duration(milliseconds: 80));
 
+    expect(container.read(salaSessionProvider).voice, VoiceState.speaking,
+        reason: 'a abertura de Rute 1:6-14 veio num clipe de 122 s e o teto de '
+            '120 s chamou uma pessoa com o Guia ainda falando; quem julga uma fala '
+            'é a própria voz, pelo tamanho do clipe, não um relógio de espera');
+    expect(container.read(salaSessionProvider).needsPerson, isFalse);
+    expect(harness.room.calls.where((call) => call == 'askForAPerson'), isEmpty,
+        reason: 'e o servidor nunca soube de uma parada que não houve');
+
+    harness.voice.finishHeldLine();
+    await settle();
+
+    expect(container.read(salaSessionProvider).voice, isNot(VoiceState.speaking),
+        reason: 'terminada a fala, a sala segue como se o teto não existisse');
+  });
+
+  test('a wait for an answer still gives up at the busy ceiling', () async {
+    final harness = SalaHarness(busyCeiling: const Duration(milliseconds: 40));
+    final container = harness.container();
+    addTearDown(container.dispose);
+    harness.voice.holdNextFetch();
+
+    unawaited(container.read(salaSessionProvider.notifier).openConvite());
+    await settle(const Duration(milliseconds: 20));
+
+    expect(container.read(salaSessionProvider).voice, VoiceState.thinking);
+
+    await settle(const Duration(milliseconds: 80));
+
     expect(container.read(salaSessionProvider).needsPerson, isTrue,
-        reason: 'uma fala que nunca termina não pode prender a sala em silêncio');
+        reason: 'a espera é a única coisa que pode travar: uma linha que nunca chega '
+            'ainda chama uma pessoa');
   });
 
   test('the last line can be heard again without touching the room', () async {
@@ -1463,14 +1492,14 @@ void main() {
     harness.playback.finishPlayback();
     await settle();
 
-    harness.voice.holdNextLine();
+    harness.voice.holdNextFetch();
     unawaited(notifier.finishBackTranslation());
     await settle(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).needsPerson, isTrue,
-        reason: 'o cão de guarda desiste de uma fala que não termina');
+        reason: 'o cão de guarda desiste de um veredito que nunca chega');
 
-    harness.voice.finishHeldLine();
+    harness.voice.finishHeldFetch();
     await settle(const Duration(seconds: 2));
 
     final after = container.read(salaSessionProvider);
