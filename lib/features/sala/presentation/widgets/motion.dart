@@ -156,10 +156,7 @@ class FadeUp extends StatelessWidget {
       tween: Tween(begin: 0, end: 1),
       duration: const Duration(milliseconds: 700),
       curve: Curves.easeOut,
-      builder: (context, t, child) => Opacity(
-        opacity: t,
-        child: Transform.translate(offset: Offset(0, 10 * (1 - t)), child: child),
-      ),
+      builder: (context, t, child) => Opacity(opacity: t, child: child),
       child: child,
     );
   }

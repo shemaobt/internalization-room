@@ -153,4 +153,31 @@ void main() {
               'olhar para essa tela não distingue uma sala esperando de um app morto');
     }
   });
+
+  testWidgets('a thing that arrives fades in, and never slides up into place',
+      (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Center(child: FadeUp(child: SizedBox(width: 120, height: 120))),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      find.descendant(of: find.byType(FadeUp), matching: find.byType(Transform)),
+      findsNothing,
+      reason: 'tudo o que aparecia na sala subia dez pixels enquanto aparecia, '
+          'e um deslize é a única coisa que o olho de quem está concentrado na '
+          'conversa pega sem querer olhar',
+    );
+
+    final veu = tester.widget<Opacity>(
+      find.descendant(of: find.byType(FadeUp), matching: find.byType(Opacity)),
+    );
+    expect(veu.opacity, greaterThan(0.0),
+        reason: 'e ele continua sendo uma chegada, não um corte');
+    expect(veu.opacity, lessThan(1.0),
+        reason: 'no meio da chegada ela ainda está acontecendo — sem isto o '
+            'caso passaria com o esmaecer arrancado junto com o deslize');
+  });
 }
