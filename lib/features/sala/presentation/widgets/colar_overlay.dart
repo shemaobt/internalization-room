@@ -84,8 +84,6 @@ class ColarOverlay extends StatelessWidget {
     final p = map(onFim ? circlePoint(i, total) : arcPoint(i, total));
     final isAbsence = session.coverage.isAbsence(i);
     final engaged = i < session.coverage.engaged;
-    final surfacedOnly = i >= session.coverage.engaged &&
-        i < session.coverage.surfaced;
 
     BoxDecoration decoration;
     if (engaged && isAbsence) {
@@ -105,17 +103,6 @@ class ColarOverlay extends StatelessWidget {
         shape: BoxShape.circle,
         gradient: BeadStyles.wood,
         boxShadow: BeadStyles.matte,
-      );
-    } else if (surfacedOnly) {
-      decoration = BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [colors.card, colors.card, ShemaBrand.wood, ShemaBrand.wood],
-          stops: const [0, 0.5, 0.5, 1],
-        ),
-        border: Border.all(color: colors.cord, width: 2),
       );
     } else {
       decoration = BoxDecoration(
