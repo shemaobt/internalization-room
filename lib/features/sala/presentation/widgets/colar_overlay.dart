@@ -119,39 +119,12 @@ class ColarOverlay extends StatelessWidget {
       );
     }
 
-    final pinged = session.ping?.contains(i) ?? false;
-    final glowing = onFim && session.fimClosed;
-
-    Widget bead = AnimatedContainer(
-      duration: const Duration(milliseconds: 700),
+    final bead = AnimatedContainer(
+      duration: const Duration(milliseconds: 1300),
       width: size,
       height: size,
       decoration: decoration,
     );
-    if (pinged) {
-      bead = PingIn(
-        key: ValueKey('ping-$i-${session.coverage.engaged}'),
-        child: bead,
-      );
-    } else if (glowing) {
-      bead = Loop(
-        period: const Duration(milliseconds: 3000),
-        builder: (context, t) => Container(
-          width: size,
-          height: size,
-          decoration: decoration.copyWith(
-            boxShadow: [
-              ...?decoration.boxShadow,
-              BoxShadow(
-                color: ShemaBrand.verdeClaro
-                    .withValues(alpha: 0.25 * (1 - t)),
-                spreadRadius: 3 + 6 * t,
-              ),
-            ],
-          ),
-        ),
-      );
-    }
 
     return AnimatedPositioned(
       duration: const Duration(milliseconds: 900),
