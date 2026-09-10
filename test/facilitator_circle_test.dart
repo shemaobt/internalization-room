@@ -6,6 +6,7 @@ import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
 
 Future<void> _pumpCircle(
   WidgetTester tester,
@@ -58,7 +59,42 @@ List<IconData> _glyphs(WidgetTester tester) => tester
     .map((mark) => mark.icon!)
     .toList();
 
+/// How long every moving thing the circle draws takes to go once round.
+List<Duration> _periods(WidgetTester tester) => [
+      for (final breath in tester.widgetList<Loop>(find.descendant(
+        of: find.byType(FacilitatorCircle),
+        matching: find.byType(Loop),
+      )))
+        breath.period,
+      for (final ring in tester.widgetList<Ripple>(find.descendant(
+        of: find.byType(FacilitatorCircle),
+        matching: find.byType(Ripple),
+      )))
+        ring.period,
+    ];
+
 void main() {
+  testWidgets('the room moves at her tempos, not at twice her speed', (tester) async {
+    const tempos = {
+      VoiceState.listening: Duration(milliseconds: 3200),
+      VoiceState.thinking: Duration(milliseconds: 4600),
+      VoiceState.speaking: Duration(milliseconds: 3400),
+    };
+
+    for (final tempo in tempos.entries) {
+      await _pumpCircle(tester, tempo.key);
+      expect(_periods(tester), isNotEmpty,
+          reason: '${tempo.key.name} precisa mesmo desenhar algo que se mexe, '
+              'senão não há tempo nenhum para medir');
+      expect(_periods(tester), everyElement(tempo.value),
+          reason: 'tudo o que ${tempo.key.name} desenha andava perto do dobro '
+              'do tempo dela, e o teste dela para qualquer animação é se '
+              'aquilo desviaria o olho de alguém profundamente concentrado — '
+              'com o anel numa velocidade e o disco em outra, o mais rápido é '
+              'o que responde');
+    }
+  });
+
   testWidgets('every voice the room has says itself with a mark, and the wait says nothing',
       (tester) async {
     const marks = {

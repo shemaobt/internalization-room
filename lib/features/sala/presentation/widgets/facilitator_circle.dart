@@ -108,7 +108,7 @@ class FacilitatorCircle extends StatelessWidget {
 
   List<Widget> _ripples(SalaColors colors) {
     Widget ring(double phase) => Ripple(
-          period: const Duration(milliseconds: 1600),
+          period: const Duration(milliseconds: 3400),
           phase: phase,
           builder: (context, t) => Transform.scale(
             scale: 1 + 0.46 * t,
@@ -201,7 +201,7 @@ class FacilitatorCircle extends StatelessWidget {
         );
       case VoiceState.thinking:
         return Loop(
-          period: const Duration(milliseconds: 2600),
+          period: const Duration(milliseconds: 4600),
           builder: (context, t) => Transform.scale(
             scale: 1 + 0.06 * t,
             child: _disc(
@@ -223,7 +223,7 @@ class FacilitatorCircle extends StatelessWidget {
         );
       case VoiceState.speaking:
         return Loop(
-          period: const Duration(milliseconds: 900),
+          period: const Duration(milliseconds: 3400),
           builder: (context, t) => Transform.scale(
             scale: 1 + 0.02 * t,
             child: _liveDisc(colors),
@@ -323,7 +323,7 @@ class FacilitatorCircle extends StatelessWidget {
   Widget _listenRing(SalaColors colors) {
     final halo = motherTongue ? ShemaBrand.wood : ShemaBrand.azul;
     return Loop(
-      period: const Duration(milliseconds: 1600),
+      period: const Duration(milliseconds: 3200),
       builder: (context, t) => Container(
         width: size,
         height: size,
@@ -343,7 +343,7 @@ class FacilitatorCircle extends StatelessWidget {
 
   List<Widget> _gatheringIn() {
     Widget ring(double phase) => Ripple(
-          period: const Duration(milliseconds: 1900),
+          period: const Duration(milliseconds: 3200),
           phase: phase,
           builder: (context, t) => Transform.scale(
             scale: 1.46 - 0.46 * t,
