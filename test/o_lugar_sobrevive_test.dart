@@ -159,7 +159,7 @@ Future<void> _regravarAMaterna(_Sala it) async {
 
 /// The short way, whole: choosing it opens the microphone on the stretch.
 Future<void> _escolherRecontar(_Sala it) async {
-  it.sala.recontarEmPortugues();
+  it.sala.traduzirDeNovoEmPortugues();
   await waitFor(
     'o microfone abrir para recontar',
     () => it.estado.btPhase == BtPhase.capturing,

@@ -869,7 +869,7 @@ class FakeRoom implements RoomRepository {
     takes.add(TakeView(
       takeId: rebuilt,
       scope: KeptScope.composed,
-      chunkIndex: was.isEmpty ? null : was.first.chunkIndex,
+      ordinal: was.isEmpty ? null : was.first.ordinal,
     ));
     takeAudio[rebuilt] = Uint8List.fromList(utf8.encode('áudio de $rebuilt'));
     return rebuilt;
@@ -1037,7 +1037,7 @@ class FakeRoom implements RoomRepository {
     takePasses.add(passNumber);
     final id = 'gravacao-${takeIds.length + 1}';
     takeIds.add(id);
-    takes.add(TakeView(takeId: id, scope: scope, chunkIndex: chunkIndex));
+    takes.add(TakeView(takeId: id, scope: scope, ordinal: chunkIndex));
     takeAudio[id] = Uint8List.fromList(utf8.encode('áudio de $id'));
     return id;
   }

@@ -120,7 +120,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     final trecho2 = container.read(salaSessionProvider).btFindingTrecho!;
 
-    await notifier.contarDeNovo(trecho2);
+    await notifier.traduzirDeNovo(trecho2);
 
     expect(
       container.read(salaSessionProvider).btPhase,
@@ -139,7 +139,7 @@ void main() {
     final trecho2 = container.read(salaSessionProvider).btFindingTrecho!;
     final pedidosAntes = harness.room.replacesAsked.length;
 
-    await notifier.contarDeNovo(trecho2);
+    await notifier.traduzirDeNovo(trecho2);
     notifier.retroTap();
     await waitFor(
       'a sala sair do pensando',
@@ -229,7 +229,7 @@ void main() {
     );
 
     final trecho = container.read(salaSessionProvider).btTrechos.first;
-    await notifier.contarDeNovo(trecho);
+    await notifier.traduzirDeNovo(trecho);
 
     expect(
       container.read(salaSessionProvider).btPhase,
@@ -250,7 +250,7 @@ void main() {
               onOuvirMaterna: () {},
               onOuvirRetro: () {},
               onRegravarMaterna: () {},
-              onRecontar: () {},
+              onTraduzirDeNovo: () {},
               offline: true,
             ),
           ),
