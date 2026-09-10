@@ -15,6 +15,8 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/conversa_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_cord.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/passage_ruler.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
@@ -774,5 +776,35 @@ void main() {
         reason: 'e fora do turno ele continua sendo um botão de verdade — sem '
             'isto, o caso vizinho passaria de graça num botão que nunca '
             'funcionou');
+  });
+
+  testWidgets('a stage arrives over the one it replaces, slowly enough that nothing jumps',
+      (tester) async {
+    final container = await pumpSala(tester, SalaHarness());
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.goConversa(pericope: 'P01');
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.byType(ConversaView), findsOneWidget,
+        reason: 'o caso precisa mesmo começar numa etapa já assentada: uma '
+            'etapa que ainda está entrando sai de onde entrou, e o que se '
+            'mediria seria o resto da travessia anterior');
+
+    notifier.goEnsaio();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(find.byType(EnsaioView), findsOneWidget,
+        reason: 'a etapa nova entra na hora');
+    expect(find.byType(ConversaView), findsOneWidget,
+        reason: 'meio segundo depois a etapa que sai ainda está na tela: a '
+            'troca acontecia em 400 milissegundos, que numa sala sem palavra '
+            'nenhuma é a tela inteira sendo substituída num piscar');
+
+    await tester.pump(const Duration(milliseconds: 1200));
+    expect(find.byType(ConversaView), findsNothing,
+        reason: 'e a travessia acaba — uma etapa que nunca sai é duas telas '
+            'empilhadas, não um esmaecer');
+    closeTheRoom(container);
   });
 }

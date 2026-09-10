@@ -115,7 +115,7 @@ class _SalaScreenState extends ConsumerState<SalaScreen> with WidgetsBindingObse
           children: [
             Positioned.fill(
               child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 400),
+                duration: const Duration(milliseconds: 1400),
                 child: KeyedSubtree(
                   key: ValueKey(session.stage),
                   child: _stageView(session.stage),
