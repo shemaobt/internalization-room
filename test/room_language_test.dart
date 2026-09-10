@@ -201,12 +201,29 @@ void main() {
             'da passagem numa língua e metade noutra');
   });
 
+  test('a tablet set to the language nobody approved opens the room in English', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+
+    expect(languages, isNot(contains('es')),
+        reason: 'a sala reivindicava espanhol sem que ninguém tivesse aprovado a língua, '
+            'e um tablet em espanhol ouvia dezessete falas que o próprio arquivo dizia '
+            'serem rascunho');
+    expect(languageFor(['es']), floorLanguage,
+        reason: 'um tablet numa língua que a sala não fala tem de abrir, não parar — o '
+            'piso existe para isso');
+    await expectLater(
+      rootBundle.loadString('assets/audio/es/manifest.json'),
+      throwsA(anything),
+      reason: 'os clipes em espanhol continuavam embarcados, então bastava a lista de '
+          'idiomas voltar a citá-los para a equipe ouvir rascunho de novo',
+    );
+  });
+
   testWidgets('the one screen a person reads is in the language they set the tablet to',
       (tester) async {
     const showing = ClaimCode(deviceId: 'aparelho-1', code: 'QHF-3M7K');
     const expected = {
       'pt': 'Mostre este código ao facilitador',
-      'es': 'Muestre este código al facilitador',
       'en': 'Show this code to the facilitator',
     };
 
