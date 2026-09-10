@@ -116,11 +116,11 @@ void main() {
     expect(
       find.byType(PassageRuler),
       paints
-        ..line(color: SalaColors.light.cord)
-        ..line(color: ShemaBrand.wood),
-      reason: 'sem cor própria a passagem terminada é o mesmo entalhe de uma '
-          'que ninguém tocou, e não há palavra escrita nesta tela que separe '
-          'as duas',
+        ..line(color: SalaColors.light.cord, strokeWidth: 1.5)
+        ..line(color: ShemaBrand.wood, strokeWidth: 4),
+      reason: 'no claro a madeira dá 1,31:1 contra o cordão: só a cor deixa a '
+          'passagem terminada com o mesmo entalhe de uma que ninguém tocou, e '
+          'não há palavra escrita nesta tela que separe as duas',
     );
   });
 
