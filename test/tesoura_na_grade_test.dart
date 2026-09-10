@@ -10,9 +10,10 @@ import 'package:internalization_room/main.dart';
 import 'fakes.dart';
 
 const ouvirMaterna = 'Ouvir a voz de vocês, na língua materna';
-const ouvirRetro = 'Ouvir o contar em português';
-const micMaterna = 'Regravar a voz na língua materna — refaz também o contar';
-const micRetro = 'Recontar só em português';
+const ouvirRetro = 'Ouvir a tradução em português';
+const micMaterna =
+    'Regravar a voz na língua materna — refaz também a tradução';
+const micRetro = 'Traduzir de novo só em português';
 
 Finder byLabel(String label) => find.byWidgetPredicate(
       (widget) => widget is Semantics && widget.properties.label == label,
@@ -79,7 +80,7 @@ Future<void> pumpGradeSozinha(WidgetTester tester,
             onOuvirMaterna: () {},
             onOuvirRetro: () {},
             onRegravarMaterna: () {},
-            onRecontar: () {},
+            onTraduzirDeNovo: () {},
             tocandoMaterna: tocandoMaterna,
             onCortar: tocandoMaterna ? () {} : null,
           ),

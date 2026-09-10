@@ -89,7 +89,12 @@ bool _haltedGlyph(WidgetTester tester) => tester
       of: find.byType(FacilitatorCircle),
       matching: find.byType(Icon),
     ))
-    .isNotEmpty;
+    .any((marca) => const [
+          LucideIcons.userCheck,
+          LucideIcons.cloudOff,
+          LucideIcons.serverOff,
+          LucideIcons.micOff,
+        ].contains(marca.icon));
 
 /// One pumped frame, with what the room was doing on it.
 class _Quadro {
@@ -273,8 +278,10 @@ void main() {
       }
 
       await _pumpCirculo(tester, VoiceState.invite, theme, peerCue: true);
-      expect(_disco(tester), BeadStyles.azul,
-          reason: 'a fala da equipe é azul e continua azul');
+      expect(_disco(tester), BeadStyles.telha(colors),
+          reason: 'a deixa da equipe troca o glifo e nada mais: o disco '
+              'continua sendo o mesmo alvo de telha do convite, nos dois '
+              'temas');
     }
   });
 

@@ -61,7 +61,7 @@ Future<void> _contaDeNovo(
   SalaSessionNotifier notifier,
   Trecho trecho,
 ) async {
-  await notifier.contarDeNovo(trecho);
+  await notifier.traduzirDeNovo(trecho);
   await settle();
   notifier.retroTap();
   // Every way out of the telling leaves the thinking — the room answered, the room
@@ -340,7 +340,7 @@ void main() {
     final container = await _comDuasMetadesEsperando(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await notifier.contarDeNovo(
+    await notifier.traduzirDeNovo(
         container.read(salaSessionProvider).btTrechos.first);
     await settle();
     notifier.leaveThePassage();

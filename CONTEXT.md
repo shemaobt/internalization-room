@@ -173,6 +173,10 @@ _Avoid_: achado, error, problem, the retired kinds meaning change, wrong relatio
 A missing finding whose place (before, inside or after) fits a stretch already told. It goes to the "where the error lives" screen.
 _Avoid_: falta com endereço, internal missing, missing with a chunk
 
+**Where the error lives** (*Onde mora o erro* on screen):
+The screen where the team says whether a finding's error is in the recording or only in the telling, by choosing one of the two microphones.
+_Avoid_: error grid, finding screen, Onde mora o erro in English prose (it is the on-screen label, as with every station)
+
 **Missing without an address**:
 A missing finding pointing past the last stretch told. It does not become a correction screen: the team goes back to the Rehearsal to record the rest, keeping takes, stretches and necklace.
 _Avoid_: falta sem endereço, external missing, missing at the end, missing without a chunk

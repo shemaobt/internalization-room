@@ -23,8 +23,6 @@ class HearAgainButton extends ConsumerWidget {
         (session) => session.lastSpoken?.toldInTwoMovements ?? false,
       ),
     );
-    final colors = SalaColors.of(context);
-
     return Positioned(
       right: 14,
       bottom: 18 + MediaQuery.viewPaddingOf(context).bottom,
@@ -35,15 +33,7 @@ class HearAgainButton extends ConsumerWidget {
             ? Center(
                 child: FadeUp(
                   child: RoundActionButton(
-                    size: 60,
-                    gradient: BeadStyles.telha(colors),
-                    shadows: [
-                      BoxShadow(
-                        color: colors.telha.withValues(alpha: 0.3),
-                        offset: const Offset(0, 6),
-                        blurRadius: 18,
-                      ),
-                    ],
+                    size: 44,
                     semanticLabel: 'Ouvir de novo',
                     onTap: ref.read(salaSessionProvider.notifier).hearAgain,
                     onLongPress: twoMovements
@@ -53,8 +43,8 @@ class HearAgainButton extends ConsumerWidget {
                         : null,
                     child: const Icon(
                       LucideIcons.rotateCcw,
-                      size: 26,
-                      color: ShemaBrand.branco,
+                      size: 22,
+                      color: ShemaBrand.verdeClaro,
                     ),
                   ),
                 ),

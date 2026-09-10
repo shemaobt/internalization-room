@@ -1,4 +1,4 @@
-const languages = ['pt', 'es', 'en'];
+const languages = ['pt', 'en'];
 
 const floorLanguage = 'en';
 

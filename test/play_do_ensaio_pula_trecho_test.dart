@@ -194,7 +194,7 @@ Future<void> _tocarOFantasmaAteAcabar(_Sala it) async {
 /// The short way: the telling redone over the same mother tongue, no re-recording.
 Future<void> _recontarPeloCaminhoCurto(_Sala it) async {
   final trecho = it.estado.btFindingTrecho!;
-  await it.sala.contarDeNovo(trecho);
+  await it.sala.traduzirDeNovo(trecho);
   await waitFor(
     'o microfone abrir para recontar',
     () => it.estado.btPhase == BtPhase.capturing,

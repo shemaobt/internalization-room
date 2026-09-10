@@ -729,10 +729,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _giveUpOnBusyState() {
-    if (state.voice != VoiceState.thinking &&
-        state.voice != VoiceState.speaking) {
-      return;
-    }
+    // Only a wait can be stuck. A line that is being spoken is judged by the voice
+    // itself, which times out on the clip's own length plus a grace
+    // (`FacilitatorVoiceService._sayItWhole`); a flat ceiling here read a 122 s opening
+    // as a room that had stopped answering and called for a person two seconds before
+    // the Guide finished the sentence.
+    if (state.voice != VoiceState.thinking) return;
     _cancelTimers();
     _conviteOpened = false;
     _leaveThinking();
@@ -2558,7 +2560,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ///
   /// A stretch with no name is not offered: the route addresses one, and the room has no
   /// way to explain a refusal to a team that cannot read.
-  Future<void> contarDeNovo(Trecho trecho) async {
+  Future<void> traduzirDeNovo(Trecho trecho) async {
     if (state.stage != SalaStage.retro) return;
     // Two doors reach the same verb: the cord, where a stretch is tapped while the
     // rehearsal plays, and the question the room puts when the analyst points at one.
@@ -2612,7 +2614,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         kind: 'retro',
         scope: KeptScope.whole,
         passNumber: state.btPass,
-        chunkIndex: state.btChunkPasses.length + 1,
       ));
       if (epoch != _epoch) return;
       state = state.copyWith(
@@ -2631,7 +2632,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         kind: 'retro',
         scope: KeptScope.whole,
         passNumber: state.btPass,
-        chunkIndex: state.btChunkPasses.length + 1,
       ));
       // A refusal leaves the stretches as they were, so the ground told back is the same
       // ground the taken correction would have left: read it off what the tablet already
@@ -2851,7 +2851,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         kind: 'retro',
         scope: KeptScope.whole,
         passNumber: state.btPass,
-        chunkIndex: state.btTrechos.length + 1,
       ));
       state = state.copyWith(
         btPhase: BtPhase.playing,
@@ -2882,7 +2881,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           kind: 'retro',
           scope: KeptScope.whole,
           passNumber: state.btPass,
-          chunkIndex: state.btChunkPasses.length + 1,
         ));
         state = state.copyWith(
           btPhase: BtPhase.playing,
@@ -2900,7 +2898,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         kind: 'retro',
         scope: KeptScope.whole,
         passNumber: state.btPass,
-        chunkIndex: state.btChunkPasses.length + 1,
       ));
       if (epoch != _epoch) return;
       state = state.copyWith(
@@ -3299,7 +3296,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     for (final guardada in guardadas) {
       if (!faltando.contains(guardada.takeId)) continue;
       if (guardada.scope != KeptScope.composed) continue;
-      final numero = guardada.chunkIndex;
+      final numero = guardada.ordinal;
       if (numero == null) continue;
       final parte = state.keptTakes
           .where((take) => take.scopeId == KeptScope.parte(numero));
@@ -3439,7 +3436,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// Hear the telling in Portuguese — the voice that travels to the analyst.
-  void ouvirContarEmPortugues() {
+  void ouvirTraducaoEmPortugues() {
     if (state.btPhase != BtPhase.findings) return;
     if (state.btRetroTocando) {
       _holdClip();
@@ -3483,11 +3480,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// The team's own voice stands and only the telling slipped: the explanation is redone
   /// over a recording that does not move.
-  void recontarEmPortugues() {
+  void traduzirDeNovoEmPortugues() {
     final trecho = state.btFindingTrecho;
     if (state.btPhase != BtPhase.findings || trecho == null) return;
     state = state.copyWith(btTrechoTocando: false, btRetroTocando: false);
-    unawaited(contarDeNovo(trecho));
+    unawaited(traduzirDeNovo(trecho));
   }
 
   /// The far station: the mother tongue of one stretch, recorded again.
@@ -3692,7 +3689,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _haltForAPerson();
       return;
     }
-    await contarDeNovo(agora);
+    await traduzirDeNovo(agora);
   }
 
   /// Back to the question, from a step that cannot finish its work yet.

@@ -6,9 +6,9 @@ import 'bead_styles.dart';
 import 'motion.dart';
 
 const ouvirMaternaLabel = 'Ouvir a voz de vocês, na língua materna';
-const ouvirRetroLabel = 'Ouvir o contar em português';
-const micMaternaLabel = 'Regravar a voz na língua materna — refaz também o contar';
-const micRetroLabel = 'Recontar só em português';
+const ouvirRetroLabel = 'Ouvir a tradução em português';
+const micMaternaLabel = 'Regravar a voz na língua materna — refaz também a tradução';
+const micRetroLabel = 'Traduzir de novo só em português';
 const cortarTrechoLabel = 'Cortar este trecho em dois, aqui';
 
 /// Where the error lives: the team says it, the room does not guess.
@@ -44,7 +44,7 @@ class OndeMoraGrade extends StatelessWidget {
   final VoidCallback onOuvirMaterna;
   final VoidCallback onOuvirRetro;
   final VoidCallback onRegravarMaterna;
-  final VoidCallback onRecontar;
+  final VoidCallback onTraduzirDeNovo;
 
   /// Which voice is sounding right now, if any. Listening is free — it decides nothing —
   /// but the other targets go inert while it runs, so a tap meant for the sound cannot
@@ -68,7 +68,7 @@ class OndeMoraGrade extends StatelessWidget {
     required this.onOuvirMaterna,
     required this.onOuvirRetro,
     required this.onRegravarMaterna,
-    required this.onRecontar,
+    required this.onTraduzirDeNovo,
     this.tocandoMaterna = false,
     this.tocandoRetro = false,
     this.podeOuvirRetro = true,
@@ -105,7 +105,7 @@ class OndeMoraGrade extends StatelessWidget {
             ouvirLabel: ouvirRetroLabel,
             micLabel: micRetroLabel,
             onOuvir: podeOuvirRetro ? onOuvirRetro : null,
-            onFalar: onRecontar,
+            onFalar: onTraduzirDeNovo,
             tocando: tocandoRetro,
             inerte: _algoTocando,
             micInerte: offline,
