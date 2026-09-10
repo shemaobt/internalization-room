@@ -19,6 +19,7 @@ class FacilitatorVoiceService {
   final Future<Directory> Function() _libraryDir;
   AudioPlayer? _opened;
   final Duration _grace;
+  final Duration _loadCeiling;
   Future<void> _speaking = Future<void>.value();
   final Map<String, Future<File>> _arriving = {};
 
@@ -27,9 +28,11 @@ class FacilitatorVoiceService {
     Future<Directory> Function()? libraryDir,
     AudioPlayer? player,
     Duration? lineGrace,
+    Duration? loadCeiling,
   })  : _libraryDir = libraryDir ?? _defaultLibraryDir,
         _opened = player,
-        _grace = lineGrace ?? _lineGrace;
+        _grace = lineGrace ?? _lineGrace,
+        _loadCeiling = loadCeiling ?? _unknownLineCeiling;
 
   AudioPlayer get _player => _opened ??= AudioPlayer();
 
@@ -92,8 +95,19 @@ class FacilitatorVoiceService {
   /// that as success let an interrupted line clear every health counter the room keeps, and
   /// pushed the team on to answer a question they were never asked.
   Future<bool> _sayItWhole(Future<Duration?> Function() load) async {
-    await _player.stop();
-    final length = await load();
+    // The load has a ceiling of its own. Since the room stopped judging a line it is
+    // speaking (the voice is the judge), a `setFilePath` that never settled would leave
+    // `play` hanging and the team in front of a circle that never speaks, with nobody
+    // called. The unknown-length ceiling is the honest bound: nothing is known yet.
+    // Injectable only so a test can prove the bound without waiting ninety seconds.
+    final Duration? length;
+    try {
+      await _player.stop();
+      length = await load().timeout(_loadCeiling + _grace);
+    } on TimeoutException {
+      await stop();
+      return false;
+    }
     try {
       await _player.play().timeout((length ?? _unknownLineCeiling) + _grace);
     } on TimeoutException {

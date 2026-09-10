@@ -1497,7 +1497,8 @@ void main() {
     await settle(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).needsPerson, isTrue,
-        reason: 'o cão de guarda desiste de um veredito que nunca chega');
+        reason: 'o cão de guarda desiste de um clipe de veredito que nunca chega: o '
+            'veredito em si já está na mão, é o áudio dele que a sala espera');
 
     harness.voice.finishHeldFetch();
     await settle(const Duration(seconds: 2));
