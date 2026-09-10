@@ -59,6 +59,50 @@ List<IconData> _glyphs(WidgetTester tester) => tester
     .map((mark) => mark.icon!)
     .toList();
 
+Future<void> _pumpStillCircle(WidgetTester tester, VoiceState voice) =>
+    tester.pumpWidget(MaterialApp(
+      key: ValueKey('parado-$voice'),
+      theme: AppTheme.light,
+      home: MediaQuery(
+        data: const MediaQueryData(disableAnimations: true),
+        child: Scaffold(
+          body: Center(
+            child: FacilitatorCircle(
+              size: 158,
+              voice: voice,
+              semanticLabel: 'circulo',
+              onTap: () {},
+            ),
+          ),
+        ),
+      ),
+    ));
+
+/// Every distinct scale the circle draws over a long stretch of frames, and every
+/// distinct veil of light it draws under them.
+Future<({Set<double> scales, Set<double> veils})> _overAMinuteOfFrames(
+  WidgetTester tester,
+) async {
+  final scales = <double>{};
+  final veils = <double>{};
+  for (var frame = 0; frame < 44; frame++) {
+    await tester.pump(const Duration(milliseconds: 120));
+    for (final moved in tester.widgetList<Transform>(find.descendant(
+      of: find.byType(FacilitatorCircle),
+      matching: find.byType(Transform),
+    ))) {
+      scales.add(moved.transform.getMaxScaleOnAxis());
+    }
+    for (final veil in tester.widgetList<Opacity>(find.descendant(
+      of: find.byType(FacilitatorCircle),
+      matching: find.byType(Opacity),
+    ))) {
+      veils.add(veil.opacity);
+    }
+  }
+  return (scales: scales, veils: veils);
+}
+
 /// How long every moving thing the circle draws takes to go once round.
 List<Duration> _periods(WidgetTester tester) => [
       for (final breath in tester.widgetList<Loop>(find.descendant(
@@ -74,6 +118,39 @@ List<Duration> _periods(WidgetTester tester) => [
     ];
 
 void main() {
+  testWidgets('a tablet that asks for less motion gets a circle that holds still',
+      (tester) async {
+    for (final voice in [
+      VoiceState.invite,
+      VoiceState.listening,
+      VoiceState.speaking,
+      VoiceState.needsPerson,
+    ]) {
+      await _pumpStillCircle(tester, voice);
+      final drawn = await _overAMinuteOfFrames(tester);
+
+      expect(drawn.scales.length, lessThan(2),
+          reason: 'nada na sala lia a preferência de movimento reduzido, e '
+              '${voice.name} respirava, pulsava e jogava anéis para fora do '
+              'mesmo jeito para quem desliga animações justamente porque esse '
+              'movimento the faz mal');
+    }
+  });
+
+  testWidgets('the long wait keeps one slow breath of light, and still does not move',
+      (tester) async {
+    await _pumpStillCircle(tester, VoiceState.thinking);
+    final drawn = await _overAMinuteOfFrames(tester);
+
+    expect(drawn.scales.length, lessThan(2),
+        reason: 'a espera para de crescer como todo o resto');
+    expect(drawn.veils.length, greaterThan(1),
+        reason: 'mas a espera é o trecho mais longo da sala e todos os olhos '
+            'estão no círculo: uma tela completamente congelada ali lê como um '
+            'aplicativo que morreu, então a luz continua respirando — que é a '
+            'única coisa que se mexe sem mexer nada de lugar');
+  });
+
   testWidgets('the room moves at her tempos, not at twice her speed', (tester) async {
     const tempos = {
       VoiceState.listening: Duration(milliseconds: 3200),

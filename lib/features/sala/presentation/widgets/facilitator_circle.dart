@@ -64,6 +64,7 @@ class FacilitatorCircle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = SalaColors.of(context);
+    final still = MediaQuery.disableAnimationsOf(context);
     return AnimatedOpacity(
       opacity: opacity,
       duration: const Duration(milliseconds: 500),
@@ -82,7 +83,7 @@ class FacilitatorCircle extends StatelessWidget {
               alignment: Alignment.center,
               children: [
                 if (beckon) ..._beckoning(colors),
-                _body(colors),
+                _body(colors, still),
                 if (voice == VoiceState.speaking) ..._ripples(colors),
                 if (voice == VoiceState.listening) _listenRing(colors),
                 if (child != null && voice != VoiceState.listening) child!,
@@ -175,7 +176,7 @@ class FacilitatorCircle extends StatelessWidget {
     return voice == VoiceState.thinking ? null : LucideIcons.volume2;
   }
 
-  Widget _body(SalaColors colors) {
+  Widget _body(SalaColors colors, bool still) {
     if (voice == VoiceState.needsPerson) return _haltedBody(colors, LucideIcons.userCheck);
     if (voice == VoiceState.offline) return _haltedBody(colors, _offlineGlyph);
     // The cue is a live turn signal — it is the team's own turn to speak — and a
@@ -200,27 +201,7 @@ class FacilitatorCircle extends StatelessWidget {
           ],
         );
       case VoiceState.thinking:
-        return Loop(
-          period: const Duration(milliseconds: 4600),
-          builder: (context, t) => Transform.scale(
-            scale: 1 + 0.06 * t,
-            child: _disc(
-              gradient: BeadStyles.clay(colors, t),
-              shadows: [
-                const BoxShadow(
-                  color: Color(0x260A0703),
-                  offset: Offset(0, 6),
-                  blurRadius: 20,
-                ),
-                BoxShadow(
-                  color: colors.clayHi.withValues(alpha: 0.30 * t),
-                  spreadRadius: 2 + 10 * t,
-                  blurRadius: 18,
-                ),
-              ],
-            ),
-          ),
-        );
+        return _waiting(colors, still);
       case VoiceState.speaking:
         return Loop(
           period: const Duration(milliseconds: 3400),
@@ -262,6 +243,35 @@ class FacilitatorCircle extends StatelessWidget {
           ),
         ],
       );
+
+  Widget _waiting(SalaColors colors, bool still) {
+    Widget clay(double t) => _disc(
+          gradient: BeadStyles.clay(colors, t),
+          shadows: [
+            const BoxShadow(
+              color: Color(0x260A0703),
+              offset: Offset(0, 6),
+              blurRadius: 20,
+            ),
+            BoxShadow(
+              color: colors.clayHi.withValues(alpha: 0.30 * t),
+              spreadRadius: 2 + 10 * t,
+              blurRadius: 18,
+            ),
+          ],
+        );
+    if (still) {
+      return Loop(
+        period: const Duration(milliseconds: 3600),
+        reducible: false,
+        builder: (context, t) => Opacity(opacity: 0.72 + 0.24 * t, child: clay(0)),
+      );
+    }
+    return Loop(
+      period: const Duration(milliseconds: 4600),
+      builder: (context, t) => Transform.scale(scale: 1 + 0.06 * t, child: clay(t)),
+    );
+  }
 
   Widget _liveBreath(SalaColors colors) => Loop(
         period: Duration(milliseconds: beckon ? 1800 : 4600),
