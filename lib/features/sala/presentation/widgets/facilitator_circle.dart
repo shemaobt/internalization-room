@@ -262,16 +262,7 @@ class FacilitatorCircle extends StatelessWidget {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            _disc(
-              gradient: BeadStyles.azul,
-              shadows: [
-                BoxShadow(
-                  color: ShemaBrand.azulLo.withValues(alpha: 0.32),
-                  offset: const Offset(0, 10),
-                  blurRadius: 30,
-                ),
-              ],
-            ),
+            _liveDisc(colors),
             Icon(LucideIcons.users, size: size * 0.3, color: ShemaBrand.branco),
           ],
         ),

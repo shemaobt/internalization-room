@@ -273,8 +273,10 @@ void main() {
       }
 
       await _pumpCirculo(tester, VoiceState.invite, theme, peerCue: true);
-      expect(_disco(tester), BeadStyles.azul,
-          reason: 'a fala da equipe é azul e continua azul');
+      expect(_disco(tester), BeadStyles.telha(colors),
+          reason: 'a deixa da equipe troca o glifo e nada mais: o disco '
+              'continua sendo o mesmo alvo de telha do convite, nos dois '
+              'temas');
     }
   });
 
