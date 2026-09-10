@@ -119,11 +119,19 @@ class ColarOverlay extends StatelessWidget {
       );
     }
 
-    final bead = AnimatedContainer(
-      duration: const Duration(milliseconds: 1300),
-      width: size,
-      height: size,
-      decoration: decoration,
+    // The fill settles over 1.3 s; the arc-to-circle growth at the close keeps its own
+    // 700 ms, so no bead is still growing once the passage is done.
+    final bead = AnimatedSize(
+      duration: const Duration(milliseconds: 700),
+      curve: Curves.easeInOut,
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 1300),
+          decoration: decoration,
+        ),
+      ),
     );
 
     return AnimatedPositioned(
