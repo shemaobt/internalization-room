@@ -729,10 +729,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _giveUpOnBusyState() {
-    if (state.voice != VoiceState.thinking &&
-        state.voice != VoiceState.speaking) {
-      return;
-    }
+    // Only a wait can be stuck. A line that is being spoken is judged by the voice
+    // itself, which times out on the clip's own length plus a grace
+    // (`FacilitatorVoiceService._sayItWhole`); a flat ceiling here read a 122 s opening
+    // as a room that had stopped answering and called for a person two seconds before
+    // the Guide finished the sentence.
+    if (state.voice != VoiceState.thinking) return;
     _cancelTimers();
     _conviteOpened = false;
     _leaveThinking();

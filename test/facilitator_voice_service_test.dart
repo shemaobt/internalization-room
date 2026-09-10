@@ -25,7 +25,11 @@ void main() {
     if (library.existsSync()) library.deleteSync(recursive: true);
   });
 
-  FacilitatorVoiceService service({AudioPlayer? player, Duration? grace}) =>
+  FacilitatorVoiceService service({
+    AudioPlayer? player,
+    Duration? grace,
+    Duration? loadCeiling,
+  }) =>
       FacilitatorVoiceService(
         fetch: (url) async {
           fetched.add(url);
@@ -34,6 +38,7 @@ void main() {
         libraryDir: () async => library,
         player: player,
         lineGrace: grace,
+        loadCeiling: loadCeiling,
       );
 
   test('two callers asking for the same line at once share one download', () async {
@@ -134,6 +139,40 @@ void main() {
 
     expect(await voice.play(_clip), isFalse,
         reason: 'a sala para o tocador e ainda assim dizia que tinha falado');
+  });
+
+  test('a line the player never opens is given up, not waited on forever', () async {
+    final player = SpeakingPlayer()..neverLoads = true;
+    final voice = service(
+      player: player,
+      grace: const Duration(milliseconds: 30),
+      loadCeiling: const Duration(milliseconds: 30),
+    );
+
+    expect(
+      await voice.play(_clip).timeout(const Duration(seconds: 5)),
+      isFalse,
+      reason: 'o teto só cobria o play(); um setFilePath que nunca resolvia deixava '
+          'a sala em "falando" para sempre, e desde que a sala parou de julgar a '
+          'própria fala (ENG-935) ninguém mais chamaria uma pessoa',
+    );
+  });
+
+  test('a player that wedges on stop still reports the line as not heard', () async {
+    final player = SpeakingPlayer()..neverStops = true;
+    final voice = service(
+      player: player,
+      grace: const Duration(milliseconds: 30),
+      loadCeiling: const Duration(milliseconds: 30),
+    );
+
+    expect(
+      await voice.play(_clip).timeout(const Duration(seconds: 5)),
+      isFalse,
+      reason: 'o stop() antes da carga e o stop() da desistência corriam sem teto '
+          'contra o mesmo tocador que acabou de falhar; se ele travasse ali, a '
+          'linha nunca era dada como não ouvida',
+    );
   });
 
   test('a second line actually sounds, instead of riding the first one\'s latch',
