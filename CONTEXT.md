@@ -20,7 +20,8 @@ _Avoid_: ensaio in prose (`ensaio` is the enum value), passage recording (the re
 
 **Back-translation** (`retro`):
 The station where the rehearsal recording plays back and the team tells, stretch by stretch and in the bridge language, what each piece says, until `terminei` fires the check.
-_Avoid_: retrotradução, retro in prose (`retro` is the code prefix, not the term)
+On screen and in the voice its Portuguese is *traduzir / tradução*; *contar* belongs to the Conversation alone, and *recontar* to the External Check.
+_Avoid_: retrotradução, retro in prose (`retro` is the code prefix, not the term), contar de volta, contado de volta, reconto, recontar
 
 **Choice** (`escolha`):
 The station where the team picks the next passage among those on the wheel.
