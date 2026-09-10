@@ -7,14 +7,15 @@ import 'fakes.dart';
 import 'sala_screen_test.dart' show bySemanticsLabelWidget, pumpSala;
 
 void main() {
+  // Red until `languages` stops listing es, which #138 does.
   test(
-      'a circle state missing a language in its label pair fails the guard, '
+      'a circle state missing a language the room offers fails the guard, '
       'not silently speaks portuguese', () {
-    final expectedLanguages = circleLabels.values.first.keys.toSet();
+    final offered = languages.toSet();
     for (final state in circleLabels.keys) {
-      expect(circleLabels[state]!.keys.toSet(), expectedLanguages,
-          reason: 'um estado com rótulo só numa língua vazaria a outra em '
-              'silêncio, sem teste nenhum pegando');
+      expect(circleLabels[state]!.keys.toSet(), offered,
+          reason: 'um estado sem rótulo numa língua que a sala oferece '
+              'vazaria essa língua em silêncio, sem teste nenhum pegando');
     }
   });
 
