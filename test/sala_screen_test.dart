@@ -807,4 +807,25 @@ void main() {
             'empilhadas, não um esmaecer');
     closeTheRoom(container);
   });
+
+  testWidgets('the finger still opens the microphone while the team is talking among themselves',
+      (tester) async {
+    final harness = SalaHarness()..room.peerCue = true;
+    final container = await pumpSala(tester, harness);
+    container.read(salaSessionProvider.notifier).goConversa();
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump(const Duration(seconds: 2));
+    expect(container.read(salaSessionProvider).peerCue, isTrue,
+        reason: 'o caso precisa mesmo estar no modo de conversa entre a equipe');
+
+    await tester.tap(find.byType(FacilitatorCircle));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).voice, VoiceState.listening,
+        reason: 'a deixa manda a equipe conversar entre si e o círculo continua '
+            'sendo o mesmo botão: é assim que ela volta para contar o que '
+            'combinou, e a marca desenhada por cima dele não pode ficar no '
+            'caminho do dedo');
+  });
 }
