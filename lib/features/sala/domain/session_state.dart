@@ -192,10 +192,11 @@ class SalaSessionState {
   /// the other hollowed a bead belonging to a stretch that had arrived while the stretch
   /// actually at risk had no bead at all.
   final List<int> btChunkFailures;
-  /// The passages still to be worked, or null when the wheel has not been read.
+  /// Every passage the book offers, or null when the wheel has not been read.
   ///
-  /// Null and empty must stay apart: empty is a finished book, and the room says so out
-  /// loud. A failed load answering "empty" told the team the work was over.
+  /// Null and empty must stay apart: empty is a room that answered with no passage at
+  /// all, and it says so out loud. A failed load answering "empty" told the team the
+  /// work was over.
   final List<Passagem>? naRoda;
   /// Passages of this book with work waiting in them, by pericope. The ruler draws these
   /// taller, because going back to one is a different act from starting one.
@@ -324,9 +325,9 @@ class SalaSessionState {
 
   bool get rodaPorLer => stage == SalaStage.escolha && naRoda == null;
 
-  /// The panorama's own spoke, when the wheel offers one, never counts as a passage
-  /// still to work — a book with every real passage done is finished whether or not the
-  /// spoke to hear it again is still sitting on the wheel.
+  /// The panorama's own spoke, when the wheel offers one, never counts as a passage the
+  /// room can offer: a wheel holding nothing else is a book the room has nothing to say
+  /// about, and the spoke to hear it again is not something to work on.
   bool get livroInteiroFeito =>
       stage == SalaStage.escolha &&
       naRoda != null &&
