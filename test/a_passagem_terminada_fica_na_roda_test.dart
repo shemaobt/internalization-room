@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/passage_ruler.dart';
 
 import 'fakes.dart';
@@ -45,5 +46,24 @@ void main() {
     expect(regua.started, isEmpty,
         reason: 'terminar apaga o ponto de retomada: trabalho parado e trabalho '
             'terminado são dois atos diferentes e a régua não pode confundi-los');
+  });
+
+  test('a passage already carried to the end is entered from the wheel again',
+      () async {
+    final harness = SalaHarness();
+    harness.finished.done.add('Ruth/P01');
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+
+    notifier.entrarNaOferecida();
+    await settle();
+
+    expect(harness.room.pericopesAsked, contains('P01'),
+        reason: 'a P01 abre a roda, e a equipe que quer voltar ao que trabalhou '
+            'não tinha por onde: a passagem não estava mais lá para ser tocada');
+    expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
   });
 }
