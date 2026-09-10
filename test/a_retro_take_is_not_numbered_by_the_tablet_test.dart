@@ -120,7 +120,7 @@ void main() {
     );
 
     harness.room.replaceCaptured = false;
-    await notifier.contarDeNovo(
+    await notifier.traduzirDeNovo(
       container.read(salaSessionProvider).btTrechos.first,
     );
     await settle();
