@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
+import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
 import 'bead.dart';
 import 'bead_styles.dart';
@@ -18,6 +19,7 @@ class ConversaView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);
+    final language = ref.watch(roomLanguageProvider);
 
     return Stack(
       children: [
@@ -33,7 +35,7 @@ class ConversaView extends ConsumerWidget {
                 noteMode: session.noteMode,
                 peerCue: session.peerCue,
                 warning: session.warning,
-                      semanticLabel: _circleLabel(session),
+                      semanticLabel: _circleLabel(session, language),
                 onTap: notifier.conversaTap,
                 onLongPress: session.canResolveWithPerson
               ? notifier.resolveWithPerson
@@ -81,13 +83,15 @@ class ConversaView extends ConsumerWidget {
     );
   }
 
-  String _circleLabel(SalaSessionState session) {
-    if (session.needsPerson) return 'Um momento para uma pessoa';
-    if (session.noteMode) return 'Enviar a pergunta';
+  String _circleLabel(SalaSessionState session, String language) {
+    if (session.needsPerson) return circleLabelFor('needsPerson', language);
+    if (session.noteMode) return circleLabelFor('noteMode', language);
     if (session.peerCue && session.voice == VoiceState.invite) {
-      return 'Conversem entre vocês — tocar quando quiserem me contar';
+      return circleLabelFor('teamTalk', language);
     }
-    if (session.voice == VoiceState.listening) return 'Tocar ao terminar';
-    return 'Tocar para falar';
+    if (session.voice == VoiceState.listening) {
+      return circleLabelFor('listening', language);
+    }
+    return circleLabelFor('default', language);
   }
 }

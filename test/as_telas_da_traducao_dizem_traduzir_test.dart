@@ -6,8 +6,9 @@ const _retroViewPath =
     'lib/features/sala/presentation/widgets/retro_view.dart';
 const _ondeMoraGradePath =
     'lib/features/sala/presentation/widgets/onde_mora_grade.dart';
-const _conversaViewPath =
-    'lib/features/sala/presentation/widgets/conversa_view.dart';
+// The Conversation's line moved out of the view and into the script the circle reads by
+// the room's language (ENG-823); the guard follows the line to where it lives now.
+const _conversaViewPath = 'lib/features/sala/domain/facilitator_script.dart';
 
 const _conversaLine =
     "'Conversem entre vocês — tocar quando quiserem me contar'";

@@ -32,3 +32,29 @@ const handoffLines = ['C0', 'C1'];
 const needsPersonLine = 'E0';
 
 String rotated(List<String> lines, int spoken) => lines[spoken % lines.length];
+
+const circleLabels = {
+  'needsPerson': {
+    'pt': 'Um momento para uma pessoa',
+    'en': 'A moment for someone',
+  },
+  'noteMode': {
+    'pt': 'Enviar a pergunta',
+    'en': 'Send the question',
+  },
+  'teamTalk': {
+    'pt': 'Conversem entre vocês — tocar quando quiserem me contar',
+    'en': 'Talk among yourselves — tap when you want to tell me',
+  },
+  'listening': {
+    'pt': 'Tocar ao terminar',
+    'en': 'Tap when you are done',
+  },
+  'default': {
+    'pt': 'Tocar para falar',
+    'en': 'Tap to speak',
+  },
+};
+
+String circleLabelFor(String state, String language) =>
+    circleLabels[state]![language] ?? circleLabels[state]![floorLanguage]!;
