@@ -83,6 +83,9 @@ void main() {
     );
     await pumpColar(tester, filled);
 
+    expect(find.byType(PingIn), findsNothing,
+        reason: 'a conta assenta pela transição do próprio AnimatedContainer, sem o pulo de escala do PingIn');
+
     await tester.pump(const Duration(milliseconds: 700));
     expect(renderedDecorationAt(tester, 0).gradient, isNot(BeadStyles.wood),
         reason: 'em 700ms a conta já teria assentado — o settle é de 1,3s, não 700ms');
