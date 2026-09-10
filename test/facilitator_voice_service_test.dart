@@ -158,6 +158,23 @@ void main() {
     );
   });
 
+  test('a player that wedges on stop still reports the line as not heard', () async {
+    final player = SpeakingPlayer()..neverStops = true;
+    final voice = service(
+      player: player,
+      grace: const Duration(milliseconds: 30),
+      loadCeiling: const Duration(milliseconds: 30),
+    );
+
+    expect(
+      await voice.play(_clip).timeout(const Duration(seconds: 5)),
+      isFalse,
+      reason: 'o stop() antes da carga e o stop() da desistência corriam sem teto '
+          'contra o mesmo tocador que acabou de falhar; se ele travasse ali, a '
+          'linha nunca era dada como não ouvida',
+    );
+  });
+
   test('a second line actually sounds, instead of riding the first one\'s latch',
       () async {
     final player = SpeakingPlayer();

@@ -102,19 +102,33 @@ class FacilitatorVoiceService {
     // Injectable only so a test can prove the bound without waiting ninety seconds.
     final Duration? length;
     try {
-      await _player.stop();
-      length = await load().timeout(_loadCeiling + _grace);
+      length = await () async {
+        await _player.stop();
+        return load();
+      }()
+          .timeout(_loadCeiling + _grace);
     } on TimeoutException {
-      await stop();
+      await _giveUp();
       return false;
     }
     try {
       await _player.play().timeout((length ?? _unknownLineCeiling) + _grace);
     } on TimeoutException {
-      await stop();
+      await _giveUp();
       return false;
     }
     return _player.processingState == ProcessingState.completed;
+  }
+
+  /// The recovery has a bound too. It runs against the very player that just failed to
+  /// open or finish a file, and a stop that wedges there would keep the line from ever
+  /// being reported as not heard.
+  Future<void> _giveUp() async {
+    try {
+      await stop().timeout(_grace);
+    } on TimeoutException {
+      return;
+    }
   }
   /// The line on disk, downloading it once however many callers ask at the same moment.
   ///

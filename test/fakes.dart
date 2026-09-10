@@ -1537,10 +1537,15 @@ class SpeakingPlayer extends Fake implements AudioPlayer {
     return _sounding!.future;
   }
 
+  /// A stop that never settles, for the player that wedges on the way out.
+  bool neverStops = false;
+
   @override
-  Future<void> stop() async {
+  Future<void> stop() {
+    if (neverStops) return Completer<void>().future;
     _playing = false;
     _quiet();
+    return Future.value();
   }
 
   @override
