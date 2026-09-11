@@ -46,7 +46,7 @@ Future<void> _gravarUmaParte(_Sala it) async {
 }
 
 /// Cut a stretch where the part is playing and tell it back.
-Future<void> _contarUmTrecho(_Sala it, Duration em) async {
+Future<void> _traduzirUmTrecho(_Sala it, Duration em) async {
   final antes = it.estado.btTrechos.length;
   it.harness.playback.at = em;
   it.sala.cortarTrecho();
@@ -80,13 +80,13 @@ Future<_Sala> _aSalaNaPergunta({int lugar = 1}) async {
   await _gravarUmaParte(it);
   it.sala.startRetro();
   await waitFor(
-    'a retrotradução começar a tocar a primeira parte',
+    'a tradução começar a tocar a primeira parte',
     () =>
         it.estado.stage == SalaStage.retro &&
         it.estado.btPhase == BtPhase.playing,
   );
 
-  await _contarUmTrecho(it, const Duration(seconds: 10));
+  await _traduzirUmTrecho(it, const Duration(seconds: 10));
   harness.playback.finishPlayback();
   await waitFor('a primeira parte terminar', () => it.estado.btParteFronteira);
   it.sala.proximaParte();
@@ -94,8 +94,8 @@ Future<_Sala> _aSalaNaPergunta({int lugar = 1}) async {
     'a segunda parte entrar no ar',
     () => !it.estado.btParteFronteira,
   );
-  await _contarUmTrecho(it, const Duration(seconds: 5));
-  await _contarUmTrecho(it, const Duration(seconds: 12));
+  await _traduzirUmTrecho(it, const Duration(seconds: 5));
+  await _traduzirUmTrecho(it, const Duration(seconds: 12));
   harness.playback.finishPlayback();
   await waitFor('o ensaio inteiro terminar', () => it.estado.btClipEnded);
 
@@ -383,7 +383,7 @@ void main() {
 
       it.sala.traduzirDeNovoEmPortugues();
       await waitFor(
-        'o microfone abrir para recontar',
+        'o microfone abrir para traduzir de novo',
         () => it.estado.btPhase == BtPhase.capturing,
       );
       await _entregarAPonte(it);

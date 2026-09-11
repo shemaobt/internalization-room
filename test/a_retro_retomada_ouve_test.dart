@@ -14,7 +14,7 @@ import 'fakes.dart';
 Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) =>
     Future<void>.delayed(delay);
 
-const _contados = BackTranslationProgress(
+const _traduzidos = BackTranslationProgress(
   segments: [
     SegmentView(
       segmentId: 'trecho-1',
@@ -70,7 +70,7 @@ void main() {
     final container = await _reopensInto(
       harness,
       SalaStage.retro,
-      contado: _contados,
+      contado: _traduzidos,
     );
 
     await waitFor('a sala parar como a conversa pararia',
@@ -95,7 +95,7 @@ void main() {
     final container = await _reopensInto(
       harness,
       SalaStage.retro,
-      contado: _contados,
+      contado: _traduzidos,
     );
 
     final state = container.read(salaSessionProvider);

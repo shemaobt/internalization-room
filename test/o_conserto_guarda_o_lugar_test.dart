@@ -67,7 +67,7 @@ Future<void> _gravarUmaParte(_Sala it) async {
 }
 
 /// Cut a stretch where the part is playing and tell it back.
-Future<void> _contarUmTrecho(_Sala it, Duration em) async {
+Future<void> _traduzirUmTrecho(_Sala it, Duration em) async {
   final antes = it.estado.btTrechos.length;
   it.harness.playback.at = em;
   it.sala.cortarTrecho();
@@ -105,11 +105,11 @@ Future<_Sala> _aSalaNaPergunta() async {
   await _gravarUmaParte(it);
   it.sala.startRetro();
   await waitFor(
-    'a retrotradução começar a tocar a primeira parte',
+    'a tradução começar a tocar a primeira parte',
     () => it.estado.stage == SalaStage.retro && it.estado.btPhase == BtPhase.playing,
   );
 
-  await _contarUmTrecho(it, const Duration(seconds: 10));
+  await _traduzirUmTrecho(it, const Duration(seconds: 10));
   harness.playback.finishPlayback();
   await waitFor(
     'a primeira parte terminar',
@@ -120,8 +120,8 @@ Future<_Sala> _aSalaNaPergunta() async {
     'a segunda parte entrar no ar',
     () => !it.estado.btParteFronteira,
   );
-  await _contarUmTrecho(it, const Duration(seconds: 5));
-  await _contarUmTrecho(it, const Duration(seconds: 12));
+  await _traduzirUmTrecho(it, const Duration(seconds: 5));
+  await _traduzirUmTrecho(it, const Duration(seconds: 12));
   harness.playback.finishPlayback();
   await waitFor('o ensaio inteiro terminar', () => it.estado.btClipEnded);
 
@@ -155,10 +155,10 @@ Future<void> _regravarAMaterna(_Sala it) async {
 }
 
 /// The short way, whole: choosing it opens the microphone on the stretch.
-Future<void> _escolherRecontar(_Sala it) async {
+Future<void> _escolherTraduzirDeNovo(_Sala it) async {
   it.sala.traduzirDeNovoEmPortugues();
   await waitFor(
-    'o microfone abrir para recontar',
+    'o microfone abrir para traduzir de novo',
     () => it.estado.btPhase == BtPhase.capturing,
   );
 }
@@ -198,7 +198,7 @@ void main() {
     await _entregarAPonte(it);
 
     expect(_no(it.container, 1).parte, antes.parte,
-        reason: 'e continua no mesmo lugar depois de recontado');
+        reason: 'e continua no mesmo lugar depois de traduzido de novo');
     expect(_desenhados(it.estado), contains(1),
         reason: 'o conserto inteiro passou, e a faixa que a equipe consertou '
             'está onde sempre esteve');
@@ -209,7 +209,7 @@ void main() {
     final aPonteAntiga = _no(it.container, 1).retroPath;
     expect(aPonteAntiga, isNotNull);
 
-    await _escolherRecontar(it);
+    await _escolherTraduzirDeNovo(it);
     await _entregarAPonte(it);
     final aPonteNova = it.harness.recorder.lastPath;
 
@@ -234,7 +234,7 @@ void main() {
     expect(aPonteNova, isNot(aMaterna),
         reason: 'as duas estações gravam arquivos diferentes');
     expect(_no(it.container, 1).retroPath, aPonteNova,
-        reason: 'o caminho longo termina na mesma recontagem que o curto, e a '
+        reason: 'o caminho longo termina na mesma tradução de novo que o curto, e a '
             'ponte que ficou é a que a equipe gravou agora');
     expect(it.estado.btFindingTrecho?.retroPath, aPonteNova);
   });
@@ -244,7 +244,7 @@ void main() {
 
     await _regravarAMaterna(it);
     await _entregarAPonte(it);
-    await _escolherRecontar(it);
+    await _escolherTraduzirDeNovo(it);
     await _entregarAPonte(it);
     final aTerceiraPonte = it.harness.recorder.lastPath;
 
@@ -270,7 +270,7 @@ void main() {
 
     await _regravarAMaterna(it);
     await _entregarAPonte(it);
-    await _escolherRecontar(it);
+    await _escolherTraduzirDeNovo(it);
     await _entregarAPonte(it);
 
     for (final (onde, antes) in [(0, vizinhos[0]), (2, vizinhos[1])]) {

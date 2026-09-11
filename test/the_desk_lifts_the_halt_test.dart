@@ -219,7 +219,7 @@ void main() {
     await settle();
 
     expect(read().needsPerson, isFalse,
-        reason: 'o orçamento de recontagens esgotado é o aviso do ENG-706: uma '
+        reason: 'o orçamento de traduções de novo esgotado é o aviso do ENG-706: uma '
             'pessoa é chamada para olhar e nada é recusado');
 
     final chunks = harness.room.chunksSent;

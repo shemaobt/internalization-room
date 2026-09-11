@@ -130,7 +130,7 @@ void main() {
             'língua-ponte, sem nada na tela dizendo em qual delas falar agora');
   });
 
-  testWidgets('gravando a retrotradução, o círculo é azul', (tester) async {
+  testWidgets('gravando a tradução, o círculo é azul', (tester) async {
     final container = await pumpToPergunta(tester);
 
     await tester.tap(byLabel(micRetro));

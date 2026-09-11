@@ -44,7 +44,7 @@ Future<ProviderContainer> _inRetro(SalaHarness harness) async {
   return container;
 }
 
-Future<void> _contaTrecho(
+Future<void> _traduzTrecho(
   SalaHarness harness,
   SalaSessionNotifier notifier, {
   required Duration em,
@@ -67,12 +67,12 @@ Future<ProviderContainer> _achadoComAvisoAtivo(SalaHarness harness) async {
   final container = await _inRetro(harness);
   final notifier = container.read(salaSessionProvider.notifier);
 
-  await _contaTrecho(harness, notifier, em: const Duration(seconds: 10));
+  await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
   await waitFor(
     'o primeiro trecho chegar à sala',
     () => harness.room.chunksSent == 1,
   );
-  await _contaTrecho(harness, notifier, em: const Duration(seconds: 20));
+  await _traduzTrecho(harness, notifier, em: const Duration(seconds: 20));
   await waitFor(
     'o segundo trecho chegar à sala',
     () => harness.room.chunksSent == 2,
@@ -132,7 +132,7 @@ void main() {
     );
   });
 
-  test('o reconto feito sob aviso chega ao servidor', () async {
+  test('a tradução de novo feita sob aviso chega ao servidor', () async {
     final harness = SalaHarness();
     final container = await _achadoComAvisoAtivo(harness);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -150,7 +150,7 @@ void main() {
       harness.room.replacesAsked.length,
       pedidosAntes + 1,
       reason:
-          'o trecho recontado sob aviso ainda tem de chegar à sala como '
+          'o trecho traduzido de novo sob aviso ainda tem de chegar à sala como '
           'qualquer outro; o aviso não é um teto',
     );
     expect(
@@ -214,7 +214,7 @@ void main() {
     final container = await _inRetro(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await _contaTrecho(harness, notifier, em: const Duration(seconds: 10));
+    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
     await waitFor(
       'o primeiro trecho chegar à sala',
       () => harness.room.chunksSent == 1,
@@ -222,7 +222,7 @@ void main() {
 
     harness.network.reachable = false;
     harness.room.reachable = false;
-    await _contaTrecho(harness, notifier, em: const Duration(seconds: 20));
+    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 20));
     await waitFor(
       'a sala ficar offline',
       () => container.read(salaSessionProvider).offline,
