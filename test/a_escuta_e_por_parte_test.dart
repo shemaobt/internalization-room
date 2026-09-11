@@ -15,9 +15,19 @@ const _aritmeticaGlobal = [
   '_posicaoGlobal',
 ];
 
-/// The methods that write a position into the ledger. Reading it back is not one of them:
-/// the report is drawn against the parts, which is a list and not a place.
-const _escrevemNaEscuta = ['abrir', 'fechar', 'medida', 'inteira'];
+/// Where the ledger is written, and how many times each writer is called. Reading it back
+/// is not one of them: the report is drawn against the parts, which is a list and not a
+/// place.
+///
+/// The count is part of the net. A method losing one of its two call sites is a write the
+/// room stopped doing — holding the rehearsal and letting it run again, say — and a set of
+/// names alone answers that nothing changed.
+const _escrevemNaEscuta = {
+  'abrir': 2,
+  'fechar': 1,
+  'medida': 1,
+  'inteira': 1,
+};
 
 /// Every position the room is allowed to hand the ledger: the player's own answer, the
 /// length a part measured of itself, the length a part was measured at without playing,
@@ -96,13 +106,17 @@ void main() {
         reason: 'se nada chama o registro, esta rede não guarda coisa nenhuma');
 
     expect(
-        chamadas.map((chamada) => chamada.$1).toSet(),
-        containsAll(_escrevemNaEscuta),
-        reason: 'a rede só vale enquanto conhece todos os escritores do '
-            'registro; um método novo passa por ela sem ser visto');
+        {
+          for (final metodo in chamadas.map((chamada) => chamada.$1).toSet())
+            metodo: chamadas.where((chamada) => chamada.$1 == metodo).length,
+        }..removeWhere((metodo, _) => !_escrevemNaEscuta.containsKey(metodo)),
+        _escrevemNaEscuta,
+        reason: 'a rede só vale enquanto conhece cada escritor do registro e '
+            'quantas vezes ele é chamado: um método novo, ou um lugar de '
+            'escrita que sumiu, passaria por ela sem ser visto');
 
     for (final (metodo, argumentos) in chamadas) {
-      if (!_escrevemNaEscuta.contains(metodo)) continue;
+      if (!_escrevemNaEscuta.containsKey(metodo)) continue;
       final posicao = argumentos.last;
       expect(_posicoesLocais, contains(posicao),
           reason: '_escuta.$metodo recebe "$posicao", que não é uma posição '

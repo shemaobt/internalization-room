@@ -16,12 +16,12 @@ Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) async 
 
 /// A tablet opened again on a passage the team was part-way through telling back.
 ///
-/// [contado] is what the room is holding, addressed to the recordings by name:
+/// [traduzido] is what the room is holding, addressed to the recordings by name:
 /// `gravacao-1` is the first part of the rehearsal, `gravacao-2` the second. Both files
 /// are on the tablet, so nothing here is the resume that has to start the room over.
 Future<ProviderContainer> _retomar(
   SalaHarness harness, {
-  required List<SegmentView> contado,
+  required List<SegmentView> traduzido,
   int partes = 1,
 }) async {
   final casa = Directory.systemTemp.createTempSync('sala-retro-no-cursor');
@@ -38,7 +38,7 @@ Future<ProviderContainer> _retomar(
         ),
     ],
   );
-  harness.room.retroSoFar = BackTranslationProgress(segments: contado);
+  harness.room.retroSoFar = BackTranslationProgress(segments: traduzido);
   final container = harness.container();
   addTearDown(container.dispose);
   final notifier = container.read(salaSessionProvider.notifier);
@@ -147,7 +147,7 @@ void main() {
     final harness = SalaHarness()..playback.length = const Duration(seconds: 32);
     final container = await _retomar(
       harness,
-      contado: [_traduzido('gravacao-1', 0, 30000)],
+      traduzido: [_traduzido('gravacao-1', 0, 30000)],
     );
     final notifier = container.read(salaSessionProvider.notifier);
 
@@ -175,7 +175,7 @@ void main() {
     final harness = SalaHarness()..playback.length = const Duration(seconds: 40);
     final container = await _retomar(
       harness,
-      contado: [_traduzido('gravacao-1', 0, 30000)],
+      traduzido: [_traduzido('gravacao-1', 0, 30000)],
     );
     final notifier = container.read(salaSessionProvider.notifier);
 
@@ -205,7 +205,7 @@ void main() {
     final container = await _retomar(
       harness,
       partes: 2,
-      contado: [_traduzido('gravacao-1', 0, 30000)],
+      traduzido: [_traduzido('gravacao-1', 0, 30000)],
     );
 
     await waitFor(
@@ -226,7 +226,7 @@ void main() {
     final container = await _retomar(
       harness,
       partes: 2,
-      contado: [_traduzido('gravacao-1', 0, 12000)],
+      traduzido: [_traduzido('gravacao-1', 0, 12000)],
     );
     final notifier = container.read(salaSessionProvider.notifier);
 
@@ -246,7 +246,7 @@ void main() {
     final container = await _retomar(
       harness,
       partes: 2,
-      contado: [
+      traduzido: [
         _traduzido('gravacao-1', 0, 12000),
         _traduzido('gravacao-2', 0, 10000),
       ],
@@ -269,7 +269,7 @@ void main() {
     final harness = SalaHarness();
     final container = await _retomar(
       harness,
-      contado: [_traduzido('gravacao-1', 0, 30000)],
+      traduzido: [_traduzido('gravacao-1', 0, 30000)],
     );
     final notifier = container.read(salaSessionProvider.notifier);
     await settle();
@@ -296,7 +296,7 @@ void main() {
       ..playback.length = const Duration(seconds: 30);
     final container = await _retomar(
       harness,
-      contado: [_traduzido('gravacao-1', 0, 30000)],
+      traduzido: [_traduzido('gravacao-1', 0, 30000)],
     );
     final notifier = container.read(salaSessionProvider.notifier);
 
@@ -343,7 +343,7 @@ void main() {
       final harness = SalaHarness()..playback.length = const Duration(seconds: 40);
       final container = await _retomar(
         harness,
-        contado: [_traduzido('gravacao-1', 0, 30000)],
+        traduzido: [_traduzido('gravacao-1', 0, 30000)],
       );
       final notifier = container.read(salaSessionProvider.notifier);
 
@@ -360,7 +360,7 @@ void main() {
         ..playback.length = const Duration(seconds: 30);
       final container = await _retomar(
         harness,
-        contado: [_traduzido('gravacao-1', 0, 30000)],
+        traduzido: [_traduzido('gravacao-1', 0, 30000)],
       );
       final notifier = container.read(salaSessionProvider.notifier);
       await waitFor(
@@ -380,7 +380,7 @@ void main() {
       final harness = SalaHarness();
       final container = await _retomar(
         harness,
-        contado: [_traduzido('gravacao-1', 0, 30000)],
+        traduzido: [_traduzido('gravacao-1', 0, 30000)],
       );
       final notifier = container.read(salaSessionProvider.notifier);
 
@@ -395,7 +395,7 @@ void main() {
       final container = await _retomar(
         harness,
         partes: 2,
-        contado: [_traduzido('gravacao-1', 0, 30000)],
+        traduzido: [_traduzido('gravacao-1', 0, 30000)],
       );
       final notifier = container.read(salaSessionProvider.notifier);
       await waitFor(
@@ -415,7 +415,7 @@ void main() {
       final container = await _retomar(
         harness,
         partes: 2,
-        contado: [
+        traduzido: [
           _traduzido('gravacao-1', 0, 12000),
           _traduzido('gravacao-2', 0, 10000),
         ],
@@ -436,7 +436,7 @@ void main() {
       final harness = SalaHarness();
       final container = await _retomar(
         harness,
-        contado: [_traduzido('gravacao-1', 0, 30000)],
+        traduzido: [_traduzido('gravacao-1', 0, 30000)],
       );
       final notifier = container.read(salaSessionProvider.notifier);
       notifier.ouvirGravacao();
@@ -454,7 +454,7 @@ void main() {
       final harness = SalaHarness();
       final container = await _retomar(
         harness,
-        contado: [_traduzido('gravacao-1', 0, 30000)],
+        traduzido: [_traduzido('gravacao-1', 0, 30000)],
       );
       final notifier = container.read(salaSessionProvider.notifier);
       harness.playback.at = const Duration(seconds: 44);

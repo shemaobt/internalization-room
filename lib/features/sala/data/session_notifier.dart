@@ -5,8 +5,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/env.dart';
-import '../domain/escuta_das_partes.dart';
 import '../domain/bt_finding.dart';
+import '../domain/escuta_das_partes.dart';
 import '../domain/facilitator_script.dart';
 import '../domain/hand_reply.dart';
 import '../domain/kept_take.dart';
@@ -2394,15 +2394,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// A part nobody has told back has its cursor at nought, so this is the ordinary start
   /// for every part of a rehearsal being told back for the first time.
   ///
-  /// What is reported as heard is **not** moved with it: the heard range still opens at
-  /// the part's own beginning. The room's gate reads `played_ranges` as what the team has
-  /// heard of this rehearsal, across every round — it wants a cover from nought to the
-  /// end of the clip, it refuses an empty report, and it keeps only the last report sent,
-  /// so nothing an earlier round said is still standing. The ground this part was told
-  /// back on *was* heard, in the round that told it; this is the same truth
-  /// [_playFromTheUntoldGround] tells about the parts it steps over, and the app is the
-  /// only one who can tell it. Reporting from the cursor left the picked-up part's own
-  /// beginning uncovered and the finish was refused.
+  /// What is reported as heard is **not** moved with it: the heard span still opens at the
+  /// part's own nought. The room's gate asks of each part what the team has heard of *that
+  /// part*, across every round — it wants a cover from nought to the end of that part, it
+  /// refuses a part reported empty, and it keeps only the last report sent, so nothing an
+  /// earlier round said is still standing. The ground this part was told back on *was*
+  /// heard, in the round that told it; this is the same truth [_playFromTheUntoldGround]
+  /// tells about the parts it steps over, and the app is the only one who can tell it.
+  /// Opening at the cursor left the picked-up part's own beginning uncovered and the
+  /// finish was refused.
   void _tocarParteDaRetro(int parte) {
     _parteTocando = parte;
     _trechoStart = _ondeParouNesteArquivo(parte);
@@ -2431,8 +2431,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _fimDeParte() {
     // The part's own length, not where the player says it stopped. A position read at the
     // moment a clip finishes can come back as nought, and every offset after it — every
-    // stretch the team tells back, and the length of the whole rehearsal — was measured
-    // from there. A three-part rehearsal reported itself as one part long.
+    // stretch the team tells back, and the length this part is measured against — was
+    // measured from there. A three-part rehearsal reported itself as one part long.
     final medido = _playback.playingLength?.inMilliseconds ??
         _playback.position.inMilliseconds;
     final arquivo = _arquivoNoAr;

@@ -55,9 +55,9 @@ Future<void> _gravarUmaParte(_Sala it) async {
   });
 }
 
-/// Tell the part in the air back whole: the cut is made at its end, so what the team heard
+/// Translate the part in the air whole: the cut is made at its end, so what the team heard
 /// of it runs from its own nought to its own length.
-Future<void> _ouvirEContarAParteInteira(_Sala it, Duration quanto) async {
+Future<void> _ouvirETraduzirAParteInteira(_Sala it, Duration quanto) async {
   final antes = it.estado.btTrechos.length;
   it.harness.playback.length = quanto;
   it.harness.playback.at = quanto;
@@ -109,7 +109,7 @@ Future<_Sala> _aSalaNaPergunta() async {
   );
 
   for (var onde = 0; onde < _partes.length; onde++) {
-    await _ouvirEContarAParteInteira(it, _partes[onde]);
+    await _ouvirETraduzirAParteInteira(it, _partes[onde]);
     if (onde < _partes.length - 1) {
       it.sala.proximaParte();
       await waitFor(
@@ -161,7 +161,74 @@ Future<void> _consertarPeloCaminhoLongo(_Sala it) async {
   it.harness.playback.lengths[it.parteDois.path] = _aComposta;
 }
 
+/// Play the rehearsal through from wherever it stands, crossing whatever part boundaries
+/// are left. Each part answers with its own length, the way the tablet measures one.
+Future<void> _ouvirOEnsaioInteiro(_Sala it) async {
+  while (!it.estado.btClipEnded) {
+    final noAr = it.harness.playback.played.last;
+    final quanto = it.harness.playback.lengths[noAr]!;
+    it.harness.playback.length = quanto;
+    it.harness.playback.at = quanto;
+    it.harness.playback.finishPlayback();
+    await waitFor(
+      'a parte terminar',
+      () => it.estado.btParteFronteira || it.estado.btClipEnded,
+    );
+    if (it.estado.btClipEnded) break;
+    it.sala.proximaParte();
+    await waitFor(
+      'a parte seguinte entrar no ar',
+      () => !it.estado.btParteFronteira,
+    );
+  }
+}
+
 void main() {
+  test('segurar a gravação no meio de uma parte não parte a escuta dela',
+      () async {
+    final harness = SalaHarness()..playback.length = const Duration(seconds: 10);
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final it = _Sala(harness, container);
+
+    await it.sala.goConversa(pericope: 'P01');
+    await waitFor('a sala abrir', () => it.estado.sessionId != null);
+    it.sala.goEnsaio();
+    await _gravarUmaParte(it);
+    it.sala.startRetro();
+    await waitFor(
+      'a tradução começar a tocar',
+      () =>
+          it.estado.stage == SalaStage.retro &&
+          it.estado.btPhase == BtPhase.playing,
+    );
+
+    harness.playback.at = const Duration(seconds: 4);
+    it.sala.ouvirGravacao();
+    await waitFor('a gravação parar', () => !it.estado.btClipRodando);
+    it.sala.ouvirGravacao();
+    await waitFor('a gravação voltar', () => it.estado.btClipRodando);
+    harness.playback.finishPlayback();
+    await waitFor('a gravação acabar', () => it.estado.btClipEnded);
+    await it.sala.finishBackTranslation();
+    await waitFor(
+      'a sala voltar do veredito',
+      () => it.estado.btPhase != BtPhase.thinking,
+    );
+
+    expect(harness.room.playedByTakeSent.last, [
+      {
+        'take_id': harness.room.takeIds.single,
+        'played_ranges': [
+          [0, 10000]
+        ],
+        'clip_duration_ms': 10000,
+      },
+    ], reason: 'a equipe segurou o ensaio uma vez e deixou correr até o fim: '
+        'esquecer de reabrir a escuta ao soltar relata a parte até a pausa e o '
+        'portão nunca mais deixa a passagem sair');
+  });
+
   test('a escuta das partes vizinhas sobrevive ao conserto de uma delas',
       () async {
     final it = await _aSalaNaPergunta();
@@ -220,5 +287,42 @@ void main() {
     ], reason: 'a parte refeita é outro arquivo e a escuta dela recomeça do '
         'zero; a escuta das vizinhas não tem por que ir junto, e era isso que '
         'um relato só sobre a passagem colada jogava fora');
+
+    it.sala.startRetro();
+    await waitFor(
+      'a tradução voltar ao ar',
+      () =>
+          it.estado.stage == SalaStage.retro &&
+          it.estado.btPhase == BtPhase.playing &&
+          it.harness.playback.played.isNotEmpty,
+    );
+    await _ouvirOEnsaioInteiro(it);
+    await _pedirOVeredito(it);
+
+    expect(it.harness.room.playedByTakeSent.last, [
+      {
+        'take_id': gravacoes[0],
+        'played_ranges': [
+          [0, 10000]
+        ],
+        'clip_duration_ms': 10000,
+      },
+      {
+        'take_id': _composta,
+        'played_ranges': [
+          [0, 5000]
+        ],
+        'clip_duration_ms': 5000,
+      },
+      {
+        'take_id': gravacoes[2],
+        'played_ranges': [
+          [0, 12000]
+        ],
+        'clip_duration_ms': 12000,
+      },
+    ], reason: 'ouvida, a parte refeita é relatada com o nome da composta e o '
+        'tamanho dela: a escuta é rechaveada no arquivo que a parte virou, e '
+        'os oito segundos do arquivo que ela substituiu não vêm junto');
   });
 }
