@@ -1112,7 +1112,7 @@ class FakeRoom implements RoomRepository {
   @override
   Future<BackTranslationVerdict> finishBackTranslation(
     String sessionId, {
-    required List<PlayedByTake> playedByTake,
+    required List<PlayedTake> playedByTake,
   }) async {
     duranteOVeredito?.call();
     final refusal = failFinishWith;

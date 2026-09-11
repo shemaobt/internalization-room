@@ -1,12 +1,12 @@
 import 'kept_take.dart';
 
 /// What the team heard of one part of its rehearsal, in that part's own milliseconds.
-class PlayedByTake {
+class PlayedTake {
   final String takeId;
   final List<List<int>> playedRanges;
   final int clipDurationMs;
 
-  const PlayedByTake({
+  const PlayedTake({
     required this.takeId,
     required this.playedRanges,
     required this.clipDurationMs,
@@ -85,12 +85,12 @@ class EscutaDasPartes {
   /// The spans are sorted and joined the way the gate joins them to read, so what the room
   /// sends is what it means: the reach of the listening, not the order the team wandered
   /// in.
-  List<PlayedByTake> relato(List<KeptTake> partes) => [
+  List<PlayedTake> relato(List<KeptTake> partes) => [
         for (final parte in partes)
           if (parte.takeId case final nome?)
             if (_partes[parte.path] case final escutada?)
               if (escutada.faixas.isNotEmpty)
-                PlayedByTake(
+                PlayedTake(
                   takeId: nome,
                   playedRanges: _unidas(escutada.faixas),
                   clipDurationMs: escutada.medida,

@@ -383,7 +383,7 @@ class RoomRepository {
 
   Future<BackTranslationVerdict> finishBackTranslation(
     String sessionId, {
-    required List<PlayedByTake> playedByTake,
+    required List<PlayedTake> playedByTake,
   }) async {
     final response = await _send(
       () => _client.post(

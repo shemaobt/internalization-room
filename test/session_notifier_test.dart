@@ -3009,7 +3009,7 @@ void main() {
     expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
   });
 
-  test('terminei sums every part the team heard', () async {
+  test('terminei names every part the team heard, one entry each', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
     final notifier = container.read(salaSessionProvider.notifier);

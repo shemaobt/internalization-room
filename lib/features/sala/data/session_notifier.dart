@@ -2309,12 +2309,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _fimDaParteMs.add(_inicioDaParteMs(parte) + medido);
   }
 
-  /// The file the part in the air was kept as, or null while no part is.
-  String? get _arquivoNoAr {
-    final partes = state.partes;
-    if (_parteTocando < 0 || _parteTocando >= partes.length) return null;
-    return partes[_parteTocando].path;
-  }
 
   /// How far into this recording the telling-back already got.
   ///
@@ -2352,7 +2346,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _seguirOClipe() {
     _desdeMs = _playback.position.inMilliseconds;
-    final arquivo = _arquivoNoAr;
+    final arquivo = _parteNoAr?.path;
     if (arquivo != null) _escuta.abrir(arquivo, _playback.position.inMilliseconds);
     state = state.copyWith(btClipRodando: true);
     _letTheClipRun();
@@ -2368,7 +2362,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     var ondeParou = state.btOuvidoMs;
     if (state.btClipRodando) {
       final fim = ate ?? _playback.position.inMilliseconds;
-      final arquivo = _arquivoNoAr;
+      final arquivo = _parteNoAr?.path;
       if (arquivo != null) _escuta.fechar(arquivo, fim);
       ondeParou = _pontoNoColar(fim > _desdeMs ? fim : _desdeMs);
     }
@@ -2435,7 +2429,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // measured from there. A three-part rehearsal reported itself as one part long.
     final medido = _playback.playingLength?.inMilliseconds ??
         _playback.position.inMilliseconds;
-    final arquivo = _arquivoNoAr;
+    final arquivo = _parteNoAr?.path;
     if (arquivo != null) _escuta.medida(arquivo, medido);
     _marcarOFimDaParte(_parteTocando, medido);
     _pararOClipe(ate: medido);
@@ -2844,7 +2838,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
 
-    final gravacao = _aGravacaoNoAr;
+    final gravacao = _parteNoAr?.takeId;
     if (gravacao == null) {
       // A stretch is a slice of a recording the room can name, and it cannot name one it
       // has never received — but the recording itself did reach this tablet, and the
@@ -2940,15 +2934,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  /// The name the room gave the recording playing now, or null while it has none.
+  /// The part in the air, or null while no part is.
   ///
-  /// Adopted when the upload lands, never fetched here: reading it now would put a disk
-  /// read in the middle of telling a stretch back, and the answer would be no fresher
-  /// than the one already beside the file.
-  String? get _aGravacaoNoAr {
+  /// Its name was adopted when the upload landed and is never fetched here: reading it now
+  /// would put a disk read in the middle of telling a stretch back, and the answer would
+  /// be no fresher than the one already beside the file.
+  KeptTake? get _parteNoAr {
     final partes = state.partes;
     if (_parteTocando < 0 || _parteTocando >= partes.length) return null;
-    return partes[_parteTocando].takeId;
+    return partes[_parteTocando];
   }
 
   /// Where the stretch just told sits in the row, counting the ones that failed.

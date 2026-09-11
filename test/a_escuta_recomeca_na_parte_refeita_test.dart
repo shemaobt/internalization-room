@@ -161,8 +161,15 @@ Future<void> _consertarPeloCaminhoLongo(_Sala it) async {
   it.harness.playback.lengths[it.parteDois.path] = _aComposta;
 }
 
-/// Play the rehearsal through from wherever it stands, crossing whatever part boundaries
-/// are left. Each part answers with its own length, the way the tablet measures one.
+/// Carry the rehearsal to its end from wherever it stands, crossing whatever part
+/// boundaries are left. Each part answers with its own length, the way the tablet measures
+/// one.
+///
+/// Only the parts the room actually puts in the air are played: entering the telling-back
+/// again steps over every part already told back whole, and marks those heard without
+/// playing them. That is the only way this test can reach a rebuilt part at all — **no
+/// gesture takes the team back to a part the room has not heard**, which is ENG-890's
+/// job, and until it lands the rebuilt part is reported by the step-over or not at all.
 Future<void> _ouvirOEnsaioInteiro(_Sala it) async {
   while (!it.estado.btClipEnded) {
     final noAr = it.harness.playback.played.last;
@@ -229,8 +236,9 @@ void main() {
         'portão nunca mais deixa a passagem sair');
   });
 
-  test('a escuta das partes vizinhas sobrevive ao conserto de uma delas',
-      () async {
+  test(
+      'a escuta das vizinhas sobrevive ao conserto, e a parte refeita volta '
+      'ao relato com o nome e o tamanho da composta', () async {
     final it = await _aSalaNaPergunta();
     await _pedirOVeredito(it);
 
@@ -321,8 +329,9 @@ void main() {
         ],
         'clip_duration_ms': 12000,
       },
-    ], reason: 'ouvida, a parte refeita é relatada com o nome da composta e o '
-        'tamanho dela: a escuta é rechaveada no arquivo que a parte virou, e '
-        'os oito segundos do arquivo que ela substituiu não vêm junto');
+    ], reason: 'entrando de novo na tradução, o salto marca a parte refeita '
+        'como ouvida com o nome da composta e o tamanho dela: a escuta é '
+        'rechaveada no arquivo que a parte virou, e os oito segundos do '
+        'arquivo que ela substituiu não vêm junto');
   });
 }

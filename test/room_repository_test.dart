@@ -346,14 +346,14 @@ void main() {
     addTearDown(repository.dispose);
 
     await repository.finishBackTranslation('sessao-1', playedByTake: const [
-      PlayedByTake(
+      PlayedTake(
         takeId: 'gravacao-1',
         playedRanges: [
           [0, 10000]
         ],
         clipDurationMs: 10000,
       ),
-      PlayedByTake(
+      PlayedTake(
         takeId: 'gravacao-2',
         playedRanges: [
           [0, 8000]

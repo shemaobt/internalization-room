@@ -174,7 +174,7 @@ void main() {
             'errado');
   });
 
-  test('what was heard is still measured over the whole clip', () async {
+  test('what was heard of each part is measured against that part', () async {
     final harness = SalaHarness()..playback.length = const Duration(seconds: 10);
     final container = await _inRetro(harness, partes: 2);
     final notifier = container.read(salaSessionProvider.notifier);
