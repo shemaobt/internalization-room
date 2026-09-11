@@ -19,7 +19,7 @@ import 'session_notifier.dart';
 /// cadence, which is slow enough that a tablet waiting all afternoon is not a load and fast
 /// enough that the facilitator has walked back to the table by the time it lands.
 ///
-/// Nullable like `beckonIntervalProvider`, and for its reason: a widget test that ends with
+/// Nullable like `busyStateCeilingProvider`, and for its reason: a widget test that ends with
 /// a timer still armed fails on the pending timer rather than on what it was looking at.
 final linkPollIntervalProvider = Provider<Duration?>(
   (ref) => const Duration(seconds: 30),

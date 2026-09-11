@@ -26,6 +26,6 @@ Every seam below is a provider, and every one of them is overridden in the suite
 ## Timing and escalation
 
 Timing is not hard-coded; it lives in providers so the suite can shrink it. They govern
-how late a bead settles, how often the room beckons for a person, how long the room may
-show itself busy, the ceiling on a playback wait, the grace after a clip, the backoff
+how late a bead settles, how long the room may show itself busy, the ceiling on a
+playback wait, the grace after a clip, the backoff
 between retries, and how long the Closing lingers before the wheel reopens.

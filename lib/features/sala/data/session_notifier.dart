@@ -103,10 +103,6 @@ final roomLanguageProvider = Provider<String>((ref) {
   );
 });
 
-final beckonIntervalProvider = Provider<Duration?>(
-  (ref) => const Duration(seconds: 25),
-);
-
 final fimLingerProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 14),
 );
@@ -700,7 +696,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     state = state.copyWith(voice: VoiceState.invite, peerCue: false);
-    beckon();
   }
 
   void _registerRoomFailure() {
@@ -711,7 +706,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     state = state.copyWith(voice: VoiceState.invite, peerCue: false);
-    beckon();
   }
 
   void _watchBusyState() {
@@ -817,7 +811,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     } else if (state.stage == SalaStage.convite &&
         state.conviteStep == ConviteStep.boasVindas) {
       _conviteOpened = false;
-      beckon();
     } else if (state.sessionId == null && state.stage == SalaStage.conversa) {
       unawaited(goConversa(pericope: _emCurso));
     }
@@ -865,8 +858,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(voice: VoiceState.invite);
     if (state.sessionId == null && state.stage == SalaStage.conversa) {
       unawaited(goConversa(pericope: _emCurso));
-    } else {
-      beckon();
     }
   }
 
@@ -926,31 +917,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  /// Open the room: invite the team the first time, and go straight to the passages
-  /// after that. The panorama belongs to a book, not to a launch.
+  /// Open the room: go straight to the passages if the book was already opened on this
+  /// tablet. The panorama belongs to a book, not to a launch. Otherwise the room says
+  /// nothing and waits for the touch that opens the convite.
   Future<void> openTheRoom() async {
     if (state.stage != SalaStage.convite) return;
     if (state.conviteStep != ConviteStep.boasVindas) return;
     if (await _feitas.bookOpened(_book)) {
       await abrirEscolha();
-      return;
     }
-    beckon();
-  }
-
-  void beckon() {
-    if (state.stage != SalaStage.convite) return;
-    if (state.conviteStep != ConviteStep.boasVindas) return;
-    if (_conviteOpened || state.offline || state.needsPerson) return;
-    unawaited(_voice.playAsset(inviteToStartAsset(_lingua)));
-    final again = ref.read(beckonIntervalProvider);
-    if (again != null) _after('beckon', again, beckon);
   }
 
   Future<void> openConvite() async {
     if (state.stage != SalaStage.convite || _conviteOpened) return;
     _conviteOpened = true;
-    _timers.remove('beckon')?.cancel();
     final epoch = _epoch;
     state = state.copyWith(voice: VoiceState.thinking);
     _watchBusyState();
@@ -1009,7 +989,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!played) {
       _conviteOpened = false;
       _registerUnplayableTurn();
-      beckon();
       return;
     }
     _unplayableTurns = 0;

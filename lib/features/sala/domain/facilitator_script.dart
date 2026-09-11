@@ -9,9 +9,6 @@ String languageFor(Iterable<String> spoken) => spoken
 String offlineNoticeAsset(String language) =>
     'assets/audio/$language/sem_conexao.mp3';
 
-String inviteToStartAsset(String language) =>
-    'assets/audio/$language/toque_para_comecar.mp3';
-
 String micBlockedAsset(String language) =>
     'assets/audio/$language/microfone.mp3';
 

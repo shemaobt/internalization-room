@@ -1402,7 +1402,6 @@ class SalaHarness {
   final FakeLinkedTeam vinculo;
   final Duration settleDelay;
   final List<Duration> retryBackoff;
-  final Duration? beckonInterval;
   final Duration? busyCeiling;
   final Duration? playbackCeiling;
   final Duration clipGrace;
@@ -1424,7 +1423,6 @@ class SalaHarness {
     this.linkPoll,
     this.settleDelay = const Duration(milliseconds: 60),
     this.retryBackoff = const [Duration(milliseconds: 20)],
-    this.beckonInterval,
     this.busyCeiling,
     this.playbackCeiling,
     this.clipGrace = const Duration(seconds: 10),
@@ -1468,7 +1466,6 @@ class SalaHarness {
         screenAwakeProvider.overrideWithValue(awake),
         beadSettleDelayProvider.overrideWithValue(settleDelay),
         roomRetryBackoffProvider.overrideWithValue(retryBackoff),
-        beckonIntervalProvider.overrideWithValue(beckonInterval),
         busyStateCeilingProvider.overrideWithValue(busyCeiling),
         playbackCeilingProvider.overrideWithValue(playbackCeiling),
         clipGraceProvider.overrideWithValue(clipGrace),
