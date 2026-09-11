@@ -64,7 +64,7 @@ Future<void> _gravarUmaParte(_Sala it) async {
 }
 
 /// Cut a stretch where the part is playing and tell it back.
-Future<void> _contarUmTrecho(_Sala it, Duration em) async {
+Future<void> _traduzirUmTrecho(_Sala it, Duration em) async {
   final antes = it.estado.btTrechos.length;
   it.harness.playback.at = em;
   it.sala.cortarTrecho();
@@ -117,14 +117,14 @@ Future<_Sala> _aSalaNaPergunta({required int apontado}) async {
 
   it.sala.startRetro();
   await waitFor(
-    'a retrotradução começar a tocar a primeira parte',
+    'a tradução começar a tocar a primeira parte',
     () => it.estado.stage == SalaStage.retro && it.estado.btPhase == BtPhase.playing,
   );
 
-  await _contarUmTrecho(it, const Duration(seconds: 6));
-  await _contarUmTrecho(it, _umaParte);
+  await _traduzirUmTrecho(it, const Duration(seconds: 6));
+  await _traduzirUmTrecho(it, _umaParte);
   await _atravessarAFronteira(it);
-  await _contarUmTrecho(it, const Duration(seconds: 8));
+  await _traduzirUmTrecho(it, const Duration(seconds: 8));
   harness.playback.finishPlayback();
   await waitFor('o ensaio inteiro terminar', () => it.estado.btClipEnded);
 
@@ -158,10 +158,10 @@ Future<void> _regravarAMaterna(_Sala it) async {
 }
 
 /// The short way, whole: choosing it opens the microphone on the stretch.
-Future<void> _escolherRecontar(_Sala it) async {
+Future<void> _escolherTraduzirDeNovo(_Sala it) async {
   it.sala.traduzirDeNovoEmPortugues();
   await waitFor(
-    'o microfone abrir para recontar',
+    'o microfone abrir para traduzir de novo',
     () => it.estado.btPhase == BtPhase.capturing,
   );
 }
@@ -200,7 +200,7 @@ Future<void> _retomar(_Sala it) async {
   );
   await it.sala.goConversa(pericope: 'P01');
   await waitFor(
-    'a retrotradução ser retomada e voltar ao ar',
+    'a tradução ser retomada e voltar ao ar',
     () =>
         it.estado.stage == SalaStage.retro &&
         it.estado.btPhase == BtPhase.playing &&
@@ -273,7 +273,7 @@ void main() {
       partes[1],
       reason: 'a primeira parte está contada de ponta a ponta; a sala tem de '
           'voltar no primeiro chão que ninguém contou, que está na segunda. '
-          'Recomeçar a primeira faz a equipe contar de novo o que já contou, '
+          'Recomeçar a primeira faz a equipe traduzir de novo o que já contou, '
           'e o analista lê a passagem duas vezes',
     );
   });
@@ -285,7 +285,7 @@ void main() {
     await _retomar(it);
 
     final antes = it.harness.room.chunksSent;
-    await _contarUmTrecho(it, const Duration(seconds: 12));
+    await _traduzirUmTrecho(it, const Duration(seconds: 12));
 
     expect(it.harness.room.chunksSent, antes + 1);
     expect(
@@ -307,14 +307,14 @@ void main() {
     final it = await _aSalaNaPergunta(apontado: 0);
     final antes = _no(it.container, 0);
 
-    await _escolherRecontar(it);
+    await _escolherTraduzirDeNovo(it);
     await _entregarAPonte(it);
 
     final depois = _no(it.container, 0);
     expect(
       [depois.parte, depois.lugarFrom, depois.lugarTo, depois.from, depois.to],
       [antes.parte, antes.lugarFrom, antes.lugarTo, antes.from, antes.to],
-      reason: 'recontar em português troca a explicação e mais nada: nem o '
+      reason: 'traduzir de novo em português troca a explicação e mais nada: nem o '
           'áudio que toca nem o lugar onde ele mora se mexem',
     );
   });

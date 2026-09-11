@@ -33,7 +33,7 @@ void main() {
     final harness = SalaHarness();
     final container = await aRetomadaNoEnsaio(
       harness,
-      contadasAte: [30000, 30000],
+      traduzidasAte: [30000, 30000],
     );
     final notifier = container.read(salaSessionProvider.notifier);
 
@@ -132,7 +132,7 @@ void main() {
     final harness = SalaHarness();
     final container = await aRetomadaNoEnsaio(
       harness,
-      contadasAte: [30000, 30000],
+      traduzidasAte: [30000, 30000],
     );
     final notifier = container.read(salaSessionProvider.notifier);
 
@@ -185,7 +185,7 @@ void main() {
     final harness = SalaHarness();
     final container = await aRetomadaNoEnsaio(
       harness,
-      contadasAte: [30000, 30000],
+      traduzidasAte: [30000, 30000],
     );
     final notifier = container.read(salaSessionProvider.notifier);
 

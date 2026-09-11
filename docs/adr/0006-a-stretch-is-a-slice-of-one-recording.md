@@ -21,4 +21,7 @@ on the concatenated **Passage**. Times relative to a file that never changes nev
 One **Stretch** can be corrected without moving the ones after it, which is what makes the
 **Mend** a local act at all. The concatenated view still exists, but only as a drawing
 transform applied when the **Necklace** is painted; nothing stores it. What the room reports
-as heard, and the length it measures a clip against, remain the **Rehearsal** end to end.
+as heard, and the length it measures a clip against, are the **Part**'s own: one report per
+part, in that part's own milliseconds, because a part is the unit a team re-records and a
+number measured over the parts glued together stops describing anything the moment one of
+them changes length (ENG-887).

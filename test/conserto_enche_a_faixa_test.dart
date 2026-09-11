@@ -94,7 +94,7 @@ Future<void> _escolherRegravarAMaterna(WidgetTester tester) async {
 }
 
 /// The short way, which opens the microphone on the stretch straight away.
-Future<void> _escolherRecontar(WidgetTester tester) async {
+Future<void> _escolherTraduzirDeNovo(WidgetTester tester) async {
   await tester.tap(_byLabel(_micRetro));
   await tester.pump(const Duration(milliseconds: 300));
 }
@@ -113,7 +113,7 @@ Future<void> _gravarAMaterna(
 }
 
 /// The microphone is open on the stretch; this is the team handing the telling over.
-Future<void> _entregarOContar(
+Future<void> _entregarATraducao(
   WidgetTester tester,
   ProviderContainer container,
 ) async {
@@ -149,13 +149,13 @@ void main() {
             'enchimento não pode estar vindo de resposta nenhuma');
   });
 
-  testWidgets('a faixa enche ao escolher recontar só na língua-ponte',
+  testWidgets('a faixa enche ao escolher traduzir de novo só na língua-ponte',
       (tester) async {
     final container = await _pumpToPergunta(tester);
     final harness = _harnessDaVez!;
     final pedidos = harness.room.calls.length;
 
-    await _escolherRecontar(tester);
+    await _escolherTraduzirDeNovo(tester);
 
     expect(_faixasVazias(tester, container), isEmpty,
         reason: 'os dois caminhos vivos precisam concordar: consertar é '
@@ -176,7 +176,7 @@ void main() {
     await letTheRehearsalReachTheRoom(tester);
     await tester.pump(const Duration(milliseconds: 400));
     final naSegundaEstacao = _faixasVazias(tester, container);
-    await _entregarOContar(tester, container);
+    await _entregarATraducao(tester, container);
     final entregue = _faixasVazias(tester, container);
 
     expect(
@@ -192,10 +192,10 @@ void main() {
     final container = await _pumpToPergunta(tester);
     final harness = _harnessDaVez!;
 
-    await _escolherRecontar(tester);
+    await _escolherTraduzirDeNovo(tester);
     expect(_faixasVazias(tester, container), isEmpty);
     harness.recorder.returnsEmpty = true;
-    await _entregarOContar(tester, container);
+    await _entregarATraducao(tester, container);
 
     expect(container.read(salaSessionProvider).needsPerson, isTrue,
         reason: 'gravação sem um byte dentro é o caminho que para para uma '
@@ -211,10 +211,10 @@ void main() {
     final container = await _pumpToPergunta(tester);
     final harness = _harnessDaVez!;
 
-    await _escolherRecontar(tester);
+    await _escolherTraduzirDeNovo(tester);
     expect(_faixasVazias(tester, container), isEmpty);
     harness.room.failReplaceWith = const RoomRefused();
-    await _entregarOContar(tester, container);
+    await _entregarATraducao(tester, container);
 
     expect(_faixasVazias(tester, container), [0],
         reason: 'a sala recusou o conserto, então ele não aconteceu');
@@ -226,10 +226,10 @@ void main() {
     final container = await _pumpToPergunta(tester);
     final harness = _harnessDaVez!;
 
-    await _escolherRecontar(tester);
+    await _escolherTraduzirDeNovo(tester);
     expect(_faixasVazias(tester, container), isEmpty);
     harness.room.replaceCaptured = false;
-    await _entregarOContar(tester, container);
+    await _entregarATraducao(tester, container);
 
     expect(_faixasVazias(tester, container), [0],
         reason: 'a sala não fez nada com o que subiu — este ramo não recusa nem '
@@ -242,10 +242,10 @@ void main() {
     final container = await _pumpToPergunta(tester);
     final harness = _harnessDaVez!;
 
-    await _escolherRecontar(tester);
+    await _escolherTraduzirDeNovo(tester);
     expect(_faixasVazias(tester, container), isEmpty);
     harness.recorder.returnsNothing = true;
-    await _entregarOContar(tester, container);
+    await _entregarATraducao(tester, container);
 
     expect(harness.room.replacesAsked, isEmpty,
         reason: 'sem arquivo não há o que subir — se subir, este cenário deixou '
@@ -314,7 +314,7 @@ void main() {
     );
     final harness = _harnessDaVez!;
 
-    await _escolherRecontar(tester);
+    await _escolherTraduzirDeNovo(tester);
     expect(_faixasVazias(tester, container), isEmpty);
     // The one hang the ladder never sees: the room's own watchdog gives up on a busy
     // state, and it is not a room failure — it is this tablet deciding the wait is over.
@@ -373,7 +373,7 @@ void main() {
     harness.room.verdictFindingPlace = 0;
     await _escolherRegravarAMaterna(tester);
     await _gravarAMaterna(tester, container);
-    await _entregarOContar(tester, container);
+    await _entregarATraducao(tester, container);
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 200));
     await _notifier(container).finishBackTranslation();
@@ -399,7 +399,7 @@ void main() {
 
     await _escolherRegravarAMaterna(tester);
     await _gravarAMaterna(tester, container);
-    await _entregarOContar(tester, container);
+    await _entregarATraducao(tester, container);
 
     // Where the bands sit, which the drained-places reading cannot see: it answers which
     // stretch is waiting, not how much cord each one covers. A mend that moved its

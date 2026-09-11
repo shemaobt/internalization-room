@@ -109,7 +109,7 @@ void main() {
       () => container.read(salaSessionProvider).btTrechoTocando,
     );
     notifier.retellChunk();
-    await waitFor('a recontagem levar a equipe ao trecho', () {
+    await waitFor('a tradução de novo levar a equipe ao trecho', () {
       final state = container.read(salaSessionProvider);
       return state.btPhase == BtPhase.playing && state.btTrechoTocando;
     });
