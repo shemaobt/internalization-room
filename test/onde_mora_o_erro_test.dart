@@ -92,7 +92,7 @@ Future<void> _pumpGrade(WidgetTester tester, {required bool podeOuvirRetro}) =>
 /// How many times the room was asked for a verdict. Each entry is one such ask reaching
 /// the room, which is the whole point: the team gets an answer only because somebody
 /// asked for one.
-int vereditosPedidos(SalaHarness harness) => harness.room.clipDurationsSent.length;
+int vereditosPedidos(SalaHarness harness) => harness.room.playedByTakeSent.length;
 
 /// Close the microphone the room opened, which is what ends a telling.
 Future<void> terminarACaptura(
@@ -104,7 +104,7 @@ Future<void> terminarACaptura(
 }
 
 /// The error was in the telling, so only the telling is redone — one step.
-Future<void> recontarAExplicacao(
+Future<void> traduzirDeNovo(
   WidgetTester tester,
   ProviderContainer container,
 ) async {
@@ -165,7 +165,7 @@ void main() {
 
       expect(byLabel(micMaterna), findsOneWidget,
           reason: 'o tipo do achado decidia sozinho pela equipe, e um tipo '
-              'escondia a saída de recontar');
+              'escondia a saída de traduzir de novo');
       expect(byLabel(micRetro), findsOneWidget);
       expect(byLabel(ouvirMaterna), findsOneWidget);
       expect(byLabel(ouvirRetro), findsOneWidget);
@@ -307,7 +307,7 @@ void main() {
     final container = await pumpToPergunta(tester);
     harnessDaVez!.room.replaceNeedsPerson = true;
 
-    await recontarAExplicacao(tester, container);
+    await traduzirDeNovo(tester, container);
 
     expect(container.read(salaSessionProvider).needsPerson, isTrue,
         reason: 'a sala parou de aceitar e a equipe não vê nada: continua '
@@ -324,7 +324,7 @@ void main() {
     final container = await pumpToPergunta(tester);
     harnessDaVez!.room.replaceNeedsPerson = true;
 
-    await recontarAExplicacao(tester, container);
+    await traduzirDeNovo(tester, container);
 
     expect(
       container.read(salaSessionProvider).btTrechos.map((t) => t.segmentId),
@@ -339,7 +339,7 @@ void main() {
   testWidgets('an ordinary correction changes nothing', (tester) async {
     final container = await pumpToPergunta(tester);
 
-    await recontarAExplicacao(tester, container);
+    await traduzirDeNovo(tester, container);
 
     expect(container.read(salaSessionProvider).needsPerson, isFalse,
         reason: 'ler um campo novo não pode mandar para uma pessoa quem só '
@@ -357,7 +357,7 @@ void main() {
 
     // Nothing is switched on: this is the server that is in production today, which does
     // not carry the field at all.
-    await recontarAExplicacao(tester, container);
+    await traduzirDeNovo(tester, container);
 
     expect(container.read(salaSessionProvider).needsPerson, isFalse,
         reason: 'o campo só passa a existir quando a ENG-685 for mesclada, e '
@@ -401,7 +401,7 @@ void main() {
     final harness = harnessDaVez!;
     final antes = vereditosPedidos(harness);
 
-    await recontarAExplicacao(tester, container);
+    await traduzirDeNovo(tester, container);
 
     expect(vereditosPedidos(harness), antes + 1,
         reason: 'a equipe grava a correção e a sala fica muda: para saber se '
@@ -445,7 +445,7 @@ void main() {
         harness.room.failReplaceWith = const RoomUnavailable('sem rede');
       }
 
-      await recontarAExplicacao(tester, container);
+      await traduzirDeNovo(tester, container);
 
       expect(vereditosPedidos(harness), antes,
           reason: 'a correção não chegou ao servidor, então não há o que '
@@ -462,7 +462,7 @@ void main() {
       'recording', (tester) async {
     final container = await pumpToPergunta(tester);
 
-    await recontarAExplicacao(tester, container);
+    await traduzirDeNovo(tester, container);
 
     expect(container.read(salaSessionProvider).btClipEnded, isTrue,
         reason: 'a marca de que a gravação acabou é o que dispensa a equipe de '
@@ -479,7 +479,7 @@ void main() {
     final harness = harnessDaVez!;
     final antes = vereditosPedidos(harness);
 
-    await recontarAExplicacao(tester, container);
+    await traduzirDeNovo(tester, container);
 
     expect(vereditosPedidos(harness), antes + 1,
         reason: 'sem notícia de esgotamento a correção segue direto ao '
@@ -496,7 +496,7 @@ void main() {
     harness.room.replaceNeedsPerson = true;
     final antes = vereditosPedidos(harness);
 
-    await recontarAExplicacao(tester, container);
+    await traduzirDeNovo(tester, container);
 
     expect(vereditosPedidos(harness), antes + 1,
         reason: 'a equipe descobre o que aconteceu com a gravação que acabou '
@@ -545,7 +545,7 @@ void main() {
     final antes = vereditosPedidos(harness);
 
     // Nothing switched on: the server in production today does not carry the field.
-    await recontarAExplicacao(tester, container);
+    await traduzirDeNovo(tester, container);
 
     expect(container.read(salaSessionProvider).needsPerson, isFalse,
         reason: 'ausência é "sem notícia", e tratá-la como aviso pararia a '
@@ -562,7 +562,7 @@ void main() {
     harness.room.replaceNeedsPerson = true;
     harness.room.failFinishWith = const RoomUnavailable('sem rede');
 
-    await recontarAExplicacao(tester, container);
+    await traduzirDeNovo(tester, container);
 
     expect(harness.room.personsAsked, 1,
         reason: 'a sala disse que parou de aceitar, e a rede caiu no pedido do '
@@ -582,7 +582,7 @@ void main() {
     harness.room.duranteOVeredito =
         () => notifier(container).leaveThePassage();
 
-    await recontarAExplicacao(tester, container);
+    await traduzirDeNovo(tester, container);
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(harness.room.personsAsked, 0,
@@ -602,7 +602,7 @@ void main() {
     harness.room.verdictChecked = true;
     harness.room.verdictFinding = null;
 
-    await recontarAExplicacao(tester, container);
+    await traduzirDeNovo(tester, container);
     await tester.pump(const Duration(milliseconds: 900));
 
     expect(harness.room.personsAsked, 0,
@@ -627,7 +627,7 @@ void main() {
     harness.room.verdictChecked = true;
     harness.room.verdictFinding = null;
 
-    await recontarAExplicacao(tester, container);
+    await traduzirDeNovo(tester, container);
     await tester.pump(const Duration(milliseconds: 900));
 
     expect(harness.room.personsAsked, 0);

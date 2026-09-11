@@ -46,7 +46,7 @@ Future<ProviderContainer> _inRetro(
   return container;
 }
 
-Future<void> _contaTrecho(
+Future<void> _traduzTrecho(
   SalaHarness harness,
   SalaSessionNotifier notifier, {
   required Duration em,
@@ -64,7 +64,7 @@ void main() {
     final container = await _inRetro(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await _contaTrecho(harness, notifier, em: const Duration(seconds: 10));
+    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
     await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
 
     expect(harness.room.chunkTakes, [harness.room.takeIds.first],
@@ -79,7 +79,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     harness.recorder.returnsEmpty = true;
-    await _contaTrecho(harness, notifier, em: const Duration(seconds: 10));
+    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
 
     expect(harness.room.chunksSent, 0,
         reason: 'o trecho sem um byte dentro subia, e a cobertura da passagem passava '
@@ -101,12 +101,12 @@ void main() {
     harness.playback.at = const Duration(seconds: 10);
     harness.playback.finishPlayback();
     await settle();
-    await _contaTrecho(harness, notifier, em: const Duration(seconds: 10));
+    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
     await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
 
     notifier.proximaParte();
     await settle();
-    await _contaTrecho(harness, notifier, em: const Duration(seconds: 5));
+    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 5));
     await waitFor('o segundo trecho chegar à sala', () => harness.room.chunksSent == 2);
 
     expect(harness.room.chunkSpans, ['0-10000', '0-5000'],
@@ -123,7 +123,7 @@ void main() {
     final container = await _inRetro(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await _contaTrecho(harness, notifier, em: const Duration(seconds: 10));
+    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
     harness.room.verdictFindingSegmentId = harness.room.segmentIds.first;
     harness.playback.finishPlayback();
     await settle();
@@ -143,7 +143,7 @@ void main() {
     final container = await _inRetro(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await _contaTrecho(harness, notifier, em: const Duration(seconds: 10));
+    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
     harness.room.verdictFindingSegmentId = null;
     harness.playback.finishPlayback();
     await settle();
@@ -161,7 +161,7 @@ void main() {
     final container = await _inRetro(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await _contaTrecho(harness, notifier, em: const Duration(seconds: 10));
+    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
     harness.room.verdictFindingSegmentId = 'trecho-que-nao-existe';
     harness.playback.finishPlayback();
     await settle();
@@ -170,7 +170,7 @@ void main() {
 
     expect(container.read(salaSessionProvider).btFindingTrecho, isNull,
         reason: 'um nome que não corresponde a trecho nenhum não pode ser '
-            'resolvido como se fosse outro — a equipe recontaria o trecho '
+            'resolvido como se fosse outro — a equipe traduziria de novo o trecho '
             'errado');
   });
 
@@ -188,15 +188,27 @@ void main() {
     await settle();
     harness.playback.finishPlayback();
     await settle();
-    await _contaTrecho(harness, notifier, em: const Duration(seconds: 5));
+    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 5));
     harness.playback.finishPlayback();
     await settle();
     await notifier.finishBackTranslation();
     await settle();
 
-    expect(harness.room.clipDurationsSent.last, 20000,
-        reason: 'a régua da escuta continua sendo o clipe inteiro; só o '
-            'endereço do trecho virou local ao arquivo');
-    expect(harness.room.playedRangesSent.last, isNotEmpty);
+    expect(
+        [
+          for (final parte in harness.room.playedByTakeSent.last)
+            parte['clip_duration_ms']
+        ],
+        [10000, 10000],
+        reason: 'a régua da escuta é cada parte contra ela mesma, e o endereço '
+            'do trecho é local ao arquivo: as duas coisas no mesmo relógio');
+    expect(harness.room.playedByTakeSent.last.first['played_ranges'], [
+      [0, 10000]
+    ]);
+    expect(harness.room.playedByTakeSent.last.last['played_ranges'], [
+      [0, 10000]
+    ], reason: 'o que a segunda parte tem de ouvido conta do próprio zero dela, '
+        'não de dez segundos: o endereço do trecho já era local, e agora a '
+        'escuta também é');
   });
 }

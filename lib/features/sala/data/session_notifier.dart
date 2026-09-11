@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/env.dart';
+import '../domain/escuta_das_partes.dart';
 import '../domain/bt_finding.dart';
 import '../domain/facilitator_script.dart';
 import '../domain/hand_reply.dart';
@@ -138,8 +139,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _inaudibleSpoken = 0;
   DateTime? _listeningSince;
   String? _emCurso;
-  bool _recontando = false;
-  Trecho? _contandoDeNovo;
+  bool _traduzindoDeNovo = false;
+  Trecho? _trechoTraduzidoDeNovo;
   bool _askingForANewClip = false;
   String _marcaDaMaterna = '';
   /// The clip is paused. `_onPlaybackComplete` deliberately survives a pause — the resume
@@ -157,19 +158,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// has nothing on the wire to place it by.
   final Map<String, LugarDoTrecho> _lugares = {};
   Duration _trechoEnd = Duration.zero;
-  int _retroClipMs = 0;
   int _parteTocando = 0;
   List<int> _fimDaParteMs = [];
-  /// What the team actually heard of their own rehearsal, in global milliseconds.
-  ///
-  /// This used to be invented at the very end — "nought to the length of the clip" — so
-  /// the report that travels to Refine said a team had listened to the whole rehearsal
-  /// however little of it had played, and the gate that exists to catch exactly that could
-  /// never fail. It is a record now: one span per stretch of listening, closed whenever
-  /// the rehearsal stops — with one exception, written into it on purpose: the parts a
-  /// telling-back steps over because they were told back whole in an earlier round, which
-  /// [_playFromTheUntoldGround] says why.
-  List<List<int>> _ouvido = [];
+  final EscutaDasPartes _escuta = EscutaDasPartes();
   int _desdeMs = 0;
   int _ghostParte = 0;
   String? _panoramaSessionId;
@@ -2262,9 +2253,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _trechoEnd = Duration.zero;
     _parteTocando = 0;
     _fimDaParteMs = [];
-    _ouvido = [];
+    _escuta.esquecerTudo();
     _desdeMs = 0;
-    _retroClipMs = 0;
     state = state.copyWith(
       clearFindingSegment: true,
       btTrechoTocando: false,
@@ -2294,10 +2284,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         final quanto = await _playback.howLong(partes[parte].path);
         if (epoch != _epoch) return;
         if (quanto == null || contadaAte + _fimDaParte < quanto) break;
-        final inicio = _inicioDaParteMs(parte);
-        final fim = inicio + quanto.inMilliseconds;
-        _fimDaParteMs.add(fim);
-        _ouvido.add([inicio, fim]);
+        _marcarOFimDaParte(parte, quanto.inMilliseconds);
+        _escuta.inteira(partes[parte].path, quanto.inMilliseconds);
         parte++;
       }
       state = state.copyWith(
@@ -2311,6 +2299,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   int _inicioDaParteMs(int parte) => parte == 0 ? 0 : _fimDaParteMs[parte - 1];
 
+  /// Where a position inside the part in the air sits on the cord, which is drawn over the
+  /// parts glued end to end. The necklace's job, and the only place the offset is added.
+  int _pontoNoColar(int local) => _inicioDaParteMs(_parteTocando) + local;
+
+  /// Write down where [parte] ends on the cord, once it has measured itself.
+  void _marcarOFimDaParte(int parte, int medido) {
+    if (_fimDaParteMs.length > parte) return;
+    _fimDaParteMs.add(_inicioDaParteMs(parte) + medido);
+  }
+
+  /// The file the part in the air was kept as, or null while no part is.
+  String? get _arquivoNoAr {
+    final partes = state.partes;
+    if (_parteTocando < 0 || _parteTocando >= partes.length) return null;
+    return partes[_parteTocando].path;
+  }
+
   /// How far into this recording the telling-back already got.
   ///
   /// The cursor belongs to the file in the air, not to the passage: crossing into a part
@@ -2323,10 +2328,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     return ate;
   }
-
-  Duration get _posicaoGlobal =>
-      Duration(milliseconds: _inicioDaParteMs(_parteTocando)) +
-      _playback.position;
 
   /// How far into the whole rehearsal the sound in the air has got, asked for right now.
   ///
@@ -2350,7 +2351,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _seguirOClipe() {
-    _desdeMs = _posicaoGlobal.inMilliseconds;
+    _desdeMs = _playback.position.inMilliseconds;
+    final arquivo = _arquivoNoAr;
+    if (arquivo != null) _escuta.abrir(arquivo, _playback.position.inMilliseconds);
     state = state.copyWith(btClipRodando: true);
     _letTheClipRun();
   }
@@ -2358,14 +2361,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// Stop the rehearsal and write down how far it got.
   ///
   /// [ate] is the true end of a part, which the part's own duration knows better than the
-  /// player's position at the moment it finished.
+  /// player's position at the moment it finished. Both it and the player's answer are
+  /// positions inside the file in the air: the ledger is never handed a place on the cord.
   void _pararOClipe({int? ate}) {
     _holdClip();
     var ondeParou = state.btOuvidoMs;
     if (state.btClipRodando) {
-      final fim = ate ?? _posicaoGlobal.inMilliseconds;
-      if (fim > _desdeMs) _ouvido = [..._ouvido, [_desdeMs, fim]];
-      ondeParou = fim > _desdeMs ? fim : _desdeMs;
+      final fim = ate ?? _playback.position.inMilliseconds;
+      final arquivo = _arquivoNoAr;
+      if (arquivo != null) _escuta.fechar(arquivo, fim);
+      ondeParou = _pontoNoColar(fim > _desdeMs ? fim : _desdeMs);
     }
     state = state.copyWith(btClipRodando: false, btOuvidoMs: ondeParou);
   }
@@ -2401,11 +2406,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _tocarParteDaRetro(int parte) {
     _parteTocando = parte;
     _trechoStart = _ondeParouNesteArquivo(parte);
-    _desdeMs = _inicioDaParteMs(parte);
+    _desdeMs = 0;
+    _escuta.abrir(state.partes[parte].path, 0);
     state = state.copyWith(
       btParteFronteira: false,
       btClipRodando: true,
-      btOuvidoMs: _desdeMs,
+      btOuvidoMs: _pontoNoColar(0),
       btParteNoArMs: 0,
     );
     _play(
@@ -2429,12 +2435,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // from there. A three-part rehearsal reported itself as one part long.
     final medido = _playback.playingLength?.inMilliseconds ??
         _playback.position.inMilliseconds;
-    final fim = _inicioDaParteMs(_parteTocando) + medido;
-    if (_fimDaParteMs.length <= _parteTocando) _fimDaParteMs.add(fim);
-    _pararOClipe(ate: fim);
+    final arquivo = _arquivoNoAr;
+    if (arquivo != null) _escuta.medida(arquivo, medido);
+    _marcarOFimDaParte(_parteTocando, medido);
+    _pararOClipe(ate: medido);
     final ultima = _parteTocando >= state.partes.length - 1;
     if (ultima && _fimDaParteMs.length >= state.partes.length) {
-      _retroClipMs = _fimDaParteMs.last;
       state = state.copyWith(
         btClipEnded: true,
         btParteFronteira: false,
@@ -2481,7 +2487,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // While telling a stretch again, its bounds are the ones the finding named. Reading the
     // position instead wrote a place inside the excerpt into a number that means a place in
     // the whole rehearsal, and every stretch after it inherited the lie.
-    if (!_recontando) {
+    if (!_traduzindoDeNovo) {
       // The player's own position, not a place in the concatenated passage: a stretch is a
       // slice of the file that is playing, and its two times are counted from that file's
       // beginning.
@@ -2574,7 +2580,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.btTrechoTocando) return;
     if (trecho.segmentId == null) return;
     _pararOClipe();
-    _contandoDeNovo = trecho;
+    _trechoTraduzidoDeNovo = trecho;
     // The short way's whole gesture is this one: choosing it opens the microphone on the
     // stretch, and that is where its mend starts. Conditioned rather than asserted,
     // because the other door here is a half born of a division, which no finding points
@@ -2806,11 +2812,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final path = await _recorder.stop();
     if (epoch != _epoch) return;
     final sessionId = state.sessionId;
-    final contandoDeNovo = _contandoDeNovo;
-    _contandoDeNovo = null;
+    final traduzidoDeNovo = _trechoTraduzidoDeNovo;
+    _trechoTraduzidoDeNovo = null;
 
     if (path != null && !_hasAudio(path)) {
-      _recontando = false;
+      _traduzindoDeNovo = false;
       _trechoStart = _ondeParouNesteArquivo(_parteTocando);
       state = state.copyWith(btPhase: BtPhase.playing, btConsertando: false);
       _haltForAPerson();
@@ -2826,15 +2832,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
 
-    if (contandoDeNovo != null) {
+    if (traduzidoDeNovo != null) {
       // Cleared on this branch too, because it returns before the ordinary path clears
       // it. Left switched on, the next cut would ignore the player, reuse the bounds the
       // retelling had left behind, and upload as a correction of a stretch that is not
       // the one being told. It is cleared here rather than at the top: the ordinary path
       // reads it when it uploads, and clearing it above that turns every retelling into
       // an ordinary telling.
-      _recontando = false;
-      await _tellThatStretchAgain(contandoDeNovo, path, sessionId, epoch);
+      _traduzindoDeNovo = false;
+      await _tellThatStretchAgain(traduzidoDeNovo, path, sessionId, epoch);
       return;
     }
 
@@ -2868,7 +2874,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         takeId: gravacao,
         from: _trechoStart,
         to: _trechoEnd,
-        retelling: _recontando,
+        retelling: _traduzindoDeNovo,
       );
       if (epoch != _epoch) return;
       if (!captured.captured) {
@@ -2907,7 +2913,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
 
-    _recontando = false;
+    _traduzindoDeNovo = false;
     // The room asking for a person over a retold stretch is a warning: somebody is called
     // to come and watch, and the team is refused nothing. Stopping the retro on it ended
     // the telling-back over a note nobody had read yet.
@@ -2963,8 +2969,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     try {
       final verdict = await _room.finishBackTranslation(
         sessionId,
-        clipDurationMs: _retroClipMs,
-        playedRanges: _ouvido,
+        playedByTake: _escuta.relato(state.partes),
       );
       if (epoch != _epoch) return;
       await _readyToSpeak(verdict.audioUrl, verdict.fixedLine);
@@ -3021,9 +3026,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       await _readTheStretchesBack(sessionId, epoch);
       if (epoch != _epoch) return;
 
-      final naoContado = verdict.untoldSegmentId;
-      if (naoContado != null) {
-        _levarAoTrechoNaoContado(naoContado);
+      final naoTraduzido = verdict.untoldSegmentId;
+      if (naoTraduzido != null) {
+        _levarAoTrechoNaoTraduzido(naoTraduzido);
         return;
       }
       state = state.copyWith(
@@ -3062,7 +3067,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// ordinary way it would be captured at the next position, the named stretch would
   /// still be waiting, and the same gate would stop the passage again the next time they
   /// said they had finished.
-  void _levarAoTrechoNaoContado(String named) {
+  void _levarAoTrechoNaoTraduzido(String named) {
     final trecho = state.trechoChamado(named);
     if (trecho == null ||
         trecho.parte < 0 ||
@@ -3076,8 +3081,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _parteTocando = trecho.parte;
     _trechoStart = trecho.from;
     _trechoEnd = trecho.to;
-    _recontando = true;
-    _contandoDeNovo = trecho;
+    _traduzindoDeNovo = true;
+    _trechoTraduzidoDeNovo = trecho;
     state = state.copyWith(
       btPhase: BtPhase.playing,
       voice: VoiceState.invite,
@@ -3733,7 +3738,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _parteTocando = trecho.parte;
     _trechoStart = trecho.from;
     _trechoEnd = trecho.to;
-    _recontando = true;
+    _traduzindoDeNovo = true;
     state = state.copyWith(btPhase: BtPhase.playing, voice: VoiceState.invite);
     _leadThemToTheTrecho(trecho);
   }
@@ -3761,8 +3766,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     // A retelling left switched on by a chunk that never landed would make the first
     // stretch of the next telling-back upload as a correction of one that does not exist.
-    _recontando = false;
-    _contandoDeNovo = null;
+    _traduzindoDeNovo = false;
+    _trechoTraduzidoDeNovo = null;
     _rememberWhereTheyAre(SalaStage.ensaio);
   }
 
@@ -3776,8 +3781,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _clearAll();
     _parteTocando = 0;
     _fimDaParteMs = [];
-    _ouvido = [];
-    _retroClipMs = 0;
+    _escuta.esquecerTudo();
     state = state.copyWith(
       stage: SalaStage.ensaio,
       voice: VoiceState.invite,
@@ -3796,7 +3800,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btFindings: const [],
       btPass: 1,
     );
-    _recontando = false;
+    _traduzindoDeNovo = false;
     // Asserting `unsentTakes: 0` here was a claim about the disk made without reading it:
     // the queue still holds the old session's takes, and the two bookkeepers disagreed.
     unawaited(_countUnsent());
@@ -3877,9 +3881,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// These are counters and latches with no home in the state object, so nothing about
   /// them is reset by rebuilding it. `leaveThePassage` reset none of them and `_startOver`
   /// reset most: a new passage could start with the previous one's strike count and halt
-  /// for a person on its first failure, and `_recontando` — set when the team taps retell
-  /// and cleared only by a chunk that lands — made the very first stretch of the next
-  /// back translation upload as a correction of a stretch that does not exist.
+  /// for a person on its first failure, and `_traduzindoDeNovo` — set when the team
+  /// asks to tell a stretch again and cleared only by a chunk that lands — made the very
+  /// first stretch of the next back translation upload as a correction of a stretch that
+  /// does not exist.
   void _forgetThePassage() {
     _unplayableTurns = 0;
     _roomFailures = 0;
@@ -3890,17 +3895,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _personAsked = false;
     _personAskStep = 0;
     _haltWatched = null;
-    _recontando = false;
-    _contandoDeNovo = null;
+    _traduzindoDeNovo = false;
+    _trechoTraduzidoDeNovo = null;
     _inboxSilences = 0;
     _degradedTurns = 0;
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
     _parteTocando = 0;
     _fimDaParteMs = [];
-    _ouvido = [];
+    _escuta.esquecerTudo();
     _desdeMs = 0;
-    _retroClipMs = 0;
     _ghostParte = 0;
     _pendingTakePath = null;
     _emCurso = null;

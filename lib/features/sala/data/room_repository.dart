@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import '../../../core/config/env.dart';
 import '../domain/bt_finding.dart';
 import '../domain/device_link.dart';
+import '../domain/escuta_das_partes.dart';
 import '../domain/passagem.dart';
 import '../domain/session_snapshot.dart';
 import '../domain/turn_result.dart';
@@ -382,20 +383,22 @@ class RoomRepository {
 
   Future<BackTranslationVerdict> finishBackTranslation(
     String sessionId, {
-    int? clipDurationMs,
-    List<List<int>> playedRanges = const [],
+    required List<PlayedByTake> playedByTake,
   }) async {
     final response = await _send(
       () => _client.post(
         _uri('/sessions/$sessionId/back-translation/finish'),
         headers: _headers,
-        // What was heard, as it was heard. Declaring nought-to-the-end made the report a
-        // restatement of the clip's length, and the gate that reads it could never fail.
-        body: clipDurationMs == null || clipDurationMs <= 0
+        // What was heard, as it was heard, part by part. Declaring nought-to-the-end made
+        // the report a restatement of the clip's length, and the gate that reads it could
+        // never fail; saying it of the parts glued together left it with no subject, so
+        // one part recorded again threw away the listening to all the others.
+        body: playedByTake.isEmpty
             ? null
             : jsonEncode({
-                'played_ranges': playedRanges,
-                'clip_duration_ms': clipDurationMs,
+                'played_by_take': [
+                  for (final parte in playedByTake) parte.toJson(),
+                ],
               }),
       ),
       _turnTimeout,

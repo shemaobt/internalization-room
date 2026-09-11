@@ -49,7 +49,7 @@ Future<ProviderContainer> _retomar(
   return container;
 }
 
-SegmentView _contado(String gravacao, int de, int ate) => SegmentView(
+SegmentView _traduzido(String gravacao, int de, int ate) => SegmentView(
       segmentId: '$gravacao@$de-$ate',
       takeId: gravacao,
       startsMs: de,
@@ -82,9 +82,21 @@ Future<ProviderContainer> _primeiraRetro(SalaHarness harness) async {
 /// (`services/internalization_room/back_translation.py:194`) states it: sorted and
 /// merged, the ranges must run from the clip's beginning to its end, with no more than
 /// 750 ms of slack at the start, inside, or at the end. `playback_confirms_rehearsal`
-/// refuses an empty report outright, and `report_playback` (`sessions.py:495`) *replaces*
-/// what the session holds on every report, so nothing a previous round sent is still
-/// there to help.
+/// asks it once per part and refuses a part reported empty, and `report_playback`
+/// (`sessions.py:495`) *replaces* what the session holds on every report, so nothing a
+/// previous round sent is still there to help.
+void _cobreOEnsaio(List<Map<String, Object?>> relato, {required int partes}) {
+  expect(relato, hasLength(partes),
+      reason: 'o portão pergunta uma vez por parte, e uma parte que não está '
+          'no relato é uma parte que ninguém ouviu');
+  for (final parte in relato) {
+    _cobreOClipe(
+      parte['played_ranges']! as List<List<int>>,
+      parte['clip_duration_ms']! as int,
+    );
+  }
+}
+
 void _cobreOClipe(List<List<int>> faixas, int clipeMs) {
   const folga = 750;
   expect(faixas, isNotEmpty, reason: 'a sala recusa um relato vazio');
@@ -135,7 +147,7 @@ void main() {
     final harness = SalaHarness()..playback.length = const Duration(seconds: 32);
     final container = await _retomar(
       harness,
-      contado: [_contado('gravacao-1', 0, 30000)],
+      contado: [_traduzido('gravacao-1', 0, 30000)],
     );
     final notifier = container.read(salaSessionProvider.notifier);
 
@@ -163,7 +175,7 @@ void main() {
     final harness = SalaHarness()..playback.length = const Duration(seconds: 40);
     final container = await _retomar(
       harness,
-      contado: [_contado('gravacao-1', 0, 30000)],
+      contado: [_traduzido('gravacao-1', 0, 30000)],
     );
     final notifier = container.read(salaSessionProvider.notifier);
 
@@ -172,13 +184,19 @@ void main() {
     await notifier.finishBackTranslation();
     await settle();
 
-    expect(harness.room.playedRangesSent.last, [
-      [0, 40000]
+    expect(harness.room.playedByTakeSent.last, [
+      {
+        'take_id': 'gravacao-1',
+        'played_ranges': [
+          [0, 40000]
+        ],
+        'clip_duration_ms': 40000,
+      },
     ],
         reason: 'o portão lê o relato como o que a equipe ouviu deste ensaio, '
             'não como a escuta de uma rodada: report_playback substitui os '
-            'ranges a cada relato e a cobertura tem de ir de zero ao fim, então '
-            'calar o chão contado antes recusa o terminei');
+            'ranges a cada relato e a cobertura tem de ir de zero ao fim da '
+            'parte, então calar o chão contado antes recusa o terminei');
   });
 
   test('parts told back whole are stepped over, and the next one starts at nought',
@@ -187,7 +205,7 @@ void main() {
     final container = await _retomar(
       harness,
       partes: 2,
-      contado: [_contado('gravacao-1', 0, 30000)],
+      contado: [_traduzido('gravacao-1', 0, 30000)],
     );
 
     await waitFor(
@@ -208,7 +226,7 @@ void main() {
     final container = await _retomar(
       harness,
       partes: 2,
-      contado: [_contado('gravacao-1', 0, 12000)],
+      contado: [_traduzido('gravacao-1', 0, 12000)],
     );
     final notifier = container.read(salaSessionProvider.notifier);
 
@@ -229,8 +247,8 @@ void main() {
       harness,
       partes: 2,
       contado: [
-        _contado('gravacao-1', 0, 12000),
-        _contado('gravacao-2', 0, 10000),
+        _traduzido('gravacao-1', 0, 12000),
+        _traduzido('gravacao-2', 0, 10000),
       ],
     );
     final notifier = container.read(salaSessionProvider.notifier);
@@ -251,7 +269,7 @@ void main() {
     final harness = SalaHarness();
     final container = await _retomar(
       harness,
-      contado: [_contado('gravacao-1', 0, 30000)],
+      contado: [_traduzido('gravacao-1', 0, 30000)],
     );
     final notifier = container.read(salaSessionProvider.notifier);
     await settle();
@@ -278,7 +296,7 @@ void main() {
       ..playback.length = const Duration(seconds: 30);
     final container = await _retomar(
       harness,
-      contado: [_contado('gravacao-1', 0, 30000)],
+      contado: [_traduzido('gravacao-1', 0, 30000)],
     );
     final notifier = container.read(salaSessionProvider.notifier);
 
@@ -293,12 +311,18 @@ void main() {
         reason: 'não sobrou nada para contar nesta gravação, e ouvi-la inteira '
             'outra vez para poder encerrar é exatamente a duplicação que a '
             'retomada existe para evitar');
-    expect(harness.room.playedRangesSent.last, [
-      [0, 30000]
+    expect(harness.room.playedByTakeSent.last, [
+      {
+        'take_id': 'gravacao-1',
+        'played_ranges': [
+          [0, 30000]
+        ],
+        'clip_duration_ms': 30000,
+      },
     ],
-        reason: 'e o relato tem de cobrir o ensaio inteiro: playback_confirms_'
-            'rehearsal recusa relato vazio, então uma retomada em que tudo já '
-            'foi contado ficaria sem saída nenhuma');
+        reason: 'e o relato tem de cobrir a parte inteira: playback_confirms_'
+            'rehearsal recusa a parte relatada vazia, então uma retomada em '
+            'que tudo já foi contado ficaria sem saída nenhuma');
   });
 
   group('the report the finish sends covers the rehearsal', () {
@@ -312,17 +336,14 @@ void main() {
       await notifier.finishBackTranslation();
       await settle();
 
-      _cobreOClipe(
-        harness.room.playedRangesSent.last,
-        harness.room.clipDurationsSent.last!,
-      );
+      _cobreOEnsaio(harness.room.playedByTakeSent.last, partes: 1);
     });
 
     test('a telling-back picked back up inside a part', () async {
       final harness = SalaHarness()..playback.length = const Duration(seconds: 40);
       final container = await _retomar(
         harness,
-        contado: [_contado('gravacao-1', 0, 30000)],
+        contado: [_traduzido('gravacao-1', 0, 30000)],
       );
       final notifier = container.read(salaSessionProvider.notifier);
 
@@ -331,10 +352,7 @@ void main() {
       await notifier.finishBackTranslation();
       await settle();
 
-      _cobreOClipe(
-        harness.room.playedRangesSent.last,
-        harness.room.clipDurationsSent.last!,
-      );
+      _cobreOEnsaio(harness.room.playedByTakeSent.last, partes: 1);
     });
 
     test('a telling-back picked back up with nothing left to tell', () async {
@@ -342,7 +360,7 @@ void main() {
         ..playback.length = const Duration(seconds: 30);
       final container = await _retomar(
         harness,
-        contado: [_contado('gravacao-1', 0, 30000)],
+        contado: [_traduzido('gravacao-1', 0, 30000)],
       );
       final notifier = container.read(salaSessionProvider.notifier);
       await waitFor(
@@ -353,10 +371,7 @@ void main() {
       await notifier.finishBackTranslation();
       await settle();
 
-      _cobreOClipe(
-        harness.room.playedRangesSent.last,
-        harness.room.clipDurationsSent.last!,
-      );
+      _cobreOEnsaio(harness.room.playedByTakeSent.last, partes: 1);
     });
   });
 
@@ -365,7 +380,7 @@ void main() {
       final harness = SalaHarness();
       final container = await _retomar(
         harness,
-        contado: [_contado('gravacao-1', 0, 30000)],
+        contado: [_traduzido('gravacao-1', 0, 30000)],
       );
       final notifier = container.read(salaSessionProvider.notifier);
 
@@ -380,7 +395,7 @@ void main() {
       final container = await _retomar(
         harness,
         partes: 2,
-        contado: [_contado('gravacao-1', 0, 30000)],
+        contado: [_traduzido('gravacao-1', 0, 30000)],
       );
       final notifier = container.read(salaSessionProvider.notifier);
       await waitFor(
@@ -401,8 +416,8 @@ void main() {
         harness,
         partes: 2,
         contado: [
-          _contado('gravacao-1', 0, 12000),
-          _contado('gravacao-2', 0, 10000),
+          _traduzido('gravacao-1', 0, 12000),
+          _traduzido('gravacao-2', 0, 10000),
         ],
       );
       final notifier = container.read(salaSessionProvider.notifier);
@@ -421,7 +436,7 @@ void main() {
       final harness = SalaHarness();
       final container = await _retomar(
         harness,
-        contado: [_contado('gravacao-1', 0, 30000)],
+        contado: [_traduzido('gravacao-1', 0, 30000)],
       );
       final notifier = container.read(salaSessionProvider.notifier);
       notifier.ouvirGravacao();
@@ -439,7 +454,7 @@ void main() {
       final harness = SalaHarness();
       final container = await _retomar(
         harness,
-        contado: [_contado('gravacao-1', 0, 30000)],
+        contado: [_traduzido('gravacao-1', 0, 30000)],
       );
       final notifier = container.read(salaSessionProvider.notifier);
       harness.playback.at = const Duration(seconds: 44);

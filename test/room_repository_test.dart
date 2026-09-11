@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
 
 String _turnBody({bool usedFailSafe = false, bool degraded = false}) => jsonEncode({
       'session_id': 'sessao-1',
@@ -332,6 +333,75 @@ void main() {
           'que a internet tinha caído por causa de um servidor pensando',
     );
   }, timeout: const Timeout(Duration(seconds: 90)));
+
+  test('o terminei manda o que foi ouvido de cada parte, com o nome dela',
+      () async {
+    late String seenBody;
+    final repository = RoomRepository(
+      client: MockClient((request) async {
+        seenBody = request.body;
+        return http.Response(jsonEncode({'checked': true}), 200);
+      }),
+    );
+    addTearDown(repository.dispose);
+
+    await repository.finishBackTranslation('sessao-1', playedByTake: const [
+      PlayedByTake(
+        takeId: 'gravacao-1',
+        playedRanges: [
+          [0, 10000]
+        ],
+        clipDurationMs: 10000,
+      ),
+      PlayedByTake(
+        takeId: 'gravacao-2',
+        playedRanges: [
+          [0, 8000]
+        ],
+        clipDurationMs: 8000,
+      ),
+    ]);
+
+    expect(jsonDecode(seenBody), {
+      'played_by_take': [
+        {
+          'take_id': 'gravacao-1',
+          'played_ranges': [
+            [0, 10000]
+          ],
+          'clip_duration_ms': 10000,
+        },
+        {
+          'take_id': 'gravacao-2',
+          'played_ranges': [
+            [0, 8000]
+          ],
+          'clip_duration_ms': 8000,
+        },
+      ],
+    }, reason: 'os dois números soltos não diziam de qual gravação falavam, e '
+        'seguiam valendo como prova depois que a equipe regravava uma parte');
+  });
+
+  test('sem nada ouvido o terminei vai sem corpo, e a sala ainda responde',
+      () async {
+    late http.BaseRequest seen;
+    final repository = RoomRepository(
+      client: MockClient((request) async {
+        seen = request;
+        return http.Response(jsonEncode({'checked': true}), 200);
+      }),
+    );
+    addTearDown(repository.dispose);
+
+    final verdict = await repository
+        .finishBackTranslation('sessao-1', playedByTake: const []);
+
+    expect(seen.contentLength, anyOf(isNull, 0),
+        reason: 'relato nenhum é diferente de relato vazio, e é a sala que '
+            'decide o que fazer com a falta dele');
+    expect(verdict.checked, isTrue);
+  });
 }
 
 Future<File> _tempRecording() async {

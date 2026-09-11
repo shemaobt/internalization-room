@@ -116,8 +116,8 @@ void main() {
       read().warning,
       isTrue,
       reason:
-          'o pedaço recontado veio com needs_person: true — o orçamento de '
-          'recontagens do ENG-706 — e isso é lido como aviso, não como parada '
+          'o pedaço traduzido de novo veio com needs_person: true — o orçamento de '
+          'traduções de novo do ENG-706 — e isso é lido como aviso, não como parada '
           '(needsPerson continua falso)',
     );
     expect(
@@ -269,7 +269,7 @@ void main() {
       isTrue,
       reason:
           'o restart de uma retro abandonada lê needs_person do mesmo jeito '
-          'que um pedaço recontado — a mesma notícia, chegando por outra rota',
+          'que um pedaço traduzido de novo — a mesma notícia, chegando por outra rota',
     );
   });
 }

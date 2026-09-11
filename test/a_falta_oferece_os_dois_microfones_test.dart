@@ -83,7 +83,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing,
-        reason: 'tocar o microfone só-ponte abre a captura do recontar, sem '
+        reason: 'tocar o microfone só-ponte abre a captura do traduzir de novo, sem '
             'tocar a voz materna');
   });
 

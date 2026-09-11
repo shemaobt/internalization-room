@@ -18,7 +18,7 @@ import 'package:internalization_room/main.dart';
 import 'fakes.dart';
 
 const microfoneAzul = 'Gravar esta parte de novo';
-const irParaARetro = 'Ir para a retrotradução';
+const irParaARetro = 'Ir para a tradução';
 const umaParteInteira = Duration(seconds: 30);
 
 Finder byLabel(String label) => find.byWidgetPredicate(
@@ -48,17 +48,17 @@ Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) =>
 /// Ask, rather than guess, when the disk or the room has done its part.
 /// A tablet closed on the rehearsal of a passage told back in three parts, and opened
 /// again on it: the rehearsal is on disk, the ledger says the rehearsal, and the room
-/// holds one stretch per part, each from nought to [contadasAte]. The stretches named in
-/// [porContar] are ones the room says nobody has explained yet.
+/// holds one stretch per part, each from nought to [traduzidasAte]. The stretches named in
+/// [porTraduzir] are ones the room says nobody has explained yet.
 Future<ProviderContainer> aRetomadaNoEnsaio(
   SalaHarness harness, {
-  required List<int> contadasAte,
-  Set<String> porContar = const {},
+  required List<int> traduzidasAte,
+  Set<String> porTraduzir = const {},
 }) async {
   final home = Directory.systemTemp.createTempSync('sala-resto-da-historia');
   addTearDown(() => home.deleteSync(recursive: true));
   final gravadas = [
-    for (var parte = 1; parte <= contadasAte.length; parte++)
+    for (var parte = 1; parte <= traduzidasAte.length; parte++)
       KeptTake(
         scopeId: KeptScope.parte(parte),
         path: (File('${home.path}/p$parte.m4a')..writeAsBytesSync([1, 2, 3])).path,
@@ -75,13 +75,13 @@ Future<ProviderContainer> aRetomadaNoEnsaio(
     ),
   );
   harness.room.retroSoFar = BackTranslationProgress(segments: [
-    for (var parte = 1; parte <= contadasAte.length; parte++)
+    for (var parte = 1; parte <= traduzidasAte.length; parte++)
       SegmentView(
         segmentId: 'trecho-$parte',
         takeId: 'antiga-$parte',
         startsMs: 0,
-        endsMs: contadasAte[parte - 1],
-        told: !porContar.contains('trecho-$parte'),
+        endsMs: traduzidasAte[parte - 1],
+        told: !porTraduzir.contains('trecho-$parte'),
       ),
   ]);
   harness.playback.length = umaParteInteira;
@@ -132,7 +132,7 @@ Future<void> gravarUmaParte(
 }
 
 /// Tell the part in the air back whole, from its beginning to its end, then let it finish.
-Future<void> contarAParteInteira(
+Future<void> traduzirAParteInteira(
   WidgetTester tester,
   SalaHarness harness,
   SalaSessionNotifier notifier,
@@ -181,7 +181,7 @@ Future<ProviderContainer> aHistoriaSemOFim(
   notifier.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
   for (var parte = 0; parte < 3; parte++) {
-    await contarAParteInteira(tester, harness, notifier);
+    await traduzirAParteInteira(tester, harness, notifier);
     if (parte < 2) {
       notifier.ouvirGravacao();
       await tester.pump(const Duration(milliseconds: 200));
@@ -324,20 +324,30 @@ void main() {
     await notifier.finishBackTranslation();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(harness.room.clipDurationsSent.last, 4 * umaParteInteira.inMilliseconds,
-        reason: 'a gravação inteira, as três partes antigas e a nova');
+    expect(harness.room.playedByTakeSent.last, hasLength(4),
+        reason: 'as três partes antigas e a nova, uma entrada cada');
     expect(
-      ouvidoAteMs(harness.room.playedRangesSent.last),
-      4 * umaParteInteira.inMilliseconds,
-      reason: 'o que a sala recebe como ouvido cobre a gravação inteira, sem '
+      [
+        for (final parte in harness.room.playedByTakeSent.last)
+          ouvidoAteMs(parte['played_ranges']! as List<List<int>>)
+      ],
+      List.filled(4, umaParteInteira.inMilliseconds),
+      reason: 'o que a sala recebe como ouvido cobre cada parte inteira, sem '
           'buraco, senão o portão dela manda ouvir tudo de novo',
+    );
+    expect(
+      [
+        for (final parte in harness.room.playedByTakeSent.last)
+          parte['clip_duration_ms']
+      ],
+      List.filled(4, umaParteInteira.inMilliseconds),
     );
   });
 
   test('sair e reentrar depois de voltar ao ensaio também conta só o novo',
       () async {
     final harness = SalaHarness();
-    final container = await aRetomadaNoEnsaio(harness, contadasAte: [30000, 30000, 30000]);
+    final container = await aRetomadaNoEnsaio(harness, traduzidasAte: [30000, 30000, 30000]);
     final notifier = container.read(salaSessionProvider.notifier);
     expect(trechosDe(container.read(salaSessionProvider)),
         ['trecho-1', 'trecho-2', 'trecho-3'],
@@ -366,7 +376,7 @@ void main() {
 
   test('uma parte contada até pouco antes do fim conta como inteira', () async {
     final harness = SalaHarness();
-    final container = await aRetomadaNoEnsaio(harness, contadasAte: [30000, 30000, 29500]);
+    final container = await aRetomadaNoEnsaio(harness, traduzidasAte: [30000, 30000, 29500]);
     final nova = await gravarMaisUmaParte(container);
 
     container.read(salaSessionProvider.notifier).startRetro();
@@ -379,7 +389,7 @@ void main() {
 
   test('uma parte contada só pela metade é retomada, não pulada', () async {
     final harness = SalaHarness();
-    final container = await aRetomadaNoEnsaio(harness, contadasAte: [30000, 25000, 30000]);
+    final container = await aRetomadaNoEnsaio(harness, traduzidasAte: [30000, 25000, 30000]);
     final notifier = container.read(salaSessionProvider.notifier);
     await gravarMaisUmaParte(container);
 
@@ -409,8 +419,8 @@ void main() {
     final harness = SalaHarness();
     final container = await aRetomadaNoEnsaio(
       harness,
-      contadasAte: [30000, 30000, 30000],
-      porContar: {'trecho-3'},
+      traduzidasAte: [30000, 30000, 30000],
+      porTraduzir: {'trecho-3'},
     );
     await gravarMaisUmaParte(container);
 
@@ -426,7 +436,7 @@ void main() {
 
   test('uma parte que não se deixa medir é retomada do começo', () async {
     final harness = SalaHarness()..playback.measured = null;
-    final container = await aRetomadaNoEnsaio(harness, contadasAte: [30000, 30000, 30000]);
+    final container = await aRetomadaNoEnsaio(harness, traduzidasAte: [30000, 30000, 30000]);
     await gravarMaisUmaParte(container);
 
     container.read(salaSessionProvider.notifier).startRetro();
