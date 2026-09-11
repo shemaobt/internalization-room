@@ -52,3 +52,6 @@ environment file and the developer shortcuts.
 - `docs/setup.md`, `docs/backend-seams.md`, `docs/recordings-and-queue.md` — the conventions
   that are neither a decision nor a command.
 - `docs/spec/` — the vendored prototype and interaction flows.
+- `docs/doctrine/` — Marcia's `DOCTRINE.md`, vendored at a pinned commit of
+  `Tripod-Internalization`. It binds every change to this repository, and `ACCEPTANCE_BAR`
+  names the test behind each line of its §4.

@@ -60,6 +60,15 @@ jobs:
       - name: Nothing forbidden returns to lib/
         run: dart run tool/check_doctrine.dart
 
+      # The other half of the same guard. `check_doctrine.dart` says no banned mechanism came
+      # back into `lib/`; this says the vendored `DOCTRINE.md` still matches its pin, that the
+      # pin is one a ruling records, and that every line of the §4 acceptance bar is claimed by
+      # a test, held in tripod-backend, or recorded PENDING. It compares recorded sha256s and
+      # reads the tree, so it needs no token for a private repository — and the re-pin is
+      # deliberately not here: `--sync` is run by hand, against a checkout, when she has ruled.
+      - name: Nothing of Marcia's moved without her word
+        run: dart run tool/sync_doctrine.dart --check
+
       - name: Keep the coverage report
         if: always()
         uses: actions/upload-artifact@v4
