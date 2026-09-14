@@ -1116,10 +1116,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       aOferecer: 0,
       voice: VoiceState.invite,
     );
-    if (roda.isEmpty) {
+    if (roda.every((passagem) => passagem.isPanorama)) {
       // Nothing left for the room to offer, which is exactly what needsPerson means —
       // and it is the only state here with a glyph, a spoken line and a way out. A green
       // disc that refused every gesture in silence looked like a room that had died.
+      //
+      // The panorama's own spoke is not a passage: a book with every real passage done
+      // still calls a person even while that spoke sits on the wheel.
       _haltForAPerson();
       return;
     }
@@ -1199,7 +1202,67 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void entrarNaOferecida() {
     final passagem = state.oferecida;
     if (passagem == null || state.voice != VoiceState.invite) return;
+    if (passagem.isPanorama) {
+      unawaited(_entrarNoPanorama());
+      return;
+    }
     unawaited(goConversa(pericope: passagem.pericope));
+  }
+
+  /// Enter the panorama from its own spoke on the wheel, instead of falling into a
+  /// passage. It has no foreseen end, and nothing here schedules one: the team leaves it
+  /// the same way it leaves any session, by turning the wheel to a passage.
+  ///
+  /// Asked for by `panoramaPericope`, the same alias `openConvite` already asks for it
+  /// by — not by whatever id the wheel happens to label the spoke with — and the session
+  /// is reused rather than asked for again on every tap, for the reason `openConvite`'s
+  /// own guard gives: a retried touch would otherwise mint one abandoned panorama session
+  /// per attempt.
+  Future<void> _entrarNoPanorama() async {
+    final epoch = _epoch;
+    state = state.copyWith(voice: VoiceState.thinking);
+    _watchBusyState();
+    final reach = await _network.reachRoom();
+    if (epoch != _epoch) return;
+    if (reach != RoomReach.fine) {
+      _goOffline(reach);
+      return;
+    }
+    _watchBusyState();
+    try {
+      final created = _panoramaSessionId == null
+          ? await _room.createSession(
+              pericope: panoramaPericope,
+              language: _lingua,
+            )
+          : null;
+      if (epoch != _epoch) return;
+      // Which passage a session is for is the room's to say, and the answer carries it —
+      // the same swap openConvite already honours. A team touching this spoke while the
+      // room decides otherwise lands where the room answered, rather than being left on
+      // the wheel mid an opening turn nothing here is set up to answer.
+      final given = created?.pericope;
+      if (given != null && given != panoramaPericope) {
+        unawaited(goConversa(pericope: given, opened: created));
+        return;
+      }
+      final panorama = _panoramaSessionId ?? created!.sessionId;
+      _panoramaSessionId = panorama;
+      final turn = await _room.openSession(panorama);
+      if (epoch != _epoch) return;
+      await _readyToSpeak(turn.audioUrl, turn.fixedLine);
+      if (epoch != _epoch) return;
+      state = state.copyWith(voice: VoiceState.speaking);
+      _watchBusyState();
+      final spoke = await _speak(turn.audioUrl, turn.fixedLine);
+      if (epoch != _epoch) return;
+      if (!spoke) return _registerUnplayableTurn();
+      _unplayableTurns = 0;
+      state = state.copyWith(voice: VoiceState.invite);
+    } on Object catch (error) {
+      if (epoch != _epoch) return;
+      _handleRoomFailure(error);
+    }
   }
 
   /// Leave a passage part-way and go pick another one.

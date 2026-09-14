@@ -322,8 +322,13 @@ class SalaSessionState {
 
   bool get rodaPorLer => stage == SalaStage.escolha && naRoda == null;
 
+  /// The panorama's own spoke, when the wheel offers one, never counts as a passage
+  /// still to work — a book with every real passage done is finished whether or not the
+  /// spoke to hear it again is still sitting on the wheel.
   bool get livroInteiroFeito =>
-      stage == SalaStage.escolha && naRoda != null && naRoda!.isEmpty;
+      stage == SalaStage.escolha &&
+      naRoda != null &&
+      naRoda!.every((passagem) => passagem.isPanorama);
 
   bool get onFim => stage == SalaStage.fim;
 
