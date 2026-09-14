@@ -26,8 +26,11 @@ KeptTake _parteDois(Sala it) => it.estado.keptTakes.firstWhere(
     );
 
 /// The rehearsal told back end to end, standing at a finding on the stretch of part two.
-Future<Sala> _aSalaNoAchadoDaSegundaParte() async {
-  final it = await umEnsaioDeTresPartesContadoInteiro(compoeEm: _composta);
+Future<Sala> _aSalaNoAchadoDaSegundaParte({Duration? tetoDaEspera}) async {
+  final it = await umEnsaioDeTresPartesContadoInteiro(
+    compoeEm: _composta,
+    tetoDaEspera: tetoDaEspera,
+  );
   it.harness.room
     ..verdictChecked = false
     ..verdictFinding = BtFindingKind.addition
@@ -152,6 +155,55 @@ void main() {
             'a soma das duas anteriores — e a segunda delas só tem tamanho '
             'porque o pouso a mediu no caminho; sem isso o colar põe a equipe '
             'cinco segundos atrás de onde o som está');
+  });
+
+  test('cair na última parte com um buraco atrás não oferece travessia nenhuma',
+      () async {
+    final it = await _aSalaNoAchadoDaSegundaParte();
+    final terceira = it.partes[2].takeId!;
+    // The rebuilt passage this tablet never manages to measure: the ruler stays short by
+    // that part however far the team listens, which is the hole the landing jumps over.
+    it.harness.playback.semMedida.add(_arquivoDaComposta(it));
+
+    await _consertarPeloCaminhoLongo(it, antesDoVeredito: () {
+      it.harness.room
+        ..verdictChecked = false
+        ..verdictUnheardTakeIds = [terceira];
+    });
+    await _ouvirAParteNoAr(it, partesDoEnsaio[2]);
+
+    expect(it.estado.btParteFronteira, isFalse,
+        reason: 'não há parte nenhuma depois da última: oferecer a travessia '
+            'aqui manda a equipe para uma linha que não existe, e o toque que '
+            'ela oferece rebenta');
+    expect(it.estado.canFinishBackTranslation, isTrue,
+        reason: 'a equipe ouviu a parte que o servidor pediu até o fim; que o '
+            'colar não saiba desenhar uma parte de trás é assunto do desenho, '
+            'e não do que a equipe pode apertar — e quem julga o relato é o '
+            'servidor');
+  });
+
+  test('uma medida que nunca responde no pouso chama uma pessoa', () async {
+    final it = await _aSalaNoAchadoDaSegundaParte(
+      tetoDaEspera: const Duration(seconds: 2),
+    );
+    final terceira = it.partes[2].takeId!;
+    it.harness.playback.semMedida.add(_arquivoDaComposta(it));
+
+    await _consertarPeloCaminhoLongo(it, antesDoVeredito: () {
+      it.harness.playback
+        ..semMedida.remove(_arquivoDaComposta(it))
+        ..holdNextMeasurement();
+      it.harness.room
+        ..verdictChecked = false
+        ..verdictUnheardTakeIds = [terceira];
+    });
+
+    expect(it.estado.needsPerson, isTrue,
+        reason: 'medir espera o player, e a sala que espera sem dizer que está '
+            'pensando não é vigiada por ninguém: uma medida que nunca volta '
+            'deixava a equipe diante de um giro parado sem chamar ninguém');
+    it.harness.playback.finishHeldMeasurement();
   });
 
   test('a composta que chega depois do chão não contado não deixa o tamanho '

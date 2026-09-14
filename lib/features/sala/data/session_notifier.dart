@@ -2380,7 +2380,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// Write down how long [parte] turned out to be, once it has measured itself.
   void _marcarOFimDaParte(int parte, int medido) {
     final partes = state.partes;
-    if (parte < 0 || parte >= partes.length) return;
+    if (parte < 0 || parte >= partes.length || medido <= 0) return;
     _tamanhoDaParteMs[partes[parte].path] = medido;
   }
 
@@ -2482,6 +2482,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _escuta.abrir(state.partes[parte].path, 0);
     state = state.copyWith(
       btParteFronteira: false,
+      // A part going in the air is by definition a clip that has not ended. It never had
+      // to be said while the only part put in the air after the mark was set was none:
+      // landing on a part the room says nobody heard is the first, and it left the finish
+      // lit over a part still playing — the same refusal, pressed again, for ever — and
+      // the circle dead, because holding the clip and letting it go reads the mark and
+      // refuses to start anything.
+      btClipEnded: false,
       btClipRodando: true,
       btOuvidoMs: _pontoNoColar(0),
       btParteNoArMs: 0,
@@ -2511,8 +2518,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (arquivo != null) _escuta.medida(arquivo, medido);
     _marcarOFimDaParte(_parteTocando, medido);
     _pararOClipe(ate: medido);
+    // Whether the rehearsal has played through, which is what the finish waits on, and
+    // whether the cord can draw every part, which is the ruler's business: one question
+    // each. They were one line while the ruler could only fill in order, so the last part
+    // ending and the ruler being complete were the same instant. A landing jumps over a
+    // part, and a part nothing could measure then held the boundary open past the end of
+    // the row: the room offered a crossing into a part that is not there.
     final ultima = _parteTocando >= state.partes.length - 1;
-    if (ultima && _fimDaParteMs.length >= state.partes.length) {
+    if (ultima) {
       state = state.copyWith(
         btClipEnded: true,
         btParteFronteira: false,
@@ -3145,9 +3158,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // Landing forward over a part nobody has measured sits the cord's head short of the
     // sound by the whole of that part. A file the player still answers nothing about is
     // the one gap left once a mend measures what it swaps in, and it is measured here.
-    for (final antes in [...state.partes]) {
+    for (final antes in state.partes) {
       if (antes.takeId == gravacao) break;
       if (_tamanhoDaParteMs.containsKey(antes.path)) continue;
+      // Measuring waits on the player, and the watchdog that gives up on a wait only
+      // watches a room that says it is thinking. Left speaking — which is where saying
+      // the refusal leaves it — a measurement that never answered wedged the room with
+      // nobody called, which is the one thing every other wait here is protected from.
+      state = state.copyWith(voice: VoiceState.thinking);
+      _watchBusyState();
       final medida = await _playback.howLong(antes.path);
       if (epoch != _epoch) return;
       if (medida != null) _tamanhoDaParteMs[antes.path] = medida.inMilliseconds;
@@ -3368,10 +3387,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // this one replaces.
     final quanto = await _playback.howLong(arquivo);
     if (epoch != _epoch) return false;
-    // Found again on the far side of the wait, by the name and not by where it sat. Two
-    // round trips is long enough for the rehearsal to have been thrown away and started
-    // over under this, and a position read before them addresses a row that may no longer
-    // be there — or may now be somebody else's part.
+    // Found again on the far side of the wait, by the name and not by where it sat. Three
+    // waits is long enough for the rehearsal to have been thrown away and started over
+    // under this, and a position read before them addresses a row that may no longer be
+    // there — or may now be somebody else's part.
     final parte = state.keptTakes.where((take) => take.takeId == noLugarDe);
     if (parte.isEmpty) return false;
     final escopo = parte.first.scopeId;

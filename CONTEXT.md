@@ -166,7 +166,7 @@ _Avoid_: ponto de retomada, em curso, checkpoint, snapshot (the session's own li
 ### Findings and mends
 
 **Verdict**:
-The check's answer when the team says it has finished telling back: the passage is clean, or it carries findings, or it names an untold stretch to go straight to.
+The check's answer when the team says it has finished telling back: the passage is clean, or it carries findings, or it names an untold stretch to go straight to, or it refuses the check outright and names the parts the team's report does not cover.
 _Avoid_: veredito, result, finding (one item a verdict may carry), correction check (the server entity)
 
 **Finding**:

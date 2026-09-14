@@ -189,6 +189,17 @@ void main() {
       ..verdictUnheardTakeIds = [terceira.takeId!];
     await pedirOVeredito(it);
 
+    expect(it.estado.canFinishBackTranslation, isFalse,
+        reason: 'a parte acabou de entrar no ar e ninguém a ouviu ainda: um '
+            'terminei que continua aceso é a equipe apertando de novo e '
+            'ouvindo a mesma recusa, sem fim');
+
+    it.harness.playback.at = const Duration(seconds: 4);
+    it.sala.ouvirGravacao();
+    await waitFor('a gravação parar', () => !it.estado.btClipRodando);
+    it.sala.ouvirGravacao();
+    await waitFor('a gravação voltar', () => it.estado.btClipRodando);
+
     it.harness.playback.length = partesDoEnsaio[2];
     it.harness.playback.at = partesDoEnsaio[2];
     it.harness.playback.finishPlayback();
@@ -211,6 +222,29 @@ void main() {
         'então o relato seguinte a cobre inteira');
     expect(it.estado.btPhase, BtPhase.findings,
         reason: 'sem recusa, o mesmo aperto chega ao veredito como sempre');
+  });
+
+  test('uma parte que acaba sem o player dizer nada não encolhe o colar',
+      () async {
+    final it = await umEnsaioDeTresPartesContadoInteiro();
+    final terceira = it.partes[2];
+    it.harness.room
+      ..verdictChecked = false
+      ..verdictUnheardTakeIds = [terceira.takeId!];
+    await pedirOVeredito(it);
+
+    // The player answering nothing about the clip that just ended: no length, and a
+    // position read at that instant that comes back as nought.
+    it.harness.playback.length = null;
+    it.harness.playback.at = Duration.zero;
+    it.harness.playback.finishPlayback();
+    await waitFor('a terceira parte acabar', () => it.estado.btClipEnded);
+
+    expect(it.estado.btFimDasPartesMs, [10000, 18000, 30000],
+        reason: 'uma parte nunca tem zero milissegundo: um zero não é uma '
+            'medida, é o player sem resposta, e escrevê-lo por cima do '
+            'tamanho que a parte já mostrou encolhe o colar por baixo da '
+            'equipe');
   });
 
   test('um servidor que não manda o campo não recusa nada', () {
