@@ -76,8 +76,6 @@ class EscutaDasPartes {
     if (quanto > 0) parte.faixas.add([0, quanto]);
   }
 
-  void esquecer(String arquivo) => _partes.remove(arquivo);
-
   void esquecerTudo() => _partes.clear();
 
   /// The report, one entry per part the team has heard something of and the room can name.
