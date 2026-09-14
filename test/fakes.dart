@@ -64,6 +64,9 @@ const totalBeads = 12;
 
 const testLanguage = 'pt';
 
+/// The line this room composes for a *terminei*, whatever the answer turns out to be.
+const falaDoVeredito = '/api/internalization-room/voice/veredito';
+
 Coverage coverage({int engaged = 0, int surfaced = 0}) => Coverage(
       engaged: engaged,
       surfaced: surfaced,
@@ -1135,7 +1138,7 @@ class FakeRoom implements RoomRepository {
     playedByTakeSent.add([for (final parte in playedByTake) parte.toJson()]);
     _guard('finishBackTranslation');
     return BackTranslationVerdict(
-      audioUrl: '/api/internalization-room/voice/veredito',
+      audioUrl: falaDoVeredito,
       fixedLine: '',
       checked: verdictChecked,
       findingKind: verdictFinding,

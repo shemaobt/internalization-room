@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -13,10 +14,6 @@ const partesDoEnsaio = [
   Duration(seconds: 8),
   Duration(seconds: 12),
 ];
-
-/// The line the room says when it answers a *terminei*, whatever the answer turns out to
-/// be. The refusal carries no line of its own: the server composed this one for it.
-const falaDoVeredito = '/api/internalization-room/voice/veredito';
 
 class Sala {
   final SalaHarness harness;
@@ -214,6 +211,33 @@ void main() {
         'então o relato seguinte a cobre inteira');
     expect(it.estado.btPhase, BtPhase.findings,
         reason: 'sem recusa, o mesmo aperto chega ao veredito como sempre');
+  });
+
+  test('um servidor que não manda o campo não recusa nada', () {
+    final antigo = BackTranslationVerdict.fromJson(const {
+      'audio_url': '/voice/veredito',
+      'checked': false,
+      'findings_remaining': 0,
+    });
+    expect(antigo.unheardTakeIds, isEmpty);
+
+    final nulo = BackTranslationVerdict.fromJson(const {
+      'audio_url': '/voice/veredito',
+      'checked': false,
+      'unheard_take_ids': null,
+      'findings_remaining': 0,
+    });
+    expect(nulo.unheardTakeIds, isEmpty,
+        reason: 'uma recusa só existe quando o servidor a nomeia; lê-la de '
+            'uma ausência é a inferência que a sala não faz');
+
+    final nomeadas = BackTranslationVerdict.fromJson(const {
+      'audio_url': '/voice/veredito',
+      'checked': false,
+      'unheard_take_ids': ['t3', 't4'],
+      'findings_remaining': 0,
+    });
+    expect(nomeadas.unheardTakeIds, ['t3', 't4']);
   });
 
   test('uma recusa atrasada não muda nada', () async {

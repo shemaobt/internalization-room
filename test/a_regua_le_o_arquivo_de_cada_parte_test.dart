@@ -14,10 +14,12 @@ import 'fakes.dart';
 const _composta = 'C';
 const _aComposta = Duration(seconds: 5);
 
-/// Where the tablet writes the rebuilt passage when it fetches it. Known before the fetch
-/// because the length of that file has to be arranged before the room measures it.
+/// Where the tablet writes the rebuilt passage when it fetches it. Named before the fetch
+/// because how long that file is has to be arranged before the room measures it, and
+/// through the recorder's own naming so a change to it cannot leave this arrangement
+/// silently pointing at a file nobody ever writes.
 String _arquivoDaComposta(Sala it) =>
-    '${it.harness.recorder.home.path}/composta-$_composta.m4a';
+    it.harness.recorder.aFile('composta-$_composta').path;
 
 KeptTake _parteDois(Sala it) => it.estado.keptTakes.firstWhere(
       (take) => take.scopeId == KeptScope.parte(2),
@@ -79,6 +81,7 @@ Future<void> _consertarPeloCaminhoLongo(
 Future<void> _reabrir(Sala it) async {
   it.container.dispose();
   it.harness.playback.played.clear();
+  it.harness.playback.measurements.clear();
   it.container = it.harness.container();
   addTearDown(it.container.dispose);
   await it.sala.abrirEscolha();
@@ -162,6 +165,7 @@ void main() {
         reason: 'esta sessão fechou sem nunca alcançar a passagem composta');
     it.harness.room.failClipWith = null;
     it.harness.playback.lengths[_arquivoDaComposta(it)] = _aComposta;
+    final oArquivoVelho = _parteDois(it).path;
 
     await _reabrir(it);
     await waitFor(
@@ -170,6 +174,15 @@ void main() {
     );
     await _ouvirAParteNoAr(it, partesDoEnsaio[2]);
 
+    final medicoes = it.harness.playback.measurements;
+    expect(medicoes, contains(oArquivoVelho),
+        reason: 'sem a medida do arquivo velho não há ordem nenhuma para '
+            'comparar, e a comparação abaixo passaria sozinha');
+    expect(medicoes.indexOf(oArquivoVelho),
+        lessThan(medicoes.indexOf(_arquivoDaComposta(it))),
+        reason: 'esta é a ordem que a retomada toma sozinha, e é a que perde: '
+            'o chão não contado mede o arquivo velho antes de a composta '
+            'chegar, então quem mede primeiro não pode ser quem decide');
     expect(it.estado.btFimDasPartesMs, [10000, 15000, 27000],
         reason: 'na retomada as duas tarefas correm soltas: o chão não contado '
             'mede as partes que a equipe já contou e a composta chega depois. '
