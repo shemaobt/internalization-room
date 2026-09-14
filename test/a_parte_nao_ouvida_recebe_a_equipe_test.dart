@@ -224,6 +224,33 @@ void main() {
         reason: 'sem recusa, o mesmo aperto chega ao veredito como sempre');
   });
 
+  test('a recusa numa parte do meio também devolve o terminei no fim dela',
+      () async {
+    final it = await umEnsaioDeTresPartesContadoInteiro();
+    final primeira = it.partes[0];
+    it.harness.room
+      ..verdictChecked = false
+      ..verdictUnheardTakeIds = [primeira.takeId!];
+    await pedirOVeredito(it);
+
+    expect(it.harness.playback.played.last, primeira.path);
+    expect(it.estado.canFinishBackTranslation, isFalse);
+
+    it.harness.playback.length = partesDoEnsaio[0];
+    it.harness.playback.at = partesDoEnsaio[0];
+    it.harness.playback.finishPlayback();
+    await waitFor('a primeira parte acabar', () => !it.estado.btClipRodando);
+
+    expect(it.estado.canFinishBackTranslation, isTrue,
+        reason: 'a equipe ouviu a parte que o servidor pediu; obrigá-la a '
+            'atravessar e ouvir todas as partes depois dela para reaver o '
+            'aperto é ouvir a história inteira de novo, que é justamente o que '
+            'o salto pelo chão já contado existe para evitar');
+    expect(it.estado.btParteFronteira, isTrue,
+        reason: 'e a travessia continua de pé: quem quiser seguir ouvindo a '
+            'parte seguinte não perde o gesto por causa disso');
+  });
+
   test('uma parte que acaba sem o player dizer nada não encolhe o colar',
       () async {
     final it = await umEnsaioDeTresPartesContadoInteiro();
@@ -245,6 +272,16 @@ void main() {
             'medida, é o player sem resposta, e escrevê-lo por cima do '
             'tamanho que a parte já mostrou encolhe o colar por baixo da '
             'equipe');
+
+    it.harness.room.verdictUnheardTakeIds = const [];
+    await pedirOVeredito(it);
+
+    expect(it.harness.room.playedByTakeSent.last.last['clip_duration_ms'],
+        12000,
+        reason: 'e o mesmo zero não pode entrar no relato: é ele que o '
+            'servidor lê para decidir esta recusa, e uma parte ouvida '
+            'inteira que se diz de zero milissegundo é o mesmo terminei '
+            'recusado outra vez');
   });
 
   test('um servidor que não manda o campo não recusa nada', () {

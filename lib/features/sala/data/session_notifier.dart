@@ -155,6 +155,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   final Map<String, LugarDoTrecho> _lugares = {};
   Duration _trechoEnd = Duration.zero;
   int _parteTocando = 0;
+
+  /// The part in the air is the one the room said nobody heard, and hearing it to its end
+  /// hands the finish back.
+  ///
+  /// The finish was already the team's — it is how the refusal was asked for — and the
+  /// refusal only takes it away for the length of this one part. Without this, a refusal
+  /// naming any part but the last made the team cross and listen through everything after
+  /// it to get the press back, which is hearing the story again: the very thing the jump
+  /// over the ground already told exists to spare them.
+  bool _pousadaNaParteNaoOuvida = false;
+
   /// How long each part of the rehearsal turned out to be, by the file the part is kept
   /// as and never by where the part sits in the row.
   ///
@@ -2304,6 +2315,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _trechoEnd = Duration.zero;
     _parteTocando = 0;
     _tamanhoDaParteMs.clear();
+    _pousadaNaParteNaoOuvida = false;
     _escuta.esquecerTudo();
     _desdeMs = 0;
     state = state.copyWith(
@@ -2515,7 +2527,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final medido = _playback.playingLength?.inMilliseconds ??
         _playback.position.inMilliseconds;
     final arquivo = _parteNoAr?.path;
-    if (arquivo != null) _escuta.medida(arquivo, medido);
+    // And never a nought, on either of them. A part is never nought milliseconds long, so
+    // a nought here is the player with nothing to say about the clip that just ended. The
+    // ledger's copy is the `clip_duration_ms` the report carries, which is what the room
+    // reads to decide this very refusal: a part the team heard whole, reported as nought
+    // milliseconds long, is the same *terminei* refused again.
+    if (arquivo != null && medido > 0) _escuta.medida(arquivo, medido);
     _marcarOFimDaParte(_parteTocando, medido);
     _pararOClipe(ate: medido);
     // Whether the rehearsal has played through, which is what the finish waits on, and
@@ -2525,17 +2542,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // part, and a part nothing could measure then held the boundary open past the end of
     // the row: the room offered a crossing into a part that is not there.
     final ultima = _parteTocando >= state.partes.length - 1;
-    if (ultima) {
-      state = state.copyWith(
-        btClipEnded: true,
-        btParteFronteira: false,
-        btFimDasPartesMs: _fimDaParteMs,
-        btParteNoArMs: 0,
-      );
-      return;
-    }
+    final pousada = _pousadaNaParteNaoOuvida;
+    _pousadaNaParteNaoOuvida = false;
     state = state.copyWith(
-      btParteFronteira: true,
+      btClipEnded: ultima || pousada,
+      btParteFronteira: !ultima,
       btFimDasPartesMs: _fimDaParteMs,
       btParteNoArMs: 0,
     );
@@ -3178,6 +3189,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _haltForAPerson();
       return;
     }
+    _pousadaNaParteNaoOuvida = true;
     state = state.copyWith(
       btPhase: BtPhase.playing,
       voice: VoiceState.invite,
@@ -3923,6 +3935,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _clearAll();
     _parteTocando = 0;
     _tamanhoDaParteMs.clear();
+    _pousadaNaParteNaoOuvida = false;
     _escuta.esquecerTudo();
     state = state.copyWith(
       stage: SalaStage.ensaio,
@@ -4045,6 +4058,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _trechoEnd = Duration.zero;
     _parteTocando = 0;
     _tamanhoDaParteMs.clear();
+    _pousadaNaParteNaoOuvida = false;
     _escuta.esquecerTudo();
     _desdeMs = 0;
     _ghostParte = 0;
