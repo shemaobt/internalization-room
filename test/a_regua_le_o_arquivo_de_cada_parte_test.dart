@@ -1,0 +1,179 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
+
+import 'a_parte_nao_ouvida_recebe_a_equipe_test.dart'
+    show Sala, partesDoEnsaio, pedirOVeredito, umEnsaioDeTresPartesContadoInteiro;
+import 'fakes.dart';
+
+/// The name the room gives the recording it rebuilds around the mend, and how long that
+/// recording is: shorter than the part it takes the place of, so a length carried over
+/// from the file it replaced shows on the cord.
+const _composta = 'C';
+const _aComposta = Duration(seconds: 5);
+
+/// Where the tablet writes the rebuilt passage when it fetches it. Known before the fetch
+/// because the length of that file has to be arranged before the room measures it.
+String _arquivoDaComposta(Sala it) =>
+    '${it.harness.recorder.home.path}/composta-$_composta.m4a';
+
+KeptTake _parteDois(Sala it) => it.estado.keptTakes.firstWhere(
+      (take) => take.scopeId == KeptScope.parte(2),
+    );
+
+/// The rehearsal told back end to end, standing at a finding on the stretch of part two.
+Future<Sala> _aSalaNoAchadoDaSegundaParte() async {
+  final it = await umEnsaioDeTresPartesContadoInteiro(compoeEm: _composta);
+  it.harness.room
+    ..verdictChecked = false
+    ..verdictFinding = BtFindingKind.addition
+    ..verdictFindingPlace = 1;
+  await pedirOVeredito(it);
+  return it;
+}
+
+/// The long way, both stations: the mother tongue recorded again, then the telling redone
+/// over it. The room rebuilds the part around it and the part becomes that recording.
+///
+/// [antesDoVeredito] runs after the rebuilt passage has been swapped in and before the
+/// room asks what the mend was worth, which is the one seam between the two.
+Future<void> _consertarPeloCaminhoLongo(
+  Sala it, {
+  void Function()? antesDoVeredito,
+}) async {
+  final semArquivo = it.harness.room.replacesSemArquivo.length;
+  it.sala.regravarAVozMaterna();
+  it.sala.retroTap();
+  await waitFor(
+    'o microfone abrir na materna',
+    () => it.estado.voice == VoiceState.listening,
+  );
+  it.sala.retroTap();
+  await waitFor(
+    'a voz materna nova substituir o trecho',
+    () => it.harness.room.replacesSemArquivo.length == semArquivo + 1,
+  );
+  await waitFor(
+    'a segunda estação abrir sozinha',
+    () => it.estado.btPhase == BtPhase.capturing,
+  );
+  it.harness.room
+    ..verdictFinding = null
+    ..verdictFindingPlace = null;
+  antesDoVeredito?.call();
+  final pontes = it.harness.room.replacesAsked.length;
+  it.sala.retroTap();
+  await waitFor(
+    'a ponte nova substituir o trecho',
+    () => it.harness.room.replacesAsked.length == pontes + 1,
+  );
+  await waitFor(
+    'a sala voltar do veredito',
+    () => it.estado.btPhase != BtPhase.thinking,
+  );
+}
+
+/// The tablet closed and opened again on the same passage.
+Future<void> _reabrir(Sala it) async {
+  it.container.dispose();
+  it.harness.playback.played.clear();
+  it.container = it.harness.container();
+  addTearDown(it.container.dispose);
+  await it.sala.abrirEscolha();
+  await waitFor(
+    'a roda dizer que esta passagem tem trabalho parado',
+    () => it.estado.comecadas.contains('P01'),
+  );
+  await it.sala.goConversa(pericope: 'P01');
+  await waitFor(
+    'a tradução ser retomada e voltar ao ar',
+    () =>
+        it.estado.stage == SalaStage.retro &&
+        it.estado.btPhase == BtPhase.playing &&
+        it.harness.playback.played.isNotEmpty,
+  );
+}
+
+/// Carry the part in the air to its end, the way the tablet measures one.
+Future<void> _ouvirAParteNoAr(Sala it, Duration quanto) async {
+  it.harness.playback.length = quanto;
+  it.harness.playback.at = quanto;
+  it.harness.playback.finishPlayback();
+  await waitFor(
+    'a parte terminar',
+    () => it.estado.btParteFronteira || it.estado.btClipEnded,
+  );
+}
+
+void main() {
+  test('depois do conserto a régua lê o tamanho da composta', () async {
+    final it = await _aSalaNoAchadoDaSegundaParte();
+    it.harness.playback.lengths[_arquivoDaComposta(it)] = _aComposta;
+
+    await _consertarPeloCaminhoLongo(it);
+
+    expect(_parteDois(it).takeId, _composta,
+        reason: 'o caminho longo compõe uma gravação nova para a parte, e é '
+            'ela que passa a ser a parte');
+    expect(it.estado.btFimDasPartesMs, [10000, 15000, 27000],
+        reason: 'a equipe que não lê vê no colar onde cada parte acaba. Com o '
+            'tamanho do arquivo que a composta substituiu, as faixas depois '
+            'dela ficam três segundos à frente do som, e a regra que atravessa '
+            'para a parte seguinte lê o arquivo novo enquanto o colar lê o '
+            'velho');
+  });
+
+  test('cair numa parte além da régua mede as anteriores primeiro', () async {
+    final it = await _aSalaNoAchadoDaSegundaParte();
+    final terceira = it.partes[2].takeId!;
+    // The rebuilt passage lands on a tablet that cannot measure it yet: the room has a
+    // branch for a file the player answers nothing about, and the ruler is short by that
+    // part until something measures it.
+    it.harness.playback.semMedida.add(_arquivoDaComposta(it));
+
+    await _consertarPeloCaminhoLongo(it, antesDoVeredito: () {
+      it.harness.playback
+        ..semMedida.remove(_arquivoDaComposta(it))
+        ..lengths[_arquivoDaComposta(it)] = _aComposta;
+      it.harness.room
+        ..verdictChecked = false
+        ..verdictUnheardTakeIds = [terceira];
+    });
+
+    expect(it.harness.playback.played.last, it.partes[2].path,
+        reason: 'a recusa nomeia a terceira parte e a equipe cai nela');
+    expect(it.estado.btOuvidoMs, 15000,
+        reason: 'a cabeça de leitura senta onde a terceira parte começa, que é '
+            'a soma das duas anteriores — e a segunda delas só tem tamanho '
+            'porque o pouso a mediu no caminho; sem isso o colar põe a equipe '
+            'cinco segundos atrás de onde o som está');
+  });
+
+  test('a composta que chega depois do chão não contado não deixa o tamanho '
+      'velho', () async {
+    final it = await _aSalaNoAchadoDaSegundaParte();
+    it.harness.room.failClipWith = const RoomBroke('o balde sumiu');
+
+    await _consertarPeloCaminhoLongo(it);
+
+    expect(_parteDois(it).takeId, isNot(_composta),
+        reason: 'esta sessão fechou sem nunca alcançar a passagem composta');
+    it.harness.room.failClipWith = null;
+    it.harness.playback.lengths[_arquivoDaComposta(it)] = _aComposta;
+
+    await _reabrir(it);
+    await waitFor(
+      'a sala buscar a passagem composta que ela não tem',
+      () => _parteDois(it).takeId == _composta,
+    );
+    await _ouvirAParteNoAr(it, partesDoEnsaio[2]);
+
+    expect(it.estado.btFimDasPartesMs, [10000, 15000, 27000],
+        reason: 'na retomada as duas tarefas correm soltas: o chão não contado '
+            'mede as partes que a equipe já contou e a composta chega depois. '
+            'Quem mede primeiro não pode decidir o que o colar desenha, senão '
+            'a parte refeita fica com o tamanho do arquivo que ela substituiu');
+  });
+}

@@ -20,7 +20,10 @@ const falaDoVeredito = '/api/internalization-room/voice/veredito';
 
 class Sala {
   final SalaHarness harness;
-  final ProviderContainer container;
+
+  /// Not final: a tablet closed and opened again on the same passage is a new container
+  /// over the same doubles, and the ruler after a mend is read across that seam.
+  ProviderContainer container;
 
   Sala(this.harness, this.container);
 
