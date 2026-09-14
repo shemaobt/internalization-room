@@ -2439,9 +2439,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// tells about the parts it steps over, and the app is the only one who can tell it.
   /// Opening at the cursor left the picked-up part's own beginning uncovered and the
   /// finish was refused.
-  void _tocarParteDaRetro(int parte) {
+  ///
+  /// [doComeco] puts it in the air at its own nought instead, for the one gesture whose
+  /// whole subject is hearing rather than telling.
+  void _tocarParteDaRetro(int parte, {bool doComeco = false}) {
     _parteTocando = parte;
-    _trechoStart = _ondeParouNesteArquivo(parte);
+    _trechoStart = doComeco ? Duration.zero : _ondeParouNesteArquivo(parte);
     _desdeMs = 0;
     _escuta.abrir(state.partes[parte].path, 0);
     state = state.copyWith(
@@ -3035,6 +3038,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       _unplayableTurns = 0;
 
+      final naoOuvidas = verdict.unheardTakeIds;
+      if (naoOuvidas.isNotEmpty) {
+        _levarAParteNaoOuvida(naoOuvidas.first);
+        return;
+      }
+
       if (verdict.checked) {
         // The finding is over, and so is the stretch it named. This branch returns above
         // the place the pointer is resolved, so a name outlived the objection that gave it
@@ -3086,6 +3095,29 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (epoch != _epoch) return;
       _handleRoomFailure(error);
     }
+  }
+
+  /// Straight to the part the room says nobody heard, with the telling-back left standing.
+  ///
+  /// The room refuses to read a passage whose rehearsal was not heard through, and it
+  /// names the parts it is missing. The press is not spent on the refusal: the part goes
+  /// in the air, the team hears it, and *terminei* lights again at its end.
+  ///
+  /// At the part's own nought, which is the one place this differs from picking a part
+  /// back up. A part already told back whole has its cursor at its end, and started there
+  /// it would play silence while the listening ledger — which opens at nought either way —
+  /// reported the part heard whole: the same *terminei* would be refused again, with
+  /// nothing the team could do about it.
+  void _levarAParteNaoOuvida(String gravacao) {
+    final parte = state.partes.indexWhere((take) => take.takeId == gravacao);
+    if (parte < 0) {
+      // A recording this tablet is not holding. There is nothing to lead them to and no
+      // way to say so without words.
+      _haltForAPerson();
+      return;
+    }
+    state = state.copyWith(btPhase: BtPhase.playing, voice: VoiceState.invite);
+    _tocarParteDaRetro(parte, doComeco: true);
   }
 
   /// Straight to the stretch nobody told, with the rehearsal left standing.
