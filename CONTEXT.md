@@ -119,6 +119,10 @@ _Avoid_: trecho não contado, missing (a finding kind), unexplained stretch
 The point inside a part's own file where the telling-back stopped, from which a resumed back-translation starts playing and from which it counts what it reports as heard.
 _Avoid_: cursor da retro, playhead, reading head (what the necklace draws above the cord)
 
+**Listening ledger** (`escuta das partes`):
+What the team heard of each part of its rehearsal, kept one part at a time, in that part's own milliseconds and keyed by the recording the part was kept as. A part recorded again starts its listening over while the others keep theirs, and a part the room has not named yet is left out of the report the tablet sends at *terminei*.
+_Avoid_: `_ouvido`, registro de escuta, played ranges, the concatenated passage, the rehearsal's whole length
+
 **Chunk**:
 The numbered position of a stretch in the list the analyst receives in one reading. It exists only during that reading; the server turns the number back into a segment.
 _Avoid_: trecho, stretch, segmento, segment (the persistent objects)

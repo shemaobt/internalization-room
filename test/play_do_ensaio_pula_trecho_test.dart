@@ -49,7 +49,7 @@ Future<void> _gravarUmaParte(_Sala it) async {
   });
 }
 
-Future<void> _contarUmTrecho(_Sala it, Duration em) async {
+Future<void> _traduzirUmTrecho(_Sala it, Duration em) async {
   final antes = it.estado.btTrechos.length;
   it.harness.playback.at = em;
   it.sala.cortarTrecho();
@@ -121,14 +121,14 @@ Future<_Sala> _seisPartesSeisTrechos() async {
 
   it.sala.startRetro();
   await waitFor(
-    'a retrotradução começar a tocar a primeira parte',
+    'a tradução começar a tocar a primeira parte',
     () =>
         it.estado.stage == SalaStage.retro &&
         it.estado.btPhase == BtPhase.playing,
   );
 
   for (var i = 0; i < 6; i++) {
-    await _contarUmTrecho(it, _parteLen);
+    await _traduzirUmTrecho(it, _parteLen);
     if (i < 5) await _atravessarAFronteira(it);
   }
   await _pedirOVeredito(it);
@@ -192,11 +192,11 @@ Future<void> _tocarOFantasmaAteAcabar(_Sala it) async {
 }
 
 /// The short way: the telling redone over the same mother tongue, no re-recording.
-Future<void> _recontarPeloCaminhoCurto(_Sala it) async {
+Future<void> _traduzirDeNovoPeloCaminhoCurto(_Sala it) async {
   final trecho = it.estado.btFindingTrecho!;
   await it.sala.traduzirDeNovo(trecho);
   await waitFor(
-    'o microfone abrir para recontar',
+    'o microfone abrir para traduzir de novo',
     () => it.estado.btPhase == BtPhase.capturing,
   );
   it.sala.retroTap();
@@ -217,8 +217,8 @@ void main() {
     // partes diferentes sob o mesmo id.
     await _consertarPeloCaminhoLongo(it, composta: 'C3', apontaDepois: 3);
     await _consertarPeloCaminhoLongo(it, composta: 'C4', apontaDepois: 5);
-    // Trecho 6 (índice 5), recontado pelo caminho curto.
-    await _recontarPeloCaminhoCurto(it);
+    // Trecho 6 (índice 5), traduzido de novo pelo caminho curto.
+    await _traduzirDeNovoPeloCaminhoCurto(it);
 
     expect(it.estado.btPhase, BtPhase.findings,
         reason: 'a sala está de volta às perguntas depois da última correção');
@@ -267,7 +267,7 @@ void main() {
     );
     it.harness.room.failClipWith = null;
     await _consertarPeloCaminhoLongo(it, composta: 'C4', apontaDepois: 5);
-    await _recontarPeloCaminhoCurto(it);
+    await _traduzirDeNovoPeloCaminhoCurto(it);
 
     it.sala.continuarOEnsaio();
     await waitFor(
@@ -346,7 +346,7 @@ void main() {
     );
     await it.sala.goConversa(pericope: 'P01');
     await waitFor(
-      'a retrotradução ser retomada com os dois trechos',
+      'a tradução ser retomada com os dois trechos',
       () =>
           it.estado.stage == SalaStage.retro &&
           it.estado.btTrechos.length == 2,

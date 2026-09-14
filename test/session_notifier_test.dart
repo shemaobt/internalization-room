@@ -647,46 +647,20 @@ void main() {
         reason: 'a sala repetindo o aviso a cada 20ms é um alarme, não um recado');
   });
 
-  test('the sala asks out loud to be touched, and waits', () async {
+  test('a team that stays silent is never asked twice to begin', () async {
     final harness = SalaHarness();
     final container = harness.container();
     addTearDown(container.dispose);
 
-    container.read(salaSessionProvider.notifier).beckon();
-    await settle();
+    await container.read(salaSessionProvider.notifier).openTheRoom();
+    await settle(const Duration(milliseconds: 200));
 
-    expect(harness.voice.assets, [inviteToStartAsset(testLanguage)]);
+    expect(harness.voice.assets, isEmpty,
+        reason: 'um convite repetido vira cobrança; quem abre a sessão agora é a fala '
+            'que começa a passagem, não um lembrete sozinho');
     expect(harness.room.calls, isEmpty,
-        reason: 'o convite falado nao pode abrir sessao — o toque é que começa');
+        reason: 'nada que a sala diz sozinha pode abrir sessao — o toque é que começa');
     expect(container.read(salaSessionProvider).awaitingFirstTouch, isTrue);
-  });
-
-  test('the invitation is repeated while nobody touches', () async {
-    final harness = SalaHarness(beckonInterval: const Duration(milliseconds: 30));
-    final container = harness.container();
-    addTearDown(container.dispose);
-
-    container.read(salaSessionProvider.notifier).beckon();
-    await settle(const Duration(milliseconds: 100));
-
-    expect(harness.voice.assets.length, greaterThan(1),
-        reason: 'uma sala em silêncio deixa a equipe sem saber o que fazer');
-  });
-
-  test('the touch stops the invitation and starts the panorama', () async {
-    final harness = SalaHarness(beckonInterval: const Duration(milliseconds: 30));
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    notifier.beckon();
-    notifier.conviteTap();
-    await settle(const Duration(milliseconds: 120));
-
-    expect(harness.voice.assets, [inviteToStartAsset(testLanguage)],
-        reason: 'depois do toque o convite nao se repete');
-    expect(harness.room.pericopesAsked, [panoramaPericope]);
-    expect(container.read(salaSessionProvider).showEntrada, isTrue);
   });
 
   test('the convite speaks the panorama before offering the way in', () async {
@@ -1728,13 +1702,13 @@ void main() {
 
     final after = container.read(salaSessionProvider);
     expect(after.btTrechos.length, before.btTrechos.length,
-        reason: 'recontar um trecho descartava as explicações de todos os '
+        reason: 'traduzir um trecho de novo descartava as explicações de todos os '
             'outros e mandava a equipe reescutar a gravação do zero');
     expect(after.btChunkPasses, before.btChunkPasses);
     expect(harness.room.restartsAsked, isEmpty,
         reason: 'nada é descartado no servidor: o novo pedaço entra junto');
     expect(harness.playback.ranges, hasLength(1),
-        reason: 'a sala toca aquele trecho para a equipe contar de novo');
+        reason: 'a sala toca aquele trecho para a equipe traduzir de novo');
     expect(after.btClipEnded, isTrue,
         reason: 'e o terminei continua ali para reconferir');
   });
@@ -1954,7 +1928,7 @@ void main() {
     await settle();
 
     expect(container.read(salaSessionProvider).stage, SalaStage.ensaio,
-        reason: 'o botão de recontar fica a 28 pixels do que a equipe acabou de '
+        reason: 'o botão de traduzir de novo fica a 28 pixels do que a equipe acabou de '
             'tocar; enquanto o pedido está em voo ele mudava a fase, e a resposta '
             'confirmada chegava numa sala que já não estava nos achados, deixando '
             'a equipe segurando trechos que a sessão descartou');
@@ -2161,7 +2135,7 @@ void main() {
 
     expect(harness.voice.assets.where((a) => a == strandedTakeAsset(testLanguage)), hasLength(1),
         reason: 'a equipe precisa saber que algo ficou preso — e ouvir isso uma vez, '
-            'não a cada vez que a conta é recontada');
+            'não a cada vez que a sala refaz a conta');
   });
 
   test('a chunk the room refused is not counted as safe either', () async {
@@ -2623,10 +2597,18 @@ void main() {
     await notifier.finishBackTranslation();
     await settle();
 
-    expect(harness.room.clipDurationsSent, isNotEmpty);
-    expect(harness.room.clipDurationsSent.last, 61000,
-        reason: 'o alcance tocado é evidência para o artefato do Refine: '
-            'o servidor registra o que o tablet realmente deixou tocar');
+    expect(harness.room.playedByTakeSent, isNotEmpty);
+    expect(harness.room.playedByTakeSent.last, [
+      {
+        'take_id': harness.room.takeIds.single,
+        'played_ranges': [
+          [0, 61000]
+        ],
+        'clip_duration_ms': 61000,
+      },
+    ], reason: 'o alcance tocado é evidência para o artefato do Refine: '
+        'o servidor registra o que o tablet realmente deixou tocar, e diz de '
+        'qual gravação está falando');
   });
 
   test('a line that will not play does not erase the necklace', () async {
@@ -2899,12 +2881,24 @@ void main() {
     await notifier.finishBackTranslation();
     await settle();
 
-    expect(harness.room.clipDurationsSent.last, 20000);
-    expect(harness.room.playedRangesSent.last, [
-      [0, 10000],
-      [10000, 20000],
+    expect(harness.room.playedByTakeSent.last, [
+      {
+        'take_id': harness.room.takeIds[0],
+        'played_ranges': [
+          [0, 10000]
+        ],
+        'clip_duration_ms': 10000,
+      },
+      {
+        'take_id': harness.room.takeIds[1],
+        'played_ranges': [
+          [0, 10000]
+        ],
+        'clip_duration_ms': 10000,
+      },
     ], reason: 'o relatório dizia sempre "do zero até o fim", então a trava que '
-        'existe para pegar exatamente isso nunca podia falhar');
+        'existe para pegar exatamente isso nunca podia falhar; e cada parte é '
+        'contada no relógio do próprio arquivo');
   });
 
   test('a part left unheard is not reported as heard', () async {
@@ -2961,7 +2955,12 @@ void main() {
     await notifier.finishBackTranslation();
     await settle();
 
-    expect(harness.room.clipDurationsSent.last, 20000,
+    expect(
+        [
+          for (final parte in harness.room.playedByTakeSent.last)
+            parte['clip_duration_ms']
+        ],
+        [10000, 10000],
         reason: 'lida da posição no instante em que a parte acaba, uma gravação '
             'de três partes se declarava do tamanho de uma');
   });
@@ -2987,7 +2986,7 @@ void main() {
     expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
   });
 
-  test('terminei sums every part the team heard', () async {
+  test('terminei names every part the team heard, one entry each', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -3009,7 +3008,22 @@ void main() {
     await notifier.finishBackTranslation();
     await settle();
 
-    expect(harness.room.clipDurationsSent.last, 18000);
+    expect(harness.room.playedByTakeSent.last, [
+      {
+        'take_id': harness.room.takeIds[0],
+        'played_ranges': [
+          [0, 10000]
+        ],
+        'clip_duration_ms': 10000,
+      },
+      {
+        'take_id': harness.room.takeIds[1],
+        'played_ranges': [
+          [0, 8000]
+        ],
+        'clip_duration_ms': 8000,
+      },
+    ]);
   });
 
   test('a finding in the second part plays the right stretch of it', () async {

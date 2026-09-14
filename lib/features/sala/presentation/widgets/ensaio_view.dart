@@ -130,7 +130,7 @@ class EnsaioView extends ConsumerWidget {
               ? AdvanceButton(
                   ready: session.ensaioDone,
                   gradient: BeadStyles.verde,
-                  semanticLabel: 'Ir para a retrotradução',
+                  semanticLabel: 'Ir para a tradução',
                   onTap: notifier.startRetro,
                   child: const Icon(
                     LucideIcons.checkCheck,

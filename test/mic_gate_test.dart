@@ -87,7 +87,9 @@ void main() {
   });
 
   testWidgets('clearing the gate opens the room, not just the screen', (tester) async {
-    final harness = SalaHarness()..recorder.permitted = false;
+    final harness = SalaHarness()
+      ..recorder.permitted = false
+      ..finished.done.add('livro:Ruth');
     final container = await pumpSala(tester, harness);
     await tester.pump(const Duration(milliseconds: 300));
     expect(container.read(micPermissionProvider), MicAccess.denied);
@@ -96,8 +98,8 @@ void main() {
     await tester.tap(bySemanticsLabelWidget('A sala precisa do microfone para funcionar'));
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(harness.voice.assets, contains(inviteToStartAsset(testLanguage)),
-        reason: 'checar a permissão trocava a tela e não começava nada: o convite nunca '
-            'acenava, e numa sala que não lê isso é um círculo mudo');
+    expect(harness.room.booksAsked, ['Ruth'],
+        reason: 'checar a permissão trocava a tela e não pedia nada ao servidor: a equipe '
+            'ficava numa tela sem sessão nenhuma por trás dela');
   });
 }

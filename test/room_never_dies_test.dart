@@ -924,8 +924,8 @@ void main() {
     await settle();
 
     expect(harness.room.retells, antes,
-        reason: 'o primeiro trecho de uma retro nova subia marcado como recontagem de um '
-            'trecho que não existe, porque _recontando só é limpo por um chunk que chega');
+        reason: 'o primeiro trecho de uma retro nova subia marcado como tradução de novo de um '
+            'trecho que não existe, porque _traduzindoDeNovo só é limpo por um chunk que chega');
   });
 
   test('a fresh passage does not inherit the last one\'s strikes', () async {
