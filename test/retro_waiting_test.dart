@@ -18,11 +18,11 @@ Finder byLabel(String label) => find.byWidgetPredicate(
     );
 
 const cortar = 'Cortar aqui e traduzir esta parte';
-const contar = 'Traduzir esta parte na língua ponte';
+const traduzir = 'Traduzir esta parte na língua ponte';
 
 /// A team told the rehearsal and is standing in the telling-back, with the recording in
 /// the air — which is how the room hands the phase over.
-Future<ProviderContainer> pumpToContarDeVolta(
+Future<ProviderContainer> pumpToTraduzir(
   WidgetTester tester,
   SalaHarness harness,
 ) async {
@@ -61,7 +61,7 @@ Future<SalaHarness> pumpToRestartInFlight(WidgetTester tester) async {
   final harness = SalaHarness()
     ..room.verdictChecked = false
     ..room.verdictFinding = BtFindingKind.addition;
-  final container = await pumpToContarDeVolta(tester, harness);
+  final container = await pumpToTraduzir(tester, harness);
   final notifier = container.read(salaSessionProvider.notifier);
 
   harness.playback.at = const Duration(seconds: 10);
@@ -85,7 +85,7 @@ Future<SalaHarness> pumpToRestartInFlight(WidgetTester tester) async {
 void main() {
   testWidgets('with the recording in the air the button offers to cut',
       (tester) async {
-    await pumpToContarDeVolta(tester, SalaHarness());
+    await pumpToTraduzir(tester, SalaHarness());
 
     expect(byLabel(cortar), findsOneWidget,
         reason: 'com o áudio correndo sob o dedo existe um instante sendo '
@@ -94,10 +94,10 @@ void main() {
 
   testWidgets('with the recording stopped the same button offers to tell',
       (tester) async {
-    final container = await pumpToContarDeVolta(tester, SalaHarness());
+    final container = await pumpToTraduzir(tester, SalaHarness());
     await pararAGravacao(tester, container);
 
-    expect(byLabel(contar), findsOneWidget,
+    expect(byLabel(traduzir), findsOneWidget,
         reason: 'parado não há instante nenhum sendo apontado, e um botão que '
             'promete cortar aqui não descreve mais nada — o que resta do '
             'gesto é contar');
@@ -110,10 +110,10 @@ void main() {
     testWidgets(
         'the tap lands in the same place with the recording '
         '${noAr ? "in the air" : "stopped"}', (tester) async {
-      final container = await pumpToContarDeVolta(tester, SalaHarness());
+      final container = await pumpToTraduzir(tester, SalaHarness());
       if (!noAr) await pararAGravacao(tester, container);
 
-      await tester.tap(byLabel(noAr ? cortar : contar));
+      await tester.tap(byLabel(noAr ? cortar : traduzir));
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing,
@@ -125,7 +125,7 @@ void main() {
   }
 
   testWidgets('the listening button is left alone', (tester) async {
-    final container = await pumpToContarDeVolta(tester, SalaHarness());
+    final container = await pumpToTraduzir(tester, SalaHarness());
 
     expect(byLabel('Pausar a gravação'), findsOneWidget,
         reason: 'o botão de ouvir tem a sua própria fala e ela já segue o '

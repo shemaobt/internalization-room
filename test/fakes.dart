@@ -25,6 +25,7 @@ import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/coverage.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
+import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
@@ -489,8 +490,7 @@ class FakeRoom implements RoomRepository {
   final List<String?> bridgeModesSent = [];
   final List<String> languagesSent = [];
   final List<String> languagesAsked = [];
-  final List<int?> clipDurationsSent = [];
-  final List<List<List<int>>> playedRangesSent = [];
+  final List<List<Map<String, Object?>>> playedByTakeSent = [];
   final List<bool> metBefore = [];
   final List<String> clipsFetched = [];
   bool reachable = true;
@@ -1112,14 +1112,12 @@ class FakeRoom implements RoomRepository {
   @override
   Future<BackTranslationVerdict> finishBackTranslation(
     String sessionId, {
-    int? clipDurationMs,
-    List<List<int>> playedRanges = const [],
+    required List<PlayedTake> playedByTake,
   }) async {
     duranteOVeredito?.call();
     final refusal = failFinishWith;
     if (refusal != null) throw refusal;
-    clipDurationsSent.add(clipDurationMs);
-    playedRangesSent.add(playedRanges);
+    playedByTakeSent.add([for (final parte in playedByTake) parte.toJson()]);
     _guard('finishBackTranslation');
     return BackTranslationVerdict(
       audioUrl: '/api/internalization-room/voice/veredito',
@@ -1404,7 +1402,6 @@ class SalaHarness {
   final FakeLinkedTeam vinculo;
   final Duration settleDelay;
   final List<Duration> retryBackoff;
-  final Duration? beckonInterval;
   final Duration? busyCeiling;
   final Duration? playbackCeiling;
   final Duration clipGrace;
@@ -1426,7 +1423,6 @@ class SalaHarness {
     this.linkPoll,
     this.settleDelay = const Duration(milliseconds: 60),
     this.retryBackoff = const [Duration(milliseconds: 20)],
-    this.beckonInterval,
     this.busyCeiling,
     this.playbackCeiling,
     this.clipGrace = const Duration(seconds: 10),
@@ -1470,7 +1466,6 @@ class SalaHarness {
         screenAwakeProvider.overrideWithValue(awake),
         beadSettleDelayProvider.overrideWithValue(settleDelay),
         roomRetryBackoffProvider.overrideWithValue(retryBackoff),
-        beckonIntervalProvider.overrideWithValue(beckonInterval),
         busyStateCeilingProvider.overrideWithValue(busyCeiling),
         playbackCeilingProvider.overrideWithValue(playbackCeiling),
         clipGraceProvider.overrideWithValue(clipGrace),

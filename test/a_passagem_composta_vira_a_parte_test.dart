@@ -71,7 +71,7 @@ Future<void> _gravarUmaParte(_Sala it) async {
   });
 }
 
-Future<void> _contarUmTrecho(_Sala it, Duration em) async {
+Future<void> _traduzirUmTrecho(_Sala it, Duration em) async {
   final antes = it.estado.btTrechos.length;
   it.harness.playback.at = em;
   it.sala.cortarTrecho();
@@ -153,16 +153,16 @@ Future<_Sala> _aSalaNaPergunta({
 
   it.sala.startRetro();
   await waitFor(
-    'a retrotradução começar a tocar a primeira parte',
+    'a tradução começar a tocar a primeira parte',
     () =>
         it.estado.stage == SalaStage.retro &&
         it.estado.btPhase == BtPhase.playing,
   );
 
-  await _contarUmTrecho(it, const Duration(seconds: 6));
-  await _contarUmTrecho(it, ateOnde);
+  await _traduzirUmTrecho(it, const Duration(seconds: 6));
+  await _traduzirUmTrecho(it, ateOnde);
   await _atravessarAFronteira(it);
-  await _contarUmTrecho(it, _segundaParte);
+  await _traduzirUmTrecho(it, _segundaParte);
   await _pedirOVeredito(it);
   return it;
 }
@@ -226,7 +226,7 @@ Future<void> _retomar(_Sala it) async {
   );
   await it.sala.goConversa(pericope: 'P01');
   await waitFor(
-    'a retrotradução ser retomada e voltar ao ar',
+    'a tradução ser retomada e voltar ao ar',
     () =>
         it.estado.stage == SalaStage.retro &&
         it.estado.btPhase == BtPhase.playing &&
@@ -402,13 +402,13 @@ void main() {
     );
     it.sala.startRetro();
     await waitFor(
-      'a retrotradução voltar ao chão que ninguém contou',
+      'a tradução voltar ao chão que ninguém contou',
       () =>
           it.estado.stage == SalaStage.retro &&
           it.estado.btPhase == BtPhase.playing,
     );
     final antes = it.harness.room.chunksSent;
-    await _contarUmTrecho(it, _aComposta);
+    await _traduzirUmTrecho(it, _aComposta);
 
     expect(it.harness.room.chunksSent, antes + 1);
     expect(it.harness.room.chunkTakes.last, _composta,

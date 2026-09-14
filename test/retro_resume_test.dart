@@ -17,7 +17,7 @@ Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) async 
 
 const _gravacao = 'gravacao-1';
 
-const _contados = BackTranslationProgress(
+const _traduzidos = BackTranslationProgress(
   segments: [
     SegmentView(
       segmentId: 'trecho-1',
@@ -80,7 +80,7 @@ void main() {
     final container = await _reopen(
       harness,
       parouEm: SalaStage.retro,
-      contado: _contados,
+      contado: _traduzidos,
     );
 
     final state = container.read(salaSessionProvider);
@@ -96,7 +96,7 @@ void main() {
     final container = await _reopen(
       harness,
       parouEm: SalaStage.retro,
-      contado: _contados,
+      contado: _traduzidos,
     );
 
     final state = container.read(salaSessionProvider);
@@ -159,7 +159,7 @@ void main() {
     final container = await _reopen(
       harness,
       parouEm: SalaStage.retro,
-      contado: _contados,
+      contado: _traduzidos,
       semAudio: true,
     );
 
@@ -233,7 +233,7 @@ void main() {
     final container = await _reopen(
       harness,
       parouEm: SalaStage.retro,
-      contado: _contados,
+      contado: _traduzidos,
       semAudio: true,
     );
 
@@ -252,12 +252,12 @@ void main() {
     final container = await _reopen(
       harness,
       parouEm: SalaStage.retro,
-      contado: _contados,
+      contado: _traduzidos,
     );
 
     expect(harness.room.restartsAsked, isEmpty,
         reason: 'os trechos que o servidor guarda são os que a equipe está '
-            'voltando para continuar, e descartá-los é mandar contar de novo '
+            'voltando para continuar, e descartá-los é mandar traduzir de novo '
             'o que já estava contado');
     expect(container.read(salaSessionProvider).stage, SalaStage.retro);
   });
@@ -269,7 +269,7 @@ void main() {
     final container = await _reopen(
       harness,
       parouEm: SalaStage.ensaio,
-      contado: _contados,
+      contado: _traduzidos,
     );
 
     final state = container.read(salaSessionProvider);
@@ -285,7 +285,7 @@ void main() {
     final container = await _reopen(
       harness,
       parouEm: SalaStage.retro,
-      contado: _contados,
+      contado: _traduzidos,
     );
     final notifier = container.read(salaSessionProvider.notifier);
 
@@ -307,7 +307,7 @@ void main() {
     final container = await _reopen(
       harness,
       parouEm: SalaStage.retro,
-      contado: _contados,
+      contado: _traduzidos,
     );
     final notifier = container.read(salaSessionProvider.notifier);
 

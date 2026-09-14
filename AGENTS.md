@@ -41,6 +41,10 @@ device credential is never in that file: it lives in the iOS Keychain, and ADR 0
 State is Riverpod. The Shemá design system and the client-validated interaction flows are
 vendored under `docs/spec/`.
 
+- `docs/doctrine/` — Marcia's `DOCTRINE.md`, vendored at the pin in `DOCTRINE_PIN` and binding
+  on every change here: read it before touching the canvas or the turn loop. `ACCEPTANCE_BAR`
+  says which line of §4 is held by which test, and a change to the pin needs a ruling in
+  `docs/doctrine/rulings/`.
 - `CONTEXT.md` — the glossary. Use its terms in code, tests and commits.
 - `docs/adr/` — one hard-to-reverse decision per file.
 - `docs/setup.md`, `docs/backend-seams.md`, `docs/recordings-and-queue.md`.

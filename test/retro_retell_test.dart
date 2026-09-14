@@ -43,7 +43,7 @@ Future<ProviderContainer> _inRetro(SalaHarness harness) async {
   return container;
 }
 
-Future<void> _contaTrecho(
+Future<void> _traduzTrecho(
   SalaHarness harness,
   SalaSessionNotifier notifier, {
   required Duration em,
@@ -56,7 +56,7 @@ Future<void> _contaTrecho(
 }
 
 /// Tell one stretch again: the room listens, the team speaks, the team stops it.
-Future<void> _contaDeNovo(
+Future<void> _traduzDeNovo(
   ProviderContainer container,
   SalaSessionNotifier notifier,
   Trecho trecho,
@@ -80,7 +80,7 @@ Future<void> _contaDeNovo(
 Future<ProviderContainer> _levadaAoTrechoApontado(SalaHarness harness) async {
   final container = await _inRetro(harness);
   final notifier = container.read(salaSessionProvider.notifier);
-  await _contaTrecho(harness, notifier, em: const Duration(seconds: 20));
+  await _traduzTrecho(harness, notifier, em: const Duration(seconds: 20));
   await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
   harness.room.verdictFindingSegmentId = harness.room.segments.last.segmentId;
   harness.playback.finishPlayback();
@@ -104,7 +104,7 @@ Future<ProviderContainer> _levadaAoTrechoApontado(SalaHarness harness) async {
   notifier.retellChunk();
   // Retelling leaves the findings for the recording and puts the stretch in the air; a
   // tap the room dropped leaves the phase where it was, and this wait says so.
-  await waitFor('a recontagem levar a equipe ao trecho', () {
+  await waitFor('a tradução de novo levar a equipe ao trecho', () {
     final state = container.read(salaSessionProvider);
     return state.btPhase == BtPhase.playing && state.btTrechoTocando;
   });
@@ -120,7 +120,7 @@ Future<ProviderContainer> _levadaAoTrechoApontado(SalaHarness harness) async {
 Future<ProviderContainer> _comDuasMetadesEsperando(SalaHarness harness) async {
   final container = await _inRetro(harness);
   final notifier = container.read(salaSessionProvider.notifier);
-  await _contaTrecho(harness, notifier, em: const Duration(seconds: 20));
+  await _traduzTrecho(harness, notifier, em: const Duration(seconds: 20));
   await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
   harness.room.verdictFindingSegmentId = harness.room.segments.last.segmentId;
   harness.playback.finishPlayback();
@@ -159,9 +159,9 @@ void main() {
     final container = await _inRetro(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await _contaTrecho(harness, notifier, em: const Duration(seconds: 20));
+    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 20));
     await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
-    await _contaTrecho(harness, notifier, em: const Duration(seconds: 40));
+    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 40));
     await waitFor('o segundo trecho chegar à sala', () => harness.room.chunksSent == 2);
     harness.room.verdictFindingSegmentId = harness.room.segments.first.segmentId;
     harness.playback.finishPlayback();
@@ -192,7 +192,7 @@ void main() {
     );
 
     expect(container.read(salaSessionProvider).needsPerson, isTrue,
-        reason: 'o trecho recontado voltou vazio, então a sala para para uma pessoa');
+        reason: 'o trecho traduzido de novo voltou vazio, então a sala para para uma pessoa');
 
     harness.room.theDeskAttended();
     notifier.resolveWithPerson();
@@ -208,12 +208,12 @@ void main() {
     expect(harness.room.chunksSent, 3,
         reason: 'o corte seguinte precisa mesmo chegar à sala, senão nada aqui é olhado');
     expect(harness.room.retells, 0,
-        reason: 'a marca de recontar só é apagada por um trecho que chega, e sair por '
+        reason: 'a marca de traduzir de novo só é apagada por um trecho que chega, e sair por '
             'cima dela deixava o corte seguinte subir como correção de um trecho que '
             'ninguém estava contando');
     expect(harness.room.chunkSpans, ['0-20000', '20000-40000', '40000-60000'],
-        reason: 'e o cursor do corte também foi movido pelo recontar, então o trecho '
-            'seguinte subia desde o começo do que ia ser recontado — os vinte primeiros '
+        reason: 'e o cursor do corte também foi movido pelo traduzir de novo, então o trecho '
+            'seguinte subia desde o começo do que ia ser traduzido de novo — os vinte primeiros '
             'segundos contados duas vezes');
   });
 
@@ -223,7 +223,7 @@ void main() {
     final container = await _inRetro(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await _contaTrecho(harness, notifier, em: const Duration(seconds: 20));
+    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 20));
     await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
     harness.room.verdictFindingSegmentId = harness.room.segments.last.segmentId;
     harness.playback.finishPlayback();
@@ -262,11 +262,11 @@ void main() {
         reason: 'as duas metades nascem sem explicação — é isso que faz o '
             'portão da primeira rodada segurar a análise');
 
-    await _contaDeNovo(container, notifier, esperando.first);
+    await _traduzDeNovo(container, notifier, esperando.first);
 
     final depois = container.read(salaSessionProvider).btTrechos;
     expect(depois.length, 2,
-        reason: 'contar de novo preenche o trecho que estava esperando; não '
+        reason: 'traduzir de novo preenche o trecho que estava esperando; não '
             'acrescenta um terceiro ao lado dele');
     expect(depois.first.contado, isTrue);
     expect(depois.last.contado, isFalse,
@@ -278,8 +278,8 @@ void main() {
     final container = await _comDuasMetadesEsperando(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await _contaDeNovo(container, notifier, container.read(salaSessionProvider).btTrechos.first);
-    await _contaDeNovo(container, notifier, container.read(salaSessionProvider).btTrechos.last);
+    await _traduzDeNovo(container, notifier, container.read(salaSessionProvider).btTrechos.first);
+    await _traduzDeNovo(container, notifier, container.read(salaSessionProvider).btTrechos.last);
 
     final depois = container.read(salaSessionProvider).btTrechos;
     expect(depois.length, 2);
@@ -295,12 +295,12 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     final alvo = container.read(salaSessionProvider).btTrechos.last;
 
-    await _contaDeNovo(container, notifier, alvo);
+    await _traduzDeNovo(container, notifier, alvo);
 
     expect(harness.room.replacesAsked, [
       '${alvo.segmentId}@${alvo.takeId}:'
           '${alvo.from.inMilliseconds}-${alvo.to.inMilliseconds}',
-    ], reason: 'contar de novo não é regravar: o recorte enviado é o mesmo, e '
+    ], reason: 'traduzir de novo não é regravar: o recorte enviado é o mesmo, e '
         'um recorte diferente com explicação junto é o que o servidor recusa');
   });
 
@@ -310,7 +310,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     harness.room.failReplaceWith = const RoomRefused();
 
-    await _contaDeNovo(container, notifier, container.read(salaSessionProvider).btTrechos.first);
+    await _traduzDeNovo(container, notifier, container.read(salaSessionProvider).btTrechos.first);
 
     final state = container.read(salaSessionProvider);
     expect(state.needsPerson, isTrue,
@@ -325,9 +325,9 @@ void main() {
     final container = await _inRetro(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await _contaTrecho(harness, notifier, em: const Duration(seconds: 10));
+    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
     await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
-    await _contaTrecho(harness, notifier, em: const Duration(seconds: 20));
+    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 20));
     await waitFor('o segundo trecho chegar à sala', () => harness.room.chunksSent == 2);
 
     expect(harness.room.chunkSpans, ['0-10000', '10000-20000'],
@@ -354,15 +354,15 @@ void main() {
     await settle();
     final pedidosAntes = harness.room.replacesAsked.length;
     final contadosAntes = harness.room.chunksSent;
-    await _contaTrecho(harness, notifier, em: const Duration(seconds: 10));
+    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
     await waitFor(
       'o corte chegar à sala',
       () => harness.room.chunksSent == contadosAntes + 1,
     );
 
     expect(harness.room.replacesAsked.length, pedidosAntes,
-        reason: 'a trava é um latch sem casa no estado, como o _recontando que '
-            'já mandou o primeiro trecho de uma retrotradução como correção de '
+        reason: 'a trava é um latch sem casa no estado, como o _traduzindoDeNovo que '
+            'já mandou o primeiro trecho de uma tradução como correção de '
             'um trecho que não existia — aqui iria para o id da passagem '
             'anterior');
     expect(harness.room.chunkSpans.last, '0-10000');
@@ -378,19 +378,19 @@ void main() {
     // the recording, which is the path this still has to hold — and the latch is let go
     // before the upload either way, so it is the same latch being watched.
     harness.room.replaceCaptured = false;
-    await _contaDeNovo(container, notifier,
+    await _traduzDeNovo(container, notifier,
         container.read(salaSessionProvider).btTrechos.first);
     harness.room.replaceCaptured = true;
-    final recontagensAntes = harness.room.retells;
+    final traducoesDeNovoAntes = harness.room.retells;
 
-    await _contaTrecho(harness, notifier, em: const Duration(seconds: 40));
+    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 40));
 
-    expect(harness.room.retells, recontagensAntes,
-        reason: 'contar um trecho de novo encerra a recontagem: deixá-la '
+    expect(harness.room.retells, traducoesDeNovoAntes,
+        reason: 'traduzir um trecho de novo encerra a tradução de novo: deixá-la '
             'ligada faz o próximo corte ignorar o tocador, reaproveitar os '
-            'limites velhos e subir como recontagem');
+            'limites velhos e subir como tradução de novo');
     expect(harness.room.chunkSpans.last, '20000-40000',
-        reason: 'e os limites são os do tocador, não os que a recontagem '
+        reason: 'e os limites são os do tocador, não os que a tradução de novo '
             'tinha deixado para trás');
   });
 
@@ -404,11 +404,11 @@ void main() {
     // one place from which the cursor a correction moved can be read at all: every other
     // way out of a correction the room took ends the telling-back.
     harness.room.failFinishWith = const RoomSlow();
-    await _contaDeNovo(container, notifier,
+    await _traduzDeNovo(container, notifier,
         container.read(salaSessionProvider).btTrechos.first);
     harness.room.failFinishWith = null;
 
-    await _contaTrecho(harness, notifier, em: const Duration(seconds: 40));
+    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 40));
 
     expect(harness.room.chunkSpans.last, '20000-40000',
         reason: 'os dois limites são do tocador a partir do que já foi contado: '
@@ -424,17 +424,17 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       harness.room.replaceCaptured = aceita;
       harness.room.failFinishWith = const RoomSlow();
-      await _contaDeNovo(container, notifier,
+      await _traduzDeNovo(container, notifier,
           container.read(salaSessionProvider).btTrechos.first);
       harness.room.replaceCaptured = true;
       harness.room.failFinishWith = null;
-      await _contaTrecho(harness, notifier, em: const Duration(seconds: 40));
+      await _traduzTrecho(harness, notifier, em: const Duration(seconds: 40));
       return harness.room.chunkSpans.last;
     }
 
     expect(await corteDepoisDaCorrecao(aceita: false),
         await corteDepoisDaCorrecao(aceita: true),
-        reason: 'contar de novo não acrescenta terreno em nenhum dos dois casos, '
+        reason: 'traduzir de novo não acrescenta terreno em nenhum dos dois casos, '
             'então o corte seguinte começa no mesmo lugar: uma recusa que deixa o '
             'cursor para trás faz a sala receber duas vezes o que a equipe contou '
             'uma');

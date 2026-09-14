@@ -116,7 +116,6 @@ void main() {
       }
       for (final asset in [
         offlineNoticeAsset,
-        inviteToStartAsset,
         micBlockedAsset,
         strandedTakeAsset,
       ]) {
