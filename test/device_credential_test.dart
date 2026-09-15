@@ -75,6 +75,7 @@ final Map<String, _Request> _everyRequest = {
   'personArrived': (room, _) => room.personArrived('sessao-1'),
   'finishBackTranslation': (room, _) => room.finishBackTranslation('sessao-1', playedByTake: const []),
   'fetchClip': (room, _) => room.fetchClip('/voice/p01'),
+  'approveRelease': (room, _) => room.approveRelease('sessao-1'),
 };
 
 typedef _InboxRequest = Future<void> Function(HandInboxRepository inbox, File audio);

@@ -1095,10 +1095,14 @@ void main() {
     harness.playback.finishPlayback();
     await settle();
     await notifier.finishBackTranslation();
+    await settle();
+    await notifier.aprovarRascunhoFinal();
     await settle(const Duration(milliseconds: 900));
 
     expect(await harness.emAberto.startedIn('Ruth'), isEmpty,
-        reason: 'uma passagem conferida não é trabalho em aberto');
+        reason: 'uma passagem aprovada não é trabalho em aberto — conferida '
+            'ainda é: a equipe pode fechar o app antes de aprovar, e tem de '
+            'voltar ao gesto que falta');
   });
 
   test('a session the server forgot starts the passage clean', () async {

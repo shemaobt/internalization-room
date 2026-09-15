@@ -241,11 +241,13 @@ void main() {
     await settle();
     await notifier.finishBackTranslation();
     await settle();
+    await notifier.aprovarRascunhoFinal();
+    await settle();
 
     expect(harness.finished.done, contains('Ruth/P01'),
-        reason: 'a equipe terminou a passagem inteira; sem o nome dela por '
-            'baixo, a roda continua oferecendo a passagem que acabou de ser '
-            'conferida');
+        reason: 'a equipe terminou a passagem inteira e a aprovou; sem o nome '
+            'dela por baixo, a roda continua oferecendo a passagem que acabou '
+            'de ser aprovada');
   });
 
   test('the room coming back opens the passage the team was already in',

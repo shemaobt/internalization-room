@@ -30,6 +30,7 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/domain/release.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
@@ -1153,6 +1154,39 @@ class FakeRoom implements RoomRepository {
       findingsRemaining: verdictFinding == null ? 0 : 1,
       usedFailSafe: verdictUsedFailSafe,
     );
+  }
+
+  /// Every session the team's approval was sent for, in order.
+  final List<String> releasesAsked = [];
+
+  /// What the room answers the approval with. A second approval of unchanged content
+  /// comes back as the release already there, which is the same answer.
+  Release release = const Release(releaseId: 'solta-1', version: 1);
+
+  Completer<void>? _holdingRelease;
+
+  /// Holds the approval in flight, so a test can press again before the answer lands.
+  void holdNextRelease() => _holdingRelease = Completer<void>();
+
+  void finishHeldRelease() {
+    _holdingRelease?.complete();
+    _holdingRelease = null;
+  }
+
+  /// What the approval throws, independent of `failWith`, which every guarded call
+  /// shares: a refused release has to reach a room whose call for a person still works,
+  /// and that call is the whole of what the case measures.
+  Exception? failReleaseWith;
+
+  @override
+  Future<Release> approveRelease(String sessionId) async {
+    _guard('approveRelease');
+    releasesAsked.add(sessionId);
+    final refusal = failReleaseWith;
+    if (refusal != null) throw refusal;
+    final held = _holdingRelease;
+    if (held != null) await held.future;
+    return release;
   }
 
   @override

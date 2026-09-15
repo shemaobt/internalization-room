@@ -159,6 +159,40 @@ class RetroView extends ConsumerWidget {
         ),
       );
     }
+    if (session.btPhase == BtPhase.conferida) {
+      // The room stays open after a clean verdict: the voice invites one last listening
+      // and then the approval, and the passage is not finished until the team presses.
+      return FadeUp(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            RoundActionButton(
+              size: 60,
+              semanticLabel: _listenLabel(session),
+              gradient: BeadStyles.wood,
+              onTap: notifier.ouvirGravacao,
+              child: Icon(
+                _listenGlyph(session),
+                size: 24,
+                color: ShemaBrand.branco,
+              ),
+            ),
+            const SizedBox(width: 28),
+            RoundActionButton(
+              size: 60,
+              semanticLabel: 'Aprovar como rascunho final',
+              gradient: BeadStyles.verde,
+              onTap: notifier.aprovarRascunhoFinal,
+              child: const Icon(
+                LucideIcons.award,
+                size: 24,
+                color: ShemaBrand.branco,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     if (session.btPhase == BtPhase.playing && !session.btTrechoTocando) {
       // Two gestures, one meaning each. They were a single tap on the circle — listen,
       // cut, and hand the microphone over all at once — and the room could only guess how

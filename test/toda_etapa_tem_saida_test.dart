@@ -82,6 +82,11 @@ Future<void> _standIn(
   harness.playback.finishPlayback();
   await settle();
   await notifier.finishBackTranslation();
+  await waitFor(
+    'a sala conferir a passagem',
+    () => read().btPhase == BtPhase.conferida,
+  );
+  await notifier.aprovarRascunhoFinal();
   await waitFor('a passagem fechar', () => read().stage == SalaStage.fim,
       limit: const Duration(seconds: 5));
 }
@@ -187,6 +192,8 @@ void main() {
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
     await notifier.finishBackTranslation();
+    await tester.pump(const Duration(milliseconds: 300));
+    await notifier.aprovarRascunhoFinal();
     await tester.pump(const Duration(seconds: 3));
 
     expect(container.read(salaSessionProvider).stage, SalaStage.fim,

@@ -186,7 +186,7 @@ void main() {
     expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
   });
 
-  test('a passage the room already checked comes back finished, not to be told again',
+  test('a passage the room already checked comes back to the approval, not to a close',
       () async {
     final harness = SalaHarness();
 
@@ -206,25 +206,63 @@ void main() {
       ),
       semAudio: true,
     );
-
-    expect(container.read(salaSessionProvider).conversaDone, isFalse,
-        reason: 'o fecho leva 700ms para chegar ao fim, e a conversa com a voz '
-            'em done é o botão verde de ir para o ensaio: um toque ali reescreve '
-            'o ponto de retomada e cancela o fecho');
+    final notifier = container.read(salaSessionProvider.notifier);
 
     await settle(const Duration(seconds: 2));
 
     expect(harness.room.restartsAsked, isEmpty,
         reason: 'recomeçar aposenta todo trecho e desfaz o conferida: a passagem '
             'que a equipe terminou voltava a não estar terminada');
-    expect(container.read(salaSessionProvider).stage, SalaStage.fim,
-        reason: 'a conferência passou, então a passagem acabou — deixar a equipe '
-            'na conversa é mandá-la gravar e contar tudo de novo por cima dos '
-            'trechos que a sessão ainda guarda');
+    expect(container.read(salaSessionProvider).stage, SalaStage.retro,
+        reason: 'a equipe volta ao gesto que falta — deixá-la na conversa é '
+            'mandá-la gravar e contar tudo de novo, e fechar sozinho é tirar '
+            'dela a aprovação que ninguém deu ainda');
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
+    expect(harness.finished.done, isNot(contains('Ruth/P01')),
+        reason: 'e a passagem não está feita: quem a fecha é a aprovação');
+    expect(harness.emAberto.rows, contains('Ruth/P01'),
+        reason: 'então o ponto de retomada continua de pé, para a próxima vez');
+
+    await notifier.aprovarRascunhoFinal();
+    await settle(const Duration(seconds: 2));
+
+    expect(harness.room.releasesAsked, ['sessao-antiga'],
+        reason: 'a aprovação vale para a sessão que a equipe retomou');
+    expect(container.read(salaSessionProvider).stage, SalaStage.fim);
     expect(harness.finished.done, contains('Ruth/P01'));
-    expect(harness.emAberto.rows, isNot(contains('Ruth/P01')),
-        reason: 'e o ponto de retomada que sobreviveu ao fecho é o que trouxe a '
-            'equipe de volta a uma passagem terminada');
+    expect(harness.emAberto.rows, isNot(contains('Ruth/P01')));
+  });
+
+  test('a passage checked and picked back up over its own recording lands on the approval too',
+      () async {
+    final harness = SalaHarness();
+
+    final container = await _reopen(
+      harness,
+      parouEm: SalaStage.retro,
+      contado: const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: _gravacao,
+            startsMs: 0,
+            endsMs: 30000,
+          ),
+        ],
+        checked: true,
+      ),
+    );
+
+    await settle(const Duration(seconds: 2));
+
+    expect(container.read(salaSessionProvider).stage, SalaStage.retro,
+        reason: 'a outra porta da retomada — a que encontra o ensaio no tablet '
+            '— tem de pousar no mesmo lugar: duas portas para a mesma passagem '
+            'não podem discordar sobre se ela acabou');
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
+    expect(container.read(salaSessionProvider).partes, isNotEmpty,
+        reason: 'e com o ensaio de pé, que é o que a última audição pede');
+    expect(harness.finished.done, isNot(contains('Ruth/P01')));
   });
 
   test('a restart the room refused does not open the passage anyway', () async {

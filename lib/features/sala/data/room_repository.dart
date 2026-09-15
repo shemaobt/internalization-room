@@ -11,6 +11,7 @@ import '../domain/bt_finding.dart';
 import '../domain/device_link.dart';
 import '../domain/escuta_das_partes.dart';
 import '../domain/passagem.dart';
+import '../domain/release.dart';
 import '../domain/session_snapshot.dart';
 import '../domain/turn_result.dart';
 import 'device_identity.dart';
@@ -87,10 +88,28 @@ class NobodyToReach implements Exception {
   const NobodyToReach();
 }
 
+/// The server will not release this passage, and nothing the team can do from the
+/// back-translation screen changes that.
+///
+/// Its own exception rather than the 409 the ladder would read as `RoomBroke`, which
+/// halts only on the third failure: the team would press a dead button twice before
+/// anybody was called.
+class ReleaseRefused implements Exception {
+  const ReleaseRefused();
+
+  @override
+  String toString() => 'ReleaseRefused';
+}
+
 class RoomRepository {
   final http.Client _client;
+  final Future<String> Function() _deviceId;
 
-  RoomRepository({http.Client? client}) : _client = client ?? http.Client();
+  RoomRepository({
+    http.Client? client,
+    Future<String> Function()? deviceId,
+  })  : _client = client ?? http.Client(),
+        _deviceId = deviceId ?? deviceIdentity;
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
@@ -232,7 +251,7 @@ class RoomRepository {
       _uri('/sessions/$sessionId/back-translation/chunks'),
     )
       ..headers.addAll(_whoWeAre)
-      ..headers['X-Room-Device'] = await deviceIdentity()
+      ..headers['X-Room-Device'] = await _deviceId()
       ..fields['take_id'] = takeId
       ..fields['starts_ms'] = '${from.inMilliseconds}'
       ..fields['ends_ms'] = '${to.inMilliseconds}'
@@ -255,7 +274,7 @@ class RoomRepository {
   }) async {
     final request = http.MultipartRequest('POST', _uri('/sessions/$sessionId/takes'))
       ..headers.addAll(_whoWeAre)
-      ..headers['X-Room-Device'] = await deviceIdentity()
+      ..headers['X-Room-Device'] = await _deviceId()
       ..fields['kind'] = kind
       ..fields['scope'] = scope
       ..files.add(await http.MultipartFile.fromPath('file', audio.path));
@@ -322,7 +341,7 @@ class RoomRepository {
       _uri('/sessions/$sessionId/segments/$segmentId/replace'),
     )
       ..headers.addAll(_whoWeAre)
-      ..headers['X-Room-Device'] = await deviceIdentity()
+      ..headers['X-Room-Device'] = await _deviceId()
       ..fields['take_id'] = takeId
       ..fields['starts_ms'] = '${from.inMilliseconds}'
       ..fields['ends_ms'] = '${to.inMilliseconds}';
@@ -341,6 +360,23 @@ class RoomRepository {
       _stateTimeout,
     );
     return _read(response, BackTranslationRestart.fromJson);
+  }
+
+  /// The team's approval of its own final draft.
+  ///
+  /// The room packages the rows it already holds and hashes them, so nothing travels with
+  /// the press. A second approval of unchanged content comes back as the release already
+  /// there, which is the same answer.
+  Future<Release> approveRelease(String sessionId) async {
+    final response = await _send(
+      () async => _client.post(
+        _uri('/sessions/$sessionId/release'),
+        headers: {..._headers, 'X-Room-Device': await _deviceId()},
+      ),
+      _stateTimeout,
+    );
+    if (response.statusCode == 409) throw const ReleaseRefused();
+    return _read(response, Release.fromJson);
   }
 
   Future<void> askForAPerson(String sessionId) async {

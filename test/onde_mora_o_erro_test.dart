@@ -610,6 +610,10 @@ void main() {
             'de importar: não há mais o que corrigir, e convocar alguém para '
             'uma passagem concluída é ruído que corrói a confiança na fila do '
             'facilitador');
+
+    await notifier(container).aprovarRascunhoFinal();
+    await tester.pump(const Duration(seconds: 1));
+
     expect(container.read(salaSessionProvider).stage, SalaStage.fim,
         reason: 'e a passagem termina como qualquer outra que ficou limpa — '
             'parar a sala aqui prenderia a equipe num fecho que já aconteceu');
@@ -631,6 +635,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 900));
 
     expect(harness.room.personsAsked, 0);
+
+    await notifier(container).aprovarRascunhoFinal();
+    await tester.pump(const Duration(seconds: 1));
+
     expect(container.read(salaSessionProvider).stage, SalaStage.fim,
         reason: 'o controle: sem o campo em jogo o fecho é o de sempre, senão '
             'o caso acima passaria por um fecho que nunca acontece');

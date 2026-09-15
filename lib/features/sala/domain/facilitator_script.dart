@@ -28,6 +28,10 @@ const handoffLines = ['C0', 'C1'];
 
 const needsPersonLine = 'E0';
 
+/// The fourth of Marcia's process lines, read by position: start, tell, unheard,
+/// approved. The approval's is the fourth, never rotated.
+const approvedLine = 'P3';
+
 String rotated(List<String> lines, int spoken) => lines[spoken % lines.length];
 
 const circleLabels = {
