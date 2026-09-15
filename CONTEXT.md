@@ -45,6 +45,10 @@ _Avoid_: guia, narrator, facilitator (a person, not the voice), `Facilitator` (t
 A line pre-approved and shipped inside the app, played straight from the device without asking the server.
 _Avoid_: linha fixa, canned line, static line, fail-safe line (one role a fixed line can serve)
 
+**Process line**:
+One of Marcia's fixed lines for a step of the back-translation (start, tell, unheard, approved), bundled and played by position in the room's language, never rotated; the approval's line is the fourth.
+_Avoid_: fail-safe (a fixed line that answers a failure and rotates), canned line, linha de processo
+
 **Spoken line**:
 A line the server composes for this turn, which the room fetches and caches before saying it.
 _Avoid_: linha falada, generated line, TTS, fixed line (the bundled ones)
@@ -115,6 +119,10 @@ _Avoid_: lugar, position, offset, range (what it plays is the other pair)
 A stretch recorded in the Rehearsal that was never told back at all, named by the verdict under its own address and never under a finding's.
 _Avoid_: trecho não contado, missing (a finding kind), unexplained stretch
 
+**Unheard part**:
+A part of the rehearsal the tablet's report does not cover, named by the verdict under its own address and never under a finding's; the room lands the team on it instead of leaving the press dead.
+_Avoid_: parte não ouvida, untold stretch (never told; this is never heard), unplayed part
+
 **Cursor**:
 The point inside a part's own file where the telling-back stopped, from which a resumed back-translation starts playing and from which it counts what it reports as heard.
 _Avoid_: cursor da retro, playhead, reading head (what the necklace draws above the cord)
@@ -122,6 +130,10 @@ _Avoid_: cursor da retro, playhead, reading head (what the necklace draws above 
 **Listening ledger** (`escuta das partes`):
 What the team heard of each part of its rehearsal, kept one part at a time, in that part's own milliseconds and keyed by the recording the part was kept as. A part recorded again starts its listening over while the others keep theirs, and a part the room has not named yet is left out of the report the tablet sends at *terminei*.
 _Avoid_: `_ouvido`, registro de escuta, played ranges, the concatenated passage, the rehearsal's whole length
+
+**Ruler**:
+Where each rehearsal part ends along the cord, derived from the measured length of each part's file. It is drawn only as far as the parts already measured, so a part nobody can measure ends the cord rather than lengthens it by a guess.
+_Avoid_: régua, timeline, listening ledger (what was heard, not where a part ends)
 
 **Chunk**:
 The numbered position of a stretch in the list the analyst receives in one reading. It exists only during that reading; the server turns the number back into a segment.
@@ -134,6 +146,10 @@ _Avoid_: parte, chunk (a position in one reading), take (what holds a part), str
 **Necklace**:
 The cord of beads that is the room's only progress indicator: lit beads show the conversation's coverage, and during the back-translation each stretch is drawn as a band.
 _Avoid_: colar, progress bar, ghost bead
+
+**Cord**:
+The line of the necklace that draws the whole rehearsal during the back-translation, one part after another under the ruler, on which the stretches are drawn as bands and the reading head moves.
+_Avoid_: cordão, string, track, progress bar
 
 **Bead**:
 A Meaning Map element represented on the necklace, moving through not encountered, surfaced (the Guide said it) and engaged (the team said it).
@@ -168,6 +184,10 @@ _Avoid_: ponto de retomada, em curso, checkpoint, snapshot (the session's own li
 **Verdict**:
 The check's answer when the team says it has finished telling back: the passage is clean, or it carries findings, or it names an untold stretch to go straight to, or it refuses the check outright and names the parts the team's report does not cover.
 _Avoid_: veredito, result, finding (one item a verdict may carry), correction check (the server entity)
+
+**Approval**:
+The team's gesture, after a clean verdict, that makes the passage its final draft: one press on the back-translation screen, the server's release answered with a version, and Marcia's approved process line spoken from the bundle. The room closes only after it, and a refusal calls a person.
+_Avoid_: aprovação, finalize, release (the server's record of it), approve button
 
 **Finding**:
 The analyst's result on what was told back, in Marcia's words: missing, addition or unclear.
