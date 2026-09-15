@@ -143,6 +143,35 @@ void main() {
       expect(feitos.single.tocando, isTrue);
     });
 
+    test('duas medidas ao mesmo tempo dão a duração de cada arquivo', () async {
+      playback = umRepositorio((duplo) {
+        duplo.porArquivo['/a.m4a'] = const Duration(seconds: 4);
+        duplo.porArquivo['/b.m4a'] = const Duration(seconds: 11);
+        duplo.segurados['/a.m4a'] = Completer<void>();
+      });
+
+      final a = playback.howLong('/a.m4a');
+      final b = playback.howLong('/b.m4a');
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      final medidor = feitos.single;
+      expect(medidor.carregados, ['/a.m4a'],
+          reason: 'o segundo pedido espera a vez: um AudioPlayer tem uma fonte '
+              'só, e carregar por cima tira o arquivo das mãos de quem '
+              'perguntou primeiro');
+
+      medidor.segurados['/a.m4a']!.complete();
+
+      expect(await a, const Duration(seconds: 4));
+      expect(await b, const Duration(seconds: 11),
+          reason: 'cada pergunta recebe a duração do arquivo que ela nomeou — a '
+              'retomada dispara duas destas sem esperar nenhuma, e a primeira '
+              'respondia com o tamanho da segunda, ou com nada');
+      expect(medidor.carregados, ['/a.m4a', '/b.m4a']);
+      expect(medidor.sobrepos, isFalse,
+          reason: 'e nunca há dois carregamentos abertos no mesmo tocador');
+    });
+
     test('the ordinary playback still answers as it always did', () async {
       await playback.play('/o/clipe.m4a');
       expect(feitos.single.tocando, isTrue);
@@ -190,6 +219,18 @@ class _Duplo extends Fake implements AudioPlayer {
   bool descartado = false;
   Object? recusa;
 
+  /// Loads this double holds open, by file. The length still comes from [porArquivo], so
+  /// a held file and a free one are answered by the same rule.
+  final Map<String, Completer<void>> segurados = {};
+
+  /// Whether a load ever started while another was still open on this player.
+  ///
+  /// A real [AudioPlayer] has one source: the second load replaces the first, and the
+  /// first call comes back answering for the wrong file or for nothing. The double cannot
+  /// reproduce that corruption, so it records the overlap that causes it.
+  bool sobrepos = false;
+  int _abertos = 0;
+
   @override
   Stream<PlayerState> get playerStateStream => _states.stream;
 
@@ -208,8 +249,15 @@ class _Duplo extends Fake implements AudioPlayer {
   }) async {
     final no = recusa;
     if (no != null) throw no;
+    if (_abertos > 0) sobrepos = true;
+    _abertos++;
     carregados.add(filePath);
     iniciais.add(initialPosition);
+    try {
+      await segurados[filePath]?.future;
+    } finally {
+      _abertos--;
+    }
     at = initialPosition ?? Duration.zero;
     return porArquivo[filePath] ?? length;
   }

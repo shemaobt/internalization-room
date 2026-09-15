@@ -105,6 +105,7 @@ void main() {
         ...inaudibleLines,
         ...handoffLines,
         needsPersonLine,
+        approvedLine,
       };
 
       expect(spoken.length, greaterThan(instantAckLines.length),

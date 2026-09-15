@@ -166,6 +166,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// over the ground already told exists to spare them.
   bool _pousadaNaParteNaoOuvida = false;
 
+  /// The approval is in the air, and the approval has landed.
+  ///
+  /// Two, not one: the first stops a second press from minting a second request while the
+  /// first is still out, and the second stops one after the answer is in, when the room is
+  /// already speaking the line and closing the necklace.
+  bool _aprovando = false;
+  bool _aprovada = false;
+
   /// How long each part of the rehearsal turned out to be, by the file the part is kept
   /// as and never by where the part sits in the row.
   ///
@@ -1396,8 +1404,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (waiting.stage == SalaStage.retro) {
           final told = (await _room.fetchState(sessionId)).backTranslation;
           if (epoch != _epoch) return;
-          if (told.checked) {
-            _closeTheNecklace();
+          // Only when there is a telling-back to land on. A checked answer carrying no
+          // stretch contradicts itself — the check is about what was told — and
+          // [_pickTheTellingBackUp] rightly declines it, which left the room standing in
+          // the conversa until the watchdog called a person two minutes later. It falls
+          // through to the turn instead, which is the door every other empty answer takes:
+          // closing would call a passage the team never approved its final draft.
+          if (told.checked && !told.nothingTold) {
+            _pickTheTellingBackUp(told);
             return;
           }
           if (!told.nothingTold) {
@@ -1550,10 +1564,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (sessionId != null) {
       unawaited(_alcancarAsCompostas(sessionId, told.segments, _epoch));
     }
-    if (told.checked) {
-      _closeTheNecklace();
-      return;
-    }
+    if (told.checked) return;
     unawaited(_playFromTheUntoldGround(_epoch));
   }
 
@@ -2514,6 +2525,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       from: doComeco ? Duration.zero : _trechoStart,
       onComplete: _fimDeParte,
       onFailed: () {
+        // Back to the rehearsal is the answer while there is still passage left to tell
+        // back. On a checked passage it is not: the telling-back is over, and dropping
+        // the team into the rehearsal takes them out of a passage the room already
+        // checked, where the gesture in front of them is recording the whole thing again
+        // over their own work. The halt the caller raises is what reaches a person.
+        //
+        // The clip goes down on the way past, because the room stays on this screen: the
+        // other way out left it by leaving. A part that never sounded, still marked as
+        // running, greets the team with a pause glyph when the halt is lifted, and their
+        // first press is spent stopping it — against a dead player's position.
+        if (state.btPhase == BtPhase.conferida) {
+          state = state.copyWith(btClipRodando: false);
+          return;
+        }
         state = state.copyWith(
           stage: SalaStage.ensaio,
           ensaio: EnsaioStatus.idle,
@@ -2563,7 +2588,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// heard.
   void ouvirGravacao() {
     if (state.stage != SalaStage.retro) return;
-    if (state.btPhase != BtPhase.playing) return;
+    final conferida = state.btPhase == BtPhase.conferida;
+    if (state.btPhase != BtPhase.playing && !conferida) return;
     if (state.needsPerson || state.offline) return;
     if (state.btTrechoTocando) return;
     if (state.btClipRodando) {
@@ -2571,7 +2597,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (state.btParteFronteira) {
-      _tocarParteDaRetro(_parteTocando + 1);
+      // From that part's own beginning on a checked passage. The cursor is where the next
+      // cut starts, and a cut is about telling: on a passage told back whole every part's
+      // cursor sits at its own end, so crossing at the cursor opened silence and the last
+      // listening was the first part and then two dead presses.
+      _tocarParteDaRetro(_parteTocando + 1, doComeco: conferida);
+      return;
+    }
+    // The last listening the clean verdict invites, which is the whole rehearsal from its
+    // own beginning. Read off what is in the air rather than off the clip having ended:
+    // a session resumed already checked has put no part in the air at all, and telling
+    // the player to carry on there lights the halo over silence. A part held mid-listen
+    // still has its length written down, so holding and letting go carries on as it does
+    // everywhere else.
+    if (conferida && state.btParteNoArMs == 0) {
+      // A passage picked back up without its recordings on the tablet has nothing to put
+      // in the air, and asking for the first of an empty row takes the room down under
+      // the team.
+      if (state.partes.isEmpty) return;
+      _tocarParteDaRetro(0, doComeco: true);
       return;
     }
     if (state.btClipEnded) return;
@@ -2824,7 +2868,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // A passage that came back clean wins over a room that has run dry. If the work is
     // right there is nothing left to correct, so the spent budget has stopped mattering,
     // and calling somebody to a passage that is over is noise in the queue the facilitator
-    // has to trust. The necklace closes and nobody is sent for.
+    // has to trust. The team is left on the approval and nobody is sent for.
     if (state.btPhase == BtPhase.conferida) return;
     // The budget for retellings runs out on this route too, and the room says so in the
     // same breath as the answer. It used to be read only off telling a stretch, so a team
@@ -3123,7 +3167,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           // whoever comes next.
           btConsertando: false,
         );
-        _closeTheNecklace();
         return;
       }
       // The room names the stretch the finding lands on, and the name is the room's to
@@ -3155,6 +3198,42 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     } on Exception catch (error) {
       if (epoch != _epoch) return;
       _handleRoomFailure(error);
+    }
+  }
+
+  /// The team makes what it recorded its final draft.
+  ///
+  /// The close of the necklace hangs off this and no longer off the verdict: a passage the
+  /// room called checked stays on screen until somebody presses. The phase never leaves
+  /// [BtPhase.conferida] while the request is out, which is what keeps the affordance
+  /// alive under a transport failure — [_leaveThinking] has nothing to undo there.
+  Future<void> aprovarRascunhoFinal() async {
+    if (state.stage != SalaStage.retro) return;
+    if (state.btPhase != BtPhase.conferida) return;
+    if (state.needsPerson || state.offline) return;
+    if (_aprovando || _aprovada) return;
+    final sessionId = state.sessionId;
+    if (sessionId == null) {
+      _haltForAPerson();
+      return;
+    }
+    _aprovando = true;
+    final epoch = _epoch;
+    try {
+      await _room.approveRelease(sessionId);
+      if (epoch != _epoch) return;
+      _aprovada = true;
+      await _voice.playAsset(fixedLineAsset(approvedLine, _lingua));
+      if (epoch != _epoch) return;
+      _closeTheNecklace();
+    } on ReleaseRefused {
+      if (epoch != _epoch) return;
+      _haltForAPerson();
+    } on Exception catch (error) {
+      if (epoch != _epoch) return;
+      _handleRoomFailure(error);
+    } finally {
+      _aprovando = false;
     }
   }
 
@@ -3211,6 +3290,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btPhase: BtPhase.playing,
       voice: VoiceState.invite,
       btFimDasPartesMs: _fimDaParteMs,
+      // This branch returns above the two that clear it, so a team sent to an unheard
+      // part mid-mend kept the flag on and the drained band — the only mark of a stretch
+      // still waiting — was suppressed under them.
+      btConsertando: false,
     );
     _tocarParteDaRetro(parte, doComeco: true);
   }
@@ -4076,6 +4159,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _parteTocando = 0;
     _tamanhoDaParteMs.clear();
     _pousadaNaParteNaoOuvida = false;
+    _aprovando = false;
+    _aprovada = false;
     _escuta.esquecerTudo();
     _desdeMs = 0;
     _ghostParte = 0;

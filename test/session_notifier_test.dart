@@ -73,6 +73,13 @@ Future<void> _intoConferida(
   harness.playback.finishPlayback();
   await settle();
   await notifier.finishBackTranslation();
+  await settle();
+}
+
+/// The team approves what it made, which is what finishes the passage and closes the
+/// necklace. A clean verdict only opens the gesture.
+Future<void> _aprovar(SalaSessionNotifier notifier) async {
+  await notifier.aprovarRascunhoFinal();
   await settle(const Duration(milliseconds: 900));
 }
 
@@ -1305,6 +1312,7 @@ void main() {
     notifier.entrarNaOferecida();
     await settle();
     await _intoConferida(harness, notifier);
+    await _aprovar(notifier);
 
     await notifier.abrirEscolha();
     await settle();
@@ -1360,6 +1368,8 @@ void main() {
     harness.playback.finishPlayback();
     await settle();
     await notifier.finishBackTranslation();
+    await settle();
+    await notifier.aprovarRascunhoFinal();
     await settle(const Duration(seconds: 2));
 
     final after = container.read(salaSessionProvider);
@@ -1435,6 +1445,8 @@ void main() {
     harness.playback.finishPlayback();
     await settle();
     await notifier.finishBackTranslation();
+    await settle();
+    await notifier.aprovarRascunhoFinal();
     await settle(const Duration(seconds: 2));
 
     expect(container.read(salaSessionProvider).stage, SalaStage.fim);
@@ -2493,6 +2505,8 @@ void main() {
     expect(container.read(salaSessionProvider).canFinishBackTranslation, isTrue);
 
     await notifier.finishBackTranslation();
+    await settle();
+    await notifier.aprovarRascunhoFinal();
     await settle(const Duration(seconds: 2));
 
     expect(container.read(salaSessionProvider).stage, SalaStage.fim);

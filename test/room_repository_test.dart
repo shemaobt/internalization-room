@@ -402,6 +402,88 @@ void main() {
             'decide o que fazer com a falta dele');
     expect(verdict.checked, isTrue);
   });
+
+  group('a aprovação da equipe', () {
+    const aparelho = 'aparelho-de-teste';
+
+    RoomRepository umaSala(MockClient cliente) {
+      final repository = RoomRepository(
+        client: cliente,
+        deviceId: () async => aparelho,
+      );
+      addTearDown(repository.dispose);
+      return repository;
+    }
+
+    test('vai pela rota da release, com o aparelho e sem corpo', () async {
+      late http.BaseRequest seen;
+      final repository = umaSala(MockClient((request) async {
+        seen = request;
+        return http.Response(
+          jsonEncode({
+            'release_id': 'solta-1',
+            'session_id': 'sessao-1',
+            'version': 1,
+            'package_sha256': 'abc',
+            'approved_at': '2026-09-15T00:00:00Z',
+          }),
+          200,
+        );
+      }));
+      repository.presents('credencial-1');
+
+      final solta = await repository.approveRelease('sessao-1');
+
+      expect(seen.method, 'POST');
+      expect(seen.url.path, '/api/internalization-room/sessions/sessao-1/release');
+      expect(seen.contentLength, anyOf(isNull, 0),
+          reason: 'a sala monta a release do que já guarda: o tablet não tem '
+              'nada a mandar junto');
+      expect(seen.headers['X-Room-Key'], 'k');
+      expect(seen.headers['X-Device-Credential'], 'credencial-1');
+      expect(seen.headers['X-Room-Device'], aparelho,
+          reason: 'é uma escrita da equipe, e a linha da release carrega o '
+              'aparelho que a fez como toda escrita da equipe carrega');
+      expect(seen.headers['Content-Type'], contains('application/json'));
+      expect(solta.releaseId, 'solta-1');
+      expect(solta.version, 1,
+          reason: 'a versão é o que a equipe ganha por aprovar');
+    });
+
+    test('uma recusa vira a exceção própria dela, e não uma sala quebrada',
+        () async {
+      final repository = umaSala(MockClient(
+        (request) async => http.Response('a parte 2 não foi ouvida', 409),
+      ));
+
+      expect(
+        () => repository.approveRelease('sessao-1'),
+        throwsA(isA<ReleaseRefused>()),
+        reason: 'pela escada comum um 409 é RoomBroke, que só para a sala na '
+            'terceira: a equipe apertaria um botão morto duas vezes antes de '
+            'alguém ser chamado',
+      );
+    });
+
+    test('as outras recusas seguem as de sempre', () async {
+      for (final caso in [
+        (status: 404, erro: isA<SessionGone>()),
+        (status: 400, erro: isA<PassageShut>()),
+        (status: 403, erro: isA<RoomRefused>()),
+      ]) {
+        final repository = umaSala(
+          MockClient((request) async => http.Response('', caso.status)),
+        );
+
+        expect(
+          () => repository.approveRelease('sessao-1'),
+          throwsA(caso.erro),
+          reason: 'a release não inventa escada nenhuma para os estados que a '
+              'sala inteira já trata',
+        );
+      }
+    });
+  });
 }
 
 Future<File> _tempRecording() async {
