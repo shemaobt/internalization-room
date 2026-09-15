@@ -3211,6 +3211,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btPhase: BtPhase.playing,
       voice: VoiceState.invite,
       btFimDasPartesMs: _fimDaParteMs,
+      // This branch returns above the two that clear it, so a team sent to an unheard
+      // part mid-mend kept the flag on and the drained band — the only mark of a stretch
+      // still waiting — was suppressed under them.
+      btConsertando: false,
     );
     _tocarParteDaRetro(parte, doComeco: true);
   }
