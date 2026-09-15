@@ -386,6 +386,10 @@ void main() {
             'gravar a passagem inteira de novo por cima do trabalho dela');
     expect(_estado(it.container).btPhase, BtPhase.conferida,
         reason: 'e resolvido o halt a aprovação ainda é o que falta fazer');
+    expect(_estado(it.container).btClipRodando, isFalse,
+        reason: 'e a sala não pode ficar dizendo que toca o que não tocou: a '
+            'equipe voltaria do halt a um glifo de pausa sobre o silêncio, e o '
+            'primeiro toque seria gasto parando uma gravação que nunca começou');
 
     closeTheRoom(it.container);
   });

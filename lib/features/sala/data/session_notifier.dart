@@ -2524,7 +2524,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         // the team into the rehearsal takes them out of a passage the room already
         // checked, where the gesture in front of them is recording the whole thing again
         // over their own work. The halt the caller raises is what reaches a person.
-        if (state.btPhase == BtPhase.conferida) return;
+        //
+        // The clip goes down on the way past, because the room stays on this screen: the
+        // other way out left it by leaving. A part that never sounded, still marked as
+        // running, greets the team with a pause glyph when the halt is lifted, and their
+        // first press is spent stopping it — against a dead player's position.
+        if (state.btPhase == BtPhase.conferida) {
+          state = state.copyWith(btClipRodando: false);
+          return;
+        }
         state = state.copyWith(
           stage: SalaStage.ensaio,
           ensaio: EnsaioStatus.idle,
