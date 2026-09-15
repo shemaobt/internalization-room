@@ -64,8 +64,12 @@ const totalBeads = 12;
 
 const testLanguage = 'pt';
 
-/// The line this room composes for a *terminei*, whatever the answer turns out to be.
+/// The line this room composes for a *terminei* it answered.
 const falaDoVeredito = '/api/internalization-room/voice/veredito';
+
+/// The line this room composes for a *terminei* it refused, because a part of the
+/// rehearsal is not covered by the report. Its own line, as the refusal is its own answer.
+const falaDaParteNaoOuvida = '/api/internalization-room/voice/parte-nao-ouvida';
 
 Coverage coverage({int engaged = 0, int surfaced = 0}) => Coverage(
       engaged: engaged,
@@ -1138,7 +1142,8 @@ class FakeRoom implements RoomRepository {
     playedByTakeSent.add([for (final parte in playedByTake) parte.toJson()]);
     _guard('finishBackTranslation');
     return BackTranslationVerdict(
-      audioUrl: falaDoVeredito,
+      audioUrl:
+          verdictUnheardTakeIds.isEmpty ? falaDoVeredito : falaDaParteNaoOuvida,
       fixedLine: '',
       checked: verdictChecked,
       findingKind: verdictFinding,

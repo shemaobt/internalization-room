@@ -2485,11 +2485,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// Opening at the cursor left the picked-up part's own beginning uncovered and the
   /// finish was refused.
   ///
-  /// [doComeco] puts it in the air at its own nought instead, for the one gesture whose
-  /// whole subject is hearing rather than telling.
+  /// [doComeco] sounds it from its own nought instead, for the one gesture whose whole
+  /// subject is hearing rather than telling. The **Cursor** does not move with it: it is
+  /// where the next cut begins, and a cut is about telling. Taken back to nought with the
+  /// playhead, the first cut after the landing would hand the room the ground the team
+  /// already told as one new stretch — their own telling, given back a second time, which
+  /// is the failure [_walkTheCursorBack] exists to undo.
   void _tocarParteDaRetro(int parte, {bool doComeco = false}) {
     _parteTocando = parte;
-    _trechoStart = doComeco ? Duration.zero : _ondeParouNesteArquivo(parte);
+    _trechoStart = _ondeParouNesteArquivo(parte);
     _desdeMs = 0;
     _escuta.abrir(state.partes[parte].path, 0);
     state = state.copyWith(
@@ -2507,7 +2511,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     _play(
       state.partes[parte].path,
-      from: _trechoStart,
+      from: doComeco ? Duration.zero : _trechoStart,
       onComplete: _fimDeParte,
       onFailed: () {
         state = state.copyWith(
@@ -3166,26 +3170,39 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// reported the part heard whole: the same *terminei* would be refused again, with
   /// nothing the team could do about it.
   Future<void> _levarAParteNaoOuvida(String gravacao, int epoch) async {
+    if (!state.partes.any((take) => take.takeId == gravacao)) {
+      // A recording this tablet is not holding. There is nothing to lead them to and no
+      // way to say so without words. Asked before anything is measured: a name that leads
+      // nowhere is a person, and measuring the whole rehearsal first only makes them wait
+      // for it.
+      _haltForAPerson();
+      return;
+    }
     // Landing forward over a part nobody has measured sits the cord's head short of the
     // sound by the whole of that part. A file the player still answers nothing about is
     // the one gap left once a mend measures what it swaps in, and it is measured here.
-    for (final antes in state.partes) {
-      if (antes.takeId == gravacao) break;
-      if (_tamanhoDaParteMs.containsKey(antes.path)) continue;
+    //
+    // The row is read again after every wait, and a path that has left it is left alone:
+    // a rebuilt passage landing in the middle of this would otherwise have a length
+    // written under the file it just replaced.
+    for (var antes = 0; antes < state.partes.length; antes++) {
+      final arquivo = state.partes[antes].path;
+      if (state.partes[antes].takeId == gravacao) break;
+      if (_tamanhoDaParteMs.containsKey(arquivo)) continue;
       // Measuring waits on the player, and the watchdog that gives up on a wait only
       // watches a room that says it is thinking. Left speaking — which is where saying
       // the refusal leaves it — a measurement that never answered wedged the room with
       // nobody called, which is the one thing every other wait here is protected from.
       state = state.copyWith(voice: VoiceState.thinking);
       _watchBusyState();
-      final medida = await _playback.howLong(antes.path);
+      final medida = await _playback.howLong(arquivo);
       if (epoch != _epoch) return;
-      if (medida != null) _tamanhoDaParteMs[antes.path] = medida.inMilliseconds;
+      if (medida == null) continue;
+      if (!state.partes.any((take) => take.path == arquivo)) continue;
+      _tamanhoDaParteMs[arquivo] = medida.inMilliseconds;
     }
     final parte = state.partes.indexWhere((take) => take.takeId == gravacao);
     if (parte < 0) {
-      // A recording this tablet is not holding. There is nothing to lead them to and no
-      // way to say so without words.
       _haltForAPerson();
       return;
     }

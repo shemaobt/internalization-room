@@ -1,129 +1,9 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
-import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-
-/// A rehearsal of three parts of three different lengths. Three, because the part the
-/// room's refusal names has to be able to have neighbours on both sides of it.
-const partesDoEnsaio = [
-  Duration(seconds: 10),
-  Duration(seconds: 8),
-  Duration(seconds: 12),
-];
-
-class Sala {
-  final SalaHarness harness;
-
-  /// Not final: a tablet closed and opened again on the same passage is a new container
-  /// over the same doubles, and the ruler after a mend is read across that seam.
-  ProviderContainer container;
-
-  Sala(this.harness, this.container);
-
-  SalaSessionNotifier get sala => container.read(salaSessionProvider.notifier);
-
-  SalaSessionState get estado => container.read(salaSessionProvider);
-
-  List<KeptTake> get partes => estado.partes;
-}
-
-Future<void> gravarUmaParte(Sala it) async {
-  final antes = it.estado.keptTakes.length;
-  it.sala.ensaioTap();
-  await waitFor(
-    'a gravação da parte começar',
-    () => it.estado.ensaio == EnsaioStatus.recording,
-  );
-  it.sala.ensaioTap();
-  await waitFor(
-    'a gravação da parte terminar',
-    () => it.estado.ensaio == EnsaioStatus.recorded,
-  );
-  it.sala.takeKeep();
-  await waitFor('a sala nomear a parte nova', () {
-    final takes = it.estado.keptTakes;
-    return takes.length == antes + 1 && takes.last.takeId != null;
-  });
-}
-
-/// Translate the part in the air whole: the cut is made at its end, so what the team told
-/// back of it runs from its own nought to its own length.
-Future<void> ouvirETraduzirAParteInteira(Sala it, Duration quanto) async {
-  final antes = it.estado.btTrechos.length;
-  it.harness.playback.length = quanto;
-  it.harness.playback.at = quanto;
-  it.sala.cortarTrecho();
-  await waitFor(
-    'o microfone abrir no trecho',
-    () => it.estado.btPhase == BtPhase.capturing,
-  );
-  it.sala.retroTap();
-  await waitFor(
-    'o trecho traduzido entrar no colar',
-    () => it.estado.btTrechos.length == antes + 1,
-  );
-  it.harness.playback.finishPlayback();
-  await waitFor(
-    'a parte terminar',
-    () => it.estado.btParteFronteira || it.estado.btClipEnded,
-  );
-}
-
-/// The rehearsal recorded in three parts, every one of them told back whole and played to
-/// its end, standing with *terminei* lit and nothing pressed yet.
-Future<Sala> umEnsaioDeTresPartesContadoInteiro({
-  String? compoeEm,
-  Duration? tetoDaEspera,
-}) async {
-  final harness = SalaHarness(busyCeiling: tetoDaEspera)
-    ..room.composesInto = compoeEm;
-  final container = harness.container();
-  addTearDown(container.dispose);
-  final it = Sala(harness, container);
-
-  await it.sala.goConversa(pericope: 'P01');
-  await waitFor('a sala abrir', () => it.estado.sessionId != null);
-  it.sala.goEnsaio();
-  for (var onde = 0; onde < partesDoEnsaio.length; onde++) {
-    await gravarUmaParte(it);
-  }
-  final partes = it.estado.keptTakes;
-  for (var onde = 0; onde < partesDoEnsaio.length; onde++) {
-    harness.playback.lengths[partes[onde].path] = partesDoEnsaio[onde];
-  }
-
-  it.sala.startRetro();
-  await waitFor(
-    'a tradução começar a tocar a primeira parte',
-    () =>
-        it.estado.stage == SalaStage.retro &&
-        it.estado.btPhase == BtPhase.playing,
-  );
-
-  for (var onde = 0; onde < partesDoEnsaio.length; onde++) {
-    await ouvirETraduzirAParteInteira(it, partesDoEnsaio[onde]);
-    if (onde < partesDoEnsaio.length - 1) {
-      it.sala.proximaParte();
-      await waitFor(
-        'a parte seguinte entrar no ar',
-        () => !it.estado.btParteFronteira,
-      );
-    }
-  }
-  return it;
-}
-
-Future<void> pedirOVeredito(Sala it) async {
-  await it.sala.finishBackTranslation();
-  await waitFor(
-    'a sala voltar do veredito',
-    () => it.estado.btPhase != BtPhase.thinking,
-  );
-}
+import 'um_ensaio_de_tres_partes.dart';
 
 void main() {
   test('a recusa nomeia a terceira parte e a equipe cai nela do começo',
@@ -140,9 +20,11 @@ void main() {
 
     await pedirOVeredito(it);
 
-    expect(it.harness.voice.played.skip(falasAntes), contains(falaDoVeredito),
-        reason: 'a sala diz a linha que o servidor mandou com a recusa; '
-            'recusar em silêncio deixa a equipe sem saber o que aconteceu');
+    expect(it.harness.voice.played.skip(falasAntes),
+        contains(falaDaParteNaoOuvida),
+        reason: 'a sala diz a linha que o servidor compôs para esta recusa, e '
+            'não a de um veredito qualquer; recusar em silêncio deixa a equipe '
+            'sem saber o que aconteceu');
     expect(it.estado.btPhase, BtPhase.playing,
         reason: 'sair do pensando é o que devolve o toque à equipe: um giro '
             'parado é um botão morto');
@@ -159,6 +41,28 @@ void main() {
     expect(it.estado.btOuvidoMs, 18000,
         reason: 'a cabeça de leitura do colar senta no começo da terceira '
             'parte, que é onde as duas primeiras acabam');
+  });
+
+  test('um corte depois do pouso não devolve à sala o chão já traduzido',
+      () async {
+    final it = await umEnsaioDeTresPartesContadoInteiro();
+    final terceira = it.partes[2];
+    it.harness.room
+      ..verdictChecked = false
+      ..verdictUnheardTakeIds = [terceira.takeId!];
+    await pedirOVeredito(it);
+
+    final trechos = it.estado.btTrechos.length;
+    final pedacos = it.harness.room.chunksSent;
+    it.harness.playback.at = const Duration(seconds: 3);
+    it.sala.cortarTrecho();
+
+    expect(it.estado.btPhase, isNot(BtPhase.capturing),
+        reason: 'o som voltou ao começo da parte mas a tradução não: a tesoura '
+            'atrás do cursor mandaria à sala, como trecho novo, o chão que a '
+            'equipe já traduziu — a fala dela devolvida uma segunda vez');
+    expect(it.estado.btTrechos.length, trechos);
+    expect(it.harness.room.chunksSent, pedacos);
   });
 
   test('um id que nenhuma parte tem chama uma pessoa', () async {

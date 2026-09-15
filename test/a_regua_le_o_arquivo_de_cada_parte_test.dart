@@ -1,34 +1,22 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
-import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
-import 'a_parte_nao_ouvida_recebe_a_equipe_test.dart'
-    show Sala, partesDoEnsaio, pedirOVeredito, umEnsaioDeTresPartesContadoInteiro;
 import 'fakes.dart';
-
-/// The name the room gives the recording it rebuilds around the mend, and how long that
-/// recording is: shorter than the part it takes the place of, so a length carried over
-/// from the file it replaced shows on the cord.
-const _composta = 'C';
-const _aComposta = Duration(seconds: 5);
+import 'um_ensaio_de_tres_partes.dart';
 
 /// Where the tablet writes the rebuilt passage when it fetches it. Named before the fetch
 /// because how long that file is has to be arranged before the room measures it, and
 /// through the recorder's own naming so a change to it cannot leave this arrangement
 /// silently pointing at a file nobody ever writes.
 String _arquivoDaComposta(Sala it) =>
-    it.harness.recorder.aFile('composta-$_composta').path;
-
-KeptTake _parteDois(Sala it) => it.estado.keptTakes.firstWhere(
-      (take) => take.scopeId == KeptScope.parte(2),
-    );
+    it.harness.recorder.aFile('composta-$composta').path;
 
 /// The rehearsal told back end to end, standing at a finding on the stretch of part two.
 Future<Sala> _aSalaNoAchadoDaSegundaParte({Duration? tetoDaEspera}) async {
   final it = await umEnsaioDeTresPartesContadoInteiro(
-    compoeEm: _composta,
+    compoeEm: composta,
     tetoDaEspera: tetoDaEspera,
   );
   it.harness.room
@@ -116,11 +104,11 @@ Future<void> _ouvirAParteNoAr(Sala it, Duration quanto) async {
 void main() {
   test('depois do conserto a régua lê o tamanho da composta', () async {
     final it = await _aSalaNoAchadoDaSegundaParte();
-    it.harness.playback.lengths[_arquivoDaComposta(it)] = _aComposta;
+    it.harness.playback.lengths[_arquivoDaComposta(it)] = aComposta;
 
     await _consertarPeloCaminhoLongo(it);
 
-    expect(_parteDois(it).takeId, _composta,
+    expect(parteDois(it).takeId, composta,
         reason: 'o caminho longo compõe uma gravação nova para a parte, e é '
             'ela que passa a ser a parte');
     expect(it.estado.btFimDasPartesMs, [10000, 15000, 27000],
@@ -142,7 +130,7 @@ void main() {
     await _consertarPeloCaminhoLongo(it, antesDoVeredito: () {
       it.harness.playback
         ..semMedida.remove(_arquivoDaComposta(it))
-        ..lengths[_arquivoDaComposta(it)] = _aComposta;
+        ..lengths[_arquivoDaComposta(it)] = aComposta;
       it.harness.room
         ..verdictChecked = false
         ..verdictUnheardTakeIds = [terceira];
@@ -183,6 +171,28 @@ void main() {
             'servidor');
   });
 
+  test('um id que nenhuma parte tem chama a pessoa antes de medir nada',
+      () async {
+    final it = await _aSalaNoAchadoDaSegundaParte();
+    // The rebuilt passage goes in unmeasured, so there is a part left for a landing to
+    // measure — and a name that leads nowhere must not make the team wait for it.
+    it.harness.playback.semMedida.add(_arquivoDaComposta(it));
+
+    late int medicoes;
+    await _consertarPeloCaminhoLongo(it, antesDoVeredito: () {
+      medicoes = it.harness.playback.measurements.length;
+      it.harness.room
+        ..verdictChecked = false
+        ..verdictUnheardTakeIds = ['ninguem'];
+    });
+
+    expect(it.estado.needsPerson, isTrue);
+    expect(it.harness.playback.measurements.length, medicoes,
+        reason: 'o nome não vira parte nenhuma, então não há para onde levar '
+            'a equipe: medir o ensaio inteiro antes de descobrir isso só a faz '
+            'esperar pela pessoa que já era para ter sido chamada');
+  });
+
   test('uma medida que nunca responde no pouso chama uma pessoa', () async {
     final it = await _aSalaNoAchadoDaSegundaParte(
       tetoDaEspera: const Duration(seconds: 2),
@@ -213,16 +223,16 @@ void main() {
 
     await _consertarPeloCaminhoLongo(it);
 
-    expect(_parteDois(it).takeId, isNot(_composta),
+    expect(parteDois(it).takeId, isNot(composta),
         reason: 'esta sessão fechou sem nunca alcançar a passagem composta');
     it.harness.room.failClipWith = null;
-    it.harness.playback.lengths[_arquivoDaComposta(it)] = _aComposta;
-    final oArquivoVelho = _parteDois(it).path;
+    it.harness.playback.lengths[_arquivoDaComposta(it)] = aComposta;
+    final oArquivoVelho = parteDois(it).path;
 
     await _reabrir(it);
     await waitFor(
       'a sala buscar a passagem composta que ela não tem',
-      () => _parteDois(it).takeId == _composta,
+      () => parteDois(it).takeId == composta,
     );
     await _ouvirAParteNoAr(it, partesDoEnsaio[2]);
 
