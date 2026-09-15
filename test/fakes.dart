@@ -64,6 +64,13 @@ const totalBeads = 12;
 
 const testLanguage = 'pt';
 
+/// The line this room composes for a *terminei* it answered.
+const falaDoVeredito = '/api/internalization-room/voice/veredito';
+
+/// The line this room composes for a *terminei* it refused, because a part of the
+/// rehearsal is not covered by the report. Its own line, as the refusal is its own answer.
+const falaDaParteNaoOuvida = '/api/internalization-room/voice/parte-nao-ouvida';
+
 Coverage coverage({int engaged = 0, int surfaced = 0}) => Coverage(
       engaged: engaged,
       surfaced: surfaced,
@@ -219,6 +226,10 @@ class FakePlayback implements PlaybackRepository {
   final StreamController<void> _failures = StreamController<void>.broadcast();
   final StreamController<void> _openings = StreamController<void>.broadcast();
   final List<String> played = [];
+
+  /// Where each clip was asked to start, beside the file it was. A part is put in the air
+  /// at a position, and which position is the whole of what some gestures differ by.
+  final List<Duration> playedFrom = [];
   bool paused = false;
 
   /// Whether the real player would be making sound right now. False on a pause, a stop,
@@ -303,10 +314,15 @@ class FakePlayback implements PlaybackRepository {
   /// How long a particular file is, for a test whose files are not all the same length.
   final Map<String, Duration> lengths = {};
 
+  /// The files this player cannot measure, however long they are. A real one answers
+  /// nothing for a file it has not finished writing, and the room has a branch for it.
+  final Set<String> semMedida = {};
+
   @override
   Future<Duration?> howLong(String path) async {
     measurements.add(path);
     await _measuring?.future;
+    if (semMedida.contains(path)) return null;
     return lengths[path] ?? measured;
   }
 
@@ -319,6 +335,7 @@ class FakePlayback implements PlaybackRepository {
   @override
   Future<void> play(String path, {Duration from = Duration.zero}) {
     played.add(path);
+    playedFrom.add(from);
     return _soundUntilItStops(from);
   }
 
@@ -581,6 +598,11 @@ class FakeRoom implements RoomRepository {
   /// are never named in the same answer — and neither is the place above, which addresses
   /// a stretch the team told.
   String? verdictUntoldSegmentId;
+
+  /// Which parts this room says the report does not cover, when that is what stopped the
+  /// reading. Empty is a room that refused nothing, which is also what a server that does
+  /// not send the field at all looks like from here.
+  List<String> verdictUnheardTakeIds = const [];
   BtFindingKind? verdictFinding;
   String? serverStatus;
   /// Which kind of halt the room reports beside `serverStatus`. A server older than
@@ -1120,12 +1142,14 @@ class FakeRoom implements RoomRepository {
     playedByTakeSent.add([for (final parte in playedByTake) parte.toJson()]);
     _guard('finishBackTranslation');
     return BackTranslationVerdict(
-      audioUrl: '/api/internalization-room/voice/veredito',
+      audioUrl:
+          verdictUnheardTakeIds.isEmpty ? falaDoVeredito : falaDaParteNaoOuvida,
       fixedLine: '',
       checked: verdictChecked,
       findingKind: verdictFinding,
       findingSegmentId: _oQueOAnalistaAponta(),
       untoldSegmentId: verdictUntoldSegmentId,
+      unheardTakeIds: verdictUnheardTakeIds,
       findingsRemaining: verdictFinding == null ? 0 : 1,
       usedFailSafe: verdictUsedFailSafe,
     );

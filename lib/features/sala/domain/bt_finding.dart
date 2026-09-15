@@ -66,6 +66,15 @@ class BackTranslationVerdict {
   /// left, sending them back to the rehearsal, which threw away every recording of the
   /// passage.
   final String? untoldSegmentId;
+
+  /// The parts of the rehearsal the report the team just sent does not cover, named by the
+  /// recording each one was kept as.
+  ///
+  /// Its own field, as the untold stretch above is: the room refuses to read a passage
+  /// whose rehearsal was not heard through, and it says so by naming what is missing. An
+  /// empty list is a refusal that did not happen, never one this tablet worked out for
+  /// itself from a silence.
+  final List<String> unheardTakeIds;
   final int findingsRemaining;
   final bool usedFailSafe;
 
@@ -76,6 +85,7 @@ class BackTranslationVerdict {
     required this.findingKind,
     required this.findingSegmentId,
     this.untoldSegmentId,
+    this.unheardTakeIds = const [],
     required this.findingsRemaining,
     required this.usedFailSafe,
   });
@@ -88,6 +98,10 @@ class BackTranslationVerdict {
         findingKind: btFindingKindFrom(json['finding_kind'] as String?),
         findingSegmentId: json['finding_segment_id'] as String?,
         untoldSegmentId: json['untold_segment_id'] as String?,
+        unheardTakeIds: [
+          for (final nome in json['unheard_take_ids'] as List? ?? const [])
+            nome as String,
+        ],
         findingsRemaining: json['findings_remaining'] as int? ?? 0,
         usedFailSafe: json['used_fail_safe'] as bool? ?? false,
       );

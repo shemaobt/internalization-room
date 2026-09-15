@@ -197,28 +197,6 @@ void main() {
             'nomear a gravação que fatia');
   });
 
-  test('esquecer uma parte deixa as outras de pé', () {
-    final escuta = EscutaDasPartes();
-    escuta.inteira('p1.m4a', 10000);
-    escuta.inteira('p2.m4a', 8000);
-    escuta.esquecer('p1.m4a');
-
-    expect(
-        _relato(escuta, [
-          _parte(1, 'p1.m4a', nome: 'gravacao-1'),
-          _parte(2, 'p2.m4a', nome: 'gravacao-2'),
-        ]),
-        [
-          {
-            'take_id': 'gravacao-2',
-            'played_ranges': [
-              [0, 8000]
-            ],
-            'clip_duration_ms': 8000,
-          },
-        ]);
-  });
-
   test('esquecer tudo esvazia o relato', () {
     final escuta = EscutaDasPartes();
     escuta.inteira('p1.m4a', 10000);

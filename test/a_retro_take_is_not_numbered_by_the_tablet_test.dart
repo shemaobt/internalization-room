@@ -132,10 +132,13 @@ void main() {
       () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
     );
     notifier.retroTap();
-    await waitFor(
-      'a sala sair do pensando',
-      () => container.read(salaSessionProvider).btPhase != BtPhase.thinking,
-    );
+    // Waited on the outbox, not on the phase. What this case reads is the row the guard
+    // writes to disk, and that write can land after the phase has settled: on a loaded
+    // runner it did, and the case read an empty outbox and called it a missing guard.
+    await waitFor('a tradução de novo chegar à caixa de saída', () async {
+      final naCaixa = await harness.takes.entries();
+      return naCaixa.any((entrada) => entrada.kind == 'retro');
+    });
 
     final guardadas = await harness.takes.entries();
     final retells = guardadas.where((e) => e.kind == 'retro');
