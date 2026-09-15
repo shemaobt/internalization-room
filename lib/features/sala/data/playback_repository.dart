@@ -16,6 +16,9 @@ class PlaybackRepository {
   /// hands — its length, its position, and the events the room hangs off both.
   AudioPlayer? _measurer;
 
+  /// The measurement in the air, so the next one waits for it rather than loading over it.
+  Future<void> _measuring = Future.value();
+
   PlaybackRepository({
     this._start,
     AudioPlayer Function()? newPlayer,
@@ -27,7 +30,16 @@ class PlaybackRepository {
   ///
   /// Null when the file cannot be opened: no missing file is worth taking the room down
   /// over, and the caller decides what the absence means.
-  Future<Duration?> howLong(String path) async {
+  Future<Duration?> howLong(String path) {
+    // One at a time. The measurer is a single player with a single source, so two loads in
+    // the air replace one another: a resume fires two of these unawaited, and the first
+    // came back answering for the second file or for nothing at all.
+    final turn = _measuring.then((_) => _measure(path));
+    _measuring = turn;
+    return turn;
+  }
+
+  Future<Duration?> _measure(String path) async {
     try {
       return await (_measurer ??= _newPlayer()).setFilePath(path);
     } on Object {
