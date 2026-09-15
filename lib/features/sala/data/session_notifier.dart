@@ -1404,7 +1404,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (waiting.stage == SalaStage.retro) {
           final told = (await _room.fetchState(sessionId)).backTranslation;
           if (epoch != _epoch) return;
-          if (told.checked) {
+          // Only when there is a telling-back to land on. A checked answer carrying no
+          // stretch contradicts itself — the check is about what was told — and
+          // [_pickTheTellingBackUp] rightly declines it, which left the room standing in
+          // the conversa until the watchdog called a person two minutes later. It falls
+          // through to the turn instead, which is the door every other empty answer takes:
+          // closing would call a passage the team never approved its final draft.
+          if (told.checked && !told.nothingTold) {
             _pickTheTellingBackUp(told);
             return;
           }
@@ -2591,7 +2597,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (state.btParteFronteira) {
-      _tocarParteDaRetro(_parteTocando + 1);
+      // From that part's own beginning on a checked passage. The cursor is where the next
+      // cut starts, and a cut is about telling: on a passage told back whole every part's
+      // cursor sits at its own end, so crossing at the cursor opened silence and the last
+      // listening was the first part and then two dead presses.
+      _tocarParteDaRetro(_parteTocando + 1, doComeco: conferida);
       return;
     }
     // The last listening the clean verdict invites, which is the whole rehearsal from its

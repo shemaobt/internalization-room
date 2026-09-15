@@ -238,6 +238,43 @@ void main() {
             'ler dizendo qual trecho ainda espera conserto');
   });
 
+  test('a última audição atravessa as partes do começo de cada uma', () async {
+    final it = await umEnsaioDeTresPartesContadoInteiro();
+    it.harness.room.verdictChecked = true;
+    await pedirOVeredito(it);
+    expect(it.estado.btPhase, BtPhase.conferida,
+        reason: 'o cenário é a passagem conferida — se não for, não mede a '
+            'última audição');
+
+    final tocadas = it.harness.playback.played.length;
+    it.sala.ouvirGravacao();
+    await waitFor(
+      'a primeira parte entrar no ar',
+      () => it.harness.playback.played.length > tocadas,
+    );
+
+    expect(it.harness.playback.played.last, it.partes[0].path);
+    expect(it.harness.playback.playedFrom.last, Duration.zero);
+
+    it.harness.playback.length = partesDoEnsaio[0];
+    it.harness.playback.at = partesDoEnsaio[0];
+    it.harness.playback.finishPlayback();
+    await waitFor('a travessia abrir', () => it.estado.btParteFronteira);
+
+    it.sala.ouvirGravacao();
+    await waitFor(
+      'a segunda parte entrar no ar',
+      () => it.harness.playback.played.last == it.partes[1].path,
+    );
+
+    expect(it.harness.playback.playedFrom.last, Duration.zero,
+        reason: 'uma parte contada inteira tem o cursor no próprio fim, então '
+            'atravessar para ela no cursor abre silêncio: a equipe ouvia a '
+            'primeira parte e depois apertava duas vezes para nada. Não há '
+            'mais tradução a fazer aqui, e o cursor não quer dizer nada numa '
+            'passagem que a sala já conferiu');
+  });
+
   test('um servidor que não manda o campo não recusa nada', () {
     final antigo = BackTranslationVerdict.fromJson(const {
       'audio_url': '/voice/veredito',

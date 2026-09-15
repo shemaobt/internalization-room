@@ -219,8 +219,6 @@ class _Duplo extends Fake implements AudioPlayer {
   bool descartado = false;
   Object? recusa;
 
-  /// Loads this double holds open, by file, so a test can put two measurements in the air
-  /// at the same time.
   /// Loads this double holds open, by file. The length still comes from [porArquivo], so
   /// a held file and a free one are answered by the same rule.
   final Map<String, Completer<void>> segurados = {};

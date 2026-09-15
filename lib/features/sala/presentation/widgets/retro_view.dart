@@ -21,7 +21,14 @@ class RetroView extends ConsumerWidget {
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);
     final colors = SalaColors.of(context);
-    final conferida = session.btPhase == BtPhase.conferida;
+    // A halted voice is never painted over. The checked circle is drawn done because the
+    // passage is right, and that read over a room stopped for a person or with no
+    // network: the team got a green circle, two buttons the guards refuse, no way out of
+    // the passage, and nothing at all saying why. It cost nothing while conferida lasted
+    // 700 ms; it is where the team now waits.
+    final conferida = session.btPhase == BtPhase.conferida &&
+        !session.needsPerson &&
+        !session.offline;
     final clipRunning = session.btClipRodando || session.btTrechoTocando;
 
     // The question is its own composition, not a row of buttons under the usual circle:
@@ -252,6 +259,8 @@ class RetroView extends ConsumerWidget {
   }
 
   String _circleLabel(SalaSessionState session) {
+    if (session.needsPerson) return 'Um momento para uma pessoa';
+    if (session.offline) return 'Tocar para tentar de novo';
     switch (session.btPhase) {
       case BtPhase.playing:
         return 'Tocar para traduzir este pedaço em português';

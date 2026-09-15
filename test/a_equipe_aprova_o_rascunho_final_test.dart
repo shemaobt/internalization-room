@@ -8,12 +8,16 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 
 const _aprovar = 'Aprovar como rascunho final';
 const _ouvir = 'Ouvir a gravação';
+
+FacilitatorCircle _circulo(WidgetTester tester) =>
+    tester.widget<FacilitatorCircle>(find.byType(FacilitatorCircle));
 
 Finder _byLabel(String label) => find.byWidgetPredicate(
       (widget) => widget is Semantics && widget.properties.label == label,
@@ -210,6 +214,15 @@ void main() {
 
     await _aprovarEEsperar(tester);
 
+    expect(_circulo(tester).voice, VoiceState.needsPerson,
+        reason: 'o círculo era a única coisa da tela que ainda podia dizer o '
+            'que houve, e desenhá-lo verde por cima do halt dizia à equipe que '
+            'estava tudo certo: dois botões que as guardas recusam, nenhum '
+            'botão de sair, e a fala E0 como único sinal');
+    expect(_circulo(tester).semanticLabel, 'Um momento para uma pessoa',
+        reason: 'e a etiqueta acompanha, que é o que a sala tem no lugar de '
+            'palavras na tela');
+
     expect(_estado(it.container).needsPerson, isTrue,
         reason: 'a recusa é um bloqueio que a equipe não resolve desta tela, '
             'então a sala chama alguém na primeira: pela escada comum ela só '
@@ -285,9 +298,11 @@ void main() {
 
     await _aprovarEEsperar(tester);
 
-    expect(_estado(it.container).offline, isTrue,
-        reason: 'a release é uma escrita da equipe como as outras: sem rede a '
-            'sala diz que está sem rede');
+    expect(_circulo(tester).voice, VoiceState.offline,
+        reason: 'a release é uma escrita da equipe como as outras, e a saída '
+            'daqui é tocar no círculo: sem o desenho de sala sem rede não há '
+            'nada que diga isso numa tela sem palavras');
+    expect(_circulo(tester).semanticLabel, 'Tocar para tentar de novo');
     expect(_estado(it.container).needsPerson, isFalse);
 
     it.harness.room.reachable = true;

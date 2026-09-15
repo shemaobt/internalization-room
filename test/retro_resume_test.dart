@@ -222,6 +222,17 @@ void main() {
         reason: 'e a passagem não está feita: quem a fecha é a aprovação');
     expect(harness.emAberto.rows, contains('Ruth/P01'),
         reason: 'então o ponto de retomada continua de pé, para a próxima vez');
+    expect(container.read(salaSessionProvider).partes, isEmpty,
+        reason: 'esta é a porta em que o ensaio não está mais no tablet — se '
+            'estivesse, o caso não mediria o gesto sobre nada');
+
+    notifier.ouvirGravacao();
+    await settle();
+
+    expect(harness.playback.played, isEmpty,
+        reason: 'o botão está na tela porque a aprovação está, e a equipe pode '
+            'tocá-lo: pedir a primeira parte de uma fila vazia derruba a sala '
+            'em cima dela');
 
     await notifier.aprovarRascunhoFinal();
     await settle(const Duration(seconds: 2));
@@ -275,6 +286,33 @@ void main() {
         container.read(salaSessionProvider).partes.first.path);
     expect(harness.playback.playedFrom.last, Duration.zero,
         reason: 'e do começo, como do outro lado da porta');
+  });
+
+  test('a checked answer with no stretches at all opens the passage instead of stalling',
+      () async {
+    final harness = SalaHarness();
+
+    final container = await _reopen(
+      harness,
+      parouEm: SalaStage.retro,
+      contado: const BackTranslationProgress(checked: true),
+      semAudio: true,
+    );
+
+    await settle(const Duration(seconds: 2));
+
+    expect(harness.room.calls, contains('openSession'),
+        reason: 'conferida sem trecho nenhum é uma resposta que se contradiz — '
+            'a conferência é sobre o que foi contado. Sem trecho não há retro '
+            'para retomar nem nada que a equipe possa aprovar, então a sala '
+            'abre a passagem como qualquer outra: é a porta de onde se sai. '
+            'Parada na conversa, ela ficava dois minutos calada até o vigia '
+            'chamar uma pessoa');
+    expect(container.read(salaSessionProvider).stage, isNot(SalaStage.fim),
+        reason: 'e não fecha: dar por terminada uma passagem que ninguém '
+            'aprovou é exatamente o que este gesto existe para não deixar '
+            'acontecer');
+    expect(harness.finished.done, isNot(contains('Ruth/P01')));
   });
 
   test('a restart the room refused does not open the passage anyway', () async {
