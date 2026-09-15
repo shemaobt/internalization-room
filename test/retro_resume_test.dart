@@ -263,6 +263,18 @@ void main() {
     expect(container.read(salaSessionProvider).partes, isNotEmpty,
         reason: 'e com o ensaio de pé, que é o que a última audição pede');
     expect(harness.finished.done, isNot(contains('Ruth/P01')));
+
+    container.read(salaSessionProvider.notifier).ouvirGravacao();
+    await settle();
+
+    expect(harness.playback.played, isNotEmpty,
+        reason: 'a última audição que a fala do veredito convida tem de valer '
+            'também aqui: a sala retomada nunca pôs parte nenhuma no ar, então '
+            'mandar o tocador continuar é acender o halo sobre o silêncio');
+    expect(harness.playback.played.last,
+        container.read(salaSessionProvider).partes.first.path);
+    expect(harness.playback.playedFrom.last, Duration.zero,
+        reason: 'e do começo, como do outro lado da porta');
   });
 
   test('a restart the room refused does not open the passage anyway', () async {

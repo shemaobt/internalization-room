@@ -364,8 +364,8 @@ class RoomRepository {
 
   /// The team's approval of its own final draft.
   ///
-  /// The room packages the rows it already holds and hashes them, so nothing travels with
-  /// the press. A second approval of unchanged content comes back as the release already
+  /// Nothing travels with the press: the release is composed from what the server already
+  /// holds. A second approval of unchanged content comes back as the release already
   /// there, which is the same answer.
   Future<Release> approveRelease(String sessionId) async {
     final response = await _send(

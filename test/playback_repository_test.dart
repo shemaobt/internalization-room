@@ -147,7 +147,7 @@ void main() {
       playback = umRepositorio((duplo) {
         duplo.porArquivo['/a.m4a'] = const Duration(seconds: 4);
         duplo.porArquivo['/b.m4a'] = const Duration(seconds: 11);
-        duplo.segurados['/a.m4a'] = Completer<Duration?>();
+        duplo.segurados['/a.m4a'] = Completer<void>();
       });
 
       final a = playback.howLong('/a.m4a');
@@ -160,7 +160,7 @@ void main() {
               'só, e carregar por cima tira o arquivo das mãos de quem '
               'perguntou primeiro');
 
-      medidor.segurados['/a.m4a']!.complete(const Duration(seconds: 4));
+      medidor.segurados['/a.m4a']!.complete();
 
       expect(await a, const Duration(seconds: 4));
       expect(await b, const Duration(seconds: 11),
@@ -221,7 +221,9 @@ class _Duplo extends Fake implements AudioPlayer {
 
   /// Loads this double holds open, by file, so a test can put two measurements in the air
   /// at the same time.
-  final Map<String, Completer<Duration?>> segurados = {};
+  /// Loads this double holds open, by file. The length still comes from [porArquivo], so
+  /// a held file and a free one are answered by the same rule.
+  final Map<String, Completer<void>> segurados = {};
 
   /// Whether a load ever started while another was still open on this player.
   ///
@@ -254,8 +256,7 @@ class _Duplo extends Fake implements AudioPlayer {
     carregados.add(filePath);
     iniciais.add(initialPosition);
     try {
-      final segurado = segurados[filePath];
-      if (segurado != null) return await segurado.future;
+      await segurados[filePath]?.future;
     } finally {
       _abertos--;
     }

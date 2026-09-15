@@ -2321,8 +2321,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _parteTocando = 0;
     _tamanhoDaParteMs.clear();
     _pousadaNaParteNaoOuvida = false;
-    _aprovando = false;
-    _aprovada = false;
     _escuta.esquecerTudo();
     _desdeMs = 0;
     state = state.copyWith(
@@ -2521,6 +2519,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       from: doComeco ? Duration.zero : _trechoStart,
       onComplete: _fimDeParte,
       onFailed: () {
+        // Back to the rehearsal is the answer while there is still passage left to tell
+        // back. On a checked passage it is not: the telling-back is over, and dropping
+        // the team into the rehearsal takes them out of a passage the room already
+        // checked, where the gesture in front of them is recording the whole thing again
+        // over their own work. The halt the caller raises is what reaches a person.
+        if (state.btPhase == BtPhase.conferida) return;
         state = state.copyWith(
           stage: SalaStage.ensaio,
           ensaio: EnsaioStatus.idle,
@@ -2582,18 +2586,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _tocarParteDaRetro(_parteTocando + 1);
       return;
     }
-    if (state.btClipEnded) {
-      // The last listening the clean verdict invites, which is the whole rehearsal from
-      // its own beginning. Everywhere else a clip that has ended is a clip with nothing
-      // left to hear, and this gesture is the one whose subject is hearing rather than
-      // telling.
-      // A passage picked back up without its recordings on the tablet lands here with
-      // nothing to put in the air, and asking for the first of an empty row takes the
-      // room down under the team.
-      if (!conferida || state.partes.isEmpty) return;
+    // The last listening the clean verdict invites, which is the whole rehearsal from its
+    // own beginning. Read off what is in the air rather than off the clip having ended:
+    // a session resumed already checked has put no part in the air at all, and telling
+    // the player to carry on there lights the halo over silence. A part held mid-listen
+    // still has its length written down, so holding and letting go carries on as it does
+    // everywhere else.
+    if (conferida && state.btParteNoArMs == 0) {
+      // A passage picked back up without its recordings on the tablet has nothing to put
+      // in the air, and asking for the first of an empty row takes the room down under
+      // the team.
+      if (state.partes.isEmpty) return;
       _tocarParteDaRetro(0, doComeco: true);
       return;
     }
+    if (state.btClipEnded) return;
     _seguirOClipe();
   }
 
@@ -4134,6 +4141,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _parteTocando = 0;
     _tamanhoDaParteMs.clear();
     _pousadaNaParteNaoOuvida = false;
+    _aprovando = false;
+    _aprovada = false;
     _escuta.esquecerTudo();
     _desdeMs = 0;
     _ghostParte = 0;

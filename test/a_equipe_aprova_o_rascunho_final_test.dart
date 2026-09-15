@@ -5,7 +5,9 @@ import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -365,6 +367,83 @@ void main() {
             'pronta para a equipe aprovar');
 
     closeTheRoom(conferida.container);
+  });
+
+  testWidgets('uma gravação que não abre na última audição chama uma pessoa e '
+      'deixa a equipe onde ela está', (tester) async {
+    final it = await _ateAConferida(tester);
+
+    await tester.tap(_byLabel(_ouvir));
+    await tester.pump(const Duration(milliseconds: 100));
+    it.harness.playback.failPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(_estado(it.container).needsPerson, isTrue,
+        reason: 'um arquivo que não abre é uma pessoa, como em toda outra tela');
+    expect(_estado(it.container).stage, SalaStage.retro,
+        reason: 'mas a equipe fica onde está: jogada no ensaio ela sai de uma '
+            'passagem que o servidor já conferiu, e o gesto que sobra ali é '
+            'gravar a passagem inteira de novo por cima do trabalho dela');
+    expect(_estado(it.container).btPhase, BtPhase.conferida,
+        reason: 'e resolvido o halt a aprovação ainda é o que falta fazer');
+
+    closeTheRoom(it.container);
+  });
+
+  testWidgets('a passagem seguinte não herda a aprovação da anterior',
+      (tester) async {
+    final it = await _ateAConferida(
+      tester,
+      comEsta: SalaHarness(
+        filaEmMemoria: true,
+        fimLinger: const Duration(milliseconds: 40),
+      ),
+    );
+
+    // A segunda passagem é uma que a equipe deixou conferida sem aprovar, que é o estado
+    // que este ticket cria: ela tem de poder ser aprovada como a primeira. A linha é
+    // escrita antes do fecho porque a roda lê quais passagens já foram começadas ao
+    // reabrir, e o recomeço reabre a roda sozinho.
+    it.harness.emAberto.rows['Ruth/P02'] = const ResumePoint(
+      sessionId: 'sessao-da-p02',
+      stage: SalaStage.retro,
+    );
+
+    await _aprovarEEsperar(tester);
+    await tester.pump(const Duration(milliseconds: 700));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(_estado(it.container).stage, SalaStage.escolha,
+        reason: 'a sala recomeça sozinha depois do fecho — se não recomeçar, '
+            'este cenário não chega à segunda passagem');
+    expect(it.harness.room.releasesAsked, hasLength(1));
+
+    it.harness.room.retroSoFar = const BackTranslationProgress(
+      segments: [
+        SegmentView(
+          segmentId: 'trecho-p02',
+          takeId: 'gravacao-p02',
+          startsMs: 0,
+          endsMs: 30000,
+        ),
+      ],
+      checked: true,
+    );
+    await _notifier(it.container).goConversa(pericope: 'P02');
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(_estado(it.container).btPhase, BtPhase.conferida,
+        reason: 'a segunda passagem pousa no mesmo gesto que falta');
+
+    await _aprovarEEsperar(tester);
+
+    expect(it.harness.room.releasesAsked, hasLength(2),
+        reason: 'as travas da aprovação são coisa da passagem, não da sessão: '
+            'herdadas, a segunda passagem encontra o gesto morto e a equipe '
+            'aperta e não recebe nada — nem pedido, nem fala, nem pessoa');
+
+    closeTheRoom(it.container);
   });
 
   testWidgets('ouvir a gravação funciona depois de conferida', (tester) async {

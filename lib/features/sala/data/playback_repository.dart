@@ -16,9 +16,6 @@ class PlaybackRepository {
   /// hands — its length, its position, and the events the room hangs off both.
   AudioPlayer? _measurer;
 
-  /// The measurement in the air, so the next one waits for it rather than loading over it.
-  Future<void> _measuring = Future.value();
-
   PlaybackRepository({
     this._start,
     AudioPlayer Function()? newPlayer,
@@ -35,9 +32,11 @@ class PlaybackRepository {
     // the air replace one another: a resume fires two of these unawaited, and the first
     // came back answering for the second file or for nothing at all.
     final turn = _measuring.then((_) => _measure(path));
-    _measuring = turn;
+    _measuring = turn.then((_) {}, onError: (_) {});
     return turn;
   }
+
+  Future<void> _measuring = Future.value();
 
   Future<Duration?> _measure(String path) async {
     try {
