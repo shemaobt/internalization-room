@@ -1003,6 +1003,43 @@ void main() {
             'turno calmo e ainda assim perdoava a falha de antes');
   });
 
+  test('a clean turn right before a degraded one still does not forgive a failure',
+      () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.room.failWith = const RoomBroke('HTTP 500');
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    harness.room.failWith = null;
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    harness.room.turnsAreDegraded = true;
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+    harness.room.turnsAreDegraded = false;
+
+    harness.room.failWith = const RoomBroke('HTTP 500');
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'o turno limpo levava o streak a um, e o degradado logo '
+            'depois completava o par e pagava o ponto antes mesmo de a sala '
+            'saber que esse turno tinha vindo ruim');
+  });
+
   test('a panorama that cannot be spoken leaves a way back', () async {
     final harness = SalaHarness()..voice.succeeds = false;
     final container = harness.container();

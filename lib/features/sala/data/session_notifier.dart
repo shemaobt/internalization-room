@@ -490,14 +490,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _registerUnplayableTurn();
       return;
     }
-    _settleNetworkHealth();
+    _settleNetworkHealth(calm: !turn.degraded);
     state = state.copyWith(
       voice: turn.done ? VoiceState.done : VoiceState.invite,
       peerCue: turn.peerCue,
     );
     if (turn.degraded) {
       _degradedTurns++;
-      _calmTurns = 0;
       if (_degradedTurns >= _degradedTurnsBeforeAPerson) _haltForAPerson();
     } else {
       _degradedTurns = 0;
@@ -746,7 +745,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// in a row — a network failing every other turn traded one failure for one success
   /// every time, and the counter it gated never climbed. A resolve clears every counter
   /// outright: it is the room's own word the trouble is over, not one more turn to weigh.
-  void _settleNetworkHealth({bool resolved = false}) {
+  void _settleNetworkHealth({bool resolved = false, bool calm = true}) {
     _unplayableTurns = 0;
     _retryStep = 0;
     _noticeSpoken = false;
@@ -755,6 +754,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _slowAnswers = 0;
       _degradedTurns = 0;
       _inboxSilences = 0;
+      _calmTurns = 0;
+      return;
+    }
+    if (!calm) {
       _calmTurns = 0;
       return;
     }
