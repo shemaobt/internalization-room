@@ -8,11 +8,10 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_cord.dart';
 import 'package:internalization_room/main.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/onde_mora_grade.dart';
 
 import 'fakes.dart';
 
-const _micMaterna =
-    'Regravar a voz na língua materna — refaz também a tradução';
 const _micRetro = 'Traduzir de novo só em português';
 
 Finder _byLabel(String label) => find.byWidgetPredicate(
@@ -93,8 +92,11 @@ Future<ProviderContainer> _pumpToPergunta(WidgetTester tester) async {
 }
 
 /// The long way's first gesture: choosing to re-record the mother tongue.
-Future<void> _escolherRegravarAMaterna(WidgetTester tester) async {
-  await tester.tap(_byLabel(_micMaterna));
+Future<void> _escolherRegravarAMaterna(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  container.read(salaSessionProvider.notifier).regravarAVozMaterna();
   await tester.pump(const Duration(milliseconds: 300));
 }
 
@@ -115,7 +117,7 @@ Future<void> _regravarAMaternaQueNaoPega(
   WidgetTester tester,
   ProviderContainer container,
 ) async {
-  await _escolherRegravarAMaterna(tester);
+  await _escolherRegravarAMaterna(tester, container);
   await _gravarAMaterna(tester, container);
 }
 
@@ -135,7 +137,7 @@ void main() {
     expect(estado.btPhase, BtPhase.findings,
         reason: 'a equipe volta à pergunta de onde saiu, não à reprodução, '
             'onde tocar não faz nada');
-    expect(_byLabel(_micMaterna), findsOneWidget,
+    expect(_byLabel(micParteLabel), findsOneWidget,
         reason: 'e as saídas de correção estão na tela: é assim que se tenta '
             'de novo');
     expect(_byLabel(_micRetro), findsOneWidget);
@@ -194,7 +196,7 @@ void main() {
 
     // The team is quick: they choose the wood voice and tap to record while the room may
     // still be asking them to say it again.
-    await _escolherRegravarAMaterna(tester);
+    await _escolherRegravarAMaterna(tester, container);
     _notifier(container).retroTap();
     await tester.pump(const Duration(milliseconds: 200));
 
@@ -207,7 +209,7 @@ void main() {
     final container = await _pumpToPergunta(tester);
     final harness = _harnessDaVez!;
 
-    await _escolherRegravarAMaterna(tester);
+    await _escolherRegravarAMaterna(tester, container);
     expect(_faixasVazias(tester, container), isEmpty);
     harness.playback.measured = null;
     await _gravarAMaterna(tester, container);
@@ -222,7 +224,7 @@ void main() {
     final container = await _pumpToPergunta(tester);
     final harness = _harnessDaVez!;
 
-    await _escolherRegravarAMaterna(tester);
+    await _escolherRegravarAMaterna(tester, container);
     harness.room.failReplaceWith = const RoomBroke('a sala caiu no meio');
     await _gravarAMaterna(tester, container);
 
@@ -230,7 +232,7 @@ void main() {
     expect(harness.room.calls, contains('replaceSegment'),
         reason: 'esta é a segunda porta: a sala foi chamada e levantou');
     expect(estado.btPhase, BtPhase.findings);
-    expect(_byLabel(_micMaterna), findsOneWidget);
+    expect(_byLabel(micParteLabel), findsOneWidget);
     expect(_byLabel(_micRetro), findsOneWidget);
     expect(estado.needsPerson, isFalse);
     expect(_vezesQuePediuParaRepetir(harness), 1);
@@ -241,13 +243,13 @@ void main() {
     final container = await _pumpToPergunta(tester);
     final harness = _harnessDaVez!;
 
-    await _escolherRegravarAMaterna(tester);
+    await _escolherRegravarAMaterna(tester, container);
     harness.room.failReplaceWith = const RoomBroke('a sala caiu no meio');
     await _gravarAMaterna(tester, container);
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
 
     harness.room.failReplaceWith = null;
-    await _escolherRegravarAMaterna(tester);
+    await _escolherRegravarAMaterna(tester, container);
     await _gravarAMaterna(tester, container);
 
     final estado = container.read(salaSessionProvider);
@@ -273,7 +275,7 @@ void main() {
     final container = await _pumpToPergunta(tester);
     final harness = _harnessDaVez!;
 
-    await _escolherRegravarAMaterna(tester);
+    await _escolherRegravarAMaterna(tester, container);
     harness.room.failReplaceWith = const RoomRefused();
     await _gravarAMaterna(tester, container);
 
@@ -311,7 +313,7 @@ void main() {
     expect(depois.voice, VoiceState.invite,
         reason: 'a vigia lê o estado sozinha; quem levanta a parada é a '
             'mesa, não o toque');
-    expect(_byLabel(_micMaterna), findsOneWidget);
+    expect(_byLabel(micParteLabel), findsOneWidget);
     expect(_byLabel(_micRetro), findsOneWidget);
     closeTheRoom(container);
   });
@@ -321,7 +323,7 @@ void main() {
     final container = await _pumpToPergunta(tester);
     final harness = _harnessDaVez!;
 
-    await _escolherRegravarAMaterna(tester);
+    await _escolherRegravarAMaterna(tester, container);
     harness.room.failReplaceWith = const RoomUnavailable('sem rede');
     await _gravarAMaterna(tester, container);
 

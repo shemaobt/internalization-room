@@ -14,8 +14,6 @@ import 'fakes.dart';
 
 const ouvirMaterna = 'Ouvir a voz de vocês, na língua materna';
 const ouvirRetro = 'Ouvir a tradução em português';
-const micMaterna =
-    'Regravar a voz na língua materna — refaz também a tradução';
 const micRetro = 'Traduzir de novo só em português';
 const contaApontada = 'Trecho apontado pelo analista';
 
@@ -80,7 +78,7 @@ Future<void> _pumpGrade(WidgetTester tester, {required bool podeOuvirRetro}) =>
           child: OndeMoraGrade(
             onOuvirMaterna: () {},
             onOuvirRetro: () {},
-            onRegravarMaterna: () {},
+            onGravarAParteDeNovo: () {},
             onTraduzirDeNovo: () {},
             podeOuvirRetro: podeOuvirRetro,
           ),
@@ -119,7 +117,7 @@ Future<void> regravarAMaterna(
   WidgetTester tester,
   ProviderContainer container,
 ) async {
-  await tester.tap(byLabel(micMaterna));
+  notifier(container).regravarAVozMaterna();
   await tester.pump(const Duration(milliseconds: 300));
   notifier(container).retroTap();
   await tester.pump(const Duration(milliseconds: 200));
@@ -163,7 +161,7 @@ void main() {
         (tester) async {
       await pumpToPergunta(tester, finding: kind);
 
-      expect(byLabel(micMaterna), findsOneWidget,
+      expect(byLabel(micParteLabel), findsOneWidget,
           reason: 'o tipo do achado decidia sozinho pela equipe, e um tipo '
               'escondia a saída de traduzir de novo');
       expect(byLabel(micRetro), findsOneWidget);
@@ -200,7 +198,7 @@ void main() {
       (tester) async {
     final container = await pumpToPergunta(tester);
 
-    await tester.tap(byLabel(micMaterna));
+    notifier(container).regravarAVozMaterna();
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.gravandoMaterna,
@@ -290,7 +288,7 @@ void main() {
         trecho: null,
       );
 
-      expect(byLabel(micMaterna), findsNothing,
+      expect(byLabel(micParteLabel), findsNothing,
           reason: 'sem trecho apontado não há o que substituir, e a grade '
               'pergunta sobre um trecho');
       expect(byLabel(micRetro), findsNothing);

@@ -70,7 +70,7 @@ void main() {
     expect(byLabel(micRetroLabel), findsOneWidget,
         reason: 'a materna pode já ter a parte; só a ponte pulou a frase, e a '
             'equipe sabe se é o caso — não a tela por ela');
-    expect(byLabel(micMaternaLabel), findsOneWidget);
+    expect(byLabel(micParteLabel), findsOneWidget);
     expect(byLabel('Regravar esta parte e contá-la de novo'), findsNothing,
         reason: 'a falta com endereço não passa mais por um caminho à parte '
             'que esconde a escolha entre as duas vozes');
@@ -87,15 +87,17 @@ void main() {
             'tocar a voz materna');
   });
 
-  testWidgets('materna + ponte continua funcionando', (tester) async {
+  testWidgets('a madeira leva ao ensaio, a gravar a parte de novo', (tester) async {
     final container = await pumpToPergunta(tester, finding: BtFindingKind.missing);
 
-    await tester.tap(byLabel(micMaternaLabel));
+    await tester.tap(byLabel(micParteLabel));
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.gravandoMaterna,
-        reason: 'o par materna+ponte continua abrindo a regravação da língua '
-            'materna primeiro, como para os outros achados');
+    expect(container.read(salaSessionProvider).stage, SalaStage.ensaio,
+        reason: 'a voz de madeira que a equipe escolhe é a da parte inteira: o '
+            'microfone por trecho saiu da tela, e o que fica é o ensaio');
+    expect(container.read(salaSessionProvider).btPhase,
+        isNot(BtPhase.gravandoMaterna));
   });
 
   testWidgets('falta sem endereço continua indo ao ensaio', (tester) async {
@@ -109,14 +111,14 @@ void main() {
         reason: 'sem trecho apontado não há o que regravar — a saída continua '
             'sendo o ensaio inteiro, como hoje');
     expect(byLabel(micRetroLabel), findsNothing);
-    expect(byLabel(micMaternaLabel), findsNothing);
+    expect(byLabel(micParteLabel), findsNothing);
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
   });
 
   testWidgets('os outros achados não mudam', (tester) async {
     await pumpToPergunta(tester, finding: BtFindingKind.unclear);
 
-    expect(byLabel(micMaternaLabel), findsOneWidget);
+    expect(byLabel(micParteLabel), findsOneWidget);
     expect(byLabel(micRetroLabel), findsOneWidget);
     expect(byLabel(ouvirMaterna), findsOneWidget);
     expect(byLabel(ouvirRetro), findsOneWidget);

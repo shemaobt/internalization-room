@@ -11,8 +11,6 @@ import 'fakes.dart';
 
 const ouvirMaterna = 'Ouvir a voz de vocês, na língua materna';
 const ouvirRetro = 'Ouvir a tradução em português';
-const micMaterna =
-    'Regravar a voz na língua materna — refaz também a tradução';
 const micRetro = 'Traduzir de novo só em português';
 
 Finder byLabel(String label) => find.byWidgetPredicate(
@@ -79,7 +77,7 @@ Future<void> pumpGradeSozinha(WidgetTester tester,
           child: OndeMoraGrade(
             onOuvirMaterna: () {},
             onOuvirRetro: () {},
-            onRegravarMaterna: () {},
+            onGravarAParteDeNovo: () {},
             onTraduzirDeNovo: () {},
             tocandoMaterna: tocandoMaterna,
             onCortar: tocandoMaterna ? () {} : null,
@@ -94,7 +92,7 @@ void main() {
     for (final tocando in [false, true]) {
       await pumpGradeSozinha(tester, tocandoMaterna: tocando);
 
-      expect(tester.getCenter(byLabel(micMaterna)).dx,
+      expect(tester.getCenter(byLabel(micParteLabel)).dx,
           tester.getCenter(byLabel(ouvirMaterna)).dx,
           reason: 'a vertical de cada coluna é o custo do caminho, e ela só diz '
               'isso se pender do tocador daquela voz — com o som ${tocando ? "no ar" : "parado"}');
@@ -171,7 +169,7 @@ void main() {
       (tester) async {
     await pumpToPergunta(tester);
 
-    expect(aceso(tester, micMaterna), isTrue);
+    expect(aceso(tester, micParteLabel), isTrue);
     expect(aceso(tester, micRetro), isTrue);
     expect(byLabel(cortarTrechoLabel), findsNothing,
         reason: 'com o som parado a pergunta está sendo feita, e ela tem duas '
@@ -180,7 +178,7 @@ void main() {
     await ouvindoAMaterna(tester);
 
     expect(byLabel(cortarTrechoLabel), findsOneWidget);
-    expect(aceso(tester, micMaterna), isFalse,
+    expect(aceso(tester, micParteLabel), isFalse,
         reason: 'e enquanto o som toca a pergunta não está sendo feita: a '
             'grade já mata os dois microfones, então a tesoura nunca divide a '
             'tela com as duas saídas');
@@ -197,7 +195,7 @@ void main() {
     await tester.tap(byLabel(cortarTrechoLabel));
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(byLabel(micMaterna), findsNothing,
+    expect(byLabel(micParteLabel), findsNothing,
         reason: 'o achado terminou, então a tela da pergunta sai — ficar '
             'igual ao que era antes do corte é a sala não responder');
     expect(container.read(salaSessionProvider).btPhase, BtPhase.playing,

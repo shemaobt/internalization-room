@@ -539,8 +539,7 @@ void main() {
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
     expect(
-      bySemanticsLabelWidget('Regravar a voz na língua materna — refaz também '
-          'a tradução'),
+      bySemanticsLabelWidget('Gravar esta parte de novo na língua materna'),
       findsOneWidget,
       reason: 'as duas saídas continuam ali, mas agora como as duas vozes da '
           'grade, e é a equipe que diz qual precisa falar de novo',

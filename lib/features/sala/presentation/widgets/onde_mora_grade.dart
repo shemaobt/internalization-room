@@ -7,7 +7,7 @@ import 'motion.dart';
 
 const ouvirMaternaLabel = 'Ouvir a voz de vocês, na língua materna';
 const ouvirRetroLabel = 'Ouvir a tradução em português';
-const micMaternaLabel = 'Regravar a voz na língua materna — refaz também a tradução';
+const micParteLabel = 'Gravar esta parte de novo na língua materna';
 const micRetroLabel = 'Traduzir de novo só em português';
 const cortarTrechoLabel = 'Cortar este trecho em dois, aqui';
 
@@ -43,7 +43,9 @@ const cortarTrechoLabel = 'Cortar este trecho em dois, aqui';
 class OndeMoraGrade extends StatelessWidget {
   final VoidCallback onOuvirMaterna;
   final VoidCallback onOuvirRetro;
-  final VoidCallback onRegravarMaterna;
+  /// Record the part this stretch sits in again. The wood voice is still the team's own
+  /// tongue; what it opens is the whole part, not a slice of it.
+  final VoidCallback onGravarAParteDeNovo;
   final VoidCallback onTraduzirDeNovo;
 
   /// Which voice is sounding right now, if any. Listening is free — it decides nothing —
@@ -67,7 +69,7 @@ class OndeMoraGrade extends StatelessWidget {
     super.key,
     required this.onOuvirMaterna,
     required this.onOuvirRetro,
-    required this.onRegravarMaterna,
+    required this.onGravarAParteDeNovo,
     required this.onTraduzirDeNovo,
     this.tocandoMaterna = false,
     this.tocandoRetro = false,
@@ -90,9 +92,9 @@ class OndeMoraGrade extends StatelessWidget {
             colors: colors,
             gradiente: BeadStyles.wood,
             ouvirLabel: ouvirMaternaLabel,
-            micLabel: micMaternaLabel,
+            micLabel: micParteLabel,
             onOuvir: onOuvirMaterna,
-            onFalar: onRegravarMaterna,
+            onFalar: onGravarAParteDeNovo,
             tocando: tocandoMaterna,
             inerte: _algoTocando,
             estacoesPenduradas: 1,

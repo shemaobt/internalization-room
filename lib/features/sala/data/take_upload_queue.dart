@@ -273,20 +273,15 @@ class TakeUploadQueue {
     ].length;
   }
 
-  /// What the room called the recording kept under this scope, or null while it has not
-  /// answered for it yet.
-  Future<String?> takeIdOf(
-    String kind, {
-    required String sessionId,
-    required String scope,
-  }) async {
+  /// What the room called the recording this row holds, or null while it has not answered
+  /// for it yet.
+  ///
+  /// By row, never by scope: a part recorded again is a second row under the scope the
+  /// part already had, and the first row's name, handed back for the second row's audio,
+  /// would send every stretch of the new recording to the one nobody will hear again.
+  Future<String?> takeIdOf(String row) async {
     for (final entry in (await _written() ?? const <PendingTake>[])) {
-      if (entry.kind == kind &&
-          entry.sessionId == sessionId &&
-          entry.scope == scope &&
-          entry.takeId != null) {
-        return entry.takeId;
-      }
+      if (entry.id == row) return entry.takeId;
     }
     return null;
   }

@@ -140,7 +140,7 @@ The numbered position of a stretch in the list the analyst receives in one readi
 _Avoid_: trecho, stretch, segmento, segment (the persistent objects)
 
 **Part**:
-One of the pieces the rehearsal recording is divided into, and the unit a stretch sits in. A stretch addresses its part by where the part sits in the row, so a part that moved would take the whole rehearsal with it.
+One of the pieces the rehearsal recording is divided into, and the unit a stretch sits in. A stretch addresses its part by where the part sits in the row, so a part that moved would take the whole rehearsal with it. A part recorded again keeps its number and its place; what changes is the recording it holds, and the stretches told over the one it replaces are untold ground again.
 _Avoid_: parte, chunk (a position in one reading), take (what holds a part), stretch
 
 **Necklace**:

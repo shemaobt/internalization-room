@@ -133,3 +133,28 @@ const aComposta = Duration(seconds: 5);
 KeptTake parteDois(Sala it) => it.estado.keptTakes.firstWhere(
       (take) => take.scopeId == KeptScope.parte(2),
     );
+
+/// Record the part at [onde] again, in its own place: the row keeps its length and only
+/// that entry changes. The sibling of [gravarUmaParte], which asserts the opposite.
+///
+/// The name is not waited for here: a test that holds the upload has to be able to look
+/// at a part the room has not answered for yet.
+Future<void> regravarAParte(Sala it, int onde) async {
+  final antes = it.partes;
+  final antiga = antes[onde].path;
+  it.sala.ensaioTap();
+  await waitFor(
+    'a gravação da parte começar',
+    () => it.estado.ensaio == EnsaioStatus.recording,
+  );
+  it.sala.ensaioTap();
+  await waitFor(
+    'a gravação da parte terminar',
+    () => it.estado.ensaio == EnsaioStatus.recorded,
+  );
+  it.sala.takeKeep();
+  await waitFor('a gravação nova tomar o lugar da parte ${onde + 1}', () {
+    final agora = it.partes;
+    return agora.length == antes.length && agora[onde].path != antiga;
+  });
+}

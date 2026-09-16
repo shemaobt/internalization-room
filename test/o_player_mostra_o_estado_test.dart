@@ -38,7 +38,7 @@ Future<void> pumpGradeSozinha(
         child: OndeMoraGrade(
           onOuvirMaterna: () {},
           onOuvirRetro: () {},
-          onRegravarMaterna: () {},
+          onGravarAParteDeNovo: () {},
           onTraduzirDeNovo: () {},
           tocandoMaterna: tocandoMaterna,
           tocandoRetro: tocandoRetro,

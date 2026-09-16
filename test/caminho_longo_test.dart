@@ -5,11 +5,10 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/onde_mora_grade.dart';
 
 import 'fakes.dart';
 
-const micMaterna =
-    'Regravar a voz na língua materna — refaz também a tradução';
 const micRetro = 'Traduzir de novo só em português';
 
 Finder byLabel(String label) => find.byWidgetPredicate(
@@ -67,11 +66,15 @@ Future<ProviderContainer> pumpToPergunta(
 
 /// The first station: the team chooses the wood voice and records the mother tongue of
 /// that stretch, tap to start and tap to stop.
+///
+/// Asked of the notifier rather than of the grid: the grid's wood microphone records the
+/// whole part again (ENG-866), and this station is reached from no screen while it waits
+/// to be taken out.
 Future<void> regravarONativo(
   WidgetTester tester,
   ProviderContainer container,
 ) async {
-  await tester.tap(byLabel(micMaterna));
+  notifier(container).regravarAVozMaterna();
   await tester.pump(const Duration(milliseconds: 300));
   notifier(container).retroTap();
   await tester.pump(const Duration(milliseconds: 200));
@@ -136,7 +139,7 @@ void main() {
     expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing,
         reason: 'terminada a regravação a sala já abre o microfone para contar '
             'aquele trecho — a equipe não precisa pedir');
-    expect(byLabel(micMaterna), findsNothing,
+    expect(byLabel(micParteLabel), findsNothing,
         reason: 'e não passa por escolha nenhuma: a pergunta já foi respondida');
     expect(byLabel(micRetro), findsNothing);
   });
@@ -145,7 +148,7 @@ void main() {
     final container = await pumpToPergunta(tester);
     final harness = harnessDaVez!;
 
-    await tester.tap(byLabel(micMaterna));
+    notifier(container).regravarAVozMaterna();
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.gravandoMaterna,
@@ -192,7 +195,7 @@ void main() {
       (tester) async {
     final container = await pumpToPergunta(tester);
 
-    await tester.tap(byLabel(micMaterna));
+    notifier(container).regravarAVozMaterna();
     await tester.pump(const Duration(milliseconds: 300));
     expect(byLabel('Gravar este trecho'), findsOneWidget,
         reason: 'a estação existe para gravar, e agora ela grava — o rótulo '
@@ -210,7 +213,7 @@ void main() {
     final harness = harnessDaVez!;
     harness.recorder.startThrows = true;
 
-    await tester.tap(byLabel(micMaterna));
+    notifier(container).regravarAVozMaterna();
     await tester.pump(const Duration(milliseconds: 300));
     notifier(container).retroTap();
     await tester.pump(const Duration(milliseconds: 300));

@@ -50,7 +50,7 @@ class RetroView extends ConsumerWidget {
           OndeMoraGrade(
             onOuvirMaterna: notifier.ouvirVozMaterna,
             onOuvirRetro: notifier.ouvirTraducaoEmPortugues,
-            onRegravarMaterna: notifier.regravarAVozMaterna,
+            onGravarAParteDeNovo: notifier.gravarAParteDeNovo,
             onTraduzirDeNovo: notifier.traduzirDeNovoEmPortugues,
             tocandoMaterna: session.btTrechoTocando,
             tocandoRetro: session.btRetroTocando,
@@ -173,18 +173,20 @@ class RetroView extends ConsumerWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            RoundActionButton(
-              size: 60,
-              semanticLabel: _listenLabel(session),
-              gradient: BeadStyles.wood,
-              onTap: notifier.ouvirGravacao,
-              child: Icon(
-                _listenGlyph(session),
-                size: 24,
-                color: ShemaBrand.branco,
+            if (session.canListenAtConferida) ...[
+              RoundActionButton(
+                size: 60,
+                semanticLabel: _listenLabel(session),
+                gradient: BeadStyles.wood,
+                onTap: notifier.ouvirGravacao,
+                child: Icon(
+                  _listenGlyph(session),
+                  size: 24,
+                  color: ShemaBrand.branco,
+                ),
               ),
-            ),
-            const SizedBox(width: 28),
+              const SizedBox(width: 28),
+            ],
             RoundActionButton(
               size: 60,
               semanticLabel: 'Aprovar como rascunho final',
