@@ -50,7 +50,7 @@ class RetroView extends ConsumerWidget {
           OndeMoraGrade(
             onOuvirMaterna: notifier.ouvirVozMaterna,
             onOuvirRetro: notifier.ouvirTraducaoEmPortugues,
-            onRegravarMaterna: notifier.gravarAParteDeNovo,
+            onGravarAParteDeNovo: notifier.gravarAParteDeNovo,
             onTraduzirDeNovo: notifier.traduzirDeNovoEmPortugues,
             tocandoMaterna: session.btTrechoTocando,
             tocandoRetro: session.btRetroTocando,

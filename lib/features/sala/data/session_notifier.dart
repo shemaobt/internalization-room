@@ -2191,7 +2191,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     String arquivo,
   ) async {
     final id = await queue.takeIdOf(linha);
-    if (id == null || _gone) return id;
+    if (id == null || _gone) return null;
     state = state.copyWith(keptTakes: [
       for (final take in state.keptTakes)
         if (take.path == arquivo) take.withTakeId(id) else take,
@@ -4262,6 +4262,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
     _parteTocando = 0;
+    _parteARegravar = null;
     _tamanhoDaParteMs.clear();
     _pousadaNaParteNaoOuvida = false;
     _aprovando = false;

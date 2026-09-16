@@ -8,11 +8,10 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_cord.dart';
 import 'package:internalization_room/main.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/onde_mora_grade.dart';
 
 import 'fakes.dart';
 
-const _micMaterna =
-    'Gravar esta parte de novo na língua materna';
 const _micRetro = 'Traduzir de novo só em português';
 
 Finder _byLabel(String label) => find.byWidgetPredicate(
@@ -138,7 +137,7 @@ void main() {
     expect(estado.btPhase, BtPhase.findings,
         reason: 'a equipe volta à pergunta de onde saiu, não à reprodução, '
             'onde tocar não faz nada');
-    expect(_byLabel(_micMaterna), findsOneWidget,
+    expect(_byLabel(micParteLabel), findsOneWidget,
         reason: 'e as saídas de correção estão na tela: é assim que se tenta '
             'de novo');
     expect(_byLabel(_micRetro), findsOneWidget);
@@ -233,7 +232,7 @@ void main() {
     expect(harness.room.calls, contains('replaceSegment'),
         reason: 'esta é a segunda porta: a sala foi chamada e levantou');
     expect(estado.btPhase, BtPhase.findings);
-    expect(_byLabel(_micMaterna), findsOneWidget);
+    expect(_byLabel(micParteLabel), findsOneWidget);
     expect(_byLabel(_micRetro), findsOneWidget);
     expect(estado.needsPerson, isFalse);
     expect(_vezesQuePediuParaRepetir(harness), 1);
@@ -314,7 +313,7 @@ void main() {
     expect(depois.voice, VoiceState.invite,
         reason: 'a vigia lê o estado sozinha; quem levanta a parada é a '
             'mesa, não o toque');
-    expect(_byLabel(_micMaterna), findsOneWidget);
+    expect(_byLabel(micParteLabel), findsOneWidget);
     expect(_byLabel(_micRetro), findsOneWidget);
     closeTheRoom(container);
   });

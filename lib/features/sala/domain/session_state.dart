@@ -441,8 +441,9 @@ class SalaSessionState {
   ///
   /// A session picked back up carries the room's stretches and none of its files, and a
   /// lit player answering with silence has no way to explain itself in a room with no
-  /// written word. The rule lives here, beside [btFindingTrecho]'s, for the reason that
-  /// one gives: every side that acts on it reads one copy of it.
+  /// written word. It lives here rather than on the screen so the affordance and the
+  /// verb it opens read the same fact; the verb keeps its own guard as well, because it
+  /// is reachable from more than this one press.
   bool get canListenAtConferida =>
       btPhase == BtPhase.conferida && partes.isNotEmpty;
 

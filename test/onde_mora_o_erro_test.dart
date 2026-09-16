@@ -14,8 +14,6 @@ import 'fakes.dart';
 
 const ouvirMaterna = 'Ouvir a voz de vocês, na língua materna';
 const ouvirRetro = 'Ouvir a tradução em português';
-const micMaterna =
-    'Gravar esta parte de novo na língua materna';
 const micRetro = 'Traduzir de novo só em português';
 const contaApontada = 'Trecho apontado pelo analista';
 
@@ -80,7 +78,7 @@ Future<void> _pumpGrade(WidgetTester tester, {required bool podeOuvirRetro}) =>
           child: OndeMoraGrade(
             onOuvirMaterna: () {},
             onOuvirRetro: () {},
-            onRegravarMaterna: () {},
+            onGravarAParteDeNovo: () {},
             onTraduzirDeNovo: () {},
             podeOuvirRetro: podeOuvirRetro,
           ),
@@ -163,7 +161,7 @@ void main() {
         (tester) async {
       await pumpToPergunta(tester, finding: kind);
 
-      expect(byLabel(micMaterna), findsOneWidget,
+      expect(byLabel(micParteLabel), findsOneWidget,
           reason: 'o tipo do achado decidia sozinho pela equipe, e um tipo '
               'escondia a saída de traduzir de novo');
       expect(byLabel(micRetro), findsOneWidget);
@@ -290,7 +288,7 @@ void main() {
         trecho: null,
       );
 
-      expect(byLabel(micMaterna), findsNothing,
+      expect(byLabel(micParteLabel), findsNothing,
           reason: 'sem trecho apontado não há o que substituir, e a grade '
               'pergunta sobre um trecho');
       expect(byLabel(micRetro), findsNothing);

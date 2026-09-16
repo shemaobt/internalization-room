@@ -249,7 +249,7 @@ void main() {
             child: OndeMoraGrade(
               onOuvirMaterna: () {},
               onOuvirRetro: () {},
-              onRegravarMaterna: () {},
+              onGravarAParteDeNovo: () {},
               onTraduzirDeNovo: () {},
               offline: true,
             ),

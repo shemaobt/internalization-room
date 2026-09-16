@@ -56,6 +56,13 @@ tablet's swap of a rebuilt passage into a part never finds one to make. What is 
 the upload the room reads as an old retry rather than as this part: it retires nothing,
 and that is the consequence above, not a second one.
 
+The trim is the tablet's and the retirement is the room's, and they do not happen at the
+same moment: the row is trimmed when the team keeps the recording, and the stretches are
+retired when the upload lands. A reading of the session that reaches the tablet inside
+that window brings the replaced part's stretches back, addressed to a recording the
+tablet no longer holds — a stretch of no part. The way out is the halt above: a pointer
+at one of them has no part to record again and calls for a person.
+
 The replaced file stays on the tablet. Nothing points at it, and deleting audio a team
 recorded is not a thing this room does quietly.
 

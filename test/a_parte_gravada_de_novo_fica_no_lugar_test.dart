@@ -75,6 +75,10 @@ void main() {
         reason: 'as outras partes são trabalho da equipe que ninguém tocou');
     expect([agora[2].path, agora[2].takeId], [antes[2].path, antes[2].takeId]);
 
+    expect(it.estado.takes, 3,
+        reason: 'a conta do ensaio conta partes, e gravar a parte 2 de novo '
+            'não dá ao ensaio uma quarta');
+
     final subiu = it.harness.room.takes.last;
     expect(subiu.scope, KeptScope.parte(2));
     expect(subiu.ordinal, 2,
@@ -297,6 +301,20 @@ void main() {
     expect(it.partes[1].path, isNot(antes[1].path));
   });
 
+  test('depois da troca, guardar outra vez volta a acrescentar', () async {
+    final it = await _oAchadoNaParteDois();
+
+    it.sala.gravarAParteDeNovo();
+    await regravarAParte(it, 1);
+    await gravarUmaParte(it);
+
+    expect(it.partes, hasLength(4),
+        reason: 'a parte que a equipe veio refazer gasta-se no guardar: a '
+            'gravação seguinte é uma parte nova, não a parte 2 outra vez');
+    expect(it.partes.last.scopeId, KeptScope.parte(4));
+    expect(it.estado.takes, 4);
+  });
+
   test('sair do ensaio sem gravar solta a parte que a equipe veio refazer',
       () async {
     final it = await _oAchadoNaParteDois();
@@ -469,9 +487,20 @@ void main() {
     expect(_estado(it.container).needsPerson, isTrue,
         reason: 'uma soltura recusada chama uma pessoa — se não chamar, não há '
             'parada que medir');
-    expect(byLabel(_sairDaPassagem), findsOneWidget,
-        reason: 'nenhuma estação é beco sem saída: a equipe tem de poder sair '
-            'da passagem enquanto a pessoa não vem');
+    expect(byLabel(_sairDaPassagem), findsOneWidget);
+    expect(
+      tester
+          .widget<IgnorePointer>(find
+              .ancestor(
+                of: byLabel(_sairDaPassagem),
+                matching: find.byType(IgnorePointer),
+              )
+              .first)
+          .ignoring,
+      isFalse,
+      reason: 'nenhuma estação é beco sem saída: estar na árvore não é estar '
+          'viva — apagada e surda, a saída é a mesma que não existir',
+    );
 
     await tester.tap(byLabel(_sairDaPassagem));
     await tester.pump(const Duration(milliseconds: 400));

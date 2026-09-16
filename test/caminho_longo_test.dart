@@ -5,11 +5,10 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/onde_mora_grade.dart';
 
 import 'fakes.dart';
 
-const micMaterna =
-    'Gravar esta parte de novo na língua materna';
 const micRetro = 'Traduzir de novo só em português';
 
 Finder byLabel(String label) => find.byWidgetPredicate(
@@ -140,7 +139,7 @@ void main() {
     expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing,
         reason: 'terminada a regravação a sala já abre o microfone para contar '
             'aquele trecho — a equipe não precisa pedir');
-    expect(byLabel(micMaterna), findsNothing,
+    expect(byLabel(micParteLabel), findsNothing,
         reason: 'e não passa por escolha nenhuma: a pergunta já foi respondida');
     expect(byLabel(micRetro), findsNothing);
   });
