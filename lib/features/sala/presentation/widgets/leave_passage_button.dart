@@ -32,6 +32,7 @@ class LeavePassageButton extends ConsumerWidget {
     // was refused, the room is calling a person, and the passage they are held in is
     // exactly what this way out leads away from. No station of the room is a dead end.
     final paradaNaConferida = session.voice == VoiceState.needsPerson &&
+        session.stage == SalaStage.retro &&
         session.btPhase == BtPhase.conferida;
     final away = _busy.contains(session.voice) && !paradaNaConferida;
 

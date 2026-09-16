@@ -173,10 +173,7 @@ class RetroView extends ConsumerWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // A session picked back up carries the room's stretches and none of its
-            // files. A lit player with nothing to put in the air answers a tap with
-            // silence, and nobody here can read why.
-            if (session.partes.isNotEmpty) ...[
+            if (session.canListenAtConferida) ...[
               RoundActionButton(
                 size: 60,
                 semanticLabel: _listenLabel(session),

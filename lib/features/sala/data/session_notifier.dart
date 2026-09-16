@@ -2072,7 +2072,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// The part's own recording is left on the tablet. Nothing points at it any more, and
   /// deleting audio a team recorded is not a thing this room does quietly.
   void _aParteVoltaAoSeuLugar(int parte, String path) {
-    final escopo = KeptScope.parte(parte + 1);
+    final escopo = state.partes[parte].scopeId;
     final trechos = <Trecho>[];
     final passes = <int>[];
     for (var onde = 0; onde < state.btTrechos.length; onde++) {
@@ -2125,7 +2125,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(_recorder.delete(path));
   }
 
-  /// Answers the outbox row this recording was queued as, or null when it never got one.
+  /// Answers what the room called this recording, or null while it has not answered.
   Future<String?> _guard(
     String path, {
     required String kind,
@@ -2165,8 +2165,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     await _countUnsent();
     await queue.flush();
     await _countUnsent();
-    if (kind == 'ensaio') await _adoptTheName(queue, linha.id, path);
-    return linha.id;
+    if (kind != 'ensaio') return null;
+    return _adoptTheName(queue, linha.id, path);
   }
 
   /// Take back the name the room gave a rehearsal recording.
@@ -2180,17 +2180,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// The name goes to the file it was given for, never to every take of the scope: a part
   /// recorded again shares its scope with the recording it replaced, and the outbox row
   /// is what tells the two apart.
-  Future<void> _adoptTheName(
+  Future<String?> _adoptTheName(
     TakeUploadQueue queue,
     String linha,
     String arquivo,
   ) async {
     final id = await queue.takeIdOf(linha);
-    if (id == null || _gone) return;
+    if (id == null || _gone) return id;
     state = state.copyWith(keptTakes: [
       for (final take in state.keptTakes)
         if (take.path == arquivo) take.withTakeId(id) else take,
     ]);
+    return id;
   }
 
   Future<void> refreshUnsent() => _countUnsent();
@@ -3888,9 +3889,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final onde = state.btTrechos.indexWhere(
       (trecho) => trecho.segmentId == alvo.segmentId,
     );
-    final linha = await _guard(path, kind: 'ensaio', scope: escopo);
+    final gravacao = await _guard(path, kind: 'ensaio', scope: escopo);
     if (epoch != _epoch) return;
-    final gravacao = linha == null ? null : await _takes.takeIdOf(linha);
     final quanto = await _playback.howLong(path);
     if (epoch != _epoch) return;
     if (gravacao == null || quanto == null || quanto <= Duration.zero) {
@@ -4095,6 +4095,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // Read before the way back clears the pointer, which is the only place the part is
     // written down at all.
     final parte = trecho.parte;
+    if (parte < 0 || parte >= state.partes.length) {
+      // A stretch on a recording this tablet is not holding has no part to record again,
+      // and there is no way to say so without words. Carried on, the keep would send a
+      // recording up under a part number the rehearsal does not have, and the team would
+      // have recorded for nothing without the room ever saying a thing.
+      _haltForAPerson();
+      return;
+    }
     _voltarAoEnsaio();
     _parteARegravar = parte;
   }

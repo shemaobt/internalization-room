@@ -437,6 +437,15 @@ class SalaSessionState {
 
   bool get canGhostPlay => partes.isNotEmpty && ensaio == EnsaioStatus.idle;
 
+  /// Whether the last listening the clean verdict invites has anything to play.
+  ///
+  /// A session picked back up carries the room's stretches and none of its files, and a
+  /// lit player answering with silence has no way to explain itself in a room with no
+  /// written word. The rule lives here, beside [btFindingTrecho]'s, for the reason that
+  /// one gives: every side that acts on it reads one copy of it.
+  bool get canListenAtConferida =>
+      btPhase == BtPhase.conferida && partes.isNotEmpty;
+
   SalaSessionState copyWith({
     SalaStage? stage,
     VoiceState? voice,

@@ -47,5 +47,15 @@ off after a failure is skipped while a later row goes — so a retry landing aft
 re-recording would leave the room holding the recording the team abandoned. Nothing in
 this slice guards against that, and the contract has no per-part pass to guard it with.
 
+A **Composed passage** built out of the recording that was replaced can climb back over
+the part. `_alcancarAsCompostas` decides which part a composed take belongs to by its
+ordinal and puts it where that number now sits, and after a re-recording that is a
+different take from the one the composition was made of. The tablet cannot tell the two
+apart: `TakeView` carries no field saying which take a composition was built from, so a
+tablet that has been closed and opened again has nothing local to read. Closing it needs
+the server either to stop returning a retired composition's stretches or to say what
+each composition was built from; there is no guard on this side that does not also block
+the ordinary case.
+
 The replaced file stays on the tablet. Nothing points at it, and deleting audio a team
 recorded is not a thing this room does quietly.

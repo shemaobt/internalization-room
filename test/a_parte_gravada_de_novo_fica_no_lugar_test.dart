@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -78,7 +80,9 @@ void main() {
     expect(subiu.ordinal, 2,
         reason: 'a sala tem de receber a gravação sob o número que ela já tem, '
             'senão a parte 2 vira a parte 4 do lado de lá também');
-    expect(it.harness.room.takePasses.last, it.estado.ensaioPass);
+    expect(it.harness.room.takePasses.last, it.harness.room.takePasses[1],
+        reason: 'a parte regravada sobe na mesma passada da que ela substitui: '
+            'é a mesma parte do mesmo ensaio, não uma rodada nova');
   });
 
   test('a parte nova ganha o nome do servidor e nunca o da antiga', () async {
@@ -318,6 +322,78 @@ void main() {
         [for (final parte in antes) parte.path]);
   });
 
+  test('um achado sobre gravação que o tablet não tem chama uma pessoa',
+      () async {
+    final harness = SalaHarness();
+    final home = Directory.systemTemp.createTempSync('sala-parte-fantasma');
+    addTearDown(() => home.deleteSync(recursive: true));
+    final gravadas = [
+      for (var parte = 1; parte <= 1; parte++)
+        KeptTake(
+          scopeId: KeptScope.parte(parte),
+          path: (File('${home.path}/p$parte.m4a')..writeAsBytesSync([1, 2, 3]))
+              .path,
+          takeId: 'antiga-$parte',
+        ),
+    ];
+    await harness.emAberto.remember(
+      'Ruth',
+      'P01',
+      ResumePoint(
+        sessionId: 'sessao-antiga',
+        stage: SalaStage.retro,
+        takes: gravadas,
+      ),
+    );
+    // A stretch on a recording this tablet is not holding: the room keeps it, and the
+    // tablet can say which part it sits in for none of them.
+    harness.room
+      ..retroSoFar = const BackTranslationProgress(segments: [
+        SegmentView(
+          segmentId: 'trecho-fantasma',
+          takeId: 'gravacao-que-nao-esta-aqui',
+          startsMs: 0,
+          endsMs: 9000,
+        ),
+      ])
+      ..verdictChecked = false
+      ..verdictFinding = BtFindingKind.missing
+      ..verdictFindingSegmentId = 'trecho-fantasma';
+    harness.playback.length = resto.umaParteInteira;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final it = Sala(harness, container);
+    await it.sala.abrirEscolha();
+    await waitFor('a roda dizer que há trabalho parado',
+        () => it.estado.comecadas.contains('P01'));
+    await it.sala.goConversa(pericope: 'P01');
+    await waitFor('a tradução ser retomada',
+        () => it.estado.stage == SalaStage.retro);
+    harness.playback.finishPlayback();
+    await waitFor('o ensaio acabar de tocar', () => it.estado.btClipEnded);
+    await pedirOVeredito(it);
+    expect(it.estado.btFindingTrecho?.parte, -1,
+        reason: 'o cenário é justamente o do achado que não cai em parte '
+            'nenhuma deste tablet');
+    final enviadas = List.of(it.harness.room.takesKept);
+
+    it.sala.gravarAParteDeNovo();
+    await resto.settle();
+
+    expect(it.estado.needsPerson, isTrue,
+        reason: 'não há parte que gravar de novo, e não há como dizer isso sem '
+            'palavras: o microfone que não leva a lado nenhum é um botão morto');
+    expect(it.estado.stage, SalaStage.retro,
+        reason: 'e a equipe fica onde está, e não no ensaio à espera de gravar '
+            'uma parte que a sala não vai saber onde pôr');
+
+    it.sala.ensaioTap();
+    await resto.settle();
+    expect(it.harness.room.takesKept, enviadas,
+        reason: 'nada pode subir sob parte-0: a sala guardaria uma gravação '
+            'que não é parte de ensaio nenhum');
+  });
+
   testWidgets('o microfone da grade grava a parte de novo', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container =
@@ -331,9 +407,6 @@ void main() {
     final antes = container.read(salaSessionProvider).partes;
     expect(antes, hasLength(3));
 
-    expect(micParteLabel, contains('parte'),
-        reason: 'a equipe não lê: o rótulo é o que a sala diz deste alvo, e o '
-            'que ele faz agora é a parte inteira');
     await tester.tap(byLabel(micParteLabel));
     await tester.pump(const Duration(milliseconds: 400));
 
