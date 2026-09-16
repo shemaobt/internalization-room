@@ -497,6 +497,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     if (turn.degraded) {
       _degradedTurns++;
+      _calmTurns = 0;
       if (_degradedTurns >= _degradedTurnsBeforeAPerson) _haltForAPerson();
     } else {
       _degradedTurns = 0;
@@ -531,6 +532,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _registerUnplayableTurn({bool leavesTeamTalk = true}) {
     _unplayableTurns++;
+    _calmTurns = 0;
     if (_unplayableTurns >= _unplayableTurnsBeforeNeedsPerson) {
       _haltForAPerson();
       return;

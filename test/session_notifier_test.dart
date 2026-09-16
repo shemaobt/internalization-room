@@ -927,6 +927,82 @@ void main() {
             'primeiro turno seguinte');
   });
 
+  test('a degraded turn does not count toward the calm streak that forgives a failure',
+      () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.room.failWith = const RoomBroke('HTTP 500');
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    harness.room.failWith = null;
+    harness.room.turnsAreDegraded = true;
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    harness.room.turnsAreDegraded = false;
+    harness.room.failWith = const RoomBroke('HTTP 500');
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'dois turnos degradados contavam como dois turnos calmos e '
+            'perdoavam a falha de antes — a rede continuava ruim, a fala só '
+            'chegava pior, e a sala mesmo assim apagava o que já tinha visto');
+  });
+
+  test('an unplayable turn does not count toward the calm streak either',
+      () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.room.failWith = const RoomBroke('HTTP 500');
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    harness.room.failWith = null;
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    harness.voice.succeeds = false;
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+    harness.voice.succeeds = true;
+
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    harness.room.failWith = const RoomBroke('HTTP 500');
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'um turno que a sala nem conseguiu dizer contava como um '
+            'turno calmo e ainda assim perdoava a falha de antes');
+  });
+
   test('a panorama that cannot be spoken leaves a way back', () async {
     final harness = SalaHarness()..voice.succeeds = false;
     final container = harness.container();
