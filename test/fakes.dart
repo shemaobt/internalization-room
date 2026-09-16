@@ -635,6 +635,8 @@ class FakeRoom implements RoomRepository {
   final List<String> sessionIds = [];
   /// Which session each turn was spoken into, the opening one included, in order.
   final List<String> sessionsSpokenTo = [];
+  /// The turn id each opening turn carried, null included, in the order it was asked.
+  final List<String?> turnIdsAsked = [];
 
   int personsAsked = 0;
   int retells = 0;
@@ -805,9 +807,10 @@ class FakeRoom implements RoomRepository {
   }
 
   @override
-  Future<TurnResult> openSession(String sessionId) async {
+  Future<TurnResult> openSession(String sessionId, {String? turnId}) async {
     _guard('openSession');
     sessionsSpokenTo.add(sessionId);
+    turnIdsAsked.add(turnId);
     await _turnArrives();
     return _turn(sessionId);
   }

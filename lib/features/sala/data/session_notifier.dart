@@ -193,6 +193,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _ghostParte = 0;
   String? _panoramaSessionId;
 
+  /// The opening turn this instance is asking for, minted once and carried across every
+  /// retry of it — a resend under a fresh id is a fresh id the server has never seen, so
+  /// it runs the whole pipeline again instead of answering with what it already produced.
+  String? _openTurnId;
+
   String? _bridgeMode;
   bool _awaitingCalibration = false;
   String? _pendingTakePath;
@@ -1001,7 +1006,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       final panorama = _panoramaSessionId ?? created!.sessionId;
       _panoramaSessionId = panorama;
-      final turn = await _room.openSession(panorama);
+      final turn =
+          await _room.openSession(panorama, turnId: _openTurnId ??= _stamp());
       if (epoch != _epoch) return;
       await _voicePanorama(turn);
     } on Object catch (error) {
@@ -1029,6 +1035,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _slowAnswers = 0;
     _retryStep = 0;
     _noticeSpoken = false;
+    _openTurnId = null;
     _captureBridgeMode(turn);
     unawaited(_feitas.markBookOpened(_book).catchError((_) {}));
     state = state.copyWith(

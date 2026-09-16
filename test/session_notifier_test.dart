@@ -731,6 +731,27 @@ void main() {
     expect(harness.voice.assets, isNot(contains(offlineNoticeAsset(testLanguage))));
   });
 
+  test('a convite retried after the room stalls asks again with the same turn id',
+      () async {
+    final harness = SalaHarness()..room.failHeldTurnWith = const RoomBroke('HTTP 500');
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.openConvite();
+    await settle();
+    await notifier.openConvite();
+    await settle();
+
+    expect(harness.room.turnIdsAsked, hasLength(2),
+        reason: 'a primeira falha em abrir e o retoque que segue precisam '
+            'dos dois pedidos de turno para haver o que comparar');
+    expect(harness.room.turnIdsAsked[0], isNotNull);
+    expect(harness.room.turnIdsAsked[1], harness.room.turnIdsAsked[0],
+        reason: 'um id novo a cada tentativa e o servidor nunca reconhece '
+            'a segunda como a mesma abertura que a primeira já começou a escrever');
+  });
+
   test('three bad answers ask for a person, not for another touch', () async {
     final harness = SalaHarness()..room.failWith = const RoomBroke('HTTP 500');
     final container = harness.container();
