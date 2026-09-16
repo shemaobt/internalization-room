@@ -57,8 +57,10 @@ Future<void> _traduzTrecho(
 }
 
 /// A sala parada num achado no segundo trecho, com o aviso de "chame uma
-/// pessoa" já ativo — erguido pelo próprio caminho longo, cujo primeiro
-/// posto (a voz materna) também lê `needsPerson` na resposta do replace.
+/// pessoa" já ativo — erguido pelo próprio caminho longo, no seu segundo
+/// posto (o contar que segue a voz materna nova). O primeiro posto só
+/// reposiciona a voz materna sobre uma gravação já feita: nada é contado de
+/// volta ali, então a rota real nunca lê `needsPerson` nele.
 Future<ProviderContainer> _achadoComAvisoAtivo(SalaHarness harness) async {
   harness.room.verdictChecked = false;
   harness.room.verdictFinding = BtFindingKind.addition;
@@ -97,6 +99,11 @@ Future<ProviderContainer> _achadoComAvisoAtivo(SalaHarness harness) async {
   await waitFor(
     'o microfone abrir na materna',
     () => container.read(salaSessionProvider).voice == VoiceState.listening,
+  );
+  notifier.retroTap();
+  await waitFor(
+    'o microfone abrir para o contar',
+    () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
   );
   notifier.retroTap();
   await waitFor(
