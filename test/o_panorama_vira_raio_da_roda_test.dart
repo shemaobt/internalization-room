@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
@@ -156,6 +157,31 @@ void main() {
     );
   });
 
+  test('a panorama spoke retried after the room stalls asks again with the same turn id',
+      () async {
+    final harness = SalaHarness()
+      ..room.passages = const [_panorama, _p01]
+      ..room.failHeldTurnWith = const RoomBroke('HTTP 500');
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+
+    notifier.entrarNaOferecida();
+    await settle();
+    notifier.entrarNaOferecida();
+    await settle();
+
+    expect(harness.room.turnIdsAsked, hasLength(2),
+        reason: 'a primeira falha ao entrar e o retoque que segue precisam '
+            'dos dois pedidos de turno para haver o que comparar');
+    expect(harness.room.turnIdsAsked[0], isNotNull);
+    expect(harness.room.turnIdsAsked[1], harness.room.turnIdsAsked[0],
+        reason: 'um id novo a cada tentativa e o servidor nunca reconhece '
+            'a segunda como a mesma abertura que a primeira já começou a escrever');
+  });
+
   test('entering the panorama writes no ledger row and no resume point',
       () async {
     final harness = SalaHarness()..room.passages = const [_panorama, _p01];
@@ -217,6 +243,10 @@ void main() {
     expect(harness.room.sessionsSpokenTo, hasLength(2),
         reason: 'cada toque ainda pede o turno de novo — só a sessão é '
             'reaproveitada, não o pedido de abrir');
+    expect(harness.room.turnIdsAsked[1], isNot(harness.room.turnIdsAsked[0]),
+        reason: 'o primeiro toque já foi falado por inteiro; reaproveitar o '
+            'id dele no segundo faria o servidor devolver aquela abertura '
+            'em vez de abrir a de novo pedida');
   });
 
   test(

@@ -1284,7 +1284,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       final panorama = _panoramaSessionId ?? created!.sessionId;
       _panoramaSessionId = panorama;
-      final turn = await _room.openSession(panorama);
+      final turn =
+          await _room.openSession(panorama, turnId: _openTurnId ??= _stamp());
       if (epoch != _epoch) return;
       await _readyToSpeak(turn.audioUrl, turn.fixedLine);
       if (epoch != _epoch) return;
@@ -1294,6 +1295,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (epoch != _epoch) return;
       if (!spoke) return _registerUnplayableTurn();
       _unplayableTurns = 0;
+      _openTurnId = null;
       state = state.copyWith(voice: VoiceState.invite);
     } on Object catch (error) {
       if (epoch != _epoch) return;
