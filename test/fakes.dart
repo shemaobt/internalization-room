@@ -826,11 +826,17 @@ class FakeRoom implements RoomRepository {
       '$segmentId@$takeId:${from.inMilliseconds}-${to.inMilliseconds}',
     );
     if (audio == null) replacesSemArquivo.add(segmentId);
+    // With no audio, nothing is told back — the room only repositions the mother tongue
+    // over a recording it already has, so the real route never touches the retell budget
+    // on this shape of the call. `replaceNeedsPerson` models the room giving out on an
+    // *attempt*, and a no-audio call is not one; a double that answered `needsPerson` here
+    // anyway would let a test pass by proving a state the server cannot produce.
+    final needsPerson = audio == null ? false : replaceNeedsPerson;
     if (!replaceCaptured) {
       return TellingAgain(
         segments: List.of(segments),
         captured: false,
-        needsPerson: replaceNeedsPerson,
+        needsPerson: needsPerson,
       );
     }
     final at = segments.indexWhere((one) => one.segmentId == segmentId);
@@ -856,7 +862,7 @@ class FakeRoom implements RoomRepository {
     return TellingAgain(
       segments: List.of(segments),
       captured: true,
-      needsPerson: replaceNeedsPerson,
+      needsPerson: needsPerson,
       composedTakeId: audio == null ? _recompose(antes, at) : null,
     );
   }

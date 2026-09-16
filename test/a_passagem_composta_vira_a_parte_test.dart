@@ -722,8 +722,8 @@ void main() {
   });
 
   test(
-      '9b-iv: precisar de uma pessoa logo após a materna, com a composta '
-      'sem baixar, também sobrevive à retomada fria', () async {
+      '9b-iv: interrompida logo após a materna, com a composta sem baixar, '
+      'também sobrevive à retomada fria', () async {
     final it = await _aSalaNaPergunta(apontado: 0);
     it.harness.room.failClipWith = const RoomBroke('o balde sumiu');
     it.sala.regravarAVozMaterna();
@@ -732,11 +732,10 @@ void main() {
       'o microfone abrir na materna',
       () => it.estado.voice == VoiceState.listening,
     );
-    it.harness.room.replaceNeedsPerson = true;
     it.sala.retroTap();
     await waitFor(
-      'a sala parar por uma pessoa antes da ponte',
-      () => it.estado.needsPerson,
+      'a segunda estação abrir sozinha, e a equipe ainda não contou nela',
+      () => it.estado.btPhase == BtPhase.capturing,
     );
 
     await _retomar(it);
@@ -745,10 +744,10 @@ void main() {
       [_no(it, 0).parte, _no(it, 1).parte],
       [0, 0],
       reason: 'a materna já trocou o trecho e a composição já aconteceu no '
-          'servidor antes de a sala parar por uma pessoa; a ponte nunca '
-          'rodou para migrar o lugar guardado para o nome novo que o '
-          'servidor deu ao segmento, e a retomada — com a composta ainda '
-          'sem baixar — não pode perder o lugar por causa disso',
+          'servidor antes de a equipe fechar o tablet no meio da correção '
+          'pela voz materna; a ponte nunca rodou porque a segunda estação '
+          'ainda não foi feita, e a retomada — com a composta ainda sem '
+          'baixar — não pode perder o lugar por causa disso',
     );
   });
 }
