@@ -788,6 +788,45 @@ void main() {
             'novo no primeiro turno seguinte');
   });
 
+  test('a network that fails every other turn still climbs to a person',
+      () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.room.failWith = const RoomBroke('HTTP 500');
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    harness.room.failWith = null;
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    harness.room.failWith = const RoomBroke('HTTP 500');
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    harness.room.failWith = null;
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    harness.room.failWith = const RoomBroke('HTTP 500');
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'o turno que tocava zerava _roomFailures a cada sucesso, e '
+            'uma rede que cai a cada duas trocas nunca somava três seguidas — '
+            'doze falhas em vinte e quatro turnos e a sala nunca chamava '
+            'ninguém');
+  });
+
   test('a panorama that cannot be spoken leaves a way back', () async {
     final harness = SalaHarness()..voice.succeeds = false;
     final container = harness.container();
