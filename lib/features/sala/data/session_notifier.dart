@@ -499,6 +499,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _slowAnswers = 0;
     _retryStep = 0;
     _noticeSpoken = false;
+    _openTurnId = null;
     state = state.copyWith(
       voice: turn.done ? VoiceState.done : VoiceState.invite,
       peerCue: turn.peerCue,
@@ -1432,7 +1433,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         }
       }
       // Re-opening carries the coverage back with it, so the necklace fills itself.
-      await _voiceTurn(await _room.openSession(sessionId), epoch);
+      await _voiceTurn(
+        await _room.openSession(sessionId, turnId: _openTurnId ??= _stamp()),
+        epoch,
+      );
     } on SessionGone {
       if (epoch != _epoch) return;
       if (pericope != null) {
