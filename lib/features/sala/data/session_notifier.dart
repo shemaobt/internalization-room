@@ -884,6 +884,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _personAskStep = 0;
     _unplayableTurns = 0;
     _roomFailures = 0;
+    _slowAnswers = 0;
+    _degradedTurns = 0;
+    _inboxSilences = 0;
     _retryStep = 0;
     _noticeSpoken = false;
     unawaited(_networkWatch?.cancel());

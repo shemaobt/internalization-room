@@ -749,6 +749,45 @@ void main() {
     expect(container.read(salaSessionProvider).voice, VoiceState.invite);
   });
 
+  test('a resolve clears the degraded-turn streak, not just the room failures',
+      () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.room.turnsAreDegraded = true;
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    harness.room.turnsAreDegraded = false;
+    harness.room.failWith = const RoomBroke('HTTP 500');
+    for (var i = 0; i < 3; i++) {
+      notifier.conversaTap();
+      notifier.conversaTap();
+      await settle();
+    }
+    expect(container.read(salaSessionProvider).needsPerson, isTrue);
+
+    notifier.resolveWithPerson();
+
+    harness.room.failWith = null;
+    harness.room.turnsAreDegraded = true;
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    expect(container.read(salaSessionProvider).needsPerson, isFalse,
+        reason: 'o resolve zerava _roomFailures e esquecia os degraus '
+            'degradados — dois turnos degradados de antes do halt mais um '
+            'depois do resolve já batiam o limiar, e a sala chamava alguém de '
+            'novo no primeiro turno seguinte');
+  });
+
   test('a panorama that cannot be spoken leaves a way back', () async {
     final harness = SalaHarness()..voice.succeeds = false;
     final container = harness.container();
