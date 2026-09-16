@@ -115,6 +115,26 @@ void main() {
             'trouxer a combinação que existe por causa da correção');
   });
 
+  test('a turn carries the id classification watches, and whether classification is still running',
+      () async {
+    final repository = RoomRepository(
+      client: MockClient((request) async => http.Response(
+            jsonEncode({
+              'session_id': 'sessao-1',
+              'turn_id': 'turno-9',
+              'classification_pending': true,
+            }),
+            200,
+          )),
+    );
+    addTearDown(repository.dispose);
+
+    final turn = await repository.openSession('sessao-1');
+
+    expect(turn.turnId, 'turno-9');
+    expect(turn.classificationPending, isTrue);
+  });
+
   test('the panorama is asked for by name, a plain session is not', () async {
     final asked = <String>[];
     final types = <String>[];
