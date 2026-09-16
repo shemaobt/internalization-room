@@ -47,15 +47,19 @@ off after a failure is skipped while a later row goes — so a retry landing aft
 re-recording would leave the room holding the recording the team abandoned. Nothing in
 this slice guards against that, and the contract has no per-part pass to guard it with.
 
-A **Composed passage** built out of the recording that was replaced can climb back over
-the part. `_alcancarAsCompostas` decides which part a composed take belongs to by its
-ordinal and puts it where that number now sits, and after a re-recording that is a
-different take from the one the composition was made of. The tablet cannot tell the two
-apart: `TakeView` carries no field saying which take a composition was built from, so a
-tablet that has been closed and opened again has nothing local to read. Closing it needs
-the server either to stop returning a retired composition's stretches or to say what
-each composition was built from; there is no guard on this side that does not also block
-the ordinary case.
+A **Composed passage** goes with the part it was built from. The room keeps a rebuilt
+passage under the number of the recording it was composed out of, and it retires the
+stretches of every earlier rehearsal take under the number that arrives — by kind and
+number, never by scope — so the composition's stretches are retired along with the
+replaced part's. Nothing addressing the composition comes back afterwards, and the
+tablet's swap of a rebuilt passage into a part never finds one to make. What is left is
+the upload the room reads as an old retry rather than as this part: it retires nothing,
+and that is the consequence above, not a second one.
 
 The replaced file stays on the tablet. Nothing points at it, and deleting audio a team
 recorded is not a thing this room does quietly.
+
+Leaving the passage says nothing to the room. A release refused at the resting screen
+calls for a person and now has a way out, so a team can walk out of a **Halt** the
+**Desk** is still being shown — a stopped room with nobody in it. That is the price of
+the way out, and it is written here because this decision is what makes it reachable.
