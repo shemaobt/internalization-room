@@ -7,7 +7,7 @@ import 'motion.dart';
 
 const ouvirMaternaLabel = 'Ouvir a voz de vocês, na língua materna';
 const ouvirRetroLabel = 'Ouvir a tradução em português';
-const micMaternaLabel = 'Regravar a voz na língua materna — refaz também a tradução';
+const micParteLabel = 'Gravar esta parte de novo na língua materna';
 const micRetroLabel = 'Traduzir de novo só em português';
 const cortarTrechoLabel = 'Cortar este trecho em dois, aqui';
 
@@ -90,7 +90,7 @@ class OndeMoraGrade extends StatelessWidget {
             colors: colors,
             gradiente: BeadStyles.wood,
             ouvirLabel: ouvirMaternaLabel,
-            micLabel: micMaternaLabel,
+            micLabel: micParteLabel,
             onOuvir: onOuvirMaterna,
             onFalar: onRegravarMaterna,
             tocando: tocandoMaterna,

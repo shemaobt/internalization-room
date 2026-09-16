@@ -12,7 +12,7 @@ import 'fakes.dart';
 const ouvirMaterna = 'Ouvir a voz de vocês, na língua materna';
 const ouvirRetro = 'Ouvir a tradução em português';
 const micMaterna =
-    'Regravar a voz na língua materna — refaz também a tradução';
+    'Gravar esta parte de novo na língua materna';
 const micRetro = 'Traduzir de novo só em português';
 
 Finder byLabel(String label) => find.byWidgetPredicate(

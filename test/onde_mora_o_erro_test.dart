@@ -15,7 +15,7 @@ import 'fakes.dart';
 const ouvirMaterna = 'Ouvir a voz de vocês, na língua materna';
 const ouvirRetro = 'Ouvir a tradução em português';
 const micMaterna =
-    'Regravar a voz na língua materna — refaz também a tradução';
+    'Gravar esta parte de novo na língua materna';
 const micRetro = 'Traduzir de novo só em português';
 const contaApontada = 'Trecho apontado pelo analista';
 
@@ -119,7 +119,7 @@ Future<void> regravarAMaterna(
   WidgetTester tester,
   ProviderContainer container,
 ) async {
-  await tester.tap(byLabel(micMaterna));
+  notifier(container).regravarAVozMaterna();
   await tester.pump(const Duration(milliseconds: 300));
   notifier(container).retroTap();
   await tester.pump(const Duration(milliseconds: 200));
@@ -200,7 +200,7 @@ void main() {
       (tester) async {
     final container = await pumpToPergunta(tester);
 
-    await tester.tap(byLabel(micMaterna));
+    notifier(container).regravarAVozMaterna();
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.gravandoMaterna,

@@ -9,7 +9,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/bead_sty
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 
 import 'caminho_longo_test.dart'
-    show byLabel, micMaterna, micRetro, notifier, pumpToPergunta;
+    show byLabel, micRetro, notifier, pumpToPergunta;
 import 'fakes.dart' show letTheRehearsalReachTheRoom;
 
 /// The gradient the disc at the centre of the circle is painted with.
@@ -112,7 +112,7 @@ void main() {
   testWidgets('gravando a língua materna, o círculo é âmbar', (tester) async {
     final container = await pumpToPergunta(tester);
 
-    await tester.tap(byLabel(micMaterna));
+    notifier(container).regravarAVozMaterna();
     await tester.pump(const Duration(milliseconds: 300));
     notifier(container).retroTap();
     await tester.pump(const Duration(milliseconds: 200));
@@ -165,7 +165,7 @@ void main() {
     // microfone da materna ficar aberto por um punhado de quadros, e a
     // substituição no servidor — que é trabalho de disco de verdade, e por isso
     // precisa de `letTheRehearsalReachTheRoom` no meio.
-    await tester.tap(byLabel(micMaterna));
+    notifier(container).regravarAVozMaterna();
     await registrar(3);
     notifier(container).retroTap();
     await registrar(6);
@@ -217,7 +217,7 @@ void main() {
       (tester) async {
     final container = await pumpToPergunta(tester);
 
-    await tester.tap(byLabel(micMaterna));
+    notifier(container).regravarAVozMaterna();
     await tester.pump(const Duration(milliseconds: 300));
     notifier(container).retroTap();
     await tester.pump(const Duration(milliseconds: 200));
@@ -296,7 +296,7 @@ void main() {
 
     expect(byLabel('Ouvir a pergunta de novo'), findsOneWidget);
 
-    await tester.tap(byLabel(micMaterna));
+    notifier(container).regravarAVozMaterna();
     await tester.pump(const Duration(milliseconds: 300));
     expect(byLabel('Gravar este trecho'), findsOneWidget,
         reason: 'escolhida a voz e o microfone ainda fechado, o círculo é o '

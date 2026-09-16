@@ -21,7 +21,6 @@ const _rotulosDeTraduzir = {
   'Tocar para traduzir este pedaço em português',
   'Traduzida',
   'Ouvir a tradução em português',
-  'Regravar a voz na língua materna — refaz também a tradução',
   'Traduzir de novo só em português',
 };
 

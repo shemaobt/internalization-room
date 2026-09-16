@@ -266,7 +266,7 @@ void main() {
           'equipe precisa ver que o toque não vai adiantar',
     );
     expect(
-      aceso(tester, micMaternaLabel),
+      aceso(tester, micParteLabel),
       isTrue,
       reason: 'só o microfone azul é a captura curta que offline não pode '
           'enviar; a coluna de madeira não faz parte deste conserto',

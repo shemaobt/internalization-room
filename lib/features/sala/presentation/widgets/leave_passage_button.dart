@@ -28,7 +28,12 @@ class LeavePassageButton extends ConsumerWidget {
     if (!_inside.contains(session.stage)) return const SizedBox.shrink();
     final colors = SalaColors.of(context);
 
-    final away = _busy.contains(session.voice);
+    // A halt at the resting screen is the one halt the team can walk out of: the release
+    // was refused, the room is calling a person, and the passage they are held in is
+    // exactly what this way out leads away from. No station of the room is a dead end.
+    final paradaNaConferida = session.voice == VoiceState.needsPerson &&
+        session.btPhase == BtPhase.conferida;
+    final away = _busy.contains(session.voice) && !paradaNaConferida;
 
     return Positioned(
       left: 14,

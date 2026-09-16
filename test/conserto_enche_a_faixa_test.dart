@@ -9,8 +9,6 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 
-const _micMaterna =
-    'Regravar a voz na língua materna — refaz também a tradução';
 const _micRetro = 'Traduzir de novo só em português';
 
 Finder _byLabel(String label) => find.byWidgetPredicate(
@@ -88,8 +86,11 @@ Future<ProviderContainer> _pumpToPergunta(
 
 /// The long way's first gesture: choosing to re-record the mother tongue. No microphone
 /// is open yet and nothing has been sent.
-Future<void> _escolherRegravarAMaterna(WidgetTester tester) async {
-  await tester.tap(_byLabel(_micMaterna));
+Future<void> _escolherRegravarAMaterna(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  container.read(salaSessionProvider.notifier).regravarAVozMaterna();
   await tester.pump(const Duration(milliseconds: 300));
 }
 
@@ -138,7 +139,7 @@ void main() {
     final harness = _harnessDaVez!;
     final pedidos = harness.room.calls.length;
 
-    await _escolherRegravarAMaterna(tester);
+    await _escolherRegravarAMaterna(tester, container);
 
     expect(_faixasVazias(tester, container), isEmpty,
         reason: 'a equipe começou a consertar, então o trecho deixou de ser o '
@@ -167,7 +168,7 @@ void main() {
       (tester) async {
     final container = await _pumpToPergunta(tester);
 
-    await _escolherRegravarAMaterna(tester);
+    await _escolherRegravarAMaterna(tester, container);
     final aoEscolher = _faixasVazias(tester, container);
     _notifier(container).retroTap();
     await tester.pump(const Duration(milliseconds: 200));
@@ -260,7 +261,7 @@ void main() {
     final container = await _pumpToPergunta(tester);
     final harness = _harnessDaVez!;
 
-    await _escolherRegravarAMaterna(tester);
+    await _escolherRegravarAMaterna(tester, container);
     expect(_faixasVazias(tester, container), isEmpty);
     harness.recorder.startThrows = true;
     _notifier(container).retroTap();
@@ -281,7 +282,7 @@ void main() {
     final container = await _pumpToPergunta(tester);
     final harness = _harnessDaVez!;
 
-    await _escolherRegravarAMaterna(tester);
+    await _escolherRegravarAMaterna(tester, container);
     harness.recorder.startThrows = true;
     _notifier(container).retroTap();
     await tester.pump(const Duration(milliseconds: 300));
@@ -346,7 +347,7 @@ void main() {
     final container = await _pumpToPergunta(tester);
     final harness = _harnessDaVez!;
 
-    await _escolherRegravarAMaterna(tester);
+    await _escolherRegravarAMaterna(tester, container);
     expect(_faixasVazias(tester, container), isEmpty);
     harness.recorder.returnsEmpty = true;
     await _gravarAMaterna(tester, container);
@@ -371,7 +372,7 @@ void main() {
     // end of a correction — naming the stretch afterwards would be answering a question
     // that had already been asked, and the second one the room rightly refuses.
     harness.room.verdictFindingPlace = 0;
-    await _escolherRegravarAMaterna(tester);
+    await _escolherRegravarAMaterna(tester, container);
     await _gravarAMaterna(tester, container);
     await _entregarATraducao(tester, container);
     harness.playback.finishPlayback();
@@ -397,7 +398,7 @@ void main() {
         .btTrechos
         .firstWhere((trecho) => trecho.segmentId == 'trecho-2');
 
-    await _escolherRegravarAMaterna(tester);
+    await _escolherRegravarAMaterna(tester, container);
     await _gravarAMaterna(tester, container);
     await _entregarATraducao(tester, container);
 

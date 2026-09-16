@@ -156,6 +156,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Duration _trechoEnd = Duration.zero;
   int _parteTocando = 0;
 
+  /// Which part of the rehearsal the team came back to record again, or null when the
+  /// recording they are about to keep is a part the passage does not have yet.
+  int? _parteARegravar;
+
   /// The part in the air is the one the room said nobody heard, and hearing it to its end
   /// hands the finish back.
   ///
@@ -264,6 +268,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _clearAll() {
     _cancelTimers();
+    _parteARegravar = null;
     state = state.copyWith(clearLastSpoken: true);
     _onPlaybackComplete = null;
     _onPlaybackFailed = null;
@@ -2025,6 +2030,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(ensaio: EnsaioStatus.idle);
       return;
     }
+    final regravada = _parteARegravar;
+    _parteARegravar = null;
+    if (regravada != null && regravada < state.partes.length) {
+      _aParteVoltaAoSeuLugar(regravada, path);
+      return;
+    }
     // Counted among the rehearsal's own parts, never among the corrections a trecho may
     // already have picked up in this same ensaio — those live in keptTakes too, but are
     // not parts of the rehearsal in their own right.
@@ -2045,6 +2056,63 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _rememberWhereTheyAre(SalaStage.ensaio);
   }
 
+  /// The recording the team just made takes the place of the part it was made for.
+  ///
+  /// The same scope and the same number, because a stretch addresses its part by where
+  /// the part sits in the row: a part that moved would take the whole rehearsal with it.
+  /// What changes is the file, and with it the name — null until the upload lands — and
+  /// the listening, which is kept by file and so starts over with nothing to clear.
+  ///
+  /// The stretches told over the recording this one replaces go with it. Left standing,
+  /// the cord would draw them over ground nobody has explained yet and the next
+  /// telling-back would step over a part the team has not heard. They leave as untold
+  /// ground and not as drained bands: a drained band means waiting to be mended, and
+  /// this ground is waiting to be told.
+  ///
+  /// The part's own recording is left on the tablet. Nothing points at it any more, and
+  /// deleting audio a team recorded is not a thing this room does quietly.
+  void _aParteVoltaAoSeuLugar(int parte, String path) {
+    final escopo = KeptScope.parte(parte + 1);
+    final trechos = <Trecho>[];
+    final passes = <int>[];
+    for (var onde = 0; onde < state.btTrechos.length; onde++) {
+      if (state.btTrechos[onde].parte == parte) continue;
+      trechos.add(state.btTrechos[onde]);
+      if (onde < state.btChunkPasses.length) passes.add(state.btChunkPasses[onde]);
+    }
+    state = state.copyWith(
+      ensaio: EnsaioStatus.idle,
+      keptTakes: [
+        for (final take in state.keptTakes)
+          if (take.scopeId == escopo)
+            KeptTake(scopeId: escopo, path: path)
+          else
+            take,
+      ],
+      btTrechos: trechos,
+      btChunkPasses: passes,
+    );
+    unawaited(_medirAParteRegravada(path, _epoch));
+    unawaited(_guard(
+      path,
+      kind: 'ensaio',
+      scope: escopo,
+      passNumber: state.ensaioPass,
+      chunkIndex: parte + 1,
+    ));
+    _rememberWhereTheyAre(SalaStage.ensaio);
+  }
+
+  /// The cord is drawn over the parts as they now are, and this part is a file of its own
+  /// length. Measured here rather than left to the next playthrough, for the reason the
+  /// rebuilt passage is measured where it is swapped in.
+  Future<void> _medirAParteRegravada(String arquivo, int epoch) async {
+    final quanto = await _playback.howLong(arquivo);
+    if (quanto == null || epoch != _epoch || _gone) return;
+    _tamanhoDaParteMs[arquivo] = quanto.inMilliseconds;
+    state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
+  }
+
   /// Throw away a take that was recorded and never kept.
   ///
   /// Leaving a passage used to abandon the file instead: not deleted, so it stayed on the
@@ -2057,27 +2125,29 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(_recorder.delete(path));
   }
 
-  Future<void> _guard(
+  /// Answers the outbox row this recording was queued as, or null when it never got one.
+  Future<String?> _guard(
     String path, {
     required String kind,
     required String scope,
     int? passNumber,
     int? chunkIndex,
   }) async {
-    if (_gone) return;
+    if (_gone) return null;
     final queue = _takes;
     final sessionId = state.sessionId;
     final audio = File(path);
-    if (!await audio.exists()) return;
+    if (!await audio.exists()) return null;
     if (sessionId == null) {
       // The room lost the session — a 404 clears it — and a take has nowhere to go
       // without one. The bead had already been filled by `takeKeep`, so this returned in
       // silence and the recording read as delivered.
       _sayARecordingIsStranded();
-      return;
+      return null;
     }
+    final PendingTake linha;
     try {
-      await queue.enqueue(
+      linha = await queue.enqueue(
         audio,
         sessionId: sessionId,
         kind: kind,
@@ -2090,12 +2160,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // unhandled async error behind an `unawaited`: the screen kept its beads and the
       // room went on as if the recording were queued.
       _sayARecordingIsStranded();
-      return;
+      return null;
     }
     await _countUnsent();
     await queue.flush();
     await _countUnsent();
-    if (kind == 'ensaio') await _adoptTheName(queue, sessionId, scope);
+    if (kind == 'ensaio') await _adoptTheName(queue, linha.id, path);
+    return linha.id;
   }
 
   /// Take back the name the room gave a rehearsal recording.
@@ -2105,16 +2176,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// later because the two are halves of one thing: the retro is already local to the
   /// tablet that recorded it — a rehearsal whose files are not here is refused a resume —
   /// so there is no second tablet to fetch it for.
+  ///
+  /// The name goes to the file it was given for, never to every take of the scope: a part
+  /// recorded again shares its scope with the recording it replaced, and the outbox row
+  /// is what tells the two apart.
   Future<void> _adoptTheName(
     TakeUploadQueue queue,
-    String sessionId,
-    String scope,
+    String linha,
+    String arquivo,
   ) async {
-    final id = await queue.takeIdOf('ensaio', sessionId: sessionId, scope: scope);
+    final id = await queue.takeIdOf(linha);
     if (id == null || _gone) return;
     state = state.copyWith(keptTakes: [
       for (final take in state.keptTakes)
-        if (take.scopeId == scope) take.withTakeId(id) else take,
+        if (take.path == arquivo) take.withTakeId(id) else take,
     ]);
   }
 
@@ -3207,7 +3282,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.stage != SalaStage.retro) return;
     if (state.btPhase != BtPhase.conferida) return;
     if (state.needsPerson || state.offline) return;
-    if (_aprovando || _aprovada) return;
+    if (_aprovando) return;
     final sessionId = state.sessionId;
     if (sessionId == null) {
       _haltForAPerson();
@@ -3216,11 +3291,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _aprovando = true;
     final epoch = _epoch;
     try {
-      await _room.approveRelease(sessionId);
+      // The release is the room's already once it has been given: a press that follows a
+      // line nobody heard is asking for the line again, not for a second release.
+      if (!_aprovada) {
+        await _room.approveRelease(sessionId);
+        if (epoch != _epoch) return;
+        _aprovada = true;
+      }
+      final disse = await _voice.playAsset(fixedLineAsset(approvedLine, _lingua));
       if (epoch != _epoch) return;
-      _aprovada = true;
-      await _voice.playAsset(fixedLineAsset(approvedLine, _lingua));
-      if (epoch != _epoch) return;
+      // As all five of its siblings do. Closing over a line the team never heard ends the
+      // passage on a gesture nobody was answered for, and the press is the whole of what
+      // the approval is.
+      if (!disse) return _registerUnplayableTurn();
+      _unplayableTurns = 0;
       _closeTheNecklace();
     } on ReleaseRefused {
       if (epoch != _epoch) return;
@@ -3804,13 +3888,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final onde = state.btTrechos.indexWhere(
       (trecho) => trecho.segmentId == alvo.segmentId,
     );
-    await _guard(path, kind: 'ensaio', scope: escopo);
+    final linha = await _guard(path, kind: 'ensaio', scope: escopo);
     if (epoch != _epoch) return;
-    final gravacao = await _takes.takeIdOf(
-      'ensaio',
-      sessionId: sessionId,
-      scope: escopo,
-    );
+    final gravacao = linha == null ? null : await _takes.takeIdOf(linha);
     final quanto = await _playback.howLong(path);
     if (epoch != _epoch) return;
     if (gravacao == null || quanto == null || quanto <= Duration.zero) {
@@ -4004,6 +4084,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// the team records more and the next telling-back starts where the told ground ends.
   void continuarOEnsaio() {
     if (state.btPhase != BtPhase.findings) return;
+    _voltarAoEnsaio();
+  }
+
+  /// Back to the rehearsal to record one part again, in the place that part already has.
+  void gravarAParteDeNovo() {
+    if (state.btPhase != BtPhase.findings) return;
+    final trecho = state.btFindingTrecho;
+    if (trecho == null) return;
+    // Read before the way back clears the pointer, which is the only place the part is
+    // written down at all.
+    final parte = trecho.parte;
+    _voltarAoEnsaio();
+    _parteARegravar = parte;
+  }
+
+  void _voltarAoEnsaio() {
     _clearAll();
     state = state.copyWith(
       stage: SalaStage.ensaio,

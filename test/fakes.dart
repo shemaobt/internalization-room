@@ -84,7 +84,8 @@ class FakeVoice implements FacilitatorVoiceService {
   final List<String> assets = [];
   final List<String> fetched = [];
   bool succeeds = true;
-  /// Lines this voice refuses to play, by url — for the halves of one turn.
+  /// Lines this voice refuses to say, by url or by asset path — for the halves of one
+  /// turn, and for the bundled line a room can fail to play like any other.
   final Set<String> refuses = {};
   Completer<bool>? _holding;
 
@@ -135,6 +136,7 @@ class FakeVoice implements FacilitatorVoiceService {
   @override
   Future<bool> playAsset(String assetPath) {
     assets.add(assetPath);
+    if (refuses.contains(assetPath)) return Future.value(false);
     return _answer();
   }
 
@@ -1359,19 +1361,10 @@ class FakeTakeQueue implements TakeUploadQueue {
   bool forgetsNames = false;
 
   @override
-  Future<String?> takeIdOf(
-    String kind, {
-    required String sessionId,
-    required String scope,
-  }) async {
+  Future<String?> takeIdOf(String row) async {
     if (forgetsNames) return null;
     for (final entry in rows) {
-      if (entry.kind == kind &&
-          entry.sessionId == sessionId &&
-          entry.scope == scope &&
-          entry.takeId != null) {
-        return entry.takeId;
-      }
+      if (entry.id == row) return entry.takeId;
     }
     return null;
   }
