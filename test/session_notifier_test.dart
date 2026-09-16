@@ -827,6 +827,106 @@ void main() {
             'ninguém');
   });
 
+  test(
+      'two calm turns bring a failure back down before a person is needed',
+      () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.room.failWith = const RoomBroke('HTTP 500');
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    harness.room.failWith = null;
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    harness.room.failWith = const RoomBroke('HTTP 500');
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    expect(container.read(salaSessionProvider).needsPerson, isFalse,
+        reason: 'duas trocas calmas seguidas perdoam um ponto — sem o '
+            'decaimento a falha de antes somava com as duas de agora e batia '
+            'o limiar antes da terceira falha de verdade acontecer');
+  });
+
+  test('a resolve clears the slow-answer count too, not just the degraded one',
+      () async {
+    final harness = SalaHarness()..room.failWith = const RoomSlow();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.openConvite();
+    await notifier.openConvite();
+    await settle();
+
+    harness.room.failWith = const RoomRefused();
+    await notifier.openConvite();
+    await settle();
+    expect(container.read(salaSessionProvider).needsPerson, isTrue);
+
+    notifier.resolveWithPerson();
+
+    harness.room.failWith = const RoomSlow();
+    await notifier.openConvite();
+
+    expect(container.read(salaSessionProvider).offline, isFalse,
+        reason: 'o resolve zerava _roomFailures e esquecia _slowAnswers — '
+            'duas lentidões de antes do halt mais uma depois do resolve já '
+            'batiam o limiar, e a sala caía offline de novo assim que a rede '
+            'gaguejasse pela primeira vez');
+  });
+
+  test('a resolve clears the inbox-silence count too, not just the degraded one',
+      () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.inbox.cannotBeAsked = true;
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    harness.room.failWith = const RoomBroke('HTTP 500');
+    for (var i = 0; i < 3; i++) {
+      notifier.conversaTap();
+      notifier.conversaTap();
+      await settle();
+    }
+    expect(container.read(salaSessionProvider).needsPerson, isTrue);
+
+    notifier.resolveWithPerson();
+
+    harness.room.failWith = null;
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    expect(container.read(salaSessionProvider).needsPerson, isFalse,
+        reason: 'o resolve zerava _roomFailures e esquecia _inboxSilences — '
+            'duas consultas silenciosas de antes do halt mais uma depois do '
+            'resolve já batiam o limiar, e a sala chamava alguém de novo no '
+            'primeiro turno seguinte');
+  });
+
   test('a panorama that cannot be spoken leaves a way back', () async {
     final harness = SalaHarness()..voice.succeeds = false;
     final container = harness.container();
