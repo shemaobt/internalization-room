@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
+import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/passage_ruler.dart';
 
 void main() {
@@ -11,6 +12,7 @@ void main() {
     required List<int> aimed,
     required List<int> settled,
     Set<int> started = const {},
+    Set<int> finished = const {},
   }) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -23,6 +25,7 @@ void main() {
                 total: total,
                 at: at,
                 started: started,
+                finished: finished,
                 onAim: aimed.add,
                 onSettle: () => settled.add(at),
               ),
@@ -96,6 +99,50 @@ void main() {
       ),
       findsOneWidget,
       reason: 'a última passagem do livro ficava sem indicador nenhum',
+    );
+  });
+
+  testWidgets('a notch the team carried to the end wears the wood',
+      (tester) async {
+    await pumpRuler(
+      tester,
+      total: 3,
+      at: 2,
+      aimed: <int>[],
+      settled: <int>[],
+      finished: const {0},
+    );
+
+    expect(
+      find.byType(PassageRuler),
+      paints
+        ..line(color: SalaColors.light.cord, strokeWidth: 1.5)
+        ..line(color: ShemaBrand.wood, strokeWidth: 4),
+      reason: 'no claro a madeira dá 1,31:1 contra o cordão: só a cor deixa a '
+          'passagem terminada com o mesmo entalhe de uma que ninguém tocou, e '
+          'não há palavra escrita nesta tela que separe as duas',
+    );
+  });
+
+  testWidgets('a passage picked up again after the end reads as work waiting',
+      (tester) async {
+    await pumpRuler(
+      tester,
+      total: 3,
+      at: 2,
+      aimed: <int>[],
+      settled: <int>[],
+      started: const {0},
+      finished: const {0},
+    );
+
+    expect(
+      find.byType(PassageRuler),
+      paints
+        ..line(color: SalaColors.light.cord)
+        ..line(color: SalaColors.light.telha),
+      reason: 'entrar de novo numa passagem terminada e sair no meio deixa ela '
+          'nos dois conjuntos, e trabalho parado é o estado que pede a volta',
     );
   });
 }

@@ -1302,7 +1302,7 @@ void main() {
     expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
   });
 
-  test('a passage carried to the end leaves the wheel for good', () async {
+  test('a passage carried to the end stays on the wheel, marked', () async {
     final harness = SalaHarness();
     final container = harness.container();
     addTearDown(container.dispose);
@@ -1319,10 +1319,13 @@ void main() {
 
     expect(
       container.read(salaSessionProvider).naRoda?.map((p) => p.pericope),
-      ['P02', 'P03'],
-      reason: 'uma perícope terminada nunca se repete — e antes o app refazia '
-          'a P01 para sempre',
+      ['P01', 'P02', 'P03'],
+      reason: 'a passagem terminada saía da roda e a equipe não tinha como '
+          'voltar ao que trabalhou — e o registro informa, não fecha a conversa',
     );
+    expect(container.read(salaSessionProvider).feitas, {'P01'},
+        reason: 'ficar na roda sem marca nenhuma é indistinguível de nunca ter '
+            'sido tocada, e nesta sala não há palavra escrita que diga qual é');
   });
 
   test('a finished book reaches a person instead of dying quietly', () async {
