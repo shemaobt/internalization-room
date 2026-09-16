@@ -2072,7 +2072,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// The part's own recording is left on the tablet. Nothing points at it any more, and
   /// deleting audio a team recorded is not a thing this room does quietly.
   void _aParteVoltaAoSeuLugar(int parte, String path) {
-    final escopo = state.partes[parte].scopeId;
+    // Scope and number are counted from the same place, because they are the same fact
+    // said twice and the room is sent both. Read apart — the scope off the take, the
+    // number off the row — a row the two disagree about would send a recording up under
+    // one part's name and another part's number.
+    final numero = parte + 1;
+    final escopo = KeptScope.parte(numero);
     final trechos = <Trecho>[];
     final passes = <int>[];
     for (var onde = 0; onde < state.btTrechos.length; onde++) {
@@ -2098,7 +2103,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       kind: 'ensaio',
       scope: escopo,
       passNumber: state.ensaioPass,
-      chunkIndex: parte + 1,
+      chunkIndex: numero,
     ));
     _rememberWhereTheyAre(SalaStage.ensaio);
   }
