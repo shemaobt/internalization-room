@@ -564,8 +564,10 @@ class FakeRoom implements RoomRepository {
   void Function()? duranteOVeredito;
   bool replaceCaptured = true;
 
-  /// Whether the room answers a correction by asking for a person. False is also what
-  /// a server that does not send the field at all looks like from here.
+  /// Whether the room answers a correction *that carries audio* by asking for a person.
+  /// False is also what a server that does not send the field at all looks like from
+  /// here. The no-audio call (the mother tongue's own re-record) never honours this —
+  /// see the comment on `replaceSegment` for why.
   bool replaceNeedsPerson = false;
   /// Which stretch each retelling named, and the slice it sent, in order.
   final List<String> replacesAsked = [];
