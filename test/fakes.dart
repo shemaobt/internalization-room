@@ -513,6 +513,13 @@ class FakeRoom implements RoomRepository {
   @override
   Stream<CoverageEvent> watchCoverage(String sessionId) => _coverage.stream;
 
+  /// What a turn's own response says about the id classification will settle under, and
+  /// whether classification is still running for it. True and named by default — the way
+  /// a real conversational turn from the backend behaves — so a double built for some
+  /// other behaviour still exercises the wait the way production would.
+  String? turnIdInResponse = 'turno-fake';
+  bool classificationPending = true;
+
   final List<String> calls = [];
   final List<String?> pericopesAsked = [];
   final List<String?> bridgeModesSent = [];
@@ -1105,6 +1112,8 @@ class FakeRoom implements RoomRepository {
         degraded: turnsAreDegraded,
         coverage: silentAboutCoverage ? null : nextCoverage,
         done: done,
+        turnId: turnIdInResponse,
+        classificationPending: classificationPending,
         bridgeMode: bridgeMode,
         segments: opensInTwoMovements
             ? const [
@@ -1534,7 +1543,8 @@ class SalaHarness {
         linkedTeamProvider.overrideWithValue(vinculo),
         linkPollIntervalProvider.overrideWithValue(linkPoll),
         screenAwakeProvider.overrideWithValue(awake),
-        beadSettleDelayProvider.overrideWithValue(settleDelay),
+        roomPollDelayProvider.overrideWithValue(settleDelay),
+        coverageFallbackDelayProvider.overrideWithValue(settleDelay),
         roomRetryBackoffProvider.overrideWithValue(retryBackoff),
         busyStateCeilingProvider.overrideWithValue(busyCeiling),
         playbackCeilingProvider.overrideWithValue(playbackCeiling),

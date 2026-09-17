@@ -12,6 +12,7 @@ import '../domain/hand_reply.dart';
 import '../domain/kept_take.dart';
 import '../domain/passagem.dart';
 import '../domain/coverage.dart';
+import '../domain/coverage_event.dart';
 import '../domain/room_reach.dart';
 import '../domain/session_snapshot.dart';
 import '../domain/session_state.dart';
@@ -29,7 +30,11 @@ import 'room_repository.dart';
 import 'take_upload_queue.dart';
 import 'work_in_progress.dart';
 
-final beadSettleDelayProvider = Provider<Duration>(
+final roomPollDelayProvider = Provider<Duration>(
+  (ref) => const Duration(seconds: 30),
+);
+
+final coverageFallbackDelayProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 30),
 );
 
@@ -55,17 +60,12 @@ final busyStateCeilingProvider = Provider<Duration?>(
 final clipGraceProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 10),
 );
-const _settleAttempts = 3;
 
 /// How much sound counts as the team having said something. Below it the room answers
 /// from the bundle instead of paying for a round trip to hear silence — the one place
 /// the app judges a capture rather than forwarding it.
 final shortestSpeechProvider = Provider<Duration>(
   (ref) => const Duration(milliseconds: 900),
-);
-
-final settleRetryDelayProvider = Provider<Duration>(
-  (ref) => const Duration(seconds: 10),
 );
 
 final playbackCeilingProvider = Provider<Duration?>(
@@ -205,6 +205,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   StreamSubscription<void>? _playbackFailed;
   StreamSubscription<void>? _playbackOpened;
   StreamSubscription<void>? _networkWatch;
+  StreamSubscription<CoverageEvent>? _coverageWatch;
+  String? _coverageSessionId;
+  String? _awaitingCoverageTurnId;
   StreamSubscription<bool>? _micWatch;
   VoidCallback? _onPlaybackComplete;
   VoidCallback? _onPlaybackFailed;
@@ -243,6 +246,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       unawaited(_playbackOpened?.cancel());
       unawaited(_networkWatch?.cancel());
       unawaited(_micWatch?.cancel());
+      unawaited(_coverageWatch?.cancel());
     });
     return const SalaSessionState();
   }
@@ -473,7 +477,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (epoch != _epoch) return;
     _captureBridgeMode(turn);
     state = state.copyWith(coverage: turn.coverage);
-    _scheduleSettle();
+    _awaitCoverageSettle(turn);
     await _readyToSpeak(turn.audioUrl, turn.fixedLine);
     if (epoch != _epoch) return;
     if (turn.audioUrl.isEmpty && turn.fixedLine.isEmpty) {
@@ -510,7 +514,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     } else {
       _degradedTurns = 0;
     }
-    _scheduleSettle();
+    _awaitCoverageSettle(turn);
   }
 
   /// The opening said in the two movements the room wrote it in.
@@ -594,7 +598,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// so the answer that lets the team out would keep being deferred by the room noticing
   /// again what it already knew.
   void _beatTheWatch() {
-    _after('halt', ref.read(beadSettleDelayProvider), () {
+    _after('halt', ref.read(roomPollDelayProvider), () {
       unawaited(_askIfTheHaltIsOver());
     });
   }
@@ -900,26 +904,55 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  void _scheduleSettle() {
+  /// Arms the wait for the coverage channel to say what this turn's classification
+  /// decided. A turn the server never meant to grade — no id, or nothing pending — has
+  /// nothing to wait for, so it is not the panorama's own turns that skip this: it is any
+  /// turn the server already settled by the time it answered.
+  void _awaitCoverageSettle(TurnResult turn) {
     final sessionId = state.sessionId;
-    if (sessionId == null) return;
-    _after('settle', ref.read(beadSettleDelayProvider), () {
-      unawaited(_pullState(sessionId));
-      unawaited(_pullInbox());
+    final turnId = turn.turnId;
+    if (sessionId == null || turnId == null || !turn.classificationPending) return;
+    _watchCoverageChannel(sessionId);
+    _awaitingCoverageTurnId = turnId;
+    _after('coverage', ref.read(coverageFallbackDelayProvider), () {
+      if (_awaitingCoverageTurnId != turnId) return;
+      _resolveCoverageWait(sessionId, pullState: true);
     });
   }
 
-  Future<void> _pullState(String sessionId, {int attempt = 0}) async {
+  void _watchCoverageChannel(String sessionId) {
+    if (_coverageSessionId == sessionId) return;
+    unawaited(_coverageWatch?.cancel());
+    _coverageSessionId = sessionId;
+    _coverageWatch = _room.watchCoverage(sessionId).listen(_onCoverageFrame);
+  }
+
+  void _onCoverageFrame(CoverageEvent frame) {
+    if (frame.turnId != _awaitingCoverageTurnId) return;
+    final sessionId = state.sessionId;
+    if (sessionId == null) return;
+    _resolveCoverageWait(sessionId, pullState: frame.status == CoverageStatus.settled);
+  }
+
+  void _resolveCoverageWait(String sessionId, {required bool pullState}) {
+    _awaitingCoverageTurnId = null;
+    _timers.remove('coverage')?.cancel();
+    if (pullState) unawaited(_pullState(sessionId).catchError((_) {}));
+    unawaited(_pullInbox());
+  }
+
+  Future<void> _pullState(String sessionId) async {
     final epoch = _epoch;
     try {
       final snapshot = await _room.fetchState(sessionId);
       if (epoch != _epoch || state.sessionId != sessionId) return;
       final told = snapshot.coverage;
       final before = state.coverage.engaged;
-      // A turn that carried no coverage leaves the necklace where it is. Reading a
-      // missing field as zero emptied the cord mid-passage — the only record of progress
-      // this team can perceive — and put it back thirty seconds later, or never.
-      if (told != null) {
+      // A turn that carried no coverage, or fewer beads than the necklace already shows,
+      // leaves the necklace where it is. Reading a missing field as zero emptied the cord
+      // mid-passage — the only record of progress this team can perceive — and a read
+      // that raced ahead of a slower one used to be able to put it back.
+      if (told != null && told.engaged >= before) {
         state = state.copyWith(
           coverage: told,
           ping: told.engaged > before ? PingRange(before, told.engaged) : null,
@@ -948,11 +981,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     } on RoomRefused {
       if (epoch != _epoch) return;
       _haltForAPerson();
-    } on Exception {
-      if (epoch != _epoch || attempt + 1 >= _settleAttempts) return;
-      _after('settle', ref.read(settleRetryDelayProvider), () {
-        unawaited(_pullState(sessionId, attempt: attempt + 1));
-      });
     }
   }
 

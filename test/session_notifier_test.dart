@@ -8,6 +8,7 @@ import 'package:internalization_room/features/sala/data/facilitator_voice_servic
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
@@ -546,6 +547,90 @@ void main() {
 
     expect(harness.room.calls, contains('fetchState'));
     expect(container.read(salaSessionProvider).coverage.engaged, 3);
+  });
+
+  test('a settled frame pushed on the coverage channel updates the necklace before any clock would',
+      () async {
+    final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+      ..room.turnIdInResponse = 'turno-1'
+      ..room.settledCoverage = coverage(engaged: 3, surfaced: 4);
+    final container = harness.container();
+    addTearDown(container.dispose);
+
+    await container.read(salaSessionProvider.notifier).goConversa();
+    expect(container.read(salaSessionProvider).coverage.engaged, 0);
+
+    harness.room.pushCoverage(
+      const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+    );
+    await waitFor(
+      'o colar assentar pelo canal',
+      () => container.read(salaSessionProvider).coverage.engaged == 3,
+    );
+
+    expect(harness.room.calls.where((call) => call == 'fetchState').length, 1);
+  });
+
+  test('a settled frame that reports fewer beads than the necklace already shows changes nothing',
+      () async {
+    final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+      ..room.turnIdInResponse = 'turno-1'
+      ..room.nextCoverage = coverage(engaged: 5, surfaced: 5)
+      ..room.settledCoverage = coverage(engaged: 2, surfaced: 2);
+    final container = harness.container();
+    addTearDown(container.dispose);
+
+    await container.read(salaSessionProvider.notifier).goConversa();
+    expect(container.read(salaSessionProvider).coverage.engaged, 5);
+
+    harness.room.pushCoverage(
+      const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+    );
+    await waitFor(
+      'a leitura do servidor chegar',
+      () => harness.room.calls.where((call) => call == 'fetchState').length == 1,
+    );
+
+    expect(container.read(salaSessionProvider).coverage.engaged, 5,
+        reason: 'uma leitura que chega atrás não pode devolver o colar para trás '
+            'do que a equipe já viu encher');
+  });
+
+  test('a failed frame ends the wait without asking the room anything', () async {
+    final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+      ..room.turnIdInResponse = 'turno-1';
+    final container = harness.container();
+    addTearDown(container.dispose);
+
+    await container.read(salaSessionProvider.notifier).goConversa();
+
+    harness.room.pushCoverage(
+      const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.failed),
+    );
+    await settle(const Duration(milliseconds: 200));
+
+    expect(harness.room.calls, isNot(contains('fetchState')),
+        reason: 'a classificação que falhou não deixa número nenhum para o colar buscar');
+  });
+
+  test('a coverage channel that never answers still gets exactly one fetch, and does not ask again',
+      () async {
+    final harness = SalaHarness(settleDelay: const Duration(milliseconds: 40))
+      ..room.turnIdInResponse = 'turno-1';
+    final container = harness.container();
+    addTearDown(container.dispose);
+
+    await container.read(salaSessionProvider.notifier).goConversa();
+
+    await waitFor(
+      'o fallback disparar',
+      () => harness.room.calls.where((call) => call == 'fetchState').length == 1,
+    );
+    await settle(const Duration(milliseconds: 400));
+
+    expect(harness.room.calls.where((call) => call == 'fetchState').length, 1,
+        reason: 'a escada de tentativas saiu junto com o timer — uma leitura sem '
+            'resposta nova não pede outra depois dela');
   });
 
   test('the server closing the session puts the circle at rest', () async {
