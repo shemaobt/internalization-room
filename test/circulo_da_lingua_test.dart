@@ -8,8 +8,9 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 
-import 'a_pergunta_da_grade_test.dart'
-    show byLabel, micRetro, pumpToPergunta;
+import 'package:internalization_room/features/sala/presentation/widgets/onde_mora_grade.dart';
+
+import 'a_pergunta_da_grade.dart' show byLabel, pumpToPergunta;
 
 /// The gradient the disc at the centre of the circle is painted with.
 ///
@@ -73,9 +74,9 @@ bool _haltedGlyph(WidgetTester tester) => tester
 
 void main() {
   testWidgets('gravando a tradução, o círculo é azul', (tester) async {
-    final container = await pumpToPergunta(tester);
+    final (container, _) = await pumpToPergunta(tester);
 
-    await tester.tap(byLabel(micRetro));
+    await tester.tap(byLabel(micRetroLabel));
     await tester.pump(const Duration(milliseconds: 300));
 
     final estado = container.read(salaSessionProvider);

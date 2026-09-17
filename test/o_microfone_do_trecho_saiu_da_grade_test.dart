@@ -10,14 +10,11 @@ import 'package:internalization_room/features/sala/presentation/widgets/facilita
 import 'package:internalization_room/features/sala/presentation/widgets/onde_mora_grade.dart';
 import 'package:internalization_room/main.dart';
 
+import 'a_pergunta_da_grade.dart' show byLabel, pumpToPergunta;
 import 'fakes.dart';
 
 const umaParteInteira = Duration(seconds: 30);
 const continuarOEnsaioLabel = 'Continuar o ensaio';
-
-Finder byLabel(String label) => find.byWidgetPredicate(
-      (widget) => widget is Semantics && widget.properties.label == label,
-    );
 
 /// Every target on the grid the team can put a finger on, in the order they are drawn.
 ///
@@ -320,6 +317,22 @@ void main() {
       [for (final trecho in antes.btTrechos) trecho.segmentId],
       reason: 'e os trechos já contados e certos continuam contados',
     );
+  });
+
+  testWidgets('o caminho curto fica curto', (tester) async {
+    final (container, harness) = await pumpToPergunta(tester);
+    // The rehearsal's own take is already in there from the setup; what this scenario is
+    // about is whether the short way adds another one.
+    harness.room.takesKept.clear();
+
+    await tester.tap(byLabel(micRetroLabel));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);
+    expect(harness.room.takesKept.where((k) => k.startsWith('ensaio')), isEmpty,
+        reason: 'escolher só a tradução não grava voz nova em língua materna');
+    expect(harness.playback.measurements, isEmpty,
+        reason: 'nem mede duração de gravação nenhuma — não há gravação nova');
   });
 
   testWidgets('o círculo não é madeira ao consertar', (tester) async {
