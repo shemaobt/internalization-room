@@ -1124,7 +1124,7 @@ void main() {
             'voltar ao gesto que falta');
   });
 
-  test('a session the server forgot starts the passage clean', () async {
+  test('a session the server forgot twice sends the team back to the wheel', () async {
     final harness = SalaHarness();
     final container = harness.container();
     addTearDown(container.dispose);
@@ -1137,14 +1137,41 @@ void main() {
     notifier.leaveThePassage();
     await settle();
 
-    harness.room.failWith = const SessionGone();
+    harness.room.failHeldTurnWith = const SessionGone();
+    harness.room.failCreateOnceWith = const SessionGone();
     notifier.entrarNaOferecida();
     await settle();
-    harness.room.failWith = null;
-    await settle(const Duration(milliseconds: 300));
 
-    expect(container.read(salaSessionProvider).stage, SalaStage.conversa,
-        reason: 'lembrar de uma sessão que o servidor esqueceu não pode virar beco');
+    final state = container.read(salaSessionProvider);
+    expect(state.stage, SalaStage.escolha,
+        reason: 'a sessão lembrada e a sessão nova recusada de novo — sem ficar '
+            'presa numa conversa que não abre, a equipe volta à roda');
+    expect(state.needsPerson, isFalse);
+  });
+
+  test('a passage shut on a remembered entry drops the resume point too', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.abrirEscolha();
+    await settle();
+    notifier.entrarNaOferecida();
+    await settle();
+    notifier.leaveThePassage();
+    await settle();
+    expect(harness.emAberto.rows, contains('Ruth/P01'));
+
+    harness.room.failHeldTurnWith = const PassageShut();
+    notifier.entrarNaOferecida();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.stage, SalaStage.escolha);
+    expect(harness.emAberto.rows, isNot(contains('Ruth/P01')),
+        reason: 'uma passagem que o servidor fechou não pode continuar oferecendo um '
+            'retorno para uma sessão que ela mesma recusou');
   });
 
   test('hearing again is not offered on top of the retro clip', () async {

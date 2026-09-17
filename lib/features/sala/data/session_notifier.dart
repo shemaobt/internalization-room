@@ -1479,13 +1479,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (fresh) {
         // Already the clean attempt: the server is refusing the passage itself, not the
         // session we remembered. Retrying again is the loop this guard exists to stop.
-        _haltForAPerson(sessionIsGone: true);
+        leaveThePassage();
         return;
       }
       // The tablet remembered a session the server has forgotten. Start clean, once.
       unawaited(goConversa(pericope: pericope, fresh: true));
     } on PassageShut {
       if (epoch != _epoch) return;
+      if (pericope != null) {
+        unawaited(_mindingThePlace(() => _emAberto.forget(_book, pericope)));
+      }
       unawaited(abrirEscolha());
     } on Exception catch (error) {
       if (epoch != _epoch) return;
