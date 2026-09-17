@@ -2865,7 +2865,8 @@ void main() {
     expect(container.read(salaSessionProvider).entradaOffered, isTrue);
   });
 
-  test('a panorama recording with no audio still halts for a person', () async {
+  test('a panorama turn the recorder never handed back returns to the invite '
+      'in silence', () async {
     final harness = SalaHarness()..recorder.returnsNothing = true;
     final container = harness.container();
     addTearDown(container.dispose);
@@ -2877,9 +2878,11 @@ void main() {
     notifier.conviteTap();
     await settle();
 
-    expect(container.read(salaSessionProvider).needsPerson, isTrue,
-        reason: 'gravação vazia continua sem resposta possível — o tratamento '
-            'de áudio vazio não muda com o fim da calibração');
+    final state = container.read(salaSessionProvider);
+    expect(state.needsPerson, isFalse,
+        reason: 'a mesma volta em silêncio que todo outro caminho de gravação '
+            'vazia usa agora — o panorama não é uma exceção');
+    expect(state.voice, VoiceState.invite);
     expect(harness.room.turnsSent, 0);
   });
 

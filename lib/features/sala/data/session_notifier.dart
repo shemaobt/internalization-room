@@ -1088,6 +1088,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       retryNow();
       return;
     }
+    if (state.playingReplyId != null) return;
+    if (state.noteMode) {
+      _noteTap();
+      return;
+    }
     if (state.conviteStep == ConviteStep.entrada) {
       switch (state.voice) {
         case VoiceState.invite:
@@ -1102,11 +1107,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         case VoiceState.blocked:
           break;
       }
-      return;
-    }
-    if (state.playingReplyId != null) return;
-    if (state.noteMode) {
-      _noteTap();
       return;
     }
     if (state.voice != VoiceState.invite) return;
