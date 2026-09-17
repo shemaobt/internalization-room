@@ -1725,7 +1725,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final epoch = _epoch;
     state = state.copyWith(voice: VoiceState.speaking, peerCue: false);
     _watchBusyState();
-    final line = inaudibleLines[_inaudibleSpoken.clamp(0, inaudibleLines.length - 1)];
+    final line = inaudibleLines.first;
     _inaudibleSpoken++;
     await _voice.playAsset(fixedLineAsset(line, _lingua));
     if (epoch != _epoch) return;
