@@ -16,6 +16,7 @@ import 'widgets/conversa_view.dart';
 import 'widgets/convite_view.dart';
 import 'widgets/ensaio_view.dart';
 import 'widgets/escolha_view.dart';
+import 'widgets/hand_button.dart';
 import 'widgets/hear_again_button.dart';
 import 'widgets/leave_passage_button.dart';
 import 'widgets/mic_gate_view.dart';
@@ -130,6 +131,7 @@ class _SalaScreenState extends ConsumerState<SalaScreen> with WidgetsBindingObse
               const Positioned.fill(
                 child: SafeArea(bottom: false, child: _RetroCordLayer()),
               ),
+            const _HandLayer(),
             const HearAgainButton(),
             const LeavePassageButton(),
             const DevSkipBar(),
@@ -259,5 +261,32 @@ class _ColarLayer extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(salaSessionProvider);
     return ColarOverlay(session: session);
+  }
+}
+
+/// The hand lives outside the switcher, so raising it once during the convite carries
+/// through into the conversa without a second copy flashing up beside it while the two
+/// screens cross-fade.
+class _HandLayer extends ConsumerWidget {
+  const _HandLayer();
+
+  static const _inside = {SalaStage.convite, SalaStage.conversa};
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final session = ref.watch(salaSessionProvider);
+    if (!_inside.contains(session.stage)) return const SizedBox.shrink();
+    final notifier = ref.read(salaSessionProvider.notifier);
+    return Positioned(
+      left: 14,
+      bottom: 18 + MediaQuery.viewPaddingOf(context).bottom,
+      child: HandButton(
+        noteMode: session.noteMode,
+        questionPending: session.questionPending,
+        hasUnheardReply: session.hasUnheardReply,
+        playingReply: session.playingReplyId != null,
+        onTap: notifier.handTap,
+      ),
+    );
   }
 }

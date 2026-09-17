@@ -24,8 +24,6 @@ const instantAckLines = ['F0', 'F1', 'F2', 'F3'];
 
 const inaudibleLines = ['D0', 'D1', 'D2'];
 
-const handoffLines = ['C0', 'C1'];
-
 const needsPersonLine = 'E0';
 
 /// The fourth of Marcia's process lines, read by position: start, tell, unheard,

@@ -6,6 +6,7 @@ import 'motion.dart';
 
 class HandButton extends StatelessWidget {
   final bool noteMode;
+  final bool questionPending;
   final bool hasUnheardReply;
   final bool playingReply;
   final VoidCallback onTap;
@@ -13,6 +14,7 @@ class HandButton extends StatelessWidget {
   const HandButton({
     super.key,
     required this.noteMode,
+    required this.questionPending,
     required this.hasUnheardReply,
     required this.playingReply,
     required this.onTap,
@@ -25,10 +27,11 @@ class HandButton extends StatelessWidget {
 
     return Semantics(
       button: true,
-      label: switch ((playingReply, hasUnheardReply, noteMode)) {
-        (true, _, _) => 'O facilitador está respondendo',
-        (_, true, _) => 'Ouvir a resposta do facilitador',
-        (_, _, true) => 'Cancelar a pergunta',
+      label: switch ((playingReply, hasUnheardReply, noteMode, questionPending)) {
+        (true, _, _, _) => 'O facilitador está respondendo',
+        (_, true, _, _) => 'Ouvir a resposta do facilitador',
+        (_, _, true, _) => 'Cancelar a pergunta',
+        (_, _, _, true) => 'Pergunta enviada, aguardando resposta',
         _ => 'Levantar a mão',
       },
       child: GestureDetector(
@@ -66,6 +69,8 @@ class HandButton extends StatelessWidget {
               ),
               if (hasUnheardReply && !playingReply)
                 Positioned(top: 10, right: 10, child: _quietDot()),
+              if (questionPending && !hasUnheardReply && !playingReply)
+                Positioned(top: 10, right: 10, child: _waitingDot()),
             ],
           ),
         ),
@@ -87,6 +92,17 @@ class HandButton extends StatelessWidget {
             0.35 + 0.3 * t,
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _waitingDot() {
+    return Container(
+      width: 11,
+      height: 11,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        color: ShemaBrand.areia,
       ),
     );
   }

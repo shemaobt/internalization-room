@@ -44,11 +44,12 @@ const _roomFailuresBeforeNeedsPerson = 3;
 /// How many times the room may answer nothing before the app stops waiting for it.
 const _slowAnswersBeforeGivingUp = 3;
 
-/// How many times the inbox may fail to answer before the room says so out loud.
-const _inboxSilencesBeforeSayingSo = 3;
-
 /// How many degraded turns in a row before the room stops pretending it is working.
 const _degradedTurnsBeforeAPerson = 3;
+
+/// How many times the recorder may fail to start in a row before the room calls a
+/// person — mirroring `micFails` in her client.
+const _captureFailsBeforeAPerson = 2;
 
 final busyStateCeilingProvider = Provider<Duration?>(
   (ref) => const Duration(seconds: 120),
@@ -143,8 +144,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// still has to be able to end the part — so it cannot be what tells a ceiling whether
   /// there is any sound left to measure.
   bool _clipHeld = false;
-  int _inboxSilences = 0;
   int _degradedTurns = 0;
+  int _captureFails = 0;
   Duration _trechoStart = Duration.zero;
 
   /// Where each stretch mended by the long way sits, by the take the mend recorded.
@@ -542,6 +543,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _registerUnplayableTurn({bool leavesTeamTalk = true}) {
+    _openTurnId = null;
     _unplayableTurns++;
     if (_unplayableTurns >= _unplayableTurnsBeforeNeedsPerson) {
       _haltForAPerson();
@@ -713,9 +715,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case RoomRefused():
         _haltForAPerson();
       case SessionGone():
-        _haltForAPerson(sessionIsGone: true);
+        _leaveTheDeadPassage();
       case PassageShut():
-        _haltForAPerson();
+        _leaveTheDeadPassage();
       case RoomBroke():
         _registerRoomFailure();
       case RoomSlow():
@@ -984,11 +986,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state = state.copyWith(voice: VoiceState.done, peerCue: false);
       }
     } on SessionGone {
-      // Retrying a session the server has forgotten just spends the budget. The invite
-      // disc used to keep breathing over it while the team spoke a whole turn into a
-      // session that no longer existed.
       if (epoch != _epoch) return;
-      _haltForAPerson(sessionIsGone: true);
+      _leaveTheDeadPassage();
     } on RoomRefused {
       if (epoch != _epoch) return;
       _haltForAPerson();
@@ -1105,6 +1104,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       return;
     }
+    if (state.playingReplyId != null) return;
+    if (state.noteMode) {
+      _noteTap();
+      return;
+    }
     if (state.voice != VoiceState.invite) return;
     if (state.conviteStep == ConviteStep.boasVindas) unawaited(openConvite());
   }
@@ -1116,7 +1120,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final panorama = _panoramaSessionId!;
     if (path == null || !_hasAudio(path)) {
       state = state.copyWith(voice: VoiceState.invite);
-      _haltForAPerson();
       return;
     }
     _sayImThinking();
@@ -1332,6 +1335,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(abrirEscolha());
   }
 
+  void _leaveTheDeadPassage() {
+    final pericope = _emCurso;
+    if (pericope == null) {
+      // Nothing here is a passage — the wheel itself failing to reload after
+      // an earlier departure, or a calibration turn with no passage entered
+      // yet. Leaving loops back into exactly this failure with nowhere new to
+      // land, so this is where the old, bounded halt still belongs.
+      _haltForAPerson(sessionIsGone: true);
+      return;
+    }
+    unawaited(_mindingThePlace(() => _emAberto.forget(_book, pericope)));
+    leaveThePassage();
+  }
+
   /// Enter a passage, resuming the session this tablet left in it when there is one.
   ///
   /// `fresh` skips the resume, which is how the 404 path starts over: retrying without it
@@ -1459,13 +1476,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (fresh) {
         // Already the clean attempt: the server is refusing the passage itself, not the
         // session we remembered. Retrying again is the loop this guard exists to stop.
-        _haltForAPerson(sessionIsGone: true);
+        leaveThePassage();
         return;
       }
       // The tablet remembered a session the server has forgotten. Start clean, once.
       unawaited(goConversa(pericope: pericope, fresh: true));
     } on PassageShut {
       if (epoch != _epoch) return;
+      if (pericope != null) {
+        unawaited(_mindingThePlace(() => _emAberto.forget(_book, pericope)));
+      }
       unawaited(abrirEscolha());
     } on Exception catch (error) {
       if (epoch != _epoch) return;
@@ -1621,7 +1641,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (state.playingReplyId != null) return;
     if (state.noteMode) {
-      _sendQuestion();
+      _noteTap();
       return;
     }
     switch (state.voice) {
@@ -1671,7 +1691,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // as an ordinary return to the invite is the same silence `_finishTake` used to
       // keep, one method over.
       state = state.copyWith(voice: VoiceState.invite);
-      _haltForAPerson();
       return;
     }
     if (sessionId == null) {
@@ -1719,24 +1738,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _pullInbox() async {
     final fetched = await _inbox.fetchReplies();
-    if (fetched == null) {
-      _inboxSilences++;
-      if (_inboxSilences >= _inboxSilencesBeforeSayingSo) _haltForAPerson();
-      return;
-    }
-    _inboxSilences = 0;
+    if (fetched == null) return;
     if (fetched.isEmpty || _gone) return;
     final known = {for (final reply in state.replies) reply.id: reply};
     state = state.copyWith(
       replies: [for (final reply in fetched) known[reply.id] ?? reply],
+      questionPending: false,
     );
   }
 
   void handTap() {
-    // The hand lives on the conversa, but the outgoing screen stays hit-testable for the
-    // 400 ms the switcher takes, so a finger already travelling lands here from the next
-    // stage — and starts a question recording no screen shows and no gesture stops.
-    if (state.stage != SalaStage.conversa) return;
+    // The hand lives on the convite and the conversa, but the outgoing screen stays
+    // hit-testable for the 400 ms the switcher takes, so a finger already travelling
+    // lands here from the next stage — and starts a question recording no screen shows
+    // and no gesture stops.
+    if (state.stage != SalaStage.conversa && state.stage != SalaStage.convite) {
+      return;
+    }
+    if (state.stage == SalaStage.convite && _panoramaSessionId == null) return;
     if (state.offline) {
       // `_haltForAPerson` writes over `voice: offline`, and every way back — the retry
       // timer, the network watch, the touch — is guarded on `state.offline`. One tap on
@@ -1747,7 +1766,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (state.needsPerson) return;
     if (state.playingReplyId != null) return;
-    if (state.voice == VoiceState.listening && !state.noteMode) return;
     final unheard = state.oldestUnheardReply;
     if (unheard != null) {
       state = state.copyWith(playingReplyId: unheard.id);
@@ -1758,12 +1776,29 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _cancelQuestion();
       return;
     }
-    state = state.copyWith(
-      noteMode: true,
-      voice: VoiceState.listening,
-      peerCue: false,
-    );
-    unawaited(_recordOrBlock('pergunta_${_stamp()}'));
+    state = state.copyWith(noteMode: true);
+  }
+
+  /// The circle's half of a question: it opens the microphone once the hand has armed
+  /// the note, and closes and sends it on the touch after that.
+  ///
+  /// Splitting this off the hand is what keeps a question from ever starting under the
+  /// facilitator's own voice — arming and recording used to be the same touch, so the
+  /// first tap was already capturing whatever the facilitator was mid-sentence saying.
+  void _noteTap() {
+    switch (state.voice) {
+      case VoiceState.invite:
+        _startListening('pergunta_${_stamp()}');
+      case VoiceState.listening:
+        _sendQuestion();
+      case VoiceState.thinking:
+      case VoiceState.speaking:
+      case VoiceState.done:
+      case VoiceState.needsPerson:
+      case VoiceState.offline:
+      case VoiceState.blocked:
+        break;
+    }
   }
 
   /// Play the facilitator's answer, and never let a broken one take the gesture away.
@@ -1775,21 +1810,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// the ability to ask anything else.
   Future<void> _playReply(HandReply reply) async {
     final epoch = _epoch;
-    final played = await _voice.play(reply.audioUrl);
+    await _voice.play(reply.audioUrl);
     if (epoch != _epoch) return;
     unawaited(_markHeard(reply.id));
-    if (played) return;
-    // No strike count here, unlike every other line. A reply the room could not play is
-    // one only a person can now relay, so it calls for one at once; giving this path the
-    // three strikes a turn gets would lose three answers before anyone was called, and a
-    // turn survives its strikes only because the room can say it again.
-    //
-    // The mark above is no longer unconditional, so a reply that did not play and whose
-    // mark the desk turns down does come back to the list. That is the honest state and
-    // it was chosen over a retry: the desk never learned, so the reply is still owed. It
-    // is not the trap the doc above describes, because the room is halted from here and
-    // the hand answers no one until a person resolves it.
-    _haltForAPerson();
   }
 
   /// A reply is heard when the desk agrees, and not before.
@@ -1850,12 +1873,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final epoch = _epoch;
     final path = await _recorder.stop();
     if (epoch != _epoch) return;
-    final sessionId = state.sessionId;
+    final sessionId =
+        state.stage == SalaStage.convite ? _panoramaSessionId : state.sessionId;
     if (path == null || !_hasAudio(path) || sessionId == null) {
       // The team raised their hand, spoke a question, and nothing came back from the
       // recorder. Returning to the invite in silence is the room forgetting they asked.
       state = state.copyWith(voice: VoiceState.invite, noteMode: false);
-      _haltForAPerson(sessionIsGone: sessionId == null);
       return;
     }
     try {
@@ -1867,19 +1890,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     unawaited(_recorder.delete(path));
-    final asked = state.knots;
     state = state.copyWith(
       handAck: true,
-      knots: asked + 1,
-      voice: VoiceState.speaking,
+      questionPending: true,
+      voice: VoiceState.invite,
     );
     _watchBusyState();
     _after('ack', const Duration(milliseconds: 3200), () {
       state = state.copyWith(handAck: false);
     });
-    await _voice.playAsset(fixedLineAsset(rotated(handoffLines, asked), _lingua));
-    if (epoch != _epoch) return;
-    state = state.copyWith(voice: VoiceState.invite);
   }
 
   void devRecomecarPassagem() {
@@ -2242,6 +2261,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (epoch != _epoch || _gone) return;
     switch (capture) {
       case Capture.started:
+        _captureFails = 0;
         return;
       case Capture.denied:
         // Unwound as well: the gate replaces the screen, but the state underneath it is
@@ -2281,7 +2301,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// whole passage into it and loses it.
   void _theRecorderNeverStarted() {
     _undoTheListening();
-    _haltForAPerson();
+    _captureFails++;
+    if (_captureFails >= _captureFailsBeforeAPerson) _haltForAPerson();
   }
 
   /// Which recount is the newest one asked for.
@@ -4288,7 +4309,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _haltWatched = null;
     _traduzindoDeNovo = false;
     _trechoTraduzidoDeNovo = null;
-    _inboxSilences = 0;
     _degradedTurns = 0;
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
