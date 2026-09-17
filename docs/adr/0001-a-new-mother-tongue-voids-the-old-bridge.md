@@ -1,3 +1,7 @@
+---
+status: superseded by ADR-0021
+---
+
 # A new mother tongue voids the old bridge
 
 ## Context

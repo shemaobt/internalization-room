@@ -22,14 +22,19 @@ is the absence of a reader rather than a guard around one.
 
 ## Decision
 
-A **Stretch** plays the place it sits in: one part, one pair of numbers. The mend that
-re-recorded one stretch's mother tongue is retired, along with the scope it minted, the
-phase it ran in, the wood ink the circle wore during it, and the place bookkeeping the
-**Resume point** carried for it. A recording error is answered by recording the whole
-**Part** again in its own place (ADR 0020); a telling error is answered by the **Short
-way**. `replace` takes audio, never nothing.
+A **Stretch** plays the place it sits in. The mend that re-recorded one stretch's mother
+tongue is retired, along with the scope it minted, the phase it ran in, the wood ink the
+circle wore during it, and the second source of truth the **Resume point** carried for
+it. The two pairs of numbers a stretch holds survive the deletion, because a passage the
+room rebuilt is still no part of the rehearsal until its download lands; collapsing them
+is the composed passage's own question, not this one.
 
-Supersedes ADR 0007.
+A recording error is answered by recording the whole **Part** again in its own place
+(ADR 0020); a telling error is answered by the **Short way**. `replace` takes audio,
+never nothing.
+
+Supersedes ADR 0007 and ADR 0001, whose whole subject was the window between the two
+stations of the retired mend.
 
 ## Consequences
 

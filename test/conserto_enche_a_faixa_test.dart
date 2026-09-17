@@ -192,7 +192,7 @@ void main() {
             'a falha, e é justamente o que deixaria a promessa de pé sozinha');
   });
 
-  testWidgets('um microfone que não abriu esvazia a faixa de novo',
+  testWidgets('um microfone que não abriu não deixa a faixa cheia',
       (tester) async {
     final container = await _pumpToPergunta(tester);
     final harness = _harnessDaVez!;

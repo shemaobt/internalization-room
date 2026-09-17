@@ -275,7 +275,7 @@ void main() {
     );
   });
 
-  test('os dois caminhos são simétricos sob aviso', () async {
+  test('gravar a parte de novo também não é fechado pelo aviso', () async {
     final harness = SalaHarness();
     final container = await _achadoComAvisoAtivo(harness);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -286,8 +286,8 @@ void main() {
       container.read(salaSessionProvider).stage,
       SalaStage.ensaio,
       reason:
-          'gravar a parte de novo não tem a guarda de needsPerson; o '
-          'caminho longo sempre funcionou sob aviso',
+          'gravar a parte de novo não tem a guarda de needsPerson: o aviso '
+          'pede uma pessoa e não fecha saída nenhuma da pergunta',
     );
   });
 }

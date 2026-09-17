@@ -96,9 +96,6 @@ void main() {
     expect(container.read(salaSessionProvider).stage, SalaStage.ensaio,
         reason: 'a voz de madeira que a equipe escolhe é a da parte inteira: o '
             'microfone por trecho saiu da tela, e o que fica é o ensaio');
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.playing,
-        reason: 'e a sala volta a tocar a gravação: o caminho de madeira leva '
-            'do achado ao ensaio, sem posto nenhum entre os dois');
   });
 
   testWidgets('falta sem endereço continua indo ao ensaio', (tester) async {

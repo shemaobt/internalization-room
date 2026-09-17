@@ -155,21 +155,6 @@ void main() {
             'enquanto o achado estiver aberto');
   });
 
-  test('dois consertos seguidos não perdem a ponte', () async {
-    final it = await _aSalaNaPergunta();
-
-    await _escolherTraduzirDeNovo(it);
-    await _entregarAPonte(it);
-    await _escolherTraduzirDeNovo(it);
-    await _entregarAPonte(it);
-    final aSegundaPonte = it.harness.recorder.lastPath;
-
-    expect(_no(it.container, 1).retroPath, aSegundaPonte,
-        reason: 'um trecho já consertado não fica surdo para sempre: era assim '
-            'que o usuário chegava à segunda correção sem nenhuma ponte para '
-            'escutar');
-  });
-
   test('a primeira contagem continua guardando o que foi gravado', () async {
     final it = await _aSalaNaPergunta();
 
@@ -180,7 +165,8 @@ void main() {
     }
   });
 
-  test('os trechos vizinhos não se mexem', () async {
+  test('os trechos vizinhos não se mexem, nem depois de dois consertos',
+      () async {
     final it = await _aSalaNaPergunta();
     final vizinhos = [_no(it.container, 0), _no(it.container, 2)];
 

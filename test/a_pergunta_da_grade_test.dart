@@ -21,14 +21,11 @@ SalaSessionNotifier notifier(ProviderContainer c) =>
 
 /// A team that told two stretches back and got a finding on the first, standing in front
 /// of the question about which voice must speak again.
-Future<ProviderContainer> pumpToPergunta(
-  WidgetTester tester, {
-  String apontado = 'trecho-1',
-}) async {
+Future<ProviderContainer> pumpToPergunta(WidgetTester tester) async {
   final harness = SalaHarness(filaEmMemoria: true)
     ..room.verdictChecked = false
     ..room.verdictFinding = BtFindingKind.addition
-    ..room.verdictFindingSegmentId = apontado;
+    ..room.verdictFindingSegmentId = 'trecho-1';
   harnessDaVez = harness;
   final container = harness.container();
   addTearDown(container.dispose);

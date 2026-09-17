@@ -163,7 +163,7 @@ Future<void> _traduzirDeNovoPeloCaminhoCurto(_Sala it) async {
 void main() {
   test(
       'o play do ensaio toca as seis partes, na ordem, incluindo a que '
-      'ninguém corrigiu', () async {
+      'ninguém consertou', () async {
     final it = await _seisPartesSeisTrechos();
 
     // Trecho 6 (índice 5), traduzido de novo pelo caminho curto.

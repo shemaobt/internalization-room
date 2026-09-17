@@ -6,14 +6,9 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 
-/// Each rehearsal part, and the take one mend records over one stretch of it.
-///
-/// The mend is deliberately longer than the whole part it corrects: the two numbers a
-/// stretch carries are the interval it plays and the interval it occupies, and only a
-/// pair that cannot be mistaken for one another can tell whether the room is reading the
-/// right one.
+/// How long each rehearsal part is, and what the player answers for anything else.
 const _umaParte = Duration(seconds: 20);
-const _oConserto = Duration(seconds: 27);
+const _oQueOPlayerMede = Duration(seconds: 27);
 
 /// The stretch at one place in the row, whatever the room has renamed it to.
 ///
@@ -85,7 +80,7 @@ Future<void> _atravessarAFronteira(_Sala it) async {
 Future<_Sala> _aSalaNaPergunta({required int apontado}) async {
   final harness = SalaHarness()
     ..playback.length = _umaParte
-    ..playback.measured = _oConserto
+    ..playback.measured = _oQueOPlayerMede
     ..room.verdictChecked = false
     ..room.verdictFinding = BtFindingKind.addition
     ..room.verdictFindingPlace = apontado;

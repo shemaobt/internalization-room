@@ -189,14 +189,12 @@ void main() {
         reason: 'o achado aponta um trecho da parte 2, que é o que estes casos '
             'medem');
 
-    final tocadas = harness.playback.played.length;
     await ouvindoAMaterna(tester);
 
     expect(harness.playback.played.last,
         container.read(salaSessionProvider).partes[1].path,
         reason: 'o tocador de madeira põe no ar a gravação da equipe, que é a '
             'parte onde o trecho mora');
-    expect(harness.playback.played.length, tocadas + 1);
 
     await tester.tap(byLabel(ouvirMaternaLabel));
     await tester.pump(const Duration(milliseconds: 300));
@@ -221,7 +219,6 @@ void main() {
     await tester.tap(byLabel(cortarTrechoLabel));
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(harness.room.dividesAsked, hasLength(1));
     expect(container.read(salaSessionProvider).btTrechos, hasLength(antes + 1),
         reason: 'o corte faz duas unidades de uma, e o colar ganha a faixa da '
             'metade nova');

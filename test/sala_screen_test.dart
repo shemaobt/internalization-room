@@ -553,7 +553,7 @@ void main() {
     expect(bySemanticsLabelWidget(continuarOEnsaio), findsNothing);
   });
 
-  testWidgets('an addition finding offers re-recording and nothing else',
+  testWidgets('an addition finding offers the way on and nothing else',
       (tester) async {
     final container = await pumpToFindings(tester, BtFindingKind.addition);
 

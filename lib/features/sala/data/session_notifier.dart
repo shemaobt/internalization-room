@@ -2872,8 +2872,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
     // The telling just recorded is this stretch's own. Only a first telling used to keep
     // its file, so from the first correction on the blue voice played back the very
-    // explanation the analyst had refused — and after the mother tongue was told again,
-    // which leaves no telling to inherit, it played nothing at all, for good.
+    // explanation the analyst had refused.
     final trechos = _trechosFrom(
       told.segments,
       lugar: lugar,
@@ -2897,9 +2896,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     //
     // Only a correction arrives here — an ordinary telling during the back-translation
     // returns before this, and it should, because there is still passage left to hear and
-    // tell. And on the mother tongue route this is the second of the two steps: the
-    // re-recording does not pass through here, the retelling that follows it does, so the
-    // result is asked for once and at the end.
+    // tell.
     //
     // Nothing had to be unlocked for this: the mark that the recording ended survives a
     // correction, so the ask is allowed the moment it is made.
@@ -3421,10 +3418,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ///
   /// [noLugarDe] is the stretch a replacement took the place of and [lugar] where it sat,
   /// on the routes that know. Identity is what ties the room's reading back to what this
-  /// tablet holds, and a mend can break it: the mother tongue told again becomes a take
-  /// of its own, which is no part of the rehearsal, so nothing about the successor
-  /// matches. Its place on the cord has to survive that — it is the same stretch, and the
-  /// necklace is where a team who cannot read sees where their correction went.
+  /// tablet holds, and a take the tablet does not hold breaks it: a passage the room
+  /// rebuilt is no part of the rehearsal until its download lands, so nothing about the
+  /// successor matches. Its place on the cord has to survive that — it is the same
+  /// stretch, and the necklace is where a team who cannot read sees where it went.
   ///
   /// [contadoEm] is the file a telling was just recorded into. It belongs to the stretch
   /// that replaced the one it was told over, and to no other.
