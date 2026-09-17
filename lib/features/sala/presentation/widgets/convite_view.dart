@@ -24,7 +24,6 @@ class ConviteView extends ConsumerWidget {
           beckon: session.awaitingFirstTouch,
           semanticLabel: switch (session) {
             _ when session.needsPerson => 'Um momento para uma pessoa',
-            _ when session.showEntrada => 'O facilitador já contou do livro',
             _ => 'Falar com o facilitador',
           },
           onTap: notifier.conviteTap,
