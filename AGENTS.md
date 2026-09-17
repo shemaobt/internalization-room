@@ -7,7 +7,9 @@ translation flow. Team screens carry no readable words; the necklace is the only
 
 Use Flutter 3.44.9: it is what CI pins, and the only version verified here. `pubspec.yaml`
 asks for `sdk: ^3.12.0`, so a toolchain shipping Dart 3.11.3 — Flutter 3.41.x — cannot
-resolve the dependencies at all.
+resolve the dependencies at all. The iOS deployment target is 15.0: Xcode 27 refuses the
+13.0 the Flutter template ships, and the `Podfile` forces 15.0 on the `Flutter` pod, whose
+podspec still says 13.0.
 
 ```sh
 flutter pub get
