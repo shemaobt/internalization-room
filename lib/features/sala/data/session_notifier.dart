@@ -499,6 +499,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _slowAnswers = 0;
     _retryStep = 0;
     _noticeSpoken = false;
+    _inaudibleSpoken = 0;
     _openTurnId = null;
     state = state.copyWith(
       voice: turn.done ? VoiceState.done : VoiceState.invite,
@@ -1688,11 +1689,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> _askThemToRepeat(String path) async {
-    final epoch = _epoch;
     unawaited(_recorder.delete(path));
+    if (_inaudibleSpoken > 0) {
+      _haltForAPerson();
+      return;
+    }
+    final epoch = _epoch;
     state = state.copyWith(voice: VoiceState.speaking, peerCue: false);
     _watchBusyState();
-    final line = rotated(inaudibleLines, _inaudibleSpoken++);
+    final line = inaudibleLines[_inaudibleSpoken.clamp(0, inaudibleLines.length - 1)];
+    _inaudibleSpoken++;
     await _voice.playAsset(fixedLineAsset(line, _lingua));
     if (epoch != _epoch) return;
     state = state.copyWith(voice: VoiceState.invite);
