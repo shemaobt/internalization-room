@@ -226,7 +226,7 @@ void main() {
     harness.voice.finishHeldLine();
   });
 
-  test('a question sent to a person is answered out loud, not with a knot', () async {
+  test('a question sent to a person is answered by silence, not a spoken line', () async {
     final harness = SalaHarness();
     final container = await inConversaHarness(harness);
     addTearDown(container.dispose);
@@ -239,11 +239,13 @@ void main() {
     await waitFor('a pergunta ser enviada à mão', () => harness.inbox.questionsSent.isNotEmpty);
     await settle();
 
-    expect(harness.voice.assets, contains(fixedLineAsset(handoffLines.first, testLanguage)));
-    expect(container.read(salaSessionProvider).knots, 1);
+    expect(harness.voice.assets, isEmpty,
+        reason: 'o Guia não anuncia a pergunta nem a resposta — o envio é mudo');
+    expect(container.read(salaSessionProvider).questionPending, isTrue,
+        reason: 'o ponto na mão é que carrega a espera agora, não uma fala');
   });
 
-  test('the handoff line rotates, so a second question is not an echo', () async {
+  test('a second question right after the first is still met with silence', () async {
     final harness = SalaHarness();
     final container = await inConversaHarness(harness);
     addTearDown(container.dispose);
@@ -261,13 +263,8 @@ void main() {
       await settle();
     }
 
-    final spoken = harness.voice.assets
-        .where((asset) => asset.contains('/C'))
-        .toList();
-    expect(spoken, [
-      fixedLineAsset(handoffLines[0], testLanguage),
-      fixedLineAsset(handoffLines[1], testLanguage),
-    ]);
+    expect(harness.voice.assets, isEmpty,
+        reason: 'nem a primeira pergunta nem a segunda tiram o Guia do silêncio');
   });
 
   test('a stretch the room did not capture is still kept as audio', () async {

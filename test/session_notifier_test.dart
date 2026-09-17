@@ -1217,7 +1217,7 @@ void main() {
             'a única cópia de algo que a equipe pediu');
   });
 
-  test('a question that never left ties no knot', () async {
+  test('a question that never left marks nothing pending on the hand', () async {
     final harness = SalaHarness(retryBackoff: const [Duration(seconds: 30)])
       ..inbox.refuses = true;
     final container = await inConversa(harness);
@@ -1229,10 +1229,39 @@ void main() {
     notifier.conversaTap();
     await settle();
 
-    expect(container.read(salaSessionProvider).knots, 0,
-        reason: 'o nó no colar é o registro de uma pergunta feita — desenhá-lo sem '
+    expect(container.read(salaSessionProvider).questionPending, isFalse,
+        reason: 'o ponto na mão é o registro de uma pergunta entregue — acendê-lo sem '
             'entrega diz a uma equipe que não lê que ela foi ouvida');
     expect(container.read(salaSessionProvider).handAck, isFalse);
+  });
+
+  test('a delivered question marks the hand pending until a reply arrives', () async {
+    final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+      ..room.turnIdInResponse = 'turno-1';
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.handTap();
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    expect(harness.inbox.questionsSent, ['sessao-1']);
+    expect(container.read(salaSessionProvider).questionPending, isTrue);
+    expect(container.read(salaSessionProvider).hasUnheardReply, isFalse);
+
+    harness.inbox.replies = const [HandReply(id: 'r1', audioUrl: '/voice/r1')];
+    harness.room.pushCoverage(
+      const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+    );
+    await waitFor(
+      'a resposta chegar à mão',
+      () => container.read(salaSessionProvider).hasUnheardReply,
+    );
+
+    expect(container.read(salaSessionProvider).questionPending, isFalse,
+        reason: 'a resposta chegou — o ponto agora é o de ouvir, não o de esperar');
   });
 
   test('an unheard reply waits on the hand and is played on tap', () async {

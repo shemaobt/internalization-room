@@ -65,6 +65,7 @@ class ConversaView extends ConsumerWidget {
           bottom: 18 + MediaQuery.viewPaddingOf(context).bottom,
           child: HandButton(
             noteMode: session.noteMode,
+            questionPending: session.questionPending,
             hasUnheardReply: session.hasUnheardReply,
             playingReply: session.playingReplyId != null,
             onTap: notifier.handTap,

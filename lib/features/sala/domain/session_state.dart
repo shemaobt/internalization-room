@@ -167,7 +167,7 @@ class SalaSessionState {
   final bool peerCue;
   final bool noteMode;
   final bool handAck;
-  final int knots;
+  final bool questionPending;
   final List<HandReply> replies;
   final String? playingReplyId;
   final List<KeptTake> keptTakes;
@@ -272,7 +272,7 @@ class SalaSessionState {
     this.peerCue = false,
     this.noteMode = false,
     this.handAck = false,
-    this.knots = 0,
+    this.questionPending = false,
     this.replies = const [],
     this.playingReplyId,
     this.keptTakes = const [],
@@ -461,7 +461,7 @@ class SalaSessionState {
     bool? peerCue,
     bool? noteMode,
     bool? handAck,
-    int? knots,
+    bool? questionPending,
     List<HandReply>? replies,
     String? playingReplyId,
     bool clearPlayingReply = false,
@@ -516,7 +516,7 @@ class SalaSessionState {
       peerCue: peerCue ?? this.peerCue,
       noteMode: noteMode ?? this.noteMode,
       handAck: handAck ?? this.handAck,
-      knots: knots ?? this.knots,
+      questionPending: questionPending ?? this.questionPending,
       replies: replies ?? this.replies,
       playingReplyId:
           clearPlayingReply ? null : (playingReplyId ?? this.playingReplyId),
