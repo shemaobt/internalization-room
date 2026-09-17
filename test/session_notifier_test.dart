@@ -2661,82 +2661,41 @@ void main() {
     expect(container.read(salaSessionProvider).stage, SalaStage.fim);
   });
 
-  test('the panorama question waits for one spoken answer at the entrada', () async {
-    final harness = SalaHarness()..room.bridgeMode = 'calibration_pending';
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    await notifier.openConvite();
-    harness.room.bridgeMode = 'guided_microchecks';
-    notifier.conviteTap();
-    await settle();
-    expect(container.read(salaSessionProvider).voice, VoiceState.listening,
-        reason: 'a pergunta do método foi feita; o círculo escuta a única resposta');
-    notifier.conviteTap();
-    await waitFor('o turno chegar à sala', () => harness.room.turnsSent == 1);
-    await settle();
-
-    expect(harness.room.turnsSent, 1,
-        reason: 'a resposta vai para a sessão do panorama, uma vez só');
-    await notifier.goConversa();
-    await settle();
-    expect(harness.room.bridgeModesSent.last, 'guided_microchecks',
-        reason: 'a escolha feita no panorama viaja com a passagem do mesmo livro');
-  });
-
-  test('a calibration turn that came back empty never reaches the room', () async {
-    final harness = SalaHarness()..room.bridgeMode = 'calibration_pending';
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    await notifier.openConvite();
-    notifier.conviteTap();
-    await settle();
-    harness.recorder.returnsEmpty = true;
-    notifier.conviteTap();
-    await settle();
-
-    expect(harness.room.turnsSent, 0,
-        reason: 'a única resposta do método subia sem um byte dentro, e o modo da '
-            'sessão inteira era escolhido em cima dela');
-    expect(container.read(salaSessionProvider).needsPerson, isTrue,
-        reason: 'e a equipe seguia para a passagem sem nada dizer que a pergunta da '
-            'entrada nunca foi respondida');
-  });
-
-  test('skipping the method answer sends no mode and never re-asks', () async {
-    final harness = SalaHarness()..room.bridgeMode = 'calibration_pending';
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    await notifier.openConvite();
-    await notifier.goConversa();
-    await settle();
-
-    expect(harness.room.turnsSent, 0,
-        reason: 'entrar direto também é uma resposta: o servidor cai para o modo adaptativo');
-    expect(harness.room.bridgeModesSent.last, isNull);
-  });
-
-  test('an explicit switch reported by a passage turn is remembered', () async {
+  test('a cold session goes straight from a touch to the guide opening, nothing '
+      'of the app before it', () async {
     final harness = SalaHarness();
-    final container = await inConversa(harness);
+    final container = harness.container();
+    addTearDown(container.dispose);
+
+    await container.read(salaSessionProvider.notifier).openConvite();
+
+    expect(harness.voice.assets, isEmpty,
+        reason: 'não há mais pergunta de método a fazer com uma fala fixa do app; '
+            'a primeira voz na sala é a do Guia, tocada pela url que a sala mandou');
+    expect(harness.voice.played, hasLength(1),
+        reason: 'e essa única fala é o turno de abertura');
+    expect(harness.room.calls, ['createSession', 'openSession'],
+        reason: 'sessão fria pede só a abertura — nada de rodada de calibração antes');
+  });
+
+  test('a bridge mode the server still reports on a turn is never captured, so a '
+      'touch at the entrada does not record an answer to it', () async {
+    final harness = SalaHarness()..room.bridgeMode = 'calibration_pending';
+    final container = harness.container();
+    addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    harness.room.bridgeMode = 'full_retell';
-    notifier.conversaTap();
-    await settle();
-    notifier.conversaTap();
-    await waitFor('o turno chegar à sala', () => harness.room.turnsSent == 1);
-    await settle();
-    await notifier.goConversa();
+    await notifier.openConvite();
+    notifier.conviteTap();
     await settle();
 
-    expect(harness.room.bridgeModesSent.last, 'full_retell',
-        reason: 'o servidor decide a troca; o tablet só a carrega para a próxima passagem');
+    expect(harness.recorder.captures, 0,
+        reason: 'antes desse fix, bridge_mode == calibration_pending armava a escuta '
+            'e esse mesmo toque começava a gravar uma resposta ao método');
+    expect(harness.room.turnsSent, 0);
+    expect(container.read(salaSessionProvider).needsPerson, isFalse,
+        reason: 'e um toque que não abre nenhuma escuta não pode travar a sala');
+    expect(container.read(salaSessionProvider).voice, VoiceState.invite);
   });
 
   test('terminei carries how much of the clip was actually heard', () async {
