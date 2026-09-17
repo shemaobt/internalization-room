@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -88,5 +89,40 @@ void main() {
     final back = await ledger.of('Ruth', 'P03');
 
     expect(back!.takes.single.path, '${gravacoes.path}/p1.m4a');
+  });
+
+  test('uma linha escrita com lugares abre igual a uma sem', () async {
+    const semLugares =
+        '{"session_id":"sessao-antiga","stage":"retro","pass":2,'
+        '"takes":[{"name":"p1.m4a","scope":"parte-1","take":"antiga-1"}]}';
+    const comLugares =
+        '{"session_id":"sessao-antiga","stage":"retro","pass":2,'
+        '"takes":[{"name":"p1.m4a","scope":"parte-1","take":"antiga-1"}],'
+        '"lugares":[{"take":"conserto-1","parte":0,"de":0,"ate":6000,'
+        '"segmento":"trecho-1","fallback_arquivo":"materna-1.m4a",'
+        '"fallback_de":0,"fallback_ate":27000}]}';
+
+    ResumePoint linha(String bruto) => ResumePoint.fromJson(
+          jsonDecode(bruto) as Map<String, Object?>,
+          folder: '/gravacoes',
+        )!;
+
+    final velha = linha(comLugares);
+    final nova = linha(semLugares);
+
+    expect(velha.sessionId, nova.sessionId);
+    expect(velha.stage, nova.stage);
+    expect(velha.pass, nova.pass);
+    expect(
+      [for (final take in velha.takes) '${take.scopeId}|${take.path}|${take.takeId}'],
+      [for (final take in nova.takes) '${take.scopeId}|${take.path}|${take.takeId}'],
+      reason: 'uma linha escrita por uma versão que ainda guardava lugares é '
+          'aberta pela chave que lhe falta, e não pela que lhe sobra: o '
+          'aparelho da equipe volta ao ponto onde parou',
+    );
+    expect(velha.toJson().containsKey('lugares'), isFalse,
+        reason: 'e ao ser reescrita a linha não leva a chave adiante — nada a '
+            'lê, e um lugar que ninguém consulta é a única fonte local que '
+            'podia discordar do servidor');
   });
 }

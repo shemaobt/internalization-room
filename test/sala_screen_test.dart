@@ -98,7 +98,7 @@ Future<ProviderContainer> pumpSala(
 
 const retellExit = 'Ouvir e traduzir esta parte de novo';
 const wholeClipExit = 'Ouvir e traduzir a gravação de novo';
-const reRecordExit = 'Gravar esta parte de novo';
+const continuarOEnsaio = 'Continuar o ensaio';
 
 Future<ProviderContainer> pumpToFindings(
   WidgetTester tester,
@@ -550,7 +550,7 @@ void main() {
     expect(bySemanticsLabelWidget(retellExit), findsNothing,
         reason: 'o par antigo de saídas deixou de existir para um achado com '
             'trecho nomeado — quem decidia era o tipo, não a equipe');
-    expect(bySemanticsLabelWidget(reRecordExit), findsNothing);
+    expect(bySemanticsLabelWidget(continuarOEnsaio), findsNothing);
   });
 
   testWidgets('an addition finding offers re-recording and nothing else',
@@ -564,7 +564,7 @@ void main() {
             'telling one stretch again, only wider — it cannot take out of the '
             'recording what the kind says is in it, so the pointer being '
             'absent must not smuggle the offer back in');
-    expect(bySemanticsLabelWidget(reRecordExit), findsOneWidget);
+    expect(bySemanticsLabelWidget(continuarOEnsaio), findsOneWidget);
   });
 
   for (final kind in [
@@ -577,7 +577,7 @@ void main() {
 
       expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
       expect(bySemanticsLabelWidget(wholeClipExit), findsOneWidget);
-      expect(bySemanticsLabelWidget(reRecordExit), findsOneWidget);
+      expect(bySemanticsLabelWidget(continuarOEnsaio), findsOneWidget);
     });
   }
 
@@ -590,7 +590,7 @@ void main() {
       expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
       final offered = bySemanticsLabelWidget(retellExit).evaluate().length +
           bySemanticsLabelWidget(wholeClipExit).evaluate().length +
-          bySemanticsLabelWidget(reRecordExit).evaluate().length;
+          bySemanticsLabelWidget(continuarOEnsaio).evaluate().length;
       expect(offered, greaterThan(0));
     });
   }

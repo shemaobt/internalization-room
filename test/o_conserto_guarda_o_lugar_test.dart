@@ -3,31 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/retro_cord.dart';
 
 import 'fakes.dart';
 
 const _umaParte = Duration(seconds: 30);
-
-/// Which stretches the cord can actually draw, by their place in the list.
-///
-/// The cord's own rule, called rather than copied: a stretch whose part it cannot place
-/// has no offset on the line, and the painter drops it. Reading it this way asks the
-/// question the team asks — "is my stretch still on the necklace?" — without knowing
-/// anything about how the answer is reached.
-List<int> _desenhados(SalaSessionState state) {
-  int? onde(Trecho trecho, Duration quando) => cordStartMs(
-        parte: trecho.parte,
-        dentroMs: quando.inMilliseconds,
-        fimDasPartes: state.btFimDasPartesMs,
-      );
-  return [
-    for (var lugar = 0; lugar < state.btTrechos.length; lugar++)
-      if (onde(state.btTrechos[lugar], state.btTrechos[lugar].from) != null &&
-          onde(state.btTrechos[lugar], state.btTrechos[lugar].to) != null)
-        lugar,
-  ];
-}
 
 /// The stretch at one place in the row, whatever the room has renamed it to.
 ///
@@ -133,27 +112,6 @@ Future<_Sala> _aSalaNaPergunta() async {
   return it;
 }
 
-/// The long way's first station: the mother tongue of the pointed stretch, recorded again.
-/// It returns with the microphone already open for the telling that must follow.
-Future<void> _regravarAMaterna(_Sala it) async {
-  final antes = it.harness.room.replacesSemArquivo.length;
-  it.sala.regravarAVozMaterna();
-  it.sala.retroTap();
-  await waitFor(
-    'o microfone abrir na materna',
-    () => it.estado.voice == VoiceState.listening,
-  );
-  it.sala.retroTap();
-  await waitFor(
-    'a voz materna nova substituir o trecho',
-    () => it.harness.room.replacesSemArquivo.length == antes + 1,
-  );
-  await waitFor(
-    'a segunda estação abrir sozinha',
-    () => it.estado.btPhase == BtPhase.capturing,
-  );
-}
-
 /// The short way, whole: choosing it opens the microphone on the stretch.
 Future<void> _escolherTraduzirDeNovo(_Sala it) async {
   it.sala.traduzirDeNovoEmPortugues();
@@ -178,32 +136,6 @@ Future<void> _entregarAPonte(_Sala it) async {
 }
 
 void main() {
-  test('o caminho longo não tira o trecho do colar', () async {
-    final it = await _aSalaNaPergunta();
-    final antes = _no(it.container, 1);
-    expect(antes.parte, 1, reason: 'o trecho apontado mora na segunda parte');
-
-    await _regravarAMaterna(it);
-
-    final naSegundaEstacao = _no(it.container, 1);
-    expect(naSegundaEstacao.parte, antes.parte,
-        reason: 'a equipe regravou a voz materna daquele trecho, não mudou o '
-            'trecho de lugar — e o lugar no colar é a única coisa nesta sala '
-            'que diz a uma equipe que não lê *onde* o conserto está');
-    expect(_desenhados(it.estado), contains(1),
-        reason: 'sem parte que o colar saiba situar, o trecho some da faixa '
-            'entre as duas estações: a equipe conserta olhando um colar que '
-            'diz que aquele trecho nunca existiu');
-
-    await _entregarAPonte(it);
-
-    expect(_no(it.container, 1).parte, antes.parte,
-        reason: 'e continua no mesmo lugar depois de traduzido de novo');
-    expect(_desenhados(it.estado), contains(1),
-        reason: 'o conserto inteiro passou, e a faixa que a equipe consertou '
-            'está onde sempre esteve');
-  });
-
   test('a ponte recém-gravada é a que se ouve, no caminho curto', () async {
     final it = await _aSalaNaPergunta();
     final aPonteAntiga = _no(it.container, 1).retroPath;
@@ -223,35 +155,19 @@ void main() {
             'enquanto o achado estiver aberto');
   });
 
-  test('depois do caminho longo, a ponte nova é a que se ouve', () async {
-    final it = await _aSalaNaPergunta();
-
-    await _regravarAMaterna(it);
-    final aMaterna = it.harness.recorder.lastPath;
-    await _entregarAPonte(it);
-    final aPonteNova = it.harness.recorder.lastPath;
-
-    expect(aPonteNova, isNot(aMaterna),
-        reason: 'as duas estações gravam arquivos diferentes');
-    expect(_no(it.container, 1).retroPath, aPonteNova,
-        reason: 'o caminho longo termina na mesma tradução de novo que o curto, e a '
-            'ponte que ficou é a que a equipe gravou agora');
-    expect(it.estado.btFindingTrecho?.retroPath, aPonteNova);
-  });
-
   test('dois consertos seguidos não perdem a ponte', () async {
     final it = await _aSalaNaPergunta();
 
-    await _regravarAMaterna(it);
+    await _escolherTraduzirDeNovo(it);
     await _entregarAPonte(it);
     await _escolherTraduzirDeNovo(it);
     await _entregarAPonte(it);
-    final aTerceiraPonte = it.harness.recorder.lastPath;
+    final aSegundaPonte = it.harness.recorder.lastPath;
 
-    expect(_no(it.container, 1).retroPath, aTerceiraPonte,
-        reason: 'um trecho que passou pelo caminho longo não fica surdo para '
-            'sempre: era assim que o usuário chegava à segunda correção sem '
-            'nenhuma ponte para escutar');
+    expect(_no(it.container, 1).retroPath, aSegundaPonte,
+        reason: 'um trecho já consertado não fica surdo para sempre: era assim '
+            'que o usuário chegava à segunda correção sem nenhuma ponte para '
+            'escutar');
   });
 
   test('a primeira contagem continua guardando o que foi gravado', () async {
@@ -268,7 +184,7 @@ void main() {
     final it = await _aSalaNaPergunta();
     final vizinhos = [_no(it.container, 0), _no(it.container, 2)];
 
-    await _regravarAMaterna(it);
+    await _escolherTraduzirDeNovo(it);
     await _entregarAPonte(it);
     await _escolherTraduzirDeNovo(it);
     await _entregarAPonte(it);

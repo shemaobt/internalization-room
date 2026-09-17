@@ -17,7 +17,7 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 
-const microfoneAzul = 'Gravar esta parte de novo';
+const microfoneAzul = 'Continuar o ensaio';
 const irParaARetro = 'Ir para a tradução';
 const umaParteInteira = Duration(seconds: 30);
 
@@ -505,22 +505,4 @@ void main() {
         reason: 'o botão que devolve ao ensaio é só para a falta sem endereço');
   });
 
-  testWidgets('recomeçar de verdade continua possível', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await aHistoriaSemOFim(tester, harness);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    await notifier.reRecordClip();
-    await tester.pump(const Duration(milliseconds: 400));
-
-    final agora = container.read(salaSessionProvider);
-    expect(agora.stage, SalaStage.ensaio);
-    expect(agora.keptTakes, isEmpty);
-    expect(agora.takes, 0);
-    expect(agora.btTrechos, isEmpty,
-        reason: 'os trechos foram retirados com o clipe; deixá-los seria pular '
-            'gravações que ninguém ouviu na próxima retro');
-    expect(harness.room.restartsAsked, ['novo-clipe'],
-        reason: 'quem quer recomeçar de verdade pede à sala que retire o clipe');
-  });
 }

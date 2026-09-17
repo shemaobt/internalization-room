@@ -10,7 +10,7 @@ import 'fakes.dart';
 
 const retellStretchExit = 'Ouvir e traduzir esta parte de novo';
 const wholeClipExit = 'Ouvir e traduzir a gravação de novo';
-const reRecordExit = 'Gravar esta parte de novo';
+const continuarOEnsaio = 'Continuar o ensaio';
 
 Finder bySemanticsLabelWidget(String label) => find.byWidgetPredicate(
       (widget) => widget is Semantics && widget.properties.label == label,
@@ -128,7 +128,7 @@ void main() {
       BtFindingKind.unclear,
     );
 
-    await tester.tap(bySemanticsLabelWidget(reRecordExit));
+    await tester.tap(bySemanticsLabelWidget(continuarOEnsaio));
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
@@ -139,10 +139,10 @@ void main() {
     final container = await pumpToFindings(tester, BtFindingKind.addition);
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
-    final offered = [retellStretchExit, wholeClipExit, reRecordExit]
+    final offered = [retellStretchExit, wholeClipExit, continuarOEnsaio]
         .where((label) => bySemanticsLabelWidget(label).evaluate().isNotEmpty)
         .toList();
-    expect(offered, [reRecordExit],
+    expect(offered, [continuarOEnsaio],
         reason: 'as duas regras valem juntas aqui. A adição pertence à '
             'gravação, e traduzir de novo não tira dela o que a equipe pôs — '
             'nem um trecho, nem a gravação inteira: as duas são a mesma '

@@ -15,17 +15,11 @@ enum ConviteStep { boasVindas, panorama, entrada }
 enum EnsaioStatus { idle, ghostPlaying, recording, recorded }
 
 /// Where the telling-back is, step by step.
-///
-/// [gravandoMaterna] is the far half of the correction the team can choose once the
-/// analyst points at a stretch: the mother tongue re-recorded, which always implies
-/// telling that stretch again over it, in that order. Redoing only the telling needs no
-/// step of its own — it is the same capture the room already knows.
 enum BtPhase {
   playing,
   capturing,
   thinking,
   findings,
-  gravandoMaterna,
   conferida,
 }
 
@@ -82,57 +76,6 @@ class Trecho {
     this.contado = true,
     required this.lugarFrom,
     required this.lugarTo,
-  });
-}
-
-/// Where a stretch mended by the long way, or rebuilt into a composed passage, sits in
-/// the rehearsal.
-///
-/// Kept beside the recordings because nothing else can say it. Both kinds of mend name a
-/// take that is no part of the rehearsal until its download lands — a take of its own for
-/// the long way, the composed passage for the other — and the room answers for a stretch
-/// with the recording and the slice, never with the place. In the round that made the
-/// mend the place is inherited from the stretch replaced; a tablet opened again, or one
-/// whose download of the composed passage keeps failing, has no such round behind it, and
-/// the stretch came back belonging to no part at all.
-class LugarDoTrecho {
-  /// The mend's own take, which is what a stretch with no place is found by on the older
-  /// kind of mend — one that never learned to name a segment.
-  final String takeId;
-  final int parte;
-  final Duration from;
-  final Duration to;
-
-  /// The stretch this place belongs to, when it is found by segment rather than by take.
-  ///
-  /// A composed passage is asked for again on every failed download, and the take it is
-  /// asked under does not change between tries — but the segment is the identity a place
-  /// is kept under regardless, because it is the one name a mend of any kind never loses.
-  final String? segmentId;
-
-  /// The best local audio to play for this stretch while [takeId] itself is not on the
-  /// tablet: a file already on it, and the range of that file to play.
-  ///
-  /// A raw path rather than another take id, because the mother tongue's own recording is
-  /// never kept as a take of the rehearsal — nothing else would resolve it back to a
-  /// file — and a rebuilt part overwrites its own take in place, leaving no take id for a
-  /// neighbour's old audio to be found by either.
-  ///
-  /// Null on a stretch with nothing better to offer, which plays nothing rather than the
-  /// wrong recording.
-  final String? fallbackPath;
-  final Duration? fallbackFrom;
-  final Duration? fallbackTo;
-
-  const LugarDoTrecho({
-    required this.takeId,
-    required this.parte,
-    required this.from,
-    required this.to,
-    this.segmentId,
-    this.fallbackPath,
-    this.fallbackFrom,
-    this.fallbackTo,
   });
 }
 

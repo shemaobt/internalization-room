@@ -11,7 +11,7 @@ import 'fakes.dart';
 
 const ouvirMaterna = 'Ouvir a voz de vocês, na língua materna';
 const ouvirRetro = 'Ouvir a tradução em português';
-const microfoneAzul = 'Gravar esta parte de novo';
+const microfoneAzul = 'Continuar o ensaio';
 
 Finder byLabel(String label) => find.byWidgetPredicate(
       (widget) => widget is Semantics && widget.properties.label == label,
@@ -96,8 +96,9 @@ void main() {
     expect(container.read(salaSessionProvider).stage, SalaStage.ensaio,
         reason: 'a voz de madeira que a equipe escolhe é a da parte inteira: o '
             'microfone por trecho saiu da tela, e o que fica é o ensaio');
-    expect(container.read(salaSessionProvider).btPhase,
-        isNot(BtPhase.gravandoMaterna));
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.playing,
+        reason: 'e a sala volta a tocar a gravação: o caminho de madeira leva '
+            'do achado ao ensaio, sem posto nenhum entre os dois');
   });
 
   testWidgets('falta sem endereço continua indo ao ensaio', (tester) async {

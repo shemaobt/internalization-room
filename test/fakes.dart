@@ -28,7 +28,6 @@ import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
-import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/release.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -535,10 +534,6 @@ class FakeRoom implements RoomRepository {
   /// The bytes each take's audio comes back as, so a test can tell one file from another.
   final Map<String, Uint8List> takeAudio = {};
 
-  /// The name the rebuilt passage gets, when this room rebuilds one. Null is a room that
-  /// composes nothing — a short correction, or a rebuilding that could not be done.
-  String? composesInto;
-
   /// What listing the takes throws, when it is set.
   Exception? failTakesWith;
   /// The stretches this room kept, in the order they were told. A room that forgets what
@@ -564,16 +559,13 @@ class FakeRoom implements RoomRepository {
   void Function()? duranteOVeredito;
   bool replaceCaptured = true;
 
-  /// Whether the room answers a correction *that carries audio* by asking for a person.
-  /// False is also what a server that does not send the field at all looks like from
-  /// here. The no-audio call (the mother tongue's own re-record) never honours this —
-  /// see the comment on `replaceSegment` for why.
+  /// Whether the room answers a correction by asking for a person. False is also what a
+  /// server that does not send the field at all looks like from here.
   bool replaceNeedsPerson = false;
   /// Which stretch each retelling named, and the slice it sent, in order.
   final List<String> replacesAsked = [];
-  /// Which stretches arrived as a new mother-tongue recording — a replacement carrying no
-  /// explanation, which is the only shape the room accepts for a re-recorded voice.
-  final List<String> replacesSemArquivo = [];
+  /// The recording each retelling carried up, by the file it was, in order.
+  final List<String> replacesComArquivo = [];
   int _versoes = 0;
   /// Which stretch each division named, and where it was cut, in order.
   final List<String> dividesAsked = [];
@@ -819,7 +811,7 @@ class FakeRoom implements RoomRepository {
   Future<TellingAgain> replaceSegment(
     String sessionId,
     String segmentId,
-    File? audio, {
+    File audio, {
     required String takeId,
     required Duration from,
     required Duration to,
@@ -830,13 +822,8 @@ class FakeRoom implements RoomRepository {
     replacesAsked.add(
       '$segmentId@$takeId:${from.inMilliseconds}-${to.inMilliseconds}',
     );
-    if (audio == null) replacesSemArquivo.add(segmentId);
-    // With no audio, nothing is told back — the room only repositions the mother tongue
-    // over a recording it already has, so the real route never touches the retell budget
-    // on this shape of the call. `replaceNeedsPerson` models the room giving out on an
-    // *attempt*, and a no-audio call is not one; a double that answered `needsPerson` here
-    // anyway would let a test pass by proving a state the server cannot produce.
-    final needsPerson = audio == null ? false : replaceNeedsPerson;
+    replacesComArquivo.add(audio.path);
+    final needsPerson = replaceNeedsPerson;
     if (!replaceCaptured) {
       return TellingAgain(
         segments: List.of(segments),
@@ -847,79 +834,26 @@ class FakeRoom implements RoomRepository {
     final at = segments.indexWhere((one) => one.segmentId == segmentId);
     final antes = at >= 0 ? segments[at] : null;
     if (antes != null) {
-      // The route has two shapes and this double owes both. With audio over the same
-      // slice, the explanation was redone and the stretch is told. With no audio the
-      // mother tongue was re-recorded: the stretch takes the new recording and its slice,
-      // and goes back to waiting — the telling that belonged to the audio nobody will
-      // hear again does not carry over.
+      // The explanation was redone over a recording that did not move, so the stretch
+      // keeps its take and its slice and is told again.
       // A version is a new row, not an edit in place: the room mints a fresh id for the
       // successor and retires the one it replaces. A double that kept the id would let an
       // app follow a pointer the room has already thrown away.
       segments[at] = SegmentView(
         segmentId: '${antes.segmentId}-v${++_versoes}',
-        takeId: audio == null ? takeId : antes.takeId,
-        startsMs: audio == null ? from.inMilliseconds : antes.startsMs,
-        endsMs: audio == null ? to.inMilliseconds : antes.endsMs,
+        takeId: antes.takeId,
+        startsMs: antes.startsMs,
+        endsMs: antes.endsMs,
         passNumber: antes.passNumber,
-        told: audio != null,
+        told: true,
       );
     }
     return TellingAgain(
       segments: List.of(segments),
       captured: true,
       needsPerson: needsPerson,
-      composedTakeId: audio == null ? _recompose(antes, at) : null,
     );
   }
-
-  /// Rebuild the passage under a stretch just re-recorded, and re-point every stretch that
-  /// was a slice of the recording it replaced.
-  ///
-  /// The room's own arithmetic: a boundary at or before the start of the corrected stretch
-  /// stays put, and one past it moves by the difference the correction made. Not a new
-  /// version of any of them — the same sound at a different offset in a different file —
-  /// so every neighbour keeps the name it already had.
-  ///
-  /// Nothing is rebuilt when the mother tongue did not move to another recording, which is
-  /// the short correction, and nothing is rebuilt when [composesInto] is unset, which is
-  /// how a room without an encoder answers.
-  String? _recompose(SegmentView? replaced, int at) {
-    final rebuilt = composesInto;
-    if (rebuilt == null || replaced == null || at < 0) return null;
-    final version = segments[at];
-    if (version.takeId == replaced.takeId) return null;
-    final started = replaced.startsMs;
-    final grew = (version.endsMs - version.startsMs) -
-        (replaced.endsMs - replaced.startsMs);
-    int moved(int ms) => ms <= started ? ms : ms + grew;
-    for (var onde = 0; onde < segments.length; onde++) {
-      final row = segments[onde];
-      if (onde == at) {
-        segments[onde] = _pointedAt(row, rebuilt, started, moved(replaced.endsMs));
-      } else if (row.takeId == replaced.takeId) {
-        segments[onde] =
-            _pointedAt(row, rebuilt, moved(row.startsMs), moved(row.endsMs));
-      }
-    }
-    final was = takes.where((take) => take.takeId == replaced.takeId);
-    takes.add(TakeView(
-      takeId: rebuilt,
-      scope: KeptScope.composed,
-      ordinal: was.isEmpty ? null : was.first.ordinal,
-    ));
-    takeAudio[rebuilt] = Uint8List.fromList(utf8.encode('áudio de $rebuilt'));
-    return rebuilt;
-  }
-
-  SegmentView _pointedAt(SegmentView row, String takeId, int starts, int ends) =>
-      SegmentView(
-        segmentId: row.segmentId,
-        takeId: takeId,
-        startsMs: starts,
-        endsMs: ends,
-        passNumber: row.passNumber,
-        told: row.told,
-      );
 
   @override
   Future<List<SegmentView>> divideSegment(

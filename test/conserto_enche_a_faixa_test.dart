@@ -84,33 +84,10 @@ Future<ProviderContainer> _pumpToPergunta(
   return container;
 }
 
-/// The long way's first gesture: choosing to re-record the mother tongue. No microphone
-/// is open yet and nothing has been sent.
-Future<void> _escolherRegravarAMaterna(
-  WidgetTester tester,
-  ProviderContainer container,
-) async {
-  container.read(salaSessionProvider.notifier).regravarAVozMaterna();
-  await tester.pump(const Duration(milliseconds: 300));
-}
-
 /// The short way, which opens the microphone on the stretch straight away.
 Future<void> _escolherTraduzirDeNovo(WidgetTester tester) async {
   await tester.tap(_byLabel(_micRetro));
   await tester.pump(const Duration(milliseconds: 300));
-}
-
-/// Tap to start, tap to stop: the mother tongue recorded again, and the second station
-/// opens on its own.
-Future<void> _gravarAMaterna(
-  WidgetTester tester,
-  ProviderContainer container,
-) async {
-  _notifier(container).retroTap();
-  await tester.pump(const Duration(milliseconds: 200));
-  _notifier(container).retroTap();
-  await letTheRehearsalReachTheRoom(tester);
-  await tester.pump(const Duration(milliseconds: 400));
 }
 
 /// The microphone is open on the stretch; this is the team handing the telling over.
@@ -133,23 +110,6 @@ void main() {
             'apontou continua em ordem');
   });
 
-  testWidgets('a faixa enche ao escolher regravar a materna, antes de gravar',
-      (tester) async {
-    final container = await _pumpToPergunta(tester);
-    final harness = _harnessDaVez!;
-    final pedidos = harness.room.calls.length;
-
-    await _escolherRegravarAMaterna(tester, container);
-
-    expect(_faixasVazias(tester, container), isEmpty,
-        reason: 'a equipe começou a consertar, então o trecho deixou de ser o '
-            'que espera conserto — é a janela inteira em que o colar dizia que '
-            'nada tinha sido feito');
-    expect(harness.room.calls.length, pedidos,
-        reason: 'e enche sem a rede: nada foi pedido ao servidor ainda, então o '
-            'enchimento não pode estar vindo de resposta nenhuma');
-  });
-
   testWidgets('a faixa enche ao escolher traduzir de novo só na língua-ponte',
       (tester) async {
     final container = await _pumpToPergunta(tester);
@@ -159,33 +119,9 @@ void main() {
     await _escolherTraduzirDeNovo(tester);
 
     expect(_faixasVazias(tester, container), isEmpty,
-        reason: 'os dois caminhos vivos precisam concordar: consertar é '
-            'consertar, e o colar não pode julgar qual voz a equipe escolheu');
+        reason: 'a promessa é feita ao escolher, antes de qualquer coisa ir '
+            'para a sala: a faixa está de pé porque o conserto começou');
     expect(harness.room.calls.length, pedidos);
-  });
-
-  testWidgets('a faixa não pisca: cheia ao começar, gravando e entregue',
-      (tester) async {
-    final container = await _pumpToPergunta(tester);
-
-    await _escolherRegravarAMaterna(tester, container);
-    final aoEscolher = _faixasVazias(tester, container);
-    _notifier(container).retroTap();
-    await tester.pump(const Duration(milliseconds: 200));
-    final gravandoAMaterna = _faixasVazias(tester, container);
-    _notifier(container).retroTap();
-    await letTheRehearsalReachTheRoom(tester);
-    await tester.pump(const Duration(milliseconds: 400));
-    final naSegundaEstacao = _faixasVazias(tester, container);
-    await _entregarATraducao(tester, container);
-    final entregue = _faixasVazias(tester, container);
-
-    expect(
-      [aoEscolher, gravandoAMaterna, naSegundaEstacao, entregue],
-      [isEmpty, isEmpty, isEmpty, isEmpty],
-      reason: 'um enchimento que se desfaz no meio e volta é pior que nenhum: a '
-          'equipe leria cada oscilação como um veredito novo',
-    );
   });
 
   testWidgets('uma gravação que não devolveu arquivo esvazia a faixa de novo',
@@ -261,11 +197,8 @@ void main() {
     final container = await _pumpToPergunta(tester);
     final harness = _harnessDaVez!;
 
-    await _escolherRegravarAMaterna(tester, container);
-    expect(_faixasVazias(tester, container), isEmpty);
     harness.recorder.startThrows = true;
-    _notifier(container).retroTap();
-    await tester.pump(const Duration(milliseconds: 300));
+    await _escolherTraduzirDeNovo(tester);
 
     expect(container.read(salaSessionProvider).needsPerson, isTrue,
         reason: 'gravador que não abriu é o caminho que para para uma pessoa — '
@@ -282,10 +215,8 @@ void main() {
     final container = await _pumpToPergunta(tester);
     final harness = _harnessDaVez!;
 
-    await _escolherRegravarAMaterna(tester, container);
     harness.recorder.startThrows = true;
-    _notifier(container).retroTap();
-    await tester.pump(const Duration(milliseconds: 300));
+    await _escolherTraduzirDeNovo(tester);
     expect(_faixasVazias(tester, container), [0]);
 
     harness.recorder.startThrows = false;
@@ -295,7 +226,11 @@ void main() {
     _notifier(container).resolveWithPerson();
     await tester.pump(const Duration(milliseconds: 300));
     final capturasAntes = harness.recorder.captures;
-    _notifier(container).retroTap();
+    // The refused microphone put the team back on the rehearsal, so the way back into the
+    // mend is the other door the short way has: the stretch tapped on the cord.
+    await _notifier(container).traduzirDeNovo(
+      container.read(salaSessionProvider).btTrechos.first,
+    );
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(harness.recorder.captures, capturasAntes + 1,
@@ -319,8 +254,8 @@ void main() {
     expect(_faixasVazias(tester, container), isEmpty);
     // The one hang the ladder never sees: the room's own watchdog gives up on a busy
     // state, and it is not a room failure — it is this tablet deciding the wait is over.
-    // Everything the two stations await inside that window is local and has no timeout of
-    // its own, and stopping the recorder is one of them.
+    // Everything the mend awaits inside that window is local and has no timeout of its
+    // own, and stopping the recorder is one of them.
     harness.recorder.holdNextStop();
     _notifier(container).retroTap();
     await tester.pump(const Duration(milliseconds: 200));
@@ -342,25 +277,6 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('uma voz materna que falhou esvazia a faixa de novo',
-      (tester) async {
-    final container = await _pumpToPergunta(tester);
-    final harness = _harnessDaVez!;
-
-    await _escolherRegravarAMaterna(tester, container);
-    expect(_faixasVazias(tester, container), isEmpty);
-    harness.recorder.returnsEmpty = true;
-    await _gravarAMaterna(tester, container);
-
-    expect(harness.room.replacesAsked, isEmpty,
-        reason: 'a voz vazia não chegou a substituir nada — se chegar, este '
-            'cenário deixou de medir uma falha');
-    expect(_faixasVazias(tester, container), [0],
-        reason: 'a primeira estação do caminho longo falhou, e a equipe voltou '
-            'para a pergunta com o trecho ainda esperando conserto');
-    closeTheRoom(container);
-  });
-
   testWidgets('um veredito que reprova o mesmo trecho esvazia a faixa de novo',
       (tester) async {
     final container = await _pumpToPergunta(tester);
@@ -372,8 +288,7 @@ void main() {
     // end of a correction — naming the stretch afterwards would be answering a question
     // that had already been asked, and the second one the room rightly refuses.
     harness.room.verdictFindingPlace = 0;
-    await _escolherRegravarAMaterna(tester, container);
-    await _gravarAMaterna(tester, container);
+    await _escolherTraduzirDeNovo(tester);
     await _entregarATraducao(tester, container);
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 200));
@@ -398,8 +313,7 @@ void main() {
         .btTrechos
         .firstWhere((trecho) => trecho.segmentId == 'trecho-2');
 
-    await _escolherRegravarAMaterna(tester, container);
-    await _gravarAMaterna(tester, container);
+    await _escolherTraduzirDeNovo(tester);
     await _entregarATraducao(tester, container);
 
     // Where the bands sit, which the drained-places reading cannot see: it answers which

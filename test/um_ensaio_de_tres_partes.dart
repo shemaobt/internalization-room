@@ -75,11 +75,9 @@ Future<void> ouvirETraduzirAParteInteira(Sala it, Duration quanto) async {
 /// The rehearsal recorded in three parts, every one of them told back whole and played to
 /// its end, standing with *terminei* lit and nothing pressed yet.
 Future<Sala> umEnsaioDeTresPartesContadoInteiro({
-  String? compoeEm,
   Duration? tetoDaEspera,
 }) async {
-  final harness = SalaHarness(busyCeiling: tetoDaEspera)
-    ..room.composesInto = compoeEm;
+  final harness = SalaHarness(busyCeiling: tetoDaEspera);
   final container = harness.container();
   addTearDown(container.dispose);
   final it = Sala(harness, container);
@@ -123,12 +121,6 @@ Future<void> pedirOVeredito(Sala it) async {
     () => it.estado.btPhase != BtPhase.thinking,
   );
 }
-
-/// The name the room gives the recording it rebuilds around a mend of this rehearsal, and
-/// how long that recording is: shorter than the part it takes the place of, so a length
-/// carried over from the file it replaced shows on the cord.
-const composta = 'C';
-const aComposta = Duration(seconds: 5);
 
 KeptTake parteDois(Sala it) => it.estado.keptTakes.firstWhere(
       (take) => take.scopeId == KeptScope.parte(2),
