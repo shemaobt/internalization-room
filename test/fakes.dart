@@ -522,7 +522,6 @@ class FakeRoom implements RoomRepository {
 
   final List<String> calls = [];
   final List<String?> pericopesAsked = [];
-  final List<String?> bridgeModesSent = [];
   final List<String> languagesSent = [];
   final List<String> languagesAsked = [];
   final List<List<Map<String, Object?>>> playedByTakeSent = [];
@@ -782,7 +781,6 @@ class FakeRoom implements RoomRepository {
   Future<SessionSnapshot> createSession({
     String? pericope,
     String? afterSession,
-    String? bridgeMode,
     required String language,
   }) async {
     _guard('createSession');
@@ -794,7 +792,6 @@ class FakeRoom implements RoomRepository {
     }
     pericopesAsked.add(pericope);
     metBefore.add(afterSession != null);
-    bridgeModesSent.add(bridgeMode);
     languagesSent.add(language);
     // The server decides which passage a session is for; asking for the panorama is a
     // request, not an instruction. Today it always honours "OV", and this is where that
