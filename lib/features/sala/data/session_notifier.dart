@@ -974,11 +974,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state = state.copyWith(voice: VoiceState.done, peerCue: false);
       }
     } on SessionGone {
-      // Retrying a session the server has forgotten just spends the budget. The invite
-      // disc used to keep breathing over it while the team spoke a whole turn into a
-      // session that no longer existed.
       if (epoch != _epoch) return;
-      _haltForAPerson(sessionIsGone: true);
+      _leaveTheDeadPassage();
     } on RoomRefused {
       if (epoch != _epoch) return;
       _haltForAPerson();

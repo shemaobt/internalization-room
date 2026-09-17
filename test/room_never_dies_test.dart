@@ -782,7 +782,8 @@ void main() {
         reason: 'e a queda voltava a se curar sozinha');
   });
 
-  test('a settle that finds the session gone halts instead of retrying', () async {
+  test('a settle that finds the session gone returns to the wheel instead of halting',
+      () async {
     final harness = SalaHarness(settleDelay: const Duration(milliseconds: 40));
     final container = harness.container();
     addTearDown(container.dispose);
@@ -791,17 +792,16 @@ void main() {
     // failure here catches that one poll, which is the only thing that reads the session
     // between turns.
     await container.read(salaSessionProvider.notifier).goConversa();
-    harness.room.failWith = const SessionGone();
-    await waitFor('a sala pedir uma pessoa',
-      () => container.read(salaSessionProvider).needsPerson,
+    harness.room.failStateOnceWith = const SessionGone();
+    await waitFor('a sala voltar para a roda',
+      () => container.read(salaSessionProvider).stage == SalaStage.escolha,
       limit: const Duration(seconds: 3),
     );
 
     final state = container.read(salaSessionProvider);
-    expect(state.sessionId, isNull,
-        reason: 'o 404 caía no catch genérico e virava mais uma tentativa; o disco de '
-            'convite seguia respirando sobre uma sessão que o servidor já esqueceu, e a '
-            'equipe falava um turno inteiro dentro dela');
+    expect(state.needsPerson, isFalse,
+        reason: 'o 404 do settle caía no mesmo funil de um turno; a equipe volta para a '
+            'roda em silêncio em vez de ficar parada esperando alguém');
   });
 
   test('a denied microphone leaves no screen pretending to record', () async {
