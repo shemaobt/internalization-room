@@ -838,6 +838,28 @@ void main() {
         reason: 'o panorama é do livro; a sessão da perícope nasce ao entrar');
   });
 
+  test('a question raised during the panorama posts against the panorama session',
+      () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.openConvite();
+
+    notifier.handTap();
+    expect(container.read(salaSessionProvider).noteMode, isTrue,
+        reason: 'a mão existe durante o panorama, a sessão inteira');
+
+    notifier.conviteTap();
+    notifier.conviteTap();
+    await settle();
+
+    expect(harness.inbox.questionsSent, ['sessao-1'],
+        reason: 'sem sessão de perícope ainda, a pergunta vai para o panorama');
+    expect(container.read(salaSessionProvider).stage, SalaStage.convite);
+  });
+
   test('entering after the panorama says the team already met the facilitator',
       () async {
     final harness = SalaHarness();

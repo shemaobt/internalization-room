@@ -9,7 +9,6 @@ import '../../domain/session_state.dart';
 import 'bead.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
-import 'hand_button.dart';
 import 'motion.dart';
 
 class ConversaView extends ConsumerWidget {
@@ -58,17 +57,6 @@ class ConversaView extends ConsumerWidget {
                     : null,
               ),
             ],
-          ),
-        ),
-        Positioned(
-          left: 14,
-          bottom: 18 + MediaQuery.viewPaddingOf(context).bottom,
-          child: HandButton(
-            noteMode: session.noteMode,
-            questionPending: session.questionPending,
-            hasUnheardReply: session.hasUnheardReply,
-            playingReply: session.playingReplyId != null,
-            onTap: notifier.handTap,
           ),
         ),
         if (session.handAck)

@@ -1106,6 +1106,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       return;
     }
+    if (state.playingReplyId != null) return;
+    if (state.noteMode) {
+      _noteTap();
+      return;
+    }
     if (state.voice != VoiceState.invite) return;
     if (state.conviteStep == ConviteStep.boasVindas) unawaited(openConvite());
   }
@@ -1741,10 +1746,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void handTap() {
-    // The hand lives on the conversa, but the outgoing screen stays hit-testable for the
-    // 400 ms the switcher takes, so a finger already travelling lands here from the next
-    // stage — and starts a question recording no screen shows and no gesture stops.
-    if (state.stage != SalaStage.conversa) return;
+    // The hand lives on the convite and the conversa, but the outgoing screen stays
+    // hit-testable for the 400 ms the switcher takes, so a finger already travelling
+    // lands here from the next stage — and starts a question recording no screen shows
+    // and no gesture stops.
+    if (state.stage != SalaStage.conversa && state.stage != SalaStage.convite) {
+      return;
+    }
     if (state.offline) {
       // `_haltForAPerson` writes over `voice: offline`, and every way back — the retry
       // timer, the network watch, the touch — is guarded on `state.offline`. One tap on
@@ -1874,7 +1882,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final epoch = _epoch;
     final path = await _recorder.stop();
     if (epoch != _epoch) return;
-    final sessionId = state.sessionId;
+    final sessionId =
+        state.stage == SalaStage.convite ? _panoramaSessionId : state.sessionId;
     if (path == null || !_hasAudio(path) || sessionId == null) {
       // The team raised their hand, spoke a question, and nothing came back from the
       // recorder. Returning to the invite in silence is the room forgetting they asked.
