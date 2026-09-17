@@ -479,6 +479,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _captureBridgeMode(turn);
     state = state.copyWith(coverage: turn.coverage);
     _awaitCoverageSettle(turn);
+    _scheduleInboxPoll();
     await _readyToSpeak(turn.audioUrl, turn.fixedLine);
     if (epoch != _epoch) return;
     if (turn.audioUrl.isEmpty && turn.fixedLine.isEmpty) {
@@ -516,6 +517,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _degradedTurns = 0;
     }
     _awaitCoverageSettle(turn);
+    _scheduleInboxPoll();
   }
 
   /// The opening said in the two movements the room wrote it in.
@@ -928,6 +930,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     });
   }
 
+  void _scheduleInboxPoll() {
+    _after('inbox-poll', ref.read(roomPollDelayProvider), () {
+      unawaited(_pullInbox());
+    });
+  }
+
   void _watchCoverageChannel(String sessionId) {
     if (_coverageSessionId == sessionId) return;
     unawaited(_coverageWatch?.cancel());
@@ -951,7 +959,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _resolvedCoverageTurnId = turnId;
     _timers.remove('coverage')?.cancel();
     if (pullState) unawaited(_pullState(sessionId).catchError((_) {}));
-    unawaited(_pullInbox());
   }
 
   Future<void> _pullState(String sessionId) async {

@@ -8,7 +8,6 @@ import 'package:http/http.dart' as http;
 
 import '../../../core/config/env.dart';
 import '../domain/bt_finding.dart';
-import '../domain/coverage.dart';
 import '../domain/coverage_event.dart';
 import '../domain/device_link.dart';
 import '../domain/escuta_das_partes.dart';
@@ -233,7 +232,10 @@ class RoomRepository {
         final response = await _client.send(
           http.Request('GET', _uri('/sessions/$sessionId/coverage'))..headers.addAll(_headers),
         );
-        if (cancelled) return;
+        if (cancelled) {
+          unawaited(response.stream.listen(null).cancel());
+          return;
+        }
         String? eventName;
         final data = StringBuffer();
         lineSub = utf8.decoder.bind(response.stream).transform(const LineSplitter()).listen(
@@ -273,13 +275,7 @@ class RoomRepository {
         _ => null,
       };
       if (turnId == null || status == null) return null;
-      return CoverageEvent(
-        turnId: turnId,
-        status: status,
-        coverage: json['coverage'] == null
-            ? null
-            : Coverage.fromJson((json['coverage'] as Map).cast<String, dynamic>()),
-      );
+      return CoverageEvent(turnId: turnId, status: status);
     } on FormatException {
       return null;
     }

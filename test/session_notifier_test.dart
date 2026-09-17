@@ -660,6 +660,34 @@ void main() {
             'o mesmo id no fim da fala é o poll cego que este ticket tirou');
   });
 
+  test('the hand inbox is still checked after a turn with nothing to wait on',
+      () async {
+    final harness = SalaHarness(settleDelay: const Duration(milliseconds: 40));
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.goConversa();
+    await settle(const Duration(milliseconds: 200));
+
+    harness.inbox.replies = [const HandReply(id: 'r1', audioUrl: 'a.mp3')];
+    harness.room.classificationPending = false;
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    await settle();
+
+    await waitFor(
+      'a caixa da mesa chegar',
+      () => container.read(salaSessionProvider).replies.isNotEmpty,
+    );
+
+    expect(container.read(salaSessionProvider).replies.single.id, 'r1',
+        reason: 'nada de coverage pendente pra esperar não pode significar nada de '
+            'caixa da mesa pra checar — são dois pedidos diferentes que só '
+            'compartilhavam um timer');
+  });
+
   test('the server closing the session puts the circle at rest', () async {
     final harness = SalaHarness()..room.done = true;
     final container = await inConversa(harness);

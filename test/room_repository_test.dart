@@ -419,7 +419,30 @@ void main() {
             'escuta ser ligada mesmo assim quando a resposta finalmente chega');
   });
 
-  test('a settled frame on the coverage channel names its turn and its numbers',
+  test('cancelling while the connection is still opening still closes the socket, not just the app\'s own read',
+      () async {
+    final connecting = Completer<http.StreamedResponse>();
+    var listens = 0;
+    final controller = StreamController<List<int>>(onListen: () => listens++);
+    final repository = RoomRepository(
+      client: MockClient.streaming((request, bodyStream) => connecting.future),
+    );
+    addTearDown(repository.dispose);
+
+    final subscription = repository.watchCoverage('sessao-1').listen((_) {});
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    await subscription.cancel();
+    connecting.complete(http.StreamedResponse(controller.stream, 200));
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(listens, greaterThan(0),
+        reason: 'abandonar a resposta sem nunca tocá-la deixa o socket aberto do '
+            'lado do servidor; fechar de verdade passa por escutar e cancelar, '
+            'não por simplesmente nunca escutar');
+  });
+
+  test('a settled frame on the coverage channel names its turn and its status',
       () async {
     final controller = StreamController<List<int>>();
     final repository = RoomRepository(
@@ -447,7 +470,6 @@ void main() {
     expect(frames, hasLength(1));
     expect(frames.single.turnId, 'turno-1');
     expect(frames.single.status, CoverageStatus.settled);
-    expect(frames.single.coverage?.engaged, 3);
   });
 
   test('a keep-alive on the coverage channel produces nothing, and the channel keeps talking',
