@@ -376,6 +376,28 @@ void main() {
     );
   }, timeout: const Timeout(Duration(seconds: 90)));
 
+  test('cancelling a coverage subscription closes the connection, not only the callback',
+      () async {
+    final controller = StreamController<List<int>>();
+    final repository = RoomRepository(
+      client: MockClient.streaming(
+        (request, bodyStream) async => http.StreamedResponse(controller.stream, 200),
+      ),
+    );
+    addTearDown(repository.dispose);
+
+    final subscription = repository.watchCoverage('sessao-1').listen((_) {});
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(controller.hasListener, isTrue);
+
+    await subscription.cancel();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(controller.hasListener, isFalse,
+        reason: 'a sala troca de sessão a cada passagem; uma escuta cancelada que '
+            'continua lendo o socket do servidor vaza uma conexão por passagem');
+  });
+
   test('a settled frame on the coverage channel names its turn and its numbers',
       () async {
     final controller = StreamController<List<int>>();

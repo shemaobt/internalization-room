@@ -208,6 +208,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   StreamSubscription<CoverageEvent>? _coverageWatch;
   String? _coverageSessionId;
   String? _awaitingCoverageTurnId;
+  String? _resolvedCoverageTurnId;
   StreamSubscription<bool>? _micWatch;
   VoidCallback? _onPlaybackComplete;
   VoidCallback? _onPlaybackFailed;
@@ -907,16 +908,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// Arms the wait for the coverage channel to say what this turn's classification
   /// decided. A turn the server never meant to grade — no id, or nothing pending — has
   /// nothing to wait for, so it is not the panorama's own turns that skip this: it is any
-  /// turn the server already settled by the time it answered.
+  /// turn the server already settled by the time it answered. Called twice per turn, once
+  /// before it speaks and once after — a turn the channel already settled while it spoke
+  /// stays settled, rather than being rearmed for the same wait a second time.
   void _awaitCoverageSettle(TurnResult turn) {
     final sessionId = state.sessionId;
     final turnId = turn.turnId;
-    if (sessionId == null || turnId == null || !turn.classificationPending) return;
+    if (sessionId == null ||
+        turnId == null ||
+        !turn.classificationPending ||
+        turnId == _resolvedCoverageTurnId) {
+      return;
+    }
     _watchCoverageChannel(sessionId);
     _awaitingCoverageTurnId = turnId;
     _after('coverage', ref.read(coverageFallbackDelayProvider), () {
       if (_awaitingCoverageTurnId != turnId) return;
-      _resolveCoverageWait(sessionId, pullState: true);
+      _resolveCoverageWait(sessionId, turnId, pullState: true);
     });
   }
 
@@ -931,11 +939,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (frame.turnId != _awaitingCoverageTurnId) return;
     final sessionId = state.sessionId;
     if (sessionId == null) return;
-    _resolveCoverageWait(sessionId, pullState: frame.status == CoverageStatus.settled);
+    _resolveCoverageWait(
+      sessionId,
+      frame.turnId,
+      pullState: frame.status == CoverageStatus.settled,
+    );
   }
 
-  void _resolveCoverageWait(String sessionId, {required bool pullState}) {
+  void _resolveCoverageWait(String sessionId, String turnId, {required bool pullState}) {
     _awaitingCoverageTurnId = null;
+    _resolvedCoverageTurnId = turnId;
     _timers.remove('coverage')?.cancel();
     if (pullState) unawaited(_pullState(sessionId).catchError((_) {}));
     unawaited(_pullInbox());
