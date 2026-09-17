@@ -44,9 +44,6 @@ const _roomFailuresBeforeNeedsPerson = 3;
 /// How many times the room may answer nothing before the app stops waiting for it.
 const _slowAnswersBeforeGivingUp = 3;
 
-/// How many times the inbox may fail to answer before the room says so out loud.
-const _inboxSilencesBeforeSayingSo = 3;
-
 /// How many degraded turns in a row before the room stops pretending it is working.
 const _degradedTurnsBeforeAPerson = 3;
 
@@ -147,7 +144,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// still has to be able to end the part — so it cannot be what tells a ceiling whether
   /// there is any sound left to measure.
   bool _clipHeld = false;
-  int _inboxSilences = 0;
   int _degradedTurns = 0;
   int _captureFails = 0;
   Duration _trechoStart = Duration.zero;
@@ -1745,12 +1741,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _pullInbox() async {
     final fetched = await _inbox.fetchReplies();
-    if (fetched == null) {
-      _inboxSilences++;
-      if (_inboxSilences >= _inboxSilencesBeforeSayingSo) _haltForAPerson();
-      return;
-    }
-    _inboxSilences = 0;
+    if (fetched == null) return;
     if (fetched.isEmpty || _gone) return;
     final known = {for (final reply in state.replies) reply.id: reply};
     state = state.copyWith(
@@ -1801,21 +1792,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// the ability to ask anything else.
   Future<void> _playReply(HandReply reply) async {
     final epoch = _epoch;
-    final played = await _voice.play(reply.audioUrl);
+    await _voice.play(reply.audioUrl);
     if (epoch != _epoch) return;
     unawaited(_markHeard(reply.id));
-    if (played) return;
-    // No strike count here, unlike every other line. A reply the room could not play is
-    // one only a person can now relay, so it calls for one at once; giving this path the
-    // three strikes a turn gets would lose three answers before anyone was called, and a
-    // turn survives its strikes only because the room can say it again.
-    //
-    // The mark above is no longer unconditional, so a reply that did not play and whose
-    // mark the desk turns down does come back to the list. That is the honest state and
-    // it was chosen over a retry: the desk never learned, so the reply is still owed. It
-    // is not the trap the doc above describes, because the room is halted from here and
-    // the hand answers no one until a person resolves it.
-    _haltForAPerson();
   }
 
   /// A reply is heard when the desk agrees, and not before.
@@ -4316,7 +4295,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _haltWatched = null;
     _traduzindoDeNovo = false;
     _trechoTraduzidoDeNovo = null;
-    _inboxSilences = 0;
     _degradedTurns = 0;
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
