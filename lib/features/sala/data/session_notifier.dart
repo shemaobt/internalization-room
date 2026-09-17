@@ -715,9 +715,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case RoomRefused():
         _haltForAPerson();
       case SessionGone():
-        _haltForAPerson(sessionIsGone: true);
+        _leaveTheDeadPassage();
       case PassageShut():
-        _haltForAPerson();
+        _leaveTheDeadPassage();
       case RoomBroke():
         _registerRoomFailure();
       case RoomSlow():
@@ -1344,6 +1344,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _forgetThePassage();
     state = const SalaSessionState();
     unawaited(abrirEscolha());
+  }
+
+  void _leaveTheDeadPassage() {
+    final pericope = _emCurso;
+    if (pericope != null) {
+      unawaited(_mindingThePlace(() => _emAberto.forget(_book, pericope)));
+    }
+    leaveThePassage();
   }
 
   /// Enter a passage, resuming the session this tablet left in it when there is one.
