@@ -266,10 +266,12 @@ void main() {
     harness.recorder.startThrows = true;
     _notifier(container).retroTap();
     await tester.pump(const Duration(milliseconds: 300));
+    _notifier(container).retroTap();
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).needsPerson, isTrue,
-        reason: 'gravador que não abriu é o caminho que para para uma pessoa — '
-            'se isso mudar, este cenário deixou de medir o que diz');
+        reason: 'gravador que não abriu duas vezes seguidas é o caminho que para '
+            'para uma pessoa — se isso mudar, este cenário deixou de medir o que diz');
     expect(_faixasVazias(tester, container), [0],
         reason: 'a equipe se ofereceu para consertar e a sala não conseguiu '
             'ouvir: a faixa cheia prometeria um trabalho que o microfone nunca '
