@@ -1117,7 +1117,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final panorama = _panoramaSessionId;
     if (path == null || !_hasAudio(path)) {
       state = state.copyWith(voice: VoiceState.invite);
-      _haltForAPerson();
       return;
     }
     if (panorama == null) {
@@ -1694,7 +1693,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // as an ordinary return to the invite is the same silence `_finishTake` used to
       // keep, one method over.
       state = state.copyWith(voice: VoiceState.invite);
-      _haltForAPerson();
       return;
     }
     if (sessionId == null) {
@@ -1878,7 +1876,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // The team raised their hand, spoke a question, and nothing came back from the
       // recorder. Returning to the invite in silence is the room forgetting they asked.
       state = state.copyWith(voice: VoiceState.invite, noteMode: false);
-      _haltForAPerson(sessionIsGone: sessionId == null);
       return;
     }
     try {

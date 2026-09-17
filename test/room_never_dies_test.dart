@@ -820,7 +820,8 @@ void main() {
             'encontra ao voltar — e ele dizia que a sala estava gravando');
   });
 
-  test('a turn the recorder never handed back is not a shrug', () async {
+  test('a turn the recorder never handed back returns to the invite in silence',
+      () async {
     final harness = SalaHarness();
     final container = await inConversaHarness(harness);
     addTearDown(container.dispose);
@@ -832,12 +833,16 @@ void main() {
     notifier.conversaTap();
     await settle();
 
-    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+    final state = container.read(salaSessionProvider);
+    expect(state.needsPerson, isFalse,
         reason: 'a equipe acabou de falar a passagem inteira e nada voltou do gravador; '
-            'voltar ao convite em silêncio é o mesmo descarte que o ensaio tinha');
+            'voltar ao convite em silêncio é o mesmo descarte que o ensaio tinha, sem '
+            'chamar ninguém');
+    expect(state.voice, VoiceState.invite);
   });
 
-  test('a turn recorded into nothing stops the room instead of going up', () async {
+  test('a turn recorded into nothing returns to the invite instead of going up',
+      () async {
     final harness = SalaHarness();
     final container = await inConversaHarness(harness);
     addTearDown(container.dispose);
@@ -853,12 +858,37 @@ void main() {
     expect(harness.room.turnsSent, subiram,
         reason: 'o arquivo de zero byte subia como turno e a sala respondia a um '
             'silêncio que a equipe nunca disse');
-    expect(container.read(salaSessionProvider).needsPerson, isTrue,
-        reason: 'gravador que devolve arquivo sem um byte é aparelho com problema, não '
-            'pessoa falando baixo — pedir para repetir não esvazia um disco cheio');
+    expect(container.read(salaSessionProvider).needsPerson, isFalse,
+        reason: 'gravador que devolve arquivo sem um byte volta ao convite em silêncio, '
+            'como o descarte silencioso do capture guard dela');
   });
 
-  test('a question the recorder never handed back is not forgotten', () async {
+  test('a calibration capture the recorder never handed back returns to the invite',
+      () async {
+    final harness = SalaHarness()..room.bridgeMode = 'calibration_pending';
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.openConvite();
+    await settle();
+    expect(container.read(salaSessionProvider).conviteStep, ConviteStep.entrada);
+
+    harness.recorder.returnsNothing = true;
+    notifier.conviteTap();
+    await settle();
+    notifier.conviteTap();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.needsPerson, isFalse,
+        reason: 'a calibração vazia volta ao convite em silêncio, como qualquer outra '
+            'captura vazia');
+    expect(state.voice, VoiceState.invite);
+  });
+
+  test('a question the recorder never handed back returns to the invite in silence',
+      () async {
     final harness = SalaHarness();
     final container = await inConversaHarness(harness);
     addTearDown(container.dispose);
@@ -871,11 +901,12 @@ void main() {
     await settle();
 
     final state = container.read(salaSessionProvider);
-    expect(state.needsPerson, isTrue);
+    expect(state.needsPerson, isFalse);
     expect(state.noteMode, isFalse);
   });
 
-  test('a question recorded into nothing is not sent, and is not forgotten', () async {
+  test('a question recorded into nothing is not sent, and returns to the invite',
+      () async {
     final harness = SalaHarness();
     final container = await inConversaHarness(harness);
     addTearDown(container.dispose);
@@ -891,8 +922,9 @@ void main() {
         reason: 'a pergunta sem um byte dentro entrava na caixa e ficava esperando '
             'resposta de um facilitador que não tinha o que ouvir');
     final state = container.read(salaSessionProvider);
-    expect(state.needsPerson, isTrue,
-        reason: 'levantar a mão e perguntar no vazio não pode voltar ao convite calado');
+    expect(state.needsPerson, isFalse,
+        reason: 'levantar a mão e perguntar no vazio volta ao convite em silêncio, como '
+            'qualquer outra captura vazia');
     expect(state.noteMode, isFalse);
   });
 
