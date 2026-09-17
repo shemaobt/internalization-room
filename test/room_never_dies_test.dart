@@ -184,9 +184,13 @@ void main() {
   test('a session erased mid conversation returns to the wheel, not to a person',
       () async {
     final harness = SalaHarness();
-    final container = await inConversaHarness(harness);
+    final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+    notifier.entrarNaOferecida();
+    await settle();
 
     harness.room.failHeldTurnWith = const SessionGone();
     notifier.conversaTap();
@@ -209,9 +213,13 @@ void main() {
   test('a passage shut mid conversation returns to the wheel, not to a person',
       () async {
     final harness = SalaHarness();
-    final container = await inConversaHarness(harness);
+    final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+    notifier.entrarNaOferecida();
+    await settle();
 
     harness.room.failHeldTurnWith = const PassageShut();
     notifier.conversaTap();
@@ -630,9 +638,13 @@ void main() {
 
   test('a session the room forgot does not keep being told about it', () async {
     final harness = SalaHarness();
-    final container = await inConversaHarness(harness);
+    final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+    notifier.entrarNaOferecida();
+    await settle();
     final asked = harness.room.personsAsked;
 
     harness.room.failHeldTurnWith = const SessionGone();
@@ -788,11 +800,16 @@ void main() {
     final harness = SalaHarness(settleDelay: const Duration(milliseconds: 40));
     final container = harness.container();
     addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
 
-    // The poll is armed at the end of the opening turn and fires once. Setting the
-    // failure here catches that one poll, which is the only thing that reads the session
-    // between turns.
-    await container.read(salaSessionProvider.notifier).goConversa();
+    // The poll is armed at the end of the opening turn and fires once, on the
+    // settleDelay above (40 ms). Setting the failure here, right after the opening
+    // turn's own work has had a moment to finish but well under that delay, catches
+    // that one poll, which is the only thing that reads the session between turns.
+    await notifier.abrirEscolha();
+    await settle();
+    notifier.entrarNaOferecida();
+    await settle(const Duration(milliseconds: 5));
     harness.room.failStateOnceWith = const SessionGone();
     await waitFor('a sala voltar para a roda',
       () => container.read(salaSessionProvider).stage == SalaStage.escolha,

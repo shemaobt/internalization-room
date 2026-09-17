@@ -1346,9 +1346,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _leaveTheDeadPassage() {
     final pericope = _emCurso;
-    if (pericope != null) {
-      unawaited(_mindingThePlace(() => _emAberto.forget(_book, pericope)));
+    if (pericope == null) {
+      // Nothing here is a passage — the wheel itself failing to reload after
+      // an earlier departure, or a calibration turn with no passage entered
+      // yet. Leaving loops back into exactly this failure with nowhere new to
+      // land, so this is where the old, bounded halt still belongs.
+      _haltForAPerson(sessionIsGone: true);
+      return;
     }
+    unawaited(_mindingThePlace(() => _emAberto.forget(_book, pericope)));
     leaveThePassage();
   }
 
