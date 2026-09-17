@@ -24,6 +24,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/coverage.dart';
+import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
@@ -505,6 +506,20 @@ class FakeInbox implements HandInboxRepository {
 }
 
 class FakeRoom implements RoomRepository {
+  final StreamController<CoverageEvent> _coverage = StreamController<CoverageEvent>.broadcast();
+
+  void pushCoverage(CoverageEvent event) => _coverage.add(event);
+
+  @override
+  Stream<CoverageEvent> watchCoverage(String sessionId) => _coverage.stream;
+
+  /// What a turn's own response says about the id classification will settle under, and
+  /// whether classification is still running for it. True and named by default — the way
+  /// a real conversational turn from the backend behaves — so a double built for some
+  /// other behaviour still exercises the wait the way production would.
+  String? turnIdInResponse = 'turno-fake';
+  bool classificationPending = true;
+
   final List<String> calls = [];
   final List<String?> pericopesAsked = [];
   final List<String?> bridgeModesSent = [];
@@ -1097,6 +1112,8 @@ class FakeRoom implements RoomRepository {
         degraded: turnsAreDegraded,
         coverage: silentAboutCoverage ? null : nextCoverage,
         done: done,
+        turnId: turnIdInResponse,
+        classificationPending: classificationPending,
         bridgeMode: bridgeMode,
         segments: opensInTwoMovements
             ? const [
@@ -1203,7 +1220,7 @@ class FakeRoom implements RoomRepository {
   }
 
   @override
-  void dispose() {}
+  void dispose() => _coverage.close();
 }
 
 class FakeNetwork implements ConnectivityService {
@@ -1526,7 +1543,8 @@ class SalaHarness {
         linkedTeamProvider.overrideWithValue(vinculo),
         linkPollIntervalProvider.overrideWithValue(linkPoll),
         screenAwakeProvider.overrideWithValue(awake),
-        beadSettleDelayProvider.overrideWithValue(settleDelay),
+        roomPollDelayProvider.overrideWithValue(settleDelay),
+        coverageFallbackDelayProvider.overrideWithValue(settleDelay),
         roomRetryBackoffProvider.overrideWithValue(retryBackoff),
         busyStateCeilingProvider.overrideWithValue(busyCeiling),
         playbackCeilingProvider.overrideWithValue(playbackCeiling),
