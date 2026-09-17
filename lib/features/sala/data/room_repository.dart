@@ -218,40 +218,41 @@ class RoomRepository {
   }
 
   Stream<CoverageEvent> watchCoverage(String sessionId) {
-    final controller = StreamController<CoverageEvent>();
-    unawaited(_readCoverage(sessionId, controller).catchError((_) {}));
-    return controller.stream;
-  }
-
-  Future<void> _readCoverage(
-    String sessionId,
-    StreamController<CoverageEvent> controller,
-  ) async {
-    try {
-      final response = await _client.send(
-        http.Request('GET', _uri('/sessions/$sessionId/coverage'))..headers.addAll(_headers),
-      );
-      String? eventName;
-      final data = StringBuffer();
-      await for (final line
-          in utf8.decoder.bind(response.stream).transform(const LineSplitter())) {
-        if (line.isEmpty) {
-          final parsed = _parseCoverageEvent(eventName, data.toString());
-          if (parsed != null) controller.add(parsed);
-          eventName = null;
-          data.clear();
-          continue;
-        }
-        if (line.startsWith('event:')) {
-          eventName = line.substring(6).trim();
-        } else if (line.startsWith('data:')) {
-          if (data.isNotEmpty) data.write('\n');
-          data.write(line.substring(5).trim());
-        }
+    StreamSubscription<String>? lineSub;
+    final controller = StreamController<CoverageEvent>(
+      onCancel: () => lineSub?.cancel(),
+    );
+    unawaited(() async {
+      try {
+        final response = await _client.send(
+          http.Request('GET', _uri('/sessions/$sessionId/coverage'))..headers.addAll(_headers),
+        );
+        String? eventName;
+        final data = StringBuffer();
+        lineSub = utf8.decoder.bind(response.stream).transform(const LineSplitter()).listen(
+          (line) {
+            if (line.isEmpty) {
+              final parsed = _parseCoverageEvent(eventName, data.toString());
+              if (parsed != null) controller.add(parsed);
+              eventName = null;
+              data.clear();
+              return;
+            }
+            if (line.startsWith('event:')) {
+              eventName = line.substring(6).trim();
+            } else if (line.startsWith('data:')) {
+              if (data.isNotEmpty) data.write('\n');
+              data.write(line.substring(5).trim());
+            }
+          },
+          onDone: controller.close,
+          onError: (Object _) => controller.close(),
+        );
+      } on Exception {
+        await controller.close();
       }
-    } finally {
-      await controller.close();
-    }
+    }());
+    return controller.stream;
   }
 
   CoverageEvent? _parseCoverageEvent(String? eventName, String data) {
