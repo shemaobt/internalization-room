@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -6,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
 
 String _turnBody({bool usedFailSafe = false, bool degraded = false}) => jsonEncode({
@@ -373,6 +375,70 @@ void main() {
           'que a internet tinha caído por causa de um servidor pensando',
     );
   }, timeout: const Timeout(Duration(seconds: 90)));
+
+  test('a settled frame on the coverage channel names its turn and its numbers',
+      () async {
+    final controller = StreamController<List<int>>();
+    final repository = RoomRepository(
+      client: MockClient.streaming(
+        (request, bodyStream) async => http.StreamedResponse(controller.stream, 200),
+      ),
+    );
+    addTearDown(repository.dispose);
+
+    final frames = <CoverageEvent>[];
+    final done = Completer<void>();
+    final subscription = repository
+        .watchCoverage('sessao-1')
+        .listen(frames.add, onDone: done.complete);
+    addTearDown(subscription.cancel);
+
+    controller.add(utf8.encode(
+      'event: coverage\n'
+      'data: {"turn_id": "turno-1", "status": "settled", '
+      '"coverage": {"engaged": 3, "surfaced": 4, "total": 29, "absence_index": 13}}\n\n',
+    ));
+    await controller.close();
+    await done.future;
+
+    expect(frames, hasLength(1));
+    expect(frames.single.turnId, 'turno-1');
+    expect(frames.single.status, CoverageStatus.settled);
+    expect(frames.single.coverage?.engaged, 3);
+  });
+
+  test('a keep-alive on the coverage channel produces nothing, and the channel keeps talking',
+      () async {
+    final controller = StreamController<List<int>>();
+    final repository = RoomRepository(
+      client: MockClient.streaming(
+        (request, bodyStream) async => http.StreamedResponse(controller.stream, 200),
+      ),
+    );
+    addTearDown(repository.dispose);
+
+    final frames = <CoverageEvent>[];
+    final done = Completer<void>();
+    final subscription = repository
+        .watchCoverage('sessao-1')
+        .listen(frames.add, onDone: done.complete);
+    addTearDown(subscription.cancel);
+
+    controller.add(utf8.encode(': keep-alive\n\n'));
+    controller.add(utf8.encode(
+      'event: coverage\n'
+      'data: {"turn_id": "turno-2", "status": "settled", '
+      '"coverage": {"engaged": 1, "surfaced": 1, "total": 29, "absence_index": -1}}\n\n',
+    ));
+    await controller.close();
+    await done.future;
+
+    expect(frames, hasLength(1),
+        reason:
+            'um coração sem turno nem status não pode nem virar frame nem travar o '
+            'parser antes do próximo evento de verdade chegar');
+    expect(frames.single.turnId, 'turno-2');
+  });
 
   test('o terminei manda o que foi ouvido de cada parte, com o nome dela',
       () async {

@@ -24,6 +24,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/coverage.dart';
+import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
@@ -505,6 +506,13 @@ class FakeInbox implements HandInboxRepository {
 }
 
 class FakeRoom implements RoomRepository {
+  final StreamController<CoverageEvent> _coverage = StreamController<CoverageEvent>.broadcast();
+
+  void pushCoverage(CoverageEvent event) => _coverage.add(event);
+
+  @override
+  Stream<CoverageEvent> watchCoverage(String sessionId) => _coverage.stream;
+
   final List<String> calls = [];
   final List<String?> pericopesAsked = [];
   final List<String?> bridgeModesSent = [];
@@ -1203,7 +1211,7 @@ class FakeRoom implements RoomRepository {
   }
 
   @override
-  void dispose() {}
+  void dispose() => _coverage.close();
 }
 
 class FakeNetwork implements ConnectivityService {

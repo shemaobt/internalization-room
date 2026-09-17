@@ -8,6 +8,8 @@ import 'package:http/http.dart' as http;
 
 import '../../../core/config/env.dart';
 import '../domain/bt_finding.dart';
+import '../domain/coverage.dart';
+import '../domain/coverage_event.dart';
 import '../domain/device_link.dart';
 import '../domain/escuta_das_partes.dart';
 import '../domain/passagem.dart';
@@ -215,6 +217,66 @@ class RoomRepository {
       _stateTimeout,
     );
     return _read(response, SessionSnapshot.fromJson);
+  }
+
+  Stream<CoverageEvent> watchCoverage(String sessionId) {
+    final controller = StreamController<CoverageEvent>();
+    unawaited(_readCoverage(sessionId, controller).catchError((_) {}));
+    return controller.stream;
+  }
+
+  Future<void> _readCoverage(
+    String sessionId,
+    StreamController<CoverageEvent> controller,
+  ) async {
+    try {
+      final response = await _client.send(
+        http.Request('GET', _uri('/sessions/$sessionId/coverage'))..headers.addAll(_headers),
+      );
+      String? eventName;
+      final data = StringBuffer();
+      await for (final line
+          in utf8.decoder.bind(response.stream).transform(const LineSplitter())) {
+        if (line.isEmpty) {
+          final parsed = _parseCoverageEvent(eventName, data.toString());
+          if (parsed != null) controller.add(parsed);
+          eventName = null;
+          data.clear();
+          continue;
+        }
+        if (line.startsWith('event:')) {
+          eventName = line.substring(6).trim();
+        } else if (line.startsWith('data:')) {
+          if (data.isNotEmpty) data.write('\n');
+          data.write(line.substring(5).trim());
+        }
+      }
+    } finally {
+      await controller.close();
+    }
+  }
+
+  CoverageEvent? _parseCoverageEvent(String? eventName, String data) {
+    if (eventName != 'coverage' || data.isEmpty) return null;
+    try {
+      final json = jsonDecode(data) as Map<String, dynamic>;
+      final turnId = json['turn_id'] as String?;
+      final status = switch (json['status']) {
+        'settled' => CoverageStatus.settled,
+        'failed' => CoverageStatus.failed,
+        _ => null,
+      };
+      if (turnId == null || status == null) return null;
+      return CoverageEvent(
+        turnId: turnId,
+        status: status,
+        coverage: json['coverage'] == null
+            ? null
+            : Coverage.fromJson((json['coverage'] as Map).cast<String, dynamic>()),
+      );
+    } on FormatException {
+      return null;
+    }
   }
 
   Future<TurnResult> openSession(String sessionId, {String? turnId}) async {
