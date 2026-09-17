@@ -51,6 +51,26 @@ void main() {
     expect(seen.headers['X-Room-Key'], 'k');
   });
 
+  test('a retried opening turn carries the first attempt\'s id, not a fresh one',
+      () async {
+    final seenBodies = <String>[];
+    final repository = RoomRepository(
+      client: MockClient((request) async {
+        seenBodies.add(request.body);
+        return http.Response(_turnBody(), 200);
+      }),
+    );
+    addTearDown(repository.dispose);
+
+    await repository.openSession('sessao-1', turnId: 'turno-1');
+    await repository.openSession('sessao-1', turnId: 'turno-1');
+
+    expect(seenBodies, ['turn_id=turno-1', 'turn_id=turno-1'],
+        reason: 'o servidor so responde do jeito que ja respondeu se o id do '
+            'reenvio bater com o da primeira tentativa — um id novo a cada '
+            'chamada e a mesma falha de nunca reconhecer um retry');
+  });
+
   test('a turn with a recording carries the recording, not an empty envelope',
       () async {
     late String seenBody;

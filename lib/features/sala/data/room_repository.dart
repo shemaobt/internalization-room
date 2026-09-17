@@ -217,11 +217,12 @@ class RoomRepository {
     return _read(response, SessionSnapshot.fromJson);
   }
 
-  Future<TurnResult> openSession(String sessionId) async {
+  Future<TurnResult> openSession(String sessionId, {String? turnId}) async {
     final response = await _send(
       () => _client.post(
         _uri('/sessions/$sessionId/turns'),
         headers: _whoWeAre,
+        body: turnId == null ? null : {'turn_id': turnId},
       ),
       _turnTimeout,
     );
