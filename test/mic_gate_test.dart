@@ -57,7 +57,8 @@ void main() {
     expect(harness.room.calls, isEmpty, reason: 'o aviso não pode depender de rede');
   });
 
-  test('a recorder that will not start is not a team that said no', () async {
+  test('a recorder that will not start calls a person on the second try, not the first',
+      () async {
     final harness = SalaHarness()..recorder.startThrows = true;
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -66,12 +67,44 @@ void main() {
     notifier.conversaTap();
     await settle();
 
-    final state = container.read(salaSessionProvider);
+    var state = container.read(salaSessionProvider);
     expect(container.read(micPermissionProvider), isNot(MicAccess.denied),
         reason: 'disco cheio não é a equipe negando o microfone');
-    expect(state.needsPerson, isTrue);
+    expect(state.needsPerson, isFalse,
+        reason: 'a primeira falta ainda deixa a equipe tentar de novo');
     expect(state.voice, isNot(VoiceState.listening),
         reason: 'a tela dizia que a sala estava ouvindo, com o gravador desligado');
+
+    notifier.conversaTap();
+    await settle();
+
+    state = container.read(salaSessionProvider);
+    expect(state.needsPerson, isTrue,
+        reason: 'a segunda falta seguida chama uma pessoa');
+    expect(state.voice, isNot(VoiceState.listening));
+  });
+
+  test('a recorder that starts again resets the count of tries that failed',
+      () async {
+    final harness = SalaHarness()..recorder.startThrows = true;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.conversaTap();
+    await settle();
+    harness.recorder.startThrows = false;
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    await settle();
+    harness.recorder.startThrows = true;
+    notifier.conversaTap();
+    await settle();
+
+    expect(container.read(salaSessionProvider).needsPerson, isFalse,
+        reason: 'uma captura boa entre as duas falhas zera a contagem — a falha seguinte '
+            'é a primeira de novo, não a segunda');
   });
 
   test('a permission question that never comes back is not a refusal', () async {

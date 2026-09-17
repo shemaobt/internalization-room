@@ -45,11 +45,12 @@ const _roomFailuresBeforeNeedsPerson = 3;
 /// How many times the room may answer nothing before the app stops waiting for it.
 const _slowAnswersBeforeGivingUp = 3;
 
-/// How many times the inbox may fail to answer before the room says so out loud.
-const _inboxSilencesBeforeSayingSo = 3;
-
 /// How many degraded turns in a row before the room stops pretending it is working.
 const _degradedTurnsBeforeAPerson = 3;
+
+/// How many times the recorder may fail to start in a row before the room calls a
+/// person — mirroring `micFails` in her client.
+const _captureFailsBeforeAPerson = 2;
 
 final busyStateCeilingProvider = Provider<Duration?>(
   (ref) => const Duration(seconds: 120),
@@ -60,13 +61,6 @@ final busyStateCeilingProvider = Provider<Duration?>(
 /// can reach — which is how the paused-clip bug shipped.
 final clipGraceProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 10),
-);
-
-/// How much sound counts as the team having said something. Below it the room answers
-/// from the bundle instead of paying for a round trip to hear silence — the one place
-/// the app judges a capture rather than forwarding it.
-final shortestSpeechProvider = Provider<Duration>(
-  (ref) => const Duration(milliseconds: 900),
 );
 
 final playbackCeilingProvider = Provider<Duration?>(
@@ -148,8 +142,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// still has to be able to end the part — so it cannot be what tells a ceiling whether
   /// there is any sound left to measure.
   bool _clipHeld = false;
-  int _inboxSilences = 0;
   int _degradedTurns = 0;
+  int _captureFails = 0;
   Duration _trechoStart = Duration.zero;
 
   /// Where each stretch mended by the long way sits, by the take the mend recorded.
@@ -203,7 +197,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// it runs the whole pipeline again instead of answering with what it already produced.
   String? _openTurnId;
 
-  String? _bridgeMode;
   bool _awaitingCalibration = false;
   String? _pendingTakePath;
   StreamSubscription<void>? _playbackDone;
@@ -482,7 +475,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _voiceTurn(TurnResult turn, int epoch) async {
     if (epoch != _epoch) return;
-    _captureBridgeMode(turn);
     state = state.copyWith(coverage: turn.coverage);
     _awaitCoverageSettle(turn);
     await _readyToSpeak(turn.audioUrl, turn.fixedLine);
@@ -1083,25 +1075,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _retryStep = 0;
     _noticeSpoken = false;
     _openTurnId = null;
-    _captureBridgeMode(turn);
     unawaited(_feitas.markBookOpened(_book).catchError((_) {}));
     state = state.copyWith(
       voice: VoiceState.invite,
       conviteStep: ConviteStep.entrada,
     );
-  }
-
-  void _captureBridgeMode(TurnResult turn) {
-    if (turn.bridgeMode.isEmpty) {
-      _awaitingCalibration = false;
-      return;
-    }
-    if (turn.bridgeMode == 'calibration_pending') {
-      _awaitingCalibration = true;
-      return;
-    }
-    _bridgeMode = turn.bridgeMode;
-    _awaitingCalibration = false;
   }
 
   void conviteTap() {
@@ -1137,17 +1115,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final panorama = _panoramaSessionId;
     if (path == null || !_hasAudio(path)) {
       state = state.copyWith(voice: VoiceState.invite);
-      _haltForAPerson();
       return;
     }
     if (panorama == null) {
       _awaitingCalibration = false;
       state = state.copyWith(voice: VoiceState.invite);
       unawaited(_recorder.delete(path));
-      return;
-    }
-    if (!_heardSomething) {
-      await _askThemToRepeat(path);
       return;
     }
     _sayImThinking();
@@ -1365,9 +1338,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _leaveTheDeadPassage() {
     final pericope = _emCurso;
-    if (pericope != null) {
-      unawaited(_mindingThePlace(() => _emAberto.forget(_book, pericope)));
+    if (pericope == null) {
+      // Nothing here is a passage — the wheel itself failing to reload after
+      // an earlier departure, or a calibration turn with no passage entered
+      // yet. Leaving loops back into exactly this failure with nowhere new to
+      // land, so this is where the old, bounded halt still belongs.
+      _haltForAPerson(sessionIsGone: true);
+      return;
     }
+    unawaited(_mindingThePlace(() => _emAberto.forget(_book, pericope)));
     leaveThePassage();
   }
 
@@ -1423,7 +1402,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
               ? await _room.createSession(
                   pericope: pericope,
                   afterSession: _panoramaSessionId,
-                  bridgeMode: _bridgeMode,
                   language: _lingua,
                 )
               : null);
@@ -1709,12 +1687,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(_recordOrBlock(fileName));
   }
 
-  bool get _heardSomething {
-    final since = _listeningSince;
-    if (since == null) return true;
-    return DateTime.now().difference(since) >= ref.read(shortestSpeechProvider);
-  }
-
   bool _hasAudio(String path) =>
       File(path).existsSync() && File(path).lengthSync() > 0;
 
@@ -1759,30 +1731,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(_voice.playAsset(fixedLineAsset(line, _lingua)));
   }
 
-  Future<void> _askThemToRepeat(String path) async {
-    unawaited(_recorder.delete(path));
-    if (_inaudibleSpoken > 0) {
-      _haltForAPerson();
-      return;
-    }
-    final epoch = _epoch;
-    state = state.copyWith(voice: VoiceState.speaking, peerCue: false);
-    _watchBusyState();
-    final line = inaudibleLines.first;
-    _inaudibleSpoken++;
-    await _voice.playAsset(fixedLineAsset(line, _lingua));
-    if (epoch != _epoch) return;
-    state = state.copyWith(voice: VoiceState.invite);
-  }
-
   Future<void> _pullInbox() async {
     final fetched = await _inbox.fetchReplies();
-    if (fetched == null) {
-      _inboxSilences++;
-      if (_inboxSilences >= _inboxSilencesBeforeSayingSo) _haltForAPerson();
-      return;
-    }
-    _inboxSilences = 0;
+    if (fetched == null) return;
     if (fetched.isEmpty || _gone) return;
     final known = {for (final reply in state.replies) reply.id: reply};
     state = state.copyWith(
@@ -1833,21 +1784,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// the ability to ask anything else.
   Future<void> _playReply(HandReply reply) async {
     final epoch = _epoch;
-    final played = await _voice.play(reply.audioUrl);
+    await _voice.play(reply.audioUrl);
     if (epoch != _epoch) return;
     unawaited(_markHeard(reply.id));
-    if (played) return;
-    // No strike count here, unlike every other line. A reply the room could not play is
-    // one only a person can now relay, so it calls for one at once; giving this path the
-    // three strikes a turn gets would lose three answers before anyone was called, and a
-    // turn survives its strikes only because the room can say it again.
-    //
-    // The mark above is no longer unconditional, so a reply that did not play and whose
-    // mark the desk turns down does come back to the list. That is the honest state and
-    // it was chosen over a retry: the desk never learned, so the reply is still owed. It
-    // is not the trap the doc above describes, because the room is halted from here and
-    // the hand answers no one until a person resolves it.
-    _haltForAPerson();
   }
 
   /// A reply is heard when the desk agrees, and not before.
@@ -1913,7 +1852,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // The team raised their hand, spoke a question, and nothing came back from the
       // recorder. Returning to the invite in silence is the room forgetting they asked.
       state = state.copyWith(voice: VoiceState.invite, noteMode: false);
-      _haltForAPerson(sessionIsGone: sessionId == null);
       return;
     }
     try {
@@ -2300,6 +2238,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (epoch != _epoch || _gone) return;
     switch (capture) {
       case Capture.started:
+        _captureFails = 0;
         return;
       case Capture.denied:
         // Unwound as well: the gate replaces the screen, but the state underneath it is
@@ -2339,7 +2278,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// whole passage into it and loses it.
   void _theRecorderNeverStarted() {
     _undoTheListening();
-    _haltForAPerson();
+    _captureFails++;
+    if (_captureFails >= _captureFailsBeforeAPerson) _haltForAPerson();
   }
 
   /// Which recount is the newest one asked for.
@@ -4347,7 +4287,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _haltWatched = null;
     _traduzindoDeNovo = false;
     _trechoTraduzidoDeNovo = null;
-    _inboxSilences = 0;
     _degradedTurns = 0;
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;

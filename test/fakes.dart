@@ -525,7 +525,6 @@ class FakeRoom implements RoomRepository {
 
   final List<String> calls = [];
   final List<String?> pericopesAsked = [];
-  final List<String?> bridgeModesSent = [];
   final List<String> languagesSent = [];
   final List<String> languagesAsked = [];
   final List<List<Map<String, Object?>>> playedByTakeSent = [];
@@ -785,7 +784,6 @@ class FakeRoom implements RoomRepository {
   Future<SessionSnapshot> createSession({
     String? pericope,
     String? afterSession,
-    String? bridgeMode,
     required String language,
   }) async {
     _guard('createSession');
@@ -797,7 +795,6 @@ class FakeRoom implements RoomRepository {
     }
     pericopesAsked.add(pericope);
     metBefore.add(afterSession != null);
-    bridgeModesSent.add(bridgeMode);
     languagesSent.add(language);
     // The server decides which passage a session is for; asking for the panorama is a
     // request, not an instruction. Today it always honours "OV", and this is where that
@@ -1507,7 +1504,6 @@ class SalaHarness {
   final Duration? busyCeiling;
   final Duration? playbackCeiling;
   final Duration clipGrace;
-  final Duration shortestSpeech;
   final CaptureGuard captureGuard;
   final Duration fimLinger;
   /// Whether the outbox keeps its rows in memory instead of on disk. Opt-in, for widget
@@ -1529,7 +1525,6 @@ class SalaHarness {
     this.busyCeiling,
     this.playbackCeiling,
     this.clipGrace = const Duration(seconds: 10),
-    this.shortestSpeech = Duration.zero,
     this.captureGuard = const CaptureGuard(minDuration: Duration.zero, minBytes: 1),
     this.fimLinger = const Duration(seconds: 30),
     this.filaEmMemoria = false,
@@ -1574,7 +1569,6 @@ class SalaHarness {
         busyStateCeilingProvider.overrideWithValue(busyCeiling),
         playbackCeilingProvider.overrideWithValue(playbackCeiling),
         clipGraceProvider.overrideWithValue(clipGrace),
-        shortestSpeechProvider.overrideWithValue(shortestSpeech),
         captureGuardProvider.overrideWithValue(captureGuard),
         fimLingerProvider.overrideWithValue(fimLinger),
         if (lingua != null) roomLanguageProvider.overrideWithValue(lingua!),
