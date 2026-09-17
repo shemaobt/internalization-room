@@ -342,6 +342,7 @@ void main() {
         reason: 'e o controle positivo, para um campo que fosse lido do nome '
             'errado passar despercebido');
   });
+
   testWidgets('finishing a correction reaches its result on its own',
       (tester) async {
     final container = await pumpToPergunta(tester);
@@ -440,6 +441,7 @@ void main() {
         reason: 'e alguém é de fato chamado, senão a sala para em silêncio');
     closeTheRoom(container);
   });
+
   testWidgets('a room that sends no such field is carried to the result as ever',
       (tester) async {
     final container = await pumpToPergunta(tester);

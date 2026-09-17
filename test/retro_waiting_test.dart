@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -106,5 +105,4 @@ void main() {
     expect(byLabel('Ouvir a gravação'), findsOneWidget,
         reason: 'e parado ele volta a oferecer ouvir, como sempre ofereceu');
   });
-
 }

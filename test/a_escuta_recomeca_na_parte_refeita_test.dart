@@ -49,5 +49,4 @@ void main() {
         'esquecer de reabrir a escuta ao soltar relata a parte até a pausa e o '
         'portão nunca mais deixa a passagem sair');
   });
-
 }

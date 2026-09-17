@@ -122,10 +122,6 @@ Future<void> pedirOVeredito(Sala it) async {
   );
 }
 
-KeptTake parteDois(Sala it) => it.estado.keptTakes.firstWhere(
-      (take) => take.scopeId == KeptScope.parte(2),
-    );
-
 /// Record the part at [onde] again, in its own place: the row keeps its length and only
 /// that entry changes. The sibling of [gravarUmaParte], which asserts the opposite.
 ///

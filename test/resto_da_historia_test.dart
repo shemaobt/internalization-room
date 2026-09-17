@@ -504,5 +504,4 @@ void main() {
     expect(byLabel(microfoneAzul), findsNothing,
         reason: 'o botão que devolve ao ensaio é só para a falta sem endereço');
   });
-
 }
