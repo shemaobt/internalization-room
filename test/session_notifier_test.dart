@@ -882,6 +882,19 @@ void main() {
     expect(container.read(salaSessionProvider).stage, SalaStage.convite);
   });
 
+  test('a touch on the hand before the panorama has a session arms nothing', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.handTap();
+
+    expect(container.read(salaSessionProvider).noteMode, isFalse,
+        reason: 'antes do primeiro toque não existe sessão de panorama para postar a '
+            'pergunta — armar aqui chamaria uma pessoa na primeiríssima interação');
+  });
+
   test('entering after the panorama says the team already met the facilitator',
       () async {
     final harness = SalaHarness();

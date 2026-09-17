@@ -131,8 +131,7 @@ class _SalaScreenState extends ConsumerState<SalaScreen> with WidgetsBindingObse
               const Positioned.fill(
                 child: SafeArea(bottom: false, child: _RetroCordLayer()),
               ),
-            if (session.stage == SalaStage.convite || session.stage == SalaStage.conversa)
-              const _HandLayer(),
+            const _HandLayer(),
             const HearAgainButton(),
             const LeavePassageButton(),
             const DevSkipBar(),
@@ -271,9 +270,12 @@ class _ColarLayer extends ConsumerWidget {
 class _HandLayer extends ConsumerWidget {
   const _HandLayer();
 
+  static const _inside = {SalaStage.convite, SalaStage.conversa};
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(salaSessionProvider);
+    if (!_inside.contains(session.stage)) return const SizedBox.shrink();
     final notifier = ref.read(salaSessionProvider.notifier);
     return Positioned(
       left: 14,

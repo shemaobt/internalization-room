@@ -1754,6 +1754,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.stage != SalaStage.conversa && state.stage != SalaStage.convite) {
       return;
     }
+    if (state.stage == SalaStage.convite && _panoramaSessionId == null) return;
     if (state.offline) {
       // `_haltForAPerson` writes over `voice: offline`, and every way back — the retry
       // timer, the network watch, the touch — is guarded on `state.offline`. One tap on
