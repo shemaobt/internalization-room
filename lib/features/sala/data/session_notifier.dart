@@ -1112,10 +1112,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       unawaited(_recorder.delete(path));
       return;
     }
-    if (!_heardSomething) {
-      await _askThemToRepeat(path);
-      return;
-    }
     _sayImThinking();
     state = state.copyWith(voice: VoiceState.thinking);
     _watchBusyState();
