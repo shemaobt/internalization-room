@@ -522,7 +522,6 @@ class FakeRoom implements RoomRepository {
 
   final List<String> calls = [];
   final List<String?> pericopesAsked = [];
-  final List<String?> bridgeModesSent = [];
   final List<String> languagesSent = [];
   final List<String> languagesAsked = [];
   final List<List<Map<String, Object?>>> playedByTakeSent = [];
@@ -636,6 +635,9 @@ class FakeRoom implements RoomRepository {
     serverHalt = HaltKind.unnamed;
   }
   String fixedLine = '';
+
+  /// What a turn's own response says about the conversation's bridge mode. Nothing
+  /// under `lib/` reads this any more — it exists so a test can set it and show that.
   String bridgeMode = '';
   final List<String> restartsAsked = [];
   final List<String> booksAsked = [];
@@ -772,14 +774,12 @@ class FakeRoom implements RoomRepository {
   Future<SessionSnapshot> createSession({
     String? pericope,
     String? afterSession,
-    String? bridgeMode,
     required String language,
   }) async {
     _guard('createSession');
     if (pericope != null && pericope == shutsThePassage) throw const PassageShut();
     pericopesAsked.add(pericope);
     metBefore.add(afterSession != null);
-    bridgeModesSent.add(bridgeMode);
     languagesSent.add(language);
     // The server decides which passage a session is for; asking for the panorama is a
     // request, not an instruction. Today it always honours "OV", and this is where that

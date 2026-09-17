@@ -198,7 +198,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// it runs the whole pipeline again instead of answering with what it already produced.
   String? _openTurnId;
 
-  String? _bridgeMode;
   bool _awaitingCalibration = false;
   String? _pendingTakePath;
   StreamSubscription<void>? _playbackDone;
@@ -475,7 +474,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _voiceTurn(TurnResult turn, int epoch) async {
     if (epoch != _epoch) return;
-    _captureBridgeMode(turn);
     state = state.copyWith(coverage: turn.coverage);
     _awaitCoverageSettle(turn);
     await _readyToSpeak(turn.audioUrl, turn.fixedLine);
@@ -1066,25 +1064,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _retryStep = 0;
     _noticeSpoken = false;
     _openTurnId = null;
-    _captureBridgeMode(turn);
     unawaited(_feitas.markBookOpened(_book).catchError((_) {}));
     state = state.copyWith(
       voice: VoiceState.invite,
       conviteStep: ConviteStep.entrada,
     );
-  }
-
-  void _captureBridgeMode(TurnResult turn) {
-    if (turn.bridgeMode.isEmpty) {
-      _awaitingCalibration = false;
-      return;
-    }
-    if (turn.bridgeMode == 'calibration_pending') {
-      _awaitingCalibration = true;
-      return;
-    }
-    _bridgeMode = turn.bridgeMode;
-    _awaitingCalibration = false;
   }
 
   void conviteTap() {
@@ -1127,10 +1111,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _awaitingCalibration = false;
       state = state.copyWith(voice: VoiceState.invite);
       unawaited(_recorder.delete(path));
-      return;
-    }
-    if (!_heardSomething) {
-      await _askThemToRepeat(path);
       return;
     }
     _sayImThinking();
@@ -1398,7 +1378,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
               ? await _room.createSession(
                   pericope: pericope,
                   afterSession: _panoramaSessionId,
-                  bridgeMode: _bridgeMode,
                   language: _lingua,
                 )
               : null);

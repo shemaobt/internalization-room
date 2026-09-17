@@ -43,8 +43,9 @@ void main() {
 
     expect(
       modeHits,
-      hasLength(10),
-      reason: 'as dez linhas de bridgeMode conhecidas hoje mudaram de número',
+      hasLength(3),
+      reason: 'as três linhas de bridgeMode conhecidas hoje mudaram de número — só '
+          'turn_result.dart ainda declara o campo, sem leitor',
     );
     expect(
       result.violations,
