@@ -633,6 +633,33 @@ void main() {
             'resposta nova não pede outra depois dela');
   });
 
+  test('a turn already settled while it still spoke is not armed again when it finishes',
+      () async {
+    final harness = SalaHarness(settleDelay: const Duration(milliseconds: 40))
+      ..room.turnIdInResponse = 'turno-1';
+    harness.voice.holdNextLine();
+    final container = harness.container();
+    addTearDown(container.dispose);
+
+    final opening = container.read(salaSessionProvider.notifier).goConversa();
+
+    harness.room.pushCoverage(
+      const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+    );
+    await waitFor(
+      'o settled resolver antes da fala terminar',
+      () => harness.room.calls.where((call) => call == 'fetchState').length == 1,
+    );
+
+    harness.voice.finishHeldLine();
+    await opening;
+    await settle(const Duration(milliseconds: 300));
+
+    expect(harness.room.calls.where((call) => call == 'fetchState').length, 1,
+        reason: 'o turno já resolveu pelo canal antes de terminar de falar; rearmar '
+            'o mesmo id no fim da fala é o poll cego que este ticket tirou');
+  });
+
   test('the server closing the session puts the circle at rest', () async {
     final harness = SalaHarness()..room.done = true;
     final container = await inConversa(harness);
