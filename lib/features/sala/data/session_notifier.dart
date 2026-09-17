@@ -133,6 +133,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _ackSpoken = 0;
   int _inaudibleSpoken = 0;
   DateTime? _listeningSince;
+  bool _recordingStarting = false;
   String? _emCurso;
   bool _traduzindoDeNovo = false;
   Trecho? _trechoTraduzidoDeNovo;
@@ -1660,6 +1661,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _actOnConversaTap() {
+    if (_recordingStarting) return;
     final isRecording = state.voice == VoiceState.listening;
     final elapsed = _listeningSince == null
         ? Duration.zero
@@ -1675,6 +1677,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _startListening(String fileName) {
+    _recordingStarting = true;
     _listeningSince = DateTime.now();
     // The line is kept, not dropped. `canHearAgain` already hides the button for every
     // voice but `invite`, so it is gone while the microphone is open either way — and
@@ -2233,6 +2236,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final epoch = _epoch;
     _micWatch ??= _recorder.interrupted.listen(_theMicrophoneChangedHands);
     final capture = await _recorder.start(fileName);
+    _recordingStarting = false;
     // The answer can arrive a minute late — `hasPermission` waits up to sixty seconds for
     // the platform — by which time the team may be on another stage entirely.
     if (epoch != _epoch || _gone) return;
