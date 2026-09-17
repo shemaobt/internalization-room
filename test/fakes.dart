@@ -635,9 +635,6 @@ class FakeRoom implements RoomRepository {
     serverHalt = HaltKind.unnamed;
   }
   String fixedLine = '';
-
-  /// What a turn's own response says about the conversation's bridge mode. Nothing
-  /// under `lib/` reads this any more — it exists so a test can set it and show that.
   String bridgeMode = '';
   final List<String> restartsAsked = [];
   final List<String> booksAsked = [];
