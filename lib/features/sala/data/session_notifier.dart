@@ -50,6 +50,10 @@ const _inboxSilencesBeforeSayingSo = 3;
 /// How many degraded turns in a row before the room stops pretending it is working.
 const _degradedTurnsBeforeAPerson = 3;
 
+/// How many times the recorder may fail to start in a row before the room calls a
+/// person — mirroring `micFails` in her client.
+const _captureFailsBeforeAPerson = 2;
+
 final busyStateCeilingProvider = Provider<Duration?>(
   (ref) => const Duration(seconds: 120),
 );
@@ -145,6 +149,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   bool _clipHeld = false;
   int _inboxSilences = 0;
   int _degradedTurns = 0;
+  int _captureFails = 0;
   Duration _trechoStart = Duration.zero;
 
   /// Where each stretch mended by the long way sits, by the take the mend recorded.
@@ -2262,6 +2267,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (epoch != _epoch || _gone) return;
     switch (capture) {
       case Capture.started:
+        _captureFails = 0;
         return;
       case Capture.denied:
         // Unwound as well: the gate replaces the screen, but the state underneath it is
@@ -2301,7 +2307,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// whole passage into it and loses it.
   void _theRecorderNeverStarted() {
     _undoTheListening();
-    _haltForAPerson();
+    _captureFails++;
+    if (_captureFails >= _captureFailsBeforeAPerson) _haltForAPerson();
   }
 
   /// Which recount is the newest one asked for.
