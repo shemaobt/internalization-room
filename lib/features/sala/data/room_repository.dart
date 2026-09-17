@@ -221,14 +221,19 @@ class RoomRepository {
 
   Stream<CoverageEvent> watchCoverage(String sessionId) {
     StreamSubscription<String>? lineSub;
+    var cancelled = false;
     final controller = StreamController<CoverageEvent>(
-      onCancel: () => lineSub?.cancel(),
+      onCancel: () {
+        cancelled = true;
+        return lineSub?.cancel();
+      },
     );
     unawaited(() async {
       try {
         final response = await _client.send(
           http.Request('GET', _uri('/sessions/$sessionId/coverage'))..headers.addAll(_headers),
         );
+        if (cancelled) return;
         String? eventName;
         final data = StringBuffer();
         lineSub = utf8.decoder.bind(response.stream).transform(const LineSplitter()).listen(

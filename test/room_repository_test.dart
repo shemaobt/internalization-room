@@ -398,6 +398,27 @@ void main() {
             'continua lendo o socket do servidor vaza uma conexão por passagem');
   });
 
+  test('cancelling while the connection is still opening still stops it once it does',
+      () async {
+    final connecting = Completer<http.StreamedResponse>();
+    final controller = StreamController<List<int>>();
+    final repository = RoomRepository(
+      client: MockClient.streaming((request, bodyStream) => connecting.future),
+    );
+    addTearDown(repository.dispose);
+
+    final subscription = repository.watchCoverage('sessao-1').listen((_) {});
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    await subscription.cancel();
+    connecting.complete(http.StreamedResponse(controller.stream, 200));
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(controller.hasListener, isFalse,
+        reason: 'cancelar antes de o GET terminar de conectar não pode deixar a '
+            'escuta ser ligada mesmo assim quando a resposta finalmente chega');
+  });
+
   test('a settled frame on the coverage channel names its turn and its numbers',
       () async {
     final controller = StreamController<List<int>>();
