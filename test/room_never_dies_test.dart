@@ -233,6 +233,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.handTap();
+    notifier.conversaTap();
     await settle();
     notifier.conversaTap();
     await waitFor('a pergunta ser enviada à mão', () => harness.inbox.questionsSent.isNotEmpty);
@@ -250,6 +251,7 @@ void main() {
 
     for (var asked = 0; asked < 2; asked++) {
       notifier.handTap();
+      notifier.conversaTap();
       await settle();
       notifier.conversaTap();
       await waitFor(
@@ -844,6 +846,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.handTap();
+    notifier.conversaTap();
     await settle();
     harness.recorder.returnsNothing = true;
     notifier.conversaTap();
@@ -861,6 +864,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.handTap();
+    notifier.conversaTap();
     await settle();
     harness.recorder.returnsEmpty = true;
     notifier.conversaTap();

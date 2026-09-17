@@ -1628,7 +1628,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (state.playingReplyId != null) return;
     if (state.noteMode) {
-      _sendQuestion();
+      _noteTap();
       return;
     }
     switch (state.voice) {
@@ -1754,7 +1754,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (state.needsPerson) return;
     if (state.playingReplyId != null) return;
-    if (state.voice == VoiceState.listening && !state.noteMode) return;
     final unheard = state.oldestUnheardReply;
     if (unheard != null) {
       state = state.copyWith(playingReplyId: unheard.id);
@@ -1765,12 +1764,29 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _cancelQuestion();
       return;
     }
-    state = state.copyWith(
-      noteMode: true,
-      voice: VoiceState.listening,
-      peerCue: false,
-    );
-    unawaited(_recordOrBlock('pergunta_${_stamp()}'));
+    state = state.copyWith(noteMode: true);
+  }
+
+  /// The circle's half of a question: it opens the microphone once the hand has armed
+  /// the note, and closes and sends it on the touch after that.
+  ///
+  /// Splitting this off the hand is what keeps a question from ever starting under the
+  /// facilitator's own voice — arming and recording used to be the same touch, so the
+  /// first tap was already capturing whatever the facilitator was mid-sentence saying.
+  void _noteTap() {
+    switch (state.voice) {
+      case VoiceState.invite:
+        _startListening('pergunta_${_stamp()}');
+      case VoiceState.listening:
+        _sendQuestion();
+      case VoiceState.thinking:
+      case VoiceState.speaking:
+      case VoiceState.done:
+      case VoiceState.needsPerson:
+      case VoiceState.offline:
+      case VoiceState.blocked:
+        break;
+    }
   }
 
   /// Play the facilitator's answer, and never let a broken one take the gesture away.

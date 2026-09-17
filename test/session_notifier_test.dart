@@ -1157,7 +1157,7 @@ void main() {
             'ressuscitaria o áudio da etapa anterior');
   });
 
-  test('the question is sent by the circle and cancelled by the hand', () async {
+  test('a touch on the hand only arms the note, never the microphone', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -1165,19 +1165,17 @@ void main() {
 
     notifier.handTap();
     expect(container.read(salaSessionProvider).noteMode, isTrue);
+    expect(harness.recorder.captures, 0,
+        reason: 'a mão arma o modo de nota — gravar aqui capturaria a fala do '
+            'facilitador por baixo da pergunta');
 
     notifier.handTap();
     expect(container.read(salaSessionProvider).noteMode, isFalse);
-    expect(container.read(salaSessionProvider).knots, 0);
-
-    notifier.handTap();
-    notifier.conversaTap();
-    await settle();
-
-    expect(container.read(salaSessionProvider).knots, 1);
+    expect(harness.recorder.captures, 0);
   });
 
-  test('the knot is tied only after the question actually left', () async {
+  test('the circle opens the microphone once armed, and closes it on the next touch',
+      () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -1187,8 +1185,15 @@ void main() {
     notifier.conversaTap();
     await settle();
 
+    expect(harness.recorder.captures, 1,
+        reason: 'o primeiro toque no círculo depois da mão é o que abre o microfone');
+    expect(harness.inbox.questionsSent, isEmpty,
+        reason: 'um só toque no círculo abre o microfone; a pergunta ainda não foi dita');
+
+    notifier.conversaTap();
+    await settle();
+
     expect(harness.inbox.questionsSent, ['sessao-1']);
-    expect(container.read(salaSessionProvider).knots, 1);
     expect(harness.recorder.deleted, [endsWith('captura-1.m4a')],
         reason: 'a pergunta já está no servidor, esperando uma pessoa — '
             'a cópia no tablet não serve para nada');
@@ -1202,6 +1207,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.handTap();
+    notifier.conversaTap();
     notifier.conversaTap();
     await settle();
 
@@ -1219,6 +1225,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.handTap();
+    notifier.conversaTap();
     notifier.conversaTap();
     await settle();
 
