@@ -166,7 +166,7 @@ void main() {
 
   test('a refusal anywhere else stops for a person, never for a network that is fine',
       () async {
-    final harness = SalaHarness()..room.failWith = const PassageShut();
+    final harness = SalaHarness()..room.failWith = const RoomRefused();
     final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -179,6 +179,50 @@ void main() {
         reason: 'a recusa caía no último ramo do funil e a sala dizia, numa rede boa, '
             'que a internet tinha ido embora');
     expect(state.needsPerson, isTrue);
+  });
+
+  test('a session erased mid conversation returns to the wheel, not to a person',
+      () async {
+    final harness = SalaHarness();
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.room.failHeldTurnWith = const SessionGone();
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.stage, SalaStage.escolha,
+        reason: 'a sessão sumiu no meio da conversa; a equipe volta para escolher de novo, '
+            'como o cliente dela faz num 404 — sem ficar parada esperando alguém');
+    expect(state.needsPerson, isFalse);
+    expect(harness.room.personsAsked, 0,
+        reason: 'nenhuma entrada nasce na fila da mesa para uma sessão que o servidor já '
+            'esqueceu');
+    expect(state.naRoda?.map((p) => p.pericope), contains('P01'),
+        reason: 'a passagem continua oferecida na roda');
+  });
+
+  test('a passage shut mid conversation returns to the wheel, not to a person',
+      () async {
+    final harness = SalaHarness();
+    final container = await inConversaHarness(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.room.failHeldTurnWith = const PassageShut();
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.stage, SalaStage.escolha);
+    expect(state.needsPerson, isFalse);
+    expect(harness.room.personsAsked, 0);
   });
 
   test('a take that finishes playing stops its own pulse', () async {
@@ -304,29 +348,6 @@ void main() {
       isNotEmpty,
       reason: 'o servidor devolve 200 sem guardar nada; se o app também soltar, o trecho deixa de existir',
     );
-  });
-
-  test('a take with nowhere to go says so instead of filling a bead', () async {
-    final harness = SalaHarness();
-    final container = await inConversaHarness(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    harness.room.failWith = const SessionGone();
-    notifier.conversaTap();
-    await settle();
-    notifier.conversaTap();
-    await waitFor('a sessão sumir', () => container.read(salaSessionProvider).sessionId == null);
-    harness.room.failWith = null;
-
-    notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
-    await settle();
-    notifier.takeKeep();
-    await settle();
-
-    expect(harness.voice.assets, contains(strandedTakeAsset(testLanguage)));
   });
 
   test('leaving a passage does not strand the take on disk', () async {
@@ -613,18 +634,18 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     final asked = harness.room.personsAsked;
 
-    harness.room.failWith = const SessionGone();
+    harness.room.failHeldTurnWith = const SessionGone();
     notifier.conversaTap();
     notifier.conversaTap();
     await settle();
 
     final state = container.read(salaSessionProvider);
     expect(state.sessionId, isNull);
-    expect(state.needsPerson, isTrue);
-    expect(harness.voice.assets, contains(fixedLineAsset(needsPersonLine, testLanguage)));
+    expect(state.needsPerson, isFalse);
+    expect(harness.voice.assets, isNot(contains(fixedLineAsset(needsPersonLine, testLanguage))));
     expect(harness.room.personsAsked, asked,
-        reason: 'a sessão foi esquecida junto, e é a sessão nula que impede o aviso de '
-            'sair — avisar um id que já deu 404 é um 404 atrás do outro');
+        reason: 'uma sessão que o servidor já esqueceu nunca chega a ser avisada — a '
+            'equipe volta para a roda em silêncio em vez de esperar alguém');
   });
 
   test('a room that answers nothing is not a network that is gone', () async {
@@ -761,7 +782,8 @@ void main() {
         reason: 'e a queda voltava a se curar sozinha');
   });
 
-  test('a settle that finds the session gone halts instead of retrying', () async {
+  test('a settle that finds the session gone returns to the wheel instead of halting',
+      () async {
     final harness = SalaHarness(settleDelay: const Duration(milliseconds: 40));
     final container = harness.container();
     addTearDown(container.dispose);
@@ -770,17 +792,16 @@ void main() {
     // failure here catches that one poll, which is the only thing that reads the session
     // between turns.
     await container.read(salaSessionProvider.notifier).goConversa();
-    harness.room.failWith = const SessionGone();
-    await waitFor('a sala pedir uma pessoa',
-      () => container.read(salaSessionProvider).needsPerson,
+    harness.room.failStateOnceWith = const SessionGone();
+    await waitFor('a sala voltar para a roda',
+      () => container.read(salaSessionProvider).stage == SalaStage.escolha,
       limit: const Duration(seconds: 3),
     );
 
     final state = container.read(salaSessionProvider);
-    expect(state.sessionId, isNull,
-        reason: 'o 404 caía no catch genérico e virava mais uma tentativa; o disco de '
-            'convite seguia respirando sobre uma sessão que o servidor já esqueceu, e a '
-            'equipe falava um turno inteiro dentro dela');
+    expect(state.needsPerson, isFalse,
+        reason: 'o 404 do settle caía no mesmo funil de um turno; a equipe volta para a '
+            'roda em silêncio em vez de ficar parada esperando alguém');
   });
 
   test('a denied microphone leaves no screen pretending to record', () async {
@@ -1103,7 +1124,7 @@ void main() {
             'voltar ao gesto que falta');
   });
 
-  test('a session the server forgot starts the passage clean', () async {
+  test('a session the server forgot twice sends the team back to the wheel', () async {
     final harness = SalaHarness();
     final container = harness.container();
     addTearDown(container.dispose);
@@ -1116,14 +1137,41 @@ void main() {
     notifier.leaveThePassage();
     await settle();
 
-    harness.room.failWith = const SessionGone();
+    harness.room.failHeldTurnWith = const SessionGone();
+    harness.room.failCreateOnceWith = const SessionGone();
     notifier.entrarNaOferecida();
     await settle();
-    harness.room.failWith = null;
-    await settle(const Duration(milliseconds: 300));
 
-    expect(container.read(salaSessionProvider).stage, SalaStage.conversa,
-        reason: 'lembrar de uma sessão que o servidor esqueceu não pode virar beco');
+    final state = container.read(salaSessionProvider);
+    expect(state.stage, SalaStage.escolha,
+        reason: 'a sessão lembrada e a sessão nova recusada de novo — sem ficar '
+            'presa numa conversa que não abre, a equipe volta à roda');
+    expect(state.needsPerson, isFalse);
+  });
+
+  test('a passage shut on a remembered entry drops the resume point too', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.abrirEscolha();
+    await settle();
+    notifier.entrarNaOferecida();
+    await settle();
+    notifier.leaveThePassage();
+    await settle();
+    expect(harness.emAberto.rows, contains('Ruth/P01'));
+
+    harness.room.failHeldTurnWith = const PassageShut();
+    notifier.entrarNaOferecida();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.stage, SalaStage.escolha);
+    expect(harness.emAberto.rows, isNot(contains('Ruth/P01')),
+        reason: 'uma passagem que o servidor fechou não pode continuar oferecendo um '
+            'retorno para uma sessão que ela mesma recusou');
   });
 
   test('hearing again is not offered on top of the retro clip', () async {

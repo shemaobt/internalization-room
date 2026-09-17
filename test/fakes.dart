@@ -572,6 +572,16 @@ class FakeRoom implements RoomRepository {
   Exception? failDivideWith;
   Exception? failReplaceWith;
 
+  /// What the next call to `fetchState` throws, independent of `failWith` — a case needs
+  /// the settle poll to fail exactly once, so the read after it can succeed instead of
+  /// failing the same way forever.
+  Exception? failStateOnceWith;
+
+  /// What the next call to `createSession` throws, independent of `failWith` and of
+  /// `shutsThePassage` — a case needs a retry that opens a session for the same passage
+  /// to fail exactly once too, so the attempt after it can land.
+  Exception? failCreateOnceWith;
+
   /// What the ask for a verdict throws, when it is set. The one knob that lets a test put
   /// a failure between a correction the room answered and the answer reaching the team.
   Exception? failFinishWith;
@@ -779,6 +789,11 @@ class FakeRoom implements RoomRepository {
   }) async {
     _guard('createSession');
     if (pericope != null && pericope == shutsThePassage) throw const PassageShut();
+    final failure = failCreateOnceWith;
+    if (failure != null) {
+      failCreateOnceWith = null;
+      throw failure;
+    }
     pericopesAsked.add(pericope);
     metBefore.add(afterSession != null);
     bridgeModesSent.add(bridgeMode);
@@ -811,6 +826,11 @@ class FakeRoom implements RoomRepository {
   @override
   Future<SessionSnapshot> fetchState(String sessionId) async {
     _guard('fetchState');
+    final failure = failStateOnceWith;
+    if (failure != null) {
+      failStateOnceWith = null;
+      throw failure;
+    }
     return SessionSnapshot(
       sessionId: sessionId,
       pericope: 'rute-1',

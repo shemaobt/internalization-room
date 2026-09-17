@@ -717,9 +717,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case RoomRefused():
         _haltForAPerson();
       case SessionGone():
-        _haltForAPerson(sessionIsGone: true);
+        _leaveTheDeadPassage();
       case PassageShut():
-        _haltForAPerson();
+        _leaveTheDeadPassage();
       case RoomBroke():
         _registerRoomFailure();
       case RoomSlow():
@@ -988,11 +988,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state = state.copyWith(voice: VoiceState.done, peerCue: false);
       }
     } on SessionGone {
-      // Retrying a session the server has forgotten just spends the budget. The invite
-      // disc used to keep breathing over it while the team spoke a whole turn into a
-      // session that no longer existed.
       if (epoch != _epoch) return;
-      _haltForAPerson(sessionIsGone: true);
+      _leaveTheDeadPassage();
     } on RoomRefused {
       if (epoch != _epoch) return;
       _haltForAPerson();
@@ -1360,6 +1357,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(abrirEscolha());
   }
 
+  void _leaveTheDeadPassage() {
+    final pericope = _emCurso;
+    if (pericope != null) {
+      unawaited(_mindingThePlace(() => _emAberto.forget(_book, pericope)));
+    }
+    leaveThePassage();
+  }
+
   /// Enter a passage, resuming the session this tablet left in it when there is one.
   ///
   /// `fresh` skips the resume, which is how the 404 path starts over: retrying without it
@@ -1488,13 +1493,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (fresh) {
         // Already the clean attempt: the server is refusing the passage itself, not the
         // session we remembered. Retrying again is the loop this guard exists to stop.
-        _haltForAPerson(sessionIsGone: true);
+        leaveThePassage();
         return;
       }
       // The tablet remembered a session the server has forgotten. Start clean, once.
       unawaited(goConversa(pericope: pericope, fresh: true));
     } on PassageShut {
       if (epoch != _epoch) return;
+      if (pericope != null) {
+        unawaited(_mindingThePlace(() => _emAberto.forget(_book, pericope)));
+      }
       unawaited(abrirEscolha());
     } on Exception catch (error) {
       if (epoch != _epoch) return;

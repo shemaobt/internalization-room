@@ -52,7 +52,7 @@ void main() {
             'impede um facilitador de ser mandado atrás dela');
   });
 
-  test('a turn spoken after a person resolves a forgotten session reaches the room',
+  test('a turn spoken after a person resolves a stopped room reaches the room',
       () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
@@ -60,7 +60,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
-    await _haltWith(harness, notifier, read, const SessionGone());
+    await _haltWith(harness, notifier, read, const RoomRefused());
     final turns = harness.room.turnsSent;
 
     notifier.resolveWithPerson();
@@ -74,7 +74,7 @@ void main() {
 
     expect(harness.room.turnsSent, turns + 1,
         reason: 'a pessoa resolveu a parada e a equipe falou um turno inteiro; '
-            'sem sessão nenhuma por baixo, o turno era descartado no caminho');
+            'a sessão continua de pé por baixo da parada e o turno chega a ela');
     expect(read().needsPerson, isFalse,
         reason: 'e a sala não volta a parar em cima do turno que acabou de ouvir');
   });
@@ -104,7 +104,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
-    await _haltWith(harness, notifier, read, const SessionGone());
+    await _haltWith(harness, notifier, read, const RoomRefused());
 
     notifier.resolveWithPerson();
     await waitFor('o círculo voltar ao convite', () => read().voice == VoiceState.invite);
@@ -165,23 +165,18 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
-    await _haltWith(harness, notifier, read, const SessionGone());
+    await _haltWith(harness, notifier, read, const RoomRefused());
     final turns = harness.room.turnsSent;
 
     notifier.resolveWithPerson();
-    notifier.conversaTap();
-
-    await waitFor('o círculo voltar ao convite', () => read().voice == VoiceState.invite);
-    await settle();
-
     notifier.conversaTap();
     await settle();
     notifier.conversaTap();
     await waitFor('mais um turno chegar à sala', () => harness.room.turnsSent > turns);
 
     expect(harness.room.turnsSent, turns + 1,
-        reason: 'tocar o círculo antes de a sala estar de pé não pode consumir '
-            'o turno: a equipe fala uma vez e a sala ouve uma vez');
+        reason: 'tocar o círculo no instante em que a parada resolve começa a '
+            'gravar em vez de ser engolido pela espera');
     expect(read().needsPerson, isFalse);
   });
 
@@ -193,7 +188,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
-    await _haltWith(harness, notifier, read, const SessionGone());
+    await _haltWith(harness, notifier, read, const RoomRefused());
 
     notifier.resolveWithPerson();
     await waitFor('o círculo voltar ao convite', () => read().voice == VoiceState.invite);
@@ -224,7 +219,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
-    await _haltWith(harness, notifier, read, const SessionGone());
+    await _haltWith(harness, notifier, read, const RoomRefused());
 
     notifier.resolveWithPerson();
     await waitFor('o círculo voltar ao convite', () => read().voice == VoiceState.invite);
