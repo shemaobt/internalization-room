@@ -1040,6 +1040,46 @@ void main() {
             'saber que esse turno tinha vindo ruim');
   });
 
+  test('two visible server errors across an offline episode still fall short of a person',
+      () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.room.reachable = false;
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle(const Duration(milliseconds: 5));
+    expect(container.read(salaSessionProvider).offline, isTrue,
+        reason: 'servidor totalmente fora vira queda de rede, não erro do servidor');
+
+    harness.room.reachable = true;
+    await settle();
+    expect(container.read(salaSessionProvider).offline, isFalse,
+        reason: 'a sala volta sozinha assim que a rede responde de novo');
+
+    harness.room.failWith = const RoomBroke('HTTP 503');
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    harness.room.failWith = null;
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    harness.room.failWith = const RoomBroke('HTTP 503');
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    expect(container.read(salaSessionProvider).needsPerson, isFalse,
+        reason: 'a queda de rede não é erro do servidor e não deve contar para '
+            'o mesmo contador — dois 503 visíveis, com um turno bom entre eles, '
+            'não somam três seguidas');
+  });
+
   test('a panorama that cannot be spoken leaves a way back', () async {
     final harness = SalaHarness()..voice.succeeds = false;
     final container = harness.container();
