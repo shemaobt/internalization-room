@@ -545,6 +545,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _registerUnplayableTurn({bool leavesTeamTalk = true}) {
+    _openTurnId = null;
     _unplayableTurns++;
     if (_unplayableTurns >= _unplayableTurnsBeforeNeedsPerson) {
       _haltForAPerson();
