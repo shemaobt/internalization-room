@@ -33,8 +33,9 @@ A recording error is answered by recording the whole **Part** again in its own p
 (ADR 0020); a telling error is answered by the **Short way**. `replace` takes audio,
 never nothing.
 
-Supersedes ADR 0007 and ADR 0001, whose whole subject was the window between the two
-stations of the retired mend.
+Supersedes ADR 0007; ADR 0001, whose whole subject was the window between the two
+stations of the retired mend; and ADR 0005, whose two microphones are now ADR 0020's
+**Long way** and the **Short way**.
 
 ## Consequences
 
