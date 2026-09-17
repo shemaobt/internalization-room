@@ -2865,6 +2865,29 @@ void main() {
     expect(container.read(salaSessionProvider).entradaOffered, isTrue);
   });
 
+  test('a run of panorama exchanges never opens a passage session on its own',
+      () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.openConvite();
+    for (var i = 0; i < 4; i++) {
+      notifier.conviteTap();
+      await settle();
+      notifier.conviteTap();
+      await settle();
+    }
+
+    expect(container.read(salaSessionProvider).stage, SalaStage.convite,
+        reason: 'quatro idas e voltas de gravação não têm por que sair do '
+            'panorama sozinhas — a passagem só nasce quando a equipe toca a conta');
+    expect(harness.room.sessionIds, hasLength(1),
+        reason: 'nenhuma sessão de passagem é criada por um toque no círculo');
+    expect(harness.room.turnsSent, 4);
+  });
+
   test('a panorama turn the recorder never handed back returns to the invite '
       'in silence', () async {
     final harness = SalaHarness()..recorder.returnsNothing = true;
