@@ -534,6 +534,28 @@ void main() {
             'em vez de abrir a passagem de fato pedida agora');
   });
 
+  test('an opening the room could not play does not keep its id for the next attempt',
+      () async {
+    final harness = SalaHarness()..voice.succeeds = false;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+    harness.voice.succeeds = true;
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+
+    expect(harness.room.turnIdsAsked, hasLength(2),
+        reason: 'a primeira chegou e falhou ao tocar, e o segundo pedido '
+            'precisa acontecer para haver o que comparar');
+    expect(harness.room.turnIdsAsked[1], isNot(harness.room.turnIdsAsked[0]),
+        reason: 'a primeira abertura já chegou da sala — reaproveitar o id '
+            'dela faz o servidor devolver o mesmo áudio que acabou de '
+            'falhar, em vez de abrir de novo');
+  });
+
   test('beads settle from the server, not from the turn that just spoke', () async {
     final harness = SalaHarness(settleDelay: const Duration(milliseconds: 80))
       ..room.settledCoverage = coverage(engaged: 3, surfaced: 4);
