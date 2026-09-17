@@ -18,7 +18,10 @@ import '../domain/turn_result.dart';
 import 'device_identity.dart';
 
 const _basePath = '/api/internalization-room';
-const _turnTimeout = Duration(seconds: 90);
+
+/// The client's rung of the turn ladder: above the turn route's 300 s server bound
+/// (ENG-817), below the busy-state watchdog in session_notifier.dart (330 s).
+const _turnTimeout = Duration(seconds: 310);
 const _stateTimeout = Duration(seconds: 20);
 
 class RoomUnavailable implements Exception {
@@ -103,6 +106,8 @@ class ReleaseRefused implements Exception {
 }
 
 class RoomRepository {
+  static const turnTimeout = _turnTimeout;
+
   final http.Client _client;
   final Future<String> Function() _deviceId;
 

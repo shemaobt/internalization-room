@@ -51,7 +51,7 @@ const _inboxSilencesBeforeSayingSo = 3;
 const _degradedTurnsBeforeAPerson = 3;
 
 final busyStateCeilingProvider = Provider<Duration?>(
-  (ref) => const Duration(seconds: 120),
+  (ref) => const Duration(seconds: 330),
 );
 
 /// Slack added to a clip's own length before the room decides the playback is lost. A

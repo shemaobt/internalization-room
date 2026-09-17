@@ -62,7 +62,7 @@ const allowlist = <AllowlistEntry>[
   AllowlistEntry(
     'lib/features/sala/data/room_repository.dart',
     Rule.ceiling,
-    'const _turnTimeout = Duration(seconds: 90);',
+    'const _turnTimeout = Duration(seconds: 310);',
   ),
   AllowlistEntry(
     'lib/features/sala/data/session_notifier.dart',

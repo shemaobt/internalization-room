@@ -3,10 +3,12 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
 
@@ -654,6 +656,27 @@ void main() {
         );
       }
     });
+  });
+
+  test(
+      'the client turn wait and the busy watchdog sit above the server bound, in order',
+      () {
+    const serverBound = Duration(seconds: 300);
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final watchdog = container.read(busyStateCeilingProvider);
+
+    expect(RoomRepository.turnTimeout, greaterThan(serverBound),
+        reason: 'a rota aceita até 300 s (ENG-817); um cliente que desiste em 90 s '
+            'derrubava um turno que o servidor ainda ia responder');
+    expect(watchdog, isNotNull);
+    expect(watchdog, greaterThan(RoomRepository.turnTimeout),
+        reason: 'o watchdog precisa sobrar depois que a chamada HTTP já teria '
+            'voltado, senão os dois relógios brigam pelo mesmo turno travado');
+    expect(RoomRepository.turnTimeout, const Duration(seconds: 310),
+        reason: 'a escada da Márcia: 300 s no servidor, 310 s no cliente, 330 s no watchdog');
+    expect(watchdog, const Duration(seconds: 330),
+        reason: 'a escada da Márcia: 300 s no servidor, 310 s no cliente, 330 s no watchdog');
   });
 }
 
