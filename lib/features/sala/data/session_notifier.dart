@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/env.dart';
 import '../domain/bt_finding.dart';
+import '../domain/capture_guard.dart';
 import '../domain/escuta_das_partes.dart';
 import '../domain/facilitator_script.dart';
 import '../domain/hand_reply.dart';
@@ -71,6 +72,10 @@ final shortestSpeechProvider = Provider<Duration>(
 final playbackCeilingProvider = Provider<Duration?>(
   (ref) => const Duration(minutes: 6),
 );
+
+/// The tap boundary the conversa recorder is held to: a take under 1,200 ms or 800 bytes
+/// never becomes a question for the room.
+final captureGuardProvider = Provider<CaptureGuard>((ref) => const CaptureGuard());
 
 /// The book the room is serving. One string, in one place, so another book is a config
 /// change rather than a code change — the catalogue route takes it as a parameter.
@@ -223,6 +228,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ConnectivityService get _network => ref.read(connectivityServiceProvider);
   FinishedPassages get _feitas => ref.read(finishedPassagesProvider);
   WorkInProgress get _emAberto => ref.read(workInProgressProvider);
+  CaptureGuard get _captureGuard => ref.read(captureGuardProvider);
 
   String get _book => ref.read(bookProvider);
 
@@ -1663,15 +1669,29 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     switch (state.voice) {
       case VoiceState.invite:
-        _startListening('conversa_${_stamp()}');
       case VoiceState.listening:
-        unawaited(_finishListening());
+        _actOnConversaTap();
       case VoiceState.thinking:
       case VoiceState.speaking:
       case VoiceState.done:
       case VoiceState.needsPerson:
       case VoiceState.offline:
       case VoiceState.blocked:
+        break;
+    }
+  }
+
+  void _actOnConversaTap() {
+    final isRecording = state.voice == VoiceState.listening;
+    final elapsed = _listeningSince == null
+        ? Duration.zero
+        : DateTime.now().difference(_listeningSince!);
+    switch (_captureGuard.decide(isRecording: isRecording, elapsed: elapsed)) {
+      case TapDecision.start:
+        _startListening('conversa_${_stamp()}');
+      case TapDecision.stop:
+        unawaited(_finishListening());
+      case TapDecision.ignore:
         break;
     }
   }
@@ -1703,21 +1723,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final path = await _recorder.stop();
     if (epoch != _epoch) return;
     final sessionId = state.sessionId;
-    if (path == null || !_hasAudio(path)) {
-      // The recorder handed nothing back after a turn the team just spoke. Reading that
-      // as an ordinary return to the invite is the same silence `_finishTake` used to
-      // keep, one method over.
+    final elapsed = _listeningSince == null
+        ? Duration.zero
+        : DateTime.now().difference(_listeningSince!);
+    final bytes =
+        path == null ? 0 : (File(path).existsSync() ? File(path).lengthSync() : 0);
+    if (path == null || !_captureGuard.accepts(duration: elapsed, bytes: bytes)) {
+      // A take the guard would not have armed in the first place — too short, or too
+      // light to be a real recording. Reading that as an ordinary return to the invite
+      // is the same silence a phantom tap always deserved, never a fail-safe line.
+      if (path != null) unawaited(_recorder.delete(path));
       state = state.copyWith(voice: VoiceState.invite);
-      _haltForAPerson();
       return;
     }
     if (sessionId == null) {
       state = state.copyWith(voice: VoiceState.invite);
       _haltForAPerson(sessionIsGone: true);
-      return;
-    }
-    if (!_heardSomething) {
-      await _askThemToRepeat(path);
       return;
     }
     _sayImThinking();

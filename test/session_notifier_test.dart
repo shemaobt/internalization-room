@@ -2218,25 +2218,30 @@ void main() {
     );
   });
 
-  test('a capture with no speech is answered from the bundle, not from the room',
-      () async {
-    final harness = SalaHarness(shortestSpeech: const Duration(seconds: 30));
+  test(
+      'a capture the guard rejects is answered in silence, never from the '
+      'room', () async {
+    final harness = SalaHarness()..recorder.returnsEmpty = true;
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
     harness.voice.assets.clear();
-    final callsBefore = harness.room.calls.length;
+    final turnsBefore = harness.room.turnsSent;
 
     notifier.conversaTap();
     notifier.conversaTap();
     await settle();
 
-    expect(harness.room.calls.length, callsBefore,
+    expect(harness.room.turnsSent, turnsBefore,
         reason: 'a regra existe para que um silêncio não custe nem espera nem '
             'chamada — hoje subia tudo e o servidor decidia depois');
-    expect(harness.voice.assets, [fixedLineAsset(inaudibleLines.first, testLanguage)]);
+    expect(harness.voice.assets, isEmpty,
+        reason: 'nenhuma linha fixa é falada — o take que o guard reprova '
+            'some em silêncio, sem pedir para repetir');
     expect(container.read(salaSessionProvider).voice, VoiceState.invite,
         reason: 'e a sala volta a convidar, pronta para ouvir de novo');
+    expect(container.read(salaSessionProvider).needsPerson, isFalse,
+        reason: 'um take curto não é uma pessoa chamada');
   });
 
   test('each pause closes a stretch, and the stretches follow the recording',

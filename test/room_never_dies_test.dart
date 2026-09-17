@@ -832,12 +832,16 @@ void main() {
     notifier.conversaTap();
     await settle();
 
-    expect(container.read(salaSessionProvider).needsPerson, isTrue,
-        reason: 'a equipe acabou de falar a passagem inteira e nada voltou do gravador; '
-            'voltar ao convite em silêncio é o mesmo descarte que o ensaio tinha');
+    final state = container.read(salaSessionProvider);
+    expect(state.needsPerson, isFalse,
+        reason: 'o mesmo toque fantasma que o guard descarta em qualquer outra forma — '
+            'nada voltou do gravador não é uma pessoa a chamar');
+    expect(state.voice, VoiceState.invite,
+        reason: 'a sala volta a convidar em silêncio, pronta para ouvir de novo');
   });
 
-  test('a turn recorded into nothing stops the room instead of going up', () async {
+  test('a turn recorded into nothing never goes up, and never calls a person',
+      () async {
     final harness = SalaHarness();
     final container = await inConversaHarness(harness);
     addTearDown(container.dispose);
@@ -853,9 +857,9 @@ void main() {
     expect(harness.room.turnsSent, subiram,
         reason: 'o arquivo de zero byte subia como turno e a sala respondia a um '
             'silêncio que a equipe nunca disse');
-    expect(container.read(salaSessionProvider).needsPerson, isTrue,
-        reason: 'gravador que devolve arquivo sem um byte é aparelho com problema, não '
-            'pessoa falando baixo — pedir para repetir não esvazia um disco cheio');
+    expect(container.read(salaSessionProvider).needsPerson, isFalse,
+        reason: 'header-only blobs return silently to the invite; never trigger '
+            'remote STT nor a person, no design da Marcia (captureGuard.ts)');
   });
 
   test('a question the recorder never handed back is not forgotten', () async {

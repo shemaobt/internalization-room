@@ -1,11 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
+import 'package:internalization_room/features/sala/domain/capture_guard.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'session_notifier_test.dart' show inConversa, settle;
 
-const _threshold = Duration(milliseconds: 50);
+const _guard = CaptureGuard(minDuration: Duration(milliseconds: 50), minBytes: 1);
 const _longEnough = Duration(milliseconds: 90);
 
 Future<void> _miss(SalaSessionNotifier notifier) async {
@@ -14,71 +15,41 @@ Future<void> _miss(SalaSessionNotifier notifier) async {
   await settle();
 }
 
-Future<void> _heard(SalaSessionNotifier notifier) async {
-  notifier.conversaTap();
-  await settle(_longEnough);
-  notifier.conversaTap();
-  await settle();
-}
-
 void main() {
-  test('a second miss in a row calls for a person instead of a second line',
+  test('a second tap inside the window is ignored, not a second miss',
       () async {
-    final harness = SalaHarness(shortestSpeech: _threshold);
+    final harness = SalaHarness(captureGuard: _guard);
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
     harness.voice.assets.clear();
+    final callsBefore = harness.room.calls.length;
 
     await _miss(notifier);
-    await _miss(notifier);
 
-    expect(
-      harness.voice.assets,
-      [
-        fixedLineAsset(inaudibleLines.first, testLanguage),
-        fixedLineAsset(needsPersonLine, testLanguage),
-      ],
-      reason: 'a primeira vez pede para repetir; a segunda chama alguém — '
-          'nunca as duas linhas de repetir seguidas',
-    );
-    expect(container.read(salaSessionProvider).needsPerson, isTrue);
-  });
-
-  test('the ladder calls for a person that keeps the session, not a session '
-      'that is gone', () async {
-    final harness = SalaHarness(shortestSpeech: _threshold);
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    final sessionId = container.read(salaSessionProvider).sessionId;
-
-    await _miss(notifier);
-    await _miss(notifier);
-
-    expect(container.read(salaSessionProvider).sessionId, sessionId,
-        reason: 'a sala pediu uma pessoa sem apagar a sessão — o círculo '
-            'fica vivo, como ela concordou');
-  });
-
-  test('a turn the room heard resets the ladder', () async {
-    final harness = SalaHarness(shortestSpeech: _threshold);
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    harness.voice.assets.clear();
-
-    await _miss(notifier);
-    await _heard(notifier);
-    harness.voice.assets.clear();
-    await _miss(notifier);
-
-    expect(
-      harness.voice.assets,
-      [fixedLineAsset(inaudibleLines.first, testLanguage)],
-      reason: 'o turno ouvido zerou a escada — a próxima falta volta a '
-          'pedir para repetir, não chama alguém direto',
-    );
+    expect(harness.voice.assets, isEmpty,
+        reason: 'o toque de dentro da janela nunca chega a falar nada — a '
+            'gravação continua, não é um take reprovado');
+    expect(harness.room.calls.length, callsBefore,
+        reason: 'a gravação ainda está de pé; nada foi mandado para a sala');
+    expect(container.read(salaSessionProvider).voice, VoiceState.listening,
+        reason: 'o segundo toque foi ignorado, o primeiro continua valendo');
     expect(container.read(salaSessionProvider).needsPerson, isFalse);
+  });
+
+  test('a stop past the window still reaches the room, as before', () async {
+    final harness = SalaHarness(captureGuard: _guard);
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    final turnsBefore = harness.room.turnsSent;
+
+    notifier.conversaTap();
+    await settle(_longEnough);
+    notifier.conversaTap();
+    await settle();
+
+    expect(harness.room.turnsSent, turnsBefore + 1,
+        reason: 'um toque depois da janela ainda encerra e sobe a tomada');
   });
 }
