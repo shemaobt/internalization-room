@@ -198,7 +198,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// it runs the whole pipeline again instead of answering with what it already produced.
   String? _openTurnId;
 
-  bool _awaitingCalibration = false;
   String? _pendingTakePath;
   StreamSubscription<void>? _playbackDone;
   StreamSubscription<void>? _playbackFailed;
@@ -1090,12 +1089,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       retryNow();
       return;
     }
-    if (state.conviteStep == ConviteStep.entrada && _awaitingCalibration) {
+    if (state.conviteStep == ConviteStep.entrada) {
       switch (state.voice) {
         case VoiceState.invite:
-          _startListening('calibracao_${_stamp()}');
+          _startListening('panorama_${_stamp()}');
         case VoiceState.listening:
-          unawaited(_finishCalibrationListening());
+          unawaited(_finishPanoramaListening());
         case VoiceState.thinking:
         case VoiceState.speaking:
         case VoiceState.done:
@@ -1110,20 +1109,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.conviteStep == ConviteStep.boasVindas) unawaited(openConvite());
   }
 
-  Future<void> _finishCalibrationListening() async {
+  Future<void> _finishPanoramaListening() async {
     final epoch = _epoch;
     final path = await _recorder.stop();
     if (epoch != _epoch) return;
-    final panorama = _panoramaSessionId;
+    final panorama = _panoramaSessionId!;
     if (path == null || !_hasAudio(path)) {
       state = state.copyWith(voice: VoiceState.invite);
       _haltForAPerson();
-      return;
-    }
-    if (panorama == null) {
-      _awaitingCalibration = false;
-      state = state.copyWith(voice: VoiceState.invite);
-      unawaited(_recorder.delete(path));
       return;
     }
     _sayImThinking();
@@ -4270,7 +4263,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _forgetThePassage();
     _conviteOpened = false;
     _panoramaSessionId = null;
-    _awaitingCalibration = false;
     state = const SalaSessionState();
     unawaited(abrirEscolha());
   }
