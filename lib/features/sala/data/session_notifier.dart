@@ -194,6 +194,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _ghostParte = 0;
   String? _panoramaSessionId;
 
+  /// The opening turn this instance is asking for, minted once and carried across every
+  /// retry of it — a resend under a fresh id is a fresh id the server has never seen, so
+  /// it runs the whole pipeline again instead of answering with what it already produced.
+  String? _openTurnId;
+
   String? _bridgeMode;
   bool _awaitingCalibration = false;
   String? _pendingTakePath;
@@ -491,6 +496,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _settleNetworkHealth(calm: !turn.degraded);
+    _openTurnId = null;
     state = state.copyWith(
       voice: turn.done ? VoiceState.done : VoiceState.invite,
       peerCue: turn.peerCue,
@@ -530,6 +536,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _registerUnplayableTurn({bool leavesTeamTalk = true}) {
+    _openTurnId = null;
     _unplayableTurns++;
     _calmTurns = 0;
     if (_unplayableTurns >= _unplayableTurnsBeforeNeedsPerson) {
@@ -1025,7 +1032,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       final panorama = _panoramaSessionId ?? created!.sessionId;
       _panoramaSessionId = panorama;
-      final turn = await _room.openSession(panorama);
+      final turn =
+          await _room.openSession(panorama, turnId: _openTurnId ??= _stamp());
       if (epoch != _epoch) return;
       await _voicePanorama(turn);
     } on Object catch (error) {
@@ -1049,6 +1057,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _settleNetworkHealth();
+    _openTurnId = null;
     _captureBridgeMode(turn);
     unawaited(_feitas.markBookOpened(_book).catchError((_) {}));
     state = state.copyWith(
@@ -1297,7 +1306,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       final panorama = _panoramaSessionId ?? created!.sessionId;
       _panoramaSessionId = panorama;
-      final turn = await _room.openSession(panorama);
+      final turn =
+          await _room.openSession(panorama, turnId: _openTurnId ??= _stamp());
       if (epoch != _epoch) return;
       await _readyToSpeak(turn.audioUrl, turn.fixedLine);
       if (epoch != _epoch) return;
@@ -1307,6 +1317,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (epoch != _epoch) return;
       if (!spoke) return _registerUnplayableTurn();
       _unplayableTurns = 0;
+      _openTurnId = null;
       state = state.copyWith(voice: VoiceState.invite);
     } on Object catch (error) {
       if (epoch != _epoch) return;
@@ -1443,7 +1454,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         }
       }
       // Re-opening carries the coverage back with it, so the necklace fills itself.
-      await _voiceTurn(await _room.openSession(sessionId), epoch);
+      await _voiceTurn(
+        await _room.openSession(sessionId, turnId: _openTurnId ??= _stamp()),
+        epoch,
+      );
     } on SessionGone {
       if (epoch != _epoch) return;
       if (pericope != null) {
