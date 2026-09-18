@@ -24,7 +24,6 @@ class ConviteView extends ConsumerWidget {
           beckon: session.awaitingFirstTouch,
           semanticLabel: switch (session) {
             _ when session.needsPerson => 'Um momento para uma pessoa',
-            _ when session.showEntrada => 'O facilitador já contou do livro',
             _ => 'Falar com o facilitador',
           },
           onTap: notifier.conviteTap,
@@ -37,7 +36,7 @@ class ConviteView extends ConsumerWidget {
           height: 78,
           child: session.entradaOffered
               ? AdvanceButton(
-                  ready: session.showEntrada,
+                  ready: session.entradaOffered,
                   size: 78,
                   gradient: BeadStyles.wood,
                   halo: ShemaBrand.wood,

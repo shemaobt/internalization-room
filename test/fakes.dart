@@ -22,8 +22,10 @@ import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/capture_guard.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/coverage.dart';
+import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
@@ -167,8 +169,19 @@ class FakeRecorder implements RecordingRepository {
   @override
   Future<bool?> hasPermission() async => permitted ? answersPermission : false;
 
+  Completer<void>? _holdingStart;
+
+  void holdNextStart() => _holdingStart = Completer<void>();
+
+  void finishStart() {
+    _holdingStart?.complete();
+    _holdingStart = null;
+  }
+
   @override
   Future<Capture> start(String fileName) async {
+    final held = _holdingStart;
+    if (held != null) await held.future;
     captures++;
     if (!permitted) return Capture.denied;
     if (startThrows) return Capture.failed;
@@ -504,9 +517,24 @@ class FakeInbox implements HandInboxRepository {
 }
 
 class FakeRoom implements RoomRepository {
+  final StreamController<CoverageEvent> _coverage = StreamController<CoverageEvent>.broadcast();
+
+  void pushCoverage(CoverageEvent event) => _coverage.add(event);
+
+  @override
+  Stream<CoverageEvent> watchCoverage(String sessionId) => _coverage.stream;
+
+  /// What a turn's own response says about the id classification will settle under, and
+  /// whether classification is still running for it. Pending by default — the way a real
+  /// conversational turn from the backend behaves — so a double built for some other
+  /// behaviour still exercises the wait the way production would. Null generates a fresh
+  /// id per turn, as the server does; a test naming a fixed id owns matching it itself.
+  String? turnIdInResponse;
+  bool classificationPending = true;
+  int _turnCount = 0;
+
   final List<String> calls = [];
   final List<String?> pericopesAsked = [];
-  final List<String?> bridgeModesSent = [];
   final List<String> languagesSent = [];
   final List<String> languagesAsked = [];
   final List<List<Map<String, Object?>>> playedByTakeSent = [];
@@ -549,6 +577,16 @@ class FakeRoom implements RoomRepository {
   Exception? failRestartWith;
   Exception? failDivideWith;
   Exception? failReplaceWith;
+
+  /// What the next call to `fetchState` throws, independent of `failWith` — a case needs
+  /// the settle poll to fail exactly once, so the read after it can succeed instead of
+  /// failing the same way forever.
+  Exception? failStateOnceWith;
+
+  /// What the next call to `createSession` throws, independent of `failWith` and of
+  /// `shutsThePassage` — a case needs a retry that opens a session for the same passage
+  /// to fail exactly once too, so the attempt after it can land.
+  Exception? failCreateOnceWith;
 
   /// What the ask for a verdict throws, when it is set. The one knob that lets a test put
   /// a failure between a correction the room answered and the answer reaching the team.
@@ -673,9 +711,13 @@ class FakeRoom implements RoomRepository {
   /// fails — which is the only way the room reaches some of its own states.
   Exception? failHeldTurnWith;
 
+  Exception? failTurnsWith;
+
   Future<void> _turnArrives() async {
     final held = _holdingTurn;
     if (held != null) await held.future;
+    final never = failTurnsWith;
+    if (never != null) throw never;
     final failure = failHeldTurnWith;
     if (failure != null) {
       failHeldTurnWith = null;
@@ -749,14 +791,17 @@ class FakeRoom implements RoomRepository {
   Future<SessionSnapshot> createSession({
     String? pericope,
     String? afterSession,
-    String? bridgeMode,
     required String language,
   }) async {
     _guard('createSession');
     if (pericope != null && pericope == shutsThePassage) throw const PassageShut();
+    final failure = failCreateOnceWith;
+    if (failure != null) {
+      failCreateOnceWith = null;
+      throw failure;
+    }
     pericopesAsked.add(pericope);
     metBefore.add(afterSession != null);
-    bridgeModesSent.add(bridgeMode);
     languagesSent.add(language);
     // The server decides which passage a session is for; asking for the panorama is a
     // request, not an instruction. Today it always honours "OV", and this is where that
@@ -786,6 +831,11 @@ class FakeRoom implements RoomRepository {
   @override
   Future<SessionSnapshot> fetchState(String sessionId) async {
     _guard('fetchState');
+    final failure = failStateOnceWith;
+    if (failure != null) {
+      failStateOnceWith = null;
+      throw failure;
+    }
     return SessionSnapshot(
       sessionId: sessionId,
       pericope: 'rute-1',
@@ -1031,6 +1081,8 @@ class FakeRoom implements RoomRepository {
         degraded: turnsAreDegraded,
         coverage: silentAboutCoverage ? null : nextCoverage,
         done: done,
+        turnId: turnIdInResponse ?? 'turno-fake-${++_turnCount}',
+        classificationPending: classificationPending,
         bridgeMode: bridgeMode,
         segments: opensInTwoMovements
             ? const [
@@ -1137,7 +1189,7 @@ class FakeRoom implements RoomRepository {
   }
 
   @override
-  void dispose() {}
+  void dispose() => _coverage.close();
 }
 
 class FakeNetwork implements ConnectivityService {
@@ -1401,7 +1453,7 @@ class SalaHarness {
   final Duration? busyCeiling;
   final Duration? playbackCeiling;
   final Duration clipGrace;
-  final Duration shortestSpeech;
+  final CaptureGuard captureGuard;
   final Duration fimLinger;
   /// Whether the outbox keeps its rows in memory instead of on disk. Opt-in, for widget
   /// tests, whose binding never lets the real queue's IO finish.
@@ -1422,7 +1474,7 @@ class SalaHarness {
     this.busyCeiling,
     this.playbackCeiling,
     this.clipGrace = const Duration(seconds: 10),
-    this.shortestSpeech = Duration.zero,
+    this.captureGuard = const CaptureGuard(minDuration: Duration.zero, minBytes: 1),
     this.fimLinger = const Duration(seconds: 30),
     this.filaEmMemoria = false,
     this.lingua = testLanguage,
@@ -1460,12 +1512,13 @@ class SalaHarness {
         linkedTeamProvider.overrideWithValue(vinculo),
         linkPollIntervalProvider.overrideWithValue(linkPoll),
         screenAwakeProvider.overrideWithValue(awake),
-        beadSettleDelayProvider.overrideWithValue(settleDelay),
+        roomPollDelayProvider.overrideWithValue(settleDelay),
+        coverageFallbackDelayProvider.overrideWithValue(settleDelay),
         roomRetryBackoffProvider.overrideWithValue(retryBackoff),
         busyStateCeilingProvider.overrideWithValue(busyCeiling),
         playbackCeilingProvider.overrideWithValue(playbackCeiling),
         clipGraceProvider.overrideWithValue(clipGrace),
-        shortestSpeechProvider.overrideWithValue(shortestSpeech),
+        captureGuardProvider.overrideWithValue(captureGuard),
         fimLingerProvider.overrideWithValue(fimLinger),
         if (lingua != null) roomLanguageProvider.overrideWithValue(lingua!),
       ];

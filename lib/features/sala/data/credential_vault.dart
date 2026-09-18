@@ -6,8 +6,7 @@ const _key = 'device_credential';
 /// Where the device's one proof of who it is lives once it leaves `vinculo.json`.
 ///
 /// A boundary, not a client: `LinkedTeam` asks it to keep, read or forget a credential,
-/// and never learns that a Keychain sits behind that on iOS (AGENTS.md §9 — "auth tokens
-/// in flutter_secure_storage").
+/// and never learns that a Keychain sits behind that on iOS — ADR 0017 says why.
 abstract class CredentialVault {
   Future<String?> read();
   Future<void> keep(String credential);

@@ -43,6 +43,10 @@ class RecordingRepository {
         const RecordConfig(
           encoder: AudioEncoder.aacLc,
           audioInterruption: AudioInterruptionMode.pauseResume,
+          echoCancel: true,
+          noiseSuppress: true,
+          autoGain: true,
+          numChannels: 1,
         ),
         path: p.join(dir.path, '$fileName.m4a'),
       );

@@ -110,7 +110,7 @@ class SalaSessionState {
   final bool peerCue;
   final bool noteMode;
   final bool handAck;
-  final int knots;
+  final bool questionPending;
   final List<HandReply> replies;
   final String? playingReplyId;
   final List<KeptTake> keptTakes;
@@ -215,7 +215,7 @@ class SalaSessionState {
     this.peerCue = false,
     this.noteMode = false,
     this.handAck = false,
-    this.knots = 0,
+    this.questionPending = false,
     this.replies = const [],
     this.playingReplyId,
     this.keptTakes = const [],
@@ -357,22 +357,6 @@ class SalaSessionState {
   /// gives for itself.
   String? get btEsperandoConserto => btConsertando ? null : btFindingSegmentId;
 
-  /// Whether what the analyst found in the pointed stretch is an absence rather than a
-  /// mistake.
-  ///
-  /// A stretch told short has no wrong voice to point at: the mother tongue is right, the
-  /// telling is right, and what is missing is in neither of them. Asking which of the two
-  /// to correct put a question with no answer, the team answered it anyway, nothing they
-  /// did settled it, and the round came back — spending the budget and another analyst
-  /// call each time.
-  ///
-  /// The rule lives here, beside [btFindingTrecho], for the reason that one gives: every
-  /// side that acts on a finding reads one copy of it.
-  bool get btFaltaNoTrecho =>
-      btFindingTrecho != null &&
-      btFindings.isNotEmpty &&
-      btFindings.every((finding) => finding == BtFindingKind.missing);
-
   /// The rehearsal's own recordings, in order — never a correction's own take, which is a
   /// slice of one of these and not a part of the rehearsal in its own right.
   List<KeptTake> get partes =>
@@ -404,7 +388,7 @@ class SalaSessionState {
     bool? peerCue,
     bool? noteMode,
     bool? handAck,
-    int? knots,
+    bool? questionPending,
     List<HandReply>? replies,
     String? playingReplyId,
     bool clearPlayingReply = false,
@@ -459,7 +443,7 @@ class SalaSessionState {
       peerCue: peerCue ?? this.peerCue,
       noteMode: noteMode ?? this.noteMode,
       handAck: handAck ?? this.handAck,
-      knots: knots ?? this.knots,
+      questionPending: questionPending ?? this.questionPending,
       replies: replies ?? this.replies,
       playingReplyId:
           clearPlayingReply ? null : (playingReplyId ?? this.playingReplyId),

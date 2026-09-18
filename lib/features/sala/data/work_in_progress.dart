@@ -24,17 +24,29 @@ class ResumePoint {
   final List<KeptTake> takes;
   final int pass;
 
+  /// When this row was written, so a resume can tell a session abandoned last month from
+  /// one abandoned a minute ago. Null for a row written before this field existed.
+  final DateTime? savedAt;
+
+  /// The language the session was created in. Null for a row written before this field
+  /// existed, or before this stage carried the language forward on its own rewrites.
+  final String? language;
+
   const ResumePoint({
     required this.sessionId,
     required this.stage,
     this.takes = const [],
     this.pass = 1,
+    this.savedAt,
+    this.language,
   });
 
   Map<String, Object?> toJson() => {
         'session_id': sessionId,
         'stage': stage.name,
         'pass': pass,
+        'saved_at': ?savedAt?.millisecondsSinceEpoch,
+        'language': ?language,
         'takes': [
           for (final take in takes)
             {
@@ -58,6 +70,10 @@ class ResumePoint {
         orElse: () => SalaStage.conversa,
       ),
       pass: json['pass'] as int? ?? 1,
+      savedAt: json['saved_at'] is int
+          ? DateTime.fromMillisecondsSinceEpoch(json['saved_at'] as int)
+          : null,
+      language: json['language'] as String?,
       takes: [
         for (final raw in (json['takes'] as List? ?? const []))
           if (raw is Map)

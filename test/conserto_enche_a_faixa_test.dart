@@ -199,10 +199,16 @@ void main() {
 
     harness.recorder.startThrows = true;
     await _escolherTraduzirDeNovo(tester);
+    // The refused microphone put the team back on the rehearsal, so the second try
+    // comes through the other door the short way has: the stretch tapped on the cord.
+    await _notifier(container).traduzirDeNovo(
+      container.read(salaSessionProvider).btTrechos.first,
+    );
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).needsPerson, isTrue,
-        reason: 'gravador que não abriu é o caminho que para para uma pessoa — '
-            'se isso mudar, este cenário deixou de medir o que diz');
+        reason: 'gravador que não abriu duas vezes seguidas é o caminho que para '
+            'para uma pessoa — se isso mudar, este cenário deixou de medir o que diz');
     expect(_faixasVazias(tester, container), [0],
         reason: 'a equipe se ofereceu para consertar e a sala não conseguiu '
             'ouvir: a faixa cheia prometeria um trabalho que o microfone nunca '

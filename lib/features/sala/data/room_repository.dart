@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 
 import '../../../core/config/env.dart';
 import '../domain/bt_finding.dart';
+import '../domain/coverage_event.dart';
 import '../domain/device_link.dart';
 import '../domain/escuta_das_partes.dart';
 import '../domain/passagem.dart';
@@ -17,7 +18,10 @@ import '../domain/turn_result.dart';
 import 'device_identity.dart';
 
 const _basePath = '/api/internalization-room';
-const _turnTimeout = Duration(seconds: 90);
+
+/// The client's rung of the turn ladder: above the turn route's 300 s server bound
+/// (ENG-817), below the busy-state watchdog in session_notifier.dart (330 s).
+const _turnTimeout = Duration(seconds: 310);
 const _stateTimeout = Duration(seconds: 20);
 
 class RoomUnavailable implements Exception {
@@ -102,6 +106,8 @@ class ReleaseRefused implements Exception {
 }
 
 class RoomRepository {
+  static const turnTimeout = _turnTimeout;
+
   final http.Client _client;
   final Future<String> Function() _deviceId;
 
@@ -173,7 +179,6 @@ class RoomRepository {
   Future<SessionSnapshot> createSession({
     String? pericope,
     String? afterSession,
-    String? bridgeMode,
     required String language,
   }) async {
     final response = await _send(
@@ -183,7 +188,6 @@ class RoomRepository {
         body: jsonEncode({
           'pericope': ?pericope,
           'after_session': ?afterSession,
-          'bridge_mode': ?bridgeMode,
           'language': language,
         }),
       ),
@@ -215,6 +219,69 @@ class RoomRepository {
       _stateTimeout,
     );
     return _read(response, SessionSnapshot.fromJson);
+  }
+
+  Stream<CoverageEvent> watchCoverage(String sessionId) {
+    StreamSubscription<String>? lineSub;
+    var cancelled = false;
+    final controller = StreamController<CoverageEvent>(
+      onCancel: () {
+        cancelled = true;
+        return lineSub?.cancel();
+      },
+    );
+    unawaited(() async {
+      try {
+        final response = await _client.send(
+          http.Request('GET', _uri('/sessions/$sessionId/coverage'))..headers.addAll(_headers),
+        );
+        if (cancelled) {
+          unawaited(response.stream.listen(null).cancel());
+          return;
+        }
+        String? eventName;
+        final data = StringBuffer();
+        lineSub = utf8.decoder.bind(response.stream).transform(const LineSplitter()).listen(
+          (line) {
+            if (line.isEmpty) {
+              final parsed = _parseCoverageEvent(eventName, data.toString());
+              if (parsed != null) controller.add(parsed);
+              eventName = null;
+              data.clear();
+              return;
+            }
+            if (line.startsWith('event:')) {
+              eventName = line.substring(6).trim();
+            } else if (line.startsWith('data:')) {
+              if (data.isNotEmpty) data.write('\n');
+              data.write(line.substring(5).trim());
+            }
+          },
+          onDone: controller.close,
+          onError: (Object _) => controller.close(),
+        );
+      } on Exception {
+        await controller.close();
+      }
+    }());
+    return controller.stream;
+  }
+
+  CoverageEvent? _parseCoverageEvent(String? eventName, String data) {
+    if (eventName != 'coverage' || data.isEmpty) return null;
+    try {
+      final json = jsonDecode(data) as Map<String, dynamic>;
+      final turnId = json['turn_id'] as String?;
+      final status = switch (json['status']) {
+        'settled' => CoverageStatus.settled,
+        'failed' => CoverageStatus.failed,
+        _ => null,
+      };
+      if (turnId == null || status == null) return null;
+      return CoverageEvent(turnId: turnId, status: status);
+    } on FormatException {
+      return null;
+    }
   }
 
   Future<TurnResult> openSession(String sessionId, {String? turnId}) async {

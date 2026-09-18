@@ -94,6 +94,26 @@ void main() {
             'que o resto do caminho não abre');
   });
 
+  test('the microphone opens ready for a room where five people talk at once',
+      () async {
+    final recording = RecordingRepository();
+    addTearDown(recording.dispose);
+
+    await recording.start('ensaio');
+
+    final config = microphone.openedWith;
+    expect(config?.echoCancel, isTrue,
+        reason: 'a fala do gravador voltando pela caixa nunca devia contar como a '
+            'equipe falando');
+    expect(config?.noiseSuppress, isTrue,
+        reason: 'a sala grava perto de outras conversas, não sozinha');
+    expect(config?.autoGain, isTrue,
+        reason: 'uma voz mais baixa não pode virar um trecho perdido');
+    expect(config?.numChannels, 1,
+        reason: 'a passagem falada é uma faixa, e um canal a menos é metade do '
+            'arquivo que a fila de upload carrega à toa');
+  });
+
   test('a recording that starts hands back a usable file', () async {
     final recording = RecordingRepository();
     addTearDown(recording.dispose);
