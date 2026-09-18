@@ -316,8 +316,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _openTurnId = null;
     _openingOwed = false;
     state = state.copyWith(clearLastSpoken: true);
-    _onPlaybackComplete = null;
-    _onPlaybackFailed = null;
     _silenceTheRoom();
     unawaited(_recorder.discard());
   }
@@ -1352,6 +1350,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.stage != SalaStage.escolha) return;
     if (state.needsPerson || state.offline) return;
     if (state.naRoda?.isEmpty ?? true) return;
+    _silenceTheRoom();
     unawaited(_dizerAOferecida());
   }
 
@@ -1377,6 +1376,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void entrarNaOferecida() {
     final passagem = state.oferecida;
     if (passagem == null || state.voice != VoiceState.invite) return;
+    // Acima dos dois ramos: o panorama não passa pelo _clearAll do goConversa, e a
+    // linha que a roda acabou de oferecer seguia soando por cima da espera dele.
+    _silenceTheRoom();
     if (passagem.isPanorama) {
       unawaited(_entrarNoPanorama());
       return;
@@ -3726,6 +3728,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// still be waiting, and the same gate would stop the passage again the next time they
   /// said they had finished.
   void _levarAoTrechoNaoTraduzido(String named) {
+    // A sua própria porta. Chegar aqui já calado é uma coincidência do caminho que
+    // chama, não uma regra, e a fatia que esta aterragem põe no ar sai por
+    // _leadThemToTheTrecho, que não passa por onde uma parte passa.
+    _silenceTheRoom();
     final trecho = state.trechoChamado(named);
     if (trecho == null ||
         trecho.parte < 0 ||

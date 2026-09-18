@@ -40,9 +40,9 @@ interrupts a load rather than queueing behind it.
 
 Stopping the rehearsal player on every transition, without exception. Rejected on evidence:
 `PlaybackRepository.stop()` clears `_openedLength`, which is the length the listening
-ceiling counts down and the length `_fimDeParte` measures a part's end by. Three gestures
-come back to the very part they leave — the scissors, telling a stretch again, and the
-circle that closes a capture — and stopped, the part they return to would be measured by a
+ceiling counts down and the length `_fimDeParte` measures a part's end by. Three gestures hold a clip
+the room comes back to — the scissors, the circle that closes a capture, and telling a
+stretch again from the cord — and stopped, the part they return to would be measured by a
 player that no longer answers for it: the ceiling would fall back to the generic six
 minutes and the cord would shrink under the team. The playback double hid this: its `stop`
 kept answering `playingLength` for a clip it had stopped, so the suite read green over it.
@@ -60,10 +60,16 @@ inside one. `_clearAll` calls it instead of its own two stops.
 **Only a play/pause toggle on the sound itself is exempt** (ENG-742): a second tap on the
 same listen button pauses, a third resumes, and neither counts as a transition.
 
-**The rehearsal player is stopped, except where the gesture comes back to the same part
-from where it stopped** — the scissors, telling a stretch again, and the circle tap that
-closes a capture. There the hold is what silences it, and it is what keeps the clip open.
-The Guide is stopped either way. The silence takes one flag, named for that fact.
+**The rehearsal player is stopped, except where the gesture holds a clip the room may come
+back to** — the scissors, the circle tap that closes a capture, and telling a stretch
+again. The first two leave the very **Part** they are standing in, and the next listening
+carries it on from where it stopped; stopped instead, the room would lose the length the
+listening ceiling and the end of the part are measured by. Telling a stretch again holds
+for the same reason when it is reached from the cord, where the part is what is in the air.
+Reached from the grid the clip is the **Stretch**'s own slice or the telling, which nothing
+resumes, and there the hold is merely harmless — it is kept so one gesture has one
+behaviour rather than two. The Guide is stopped either way, and the silence takes one flag,
+named for that fact.
 
 **The microphone opens on a silent room**: in the rehearsal, in the back-translation and in
 the conversation, the silence runs before the recorder starts. **A part goes in the air on

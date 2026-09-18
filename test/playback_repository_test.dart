@@ -333,6 +333,20 @@ void main() {
               'pessoa e para a sala por cima de um gesto comum');
     });
 
+    test('um load interrompido sem hold nenhum continua sendo falha', () async {
+      final falhas = <void>[];
+      playback.failures.listen(falhas.add);
+      tocador.recusa = PlayerInterruptedException('a sessão caiu');
+
+      await playback.play('/parte-1.m4a');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(falhas, hasLength(1),
+          reason: 'só o nosso próprio stop é lido como o clipe não tocando. '
+              'Sem hold nenhum, um load que o aparelho interrompeu é o tablet '
+              'sem conseguir tocar a voz da equipe, e isso chama uma pessoa');
+    });
+
     test('depois de um hold durante o load, o próximo play toca', () async {
       tocador.segurados['/parte-1.m4a'] = Completer<void>();
       final abrindo = playback.play('/parte-1.m4a');
