@@ -984,6 +984,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _resolvedCoverageTurnId = turnId;
     _timers.remove('coverage')?.cancel();
     if (pullState) unawaited(_pullState(sessionId).catchError((_) {}));
+    unawaited(_pullInbox());
   }
 
   Future<void> _pullState(String sessionId) async {
@@ -1130,6 +1131,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         case VoiceState.blocked:
           break;
       }
+      return;
+    }
+    if (state.playingReplyId != null) return;
+    if (state.noteMode) {
+      _noteTap();
       return;
     }
     if (state.voice != VoiceState.invite) return;
@@ -1670,7 +1676,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (state.playingReplyId != null) return;
     if (state.noteMode) {
-      _sendQuestion();
+      _noteTap();
       return;
     }
     switch (state.voice) {
@@ -1772,14 +1778,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final known = {for (final reply in state.replies) reply.id: reply};
     state = state.copyWith(
       replies: [for (final reply in fetched) known[reply.id] ?? reply],
+      questionPending: false,
     );
   }
 
   void handTap() {
-    // The hand lives on the conversa, but the outgoing screen stays hit-testable for the
-    // 400 ms the switcher takes, so a finger already travelling lands here from the next
-    // stage — and starts a question recording no screen shows and no gesture stops.
-    if (state.stage != SalaStage.conversa) return;
+    // The hand lives on the convite and the conversa, but the outgoing screen stays
+    // hit-testable for the 400 ms the switcher takes, so a finger already travelling
+    // lands here from the next stage — and starts a question recording no screen shows
+    // and no gesture stops.
+    if (state.stage != SalaStage.conversa && state.stage != SalaStage.convite) {
+      return;
+    }
+    if (state.stage == SalaStage.convite && _panoramaSessionId == null) return;
     if (state.offline) {
       // `_haltForAPerson` writes over `voice: offline`, and every way back — the retry
       // timer, the network watch, the touch — is guarded on `state.offline`. One tap on
@@ -1790,7 +1801,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (state.needsPerson) return;
     if (state.playingReplyId != null) return;
-    if (state.voice == VoiceState.listening && !state.noteMode) return;
     final unheard = state.oldestUnheardReply;
     if (unheard != null) {
       state = state.copyWith(playingReplyId: unheard.id);
@@ -1801,12 +1811,29 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _cancelQuestion();
       return;
     }
-    state = state.copyWith(
-      noteMode: true,
-      voice: VoiceState.listening,
-      peerCue: false,
-    );
-    unawaited(_recordOrBlock('pergunta_${_stamp()}'));
+    state = state.copyWith(noteMode: true);
+  }
+
+  /// The circle's half of a question: it opens the microphone once the hand has armed
+  /// the note, and closes and sends it on the touch after that.
+  ///
+  /// Splitting this off the hand is what keeps a question from ever starting under the
+  /// facilitator's own voice — arming and recording used to be the same touch, so the
+  /// first tap was already capturing whatever the facilitator was mid-sentence saying.
+  void _noteTap() {
+    switch (state.voice) {
+      case VoiceState.invite:
+        _startListening('pergunta_${_stamp()}');
+      case VoiceState.listening:
+        _sendQuestion();
+      case VoiceState.thinking:
+      case VoiceState.speaking:
+      case VoiceState.done:
+      case VoiceState.needsPerson:
+      case VoiceState.offline:
+      case VoiceState.blocked:
+        break;
+    }
   }
 
   /// Play the facilitator's answer, and never let a broken one take the gesture away.
@@ -1881,7 +1908,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final epoch = _epoch;
     final path = await _recorder.stop();
     if (epoch != _epoch) return;
-    final sessionId = state.sessionId;
+    final sessionId =
+        state.stage == SalaStage.convite ? _panoramaSessionId : state.sessionId;
     if (path == null || !_hasAudio(path) || sessionId == null) {
       // The team raised their hand, spoke a question, and nothing came back from the
       // recorder. Returning to the invite in silence is the room forgetting they asked.
@@ -1897,19 +1925,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     unawaited(_recorder.delete(path));
-    final asked = state.knots;
     state = state.copyWith(
       handAck: true,
-      knots: asked + 1,
-      voice: VoiceState.speaking,
+      questionPending: true,
+      voice: VoiceState.invite,
     );
     _watchBusyState();
     _after('ack', const Duration(milliseconds: 3200), () {
       state = state.copyWith(handAck: false);
     });
-    await _voice.playAsset(fixedLineAsset(rotated(handoffLines, asked), _lingua));
-    if (epoch != _epoch) return;
-    state = state.copyWith(voice: VoiceState.invite);
   }
 
   void devRecomecarPassagem() {
