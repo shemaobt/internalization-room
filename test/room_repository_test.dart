@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -6,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
 
 String _turnBody({bool usedFailSafe = false, bool degraded = false}) => jsonEncode({
@@ -113,6 +115,26 @@ void main() {
         reason: 'a sala responde da lata tanto quando falha quanto quando a equipe ensaia '
             'na língua dela, e os dois campos juntos só provam alguma coisa se a resposta '
             'trouxer a combinação que existe por causa da correção');
+  });
+
+  test('a turn carries the id classification watches, and whether classification is still running',
+      () async {
+    final repository = RoomRepository(
+      client: MockClient((request) async => http.Response(
+            jsonEncode({
+              'session_id': 'sessao-1',
+              'turn_id': 'turno-9',
+              'classification_pending': true,
+            }),
+            200,
+          )),
+    );
+    addTearDown(repository.dispose);
+
+    final turn = await repository.openSession('sessao-1');
+
+    expect(turn.turnId, 'turno-9');
+    expect(turn.classificationPending, isTrue);
   });
 
   test('the panorama is asked for by name, a plain session is not', () async {
@@ -353,6 +375,135 @@ void main() {
           'que a internet tinha caído por causa de um servidor pensando',
     );
   }, timeout: const Timeout(Duration(seconds: 90)));
+
+  test('cancelling a coverage subscription closes the connection, not only the callback',
+      () async {
+    final controller = StreamController<List<int>>();
+    final repository = RoomRepository(
+      client: MockClient.streaming(
+        (request, bodyStream) async => http.StreamedResponse(controller.stream, 200),
+      ),
+    );
+    addTearDown(repository.dispose);
+
+    final subscription = repository.watchCoverage('sessao-1').listen((_) {});
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(controller.hasListener, isTrue);
+
+    await subscription.cancel();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(controller.hasListener, isFalse,
+        reason: 'a sala troca de sessão a cada passagem; uma escuta cancelada que '
+            'continua lendo o socket do servidor vaza uma conexão por passagem');
+  });
+
+  test('cancelling while the connection is still opening still stops it once it does',
+      () async {
+    final connecting = Completer<http.StreamedResponse>();
+    final controller = StreamController<List<int>>();
+    final repository = RoomRepository(
+      client: MockClient.streaming((request, bodyStream) => connecting.future),
+    );
+    addTearDown(repository.dispose);
+
+    final subscription = repository.watchCoverage('sessao-1').listen((_) {});
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    await subscription.cancel();
+    connecting.complete(http.StreamedResponse(controller.stream, 200));
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(controller.hasListener, isFalse,
+        reason: 'cancelar antes de o GET terminar de conectar não pode deixar a '
+            'escuta ser ligada mesmo assim quando a resposta finalmente chega');
+  });
+
+  test('cancelling while the connection is still opening still closes the socket, not just the app\'s own read',
+      () async {
+    final connecting = Completer<http.StreamedResponse>();
+    var listens = 0;
+    final controller = StreamController<List<int>>(onListen: () => listens++);
+    final repository = RoomRepository(
+      client: MockClient.streaming((request, bodyStream) => connecting.future),
+    );
+    addTearDown(repository.dispose);
+
+    final subscription = repository.watchCoverage('sessao-1').listen((_) {});
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    await subscription.cancel();
+    connecting.complete(http.StreamedResponse(controller.stream, 200));
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(listens, greaterThan(0),
+        reason: 'abandonar a resposta sem nunca tocá-la deixa o socket aberto do '
+            'lado do servidor; fechar de verdade passa por escutar e cancelar, '
+            'não por simplesmente nunca escutar');
+  });
+
+  test('a settled frame on the coverage channel names its turn and its status',
+      () async {
+    final controller = StreamController<List<int>>();
+    final repository = RoomRepository(
+      client: MockClient.streaming(
+        (request, bodyStream) async => http.StreamedResponse(controller.stream, 200),
+      ),
+    );
+    addTearDown(repository.dispose);
+
+    final frames = <CoverageEvent>[];
+    final done = Completer<void>();
+    final subscription = repository
+        .watchCoverage('sessao-1')
+        .listen(frames.add, onDone: done.complete);
+    addTearDown(subscription.cancel);
+
+    controller.add(utf8.encode(
+      'event: coverage\n'
+      'data: {"turn_id": "turno-1", "status": "settled", '
+      '"coverage": {"engaged": 3, "surfaced": 4, "total": 29, "absence_index": 13}}\n\n',
+    ));
+    await controller.close();
+    await done.future;
+
+    expect(frames, hasLength(1));
+    expect(frames.single.turnId, 'turno-1');
+    expect(frames.single.status, CoverageStatus.settled);
+  });
+
+  test('a keep-alive on the coverage channel produces nothing, and the channel keeps talking',
+      () async {
+    final controller = StreamController<List<int>>();
+    final repository = RoomRepository(
+      client: MockClient.streaming(
+        (request, bodyStream) async => http.StreamedResponse(controller.stream, 200),
+      ),
+    );
+    addTearDown(repository.dispose);
+
+    final frames = <CoverageEvent>[];
+    final done = Completer<void>();
+    final subscription = repository
+        .watchCoverage('sessao-1')
+        .listen(frames.add, onDone: done.complete);
+    addTearDown(subscription.cancel);
+
+    controller.add(utf8.encode(': keep-alive\n\n'));
+    controller.add(utf8.encode(
+      'event: coverage\n'
+      'data: {"turn_id": "turno-2", "status": "settled", '
+      '"coverage": {"engaged": 1, "surfaced": 1, "total": 29, "absence_index": -1}}\n\n',
+    ));
+    await controller.close();
+    await done.future;
+
+    expect(frames, hasLength(1),
+        reason:
+            'um coração sem turno nem status não pode nem virar frame nem travar o '
+            'parser antes do próximo evento de verdade chegar');
+    expect(frames.single.turnId, 'turno-2');
+  });
 
   test('o terminei manda o que foi ouvido de cada parte, com o nome dela',
       () async {

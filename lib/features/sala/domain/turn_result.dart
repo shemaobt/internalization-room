@@ -27,6 +27,9 @@ class TurnResult {
   final Coverage? coverage;
   final bool done;
 
+  final String? turnId;
+  final bool classificationPending;
+
   final String bridgeMode;
 
   /// The opening cut where the Guide marked it: the whole passage, then the scene and its
@@ -44,6 +47,8 @@ class TurnResult {
     required this.degraded,
     required this.coverage,
     required this.done,
+    this.turnId,
+    this.classificationPending = false,
     this.bridgeMode = '',
     this.segments = const [],
   });
@@ -76,6 +81,8 @@ class TurnResult {
                 (json['coverage'] as Map).cast<String, dynamic>(),
               ),
         done: json['done'] as bool? ?? false,
+        turnId: json['turn_id'] as String?,
+        classificationPending: json['classification_pending'] as bool? ?? false,
         bridgeMode: json['bridge_mode'] as String? ?? '',
         segments: [
           for (final entry in json['segments'] as List<Object?>? ?? const [])
