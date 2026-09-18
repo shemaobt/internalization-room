@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -82,6 +83,7 @@ Future<_Retomada> _reabrir(
   int partes = 3,
   Set<int> aindaNoTablet = const {},
   Set<int> aindaSemNome = const {},
+  Map<int, int> passadas = const {},
   BackTranslationProgress contado = const BackTranslationProgress(),
   List<TakeView>? naSala,
 }) async {
@@ -102,6 +104,7 @@ Future<_Retomada> _reabrir(
           scopeId: KeptScope.parte(n),
           path: nomeados[n - 1],
           takeId: aindaSemNome.contains(n) ? null : 'gravacao-$n',
+          pass: passadas[n] ?? 1,
         ),
     ],
   );
@@ -139,6 +142,40 @@ Future<_Retomada> _reabrirDeNovo(_Retomada antes) async {
 
 List<String?> _nomesDasPartes(_Retomada it) =>
     [for (final take in it.estado.partes) take.takeId];
+
+/// Stand on a finding addressed to the stretch of part 2 and record that part again,
+/// which is the gesture the part's own count has to survive a resume for.
+Future<void> _regravarAParteDois(_Retomada it) async {
+  it.harness.playback.finishPlayback();
+  await waitFor('a parte no ar acabar de tocar', () => it.estado.btClipEnded);
+  it.harness.room
+    ..verdictChecked = false
+    ..verdictFinding = BtFindingKind.missing
+    ..verdictFindingSegmentId = 'trecho-2';
+  await it.sala.finishBackTranslation();
+  await waitFor(
+    'a sala voltar do veredito',
+    () => it.estado.btPhase != BtPhase.thinking,
+  );
+  expect(it.estado.btFindingTrecho?.parte, 1,
+      reason: 'o cenário só mede alguma coisa se o achado apontar a parte 2');
+
+  final antiga = it.estado.partes[1].path;
+  it.sala.gravarAParteDeNovo();
+  await waitFor('a equipe voltar ao ensaio',
+      () => it.estado.stage == SalaStage.ensaio);
+  it.sala.ensaioTap();
+  await waitFor('a gravação começar',
+      () => it.estado.ensaio == EnsaioStatus.recording);
+  it.sala.ensaioTap();
+  await waitFor('a gravação terminar',
+      () => it.estado.ensaio == EnsaioStatus.recorded);
+  it.sala.takeKeep();
+  await waitFor('a gravação nova tomar o lugar da parte 2',
+      () => it.estado.partes[1].path != antiga);
+  await waitFor('a gravação nova chegar à sala',
+      () => it.harness.room.takesKept.contains('ensaio/${KeptScope.parte(2)}'));
+}
 
 void main() {
   test('uma linha do ensaio sem os arquivos reabre no ensaio com as partes da sala',
@@ -564,5 +601,53 @@ void main() {
             'lista o traz: fora da fila das partes ele não toca nem se mede');
     expect(it.estado.btFimDasPartesMs, [10000, 20000],
         reason: 'e o colar o desenha como a qualquer outra parte');
+  });
+
+  test('uma retomada com os arquivos aqui devolve cada parte na gravação dela',
+      () async {
+    final harness = SalaHarness();
+
+    final it = await _reabrir(
+      harness,
+      parouEm: SalaStage.retro,
+      aindaNoTablet: const {1, 2, 3},
+      passadas: const {2: 2},
+      contado: _contado([1, 2, 3]),
+    );
+    await waitFor('a equipe voltar à tradução', () => it.estado.partes.length == 3);
+
+    await _regravarAParteDois(it);
+
+    expect(it.harness.room.takePasses, [3],
+        reason: 'a parte 2 voltou na sua segunda gravação, e a terceira subir sob '
+            'a passada que a sala já tem deixa a sala escolher entre as duas pela '
+            'ordem de chegada');
+  });
+
+  test('uma parte buscada na sala volta na gravação que a sala conta', () async {
+    final harness = SalaHarness();
+
+    final it = await _reabrir(
+      harness,
+      parouEm: SalaStage.retro,
+      contado: _contado([1, 2, 3]),
+      naSala: [
+        for (var n = 1; n <= 3; n++)
+          TakeView(
+            takeId: 'gravacao-$n',
+            kind: 'ensaio',
+            scope: KeptScope.parte(n),
+            ordinal: n,
+            pass: n == 2 ? 3 : 1,
+          ),
+      ],
+    );
+    await waitFor('as partes voltarem da sala', () => it.estado.partes.length == 3);
+
+    await _regravarAParteDois(it);
+
+    expect(it.harness.room.takePasses, [4],
+        reason: 'a sala é quem sabe quantas gravações da parte 2 ela já tem: o '
+            'tablet que buscou a parte não gravou nenhuma delas');
   });
 }

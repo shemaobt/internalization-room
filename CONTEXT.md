@@ -136,7 +136,7 @@ The numbered position of a stretch in the list the analyst receives in one readi
 _Avoid_: trecho, stretch, segmento, segment (the persistent objects)
 
 **Part**:
-One of the pieces the rehearsal recording is divided into, and the unit a stretch sits in. A stretch addresses its part by where the part sits in the row, so a part that moved would take the whole rehearsal with it. A part recorded again keeps its number and its place; what changes is the recording it holds, and the stretches told over the one it replaces are untold ground again.
+One of the pieces the rehearsal recording is divided into, and the unit a stretch sits in. A stretch addresses its part by where the part sits in the row, so a part that moved would take the whole rehearsal with it. A part recorded again keeps its number and its place; what changes is the recording it holds, and the stretches told over the one it replaces are untold ground again. A part recorded again goes up under its own next pass, and a part recorded for the first time under its first.
 _Avoid_: parte, chunk (a position in one reading), take (what holds a part), stretch, composed passage (retired: the take the server assembled around a mend)
 
 **Necklace**:
@@ -168,7 +168,7 @@ The opening line specific to the chosen passage, following the panorama.
 _Avoid_: cena, invitation (the whole station)
 
 **Outbox**:
-The queue of takes and stretches waiting to reach the server, with a manifest that survives the app closing and names each recording by file rather than by path.
+The queue of takes and stretches waiting to reach the server, with a manifest that survives the app closing and names each recording by file rather than by path. It delivers one part's recordings in the order the team made them.
 _Avoid_: fila, caixa de saída, upload queue, buffer
 
 **Resume point**:

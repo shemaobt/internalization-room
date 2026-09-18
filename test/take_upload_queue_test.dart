@@ -256,6 +256,133 @@ void main() {
         reason: 'uma tomada que o servidor recusa não pode prender a fila inteira atrás dela');
   });
 
+  test('a row behind a refused row of its part does not leave', () async {
+    final room = FakeRoom()..refuseTake = 'ensaio/parte-2';
+    final queue = queueOn(room);
+    await queue.enqueue(aTake('primeira'),
+        sessionId: 'sessao-1', kind: 'ensaio', scope: 'parte-2');
+    final segunda = await queue.enqueue(aTake('segunda'),
+        sessionId: 'sessao-1', kind: 'ensaio', scope: 'parte-2');
+
+    expect(await queue.flush(), 0);
+
+    expect(room.takesKept, isEmpty);
+    expect(room.calls.where((call) => call == 'sendTake'), hasLength(1),
+        reason: 'a sala só pode ter visto a primeira gravação da parte 2');
+    final atras =
+        (await queue.pending()).firstWhere((entry) => entry.id == segunda.id);
+    expect([atras.attempts, atras.lastTry], [0, null],
+        reason: 'a linha de trás não foi tentada: não gasta tentativa nem marca hora');
+  });
+
+  test('inside the window nothing of that part leaves, and past it both land in order',
+      () async {
+    final room = FakeRoom()..refuseTake = 'ensaio/parte-2';
+    final queue = queueOn(room, backoff: const [Duration(seconds: 5)]);
+    final primeira = await queue.enqueue(aTake('primeira'),
+        sessionId: 'sessao-1', kind: 'ensaio', scope: 'parte-2');
+    await queue.flush();
+    room.refuseTake = null;
+    final segunda = await queue.enqueue(aTake('segunda'),
+        sessionId: 'sessao-1', kind: 'ensaio', scope: 'parte-2');
+
+    expect(await queue.flush(), 0,
+        reason: 'a primeira ainda espera a sua vez, e a segunda não passa na frente dela');
+    expect(room.takesKept, isEmpty);
+
+    clock = clock.add(const Duration(seconds: 6));
+
+    expect(await queue.flush(), 2);
+    expect(room.takesKept, ['ensaio/parte-2', 'ensaio/parte-2']);
+    expect(
+      [await queue.takeIdOf(primeira.id), await queue.takeIdOf(segunda.id)],
+      [room.takeIds.first, room.takeIds.last],
+      reason: 'a gravação que a equipe fez primeiro é a primeira que a sala recebe',
+    );
+  });
+
+  test('a row of another part is not held by one that is waiting', () async {
+    final room = FakeRoom()..refuseTake = 'ensaio/parte-2';
+    final queue = queueOn(room, backoff: const [Duration(seconds: 5)]);
+    await queue.enqueue(aTake('parte-dois'),
+        sessionId: 'sessao-1', kind: 'ensaio', scope: 'parte-2');
+    await queue.enqueue(aTake('parte-tres'),
+        sessionId: 'sessao-1', kind: 'ensaio', scope: 'parte-3');
+
+    expect(await queue.flush(), 1);
+    expect(room.takesKept, ['ensaio/parte-3'],
+        reason: 'a ordem é a de cada parte: a parte 3 não espera a parte 2');
+  });
+
+  test('the same part of another session is not held by one that is waiting', () async {
+    final room = FakeRoom();
+    final queue = queueOn(room);
+    final sumida = await queue.enqueue(aTake('de-uma-sessao'),
+        sessionId: 'sessao-1', kind: 'ensaio', scope: 'parte-2');
+    final outra = await queue.enqueue(aTake('de-outra-sessao'),
+        sessionId: 'sessao-2', kind: 'ensaio', scope: 'parte-2');
+    File(sumida.path).deleteSync();
+
+    expect(await queue.flush(), 1);
+
+    expect(await queue.takeIdOf(outra.id), isNotNull,
+        reason: 'a parte 2 de outra sessão é outra parte: duas equipes em dois '
+            'ensaios não têm ordem nenhuma entre si');
+    expect(await queue.takeIdOf(sumida.id), isNull);
+  });
+
+  test('a stretch is not held by a part that is waiting', () async {
+    final room = FakeRoom()..refuseTake = 'ensaio/parte-2';
+    final queue = queueOn(room);
+    await queue.enqueue(aTake('parte-dois'),
+        sessionId: 'sessao-1', kind: 'ensaio', scope: 'parte-2');
+    await queue.enqueue(aTake('trecho'),
+        sessionId: 'sessao-1', kind: 'retro', scope: 'parte-2');
+
+    expect(await queue.flush(), 1);
+    expect(room.takesKept, ['retro/parte-2'],
+        reason: 'a regra é da parte gravada, e um trecho contado não é uma delas');
+  });
+
+  test('a row that gave up holds nothing behind it', () async {
+    final room = FakeRoom()..refuseTake = 'ensaio/parte-2';
+    final queue = queueOn(room);
+    await queue.enqueue(aTake('primeira'),
+        sessionId: 'sessao-1', kind: 'ensaio', scope: 'parte-2');
+    final segunda = await queue.enqueue(aTake('segunda'),
+        sessionId: 'sessao-1', kind: 'ensaio', scope: 'parte-2');
+
+    for (var attempt = 0; attempt < takeUploadAttempts; attempt++) {
+      clock = clock.add(const Duration(minutes: 20));
+      await queue.flush();
+    }
+    room.refuseTake = null;
+
+    expect(await queue.flush(), 1);
+    expect(room.takesKept, ['ensaio/parte-2']);
+    expect(await queue.takeIdOf(segunda.id), isNotNull,
+        reason: 'quem desistiu não está à espera, e quem não espera não segura ninguém');
+  });
+
+  test('the flush after the write-off sends the row behind the audio that is gone',
+      () async {
+    final room = FakeRoom();
+    final queue = queueOn(room);
+    final primeira = await queue.enqueue(aTake('primeira'),
+        sessionId: 'sessao-1', kind: 'ensaio', scope: 'parte-2');
+    await queue.enqueue(aTake('segunda'),
+        sessionId: 'sessao-1', kind: 'ensaio', scope: 'parte-2');
+    File(primeira.path).deleteSync();
+
+    expect(await queue.flush(), 0,
+        reason: 'neste flush a primeira só é dada por perdida, e até aí ela é uma '
+            'gravação da parte 2 que ainda não subiu');
+
+    expect(await queue.flush(), 1);
+    expect(room.takesKept, ['ensaio/parte-2'],
+        reason: 'dada por perdida, ela sai da espera e não segura mais nada');
+  });
+
   test('the backoff keeps a failed take from being retried at once', () async {
     final room = FakeRoom()..reachable = false;
     final queue = queueOn(room, backoff: const [Duration(minutes: 5)]);

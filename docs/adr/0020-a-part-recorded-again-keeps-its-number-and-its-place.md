@@ -42,10 +42,12 @@ the story nobody recorded, not a part recorded badly.
 ## Consequences
 
 Two takes of one part reach the server under one scope, and which of them is the part is
-decided there by pass and arrival. The outbox can send them out of order — a row backing
-off after a failure is skipped while a later row goes — so a retry landing after the
-re-recording would leave the room holding the recording the team abandoned. Nothing in
-this slice guards against that, and the contract has no per-part pass to guard it with.
+decided there by pass and arrival. The outbox could send them out of order — a row backing
+off after a failure was skipped while a later row went — so a retry landing after the
+re-recording left the room holding the recording the team abandoned. Nothing in this slice
+guarded against that, and the pass the contract already has was a count of the whole
+rehearsal with no increment left. ADR 0025 closed it: a part's recordings leave in order,
+and each goes up under its own count.
 
 A **Composed passage** went with the part it was built from, while the room still built
 them: ADR 0022 has since retired them. The room kept a rebuilt passage under the number of

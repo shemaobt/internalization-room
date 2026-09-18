@@ -18,8 +18,21 @@ class KeptTake {
   /// stretch of a part the room has never seen. Null until the upload lands.
   final String? takeId;
 
-  const KeptTake({required this.scopeId, required this.path, this.takeId});
+  /// Which of this part's own recordings this one is: 1 for the first, and one more for
+  /// each time the team recorded the part again.
+  ///
+  /// The room decides which recording of a part is the part by this count and then by
+  /// arrival, so two recordings the tablet counted alike are separated by nothing but
+  /// the order they happened to land in.
+  final int pass;
+
+  const KeptTake({
+    required this.scopeId,
+    required this.path,
+    this.takeId,
+    this.pass = 1,
+  });
 
   KeptTake withTakeId(String? id) =>
-      KeptTake(scopeId: scopeId, path: path, takeId: id ?? takeId);
+      KeptTake(scopeId: scopeId, path: path, takeId: id ?? takeId, pass: pass);
 }

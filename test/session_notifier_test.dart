@@ -2691,20 +2691,20 @@ void main() {
             'dizer de qual das gravacoes aquele parte-1 era');
   });
 
-  test('a rehearsal picked up on its second pass does not number the next part '
-      'as the first', () async {
+  test('a part recorded for the first time after a resume is its own first '
+      'recording', () async {
     final harness = SalaHarness();
     final gravadas = Directory.systemTemp.createTempSync('sala-ensaio-passada');
     addTearDown(() => gravadas.deleteSync(recursive: true));
     harness.emAberto.rows['Ruth/P01'] = ResumePoint(
       sessionId: 'sessao-regravada',
       stage: SalaStage.ensaio,
-      pass: 2,
       takes: [
         KeptTake(
           scopeId: KeptScope.parte(1),
           path: (File('${gravadas.path}/parte-1.m4a')..writeAsBytesSync([1, 2, 3]))
               .path,
+          pass: 2,
         ),
       ],
     );
@@ -2723,9 +2723,9 @@ void main() {
     await waitFor('a sala guardar a tomada', () => harness.room.takesKept.isNotEmpty);
 
     expect(harness.room.takesKept, ['ensaio/parte-2']);
-    expect(harness.room.takePasses, [2],
-        reason: 'a parte 2 do ensaio novo subia como passada 1 e ia parar no meio '
-            'do ensaio que a equipe tinha jogado fora');
+    expect(harness.room.takePasses, [1],
+        reason: 'a conta é de cada parte: a parte 2 nunca foi gravada, e quantas '
+            'gravações a parte 1 teve não diz nada sobre ela');
   });
 
   test('a room that halts for a person says so to the server', () async {

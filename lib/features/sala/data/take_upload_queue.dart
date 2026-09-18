@@ -421,55 +421,72 @@ class TakeUploadQueue {
     return sent;
   }
 
+  /// The recordings of one part leave in the order the team made them.
+  ///
+  /// A part recorded again is a second row under the scope the part already has, and the
+  /// room decides which of two recordings under one number is the part by the tablet's
+  /// own count and then by arrival. A row skipped here — backing off, audio gone, refused,
+  /// unanswered — used to let the one behind it go, so a retry landing after the
+  /// re-recording left the room holding the recording the team abandoned. A row that does
+  /// not land holds the rest of its part for the rest of this pass; a row no longer
+  /// waiting holds nothing, and a telling-back is not a part.
   Future<int> _flushOnce() async {
     var sent = 0;
+    final held = <String>{};
     for (final entry in await waiting()) {
-      if (!_ready(entry)) continue;
-      final file = File(entry.path);
-      if (!await file.exists()) {
-        // Already written off and gone again between the check above and here: the row
-        // is already saying so, and rewriting the manifest to say it twice is a write
-        // for no change of state.
-        if (!entry.lost) await _replace(entry, entry.copyWith(lost: true));
-        continue;
+      final part =
+          entry.kind == 'ensaio' ? '${entry.sessionId}/${entry.scope}' : null;
+      if (part != null && held.contains(part)) continue;
+      if (await _landed(entry)) {
+        sent++;
+      } else if (part != null) {
+        held.add(part);
       }
-      // The audio is here, so the row stops carrying a word that is no longer true.
-      // `lost` is what the room speaks from, and a recording being sent right now is
-      // not one that was given up on. Every outcome below writes this back.
-      final row = entry.lost ? entry.copyWith(lost: false) : entry;
-      final String landed;
-      try {
-        landed = await _room.sendTake(
-          entry.sessionId,
-          file,
-          kind: entry.kind,
-          scope: entry.scope,
-          passNumber: entry.passNumber,
-          chunkIndex: entry.chunkIndex,
-        );
-      } on RoomUnavailable {
-        await _replace(
-          entry,
-          row.copyWith(waits: row.waits + 1, lastTry: _now()),
-        );
-        continue;
-      } on RoomSlow {
-        await _replace(
-          entry,
-          row.copyWith(waits: row.waits + 1, lastTry: _now()),
-        );
-        continue;
-      } on Exception {
-        await _replace(
-          entry,
-          row.copyWith(attempts: row.attempts + 1, lastTry: _now()),
-        );
-        continue;
-      }
-      await _replace(entry, row.copyWith(takeId: landed, stored: true));
-      sent++;
     }
     return sent;
+  }
+
+  /// Whether the room took this row. False is every reason it did not, and the caller
+  /// holds the rest of this row's part on it.
+  Future<bool> _landed(PendingTake entry) async {
+    if (!_ready(entry)) return false;
+    final file = File(entry.path);
+    if (!await file.exists()) {
+      // Already written off and gone again between the check above and here: the row
+      // is already saying so, and rewriting the manifest to say it twice is a write
+      // for no change of state.
+      if (!entry.lost) await _replace(entry, entry.copyWith(lost: true));
+      return false;
+    }
+    // The audio is here, so the row stops carrying a word that is no longer true.
+    // `lost` is what the room speaks from, and a recording being sent right now is
+    // not one that was given up on. Every outcome below writes this back.
+    final row = entry.lost ? entry.copyWith(lost: false) : entry;
+    final String landed;
+    try {
+      landed = await _room.sendTake(
+        entry.sessionId,
+        file,
+        kind: entry.kind,
+        scope: entry.scope,
+        passNumber: entry.passNumber,
+        chunkIndex: entry.chunkIndex,
+      );
+    } on RoomUnavailable {
+      await _replace(entry, row.copyWith(waits: row.waits + 1, lastTry: _now()));
+      return false;
+    } on RoomSlow {
+      await _replace(entry, row.copyWith(waits: row.waits + 1, lastTry: _now()));
+      return false;
+    } on Exception {
+      await _replace(
+        entry,
+        row.copyWith(attempts: row.attempts + 1, lastTry: _now()),
+      );
+      return false;
+    }
+    await _replace(entry, row.copyWith(takeId: landed, stored: true));
+    return true;
   }
 
   Future<void> _replace(PendingTake target, PendingTake updated) =>

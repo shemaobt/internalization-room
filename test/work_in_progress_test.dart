@@ -44,6 +44,62 @@ void main() {
     ]);
   });
 
+  test('each take carries which of its part\'s recordings it is', () async {
+    final home = Directory.systemTemp.createTempSync('sala-em-curso-passada');
+    addTearDown(() => home.deleteSync(recursive: true));
+    final gravacoes = Directory('${home.path}/recordings')
+      ..createSync(recursive: true);
+    final ledger = WorkInProgress(
+      home: () async => home,
+      recordings: () async => gravacoes,
+    );
+
+    await ledger.remember(
+      'Ruth',
+      'P03',
+      ResumePoint(
+        sessionId: 'sessao-1',
+        stage: SalaStage.ensaio,
+        takes: const [
+          KeptTake(scopeId: 'parte-1', path: '/tmp/p1.m4a'),
+          KeptTake(scopeId: 'parte-2', path: '/tmp/p2.m4a', pass: 2),
+        ],
+      ),
+    );
+
+    final back = await ledger.of('Ruth', 'P03');
+
+    expect([for (final take in back!.takes) take.pass], [1, 2],
+        reason: 'sem isto a parte gravada de novo volta da retomada como a '
+            'primeira gravação dela, e sobe outra vez sob a passada que a sala '
+            'já tem');
+  });
+
+  test('a row written before the pass was kept per take reads every take as the first',
+      () async {
+    final home = Directory.systemTemp.createTempSync('sala-em-curso-passada-antiga');
+    addTearDown(() => home.deleteSync(recursive: true));
+    final gravacoes = Directory('${home.path}/recordings')
+      ..createSync(recursive: true);
+    Directory('${home.path}/guardadas').createSync(recursive: true);
+    File('${home.path}/guardadas/em_curso.json').writeAsStringSync(
+      '{"Ruth/P03":{"session_id":"sessao-antiga","stage":"ensaio","pass":2,'
+      '"takes":[{"name":"p1.m4a","scope":"parte-1"},'
+      '{"name":"p2.m4a","scope":"parte-2"}]}}',
+    );
+    final ledger = WorkInProgress(
+      home: () async => home,
+      recordings: () async => gravacoes,
+    );
+
+    final back = await ledger.of('Ruth', 'P03');
+
+    expect([for (final take in back!.takes) take.pass], [1, 1],
+        reason: 'a passada do ensaio inteiro não diz de qual gravação de qual '
+            'parte ela era, e contar a partir dela numeraria partes que nunca '
+            'foram gravadas de novo');
+  });
+
   test('a legacy row without a scope reads back as the whole passage', () async {
     final home = Directory.systemTemp.createTempSync('sala-em-curso-legado');
     addTearDown(() => home.deleteSync(recursive: true));
@@ -112,10 +168,15 @@ void main() {
 
     expect(velha.sessionId, nova.sessionId);
     expect(velha.stage, nova.stage);
-    expect(velha.pass, nova.pass);
     expect(
-      [for (final take in velha.takes) '${take.scopeId}|${take.path}|${take.takeId}'],
-      [for (final take in nova.takes) '${take.scopeId}|${take.path}|${take.takeId}'],
+      [
+        for (final take in velha.takes)
+          '${take.scopeId}|${take.path}|${take.takeId}|${take.pass}',
+      ],
+      [
+        for (final take in nova.takes)
+          '${take.scopeId}|${take.path}|${take.takeId}|${take.pass}',
+      ],
       reason: 'uma linha escrita por uma versão que ainda guardava lugares é '
           'aberta pela chave que lhe falta, e não pela que lhe sobra: o '
           'aparelho da equipe volta ao ponto onde parou',

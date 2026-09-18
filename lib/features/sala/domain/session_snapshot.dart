@@ -58,11 +58,16 @@ class TakeView {
   final String scope;
   final int? ordinal;
 
+  /// Which of its part's recordings the room counted this one as. Absent from a listing
+  /// written before the tablet sent it.
+  final int? pass;
+
   const TakeView({
     required this.takeId,
     required this.scope,
     this.kind = '',
     this.ordinal,
+    this.pass,
   });
 
   static List<TakeView> listFrom(Map<String, dynamic> json) => [
@@ -75,6 +80,7 @@ class TakeView {
         kind: json['kind'] as String? ?? '',
         scope: json['scope'] as String? ?? '',
         ordinal: json['ordinal'] as int?,
+        pass: json['pass_number'] as int?,
       );
 }
 
