@@ -132,7 +132,9 @@ class ColarOverlay extends StatelessWidget {
     );
 
     return AnimatedPositioned(
-      duration: const Duration(milliseconds: 900),
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 900),
       curve: Curves.easeInOut,
       left: p.dx - size / 2,
       top: p.dy - size / 2,
