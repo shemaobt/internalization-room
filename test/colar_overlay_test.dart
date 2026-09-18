@@ -20,6 +20,20 @@ void main() {
     );
   }
 
+  Future<void> pumpReducedColar(WidgetTester tester, SalaSessionState session) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: Scaffold(
+            body: ColarOverlay(session: session),
+          ),
+        ),
+      ),
+    );
+  }
+
   BoxDecoration decorationAt(WidgetTester tester, int index) =>
       tester.widget<AnimatedContainer>(find.byType(AnimatedContainer).at(index)).decoration
           as BoxDecoration;
@@ -125,5 +139,25 @@ void main() {
         reason: 'a conta de ausência só ganha o anel quando cai dentro de engaged, e o anel não tem gradiente');
     expect((decorationAt(tester, 5).border as Border).top.width, 3,
         reason: 'o anel é a versão cheia da conta de ausência, não um terceiro estado');
+  });
+
+  testWidgets('a bead whose slot changes lands there on the first frame, reduced', (
+    tester,
+  ) async {
+    const arriving = SalaSessionState(
+      coverage: Coverage(engaged: 0, surfaced: 0, total: 1, absenceIndex: -1),
+    );
+    await pumpReducedColar(tester, arriving);
+
+    await pumpReducedColar(tester, arriving.copyWith(stage: SalaStage.fim, fimClosed: true));
+    final landedTopLeft = tester.getTopLeft(find.byType(AnimatedPositioned).first);
+
+    await tester.pumpWidget(Container());
+    await pumpReducedColar(tester, arriving.copyWith(stage: SalaStage.fim, fimClosed: true));
+    final steadyTopLeft = tester.getTopLeft(find.byType(AnimatedPositioned).first);
+
+    expect(landedTopLeft, steadyTopLeft,
+        reason: 'com o movimento reduzido a conta ainda esperava os 900ms do slide — o primeiro frame '
+            'a mostrava no lugar antigo, entre o arco e o novo lugar no círculo');
   });
 }
