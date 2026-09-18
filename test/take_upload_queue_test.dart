@@ -314,6 +314,23 @@ void main() {
         reason: 'a ordem é a de cada parte: a parte 3 não espera a parte 2');
   });
 
+  test('the same part of another session is not held by one that is waiting', () async {
+    final room = FakeRoom();
+    final queue = queueOn(room);
+    final sumida = await queue.enqueue(aTake('de-uma-sessao'),
+        sessionId: 'sessao-1', kind: 'ensaio', scope: 'parte-2');
+    final outra = await queue.enqueue(aTake('de-outra-sessao'),
+        sessionId: 'sessao-2', kind: 'ensaio', scope: 'parte-2');
+    File(sumida.path).deleteSync();
+
+    expect(await queue.flush(), 1);
+
+    expect(await queue.takeIdOf(outra.id), isNotNull,
+        reason: 'a parte 2 de outra sessão é outra parte: duas equipes em dois '
+            'ensaios não têm ordem nenhuma entre si');
+    expect(await queue.takeIdOf(sumida.id), isNull);
+  });
+
   test('a stretch is not held by a part that is waiting', () async {
     final room = FakeRoom()..refuseTake = 'ensaio/parte-2';
     final queue = queueOn(room);

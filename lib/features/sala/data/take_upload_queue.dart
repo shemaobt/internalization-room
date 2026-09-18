@@ -437,7 +437,7 @@ class TakeUploadQueue {
       final part =
           entry.kind == 'ensaio' ? '${entry.sessionId}/${entry.scope}' : null;
       if (part != null && held.contains(part)) continue;
-      if (await _send(entry)) {
+      if (await _landed(entry)) {
         sent++;
       } else if (part != null) {
         held.add(part);
@@ -448,7 +448,7 @@ class TakeUploadQueue {
 
   /// Whether the room took this row. False is every reason it did not, and the caller
   /// holds the rest of this row's part on it.
-  Future<bool> _send(PendingTake entry) async {
+  Future<bool> _landed(PendingTake entry) async {
     if (!_ready(entry)) return false;
     final file = File(entry.path);
     if (!await file.exists()) {
