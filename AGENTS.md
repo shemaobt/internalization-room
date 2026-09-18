@@ -41,7 +41,8 @@ device credential is never in that file: it lives in the iOS Keychain, and ADR 0
 ## Where the rest is
 
 State is Riverpod. The Shemá design system and the client-validated interaction flows are
-vendored under `docs/spec/`.
+vendored under `docs/spec/`. `docs/spec/prototype/` is historical: its motion timings
+predate the live tempos, which come from Marcia's canvas (`app/globals.css`).
 
 - `docs/doctrine/` — Marcia's `DOCTRINE.md`, vendored at the pin in `DOCTRINE_PIN` and binding
   on every change here: read it before touching the canvas or the turn loop. `ACCEPTANCE_BAR`

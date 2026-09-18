@@ -127,17 +127,6 @@ Future<ProviderContainer> pumpToFindings(
   return container;
 }
 
-Future<void> takeATurn(WidgetTester tester, ProviderContainer container) async {
-  final notifier = container.read(salaSessionProvider.notifier);
-  notifier.conversaTap();
-  await tester.pump(const Duration(milliseconds: 20));
-  notifier.conversaTap();
-  await tester.pump(const Duration(milliseconds: 60));
-  await tester.pump(const Duration(milliseconds: 1600));
-  await tester.pump(const Duration(milliseconds: 100));
-  await tester.pump(const Duration(milliseconds: 800));
-}
-
 void main() {
   testWidgets('convite renders the facilitator circle', (tester) async {
     await pumpSala(tester, SalaHarness());
