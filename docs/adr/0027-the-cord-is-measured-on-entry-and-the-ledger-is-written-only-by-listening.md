@@ -39,11 +39,18 @@ the parts told whole, still writes those and only those into the listening ledge
 still breaks at the first part with no told ground. **A part measured is not a part
 heard.**
 
-**A blocking halt met on the way in plays nothing.** When the room is halted by the time
-the measuring returns, the entry publishes the ruler and stops there. Putting a part in
-the air silences the room on the way, and that would cut off the one call for a person,
-which is said once. A private latch says the entry stopped short, and the team's own
-listening gesture opens the part after the desk has let them go.
+**A blocking halt met on the way in withholds the sound and nothing else.** When the room
+is halted by the time the measuring returns, the entry still publishes the ruler, still
+steps over the parts told whole and writes them into the ledger, and still chooses which
+part would go in the air — and then stops short of playing it. Putting a part in the air
+silences the room on the way, and that would cut off the one call for a person, which is
+said once. A private latch remembers that the entry stopped short, and the team's own
+listening gesture opens the chosen part after the desk has let them go.
+
+A halt that withheld the choice and the ledger as well would report none of the rehearsal
+as heard — so the finish would be refused for parts the team heard in an earlier round —
+and would land the team back on the first part rather than on the first with untold
+ground.
 
 A measurement of nought is the player with nothing to say about a file, never a part of no
 length, and it is refused in one place.
