@@ -9,6 +9,7 @@ import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
 
 import 'fakes.dart';
@@ -198,6 +199,40 @@ void main() {
     expect(container.read(salaSessionProvider).sessionId, isNull,
         reason: 'trocar o idioma sem largar a sessão deixaria a equipe ouvindo metade '
             'da passagem numa língua e metade noutra');
+  });
+
+  testWidgets(
+      'the dev language button on the panorama recreates it instead of falling to the wheel',
+      (tester) async {
+    dotenv.testLoad(
+      fileInput: 'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
+    );
+    addTearDown(() => dotenv.testLoad(fileInput: ''));
+    tester.platformDispatcher.localesTestValue = const [Locale('pt')];
+    addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+    final harness = SalaHarness(filaEmMemoria: true, lingua: null);
+    final container = await pumpSala(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.conviteTap();
+    await tester.pump(const Duration(milliseconds: 300));
+    notifier.devTrocarIdioma();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(container.read(salaSessionProvider).stage, SalaStage.convite,
+        reason: 'o botão de idioma é para o DEV ouvir o panorama noutra língua — jogar '
+            'para a roda abandona exatamente a sessão que ele estava tentando testar');
+
+    notifier.conviteTap();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(container.read(salaSessionProvider).stage, SalaStage.convite);
+    expect(harness.room.sessionIds, hasLength(2),
+        reason: 'a sessão antiga ficou presa na língua velha; testar a nova pede uma '
+            'sessão nova, não a mesma respondendo em duas línguas');
+    expect(harness.room.languagesSent.last, isNot('pt'),
+        reason: 'a sessão recriada é da língua que o botão acabou de escolher, não da '
+            'que o panorama tinha antes do toque');
   });
 
   test('a tablet set to the language nobody approved opens the room in English', () async {
