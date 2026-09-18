@@ -8,7 +8,6 @@ import 'package:http/http.dart' as http;
 
 import '../../../core/config/env.dart';
 import '../domain/bt_finding.dart';
-import '../domain/coverage.dart';
 import '../domain/coverage_event.dart';
 import '../domain/device_link.dart';
 import '../domain/escuta_das_partes.dart';
@@ -19,7 +18,10 @@ import '../domain/turn_result.dart';
 import 'device_identity.dart';
 
 const _basePath = '/api/internalization-room';
-const _turnTimeout = Duration(seconds: 90);
+
+/// The client's rung of the turn ladder: above the turn route's 300 s server bound
+/// (ENG-817), below the busy-state watchdog in session_notifier.dart (330 s).
+const _turnTimeout = Duration(seconds: 310);
 const _stateTimeout = Duration(seconds: 20);
 
 class RoomUnavailable implements Exception {
@@ -104,6 +106,8 @@ class ReleaseRefused implements Exception {
 }
 
 class RoomRepository {
+  static const turnTimeout = _turnTimeout;
+
   final http.Client _client;
   final Future<String> Function() _deviceId;
 
@@ -218,40 +222,49 @@ class RoomRepository {
   }
 
   Stream<CoverageEvent> watchCoverage(String sessionId) {
-    final controller = StreamController<CoverageEvent>();
-    unawaited(_readCoverage(sessionId, controller).catchError((_) {}));
-    return controller.stream;
-  }
-
-  Future<void> _readCoverage(
-    String sessionId,
-    StreamController<CoverageEvent> controller,
-  ) async {
-    try {
-      final response = await _client.send(
-        http.Request('GET', _uri('/sessions/$sessionId/coverage'))..headers.addAll(_headers),
-      );
-      String? eventName;
-      final data = StringBuffer();
-      await for (final line
-          in utf8.decoder.bind(response.stream).transform(const LineSplitter())) {
-        if (line.isEmpty) {
-          final parsed = _parseCoverageEvent(eventName, data.toString());
-          if (parsed != null) controller.add(parsed);
-          eventName = null;
-          data.clear();
-          continue;
+    StreamSubscription<String>? lineSub;
+    var cancelled = false;
+    final controller = StreamController<CoverageEvent>(
+      onCancel: () {
+        cancelled = true;
+        return lineSub?.cancel();
+      },
+    );
+    unawaited(() async {
+      try {
+        final response = await _client.send(
+          http.Request('GET', _uri('/sessions/$sessionId/coverage'))..headers.addAll(_headers),
+        );
+        if (cancelled) {
+          unawaited(response.stream.listen(null).cancel());
+          return;
         }
-        if (line.startsWith('event:')) {
-          eventName = line.substring(6).trim();
-        } else if (line.startsWith('data:')) {
-          if (data.isNotEmpty) data.write('\n');
-          data.write(line.substring(5).trim());
-        }
+        String? eventName;
+        final data = StringBuffer();
+        lineSub = utf8.decoder.bind(response.stream).transform(const LineSplitter()).listen(
+          (line) {
+            if (line.isEmpty) {
+              final parsed = _parseCoverageEvent(eventName, data.toString());
+              if (parsed != null) controller.add(parsed);
+              eventName = null;
+              data.clear();
+              return;
+            }
+            if (line.startsWith('event:')) {
+              eventName = line.substring(6).trim();
+            } else if (line.startsWith('data:')) {
+              if (data.isNotEmpty) data.write('\n');
+              data.write(line.substring(5).trim());
+            }
+          },
+          onDone: controller.close,
+          onError: (Object _) => controller.close(),
+        );
+      } on Exception {
+        await controller.close();
       }
-    } finally {
-      await controller.close();
-    }
+    }());
+    return controller.stream;
   }
 
   CoverageEvent? _parseCoverageEvent(String? eventName, String data) {
@@ -265,13 +278,7 @@ class RoomRepository {
         _ => null,
       };
       if (turnId == null || status == null) return null;
-      return CoverageEvent(
-        turnId: turnId,
-        status: status,
-        coverage: json['coverage'] == null
-            ? null
-            : Coverage.fromJson((json['coverage'] as Map).cast<String, dynamic>()),
-      );
+      return CoverageEvent(turnId: turnId, status: status);
     } on FormatException {
       return null;
     }

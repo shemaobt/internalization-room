@@ -514,11 +514,13 @@ class FakeRoom implements RoomRepository {
   Stream<CoverageEvent> watchCoverage(String sessionId) => _coverage.stream;
 
   /// What a turn's own response says about the id classification will settle under, and
-  /// whether classification is still running for it. True and named by default — the way
-  /// a real conversational turn from the backend behaves — so a double built for some
-  /// other behaviour still exercises the wait the way production would.
-  String? turnIdInResponse = 'turno-fake';
+  /// whether classification is still running for it. Pending by default — the way a real
+  /// conversational turn from the backend behaves — so a double built for some other
+  /// behaviour still exercises the wait the way production would. Null generates a fresh
+  /// id per turn, as the server does; a test naming a fixed id owns matching it itself.
+  String? turnIdInResponse;
   bool classificationPending = true;
+  int _turnCount = 0;
 
   final List<String> calls = [];
   final List<String?> pericopesAsked = [];
@@ -1129,7 +1131,7 @@ class FakeRoom implements RoomRepository {
         degraded: turnsAreDegraded,
         coverage: silentAboutCoverage ? null : nextCoverage,
         done: done,
-        turnId: turnIdInResponse,
+        turnId: turnIdInResponse ?? 'turno-fake-${++_turnCount}',
         classificationPending: classificationPending,
         bridgeMode: bridgeMode,
         segments: opensInTwoMovements

@@ -92,12 +92,8 @@ The list of passages still to be worked, which the room offers at the Choice and
 _Avoid_: roda, passage list, carousel, choice (the station that shows it)
 
 **Take**:
-A recording the team kept, identified locally by its scope (part, stretch or whole passage) and, after upload, by the server's identifier.
+A recording the team kept, identified locally by its scope (part or whole passage) and, after upload, by the server's identifier.
 _Avoid_: gravação, recording (too general), audio
-
-**Composed passage**:
-The take the server assembles after a mend: the part's own recording with the mended stretch in place of the old one, and every segment of that take re-addressed to it.
-_Avoid_: passagem composta, concatenated passage, merged take, `composed` (the scope name in code)
 
 **Mother tongue**:
 The team's language, in which the passage is recorded in the Conversation and the Rehearsal, and which nobody in the room needs to understand.
@@ -112,8 +108,8 @@ A piece of the back-translation already told: it points at a rehearsal take and 
 _Avoid_: trecho, segment (the wire name), chunk (the ephemeral position)
 
 **Place**:
-The part a stretch sits in and the interval it occupies there, which no mend ever moves. It is a separate pair of numbers from what the stretch plays.
-_Avoid_: lugar, position, offset, range (what it plays is the other pair)
+The part a stretch sits in and the interval it occupies there, which is also what the stretch plays; no mend moves it.
+_Avoid_: lugar, position, offset, range
 
 **Untold stretch**:
 A stretch recorded in the Rehearsal that was never told back at all, named by the verdict under its own address and never under a finding's.
@@ -141,7 +137,7 @@ _Avoid_: trecho, stretch, segmento, segment (the persistent objects)
 
 **Part**:
 One of the pieces the rehearsal recording is divided into, and the unit a stretch sits in. A stretch addresses its part by where the part sits in the row, so a part that moved would take the whole rehearsal with it. A part recorded again keeps its number and its place; what changes is the recording it holds, and the stretches told over the one it replaces are untold ground again.
-_Avoid_: parte, chunk (a position in one reading), take (what holds a part), stretch
+_Avoid_: parte, chunk (a position in one reading), take (what holds a part), stretch, composed passage (retired: the take the server assembled around a mend)
 
 **Necklace**:
 The cord of beads that is the room's only progress indicator: lit beads show the conversation's coverage, and during the back-translation each stretch is drawn as a band.
@@ -176,7 +172,7 @@ The queue of takes and stretches waiting to reach the server, with a manifest th
 _Avoid_: fila, caixa de saída, upload queue, buffer
 
 **Resume point**:
-The row kept per passage saying where the team left it — the session, the station, the kept takes, and the place of every stretch mended by the Long way — so a reopening lands there rather than at the start.
+The row kept per passage saying where the team left it — the session, the station and the kept takes — so a reopening lands there rather than at the start, on a tablet that still holds the recordings or on one that fetches them from the room again.
 _Avoid_: ponto de retomada, em curso, checkpoint, snapshot (the session's own lives on the server)
 
 ### Findings and mends
@@ -198,7 +194,7 @@ A missing finding whose place (before, inside or after) fits a stretch already t
 _Avoid_: falta com endereço, internal missing, missing with a chunk
 
 **Where the error lives** (*Onde mora o erro* on screen):
-The screen where the team says whether a finding's error is in the recording or only in the telling, by choosing one of the two microphones.
+The screen where the team says whether a finding's error is in the recording or only in the telling, by choosing one of the two microphones: record the part again, or translate the phrase again.
 _Avoid_: error grid, finding screen, Onde mora o erro in English prose (it is the on-screen label, as with every station)
 
 **Missing without an address**:
@@ -210,8 +206,8 @@ The correction of a stretch pointed at by a finding, through one of the two ways
 _Avoid_: conserto, correction (reserved for the server's check), repair, fix
 
 **Long way**:
-The mend that re-records the stretch's mother tongue and then tells that same stretch again in the bridge language. It is the only exit the fallback offers for an addition; a finding that names a stretch offers both ways instead, and the team chooses.
-_Avoid_: the long way round, caminho longo, redoing the part (the old screen), mother tongue plus bridge
+The mend that records the stretch's whole part again in place and then tells that part's stretches again in the bridge language. It is the only exit the fallback offers for an addition; a finding that names a stretch offers both ways instead, and the team chooses.
+_Avoid_: the long way round, caminho longo, re-recording the stretch (retired: the microphone on one stretch of the mother tongue), mother tongue plus bridge
 
 **Short way**:
 The mend that only tells the stretch again in the bridge language, over the mother tongue recording already there.
