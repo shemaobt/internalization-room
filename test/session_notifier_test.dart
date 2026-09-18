@@ -255,6 +255,29 @@ void main() {
             'que a sessão abandonada carregava');
   });
 
+  test('advancing past the conversa still remembers when and in what language '
+      'the session was born', () async {
+    final harness = SalaHarness(lingua: 'en');
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+
+    notifier.goEnsaio();
+
+    final row = harness.emAberto.rows['Ruth/P01'];
+    expect(row?.language, 'en',
+        reason: 'a linha reescrita ao avançar de estágio apagava a língua '
+            'gravada na criação, e a checagem de idioma parava de valer a '
+            'partir do primeiro avanço');
+    expect(row?.savedAt, isNotNull,
+        reason: 'a mesma reescrita apagava a data, e um id de meses atrás '
+            'voltava a ser retomável assim que passava da conversa');
+  });
+
   test('the opening is told in two movements, and the necklace waits', () async {
     final harness = SalaHarness()..room.opensInTwoMovements = true;
     final container = await inConversa(harness);

@@ -131,6 +131,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _unplayableTurns = 0;
   int _roomFailures = 0;
   int _resumeFailures = 0;
+  /// When and in what language the session now open was created, so a row rewritten by
+  /// a later stage advance carries the same values a resume needs to judge it by, instead
+  /// of going blank the moment the team leaves the conversa.
+  DateTime? _sessionSavedAt;
+  String? _sessionLanguage;
   int _slowAnswers = 0;
   int _retryStep = 0;
   bool _noticeSpoken = false;
@@ -1435,6 +1440,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       final sessionId = waiting?.sessionId ?? created!.sessionId;
       if (epoch != _epoch) return;
       state = state.copyWith(sessionId: sessionId, coverage: created?.coverage);
+      _sessionSavedAt = resumed ? waiting.savedAt : DateTime.now();
+      _sessionLanguage = resumed ? waiting.language : _lingua;
       if (pericope != null && !resumed) {
         unawaited(_mindingThePlace(
           () => _emAberto.remember(
@@ -1443,8 +1450,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             ResumePoint(
               sessionId: sessionId,
               stage: SalaStage.conversa,
-              savedAt: DateTime.now(),
-              language: _lingua,
+              savedAt: _sessionSavedAt,
+              language: _sessionLanguage,
             ),
           ),
         ));
@@ -1566,6 +1573,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           takes: state.keptTakes,
           pass: state.ensaioPass,
           lugares: List.of(_lugares.values),
+          savedAt: _sessionSavedAt,
+          language: _sessionLanguage,
         ),
       ),
     ));
@@ -1608,6 +1617,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             ResumePoint(
               sessionId: waiting.sessionId,
               stage: SalaStage.conversa,
+              savedAt: waiting.savedAt,
+              language: waiting.language,
             ),
           ),
         ));
