@@ -74,9 +74,7 @@ Future<void> ouvirETraduzirAParteInteira(Sala it, Duration quanto) async {
 
 /// The rehearsal recorded in three parts with nothing told back yet: the room as it stands
 /// the first time the team presses the advance button.
-Future<Sala> umEnsaioDeTresPartesGravado({
-  Duration? tetoDaEspera,
-}) async {
+Future<Sala> umEnsaioDeTresPartesGravado({Duration? tetoDaEspera}) async {
   final harness = SalaHarness(busyCeiling: tetoDaEspera);
   final container = harness.container();
   addTearDown(container.dispose);

@@ -365,8 +365,6 @@ class SalaSessionState {
   /// gives for itself.
   String? get btEsperandoConserto => btConsertando ? null : btFindingSegmentId;
 
-  /// The rehearsal's own recordings, in order — never a correction's own take, which is a
-  /// slice of one of these and not a part of the rehearsal in its own right.
   /// Which take the rehearsal screen marks, when the team came back to record a part
   /// again.
   ///
@@ -378,6 +376,8 @@ class SalaSessionState {
     return parte == null ? null : KeptScope.parte(parte + 1);
   }
 
+  /// The rehearsal's own recordings, in order — never a correction's own take, which is a
+  /// slice of one of these and not a part of the rehearsal in its own right.
   List<KeptTake> get partes =>
       [for (final take in keptTakes) if (KeptScope.isParte(take.scopeId)) take];
 

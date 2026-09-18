@@ -180,7 +180,7 @@ class _FimView extends ConsumerWidget {
 ///
 /// Ten times a second is what a bead crossing a whole rehearsal needs: finer redraws the
 /// same pixel, coarser reads as a bead that jumps rather than one that walks.
-const _playheadTick = Duration(milliseconds: 100);
+const _passoDaCabeca = Duration(milliseconds: 100);
 
 class _RetroCordLayer extends ConsumerStatefulWidget {
   const _RetroCordLayer();
@@ -199,9 +199,6 @@ class _RetroCordLayer extends ConsumerStatefulWidget {
 /// Out of a sound being played the head is where the room wrote it down: pausing, crossing
 /// a boundary and picking a part back up all say where the team stopped hearing, and none
 /// of them are guesses the player can be asked for.
-///
-/// Two sounds move it, and the asking is the same for both: the part of the rehearsal in
-/// the air, and a stretch's mother tongue played from the findings grid.
 class _RetroCordLayerState extends ConsumerState<_RetroCordLayer> {
   Timer? _asking;
   int _ouvidoMs = 0;
@@ -227,7 +224,7 @@ class _RetroCordLayerState extends ConsumerState<_RetroCordLayer> {
     _asking?.cancel();
     _asking = null;
     if (!rodando) return;
-    _asking = Timer.periodic(_playheadTick, (_) {
+    _asking = Timer.periodic(_passoDaCabeca, (_) {
       final agora = ref.read(salaSessionProvider.notifier).ouvidoAgoraMs;
       if (agora != _ouvidoMs) setState(() => _ouvidoMs = agora);
     });
