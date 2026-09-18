@@ -33,7 +33,6 @@ class FacilitatorCircle extends StatelessWidget {
   /// team cannot use yet is still a stop, whatever the last warning said.
   final bool warning;
   final double opacity;
-  final Widget? child;
   final String semanticLabel;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
@@ -50,7 +49,6 @@ class FacilitatorCircle extends StatelessWidget {
     this.beckon = false,
     this.warning = false,
     this.opacity = 1,
-    this.child,
     this.onTap,
     this.onLongPress,
   });
@@ -86,7 +84,6 @@ class FacilitatorCircle extends StatelessWidget {
                 _body(colors, still),
                 if (voice == VoiceState.speaking) ..._ripples(colors),
                 if (voice == VoiceState.listening) _listenRing(colors),
-                if (child != null && voice != VoiceState.listening) child!,
                 if (voice == VoiceState.listening) ..._gatheringIn(),
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 1000),
