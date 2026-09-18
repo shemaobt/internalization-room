@@ -202,6 +202,15 @@ class SalaSessionState {
   /// what it says.
   final bool warning;
 
+  /// Which part of the rehearsal the team came back to record again, 0-based, or null when
+  /// the next recording is a part of its own.
+  ///
+  /// The rehearsal screen draws it and the record circle names it, so it is a fact of the
+  /// session rather than a private count in the notifier: mirrored in two places the two
+  /// drifted, and the screen said a new part was being recorded over a gesture that was
+  /// replacing one.
+  final int? parteARegravar;
+
   const SalaSessionState({
     this.stage = SalaStage.convite,
     this.voice = VoiceState.invite,
@@ -251,6 +260,7 @@ class SalaSessionState {
     this.unsentChunks = 0,
     this.unsentTakeScopes = const {},
     this.warning = false,
+    this.parteARegravar,
   });
 
   bool get colarOn =>
@@ -427,6 +437,8 @@ class SalaSessionState {
     int? unsentChunks,
     Set<String>? unsentTakeScopes,
     bool? warning,
+    int? parteARegravar,
+    bool clearParteARegravar = false,
   }) {
     return SalaSessionState(
       stage: stage ?? this.stage,
@@ -480,6 +492,9 @@ class SalaSessionState {
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentTakeScopes: unsentTakeScopes ?? this.unsentTakeScopes,
       warning: warning ?? this.warning,
+      parteARegravar: clearParteARegravar
+          ? null
+          : (parteARegravar ?? this.parteARegravar),
     );
   }
 }

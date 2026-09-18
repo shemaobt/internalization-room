@@ -183,7 +183,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// Which part of the rehearsal the team came back to record again, or null when the
   /// recording they are about to keep is a part the passage does not have yet.
-  int? _parteARegravar;
 
   /// The part in the air is the one the room said nobody heard, and hearing it to its end
   /// hands the finish back.
@@ -312,10 +311,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _clearAll() {
     _cancelTimers();
-    _parteARegravar = null;
     _openTurnId = null;
     _openingOwed = false;
-    state = state.copyWith(clearLastSpoken: true);
+    state = state.copyWith(
+      clearLastSpoken: true,
+      clearParteARegravar: true,
+    );
     _silenceTheRoom();
     unawaited(_recorder.discard());
   }
@@ -2364,8 +2365,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(ensaio: EnsaioStatus.idle);
       return;
     }
-    final regravada = _parteARegravar;
-    _parteARegravar = null;
+    final regravada = state.parteARegravar;
+    state = state.copyWith(clearParteARegravar: true);
     if (regravada != null && regravada < state.partes.length) {
       _aParteVoltaAoSeuLugar(regravada, path);
       return;
@@ -4128,7 +4129,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _voltarAoEnsaio();
-    _parteARegravar = parte;
+    state = state.copyWith(parteARegravar: parte);
   }
 
   void _voltarAoEnsaio() {
@@ -4199,7 +4200,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
     _parteTocando = 0;
-    _parteARegravar = null;
     _tamanhoDaParteMs.clear();
     _pousadaNaParteNaoOuvida = false;
     _aprovando = false;
