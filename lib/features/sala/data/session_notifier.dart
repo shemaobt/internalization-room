@@ -2868,6 +2868,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// length yet has not sounded, and the beginning the room wrote down is the whole of
   /// what is known about it.
   int get ouvidoAgoraMs {
+    // A stretch played from the grid sounds a slice of a file, and the position it answers
+    // is counted from the slice's own start. Read as a place on the rehearsal it is
+    // nowhere the team has been; added to where the stretch sits, it is exactly the band
+    // the cord already draws for it.
+    if (state.btTrechoTocando) {
+      if (state.btFindingTrecho case final trecho?) {
+        final lugar = _inicioDaParteMs(trecho.parte);
+        final de = lugar + trecho.lugarFrom.inMilliseconds;
+        final ate = lugar + trecho.lugarTo.inMilliseconds;
+        return (de + _playback.position.inMilliseconds).clamp(de, ate);
+      }
+    }
     final noAr = state.btParteNoArMs;
     if (noAr == 0) return state.btOuvidoMs;
     final inicio = _inicioDaParteMs(_parteTocando);

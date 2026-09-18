@@ -196,9 +196,12 @@ class _RetroCordLayer extends ConsumerStatefulWidget {
 /// session from everywhere. The asking dies with the layer, so nothing walks after the
 /// team leaves the passage.
 ///
-/// Out of a part being played the head is where the room wrote the sound down: pausing,
-/// crossing a boundary and picking a part back up all say where the team stopped hearing,
-/// and none of them are guesses the player can be asked for.
+/// Out of a sound being played the head is where the room wrote it down: pausing, crossing
+/// a boundary and picking a part back up all say where the team stopped hearing, and none
+/// of them are guesses the player can be asked for.
+///
+/// Two sounds move it, and the asking is the same for both: the part of the rehearsal in
+/// the air, and a stretch's mother tongue played from the findings grid.
 class _RetroCordLayerState extends ConsumerState<_RetroCordLayer> {
   Timer? _asking;
   int _ouvidoMs = 0;
@@ -208,8 +211,11 @@ class _RetroCordLayerState extends ConsumerState<_RetroCordLayer> {
     super.initState();
     final session = ref.read(salaSessionProvider);
     _ouvidoMs = session.btOuvidoMs;
-    _followTheAudio(session.btClipRodando);
+    _followTheAudio(_soando(session));
   }
+
+  static bool _soando(SalaSessionState session) =>
+      session.btClipRodando || session.btTrechoTocando;
 
   @override
   void dispose() {
@@ -234,7 +240,7 @@ class _RetroCordLayerState extends ConsumerState<_RetroCordLayer> {
     // adds is the edge — the one frame the clip starts or stops — which is when the
     // asking has to be started or put down.
     ref.listen<bool>(
-      salaSessionProvider.select((sala) => sala.btClipRodando),
+      salaSessionProvider.select(_soando),
       (_, rodando) {
         // The part that starts is not the one that stopped, and the player still answers
         // for the old one until it has loaded the new. The room's own number is the one
@@ -247,7 +253,7 @@ class _RetroCordLayerState extends ConsumerState<_RetroCordLayer> {
       partes: session.partes.length,
       fimDasPartes: session.btFimDasPartesMs,
       parteNoArMs: session.btParteNoArMs,
-      ouvidoMs: session.btClipRodando ? _ouvidoMs : session.btOuvidoMs,
+      ouvidoMs: _soando(session) ? _ouvidoMs : session.btOuvidoMs,
       trechos: session.btTrechos,
       apontado: session.btEsperandoConserto,
     );
