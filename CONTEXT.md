@@ -128,7 +128,7 @@ What the team heard of each part of its rehearsal, kept one part at a time, in t
 _Avoid_: `_ouvido`, registro de escuta, played ranges, the concatenated passage, the rehearsal's whole length
 
 **Ruler**:
-Where each rehearsal part ends along the cord, derived from the measured length of each part's file. It is drawn only as far as the parts already measured, so a part nobody can measure ends the cord rather than lengthens it by a guess.
+Where each rehearsal part ends along the cord, derived from the measured length of each part's file. The parts are measured on entry to the back-translation, before the first of them plays. It is drawn only as far as the parts already measured, so a part nobody can measure ends the cord rather than lengthens it by a guess.
 _Avoid_: régua, timeline, listening ledger (what was heard, not where a part ends)
 
 **Chunk**:
@@ -146,6 +146,10 @@ _Avoid_: colar, progress bar, ghost bead
 **Cord**:
 The line of the necklace that draws the whole rehearsal during the back-translation, one part after another under the ruler, on which the stretches are drawn as bands and the reading head moves.
 _Avoid_: cordão, string, track, progress bar
+
+**Reading head**:
+The dot the cord draws where the team is listening: along the part in the air, along a stretch played from *Where the error lives*, and resting on the told ground when nothing plays.
+_Avoid_: cabeça de leitura, playhead, cursor (the point inside a part's file where the telling-back stopped)
 
 **Bead**:
 A Meaning Map element represented on the necklace, moving through not encountered, surfaced (the Guide said it) and engaged (the team said it).
