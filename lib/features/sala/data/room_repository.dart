@@ -370,9 +370,9 @@ class RoomRepository {
 
   /// Where the audio of one take is, for [fetchClip] to go and get.
   ///
-  /// Nothing reads it yet. It is the door a tablet holding a session's stretches and none
-  /// of its files will fetch the room's own parts through, and it is kept for that. The
-  /// route answers a signed redirect, which the client follows on its own.
+  /// The door a tablet holding a session's stretches and none of its files fetches the
+  /// room's own parts back through, on a resume (ADR 0023). The route answers a signed
+  /// redirect, which the client follows on its own.
   static String takeAudioUrl(String sessionId, String takeId) =>
       '$_basePath/sessions/$sessionId/takes/$takeId/audio';
 
@@ -415,17 +415,6 @@ class RoomRepository {
       ..fields['ends_ms'] = '${to.inMilliseconds}';
     request.files.add(await http.MultipartFile.fromPath('file', audio.path));
     return _read(await _sendMultipart(request), TellingAgain.fromJson);
-  }
-
-  Future<BackTranslationRestart> restartBackTranslation(String sessionId) async {
-    final response = await _send(
-      () => _client.post(
-        _uri('/sessions/$sessionId/back-translation/restart'),
-        headers: _headers,
-      ),
-      _stateTimeout,
-    );
-    return _read(response, BackTranslationRestart.fromJson);
   }
 
   /// The team's approval of its own final draft.

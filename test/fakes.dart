@@ -453,6 +453,11 @@ const sceneUrl = '/api/internalization-room/voice/cena';
 class FakeWorkInProgress implements WorkInProgress {
   final Map<String, ResumePoint> rows = {};
 
+  /// Every row this ledger was ever asked to write, in order. A row that is right when
+  /// the dust settles can still have been wrong in between, and the one in between is
+  /// what the next opening would have read.
+  final List<ResumePoint> written = [];
+
   @override
   Future<Set<String>> startedIn(String book) async => {
         for (final key in rows.keys)
@@ -464,8 +469,10 @@ class FakeWorkInProgress implements WorkInProgress {
       rows['$book/$pericope'];
 
   @override
-  Future<void> remember(String book, String pericope, ResumePoint point) async =>
-      rows['$book/$pericope'] = point;
+  Future<void> remember(String book, String pericope, ResumePoint point) async {
+    written.add(point);
+    rows['$book/$pericope'] = point;
+  }
 
   @override
   Future<void> forget(String book, String pericope) async =>
@@ -564,6 +571,9 @@ class FakeRoom implements RoomRepository {
 
   /// What listing the takes throws, when it is set.
   Exception? failTakesWith;
+
+  /// The recordings whose audio this room will not hand over, by take id.
+  final Set<String> refuseClipOf = {};
   /// The stretches this room kept, in the order they were told. A room that forgets what
   /// it was told cannot hand a telling-back back, and cannot name the stretch a finding
   /// lands on either.
@@ -574,7 +584,6 @@ class FakeRoom implements RoomRepository {
   final List<String> takesKept = [];
   final List<int?> takePasses = [];
   String? refuseTake;
-  Exception? failRestartWith;
   Exception? failDivideWith;
   Exception? failReplaceWith;
 
@@ -652,7 +661,6 @@ class FakeRoom implements RoomRepository {
   }
   String fixedLine = '';
   String bridgeMode = '';
-  final List<String> restartsAsked = [];
   final List<String> booksAsked = [];
   List<Passagem> passages = const [
     Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
@@ -770,6 +778,9 @@ class FakeRoom implements RoomRepository {
     clipsFetched.add(url);
     final refusal = failClipWith;
     if (refusal != null) throw refusal;
+    for (final take in refuseClipOf) {
+      if (url.endsWith('/takes/$take/audio')) throw const RoomBroke('HTTP 500');
+    }
     for (final entry in takeAudio.entries) {
       if (url.endsWith('/takes/${entry.key}/audio')) return entry.value;
     }
@@ -941,21 +952,6 @@ class FakeRoom implements RoomRepository {
     return List.of(segments);
   }
 
-  /// Whether the room asks for a person to come and watch on the next restart of the
-  /// telling-back — a warning, the same as [serverHalt]'s and the retold chunk's.
-  bool restartNeedsPerson = false;
-
-  @override
-  Future<BackTranslationRestart> restartBackTranslation(String sessionId) async {
-    _guard('restartBackTranslation');
-    final refusal = failRestartWith;
-    if (refusal != null) throw refusal;
-    restartsAsked.add('novo-clipe');
-    await _turnArrives();
-    retells = 0;
-    return BackTranslationRestart(needsPerson: restartNeedsPerson);
-  }
-
   /// What the next call to the session-scoped ask throws, independent of `failWith` —
   /// a case needs a turn to succeed (so the halt is reached with a live session) and
   /// only the ask itself to fail, and `failWith` is shared by every guarded call.
@@ -1057,7 +1053,12 @@ class FakeRoom implements RoomRepository {
     takePasses.add(passNumber);
     final id = 'gravacao-${takeIds.length + 1}';
     takeIds.add(id);
-    takes.add(TakeView(takeId: id, scope: scope, ordinal: chunkIndex));
+    takes.add(TakeView(
+      takeId: id,
+      kind: kind,
+      scope: scope,
+      ordinal: kind == 'ensaio' ? chunkIndex : null,
+    ));
     takeAudio[id] = Uint8List.fromList(utf8.encode('áudio de $id'));
     return id;
   }

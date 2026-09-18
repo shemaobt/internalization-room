@@ -56,6 +56,19 @@ const _captureFailsBeforeAPerson = 2;
 /// before the id is dropped, the way a 404 drops it.
 const _resumeFailuresBeforeForgetting = 2;
 
+/// What a reopening found where the team left off.
+enum _Resume {
+  /// The station they left, standing again, with the rehearsal under it.
+  landed,
+
+  /// Nothing behind this passage to come back to: it opens at the conversa.
+  nothingToRestore,
+
+  /// The room could not hand the rehearsal back. A person is called and the resume point
+  /// is left exactly as it was, so the next opening tries again.
+  halted,
+}
+
 final busyStateCeilingProvider = Provider<Duration?>(
   (ref) => const Duration(seconds: 330),
 );
@@ -1480,10 +1493,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       unawaited(_pullInbox());
       _watchBusyState();
       if (resumed) {
-        final pastTheConversa =
-            await _backToWhereTheyStopped(waiting, epoch, pericope!);
+        final onde = await _backToWhereTheyStopped(waiting, epoch);
         if (epoch != _epoch) return;
-        if (pastTheConversa) {
+        if (onde == _Resume.halted) return;
+        if (onde == _Resume.landed) {
           final snapshot = await _room.fetchState(sessionId);
           if (epoch != _epoch) return;
           state = state.copyWith(
@@ -1513,14 +1526,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           // the conversa until the watchdog called a person two minutes later. It falls
           // through to the turn instead, which is the door every other empty answer takes:
           // closing would call a passage the team never approved its final draft.
+          //
+          // Reached only when the room holds no rehearsal of its own to hand back, which
+          // is the one way past this door now that a resume fetches the parts.
           if (told.checked && !told.nothingTold) {
             _pickTheTellingBackUp(told);
             return;
-          }
-          if (!told.nothingTold) {
-            final restarted = await _room.restartBackTranslation(sessionId);
-            if (epoch != _epoch) return;
-            if (restarted.needsPerson) state = state.copyWith(warning: true);
           }
         }
       }
@@ -1629,63 +1640,139 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     ));
   }
 
-  /// Put the team back on the stage they left, when the audio for it is still here.
-  Future<bool> _backToWhereTheyStopped(
-    ResumePoint waiting,
-    int epoch,
-    String pericope,
-  ) async {
+  /// Put the team back on the stage they left, fetching the rehearsal when it is gone.
+  ///
+  /// A restore, a reinstall or another tablet leaves the row naming files that are not
+  /// here. The rehearsal is not lost: the room is holding it, and the team comes back to
+  /// the station they left with the room's own parts under them.
+  Future<_Resume> _backToWhereTheyStopped(ResumePoint waiting, int epoch) async {
     if (waiting.stage == SalaStage.conversa || waiting.takes.isEmpty) {
-      return false;
+      return _Resume.nothingToRestore;
     }
     final here = [
       for (final take in waiting.takes)
         if (await File(take.path).exists()) take,
     ];
-    if (epoch != _epoch) return false;
-    if (_gone || here.length != waiting.takes.length) {
-      // Not all of the rehearsal is on the tablet, so the retro cannot be told back over
-      // it. The conversa is the step that still works.
-      //
-      // The row is rewritten at the conversa, with no rehearsal in it. Left as it was,
-      // the same failed resume runs on every single opening from here on, and an
-      // unbounded repeat is the harm — one failed resume is survivable.
-      //
-      // Rewritten rather than forgotten, because the session id lives nowhere else:
-      // `ir_sessions` carries no device, so dropping the row would abandon that session
-      // on the server the moment the team closed the app during the conversa, and take
-      // the passage off the wheel along with it. Nothing writes this row again until the
-      // team reaches the ensaio, which is a long way from where they now are. With no
-      // takes in it the next opening finds nothing to restore and goes straight through,
-      // so the repeat is gone and the id survives. Where the team lands is unchanged.
-      if (!_gone) {
-        unawaited(_mindingThePlace(
-          () => _emAberto.remember(
-            _book,
-            pericope,
-            ResumePoint(
-              sessionId: waiting.sessionId,
-              stage: SalaStage.conversa,
-              savedAt: waiting.savedAt,
-              language: waiting.language,
-            ),
-          ),
-        ));
-      }
-      return false;
+    if (epoch != _epoch || _gone) return _Resume.nothingToRestore;
+    final buscadas = here.length != waiting.takes.length;
+    final takes = buscadas ? await _asPartesDaSala(waiting, here, epoch) : here;
+    if (epoch != _epoch || _gone) return _Resume.nothingToRestore;
+    if (takes == null) {
+      _haltForAPerson();
+      return _Resume.halted;
     }
+    // A room holding no rehearsal is not a rehearsal to come back to, and it is not a
+    // failure either: the conversa is where a passage with nothing behind it starts.
+    if (takes.isEmpty) return _Resume.nothingToRestore;
+    // Before the landing, while the room still says it is thinking. Measuring waits on the
+    // player, and landed first the team is invited to tap over a cord drawn short of the
+    // sound it covers.
+    if (buscadas) await _medirAsPartes(takes, epoch);
+    if (epoch != _epoch || _gone) return _Resume.nothingToRestore;
     state = state.copyWith(
       stage: SalaStage.ensaio,
       ensaio: EnsaioStatus.idle,
       voice: VoiceState.invite,
-      keptTakes: here,
+      keptTakes: takes,
       // Counted among the rehearsal's own parts — `here` can also carry a correction's
       // own take, kept beside the parts but not one of them.
-      takes: here.where((take) => KeptScope.isParte(take.scopeId)).length,
+      takes: takes.where((take) => KeptScope.isParte(take.scopeId)).length,
       ensaioPass: waiting.pass,
     );
+    if (buscadas) {
+      state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
+      // The row named files that are not here any more. Rewritten only now, and only with
+      // the recordings the room gave: a row rewritten without them makes the next opening
+      // find nothing to restore, and the rehearsal the room is holding would be out of
+      // the team's reach for good.
+      _rememberWhereTheyAre(waiting.stage);
+    }
     unawaited(_countUnsent());
-    return true;
+    return _Resume.landed;
+  }
+
+  /// The room's current parts, kept on a tablet that no longer holds them.
+  ///
+  /// The current parts are the newest rehearsal recording under each number, in the order
+  /// the room lists them — the server's own rule, so a part recorded again is the one the
+  /// team gets back (ADR 0020). A telling-back is never one of them: it is the team
+  /// explaining the story, not the story.
+  ///
+  /// They are numbered by their place in this row rather than by the number the room
+  /// holds. The two agree for every rehearsal this tablet sent up, and where they cannot
+  /// — a recording the room does not number — the place is what a part is addressed by
+  /// everywhere else: the cord draws it there, a stretch sits on it there, and recording
+  /// it again finds it there.
+  ///
+  /// A file still on the tablet under a current part's name is kept as it is: it is the
+  /// team's own recording, and fetching a copy over the room's link would spend their
+  /// network on what they already have.
+  ///
+  /// Null when the room could not hand the rehearsal over — the listing, one part's audio
+  /// or the disk. Nothing is written for it: the resume point stays exactly as it was and
+  /// the next opening tries again.
+  Future<List<KeptTake>?> _asPartesDaSala(
+    ResumePoint waiting,
+    List<KeptTake> aqui,
+    int epoch,
+  ) async {
+    final List<TakeView> guardadas;
+    try {
+      guardadas = await _room.takesOf(waiting.sessionId);
+    } on Exception {
+      return null;
+    }
+    if (epoch != _epoch || _gone) return const [];
+    // Keyed by the room's number, which keeps the first place each number appears in and
+    // the last recording made under it.
+    final correntes = <int?, TakeView>{};
+    for (final guardada in guardadas) {
+      if (guardada.kind != 'ensaio') continue;
+      correntes[guardada.ordinal] = guardada;
+    }
+    final partes = <KeptTake>[];
+    for (final corrente in correntes.values) {
+      final escopo = KeptScope.parte(partes.length + 1);
+      final nossa = aqui.where((take) => take.takeId == corrente.takeId);
+      if (nossa.isNotEmpty) {
+        partes.add(KeptTake(
+          scopeId: escopo,
+          path: nossa.first.path,
+          takeId: corrente.takeId,
+        ));
+        continue;
+      }
+      final String arquivo;
+      try {
+        final bytes = await _room.fetchClip(
+          RoomRepository.takeAudioUrl(waiting.sessionId, corrente.takeId),
+        );
+        if (bytes.isEmpty) return null;
+        arquivo = await _recorder.keepBytes(bytes, '$escopo-${corrente.takeId}');
+      } on Exception {
+        return null;
+      }
+      if (epoch != _epoch || _gone) return const [];
+      partes.add(
+        KeptTake(scopeId: escopo, path: arquivo, takeId: corrente.takeId),
+      );
+    }
+    return partes;
+  }
+
+  /// How long each part turned out to be, so the cord can draw the rehearsal.
+  ///
+  /// A part nobody can measure ends the cord rather than lengthening it by a guess, which
+  /// is the ruler's rule everywhere, and it is not a reason to stop the team.
+  Future<void> _medirAsPartes(List<KeptTake> partes, int epoch) async {
+    for (final parte in partes) {
+      if (!KeptScope.isParte(parte.scopeId)) continue;
+      if (_tamanhoDaParteMs.containsKey(parte.path)) continue;
+      final quanto = await _playback.howLong(parte.path);
+      if (epoch != _epoch || _gone) return;
+      if (quanto == null) continue;
+      _tamanhoDaParteMs[parte.path] = quanto.inMilliseconds;
+    }
   }
 
   /// Every reopening landed on the rehearsal, so a team that had stopped part-way through
@@ -2333,10 +2420,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// Take back the name the room gave a rehearsal recording.
   ///
   /// A told-back stretch is a slice of one recording and says which, and this is the only
-  /// moment that name is ever said. It is written beside the file rather than fetched
-  /// later because the two are halves of one thing: the retro is already local to the
-  /// tablet that recorded it — a rehearsal whose files are not here is refused a resume —
-  /// so there is no second tablet to fetch it for.
+  /// moment that name is said for a recording this tablet made. A rehearsal whose files
+  /// are not here any more is fetched back from the room, and those parts arrive already
+  /// named by it, so there is nothing to adopt for them.
   ///
   /// The name goes to the file it was given for, never to every take of the scope: a part
   /// recorded again shares its scope with the recording it replaced, and the outbox row

@@ -171,7 +171,6 @@ void main() {
       expect(depois.stage, SalaStage.ensaio);
       expect(depois.takes, antes.takes);
       expect([for (final take in depois.keptTakes) take.takeId], gravacoes);
-      expect(harness.room.restartsAsked, isEmpty);
     },
   );
 

@@ -216,8 +216,6 @@ void main() {
     expect(depois.takes, antes.takes);
     expect(trechosDe(depois), trechosDe(antes),
         reason: 'os trechos já contados e certos ficam contados');
-    expect(harness.room.restartsAsked, isEmpty,
-        reason: 'nenhuma retirada sai para a sala por este caminho');
     expect(harness.room.calls.sublist(pedidos), isNot(contains('replaceSegment')));
     expect(harness.room.calls.sublist(pedidos), isNot(contains('divideSegment')));
     expect(harness.room.segmentIds, naSala,
@@ -309,7 +307,6 @@ void main() {
     expect(harness.room.chunkSpans.sublist(contadosAntes), ['0-12000']);
     expect(harness.room.replacesAsked, isEmpty);
     expect(harness.room.dividesAsked, isEmpty);
-    expect(harness.room.restartsAsked, isEmpty);
     expect(trechosDe(agora).sublist(0, 3), antigas);
     expect(agora.btTrechos, hasLength(4));
 
@@ -371,7 +368,6 @@ void main() {
     expect(harness.room.chunkTakes, [nova.takeId],
         reason: 'os três trechos que a sala guarda não são contados de novo');
     expect(harness.room.chunkSpans, ['0-12000']);
-    expect(harness.room.restartsAsked, isEmpty);
   });
 
   test('uma parte contada até pouco antes do fim conta como inteira', () async {

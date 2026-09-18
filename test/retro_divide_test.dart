@@ -190,8 +190,6 @@ void main() {
     expect(harness.room.chunksSent, contadoAntes,
         reason: 'dividir não traduz nada de novo: a explicação que a equipe deu fica '
             'onde está e o app não a manda de novo');
-    expect(harness.room.restartsAsked, isEmpty,
-        reason: 'nem joga a tradução fora para começar de novo');
     expect(harness.room.dividesAsked.length, 1,
         reason: 'e pede a divisão uma vez só');
   });

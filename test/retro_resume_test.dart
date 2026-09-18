@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
@@ -35,16 +34,23 @@ const _traduzidos = BackTranslationProgress(
   ],
 );
 
+/// The room's own recording of a rehearsal of one part, as its listing answers.
+const _naSala = [
+  TakeView(takeId: _gravacao, kind: 'ensaio', scope: 'parte-1', ordinal: 1),
+];
+
 /// A tablet that was closed part-way and is opened again on the same passage.
 ///
 /// The rehearsal is on disk, the ledger says where they were, and the room answers with
 /// whatever [contado] says it is holding for that session. With [semAudio] the ledger
-/// still names the rehearsal and the tablet no longer has it.
+/// still names the rehearsal and the tablet no longer has it, and [naSala] is what the
+/// room answers when it is asked for the recordings it holds.
 Future<ProviderContainer> _reopen(
   SalaHarness harness, {
   required SalaStage parouEm,
   BackTranslationProgress contado = const BackTranslationProgress(),
   bool semAudio = false,
+  List<TakeView> naSala = const [],
 }) async {
   final gravada = File(
     '${Directory.systemTemp.createTempSync('sala-retro-retomada').path}/p1.m4a',
@@ -62,7 +68,9 @@ Future<ProviderContainer> _reopen(
       ),
     ],
   );
-  harness.room.retroSoFar = contado;
+  harness.room
+    ..retroSoFar = contado
+    ..takes.addAll(naSala);
   final container = harness.container();
   addTearDown(container.dispose);
   final notifier = container.read(salaSessionProvider.notifier);
@@ -152,7 +160,7 @@ void main() {
     expect(state.btTrechos, isEmpty);
   });
 
-  test('a telling-back resumed without its rehearsal starts the room over',
+  test('a telling-back resumed without its rehearsal fetches the rehearsal back',
       () async {
     final harness = SalaHarness();
 
@@ -161,13 +169,22 @@ void main() {
       parouEm: SalaStage.retro,
       contado: _traduzidos,
       semAudio: true,
+      naSala: _naSala,
+    );
+    await waitFor(
+      'a retro voltar com o ensaio da sala',
+      () => container.read(salaSessionProvider).partes.isNotEmpty,
     );
 
-    expect(harness.room.restartsAsked, ['novo-clipe'],
-        reason: 'a equipe contava a passagem inteira de novo sobre trechos que '
-            'a sessão ainda guardava, e o analista recebia os velhos '
-            'concatenados com os novos');
-    expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
+    final state = container.read(salaSessionProvider);
+    expect(state.stage, SalaStage.retro,
+        reason: 'a equipe para no gesto que falta: mandada à conversa, ela '
+            'contava a passagem inteira de novo sobre trechos que a sessão '
+            'ainda guardava, e o analista recebia os velhos concatenados com '
+            'os novos');
+    expect([for (final take in state.partes) take.takeId], [_gravacao],
+        reason: 'o ensaio que a sala guarda volta para o tablet que o perdeu');
+    expect(state.btTrechos, hasLength(2));
   });
 
   test('a retro nobody had told back into yet throws nothing away', () async {
@@ -177,13 +194,19 @@ void main() {
       harness,
       parouEm: SalaStage.retro,
       semAudio: true,
+      naSala: _naSala,
+    );
+    await waitFor(
+      'o ensaio voltar da sala',
+      () => container.read(salaSessionProvider).partes.isNotEmpty,
     );
 
-    expect(harness.room.restartsAsked, isEmpty,
-        reason: 'o ponto de retomada é escrito ao entrar na retro, antes de '
-            'qualquer trecho contado, então a maior parte das retomadas pedia '
-            'à sala que descartasse um nada');
-    expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
+    final state = container.read(salaSessionProvider);
+    expect(state.stage, SalaStage.ensaio,
+        reason: 'não há retro para retomar, mas o ensaio que a sala guarda é '
+            'da equipe: mandá-la à conversa é mandá-la gravar tudo de novo');
+    expect([for (final take in state.partes) take.takeId], [_gravacao],
+        reason: 'e o que volta é a gravação da equipe, não uma fila vazia');
   });
 
   test('a passage the room already checked comes back to the approval, not to a close',
@@ -205,14 +228,12 @@ void main() {
         checked: true,
       ),
       semAudio: true,
+      naSala: _naSala,
     );
     final notifier = container.read(salaSessionProvider.notifier);
 
     await settle(const Duration(seconds: 2));
 
-    expect(harness.room.restartsAsked, isEmpty,
-        reason: 'recomeçar aposenta todo trecho e desfaz o conferida: a passagem '
-            'que a equipe terminou voltava a não estar terminada');
     expect(container.read(salaSessionProvider).stage, SalaStage.retro,
         reason: 'a equipe volta ao gesto que falta — deixá-la na conversa é '
             'mandá-la gravar e contar tudo de novo, e fechar sozinho é tirar '
@@ -222,17 +243,17 @@ void main() {
         reason: 'e a passagem não está feita: quem a fecha é a aprovação');
     expect(harness.emAberto.rows, contains('Ruth/P01'),
         reason: 'então o ponto de retomada continua de pé, para a próxima vez');
-    expect(container.read(salaSessionProvider).partes, isEmpty,
-        reason: 'esta é a porta em que o ensaio não está mais no tablet — se '
-            'estivesse, o caso não mediria o gesto sobre nada');
+    expect(container.read(salaSessionProvider).partes, hasLength(1),
+        reason: 'esta é a porta em que o ensaio não está mais no tablet, e a '
+            'sala ainda o guarda: a equipe recebe de volta a própria gravação');
 
     notifier.ouvirGravacao();
     await settle();
 
-    expect(harness.playback.played, isEmpty,
-        reason: 'o botão está na tela porque a aprovação está, e a equipe pode '
-            'tocá-lo: pedir a primeira parte de uma fila vazia derruba a sala '
-            'em cima dela');
+    expect(harness.playback.played.last,
+        container.read(salaSessionProvider).partes.first.path,
+        reason: 'e a última audição que a aprovação convida tem o que tocar: '
+            'antes o botão estava na tela sobre o silêncio');
 
     await notifier.aprovarRascunhoFinal();
     await settle(const Duration(seconds: 2));
@@ -315,24 +336,6 @@ void main() {
     expect(harness.finished.done, isNot(contains('Ruth/P01')));
   });
 
-  test('a restart the room refused does not open the passage anyway', () async {
-    final harness = SalaHarness()..room.failRestartWith = const RoomRefused();
-
-    final container = await _reopen(
-      harness,
-      parouEm: SalaStage.retro,
-      contado: _traduzidos,
-      semAudio: true,
-    );
-
-    expect(harness.room.calls, isNot(contains('openSession')),
-        reason: 'a sessão ainda guarda os trechos, e entrar na conversa é pôr a '
-            'equipe a caminho de contar a passagem por cima deles');
-    expect(container.read(salaSessionProvider).needsPerson, isTrue,
-        reason: 'e parar calado deixa a equipe tocando de novo sem entender por '
-            'que nada acontece');
-  });
-
   test('a telling-back the team can pick back up throws nothing away',
       () async {
     final harness = SalaHarness();
@@ -343,11 +346,11 @@ void main() {
       contado: _traduzidos,
     );
 
-    expect(harness.room.restartsAsked, isEmpty,
+    expect(container.read(salaSessionProvider).stage, SalaStage.retro,
         reason: 'os trechos que o servidor guarda são os que a equipe está '
             'voltando para continuar, e descartá-los é mandar traduzir de novo '
             'o que já estava contado');
-    expect(container.read(salaSessionProvider).stage, SalaStage.retro);
+    expect(container.read(salaSessionProvider).btTrechos, hasLength(2));
   });
 
   test('a team that stopped at the rehearsal still lands on the rehearsal',

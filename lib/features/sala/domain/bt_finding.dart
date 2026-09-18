@@ -38,17 +38,6 @@ class BackTranslationChunk {
       );
 }
 
-class BackTranslationRestart {
-  final bool needsPerson;
-
-  const BackTranslationRestart({required this.needsPerson});
-
-  factory BackTranslationRestart.fromJson(Map<String, dynamic> json) =>
-      BackTranslationRestart(
-        needsPerson: json['needs_person'] as bool? ?? false,
-      );
-}
-
 class BackTranslationVerdict {
   final String audioUrl;
   final String fixedLine;
