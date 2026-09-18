@@ -983,6 +983,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _resolvedCoverageTurnId = turnId;
     _timers.remove('coverage')?.cancel();
     if (pullState) unawaited(_pullState(sessionId).catchError((_) {}));
+    unawaited(_pullInbox());
   }
 
   Future<void> _pullState(String sessionId) async {
