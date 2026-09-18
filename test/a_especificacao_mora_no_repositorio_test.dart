@@ -38,24 +38,30 @@ void main() {
     );
   });
 
-  test('docs/spec/README.md names the origin of each vendored artefact', () {
+  test('docs/spec/README.md names the origin of each externally-sourced artefact',
+      () {
     final readme = File('docs/spec/README.md').readAsStringSync();
+    final bullets = readme.split(RegExp(r'\n(?=- `)'));
 
     for (final artefact in [
       'interaction-flows.html',
-      'interaction-flows.md',
       'prototype/Sala de Internalização.dc.html',
     ]) {
+      final bullet = bullets.firstWhere(
+        (b) => b.contains(artefact),
+        orElse: () => '',
+      );
       expect(
-        readme,
-        contains(artefact),
+        bullet,
+        isNot(isEmpty),
         reason: 'docs/spec/README.md precisa nomear $artefact',
       );
+      expect(
+        bullet,
+        contains('Origin:'),
+        reason:
+            'a entrada de $artefact em docs/spec/README.md precisa dizer de onde veio',
+      );
     }
-    expect(
-      readme,
-      contains('Origin:'),
-      reason: 'cada artefato vendorizado precisa dizer de onde veio',
-    );
   });
 }
