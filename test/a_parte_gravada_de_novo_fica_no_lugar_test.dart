@@ -48,6 +48,13 @@ Future<Sala> _oAchadoNaParteDois() async {
 /// Tell the rehearsal back again from the part just recorded, and stand on a finding the
 /// analyst addresses to that same part — the way back to the microphone a second time.
 Future<void> _oAchadoOutraVezNaParteDois(Sala it) async {
+  // Antes do corte, e não depois: um trecho contado sobre uma parte que a sala ainda não
+  // nomeou sobe pelo caminho sem nome e não entra no colar, e a espera abaixo mediria um
+  // colar que nunca vai crescer.
+  await waitFor(
+    'a sala nomear a parte gravada de novo',
+    () => it.partes[1].takeId != null,
+  );
   it.harness.playback.lengths[it.partes[1].path] = partesDoEnsaio[1];
   it.sala.startRetro();
   await waitFor(
