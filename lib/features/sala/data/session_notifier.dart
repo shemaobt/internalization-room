@@ -2031,6 +2031,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!Env.devPularFases) return;
     final knob = ref.read(devLanguageProvider.notifier);
     knob.choose(knob.next(_lingua));
+    if (state.stage == SalaStage.convite) {
+      _clearAll();
+      _conviteOpened = false;
+      _panoramaSessionId = null;
+      state = state.copyWith(
+        conviteStep: ConviteStep.boasVindas,
+        voice: VoiceState.invite,
+        noteMode: false,
+      );
+      return;
+    }
     _startOver();
   }
 
