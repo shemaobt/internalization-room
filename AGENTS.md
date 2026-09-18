@@ -3,6 +3,8 @@
 Voice-first Flutter tablet app for the Internalization Room of the Shemá oral Bible
 translation flow. Team screens carry no readable words; the necklace is the only progress indicator.
 
+Documentation is written in English.
+
 ## Toolchain and commands
 
 Use Flutter 3.44.9: it is what CI pins, and the only version verified here. `pubspec.yaml`
@@ -39,7 +41,9 @@ device credential is never in that file: it lives in the iOS Keychain, and ADR 0
 ## Where the rest is
 
 State is Riverpod. The Shemá design system and the client-validated interaction flows are
-vendored under `docs/spec/`.
+vendored under `docs/spec/`. `docs/spec/prototype/` is historical: its motion timings
+predate the live tempos, which come from Marcia's canvas (`Tripod-Internalization`,
+`app/globals.css`).
 
 - `docs/doctrine/` — Marcia's `DOCTRINE.md`, vendored at the pin in `DOCTRINE_PIN` and binding
   on every change here: read it before touching the canvas or the turn loop. `ACCEPTANCE_BAR`

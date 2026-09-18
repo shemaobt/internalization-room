@@ -38,15 +38,30 @@ void main() {
     );
   });
 
-  test('the README no longer concedes the artefacts are missing', () {
-    final readme = File('README.md').readAsStringSync();
+  test('docs/spec/README.md names the origin of each externally-sourced artefact',
+      () {
+    final readme = File('docs/spec/README.md').readAsStringSync();
+    final bullets = readme.split(RegExp(r'\n(?=- `)'));
 
-    expect(
-      readme,
-      isNot(contains('Neither reference artifact is in this workspace')),
-      reason:
-          'a concessão precisa ser substituída pelos caminhos em docs/spec/, agora '
-          'que a especificação está vendorizada',
-    );
+    for (final artefact in [
+      'interaction-flows.html',
+      'prototype/Sala de Internalização.dc.html',
+    ]) {
+      final bullet = bullets.firstWhere(
+        (b) => b.contains(artefact),
+        orElse: () => '',
+      );
+      expect(
+        bullet,
+        isNot(isEmpty),
+        reason: 'docs/spec/README.md precisa nomear $artefact',
+      );
+      expect(
+        bullet,
+        contains('Origin:'),
+        reason:
+            'a entrada de $artefact em docs/spec/README.md precisa dizer de onde veio',
+      );
+    }
   });
 }

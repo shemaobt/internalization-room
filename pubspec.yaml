@@ -19,13 +19,14 @@ dependencies:
   audio_session: ^0.1.21
   http: ^1.2.2
   flutter_dotenv: ^5.2.1
-  # Outside the AGENTS.md stack list, and deliberately: the room must be able to say it
+  # Outside ADR 0018's stack list, and deliberately: the room must be able to say it
   # has no connection before the team taps, not only after a request has already failed.
   connectivity_plus: ^6.1.0
   path: ^1.9.0
-  # Outside the AGENTS.md stack list, like connectivity_plus above it: nothing else can
-  # hold the screen, and the team leaves the tablet untouched for minutes at a time. It
-  # raises the Flutter floor to 3.41.0 — below that, `pub get` fails without saying why.
+  # Outside ADR 0018's stack list, like connectivity_plus above it: nothing else can
+  # hold the screen, and the team leaves the tablet untouched for minutes at a time.
+  # `sdk: ^3.12.0` above already puts the floor past Flutter 3.41.x, which cannot
+  # resolve it at all; 3.44.9 is the only toolchain CI verifies (see AGENTS.md).
   wakelock_plus: ^1.7.0
   flutter_secure_storage: ^11.0.0
 
