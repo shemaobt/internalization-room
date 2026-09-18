@@ -1580,6 +1580,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
+  Future<void> _askForTheOpeningAgain() async {
+    final sessionId = state.sessionId;
+    if (sessionId == null) return;
+    final epoch = _epoch;
+    _sayImThinking();
+    state = state.copyWith(voice: VoiceState.thinking);
+    _watchBusyState();
+    try {
+      await _voiceTurn(await _askForTheOpening(sessionId, epoch), epoch);
+    } on Exception catch (error) {
+      if (epoch != _epoch) return;
+      _handleRoomFailure(error);
+    }
+  }
+
   void _stringTheNecklaceEarly(String? pericope) {
     if (pericope == null) return;
     for (final passagem in state.naRoda ?? const <Passagem>[]) {
@@ -1751,6 +1766,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _actOnConversaTap() {
     if (_recordingStarting) return;
+    if (_openTurnId != null) {
+      unawaited(_askForTheOpeningAgain());
+      return;
+    }
     final isRecording = state.voice == VoiceState.listening;
     final elapsed = _listeningSince == null
         ? Duration.zero

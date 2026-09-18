@@ -679,6 +679,32 @@ void main() {
             'turno lento diz, em vez de voltar ao aceno em silêncio');
   });
 
+  test('a tap before the Guide has spoken asks for the opening, it never records a turn',
+      () async {
+    final harness = SalaHarness()..room.failTurnsWith = const RoomSlow();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+    expect(container.read(salaSessionProvider).voice, VoiceState.invite);
+
+    harness.room.failTurnsWith = null;
+    notifier.conversaTap();
+    await settle();
+
+    expect(harness.recorder.captures, 0,
+        reason: 'a equipe tocava e falava numa sessão que nunca tinha sido '
+            'aberta — o Guia se apresentava em resposta a ela, ou nunca');
+    expect(harness.room.turnsSent, 0);
+    expect(harness.room.turnIdsAsked, hasLength(4),
+        reason: 'o toque pede a abertura que ainda é devida, com o mesmo id');
+    expect(harness.room.turnIdsAsked.toSet(), hasLength(1));
+    expect(harness.voice.played, [turnoUrl],
+        reason: 'a primeira voz na sala é a do Guia');
+  });
+
   test('two passages opened one after the other each get their own turn id',
       () async {
     final harness = SalaHarness();
