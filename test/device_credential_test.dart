@@ -68,7 +68,6 @@ final Map<String, _Request> _everyRequest = {
         from: Duration.zero,
         to: _oneSecond,
       ),
-  'restartBackTranslation': (room, _) => room.restartBackTranslation('sessao-1'),
   'askForAPerson': (room, _) => room.askForAPerson('sessao-1'),
   'askForAPersonWithoutASession': (room, _) =>
       room.askForAPersonWithoutASession('aparelho-1'),

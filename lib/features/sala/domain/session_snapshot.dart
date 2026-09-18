@@ -50,10 +50,20 @@ class SegmentView {
 /// not have reads it here.
 class TakeView {
   final String takeId;
+
+  /// What the room was given this recording as: `ensaio` for a part of the rehearsal,
+  /// `retro` for a stretch told back. A tablet rebuilding the rehearsal reads it, because
+  /// a telling-back is not a part of the story and must never be played as one.
+  final String kind;
   final String scope;
   final int? ordinal;
 
-  const TakeView({required this.takeId, required this.scope, this.ordinal});
+  const TakeView({
+    required this.takeId,
+    required this.scope,
+    this.kind = '',
+    this.ordinal,
+  });
 
   static List<TakeView> listFrom(Map<String, dynamic> json) => [
         for (final raw in (json['takes'] as List? ?? const []))
@@ -62,6 +72,7 @@ class TakeView {
 
   factory TakeView.fromJson(Map<String, dynamic> json) => TakeView(
         takeId: json['take_id'] as String? ?? '',
+        kind: json['kind'] as String? ?? '',
         scope: json['scope'] as String? ?? '',
         ordinal: json['ordinal'] as int?,
       );

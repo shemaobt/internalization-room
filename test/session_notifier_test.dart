@@ -2657,7 +2657,6 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     await _intoFindings(harness, notifier, container);
     final before = container.read(salaSessionProvider);
-    harness.room.restartsAsked.clear();
     harness.playback.ranges.clear();
 
     notifier.retellChunk();
@@ -2668,8 +2667,6 @@ void main() {
         reason: 'traduzir um trecho de novo descartava as explicações de todos os '
             'outros e mandava a equipe reescutar a gravação do zero');
     expect(after.btChunkPasses, before.btChunkPasses);
-    expect(harness.room.restartsAsked, isEmpty,
-        reason: 'nada é descartado no servidor: o novo pedaço entra junto');
     expect(harness.playback.ranges, hasLength(1),
         reason: 'a sala toca aquele trecho para a equipe traduzir de novo');
     expect(after.btClipEnded, isTrue,

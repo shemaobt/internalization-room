@@ -79,11 +79,10 @@ class RecordingRepository {
 
   /// Keep audio that arrived from somewhere else beside the recordings this tablet made.
   ///
-  /// Nothing writes through it today. It is kept for the part a tablet will fetch back
-  /// from the room, and it writes to the one directory: a part of the rehearsal is a part
-  /// of the rehearsal whoever recorded it, the resume point checks every take's file is
-  /// still on disk before it will pick a session back up, and a second home would be a
-  /// second thing to keep alive.
+  /// The part a resume fetches back from the room comes through here, and it writes to the
+  /// one directory: a part of the rehearsal is a part of the rehearsal whoever's tablet
+  /// recorded it, the resume point names its takes by file there, and a second home would
+  /// be a second thing to keep alive.
   Future<String> keepBytes(Uint8List bytes, String fileName) async {
     final dir = await _recordingsDir();
     final target = File(p.join(dir.path, '$fileName.m4a'));

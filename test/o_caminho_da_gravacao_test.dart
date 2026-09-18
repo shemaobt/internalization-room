@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -113,7 +114,7 @@ void main() {
     );
   });
 
-  test('a place that can no longer be honoured does not trap the team forever',
+  test('a place the room cannot honour either opens at the conversa, and keeps itself',
       () async {
     final (:storage, :ledger) = _aTabletWithAPlace();
     await _theyStoppedInTheRehearsal(storage, ledger);
@@ -130,23 +131,8 @@ void main() {
 
     await notifier.goConversa(pericope: 'P01');
     expect(container.read(salaSessionProvider).stage, SalaStage.conversa,
-        reason: 'sem as gravações o ensaio não existe; a conversa é o passo que '
+        reason: 'nem o tablet nem a sala têm o ensaio: a conversa é o passo que '
             'ainda funciona');
-
-    // A segunda vez é a que importa: a falha de retomada que se repete para
-    // sempre é o dano, não a primeira. A reescrita é fire-and-forget, então a
-    // espera é sobre ela ter pousado.
-    await waitFor(
-      'o ponto guardado deixar de prometer um ensaio que não está no tablet',
-      () async => (await ledger.of('Ruth', 'P01'))?.takes.isEmpty ?? false,
-    );
-
-    await notifier.abrirEscolha();
-    await waitFor('a roda abrir de novo',
-        () => container.read(salaSessionProvider).naRoda != null);
-    await notifier.goConversa(pericope: 'P01');
-
-    expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
     expect(
       container.read(salaSessionProvider).sessionId,
       'sessao-de-ontem',
@@ -154,6 +140,28 @@ void main() {
           'guarda aparelho — então esquecer a linha abandonaria de vez o '
           'trabalho que já subiu',
     );
+
+    // A segunda vez é a que importa: a falha de retomada que se repete para
+    // sempre é o dano, não a primeira. A saída é a sala devolver o ensaio, e
+    // ela só pode fazê-lo enquanto a linha continuar de pé.
+    expect((await ledger.of('Ruth', 'P01'))?.takes, hasLength(1),
+        reason: 'reescrever a linha sem as gravações fecha essa porta para '
+            'sempre: a próxima abertura não acharia nada para restaurar, e o '
+            'ensaio que a sala guardasse ficaria fora do alcance da equipe');
+
+    harness.room.takes.add(
+      const TakeView(takeId: 'gravacao-1', kind: 'ensaio', scope: 'parte-1', ordinal: 1),
+    );
+    await notifier.abrirEscolha();
+    await waitFor('a roda abrir de novo',
+        () => container.read(salaSessionProvider).naRoda != null);
+    await notifier.goConversa(pericope: 'P01');
+    await waitFor('o ensaio voltar da sala',
+        () => container.read(salaSessionProvider).partes.isNotEmpty);
+
+    expect(container.read(salaSessionProvider).stage, SalaStage.ensaio,
+        reason: 'com o ensaio na sala a equipe volta para ele, e é por isso que '
+            'a linha tinha de sobreviver à primeira abertura');
   });
 
   test('an ordinary resume still resumes', () async {
