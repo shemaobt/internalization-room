@@ -49,6 +49,7 @@ void main() {
     harness.room.failWith = const SessionGone();
     final notifier = container.read(salaSessionProvider.notifier);
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
     await settle();
@@ -136,6 +137,7 @@ void main() {
     harness.room.failWith = const SessionGone();
     final notifier = container.read(salaSessionProvider.notifier);
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await waitFor(
       'as três tentativas do pedido pelo aparelho',
@@ -162,6 +164,7 @@ void main() {
     harness.room.failWith = const SessionGone();
     final notifier = container.read(salaSessionProvider.notifier);
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
     await settle(const Duration(milliseconds: 200));
@@ -183,6 +186,7 @@ void main() {
     harness.room.failWith = const SessionGone();
     final notifier = container.read(salaSessionProvider.notifier);
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
     await settle(const Duration(milliseconds: 200));
@@ -210,6 +214,7 @@ void main() {
     harness.room.failWith = const SessionGone();
     final notifier = container.read(salaSessionProvider.notifier);
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
     await settle();

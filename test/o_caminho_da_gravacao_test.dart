@@ -8,6 +8,7 @@ import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
+import 'session_notifier_test.dart' show inConversa, settle;
 
 /// The app's storage, which a restore, a reinstall or a new tablet moves wholesale.
 class _Storage {
@@ -167,5 +168,25 @@ void main() {
       container.read(salaSessionProvider).partes.single.scopeId,
       KeptScope.parte(1),
     );
+  });
+
+  test('a tap while the microphone is still opening never reaches a stop',
+      () async {
+    final harness = SalaHarness()..recorder.holdNextStart();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    final turnsBefore = harness.room.turnsSent;
+
+    notifier.conversaTap();
+    notifier.conversaTap();
+    harness.recorder.finishStart();
+    await settle();
+
+    expect(harness.room.turnsSent, turnsBefore,
+        reason: 'o segundo toque caiu enquanto o gravador ainda abria; ele nunca '
+            'devia alcançar um _finishListening, guard ou não');
+    expect(container.read(salaSessionProvider).needsPerson, isFalse,
+        reason: 'um toque nessa janela não é uma falha do gravador');
   });
 }

@@ -22,6 +22,7 @@ import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/capture_guard.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/coverage.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
@@ -169,8 +170,19 @@ class FakeRecorder implements RecordingRepository {
   @override
   Future<bool?> hasPermission() async => permitted ? answersPermission : false;
 
+  Completer<void>? _holdingStart;
+
+  void holdNextStart() => _holdingStart = Completer<void>();
+
+  void finishStart() {
+    _holdingStart?.complete();
+    _holdingStart = null;
+  }
+
   @override
   Future<Capture> start(String fileName) async {
+    final held = _holdingStart;
+    if (held != null) await held.future;
     captures++;
     if (!permitted) return Capture.denied;
     if (startThrows) return Capture.failed;
@@ -1503,7 +1515,7 @@ class SalaHarness {
   final Duration? busyCeiling;
   final Duration? playbackCeiling;
   final Duration clipGrace;
-  final Duration shortestSpeech;
+  final CaptureGuard captureGuard;
   final Duration fimLinger;
   /// Whether the outbox keeps its rows in memory instead of on disk. Opt-in, for widget
   /// tests, whose binding never lets the real queue's IO finish.
@@ -1524,7 +1536,7 @@ class SalaHarness {
     this.busyCeiling,
     this.playbackCeiling,
     this.clipGrace = const Duration(seconds: 10),
-    this.shortestSpeech = Duration.zero,
+    this.captureGuard = const CaptureGuard(minDuration: Duration.zero, minBytes: 1),
     this.fimLinger = const Duration(seconds: 30),
     this.filaEmMemoria = false,
     this.lingua = testLanguage,
@@ -1568,7 +1580,7 @@ class SalaHarness {
         busyStateCeilingProvider.overrideWithValue(busyCeiling),
         playbackCeilingProvider.overrideWithValue(playbackCeiling),
         clipGraceProvider.overrideWithValue(clipGrace),
-        shortestSpeechProvider.overrideWithValue(shortestSpeech),
+        captureGuardProvider.overrideWithValue(captureGuard),
         fimLingerProvider.overrideWithValue(fimLinger),
         if (lingua != null) roomLanguageProvider.overrideWithValue(lingua!),
       ];

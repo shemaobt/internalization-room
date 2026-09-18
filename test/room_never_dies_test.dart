@@ -648,6 +648,7 @@ void main() {
 
     harness.room.failHeldTurnWith = const SessionGone();
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
@@ -771,6 +772,7 @@ void main() {
     harness.network.reachable = false;
     harness.room.reachable = false;
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await waitFor(
       'a sala se dar por fora do ar',
@@ -1008,9 +1010,11 @@ void main() {
 
     harness.voice.succeeds = false;
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
     expect(container.read(salaSessionProvider).needsPerson, isFalse,

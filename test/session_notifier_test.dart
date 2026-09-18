@@ -423,6 +423,7 @@ void main() {
 
     notifier.conversaTap();
     expect(container.read(salaSessionProvider).voice, VoiceState.listening);
+    await settle();
 
     notifier.conversaTap();
     await settle();
@@ -439,6 +440,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
@@ -456,6 +458,7 @@ void main() {
     harness.room.failWith = const RoomUnavailable('sem rede');
 
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
@@ -794,6 +797,7 @@ void main() {
 
     harness.room.reachable = false;
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
@@ -1016,9 +1020,11 @@ void main() {
 
     harness.room.turnsAreDegraded = true;
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
@@ -1026,6 +1032,7 @@ void main() {
     harness.room.failWith = const RoomBroke('HTTP 500');
     for (var i = 0; i < 3; i++) {
       notifier.conversaTap();
+      await settle();
       notifier.conversaTap();
       await settle();
     }
@@ -1036,6 +1043,7 @@ void main() {
     harness.room.failWith = null;
     harness.room.turnsAreDegraded = true;
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
@@ -1055,26 +1063,31 @@ void main() {
 
     harness.room.failWith = const RoomBroke('HTTP 500');
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
     harness.room.failWith = null;
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
     harness.room.failWith = const RoomBroke('HTTP 500');
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
     harness.room.failWith = null;
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
     harness.room.failWith = const RoomBroke('HTTP 500');
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
@@ -1095,22 +1108,27 @@ void main() {
 
     harness.room.failWith = const RoomBroke('HTTP 500');
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
     harness.room.failWith = null;
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
     harness.room.failWith = const RoomBroke('HTTP 500');
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
@@ -1157,15 +1175,18 @@ void main() {
 
     harness.inbox.cannotBeAsked = true;
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
     harness.room.failWith = const RoomBroke('HTTP 500');
     for (var i = 0; i < 3; i++) {
       notifier.conversaTap();
+      await settle();
       notifier.conversaTap();
       await settle();
     }
@@ -1175,6 +1196,7 @@ void main() {
 
     harness.room.failWith = null;
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
@@ -1194,24 +1216,29 @@ void main() {
 
     harness.room.failWith = const RoomBroke('HTTP 500');
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
     harness.room.failWith = null;
     harness.room.turnsAreDegraded = true;
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
     harness.room.turnsAreDegraded = false;
     harness.room.failWith = const RoomBroke('HTTP 500');
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
@@ -1230,29 +1257,35 @@ void main() {
 
     harness.room.failWith = const RoomBroke('HTTP 500');
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
     harness.room.failWith = null;
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
     harness.voice.succeeds = false;
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
     harness.voice.succeeds = true;
 
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
     harness.room.failWith = const RoomBroke('HTTP 500');
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
@@ -1270,25 +1303,30 @@ void main() {
 
     harness.room.failWith = const RoomBroke('HTTP 500');
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
     harness.room.failWith = null;
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
     harness.room.turnsAreDegraded = true;
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
     harness.room.turnsAreDegraded = false;
 
     harness.room.failWith = const RoomBroke('HTTP 500');
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
@@ -1307,6 +1345,7 @@ void main() {
 
     harness.room.reachable = false;
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle(const Duration(milliseconds: 5));
     expect(container.read(salaSessionProvider).offline, isTrue,
@@ -1319,16 +1358,19 @@ void main() {
 
     harness.room.failWith = const RoomBroke('HTTP 503');
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
     harness.room.failWith = null;
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
     harness.room.failWith = const RoomBroke('HTTP 503');
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
@@ -1561,6 +1603,7 @@ void main() {
 
     harness.voice.holdNextLine();
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
@@ -2618,6 +2661,7 @@ void main() {
     harness.voice.assets.clear();
 
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
@@ -2635,6 +2679,7 @@ void main() {
 
     for (var turn = 0; turn < 2; turn++) {
       notifier.conversaTap();
+      await settle();
       notifier.conversaTap();
       await settle();
     }
@@ -2648,25 +2693,31 @@ void main() {
     );
   });
 
-  test('a capture with no speech is answered from the bundle, not from the room',
-      () async {
-    final harness = SalaHarness(shortestSpeech: const Duration(seconds: 30));
+  test(
+      'a capture the guard rejects is answered in silence, never from the '
+      'room', () async {
+    final harness = SalaHarness()..recorder.returnsEmpty = true;
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
     harness.voice.assets.clear();
-    final callsBefore = harness.room.calls.length;
+    final turnsBefore = harness.room.turnsSent;
 
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await settle();
 
-    expect(harness.room.calls.length, callsBefore,
+    expect(harness.room.turnsSent, turnsBefore,
         reason: 'a regra existe para que um silêncio não custe nem espera nem '
             'chamada — hoje subia tudo e o servidor decidia depois');
-    expect(harness.voice.assets, [fixedLineAsset(inaudibleLines.first, testLanguage)]);
+    expect(harness.voice.assets, isEmpty,
+        reason: 'nenhuma linha fixa é falada — o take que o guard reprova '
+            'some em silêncio, sem pedir para repetir');
     expect(container.read(salaSessionProvider).voice, VoiceState.invite,
         reason: 'e a sala volta a convidar, pronta para ouvir de novo');
+    expect(container.read(salaSessionProvider).needsPerson, isFalse,
+        reason: 'um take curto não é uma pessoa chamada');
   });
 
   test('each pause closes a stretch, and the stretches follow the recording',
@@ -2959,6 +3010,7 @@ void main() {
 
     harness.room.failWith = const SessionGone();
     container.read(salaSessionProvider.notifier).conversaTap();
+    await settle();
     container.read(salaSessionProvider.notifier).conversaTap();
     await settle();
 
