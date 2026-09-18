@@ -261,15 +261,55 @@ void main() {
         cena.sala.proximaParte();
         await settle();
       }),
-      _linha('ouvir a voz materna', _nosAchados, (cena) async {
+      _linha('ouvir a voz materna', () async {
+        final cena = await _nosAchados();
+        // A Guia no meio de uma linha: é por cima dela que o trecho começava.
+        cena.harness.voice.holdNextLine();
+        cena.sala.retroTap();
+        await waitFor(
+          'a Guia começar a repetir o veredito',
+          () => cena.harness.sounds.contains('voice:line'),
+        );
+        return cena;
+      }, (cena) async {
         cena.sala.ouvirVozMaterna();
         await settle();
-      }),
-      _linha('ouvir a tradução em português', _nosAchados, (cena) async {
-        cena.sala.ouvirTraducaoEmPortugues();
+        cena.harness.voice.finishHeldLine();
         await settle();
       }),
-      _linha('traduzir de novo, na grade', _nosAchados, (cena) async {
+      _linha('ouvir a tradução em português', () async {
+        final cena = await _nosAchados();
+        // A voz materna segurada no meio: a bandeira da pausa ficava de pé e o
+        // próximo toque nela retomava por cima da tradução.
+        cena.sala.ouvirVozMaterna();
+        await waitFor(
+          'o trecho apontado tocar',
+          () => _estado(cena).btTrechoTocando,
+        );
+        cena.sala.ouvirVozMaterna();
+        await waitFor(
+          'a voz materna ficar pausada',
+          () => _estado(cena).btTrechoPausada,
+        );
+        return cena;
+      }, (cena) async {
+        cena.sala.ouvirTraducaoEmPortugues();
+        await settle();
+        expect(_estado(cena).btTrechoPausada, isFalse,
+            reason: 'a materna pausada não pode continuar de pé por baixo da '
+                'tradução: o toque seguinte nela retomaria as duas juntas');
+      }),
+      _linha('traduzir de novo, na grade', () async {
+        final cena = await _nosAchados();
+        // Com o trecho no ar: este é o gesto que limpa a bandeira antes de
+        // delegar, e sem som a limpeza não mede nada.
+        cena.sala.ouvirVozMaterna();
+        await waitFor(
+          'o trecho apontado tocar',
+          () => _estado(cena).btTrechoTocando,
+        );
+        return cena;
+      }, (cena) async {
         cena.sala.traduzirDeNovoEmPortugues();
         await settle();
       }, segurando: true),
