@@ -1531,10 +1531,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         }
       }
       // Re-opening carries the coverage back with it, so the necklace fills itself.
-      await _voiceTurn(
-        await _room.openSession(sessionId, turnId: _openTurnId ??= _stamp()),
-        epoch,
-      );
+      await _voiceTurn(await _askForTheOpening(sessionId, epoch), epoch);
     } on SessionGone {
       if (epoch != _epoch) return;
       if (pericope != null) {
@@ -1564,6 +1561,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         }
       }
       _handleRoomFailure(error);
+    }
+  }
+
+  Future<TurnResult> _askForTheOpening(String sessionId, int epoch) async {
+    final turnId = _openTurnId ??= _stamp();
+    while (true) {
+      try {
+        return await _room.openSession(sessionId, turnId: turnId);
+      } on RoomSlow {
+        if (epoch != _epoch) rethrow;
+        if (_slowAnswers + 1 >= _slowAnswersBeforeGivingUp) rethrow;
+        _slowAnswers++;
+        _calmTurns = 0;
+        _sayImThinking();
+        _watchBusyState();
+      }
     }
   }
 

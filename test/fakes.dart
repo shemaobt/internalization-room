@@ -719,9 +719,13 @@ class FakeRoom implements RoomRepository {
   /// fails — which is the only way the room reaches some of its own states.
   Exception? failHeldTurnWith;
 
+  Exception? failTurnsWith;
+
   Future<void> _turnArrives() async {
     final held = _holdingTurn;
     if (held != null) await held.future;
+    final never = failTurnsWith;
+    if (never != null) throw never;
     final failure = failHeldTurnWith;
     if (failure != null) {
       failHeldTurnWith = null;

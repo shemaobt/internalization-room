@@ -622,6 +622,63 @@ void main() {
             'a segunda como a mesma abertura que a primeira já começou a escrever');
   });
 
+  test('a passage opening that outlives the wait is asked for again under the same id',
+      () async {
+    final harness = SalaHarness()..room.failHeldTurnWith = const RoomSlow();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+
+    expect(harness.room.turnIdsAsked, hasLength(2),
+        reason: 'a abertura estourava a espera do tablet, o círculo voltava ao '
+            'aceno em silêncio e ninguém pedia a abertura de novo');
+    expect(harness.room.turnIdsAsked[1], harness.room.turnIdsAsked[0],
+        reason: 'um id novo faz o servidor rodar a abertura inteira outra vez '
+            'em vez de devolver a que a primeira chamada já produziu');
+    expect(harness.voice.assets, contains(fixedLineAsset('F0', testLanguage)),
+        reason: 'a espera pelo segundo pedido é coberta pelo aceno instantâneo, '
+            'não por mais silêncio');
+  });
+
+  test('the opening that arrives on the second ask is the one the room speaks',
+      () async {
+    final harness = SalaHarness()..room.failHeldTurnWith = const RoomSlow();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+
+    expect(harness.voice.played, [turnoUrl],
+        reason: 'a abertura atrasada chegava e ninguém a tocava — a sala já '
+            'tinha voltado ao aceno como se a sessão nem tivesse começado');
+    expect(container.read(salaSessionProvider).voice, VoiceState.invite,
+        reason: 'só depois de o Guia falar o aceno fica vivo');
+  });
+
+  test('a passage opening the room never answers is given up on at the third ask',
+      () async {
+    final harness = SalaHarness()..room.failTurnsWith = const RoomSlow();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+
+    expect(harness.room.turnIdsAsked, hasLength(3),
+        reason: 'a sala pode ficar muda três vezes antes de o aparelho parar '
+            'de esperar por ela — a abertura gasta o mesmo orçamento que um turno');
+    expect(harness.room.turnIdsAsked.toSet(), hasLength(1));
+    expect(harness.voice.assets, contains(offlineNoticeAsset(testLanguage)),
+        reason: 'passado o limite a sala diz que não responde, do jeito que um '
+            'turno lento diz, em vez de voltar ao aceno em silêncio');
+  });
+
   test('two passages opened one after the other each get their own turn id',
       () async {
     final harness = SalaHarness();
