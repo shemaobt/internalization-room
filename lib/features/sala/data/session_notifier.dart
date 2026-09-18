@@ -3619,9 +3619,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       _unplayableTurns = 0;
 
+      final naoContadas = verdict.untoldTakeIds;
+      if (naoContadas.isNotEmpty) {
+        await _levarAParteApontadaPelaRecusa(
+          naoContadas.first,
+          epoch,
+          semChaoTraduzido: true,
+        );
+        return;
+      }
+
       final naoOuvidas = verdict.unheardTakeIds;
       if (naoOuvidas.isNotEmpty) {
-        await _levarAParteNaoOuvida(naoOuvidas.first, epoch);
+        await _levarAParteApontadaPelaRecusa(
+          naoOuvidas.first,
+          epoch,
+          semChaoTraduzido: false,
+        );
         return;
       }
 
@@ -3723,18 +3737,29 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  /// Straight to the part the room says nobody heard, with the telling-back left standing.
+  /// Straight to the part the verdict names, with the telling-back left standing.
   ///
-  /// The room refuses to read a passage whose rehearsal was not heard through, and it
-  /// names the parts it is missing. The press is not spent on the refusal: the part goes
-  /// in the air, the team hears it, and *terminei* lights again at its end.
+  /// The room refuses to read a passage carrying ground it does not know about, and it
+  /// names the part it is missing — whether nobody heard it ([semChaoTraduzido] false) or
+  /// nobody told it back ([semChaoTraduzido] true). The press is not spent on the refusal:
+  /// the part goes in the air, the team hears it, and *terminei* lights again at its end.
   ///
-  /// At the part's own nought, which is the one place this differs from picking a part
-  /// back up. A part already told back whole has its cursor at its end, and started there
-  /// it would play silence while the listening ledger — which opens at nought either way —
-  /// reported the part heard whole: the same *terminei* would be refused again, with
-  /// nothing the team could do about it.
-  Future<void> _levarAParteNaoOuvida(String gravacao, int epoch) async {
+  /// From the part's own nought, which is the one place picking an unheard part back up
+  /// differs from picking a told one back up: a part already told back whole has its cursor
+  /// at its end, and started there it would play silence while the listening ledger — which
+  /// opens at nought either way — reported the part heard whole, the same *terminei*
+  /// refused again with nothing the team could do about it.
+  ///
+  /// [semChaoTraduzido] forces the cursor to that same nought once the part is in the air.
+  /// An unheard part may already carry told ground from an earlier round, and the first cut
+  /// after this landing must not hand that ground back to the room as a stretch nobody
+  /// asked for; an untold part carries none; either a fresh recording, whose file nothing
+  /// has told yet, or a rehearsal recorded and never told at all.
+  Future<void> _levarAParteApontadaPelaRecusa(
+    String gravacao,
+    int epoch, {
+    required bool semChaoTraduzido,
+  }) async {
     if (!state.partes.any((take) => take.takeId == gravacao)) {
       // A recording this tablet is not holding. There is nothing to lead them to and no
       // way to say so without words. Asked before anything is measured: a name that leads
@@ -3782,6 +3807,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btConsertando: false,
     );
     _tocarParteDaRetro(parte, doComeco: true);
+    // Overwrites the cursor `_tocarParteDaRetro` just derived from the told ground: an
+    // untold part has none, and a part recorded again may still carry the interval a
+    // stretch over the recording it replaced left behind (ADR 0020's untold ground), which
+    // the cord has not forgotten just because nothing points at it any more.
+    if (semChaoTraduzido) _trechoStart = Duration.zero;
   }
 
   /// Straight to the stretch nobody told, with the rehearsal left standing.
