@@ -213,6 +213,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// retry of it — a resend under a fresh id is a fresh id the server has never seen, so
   /// it runs the whole pipeline again instead of answering with what it already produced.
   String? _openTurnId;
+  bool _openingOwed = false;
 
   String? _pendingTakePath;
   StreamSubscription<void>? _playbackDone;
@@ -518,6 +519,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _resumeFailures = 0;
     _inaudibleSpoken = 0;
     _openTurnId = null;
+    _openingOwed = false;
     state = state.copyWith(
       voice: turn.done ? VoiceState.done : VoiceState.invite,
       peerCue: turn.peerCue,
@@ -1564,6 +1566,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<TurnResult> _askForTheOpening(String sessionId, int epoch) async {
+    _openingOwed = true;
     final turnId = _openTurnId ??= _stamp();
     while (true) {
       try {
@@ -1765,7 +1768,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _actOnConversaTap() {
     if (_recordingStarting) return;
-    if (_openTurnId != null) {
+    if (_openingOwed) {
       unawaited(_askForTheOpeningAgain());
       return;
     }
