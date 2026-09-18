@@ -199,6 +199,186 @@ void main() {
     await playback.resume();
     await playback.stop();
   });
+
+  group('segurar o clipe enquanto ele ainda abre', () {
+    late _Duplo tocador;
+    late PlaybackRepository playback;
+
+    PlaybackRepository umRepositorio() {
+      final novo = PlaybackRepository(newPlayer: () => tocador);
+      addTearDown(novo.dispose);
+      return novo;
+    }
+
+    /// The window the defect lives in is the load itself, not the gesture before it: the
+    /// hold has to arrive with the file already on its way in.
+    Future<void> oLoadNoAr(String qual) async {
+      final limite = DateTime.now().add(const Duration(seconds: 5));
+      while (!tocador.carregados.contains(qual)) {
+        if (DateTime.now().isAfter(limite)) {
+          fail('esperei 5s e o load de $qual não entrou no ar');
+        }
+        await Future<void>.delayed(Duration.zero);
+      }
+    }
+
+    setUp(() {
+      tocador = _Duplo();
+      playback = umRepositorio();
+    });
+
+    test('a pausa pedida durante o load vence o play que vinha atrás', () async {
+      tocador.segurados['/parte-1.m4a'] = Completer<void>();
+      final abrindo = playback.play('/parte-1.m4a');
+      await oLoadNoAr('/parte-1.m4a');
+
+      await playback.pause();
+      tocador.segurados['/parte-1.m4a']!.complete();
+      await abrindo;
+
+      expect(tocador.tocando, isFalse,
+          reason: 'a equipe segurou o clipe e o load tocou por cima: a pausa '
+              'não sai do lugar num player que ainda não toca, e o play que '
+              'vem atrás do load a apaga sem deixar rasto');
+    });
+
+    test('o stop pedido durante o load também vence', () async {
+      tocador.segurados['/parte-1.m4a'] = Completer<void>();
+      final abrindo = playback.play('/parte-1.m4a');
+      await oLoadNoAr('/parte-1.m4a');
+
+      await playback.stop();
+      tocador.segurados['/parte-1.m4a']!.complete();
+      await abrindo;
+
+      expect(tocador.tocando, isFalse);
+    });
+
+    test('a abertura segurada ainda se anuncia, com a medida', () async {
+      final anunciadas = <void>[];
+      playback.openings.listen(anunciadas.add);
+      tocador.segurados['/parte-1.m4a'] = Completer<void>();
+
+      final abrindo = playback.play('/parte-1.m4a');
+      await oLoadNoAr('/parte-1.m4a');
+      await playback.pause();
+      tocador.segurados['/parte-1.m4a']!.complete();
+      await abrindo;
+      await Future<void>.delayed(Duration.zero);
+
+      expect(anunciadas, hasLength(1),
+          reason: 'quem espera a abertura — o teto da escuta e a medida da '
+              'parte no ar — fica encalhado se um clipe segurado nunca se '
+              'anuncia');
+      expect(playback.playingLength, const Duration(seconds: 30));
+    });
+
+    test('o stop durante o load não deixa a medida para trás', () async {
+      tocador.segurados['/parte-1.m4a'] = Completer<void>();
+      final abrindo = playback.play('/parte-1.m4a');
+      await oLoadNoAr('/parte-1.m4a');
+
+      await playback.stop();
+      tocador.segurados['/parte-1.m4a']!.complete();
+      await abrindo;
+
+      expect(playback.playingLength, isNull,
+          reason: 'o stop limpa o que o clipe media, e o load que termina atrás '
+              'dele não pode escrever de volta: o teto do clipe seguinte sai '
+              'daqui, e sairia do comprimento de um clipe que nunca tocou');
+    });
+
+    test('a pausa durante o load guarda a medida, que é o que o teto conta',
+        () async {
+      tocador.segurados['/parte-1.m4a'] = Completer<void>();
+      final abrindo = playback.play('/parte-1.m4a');
+      await oLoadNoAr('/parte-1.m4a');
+
+      await playback.pause();
+      tocador.segurados['/parte-1.m4a']!.complete();
+      await abrindo;
+
+      expect(playback.playingLength, const Duration(seconds: 30),
+          reason: 'uma pausa deixa o clipe aberto: é a mesma parte que o '
+              'próximo toque retoma, e o teto conta o que falta dela');
+    });
+
+    test('sem nenhum hold o clipe toca, como sempre tocou', () async {
+      tocador.segurados['/parte-1.m4a'] = Completer<void>();
+      final abrindo = playback.play('/parte-1.m4a');
+      await oLoadNoAr('/parte-1.m4a');
+
+      tocador.segurados['/parte-1.m4a']!.complete();
+      await abrindo;
+
+      expect(tocador.tocando, isTrue);
+    });
+
+    test('o load que o nosso próprio stop cortou não chega como falha',
+        () async {
+      final falhas = <void>[];
+      playback.failures.listen(falhas.add);
+      tocador.cortaOLoadNoStop = true;
+      tocador.segurados['/parte-1.m4a'] = Completer<void>();
+
+      final abrindo = playback.play('/parte-1.m4a');
+      await oLoadNoAr('/parte-1.m4a');
+      await playback.stop();
+      await abrindo;
+      await Future<void>.delayed(Duration.zero);
+
+      expect(falhas, isEmpty,
+          reason: 'o stop é nosso: lido como o clipe não tocando, nunca como o '
+              'tablet sem conseguir tocar a voz da equipe — que chama uma '
+              'pessoa e para a sala por cima de um gesto comum');
+    });
+
+    test('um load interrompido sem hold nenhum continua sendo falha', () async {
+      final falhas = <void>[];
+      playback.failures.listen(falhas.add);
+      tocador.recusa = PlayerInterruptedException('a sessão caiu');
+
+      await playback.play('/parte-1.m4a');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(falhas, hasLength(1),
+          reason: 'só o nosso próprio stop é lido como o clipe não tocando. '
+              'Sem hold nenhum, um load que o aparelho interrompeu é o tablet '
+              'sem conseguir tocar a voz da equipe, e isso chama uma pessoa');
+    });
+
+    test('depois de um hold durante o load, o próximo play toca', () async {
+      tocador.segurados['/parte-1.m4a'] = Completer<void>();
+      final abrindo = playback.play('/parte-1.m4a');
+      await oLoadNoAr('/parte-1.m4a');
+      await playback.pause();
+      tocador.segurados['/parte-1.m4a']!.complete();
+      await abrindo;
+
+      await playback.play('/parte-2.m4a');
+
+      expect(tocador.tocando, isTrue,
+          reason: 'a espera vale para a abertura que o hold apanhou, não para '
+              'o próximo gesto da equipe');
+      expect(tocador.carregados, ['/parte-1.m4a', '/parte-2.m4a']);
+    });
+
+    test('o mesmo vale para a fatia que um trecho toca', () async {
+      tocador.segurados['recorte'] = Completer<void>();
+      final abrindo = playback.playRange(
+        '/parte-1.m4a',
+        const Duration(seconds: 1),
+        const Duration(seconds: 2),
+      );
+      await oLoadNoAr('recorte');
+
+      await playback.pause();
+      tocador.segurados['recorte']!.complete();
+      await abrindo;
+
+      expect(tocador.tocando, isFalse);
+    });
+  });
 }
 
 /// A stand-in for the platform player, so the tests can watch what the repository does
@@ -270,14 +450,35 @@ class _Duplo extends Fake implements AudioPlayer {
     Duration? initialPosition,
   }) async {
     carregados.add('recorte');
+    if (_abertos > 0) sobrepos = true;
+    _abertos++;
+    try {
+      await segurados['recorte']?.future;
+    } finally {
+      _abertos--;
+    }
     return length;
   }
 
   @override
   Future<void> play() async => tocando = true;
 
+  /// What a real player does to a load its own deactivation cut short: just_audio
+  /// deactivates the platform at once and the pending load throws.
+  bool cortaOLoadNoStop = false;
+
   @override
-  Future<void> stop() async => tocando = false;
+  Future<void> stop() async {
+    tocando = false;
+    // Only a load already in the air: the open's own stop runs before the load starts,
+    // and a real player has nothing to interrupt there.
+    if (!cortaOLoadNoStop || _abertos == 0) return;
+    for (final segurado in segurados.values) {
+      if (!segurado.isCompleted) {
+        segurado.completeError(PlayerInterruptedException('parado'));
+      }
+    }
+  }
 
   @override
   Future<void> pause() async => tocando = false;

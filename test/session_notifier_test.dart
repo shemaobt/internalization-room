@@ -2906,15 +2906,21 @@ void main() {
     notifier.goEnsaio();
     notifier.ensaioTap();
     notifier.ensaioTap();
-    await settle();
+    await waitFor(
+      'a tomada ser oferecida',
+      () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+    );
     harness.room.refuseTake = 'ensaio/${KeptScope.parte(1)}';
     notifier.takeKeep();
-    await settle();
 
-    for (var attempt = 0; attempt < takeUploadAttempts + 1; attempt++) {
+    // Waited on the thing itself — the room saying out loud that something is stuck —
+    // instead of on a slice of clock: the attempts are the road, not the destination,
+    // and a fixed wait flaked on the runner the day the road got longer.
+    await waitFor('a sala dizer que uma tomada ficou presa', () async {
       await harness.takes.flush();
-    }
-    await notifier.refreshUnsent();
+      await notifier.refreshUnsent();
+      return harness.voice.assets.contains(strandedTakeAsset(testLanguage));
+    });
     await notifier.refreshUnsent();
 
     expect(harness.voice.assets.where((a) => a == strandedTakeAsset(testLanguage)), hasLength(1),

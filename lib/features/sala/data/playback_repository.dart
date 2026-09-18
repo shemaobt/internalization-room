@@ -96,16 +96,15 @@ class PlaybackRepository {
     if (_start != null) return play(path);
     try {
       _watchCompletion();
-      await _player.stop();
-      _openedLength = await _player.setAudioSource(
-        ClippingAudioSource(
-          child: AudioSource.file(path),
-          start: from,
-          end: to,
+      await _openThen(
+        () => _player.setAudioSource(
+          ClippingAudioSource(
+            child: AudioSource.file(path),
+            start: from,
+            end: to,
+          ),
         ),
       );
-      _openings.add(null);
-      await _player.play();
     } on Object {
       _endings.add(false);
     }
@@ -113,22 +112,68 @@ class PlaybackRepository {
 
   Future<void> _open(String path, Duration from) async {
     _watchCompletion();
+    await _openThen(() => _player.setFilePath(path, initialPosition: from));
+  }
+
+  /// Load a source and play it, unless a hold arrived while it was still loading.
+  ///
+  /// just_audio's `pause()` opens with `if (!playing) return;`, and during a load nothing
+  /// is playing yet: the hold was a silent no-op, and the `play()` waiting behind the
+  /// load started the very clip the team had just stopped. Counting the holds instead of
+  /// asking the player what it is doing is what lets a hold issued into that gap win.
+  ///
+  /// The opening is still announced, hold or no hold: the room hangs the listening
+  /// ceiling and the measure of the part in the air off it, and a clip that never
+  /// announces itself strands both.
+  Future<void> _openThen(Future<Duration?> Function() load) async {
+    final segurava = _holds;
+    final parada = _stops;
     await _player.stop();
-    _openedLength = await _player.setFilePath(path, initialPosition: from);
+    final Duration? length;
+    try {
+      length = await load();
+    } on PlayerInterruptedException {
+      // Our own stop deactivates the platform at once, and the load in the air throws
+      // for it. That is the clip not playing, never this tablet failing to play the
+      // team's own voice — which calls a person and stops the room over a common gesture.
+      if (segurava != _holds) return;
+      rethrow;
+    }
+    // A pause leaves the clip open, and the ceiling counts what is left of it, so the
+    // measure stands. A stop does not: it cleared the measure on the way past, and a load
+    // settling behind it would write back the length of a clip that never played — which
+    // is the very length the ceiling of the next clip would be computed from.
+    _openedLength = parada == _stops ? length : null;
     _openings.add(null);
+    if (segurava != _holds) return;
     await _player.play();
   }
 
-  Future<void> pause() => _quietly(() => _player.pause());
+  /// How many times the room has held what is sounding. Only a hold counts: a resume
+  /// asks for the very clip it is resuming.
+  int _holds = 0;
+
+  /// How many of those holds were a stop, which is the half that also forgets what the
+  /// clip measured.
+  int _stops = 0;
+
+  Future<void> pause() {
+    _holds++;
+    return _quietly(() => _player.pause());
+  }
 
   Future<void> resume() => _quietly(() => _player.play());
 
-  Future<void> stop() => _quietly(() async {
-        // Cleared with the playback it described. The safety ceiling for the next clip
-        // was computed from the length of the last one.
-        _openedLength = null;
-        await _player.stop();
-      });
+  Future<void> stop() {
+    _holds++;
+    _stops++;
+    return _quietly(() async {
+      // Cleared with the playback it described. The safety ceiling for the next clip
+      // was computed from the length of the last one.
+      _openedLength = null;
+      await _player.stop();
+    });
+  }
 
   Future<void> _quietly(Future<void> Function() act) async {
     if (_opened == null) return;
