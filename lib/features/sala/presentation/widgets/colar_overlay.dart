@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../domain/session_state.dart';
-import 'bead.dart';
 import 'bead_styles.dart';
 import 'motion.dart';
 
@@ -63,8 +62,6 @@ class ColarOverlay extends StatelessWidget {
               ),
               for (var i = 0; i < session.coverage.total; i++)
                 _bead(context, colors, i, map, onFim),
-              for (var k = 0; k < session.knots; k++)
-                _knot(map, k, onFim),
             ],
           );
         },
@@ -148,21 +145,6 @@ class ColarOverlay extends StatelessWidget {
     );
   }
 
-  Widget _knot(Offset Function(Offset) map, int k, bool onFim) {
-    final p = map(
-      onFim
-          ? const Offset(195, 400) +
-              Offset.fromDirection(k * 0.9, 18 + 6.0 * (k ~/ 7))
-          : Offset(178 + (k % 8) * 24, 104 + (k ~/ 8) * 22),
-    );
-    return AnimatedPositioned(
-      duration: const Duration(milliseconds: 900),
-      curve: Curves.easeInOut,
-      left: p.dx,
-      top: p.dy,
-      child: const PingIn(child: KnotMark(size: 13)),
-    );
-  }
 }
 
 class _CordPainter extends CustomPainter {

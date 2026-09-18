@@ -103,7 +103,6 @@ void main() {
         ...rendered,
         ...instantAckLines,
         ...inaudibleLines,
-        ...handoffLines,
         needsPersonLine,
         approvedLine,
       };
