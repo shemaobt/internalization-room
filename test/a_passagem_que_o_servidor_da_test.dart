@@ -84,6 +84,7 @@ void main() {
       () => _readyToTalk(container),
     );
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await waitFor(
       'a fala da equipe chegar à sala',
@@ -143,6 +144,7 @@ void main() {
     await again.goConversa(pericope: 'P02');
     await waitFor('a passagem retomada abrir', () => _readyToTalk(second));
     again.conversaTap();
+    await settle();
     again.conversaTap();
     await waitFor(
       'a fala da equipe chegar à sala',
@@ -175,6 +177,7 @@ void main() {
     await notifier.goConversa(pericope: 'P01');
     await waitFor('a passagem lembrada abrir', () => _readyToTalk(container));
     notifier.conversaTap();
+    await settle();
     notifier.conversaTap();
     await waitFor(
       'a fala da equipe chegar à sala',
