@@ -1704,7 +1704,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     final sessionId = state.sessionId;
     if (sessionId != null) {
-      unawaited(_alcancarAsCompostas(sessionId, told.segments, _epoch));
+      unawaited(_porCadaTrechoNaSuaParte(sessionId, told.segments, _epoch));
     }
     if (told.checked) return;
     unawaited(_playFromTheUntoldGround(_epoch));
@@ -2265,8 +2265,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// The cord is drawn over the parts as they now are, and this part is a file of its own
-  /// length. Measured here rather than left to the next playthrough, for the reason the
-  /// rebuilt passage is measured where it is swapped in.
+  /// length. Measured here rather than left to the next playthrough, because the part must
+  /// not go on being drawn at the length of the recording it replaces.
   Future<void> _medirAParteRegravada(String arquivo, int epoch) async {
     final quanto = await _playback.howLong(arquivo);
     if (quanto == null || epoch != _epoch || _gone) return;
@@ -3475,12 +3475,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     // Landing forward over a part nobody has measured sits the cord's head short of the
-    // sound by the whole of that part. A file the player still answers nothing about is
-    // the one gap left once a mend measures what it swaps in, and it is measured here.
+    // sound by the whole of that part, so a file the player still answers nothing about
+    // is measured here.
     //
     // The row is read again after every wait, and a path that has left it is left alone:
-    // a rebuilt passage landing in the middle of this would otherwise have a length
-    // written under the file it just replaced.
+    // a part recorded again in the middle of this would otherwise have a length written
+    // under the file it just replaced.
     for (var antes = 0; antes < state.partes.length; antes++) {
       final arquivo = state.partes[antes].path;
       if (state.partes[antes].takeId == gravacao) break;
@@ -3581,10 +3581,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ///
   /// [noLugarDe] is the stretch a replacement took the place of and [lugar] where it sat,
   /// on the routes that know. Identity is what ties the room's reading back to what this
-  /// tablet holds, and a take the tablet does not hold breaks it: a passage the room
-  /// rebuilt is no part of the rehearsal until its download lands, so nothing about the
-  /// successor matches. Its place on the cord has to survive that — it is the same
-  /// stretch, and the necklace is where a team who cannot read sees where it went.
+  /// tablet holds, and a take the tablet does not hold breaks it: nothing about such a
+  /// stretch matches. Its place on the cord has to survive that — it is the same stretch,
+  /// and the necklace is where a team who cannot read sees where it went.
+  ///
+  /// [naParte] says which part of the rehearsal a recording this tablet does not hold
+  /// answers for, for the stretches the room named over one. Read from the room's listing
+  /// and handed in, because only the room knows it.
   ///
   /// [contadoEm] is the file a telling was just recorded into. It belongs to the stretch
   /// that replaced the one it was told over, and to no other.
@@ -3593,6 +3596,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int lugar = -1,
     Trecho? noLugarDe,
     String? contadoEm,
+    Map<String, int> naParte = const {},
   }) {
     final partes = state.partes;
     return [
@@ -3613,10 +3617,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           // over — the same rule the room keeps on its side.
           //
           // By name where the room said one, and by the slice where it did not. The
-          // slice alone stopped answering the day the room began rebuilding the
-          // recording under a correction: every stretch of that part moves to another
-          // file at another time at once, and a stretch nobody touched came back
-          // matching nothing and lost the telling this tablet holds for it.
+          // slice alone stopped answering the day a recording could be replaced under a
+          // correction: every stretch of that part moves to another file at another time
+          // at once, and a stretch nobody touched came back matching nothing and lost the
+          // telling this tablet holds for it.
           final chamado = state.btTrechos.where(
             (trecho) =>
                 trecho.segmentId != null &&
@@ -3635,10 +3639,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
               aqui.isNotEmpty ? aqui.first : (onde == lugar ? noLugarDe : null);
           // Where it sits, which is the slice of a part it covers, and has nothing to do
           // with the file it plays. A stretch out of a rehearsal part sits where it
-          // plays; one the room named over a recording this tablet holds no part for
-          // keeps the place of the stretch it stands in for.
-          final naParte = partes.indexWhere((p) => p.takeId == segment.takeId);
-          final parte = naParte >= 0 ? naParte : (antes?.parte ?? naParte);
+          // plays, and so does one the room's listing placed on a part. One that neither
+          // names keeps the place of the stretch it stands in for.
+          final daqui = partes.indexWhere((p) => p.takeId == segment.takeId);
+          final aParte =
+              daqui >= 0 ? daqui : (naParte[segment.takeId] ?? daqui);
+          final parte = aParte >= 0 ? aParte : (antes?.parte ?? aParte);
           return Trecho(
             segmentId: segment.segmentId,
             takeId: segment.takeId,
@@ -3650,85 +3656,32 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             parte: parte,
             from: from,
             to: to,
-            lugarFrom: naParte >= 0 ? from : (antes?.lugarFrom ?? from),
-            lugarTo: naParte >= 0 ? to : (antes?.lugarTo ?? to),
+            lugarFrom: aParte >= 0 ? from : (antes?.lugarFrom ?? from),
+            lugarTo: aParte >= 0 ? to : (antes?.lugarTo ?? to),
             contado: segment.told,
           );
         }(),
     ];
   }
 
-  /// The passage the room rebuilt, put in the place of the part it was rebuilt from.
+  /// Which part of the rehearsal each stretch this tablet has no recording for belongs
+  /// to, asked of the room once, on a session picked back up.
   ///
-  /// The same scope, because a stretch addresses its part by where it sits in the row and
-  /// a part that changed places would take every stretch of the rehearsal with it. What
-  /// changes is the file and the name: from here the part *is* the rebuilt passage, and
-  /// every play, every cut and every resume reads it without knowing there was ever a
-  /// rebuilding.
+  /// A stretch addressed to a recording that is not here is what a session told back
+  /// before the room stopped assembling passages looks like afterwards. Which part such a
+  /// recording answers for is the one thing the stretches cannot say, so the room's own
+  /// list of them is read for it, by the number this tablet gave that part when it sent
+  /// it up. Nothing is fetched: the stretch sits on the part the team recorded and plays
+  /// that part's own audio at the place it sits in.
   ///
-  /// The part's own recording is left on the tablet. It is what the correction was made
-  /// out of, nothing points at it any more, and deleting audio a team recorded is not a
-  /// thing this room does quietly.
+  /// A recording the room does not number, and a listing that does not answer, leave the
+  /// reading as it was. Neither is a reason to stop the team: the stretch is on the
+  /// server and the telling-back goes on.
   ///
-  /// Answers whether the swap happened. It does not when the audio cannot be fetched or
-  /// cannot be written, and that is not a failed correction: the correction is already
-  /// the team's, on the server and on its own recording, and the room goes on playing the
-  /// passage stretch by stretch the way it did before there were rebuilt ones. Nobody in
-  /// this room can read, so the log is the only place it can be said at all.
-  Future<bool> _aParteViraAComposta(
-    String sessionId,
-    String composta,
-    int epoch, {
-    required String noLugarDe,
-  }) async {
-    if (!state.keptTakes.any((take) => take.takeId == noLugarDe)) return false;
-    final String arquivo;
-    try {
-      arquivo = await _recorder.keepBytes(
-        await _room.fetchClip(RoomRepository.takeAudioUrl(sessionId, composta)),
-        'composta-$composta',
-      );
-    } on Exception catch (error) {
-      debugPrint(
-        'A passagem composta $composta da sessão $sessionId não pôde ser '
-        'trazida; a parte continua sendo a gravação do ensaio: $error',
-      );
-      return false;
-    }
-    // The rebuilt passage is a file of its own length, and the cord is drawn over the
-    // parts as they now are. Measured here rather than left to the next playthrough
-    // because a resume launches this and the untold ground unawaited, in either order:
-    // whichever lands last, the part must not go on being drawn at the length of the file
-    // this one replaces.
-    final quanto = await _playback.howLong(arquivo);
-    if (epoch != _epoch) return false;
-    // Found again on the far side of the wait, by the name and not by where it sat. Three
-    // waits is long enough for the rehearsal to have been thrown away and started over
-    // under this, and a position read before them addresses a row that may no longer be
-    // there — or may now be somebody else's part.
-    final parte = state.keptTakes.where((take) => take.takeId == noLugarDe);
-    if (parte.isEmpty) return false;
-    final escopo = parte.first.scopeId;
-    state = state.copyWith(keptTakes: [
-      for (final take in state.keptTakes)
-        if (take.scopeId == escopo)
-          KeptTake(scopeId: escopo, path: arquivo, takeId: composta)
-        else
-          take,
-    ]);
-    if (quanto != null) _tamanhoDaParteMs[arquivo] = quanto.inMilliseconds;
-    state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
-    return true;
-  }
-
-  /// Fetch the rebuilt passages this tablet does not have, on a session picked back up.
-  ///
-  /// Stretches naming a recording that is not here is what a rebuilding this tablet never
-  /// saw the answer to looks like afterwards. Which part such a recording answers for is
-  /// the one thing the stretches cannot say, so the room's own list of them is read for
-  /// it: a rebuilt passage is kept under the number of the part it was rebuilt from, which
-  /// is the number this tablet gave that part when it sent it up.
-  Future<void> _alcancarAsCompostas(
+  /// The resume row is not written again. Nothing it holds moves here — the stretches it
+  /// keeps are the room's, and the recordings, the stage and the pass are all as they
+  /// were.
+  Future<void> _porCadaTrechoNaSuaParte(
     String sessionId,
     List<SegmentView> segments,
     int epoch,
@@ -3740,9 +3693,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           segment.takeId,
     };
     if (faltando.isEmpty) return;
-    // The row of stretches as it stands before any of this waits. Fetching a passage is
-    // two round trips, the rehearsal goes on playing under them, and a team that cuts a
-    // stretch inside that window has it in this list and nowhere else yet.
+    // The row of stretches as it stands before the listing waits. The rehearsal goes on
+    // playing under it, and a team that cuts a stretch inside that window has it in this
+    // list and nowhere else yet.
     final eram = state.btTrechos;
     final List<TakeView> guardadas;
     try {
@@ -3755,32 +3708,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (epoch != _epoch) return;
+    final naParte = <String, int>{};
     for (final guardada in guardadas) {
       if (!faltando.contains(guardada.takeId)) continue;
-      if (guardada.scope != KeptScope.composed) continue;
       final numero = guardada.ordinal;
       if (numero == null) continue;
-      final parte = state.keptTakes
-          .where((take) => take.scopeId == KeptScope.parte(numero));
-      final era = parte.isEmpty ? null : parte.first.takeId;
-      if (era == null) continue;
-      await _aParteViraAComposta(sessionId, guardada.takeId, epoch,
-          noLugarDe: era);
-      if (epoch != _epoch) return;
+      final onde = state.partes
+          .indexWhere((parte) => parte.scopeId == KeptScope.parte(numero));
+      if (onde < 0) continue;
+      naParte[guardada.takeId] = onde;
     }
-    // Rebuilt whether or not any of those downloads landed: a stretch this tablet has no
-    // file for yet is still one the room told back, and it keeps the place it stands in
-    // rather than falling out of the necklace until the next download that succeeds.
-    //
+    if (naParte.isEmpty) return;
     // Only over a row nothing else has touched. This reading is built out of the answer
     // the resume came in with, so writing it over a row that moved meanwhile would take
-    // the stretch the team just told back off the screen — it is on the server, and this
-    // list is the only place the room draws it from.
+    // the stretch the team just told back off the screen.
     if (!identical(state.btTrechos, eram)) return;
-    // Read again over the parts as they now are: what was a stretch of no part of this
-    // rehearsal is a stretch of one, and its place is the ground it covers there.
-    state = state.copyWith(btTrechos: _trechosFrom(segments));
-    _rememberWhereTheyAre(state.stage);
+    state = state.copyWith(
+      btTrechos: _trechosFrom(segments, naParte: naParte),
+    );
   }
 
   void _leadThemToTheTrecho(Trecho trecho) {
@@ -3804,8 +3749,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// nothing that does.
   ///
   /// [trecho.takeId]'s own file first, wherever it sits in `keptTakes` — the ordinary
-  /// case, true of every stretch nobody has corrected, and of one whose composed passage
-  /// has already reached this tablet.
+  /// case, true of every stretch sliced out of a part this tablet holds.
   ///
   /// Otherwise the part [trecho] sits in, at the place ([Trecho.lugarFrom]..
   /// [Trecho.lugarTo]) rather than the file's own slice — the part's audio has not moved

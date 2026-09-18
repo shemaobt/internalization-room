@@ -11,9 +11,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 
-/// ENG-824: six rehearsal parts, each told back as exactly one stretch. Two of
-/// the middle ones mended by the long way (each composing into its own take —
-/// a real server never rebuilds two different parts under the same id), the
+/// ENG-824: six rehearsal parts, each told back as exactly one stretch, the
 /// last one recounted by the short way. Reproduces the play skipping the one
 /// stretch nobody touched.
 const _parteLen = Duration(seconds: 10);
@@ -231,12 +229,12 @@ void main() {
             startsMs: 0,
             endsMs: 12000,
           ),
-          // Um trecho de uma correção que outro tablet fez, cuja composta
-          // este aparelho nunca tentou baixar nem tem lugar guardado para
-          // ela — este é quem deve ser pulado.
+          // Um trecho de uma gravação que este aparelho não tem e por qual
+          // parte a sala não disse que ela responde — este é quem deve ser
+          // pulado.
           SegmentView(
             segmentId: 'trecho-2',
-            takeId: 'composta-fantasma',
+            takeId: 'gravacao-fantasma',
             startsMs: 0,
             endsMs: 9000,
           ),

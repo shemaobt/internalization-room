@@ -47,12 +47,13 @@ off after a failure is skipped while a later row goes — so a retry landing aft
 re-recording would leave the room holding the recording the team abandoned. Nothing in
 this slice guards against that, and the contract has no per-part pass to guard it with.
 
-A **Composed passage** goes with the part it was built from. The room keeps a rebuilt
-passage under the number of the recording it was composed out of, and it retires the
-stretches of every earlier rehearsal take under the number that arrives — by kind and
-number, never by scope — so the composition's stretches are retired along with the
-replaced part's. Nothing addressing the composition comes back afterwards, and the
-tablet's swap of a rebuilt passage into a part never finds one to make. What is left is
+A **Composed passage** went with the part it was built from, while the room still built
+them: ADR 0022 has since retired them. The room kept a rebuilt passage under the number of
+the recording it was composed out of, and it retires the stretches of every earlier
+rehearsal take under the number that arrives — by kind and number, never by scope — so the
+composition's stretches were retired along with the replaced part's. Nothing addressing
+the composition came back afterwards, and the tablet's swap of a rebuilt passage into a
+part never found one to make. What is left is
 the upload the room reads as an old retry rather than as this part: it retires nothing,
 and that is the consequence above, not a second one.
 
