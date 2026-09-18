@@ -159,7 +159,9 @@ void main() {
             'player responde no instante em que para');
     expect(
       tester.widget<RetroCord>(find.byType(RetroCord)).fimDasPartes,
-      [_parteInteira.inMilliseconds],
+      [_parteInteira.inMilliseconds, 2 * _parteInteira.inMilliseconds],
+      reason: 'as duas partes foram medidas na entrada: a régua não espera que '
+          'cada uma acabe de tocar para saber onde ela acaba',
     );
 
     container.read(salaSessionProvider.notifier).proximaParte();

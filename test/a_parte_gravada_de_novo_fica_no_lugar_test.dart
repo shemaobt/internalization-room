@@ -680,16 +680,43 @@ void main() {
             'é um arquivo do seu próprio tamanho, e desenhada com o da que ela '
             'substituiu o cordão fala de um ensaio que não existe mais');
 
+    final partes = container.read(salaSessionProvider).partes;
+    final medidasAntes = List.of(harness.playback.measurements);
     notifier.startRetro();
     await tester.pump(const Duration(milliseconds: 400));
 
     final cord = tester.widget<RetroCord>(find.byType(RetroCord));
     expect(cord.partes, 3, reason: 'o ensaio continua tendo três partes');
-    expect([for (final trecho in cord.trechos) trecho.parte], isNot(contains(1)),
+    expect(container.read(salaSessionProvider).btFimDasPartesMs,
+        [30000, 42000, 72000],
+        reason: 'e a entrada na tradução mede o ensaio inteiro antes de pôr '
+            'parte nenhuma no ar: com a régua truncada na parte por contar, o '
+            'colar deixava de desenhar as faixas da parte 3 até a parte 2 '
+            'acabar de tocar');
+    expect(
+      [
+        for (final trecho in cord.trechos)
+          cordSpanMs(trecho: trecho, fimDasPartes: cord.fimDasPartes),
+      ],
+      everyElement(isNotNull),
+      reason: 'nenhuma faixa cai do cordão: uma banda sem lugar é uma parte que '
+          'a equipe contou e o colar não mostra',
+    );
+    expect({for (final trecho in cord.trechos) trecho.parte}, {0, 2},
         reason: 'nenhuma faixa sobre a parte 2: o chão dela está por contar');
     expect(cord.apontado, isNull,
         reason: 'e nenhuma faixa vazia: vazia quer dizer à espera de conserto, '
             'e este chão não espera conserto nenhum, espera ser contado');
+    expect(harness.playback.played.last, partes[1].path,
+        reason: 'a parte por contar é a que entra no ar');
+    expect(harness.playback.playedFrom.last, Duration.zero,
+        reason: 'e desde o começo dela: os trechos que a cobriam saíram com a '
+            'gravação que ela substituiu');
+    expect(
+      harness.playback.measurements.sublist(medidasAntes.length),
+      containsAll([for (final parte in partes) parte.path]),
+      reason: 'as três partes são medidas na entrada, sem serem tocadas',
+    );
 
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 200));

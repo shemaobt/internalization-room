@@ -2749,9 +2749,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// apart, so this client tells it a truth about the rehearsal rather than about the
   /// round; whoever changes the gate needs to know this client leans on it that way.
   Future<void> _playFromTheUntoldGround(int epoch) async {
-    // Everything up to the first measurement runs before this function first yields, so
-    // a retro with nothing told back yet starts its clip in the same call that asked for
-    // it, as it always did. The measuring is the only part that waits.
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
     _parteTocando = 0;
@@ -2775,28 +2772,34 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _haltForAPerson();
       return;
     }
+    // Measuring waits on the player, and the screen it waits under is the retro with its
+    // buttons up: a cut landing inside the wait opened the microphone over a clip about to
+    // start, with the cursor at nought. Busy is the honest state for it.
+    state = state.copyWith(btPhase: BtPhase.thinking, voice: VoiceState.thinking);
+    await _medirAsPartes(partes, epoch);
+    if (epoch != _epoch || _gone) return;
+    state = state.copyWith(
+      btPhase: BtPhase.playing,
+      // Only out of the wait this method itself opened. A halt raised while the player was
+      // measuring is the room's state now, and the invite put back over it let a blocked
+      // room out of a halt nobody at the desk had attended.
+      voice: state.voice == VoiceState.thinking ? VoiceState.invite : state.voice,
+      btFimDasPartesMs: _fimDaParteMs,
+    );
+    // Which part goes in the air, and what the team already heard of the ones before it.
+    // How long each part is was answered above, for every part at once: read one part at a
+    // time as this walked, the cord could not draw a band past the first part still to be
+    // told.
     var parte = 0;
-    if (_chaoExplicadoDe(0) > Duration.zero) {
-      // Measuring waits on the player, and the screen it waits under is the retro with
-      // its buttons up: a cut landing inside the wait opened the microphone over a clip
-      // about to start, with the cursor at nought. Busy is the honest state for it.
-      state = state.copyWith(btPhase: BtPhase.thinking, voice: VoiceState.thinking);
-      _watchBusyState();
-      while (parte < partes.length - 1) {
-        final contadaAte = _chaoExplicadoDe(parte);
-        if (contadaAte == Duration.zero) break;
-        final quanto = await _playback.howLong(partes[parte].path);
-        if (epoch != _epoch) return;
-        if (quanto == null || contadaAte + _fimDaParte < quanto) break;
-        _marcarOFimDaParte(parte, quanto.inMilliseconds);
-        _escuta.inteira(partes[parte].path, quanto.inMilliseconds);
-        parte++;
+    while (parte < partes.length - 1) {
+      final contadaAte = _chaoExplicadoDe(parte);
+      if (contadaAte == Duration.zero) break;
+      final medido = _tamanhoDaParteMs[partes[parte].path];
+      if (medido == null || (contadaAte + _fimDaParte).inMilliseconds < medido) {
+        break;
       }
-      state = state.copyWith(
-        btPhase: BtPhase.playing,
-        voice: VoiceState.invite,
-        btFimDasPartesMs: _fimDaParteMs,
-      );
+      _escuta.inteira(partes[parte].path, medido);
+      parte++;
     }
     _tocarParteDaRetro(parte);
   }

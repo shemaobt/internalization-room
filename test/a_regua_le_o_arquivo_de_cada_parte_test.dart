@@ -120,7 +120,48 @@ Future<void> _contarDeNovoAParteRefeita(Sala it, Duration quanto) async {
   await _ouvirAParteNoAr(it, partesDoEnsaio[2]);
 }
 
+/// Into the back-translation from a rehearsal nobody has told back yet, standing with the
+/// first part in the air.
+Future<void> _entrarNaTraducao(Sala it) async {
+  it.sala.startRetro();
+  await waitFor(
+    'a primeira parte entrar no ar',
+    () =>
+        it.estado.stage == SalaStage.retro &&
+        it.estado.btPhase == BtPhase.playing &&
+        it.estado.btClipRodando,
+  );
+}
+
 void main() {
+  test('a régua traz as três partes antes de a primeira tocar', () async {
+    final it = await umEnsaioDeTresPartesGravado();
+
+    await _entrarNaTraducao(it);
+
+    expect(it.estado.btFimDasPartesMs, [10000, 18000, 30000],
+        reason: 'o colar desenha o ensaio inteiro desde o primeiro quadro: '
+            'uma régua que só cresce à medida que as partes acabam esconde as '
+            'faixas de tudo o que vem depois da parte no ar');
+    expect(it.harness.playback.played.last, it.partes[0].path,
+        reason: 'e a equipe continua a entrar pela primeira parte');
+  });
+
+  test('uma parte que o tablet não mede acaba a régua ali', () async {
+    final it = await umEnsaioDeTresPartesGravado();
+    it.harness.playback.semMedida.add(it.partes[2].path);
+
+    await _entrarNaTraducao(it);
+
+    expect(it.estado.btFimDasPartesMs, [10000, 18000],
+        reason: 'uma parte que ninguém consegue medir acaba o cordão em vez de '
+            'o alongar por um palpite');
+    expect(it.estado.needsPerson, isFalse,
+        reason: 'e não é motivo para parar a equipe: o desenho é que fica '
+            'curto, o trabalho não');
+    expect(it.harness.playback.played.last, it.partes[0].path);
+  });
+
   test('cair numa parte além da régua mede as anteriores primeiro', () async {
     final it = await _aSalaNoAchadoDaSegundaParte();
     final terceira = it.partes[2].takeId!;

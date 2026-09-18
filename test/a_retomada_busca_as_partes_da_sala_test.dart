@@ -356,6 +356,7 @@ void main() {
     await waitFor('a sala chamar uma pessoa', () => parada.estado.needsPerson);
 
     harness.room.refuseClipOf.clear();
+    harness.room.theDeskAttended();
     final volta = await _reabrirDeNovo(parada);
     await waitFor('a retro voltar', () => volta.estado.stage == SalaStage.retro);
 
