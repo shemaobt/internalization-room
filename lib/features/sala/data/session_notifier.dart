@@ -2793,13 +2793,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: state.voice == VoiceState.thinking ? VoiceState.invite : state.voice,
       btFimDasPartesMs: _fimDaParteMs,
     );
-    // A blocking halt plays nothing (ADR 0009), and putting a part in the air here would
-    // silence the room on the way — cutting off the one call for a person, which is said
-    // once. The desk lifts the halt and the listening gesture puts the part in the air.
-    if (state.needsPerson) {
-      _entradaParouSemTocar = true;
-      return;
-    }
     // The row is read again: this runs unawaited, and a part that left it while the player
     // measured would be indexed out of a list that no longer holds it.
     final medidas = state.partes;
@@ -2817,6 +2810,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       _escuta.inteira(medidas[parte].path, medido);
       parte++;
+    }
+    // A blocking halt withholds the sound and nothing else (ADR 0009): putting a part in
+    // the air here would silence the room on the way, cutting off the one call for a
+    // person, which is said once. Which part, and what the team already heard of the ones
+    // before it, are answered either way — a halt that skipped them would report none of
+    // the rehearsal as heard and land the team back on its first part.
+    if (state.needsPerson) {
+      _parteTocando = parte;
+      _entradaParouSemTocar = true;
+      return;
     }
     _tocarParteDaRetro(parte);
   }

@@ -404,9 +404,35 @@ void main() {
     it.sala.ouvirGravacao();
     await settle();
 
-    expect(harness.playback.played, [it.estado.partes[0].path],
-        reason: 'e a equipe nao fica encalhada: o gesto de ouvir poe a '
-            'primeira parte no ar');
+    expect(harness.playback.played, [it.estado.partes[2].path],
+        reason: 'e a equipe nao fica encalhada, nem volta ao principio: as '
+            'partes 1 e 2 ja foram contadas, e o gesto de ouvir poe no ar a '
+            'primeira com chao por contar');
+
+    harness.playback
+      ..length = _parte
+      ..at = _parte;
+    harness.playback.finishPlayback();
+    await waitFor('a terceira parte acabar', () => it.estado.btClipEnded);
+    await it.sala.finishBackTranslation();
+    await waitFor(
+      'a sala responder ao terminei',
+      () => harness.room.playedByTakeSent.isNotEmpty,
+    );
+
+    final relato = {
+      for (final parte in harness.room.playedByTakeSent.last)
+        parte['take_id']! as String:
+            (parte['played_ranges']! as List).cast<List<int>>(),
+    };
+    expect(relato['gravacao-1'], [
+      [0, 10000]
+    ], reason: 'a parada reteve o som e mais nada: o que a equipe ja ouvira '
+        'continua a entrar no registro, ou o terminei era recusado por partes '
+        'que ela ouviu na rodada anterior');
+    expect(relato['gravacao-2'], [
+      [0, 10000]
+    ]);
   });
 
   test('uma sessao que a sala esqueceu recomeca limpa, nao para para sempre',
