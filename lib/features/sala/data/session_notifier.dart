@@ -1185,6 +1185,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
 
   Future<void> abrirEscolha() async {
+    if (state.stage != SalaStage.escolha) {
+      final unplayableTurns = _unplayableTurns;
+      _forgetThePassage();
+      _unplayableTurns = unplayableTurns;
+    }
     _clearAll();
     final epoch = _epoch;
     state = state.copyWith(

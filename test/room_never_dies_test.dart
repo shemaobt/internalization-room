@@ -697,6 +697,26 @@ void main() {
             'responde é a sala');
   });
 
+  test('a wheel that keeps failing to load still climbs its own ladder, retry after retry',
+      () async {
+    final harness = SalaHarness()..room.failWith = const RoomBroke('HTTP 500');
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.abrirEscolha();
+    await settle();
+    notifier.escolhaTap();
+    await settle();
+    notifier.escolhaTap();
+    await settle();
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'o toque que refaz a tentativa de carregar a roda zerava '
+            '_roomFailures a cada vez, e três tentativas seguidas do mesmo '
+            'carregamento quebrado nunca batiam o limiar que chama alguém');
+  });
+
   test('no network and no room wear different faces', () async {
     final harness = SalaHarness()..network.radioSeesNothing = true;
     final container = harness.container();
