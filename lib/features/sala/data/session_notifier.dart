@@ -3677,6 +3677,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// A recording the room does not number, and a listing that does not answer, leave the
   /// reading as it was. Neither is a reason to stop the team: the stretch is on the
   /// server and the telling-back goes on.
+  ///
+  /// The resume row is not written again. Nothing it holds moves here — the stretches it
+  /// keeps are the room's, and the recordings, the stage and the pass are all as they
+  /// were.
   Future<void> _porCadaTrechoNaSuaParte(
     String sessionId,
     List<SegmentView> segments,
@@ -3722,7 +3726,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       btTrechos: _trechosFrom(segments, naParte: naParte),
     );
-    _rememberWhereTheyAre(state.stage);
   }
 
   void _leadThemToTheTrecho(Trecho trecho) {

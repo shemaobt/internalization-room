@@ -164,7 +164,10 @@ void main() {
         TakeView(takeId: _deFora, scope: 'composed', ordinal: 2),
       ],
     );
-    await settle();
+    await waitFor(
+      'os trechos da gravação de fora caírem na sua parte',
+      () => _trecho(it, 'trecho-2').parte == 1,
+    );
 
     expect(
       [
@@ -233,7 +236,10 @@ void main() {
         TakeView(takeId: _deFora, scope: 'composed', ordinal: 2),
       ],
     );
-    await settle();
+    await waitFor(
+      'os trechos da gravação de fora caírem na sua parte',
+      () => _trecho(it, 'trecho-2').parte == 1,
+    );
     final daParteDois = it.gravadas[1];
 
     await _ouvirAteOFim(it);
