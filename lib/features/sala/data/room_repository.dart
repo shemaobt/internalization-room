@@ -8,7 +8,6 @@ import 'package:http/http.dart' as http;
 
 import '../../../core/config/env.dart';
 import '../domain/bt_finding.dart';
-import '../domain/coverage.dart';
 import '../domain/coverage_event.dart';
 import '../domain/device_link.dart';
 import '../domain/escuta_das_partes.dart';
@@ -19,7 +18,10 @@ import '../domain/turn_result.dart';
 import 'device_identity.dart';
 
 const _basePath = '/api/internalization-room';
-const _turnTimeout = Duration(seconds: 90);
+
+/// The client's rung of the turn ladder: above the turn route's 300 s server bound
+/// (ENG-817), below the busy-state watchdog in session_notifier.dart (330 s).
+const _turnTimeout = Duration(seconds: 310);
 const _stateTimeout = Duration(seconds: 20);
 
 class RoomUnavailable implements Exception {
@@ -104,6 +106,8 @@ class ReleaseRefused implements Exception {
 }
 
 class RoomRepository {
+  static const turnTimeout = _turnTimeout;
+
   final http.Client _client;
   final Future<String> Function() _deviceId;
 
@@ -175,7 +179,6 @@ class RoomRepository {
   Future<SessionSnapshot> createSession({
     String? pericope,
     String? afterSession,
-    String? bridgeMode,
     required String language,
   }) async {
     final response = await _send(
@@ -185,7 +188,6 @@ class RoomRepository {
         body: jsonEncode({
           'pericope': ?pericope,
           'after_session': ?afterSession,
-          'bridge_mode': ?bridgeMode,
           'language': language,
         }),
       ),
@@ -233,7 +235,10 @@ class RoomRepository {
         final response = await _client.send(
           http.Request('GET', _uri('/sessions/$sessionId/coverage'))..headers.addAll(_headers),
         );
-        if (cancelled) return;
+        if (cancelled) {
+          unawaited(response.stream.listen(null).cancel());
+          return;
+        }
         String? eventName;
         final data = StringBuffer();
         lineSub = utf8.decoder.bind(response.stream).transform(const LineSplitter()).listen(
@@ -273,13 +278,7 @@ class RoomRepository {
         _ => null,
       };
       if (turnId == null || status == null) return null;
-      return CoverageEvent(
-        turnId: turnId,
-        status: status,
-        coverage: json['coverage'] == null
-            ? null
-            : Coverage.fromJson((json['coverage'] as Map).cast<String, dynamic>()),
-      );
+      return CoverageEvent(turnId: turnId, status: status);
     } on FormatException {
       return null;
     }

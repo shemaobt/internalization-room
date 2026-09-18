@@ -3,10 +3,12 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
 
@@ -419,7 +421,30 @@ void main() {
             'escuta ser ligada mesmo assim quando a resposta finalmente chega');
   });
 
-  test('a settled frame on the coverage channel names its turn and its numbers',
+  test('cancelling while the connection is still opening still closes the socket, not just the app\'s own read',
+      () async {
+    final connecting = Completer<http.StreamedResponse>();
+    var listens = 0;
+    final controller = StreamController<List<int>>(onListen: () => listens++);
+    final repository = RoomRepository(
+      client: MockClient.streaming((request, bodyStream) => connecting.future),
+    );
+    addTearDown(repository.dispose);
+
+    final subscription = repository.watchCoverage('sessao-1').listen((_) {});
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    await subscription.cancel();
+    connecting.complete(http.StreamedResponse(controller.stream, 200));
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(listens, greaterThan(0),
+        reason: 'abandonar a resposta sem nunca tocá-la deixa o socket aberto do '
+            'lado do servidor; fechar de verdade passa por escutar e cancelar, '
+            'não por simplesmente nunca escutar');
+  });
+
+  test('a settled frame on the coverage channel names its turn and its status',
       () async {
     final controller = StreamController<List<int>>();
     final repository = RoomRepository(
@@ -447,7 +472,6 @@ void main() {
     expect(frames, hasLength(1));
     expect(frames.single.turnId, 'turno-1');
     expect(frames.single.status, CoverageStatus.settled);
-    expect(frames.single.coverage?.engaged, 3);
   });
 
   test('a keep-alive on the coverage channel produces nothing, and the channel keeps talking',
@@ -632,6 +656,27 @@ void main() {
         );
       }
     });
+  });
+
+  test(
+      'the client turn wait and the busy watchdog sit above the server bound, in order',
+      () {
+    const serverBound = Duration(seconds: 300);
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final watchdog = container.read(busyStateCeilingProvider);
+
+    expect(RoomRepository.turnTimeout, greaterThan(serverBound),
+        reason: 'a rota aceita até 300 s (ENG-817); um cliente que desiste em 90 s '
+            'derrubava um turno que o servidor ainda ia responder');
+    expect(watchdog, isNotNull);
+    expect(watchdog, greaterThan(RoomRepository.turnTimeout),
+        reason: 'o watchdog precisa sobrar depois que a chamada HTTP já teria '
+            'voltado, senão os dois relógios brigam pelo mesmo turno travado');
+    expect(RoomRepository.turnTimeout, const Duration(seconds: 310),
+        reason: 'a escada da Márcia: 300 s no servidor, 310 s no cliente, 330 s no watchdog');
+    expect(watchdog, const Duration(seconds: 330),
+        reason: 'a escada da Márcia: 300 s no servidor, 310 s no cliente, 330 s no watchdog');
   });
 }
 
