@@ -295,6 +295,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _clearAll() {
     _cancelTimers();
     _parteARegravar = null;
+    _openTurnId = null;
+    _openingOwed = false;
     state = state.copyWith(clearLastSpoken: true);
     _onPlaybackComplete = null;
     _onPlaybackFailed = null;

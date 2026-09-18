@@ -610,11 +610,11 @@ void main() {
 
     await notifier.goConversa(pericope: 'P01');
     await settle();
-    await notifier.goConversa(pericope: 'P01');
+    notifier.conversaTap();
     await settle();
 
     expect(harness.room.turnIdsAsked, hasLength(2),
-        reason: 'a primeira falha ao abrir e o retoque que segue precisam '
+        reason: 'a primeira falha ao abrir e o toque que segue precisam '
             'dos dois pedidos de turno para haver o que comparar');
     expect(harness.room.turnIdsAsked[0], isNotNull);
     expect(harness.room.turnIdsAsked[1], harness.room.turnIdsAsked[0],
@@ -727,6 +727,51 @@ void main() {
     expect(harness.room.turnIdsAsked[1], isNot(harness.room.turnIdsAsked[0]),
         reason: 'o mesmo id devolve o mesmo clipe que acabou de falhar');
     expect(harness.voice.played.last, turnoUrl);
+  });
+
+  test('a passage left with its opening unheard does not hand its id to the next one',
+      () async {
+    final harness = SalaHarness()..room.failHeldTurnWith = const RoomBroke('HTTP 500');
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+    notifier.leaveThePassage();
+    await settle();
+    await notifier.goConversa(pericope: 'P02');
+    await settle();
+
+    expect(harness.room.turnIdsAsked, hasLength(2));
+    expect(harness.room.turnIdsAsked[1], isNot(harness.room.turnIdsAsked[0]),
+        reason: 'o id nascia com a passagem e sobrevivia a ela: a abertura da '
+            'passagem seguinte era pedida com o id de uma sessão que já ficou para trás');
+  });
+
+  test('a passage left with its opening owed does not leave the next one with a dead tap',
+      () async {
+    final harness = SalaHarness()..room.failHeldTurnWith = const RoomBroke('HTTP 500');
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+    notifier.leaveThePassage();
+    await settle();
+    harness.room.failCreateOnceWith = const RoomBroke('HTTP 500');
+    await notifier.goConversa(pericope: 'P02');
+    await settle();
+    expect(container.read(salaSessionProvider).sessionId, isNull);
+
+    notifier.conversaTap();
+    await settle();
+
+    expect(harness.recorder.captures, 1,
+        reason: 'a abertura devida era da passagem anterior; carregada para '
+            'esta, sem sessão para pedir, todo toque voltava sem take, sem '
+            'pedido e sem chamar ninguém');
   });
 
   test('two passages opened one after the other each get their own turn id',
