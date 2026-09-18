@@ -1364,6 +1364,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     leaveThePassage();
   }
 
+  bool _wrongLanguage(ResumePoint? point) {
+    final language = point?.language;
+    return language != null && language != _lingua;
+  }
+
   bool _expired(ResumePoint? point) {
     final savedAt = point?.savedAt;
     if (savedAt == null) return false;
@@ -1415,7 +1420,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         ? await _emAberto.of(_book, pericope)
         : null;
     if (epoch != _epoch) return;
-    final waiting = _expired(stored) ? null : stored;
+    final waiting =
+        _expired(stored) || _wrongLanguage(stored) ? null : stored;
     try {
       final resumed = waiting != null;
       final created = opened ??
@@ -1438,6 +1444,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
               sessionId: sessionId,
               stage: SalaStage.conversa,
               savedAt: DateTime.now(),
+              language: _lingua,
             ),
           ),
         ));

@@ -229,6 +229,32 @@ void main() {
             'um id que o servidor não consegue servir');
   });
 
+  test('a stored id created in pt does not post a turn to it from a device now in en',
+      () async {
+    final harness = SalaHarness(lingua: 'en');
+    harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+      sessionId: 'sessao-pt',
+      stage: SalaStage.conversa,
+      savedAt: DateTime.now(),
+      language: 'pt',
+    );
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+
+    expect(harness.room.sessionsSpokenTo, isNot(contains('sessao-pt')),
+        reason: 'a sessão foi aberta em português, e o Guia continuaria '
+            'falando português para um aparelho que agora está em inglês');
+    expect(harness.room.languagesSent, contains('en'),
+        reason: 'a sessão nova é pedida na língua do aparelho de hoje, não na '
+            'que a sessão abandonada carregava');
+  });
+
   test('the opening is told in two movements, and the necklace waits', () async {
     final harness = SalaHarness()..room.opensInTwoMovements = true;
     final container = await inConversa(harness);
