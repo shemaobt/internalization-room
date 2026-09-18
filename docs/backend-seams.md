@@ -14,8 +14,9 @@ Every seam below is a provider, and every one of them is overridden in the suite
 
 - `roomRepositoryProvider` — sessions, turns, back-translation chunks and the verdict,
   takes, and the room's spoken clips. The takes listing answers which part of the
-  rehearsal a recording stands for, which is what places a stretch the tablet holds no
-  recording for (ADR 0022).
+  rehearsal a recording stands for: it places a stretch the tablet holds no recording for
+  (ADR 0022), and it is where a passage reopened without its recordings reads which parts
+  to fetch back, through the take-audio door beside it (ADR 0023).
 - `handInboxRepositoryProvider` — the facilitator inbox: raising a question, fetching
   replies, marking one heard. It keeps a client and a header block of its own.
 - `takeUploadQueueProvider` — the outbox that carries kept takes and back-translation

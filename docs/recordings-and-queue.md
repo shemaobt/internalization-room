@@ -3,10 +3,10 @@
 ## Nothing here deletes audio a team made
 
 Every capture — conversation utterances, questions, Rehearsal takes, back-translation
-stretches — is written under the app's documents directory. Nothing else is fetched into
-it today; a part fetched back from the room would land there too, because the resume point
-refuses to pick a session back up unless every part's file is still on disk. A recording a
-part was replaced with is left beside the one it replaced. That is the rule: audio a team
+stretches — is written under the app's documents directory, and so is a part fetched back
+from the room when a resume finds its file gone: a part of the Rehearsal is a part of the
+Rehearsal whoever's tablet it reaches. A recording a part was replaced with is left beside
+the one it replaced. That is the rule: audio a team
 recorded is never removed, and a second directory would only be a second thing to keep
 alive.
 
@@ -46,12 +46,15 @@ read time — so a restore, a reinstall or a new tablet never leaves the whole R
 pointing at a container prefix that is gone. Rows written by earlier builds carried the
 whole path and are still read.
 
-A resume point whose recordings are genuinely absent is rewritten, at the Conversation and
-with no Rehearsal in it, as it fails: the next opening then finds nothing to restore and
-goes straight through instead of running the same failed resume every time. It is rewritten
-rather than dropped because the session identifier lives only there, and dropping the row
-would abandon that session on the server the moment the team closed the app before reaching
-the Rehearsal. That is also why a resume point that cannot be written speaks. It shares a
+A resume point whose recordings are not on this tablet any more fetches the room's own
+parts and lands the team where they stopped, and the row is then rewritten naming the files
+that arrived. A fetch that cannot be finished calls for a person and leaves the row exactly
+as it was, so the next opening tries again; it is never rewritten without its takes, which
+would leave the Rehearsal the room is holding out of the team's reach for good. ADR 0023
+has the whole of it. The row is never dropped either, because the session identifier lives
+only there, and dropping it would abandon that session on the server the moment the team
+closed the app before reaching the Rehearsal. That is also why a resume point that cannot
+be written speaks. It shares a
 disk with the outbox, so it borrows the outbox's stranded-recording line rather than adding
 a second one, and that line is guarded to play once per session so a failing disk never
 becomes a chant. A resume file that exists but cannot be parsed is never used as the base of
