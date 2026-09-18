@@ -52,7 +52,7 @@ class RememberedLink {
 
   /// The file's own shape — and the one thing missing from it on purpose.
   ///
-  /// AGENTS.md §9 names the credential as the one local secret that belongs in
+  /// ADR 0017 names the credential as the one local secret that belongs in
   /// `flutter_secure_storage`, not beside it in a file `pub get`'s dependency tree can
   /// read as plainly as the team that owns the tablet can.
   Map<String, Object?> toJson() => {

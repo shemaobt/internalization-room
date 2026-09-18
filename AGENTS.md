@@ -3,6 +3,8 @@
 Voice-first Flutter tablet app for the Internalization Room of the Shemá oral Bible
 translation flow. Team screens carry no readable words; the necklace is the only progress indicator.
 
+Documentation is written in English.
+
 ## Toolchain and commands
 
 Use Flutter 3.44.9: it is what CI pins, and the only version verified here. `pubspec.yaml`
