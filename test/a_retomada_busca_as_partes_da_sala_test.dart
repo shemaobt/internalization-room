@@ -375,6 +375,40 @@ void main() {
     );
   });
 
+  test('uma retomada numa sala parada mede o ensaio e nao toca nada', () async {
+    final harness = SalaHarness()
+      ..room.serverStatus = 'needs_person'
+      ..room.serverHalt = HaltKind.blocking;
+    final it = await _reabrir(
+      harness,
+      parouEm: SalaStage.retro,
+      aindaNoTablet: {1, 2, 3},
+      contado: _contado([1, 2]),
+    );
+    await waitFor('a sala parar ao reabrir', () => it.estado.needsPerson);
+    await settle();
+
+    expect(it.estado.needsPerson, isTrue,
+        reason: 'a parada e do servidor e so a mesa a levanta (ADR 0009)');
+    expect(harness.playback.played, isEmpty,
+        reason: 'uma parada que bloqueia nao toca nada: por o ensaio no ar '
+            'cala a sala pelo caminho, e corta a unica chamada por uma pessoa');
+    expect(it.estado.btPhase, isNot(BtPhase.thinking),
+        reason: 'e a sala nao fica presa a pensar: a medicao acabou');
+    expect(it.estado.btFimDasPartesMs, [10000, 20000, 30000],
+        reason: 'a entrada mede o ensaio inteiro mesmo parada, para o colar ja '
+            'estar desenhado quando a mesa soltar a equipe');
+
+    harness.room.theDeskAttended();
+    await waitFor('a mesa soltar a parada', () => !it.estado.needsPerson);
+    it.sala.ouvirGravacao();
+    await settle();
+
+    expect(harness.playback.played, [it.estado.partes[0].path],
+        reason: 'e a equipe nao fica encalhada: o gesto de ouvir poe a '
+            'primeira parte no ar');
+  });
+
   test('uma sessao que a sala esqueceu recomeca limpa, nao para para sempre',
       () async {
     final harness = SalaHarness()..room.failTakesWith = const SessionGone();

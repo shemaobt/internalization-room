@@ -191,6 +191,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// over the ground already told exists to spare them.
   bool _pousadaNaParteNaoOuvida = false;
 
+  /// Whether the way into the telling-back measured the rehearsal and stopped there,
+  /// leaving no part in the air.
+  ///
+  /// A blocking halt met on the way in plays nothing, so the room reaches the retro with
+  /// the cord drawn and silence on it. Resuming a player that never opened a clip is more
+  /// silence, so the listening gesture has to open the part instead — and only in this one
+  /// case, because everywhere else that gesture is a hold letting go.
+  bool _entradaParouSemTocar = false;
+
   /// The approval is in the air, and the approval has landed.
   ///
   /// Two, not one: the first stops a second press from minting a second request while the
@@ -1856,11 +1865,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _watchBusyState();
       final quanto = await _playback.howLong(parte.path);
       if (epoch != _epoch || _gone) return;
-      // A nought is the player with nothing to say about the file, never a part of no
-      // length: written to the ruler it squeezes that part to nothing instead of ending
-      // the cord there, which is the one thing the ruler promises not to do.
-      if (quanto == null || quanto.inMilliseconds <= 0) continue;
-      _tamanhoDaParteMs[parte.path] = quanto.inMilliseconds;
+      if (quanto == null) continue;
+      _marcarOFimDaParte(parte.path, quanto.inMilliseconds);
     }
   }
 
@@ -2752,6 +2758,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
     _parteTocando = 0;
+    _entradaParouSemTocar = false;
     _tamanhoDaParteMs.clear();
     _pousadaNaParteNaoOuvida = false;
     _escuta.esquecerTudo();
@@ -2786,18 +2793,29 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: state.voice == VoiceState.thinking ? VoiceState.invite : state.voice,
       btFimDasPartesMs: _fimDaParteMs,
     );
+    // A blocking halt plays nothing (ADR 0009), and putting a part in the air here would
+    // silence the room on the way — cutting off the one call for a person, which is said
+    // once. The desk lifts the halt and the listening gesture puts the part in the air.
+    if (state.needsPerson) {
+      _entradaParouSemTocar = true;
+      return;
+    }
+    // The row is read again: this runs unawaited, and a part that left it while the player
+    // measured would be indexed out of a list that no longer holds it.
+    final medidas = state.partes;
+    if (medidas.isEmpty) return;
     // How long each part is was answered above, for every part at once: read one part at a
     // time as this walked, the cord could not draw a band past the first part still to be
     // told.
     var parte = 0;
-    while (parte < partes.length - 1) {
+    while (parte < medidas.length - 1) {
       final contadaAte = _chaoExplicadoDe(parte);
       if (contadaAte == Duration.zero) break;
-      final medido = _tamanhoDaParteMs[partes[parte].path];
+      final medido = _tamanhoDaParteMs[medidas[parte].path];
       if (medido == null || (contadaAte + _fimDaParte).inMilliseconds < medido) {
         break;
       }
-      _escuta.inteira(partes[parte].path, medido);
+      _escuta.inteira(medidas[parte].path, medido);
       parte++;
     }
     _tocarParteDaRetro(parte);
@@ -2832,11 +2850,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// parts glued end to end. The necklace's job, and the only place the offset is added.
   int _pontoNoColar(int local) => _inicioDaParteMs(_parteTocando) + local;
 
-  /// Write down how long [parte] turned out to be, once it has measured itself.
-  void _marcarOFimDaParte(int parte, int medido) {
-    final partes = state.partes;
-    if (parte < 0 || parte >= partes.length || medido <= 0) return;
-    _tamanhoDaParteMs[partes[parte].path] = medido;
+  /// Write down how long [arquivo] turned out to be, once it has measured itself.
+  ///
+  /// A nought is the player with nothing to say about the file, never a part of no length:
+  /// written to the ruler it squeezes that part to nothing instead of ending the cord
+  /// there, which is the one thing the ruler promises not to do.
+  void _marcarOFimDaParte(String arquivo, int medido) {
+    if (medido <= 0) return;
+    _tamanhoDaParteMs[arquivo] = medido;
   }
 
 
@@ -2872,12 +2893,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // nowhere the team has been; added to where the stretch sits, it is exactly the band
     // the cord already draws for it.
     if (state.btTrechoTocando) {
-      if (state.btFindingTrecho case final trecho?) {
-        final lugar = _inicioDaParteMs(trecho.parte);
-        final de = lugar + trecho.lugarFrom.inMilliseconds;
-        final ate = lugar + trecho.lugarTo.inMilliseconds;
-        return (de + _playback.position.inMilliseconds).clamp(de, ate);
-      }
+      final trecho = state.btFindingTrecho;
+      if (trecho == null) return state.btOuvidoMs;
+      final lugar = _inicioDaParteMs(trecho.parte);
+      final de = lugar + trecho.lugarFrom.inMilliseconds;
+      final ate = lugar + trecho.lugarTo.inMilliseconds;
+      return (de + _playback.position.inMilliseconds).clamp(de, ate);
     }
     final noAr = state.btParteNoArMs;
     if (noAr == 0) return state.btOuvidoMs;
@@ -2958,6 +2979,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // last listening of a checked passage, the next part, the landing on one nobody
     // heard — and none of them may start it under the line the Guide is still saying.
     _silenceTheRoom();
+    _entradaParouSemTocar = false;
     _parteTocando = parte;
     _trechoStart = _ondeParouNesteArquivo(parte);
     _desdeMs = 0;
@@ -3022,7 +3044,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // reads to decide this very refusal: a part the team heard whole, reported as nought
     // milliseconds long, is the same *terminei* refused again.
     if (arquivo != null && medido > 0) _escuta.medida(arquivo, medido);
-    _marcarOFimDaParte(_parteTocando, medido);
+    if (arquivo != null) _marcarOFimDaParte(arquivo, medido);
     _pararOClipe(ate: medido);
     // Whether the rehearsal has played through, which is what the finish waits on, and
     // whether the cord can draw every part, which is the ruler's business: one question
@@ -3079,6 +3101,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (state.btClipEnded) return;
+    // A halt met on the way into the telling-back leaves the room in the retro with no
+    // part in the air at all: the entry measures the rehearsal and stops there, because a
+    // blocking halt plays nothing. Resuming a player that never opened a clip is silence,
+    // so this gesture is what puts the part there once the desk has let the team go.
+    if (_entradaParouSemTocar && state.partes.isNotEmpty) {
+      _tocarParteDaRetro(_parteTocando);
+      return;
+    }
     _seguirOClipe();
   }
 
@@ -4214,6 +4244,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
     _parteTocando = 0;
+    _entradaParouSemTocar = false;
     _tamanhoDaParteMs.clear();
     _pousadaNaParteNaoOuvida = false;
     _aprovando = false;

@@ -175,6 +175,38 @@ void main() {
             'acabar o cordão ali');
   });
 
+  test('um gesto enquanto a sala mede não abre o microfone', () async {
+    final it = await umEnsaioDeTresPartesGravado();
+    it.harness.playback.holdNextMeasurement();
+    final capturas = it.harness.recorder.captures;
+
+    it.sala.startRetro();
+    await waitFor(
+      'a sala entrar na espera da medição',
+      () => it.estado.btPhase == BtPhase.thinking,
+    );
+    it.sala.cortarTrecho();
+    it.sala.retroTap();
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+
+    expect(it.estado.btPhase, BtPhase.thinking,
+        reason: 'a espera é o estado honesto da sala enquanto o player mede, e '
+            'agora ela acontece em toda entrada');
+    expect(it.harness.recorder.captures, capturas,
+        reason: 'um corte que caísse dentro da espera abria o microfone sobre '
+            'um clipe a começar, com o cursor no zero');
+    expect(it.harness.playback.played, isEmpty,
+        reason: 'e nada entra no ar antes de a régua estar medida');
+
+    it.harness.playback.finishHeldMeasurement();
+    await waitFor(
+      'a primeira parte entrar no ar',
+      () => it.estado.btClipRodando,
+    );
+    expect(it.harness.playback.played.last, it.partes[0].path,
+        reason: 'acabada a medição, a parte toca como sempre tocou');
+  });
+
   test('cair numa parte além da régua mede as anteriores primeiro', () async {
     final it = await _aSalaNoAchadoDaSegundaParte();
     final terceira = it.partes[2].takeId!;
