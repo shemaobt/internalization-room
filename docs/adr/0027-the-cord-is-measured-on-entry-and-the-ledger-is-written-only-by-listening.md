@@ -39,21 +39,10 @@ the parts told whole, still writes those and only those into the listening ledge
 still breaks at the first part with no told ground. **A part measured is not a part
 heard.**
 
-**A blocking halt met on the way in withholds the sound and nothing else.** When the room
-is halted by the time the measuring returns, the entry still publishes the ruler, still
-steps over the parts told whole and writes them into the ledger, and still chooses which
-part would go in the air — and then stops short of playing it. Putting a part in the air
-silences the room on the way, and that would cut off the one call for a person, which is
-said once. A private latch remembers that the entry stopped short, and the team's own
-listening gesture opens the chosen part after the desk has let them go.
-
-A halt that withheld the choice and the ledger as well would report none of the rehearsal
-as heard — so the finish would be refused for parts the team heard in an earlier round —
-and would land the team back on the first part rather than on the first with untold
-ground.
-
 A measurement of nought is the player with nothing to say about a file, never a part of no
-length, and it is refused in one place.
+length. Every writer of a part's length goes through one place, which is where that is
+refused: the measuring on entry, the part measured the instant it is kept, the landing that
+measures the parts behind it, and the part that has just played.
 
 ## Consequences
 
@@ -63,20 +52,6 @@ a tablet that is busy, and the gestures that wait on it were already written for
 that could happen — it happened whenever anything had been told back. What is new is that
 it happens every time, so a cut landing inside it is now an ordinary case rather than a
 rare one.
-
-Leaving that wait returns the room to the invitation **only if it is still thinking**. A
-halt raised while the player was measuring is the room's state by then, and the invitation
-put back over it let a team reopening into a room the server had already stopped straight
-back in, against ADR 0009 and the **Halt** the glossary defines. That path was reachable
-before this decision and was taken whenever the measuring happened to wait; making the
-wait unconditional made it the ordinary case.
-
-`_fimDeParte` still overwrites a part's end with the length it played, which can differ
-from the length measured without playing by up to the slack the room allows itself at a
-part's end. With the ruler published in full, that correction now shifts every later
-boundary with it: bands of later parts can jump by that much the first time each part
-ends. Nothing drew those bands before this decision, so the jump is new — it is the price
-of drawing them early, and it is smaller than not drawing them at all.
 
 Measuring on entry asks the player for every part each time the team enters the
 back-translation, where it used to ask only about the parts it stepped over. A part the

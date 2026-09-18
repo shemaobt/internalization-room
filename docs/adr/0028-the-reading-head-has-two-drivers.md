@@ -53,5 +53,6 @@ stretch therefore draws no band and the head still walks over ground that is not
 That is the ruler's rule reaching the head, and it wants its own decision.
 
 The two drivers answer through one question the layer asks, so neither can drift from the
-other, and a stretch with no pointer answers the told ground rather than falling through
-to the part in the air.
+other. That question answers the told ground when the room says a stretch is sounding and
+names none; no gesture produces that pair, so nothing measures it — it is a guard, not a
+behaviour this decision promises.
