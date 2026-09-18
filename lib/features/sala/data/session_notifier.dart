@@ -1856,7 +1856,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _watchBusyState();
       final quanto = await _playback.howLong(parte.path);
       if (epoch != _epoch || _gone) return;
-      if (quanto == null) continue;
+      // A nought is the player with nothing to say about the file, never a part of no
+      // length: written to the ruler it squeezes that part to nothing instead of ending
+      // the cord there, which is the one thing the ruler promises not to do.
+      if (quanto == null || quanto.inMilliseconds <= 0) continue;
       _tamanhoDaParteMs[parte.path] = quanto.inMilliseconds;
     }
   }
@@ -2783,7 +2786,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: state.voice == VoiceState.thinking ? VoiceState.invite : state.voice,
       btFimDasPartesMs: _fimDaParteMs,
     );
-    // Which part goes in the air, and what the team already heard of the ones before it.
     // How long each part is was answered above, for every part at once: read one part at a
     // time as this walked, the cord could not draw a band past the first part still to be
     // told.

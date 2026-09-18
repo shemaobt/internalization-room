@@ -102,8 +102,8 @@ Future<void> _contarAte(
 /// occupies on the cord once part one's thirty seconds are behind it.
 const _trechoDe = Duration(seconds: 6);
 const _trechoAte = Duration(seconds: 9);
-const _naCordaDe = 36000;
-const _naCordaAte = 39000;
+final _naCordaDe = _parteInteira.inMilliseconds + _trechoDe.inMilliseconds;
+final _naCordaAte = _parteInteira.inMilliseconds + _trechoAte.inMilliseconds;
 
 /// A team on a finding addressed to a stretch of **part two**, placed six to nine seconds
 /// into that part — far enough from the part's own beginning that a head reading the clip's

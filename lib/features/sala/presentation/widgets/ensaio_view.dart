@@ -5,7 +5,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../data/take_upload_queue.dart';
-import '../../domain/kept_take.dart';
 import '../../domain/session_state.dart';
 import 'bead.dart';
 import 'bead_styles.dart';
@@ -117,9 +116,7 @@ class EnsaioView extends ConsumerWidget {
                     child: Bead(
                       size: 24,
                       opacity: 0.45,
-                      marcada: session.parteARegravar != null &&
-                          take.scopeId ==
-                              KeptScope.parte(session.parteARegravar! + 1),
+                      marcada: take.scopeId == session.escopoDaParteARegravar,
                       filled: !session.unsentTakeScopes.contains(take.scopeId) &&
                           !session.unsentTakeScopes.contains(unknownScope),
                     ),
@@ -215,7 +212,7 @@ class _RecordCircle extends StatelessWidget {
       label: switch ((recording, dimmed, parteARegravar)) {
         (true, _, _) => 'Tocar ao terminar',
         (false, true, _) => 'O ensaio guardado está tocando',
-        (_, _, final parte?) => 'Gravar a parte ${parte + 1} de novo',
+        (false, false, final parte?) => 'Gravar a parte ${parte + 1} de novo',
         _ => 'Tocar para gravar o ensaio',
       },
       child: GestureDetector(

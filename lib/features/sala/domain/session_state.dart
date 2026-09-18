@@ -367,6 +367,17 @@ class SalaSessionState {
 
   /// The rehearsal's own recordings, in order — never a correction's own take, which is a
   /// slice of one of these and not a part of the rehearsal in its own right.
+  /// Which take the rehearsal screen marks, when the team came back to record a part
+  /// again.
+  ///
+  /// Scope and number are the same fact said twice, so they are counted from the same
+  /// place here rather than at each screen that needs one of them — the reason
+  /// `_aParteVoltaAoSeuLugar` gives for counting them together on the way out.
+  String? get escopoDaParteARegravar {
+    final parte = parteARegravar;
+    return parte == null ? null : KeptScope.parte(parte + 1);
+  }
+
   List<KeptTake> get partes =>
       [for (final take in keptTakes) if (KeptScope.isParte(take.scopeId)) take];
 

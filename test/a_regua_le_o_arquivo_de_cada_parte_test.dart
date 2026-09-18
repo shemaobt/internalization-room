@@ -162,6 +162,19 @@ void main() {
     expect(it.harness.playback.played.last, it.partes[0].path);
   });
 
+  test('uma parte medida em zero acaba a régua como uma que não se mede',
+      () async {
+    final it = await umEnsaioDeTresPartesGravado();
+    it.harness.playback.lengths[it.partes[2].path] = Duration.zero;
+
+    await _entrarNaTraducao(it);
+
+    expect(it.estado.btFimDasPartesMs, [10000, 18000],
+        reason: 'zero não é uma medida, é o player sem resposta sobre o '
+            'arquivo: escrito na régua, ele espreme a parte a nada em vez de '
+            'acabar o cordão ali');
+  });
+
   test('cair numa parte além da régua mede as anteriores primeiro', () async {
     final it = await _aSalaNoAchadoDaSegundaParte();
     final terceira = it.partes[2].takeId!;
