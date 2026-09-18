@@ -184,7 +184,7 @@ void main() {
           'e tocam o lugar em que moram (ADR 0021)',
     );
     expect(
-      harness.room.calls.where((chamada) => chamada == 'takesOf').length,
+      it.harness.room.calls.where((chamada) => chamada == 'takesOf').length,
       1,
       reason: 'a retomada pergunta a lista das gravações uma vez só',
     );
@@ -203,7 +203,7 @@ void main() {
           'ninguém tocou, e sem banda nenhuma o trecho cai do cordão',
     );
 
-    expect(harness.room.clipsFetched, isEmpty,
+    expect(it.harness.room.clipsFetched, isEmpty,
         reason: 'a equipe nunca gravou o arquivo que o servidor montava, e '
             'nada é baixado para colocar um trecho no lugar dele');
     expect(
@@ -246,10 +246,10 @@ void main() {
     it.sala.ouvirVozMaterna();
     await waitFor('o trecho apontado tocar', () => it.estado.btTrechoTocando);
 
-    expect(harness.playback.played.last, daParteDois,
+    expect(it.harness.playback.played.last, daParteDois,
         reason: 'a voz materna do trecho é a gravação que a equipe fez da '
             'parte 2, e não um arquivo que o servidor montou');
-    expect(harness.playback.ranges.last, '0-6000',
+    expect(it.harness.playback.ranges.last, '0-6000',
         reason: 'tocado nos segundos que a sala deu ao trecho dentro da '
             'gravação, que é o lugar em que ele mora');
   });
@@ -295,6 +295,9 @@ void main() {
     await settle();
 
     expect(it.estado.stage, SalaStage.retro);
+    expect(it.harness.room.calls, contains('takesOf'),
+        reason: 'a lista foi pedida e respondeu: sem isso o caso não mede a '
+            'gravação sem número, mede a colocação que nunca rodou');
     expect(it.estado.needsPerson, isFalse,
         reason: 'uma gravação que a sala não numerou não para ninguém');
     expect(

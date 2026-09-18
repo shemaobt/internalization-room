@@ -370,9 +370,9 @@ class RoomRepository {
 
   /// Where the audio of one take is, for [fetchClip] to go and get.
   ///
-  /// The door to the room's own copy of a part: a tablet holding the session's stretches
-  /// and none of its files fetches them through here. The route answers a signed
-  /// redirect, which the client follows on its own.
+  /// Nothing reads it yet. It is the door a tablet holding a session's stretches and none
+  /// of its files will fetch the room's own parts through, and it is kept for that. The
+  /// route answers a signed redirect, which the client follows on its own.
   static String takeAudioUrl(String sessionId, String takeId) =>
       '$_basePath/sessions/$sessionId/takes/$takeId/audio';
 
