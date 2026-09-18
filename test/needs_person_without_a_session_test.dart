@@ -173,6 +173,36 @@ void main() {
         reason: 'perguntar de novo não muda que não há equipe para o aparelho');
   });
 
+  test(
+      'case 4c (trava de regressão): a long press cannot resolve a halt no '
+      'team can ever be reached for', () async {
+    final ledger = _ledgerOnDisk();
+    await ledger.rememberDevice('aparelho-D');
+    final harness = SalaHarness(retryBackoff: const [Duration(milliseconds: 20)]);
+    final container = await _inConversa(harness, ledger);
+    addTearDown(container.dispose);
+
+    harness.room.deviceAskFailures.add(const NobodyToReach());
+    harness.room.failWith = const SessionGone();
+    final notifier = container.read(salaSessionProvider.notifier);
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    await settle();
+    await settle(const Duration(milliseconds: 200));
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'a parada chegou pelo aparelho, sem equipe encontrada');
+
+    notifier.resolveWithPerson();
+    await settle();
+    await settle(const Duration(milliseconds: 200));
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'a reabertura automática falha pelo mesmo motivo da parada '
+            'original, e a sala volta a pedir uma pessoa — o toque não tem '
+            'como ter efeito quando não há ninguém a alcançar');
+  });
+
   test('case 5: sem id de aparelho no vínculo, nenhum pedido sai', () async {
     // haltForABrokenBuild() nunca pede ninguém desde a Emenda 1 (caso 2); o
     // caminho que ainda cai no aparelho sem id é a sessão que se perde.
