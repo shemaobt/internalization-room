@@ -235,6 +235,37 @@ void main() {
             'que o panorama tinha antes do toque');
   });
 
+  test('the dev language button drops an armed hand along with the panorama it was armed on',
+      () async {
+    dotenv.testLoad(
+      fileInput: 'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
+    );
+    addTearDown(() => dotenv.testLoad(fileInput: ''));
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.openConvite();
+    notifier.handTap();
+    expect(container.read(salaSessionProvider).noteMode, isTrue);
+
+    notifier.devTrocarIdioma();
+
+    expect(container.read(salaSessionProvider).noteMode, isFalse,
+        reason: 'a mão continuava armada da sessão que a troca de idioma acabou de '
+            'largar; o próximo toque no círculo abria o microfone em vez do panorama '
+            'novo, e a pergunta gravada não tinha para onde ir — a sessão que ela mirava '
+            'já tinha sido zerada pela própria troca');
+
+    notifier.conviteTap();
+    await settle();
+
+    expect(harness.room.sessionIds, hasLength(2),
+        reason: 'o toque depois do botão é o que abre o panorama na língua nova, não '
+            'uma pergunta gravada para uma sessão que não existe mais');
+  });
+
   test('a tablet set to the language nobody approved opens the room in English', () async {
     TestWidgetsFlutterBinding.ensureInitialized();
 

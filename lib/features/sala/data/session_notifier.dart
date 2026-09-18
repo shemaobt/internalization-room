@@ -1998,7 +1998,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _clearAll();
       _conviteOpened = false;
       _panoramaSessionId = null;
-      state = state.copyWith(conviteStep: ConviteStep.boasVindas, voice: VoiceState.invite);
+      state = state.copyWith(
+        conviteStep: ConviteStep.boasVindas,
+        voice: VoiceState.invite,
+        noteMode: false,
+      );
       return;
     }
     _startOver();
