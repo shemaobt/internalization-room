@@ -180,6 +180,7 @@ const _matrizDaRetro = [
   'o círculo, capturando',
   'o círculo, nos achados',
   'a próxima parte',
+  'atravessar para a próxima parte',
   'ouvir a voz materna',
   'ouvir a tradução em português',
   'traduzir de novo, na grade',
@@ -259,6 +260,21 @@ void main() {
         return cena;
       }, (cena) async {
         cena.sala.proximaParte();
+        await settle();
+      }),
+      _linha('atravessar para a próxima parte', () async {
+        final cena = await _noRetro(partes: 2);
+        cena.harness.playback.at = const Duration(milliseconds: 600);
+        cena.harness.playback.finishPlayback();
+        await waitFor(
+          'a fronteira da parte abrir',
+          () => _estado(cena).btParteFronteira,
+        );
+        return cena;
+      }, (cena) async {
+        // O gesto que a tela realmente tem: proximaParte não é chamado por widget
+        // nenhum, e é por aqui que a equipe cruza para a parte seguinte.
+        cena.sala.ouvirGravacao();
         await settle();
       }),
       _linha('ouvir a voz materna', () async {

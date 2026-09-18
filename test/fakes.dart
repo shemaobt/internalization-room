@@ -373,6 +373,10 @@ class FakePlayback implements PlaybackRepository {
   /// long the file is — the test's fixture — and it survives a stop the way a file does.
   bool _aberto = false;
 
+  /// Where the clip in the air was opened at: what a real player's `position` falls back
+  /// to once it is stopped.
+  Duration _abertaEm = Duration.zero;
+
   @override
   Duration? get playingLength => _aberto ? length : null;
 
@@ -420,6 +424,12 @@ class FakePlayback implements PlaybackRepository {
   Future<void> stop() async {
     stops++;
     sounds.add('playback:stop');
+    // As the real one does, and where it differs from a pause. just_audio's `pause()`
+    // writes the position down before it stops playing; `stop()` does not, and
+    // `position` only extrapolates while the player is playing — so after a stop it
+    // answers with the stale place the clip was opened at. A double that kept answering
+    // the true playhead hid every read taken after a stop.
+    at = _abertaEm;
     // As the real one does. `_openedLength` is cleared with the playback it described —
     // the safety ceiling for the next clip was computed from the length of the last —
     // and a pause is deliberately not a stop here: it keeps the clip open. A double that
@@ -446,7 +456,7 @@ class FakePlayback implements PlaybackRepository {
     final held = _opening;
     scheduleMicrotask(() async {
       await held?.future;
-      at = from;
+      at = _abertaEm = from;
       _aberto = true;
       _openings.add(null);
       if (_playing != playing) return;

@@ -342,13 +342,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// inside one.
   void _silenceTheRoom({bool holdTheClip = false}) {
     if (holdTheClip) {
+      // A hold writes the playhead down before it stops playing, so the ledger reads it
+      // afterwards, exactly as it always has.
       _holdClip();
+      _anotarOQueFoiOuvido();
     } else {
+      // A stop does not. just_audio only extrapolates `position` while the player is
+      // playing, so a read taken after a stop answers with the stale place the clip was
+      // opened at — and the span would be written short, or dropped for good.
+      _anotarOQueFoiOuvido();
       _clipHeld = false;
+      // What the clip owed the room dies with the clip. Left armed, the ceiling of a
+      // part that was still loading fires a whole clip later, on a room that has long
+      // since moved on, and ends a part under the team.
+      _onPlaybackComplete = null;
+      _onPlaybackFailed = null;
       _timers.remove('playback')?.cancel();
       unawaited(_playback.stop());
     }
-    _anotarOQueFoiOuvido();
     unawaited(_voice.stop());
     state = state.copyWith(
       btTrechoTocando: false,
@@ -2904,6 +2915,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// already told as one new stretch — their own telling, given back a second time, which
   /// is the failure [_walkTheCursorBack] exists to undo.
   void _tocarParteDaRetro(int parte, {bool doComeco = false}) {
+    // Every way a part goes in the air passes here — the crossing at a boundary, the
+    // last listening of a checked passage, the next part, the landing on one nobody
+    // heard — and none of them may start it under the line the Guide is still saying.
+    _silenceTheRoom();
     _parteTocando = parte;
     _trechoStart = _ondeParouNesteArquivo(parte);
     _desdeMs = 0;
@@ -2940,6 +2955,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           state = state.copyWith(btClipRodando: false);
           return;
         }
+        // Never running, so nothing of it was heard: the span the room opened for this
+        // part is dropped rather than closed, or a part the player refused to open
+        // would travel to the room reported as listened to from its own beginning.
+        state = state.copyWith(btClipRodando: false);
         _silenceTheRoom();
         state = state.copyWith(
           stage: SalaStage.ensaio,
@@ -3074,13 +3093,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.stage != SalaStage.retro) return;
     if (!state.btTrechoTocando) return;
     if (state.needsPerson || state.offline) return;
+    // Where the team is hearing it, read before the room goes quiet: a stop leaves the
+    // playhead answering for the place the clip opened at, and the division would fall
+    // at the beginning of the stretch instead of under their finger.
+    final at = _playback.position;
     _silenceTheRoom();
     final sessionId = state.sessionId;
     final trecho = state.btFindingTrecho;
     final named = trecho?.segmentId;
     if (sessionId == null || trecho == null || named == null) return;
 
-    final at = _playback.position;
     final epoch = _epoch;
     try {
       final told = await _room.divideSegment(sessionId, named, at: at);
@@ -3285,7 +3307,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.stage != SalaStage.retro) return;
     if (state.btPhase != BtPhase.playing || !state.btParteFronteira) return;
     if (state.needsPerson || state.offline) return;
-    _silenceTheRoom();
     _tocarParteDaRetro(_parteTocando + 1);
   }
 
