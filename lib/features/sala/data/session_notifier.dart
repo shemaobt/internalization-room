@@ -955,7 +955,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(_networkWatch?.cancel());
     _networkWatch = null;
     final epoch = _epoch;
-    unawaited(_takes.flush().then((_) {
+    final queue = _takes;
+    unawaited(queue.flush().then((_) async {
+      if (epoch != _epoch) return;
+      await _adoptTheNames(queue);
       if (epoch == _epoch) unawaited(_countUnsent());
     }));
     state = state.copyWith(voice: VoiceState.invite);
@@ -2467,25 +2470,32 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(_recorder.delete(path));
   }
 
-  /// Answers what the room called this recording, or null while it has not answered.
-  Future<String?> _guard(
+  /// The rehearsal recordings still waiting for the room to name them, by the row that
+  /// carries each one.
+  ///
+  /// A row that did not land on the flush its keep ran — refused, or held behind an
+  /// earlier recording of its own part — lands on a later one, and the take has to learn
+  /// its name then. Kept by row and not by scope, for the reason `takeIdOf` gives.
+  final Map<String, String> _semNome = {};
+
+  Future<void> _guard(
     String path, {
     required String kind,
     required String scope,
     int? passNumber,
     int? chunkIndex,
   }) async {
-    if (_gone) return null;
+    if (_gone) return;
     final queue = _takes;
     final sessionId = state.sessionId;
     final audio = File(path);
-    if (!await audio.exists()) return null;
+    if (!await audio.exists()) return;
     if (sessionId == null) {
       // The room lost the session — a 404 clears it — and a take has nowhere to go
       // without one. The bead had already been filled by `takeKeep`, so this returned in
       // silence and the recording read as delivered.
       _sayARecordingIsStranded();
-      return null;
+      return;
     }
     final PendingTake linha;
     try {
@@ -2502,37 +2512,40 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // unhandled async error behind an `unawaited`: the screen kept its beads and the
       // room went on as if the recording were queued.
       _sayARecordingIsStranded();
-      return null;
+      return;
     }
+    if (kind == 'ensaio') _semNome[linha.id] = path;
     await _countUnsent();
     await queue.flush();
     await _countUnsent();
-    if (kind != 'ensaio') return null;
-    return _adoptTheName(queue, linha.id, path);
+    await _adoptTheNames(queue);
   }
 
-  /// Take back the name the room gave a rehearsal recording.
+  /// Take back the names the room gave the rehearsal recordings this tablet made.
   ///
   /// A told-back stretch is a slice of one recording and says which, and this is the only
-  /// moment that name is said for a recording this tablet made. A rehearsal whose files
+  /// moment those names are said for recordings this tablet made. A rehearsal whose files
   /// are not here any more is fetched back from the room, and those parts arrive already
   /// named by it, so there is nothing to adopt for them.
   ///
+  /// Every flush, not only the one the keep ran: a recording the room refused, or one
+  /// held behind an earlier recording of its own part, lands later, and a part still
+  /// nameless sends every stretch told over it up as a telling of the whole passage.
+  ///
   /// The name goes to the file it was given for, never to every take of the scope: a part
-  /// recorded again shares its scope with the recording it replaced, and the outbox row
-  /// is what tells the two apart.
-  Future<String?> _adoptTheName(
-    TakeUploadQueue queue,
-    String linha,
-    String arquivo,
-  ) async {
-    final id = await queue.takeIdOf(linha);
-    if (id == null || _gone) return null;
-    state = state.copyWith(keptTakes: [
-      for (final take in state.keptTakes)
-        if (take.path == arquivo) take.withTakeId(id) else take,
-    ]);
-    return id;
+  /// recorded again shares its scope with the recording it replaced, and the row is what
+  /// tells the two apart.
+  Future<void> _adoptTheNames(TakeUploadQueue queue) async {
+    for (final linha in _semNome.keys.toList()) {
+      final id = await queue.takeIdOf(linha);
+      if (_gone) return;
+      if (id == null) continue;
+      final arquivo = _semNome.remove(linha);
+      state = state.copyWith(keptTakes: [
+        for (final take in state.keptTakes)
+          if (take.path == arquivo) take.withTakeId(id) else take,
+      ]);
+    }
   }
 
   Future<void> refreshUnsent() => _countUnsent();
