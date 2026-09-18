@@ -61,11 +61,25 @@ session turn and asks no restart. Parts already kept may stay on disk; they are 
 written into the row. The way out is the one ADR 0019 names, and the next opening tries
 again and lands the team where they stopped.
 
+A link that is merely down calls for a person here too, rather than showing the offline
+circle the rest of the room answers `RoomUnavailable` with. The ticket names it — "room
+unavailable, timeout, one part of three" — as one case with one answer, and the reason to
+keep it one is that the team is standing in front of a passage they have worked on, and a
+room with no written word cannot tell them that half of it is here and the rest is not. A
+facilitator can.
+
+The two answers that retire a session — no such session, no such passage — are not fetch
+failures and do not halt. This is the first call that names the remembered session on a
+resume, so they arrive here now, and they go on to the handlers that start the passage
+clean: swallowed, every opening would ask a dead session for a rehearsal and call a person
+with nothing to resolve, which is the dead end ADR 0019 forbids.
+
 **The row is rewritten only with the recordings the room gave**, never without them
 because a file is missing.
 
-The restart of the telling-back is retired: its route, its answer and the branch that
-called it are gone, and nothing else called it.
+The restart of the telling-back is retired on this tablet: the branch that called it, its
+client route and its answer are gone, and nothing else called it. The server's route stays
+where it is, now with no caller.
 
 ## Consequences
 
@@ -82,5 +96,15 @@ the team listens again before *terminei* — the same rule a part recorded again
 
 A fetched part carries the room's own take id and no **Outbox** row, which is the shape
 `_pathForTrecho` already resolves. Nothing is queued for it: it is already in the room.
+
+Numbering by place and ADR 0022's placement read the same fact two ways, and they disagree
+the moment the room lists a rehearsal recording it does not number: the placement resolves
+a stretch by the room's ordinal against a scope name this now numbers by position, so every
+part after the unnumbered one is one place off. No tablet produces such a listing — a
+rehearsal take goes up with its number — and reconciling them means rewriting the placement
+ADR 0022 just settled, so it is left written down here rather than half-changed.
+
+A fetch that failed leaves its parts on disk under names the row never learned, so the next
+attempt fetches them again, over the link that failed.
 
 A resume whose files are all here asks the room nothing, exactly as before.

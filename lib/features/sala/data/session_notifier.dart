@@ -1674,8 +1674,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ensaio: EnsaioStatus.idle,
       voice: VoiceState.invite,
       keptTakes: takes,
-      // Counted among the rehearsal's own parts — `here` can also carry a correction's
-      // own take, kept beside the parts but not one of them.
+      // Counted among the rehearsal's own parts — a row read off the tablet can also
+      // carry a correction's own take, kept beside the parts but not one of them.
       takes: takes.where((take) => KeptScope.isParte(take.scopeId)).length,
       ensaioPass: waiting.pass,
     );
@@ -1711,6 +1711,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// Null when the room could not hand the rehearsal over — the listing, one part's audio
   /// or the disk. Nothing is written for it: the resume point stays exactly as it was and
   /// the next opening tries again.
+  ///
+  /// Except for a room that has no such session or no such passage any more. This is the
+  /// first call that names the remembered session on a resume, so the two answers that
+  /// retire a session arrive here now, and swallowed they would make every opening ask a
+  /// dead session for a rehearsal and call a person who has nothing to resolve. They go
+  /// to the handlers that already start the passage clean.
   Future<List<KeptTake>?> _asPartesDaSala(
     ResumePoint waiting,
     List<KeptTake> aqui,
@@ -1719,6 +1725,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final List<TakeView> guardadas;
     try {
       guardadas = await _room.takesOf(waiting.sessionId);
+    } on SessionGone {
+      rethrow;
+    } on PassageShut {
+      rethrow;
     } on Exception {
       return null;
     }
@@ -1749,6 +1759,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         );
         if (bytes.isEmpty) return null;
         arquivo = await _recorder.keepBytes(bytes, '$escopo-${corrente.takeId}');
+      } on SessionGone {
+        rethrow;
+      } on PassageShut {
+        rethrow;
       } on Exception {
         return null;
       }

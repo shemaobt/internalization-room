@@ -50,11 +50,12 @@ A resume point whose recordings are not on this tablet any more fetches the room
 parts and lands the team where they stopped, and the row is then rewritten naming the files
 that arrived. A fetch that cannot be finished calls for a person and leaves the row exactly
 as it was, so the next opening tries again; it is never rewritten without its takes, which
-would leave the Rehearsal the room is holding out of the team's reach for good. ADR 0023
-has the whole of it. The row is never dropped either, because the session identifier lives
-only there, and dropping it would abandon that session on the server the moment the team
-closed the app before reaching the Rehearsal. That is also why a resume point that cannot
-be written speaks. It shares a
+would leave the Rehearsal the room is holding out of the team's reach for good. A room that
+holds no Rehearsal at all is neither: nothing is fetched, the passage opens at the
+Conversation, and the row is left alone. ADR 0023 has the whole of it. The row is never
+dropped either, because the session identifier lives only there, and dropping it would
+abandon that session on the server the moment the team closed the app before reaching the
+Rehearsal. That is also why a resume point that cannot be written speaks. It shares a
 disk with the outbox, so it borrows the outbox's stranded-recording line rather than adding
 a second one, and that line is guarded to play once per session so a failing disk never
 becomes a chant. A resume file that exists but cannot be parsed is never used as the base of

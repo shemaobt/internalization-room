@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -111,7 +112,10 @@ Future<_Retomada> _reabrir(
   final sala = container.read(salaSessionProvider.notifier);
   await sala.abrirEscolha();
   await settle();
-  await sala.goConversa(pericope: 'P01');
+  // Not awaited: a room that keeps the tablet waiting — a held measurement, a clip
+  // that never lands — is a case these tests have to be able to look at while it is
+  // still waiting. Every one of them reads the room through `waitFor` anyway.
+  unawaited(sala.goConversa(pericope: 'P01'));
   await settle();
   return _Retomada(harness, container, nomeados, jsonEncode(linha.toJson()));
 }
@@ -124,7 +128,7 @@ Future<_Retomada> _reabrirDeNovo(_Retomada antes) async {
   final sala = container.read(salaSessionProvider.notifier);
   await sala.abrirEscolha();
   await settle();
-  await sala.goConversa(pericope: 'P01');
+  unawaited(sala.goConversa(pericope: 'P01'));
   await settle();
   return _Retomada(antes.harness, container, antes.nomeados, antes.linhaAntes);
 }
@@ -329,6 +333,25 @@ void main() {
     );
   });
 
+  test('uma sessao que a sala esqueceu recomeca limpa, nao para para sempre',
+      () async {
+    final harness = SalaHarness()..room.failTakesWith = const SessionGone();
+
+    final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
+    await waitFor(
+      'a sala abrir a passagem de novo',
+      () => it.harness.room.calls.contains('createSession'),
+    );
+
+    expect(it.estado.needsPerson, isFalse,
+        reason: 'a sessão que a linha nomeia não existe mais no servidor, e '
+            'guardar o ponto seria pedir a mesma sessão morta em toda '
+            'abertura: a passagem ficaria parada para sempre, chamando uma '
+            'pessoa que não tem o que resolver (ADR 0019)');
+    expect(it.linha!.sessionId, isNot(_sessao),
+        reason: 'a linha passa a nomear a sessão nova');
+  });
+
   test('a linha nunca e reescrita sem as gravacoes', () async {
     for (final falha in [null, 'lista', 'parte']) {
       final harness = SalaHarness();
@@ -428,19 +451,21 @@ void main() {
       harness,
       parouEm: SalaStage.ensaio,
       partes: 2,
+      // Na ordem em que a sala responde: o ordinal sobe e o que não tem número
+      // vem primeiro, que é o que `takes_of` diz por escrito.
       naSala: [
+        const TakeView(takeId: 'gravacao-2', kind: 'ensaio', scope: 'parte-2'),
         const TakeView(
           takeId: 'gravacao-1',
           kind: 'ensaio',
           scope: 'parte-1',
           ordinal: 1,
         ),
-        const TakeView(takeId: 'gravacao-2', kind: 'ensaio', scope: 'parte-2'),
       ],
     );
     await waitFor('as partes voltarem da sala', () => it.estado.partes.length == 2);
 
-    expect(_nomesDasPartes(it), ['gravacao-1', 'gravacao-2'],
+    expect(_nomesDasPartes(it), ['gravacao-2', 'gravacao-1'],
         reason: 'um ensaio que a sala não numera é a parte do lugar em que a '
             'lista o traz: fora da fila das partes ele não toca nem se mede');
     expect(it.estado.btFimDasPartesMs, [10000, 20000],
