@@ -44,10 +44,10 @@ class SegmentView {
 
 /// One recording the room is holding for a session.
 ///
-/// [ordinal] is the number the server holds for the take: the part's, for a rehearsal or
-/// a composed passage. A passage the room rebuilt carries the number of the recording it
-/// was rebuilt from, which is how a tablet that was not there for the rebuilding finds out
-/// which of its parts the new file answers for.
+/// [ordinal] is the number the server holds for the take, which is the part of the
+/// rehearsal it answers for. Which part a recording belongs to is the one thing the
+/// stretches cannot say, so a tablet holding a stretch addressed to a recording it does
+/// not have reads it here.
 class TakeView {
   final String takeId;
   final String scope;
@@ -76,16 +76,6 @@ class TellingAgain {
   final List<SegmentView> segments;
   final bool captured;
 
-  /// The recording of the passage the room rebuilt around the stretch just re-recorded,
-  /// when it rebuilt one.
-  ///
-  /// Every stretch that was a slice of the recording this one replaces is a slice of it
-  /// now, at the time it sits there — the room re-points them all in one place, and the
-  /// answer carries them already re-pointed. Null when nothing was rebuilt: the
-  /// correction touched no mother-tongue audio, or the rebuilding could not be done and
-  /// the correction stands on its own recording.
-  final String? composedTakeId;
-
   /// Whether the room has stopped taking corrections and wants somebody to come.
   ///
   /// The budget for retellings runs out on this route as it does on the one for telling a
@@ -98,14 +88,12 @@ class TellingAgain {
     this.segments = const [],
     this.captured = true,
     this.needsPerson = false,
-    this.composedTakeId,
   });
 
   factory TellingAgain.fromJson(Map<String, dynamic> json) => TellingAgain(
         segments: SegmentView.listFrom(json),
         captured: json['captured'] as bool? ?? true,
         needsPerson: json['needs_person'] as bool? ?? false,
-        composedTakeId: json['composed_take_id'] as String?,
       );
 }
 

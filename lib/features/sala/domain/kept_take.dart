@@ -6,11 +6,6 @@ abstract class KeptScope {
   /// Whether a scope names one of the rehearsal's own parts — never a correction's, which
   /// is a slice of one of these and not a part of the rehearsal in its own right.
   static bool isParte(String scopeId) => scopeId.startsWith('parte-');
-
-  /// What the room calls the recording of the passage it rebuilt around a correction. Its
-  /// own name on the room's side, kept here because this tablet has to recognise one
-  /// coming back to it in a session it did not rebuild.
-  static const composed = 'composed';
 }
 
 class KeptTake {

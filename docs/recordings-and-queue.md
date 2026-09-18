@@ -3,12 +3,11 @@
 ## Nothing here deletes audio a team made
 
 Every capture — conversation utterances, questions, Rehearsal takes, back-translation
-stretches — is written under the app's documents directory. A passage the server composed
-around a mend is fetched and written there too, under the composed take's own name, because
-the resume point refuses to pick a session back up unless every part's file is still on
-disk. The older recording the mend was cut out of is left beside it. That is the rule:
-audio a team recorded is never removed, and a second directory would only be a second thing
-to keep alive.
+stretches — is written under the app's documents directory. A part fetched back from the
+room lands there too, because the resume point refuses to pick a session back up unless
+every part's file is still on disk. A recording a part was replaced with is left beside the
+one it replaced. That is the rule: audio a team recorded is never removed, and a second
+directory would only be a second thing to keep alive.
 
 Capture survives interruption. A call, an alarm or another app taking the microphone pauses
 the take, and the recorder comes back on its own when the interruption ends rather than

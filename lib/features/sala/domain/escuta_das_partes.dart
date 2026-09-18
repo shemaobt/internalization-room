@@ -40,9 +40,9 @@ class _Escutada {
 /// existed, so the listening to every other part was thrown away with it.
 ///
 /// The key is the part's own file, not the name the room gives it. A part exists on this
-/// tablet before the room has answered for it, and the mend that rebuilds a part hands it
-/// a new file and a new name in the same breath — so keying by the file is what makes a
-/// mended part's listening start over by construction, with nothing to remember to clear.
+/// tablet before the room has answered for it, and a part recorded again takes a new file
+/// and a new name in the same breath — so keying by the file is what makes a re-recorded
+/// part's listening start over by construction, with nothing to remember to clear.
 /// The name is looked up when the report is drawn, and a part the room has not named yet
 /// is left out of it: listening with no subject is evidence about no recording.
 class EscutaDasPartes {

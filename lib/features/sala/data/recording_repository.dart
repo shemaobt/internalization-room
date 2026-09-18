@@ -80,7 +80,7 @@ class RecordingRepository {
   /// Keep audio that arrived from somewhere else beside the recordings this tablet made.
   ///
   /// One directory, because a part of the rehearsal is a part of the rehearsal whether the
-  /// team recorded it here or the room rebuilt it — the resume point checks every take's
+  /// team recorded it here or another tablet did — the resume point checks every take's
   /// file is still on disk before it will pick a session back up, and a second home would
   /// be a second thing to keep alive.
   Future<String> keepBytes(Uint8List bytes, String fileName) async {

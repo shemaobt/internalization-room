@@ -357,9 +357,9 @@ class RoomRepository {
   /// Every recording the room is holding for this session.
   ///
   /// Asked for the one thing the stretches cannot say: which part of the rehearsal a
-  /// recording answers for. A passage the room rebuilt is named by the stretches and by
-  /// nothing else, so a tablet opened again knows it has to fetch it and not which of its
-  /// own parts it replaces.
+  /// recording answers for. A stretch names the recording it slices and nothing else, so
+  /// a tablet picking a session back up over a recording it does not hold learns from
+  /// here which of its own parts that stretch belongs to.
   Future<List<TakeView>> takesOf(String sessionId) async {
     final response = await _send(
       () => _client.get(_uri('/sessions/$sessionId/takes'), headers: _headers),
@@ -370,7 +370,9 @@ class RoomRepository {
 
   /// Where the audio of one take is, for [fetchClip] to go and get.
   ///
-  /// The route answers a signed redirect, which the client follows on its own.
+  /// The door to the room's own copy of a part: a tablet holding the session's stretches
+  /// and none of its files fetches them through here. The route answers a signed
+  /// redirect, which the client follows on its own.
   static String takeAudioUrl(String sessionId, String takeId) =>
       '$_basePath/sessions/$sessionId/takes/$takeId/audio';
 

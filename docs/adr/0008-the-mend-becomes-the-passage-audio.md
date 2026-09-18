@@ -1,3 +1,7 @@
+---
+status: superseded by ADR-0022
+---
+
 # The mend becomes the passage audio
 
 ## Context
