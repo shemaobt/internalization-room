@@ -76,13 +76,13 @@ A part recorded again while the first recording of it is still waiting now waits
 The team is never told so — the room has no words (ADR 0014) — and the bead that says there
 is something still to send was already the way this is said.
 
-A part held behind an earlier recording of itself does not learn its name until that
-recording has left, because the name is adopted from the row the keep flushed and nothing
-adopts it again later. A stretch told over that part in the meantime takes the path a
-recording the room cannot name already had: the audio goes up as a telling of the whole
-passage and the cut counts as a failure, so the room never holds it as a stretch of that
-part. An unreachable room reached that path before this decision; a room that refused one
-upload now reaches it too, for as long as the ladder makes the team wait.
+A recording learns the room's name for it on whatever flush its own row lands, and not
+only on the one its keep ran. Holding a part behind an earlier recording of itself makes a
+take wait for a name it used to be given at once, and a part with no name sends every
+stretch told over it up as a telling of the whole passage rather than as a stretch of that
+part. The name was adopted once and never again, so a recording the room refused stayed
+nameless for good — both that and the wait this decision creates are answered by adopting
+after every flush the session runs.
 
 The pass is a wire fact the room orders by and a tablet fact the row remembers, and the two
 can drift: a manifest row still holding an upload the room already stored, a row copied to
