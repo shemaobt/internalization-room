@@ -181,9 +181,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Duration _trechoEnd = Duration.zero;
   int _parteTocando = 0;
 
-  /// Which part of the rehearsal the team came back to record again, or null when the
-  /// recording they are about to keep is a part the passage does not have yet.
-
   /// The part in the air is the one the room said nobody heard, and hearing it to its end
   /// hands the finish back.
   ///

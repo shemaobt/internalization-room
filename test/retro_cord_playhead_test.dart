@@ -318,7 +318,9 @@ void main() {
     expect(cabeca(tester), contado,
         reason: 'acabado o trecho, a cabeça volta ao chão contado, onde a '
             'tradução parou: ouvir um trecho não move o cursor de ninguém');
-    expect(container.read(salaSessionProvider).btOuvidoMs, contado);
+    expect(container.read(salaSessionProvider).btOuvidoMs, contado,
+        reason: 'e o chão contado em si não se mexeu: ouvir um trecho é ouvir, '
+            'não é contar, e o cursor de uma tradução retomada sai daqui');
     await sairDaSala(tester, harness, container);
   });
 
@@ -331,7 +333,9 @@ void main() {
 
     notifier.ouvirVozMaterna();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(cabeca(tester), greaterThan(_naCordaDe));
+    expect(cabeca(tester), greaterThan(_naCordaDe),
+        reason: 'o cenário só mede alguma coisa com a cabeça já dentro da '
+            'banda do trecho');
 
     notifier.ouvirVozMaterna();
     await tester.pump(const Duration(milliseconds: 200));
@@ -345,8 +349,11 @@ void main() {
     final voltou = cabeca(tester);
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(voltou, greaterThanOrEqualTo(_naCordaDe));
-    expect(cabeca(tester), lessThanOrEqualTo(_naCordaAte));
+    expect(voltou, greaterThanOrEqualTo(_naCordaDe),
+        reason: 'a cabeça volta para dentro da banda, e não para o chão '
+            'contado nem para o começo da parte');
+    expect(cabeca(tester), lessThanOrEqualTo(_naCordaAte),
+        reason: 'e continua sem passar do fim do lugar do trecho');
     expect(cabeca(tester), greaterThan(voltou),
         reason: 'e soltá-lo põe a cabeça a andar outra vez, de onde o recorte '
             'recomeça');
@@ -377,7 +384,9 @@ void main() {
 
     container.read(salaSessionProvider.notifier).ouvirVozMaterna();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(cabeca(tester), greaterThan(_naCordaDe));
+    expect(cabeca(tester), greaterThan(_naCordaDe),
+        reason: 'a tela tem de sair com a vigia do trecho mesmo a perguntar, '
+            'ou o caso não olha para o relógio que interessa');
 
     await sairDaSala(tester, harness, container);
     await tester.pump(const Duration(seconds: 3));

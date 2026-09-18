@@ -441,8 +441,8 @@ void main() {
 
     it.sala.gravarAParteDeNovo();
     expect(it.estado.parteARegravar, 1,
-        reason: 'qual parte a equipe veio refazer é um fato da sessão, e é por '
-            'ele que a tela do ensaio sabe o que marcar');
+        reason: 'a tela do ensaio marca a conta por este número: guardado só '
+            'no notifier, a tela não tinha como saber o que desenhar');
     it.sala.ensaioTap();
     await waitFor('a gravação começar',
         () => it.estado.ensaio == EnsaioStatus.recording);
@@ -453,12 +453,15 @@ void main() {
     await waitFor('o círculo ficar livre',
         () => it.estado.ensaio == EnsaioStatus.idle);
     expect(it.estado.parteARegravar, 1,
-        reason: 'jogar fora a tomada não desfaz a escolha da parte');
+        reason: 'jogar fora a tomada não desfaz a escolha da parte, e a marca '
+            'tem de continuar de pé para a gravação seguinte tomar o lugar '
+            'certo');
 
     await regravarAParte(it, 1);
 
     expect(it.estado.parteARegravar, isNull,
-        reason: 'e guardar gasta-a');
+        reason: 'e guardar gasta-a: de pé, a gravação seguinte viria tomar o '
+            'lugar da parte 2 outra vez');
     expect(it.partes, hasLength(3),
         reason: 'jogar fora uma tomada e gravar outra é a mesma gravação outra '
             'vez; a sala não pode esquecer qual parte a equipe veio refazer');
@@ -655,7 +658,8 @@ void main() {
     expect(byLabel('Tocar para gravar o ensaio'), findsOneWidget,
         reason: 'e o círculo volta a ser o da parte nova');
     final agora = container.read(salaSessionProvider).partes;
-    expect(agora, hasLength(3));
+    expect(agora, hasLength(3),
+        reason: 'e a gravação nova não acrescentou uma parte ao ensaio');
     expect(agora[1].path, isNot(antes[1].path),
         reason: 'a gravação nova ficou no lugar da parte 2 (ADR 0020)');
   });
