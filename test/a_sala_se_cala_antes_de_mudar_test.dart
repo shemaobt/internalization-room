@@ -176,6 +176,7 @@ void _rodaATabela(String estacao, List<_Linha> tabela, List<String> daMatriz) {
 
 /// The back-translation's gestures, copied from the ticket's matrix.
 const _matrizDaRetro = [
+  'a aprovação',
   'terminei',
   'o círculo, capturando',
   'o círculo, nos achados',
@@ -217,6 +218,23 @@ void main() {
   _rodaATabela(
     'a retro se cala antes de mudar',
     [
+      _linha('a aprovação', () async {
+        final cena = await _prontoParaTerminei();
+        await cena.sala.finishBackTranslation();
+        await waitFor(
+          'o veredito limpo chegar',
+          () => _estado(cena).btPhase == BtPhase.conferida,
+        );
+        cena.sala.ouvirGravacao();
+        await waitFor(
+          'a última escuta tocar',
+          () => cena.harness.playback.sounding,
+        );
+        return cena;
+      }, (cena) async {
+        await cena.sala.aprovarRascunhoFinal();
+        await settle();
+      }),
       _linha('terminei', _prontoParaTerminei, (cena) async {
         await cena.sala.finishBackTranslation();
       }),

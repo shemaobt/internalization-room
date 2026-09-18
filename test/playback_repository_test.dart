@@ -406,7 +406,13 @@ class _Duplo extends Fake implements AudioPlayer {
     Duration? initialPosition,
   }) async {
     carregados.add('recorte');
-    await segurados['recorte']?.future;
+    if (_abertos > 0) sobrepos = true;
+    _abertos++;
+    try {
+      await segurados['recorte']?.future;
+    } finally {
+      _abertos--;
+    }
     return length;
   }
 

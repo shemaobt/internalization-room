@@ -66,7 +66,24 @@ closes a capture. There the hold is what silences it, and it is what keeps the c
 The Guide is stopped either way. The silence takes one flag, named for that fact.
 
 **The microphone opens on a silent room**: in the rehearsal, in the back-translation and in
-the conversation, the silence runs before the recorder starts.
+the conversation, the silence runs before the recorder starts. **A part goes in the air on
+a silent room too**, and the silence sits inside the one method that puts one there, so the
+crossing at a part's boundary, the last listening of a checked passage, the next part and
+the landing on a part nobody heard all pass through it — the screen's crossing is a branch
+of the listen button, not the `proximaParte` the ticket's matrix names, and that branch was
+the first symptom the ticket reports.
+
+**A stop is not a pause, and the room reads the playhead before it stops.** just_audio
+extrapolates `position` only while the player is playing: `pause()` writes the playhead
+down before it stops playing, `stop()` does not, so a read taken after a stop answers with
+the stale place the clip was opened at. The division point of a stretch is read above the
+silence, and the span of the **Listening ledger** is closed above it too. In the hold branch
+the order is the old one, because there the pause has already frozen the playhead.
+
+**What the clip owed the room dies with the clip.** A stop clears the playback callbacks,
+as leaving a passage does. Left armed, the listening ceiling of a part that was still
+loading fires a whole clip later, on a room that has long since moved on, and ends a part
+under the team.
 
 **A hold that arrives during a load wins over the load.** `PlaybackRepository` counts the
 holds asked of it and reads that count after the awaited load: when a hold arrived while
@@ -86,13 +103,20 @@ circle tap does nothing in `playing`, `thinking` and `conferida`, and silences o
 Thirty gestures are re-routed through one line each; the ledger's rules, the toggles'
 hold and resume, the ceiling, the **Outbox** and the **Resume point** are untouched.
 
-The playback double gained a stop counter and now clears what it answers for `playingLength`
-when it is stopped, as the real one does. That is what turns the rejected option above from
-an argument into a measurement: a blanket stop now fails four tests that were green before.
+The playback double gained a stop counter, now clears what it answers for `playingLength`
+when it is stopped, and now answers `position` with the place the clip was opened at once
+it has been stopped — the three ways it used to flatter the room, as the real one does.
+That is what turns the rejected option above from an argument into a measurement: a blanket
+stop fails four tests that were green before, and reading a playhead after a stop fails two
+more.
 
 The harness keeps one ordered log of sound — the two players and the recorder write to it —
 so a test asserts that the room went quiet before its next sound without one double reading
 another, and without asserting which private method ran.
+
+`proximaParte` and `retellChunk` have no caller in the presentation layer and are reached
+only from tests; they keep their silence and their rows, because the ticket's matrix names
+them and a button may be wired to either tomorrow.
 
 Two tables, one per station, list the ticket's matrix by name and fail if a row is missing,
 so a transition added later that does not silence is a red test rather than a bug the team
