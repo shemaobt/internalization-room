@@ -1,0 +1,99 @@
+# A gesture that moves the room silences it first, in one place
+
+## Context
+
+The room has two independent players: the rehearsal's (`PlaybackRepository`, one sounding
+instance) and the **Guide**'s voice (`FacilitatorVoiceService`, its own instance, its lines
+serialised against each other). Neither touches the other, so two sounds at once are always
+a **Take** under a line or a line under a take.
+
+Only `_clearAll` silenced both, and it is called by the gestures that leave a passage. Every
+phase change inside the **Back-translation** was a bare `copyWith`. So the approval press
+played Marcia's approved **Process line** over the last listening; the circle tap in the
+findings phase repeated the verdict over the **Stretch** that was sounding; the next
+**Part** started under the one before it; the failed-part fallback to the **Rehearsal**
+silenced nothing; and no microphone path stopped the Guide, so the room listened to the
+team while still talking to them.
+
+A second defect sat under the first. The retro's hold on a clip is a pause, fired
+unawaited. just_audio's `pause()` opens with `if (!playing) return;`, and during a load
+nothing is playing yet — so a hold issued while a clip was still opening was a silent
+no-op, and the `play()` waiting behind the load started the very clip the team had just
+stopped.
+
+ADR 0019 says no station of the room is a dead end; ADR 0021 says a stretch plays the place
+it sits in.
+
+## Considered Options
+
+Silencing inside each gesture. Rejected: it is the defect. Thirty gestures move the room,
+each one would carry its own two stops, and the ones that were added were added one bug at
+a time.
+
+One shared player for the Guide and the rehearsal, so a new source always replaces the old
+one. Rejected: the **Conversation** and the rehearsal need the two independent, and the
+voice's serialisation would queue the rehearsal behind whatever line was being said.
+
+Awaiting the silence before every sound. Rejected: latency on thirty gestures for an order
+the player already guarantees — just_audio flips `playing` synchronously, and a stop
+interrupts a load rather than queueing behind it.
+
+Stopping the rehearsal player on every transition, without exception. Rejected on evidence:
+`PlaybackRepository.stop()` clears `_openedLength`, which is the length the listening
+ceiling counts down and the length `_fimDeParte` measures a part's end by. Three gestures
+come back to the very part they leave — the scissors, telling a stretch again, and the
+circle that closes a capture — and stopped, the part they return to would be measured by a
+player that no longer answers for it: the ceiling would fall back to the generic six
+minutes and the cord would shrink under the team. The playback double hid this: its `stop`
+kept answering `playingLength` for a clip it had stopped, so the suite read green over it.
+
+## Decision
+
+**Every gesture that moves the room to another action silences it first, through one
+private method of the notifier that every transition passes.** It closes the open span of
+the **Listening ledger** exactly the way a hold does, stops the Guide's voice, silences the
+rehearsal player and clears every flag that says something is sounding, so the next tap
+finds nothing playing. It never cancels the room's timers, never bumps the epoch and never
+touches the recorder: those belong to `_clearAll`, which leaves a passage rather than moving
+inside one. `_clearAll` calls it instead of its own two stops.
+
+**Only a play/pause toggle on the sound itself is exempt** (ENG-742): a second tap on the
+same listen button pauses, a third resumes, and neither counts as a transition.
+
+**The rehearsal player is stopped, except where the gesture comes back to the same part
+from where it stopped** — the scissors, telling a stretch again, and the circle tap that
+closes a capture. There the hold is what silences it, and it is what keeps the clip open.
+The Guide is stopped either way. The silence takes one flag, named for that fact.
+
+**The microphone opens on a silent room**: in the rehearsal, in the back-translation and in
+the conversation, the silence runs before the recorder starts.
+
+**A hold that arrives during a load wins over the load.** `PlaybackRepository` counts the
+holds asked of it and reads that count after the awaited load: when a hold arrived while
+the source was opening, the open does not play and leaves the player stopped. The opening
+still announces itself with the length it measured, because the listening ceiling and the
+measure of the part in the air both hang off that announcement and a clip that never
+announces itself strands them. A `PlayerInterruptedException` raised by the load because of
+our own stop is caught at that one boundary and read as the clip not playing — never as
+this tablet failing to play the team's own voice, which calls for a person.
+
+A tap the room ignores is not a gesture that moves the room, and silences nothing: the
+circle tap does nothing in `playing`, `thinking` and `conferida`, and silences only in
+`capturing` and `findings`.
+
+## Consequences
+
+Thirty gestures are re-routed through one line each; the ledger's rules, the toggles'
+hold and resume, the ceiling, the **Outbox** and the **Resume point** are untouched.
+
+The playback double gained a stop counter and now clears what it answers for `playingLength`
+when it is stopped, as the real one does. That is what turns the rejected option above from
+an argument into a measurement: a blanket stop now fails four tests that were green before.
+
+The harness keeps one ordered log of sound — the two players and the recorder write to it —
+so a test asserts that the room went quiet before its next sound without one double reading
+another, and without asserting which private method ran.
+
+Two tables, one per station, list the ticket's matrix by name and fail if a row is missing,
+so a transition added later that does not silence is a red test rather than a bug the team
+hears.

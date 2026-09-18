@@ -318,9 +318,45 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(clearLastSpoken: true);
     _onPlaybackComplete = null;
     _onPlaybackFailed = null;
-    unawaited(_voice.stop());
-    unawaited(_playback.stop());
+    _silenceTheRoom();
     unawaited(_recorder.discard());
+  }
+
+  /// What every gesture that moves the room to another action does first: it silences
+  /// the rehearsal player and the Guide's voice, writes down what the team heard, and
+  /// clears every flag that says something is sounding, so the next tap finds nothing
+  /// playing. Only a play/pause toggle on the sound itself is exempt.
+  ///
+  /// One place, because the room has two independent players and thirty gestures that
+  /// move it: silencing inside each gesture is what left the last sound playing under
+  /// the next one.
+  ///
+  /// [holdTheClip] for the two gestures that come back to the very part they leave — the
+  /// scissors and telling a stretch again. A hold silences the rehearsal just as well and
+  /// is what keeps the clip open: stopped, the room loses the length that the listening
+  /// ceiling and the end of the part are both measured against.
+  ///
+  /// It never cancels the room's timers, never bumps the epoch and never touches the
+  /// recorder: those belong to [_clearAll], which leaves a passage rather than moving
+  /// inside one.
+  void _silenceTheRoom({bool holdTheClip = false}) {
+    if (holdTheClip) {
+      _holdClip();
+    } else {
+      _clipHeld = false;
+      _timers.remove('playback')?.cancel();
+      unawaited(_playback.stop());
+    }
+    _anotarOQueFoiOuvido();
+    unawaited(_voice.stop());
+    state = state.copyWith(
+      btTrechoTocando: false,
+      btTrechoPausada: false,
+      btRetroTocando: false,
+      btRetroPausada: false,
+      playPing: false,
+      takePaused: false,
+    );
   }
 
   String _stamp() => DateTime.now().millisecondsSinceEpoch.toString();
@@ -1295,7 +1331,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // including the one that retries the network. A finger on the ruler would have killed
     // the way back from offline. Cutting the line short is enough, and `_dizerAOferecida`
     // checks for itself that the finger has not moved on.
-    unawaited(_voice.stop());
+    _silenceTheRoom();
     state = state.copyWith(aOferecer: at, voice: VoiceState.invite);
   }
 
@@ -1892,6 +1928,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _startListening(String fileName) {
+    _silenceTheRoom();
     _recordingStarting = true;
     _listeningSince = DateTime.now();
     // The line is kept, not dropped. `canHearAgain` already hides the button for every
@@ -2230,6 +2267,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.needsPerson) return;
     switch (state.ensaio) {
       case EnsaioStatus.idle:
+        _silenceTheRoom();
         state = state.copyWith(ensaio: EnsaioStatus.recording);
         unawaited(_recordOrBlock('ensaio_tomada_${_stamp()}'));
       case EnsaioStatus.recording:
@@ -2292,6 +2330,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void takeRedo() {
+    _silenceTheRoom();
     final path = _pendingTakePath;
     if (path != null) unawaited(_recorder.delete(path));
     _pendingTakePath = null;
@@ -2811,6 +2850,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// positions inside the file in the air: the ledger is never handed a place on the cord.
   void _pararOClipe({int? ate}) {
     _holdClip();
+    _anotarOQueFoiOuvido(ate: ate);
+  }
+
+  /// Write down how far the rehearsal got, and close the span the ledger has open on the
+  /// part in the air. Shared by a hold and by the one silence, so a transition closes a
+  /// span exactly the way a hold does.
+  void _anotarOQueFoiOuvido({int? ate}) {
     var ondeParou = state.btOuvidoMs;
     if (state.btClipRodando) {
       final fim = ate ?? _playback.position.inMilliseconds;
@@ -2893,6 +2939,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           state = state.copyWith(btClipRodando: false);
           return;
         }
+        _silenceTheRoom();
         state = state.copyWith(
           stage: SalaStage.ensaio,
           ensaio: EnsaioStatus.idle,
@@ -2982,6 +3029,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.btPhase != BtPhase.playing) return;
     if (state.needsPerson || state.offline) return;
     if (state.btTrechoTocando) return;
+    _silenceTheRoom(holdTheClip: true);
     // While telling a stretch again, its bounds are the ones the finding named. Reading the
     // position instead wrote a place inside the excerpt into a number that means a place in
     // the whole rehearsal, and every stretch after it inherited the lie.
@@ -2999,7 +3047,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (_playback.position < _trechoStart) return;
       _trechoEnd = _playback.position;
     }
-    _pararOClipe();
     _startChunkCapture();
   }
 
@@ -3026,6 +3073,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.stage != SalaStage.retro) return;
     if (!state.btTrechoTocando) return;
     if (state.needsPerson || state.offline) return;
+    _silenceTheRoom();
     final sessionId = state.sessionId;
     final trecho = state.btFindingTrecho;
     final named = trecho?.segmentId;
@@ -3038,7 +3086,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (epoch != _epoch) return;
       final trechos = _trechosFrom(told);
       if (trechos.isEmpty) return;
-      _holdClip();
       state = state.copyWith(
         btTrechos: trechos,
         btChunkPasses: [for (final segment in told) segment.passNumber],
@@ -3077,7 +3124,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.offline) return;
     if (state.btTrechoTocando) return;
     if (trecho.segmentId == null) return;
-    _pararOClipe();
+    _silenceTheRoom(holdTheClip: true);
     _trechoTraduzidoDeNovo = trecho;
     // The short way's whole gesture is this one: choosing it opens the microphone on the
     // stretch, and that is where its mend starts. Conditioned rather than asserted,
@@ -3237,6 +3284,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.stage != SalaStage.retro) return;
     if (state.btPhase != BtPhase.playing || !state.btParteFronteira) return;
     if (state.needsPerson || state.offline) return;
+    _silenceTheRoom();
     _tocarParteDaRetro(_parteTocando + 1);
   }
 
@@ -3251,8 +3299,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case BtPhase.playing:
         break;
       case BtPhase.capturing:
+        // Held, not stopped: the stretch the team has just told ends inside the part
+        // that is still open behind it, and the next listening carries that same part
+        // on. Stopped, the room loses the length the end of the part is measured by.
+        _silenceTheRoom(holdTheClip: true);
         unawaited(_finishChunkCapture());
       case BtPhase.findings:
+        _silenceTheRoom();
         unawaited(_repeatTheFinding());
       case BtPhase.thinking:
       case BtPhase.conferida:
@@ -3427,6 +3480,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> finishBackTranslation() async {
     if (!state.canFinishBackTranslation) return;
+    _silenceTheRoom();
     final sessionId = state.sessionId;
     if (sessionId == null) {
       _haltForAPerson();
@@ -3538,6 +3592,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.btPhase != BtPhase.conferida) return;
     if (state.needsPerson || state.offline) return;
     if (_aprovando) return;
+    _silenceTheRoom();
     final sessionId = state.sessionId;
     if (sessionId == null) {
       _haltForAPerson();
@@ -3941,6 +3996,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     final trecho = state.btFindingTrecho;
     if (trecho == null) return;
+    _silenceTheRoom();
     _leadThemToTheTrecho(trecho);
   }
 
@@ -3965,6 +4021,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(btRetroTocando: false, btRetroPausada: false);
     }
 
+    _silenceTheRoom();
     state = state.copyWith(btRetroTocando: true);
     _play(path, onComplete: quiet, onFailed: quiet);
   }
@@ -3986,6 +4043,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _trechoStart = trecho.from;
     _trechoEnd = trecho.to;
     _traduzindoDeNovo = true;
+    _silenceTheRoom();
     state = state.copyWith(btPhase: BtPhase.playing, voice: VoiceState.invite);
     _leadThemToTheTrecho(trecho);
   }
@@ -4015,6 +4073,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // and there is no way to say so without words. Carried on, the keep would send a
       // recording up under a part number the rehearsal does not have, and the team would
       // have recorded for nothing without the room ever saying a thing.
+      _silenceTheRoom();
       _haltForAPerson();
       return;
     }

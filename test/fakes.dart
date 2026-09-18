@@ -81,6 +81,12 @@ Coverage coverage({int engaged = 0, int surfaced = 0}) => Coverage(
     );
 
 class FakeVoice implements FacilitatorVoiceService {
+  /// The room's one ordered log of sound, shared with the other doubles so a test can
+  /// read what happened before what without either double reading the other.
+  final List<String> sounds;
+
+  FakeVoice({List<String>? sounds}) : sounds = sounds ?? [];
+
   final List<String> played = [];
   final List<String> assets = [];
   final List<String> fetched = [];
@@ -102,9 +108,15 @@ class FakeVoice implements FacilitatorVoiceService {
     return held == null ? Future.value(succeeds) : held.future;
   }
 
+  /// Called the instant a line starts, so a test can read what else was sounding then —
+  /// which is the whole of what "the Guide never speaks over the rehearsal" means.
+  void Function()? aoFalar;
+
   @override
   Future<bool> play(String url) {
     played.add(url);
+    sounds.add('voice:line');
+    aoFalar?.call();
     if (refuses.contains(url)) return Future.value(false);
     return _answer();
   }
@@ -137,6 +149,8 @@ class FakeVoice implements FacilitatorVoiceService {
   @override
   Future<bool> playAsset(String assetPath) {
     assets.add(assetPath);
+    sounds.add('voice:asset');
+    aoFalar?.call();
     if (refuses.contains(assetPath)) return Future.value(false);
     return _answer();
   }
@@ -145,13 +159,22 @@ class FakeVoice implements FacilitatorVoiceService {
   int stops = 0;
 
   @override
-  Future<void> stop() async => stops++;
+  Future<void> stop() async {
+    stops++;
+    sounds.add('voice:stop');
+  }
 
   @override
   Future<void> dispose() async {}
 }
 
 class FakeRecorder implements RecordingRepository {
+  /// The same ordered log the players write to: the microphone opening on a silent room
+  /// is an order between two doubles, not a pair of counters.
+  final List<String> sounds;
+
+  FakeRecorder({List<String>? sounds}) : sounds = sounds ?? [];
+
   final StreamController<bool> _interruptions =
       StreamController<bool>.broadcast();
   final Directory home = Directory.systemTemp.createTempSync('sala-gravacoes');
@@ -180,6 +203,7 @@ class FakeRecorder implements RecordingRepository {
 
   @override
   Future<Capture> start(String fileName) async {
+    sounds.add('recorder:start');
     final held = _holdingStart;
     if (held != null) await held.future;
     captures++;
@@ -237,6 +261,10 @@ class FakeRecorder implements RecordingRepository {
 }
 
 class FakePlayback implements PlaybackRepository {
+  final List<String> sounds;
+
+  FakePlayback({List<String>? sounds}) : sounds = sounds ?? [];
+
   final StreamController<void> _completions = StreamController<void>.broadcast();
   final StreamController<void> _failures = StreamController<void>.broadcast();
   final StreamController<void> _openings = StreamController<void>.broadcast();
@@ -341,8 +369,12 @@ class FakePlayback implements PlaybackRepository {
     return lengths[path] ?? measured;
   }
 
+  /// Whether a clip is open, which is what [playingLength] answers for. [length] is how
+  /// long the file is — the test's fixture — and it survives a stop the way a file does.
+  bool _aberto = false;
+
   @override
-  Duration? get playingLength => length;
+  Duration? get playingLength => _aberto ? length : null;
 
   @override
   Duration get position => at;
@@ -351,6 +383,7 @@ class FakePlayback implements PlaybackRepository {
   Future<void> play(String path, {Duration from = Duration.zero}) {
     played.add(path);
     playedFrom.add(from);
+    sounds.add('playback:play');
     return _soundUntilItStops(from);
   }
 
@@ -358,6 +391,7 @@ class FakePlayback implements PlaybackRepository {
   Future<void> playRange(String path, Duration from, Duration to) {
     played.add(path);
     ranges.add('${from.inMilliseconds}-${to.inMilliseconds}');
+    sounds.add('playback:play');
     // At nought, not at [from]: a clip answers its position counted from its own start,
     // which is the very reason the resumed telling-back is not built on one.
     return _soundUntilItStops(Duration.zero);
@@ -366,6 +400,7 @@ class FakePlayback implements PlaybackRepository {
   @override
   Future<void> pause() async {
     paused = true;
+    sounds.add('playback:pause');
     _stopSounding();
   }
 
@@ -378,8 +413,21 @@ class FakePlayback implements PlaybackRepository {
     _startWalking();
   }
 
+  /// How many times the room told this player to stop, whatever it was playing.
+  int stops = 0;
+
   @override
-  Future<void> stop() async => _stopSounding();
+  Future<void> stop() async {
+    stops++;
+    sounds.add('playback:stop');
+    // As the real one does. `_openedLength` is cleared with the playback it described —
+    // the safety ceiling for the next clip was computed from the length of the last —
+    // and a pause is deliberately not a stop here: it keeps the clip open. A double that
+    // went on answering for a clip it had stopped hid every transition that stops a part
+    // the room means to come back to.
+    _aberto = false;
+    _stopSounding();
+  }
 
   void finishPlayback() {
     _completions.add(null);
@@ -399,6 +447,7 @@ class FakePlayback implements PlaybackRepository {
     scheduleMicrotask(() async {
       await held?.future;
       at = from;
+      _aberto = true;
       _openings.add(null);
       if (_playing != playing) return;
       _sounding = true;
@@ -1459,10 +1508,16 @@ Future<void> letTheRehearsalReachTheRoom(WidgetTester tester) async {
 
 class SalaHarness {
   final Directory takesHome = Directory.systemTemp.createTempSync('sala-tomadas');
-  final FakeVoice voice = FakeVoice();
+
+  /// Everything that made or stopped a sound, in the order it happened: `playback:play`,
+  /// `playback:pause`, `playback:stop`, `voice:line`, `voice:asset`, `voice:stop`,
+  /// `recorder:start`. A gesture that moves the room has to silence it *before* its own
+  /// sound, and an order is the only way to read that without one double reading another.
+  final List<String> sounds = [];
+  late final FakeVoice voice = FakeVoice(sounds: sounds);
   final FacilitatorVoiceService? voiceService;
-  final FakeRecorder recorder = FakeRecorder();
-  final FakePlayback playback = FakePlayback();
+  late final FakeRecorder recorder = FakeRecorder(sounds: sounds);
+  late final FakePlayback playback = FakePlayback(sounds: sounds);
   final FakeInbox inbox;
   final FakeRoom room = FakeRoom();
   final FakeNetwork network = FakeNetwork();
