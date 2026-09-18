@@ -67,6 +67,11 @@ enum _Resume {
   /// The room could not hand the rehearsal back. A person is called and the resume point
   /// is left exactly as it was, so the next opening tries again.
   halted,
+
+  /// Nobody is waiting for this answer any more — the team left the passage, or the
+  /// container went. It is not a reading of what the room holds and must not be read as
+  /// one.
+  abandoned,
 }
 
 final busyStateCeilingProvider = Provider<Duration?>(
@@ -256,6 +261,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// as two tests that failed only on a slower machine, which is the same thing happening
   /// where nobody was looking.
   bool _gone = false;
+
+  /// Whether the halt the room is standing in is a resume that could not fetch the
+  /// rehearsal.
+  ///
+  /// Letting the team out of it has to try the resume again. Handed the conversa of the
+  /// session they were resuming — which is where they stand while it runs — the next
+  /// rehearsal they record goes up over the one the room is already holding, which is the
+  /// very thing the fetch exists to prevent.
+  bool _haltedResuming = false;
 
   @override
   SalaSessionState build() {
@@ -949,7 +963,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(_networkWatch?.cancel());
     _networkWatch = null;
     state = state.copyWith(voice: VoiceState.invite);
-    if (state.sessionId == null && state.stage == SalaStage.conversa) {
+    if (_haltedResuming ||
+        (state.sessionId == null && state.stage == SalaStage.conversa)) {
       unawaited(goConversa(pericope: _emCurso));
     }
   }
@@ -1430,6 +1445,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     SessionSnapshot? opened,
   }) async {
     _clearAll();
+    _haltedResuming = false;
     _emCurso = pericope;
     final epoch = _epoch;
     state = state.copyWith(
@@ -1495,7 +1511,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (resumed) {
         final onde = await _backToWhereTheyStopped(waiting, epoch);
         if (epoch != _epoch) return;
-        if (onde == _Resume.halted) return;
+        if (onde == _Resume.halted || onde == _Resume.abandoned) return;
         if (onde == _Resume.landed) {
           final snapshot = await _room.fetchState(sessionId);
           if (epoch != _epoch) return;
@@ -1653,11 +1669,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       for (final take in waiting.takes)
         if (await File(take.path).exists()) take,
     ];
-    if (epoch != _epoch || _gone) return _Resume.nothingToRestore;
-    final buscadas = here.length != waiting.takes.length;
-    final takes = buscadas ? await _asPartesDaSala(waiting, here, epoch) : here;
-    if (epoch != _epoch || _gone) return _Resume.nothingToRestore;
+    if (epoch != _epoch || _gone) return _Resume.abandoned;
+    final faltavam = here.length != waiting.takes.length;
+    final takes = faltavam ? await _asPartesDaSala(waiting, here, epoch) : here;
+    if (epoch != _epoch || _gone) return _Resume.abandoned;
     if (takes == null) {
+      _haltedResuming = true;
       _haltForAPerson();
       return _Resume.halted;
     }
@@ -1667,8 +1684,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // Before the landing, while the room still says it is thinking. Measuring waits on the
     // player, and landed first the team is invited to tap over a cord drawn short of the
     // sound it covers.
-    if (buscadas) await _medirAsPartes(takes, epoch);
-    if (epoch != _epoch || _gone) return _Resume.nothingToRestore;
+    if (faltavam) await _medirAsPartes(takes, epoch);
+    if (epoch != _epoch || _gone) return _Resume.abandoned;
     state = state.copyWith(
       stage: SalaStage.ensaio,
       ensaio: EnsaioStatus.idle,
@@ -1679,7 +1696,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       takes: takes.where((take) => KeptScope.isParte(take.scopeId)).length,
       ensaioPass: waiting.pass,
     );
-    if (buscadas) {
+    if (faltavam) {
       state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
       // The row named files that are not here any more. Rewritten only now, and only with
       // the recordings the room gave: a row rewritten without them makes the next opening
@@ -1724,6 +1741,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ) async {
     final List<TakeView> guardadas;
     try {
+      // Armed per step, not once around the whole fetch: the ceiling is what a single
+      // wait is allowed, and a listing plus a part plus a measurement counted as one wait
+      // calls a person on a link that is slow but working.
+      _watchBusyState();
       guardadas = await _room.takesOf(waiting.sessionId);
     } on SessionGone {
       rethrow;
@@ -1754,15 +1775,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       final String arquivo;
       try {
+        _watchBusyState();
         final bytes = await _room.fetchClip(
           RoomRepository.takeAudioUrl(waiting.sessionId, corrente.takeId),
         );
         if (bytes.isEmpty) return null;
         arquivo = await _recorder.keepBytes(bytes, '$escopo-${corrente.takeId}');
-      } on SessionGone {
-        rethrow;
-      } on PassageShut {
-        rethrow;
       } on Exception {
         return null;
       }
@@ -1780,8 +1798,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// is the ruler's rule everywhere, and it is not a reason to stop the team.
   Future<void> _medirAsPartes(List<KeptTake> partes, int epoch) async {
     for (final parte in partes) {
-      if (!KeptScope.isParte(parte.scopeId)) continue;
       if (_tamanhoDaParteMs.containsKey(parte.path)) continue;
+      _watchBusyState();
       final quanto = await _playback.howLong(parte.path);
       if (epoch != _epoch || _gone) return;
       if (quanto == null) continue;

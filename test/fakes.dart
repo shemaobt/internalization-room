@@ -574,6 +574,21 @@ class FakeRoom implements RoomRepository {
 
   /// The recordings whose audio this room will not hand over, by take id.
   final Set<String> refuseClipOf = {};
+
+  /// How long this room takes to hand over one recording's audio. A link that answers
+  /// every part in time is not a link that has stopped, however long the whole fetch adds
+  /// up to.
+  Duration? clipDelay;
+
+  Completer<void>? _holdingClip;
+
+  /// Hold the next audio this room is asked for, the way a bad link holds a whole part.
+  void holdNextClip() => _holdingClip = Completer<void>();
+
+  void finishHeldClip() {
+    _holdingClip?.complete();
+    _holdingClip = null;
+  }
   /// The stretches this room kept, in the order they were told. A room that forgets what
   /// it was told cannot hand a telling-back back, and cannot name the stretch a finding
   /// lands on either.
@@ -776,6 +791,10 @@ class FakeRoom implements RoomRepository {
   Future<Uint8List> fetchClip(String url) async {
     _guard('fetchClip');
     clipsFetched.add(url);
+    final held = _holdingClip;
+    if (held != null) await held.future;
+    final devagar = clipDelay;
+    if (devagar != null) await Future<void>.delayed(devagar);
     final refusal = failClipWith;
     if (refusal != null) throw refusal;
     for (final take in refuseClipOf) {
