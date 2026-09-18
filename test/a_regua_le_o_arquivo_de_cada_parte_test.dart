@@ -207,6 +207,18 @@ void main() {
         reason: 'acabada a medição, a parte toca como sempre tocou');
   });
 
+  test('a parte regravada medida em zero acaba a régua ali', () async {
+    final it = await _aSalaNoAchadoDaSegundaParte();
+    await _regravarASegundaParte(it, antesDeGuardar: (arquivo) {
+      it.harness.playback.lengths[arquivo] = Duration.zero;
+    });
+
+    expect(it.estado.btFimDasPartesMs, [10000],
+        reason: 'a parte 2 é medida no instante em que a equipe a guarda, e um '
+            'zero ali não é uma parte sem duração: é o player sem resposta '
+            'sobre um arquivo acabado de escrever');
+  });
+
   test('cair numa parte além da régua mede as anteriores primeiro', () async {
     final it = await _aSalaNoAchadoDaSegundaParte();
     final terceira = it.partes[2].takeId!;
