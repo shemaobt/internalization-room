@@ -1698,7 +1698,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           sessionId: sessionId,
           stage: stage,
           takes: state.keptTakes,
-          pass: state.ensaioPass,
           savedAt: _sessionSavedAt,
           language: _sessionLanguage,
         ),
@@ -1744,7 +1743,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // Counted among the rehearsal's own parts — a row read off the tablet can also
       // carry a correction's own take, kept beside the parts but not one of them.
       takes: takes.where((take) => KeptScope.isParte(take.scopeId)).length,
-      ensaioPass: waiting.pass,
     );
     if (faltavam) {
       state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
@@ -1814,12 +1812,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final partes = <KeptTake>[];
     for (final corrente in correntes.values) {
       final escopo = KeptScope.parte(partes.length + 1);
+      final passada = corrente.pass ?? 1;
       final nossa = aqui.where((take) => take.takeId == corrente.takeId);
       if (nossa.isNotEmpty) {
         partes.add(KeptTake(
           scopeId: escopo,
           path: nossa.first.path,
           takeId: corrente.takeId,
+          pass: passada,
         ));
         continue;
       }
@@ -1835,9 +1835,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return null;
       }
       if (epoch != _epoch || _gone) return const [];
-      partes.add(
-        KeptTake(scopeId: escopo, path: arquivo, takeId: corrente.takeId),
-      );
+      partes.add(KeptTake(
+        scopeId: escopo,
+        path: arquivo,
+        takeId: corrente.takeId,
+        pass: passada,
+      ));
     }
     return partes;
   }
@@ -2369,16 +2372,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // not parts of the rehearsal in their own right.
     final parte = state.partes.length + 1;
     final escopo = KeptScope.parte(parte);
+    final nova = KeptTake(scopeId: escopo, path: path);
     state = state.copyWith(
       ensaio: EnsaioStatus.idle,
-      keptTakes: [...state.keptTakes, KeptTake(scopeId: escopo, path: path)],
+      keptTakes: [...state.keptTakes, nova],
       takes: parte,
     );
     unawaited(_guard(
       path,
       kind: 'ensaio',
       scope: escopo,
-      passNumber: state.ensaioPass,
+      passNumber: nova.pass,
       chunkIndex: parte,
     ));
     _rememberWhereTheyAre(SalaStage.ensaio);
@@ -2397,6 +2401,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// ground and not as drained bands: a drained band means waiting to be mended, and
   /// this ground is waiting to be told.
   ///
+  /// The recording goes up under the count after the one the part it replaces went up
+  /// with. Under the same count the room has only arrival to choose between the two, and
+  /// the upload of the recording the team abandoned can be the one that lands last.
+  ///
   /// The part's own recording is left on the tablet. Nothing points at it any more, and
   /// deleting audio a team recorded is not a thing this room does quietly.
   void _aParteVoltaAoSeuLugar(int parte, String path) {
@@ -2406,6 +2414,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // one part's name and another part's number.
     final numero = parte + 1;
     final escopo = KeptScope.parte(numero);
+    final passada = state.partes[parte].pass + 1;
     final trechos = <Trecho>[];
     final passes = <int>[];
     for (var onde = 0; onde < state.btTrechos.length; onde++) {
@@ -2418,7 +2427,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       keptTakes: [
         for (final take in state.keptTakes)
           if (take.scopeId == escopo)
-            KeptTake(scopeId: escopo, path: path)
+            KeptTake(scopeId: escopo, path: path, pass: passada)
           else
             take,
       ],
@@ -2430,7 +2439,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       path,
       kind: 'ensaio',
       scope: escopo,
-      passNumber: state.ensaioPass,
+      passNumber: passada,
       chunkIndex: numero,
     ));
     _rememberWhereTheyAre(SalaStage.ensaio);

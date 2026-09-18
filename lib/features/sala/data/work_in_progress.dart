@@ -22,7 +22,6 @@ class ResumePoint {
   final String sessionId;
   final SalaStage stage;
   final List<KeptTake> takes;
-  final int pass;
 
   /// When this row was written, so a resume can tell a session abandoned last month from
   /// one abandoned a minute ago. Null for a row written before this field existed.
@@ -36,7 +35,6 @@ class ResumePoint {
     required this.sessionId,
     required this.stage,
     this.takes = const [],
-    this.pass = 1,
     this.savedAt,
     this.language,
   });
@@ -44,7 +42,6 @@ class ResumePoint {
   Map<String, Object?> toJson() => {
         'session_id': sessionId,
         'stage': stage.name,
-        'pass': pass,
         'saved_at': ?savedAt?.millisecondsSinceEpoch,
         'language': ?language,
         'takes': [
@@ -53,6 +50,7 @@ class ResumePoint {
               'name': p.basename(take.path),
               'scope': take.scopeId,
               'take': ?take.takeId,
+              'pass': take.pass,
             },
         ],
       };
@@ -69,7 +67,6 @@ class ResumePoint {
         (stage) => stage.name == json['stage'],
         orElse: () => SalaStage.conversa,
       ),
-      pass: json['pass'] as int? ?? 1,
       savedAt: json['saved_at'] is int
           ? DateTime.fromMillisecondsSinceEpoch(json['saved_at'] as int)
           : null,
@@ -90,6 +87,10 @@ class ResumePoint {
               ),
               scopeId: raw['scope'] as String? ?? KeptScope.whole,
               takeId: raw['take'] as String?,
+              // A row written before the count was kept per take carries one for the
+              // whole rehearsal, which says nothing about which recording of which part
+              // each take is. Counting from it would number parts nobody recorded again.
+              pass: raw['pass'] as int? ?? 1,
             ),
       ],
     );

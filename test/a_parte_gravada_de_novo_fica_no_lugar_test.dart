@@ -45,6 +45,29 @@ Future<Sala> _oAchadoNaParteDois() async {
   return it;
 }
 
+/// Tell the rehearsal back again from the part just recorded, and stand on a finding the
+/// analyst addresses to that same part — the way back to the microphone a second time.
+Future<void> _oAchadoOutraVezNaParteDois(Sala it) async {
+  it.harness.playback.lengths[it.partes[1].path] = partesDoEnsaio[1];
+  it.sala.startRetro();
+  await waitFor(
+    'a tradução recomeçar na parte gravada de novo',
+    () =>
+        it.estado.stage == SalaStage.retro &&
+        it.estado.btPhase == BtPhase.playing,
+  );
+  await ouvirETraduzirAParteInteira(it, partesDoEnsaio[1]);
+  it.sala.proximaParte();
+  await waitFor('a parte 3 entrar no ar', () => !it.estado.btParteFronteira);
+  it.harness.playback.finishPlayback();
+  await waitFor('a parte 3 acabar de tocar', () => it.estado.btClipEnded);
+  it.harness.room.verdictFindingPlace = it.harness.room.segments.length - 1;
+  await pedirOVeredito(it);
+  expect(it.estado.btFindingTrecho?.parte, 1,
+      reason: 'o cenário só mede alguma coisa se o achado voltar a apontar a '
+          'parte 2');
+}
+
 /// What the report the tablet sends says about each part, by the name the room gave it.
 Map<String, List<List<int>>> _escutaRelatada(Sala it) => {
       for (final parte in it.harness.room.playedByTakeSent.last)
@@ -84,9 +107,60 @@ void main() {
     expect(subiu.ordinal, 2,
         reason: 'a sala tem de receber a gravação sob o número que ela já tem, '
             'senão a parte 2 vira a parte 4 do lado de lá também');
-    expect(it.harness.room.takePasses.last, it.harness.room.takePasses[1],
-        reason: 'a parte regravada sobe na mesma passada da que ela substitui: '
-            'é a mesma parte do mesmo ensaio, não uma rodada nova');
+    expect(it.harness.room.takePasses.last, 2,
+        reason: 'a parte regravada sobe sob a passada seguinte à da gravação que '
+            'ela substitui: sob a mesma, a sala só tem a ordem de chegada para '
+            'escolher entre as duas, e a que a equipe abandonou pode chegar por último');
+  });
+
+  test('cada gravação da parte sobe sob a passada seguinte, e uma parte nova sob a '
+      'primeira dela', () async {
+    final it = await _oAchadoNaParteDois();
+    expect(it.harness.room.takePasses, [1, 1, 1],
+        reason: 'as três partes gravadas pela primeira vez são a primeira '
+            'gravação de cada uma');
+
+    it.sala.gravarAParteDeNovo();
+    await regravarAParte(it, 1);
+    await waitFor('a segunda gravação da parte 2 chegar à sala',
+        () => it.harness.room.takePasses.length == 4);
+    expect(it.harness.room.takePasses.last, 2);
+
+    await _oAchadoOutraVezNaParteDois(it);
+    it.sala.gravarAParteDeNovo();
+    await regravarAParte(it, 1);
+    await waitFor('a terceira gravação da parte 2 chegar à sala',
+        () => it.harness.room.takePasses.length == 5);
+    expect(it.harness.room.takePasses.last, 3,
+        reason: 'a conta é da parte, e segue de onde a parte 2 parou');
+
+    await gravarUmaParte(it);
+
+    expect(it.harness.room.takesKept.last, 'ensaio/${KeptScope.parte(4)}');
+    expect(it.harness.room.takePasses.last, 1,
+        reason: 'uma parte gravada pela primeira vez é a primeira gravação dela, '
+            'seja qual for a conta das outras partes');
+  });
+
+  test('a linha do lugar guarda a gravação em que cada parte está', () async {
+    final it = await _oAchadoNaParteDois();
+
+    it.sala.gravarAParteDeNovo();
+    await regravarAParte(it, 1);
+    await waitFor('o lugar da equipe ser escrito com o arquivo novo', () {
+      final ponto = it.harness.emAberto.rows['Ruth/P01'];
+      return ponto != null &&
+          ponto.takes.length == 3 &&
+          ponto.takes[1].path == it.partes[1].path;
+    });
+
+    expect(
+      [for (final take in it.harness.emAberto.rows['Ruth/P01']!.takes) take.pass],
+      [1, 2, 1],
+      reason: 'a retomada precisa saber em que gravação de cada parte a equipe '
+          'parou: sem isso a próxima regravação sobe sob uma passada que a sala '
+          'já tem',
+    );
   });
 
   test('a parte nova ganha o nome do servidor e nunca o da antiga', () async {

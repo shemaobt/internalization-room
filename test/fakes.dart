@@ -1136,6 +1136,7 @@ class FakeRoom implements RoomRepository {
       kind: kind,
       scope: scope,
       ordinal: kind == 'ensaio' ? chunkIndex : null,
+      pass: passNumber,
     ));
     takeAudio[id] = Uint8List.fromList(utf8.encode('áudio de $id'));
     return id;
