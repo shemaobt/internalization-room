@@ -1463,6 +1463,33 @@ void main() {
             'primeiro turno seguinte');
   });
 
+  test('a passage reached straight through the wheel starts clean, not carrying the last one\'s strikes',
+      () async {
+    final harness = SalaHarness()..room.failWith = const RoomSlow();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.openConvite();
+    await settle();
+    await notifier.openConvite();
+    await settle();
+
+    harness.room.failWith = null;
+    await notifier.abrirEscolha();
+    await settle();
+
+    harness.room.failWith = const RoomSlow();
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+
+    expect(container.read(salaSessionProvider).offline, isFalse,
+        reason: 'abrirEscolha não esquecia _slowAnswers — duas lentidões '
+            'ainda no convite mais a primeira da passagem seguinte já '
+            'batiam o limiar de três, e a sala caía offline no primeiro '
+            'turno de uma passagem que ainda não tinha falhado nenhuma vez');
+  });
+
   test('a degraded turn does not count toward the calm streak that forgives a failure',
       () async {
     final harness = SalaHarness();
