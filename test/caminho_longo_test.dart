@@ -217,8 +217,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     notifier(container).retroTap();
     await tester.pump(const Duration(milliseconds: 300));
+    notifier(container).retroTap();
+    await tester.pump(const Duration(milliseconds: 300));
 
-    // The recorder never started, so the room stopped for a person. A person comes.
+    // The recorder never started twice in a row, so the room stopped for a person. A
+    // person comes.
     expect(container.read(salaSessionProvider).needsPerson, isTrue);
     harness.recorder.startThrows = false;
     // The desk is what lifts a blocking halt now; the long press only asks the room

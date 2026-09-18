@@ -278,14 +278,17 @@ void main() {
     closeTheRoom(it.container);
   });
 
-  testWidgets('uma sessão que sumiu chama uma pessoa', (tester) async {
+  testWidgets('uma sessão que sumiu volta para a roda, sem chamar uma pessoa',
+      (tester) async {
     final it = await _ateAConferida(tester);
     it.harness.room.failReleaseWith = const SessionGone();
 
     await _aprovarEEsperar(tester);
 
-    expect(_estado(it.container).needsPerson, isTrue,
-        reason: 'a passagem não tem mais para onde ir sozinha');
+    expect(_estado(it.container).stage, SalaStage.escolha,
+        reason: 'a sessão sumiu — a equipe volta para escolher de novo, como '
+            'em qualquer outro ponto da conversa em que isso acontece');
+    expect(_estado(it.container).needsPerson, isFalse);
 
     closeTheRoom(it.container);
   });
