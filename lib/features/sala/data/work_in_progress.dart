@@ -31,18 +31,24 @@ class ResumePoint {
   /// and nowhere else, and closing the tablet used to lose it.
   final List<LugarDoTrecho> lugares;
 
+  /// When this row was written, so a resume can tell a session abandoned last month from
+  /// one abandoned a minute ago. Null for a row written before this field existed.
+  final DateTime? savedAt;
+
   const ResumePoint({
     required this.sessionId,
     required this.stage,
     this.takes = const [],
     this.pass = 1,
     this.lugares = const [],
+    this.savedAt,
   });
 
   Map<String, Object?> toJson() => {
         'session_id': sessionId,
         'stage': stage.name,
         'pass': pass,
+        'saved_at': ?savedAt?.millisecondsSinceEpoch,
         'takes': [
           for (final take in takes)
             {
@@ -82,6 +88,9 @@ class ResumePoint {
         orElse: () => SalaStage.conversa,
       ),
       pass: json['pass'] as int? ?? 1,
+      savedAt: json['saved_at'] is int
+          ? DateTime.fromMillisecondsSinceEpoch(json['saved_at'] as int)
+          : null,
       takes: [
         for (final raw in (json['takes'] as List? ?? const []))
           if (raw is Map)
