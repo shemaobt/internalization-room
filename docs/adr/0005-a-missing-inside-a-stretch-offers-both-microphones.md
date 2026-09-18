@@ -1,3 +1,7 @@
+---
+status: superseded by ADR-0021
+---
+
 # A missing inside a stretch offers both microphones
 
 ## Context

@@ -430,8 +430,15 @@ void main() {
 
     expect(container.read(salaSessionProvider).stage, SalaStage.ensaio,
         reason: 'o microfone de madeira leva ao ensaio, onde a parte se grava');
-    expect(fases, isNot(contains(BtPhase.gravandoMaterna)),
-        reason: 'a estação da materna por trecho não fica mais no caminho de ninguém');
+    expect(
+      [
+        for (var onde = 0; onde < fases.length; onde++)
+          if (onde == 0 || fases[onde] != fases[onde - 1]) fases[onde],
+      ],
+      [BtPhase.findings, BtPhase.playing],
+      reason: 'do achado ao ensaio num gesto: o microfone de madeira não '
+          'passa por posto nenhum pelo caminho',
+    );
 
     await resto.gravarUmaParte(tester, container.read(salaSessionProvider.notifier));
 

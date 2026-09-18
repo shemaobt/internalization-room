@@ -1,3 +1,7 @@
+---
+status: superseded by ADR-0021
+---
+
 # A stretch's place is separate from what it plays
 
 ## Context

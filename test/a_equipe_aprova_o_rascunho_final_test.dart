@@ -373,10 +373,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await semAprovar(BtPhase.findings);
 
-    sala.regravarAVozMaterna();
-    await tester.pump(const Duration(milliseconds: 200));
-    await semAprovar(BtPhase.gravandoMaterna);
-
     await tester.pumpWidget(const SizedBox.shrink());
     final conferida = await _ateAConferida(tester);
 

@@ -2676,29 +2676,6 @@ void main() {
         reason: 'e o terminei continua ali para reconferir');
   });
 
-  test('throwing the recording away tells the room to forget the old pieces',
-      () async {
-    final harness = SalaHarness()
-      ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.addition;
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    await _intoFindings(harness, notifier, container);
-
-    notifier.reRecordClip();
-    await waitFor(
-      'a sala receber o pedido de regravar',
-      () => harness.room.restartsAsked.isNotEmpty,
-    );
-    await settle();
-
-    expect(harness.room.restartsAsked, ['novo-clipe'],
-        reason: 'sem avisar, os pedaços do clipe abandonado continuavam na sessão '
-            'e voltavam para o analista junto com os novos');
-    expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
-  });
-
   test('a kept rehearsal take says which pass over the passage it is', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
@@ -2715,57 +2692,6 @@ void main() {
     expect(harness.room.takePasses, [1],
         reason: 'o ensaio subia sem passada nenhuma, e o pacote nao tinha por onde '
             'dizer de qual das gravacoes aquele parte-1 era');
-  });
-
-  test('a re-recorded rehearsal is a second pass, not the first one again',
-      () async {
-    final harness = SalaHarness()
-      ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.addition;
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    await _intoFindings(harness, notifier, container);
-
-    await notifier.reRecordClip();
-    await settle();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
-    await settle();
-    notifier.takeKeep();
-    await waitFor('a sala guardar a segunda tomada', () => harness.room.takesKept.length == 2);
-
-    expect(harness.room.takesKept, ['ensaio/parte-1', 'ensaio/parte-1'],
-        reason: 'o rotulo volta a ser o mesmo porque a contagem das partes recomeca');
-    expect(harness.room.takePasses, [1, 2],
-        reason: 'o ensaio jogado fora e o guardado chegavam ao Refine com o mesmo '
-            'rotulo, e quem abrisse a passagem ouvia o abandonado como o primeiro');
-  });
-
-  test('the ledger keeps which pass the rehearsal is on, not only its parts',
-      () async {
-    final harness = SalaHarness()
-      ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.addition;
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    await notifier.abrirEscolha();
-    await settle();
-    await notifier.goConversa(pericope: 'P01');
-    await settle();
-    await _intoFindings(harness, notifier, container);
-
-    await notifier.reRecordClip();
-    await settle();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
-    await settle();
-    notifier.takeKeep();
-    await settle();
-
-    expect(harness.emAberto.rows['Ruth/P01']?.pass, 2,
-        reason: 'a passada so existia na memoria, e o aparelho desligado a levava junto');
   });
 
   test('a rehearsal picked up on its second pass does not number the next part '
@@ -2803,116 +2729,6 @@ void main() {
     expect(harness.room.takePasses, [2],
         reason: 'a parte 2 do ensaio novo subia como passada 1 e ia parar no meio '
             'do ensaio que a equipe tinha jogado fora');
-  });
-
-  test('a restart the room refused keeps every stretch the team already told',
-      () async {
-    final harness = SalaHarness()
-      ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.addition;
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    await _intoFindings(harness, notifier, container);
-    final before = container.read(salaSessionProvider);
-
-    harness.room.failRestartWith = const RoomRefused();
-    notifier.reRecordClip();
-    await settle();
-
-    final after = container.read(salaSessionProvider);
-    expect(after.btPhase, BtPhase.findings,
-        reason: 'o servidor nao recomecou nada, entao a equipe continua nos achados');
-    expect(after.btChunkPasses, before.btChunkPasses,
-        reason: 'o app dava os trechos por descartados enquanto a sessao ainda os '
-            'guardava, e o finish seguinte mandava velhos e novos juntos ao analista');
-    expect(after.partes, before.partes,
-        reason: 'a gravacao que a equipe ainda tem e a unica que o servidor conhece');
-    expect(after.takes, before.takes);
-  });
-
-  test('a restart the room refused asks the team for a person', () async {
-    final harness = SalaHarness()
-      ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.addition;
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    await _intoFindings(harness, notifier, container);
-
-    harness.room.failRestartWith = const RoomRefused();
-    notifier.reRecordClip();
-    await settle();
-
-    expect(container.read(salaSessionProvider).needsPerson, isTrue,
-        reason: 'segurar o estado calado deixa a equipe tocando de novo sem entender '
-            'por que nada acontece');
-  });
-
-  test('two taps before the room answers ask for one restart', () async {
-    final harness = SalaHarness()
-      ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.addition;
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    await _intoFindings(harness, notifier, container);
-
-    harness.room.holdNextTurn();
-    notifier.reRecordClip();
-    await settle();
-    notifier.reRecordClip();
-    await settle();
-    harness.room.finishHeldTurn();
-    await settle();
-
-    expect(harness.room.restartsAsked, hasLength(1),
-        reason: 'enquanto o pedido esta em voo a equipe segue nos achados, e um '
-            'segundo toque mandaria a sessao descartar o clipe duas vezes');
-  });
-
-  test('a retell tapped while the restart is in flight changes nothing',
-      () async {
-    final harness = SalaHarness()
-      ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.missing
-      ..room.verdictFindingSegmentId = 'trecho-1';
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    await _intoFindings(harness, notifier, container);
-
-    harness.room.holdNextTurn();
-    unawaited(notifier.reRecordClip());
-    await settle();
-    notifier.retellChunk();
-    await settle();
-    harness.room.finishHeldTurn();
-    await settle();
-
-    expect(container.read(salaSessionProvider).stage, SalaStage.ensaio,
-        reason: 'o botão de traduzir de novo fica a 28 pixels do que a equipe acabou de '
-            'tocar; enquanto o pedido está em voo ele mudava a fase, e a resposta '
-            'confirmada chegava numa sala que já não estava nos achados, deixando '
-            'a equipe segurando trechos que a sessão descartou');
-  });
-
-  test('a room that never answers the restart does not think forever', () async {
-    final harness = SalaHarness(busyCeiling: const Duration(milliseconds: 200))
-      ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.addition;
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    await _intoFindings(harness, notifier, container);
-
-    harness.room.holdNextTurn();
-    unawaited(notifier.reRecordClip());
-    await settle(const Duration(milliseconds: 600));
-
-    expect(container.read(salaSessionProvider).needsPerson, isTrue,
-        reason: 'esperar sem teto trocaria uma janela de segundos por uma sala '
-            'sem botão nenhum e sem saída alguma');
   });
 
   test('a room that halts for a person says so to the server', () async {
@@ -4095,46 +3911,6 @@ void main() {
             'localmente é 0–3s dentro do arquivo da parte');
     expect(harness.playback.played.last, contains('captura'),
         reason: 'e o arquivo tocado é o da parte 2');
-  });
-
-  test('re-recording the clip forgets every part', () async {
-    final harness = SalaHarness()
-      ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.missing
-      ..room.verdictFindingSegmentId = 'trecho-1';
-    final container = await inConversa(harness);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    notifier.goEnsaio();
-    await gravaParte(notifier);
-    await gravaParte(notifier);
-    notifier.startRetro();
-    await settle();
-    harness.playback.at = const Duration(seconds: 4);
-    notifier.cortarTrecho();
-    await settle();
-    notifier.retroTap();
-    await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
-    harness.playback.at = const Duration(seconds: 10);
-    harness.playback.finishPlayback();
-    await settle();
-    notifier.proximaParte();
-    await settle();
-    harness.playback.at = const Duration(seconds: 8);
-    harness.playback.finishPlayback();
-    await settle();
-    await notifier.finishBackTranslation();
-    await settle();
-
-    notifier.reRecordClip();
-    await settle();
-
-    final state = container.read(salaSessionProvider);
-    expect(state.partes, isEmpty,
-        reason: 'o ghost play tocava o take velho depois de regravar');
-    expect(state.takes, 0);
-    expect(state.btChunkPasses, isEmpty,
-        reason: 'o recomeco que o servidor confirmou limpa tudo, como sempre limpou');
   });
 
   test('the room stops touching its providers once it is gone', () async {

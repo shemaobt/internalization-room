@@ -776,7 +776,8 @@ void main() {
     final state = container.read(salaSessionProvider);
     expect(state.stage, SalaStage.ensaio,
         reason: 'o retro não tem gesto que se recupere de um clipe que não abre: '
-            'btClipEnded nunca chega, o terminei nunca aparece e reRecordClip exige findings');
+            'btClipEnded nunca chega, o terminei nunca aparece e todo gesto da '
+            'tela dos achados exige findings');
     expect(state.ensaio, EnsaioStatus.idle);
     expect(state.needsPerson, isTrue);
   });

@@ -8,7 +8,7 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 
-const blueMic = 'Gravar esta parte de novo';
+const blueMic = 'Continuar o ensaio';
 
 Finder byLabel(String label) => find.byWidgetPredicate(
   (widget) => widget is Semantics && widget.properties.label == label,

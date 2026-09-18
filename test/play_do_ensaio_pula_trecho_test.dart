@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
@@ -135,51 +134,6 @@ Future<_Sala> _seisPartesSeisTrechos() async {
   return it;
 }
 
-/// The long way, both stations: the mother tongue recorded again, then the telling redone
-/// over it. [composta] is this correction's own composed take id — a real server never
-/// reuses one across two different parts. Answers with the mother tongue's own recorded
-/// path — the fallback a stretch this mend touches can always play, downloaded or not.
-Future<String> _consertarPeloCaminhoLongo(
-  _Sala it, {
-  required String composta,
-  int? apontaDepois,
-}) async {
-  it.harness.room.composesInto = composta;
-  final semArquivo = it.harness.room.replacesSemArquivo.length;
-  it.sala.regravarAVozMaterna();
-  it.sala.retroTap();
-  await waitFor(
-    'o microfone abrir na materna',
-    () => it.estado.voice == VoiceState.listening,
-  );
-  it.sala.retroTap();
-  await waitFor(
-    'a voz materna nova substituir o trecho',
-    () => it.harness.room.replacesSemArquivo.length == semArquivo + 1,
-  );
-  final materna = it.harness.recorder.lastPath!;
-  await waitFor(
-    'a segunda estação abrir sozinha',
-    () => it.estado.btPhase == BtPhase.capturing,
-  );
-  final pontes = it.harness.room.replacesAsked.length;
-  if (apontaDepois != null) it.harness.room.verdictFindingPlace = apontaDepois;
-  it.sala.retroTap();
-  await waitFor(
-    'a ponte nova substituir o trecho',
-    () => it.harness.room.replacesAsked.length == pontes + 1,
-  );
-  await waitFor(
-    'a sala voltar do veredito',
-    () => it.estado.btPhase != BtPhase.thinking,
-  );
-  final parte = it.estado.keptTakes.where((take) => take.takeId == composta);
-  if (parte.isNotEmpty) {
-    it.harness.playback.lengths[parte.first.path] = _parteLen;
-  }
-  return materna;
-}
-
 /// Drive the fake player's clip to completion for every stretch the ghost play opens,
 /// until it stops on its own or gives up waiting.
 Future<void> _tocarOFantasmaAteAcabar(_Sala it) async {
@@ -209,14 +163,9 @@ Future<void> _traduzirDeNovoPeloCaminhoCurto(_Sala it) async {
 void main() {
   test(
       'o play do ensaio toca as seis partes, na ordem, incluindo a que '
-      'ninguém corrigiu', () async {
+      'ninguém consertou', () async {
     final it = await _seisPartesSeisTrechos();
 
-    // Trecho 3 (índice 2) e trecho 4 (índice 3), cada um com sua própria
-    // passagem composta — um servidor de verdade nunca reconstrói duas
-    // partes diferentes sob o mesmo id.
-    await _consertarPeloCaminhoLongo(it, composta: 'C3', apontaDepois: 3);
-    await _consertarPeloCaminhoLongo(it, composta: 'C4', apontaDepois: 5);
     // Trecho 6 (índice 5), traduzido de novo pelo caminho curto.
     await _traduzirDeNovoPeloCaminhoCurto(it);
 
@@ -249,55 +198,13 @@ void main() {
     expect(
       it.harness.playback.played[1],
       it.estado.partes[1].path,
-      reason: 'a parte 2 não foi corrigida: o play do ensaio tem de tocar '
+      reason: 'a parte 2 não foi consertada: o play do ensaio tem de tocar '
           'o arquivo da própria parte, como a retro tocaria',
     );
   });
 
   test(
-      'um trecho cuja composta ainda não baixou toca no ensaio o mesmo que '
-      'toca na retro, e não é pulado', () async {
-    final it = await _seisPartesSeisTrechos();
-
-    it.harness.room.failClipWith = const RoomBroke('o balde sumiu');
-    final materna3 = await _consertarPeloCaminhoLongo(
-      it,
-      composta: 'C3',
-      apontaDepois: 3,
-    );
-    it.harness.room.failClipWith = null;
-    await _consertarPeloCaminhoLongo(it, composta: 'C4', apontaDepois: 5);
-    await _traduzirDeNovoPeloCaminhoCurto(it);
-
-    it.sala.continuarOEnsaio();
-    await waitFor(
-      'a sala voltar ao ensaio',
-      () => it.estado.stage == SalaStage.ensaio,
-    );
-    it.harness.playback.played.clear();
-    it.harness.playback.ranges.clear();
-
-    it.sala.ghostPlay();
-    await _tocarOFantasmaAteAcabar(it);
-
-    expect(
-      it.harness.playback.played.length,
-      6,
-      reason: 'a composta do trecho 3 nunca baixou, mas isso não é motivo '
-          'para pular a parte — ela tem a materna própria como fallback, '
-          'igual a retro usaria',
-    );
-    expect(
-      it.harness.playback.played[2],
-      materna3,
-      reason: 'o mesmo arquivo que a retro tocaria para esse trecho sem a '
-          'composta: a voz materna recém-gravada, não a parte velha nem '
-          'silêncio',
-    );
-  });
-
-  test(
-      'um trecho sem nenhum áudio local (sem parte, sem lugar) continua '
+      'um trecho sem nenhum áudio local (sem parte) continua '
       'sendo pulado — o único caso em que pula', () async {
     final gravada = File(
       '${Directory.systemTemp.createTempSync('sala-824').path}/p1.m4a',
@@ -365,8 +272,8 @@ void main() {
     expect(
       harness.playback.played,
       [gravada.path],
-      reason: 'só o trecho que tem parte local toca; o trecho da composta '
-          'fantasma — sem parte e sem lugar — é o único pulado',
+      reason: 'só o trecho que tem parte local toca; o trecho que aponta '
+          'uma gravação que este tablet não tem é o único pulado',
     );
   });
 }

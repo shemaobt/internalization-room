@@ -78,7 +78,6 @@ class RetroView extends ConsumerWidget {
                 size: 150,
                 voice: conferida ? VoiceState.done : session.voice,
                 warning: session.warning,
-                motherTongue: session.btPhase == BtPhase.gravandoMaterna,
                 semanticLabel: _circleLabel(session),
                 onTap: notifier.retroTap,
                 onLongPress: session.canResolveWithPerson
@@ -148,12 +147,11 @@ class RetroView extends ConsumerWidget {
             // Back to the rehearsal with the takes, the stretches and the colar kept: a
             // finding of something missing that fits in no stretch is the end of the
             // story never recorded, and what it asks for is more recording, not the
-            // recording again. Starting the clip over — the room retiring it, the
-            // rehearsal emptied — is `reRecordClip`, which no button on this screen
-            // reaches any more.
+            // recording again. The name says the additive act, because the grid's wood
+            // microphone next door records a part again in place.
             RoundActionButton(
               size: 60,
-              semanticLabel: 'Gravar esta parte de novo',
+              semanticLabel: 'Continuar o ensaio',
               gradient: BeadStyles.azul,
               onTap: notifier.continuarOEnsaio,
               child: const Icon(
@@ -270,10 +268,6 @@ class RetroView extends ConsumerWidget {
         return 'Tocar ao terminar o pedaço';
       case BtPhase.findings:
         return 'Ouvir a pergunta de novo';
-      case BtPhase.gravandoMaterna:
-        return session.voice == VoiceState.listening
-            ? 'Tocar ao terminar a gravação'
-            : 'Gravar este trecho';
       case BtPhase.thinking:
         return 'Um instante';
       case BtPhase.conferida:

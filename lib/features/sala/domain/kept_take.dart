@@ -7,16 +7,6 @@ abstract class KeptScope {
   /// is a slice of one of these and not a part of the rehearsal in its own right.
   static bool isParte(String scopeId) => scopeId.startsWith('parte-');
 
-  /// The mother tongue of one stretch, recorded again. Its own scope rather than a part's:
-  /// it is a file that stands for a slice, and a reviewer opening the session has to be
-  /// able to tell it from the rehearsal it corrects.
-  ///
-  /// The stamp is part of it because the same stretch can be recorded more than once — a
-  /// replacement that fails leaves the team tapping again — and two recordings under one
-  /// scope would let the room hand back the first one's name for the second one's audio.
-  static String trecho(String segmentId, String stamp) =>
-      'trecho-$segmentId-$stamp';
-
   /// What the room calls the recording of the passage it rebuilt around a correction. Its
   /// own name on the room's side, kept here because this tablet has to recognise one
   /// coming back to it in a session it did not rebuild.

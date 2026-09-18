@@ -245,31 +245,4 @@ void main() {
           'segundos atrás não sobrevive nela',
     );
   });
-
-  test('a restart that needs a person sets the warning the same way', () async {
-    final harness = SalaHarness()
-      ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.addition;
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-    await _intoFindings(harness, notifier);
-
-    harness.room.restartNeedsPerson = true;
-    await notifier.reRecordClip();
-    await waitFor(
-      'a sala pedir a regravação',
-      () => harness.room.restartsAsked.isNotEmpty,
-    );
-    await settle();
-
-    expect(
-      read().warning,
-      isTrue,
-      reason:
-          'o restart de uma retro abandonada lê needs_person do mesmo jeito '
-          'que um pedaço traduzido de novo — a mesma notícia, chegando por outra rota',
-    );
-  });
 }

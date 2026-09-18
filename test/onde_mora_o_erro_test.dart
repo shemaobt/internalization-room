@@ -111,21 +111,6 @@ Future<void> traduzirDeNovo(
   await terminarACaptura(tester, container);
 }
 
-/// The error was in the mother tongue, so the recording is redone first. This is only the
-/// first of the two steps that correction takes; the telling still has to follow.
-Future<void> regravarAMaterna(
-  WidgetTester tester,
-  ProviderContainer container,
-) async {
-  notifier(container).regravarAVozMaterna();
-  await tester.pump(const Duration(milliseconds: 300));
-  notifier(container).retroTap();
-  await tester.pump(const Duration(milliseconds: 200));
-  notifier(container).retroTap();
-  await letTheRehearsalReachTheRoom(tester);
-  await tester.pump(const Duration(milliseconds: 400));
-}
-
 void main() {
   testWidgets('the blue player is dark when the tablet holds no telling',
       (tester) async {
@@ -192,24 +177,6 @@ void main() {
             'daquele trecho não é tocada');
     expect(container.read(salaSessionProvider).stage, SalaStage.retro,
         reason: 'sair para o ensaio seria refazer a gravação materna');
-  });
-
-  testWidgets('choosing the voice too records the mother tongue first',
-      (tester) async {
-    final container = await pumpToPergunta(tester);
-
-    notifier(container).regravarAVozMaterna();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.gravandoMaterna,
-        reason: 'a ordem é regra de produto e não sugestão: regravar o nativo '
-            'implica sempre refazer o contar depois, nessa ordem');
-    expect(container.read(salaSessionProvider).btPhase,
-        isNot(BtPhase.capturing),
-        reason: 'a equipe não pode ser levada a contar antes de ter regravado: '
-            'o microfone do contar não abre por este caminho');
-    expect(harnessDaVez!.room.replacesAsked, isEmpty,
-        reason: 'e nada é substituído enquanto a voz nova não existe');
   });
 
   testWidgets('a stretch back from the room keeps both halves of itself',
@@ -376,24 +343,6 @@ void main() {
             'errado passar despercebido');
   });
 
-  testWidgets(
-      'the first of the two mother-tongue steps cannot run the room out on '
-      'its own', (tester) async {
-    final container = await pumpToPergunta(tester);
-    harnessDaVez!.room.replaceNeedsPerson = true;
-
-    await regravarAMaterna(tester, container);
-
-    expect(container.read(salaSessionProvider).needsPerson, isFalse,
-        reason: 'o primeiro passo só reposiciona a voz materna sobre uma '
-            'gravação já feita — nada é contado de volta, então a rota real '
-            'nunca gasta orçamento nele; um dublê que dissesse o contrário '
-            'provaria um comportamento que o servidor não tem');
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing,
-        reason: 'e a equipe é mandada contar de novo, que é o segundo passo '
-            'que a correção pela voz materna sempre exige');
-  });
-
   testWidgets('finishing a correction reaches its result on its own',
       (tester) async {
     final container = await pumpToPergunta(tester);
@@ -407,29 +356,6 @@ void main() {
             'resolveu alguém precisa apertar "terminei" de novo, e ninguém '
             'diz isso a ela — do lugar onde ela está, corrigiu e nada '
             'aconteceu');
-  });
-
-  testWidgets('re-recording the mother tongue reaches the result only after '
-      'the retelling', (tester) async {
-    final container = await pumpToPergunta(tester);
-    final harness = harnessDaVez!;
-    final antes = vereditosPedidos(harness);
-
-    await regravarAMaterna(tester, container);
-
-    expect(vereditosPedidos(harness), antes,
-        reason: 'a correção pela voz materna tem dois passos e o primeiro não '
-            'a termina: pedir o resultado aqui seria julgar um trecho cuja '
-            'explicação ainda está por gravar');
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing,
-        reason: 'e o que vem depois da voz nova é o microfone do contar, na '
-            'ordem que o servidor exige');
-
-    await terminarACaptura(tester, container);
-
-    expect(vereditosPedidos(harness), antes + 1,
-        reason: 'terminado o segundo passo a correção acabou, e é aí — uma vez '
-            'só — que a equipe chega ao resultado dela');
   });
 
   for (final quebra in ['a sala recusa', 'a rede cai']) {
@@ -513,35 +439,6 @@ void main() {
             'a sala volta a convidar a equipe a trabalhar numa sala parada');
     expect(harness.room.personsAsked, 1,
         reason: 'e alguém é de fato chamado, senão a sala para em silêncio');
-    closeTheRoom(container);
-  });
-
-  testWidgets(
-      'the room can still run out on the second of the two mother-tongue '
-      'steps', (tester) async {
-    final container = await pumpToPergunta(tester);
-    final harness = harnessDaVez!;
-    harness.room.replaceNeedsPerson = true;
-    final antes = vereditosPedidos(harness);
-
-    await regravarAMaterna(tester, container);
-
-    expect(container.read(salaSessionProvider).needsPerson, isFalse,
-        reason: 'o primeiro passo não conta contra o orçamento, então ainda '
-            'não é aí que a sala desiste');
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing,
-        reason: 'e o microfone abre para o segundo passo, que é o que de '
-            'fato conta uma contagem');
-
-    await terminarACaptura(tester, container);
-
-    expect(container.read(salaSessionProvider).needsPerson, isTrue,
-        reason: 'o segundo passo manda áudio e é ele quem pode esgotar o '
-            'orçamento — é aí que a sala tem de parar');
-    expect(vereditosPedidos(harness), antes + 1,
-        reason: 'e a equipe ainda descobre o que aconteceu com o que acabou '
-            'de contar: engolir o resultado junto com o aviso a deixaria '
-            'parada sem saber sequer se a correção pegou');
     closeTheRoom(container);
   });
 

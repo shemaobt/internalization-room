@@ -57,10 +57,9 @@ Future<void> _traduzTrecho(
 }
 
 /// A sala parada num achado no segundo trecho, com o aviso de "chame uma
-/// pessoa" já ativo — erguido pelo próprio caminho longo, no seu segundo
-/// posto (o contar que segue a voz materna nova). O primeiro posto só
-/// reposiciona a voz materna sobre uma gravação já feita: nada é contado de
-/// volta ali, então a rota real nunca lê `needsPerson` nele.
+/// pessoa" já ativo — erguido pelo caminho curto sobre o *primeiro* trecho, que
+/// não é o que os casos abaixo consertam: cada conserto renomeia o trecho que
+/// toca, e levantar o aviso sobre o apontado mudaria o nome debaixo deles.
 Future<ProviderContainer> _achadoComAvisoAtivo(SalaHarness harness) async {
   harness.room.verdictChecked = false;
   harness.room.verdictFinding = BtFindingKind.addition;
@@ -94,13 +93,9 @@ Future<ProviderContainer> _achadoComAvisoAtivo(SalaHarness harness) async {
   );
 
   harness.room.replaceNeedsPerson = true;
-  notifier.regravarAVozMaterna();
-  notifier.retroTap();
-  await waitFor(
-    'o microfone abrir na materna',
-    () => container.read(salaSessionProvider).voice == VoiceState.listening,
+  await notifier.traduzirDeNovo(
+    container.read(salaSessionProvider).btTrechos.first,
   );
-  notifier.retroTap();
   await waitFor(
     'o microfone abrir para o contar',
     () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
@@ -280,19 +275,19 @@ void main() {
     );
   });
 
-  test('os dois caminhos são simétricos sob aviso', () async {
+  test('gravar a parte de novo também não é fechado pelo aviso', () async {
     final harness = SalaHarness();
     final container = await _achadoComAvisoAtivo(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    notifier.regravarAVozMaterna();
+    notifier.gravarAParteDeNovo();
 
     expect(
-      container.read(salaSessionProvider).btPhase,
-      BtPhase.gravandoMaterna,
+      container.read(salaSessionProvider).stage,
+      SalaStage.ensaio,
       reason:
-          'regravarAVozMaterna não tem a guarda de needsPerson; o '
-          'caminho longo sempre funcionou sob aviso',
+          'gravar a parte de novo não tem a guarda de needsPerson: o aviso '
+          'pede uma pessoa e não fecha saída nenhuma da pergunta',
     );
   });
 }

@@ -3,18 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/retro_cord.dart';
 
 import 'fakes.dart';
 
-/// Each rehearsal part, and the take one mend records over one stretch of it.
-///
-/// The mend is deliberately longer than the whole part it corrects: the two numbers a
-/// stretch carries are the interval it plays and the interval it occupies, and only a
-/// pair that cannot be mistaken for one another can tell whether the room is reading the
-/// right one.
+/// How long each rehearsal part is, and what the player answers for anything else.
 const _umaParte = Duration(seconds: 20);
-const _oConserto = Duration(seconds: 27);
+const _oQueOPlayerMede = Duration(seconds: 27);
 
 /// The stretch at one place in the row, whatever the room has renamed it to.
 ///
@@ -22,16 +16,6 @@ const _oConserto = Duration(seconds: 27);
 /// across a correction. Its place is what stays put, and it is what the team sees.
 Trecho _no(ProviderContainer container, int lugar) =>
     container.read(salaSessionProvider).btTrechos[lugar];
-
-/// The band the cord draws for one stretch, on the whole rehearsal.
-///
-/// The cord's own rule, called rather than copied: asking it this way is the question the
-/// team asks of the necklace — "how much of the passage is my stretch?" — without knowing
-/// which of the stretch's numbers the answer is reached through.
-(int, int)? _naFaixa(SalaSessionState state, int lugar) => cordSpanMs(
-      trecho: state.btTrechos[lugar],
-      fimDasPartes: state.btFimDasPartesMs,
-    );
 
 class _Sala {
   final SalaHarness harness;
@@ -96,7 +80,7 @@ Future<void> _atravessarAFronteira(_Sala it) async {
 Future<_Sala> _aSalaNaPergunta({required int apontado}) async {
   final harness = SalaHarness()
     ..playback.length = _umaParte
-    ..playback.measured = _oConserto
+    ..playback.measured = _oQueOPlayerMede
     ..room.verdictChecked = false
     ..room.verdictFinding = BtFindingKind.addition
     ..room.verdictFindingPlace = apontado;
@@ -136,27 +120,6 @@ Future<_Sala> _aSalaNaPergunta({required int apontado}) async {
   return it;
 }
 
-/// The long way's first station: the mother tongue of the pointed stretch, recorded again.
-/// It returns with the microphone already open for the telling that must follow.
-Future<void> _regravarAMaterna(_Sala it) async {
-  final antes = it.harness.room.replacesSemArquivo.length;
-  it.sala.regravarAVozMaterna();
-  it.sala.retroTap();
-  await waitFor(
-    'o microfone abrir na materna',
-    () => it.estado.voice == VoiceState.listening,
-  );
-  it.sala.retroTap();
-  await waitFor(
-    'a voz materna nova substituir o trecho',
-    () => it.harness.room.replacesSemArquivo.length == antes + 1,
-  );
-  await waitFor(
-    'a segunda estação abrir sozinha',
-    () => it.estado.btPhase == BtPhase.capturing,
-  );
-}
-
 /// The short way, whole: choosing it opens the microphone on the stretch.
 Future<void> _escolherTraduzirDeNovo(_Sala it) async {
   it.sala.traduzirDeNovoEmPortugues();
@@ -178,12 +141,6 @@ Future<void> _entregarAPonte(_Sala it) async {
     'a sala voltar do veredito',
     () => it.estado.btPhase != BtPhase.thinking,
   );
-}
-
-/// The whole long way, both stations.
-Future<void> _consertarPeloCaminhoLongo(_Sala it) async {
-  await _regravarAMaterna(it);
-  await _entregarAPonte(it);
 }
 
 /// The tablet closed and opened again on the same passage: a new room over the same
@@ -209,62 +166,11 @@ Future<void> _retomar(_Sala it) async {
 }
 
 void main() {
-  test('depois do caminho longo, o lugar do trecho é o original', () async {
-    final it = await _aSalaNaPergunta(apontado: 0);
-    final antes = _no(it.container, 0);
-    expect(
-      [antes.parte, antes.lugarFrom, antes.lugarTo],
-      [0, Duration.zero, const Duration(seconds: 6)],
-      reason: 'antes de qualquer conserto, o lugar de um trecho é o pedaço da '
-          'parte que ele cobre',
-    );
-
-    await _consertarPeloCaminhoLongo(it);
-
-    final depois = _no(it.container, 0);
-    expect(
-      [depois.from, depois.to],
-      [Duration.zero, _oConserto],
-      reason: 'o que toca é o take próprio da correção, inteiro',
-    );
-    expect(
-      [depois.parte, depois.lugarFrom, depois.lugarTo],
-      [0, Duration.zero, const Duration(seconds: 6)],
-      reason: 'regravar a voz materna de um trecho não muda o trecho de lugar: '
-          'ele continua sendo os seis primeiros segundos da primeira parte',
-    );
-    expect(
-      _naFaixa(it.estado, 0),
-      (0, 6000),
-      reason: 'o colar desenhava a correção com o tamanho do arquivo novo — '
-          'vinte e sete segundos num lugar de seis — e uma equipe que não lê '
-          'via o conserto engolir os trechos vizinhos',
-    );
-  });
-
-  test('na retomada fria, o lugar continua', () async {
-    final it = await _aSalaNaPergunta(apontado: 0);
-    await _consertarPeloCaminhoLongo(it);
-
-    await _retomar(it);
-
-    final depois = _no(it.container, 0);
-    expect(
-      [depois.parte, depois.lugarFrom, depois.lugarTo],
-      [0, Duration.zero, const Duration(seconds: 6)],
-      reason: 'a sala nova acha a parte de um trecho pela gravação que ele '
-          'fatia, e a do conserto não é parte nenhuma do ensaio: o trecho '
-          'voltava sem lugar, e o colar deixava de desenhá-lo',
-    );
-    expect(_naFaixa(it.estado, 0), isNotNull,
-        reason: 'sem lugar não há faixa: a equipe retoma olhando um colar que '
-            'diz que o trecho que ela consertou nunca existiu');
-  });
-
   test('a retomada não recomeça uma parte já contada', () async {
     final it = await _aSalaNaPergunta(apontado: 1);
     final partes = [for (final take in it.estado.keptTakes) take.path];
-    await _consertarPeloCaminhoLongo(it);
+    await _escolherTraduzirDeNovo(it);
+    await _entregarAPonte(it);
 
     await _retomar(it);
 
@@ -281,7 +187,8 @@ void main() {
   test('o próximo corte vem da parte certa', () async {
     final it = await _aSalaNaPergunta(apontado: 1);
     final partes = it.estado.keptTakes;
-    await _consertarPeloCaminhoLongo(it);
+    await _escolherTraduzirDeNovo(it);
+    await _entregarAPonte(it);
     await _retomar(it);
 
     final antes = it.harness.room.chunksSent;
