@@ -3209,8 +3209,8 @@ void main() {
         reason: 'sessão fria pede só a abertura — nada de rodada de calibração antes');
   });
 
-  test('a bridge mode the server still reports on a turn is never captured, so a '
-      'touch at the entrada does not record an answer to it', () async {
+  test('a bridge mode the server still reports on a turn changes nothing: a '
+      'touch at the entrada still records the next question', () async {
     final harness = SalaHarness()..room.bridgeMode = 'calibration_pending';
     final container = harness.container();
     addTearDown(container.dispose);
@@ -3220,13 +3220,104 @@ void main() {
     notifier.conviteTap();
     await settle();
 
-    expect(harness.recorder.captures, 0,
-        reason: 'antes desse fix, bridge_mode == calibration_pending armava a escuta '
-            'e esse mesmo toque começava a gravar uma resposta ao método');
+    expect(harness.recorder.captures, 1,
+        reason: 'bridge_mode não é mais lido em lugar nenhum do app — o toque na '
+            'entrada grava a próxima pergunta do mesmo jeito, com ou sem ele');
+    expect(container.read(salaSessionProvider).voice, VoiceState.listening);
+  });
+
+  test('a touch after the panorama speaks starts recording the next question',
+      () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.openConvite();
+    notifier.conviteTap();
+    await settle();
+
+    expect(harness.recorder.captures, 1,
+        reason: 'a sala falou o panorama e parou; antes desse fix o toque na '
+            'entrada só virava a conta de madeira, sem abrir microfone nenhum');
+    expect(container.read(salaSessionProvider).voice, VoiceState.listening);
+  });
+
+  test('finishing that recording opens a second panorama turn, and the bead '
+      'stays offered through both', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.openConvite();
+    notifier.conviteTap();
+    await settle();
+    notifier.conviteTap();
+    await settle();
+
+    expect(harness.room.turnsSent, 1,
+        reason: 'a pergunta gravada vira um turno de panorama, não fica presa '
+            'no aparelho');
+    final afterFirst = container.read(salaSessionProvider);
+    expect(afterFirst.conviteStep, ConviteStep.entrada);
+    expect(afterFirst.entradaOffered, isTrue,
+        reason: 'a conta continua na mesa depois da 1ª resposta, não só depois '
+            'da 1ª fala');
+
+    notifier.conviteTap();
+    await settle();
+    notifier.conviteTap();
+    await settle();
+
+    expect(harness.room.turnsSent, 2,
+        reason: 'o panorama não tem fim previsto — um segundo toque abre um '
+            'segundo turno em vez de bater numa tela morta');
+    expect(container.read(salaSessionProvider).entradaOffered, isTrue);
+  });
+
+  test('a run of panorama exchanges never opens a passage session on its own',
+      () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.openConvite();
+    for (var i = 0; i < 4; i++) {
+      notifier.conviteTap();
+      await settle();
+      notifier.conviteTap();
+      await settle();
+    }
+
+    expect(container.read(salaSessionProvider).stage, SalaStage.convite,
+        reason: 'quatro idas e voltas de gravação não têm por que sair do '
+            'panorama sozinhas — a passagem só nasce quando a equipe toca a conta');
+    expect(harness.room.sessionIds, hasLength(1),
+        reason: 'nenhuma sessão de passagem é criada por um toque no círculo');
+    expect(harness.room.turnsSent, 4);
+  });
+
+  test('a panorama turn the recorder never handed back returns to the invite '
+      'in silence', () async {
+    final harness = SalaHarness()..recorder.returnsNothing = true;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.openConvite();
+    notifier.conviteTap();
+    await settle();
+    notifier.conviteTap();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.needsPerson, isFalse,
+        reason: 'a mesma volta em silêncio que todo outro caminho de gravação '
+            'vazia usa agora — o panorama não é uma exceção');
+    expect(state.voice, VoiceState.invite);
     expect(harness.room.turnsSent, 0);
-    expect(container.read(salaSessionProvider).needsPerson, isFalse,
-        reason: 'e um toque que não abre nenhuma escuta não pode travar a sala');
-    expect(container.read(salaSessionProvider).voice, VoiceState.invite);
   });
 
   test('terminei carries how much of the clip was actually heard', () async {
