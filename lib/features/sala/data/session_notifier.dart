@@ -53,7 +53,7 @@ const _degradedTurnsBeforeAPerson = 3;
 const _captureFailsBeforeAPerson = 2;
 
 final busyStateCeilingProvider = Provider<Duration?>(
-  (ref) => const Duration(seconds: 120),
+  (ref) => const Duration(seconds: 330),
 );
 
 /// Slack added to a clip's own length before the room decides the playback is lost. A
@@ -122,6 +122,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _unplayableTurns = 0;
   int _roomFailures = 0;
   int _slowAnswers = 0;
+  int _calmTurns = 0;
   int _retryStep = 0;
   bool _noticeSpoken = false;
   bool _conviteOpened = false;
@@ -478,6 +479,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (epoch != _epoch) return;
     state = state.copyWith(coverage: turn.coverage);
     _awaitCoverageSettle(turn);
+    _scheduleInboxPoll();
     await _readyToSpeak(turn.audioUrl, turn.fixedLine);
     if (epoch != _epoch) return;
     if (turn.audioUrl.isEmpty && turn.fixedLine.isEmpty) {
@@ -498,11 +500,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _registerUnplayableTurn();
       return;
     }
-    _unplayableTurns = 0;
-    _roomFailures = 0;
-    _slowAnswers = 0;
-    _retryStep = 0;
-    _noticeSpoken = false;
+    _settleNetworkHealth(calm: !turn.degraded);
     _inaudibleSpoken = 0;
     _openTurnId = null;
     state = state.copyWith(
@@ -516,6 +514,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _degradedTurns = 0;
     }
     _awaitCoverageSettle(turn);
+    _scheduleInboxPoll();
   }
 
   /// The opening said in the two movements the room wrote it in.
@@ -546,6 +545,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _registerUnplayableTurn({bool leavesTeamTalk = true}) {
     _openTurnId = null;
     _unplayableTurns++;
+    _calmTurns = 0;
     if (_unplayableTurns >= _unplayableTurnsBeforeNeedsPerson) {
       _haltForAPerson();
       return;
@@ -735,6 +735,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// waits apart from refusals; this is the same distinction, arriving late.
   void _registerSlowRoom() {
     _slowAnswers++;
+    _calmTurns = 0;
     _conviteOpened = false;
     if (_slowAnswers >= _slowAnswersBeforeGivingUp) {
       _goOffline(RoomReach.roomSilent);
@@ -745,12 +746,39 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _registerRoomFailure() {
     _roomFailures++;
+    _calmTurns = 0;
     _conviteOpened = false;
     if (_roomFailures >= _roomFailuresBeforeNeedsPerson) {
       _haltForAPerson();
       return;
     }
     state = state.copyWith(voice: VoiceState.invite, peerCue: false);
+  }
+
+  /// A played turn only earns `_roomFailures`/`_slowAnswers` back after two calm turns
+  /// in a row — a network failing every other turn traded one failure for one success
+  /// every time, and the counter it gated never climbed. A resolve clears every counter
+  /// outright: it is the room's own word the trouble is over, not one more turn to weigh.
+  void _settleNetworkHealth({bool resolved = false, bool calm = true}) {
+    _unplayableTurns = 0;
+    _retryStep = 0;
+    _noticeSpoken = false;
+    if (resolved) {
+      _roomFailures = 0;
+      _slowAnswers = 0;
+      _degradedTurns = 0;
+      _calmTurns = 0;
+      return;
+    }
+    if (!calm) {
+      _calmTurns = 0;
+      return;
+    }
+    _calmTurns++;
+    if (_calmTurns < 2) return;
+    _calmTurns = 0;
+    if (_roomFailures > 0) _roomFailures--;
+    if (_slowAnswers > 0) _slowAnswers--;
   }
 
   void _watchBusyState() {
@@ -894,10 +922,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _timers.remove('person')?.cancel();
     _personAsked = false;
     _personAskStep = 0;
-    _unplayableTurns = 0;
-    _roomFailures = 0;
-    _retryStep = 0;
-    _noticeSpoken = false;
+    _settleNetworkHealth(resolved: true);
     unawaited(_networkWatch?.cancel());
     _networkWatch = null;
     state = state.copyWith(voice: VoiceState.invite);
@@ -929,6 +954,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     });
   }
 
+  void _scheduleInboxPoll() {
+    _after('inbox-poll', ref.read(roomPollDelayProvider), () {
+      unawaited(_pullInbox());
+    });
+  }
+
   void _watchCoverageChannel(String sessionId) {
     if (_coverageSessionId == sessionId) return;
     unawaited(_coverageWatch?.cancel());
@@ -952,7 +983,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _resolvedCoverageTurnId = turnId;
     _timers.remove('coverage')?.cancel();
     if (pullState) unawaited(_pullState(sessionId).catchError((_) {}));
-    unawaited(_pullInbox());
   }
 
   Future<void> _pullState(String sessionId) async {
@@ -1070,11 +1100,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _registerUnplayableTurn();
       return;
     }
-    _unplayableTurns = 0;
-    _roomFailures = 0;
-    _slowAnswers = 0;
-    _retryStep = 0;
-    _noticeSpoken = false;
+    _settleNetworkHealth();
     _openTurnId = null;
     unawaited(_feitas.markBookOpened(_book).catchError((_) {}));
     state = state.copyWith(
