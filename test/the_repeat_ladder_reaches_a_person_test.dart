@@ -81,4 +81,29 @@ void main() {
     );
     expect(container.read(salaSessionProvider).needsPerson, isFalse);
   });
+
+  test('resolving a halt resets the ladder too, not only a heard turn',
+      () async {
+    final harness = SalaHarness(shortestSpeech: _threshold);
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await _miss(notifier);
+    notifier.haltForABrokenBuild();
+    await settle();
+    notifier.resolveWithPerson();
+    await settle();
+    harness.voice.assets.clear();
+    await _miss(notifier);
+
+    expect(
+      harness.voice.assets,
+      [fixedLineAsset(inaudibleLines.first, testLanguage)],
+      reason: 'a pessoa resolveu a parada e a equipe voltou ao círculo — a '
+          'falta de antes da parada não pode custar a próxima linha, como '
+          'se a equipe nunca tivesse saído',
+    );
+    expect(container.read(salaSessionProvider).needsPerson, isFalse);
+  });
 }
