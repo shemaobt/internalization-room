@@ -174,6 +174,110 @@ void main() {
             'que a equipe gravou e ainda está no aparelho');
   });
 
+  test('a stored id from days ago is not resumed, and the room opens a fresh one',
+      () async {
+    final harness = SalaHarness();
+    harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+      sessionId: 'sessao-velha',
+      stage: SalaStage.conversa,
+      savedAt: DateTime.now().subtract(const Duration(days: 2)),
+    );
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+
+    expect(harness.room.sessionsSpokenTo, isNot(contains('sessao-velha')),
+        reason: 'um id de dois dias atrás prendia o aparelho a uma sessão que '
+            'o servidor pode já ter descartado');
+    expect(harness.room.pericopesAsked, contains('P01'),
+        reason: 'o abandono do id velho só vale alguma coisa se uma sessão '
+            'nova é pedida no lugar dele');
+    expect(harness.emAberto.rows['Ruth/P01']?.sessionId, harness.room.sessionIds.single);
+  });
+
+  test('a session held through one 500 is dropped after the second, not kept forever',
+      () async {
+    final harness = SalaHarness();
+    harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+      sessionId: 'sessao-velha',
+      stage: SalaStage.conversa,
+      savedAt: DateTime.now(),
+    );
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+
+    harness.room.failWith = const RoomBroke('sem resposta');
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+
+    expect(harness.emAberto.rows['Ruth/P01']?.sessionId, 'sessao-velha',
+        reason: 'um único 500 é passageiro — não é motivo para abandonar o id');
+
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+
+    expect(harness.emAberto.rows.containsKey('Ruth/P01'), isFalse,
+        reason: 'dois 500 seguidos numa sessão retomada prendiam o aparelho a '
+            'um id que o servidor não consegue servir');
+  });
+
+  test('a stored id created in pt does not post a turn to it from a device now in en',
+      () async {
+    final harness = SalaHarness(lingua: 'en');
+    harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+      sessionId: 'sessao-pt',
+      stage: SalaStage.conversa,
+      savedAt: DateTime.now(),
+      language: 'pt',
+    );
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+
+    expect(harness.room.sessionsSpokenTo, isNot(contains('sessao-pt')),
+        reason: 'a sessão foi aberta em português, e o Guia continuaria '
+            'falando português para um aparelho que agora está em inglês');
+    expect(harness.room.languagesSent, contains('en'),
+        reason: 'a sessão nova é pedida na língua do aparelho de hoje, não na '
+            'que a sessão abandonada carregava');
+  });
+
+  test('advancing past the conversa still remembers when and in what language '
+      'the session was born', () async {
+    final harness = SalaHarness(lingua: 'en');
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+
+    notifier.goEnsaio();
+
+    final row = harness.emAberto.rows['Ruth/P01'];
+    expect(row?.language, 'en',
+        reason: 'a linha reescrita ao avançar de estágio apagava a língua '
+            'gravada na criação, e a checagem de idioma parava de valer a '
+            'partir do primeiro avanço');
+    expect(row?.savedAt, isNotNull,
+        reason: 'a mesma reescrita apagava a data, e um id de meses atrás '
+            'voltava a ser retomável assim que passava da conversa');
+  });
+
   test('the opening is told in two movements, and the necklace waits', () async {
     final harness = SalaHarness()..room.opensInTwoMovements = true;
     final container = await inConversa(harness);

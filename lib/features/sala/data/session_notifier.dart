@@ -52,6 +52,10 @@ const _degradedTurnsBeforeAPerson = 3;
 /// person — mirroring `micFails` in her client.
 const _captureFailsBeforeAPerson = 2;
 
+/// How many times in a row the room may answer broken while resuming a stored session
+/// before the id is dropped, the way a 404 drops it.
+const _resumeFailuresBeforeForgetting = 2;
+
 final busyStateCeilingProvider = Provider<Duration?>(
   (ref) => const Duration(seconds: 330),
 );
@@ -115,12 +119,23 @@ final roomRetryBackoffProvider = Provider<List<Duration>>(
   ],
 );
 
+/// How long a stored session id is still worth asking the room for.
+final resumeExpiryProvider = Provider<Duration>(
+  (ref) => const Duration(days: 1),
+);
+
 class SalaSessionNotifier extends Notifier<SalaSessionState> {
   final Map<String, Timer> _timers = {};
   String? _haltWatched;
   int _epoch = 0;
   int _unplayableTurns = 0;
   int _roomFailures = 0;
+  int _resumeFailures = 0;
+  /// When and in what language the session now open was created, so a row rewritten by
+  /// a later stage advance carries the same values a resume needs to judge it by, instead
+  /// of going blank the moment the team leaves the conversa.
+  DateTime? _sessionSavedAt;
+  String? _sessionLanguage;
   int _slowAnswers = 0;
   int _calmTurns = 0;
   int _retryStep = 0;
@@ -500,6 +515,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _settleNetworkHealth(calm: !turn.degraded);
+    _resumeFailures = 0;
     _inaudibleSpoken = 0;
     _openTurnId = null;
     state = state.copyWith(
@@ -923,6 +939,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _personAskStep = 0;
     _settleNetworkHealth(resolved: true);
     _inaudibleSpoken = 0;
+    _resumeFailures = 0;
     unawaited(_networkWatch?.cancel());
     _networkWatch = null;
     state = state.copyWith(voice: VoiceState.invite);
@@ -1102,6 +1119,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _settleNetworkHealth();
+    _resumeFailures = 0;
     _openTurnId = null;
     unawaited(_feitas.markBookOpened(_book).catchError((_) {}));
     state = state.copyWith(
@@ -1377,6 +1395,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     leaveThePassage();
   }
 
+  bool _wrongLanguage(ResumePoint? point) {
+    final language = point?.language;
+    return language != null && language != _lingua;
+  }
+
+  bool _expired(ResumePoint? point) {
+    final savedAt = point?.savedAt;
+    if (savedAt == null) return false;
+    return DateTime.now().difference(savedAt) > ref.read(resumeExpiryProvider);
+  }
+
   /// Enter a passage, resuming the session this tablet left in it when there is one.
   ///
   /// `fresh` skips the resume, which is how the 404 path starts over: retrying without it
@@ -1415,13 +1444,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchBusyState();
     // Only the passages the wheel already said have work waiting are looked up on disk,
     // so entering a fresh one costs no read at all.
-    final waiting = opened == null &&
+    final stored = opened == null &&
             !fresh &&
             pericope != null &&
             state.comecadas.contains(pericope)
         ? await _emAberto.of(_book, pericope)
         : null;
     if (epoch != _epoch) return;
+    final waiting =
+        _expired(stored) || _wrongLanguage(stored) ? null : stored;
     try {
       final resumed = waiting != null;
       final created = opened ??
@@ -1435,12 +1466,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       final sessionId = waiting?.sessionId ?? created!.sessionId;
       if (epoch != _epoch) return;
       state = state.copyWith(sessionId: sessionId, coverage: created?.coverage);
+      _sessionSavedAt = resumed ? waiting.savedAt : DateTime.now();
+      _sessionLanguage = resumed ? waiting.language : _lingua;
       if (pericope != null && !resumed) {
         unawaited(_mindingThePlace(
           () => _emAberto.remember(
             _book,
             pericope,
-            ResumePoint(sessionId: sessionId, stage: SalaStage.conversa),
+            ResumePoint(
+              sessionId: sessionId,
+              stage: SalaStage.conversa,
+              savedAt: _sessionSavedAt,
+              language: _sessionLanguage,
+            ),
           ),
         ));
       }
@@ -1517,6 +1555,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       unawaited(abrirEscolha());
     } on Exception catch (error) {
       if (epoch != _epoch) return;
+      if (waiting != null && error is RoomBroke) {
+        _resumeFailures++;
+        if (_resumeFailures >= _resumeFailuresBeforeForgetting) {
+          _resumeFailures = 0;
+          unawaited(_mindingThePlace(() => _emAberto.forget(_book, pericope!)));
+        }
+      }
       _handleRoomFailure(error);
     }
   }
@@ -1554,6 +1599,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           takes: state.keptTakes,
           pass: state.ensaioPass,
           lugares: List.of(_lugares.values),
+          savedAt: _sessionSavedAt,
+          language: _sessionLanguage,
         ),
       ),
     ));
@@ -1596,6 +1643,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             ResumePoint(
               sessionId: waiting.sessionId,
               stage: SalaStage.conversa,
+              savedAt: waiting.savedAt,
+              language: waiting.language,
             ),
           ),
         ));
@@ -4325,6 +4374,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _forgetThePassage() {
     _unplayableTurns = 0;
     _roomFailures = 0;
+    _resumeFailures = 0;
     _slowAnswers = 0;
     _retryStep = 0;
     _noticeSpoken = false;
