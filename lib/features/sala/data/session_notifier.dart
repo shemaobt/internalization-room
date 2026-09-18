@@ -213,6 +213,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// retry of it — a resend under a fresh id is a fresh id the server has never seen, so
   /// it runs the whole pipeline again instead of answering with what it already produced.
   String? _openTurnId;
+  bool _openingOwed = false;
 
   String? _pendingTakePath;
   StreamSubscription<void>? _playbackDone;
@@ -294,6 +295,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _clearAll() {
     _cancelTimers();
     _parteARegravar = null;
+    _openTurnId = null;
+    _openingOwed = false;
     state = state.copyWith(clearLastSpoken: true);
     _onPlaybackComplete = null;
     _onPlaybackFailed = null;
@@ -518,6 +521,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _resumeFailures = 0;
     _inaudibleSpoken = 0;
     _openTurnId = null;
+    _openingOwed = false;
     state = state.copyWith(
       voice: turn.done ? VoiceState.done : VoiceState.invite,
       peerCue: turn.peerCue,
@@ -1535,10 +1539,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         }
       }
       // Re-opening carries the coverage back with it, so the necklace fills itself.
-      await _voiceTurn(
-        await _room.openSession(sessionId, turnId: _openTurnId ??= _stamp()),
-        epoch,
-      );
+      await _voiceTurn(await _askForTheOpening(sessionId, epoch), epoch);
     } on SessionGone {
       if (epoch != _epoch) return;
       if (pericope != null) {
@@ -1567,6 +1568,38 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           unawaited(_mindingThePlace(() => _emAberto.forget(_book, pericope!)));
         }
       }
+      _handleRoomFailure(error);
+    }
+  }
+
+  Future<TurnResult> _askForTheOpening(String sessionId, int epoch) async {
+    _openingOwed = true;
+    final turnId = _openTurnId ??= _stamp();
+    while (true) {
+      try {
+        return await _room.openSession(sessionId, turnId: turnId);
+      } on RoomSlow {
+        if (epoch != _epoch) rethrow;
+        if (_slowAnswers + 1 >= _slowAnswersBeforeGivingUp) rethrow;
+        _slowAnswers++;
+        _calmTurns = 0;
+        _sayImThinking();
+        _watchBusyState();
+      }
+    }
+  }
+
+  Future<void> _askForTheOpeningAgain() async {
+    final sessionId = state.sessionId;
+    if (sessionId == null) return;
+    final epoch = _epoch;
+    _sayImThinking();
+    state = state.copyWith(voice: VoiceState.thinking);
+    _watchBusyState();
+    try {
+      await _voiceTurn(await _askForTheOpening(sessionId, epoch), epoch);
+    } on Exception catch (error) {
+      if (epoch != _epoch) return;
       _handleRoomFailure(error);
     }
   }
@@ -1742,6 +1775,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _actOnConversaTap() {
     if (_recordingStarting) return;
+    if (_openingOwed) {
+      unawaited(_askForTheOpeningAgain());
+      return;
+    }
     final isRecording = state.voice == VoiceState.listening;
     final elapsed = _listeningSince == null
         ? Duration.zero
