@@ -1186,6 +1186,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> abrirEscolha() async {
     _clearAll();
+    _forgetThePassage();
     final epoch = _epoch;
     state = state.copyWith(
       stage: SalaStage.escolha,
