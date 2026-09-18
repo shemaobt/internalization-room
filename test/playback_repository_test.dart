@@ -273,6 +273,36 @@ void main() {
       expect(playback.playingLength, const Duration(seconds: 30));
     });
 
+    test('o stop durante o load não deixa a medida para trás', () async {
+      tocador.segurados['/parte-1.m4a'] = Completer<void>();
+      final abrindo = playback.play('/parte-1.m4a');
+      await oLoadNoAr('/parte-1.m4a');
+
+      await playback.stop();
+      tocador.segurados['/parte-1.m4a']!.complete();
+      await abrindo;
+
+      expect(playback.playingLength, isNull,
+          reason: 'o stop limpa o que o clipe media, e o load que termina atrás '
+              'dele não pode escrever de volta: o teto do clipe seguinte sai '
+              'daqui, e sairia do comprimento de um clipe que nunca tocou');
+    });
+
+    test('a pausa durante o load guarda a medida, que é o que o teto conta',
+        () async {
+      tocador.segurados['/parte-1.m4a'] = Completer<void>();
+      final abrindo = playback.play('/parte-1.m4a');
+      await oLoadNoAr('/parte-1.m4a');
+
+      await playback.pause();
+      tocador.segurados['/parte-1.m4a']!.complete();
+      await abrindo;
+
+      expect(playback.playingLength, const Duration(seconds: 30),
+          reason: 'uma pausa deixa o clipe aberto: é a mesma parte que o '
+              'próximo toque retoma, e o teto conta o que falta dela');
+    });
+
     test('sem nenhum hold o clipe toca, como sempre tocou', () async {
       tocador.segurados['/parte-1.m4a'] = Completer<void>();
       final abrindo = playback.play('/parte-1.m4a');

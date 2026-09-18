@@ -127,6 +127,7 @@ class PlaybackRepository {
   /// announces itself strands both.
   Future<void> _openThen(Future<Duration?> Function() load) async {
     final segurava = _holds;
+    final parada = _stops;
     await _player.stop();
     final Duration? length;
     try {
@@ -138,7 +139,11 @@ class PlaybackRepository {
       if (segurava != _holds) return;
       rethrow;
     }
-    _openedLength = length;
+    // A pause leaves the clip open, and the ceiling counts what is left of it, so the
+    // measure stands. A stop does not: it cleared the measure on the way past, and a load
+    // settling behind it would write back the length of a clip that never played — which
+    // is the very length the ceiling of the next clip would be computed from.
+    _openedLength = parada == _stops ? length : null;
     _openings.add(null);
     if (segurava != _holds) return;
     await _player.play();
@@ -147,6 +152,10 @@ class PlaybackRepository {
   /// How many times the room has held what is sounding. Only a hold counts: a resume
   /// asks for the very clip it is resuming.
   int _holds = 0;
+
+  /// How many of those holds were a stop, which is the half that also forgets what the
+  /// clip measured.
+  int _stops = 0;
 
   Future<void> pause() {
     _holds++;
@@ -157,6 +166,7 @@ class PlaybackRepository {
 
   Future<void> stop() {
     _holds++;
+    _stops++;
     return _quietly(() async {
       // Cleared with the playback it described. The safety ceiling for the next clip
       // was computed from the length of the last one.
