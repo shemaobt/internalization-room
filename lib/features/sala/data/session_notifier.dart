@@ -923,6 +923,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _personAsked = false;
     _personAskStep = 0;
     _settleNetworkHealth(resolved: true);
+    _inaudibleSpoken = 0;
     unawaited(_networkWatch?.cancel());
     _networkWatch = null;
     state = state.copyWith(voice: VoiceState.invite);
@@ -1757,7 +1758,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final epoch = _epoch;
     state = state.copyWith(voice: VoiceState.speaking, peerCue: false);
     _watchBusyState();
-    final line = inaudibleLines[_inaudibleSpoken.clamp(0, inaudibleLines.length - 1)];
+    final line = inaudibleLines.first;
     _inaudibleSpoken++;
     await _voice.playAsset(fixedLineAsset(line, _lingua));
     if (epoch != _epoch) return;
