@@ -3951,6 +3951,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// answer to telling one back carries a count and no name. Without this the pointer on
   /// a finding matched nothing this tablet held, and a team that had told six stretches
   /// back was offered the whole recording every time.
+  ///
+  /// It throws. Whether a read that did not happen is survivable is the caller's to say:
+  /// the verdict swallows it, because it already holds its answer and only the pointer is
+  /// lost; the approval's refusal does not, because the name is the whole of what it has.
   Future<void> _readTheStretchesBack(String sessionId, int epoch) async {
     final snapshot = await _room.fetchState(sessionId);
     if (epoch != _epoch) return;

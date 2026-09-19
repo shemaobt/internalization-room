@@ -889,7 +889,16 @@ void main() {
 
   testWidgets('uma sala que não responde a leitura dos nomes desce pela '
       'escada, e não vira uma parada', (tester) async {
-    final it = await _ateAConferida(tester);
+    // A espera entre tentativas é longa de propósito, como na irmã desta: com a de sempre
+    // a sala já teria voltado sozinha dentro do pump, e o degrau em que ela desistiu não
+    // seria legível.
+    final it = await _ateAConferida(
+      tester,
+      comEsta: SalaHarness(
+        filaEmMemoria: true,
+        retryBackoff: const [Duration(seconds: 30)],
+      ),
+    );
     it.harness.room
       ..releaseBlockers = const ['untold_stretch']
       ..releaseUntoldSegmentId = 'trecho-1'
@@ -907,6 +916,23 @@ void main() {
         reason: 'a fase não se move, que é o que mantém o botão desenhado');
     expect(_byLabel(_aprovar), findsOneWidget,
         reason: 'e o gesto continua ali para ser repetido');
+
+    // Contadas, não engolidas. A escada desiste na terceira demora, e é por chegar lá que
+    // se sabe que a falha entrou nela: uma leitura que simplesmente deixasse a falha cair
+    // também deixaria a sala sem pessoa e o botão de pé. A manivela é de um tiro só, então
+    // cada aperto rearma a sua.
+    it.harness.room.failStateOnceWith = const RoomSlow();
+    await _aprovarEEsperar(tester);
+    it.harness.room.failStateOnceWith = const RoomSlow();
+    await _aprovarEEsperar(tester);
+
+    expect(_estado(it.container).offline, isTrue,
+        reason: 'três demoras seguidas são a sala calada, que é o degrau em '
+            'que a escada desiste e diz à equipe que não está conseguindo '
+            'falar');
+    expect(it.harness.room.releasesAsked, hasLength(3),
+        reason: 'e cada pressão foi um pedido: a primeira falha não deixou '
+            'tranca nenhuma para trás');
 
     closeTheRoom(it.container);
   });
