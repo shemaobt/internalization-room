@@ -202,6 +202,15 @@ class SalaSessionState {
   /// what it says.
   final bool warning;
 
+  /// Which part of the rehearsal the team came back to record again, 0-based, or null when
+  /// the next recording is a part of its own.
+  ///
+  /// The rehearsal screen draws it and the record circle names it, so it is a fact of the
+  /// session rather than a private count in the notifier: mirrored in two places the two
+  /// drifted, and the screen said a new part was being recorded over a gesture that was
+  /// replacing one.
+  final int? parteARegravar;
+
   const SalaSessionState({
     this.stage = SalaStage.convite,
     this.voice = VoiceState.invite,
@@ -251,6 +260,7 @@ class SalaSessionState {
     this.unsentChunks = 0,
     this.unsentTakeScopes = const {},
     this.warning = false,
+    this.parteARegravar,
   });
 
   bool get colarOn =>
@@ -355,6 +365,17 @@ class SalaSessionState {
   /// gives for itself.
   String? get btEsperandoConserto => btConsertando ? null : btFindingSegmentId;
 
+  /// Which take the rehearsal screen marks, when the team came back to record a part
+  /// again.
+  ///
+  /// Scope and number are the same fact said twice, so they are counted from the same
+  /// place here rather than at each screen that needs one of them — the reason
+  /// `_aParteVoltaAoSeuLugar` gives for counting them together on the way out.
+  String? get escopoDaParteARegravar {
+    final parte = parteARegravar;
+    return parte == null ? null : KeptScope.parte(parte + 1);
+  }
+
   /// The rehearsal's own recordings, in order — never a correction's own take, which is a
   /// slice of one of these and not a part of the rehearsal in its own right.
   List<KeptTake> get partes =>
@@ -427,6 +448,8 @@ class SalaSessionState {
     int? unsentChunks,
     Set<String>? unsentTakeScopes,
     bool? warning,
+    int? parteARegravar,
+    bool clearParteARegravar = false,
   }) {
     return SalaSessionState(
       stage: stage ?? this.stage,
@@ -480,6 +503,9 @@ class SalaSessionState {
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentTakeScopes: unsentTakeScopes ?? this.unsentTakeScopes,
       warning: warning ?? this.warning,
+      parteARegravar: clearParteARegravar
+          ? null
+          : (parteARegravar ?? this.parteARegravar),
     );
   }
 }

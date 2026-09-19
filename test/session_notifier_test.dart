@@ -3644,21 +3644,24 @@ void main() {
     await gravaParte(notifier);
     await gravaParte(notifier);
     harness.playback.length = const Duration(seconds: 10);
+    harness.playback.measured = const Duration(seconds: 10);
     notifier.startRetro();
     await settle();
 
+    expect(container.read(salaSessionProvider).btFimDasPartesMs, [10000, 20000],
+        reason: 'as bordas das partes viviam só no notifier, e sem elas a tela não sabe '
+            'onde uma parte acaba e a próxima começa — e chegam todas na entrada, antes '
+            'de a primeira parte tocar, ou o colar fica sem as faixas das que vêm depois');
+
     harness.playback.finishPlayback();
     await settle();
-    expect(container.read(salaSessionProvider).btFimDasPartesMs, [10000]);
-
     notifier.proximaParte();
     await settle();
     harness.playback.finishPlayback();
     await settle();
 
     expect(container.read(salaSessionProvider).btFimDasPartesMs, [10000, 20000],
-        reason: 'as bordas das partes viviam só no notifier, e sem elas a tela não sabe '
-            'onde uma parte acaba e a próxima começa');
+        reason: 'e tocar cada parte confirma a régua em vez de a construir');
   });
 
   test('pausing writes down where the rehearsal actually stopped', () async {

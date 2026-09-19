@@ -40,6 +40,7 @@ class EnsaioView extends ConsumerWidget {
           recording: recording,
           interrupted: session.micTaken,
           dimmed: ghosting,
+          parteARegravar: session.parteARegravar,
           colors: colors,
           onTap: notifier.ensaioTap,
           onLongPress: session.canResolveWithPerson
@@ -115,6 +116,7 @@ class EnsaioView extends ConsumerWidget {
                     child: Bead(
                       size: 24,
                       opacity: 0.45,
+                      marcada: take.scopeId == session.escopoDaParteARegravar,
                       filled: !session.unsentTakeScopes.contains(take.scopeId) &&
                           !session.unsentTakeScopes.contains(unknownScope),
                     ),
@@ -187,6 +189,7 @@ class _RecordCircle extends StatelessWidget {
   final bool recording;
   final bool interrupted;
   final bool dimmed;
+  final int? parteARegravar;
   final SalaColors colors;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
@@ -195,6 +198,7 @@ class _RecordCircle extends StatelessWidget {
     required this.recording,
     required this.interrupted,
     required this.dimmed,
+    required this.parteARegravar,
     required this.colors,
     required this.onTap,
     required this.onLongPress,
@@ -205,9 +209,10 @@ class _RecordCircle extends StatelessWidget {
     final live = recording && !interrupted;
     return Semantics(
       button: true,
-      label: switch ((recording, dimmed)) {
-        (true, _) => 'Tocar ao terminar',
-        (false, true) => 'O ensaio guardado está tocando',
+      label: switch ((recording, dimmed, parteARegravar)) {
+        (true, _, _) => 'Tocar ao terminar',
+        (false, true, _) => 'O ensaio guardado está tocando',
+        (false, false, final parte?) => 'Gravar a parte ${parte + 1} de novo',
         _ => 'Tocar para gravar o ensaio',
       },
       child: GestureDetector(

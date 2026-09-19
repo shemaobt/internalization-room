@@ -11,6 +11,8 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/bead.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/onde_mora_grade.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_cord.dart';
 import 'package:internalization_room/main.dart';
@@ -94,6 +96,11 @@ Future<void> _contarUmTrecho(Sala it, Duration quanto) async {
         antes + 1,
   );
 }
+
+/// The rehearsal's own row of beads, in the order the screen draws it.
+Iterable<Bead> _contasDoEnsaio(WidgetTester tester) => tester.widgetList<Bead>(
+      find.descendant(of: find.byType(EnsaioView), matching: find.byType(Bead)),
+    );
 
 /// What the report the tablet sends says about each part, by the name the room gave it.
 Map<String, List<List<int>>> _escutaRelatada(Sala it) => {
@@ -433,6 +440,9 @@ void main() {
     final antes = it.partes;
 
     it.sala.gravarAParteDeNovo();
+    expect(it.estado.parteARegravar, 1,
+        reason: 'a tela do ensaio marca a conta por este número: guardado só '
+            'no notifier, a tela não tinha como saber o que desenhar');
     it.sala.ensaioTap();
     await waitFor('a gravação começar',
         () => it.estado.ensaio == EnsaioStatus.recording);
@@ -442,9 +452,16 @@ void main() {
     it.sala.takeRedo();
     await waitFor('o círculo ficar livre',
         () => it.estado.ensaio == EnsaioStatus.idle);
+    expect(it.estado.parteARegravar, 1,
+        reason: 'jogar fora a tomada não desfaz a escolha da parte, e a marca '
+            'tem de continuar de pé para a gravação seguinte tomar o lugar '
+            'certo');
 
     await regravarAParte(it, 1);
 
+    expect(it.estado.parteARegravar, isNull,
+        reason: 'e guardar gasta-a: de pé, a gravação seguinte viria tomar o '
+            'lugar da parte 2 outra vez');
     expect(it.partes, hasLength(3),
         reason: 'jogar fora uma tomada e gravar outra é a mesma gravação outra '
             'vez; a sala não pode esquecer qual parte a equipe veio refazer');
@@ -482,6 +499,9 @@ void main() {
       ..verdictFindingPlace = null;
     await pedirOVeredito(it);
     it.sala.continuarOEnsaio();
+    expect(it.estado.parteARegravar, isNull,
+        reason: 'a equipe mudou de ideia pelo caminho, e a sessão não pode '
+            'continuar a dizer que veio refazer a parte 2');
     await gravarUmaParte(it);
 
     expect(it.partes, hasLength(4),
@@ -599,6 +619,51 @@ void main() {
     expect([agora[0].path, agora[2].path], [antes[0].path, antes[2].path]);
   });
 
+  testWidgets('o ensaio marca a parte que a equipe veio gravar de novo',
+      (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    await resto.aHistoriaSemOFim(tester, harness, ondeFalta: 'trecho-2');
+
+    await tester.tap(byLabel(micParteLabel));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect([for (final conta in _contasDoEnsaio(tester)) conta.marcada],
+        [false, true, false],
+        reason: 'a equipe veio refazer a parte 2, e é a conta dela que o ensaio '
+            'distingue: sem marca nenhuma a tela diz que vai nascer uma parte '
+            'nova no fim do ensaio');
+    expect(byLabel('Gravar a parte 2 de novo'), findsOneWidget,
+        reason: 'e o círculo diz de que parte se trata, que é a única coisa '
+            'que uma sala sem texto tem para dizer isso');
+    expect(byLabel('Tocar para gravar o ensaio'), findsNothing,
+        reason: 'o rótulo da parte nova mente aqui: esta gravação toma o lugar '
+            'de uma parte que já existe');
+  });
+
+  testWidgets('guardar a gravação nova solta a marca da parte', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container =
+        await resto.aHistoriaSemOFim(tester, harness, ondeFalta: 'trecho-2');
+    final notifier = container.read(salaSessionProvider.notifier);
+    final antes = container.read(salaSessionProvider).partes;
+
+    await tester.tap(byLabel(micParteLabel));
+    await tester.pump(const Duration(milliseconds: 400));
+    await resto.gravarUmaParte(tester, notifier);
+
+    expect([for (final conta in _contasDoEnsaio(tester)) conta.marcada],
+        [false, false, false],
+        reason: 'a marca gasta-se no guardar: deixada de pé, a próxima '
+            'gravação da equipe parecia vir tomar o lugar da parte 2 outra vez');
+    expect(byLabel('Tocar para gravar o ensaio'), findsOneWidget,
+        reason: 'e o círculo volta a ser o da parte nova');
+    final agora = container.read(salaSessionProvider).partes;
+    expect(agora, hasLength(3),
+        reason: 'e a gravação nova não acrescentou uma parte ao ensaio');
+    expect(agora[1].path, isNot(antes[1].path),
+        reason: 'a gravação nova ficou no lugar da parte 2 (ADR 0020)');
+  });
+
   testWidgets('o colar mostra chão nu sobre a parte dois', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container =
@@ -619,16 +684,43 @@ void main() {
             'é um arquivo do seu próprio tamanho, e desenhada com o da que ela '
             'substituiu o cordão fala de um ensaio que não existe mais');
 
+    final partes = container.read(salaSessionProvider).partes;
+    final medidasAntes = List.of(harness.playback.measurements);
     notifier.startRetro();
     await tester.pump(const Duration(milliseconds: 400));
 
     final cord = tester.widget<RetroCord>(find.byType(RetroCord));
     expect(cord.partes, 3, reason: 'o ensaio continua tendo três partes');
-    expect([for (final trecho in cord.trechos) trecho.parte], isNot(contains(1)),
+    expect(container.read(salaSessionProvider).btFimDasPartesMs,
+        [30000, 42000, 72000],
+        reason: 'e a entrada na tradução mede o ensaio inteiro antes de pôr '
+            'parte nenhuma no ar: com a régua truncada na parte por contar, o '
+            'colar deixava de desenhar as faixas da parte 3 até a parte 2 '
+            'acabar de tocar');
+    expect(
+      [
+        for (final trecho in cord.trechos)
+          cordSpanMs(trecho: trecho, fimDasPartes: cord.fimDasPartes),
+      ],
+      everyElement(isNotNull),
+      reason: 'nenhuma faixa cai do cordão: uma banda sem lugar é uma parte que '
+          'a equipe contou e o colar não mostra',
+    );
+    expect({for (final trecho in cord.trechos) trecho.parte}, {0, 2},
         reason: 'nenhuma faixa sobre a parte 2: o chão dela está por contar');
     expect(cord.apontado, isNull,
         reason: 'e nenhuma faixa vazia: vazia quer dizer à espera de conserto, '
             'e este chão não espera conserto nenhum, espera ser contado');
+    expect(harness.playback.played.last, partes[1].path,
+        reason: 'a parte por contar é a que entra no ar');
+    expect(harness.playback.playedFrom.last, Duration.zero,
+        reason: 'e desde o começo dela: os trechos que a cobriam saíram com a '
+            'gravação que ela substituiu');
+    expect(
+      harness.playback.measurements.sublist(medidasAntes.length),
+      containsAll([for (final parte in partes) parte.path]),
+      reason: 'as três partes são medidas na entrada, sem serem tocadas',
+    );
 
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 200));

@@ -324,6 +324,7 @@ void main() {
     // The rehearsal's own take is already in there from the setup; what this scenario is
     // about is whether the short way adds another one.
     harness.room.takesKept.clear();
+    harness.playback.measurements.clear();
 
     await tester.tap(byLabel(micRetroLabel));
     await tester.pump(const Duration(milliseconds: 300));

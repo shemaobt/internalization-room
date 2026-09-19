@@ -120,7 +120,105 @@ Future<void> _contarDeNovoAParteRefeita(Sala it, Duration quanto) async {
   await _ouvirAParteNoAr(it, partesDoEnsaio[2]);
 }
 
+/// Into the back-translation from a rehearsal nobody has told back yet, standing with the
+/// first part in the air.
+Future<void> _entrarNaTraducao(Sala it) async {
+  it.sala.startRetro();
+  await waitFor(
+    'a primeira parte entrar no ar',
+    () =>
+        it.estado.stage == SalaStage.retro &&
+        it.estado.btPhase == BtPhase.playing &&
+        it.estado.btClipRodando,
+  );
+}
+
 void main() {
+  test('a régua traz as três partes antes de a primeira tocar', () async {
+    final it = await umEnsaioDeTresPartesGravado();
+
+    await _entrarNaTraducao(it);
+
+    expect(it.estado.btFimDasPartesMs, [10000, 18000, 30000],
+        reason: 'o colar desenha o ensaio inteiro desde o primeiro quadro: '
+            'uma régua que só cresce à medida que as partes acabam esconde as '
+            'faixas de tudo o que vem depois da parte no ar');
+    expect(it.harness.playback.played.last, it.partes[0].path,
+        reason: 'e a equipe continua a entrar pela primeira parte');
+  });
+
+  test('uma parte que o tablet não mede acaba a régua ali', () async {
+    final it = await umEnsaioDeTresPartesGravado();
+    it.harness.playback.semMedida.add(it.partes[2].path);
+
+    await _entrarNaTraducao(it);
+
+    expect(it.estado.btFimDasPartesMs, [10000, 18000],
+        reason: 'uma parte que ninguém consegue medir acaba o cordão em vez de '
+            'o alongar por um palpite');
+    expect(it.estado.needsPerson, isFalse,
+        reason: 'e não é motivo para parar a equipe: o desenho é que fica '
+            'curto, o trabalho não');
+    expect(it.harness.playback.played.last, it.partes[0].path);
+  });
+
+  test('uma parte medida em zero acaba a régua como uma que não se mede',
+      () async {
+    final it = await umEnsaioDeTresPartesGravado();
+    it.harness.playback.lengths[it.partes[2].path] = Duration.zero;
+
+    await _entrarNaTraducao(it);
+
+    expect(it.estado.btFimDasPartesMs, [10000, 18000],
+        reason: 'zero não é uma medida, é o player sem resposta sobre o '
+            'arquivo: escrito na régua, ele espreme a parte a nada em vez de '
+            'acabar o cordão ali');
+  });
+
+  test('um gesto enquanto a sala mede não abre o microfone', () async {
+    final it = await umEnsaioDeTresPartesGravado();
+    it.harness.playback.holdNextMeasurement();
+    final capturas = it.harness.recorder.captures;
+
+    it.sala.startRetro();
+    await waitFor(
+      'a sala entrar na espera da medição',
+      () => it.estado.btPhase == BtPhase.thinking,
+    );
+    it.sala.cortarTrecho();
+    it.sala.retroTap();
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+
+    expect(it.estado.btPhase, BtPhase.thinking,
+        reason: 'a espera é o estado honesto da sala enquanto o player mede, e '
+            'agora ela acontece em toda entrada');
+    expect(it.harness.recorder.captures, capturas,
+        reason: 'um corte que caísse dentro da espera abria o microfone sobre '
+            'um clipe a começar, com o cursor no zero');
+    expect(it.harness.playback.played, isEmpty,
+        reason: 'e nada entra no ar antes de a régua estar medida');
+
+    it.harness.playback.finishHeldMeasurement();
+    await waitFor(
+      'a primeira parte entrar no ar',
+      () => it.estado.btClipRodando,
+    );
+    expect(it.harness.playback.played.last, it.partes[0].path,
+        reason: 'acabada a medição, a parte toca como sempre tocou');
+  });
+
+  test('a parte regravada medida em zero acaba a régua ali', () async {
+    final it = await _aSalaNoAchadoDaSegundaParte();
+    await _regravarASegundaParte(it, antesDeGuardar: (arquivo) {
+      it.harness.playback.lengths[arquivo] = Duration.zero;
+    });
+
+    expect(it.estado.btFimDasPartesMs, [10000],
+        reason: 'a parte 2 é medida no instante em que a equipe a guarda, e um '
+            'zero ali não é uma parte sem duração: é o player sem resposta '
+            'sobre um arquivo acabado de escrever');
+  });
+
   test('cair numa parte além da régua mede as anteriores primeiro', () async {
     final it = await _aSalaNoAchadoDaSegundaParte();
     final terceira = it.partes[2].takeId!;

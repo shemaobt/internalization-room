@@ -356,6 +356,7 @@ void main() {
     await waitFor('a sala chamar uma pessoa', () => parada.estado.needsPerson);
 
     harness.room.refuseClipOf.clear();
+    harness.room.theDeskAttended();
     final volta = await _reabrirDeNovo(parada);
     await waitFor('a retro voltar', () => volta.estado.stage == SalaStage.retro);
 
@@ -372,6 +373,97 @@ void main() {
       [for (final take in volta.estado.partes) take.path],
       reason: 'e agora a linha nomeia os arquivos que este tablet tem',
     );
+  });
+
+  /// A passage reopened into a room the server is still holding, with parts 1 and 2 told
+  /// back whole and part 3 never told.
+  Future<_Retomada> aRetomadaParada(SalaHarness harness) async {
+    final it = await _reabrir(
+      harness,
+      parouEm: SalaStage.retro,
+      aindaNoTablet: {1, 2, 3},
+      contado: _contado([1, 2]),
+    );
+    await waitFor('a sala parar ao reabrir', () => it.estado.needsPerson);
+    await waitFor(
+      'a entrada medir o ensaio',
+      () => it.estado.btFimDasPartesMs.length == 3,
+    );
+    return it;
+  }
+
+  test('uma retomada numa sala parada mede o ensaio e nao toca nada', () async {
+    final harness = SalaHarness()
+      ..room.serverStatus = 'needs_person'
+      ..room.serverHalt = HaltKind.blocking;
+    final it = await aRetomadaParada(harness);
+
+    expect(it.estado.needsPerson, isTrue,
+        reason: 'a parada e do servidor e so a mesa a levanta (ADR 0009)');
+    expect(harness.playback.played, isEmpty,
+        reason: 'uma parada que bloqueia nao toca nada: por o ensaio no ar '
+            'cala a sala pelo caminho, e corta a unica chamada por uma pessoa');
+    expect(it.estado.btPhase, BtPhase.playing,
+        reason: 'e a sala nao fica presa a pensar: a medicao acabou');
+    expect(it.estado.btFimDasPartesMs, [10000, 20000, 30000],
+        reason: 'a entrada mede o ensaio inteiro mesmo parada, para o colar ja '
+            'estar desenhado quando a mesa soltar a equipe');
+  });
+
+  test('a mesa a soltar poe no ar a parte que a entrada tinha escolhido',
+      () async {
+    final harness = SalaHarness()
+      ..room.serverStatus = 'needs_person'
+      ..room.serverHalt = HaltKind.blocking;
+    final it = await aRetomadaParada(harness);
+
+    harness.room.theDeskAttended();
+    await waitFor('a mesa soltar a parada', () => !it.estado.needsPerson);
+    await waitFor('a parte entrar no ar', () => it.estado.btClipRodando);
+
+    expect(harness.playback.played, [it.estado.partes[2].path],
+        reason: 'sem gesto nenhum: a entrada so reteve o som, e soltar a parada '
+            'e o que a acaba. A sala parada na tradução sem clipe nenhum '
+            'deixava a tesoura passar por todos os guardas e cortar sobre o '
+            'silencio');
+    expect(it.estado.partes[2].takeId, 'gravacao-3',
+        reason: 'e e a primeira parte com chao por contar, nao a parte 1');
+  });
+
+  test('a parada nao apaga o que a equipe ja ouvira das partes contadas',
+      () async {
+    final harness = SalaHarness()
+      ..room.serverStatus = 'needs_person'
+      ..room.serverHalt = HaltKind.blocking;
+    final it = await aRetomadaParada(harness);
+
+    harness.room.theDeskAttended();
+    await waitFor('a mesa soltar a parada', () => !it.estado.needsPerson);
+    await waitFor('a parte entrar no ar', () => it.estado.btClipRodando);
+    harness.playback
+      ..length = _parte
+      ..at = _parte
+      ..finishPlayback();
+    await waitFor('a terceira parte acabar', () => it.estado.btClipEnded);
+    await it.sala.finishBackTranslation();
+    await waitFor(
+      'a sala responder ao terminei',
+      () => harness.room.playedByTakeSent.isNotEmpty,
+    );
+
+    final relato = {
+      for (final parte in harness.room.playedByTakeSent.last)
+        parte['take_id']! as String:
+            (parte['played_ranges']! as List).cast<List<int>>(),
+    };
+    expect(relato['gravacao-1'], [
+      [0, 10000]
+    ], reason: 'a parada reteve o som e mais nada: o que a equipe ja ouvira '
+        'continua a entrar no registro, ou o terminei era recusado por partes '
+        'que ela ouviu na rodada anterior');
+    expect(relato['gravacao-2'], [
+      [0, 10000]
+    ]);
   });
 
   test('uma sessao que a sala esqueceu recomeca limpa, nao para para sempre',

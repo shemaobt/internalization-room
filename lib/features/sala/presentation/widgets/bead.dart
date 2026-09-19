@@ -11,19 +11,23 @@ class Bead extends StatelessWidget {
   final Border? border;
   final bool filled;
 
+  /// Whether this is the one bead of the row the screen is singling out.
+  final bool marcada;
+
   const Bead({
     super.key,
     required this.size,
     this.opacity = 1,
     this.border,
     this.filled = true,
+    this.marcada = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final colors = SalaColors.of(context);
     return Opacity(
-      opacity: opacity,
+      opacity: marcada ? 1 : opacity,
       child: Container(
         width: size,
         height: size,
@@ -31,7 +35,9 @@ class Bead extends StatelessWidget {
           shape: BoxShape.circle,
           gradient: filled ? BeadStyles.wood : BeadStyles.oat(colors),
           boxShadow: BeadStyles.matte,
-          border: border ?? (filled ? null : Border.all(color: colors.line)),
+          border: marcada
+              ? Border.all(color: colors.telha, width: 2)
+              : border ?? (filled ? null : Border.all(color: colors.line)),
         ),
       ),
     );

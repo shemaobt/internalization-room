@@ -72,11 +72,9 @@ Future<void> ouvirETraduzirAParteInteira(Sala it, Duration quanto) async {
   );
 }
 
-/// The rehearsal recorded in three parts, every one of them told back whole and played to
-/// its end, standing with *terminei* lit and nothing pressed yet.
-Future<Sala> umEnsaioDeTresPartesContadoInteiro({
-  Duration? tetoDaEspera,
-}) async {
+/// The rehearsal recorded in three parts with nothing told back yet: the room as it stands
+/// the first time the team presses the advance button.
+Future<Sala> umEnsaioDeTresPartesGravado({Duration? tetoDaEspera}) async {
   final harness = SalaHarness(busyCeiling: tetoDaEspera);
   final container = harness.container();
   addTearDown(container.dispose);
@@ -92,6 +90,15 @@ Future<Sala> umEnsaioDeTresPartesContadoInteiro({
   for (var onde = 0; onde < partesDoEnsaio.length; onde++) {
     harness.playback.lengths[partes[onde].path] = partesDoEnsaio[onde];
   }
+  return it;
+}
+
+/// The rehearsal recorded in three parts, every one of them told back whole and played to
+/// its end, standing with *terminei* lit and nothing pressed yet.
+Future<Sala> umEnsaioDeTresPartesContadoInteiro({
+  Duration? tetoDaEspera,
+}) async {
+  final it = await umEnsaioDeTresPartesGravado(tetoDaEspera: tetoDaEspera);
 
   it.sala.startRetro();
   await waitFor(
