@@ -186,15 +186,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Duration _trechoEnd = Duration.zero;
   int _parteTocando = 0;
 
-  /// The part in the air is the one the room said nobody heard, and hearing it to its end
-  /// hands the finish back.
+  /// The part in the air is the one the verdict named in a refusal — unheard or untold —
+  /// and hearing it to its end hands the finish back.
   ///
   /// The finish was already the team's — it is how the refusal was asked for — and the
   /// refusal only takes it away for the length of this one part. Without this, a refusal
   /// naming any part but the last made the team cross and listen through everything after
   /// it to get the press back, which is hearing the story again: the very thing the jump
   /// over the ground already told exists to spare them.
-  bool _pousadaNaParteNaoOuvida = false;
+  bool _pousadaNaParteApontadaPelaRecusa = false;
 
   /// Whether the way into the telling-back chose its part and withheld the sound, because
   /// the room was halted by the time the player had measured.
@@ -2814,7 +2814,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _parteTocando = 0;
     _entradaParouSemTocar = false;
     _tamanhoDaParteMs.clear();
-    _pousadaNaParteNaoOuvida = false;
+    _pousadaNaParteApontadaPelaRecusa = false;
     _escuta.esquecerTudo();
     _desdeMs = 0;
     state = state.copyWith(
@@ -3124,8 +3124,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // part, and a part nothing could measure then held the boundary open past the end of
     // the row: the room offered a crossing into a part that is not there.
     final ultima = _parteTocando >= state.partes.length - 1;
-    final pousada = _pousadaNaParteNaoOuvida;
-    _pousadaNaParteNaoOuvida = false;
+    final pousada = _pousadaNaParteApontadaPelaRecusa;
+    _pousadaNaParteApontadaPelaRecusa = false;
     state = state.copyWith(
       btClipEnded: ultima || pousada,
       btParteFronteira: !ultima,
@@ -3860,7 +3860,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _haltForAPerson();
       return;
     }
-    _pousadaNaParteNaoOuvida = true;
+    _pousadaNaParteApontadaPelaRecusa = true;
     state = state.copyWith(
       btPhase: BtPhase.playing,
       voice: VoiceState.invite,
@@ -4333,7 +4333,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _parteTocando = 0;
     _entradaParouSemTocar = false;
     _tamanhoDaParteMs.clear();
-    _pousadaNaParteNaoOuvida = false;
+    _pousadaNaParteApontadaPelaRecusa = false;
     _aprovando = false;
     _aprovada = false;
     _escuta.esquecerTudo();

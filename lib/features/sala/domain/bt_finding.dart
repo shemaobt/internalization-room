@@ -66,7 +66,8 @@ class BackTranslationVerdict {
   ///
   /// Its own field, in the shape of [unheardTakeIds]: the room refuses a passage carrying
   /// ground nobody told back, and says so by naming the part rather than by leaving the
-  /// team to guess it from an empty findings phase.
+  /// team to guess it from an empty findings phase. An empty list is a refusal that did
+  /// not happen, never one this tablet worked out for itself from a silence.
   final List<String> untoldTakeIds;
   final int findingsRemaining;
   final bool usedFailSafe;

@@ -272,6 +272,34 @@ void main() {
     expect(it.harness.playback.played.last, primeira.path);
   });
 
+  test(
+    'uma parte não contada vence uma parte não ouvida no mesmo veredito',
+    () async {
+      final it = await umEnsaioDeTresPartesContadoInteiro();
+      final primeira = it.partes[0];
+      final terceira = it.partes[2];
+      it.harness.room
+        ..verdictChecked = true
+        ..verdictUntoldTakeIds = [primeira.takeId!]
+        ..verdictUnheardTakeIds = [terceira.takeId!];
+      await pedirOVeredito(it);
+
+      expect(
+        it.harness.playback.played.last,
+        primeira.path,
+        reason:
+            'o servidor responde um errand por vez, mas o tablet lê pela '
+            'ordem do servidor (não contada, depois não ouvida, depois '
+            'conferida) e nunca por checked',
+      );
+      expect(
+        it.harness.voice.played.last,
+        falaDaParteNaoContada,
+        reason: 'a linha dita é a da recusa que venceu, não a do veredito',
+      );
+    },
+  );
+
   test('uma recusa atrasada não muda nada', () async {
     final it = await umEnsaioDeTresPartesContadoInteiro(
       tetoDaEspera: const Duration(seconds: 2),
