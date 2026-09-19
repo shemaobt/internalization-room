@@ -41,3 +41,6 @@ team left, exactly as one reopened the same afternoon (ADR 0023).
 
 A row naming a session the server has forgotten costs one answer on the first reopening;
 the 404 path then starts the passage clean, as it already did.
+
+The row is read at every door into the passage, including one the room opened before the
+tablet knew which passage it was (ADR 0033).
