@@ -3338,8 +3338,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         voice: VoiceState.invite,
         btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
         btConsertando: false,
+        // Never cleared from here: a room that said nothing about a person has said
+        // nothing about a warning either, and the one a state read raised stands.
+        warning: told.needsPerson ? true : null,
       );
-      if (told.needsPerson) _haltForAPerson();
       return;
     }
 
@@ -3358,6 +3360,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: VoiceState.invite,
       btTrechos: trechos.isEmpty ? state.btTrechos : trechos,
       btChunkPasses: [for (final segment in told.segments) segment.passNumber],
+      // The room asking for a person over a stretch told again is a warning: somebody is
+      // called to come and watch, and the team is refused nothing. Written before the
+      // verdict, because a warning is a field and the verdict only walks the voice.
+      warning: told.needsPerson ? true : null,
     );
     _rememberWhereTheyAre(SalaStage.retro);
     if (epoch != _epoch) return;
@@ -3374,35 +3380,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // Nothing had to be unlocked for this: the mark that the recording ended survives a
     // correction, so the ask is allowed the moment it is made.
     await finishBackTranslation();
-    // Not the epoch. The epoch moves whenever `_cancelTimers` runs, and going offline is
-    // the commonest way that happens — so a hiccup on the verdict request above bumped it
-    // and swallowed the news, and the team was invited back to tell stretches into a room
-    // that had stopped taking them. Losing the network is exactly the moment the room
-    // being spent still matters, so it cannot be the moment the news is dropped.
-    //
-    // Only the notifier being gone is read, because that is the only thing left that must
-    // stop this. A team who walked out of the passage is already covered twice over: the
-    // gesture empties the session, and the call for a person is only ever made when there
-    // is a session to make it about.
-    if (_gone) return;
-    // A passage that came back clean wins over a room that has run dry. If the work is
-    // right there is nothing left to correct, so the spent budget has stopped mattering,
-    // and calling somebody to a passage that is over is noise in the queue the facilitator
-    // has to trust. The team is left on the approval and nobody is sent for.
-    if (state.btPhase == BtPhase.conferida) return;
-    // The budget for retellings runs out on this route too, and the room says so in the
-    // same breath as the answer. It used to be read only off telling a stretch, so a team
-    // that hit the ceiling by correcting one saw nothing at all: the room had stopped
-    // taking their work and they went on making more of it.
-    //
-    // Said after the answer is in, never instead of it. Losing what became of the
-    // recording they just made, at the very moment the room stops, would be worse than
-    // the silence this fixes — so the verdict above is asked for and spoken first, and
-    // only then does the room stop. It has to be this way round and not the other: the
-    // verdict walks the session's voice from thinking to speaking to done, and a halt
-    // raised before it would be written over by that walk, leaving the team invited back
-    // to work in a room that had stopped taking any.
-    if (told.needsPerson) _haltForAPerson();
   }
 
   /// Put the cursor back on the furthest stretch already told.

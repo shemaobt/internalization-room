@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/onde_mora_grade.dart';
@@ -109,6 +110,45 @@ Future<void> traduzirDeNovo(
   await tester.tap(byLabel(micRetro));
   await tester.pump(const Duration(milliseconds: 300));
   await terminarACaptura(tester, container);
+}
+
+/// What one correction leaves behind, read the way the team meets it.
+typedef CorrecaoFeita = ({
+  BtPhase phase,
+  VoiceState voice,
+  bool warning,
+  bool needsPerson,
+  int pessoasChamadas,
+  bool disseAFalaDoChamado,
+});
+
+/// Take the short way once, with or without the room asking for a person, and read what
+/// the room was left in.
+Future<CorrecaoFeita> correcaoComResposta(
+  WidgetTester tester, {
+  required bool aSalaPedeUmaPessoa,
+}) async {
+  final container = await pumpToPergunta(tester);
+  final harness = harnessDaVez!;
+  harness.room.replaceNeedsPerson = aSalaPedeUmaPessoa;
+
+  await traduzirDeNovo(tester, container);
+
+  final state = container.read(salaSessionProvider);
+  final feita = (
+    phase: state.btPhase,
+    voice: state.voice,
+    warning: state.warning,
+    needsPerson: state.needsPerson,
+    pessoasChamadas: harness.room.personsAsked,
+    disseAFalaDoChamado: harness.voice.assets
+        .contains(fixedLineAsset(needsPersonLine, testLanguage)),
+  );
+  // A tela sai antes da sala: deixá-la montada sobre um container fechado faria o
+  // gesto seguinte procurar botões numa árvore que já não tem sessão nenhuma.
+  await tester.pumpWidget(const SizedBox.shrink());
+  closeTheRoom(container);
+  return feita;
 }
 
 void main() {
@@ -267,21 +307,28 @@ void main() {
   }
 
 
-  testWidgets('a correction that runs the room out reaches the team',
+  testWidgets('a correction that runs the room out warns and stops nothing',
       (tester) async {
-    final container = await pumpToPergunta(tester);
-    harnessDaVez!.room.replaceNeedsPerson = true;
+    final comum = await correcaoComResposta(tester, aSalaPedeUmaPessoa: false);
+    final avisada = await correcaoComResposta(tester, aSalaPedeUmaPessoa: true);
 
-    await traduzirDeNovo(tester, container);
-
-    expect(container.read(salaSessionProvider).needsPerson, isTrue,
-        reason: 'a sala parou de aceitar e a equipe não vê nada: continua '
-            'tentando corrigir numa sala que já desistiu, e ninguém chama a '
-            'pessoa que poderia destravá-la');
-    expect(harnessDaVez!.room.personsAsked, 1,
-        reason: 'e o facilitador precisa ser chamado, senão a equipe fica '
-            'parada esperando alguém que não foi avisado');
-    closeTheRoom(container);
+    expect(avisada.warning, isTrue,
+        reason: 'o orçamento esgotado é um aviso em toda rota por onde chega: '
+            'alguém é chamado para vir olhar e nada é recusado à equipe');
+    expect(avisada.needsPerson, isFalse,
+        reason: 'uma parada bloqueante prende a equipe até a mesa atender, e '
+            'a mesa não é chamada por um aviso');
+    expect(avisada.voice, isNot(VoiceState.needsPerson),
+        reason: 'o círculo tem de ficar na cor do aviso, não na da parada');
+    expect(avisada.pessoasChamadas, 0,
+        reason: 'a sala já pediu a pessoa ao marcar o aviso; o pedido do '
+            'tablet marca a parada como bloqueante e viraria o aviso na '
+            'parada que a regra proíbe');
+    expect(avisada.disseAFalaDoChamado, isFalse,
+        reason: 'a fala E0 anuncia uma sala que parou, e esta não parou');
+    expect((avisada.phase, avisada.voice), (comum.phase, comum.voice),
+        reason: 'a sala fica onde a mesma correção sem o campo a deixa — é '
+            'essa igualdade que diz que nada foi recusado à equipe');
   });
 
   testWidgets('the answer to that correction is not lost with the warning',
@@ -296,7 +343,44 @@ void main() {
       ['trecho-1-v1', 'trecho-2'],
       reason: 'perder a resposta junto com o aviso seria pior que o problema: '
           'a equipe ficaria sem saber o que aconteceu com a gravação que '
-          'acabou de fazer, justamente quando a sala parou',
+          'acabou de fazer, justamente quando a sala avisou',
+    );
+    expect(container.read(salaSessionProvider).warning, isTrue,
+        reason: 'e o aviso chega junto com ela: guardar a resposta e engolir '
+            'o aviso deixaria ninguém a caminho de uma sala que pediu alguém');
+    closeTheRoom(container);
+  });
+
+  testWidgets('a correction the room made nothing of also only warns',
+      (tester) async {
+    final container = await pumpToPergunta(tester);
+    final harness = harnessDaVez!;
+    final trechosAntes =
+        container.read(salaSessionProvider).btTrechos.map((t) => t.segmentId);
+    harness.room
+      ..replaceCaptured = false
+      ..replaceNeedsPerson = true;
+
+    await traduzirDeNovo(tester, container);
+
+    final state = container.read(salaSessionProvider);
+    expect(state.btTrechos.map((t) => t.segmentId), trechosAntes,
+        reason: 'a sala não fez nada da correção, então os trechos ficam como '
+            'estavam — uma explicação não se troca por uma vazia');
+    expect(state.warning, isTrue,
+        reason: 'e o aviso que veio com a recusa vale na mesma: o orçamento '
+            'foi gasto pela gravação que a equipe acabou de fazer');
+    expect(state.btPhase, BtPhase.playing,
+        reason: 'a equipe volta a ouvir e a contar, como volta sem o campo');
+    expect(state.voice, VoiceState.invite,
+        reason: 'e é convidada a falar, não deixada diante de uma sala parada');
+    expect(harness.room.personsAsked, 0,
+        reason: 'ninguém é chamado pelo tablet sobre um aviso');
+    expect(
+      harness.voice.assets
+          .contains(fixedLineAsset(needsPersonLine, testLanguage)),
+      isFalse,
+      reason: 'e a fala da sala parada não é dita sobre uma sala que segue',
     );
     closeTheRoom(container);
   });
@@ -324,10 +408,10 @@ void main() {
     // not carry the field at all.
     await traduzirDeNovo(tester, container);
 
-    expect(container.read(salaSessionProvider).needsPerson, isFalse,
-        reason: 'o campo só passa a existir quando a ENG-685 for mesclada, e '
-            'até lá toda resposta real chega sem ele — tratar essa ausência '
-            'como aviso pararia a sala contra o servidor que está no ar');
+    expect(container.read(salaSessionProvider).warning, isFalse,
+        reason: 'ausência é "sem notícia": acender o aviso sobre toda correção '
+            'poria um verde permanente no círculo e a fila do facilitador '
+            'encheria de salas que nunca pediram nada');
     expect(harnessDaVez!.room.personsAsked, 0);
   });
 
@@ -414,7 +498,7 @@ void main() {
         reason: 'e nada nesse caminho pode parar uma sala que não parou');
   });
 
-  testWidgets('a correction that runs the room out both answers and stops',
+  testWidgets('a correction that runs the room out both answers and warns',
       (tester) async {
     final container = await pumpToPergunta(tester);
     final harness = harnessDaVez!;
@@ -433,12 +517,16 @@ void main() {
       reason: 'e a resposta que chegou fica de pé — é ela o que a equipe '
           'perderia se o aviso viesse no lugar dela',
     );
-    expect(container.read(salaSessionProvider).needsPerson, isTrue,
-        reason: 'e o pedido de pessoa sobrevive ao caminho do veredito, que '
-            'reescreve a voz da sessão de ponta a ponta: pedido antes dele, '
-            'a sala volta a convidar a equipe a trabalhar numa sala parada');
-    expect(harness.room.personsAsked, 1,
-        reason: 'e alguém é de fato chamado, senão a sala para em silêncio');
+    expect(container.read(salaSessionProvider).warning, isTrue,
+        reason: 'e o aviso sobrevive ao caminho do veredito, que reescreve a '
+            'voz da sessão de ponta a ponta: perdido nele, ninguém vem olhar '
+            'uma sala que pediu alguém');
+    expect(container.read(salaSessionProvider).needsPerson, isFalse,
+        reason: 'e a sala não para: o veredito chegou e a equipe segue com '
+            'ele, que é a diferença entre um aviso e uma parada');
+    expect(harness.room.personsAsked, 0,
+        reason: 'quem pediu a pessoa foi a sala, ao marcar o aviso; o pedido '
+            'do tablet marcaria a parada como bloqueante');
     closeTheRoom(container);
   });
 
@@ -451,16 +539,15 @@ void main() {
     // Nothing switched on: the server in production today does not carry the field.
     await traduzirDeNovo(tester, container);
 
-    expect(container.read(salaSessionProvider).needsPerson, isFalse,
-        reason: 'ausência é "sem notícia", e tratá-la como aviso pararia a '
-            'sala contra o servidor que está no ar');
+    expect(container.read(salaSessionProvider).warning, isFalse,
+        reason: 'ausência é "sem notícia", e acendê-la como aviso chamaria '
+            'alguém a toda correção comum');
     expect(vereditosPedidos(harness), antes + 1,
         reason: 'e contra esse servidor a correção continua chegando ao '
             'resultado como a fatia anterior a deixou');
   });
 
-  testWidgets('the call for a person outlives a verdict the network ate',
-      (tester) async {
+  testWidgets('the warning outlives a verdict the network ate', (tester) async {
     final container = await pumpToPergunta(tester);
     final harness = harnessDaVez!;
     harness.room.replaceNeedsPerson = true;
@@ -468,14 +555,16 @@ void main() {
 
     await traduzirDeNovo(tester, container);
 
-    expect(harness.room.personsAsked, 1,
-        reason: 'a sala disse que parou de aceitar, e a rede caiu no pedido do '
-            'veredito que vem logo depois: se o aviso morre junto com o '
-            'veredito, ninguém é chamado para a sala que parou');
-    expect(container.read(salaSessionProvider).needsPerson, isTrue,
-        reason: 'e a equipe tem de ver a sala parada, senão é convidada de '
-            'volta a contar trechos numa sala que não os aceita mais — a '
-            'notícia não podia depender de o veredito ter chegado');
+    expect(container.read(salaSessionProvider).warning, isTrue,
+        reason: 'a sala pediu alguém, e a rede caiu no pedido do veredito que '
+            'vem logo depois: se o aviso morre junto com o veredito, ninguém '
+            'vem olhar uma sala que chamou');
+    expect(harness.room.personsAsked, 0,
+        reason: 'e nem uma rede caída faz o tablet pedir a pessoa, que é o '
+            'pedido que marca a parada como bloqueante');
+    expect(container.read(salaSessionProvider).needsPerson, isFalse,
+        reason: 'a rede que comeu o veredito não é a mesa: só ela prende a '
+            'equipe');
     closeTheRoom(container);
   });
 
