@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
@@ -729,14 +728,14 @@ void main() {
   testWidgets('a saída da passagem não fica ocupada em conferida sob parada',
       (tester) async {
     final it = await _ateAConferida(tester);
-    it.harness.room.failReleaseWith = const ReleaseRefused();
+    it.harness.room.releaseBlockers = const ['no_project'];
 
     await tester.tap(byLabel(_aprovar));
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(_estado(it.container).needsPerson, isTrue,
-        reason: 'uma soltura recusada chama uma pessoa — se não chamar, não há '
-            'parada que medir');
+        reason: 'uma sessão sem projeto é um buraco sem porta, e a sala para '
+            'para uma pessoa — se não parar, não há parada que medir');
     expect(byLabel(_sairDaPassagem), findsOneWidget);
     expect(
       tester

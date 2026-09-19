@@ -7,12 +7,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
 import '../../../core/config/env.dart';
+import '../domain/approval_answer.dart';
 import '../domain/bt_finding.dart';
 import '../domain/coverage_event.dart';
 import '../domain/device_link.dart';
 import '../domain/escuta_das_partes.dart';
 import '../domain/passagem.dart';
-import '../domain/release.dart';
 import '../domain/session_snapshot.dart';
 import '../domain/turn_result.dart';
 import 'device_identity.dart';
@@ -90,19 +90,6 @@ class PassageShut implements Exception {
 /// cannot be handed out twice — final, not retried.
 class NobodyToReach implements Exception {
   const NobodyToReach();
-}
-
-/// The server will not release this passage, and nothing the team can do from the
-/// back-translation screen changes that.
-///
-/// Its own exception rather than the 409 the ladder would read as `RoomBroke`, which
-/// halts only on the third failure: the team would press a dead button twice before
-/// anybody was called.
-class ReleaseRefused implements Exception {
-  const ReleaseRefused();
-
-  @override
-  String toString() => 'ReleaseRefused';
 }
 
 class RoomRepository {
@@ -422,7 +409,7 @@ class RoomRepository {
   /// The room packages the rows it already holds and hashes them, so nothing travels with
   /// the press. A second approval of unchanged content comes back as the release already
   /// there, which is the same answer.
-  Future<Release> approveRelease(String sessionId) async {
+  Future<ApprovalAnswer> approveRelease(String sessionId) async {
     final response = await _send(
       () async => _client.post(
         _uri('/sessions/$sessionId/release'),
@@ -430,8 +417,7 @@ class RoomRepository {
       ),
       _stateTimeout,
     );
-    if (response.statusCode == 409) throw const ReleaseRefused();
-    return _read(response, Release.fromJson);
+    return _read(response, ApprovalAnswer.fromJson);
   }
 
   Future<void> askForAPerson(String sessionId) async {

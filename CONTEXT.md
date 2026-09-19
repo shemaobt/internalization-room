@@ -189,8 +189,12 @@ _Avoid_: ponto de retomada, em curso, checkpoint, snapshot (the session's own li
 The check's answer when the team says it has finished telling back: the passage is clean, or it carries findings, or it names an untold stretch to go straight to, or it refuses the check outright and names the parts the team's report does not cover.
 _Avoid_: veredito, result, finding (one item a verdict may carry), correction check (the server entity)
 
+**Blocker**:
+One of the codes a refused approval names, one string each: the gate's ten plus `no_project`. A blocker says which hole stands; the tablet opens the door it has for it, in its own order, and calls a person for the rest.
+_Avoid_: reason, error code, bloqueio, refusal (the answer that carries them)
+
 **Approval**:
-The team's gesture, after a clean verdict, that makes the passage its final draft: one press on the back-translation screen, the server's release answered with a version, and Marcia's approved process line spoken from the bundle. The room closes only after it, and a refusal calls a person.
+The team's gesture, after a clean verdict, that makes the passage its final draft: one press on the back-translation screen, the server's release answered with a version, and Marcia's approved process line spoken from the bundle. The room closes only after it, and a refused one takes the team to the hole its blockers name.
 _Avoid_: aprovação, finalize, release (the server's record of it), approve button
 
 **Finding**:

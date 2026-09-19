@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -216,6 +217,35 @@ void main() {
     expect(depois.btFindingTrecho?.segmentId, 'trecho-1');
     expect(depois.btTrechoTocando, isFalse);
     expect(depois.needsPerson, isFalse);
+  });
+
+  testWidgets('uma sala que não responde à leitura dos nomes ainda abre os '
+      'achados', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.verdictChecked = false
+      ..room.verdictFinding = BtFindingKind.missing
+      ..room.verdictFindingSegmentId = 'trecho-1';
+    // Armada de dentro da própria pergunta do veredito: a leitura dos nomes é o pedido
+    // logo a seguir a ela, e é essa que tem de falhar. Armada antes, qualquer leitura do
+    // caminho até aqui gastava a manivela, que é de um tiro só, e o caso não media nada.
+    harness.room.duranteOVeredito = () {
+      harness.room.failStateOnceWith = const RoomSlow();
+    };
+    final container = await pumpUpToAVerdict(tester, harness);
+
+    final depois = container.read(salaSessionProvider);
+    expect(depois.btPhase, BtPhase.findings,
+        reason: 'o veredito já está na mão e já foi dito: falhar em reler os '
+            'nomes custa o ponteiro, não o veredito, e a tela dos achados '
+            'abre na mesma');
+    expect(depois.needsPerson, isFalse,
+        reason: 'e não chama ninguém: quem precisa do nome para ter aonde ir é '
+            'a recusa da aprovação, que deixa esta falha subir');
+    expect(harness.room.failStateOnceWith, isNull,
+        reason: 'a leitura foi mesmo tentada e falhou — com a manivela ainda '
+            'armada ninguém leu, e o caso não mediria engolir nenhum');
+
+    closeTheRoom(container);
   });
 
   test('um servidor que não manda o campo não quebra o app', () {
