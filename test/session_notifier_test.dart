@@ -2623,9 +2623,13 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     await _intoFindings(harness, notifier, container);
     final before = container.read(salaSessionProvider);
-    harness.playback.ranges.clear();
 
-    notifier.ouvirVozMaterna();
+    notifier.traduzirDeNovoEmPortugues();
+    await waitFor(
+      'o microfone abrir',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
+    );
+    notifier.retroTap();
     await settle();
 
     final after = container.read(salaSessionProvider);
@@ -2633,8 +2637,8 @@ void main() {
         reason: 'traduzir um trecho de novo descartava as explicações de todos os '
             'outros e mandava a equipe reescutar a gravação do zero');
     expect(after.btChunkPasses, before.btChunkPasses);
-    expect(harness.playback.ranges, hasLength(1),
-        reason: 'a sala toca aquele trecho para a equipe traduzir de novo');
+    expect(harness.room.replacesAsked, hasLength(1),
+        reason: 'a sala manda o trecho apontado para ser traduzido de novo');
     expect(after.btClipEnded, isTrue,
         reason: 'e o terminei continua ali para reconferir');
   });
