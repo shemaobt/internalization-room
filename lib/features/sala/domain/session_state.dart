@@ -126,12 +126,11 @@ class SalaSessionState {
   /// a restart, and nothing else here carries that.
   final bool takePaused;
   final BtPhase btPhase;
-  final List<int> btChunkPasses;
   /// Which stretch numbers the room never took, in the order they were told.
   ///
-  /// A count could not say this. `btChunkPasses` only grows when a stretch lands, and the
-  /// unsent count only grows when one fails — two disjoint sets, so subtracting one from
-  /// the other hollowed a bead belonging to a stretch that had arrived while the stretch
+  /// A count could not say this. A stretch is added only when one lands, and the unsent
+  /// count only grows when one fails — two disjoint sets, so subtracting one from the
+  /// other hollowed a bead belonging to a stretch that had arrived while the stretch
   /// actually at risk had no bead at all.
   final List<int> btChunkFailures;
   /// Every passage the book offers, or null when the wheel has not been read.
@@ -195,11 +194,12 @@ class SalaSessionState {
   /// silence.
   ///
   /// The room has no text on screen, so a warning that asks nobody to stop still needs
-  /// a way to be seen — this follows the last state read (`halt: "warning"`), the last
-  /// chunk and the last restart of the telling-back the same way: true the moment one
-  /// of them says so, false the moment a state read does not. A blocking halt never
-  /// sets it; [FacilitatorCircle] draws its own halted body over this regardless of
-  /// what it says.
+  /// a way to be seen — this follows the last state read (`halt: "warning"`) and the
+  /// answer to a stretch told again the same way: true the moment one of them says so,
+  /// false the moment a state read does not — and the back-translation runs none, so one
+  /// raised there stands until the team leaves the passage. A blocking halt never sets
+  /// it; [FacilitatorCircle] draws its own halted body over this regardless of what it
+  /// says.
   final bool warning;
 
   /// Which part of the rehearsal the team came back to record again, 0-based, or null when
@@ -234,7 +234,6 @@ class SalaSessionState {
     this.playPing = false,
     this.takePaused = false,
     this.btPhase = BtPhase.playing,
-    this.btChunkPasses = const [],
     this.btChunkFailures = const [],
     this.naRoda,
     this.comecadas = const {},
@@ -420,7 +419,6 @@ class SalaSessionState {
     bool? playPing,
     bool? takePaused,
     BtPhase? btPhase,
-    List<int>? btChunkPasses,
     List<int>? btChunkFailures,
     List<Passagem>? naRoda,
     Set<String>? comecadas,
@@ -475,7 +473,6 @@ class SalaSessionState {
       playPing: playPing ?? this.playPing,
       takePaused: takePaused ?? this.takePaused,
       btPhase: btPhase ?? this.btPhase,
-      btChunkPasses: btChunkPasses ?? this.btChunkPasses,
       btChunkFailures: btChunkFailures ?? this.btChunkFailures,
       naRoda: clearRoda ? null : (naRoda ?? this.naRoda),
       comecadas: comecadas ?? this.comecadas,

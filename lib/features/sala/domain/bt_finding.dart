@@ -19,22 +19,16 @@ extension BtFindingExit on BtFindingKind {
 class BackTranslationChunk {
   final int chunks;
   final bool captured;
-  final int passNumber;
-  final bool needsPerson;
 
   const BackTranslationChunk({
     required this.chunks,
     required this.captured,
-    required this.passNumber,
-    required this.needsPerson,
   });
 
   factory BackTranslationChunk.fromJson(Map<String, dynamic> json) =>
       BackTranslationChunk(
         chunks: json['chunks'] as int? ?? 0,
         captured: json['captured'] as bool? ?? false,
-        passNumber: json['pass_number'] as int? ?? 1,
-        needsPerson: json['needs_person'] as bool? ?? false,
       );
 }
 

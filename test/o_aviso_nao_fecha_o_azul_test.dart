@@ -101,8 +101,34 @@ Future<ProviderContainer> _achadoComAvisoAtivo(SalaHarness harness) async {
     () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
   );
   notifier.retroTap();
+  // O aviso é escrito antes de o veredito ser pedido, e o pedido leva a sala ao
+  // pensando: devolvê-la aí faria o gesto seguinte ser engolido por uma guarda de
+  // fase e o caso passar pela razão errada.
   await waitFor(
-    'a sala pedir uma pessoa',
+    'a sala levantar o aviso e assentar',
+    () =>
+        container.read(salaSessionProvider).warning &&
+        container.read(salaSessionProvider).btPhase != BtPhase.thinking,
+  );
+  return container;
+}
+
+/// A sala parada de vez, dentro da retro: a equipe contou um trecho e o gravador
+/// não trouxe áudio nenhum do seguinte, que é a parada bloqueante desta estação.
+Future<ProviderContainer> _paradaBloqueante(SalaHarness harness) async {
+  final container = await _inRetro(harness);
+  final notifier = container.read(salaSessionProvider.notifier);
+
+  await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
+  await waitFor(
+    'o primeiro trecho chegar à sala',
+    () => harness.room.chunksSent == 1,
+  );
+
+  harness.recorder.returnsEmpty = true;
+  await _traduzTrecho(harness, notifier, em: const Duration(seconds: 20));
+  await waitFor(
+    'a sala parar de vez',
     () => container.read(salaSessionProvider).needsPerson,
   );
   return container;
@@ -131,6 +157,14 @@ void main() {
           'o aviso pede uma pessoa; ele não fecha o caminho curto — só o '
           'toque longo resolve, e até lá os dois microfones continuam abrindo '
           'a captura como sempre',
+    );
+    expect(
+      container.read(salaSessionProvider).needsPerson,
+      isFalse,
+      reason:
+          'e o aviso não é uma parada: se ele prendesse a sala, este '
+          'microfone abriria por engano numa sala que a mesa ainda não '
+          'atendeu, e o caso acima passaria pela razão errada',
     );
   });
 
@@ -163,11 +197,11 @@ void main() {
   });
 
   test(
-    'o aviso continua visível; o toque longo só pergunta na hora, e é a '
-    'mesa quem levanta a parada',
+    'a parada bloqueante continua visível; o toque longo só pergunta na '
+    'hora, e é a mesa quem a levanta',
     () async {
       final harness = SalaHarness();
-      final container = await _achadoComAvisoAtivo(harness);
+      final container = await _paradaBloqueante(harness);
       final notifier = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
 

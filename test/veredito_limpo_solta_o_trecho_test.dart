@@ -266,7 +266,6 @@ void main() {
     ], trechosAntes,
         reason: 'os trechos são os mesmos: conferir não reescreve o que a '
             'equipe contou');
-    expect(depois.btChunkPasses, antes.btChunkPasses);
     expect(depois.btChunkFailures, antes.btChunkFailures);
     expect(depois.btPass, antes.btPass);
     expect(depois.keptTakes.length, antes.keptTakes.length,

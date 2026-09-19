@@ -9,7 +9,6 @@ class SegmentView {
   final String takeId;
   final int startsMs;
   final int endsMs;
-  final int passNumber;
 
   /// Whether the team has explained this stretch in the bridge language yet.
   ///
@@ -23,7 +22,6 @@ class SegmentView {
     required this.takeId,
     required this.startsMs,
     required this.endsMs,
-    this.passNumber = 1,
     this.told = true,
   });
 
@@ -37,7 +35,6 @@ class SegmentView {
         takeId: json['take_id'] as String? ?? '',
         startsMs: json['starts_ms'] as int? ?? 0,
         endsMs: json['ends_ms'] as int? ?? 0,
-        passNumber: json['pass_number'] as int? ?? 1,
         told: json['told'] as bool? ?? true,
       );
 }
@@ -95,10 +92,10 @@ class TellingAgain {
 
   /// Whether the room has stopped taking corrections and wants somebody to come.
   ///
-  /// The budget for retellings runs out on this route as it does on the one for telling a
-  /// stretch, and the answer says so the same way. Absent means no such news: the field
-  /// arrives only from a room that knows how to send it, and every other answer has to go
-  /// on working.
+  /// It is a warning and never a stop: this is the room saying it has already called for
+  /// somebody, and the team is refused nothing (ADR 0032). Absent means no such news: the
+  /// field arrives only from a room that knows how to send it, and every other answer has
+  /// to go on working.
   final bool needsPerson;
 
   const TellingAgain({

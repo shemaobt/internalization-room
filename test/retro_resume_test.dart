@@ -29,7 +29,6 @@ const _traduzidos = BackTranslationProgress(
       takeId: _gravacao,
       startsMs: 12000,
       endsMs: 30000,
-      passNumber: 2,
     ),
   ],
 );
@@ -112,7 +111,6 @@ void main() {
       [for (final trecho in state.btTrechos) '${trecho.from}-${trecho.to}'],
       ['0:00:00.000000-0:00:12.000000', '0:00:12.000000-0:00:30.000000'],
     );
-    expect(state.btChunkPasses, [1, 2]);
     expect(
       [for (final trecho in state.btTrechos) trecho.takeId],
       [_gravacao, _gravacao],

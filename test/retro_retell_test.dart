@@ -198,9 +198,9 @@ void main() {
 
     expect(harness.room.chunksSent, 3,
         reason: 'o corte seguinte precisa mesmo chegar à sala, senão nada aqui é olhado');
-    expect(harness.room.retells, 0,
-        reason: 'a marca de traduzir de novo só é apagada por um trecho que chega, e sair por '
-            'cima dela deixava o corte seguinte subir como correção de um trecho que '
+    expect(harness.room.replacesAsked, isEmpty,
+        reason: 'o conserto armado é largado pelo trecho que volta vazio, e sair por '
+            'cima dele deixava o corte seguinte subir como correção de um trecho que '
             'ninguém estava contando');
     expect(harness.room.chunkSpans, ['0-20000', '20000-40000', '40000-60000'],
         reason: 'e o cursor do corte também foi movido pelo traduzir de novo, então o trecho '
@@ -319,10 +319,9 @@ void main() {
     );
 
     expect(harness.room.replacesAsked.length, pedidosAntes,
-        reason: 'a trava é um latch sem casa no estado, como o _traduzindoDeNovo que '
-            'já mandou o primeiro trecho de uma tradução como correção de '
-            'um trecho que não existia — aqui iria para o id da passagem '
-            'anterior');
+        reason: 'o trecho armado é um latch sem casa no estado, e já mandou o '
+            'primeiro trecho de uma tradução como correção de um trecho que '
+            'não existia — aqui iria para o id da passagem anterior');
     expect(harness.room.chunkSpans.last, '0-10000');
   });
 
@@ -339,17 +338,64 @@ void main() {
     await _traduzDeNovo(container, notifier,
         container.read(salaSessionProvider).btTrechos.first);
     harness.room.replaceCaptured = true;
-    final traducoesDeNovoAntes = harness.room.retells;
 
     await _traduzTrecho(harness, notifier, em: const Duration(seconds: 40));
 
-    expect(harness.room.retells, traducoesDeNovoAntes,
-        reason: 'traduzir um trecho de novo encerra a tradução de novo: deixá-la '
-            'ligada faz o próximo corte ignorar o tocador, reaproveitar os '
-            'limites velhos e subir como tradução de novo');
     expect(harness.room.chunkSpans.last, '20000-40000',
-        reason: 'e os limites são os do tocador, não os que a tradução de novo '
-            'tinha deixado para trás');
+        reason: 'traduzir um trecho de novo encerra a tradução de novo: deixá-la '
+            'ligada faz o próximo corte ignorar o tocador e reaproveitar os '
+            'limites velhos');
+    expect(harness.room.replacesAsked, hasLength(1),
+        reason: 'e o corte seguinte sobe como pedaço novo, não como correção '
+            'de um trecho que ninguém está contando');
+  });
+
+  test('a short way whose microphone never opened still cuts on the stretch',
+      () async {
+    final harness = SalaHarness()..room.verdictChecked = false;
+    final container = await _levadaAoTrechoApontado(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    final trecho = container.read(salaSessionProvider).btTrechos.first;
+
+    // O microfone recusa abrir, e a sala volta a tocar com o conserto ainda
+    // armado naquele trecho: é onde a equipe toca o círculo de novo.
+    harness.recorder.startThrows = true;
+    await notifier.traduzirDeNovo(trecho);
+    await waitFor(
+      'a sala voltar a tocar com o microfone fechado',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.playing,
+    );
+
+    harness.recorder.startThrows = false;
+    harness.playback.at = const Duration(seconds: 5);
+    notifier.cortarTrecho();
+    await waitFor(
+      'o microfone abrir no trecho',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
+    );
+    notifier.retroTap();
+    await waitFor(
+      'a sala sair do pensando',
+      () => container.read(salaSessionProvider).btPhase != BtPhase.thinking,
+    );
+
+    expect(
+      harness.room.replacesAsked,
+      hasLength(1),
+      reason: 'o conserto continua armado, então o que a equipe conta é a '
+          'correção daquele trecho; lida a posição do tocador, o corte volta '
+          'em silêncio e o círculo fica morto',
+    );
+    expect(
+      harness.room.replacesAsked.single,
+      endsWith(':${trecho.from.inMilliseconds}-${trecho.to.inMilliseconds}'),
+      reason: 'e no endereço do trecho, não onde o tocador tinha parado',
+    );
+    expect(
+      harness.room.chunkSpans,
+      ['0-20000'],
+      reason: 'e nada sobe como pedaço novo por cima do conserto armado',
+    );
   });
 
   test('a correction the room takes leaves the next cut on untold ground', () async {

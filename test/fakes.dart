@@ -760,8 +760,6 @@ class FakeRoom implements RoomRepository {
   final List<String?> turnIdsAsked = [];
 
   int personsAsked = 0;
-  int retells = 0;
-  int retellBudget = 3;
 
   final List<String?> codesAskedFor = [];
   /// Which device this room was asked to hand a credential to, in order.
@@ -994,7 +992,6 @@ class FakeRoom implements RoomRepository {
         takeId: antes.takeId,
         startsMs: antes.startsMs,
         endsMs: antes.endsMs,
-        passNumber: antes.passNumber,
         told: true,
       );
     }
@@ -1026,7 +1023,6 @@ class FakeRoom implements RoomRepository {
           takeId: whole.takeId,
           startsMs: whole.startsMs,
           endsMs: at.inMilliseconds,
-          passNumber: whole.passNumber,
           told: false,
         ),
         SegmentView(
@@ -1034,7 +1030,6 @@ class FakeRoom implements RoomRepository {
           takeId: whole.takeId,
           startsMs: at.inMilliseconds,
           endsMs: whole.endsMs,
-          passNumber: whole.passNumber,
           told: false,
         ),
       ]);
@@ -1190,7 +1185,6 @@ class FakeRoom implements RoomRepository {
     required String takeId,
     required Duration from,
     required Duration to,
-    bool retelling = false,
   }) async {
     _guard('sendChunk');
     chunksSent++;
@@ -1202,15 +1196,11 @@ class FakeRoom implements RoomRepository {
         takeId: takeId,
         startsMs: from.inMilliseconds,
         endsMs: to.inMilliseconds,
-        passNumber: retelling ? 2 : 1,
       ));
     }
-    if (retelling) retells++;
     return BackTranslationChunk(
       chunks: chunksSent,
       captured: chunkCaptured,
-      passNumber: retelling ? 2 : 1,
-      needsPerson: retelling && retells >= retellBudget,
     );
   }
 

@@ -252,25 +252,6 @@ void main() {
         reason: 'e o áudio do trecho que acabou de deixar de existir para');
   });
 
-  test('the passes stay as long as the stretches they belong to', () async {
-    final harness = SalaHarness()..room.verdictChecked = false;
-    final container = await _umTrechoTraduzidoETocando(harness);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    harness.playback.at = const Duration(seconds: 8);
-    await notifier.dividirTrecho();
-    await settle();
-
-    final state = container.read(salaSessionProvider);
-    expect(state.btChunkPasses.length, state.btTrechos.length,
-        reason: 'as duas listas andam juntas em todo lugar que as escreve, e '
-            'o índice do próximo pedaço lê ora uma ora outra — deixá-las de '
-            'tamanhos diferentes faz um retro retomado reconstruir uma lista '
-            'que não bate com a que está no ar');
-    expect(state.btChunkPasses, [1, 1],
-        reason: 'e os dois pedaços herdam a passada do trecho de onde saíram');
-  });
-
   test('the rest of the back translation goes on working', () async {
     final harness = SalaHarness();
     final container = await _inRetro(harness);
