@@ -199,7 +199,8 @@ void main() {
     expect(state.btTrechos, hasLength(2));
   });
 
-  test('a retro nobody had told back into yet throws nothing away', () async {
+  test('a telling-back nobody had told into yet comes back with the rehearsal the room holds',
+      () async {
     final harness = SalaHarness();
 
     final container = await _reopen(
@@ -246,6 +247,33 @@ void main() {
     expect(harness.playback.sounding, isFalse,
         reason: 'uma sala parada retira o som e nada mais (ADR 0029)');
     expect(harness.playback.played, isEmpty);
+  });
+
+  test('a checked answer with no stretch lands on the approval over the rehearsal it has',
+      () async {
+    final harness = SalaHarness();
+
+    final container = await _reopen(
+      harness,
+      parouEm: SalaStage.retro,
+      contado: const BackTranslationProgress(checked: true),
+    );
+    await settle(const Duration(seconds: 2));
+
+    final state = container.read(salaSessionProvider);
+    expect(state.stage, SalaStage.retro,
+        reason: 'a conferência é o gesto que falta, e mandar a equipe gravar '
+            'ou contar de novo é tirar dela a aprovação que ninguém deu');
+    expect(state.btPhase, BtPhase.conferida);
+    expect(state.voice, VoiceState.done);
+    expect(state.btTrechos, isEmpty,
+        reason: 'a sala não guarda trecho nenhum, e inventar um seria dizer à '
+            'equipe que ela contou o que não contou');
+    expect(harness.room.pericopesAsked, isEmpty,
+        reason: 'a sessão conferida é a que a aprovação vai fechar');
+    expect(harness.playback.played, isEmpty,
+        reason: 'e a conferida não toca nada sozinha: a última audição é um '
+            'gesto da equipe');
   });
 
   test('a passage the room already checked comes back to the approval, not to a close',

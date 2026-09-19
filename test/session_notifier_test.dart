@@ -177,9 +177,14 @@ void main() {
 
   test('a row saved a week ago is resumed, not thrown away', () async {
     final harness = SalaHarness();
+    final gravada = File(
+      '${Directory.systemTemp.createTempSync('sala-semana-passada').path}/p1.m4a',
+    )..writeAsBytesSync([1, 2, 3]);
+    addTearDown(() => gravada.parent.deleteSync(recursive: true));
     harness.emAberto.rows['Ruth/P01'] = ResumePoint(
       sessionId: 'sessao-velha',
-      stage: SalaStage.conversa,
+      stage: SalaStage.ensaio,
+      takes: [KeptTake(scopeId: KeptScope.parte(1), path: gravada.path)],
       savedAt: DateTime.now().subtract(const Duration(days: 8)),
     );
     final container = harness.container();
@@ -191,14 +196,17 @@ void main() {
     await notifier.goConversa(pericope: 'P01');
     await settle();
 
-    expect(harness.room.sessionsSpokenTo, contains('sessao-velha'),
-        reason: 'a equipe que volta na semana seguinte encontra a passagem '
-            'onde a deixou; a sessão continua de pé no servidor');
+    final state = container.read(salaSessionProvider);
+    expect(state.stage, SalaStage.ensaio,
+        reason: 'a equipe que volta na semana seguinte encontra a passagem na '
+            'estação em que a deixou, não na conversa');
+    expect(state.partes.single.path, gravada.path,
+        reason: 'com o ensaio que ela gravou debaixo dela');
+    expect(state.sessionId, 'sessao-velha',
+        reason: 'e dentro da sessão que o servidor continua a guardar');
     expect(harness.room.pericopesAsked, isEmpty,
         reason: 'pedir uma sessão nova aqui deixa órfã a que guarda tudo o '
             'que a equipe contou');
-    expect(container.read(salaSessionProvider).stage, SalaStage.conversa,
-        reason: 'e a estação é a que a linha nomeia');
     expect(harness.emAberto.rows['Ruth/P01']?.sessionId, 'sessao-velha');
   });
 
@@ -295,6 +303,9 @@ void main() {
 
     final linha = harness.emAberto.written.last;
     expect(linha.sessionId, harness.room.sessionIds.last);
+    expect(linha.stage, SalaStage.ensaio,
+        reason: 'é a linha do ensaio que se mede: a da conversa é vazia por '
+            'construção, e as duas escritas correm soltas');
     expect(linha.takes, isEmpty,
         reason: 'a linha era reescrita no ensaio com as gravações da sessão '
             'anterior sob o id da nova, e o servidor guardava a sessão que a '
@@ -332,6 +343,61 @@ void main() {
     expect(harness.emAberto.rows.containsKey('Ruth/P01'), isFalse,
         reason: 'dois 500 seguidos numa sessão retomada prendiam o aparelho a '
             'um id que o servidor não consegue servir');
+  });
+
+  test('the next passage opens with nothing of the one before it', () async {
+    final harness = SalaHarness();
+    final gravada = File(
+      '${Directory.systemTemp.createTempSync('sala-passagem-anterior').path}/p1.m4a',
+    )..writeAsBytesSync([1, 2, 3]);
+    addTearDown(() => gravada.parent.deleteSync(recursive: true));
+    harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.retro,
+      takes: [
+        KeptTake(
+          scopeId: KeptScope.parte(1),
+          path: gravada.path,
+          takeId: 'gravacao-1',
+        ),
+      ],
+    );
+    harness.room.retroSoFar = const BackTranslationProgress(
+      segments: [
+        SegmentView(
+          segmentId: 'trecho-1',
+          takeId: 'gravacao-1',
+          startsMs: 0,
+          endsMs: 12000,
+        ),
+      ],
+    );
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+    await notifier.goConversa(pericope: 'P01');
+    await waitFor(
+      'a passagem anterior estar de pé com o que ela contou',
+      () => container.read(salaSessionProvider).btFimDasPartesMs.isNotEmpty,
+    );
+
+    await notifier.goConversa(pericope: 'P02');
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.keptTakes, isEmpty,
+        reason: 'a passagem seguinte abre sem as gravações da anterior: elas '
+            'não são desta equipe nesta passagem');
+    expect(state.btTrechos, isEmpty);
+    expect(state.btFimDasPartesMs, isEmpty,
+        reason: 'nem a régua medida sobre as partes da outra');
+    expect(state.stage, SalaStage.conversa);
+    final linha = harness.emAberto.written.last;
+    expect(linha.sessionId, harness.room.sessionIds.single);
+    expect(linha.takes, isEmpty,
+        reason: 'e a linha da passagem nova não nomeia gravação nenhuma');
   });
 
   test('a take recorded and never kept does not stay on the tablet when the passage starts over',
