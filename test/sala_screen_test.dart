@@ -478,7 +478,8 @@ void main() {
     notifier.goEnsaio();
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(bySemanticsLabelWidget('Tocar para gravar o ensaio'), findsOneWidget);
+    expect(
+        bySemanticsLabelWidget('Tocar para gravar o ensaio'), findsOneWidget);
     expect(find.byType(ColarOverlay), findsNothing);
     expect(find.byType(RetroCord), findsNothing);
   });
