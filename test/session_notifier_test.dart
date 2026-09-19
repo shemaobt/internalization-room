@@ -175,13 +175,12 @@ void main() {
             'que a equipe gravou e ainda está no aparelho');
   });
 
-  test('a stored id from days ago is not resumed, and the room opens a fresh one',
-      () async {
+  test('a row saved a week ago is resumed, not thrown away', () async {
     final harness = SalaHarness();
     harness.emAberto.rows['Ruth/P01'] = ResumePoint(
       sessionId: 'sessao-velha',
       stage: SalaStage.conversa,
-      savedAt: DateTime.now().subtract(const Duration(days: 2)),
+      savedAt: DateTime.now().subtract(const Duration(days: 8)),
     );
     final container = harness.container();
     addTearDown(container.dispose);
@@ -192,13 +191,15 @@ void main() {
     await notifier.goConversa(pericope: 'P01');
     await settle();
 
-    expect(harness.room.sessionsSpokenTo, isNot(contains('sessao-velha')),
-        reason: 'um id de dois dias atrás prendia o aparelho a uma sessão que '
-            'o servidor pode já ter descartado');
-    expect(harness.room.pericopesAsked, contains('P01'),
-        reason: 'o abandono do id velho só vale alguma coisa se uma sessão '
-            'nova é pedida no lugar dele');
-    expect(harness.emAberto.rows['Ruth/P01']?.sessionId, harness.room.sessionIds.single);
+    expect(harness.room.sessionsSpokenTo, contains('sessao-velha'),
+        reason: 'a equipe que volta na semana seguinte encontra a passagem '
+            'onde a deixou; a sessão continua de pé no servidor');
+    expect(harness.room.pericopesAsked, isEmpty,
+        reason: 'pedir uma sessão nova aqui deixa órfã a que guarda tudo o '
+            'que a equipe contou');
+    expect(container.read(salaSessionProvider).stage, SalaStage.conversa,
+        reason: 'e a estação é a que a linha nomeia');
+    expect(harness.emAberto.rows['Ruth/P01']?.sessionId, 'sessao-velha');
   });
 
   test('a passage entered afresh carries nothing of the session before it',
@@ -423,8 +424,8 @@ void main() {
             'gravada na criação, e a checagem de idioma parava de valer a '
             'partir do primeiro avanço');
     expect(row?.savedAt, isNotNull,
-        reason: 'a mesma reescrita apagava a data, e um id de meses atrás '
-            'voltava a ser retomável assim que passava da conversa');
+        reason: 'a mesma reescrita apagava a data em que a sessão nasceu, que '
+            'é o que a linha guarda sobre ela');
   });
 
   test('the opening is told in two movements, and the necklace waits', () async {

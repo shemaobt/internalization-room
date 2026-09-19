@@ -138,11 +138,6 @@ final roomRetryBackoffProvider = Provider<List<Duration>>(
   ],
 );
 
-/// How long a stored session id is still worth asking the room for.
-final resumeExpiryProvider = Provider<Duration>(
-  (ref) => const Duration(days: 1),
-);
-
 /// The holes a refused approval names that this room has somewhere to take the team.
 ///
 /// Declared in the order the room opens them — the one place that order lives — which is
@@ -172,8 +167,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _roomFailures = 0;
   int _resumeFailures = 0;
   /// When and in what language the session now open was created, so a row rewritten by
-  /// a later stage advance carries the same values a resume needs to judge it by, instead
-  /// of going blank the moment the team leaves the conversa.
+  /// a later stage advance carries them instead of going blank the moment the team leaves
+  /// the conversa. A resume judges by the language; the date is the record of when the
+  /// session was born, and nothing decides by it (ADR 0031).
   DateTime? _sessionSavedAt;
   String? _sessionLanguage;
   int _slowAnswers = 0;
@@ -1514,12 +1510,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return language != null && language != _lingua;
   }
 
-  bool _expired(ResumePoint? point) {
-    final savedAt = point?.savedAt;
-    if (savedAt == null) return false;
-    return DateTime.now().difference(savedAt) > ref.read(resumeExpiryProvider);
-  }
-
   /// Everything of the session before this one stays behind.
   ///
   /// Only what the book knows crosses over — the wheel, the passages started, the ones
@@ -1587,8 +1577,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         ? await _emAberto.of(_book, pericope)
         : null;
     if (epoch != _epoch) return;
-    final waiting =
-        _expired(stored) || _wrongLanguage(stored) ? null : stored;
+    final waiting = _wrongLanguage(stored) ? null : stored;
     try {
       final resumed = waiting != null;
       final created = opened ??
