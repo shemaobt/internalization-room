@@ -31,7 +31,7 @@ import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
-import 'package:internalization_room/features/sala/domain/release.dart';
+import 'package:internalization_room/features/sala/domain/approval_answer.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
@@ -1257,7 +1257,24 @@ class FakeRoom implements RoomRepository {
 
   /// What the room answers the approval with. A second approval of unchanged content
   /// comes back as the release already there, which is the same answer.
-  Release release = const Release(releaseId: 'solta-1', version: 1);
+  ApprovalAnswer release =
+      const ApprovalAnswer(releaseId: 'solta-1', version: 1);
+
+  /// Which holes this room says stand between the passage and its release. Empty is a room
+  /// that refused nothing, which is what a mint looks like from here.
+  List<String> releaseBlockers = const [];
+
+  /// Which current parts this room says carry nobody's words, when `untold_part` is among
+  /// the holes above. Its own field, as on the wire, and read only for its own blocker.
+  List<String> releaseUntoldTakeIds = const [];
+
+  /// Which parts this room says the team's report does not cover, when
+  /// `playback_did_not_cover_the_clip` is among them.
+  List<String> releaseUnheardTakeIds = const [];
+
+  /// Which stretch this room says was recorded and never told back, when `untold_stretch`
+  /// is among them.
+  String? releaseUntoldSegmentId;
 
   Completer<void>? _holdingRelease;
 
@@ -1275,14 +1292,20 @@ class FakeRoom implements RoomRepository {
   Exception? failReleaseWith;
 
   @override
-  Future<Release> approveRelease(String sessionId) async {
+  Future<ApprovalAnswer> approveRelease(String sessionId) async {
     _guard('approveRelease');
     releasesAsked.add(sessionId);
     final refusal = failReleaseWith;
     if (refusal != null) throw refusal;
     final held = _holdingRelease;
     if (held != null) await held.future;
-    return release;
+    if (releaseBlockers.isEmpty) return release;
+    return ApprovalAnswer(
+      blockers: releaseBlockers,
+      untoldTakeIds: releaseUntoldTakeIds,
+      unheardTakeIds: releaseUnheardTakeIds,
+      untoldSegmentId: releaseUntoldSegmentId,
+    );
   }
 
   @override

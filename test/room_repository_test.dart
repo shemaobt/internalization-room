@@ -621,20 +621,74 @@ void main() {
       expect(solta.releaseId, 'solta-1');
       expect(solta.version, 1,
           reason: 'a versão é o que a equipe ganha por aprovar');
+      expect(solta.blockers, isEmpty,
+          reason: 'e nada ficou de pé: é o que separa esta resposta de uma '
+              'recusa, que vem no mesmo estado e no mesmo corpo');
     });
 
-    test('uma recusa vira a exceção própria dela, e não uma sala quebrada',
-        () async {
+    test('uma recusa vem no corpo, com os buracos que ela nomeia', () async {
+      final repository = umaSala(MockClient((request) async {
+        return http.Response(
+          jsonEncode({
+            'session_id': 'sessao-1',
+            'version': null,
+            'release_id': null,
+            'package_sha256': null,
+            'approved_at': null,
+            'blockers': ['telling_back_not_checked', 'untold_part'],
+            'untold_take_ids': ['gravacao-2'],
+            'unheard_take_ids': [],
+            'untold_segment_id': null,
+          }),
+          200,
+        );
+      }));
+
+      final resposta = await repository.approveRelease('sessao-1');
+
+      expect(resposta.minted, isFalse,
+          reason: 'sem versão não há release nenhuma, e o colar não tem o que '
+              'fechar');
+      expect(resposta.blockers, ['telling_back_not_checked', 'untold_part'],
+          reason: 'os buracos chegam nomeados, na ordem em que o portão os '
+              'levantou: é a única coisa que diz à equipe para onde ir');
+      expect(resposta.untoldTakeIds, ['gravacao-2'],
+          reason: 'e o buraco que tem chão traz o chão: sem a gravação, a '
+              'parte não contada é um código que não leva a lugar nenhum');
+    });
+
+    test('um 200 sem versão e sem buracos não passa por aprovado', () async {
       final repository = umaSala(MockClient(
-        (request) async => http.Response('a parte 2 não foi ouvida', 409),
+        (request) async => http.Response(
+          jsonEncode({'session_id': 'sessao-1'}),
+          200,
+        ),
       ));
 
-      expect(
+      final resposta = await repository.approveRelease('sessao-1');
+
+      expect(resposta.minted, isFalse,
+          reason: 'lida como zero, a versão que o servidor não nomeou fechava '
+              'a passagem por cima de nada; é a resposta que este modelo '
+              'existe para apanhar');
+      expect(resposta.blockers, isEmpty,
+          reason: 'e não é uma recusa tampouco: é uma resposta que este tablet '
+              'não conhece, e quem decide o que fazer com ela é a sala');
+    });
+
+    test('a corrida de versão desce pela escada comum, como um pedido a repetir',
+        () async {
+      final repository = umaSala(MockClient(
+        (request) async => http.Response('a release mudou debaixo do pedido', 409),
+      ));
+
+      await expectLater(
         () => repository.approveRelease('sessao-1'),
-        throwsA(isA<ReleaseRefused>()),
-        reason: 'pela escada comum um 409 é RoomBroke, que só para a sala na '
-            'terceira: a equipe apertaria um botão morto duas vezes antes de '
-            'alguém ser chamado',
+        throwsA(isA<RoomBroke>()),
+        reason: 'um 409 deixou de ser a recusa e é só a versão que correu: a '
+            'escada comum o repete, e a recusa de verdade chega em 200 com os '
+            'buracos nomeados — tratá-lo como recusa levava a equipe a um '
+            'buraco que ninguém nomeou',
       );
     });
 

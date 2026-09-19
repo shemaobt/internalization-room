@@ -12,7 +12,7 @@ import '../domain/coverage_event.dart';
 import '../domain/device_link.dart';
 import '../domain/escuta_das_partes.dart';
 import '../domain/passagem.dart';
-import '../domain/release.dart';
+import '../domain/approval_answer.dart';
 import '../domain/session_snapshot.dart';
 import '../domain/turn_result.dart';
 import 'device_identity.dart';
@@ -422,7 +422,7 @@ class RoomRepository {
   /// The room packages the rows it already holds and hashes them, so nothing travels with
   /// the press. A second approval of unchanged content comes back as the release already
   /// there, which is the same answer.
-  Future<Release> approveRelease(String sessionId) async {
+  Future<ApprovalAnswer> approveRelease(String sessionId) async {
     final response = await _send(
       () async => _client.post(
         _uri('/sessions/$sessionId/release'),
@@ -430,8 +430,7 @@ class RoomRepository {
       ),
       _stateTimeout,
     );
-    if (response.statusCode == 409) throw const ReleaseRefused();
-    return _read(response, Release.fromJson);
+    return _read(response, ApprovalAnswer.fromJson);
   }
 
   Future<void> askForAPerson(String sessionId) async {
