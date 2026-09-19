@@ -2828,7 +2828,6 @@ void main() {
     expect(after.btTrechos.length, before.btTrechos.length,
         reason: 'traduzir um trecho de novo descartava as explicações de todos os '
             'outros e mandava a equipe reescutar a gravação do zero');
-    expect(after.btChunkPasses, before.btChunkPasses);
     expect(harness.room.replacesAsked, hasLength(1),
         reason: 'a sala manda o trecho apontado para ser traduzido de novo');
     expect(after.btClipEnded, isTrue,
@@ -3179,7 +3178,6 @@ void main() {
     expect(harness.room.chunksSent, 1);
     expect(harness.voice.played.length, spokenBefore,
         reason: 'a retomada da gravação é o reconhecimento — nada é falado');
-    expect(container.read(salaSessionProvider).btChunkPasses, [1]);
   });
 
   test('an inaudible piece is not counted', () async {
@@ -3221,7 +3219,6 @@ void main() {
       () => container.read(salaSessionProvider).btPhase != BtPhase.thinking,
     );
 
-    expect(container.read(salaSessionProvider).btChunkPasses, isEmpty);
     expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
   });
 
@@ -3442,7 +3439,6 @@ void main() {
     await settle();
     notifier.retroTap();
     await settle();
-    expect(container.read(salaSessionProvider).btChunkPasses, [1]);
 
     harness.playback.finishPlayback();
     await settle();

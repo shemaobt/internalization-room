@@ -299,7 +299,6 @@ class RoomRepository {
     required String takeId,
     required Duration from,
     required Duration to,
-    bool retelling = false,
   }) async {
     final request = http.MultipartRequest(
       'POST',
@@ -311,7 +310,6 @@ class RoomRepository {
       ..fields['starts_ms'] = '${from.inMilliseconds}'
       ..fields['ends_ms'] = '${to.inMilliseconds}'
       ..files.add(await http.MultipartFile.fromPath('file', audio.path));
-    if (retelling) request.fields['retelling'] = 'true';
     return _read(await _sendMultipart(request), BackTranslationChunk.fromJson);
   }
 

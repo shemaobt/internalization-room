@@ -186,7 +186,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   DateTime? _listeningSince;
   bool _recordingStarting = false;
   String? _emCurso;
-  bool _traduzindoDeNovo = false;
   Trecho? _trechoTraduzidoDeNovo;
   /// The clip is paused. `_onPlaybackComplete` deliberately survives a pause — the resume
   /// still has to be able to end the part — so it cannot be what tells a ceiling whether
@@ -1924,9 +1923,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: told.checked ? VoiceState.done : VoiceState.invite,
       btPhase: told.checked ? BtPhase.conferida : BtPhase.playing,
       btTrechos: _trechosFrom(told.segments),
-      btChunkPasses: [
-        for (final segment in told.segments) segment.passNumber,
-      ],
     );
     final sessionId = state.sessionId;
     if (sessionId != null) {
@@ -1947,9 +1943,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (told.nothingTold) return;
     state = state.copyWith(
       btTrechos: _trechosFrom(told.segments),
-      btChunkPasses: [
-        for (final segment in told.segments) segment.passNumber,
-      ],
     );
   }
 
@@ -2469,13 +2462,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final numero = parte + 1;
     final escopo = KeptScope.parte(numero);
     final passada = state.partes[parte].pass + 1;
-    final trechos = <Trecho>[];
-    final passes = <int>[];
-    for (var onde = 0; onde < state.btTrechos.length; onde++) {
-      if (state.btTrechos[onde].parte == parte) continue;
-      trechos.add(state.btTrechos[onde]);
-      if (onde < state.btChunkPasses.length) passes.add(state.btChunkPasses[onde]);
-    }
+    final trechos = [
+      for (final trecho in state.btTrechos)
+        if (trecho.parte != parte) trecho,
+    ];
     state = state.copyWith(
       ensaio: EnsaioStatus.idle,
       keptTakes: [
@@ -2486,7 +2476,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             take,
       ],
       btTrechos: trechos,
-      btChunkPasses: passes,
     );
     unawaited(_medirAParteRegravada(path, _epoch));
     unawaited(_guard(
@@ -3175,7 +3164,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // While telling a stretch again, its bounds are the ones the finding named. Reading the
     // position instead wrote a place inside the excerpt into a number that means a place in
     // the whole rehearsal, and every stretch after it inherited the lie.
-    if (!_traduzindoDeNovo) {
+    if (_trechoTraduzidoDeNovo == null) {
       // The player's own position, not a place in the concatenated passage: a stretch is a
       // slice of the file that is playing, and its two times are counted from that file's
       // beginning.
@@ -3233,7 +3222,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (trechos.isEmpty) return;
       state = state.copyWith(
         btTrechos: trechos,
-        btChunkPasses: [for (final segment in told) segment.passNumber],
         btPhase: BtPhase.playing,
         voice: VoiceState.invite,
         btFindings: const [],
@@ -3359,7 +3347,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btPhase: BtPhase.playing,
       voice: VoiceState.invite,
       btTrechos: trechos.isEmpty ? state.btTrechos : trechos,
-      btChunkPasses: [for (final segment in told.segments) segment.passNumber],
       // The room asking for a person over a stretch told again is a warning: somebody is
       // called to come and watch, and the team is refused nothing. Written before the
       // verdict, because a warning is a field and the verdict only walks the voice.
@@ -3453,7 +3440,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _trechoTraduzidoDeNovo = null;
 
     if (path != null && !_hasAudio(path)) {
-      _traduzindoDeNovo = false;
       _trechoStart = _ondeParouNesteArquivo(_parteTocando);
       state = state.copyWith(btPhase: BtPhase.playing, btConsertando: false);
       _haltForAPerson();
@@ -3470,13 +3456,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
 
     if (traduzidoDeNovo != null) {
-      // Cleared on this branch too, because it returns before the ordinary path clears
-      // it. Left switched on, the next cut would ignore the player, reuse the bounds the
-      // retelling had left behind, and upload as a correction of a stretch that is not
-      // the one being told. It is cleared here rather than at the top: the ordinary path
-      // reads it when it uploads, and clearing it above that turns every retelling into
-      // an ordinary telling.
-      _traduzindoDeNovo = false;
       await _tellThatStretchAgain(traduzidoDeNovo, path, sessionId, epoch);
       return;
     }
@@ -3511,7 +3490,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         takeId: gravacao,
         from: _trechoStart,
         to: _trechoEnd,
-        retelling: _traduzindoDeNovo,
       );
       if (epoch != _epoch) return;
       if (!captured.captured) {
@@ -3529,9 +3507,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           btPhase: BtPhase.playing,
           voice: VoiceState.invite,
           btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
-          // The room can ask for a person over a chunk it never captured — the two
-          // are independent — and that ask is a warning like any other.
-          warning: captured.needsPerson ? true : null,
         );
           return;
       }
@@ -3550,10 +3525,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
 
-    _traduzindoDeNovo = false;
-    // The room asking for a person over a retold stretch is a warning: somebody is called
-    // to come and watch, and the team is refused nothing. Stopping the retro on it ended
-    // the telling-back over a note nobody had read yet.
     final trecho = Trecho(
       segmentId: null,
       takeId: gravacao,
@@ -3569,11 +3540,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       btPhase: BtPhase.playing,
       voice: VoiceState.invite,
-      btChunkPasses: [...state.btChunkPasses, captured.passNumber],
       btTrechos: [...state.btTrechos, trecho],
-      // Only ever set here, never cleared: the next state read is the one that says
-      // the warning is over, the same way it would for one raised on a state read.
-      warning: captured.needsPerson ? true : null,
     );
   }
 
@@ -3927,7 +3894,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _parteTocando = trecho.parte;
     _trechoStart = trecho.from;
     _trechoEnd = trecho.to;
-    _traduzindoDeNovo = true;
     _trechoTraduzidoDeNovo = trecho;
     state = state.copyWith(
       btPhase: BtPhase.playing,
@@ -4285,9 +4251,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       clearFindingSegment: true,
       peerCue: false,
     );
-    // A retelling left switched on by a chunk that never landed would make the first
-    // stretch of the next telling-back upload as a correction of one that does not exist.
-    _traduzindoDeNovo = false;
+    // A mend left armed by a chunk that never landed would make the first stretch of
+    // the next telling-back upload as a correction of one that does not exist.
     _trechoTraduzidoDeNovo = null;
     _rememberWhereTheyAre(SalaStage.ensaio);
   }
@@ -4321,8 +4286,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// These are counters and latches with no home in the state object, so nothing about
   /// them is reset by rebuilding it. `leaveThePassage` reset none of them and `_startOver`
   /// reset most: a new passage could start with the previous one's strike count and halt
-  /// for a person on its first failure, and `_traduzindoDeNovo` — set when the team
-  /// asks to tell a stretch again and cleared only by a chunk that lands — made the very
+  /// for a person on its first failure, and the stretch being told again — armed when the
+  /// team asks to tell one again and let go only by a telling that lands — made the very
   /// first stretch of the next back translation upload as a correction of a stretch that
   /// does not exist.
   void _forgetThePassage() {
@@ -4336,7 +4301,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _personAsked = false;
     _personAskStep = 0;
     _haltWatched = null;
-    _traduzindoDeNovo = false;
     _trechoTraduzidoDeNovo = null;
     _degradedTurns = 0;
     _trechoStart = Duration.zero;

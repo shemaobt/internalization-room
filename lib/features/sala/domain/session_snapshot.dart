@@ -9,7 +9,6 @@ class SegmentView {
   final String takeId;
   final int startsMs;
   final int endsMs;
-  final int passNumber;
 
   /// Whether the team has explained this stretch in the bridge language yet.
   ///
@@ -23,7 +22,6 @@ class SegmentView {
     required this.takeId,
     required this.startsMs,
     required this.endsMs,
-    this.passNumber = 1,
     this.told = true,
   });
 
@@ -37,7 +35,6 @@ class SegmentView {
         takeId: json['take_id'] as String? ?? '',
         startsMs: json['starts_ms'] as int? ?? 0,
         endsMs: json['ends_ms'] as int? ?? 0,
-        passNumber: json['pass_number'] as int? ?? 1,
         told: json['told'] as bool? ?? true,
       );
 }

@@ -291,7 +291,6 @@ void main() {
       () async {
     final it = await _oAchadoNaParteDois();
     final antes = it.estado.btTrechos;
-    final passes = it.estado.btChunkPasses;
     expect(antes, hasLength(3));
 
     it.sala.gravarAParteDeNovo();
@@ -313,8 +312,6 @@ void main() {
       ],
       reason: 'cada um no lugar que sempre ocupou',
     );
-    expect(it.estado.btChunkPasses, [passes[0], passes[2]],
-        reason: 'a lista que anda ao lado dos trechos anda com eles');
   });
 
   test('a escuta das partes um e três sobrevive e a nova começa do zero',

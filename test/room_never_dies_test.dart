@@ -407,15 +407,15 @@ void main() {
     notifier.retroTap();
     await waitFor(
       'um trecho da retro passar',
-      () => container.read(salaSessionProvider).btChunkPasses.isNotEmpty,
+      () => container.read(salaSessionProvider).btTrechos.isNotEmpty,
     );
 
     final state = container.read(salaSessionProvider);
     expect(state.btChunkFailures, [1],
         reason: 'o trecho que falhou foi o primeiro, e é a primeira conta que fica oca');
-    expect(state.btChunkPasses, hasLength(1));
+    expect(state.btTrechos, hasLength(1));
     expect(
-      state.btChunkPasses.length + state.btChunkFailures.length,
+      state.btTrechos.length + state.btChunkFailures.length,
       2,
       reason: 'uma conta por trecho contado — nem a mais, nem a menos',
     );
@@ -991,8 +991,8 @@ void main() {
     await settle();
     harness.playback.finishPlayback();
     await settle();
-    // There is one setter of _traduzindoDeNovo left now that retellChunk is gone, and it
-    // is reached through the verdict door: the untold-stretch landing.
+    // A aterragem no trecho não contado é a porta que arma um conserto: é o que a
+    // passagem seguinte não pode herdar.
     harness.room.verdictUntoldSegmentId = harness.room.segments.last.segmentId;
     await notifier.finishBackTranslation();
     await settle();
@@ -1000,7 +1000,7 @@ void main() {
     notifier.leaveThePassage();
     await settle();
     harness.room.chunkSpans.clear();
-    final antes = harness.room.retells;
+    final antes = harness.room.replacesAsked.length;
 
     notifier.entrarNaOferecida();
     await settle();
@@ -1017,9 +1017,12 @@ void main() {
     notifier.retroTap();
     await settle();
 
-    expect(harness.room.retells, antes,
-        reason: 'o primeiro trecho de uma retro nova subia marcado como tradução de novo de um '
-            'trecho que não existe, porque _traduzindoDeNovo só é limpo por um chunk que chega');
+    expect(harness.room.chunkSpans, ['0-9000'],
+        reason: 'o primeiro trecho de uma retro nova sobe com o vão do tocador, e não com os '
+            'limites que a aterragem da passagem anterior tinha deixado para trás');
+    expect(harness.room.replacesAsked.length, antes,
+        reason: 'e como pedaço novo, não como correção de um trecho da passagem que a equipe '
+            'já deixou');
   });
 
   test('a fresh passage does not inherit the last one\'s strikes', () async {

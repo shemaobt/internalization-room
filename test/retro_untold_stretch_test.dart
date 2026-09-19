@@ -145,6 +145,47 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('o círculo corta o trecho nomeado com o tocador atrás dele', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await upToTwoUntoldHalves(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    final gravacao = container.read(salaSessionProvider).keptTakes.first.takeId;
+
+    harness.room.verdictUntoldSegmentId = 'trecho-1-b';
+    await notifier.finishBackTranslation();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 200));
+    // O tocador parado atrás do início do trecho nomeado é onde a equipe o
+    // deixa ao ouvir a metade anterior antes de contar esta.
+    harness.playback.at = const Duration(seconds: 1);
+    notifier.cortarTrecho();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      container.read(salaSessionProvider).btPhase,
+      BtPhase.capturing,
+      reason:
+          'na aterragem do trecho não contado os limites são os do trecho, '
+          'não a posição do tocador: lida a posição, o corte volta em '
+          'silêncio e o círculo fica morto sobre o único trecho que falta',
+    );
+
+    notifier.retroTap();
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(
+      harness.room.replacesAsked,
+      ['trecho-1-b@$gravacao:5000-10000'],
+      reason:
+          'e o que ela conta preenche o trecho nomeado, no endereço dele',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets(
     'um veredito comum com achado continua se comportando como hoje',
     (tester) async {
