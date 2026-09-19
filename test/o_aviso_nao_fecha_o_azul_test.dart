@@ -101,9 +101,14 @@ Future<ProviderContainer> _achadoComAvisoAtivo(SalaHarness harness) async {
     () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
   );
   notifier.retroTap();
+  // O aviso é escrito antes de o veredito ser pedido, e o pedido leva a sala ao
+  // pensando: devolvê-la aí faria o gesto seguinte ser engolido por uma guarda de
+  // fase e o caso passar pela razão errada.
   await waitFor(
-    'a sala levantar o aviso',
-    () => container.read(salaSessionProvider).warning,
+    'a sala levantar o aviso e assentar',
+    () =>
+        container.read(salaSessionProvider).warning &&
+        container.read(salaSessionProvider).btPhase != BtPhase.thinking,
   );
   return container;
 }

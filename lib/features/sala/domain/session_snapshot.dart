@@ -92,10 +92,10 @@ class TellingAgain {
 
   /// Whether the room has stopped taking corrections and wants somebody to come.
   ///
-  /// The budget for retellings runs out on this route as it does on the one for telling a
-  /// stretch, and the answer says so the same way. Absent means no such news: the field
-  /// arrives only from a room that knows how to send it, and every other answer has to go
-  /// on working.
+  /// It is a warning and never a stop: this is the room saying it has already called for
+  /// somebody, and the team is refused nothing (ADR 0032). Absent means no such news: the
+  /// field arrives only from a room that knows how to send it, and every other answer has
+  /// to go on working.
   final bool needsPerson;
 
   const TellingAgain({

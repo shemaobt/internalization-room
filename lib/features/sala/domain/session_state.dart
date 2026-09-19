@@ -128,7 +128,7 @@ class SalaSessionState {
   final BtPhase btPhase;
   /// Which stretch numbers the room never took, in the order they were told.
   ///
-  /// A count could not say this. The stretches only grow when one lands, and the unsent
+  /// A count could not say this. A stretch is added only when one lands, and the unsent
   /// count only grows when one fails — two disjoint sets, so subtracting one from the
   /// other hollowed a bead belonging to a stretch that had arrived while the stretch
   /// actually at risk had no bead at all.
@@ -196,8 +196,9 @@ class SalaSessionState {
   /// The room has no text on screen, so a warning that asks nobody to stop still needs
   /// a way to be seen — this follows the last state read (`halt: "warning"`) and the
   /// answer to a stretch told again the same way: true the moment one of them says so,
-  /// false the moment a state read does not. A blocking halt never sets it;
-  /// [FacilitatorCircle] draws its own halted body over this regardless of what it
+  /// false the moment a state read does not — and the back-translation runs none, so one
+  /// raised there stands until the team leaves the passage. A blocking halt never sets
+  /// it; [FacilitatorCircle] draws its own halted body over this regardless of what it
   /// says.
   final bool warning;
 

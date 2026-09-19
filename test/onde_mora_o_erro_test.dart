@@ -583,8 +583,10 @@ void main() {
             'chamar um facilitador agora o manda para um tablet que já está '
             'escolhendo outra passagem, e a fila não distingue esse chamado '
             'de um pedido de verdade');
-    expect(container.read(salaSessionProvider).needsPerson, isFalse,
-        reason: 'e a sala que ela acabou de deixar não pode parar a próxima');
+    expect(container.read(salaSessionProvider).warning, isFalse,
+        reason: 'e o aviso da sala que ela acabou de deixar não pode acender o '
+            'círculo da próxima: verde permanente sobre uma passagem que '
+            'ninguém avisou é a mentira de sempre na cor oposta');
   });
 
   testWidgets('a passage that came back clean closes instead of calling anybody',
@@ -610,6 +612,9 @@ void main() {
     expect(container.read(salaSessionProvider).stage, SalaStage.fim,
         reason: 'e a passagem termina como qualquer outra que ficou limpa — '
             'parar a sala aqui prenderia a equipe num fecho que já aconteceu');
+    expect(container.read(salaSessionProvider).warning, isTrue,
+        reason: 'o aviso é escrito antes do veredito, e um fecho limpo não o '
+            'apaga: quem foi chamado a vir olhar continua a ser esperado');
 
     // The closing runs on its own timers; let them out so the test does not end holding
     // the room's clock.
