@@ -253,10 +253,14 @@ void main() {
       final trechosAntes = it.estado.btTrechos.length;
       it.harness.playback.at = const Duration(seconds: 4);
       it.sala.cortarTrecho();
-      await waitFor(
-        'o microfone abrir',
-        () => it.estado.btPhase == BtPhase.capturing,
+      expect(
+        it.estado.btPhase,
+        BtPhase.capturing,
+        reason: 'sem a linha, o cursor recusa a posição por estar atrás do '
+            'chão que o colar ainda guarda desta parte, e o corte é '
+            'ignorado em silêncio — o microfone nunca abre',
       );
+
       it.sala.retroTap();
       await waitFor(
         'o trecho traduzido entrar no colar',
@@ -264,6 +268,7 @@ void main() {
       );
 
       final trecho = it.estado.btTrechos.last;
+      expect(trecho.parte, 1);
       expect(
         trecho.from,
         Duration.zero,

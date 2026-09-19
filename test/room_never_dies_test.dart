@@ -991,9 +991,8 @@ void main() {
     await settle();
     harness.playback.finishPlayback();
     await settle();
-    // The untold-stretch landing is the only surviving setter of _traduzindoDeNovo now
-    // that retellChunk is gone (ADR 0020's replaced-recording case sets it too, but that
-    // is a longer scenario to arrange for the same flag).
+    // There is one setter of _traduzindoDeNovo left now that retellChunk is gone, and it
+    // is reached through the verdict door: the untold-stretch landing.
     harness.room.verdictUntoldSegmentId = harness.room.segments.last.segmentId;
     await notifier.finishBackTranslation();
     await settle();

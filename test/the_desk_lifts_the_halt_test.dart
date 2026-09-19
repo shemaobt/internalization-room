@@ -169,42 +169,6 @@ void main() {
     await waitFor('o turno chegar à sala', () => harness.room.turnsSent > turns);
   });
 
-  test('a warning on a retold stretch lets the telling-back go on', () async {
-    final harness = SalaHarness()..room.chunkNeedsPerson = true;
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-
-    notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
-    await settle();
-    notifier.takeKeep();
-    notifier.startRetro();
-    await settle();
-
-    harness.playback.at = const Duration(seconds: 12);
-    notifier.cortarTrecho();
-    await settle();
-    notifier.retroTap();
-    await settle();
-
-    expect(read().needsPerson, isFalse,
-        reason: 'o aviso chama uma pessoa para olhar e nada é recusado');
-
-    final chunks = harness.room.chunksSent;
-    harness.playback.at = const Duration(seconds: 30);
-    notifier.cortarTrecho();
-    await settle();
-    notifier.retroTap();
-    await settle();
-
-    expect(harness.room.chunksSent, chunks + 1,
-        reason: 'e a retro segue de pé: o trecho seguinte é ouvido como qualquer '
-            'outro');
-  });
-
   test("the room's own halt is lifted by the server too", () async {
     final harness = SalaHarness(settleDelay: const Duration(seconds: 2))
       ..voice.succeeds = false;

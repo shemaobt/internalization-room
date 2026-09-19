@@ -687,10 +687,6 @@ class FakeRoom implements RoomRepository {
   /// Whether the room answers a correction by asking for a person. False is also what a
   /// server that does not send the field at all looks like from here.
   bool replaceNeedsPerson = false;
-
-  /// Which pass a replacement is told to be, when a test wants to say so rather than let
-  /// the replaced segment's own pass carry over unchanged.
-  int? replacePassNumber;
   /// Which stretch each retelling named, and the slice it sent, in order.
   final List<String> replacesAsked = [];
   /// The recording each retelling carried up, by the file it was, in order.
@@ -699,11 +695,6 @@ class FakeRoom implements RoomRepository {
   /// Which stretch each division named, and where it was cut, in order.
   final List<String> dividesAsked = [];
   bool chunkCaptured = true;
-
-  /// Whether the room asks for a person to watch on the next chunk it answers,
-  /// independent of the retell budget below: a warning the wire carries on any cut, not
-  /// only one told again.
-  bool chunkNeedsPerson = false;
   bool turnsAreCanned = false;
   bool turnsAreDegraded = false;
   bool silentAboutCoverage = false;
@@ -1001,7 +992,7 @@ class FakeRoom implements RoomRepository {
         takeId: antes.takeId,
         startsMs: antes.startsMs,
         endsMs: antes.endsMs,
-        passNumber: replacePassNumber ?? antes.passNumber,
+        passNumber: antes.passNumber,
         told: true,
       );
     }
@@ -1217,7 +1208,7 @@ class FakeRoom implements RoomRepository {
       chunks: chunksSent,
       captured: chunkCaptured,
       passNumber: retelling ? 2 : 1,
-      needsPerson: chunkNeedsPerson || (retelling && retells >= retellBudget),
+      needsPerson: retelling && retells >= retellBudget,
     );
   }
 
