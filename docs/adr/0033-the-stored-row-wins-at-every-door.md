@@ -55,10 +55,10 @@ already finished.
 One session per launch can be opened for nothing, on a tablet that had a row to keep. It
 carries no take, no stretch and no turn, and nothing on the tablet points at it.
 
-Two, when the room then says it does not know the session the row names: the single clean
-retry re-enters without the room's answer, so it opens one of its own and the first is
-left where it stood. Measured at this door — the room mints two sessions and is spoken to
-only in the second, and the row ends naming that one.
+A second session is opened for nothing when the room then says it does not know the
+session the row names: the single clean retry re-enters without the room's answer, so it
+opens one of its own and the first is left where it stood. The row ends naming the
+retry's session, and the room is spoken to only in that one.
 
 A passage whose parts are not on this tablet fetches the room's own parts for the row's
 session (ADR 0023), never for the one just minted.
