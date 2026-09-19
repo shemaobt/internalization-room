@@ -11,8 +11,16 @@ A count of holds only ever grows, so it answers one question: *did a hold arrive
 cannot answer the one the team asks next. A **resume** does not touch the count, on the
 reasoning that a resume asks for the very clip it is resuming. Under a load that reasoning
 fails: play, hold while the source is still opening, resume, and the load comes back to a
-count that still says held. The clip never sounds and the third tap does nothing — the
-team taps a third time on a **Stretch** and hears silence.
+count that still says held, so the open returns without ever telling the player to play.
+
+What the team hears then is not ours to decide: the resume's own `play()` is not swallowed
+the way the hold's `pause()` is — during a load nothing is playing, so it passes the
+`if (playing) return;` guard — but it lands on a player whose platform our own opening
+stop has just deactivated, racing the load that is reactivating it. just_audio says so
+itself, in a TODO over that very branch: "rewrite this to more cleanly handle simultaneous
+load/play requests". The ticket reports a third tap that plays nothing. Whether the tablet
+is silent or merely unreliable there, the room is asking the player for a sound and
+leaving the answer to a race.
 
 The same window has a second hole. Every open begins by stopping the player, which
 interrupts a load already in the air; just_audio raises `PlayerInterruptedException` for
@@ -49,7 +57,9 @@ instead of a count: a pause or a stop holds it, a play, a playRange or a resume 
 When an awaited load returns, the open plays only if the player is still wanted. This
 keeps ADR 0024's rule — a hold during the load holds — and amends the paragraph that
 states it (that ADR's "A hold that arrives during a load wins over the load"), because a
-resume given after that hold now undoes it and the load's trailing play runs.
+resume given after that hold now undoes it and the load's trailing play runs. The sound
+then comes from the open, once the source is ready, instead of from a play request racing
+the load: what the room asks for is what the room gets, on any tablet.
 
 **An open a later open of ours superseded is silent, and is no failure.** Each open takes
 its own generation. A load interrupted while a later open of ours has already started
