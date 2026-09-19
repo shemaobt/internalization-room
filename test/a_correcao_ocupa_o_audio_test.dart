@@ -86,7 +86,7 @@ Future<_Sala> _aSalaNaPergunta({int lugar = 1}) async {
   await _traduzirUmTrecho(it, const Duration(seconds: 10));
   harness.playback.finishPlayback();
   await waitFor('a primeira parte terminar', () => it.estado.btParteFronteira);
-  it.sala.proximaParte();
+  it.sala.ouvirGravacao();
   await waitFor(
     'a segunda parte entrar no ar',
     () => !it.estado.btParteFronteira,

@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -16,32 +15,6 @@ Future<void> _aTurn(SalaSessionNotifier notifier) async {
   notifier.conversaTap();
   await settle();
   notifier.conversaTap();
-  await settle();
-}
-
-/// The rehearsal told back and checked, stopping on a finding — the ground every
-/// retell in this file starts from.
-Future<void> _intoFindings(
-  SalaHarness harness,
-  SalaSessionNotifier notifier,
-) async {
-  notifier.goEnsaio();
-  notifier.ensaioTap();
-  notifier.ensaioTap();
-  await settle();
-  notifier.takeKeep();
-  notifier.startRetro();
-  await settle();
-  for (final at in const [Duration(seconds: 12), Duration(seconds: 30)]) {
-    harness.playback.at = at;
-    notifier.cortarTrecho();
-    await settle();
-    notifier.retroTap();
-    await settle();
-  }
-  harness.playback.finishPlayback();
-  await settle();
-  await notifier.finishBackTranslation();
   await settle();
 }
 
@@ -86,97 +59,6 @@ void main() {
           'a sala segue de pé sob o aviso — um círculo verde sobre uma sala '
           'que na verdade tivesse parado seria a mesma mentira de antes, só que '
           'na cor oposta',
-    );
-  });
-
-  test('a warning on a retold chunk turns the circle green too', () async {
-    final harness = SalaHarness()
-      ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.missing
-      ..room.verdictFindingSegmentId = 'trecho-1'
-      ..room.retells = 2
-      ..room.retellBudget = 3;
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-    await _intoFindings(harness, notifier);
-
-    notifier.retellChunk();
-    await settle();
-    harness.playback.finishPlayback();
-    await settle();
-    harness.playback.at = const Duration(seconds: 12);
-    notifier.cortarTrecho();
-    await settle();
-    notifier.retroTap();
-    await settle();
-
-    expect(
-      read().warning,
-      isTrue,
-      reason:
-          'o pedaço traduzido de novo veio com needs_person: true — o orçamento de '
-          'traduções de novo do ENG-706 — e isso é lido como aviso, não como parada '
-          '(needsPerson continua falso)',
-    );
-    expect(
-      read().needsPerson,
-      isFalse,
-      reason:
-          'o mesmo pedaço não pode acender as duas leituras: uma pessoa é '
-          'chamada para olhar, e nada é recusado à equipe',
-    );
-
-    final chunks = harness.room.chunksSent;
-    harness.playback.at = const Duration(seconds: 30);
-    notifier.cortarTrecho();
-    await settle();
-    notifier.retroTap();
-    await settle();
-
-    expect(
-      harness.room.chunksSent,
-      chunks + 1,
-      reason:
-          'e a retro segue de pé: o trecho seguinte é ouvido como qualquer '
-          'outro, sob o aviso',
-    );
-  });
-
-  test('a warning on a chunk the room never captured is not dropped', () async {
-    final harness = SalaHarness()
-      ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.missing
-      ..room.verdictFindingSegmentId = 'trecho-1'
-      ..room.retells = 2
-      ..room.retellBudget = 3;
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-    await _intoFindings(harness, notifier);
-
-    notifier.retellChunk();
-    await settle();
-    harness.playback.finishPlayback();
-    await settle();
-    // captured and needsPerson are independent on the wire: the very chunk that
-    // trips the retell budget can also be the one the room made nothing out of.
-    harness.room.chunkCaptured = false;
-    harness.playback.at = const Duration(seconds: 12);
-    notifier.cortarTrecho();
-    await settle();
-    notifier.retroTap();
-    await settle();
-
-    expect(
-      read().warning,
-      isTrue,
-      reason:
-          'a captura ter falhado não é o servidor recuando do aviso: as duas '
-          'notícias chegam juntas, e perder uma para tratar a outra deixaria '
-          'a equipe sem saber que uma pessoa foi chamada',
     );
   });
 

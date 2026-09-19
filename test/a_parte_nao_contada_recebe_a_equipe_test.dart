@@ -15,8 +15,11 @@ Future<Sala> _parteDoisRegravadaENuncaContada() async {
     ..verdictFinding = BtFindingKind.missing
     ..verdictFindingPlace = 1;
   await pedirOVeredito(it);
-  expect(it.estado.btFindingTrecho?.parte, 1,
-      reason: 'o cenário só mede alguma coisa se o achado apontar a parte 2');
+  expect(
+    it.estado.btFindingTrecho?.parte,
+    1,
+    reason: 'o cenário só mede alguma coisa se o achado apontar a parte 2',
+  );
 
   it.sala.gravarAParteDeNovo();
   await regravarAParte(it, 1);
@@ -61,107 +64,145 @@ Future<Sala> _prontaParaTerminarComParteNaoContada() async {
   it.harness.playback.length = partesDoEnsaio[2];
   it.harness.playback.at = partesDoEnsaio[2];
   it.harness.playback.finishPlayback();
-  await waitFor(
-    'o terminei acender',
-    () => it.estado.canFinishBackTranslation,
-  );
+  await waitFor('o terminei acender', () => it.estado.canFinishBackTranslation);
   return it;
 }
 
 void main() {
-  test('um servidor que nomeia uma parte não contada não recusa nada por si',
-      () {
-    final ausente = BackTranslationVerdict.fromJson(const {
-      'audio_url': '/voice/veredito',
-      'checked': false,
-      'findings_remaining': 0,
-    });
-    expect(ausente.untoldTakeIds, isEmpty);
+  test(
+    'um servidor que nomeia uma parte não contada não recusa nada por si',
+    () {
+      final ausente = BackTranslationVerdict.fromJson(const {
+        'audio_url': '/voice/veredito',
+        'checked': false,
+        'findings_remaining': 0,
+      });
+      expect(ausente.untoldTakeIds, isEmpty);
 
-    final nulo = BackTranslationVerdict.fromJson(const {
-      'audio_url': '/voice/veredito',
-      'checked': false,
-      'untold_take_ids': null,
-      'findings_remaining': 0,
-    });
-    expect(nulo.untoldTakeIds, isEmpty,
-        reason: 'uma recusa só existe quando o servidor a nomeia; lê-la de '
-            'uma ausência é a inferência que a sala não faz');
+      final nulo = BackTranslationVerdict.fromJson(const {
+        'audio_url': '/voice/veredito',
+        'checked': false,
+        'untold_take_ids': null,
+        'findings_remaining': 0,
+      });
+      expect(
+        nulo.untoldTakeIds,
+        isEmpty,
+        reason:
+            'uma recusa só existe quando o servidor a nomeia; lê-la de '
+            'uma ausência é a inferência que a sala não faz',
+      );
 
-    final nomeadas = BackTranslationVerdict.fromJson(const {
-      'audio_url': '/voice/veredito',
-      'checked': false,
-      'untold_take_ids': ['t2'],
-      'findings_remaining': 0,
-    });
-    expect(nomeadas.untoldTakeIds, ['t2']);
+      final nomeadas = BackTranslationVerdict.fromJson(const {
+        'audio_url': '/voice/veredito',
+        'checked': false,
+        'untold_take_ids': ['t2'],
+        'findings_remaining': 0,
+      });
+      expect(nomeadas.untoldTakeIds, ['t2']);
 
-    final recusa = BackTranslationVerdict.fromJson(const {
-      'audio_url': '/voice/parte-nao-contada',
-      'checked': false,
-      'untold_take_ids': ['t2'],
-      'findings_remaining': 0,
-    });
-    expect(recusa.untoldSegmentId, isNull);
-    expect(recusa.unheardTakeIds, isEmpty);
-  });
+      final recusa = BackTranslationVerdict.fromJson(const {
+        'audio_url': '/voice/parte-nao-contada',
+        'checked': false,
+        'untold_take_ids': ['t2'],
+        'findings_remaining': 0,
+      });
+      expect(recusa.untoldSegmentId, isNull);
+      expect(recusa.unheardTakeIds, isEmpty);
+    },
+  );
 
-  test('a recusa por parte não contada pousa a equipe nela do começo',
-      () async {
-    final it = await _prontaParaTerminarComParteNaoContada();
-    final segunda = it.partes[1];
+  test(
+    'a recusa por parte não contada pousa a equipe nela do começo',
+    () async {
+      final it = await _prontaParaTerminarComParteNaoContada();
+      final segunda = it.partes[1];
 
-    it.harness.room
-      ..verdictChecked = false
-      ..verdictUntoldTakeIds = [segunda.takeId!];
-    final falasAntes = it.harness.voice.played.length;
+      it.harness.room
+        ..verdictChecked = false
+        ..verdictUntoldTakeIds = [segunda.takeId!];
+      final falasAntes = it.harness.voice.played.length;
 
-    await pedirOVeredito(it);
+      await pedirOVeredito(it);
 
-    expect(it.harness.voice.played.skip(falasAntes),
+      expect(
+        it.harness.voice.played.skip(falasAntes),
         contains(falaDaParteNaoContada),
-        reason: 'a sala diz a linha que o servidor compôs para esta recusa, '
-            'e não a de um veredito qualquer');
-    expect(it.estado.btPhase, BtPhase.playing,
-        reason: 'sair do pensando é o que devolve o toque à equipe');
-    expect(it.estado.btFindings, isEmpty,
-        reason: 'uma parte não contada não é um achado do analista');
-    expect(it.harness.playback.played.last, segunda.path,
-        reason: 'a equipe cai na parte que o servidor nomeou');
-    expect(it.harness.playback.playedFrom.last, Duration.zero,
-        reason: 'a parte não contada não tem chão traduzido: o pouso começa '
-            'do zero dela');
-    expect(it.estado.btClipRodando, isTrue,
-        reason: 'a parte entra no ar sozinha, sem mais um toque');
-    expect(it.estado.btConsertando, isFalse);
-    expect(it.estado.canFinishBackTranslation, isFalse,
-        reason: 'a parte acabou de entrar no ar e ninguém a ouviu ainda');
-  });
+        reason:
+            'a sala diz a linha que o servidor compôs para esta recusa, '
+            'e não a de um veredito qualquer',
+      );
+      expect(
+        it.estado.btPhase,
+        BtPhase.playing,
+        reason: 'sair do pensando é o que devolve o toque à equipe',
+      );
+      expect(
+        it.estado.btFindings,
+        isEmpty,
+        reason: 'uma parte não contada não é um achado do analista',
+      );
+      expect(
+        it.harness.playback.played.last,
+        segunda.path,
+        reason: 'a equipe cai na parte que o servidor nomeou',
+      );
+      expect(
+        it.harness.playback.playedFrom.last,
+        Duration.zero,
+        reason:
+            'a parte não contada não tem chão traduzido: o pouso começa '
+            'do zero dela',
+      );
+      expect(
+        it.estado.btClipRodando,
+        isTrue,
+        reason: 'a parte entra no ar sozinha, sem mais um toque',
+      );
+      expect(it.estado.btConsertando, isFalse);
+      expect(
+        it.estado.canFinishBackTranslation,
+        isFalse,
+        reason: 'a parte acabou de entrar no ar e ninguém a ouviu ainda',
+      );
+    },
+  );
 
-  test('terminei abre de novo assim que a parte não contada toca inteira',
-      () async {
-    final it = await _prontaParaTerminarComParteNaoContada();
-    final segunda = it.partes[1];
+  test(
+    'terminei abre de novo assim que a parte não contada toca inteira',
+    () async {
+      final it = await _prontaParaTerminarComParteNaoContada();
+      final segunda = it.partes[1];
 
-    it.harness.room
-      ..verdictChecked = false
-      ..verdictUntoldTakeIds = [segunda.takeId!];
-    await pedirOVeredito(it);
+      it.harness.room
+        ..verdictChecked = false
+        ..verdictUntoldTakeIds = [segunda.takeId!];
+      await pedirOVeredito(it);
 
-    expect(it.estado.canFinishBackTranslation, isFalse,
-        reason: 'a parte acabou de pousar de novo: ninguém a ouviu ainda '
-            'nesta rodada');
+      expect(
+        it.estado.canFinishBackTranslation,
+        isFalse,
+        reason:
+            'a parte acabou de pousar de novo: ninguém a ouviu ainda '
+            'nesta rodada',
+      );
 
-    it.harness.playback.at = partesDoEnsaio[1];
-    it.harness.playback.finishPlayback();
-    await waitFor('a segunda parte acabar (2ª vez)', () => it.estado.btClipEnded);
+      it.harness.playback.at = partesDoEnsaio[1];
+      it.harness.playback.finishPlayback();
+      await waitFor(
+        'a segunda parte acabar (2ª vez)',
+        () => it.estado.btClipEnded,
+      );
 
-    expect(it.estado.canFinishBackTranslation, isTrue,
-        reason: 'ouvida a parte não contada, o terminei acende de novo');
-  });
+      expect(
+        it.estado.canFinishBackTranslation,
+        isTrue,
+        reason: 'ouvida a parte não contada, o terminei acende de novo',
+      );
+    },
+  );
 
-  test('o primeiro corte depois do pouso conta do começo da parte',
-      () async {
+  test('o primeiro corte depois do pouso conta do começo da parte', () async {
     final it = await _prontaParaTerminarComParteNaoContada();
     final segunda = it.partes[1];
 
@@ -199,14 +240,24 @@ void main() {
       ..verdictUntoldTakeIds = ['ninguem'];
     await pedirOVeredito(it);
 
-    expect(it.estado.needsPerson, isTrue,
-        reason: 'um nome que este tablet não sabe virar parte nenhuma é uma '
-            'pessoa, e não uma tela a mais para a equipe adivinhar');
+    expect(
+      it.estado.needsPerson,
+      isTrue,
+      reason:
+          'um nome que este tablet não sabe virar parte nenhuma é uma '
+          'pessoa, e não uma tela a mais para a equipe adivinhar',
+    );
     expect(it.estado.btPhase, isNot(BtPhase.thinking));
-    expect(it.harness.playback.played.length, tocadas,
-        reason: 'não há parte em que cair, então nada entra no ar');
-    expect(it.harness.playback.measurements.length, medidasAntes,
-        reason: 'a parada chega antes de qualquer medida');
+    expect(
+      it.harness.playback.played.length,
+      tocadas,
+      reason: 'não há parte em que cair, então nada entra no ar',
+    );
+    expect(
+      it.harness.playback.measurements.length,
+      medidasAntes,
+      reason: 'a parada chega antes de qualquer medida',
+    );
   });
 
   test('nomeadas várias, a equipe cai na primeira', () async {
@@ -241,8 +292,11 @@ void main() {
     it.harness.voice.finishHeldFetch();
     await aperto;
 
-    expect(it.harness.playback.played.length, tocadas,
-        reason: 'a sala já desistiu desta espera e parou para uma pessoa');
+    expect(
+      it.harness.playback.played.length,
+      tocadas,
+      reason: 'a sala já desistiu desta espera e parou para uma pessoa',
+    );
     expect(it.estado.needsPerson, isTrue);
   });
 }

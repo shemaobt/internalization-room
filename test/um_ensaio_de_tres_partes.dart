@@ -111,7 +111,7 @@ Future<Sala> umEnsaioDeTresPartesContadoInteiro({
   for (var onde = 0; onde < partesDoEnsaio.length; onde++) {
     await ouvirETraduzirAParteInteira(it, partesDoEnsaio[onde]);
     if (onde < partesDoEnsaio.length - 1) {
-      it.sala.proximaParte();
+      it.sala.ouvirGravacao();
       await waitFor(
         'a parte seguinte entrar no ar',
         () => !it.estado.btParteFronteira,

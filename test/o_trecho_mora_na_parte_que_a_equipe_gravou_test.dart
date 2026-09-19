@@ -142,7 +142,7 @@ Future<void> _ouvirAteOFim(_Retomada it) async {
       () => it.estado.btClipEnded || it.estado.btParteFronteira,
     );
     if (it.estado.btClipEnded) break;
-    it.sala.proximaParte();
+    it.sala.ouvirGravacao();
     await waitFor(
       'a parte seguinte entrar no ar',
       () => !it.estado.btParteFronteira,
@@ -154,111 +154,130 @@ Trecho _trecho(_Retomada it, String nome) =>
     it.estado.btTrechos.firstWhere((trecho) => trecho.segmentId == nome);
 
 void main() {
-  test('um trecho numa gravação que o tablet não tem mora na sua parte',
-      () async {
-    final harness = SalaHarness();
-    final it = await _reabrir(
-      harness,
-      contado: _contadoDeFora,
-      naSala: const [
-        TakeView(takeId: _deFora, scope: 'composed', ordinal: 2),
-      ],
-    );
-    await waitFor(
-      'os trechos da gravação de fora caírem na sua parte',
-      () => _trecho(it, 'trecho-2').parte == 1,
-    );
+  test(
+    'um trecho numa gravação que o tablet não tem mora na sua parte',
+    () async {
+      final harness = SalaHarness();
+      final it = await _reabrir(
+        harness,
+        contado: _contadoDeFora,
+        naSala: const [
+          TakeView(takeId: _deFora, scope: 'composed', ordinal: 2),
+        ],
+      );
+      await waitFor(
+        'os trechos da gravação de fora caírem na sua parte',
+        () => _trecho(it, 'trecho-2').parte == 1,
+      );
 
-    expect(
-      [
-        for (final nome in ['trecho-2', 'trecho-3'])
-          [
-            _trecho(it, nome).parte,
-            _trecho(it, nome).lugarFrom.inMilliseconds,
-            _trecho(it, nome).lugarTo.inMilliseconds,
-          ],
-      ],
-      [
-        [1, 0, 6000],
-        [1, 6000, 10000],
-      ],
-      reason: 'a sala respondeu que a gravação que estes dois fatiam responde '
-          'pela parte 2: eles moram na parte 2, nos segundos que a sala disse, '
-          'e tocam o lugar em que moram (ADR 0021)',
-    );
-    expect(
-      it.harness.room.calls.where((chamada) => chamada == 'takesOf').length,
-      1,
-      reason: 'a retomada pergunta a lista das gravações uma vez só',
-    );
+      expect(
+        [
+          for (final nome in ['trecho-2', 'trecho-3'])
+            [
+              _trecho(it, nome).parte,
+              _trecho(it, nome).lugarFrom.inMilliseconds,
+              _trecho(it, nome).lugarTo.inMilliseconds,
+            ],
+        ],
+        [
+          [1, 0, 6000],
+          [1, 6000, 10000],
+        ],
+        reason:
+            'a sala respondeu que a gravação que estes dois fatiam responde '
+            'pela parte 2: eles moram na parte 2, nos segundos que a sala disse, '
+            'e tocam o lugar em que moram (ADR 0021)',
+      );
+      expect(
+        it.harness.room.calls.where((chamada) => chamada == 'takesOf').length,
+        1,
+        reason: 'a retomada pergunta a lista das gravações uma vez só',
+      );
 
-    expect(
-      [
-        for (final nome in ['trecho-2', 'trecho-3'])
-          cordSpanMs(
-            trecho: _trecho(it, nome),
-            fimDasPartes: it.estado.btFimDasPartesMs,
-          ),
-      ],
-      [(10000, 16000), (16000, 20000)],
-      reason: 'as bandas caem inteiras dentro da parte 2, que começa aos dez '
-          'segundos: desenhadas sobre a parte 1 elas cobririam falas que '
-          'ninguém tocou, e sem banda nenhuma o trecho cai do cordão',
-    );
+      expect(
+        [
+          for (final nome in ['trecho-2', 'trecho-3'])
+            cordSpanMs(
+              trecho: _trecho(it, nome),
+              fimDasPartes: it.estado.btFimDasPartesMs,
+            ),
+        ],
+        [(10000, 16000), (16000, 20000)],
+        reason:
+            'as bandas caem inteiras dentro da parte 2, que começa aos dez '
+            'segundos: desenhadas sobre a parte 1 elas cobririam falas que '
+            'ninguém tocou, e sem banda nenhuma o trecho cai do cordão',
+      );
 
-    expect(it.harness.room.clipsFetched, isEmpty,
-        reason: 'a equipe nunca gravou o arquivo que o servidor montava, e '
-            'nada é baixado para colocar um trecho no lugar dele');
-    expect(
-      [
-        for (final take in it.estado.keptTakes)
-          '${take.scopeId}|${take.path}|${take.takeId}',
-      ],
-      [
-        for (var n = 1; n <= 3; n++)
-          '${KeptScope.parte(n)}|${it.gravadas[n - 1]}|gravacao-$n',
-      ],
-      reason: 'as partes continuam sendo as gravações da equipe, com os mesmos '
-          'arquivos e os mesmos nomes',
-    );
-  });
+      expect(
+        it.harness.room.clipsFetched,
+        isEmpty,
+        reason:
+            'a equipe nunca gravou o arquivo que o servidor montava, e '
+            'nada é baixado para colocar um trecho no lugar dele',
+      );
+      expect(
+        [
+          for (final take in it.estado.keptTakes)
+            '${take.scopeId}|${take.path}|${take.takeId}',
+        ],
+        [
+          for (var n = 1; n <= 3; n++)
+            '${KeptScope.parte(n)}|${it.gravadas[n - 1]}|gravacao-$n',
+        ],
+        reason:
+            'as partes continuam sendo as gravações da equipe, com os mesmos '
+            'arquivos e os mesmos nomes',
+      );
+    },
+  );
 
-  test('ouvir esse trecho toca a gravação da própria parte no seu lugar',
-      () async {
-    final harness = SalaHarness()
-      ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.unclear
-      ..room.verdictFindingSegmentId = 'trecho-2';
-    final it = await _reabrir(
-      harness,
-      contado: _contadoDeFora,
-      naSala: const [
-        TakeView(takeId: _deFora, scope: 'composed', ordinal: 2),
-      ],
-    );
-    await waitFor(
-      'os trechos da gravação de fora caírem na sua parte',
-      () => _trecho(it, 'trecho-2').parte == 1,
-    );
-    final daParteDois = it.gravadas[1];
+  test(
+    'ouvir esse trecho toca a gravação da própria parte no seu lugar',
+    () async {
+      final harness = SalaHarness()
+        ..room.verdictChecked = false
+        ..room.verdictFinding = BtFindingKind.unclear
+        ..room.verdictFindingSegmentId = 'trecho-2';
+      final it = await _reabrir(
+        harness,
+        contado: _contadoDeFora,
+        naSala: const [
+          TakeView(takeId: _deFora, scope: 'composed', ordinal: 2),
+        ],
+      );
+      await waitFor(
+        'os trechos da gravação de fora caírem na sua parte',
+        () => _trecho(it, 'trecho-2').parte == 1,
+      );
+      final daParteDois = it.gravadas[1];
 
-    await _ouvirAteOFim(it);
-    await it.sala.finishBackTranslation();
-    await waitFor(
-      'a sala abrir os achados',
-      () => it.estado.btPhase == BtPhase.findings,
-    );
+      await _ouvirAteOFim(it);
+      await it.sala.finishBackTranslation();
+      await waitFor(
+        'a sala abrir os achados',
+        () => it.estado.btPhase == BtPhase.findings,
+      );
 
-    it.sala.ouvirVozMaterna();
-    await waitFor('o trecho apontado tocar', () => it.estado.btTrechoTocando);
+      it.sala.ouvirVozMaterna();
+      await waitFor('o trecho apontado tocar', () => it.estado.btTrechoTocando);
 
-    expect(it.harness.playback.played.last, daParteDois,
-        reason: 'a voz materna do trecho é a gravação que a equipe fez da '
-            'parte 2, e não um arquivo que o servidor montou');
-    expect(it.harness.playback.ranges.last, '0-6000',
-        reason: 'tocado nos segundos que a sala deu ao trecho dentro da '
-            'gravação, que é o lugar em que ele mora');
-  });
+      expect(
+        it.harness.playback.played.last,
+        daParteDois,
+        reason:
+            'a voz materna do trecho é a gravação que a equipe fez da '
+            'parte 2, e não um arquivo que o servidor montou',
+      );
+      expect(
+        it.harness.playback.ranges.last,
+        '0-6000',
+        reason:
+            'tocado nos segundos que a sala deu ao trecho dentro da '
+            'gravação, que é o lugar em que ele mora',
+      );
+    },
+  );
 
   test('sem a lista das gravações o trecho fica onde a leitura o põe e a sala '
       'não para', () async {
@@ -270,22 +289,35 @@ void main() {
     );
     await settle();
 
-    expect(it.estado.stage, SalaStage.retro,
-        reason: 'a retomada chega na tradução de volta mesmo assim');
-    expect(it.estado.needsPerson, isFalse,
-        reason: 'uma lista que não respondeu não é motivo para chamar '
-            'alguém: a equipe continua contando');
-    expect(it.harness.room.calls, contains('takesOf'),
-        reason: 'a lista foi pedida: sem isso o caso não mede recusa nenhuma');
+    expect(
+      it.estado.stage,
+      SalaStage.retro,
+      reason: 'a retomada chega na tradução de volta mesmo assim',
+    );
+    expect(
+      it.estado.needsPerson,
+      isFalse,
+      reason:
+          'uma lista que não respondeu não é motivo para chamar '
+          'alguém: a equipe continua contando',
+    );
+    expect(
+      it.harness.room.calls,
+      contains('takesOf'),
+      reason: 'a lista foi pedida: sem isso o caso não mede recusa nenhuma',
+    );
     expect(
       [for (final trecho in it.estado.btTrechos) trecho.segmentId],
       ['trecho-1', 'trecho-2', 'trecho-3', 'trecho-4'],
       reason: 'nenhum trecho some do colar por causa da lista',
     );
     expect(
-      [for (final nome in ['trecho-2', 'trecho-3']) _trecho(it, nome).parte],
+      [
+        for (final nome in ['trecho-2', 'trecho-3']) _trecho(it, nome).parte,
+      ],
       [-1, -1],
-      reason: 'sem a lista nada os coloca, e a leitura não os inventa numa '
+      reason:
+          'sem a lista nada os coloca, e a leitura não os inventa numa '
           'parte: uma banda sobre a parte errada mente à equipe sobre onde a '
           'fala dela está',
     );
@@ -301,44 +333,56 @@ void main() {
     await settle();
 
     expect(it.estado.stage, SalaStage.retro);
-    expect(it.harness.room.calls, contains('takesOf'),
-        reason: 'a lista foi pedida e respondeu: sem isso o caso não mede a '
-            'gravação sem número, mede a colocação que nunca rodou');
-    expect(it.estado.needsPerson, isFalse,
-        reason: 'uma gravação que a sala não numerou não para ninguém');
+    expect(
+      it.harness.room.calls,
+      contains('takesOf'),
+      reason:
+          'a lista foi pedida e respondeu: sem isso o caso não mede a '
+          'gravação sem número, mede a colocação que nunca rodou',
+    );
+    expect(
+      it.estado.needsPerson,
+      isFalse,
+      reason: 'uma gravação que a sala não numerou não para ninguém',
+    );
     expect(
       [for (final trecho in it.estado.btTrechos) trecho.segmentId],
       ['trecho-1', 'trecho-2', 'trecho-3', 'trecho-4'],
     );
     expect(
-      [for (final nome in ['trecho-2', 'trecho-3']) _trecho(it, nome).parte],
+      [
+        for (final nome in ['trecho-2', 'trecho-3']) _trecho(it, nome).parte,
+      ],
       [-1, -1],
-      reason: 'uma gravação que a sala não numerou não diz por qual parte ela '
+      reason:
+          'uma gravação que a sala não numerou não diz por qual parte ela '
           'responde, e adivinhar uma põe a banda sobre a fala de outra parte',
     );
-    expect(_trecho(it, 'trecho-1').parte, 0,
-        reason: 'os trechos das gravações que o tablet tem não se mexem');
+    expect(
+      _trecho(it, 'trecho-1').parte,
+      0,
+      reason: 'os trechos das gravações que o tablet tem não se mexem',
+    );
     expect(_trecho(it, 'trecho-4').parte, 2);
   });
 
-  test('uma retomada cujas gravações o tablet tem não pergunta nada à sala',
-      () async {
-    final harness = SalaHarness();
-    final it = await _reabrir(
-      harness,
-      contado: _contadoDaqui,
-      partes: 2,
-    );
-    await settle();
+  test(
+    'uma retomada cujas gravações o tablet tem não pergunta nada à sala',
+    () async {
+      final harness = SalaHarness();
+      final it = await _reabrir(harness, contado: _contadoDaqui, partes: 2);
+      await settle();
 
-    expect(it.harness.room.calls, isNot(contains('takesOf')),
-        reason: 'toda gravação que os trechos nomeiam está neste tablet: não '
-            'há o que perguntar');
-    expect(
-      [for (final trecho in it.estado.btTrechos) trecho.parte],
-      [0, 1],
-    );
-  });
+      expect(
+        it.harness.room.calls,
+        isNot(contains('takesOf')),
+        reason:
+            'toda gravação que os trechos nomeiam está neste tablet: não '
+            'há o que perguntar',
+      );
+      expect([for (final trecho in it.estado.btTrechos) trecho.parte], [0, 1]);
+    },
+  );
 
   test('a resposta da sala pode ainda trazer composed_take_id', () {
     final trocado = TellingAgain.fromJson({
@@ -354,9 +398,13 @@ void main() {
       'composed_take_id': 'gravacao-de-fora',
     });
 
-    expect(trocado.segments, hasLength(1),
-        reason: 'uma chave que este tablet não lê mais não estraga a resposta '
-            'de um servidor que ainda a manda');
+    expect(
+      trocado.segments,
+      hasLength(1),
+      reason:
+          'uma chave que este tablet não lê mais não estraga a resposta '
+          'de um servidor que ainda a manda',
+    );
     expect(trocado.segments.first.segmentId, 'trecho-1');
     expect(trocado.captured, isTrue);
     expect(trocado.needsPerson, isFalse);

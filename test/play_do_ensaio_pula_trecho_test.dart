@@ -64,7 +64,7 @@ Future<void> _traduzirUmTrecho(_Sala it, Duration em) async {
 Future<void> _atravessarAFronteira(_Sala it) async {
   it.harness.playback.finishPlayback();
   await waitFor('a parte terminar', () => it.estado.btParteFronteira);
-  it.sala.proximaParte();
+  it.sala.ouvirGravacao();
   await waitFor(
     'a parte seguinte entrar no ar',
     () => !it.estado.btParteFronteira,
@@ -79,7 +79,7 @@ Future<void> _pedirOVeredito(_Sala it) async {
       () => it.estado.btParteFronteira || it.estado.btClipEnded,
     );
     if (it.estado.btClipEnded) break;
-    it.sala.proximaParte();
+    it.sala.ouvirGravacao();
     await waitFor(
       'a parte seguinte entrar no ar',
       () => !it.estado.btParteFronteira,
@@ -135,9 +135,11 @@ Future<_Sala> _seisPartesSeisTrechos() async {
 /// Drive the fake player's clip to completion for every stretch the ghost play opens,
 /// until it stops on its own or gives up waiting.
 Future<void> _tocarOFantasmaAteAcabar(_Sala it) async {
-  for (var tentativas = 0;
-      tentativas < 12 && it.estado.ensaio == EnsaioStatus.ghostPlaying;
-      tentativas++) {
+  for (
+    var tentativas = 0;
+    tentativas < 12 && it.estado.ensaio == EnsaioStatus.ghostPlaying;
+    tentativas++
+  ) {
     it.harness.playback.finishPlayback();
     await Future<void>.delayed(const Duration(milliseconds: 20));
   }
@@ -159,16 +161,18 @@ Future<void> _traduzirDeNovoPeloCaminhoCurto(_Sala it) async {
 }
 
 void main() {
-  test(
-      'o play do ensaio toca as seis partes, na ordem, incluindo a que '
+  test('o play do ensaio toca as seis partes, na ordem, incluindo a que '
       'ninguém consertou', () async {
     final it = await _seisPartesSeisTrechos();
 
     // Trecho 6 (índice 5), traduzido de novo pelo caminho curto.
     await _traduzirDeNovoPeloCaminhoCurto(it);
 
-    expect(it.estado.btPhase, BtPhase.findings,
-        reason: 'a sala está de volta às perguntas depois da última correção');
+    expect(
+      it.estado.btPhase,
+      BtPhase.findings,
+      reason: 'a sala está de volta às perguntas depois da última correção',
+    );
 
     it.sala.continuarOEnsaio();
     await waitFor(
@@ -184,25 +188,27 @@ void main() {
     expect(
       it.estado.ensaio,
       EnsaioStatus.idle,
-      reason: 'o play do ensaio deve terminar sozinho depois das seis '
+      reason:
+          'o play do ensaio deve terminar sozinho depois das seis '
           'partes, não ficar preso',
     );
     expect(
       it.harness.playback.played.length,
       6,
-      reason: 'seis partes, seis trechos, seis toques — nenhum pulado em '
+      reason:
+          'seis partes, seis trechos, seis toques — nenhum pulado em '
           'silêncio',
     );
     expect(
       it.harness.playback.played[1],
       it.estado.partes[1].path,
-      reason: 'a parte 2 não foi consertada: o play do ensaio tem de tocar '
+      reason:
+          'a parte 2 não foi consertada: o play do ensaio tem de tocar '
           'o arquivo da própria parte, como a retro tocaria',
     );
   });
 
-  test(
-      'um trecho sem nenhum áudio local (sem parte) continua '
+  test('um trecho sem nenhum áudio local (sem parte) continua '
       'sendo pulado — o único caso em que pula', () async {
     final gravada = File(
       '${Directory.systemTemp.createTempSync('sala-824').path}/p1.m4a',
@@ -253,8 +259,7 @@ void main() {
     await waitFor(
       'a tradução ser retomada com os dois trechos',
       () =>
-          it.estado.stage == SalaStage.retro &&
-          it.estado.btTrechos.length == 2,
+          it.estado.stage == SalaStage.retro && it.estado.btTrechos.length == 2,
     );
     harness.playback.played.clear();
 
@@ -264,13 +269,15 @@ void main() {
     expect(
       it.estado.ensaio,
       EnsaioStatus.idle,
-      reason: 'o play do ensaio termina mesmo com um trecho sem áudio '
+      reason:
+          'o play do ensaio termina mesmo com um trecho sem áudio '
           'nenhum — ele é pulado, não trava a sala',
     );
     expect(
       harness.playback.played,
       [gravada.path],
-      reason: 'só o trecho que tem parte local toca; o trecho que aponta '
+      reason:
+          'só o trecho que tem parte local toca; o trecho que aponta '
           'uma gravação que este tablet não tem é o único pulado',
     );
   });
