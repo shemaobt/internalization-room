@@ -1625,11 +1625,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           final told = (await _room.fetchState(sessionId)).backTranslation;
           if (epoch != _epoch) return;
           // Only when there is a telling-back to land on. A checked answer carrying no
-          // stretch contradicts itself — the check is about what was told — and
-          // [_pickTheTellingBackUp] rightly declines it, which left the room standing in
-          // the conversa until the watchdog called a person two minutes later. It falls
-          // through to the turn instead, which is the door every other empty answer takes:
-          // closing would call a passage the team never approved its final draft.
+          // stretch contradicts itself — the check is about what was told — and there is
+          // no rehearsal here to land it on either, so this door declines it: landing it
+          // left the room standing in the conversa until the watchdog called a person two
+          // minutes later. It falls through to the turn instead, which is the door every
+          // other empty answer takes: closing would call a passage the team never
+          // approved its final draft.
           //
           // Reached only when the room holds no rehearsal of its own to hand back, which
           // is the one way past this door now that a resume fetches the parts.
@@ -1900,9 +1901,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// Every reopening landed on the rehearsal, so a team that had stopped part-way through
   /// telling it back recorded the whole passage a second time and the session ended
-  /// holding two of everything. A room with no stretch has no telling-back to pick up.
+  /// holding two of everything. A room holding no stretch yet is the same team at the
+  /// same station: it comes back to the start of the untold ground, with the circle ready
+  /// to tell, and not to a rehearsal it has already recorded.
   void _pickTheTellingBackUp(BackTranslationProgress told) {
-    if (told.nothingTold) return;
     state = state.copyWith(
       stage: SalaStage.retro,
       voice: told.checked ? VoiceState.done : VoiceState.invite,
