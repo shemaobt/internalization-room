@@ -708,6 +708,7 @@ void main() {
   });
 
   test('the necklace is on only for the conversa and the fim', () {
+    expect(const SalaSessionState(stage: SalaStage.escolha).colarOn, isFalse);
     expect(const SalaSessionState(stage: SalaStage.conversa).colarOn, isTrue);
     expect(const SalaSessionState(stage: SalaStage.ensaio).colarOn, isFalse,
         reason: 'o progresso do ensaio é a fileira de contas dos pedaços; a '

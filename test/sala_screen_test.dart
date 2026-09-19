@@ -480,8 +480,11 @@ void main() {
 
     expect(
         bySemanticsLabelWidget('Tocar para gravar o ensaio'), findsOneWidget);
-    expect(find.byType(ColarOverlay), findsNothing);
-    expect(find.byType(RetroCord), findsNothing);
+    expect(find.byType(ColarOverlay), findsNothing,
+        reason: 'o progresso do ensaio é a fileira de contas dos pedaços; a '
+            'cobertura da conversa não desenha ali');
+    expect(find.byType(RetroCord), findsNothing,
+        reason: 'o cord é o traço da retro; o ensaio não é a retro');
   });
 
   testWidgets('the back-translation offers terminei once the clip ends',
