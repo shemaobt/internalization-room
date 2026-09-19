@@ -319,10 +319,9 @@ void main() {
     );
 
     expect(harness.room.replacesAsked.length, pedidosAntes,
-        reason: 'a trava é um latch sem casa no estado, como o _traduzindoDeNovo que '
-            'já mandou o primeiro trecho de uma tradução como correção de '
-            'um trecho que não existia — aqui iria para o id da passagem '
-            'anterior');
+        reason: 'o trecho armado é um latch sem casa no estado, e já mandou o '
+            'primeiro trecho de uma tradução como correção de um trecho que '
+            'não existia — aqui iria para o id da passagem anterior');
     expect(harness.room.chunkSpans.last, '0-10000');
   });
 

@@ -39,7 +39,9 @@ only the Desk lifts it (ADR 0009).
 A warning is now raised on exactly two routes — a state read and a correction's answer —
 and the chunk route's retelling plumbing goes with this decision: the tablet never sent
 `retelling`, so the room never answered a chunk with that field, and the two warning
-writes on that path read something that could not arrive.
+writes on that path read something that could not arrive. The field itself goes with
+them — a chunk from this tablet counts one telling, which is under the mark, so the
+answer cannot carry the news at all.
 
 The team crossing the mark by mending stretches sees a green circle and goes on mending.
 The facilitator's queue shows the room asking for someone as a warning, which is what the

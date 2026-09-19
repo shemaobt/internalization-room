@@ -3219,6 +3219,7 @@ void main() {
       () => container.read(salaSessionProvider).btPhase != BtPhase.thinking,
     );
 
+    expect(container.read(salaSessionProvider).btTrechos, isEmpty);
     expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
   });
 

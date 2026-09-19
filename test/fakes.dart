@@ -1201,7 +1201,6 @@ class FakeRoom implements RoomRepository {
     return BackTranslationChunk(
       chunks: chunksSent,
       captured: chunkCaptured,
-      needsPerson: false,
     );
   }
 

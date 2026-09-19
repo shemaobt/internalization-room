@@ -3326,8 +3326,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         voice: VoiceState.invite,
         btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
         btConsertando: false,
-        // Never cleared from here: a room that said nothing about a person has said
-        // nothing about a warning either, and the one a state read raised stands.
         warning: told.needsPerson ? true : null,
       );
       return;
@@ -3508,7 +3506,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           voice: VoiceState.invite,
           btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
         );
-          return;
+        return;
       }
     } on Exception catch (error) {
       unawaited(_guard(
