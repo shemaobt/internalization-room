@@ -73,8 +73,14 @@ passage stays on the **Wheel**, the **Resume point** is untouched and the approv
 line is not spoken — the room simply moves to where the work is.
 
 The doors are the ones the verdict already uses, unchanged. What is new is who calls them
-and in which order, so a hole the team can fill behaves the same whether the check or the
-approval found it.
+and in which order, so a hole the team can fill lands the team in the same place whether
+the check or the approval found it.
+
+It does not sound the same, though. The verdict carries a line the server composed for the
+hole, and the landing speaks it before the part or the stretch goes in the air; the refusal
+carries no line and no address for one, so the approval's landing is silent — the team
+presses, the room goes quiet, and the work simply starts playing. Whether the room should
+say something of its own here is a question this decision leaves open.
 
 Two holes at once take the first door in the room's order, and the rest of the refusal is
 not remembered: the team fills that hole, checks again, and presses approve again, which is

@@ -934,6 +934,8 @@ class FakeRoom implements RoomRepository {
       failStateOnceWith = null;
       throw failure;
     }
+    final held = _holdingState;
+    if (held != null) await held.future;
     return SessionSnapshot(
       sessionId: sessionId,
       pericope: 'rute-1',
@@ -1275,6 +1277,17 @@ class FakeRoom implements RoomRepository {
   /// Which stretch this room says was recorded and never told back, when `untold_stretch`
   /// is among them.
   String? releaseUntoldSegmentId;
+
+  Completer<void>? _holdingState;
+
+  /// Holds a read of the room's state in flight, so a test can press again while the room
+  /// is still reading the stretches' names back.
+  void holdNextState() => _holdingState = Completer<void>();
+
+  void finishHeldState() {
+    _holdingState?.complete();
+    _holdingState = null;
+  }
 
   Completer<void>? _holdingRelease;
 

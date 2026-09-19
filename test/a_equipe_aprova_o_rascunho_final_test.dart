@@ -603,7 +603,11 @@ void main() {
     closeTheRoom(it.container);
   });
 
-  testWidgets('a recusa por conferência não feita devolve a fase de tocar com '
+  for (final codigo in const [
+    'telling_back_not_checked',
+    'telling_back_never_analysed',
+  ]) {
+  testWidgets('a recusa por $codigo devolve a fase de tocar com '
       'o terminei de pé', (tester) async {
     final it = await _ateAConferida(tester);
     await tester.tap(_byLabel(_ouvir));
@@ -615,7 +619,7 @@ void main() {
     expect(it.harness.playback.sounding, isTrue,
         reason: 'com a gravação ainda na boca da sala');
 
-    it.harness.room.releaseBlockers = const ['telling_back_not_checked'];
+    it.harness.room.releaseBlockers = [codigo];
 
     await _aprovarEEsperar(tester);
 
@@ -633,6 +637,40 @@ void main() {
 
     expect(it.harness.room.playedByTakeSent, hasLength(relatosAntes + 1),
         reason: 'e um botão vivo é um botão que chega à sala');
+
+    closeTheRoom(it.container);
+  });
+  }
+
+  testWidgets('um segundo aperto enquanto a recusa ainda desce não manda outro '
+      'pedido', (tester) async {
+    final it = await _ateAConferida(tester);
+    it.harness.room
+      ..releaseBlockers = const ['untold_stretch']
+      ..releaseUntoldSegmentId = 'trecho-1'
+      ..holdNextState();
+    final trechosNoAr = it.harness.playback.ranges.length;
+
+    await tester.tap(_byLabel(_aprovar));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(_estado(it.container).btPhase, BtPhase.conferida,
+        reason: 'a fase não se mexe enquanto a sala lê os nomes de volta — é o '
+            'que mantém o botão desenhado, e por isso a trava do aperto tem de '
+            'durar até a porta abrir');
+
+    await tester.tap(_byLabel(_aprovar));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    it.harness.room.finishHeldState();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(it.harness.room.releasesAsked, hasLength(1),
+        reason: 'um aperto, um pedido: o segundo manda a sala aprovar de novo '
+            'uma passagem cuja recusa ainda está a caminho, e as duas '
+            'aterragens disputam o clipe debaixo da equipe');
+    expect(it.harness.playback.ranges, hasLength(trechosNoAr + 1),
+        reason: 'e a porta abre uma vez só');
 
     closeTheRoom(it.container);
   });

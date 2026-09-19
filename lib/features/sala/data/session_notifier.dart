@@ -145,8 +145,8 @@ final resumeExpiryProvider = Provider<Duration>(
 
 /// The holes a refused approval names that this room has somewhere to take the team.
 ///
-/// Declared in the order the room opens them, which is not the order the gate raises them
-/// in: the gate lists the check's own errand before the holes that have ground to stand on,
+/// Declared in the order the room opens them — the one place that order lives — which is
+/// not the order the gate raises them in: the gate lists the check's own errand before the holes that have ground to stand on,
 /// and a team sent to press *terminei* again over a part nobody told back is sent to be
 /// refused again.
 enum _PortaDaRecusa { trecho, parteNaoContada, parteNaoOuvida, conferir }
@@ -3739,7 +3739,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         final resposta = await _room.approveRelease(sessionId);
         if (epoch != _epoch) return;
         if (!resposta.minted) {
-          return _levarAoBuracoQueARecusaNomeia(resposta, sessionId, epoch);
+          await _levarAoBuracoQueARecusaNomeia(resposta, sessionId, epoch);
+          return;
         }
         _aprovada = true;
       }
@@ -3759,17 +3760,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  /// Straight to the part the verdict names, with the telling-back left standing.
-  ///
-  /// The room refuses to read a passage carrying ground it does not know about, and it
-  /// names the part it is missing — whether nobody heard it ([semChaoTraduzido] false) or
-  /// nobody told it back ([semChaoTraduzido] true). The press is not spent on the refusal:
-  /// the part goes in the air, the team hears it, and *terminei* lights again at its end.
-  /// [semChaoTraduzido] carries straight through to [_tocarParteDaRetro], whose own doc
-  /// says what it does to the cursor and why.
   /// Take the team to the first hole the refusal names that this room has a door for.
   ///
-  /// The order is the room's own, read off [_PortaDaRecusa], and never the order the codes
+  /// Which hole is first is [_PortaDaRecusa]'s own order and never the order the codes
   /// arrived in: a refusal naming the check and a part nobody told back names the check
   /// first, and opening that door hands the team back the very button that was refused. A
   /// hole with no door, a code this tablet does not know, a named hole whose ground never
@@ -3781,55 +3774,64 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     String sessionId,
     int epoch,
   ) async {
-    final portas = <_PortaDaRecusa>{};
+    _PortaDaRecusa? aberta;
     for (final blocker in resposta.blockers) {
       final porta = _portaDaRecusa(blocker);
-      if (porta != null) portas.add(porta);
+      if (porta == null) continue;
+      if (aberta == null || porta.index < aberta.index) aberta = porta;
     }
 
-    if (portas.contains(_PortaDaRecusa.trecho)) {
-      // A passage the check cleared on its first verdict never had the names read back, so
-      // the stretches it holds are the ones this tablet cut, and the name the refusal gives
-      // matches none of them.
-      await _readTheStretchesBack(sessionId, epoch);
-      if (epoch != _epoch) return;
-      final trecho = resposta.untoldSegmentId;
-      if (trecho == null) return _haltForAPerson();
-      return _levarAoTrechoNaoTraduzido(trecho);
+    switch (aberta) {
+      case _PortaDaRecusa.trecho:
+        final trecho = resposta.untoldSegmentId;
+        if (trecho == null) return _haltForAPerson();
+        // A passage the check cleared on its first verdict never had the names read back,
+        // so the stretches it holds are the ones this tablet cut, and the name the refusal
+        // gives matches none of them. Asked for after the ground, which a round trip
+        // cannot supply: without it the room stood silent for a whole wait and called a
+        // person anyway.
+        await _readTheStretchesBack(sessionId, epoch);
+        if (epoch != _epoch) return;
+        _levarAoTrechoNaoTraduzido(trecho);
+      case _PortaDaRecusa.parteNaoContada:
+        final gravacoes = resposta.untoldTakeIds;
+        if (gravacoes.isEmpty) return _haltForAPerson();
+        await _levarAParteApontadaPelaRecusa(
+          gravacoes.first,
+          epoch,
+          semChaoTraduzido: true,
+        );
+      case _PortaDaRecusa.parteNaoOuvida:
+        final gravacoes = resposta.unheardTakeIds;
+        if (gravacoes.isEmpty) return _haltForAPerson();
+        await _levarAParteApontadaPelaRecusa(
+          gravacoes.first,
+          epoch,
+          semChaoTraduzido: false,
+        );
+      case _PortaDaRecusa.conferir:
+        // The room is already silent — the press silenced it — and the last listening of a
+        // checked passage is what took the end of the clip away, which is the whole of
+        // what *terminei* waits on.
+        state = state.copyWith(
+          btPhase: BtPhase.playing,
+          btClipEnded: true,
+          btConsertando: false,
+          voice: VoiceState.invite,
+        );
+      case null:
+        _haltForAPerson();
     }
-    if (portas.contains(_PortaDaRecusa.parteNaoContada)) {
-      final gravacoes = resposta.untoldTakeIds;
-      if (gravacoes.isEmpty) return _haltForAPerson();
-      return _levarAParteApontadaPelaRecusa(
-        gravacoes.first,
-        epoch,
-        semChaoTraduzido: true,
-      );
-    }
-    if (portas.contains(_PortaDaRecusa.parteNaoOuvida)) {
-      final gravacoes = resposta.unheardTakeIds;
-      if (gravacoes.isEmpty) return _haltForAPerson();
-      return _levarAParteApontadaPelaRecusa(
-        gravacoes.first,
-        epoch,
-        semChaoTraduzido: false,
-      );
-    }
-    if (portas.contains(_PortaDaRecusa.conferir)) {
-      // The room is already silent — the press silenced it — and the last listening of a
-      // checked passage is what took the end of the clip away, which is the whole of what
-      // *terminei* waits on.
-      state = state.copyWith(
-        btPhase: BtPhase.playing,
-        btClipEnded: true,
-        btConsertando: false,
-        voice: VoiceState.invite,
-      );
-      return;
-    }
-    _haltForAPerson();
   }
 
+  /// Straight to the part the verdict names, with the telling-back left standing.
+  ///
+  /// The room refuses to read a passage carrying ground it does not know about, and it
+  /// names the part it is missing — whether nobody heard it ([semChaoTraduzido] false) or
+  /// nobody told it back ([semChaoTraduzido] true). The press is not spent on the refusal:
+  /// the part goes in the air, the team hears it, and *terminei* lights again at its end.
+  /// [semChaoTraduzido] carries straight through to [_tocarParteDaRetro], whose own doc
+  /// says what it does to the cursor and why.
   Future<void> _levarAParteApontadaPelaRecusa(
     String gravacao,
     int epoch, {

@@ -7,6 +7,9 @@
 /// Read the other way round, a server that stopped naming the version closed a passage
 /// over nothing.
 class ApprovalAnswer {
+  /// The row the server kept for this approval. Nothing in the room reads it; it is here to
+  /// pin the wire contract, so a server that stopped naming it is caught by the
+  /// repository's own test rather than by a passage that closes without one.
   final String? releaseId;
 
   /// The version the team won by approving, and the whole of what says a release exists.
