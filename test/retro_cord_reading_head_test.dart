@@ -136,18 +136,11 @@ Future<ProviderContainer> _oAchadoNoTrechoDaParteDois(
   await notifier.finishBackTranslation();
   await tester.pump(const Duration(milliseconds: 300));
   final sala = container.read(salaSessionProvider);
-  expect(
-    sala.btFindingTrecho?.parte,
-    1,
-    reason: 'o cenário só mede alguma coisa se o achado apontar a parte 2',
-  );
-  expect(
-    sala.btOuvidoMs,
-    isNot(inInclusiveRange(_naCordaDe, _naCordaAte)),
-    reason:
-        'e se o chão contado ficar fora da banda do trecho: em cima '
-        'dela, uma cabeça que nunca se mexeu leria igual a uma que saltou',
-  );
+  expect(sala.btFindingTrecho?.parte, 1,
+      reason: 'o cenário só mede alguma coisa se o achado apontar a parte 2');
+  expect(sala.btOuvidoMs, isNot(inInclusiveRange(_naCordaDe, _naCordaAte)),
+      reason: 'e se o chão contado ficar fora da banda do trecho: em cima '
+          'dela, uma cabeça que nunca se mexeu leria igual a uma que saltou');
   return container;
 }
 
@@ -165,25 +158,14 @@ void main() {
     }
 
     for (var i = 1; i < andados.length; i++) {
-      expect(
-        andados[i],
-        greaterThan(andados[i - 1]),
-        reason:
-            'a cabeça de leitura só saltava no começo e no fim de cada parte; '
-            'entre os saltos ficava parada enquanto o áudio corria',
-      );
+      expect(andados[i], greaterThan(andados[i - 1]),
+          reason: 'a cabeça de leitura só saltava no começo e no fim de cada parte; '
+              'entre os saltos ficava parada enquanto o áudio corria');
     }
-    expect(
-      andados.last,
-      lessThanOrEqualTo(_parteInteira.inMilliseconds),
-      reason:
-          'a parte tem trinta segundos e a cabeça não pode passar do fim dela',
-    );
-    expect(
-      lugares.last,
-      greaterThan(lugares.first),
-      reason: 'não basta o número mudar: é o lugar na corda que a equipe olha',
-    );
+    expect(andados.last, lessThanOrEqualTo(_parteInteira.inMilliseconds),
+        reason: 'a parte tem trinta segundos e a cabeça não pode passar do fim dela');
+    expect(lugares.last, greaterThan(lugares.first),
+        reason: 'não basta o número mudar: é o lugar na corda que a equipe olha');
     await sairDaSala(tester, harness, container);
   });
 
@@ -202,21 +184,13 @@ void main() {
     harness.playback.at = const Duration(seconds: 25);
     await tester.pump(const Duration(seconds: 2));
 
-    expect(
-      cabeca(tester),
-      parou,
-      reason:
-          'pausar é a sala guardando onde a equipe parou de ouvir; uma cabeça '
-          'que anda depois disso desmente o que a pausa quer dizer',
-    );
-    expect(
-      identical(tester.widget<RetroCord>(find.byType(RetroCord)), antes),
-      isTrue,
-      reason:
-          'e a corda nem foi redesenhada: parar de ouvir é parar de perguntar. '
-          'A equipe conta um trecho por minutos a fio com a gravação em pausa, e um '
-          'timer que sobrevive a ela acorda o tablet dez vezes por segundo à toa',
-    );
+    expect(cabeca(tester), parou,
+        reason: 'pausar é a sala guardando onde a equipe parou de ouvir; uma cabeça '
+            'que anda depois disso desmente o que a pausa quer dizer');
+    expect(identical(tester.widget<RetroCord>(find.byType(RetroCord)), antes), isTrue,
+        reason: 'e a corda nem foi redesenhada: parar de ouvir é parar de perguntar. '
+            'A equipe conta um trecho por minutos a fio com a gravação em pausa, e um '
+            'timer que sobrevive a ela acorda o tablet dez vezes por segundo à toa');
     await sairDaSala(tester, harness, container);
   });
 
@@ -232,13 +206,9 @@ void main() {
     harness.playback.at = const Duration(seconds: 12);
     await tester.pump(const Duration(seconds: 3));
 
-    expect(
-      cabeca(tester),
-      fim,
-      reason:
-          'sem áudio no ar não há andamento a acompanhar, e a bolinha fica onde '
-          'a sala anotou que a equipe parou de ouvir',
-    );
+    expect(cabeca(tester), fim,
+        reason: 'sem áudio no ar não há andamento a acompanhar, e a bolinha fica onde '
+            'a sala anotou que a equipe parou de ouvir');
   });
 
   testWidgets('the end of a part still leads on to the next', (tester) async {
@@ -251,37 +221,27 @@ void main() {
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(
-      cabeca(tester),
-      _parteInteira.inMilliseconds,
-      reason:
-          'o fim de uma parte é medido pela duração dela, não pela posição que o '
-          'player responde no instante em que para',
-    );
+    expect(cabeca(tester), _parteInteira.inMilliseconds,
+        reason: 'o fim de uma parte é medido pela duração dela, não pela posição que o '
+            'player responde no instante em que para');
     expect(
       tester.widget<RetroCord>(find.byType(RetroCord)).fimDasPartes,
       [_parteInteira.inMilliseconds, 2 * _parteInteira.inMilliseconds],
-      reason:
-          'as duas partes foram medidas na entrada: a régua não espera que '
+      reason: 'as duas partes foram medidas na entrada: a régua não espera que '
           'cada uma acabe de tocar para saber onde ela acaba',
     );
 
     container.read(salaSessionProvider.notifier).ouvirGravacao();
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(
-      cabeca(tester),
-      greaterThan(_parteInteira.inMilliseconds),
-      reason:
-          'atravessar a fronteira continua levando a equipe à parte seguinte, e a '
-          'cabeça segue de lá para a frente',
-    );
+    expect(cabeca(tester), greaterThan(_parteInteira.inMilliseconds),
+        reason: 'atravessar a fronteira continua levando a equipe à parte seguinte, e a '
+            'cabeça segue de lá para a frente');
     await sairDaSala(tester, harness, container);
   });
 
-  testWidgets('a part slow to open does not fling the bead to the end', (
-    tester,
-  ) async {
+  testWidgets('a part slow to open does not fling the bead to the end',
+      (tester) async {
     final harness = _umEnsaioQueCorre();
     final container = await retroTocando(tester, harness, partes: 2);
 
@@ -295,31 +255,21 @@ void main() {
     container.read(salaSessionProvider.notifier).ouvirGravacao();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(
-      cabeca(tester),
-      _parteInteira.inMilliseconds,
-      reason:
-          'a parte que abre ainda não soou; enquanto o player responde pela '
-          'anterior, o único lugar que a sala sabe é o começo desta',
-    );
+    expect(cabeca(tester), _parteInteira.inMilliseconds,
+        reason: 'a parte que abre ainda não soou; enquanto o player responde pela '
+            'anterior, o único lugar que a sala sabe é o começo desta');
 
     harness.playback.finishHeldOpening();
     await tester.pump(const Duration(milliseconds: 16));
 
-    expect(
-      naCorda(tester),
-      lessThan(0.75),
-      reason:
-          'no quadro em que a parte abre, a sala aprende a duração dela — e uma '
-          'cabeça herdada da parte anterior, medida contra essa duração, atirava a '
-          'bolinha para a ponta do colar antes de voltar',
-    );
+    expect(naCorda(tester), lessThan(0.75),
+        reason: 'no quadro em que a parte abre, a sala aprende a duração dela — e uma '
+            'cabeça herdada da parte anterior, medida contra essa duração, atirava a '
+            'bolinha para a ponta do colar antes de voltar');
     await sairDaSala(tester, harness, container);
   });
 
-  testWidgets('the bead walks again when the take is let run on', (
-    tester,
-  ) async {
+  testWidgets('the bead walks again when the take is let run on', (tester) async {
     final harness = _umEnsaioQueCorre();
     final container = await retroTocando(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -332,134 +282,86 @@ void main() {
     notifier.ouvirGravacao();
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(
-      cabeca(tester),
-      greaterThan(parou),
-      reason:
-          'pausar para contar um trecho e deixar a gravação seguir é o gesto mais '
-          'comum da retro; a cabeça tem de voltar a andar com ela',
-    );
+    expect(cabeca(tester), greaterThan(parou),
+        reason: 'pausar para contar um trecho e deixar a gravação seguir é o gesto mais '
+            'comum da retro; a cabeça tem de voltar a andar com ela');
     await sairDaSala(tester, harness, container);
   });
 
-  testWidgets(
-    'hearing the stretch the analyst pointed at walks the head along it',
-    (tester) async {
-      final harness = _umAchadoNaParteDois();
-      final container = await _oAchadoNoTrechoDaParteDois(tester, harness);
-      final notifier = container.read(salaSessionProvider.notifier);
+  testWidgets('hearing the stretch the analyst pointed at walks the head along it',
+      (tester) async {
+    final harness = _umAchadoNaParteDois();
+    final container = await _oAchadoNoTrechoDaParteDois(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
 
-      final contado = container.read(salaSessionProvider).btOuvidoMs;
-      notifier.ouvirVozMaterna();
-      await tester.pump(const Duration(milliseconds: 100));
-      final primeiro = cabeca(tester);
-      await tester.pump(const Duration(milliseconds: 200));
-      final depois = cabeca(tester);
+    final contado = container.read(salaSessionProvider).btOuvidoMs;
+    notifier.ouvirVozMaterna();
+    await tester.pump(const Duration(milliseconds: 100));
+    final primeiro = cabeca(tester);
+    await tester.pump(const Duration(milliseconds: 200));
+    final depois = cabeca(tester);
 
-      expect(
-        primeiro,
-        greaterThanOrEqualTo(_naCordaDe),
-        reason:
-            'a cabeça salta para onde o trecho mora — o começo da parte 2 '
+    expect(primeiro, greaterThanOrEqualTo(_naCordaDe),
+        reason: 'a cabeça salta para onde o trecho mora — o começo da parte 2 '
             'mais o lugar do trecho dentro dela — e não para a posição que o '
-            'recorte responde, que é contada de dentro do próprio recorte',
-      );
-      expect(
-        depois,
-        lessThanOrEqualTo(_naCordaAte),
-        reason:
-            'e não passa do fim do lugar do trecho: a banda desenhada é o '
-            'lugar, e a cabeça anda por cima dela',
-      );
-      expect(
-        depois,
-        greaterThan(primeiro),
-        reason:
-            'e anda: uma cabeça parada no começo do trecho não diz à '
-            'equipe onde é que o som vai',
-      );
+            'recorte responde, que é contada de dentro do próprio recorte');
+    expect(depois, lessThanOrEqualTo(_naCordaAte),
+        reason: 'e não passa do fim do lugar do trecho: a banda desenhada é o '
+            'lugar, e a cabeça anda por cima dela');
+    expect(depois, greaterThan(primeiro),
+        reason: 'e anda: uma cabeça parada no começo do trecho não diz à '
+            'equipe onde é que o som vai');
 
-      harness.playback.finishPlayback();
-      await tester.pump(const Duration(milliseconds: 200));
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 200));
 
-      expect(
-        cabeca(tester),
-        contado,
-        reason:
-            'acabado o trecho, a cabeça volta ao chão contado, onde a '
-            'tradução parou: ouvir um trecho não move o cursor de ninguém',
-      );
-      expect(
-        container.read(salaSessionProvider).btOuvidoMs,
-        contado,
-        reason:
-            'e o chão contado em si não se mexeu: ouvir um trecho é ouvir, '
-            'não é contar, e o cursor de uma tradução retomada sai daqui',
-      );
-      await sairDaSala(tester, harness, container);
-    },
-  );
+    expect(cabeca(tester), contado,
+        reason: 'acabado o trecho, a cabeça volta ao chão contado, onde a '
+            'tradução parou: ouvir um trecho não move o cursor de ninguém');
+    expect(container.read(salaSessionProvider).btOuvidoMs, contado,
+        reason: 'e o chão contado em si não se mexeu: ouvir um trecho é ouvir, '
+            'não é contar, e o cursor de uma tradução retomada sai daqui');
+    await sairDaSala(tester, harness, container);
+  });
 
-  testWidgets(
-    'holding the stretch parks the head, and letting it run follows again',
-    (tester) async {
-      final harness = _umAchadoNaParteDois();
-      final container = await _oAchadoNoTrechoDaParteDois(tester, harness);
-      final notifier = container.read(salaSessionProvider.notifier);
-      final contado = container.read(salaSessionProvider).btOuvidoMs;
+  testWidgets('holding the stretch parks the head, and letting it run follows again',
+      (tester) async {
+    final harness = _umAchadoNaParteDois();
+    final container = await _oAchadoNoTrechoDaParteDois(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    final contado = container.read(salaSessionProvider).btOuvidoMs;
 
-      notifier.ouvirVozMaterna();
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(
-        cabeca(tester),
-        greaterThan(_naCordaDe),
-        reason:
-            'o cenário só mede alguma coisa com a cabeça já dentro da '
-            'banda do trecho',
-      );
+    notifier.ouvirVozMaterna();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(cabeca(tester), greaterThan(_naCordaDe),
+        reason: 'o cenário só mede alguma coisa com a cabeça já dentro da '
+            'banda do trecho');
 
-      notifier.ouvirVozMaterna();
-      await tester.pump(const Duration(milliseconds: 200));
+    notifier.ouvirVozMaterna();
+    await tester.pump(const Duration(milliseconds: 200));
 
-      expect(
-        cabeca(tester),
-        contado,
-        reason:
-            'segurar o trecho é a equipe a parar de ouvir: a cabeça volta '
-            'ao chão contado, e não fica pendurada onde o recorte estava',
-      );
+    expect(cabeca(tester), contado,
+        reason: 'segurar o trecho é a equipe a parar de ouvir: a cabeça volta '
+            'ao chão contado, e não fica pendurada onde o recorte estava');
 
-      notifier.ouvirVozMaterna();
-      await tester.pump(const Duration(milliseconds: 100));
-      final voltou = cabeca(tester);
-      await tester.pump(const Duration(milliseconds: 200));
+    notifier.ouvirVozMaterna();
+    await tester.pump(const Duration(milliseconds: 100));
+    final voltou = cabeca(tester);
+    await tester.pump(const Duration(milliseconds: 200));
 
-      expect(
-        voltou,
-        greaterThanOrEqualTo(_naCordaDe),
-        reason:
-            'a cabeça volta para dentro da banda, e não para o chão '
-            'contado nem para o começo da parte',
-      );
-      expect(
-        cabeca(tester),
-        lessThanOrEqualTo(_naCordaAte),
-        reason: 'e continua sem passar do fim do lugar do trecho',
-      );
-      expect(
-        cabeca(tester),
-        greaterThan(voltou),
-        reason:
-            'e soltá-lo põe a cabeça a andar outra vez, de onde o recorte '
-            'recomeça',
-      );
-      await sairDaSala(tester, harness, container);
-    },
-  );
+    expect(voltou, greaterThanOrEqualTo(_naCordaDe),
+        reason: 'a cabeça volta para dentro da banda, e não para o chão '
+            'contado nem para o começo da parte');
+    expect(cabeca(tester), lessThanOrEqualTo(_naCordaAte),
+        reason: 'e continua sem passar do fim do lugar do trecho');
+    expect(cabeca(tester), greaterThan(voltou),
+        reason: 'e soltá-lo põe a cabeça a andar outra vez, de onde o recorte '
+            'recomeça');
+    await sairDaSala(tester, harness, container);
+  });
 
-  testWidgets('hearing the telling in Portuguese leaves the head where it is', (
-    tester,
-  ) async {
+  testWidgets('hearing the telling in Portuguese leaves the head where it is',
+      (tester) async {
     final harness = _umAchadoNaParteDois();
     final container = await _oAchadoNoTrechoDaParteDois(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -468,44 +370,31 @@ void main() {
     notifier.ouvirTraducaoEmPortugues();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(
-      cabeca(tester),
-      parado,
-      reason:
-          'a tradução em português é um arquivo à parte, que não mora em '
-          'lugar nenhum do ensaio: a cabeça desenha onde a equipe ouviu a '
-          'voz dela própria, e essa não se mexeu',
-    );
+    expect(cabeca(tester), parado,
+        reason: 'a tradução em português é um arquivo à parte, que não mora em '
+            'lugar nenhum do ensaio: a cabeça desenha onde a equipe ouviu a '
+            'voz dela própria, e essa não se mexeu');
     await sairDaSala(tester, harness, container);
   });
 
-  testWidgets('nothing keeps running once the screen is gone mid-stretch', (
-    tester,
-  ) async {
+  testWidgets('nothing keeps running once the screen is gone mid-stretch',
+      (tester) async {
     final harness = _umAchadoNaParteDois();
     final container = await _oAchadoNoTrechoDaParteDois(tester, harness);
 
     container.read(salaSessionProvider.notifier).ouvirVozMaterna();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(
-      cabeca(tester),
-      greaterThan(_naCordaDe),
-      reason:
-          'a tela tem de sair com a vigia do trecho mesmo a perguntar, '
-          'ou o caso não olha para o relógio que interessa',
-    );
+    expect(cabeca(tester), greaterThan(_naCordaDe),
+        reason: 'a tela tem de sair com a vigia do trecho mesmo a perguntar, '
+            'ou o caso não olha para o relógio que interessa');
 
     await sairDaSala(tester, harness, container);
     await tester.pump(const Duration(seconds: 3));
 
-    expect(
-      find.byType(RetroCord),
-      findsNothing,
-      reason:
-          'e o flutter_test reprova um timer que sobreviveu à árvore '
-          'descartada: a corda passou a perguntar também durante um trecho, '
-          'e há um segundo caminho por onde o relógio pode ficar de pé',
-    );
+    expect(find.byType(RetroCord), findsNothing,
+        reason: 'e o flutter_test reprova um timer que sobreviveu à árvore '
+            'descartada: a corda passou a perguntar também durante um trecho, '
+            'e há um segundo caminho por onde o relógio pode ficar de pé');
   });
 
   testWidgets('nothing keeps running once the screen is gone', (tester) async {
@@ -518,11 +407,7 @@ void main() {
     await sairDaSala(tester, harness, container);
     await tester.pump(const Duration(seconds: 3));
 
-    expect(
-      find.byType(RetroCord),
-      findsNothing,
-      reason:
-          'e o flutter_test reprova um timer que sobreviveu à árvore descartada',
-    );
+    expect(find.byType(RetroCord), findsNothing,
+        reason: 'e o flutter_test reprova um timer que sobreviveu à árvore descartada');
   });
 }
