@@ -23,8 +23,9 @@ class ResumePoint {
   final SalaStage stage;
   final List<KeptTake> takes;
 
-  /// When this row was written, so a resume can tell a session abandoned last month from
-  /// one abandoned a minute ago. Null for a row written before this field existed.
+  /// When the session this row names was created. The record of it, and nothing more: a
+  /// resume never judges a row by its age (ADR 0031). Null for a row written before this
+  /// field existed.
   final DateTime? savedAt;
 
   /// The language the session was created in. Null for a row written before this field
