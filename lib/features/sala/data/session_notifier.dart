@@ -4274,7 +4274,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _startOver() {
     _clearAll();
     _forgetThePassage();
-    _conviteOpened = false;
     _panoramaSessionId = null;
     state = const SalaSessionState();
     unawaited(abrirEscolha());
@@ -4315,6 +4314,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _ghostParte = 0;
     _pendingTakePath = null;
     _emCurso = null;
+    _semNome.clear();
+    _captureFails = 0;
+    _calmTurns = 0;
+    _ackSpoken = 0;
+    _recordingStarting = false;
+    _clipHeld = false;
+    _conviteOpened = false;
   }
 }
 
