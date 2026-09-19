@@ -734,8 +734,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(_estado(it.container).needsPerson, isTrue,
-        reason: 'uma soltura recusada chama uma pessoa — se não chamar, não há '
-            'parada que medir');
+        reason: 'uma sessão sem projeto é um buraco sem porta, e a sala para '
+            'para uma pessoa — se não parar, não há parada que medir');
     expect(byLabel(_sairDaPassagem), findsOneWidget);
     expect(
       tester

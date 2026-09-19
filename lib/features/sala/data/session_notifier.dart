@@ -146,9 +146,12 @@ final resumeExpiryProvider = Provider<Duration>(
 /// The holes a refused approval names that this room has somewhere to take the team.
 ///
 /// Declared in the order the room opens them — the one place that order lives — which is
-/// not the order the gate raises them in: the gate lists the check's own errand before the holes that have ground to stand on,
-/// and a team sent to press *terminei* again over a part nobody told back is sent to be
-/// refused again.
+/// not the order the gate raises them in: the gate lists the check's own errand before the
+/// holes that have ground to stand on, and a team sent to press *terminei* again over a
+/// part nobody told back is sent to be refused again.
+///
+/// A code no arm of [_portaDaRecusa] names has no door, and the switch's own default sends
+/// it to a person.
 enum _PortaDaRecusa { trecho, parteNaoContada, parteNaoOuvida, conferir }
 
 _PortaDaRecusa? _portaDaRecusa(String blocker) => switch (blocker) {
@@ -3684,7 +3687,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // The room names the stretch the finding lands on, and the name is the room's to
       // give: nothing in the chunk it answered ever said it. The stretches are read back
       // before the pointer is resolved, so it is resolved against names that exist.
-      await _readTheStretchesBack(sessionId, epoch);
+      try {
+        await _readTheStretchesBack(sessionId, epoch);
+      } on Exception {
+        // The verdict is already in hand and already spoken. Failing to re-read the names
+        // costs the pointer, not the verdict, so the findings screen still opens — on the
+        // whole recording, which is where an unnamed stretch has always landed.
+      }
       if (epoch != _epoch) return;
 
       final naoTraduzido = verdict.untoldSegmentId;
@@ -3789,7 +3798,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         // so the stretches it holds are the ones this tablet cut, and the name the refusal
         // gives matches none of them. Asked for after the ground, which a round trip
         // cannot supply: without it the room stood silent for a whole wait and called a
-        // person anyway.
+        // person anyway. A read that fails is not a hole with no ground, and it is left to
+        // reach the approval's own ladder rather than resolving the name against nothing
+        // and halting the room over a request the next press would repeat.
         await _readTheStretchesBack(sessionId, epoch);
         if (epoch != _epoch) return;
         _levarAoTrechoNaoTraduzido(trecho);
@@ -3941,15 +3952,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// a finding matched nothing this tablet held, and a team that had told six stretches
   /// back was offered the whole recording every time.
   Future<void> _readTheStretchesBack(String sessionId, int epoch) async {
-    final SessionSnapshot snapshot;
-    try {
-      snapshot = await _room.fetchState(sessionId);
-    } on Exception {
-      // The verdict is already in hand and already spoken. Failing to re-read the names
-      // costs the pointer, not the verdict, so the findings screen still opens — on the
-      // whole recording, which is where an unnamed stretch has always landed.
-      return;
-    }
+    final snapshot = await _room.fetchState(sessionId);
     if (epoch != _epoch) return;
     final trechos = _trechosFrom(snapshot.backTranslation.segments);
     if (trechos.isEmpty) return;

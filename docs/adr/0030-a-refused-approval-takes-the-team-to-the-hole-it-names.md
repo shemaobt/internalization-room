@@ -14,8 +14,8 @@ was, because nothing had been read.
 The check and the approval do not ask the same questions. Both ask about an **Untold
 stretch**, an **Untold part**, an **Unheard part** and the check itself; only the approval
 asks about the conversation's coverage and comprehension, the rehearsal's audio, a panorama
-session and a session with no project. So a passage the voice called *conferida* can be
-refused for a reason the room never mentioned.
+session, a passage with no telling-back at all and a session with no project. So a passage
+the voice called *conferida* can be refused for a reason the room never mentioned.
 
 The back-translation already had doors for three of those holes, built for the verdict's
 own refusals, and *terminei* is a button the room can simply hand back.
@@ -54,14 +54,27 @@ raised the codes in, and it is read off one list in one place.
 tablet cut, and the name the refusal gives matches none of them.
 
 **A person is called only when there is nothing the team can do from this screen:** a hole
-with no door (no project, a panorama session, no rehearsal audio, and — until the way back
-to the conversation exists — coverage and comprehension), a code this tablet does not know,
-a named hole whose ground never came, and an answer that is neither a version nor a
-refusal. The phase stays at *conferida* there, exactly as a refusal has always left it.
+with no door, a code this tablet does not know, a named hole whose ground never came, and
+an answer that is neither a version nor a refusal. The phase stays at *conferida* there,
+exactly as a refusal has always left it.
+
+Only the four doors are named in the tablet, by the five codes that open them; every other
+code falls to a person through the same default, so a blocker the gate learns to raise
+tomorrow is a person's without anything here being touched. The six that fall there today
+are `no_project`, `panorama_sessions_never_release`, `no_rehearsal_audio`, `no_telling_back`
+and — until the way back to the conversation exists — `coverage_floor_not_met` and
+`comprehension_needs_more_work`.
 
 **The tablet decides by the field that is there, never by the one that is missing.** A
 version says a release exists; blockers say which holes stand. Nothing is inferred from an
 empty body.
+
+**A read that did not happen is not a hole with no ground.** The untold-stretch door asks
+the room for the stretches' names first, and that ask can fail like any other. It is left to
+fall down the approval's own ladder — repeated, the button still alive at *conferida* —
+rather than resolving the refusal's name against names that never arrived and halting the
+room over a request the next press would repeat. The verdict's own use of the same read is
+unchanged: it already has its answer, so it survives a read that failed.
 
 **The version race is a retry, not a refusal.** The 409 falls down the ordinary ladder, is
 repeated, and halts only on the third failure, as every other request does.
@@ -78,9 +91,11 @@ the check or the approval found it.
 
 It does not sound the same, though. The verdict carries a line the server composed for the
 hole, and the landing speaks it before the part or the stretch goes in the air; the refusal
-carries no line and no address for one, so the approval's landing is silent — the team
-presses, the room goes quiet, and the work simply starts playing. Whether the room should
-say something of its own here is a question this decision leaves open.
+carries no line and no address for one, so the approval's landing says nothing. The team
+presses, the room goes quiet, and then either the part or the stretch starts playing on its
+own — or, at the check's door, nothing plays at all and only *terminei* comes back lit.
+Whether the room should say something of its own here is a question this decision leaves
+open.
 
 Two holes at once take the first door in the room's order, and the rest of the refusal is
 not remembered: the team fills that hole, checks again, and presses approve again, which is
@@ -91,5 +106,5 @@ A tablet without it reads a refusal as a release with no version; the room would
 approved line and close the cord over nothing.
 
 Coverage and comprehension are a person's here only because the door does not exist yet.
-When the room learns the way back to the conversation, they become two more doors in this
-same list, and nothing else about this decision changes.
+When the room learns the way back to the conversation, they become two more doors in the
+tablet's order, and nothing else about this decision changes.
