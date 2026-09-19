@@ -289,6 +289,18 @@ class FakePlayback implements PlaybackRepository {
   final List<String> ranges = [];
   Completer<void>? _playing;
   Completer<void>? _opening;
+
+  /// The window an open actually took, so it can be released after the open has taken
+  /// it out of [_opening].
+  Completer<void>? _segurada;
+
+  /// Which open is the current one, the way the repository counts them: an open a later
+  /// one superseded announces nothing and sounds nothing.
+  int _opens = 0;
+
+  /// Whether the last gesture asks for sound. A pause or a stop holds the player, a
+  /// play, a playRange or a resume wants it.
+  bool _wanted = false;
   Timer? _walking;
   Duration _step = Duration.zero;
   bool _sounding = false;
@@ -325,11 +337,18 @@ class FakePlayback implements PlaybackRepository {
   }
 
   /// Hold the source load, the way an old tablet with a long take does.
+  ///
+  /// One open, not the player: a second clip asked for while this one is still loading
+  /// opens freely, the way a real player's second source does. Held globally, the double
+  /// queued every later clip behind the same window and no test could tell a clip the
+  /// team superseded from a clip that never opened.
   void holdNextOpening() => _opening = Completer<void>();
 
   void finishHeldOpening() {
-    _opening?.complete();
+    final segurada = _segurada ?? _opening;
+    _segurada = null;
     _opening = null;
+    if (segurada != null && !segurada.isCompleted) segurada.complete();
   }
 
   @override
@@ -377,6 +396,9 @@ class FakePlayback implements PlaybackRepository {
   /// long the file is — the test's fixture — and it survives a stop the way a file does.
   bool _aberto = false;
 
+  /// Whether the source of the current open is still loading.
+  bool _abrindo = false;
+
   /// Where the clip in the air was opened at: what a real player's `position` falls back
   /// to once it is stopped.
   Duration _abertaEm = Duration.zero;
@@ -408,6 +430,7 @@ class FakePlayback implements PlaybackRepository {
   @override
   Future<void> pause() async {
     paused = true;
+    _wanted = false;
     sounds.add('playback:pause');
     _stopSounding();
   }
@@ -415,6 +438,12 @@ class FakePlayback implements PlaybackRepository {
   @override
   Future<void> resume() async {
     paused = false;
+    _wanted = true;
+    // The clip whose source is still loading sounds when the load comes back, not now:
+    // the resume undoes the hold, and the open behind it is what makes the sound.
+    if (_abrindo) return;
+    // Nothing was ever opened, so there is nothing to bring back.
+    if (_opens == 0) return;
     // Sound coming back out, not a new clip: the future `play` handed out is long since
     // completed by the pause, so it cannot be what says whether anything is sounding.
     _sounding = true;
@@ -427,6 +456,7 @@ class FakePlayback implements PlaybackRepository {
   @override
   Future<void> stop() async {
     stops++;
+    _wanted = false;
     sounds.add('playback:stop');
     // As the real one does, and where it differs from a pause. just_audio's `pause()`
     // writes the position down before it stops playing; `stop()` does not, and
@@ -455,15 +485,31 @@ class FakePlayback implements PlaybackRepository {
     _stopSounding();
     final playing = Completer<void>();
     _playing = playing;
+    _wanted = true;
+    final geracao = ++_opens;
+    final paradas = stops;
     // A clip is not open the instant it is asked for: the source loads first, and only
     // then does the player know where it starts and how long it is.
     final held = _opening;
+    _opening = null;
+    if (held != null) _segurada = held;
+    _abrindo = true;
     scheduleMicrotask(() async {
       await held?.future;
+      // A later clip of ours took this one's place while it was still loading. What the
+      // clip owed the room dies with the clip: it announces nothing, so no ceiling and
+      // no measure hang off a clip that never played, and it is no failure either.
+      if (geracao != _opens) return;
+      _abrindo = false;
       at = _abertaEm = from;
       _aberto = true;
       _openings.add(null);
-      if (_playing != playing) return;
+      // A hold caught the clip while it was opening. The opening still announced itself
+      // with its measure, because the ceiling and the measure of the part in the air
+      // both hang off it, but no sound comes out. A stop counts even once a resume has
+      // asked for sound again, the way the repository counts it: a resume undoes a
+      // hold, and the clip the room stopped is not the clip it comes back to.
+      if (!_wanted || paradas != stops) return;
       _sounding = true;
       _startWalking();
     });
