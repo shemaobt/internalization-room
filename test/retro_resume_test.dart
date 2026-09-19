@@ -147,17 +147,29 @@ void main() {
     expect(state.voice, VoiceState.done);
   });
 
-  test('with no stretch on the room, the rehearsal is still where they land',
+  test('with no stretch on the room, the telling-back is still where they land',
       () async {
     final harness = SalaHarness();
 
     final container = await _reopen(harness, parouEm: SalaStage.retro);
+    await waitFor(
+      'a primeira parte ir ao ar',
+      () => harness.playback.played.isNotEmpty,
+    );
 
     final state = container.read(salaSessionProvider);
-    expect(state.stage, SalaStage.ensaio,
-        reason: 'não há retro para retomar, e inventar uma seria pior que '
-            'refazer o ensaio');
-    expect(state.btTrechos, isEmpty);
+    expect(state.stage, SalaStage.retro,
+        reason: 'a equipe parou na retro: devolvê-la ao ensaio porque nada '
+            'foi contado ainda é mandá-la gravar de novo o que já gravou');
+    expect(state.btPhase, BtPhase.playing);
+    expect(state.voice, VoiceState.invite,
+        reason: 'e o convite de pé: a equipe tem a palavra');
+    expect(state.btTrechos, isEmpty,
+        reason: 'e sem nada contado, não há faixa nenhuma no cordão');
+    expect(harness.playback.played.last, state.partes.first.path,
+        reason: 'o chão não contado começa na primeira parte');
+    expect(harness.playback.playedFrom.last, Duration.zero,
+        reason: 'e do começo dela, que é onde o chão não contado abre');
   });
 
   test('a telling-back resumed without its rehearsal fetches the rehearsal back',
@@ -187,7 +199,8 @@ void main() {
     expect(state.btTrechos, hasLength(2));
   });
 
-  test('a retro nobody had told back into yet throws nothing away', () async {
+  test('a telling-back nobody had told into yet comes back with the rehearsal the room holds',
+      () async {
     final harness = SalaHarness();
 
     final container = await _reopen(
@@ -197,16 +210,70 @@ void main() {
       naSala: _naSala,
     );
     await waitFor(
-      'o ensaio voltar da sala',
-      () => container.read(salaSessionProvider).partes.isNotEmpty,
+      'o ensaio voltar da sala e a primeira parte ir ao ar',
+      () => harness.playback.played.isNotEmpty,
     );
 
     final state = container.read(salaSessionProvider);
-    expect(state.stage, SalaStage.ensaio,
-        reason: 'não há retro para retomar, mas o ensaio que a sala guarda é '
-            'da equipe: mandá-la à conversa é mandá-la gravar tudo de novo');
+    expect(state.stage, SalaStage.retro,
+        reason: 'a equipe parou na retro, e o ensaio que a sala guarda é dela: '
+            'mandá-la ao ensaio é mandá-la gravar tudo de novo');
     expect([for (final take in state.partes) take.takeId], [_gravacao],
         reason: 'e o que volta é a gravação da equipe, não uma fila vazia');
+    expect(harness.room.pericopesAsked, isEmpty,
+        reason: 'nada aqui pede sessão nova: a sessão da equipe está de pé');
+    expect(harness.playback.played.last, state.partes.first.path);
+    expect(harness.playback.playedFrom.last, Duration.zero,
+        reason: 'o chão não contado abre no começo da primeira parte');
+  });
+
+  test('a halt on the way into a telling-back with nothing told withholds the sound',
+      () async {
+    final harness = SalaHarness()..room.serverStatus = 'needs_person';
+
+    final container = await _reopen(harness, parouEm: SalaStage.retro);
+    await waitFor(
+      'a sala parar e a entrada terminar de medir as partes',
+      () =>
+          container.read(salaSessionProvider).needsPerson &&
+          container.read(salaSessionProvider).btFimDasPartesMs.isNotEmpty,
+    );
+
+    final state = container.read(salaSessionProvider);
+    expect(state.stage, SalaStage.retro,
+        reason: 'a parada não muda a estação: quem vier atender encontra a '
+            'equipe onde ela parou');
+    expect(state.voice, VoiceState.needsPerson);
+    expect(harness.playback.sounding, isFalse,
+        reason: 'uma sala parada retira o som e nada mais (ADR 0029)');
+    expect(harness.playback.played, isEmpty);
+  });
+
+  test('a checked answer with no stretch lands on the approval over the rehearsal it has',
+      () async {
+    final harness = SalaHarness();
+
+    final container = await _reopen(
+      harness,
+      parouEm: SalaStage.retro,
+      contado: const BackTranslationProgress(checked: true),
+    );
+    await settle(const Duration(seconds: 2));
+
+    final state = container.read(salaSessionProvider);
+    expect(state.stage, SalaStage.retro,
+        reason: 'a conferência é o gesto que falta, e mandar a equipe gravar '
+            'ou contar de novo é tirar dela a aprovação que ninguém deu');
+    expect(state.btPhase, BtPhase.conferida);
+    expect(state.voice, VoiceState.done);
+    expect(state.btTrechos, isEmpty,
+        reason: 'a sala não guarda trecho nenhum, e inventar um seria dizer à '
+            'equipe que ela contou o que não contou');
+    expect(harness.room.pericopesAsked, isEmpty,
+        reason: 'a sessão conferida é a que a aprovação vai fechar');
+    expect(harness.playback.played, isEmpty,
+        reason: 'e a conferida não toca nada sozinha: a última audição é um '
+            'gesto da equipe');
   });
 
   test('a passage the room already checked comes back to the approval, not to a close',

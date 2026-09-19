@@ -14,6 +14,7 @@ import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -174,13 +175,17 @@ void main() {
             'que a equipe gravou e ainda está no aparelho');
   });
 
-  test('a stored id from days ago is not resumed, and the room opens a fresh one',
-      () async {
+  test('a row saved a week ago is resumed, not thrown away', () async {
     final harness = SalaHarness();
+    final gravada = File(
+      '${Directory.systemTemp.createTempSync('sala-semana-passada').path}/p1.m4a',
+    )..writeAsBytesSync([1, 2, 3]);
+    addTearDown(() => gravada.parent.deleteSync(recursive: true));
     harness.emAberto.rows['Ruth/P01'] = ResumePoint(
       sessionId: 'sessao-velha',
-      stage: SalaStage.conversa,
-      savedAt: DateTime.now().subtract(const Duration(days: 2)),
+      stage: SalaStage.ensaio,
+      takes: [KeptTake(scopeId: KeptScope.parte(1), path: gravada.path)],
+      savedAt: DateTime.now().subtract(const Duration(days: 8)),
     );
     final container = harness.container();
     addTearDown(container.dispose);
@@ -191,13 +196,124 @@ void main() {
     await notifier.goConversa(pericope: 'P01');
     await settle();
 
-    expect(harness.room.sessionsSpokenTo, isNot(contains('sessao-velha')),
-        reason: 'um id de dois dias atrás prendia o aparelho a uma sessão que '
-            'o servidor pode já ter descartado');
-    expect(harness.room.pericopesAsked, contains('P01'),
-        reason: 'o abandono do id velho só vale alguma coisa se uma sessão '
-            'nova é pedida no lugar dele');
-    expect(harness.emAberto.rows['Ruth/P01']?.sessionId, harness.room.sessionIds.single);
+    final state = container.read(salaSessionProvider);
+    expect(state.stage, SalaStage.ensaio,
+        reason: 'a equipe que volta na semana seguinte encontra a passagem na '
+            'estação em que a deixou, não na conversa');
+    expect(state.partes.single.path, gravada.path,
+        reason: 'com o ensaio que ela gravou debaixo dela');
+    expect(state.sessionId, 'sessao-velha',
+        reason: 'e dentro da sessão que o servidor continua a guardar');
+    expect(harness.room.pericopesAsked, isEmpty,
+        reason: 'pedir uma sessão nova aqui deixa órfã a que guarda tudo o '
+            'que a equipe contou');
+    expect(harness.emAberto.rows['Ruth/P01']?.sessionId, 'sessao-velha');
+  });
+
+  test('a passage entered afresh carries nothing of the session before it',
+      () async {
+    final harness = SalaHarness();
+    final gravada = File(
+      '${Directory.systemTemp.createTempSync('sala-recomeco').path}/p1.m4a',
+    )..writeAsBytesSync([1, 2, 3]);
+    addTearDown(() => gravada.parent.deleteSync(recursive: true));
+    harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.retro,
+      takes: [
+        KeptTake(
+          scopeId: KeptScope.parte(1),
+          path: gravada.path,
+          takeId: 'gravacao-1',
+        ),
+      ],
+    );
+    harness.room.retroSoFar = const BackTranslationProgress(
+      segments: [
+        SegmentView(
+          segmentId: 'trecho-1',
+          takeId: 'gravacao-1',
+          startsMs: 0,
+          endsMs: 12000,
+        ),
+      ],
+    );
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+    await notifier.goConversa(pericope: 'P01');
+    await waitFor(
+      'a sessão anterior estar de pé com o que ela contou',
+      () => container.read(salaSessionProvider).btFimDasPartesMs.isNotEmpty,
+    );
+
+    await notifier.goConversa(pericope: 'P01', fresh: true);
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.keptTakes, isEmpty,
+        reason: 'as contas da sessão recusada reapareciam no ensaio da '
+            'sessão nova, como se a equipe já tivesse gravado nela');
+    expect(state.takes, 0);
+    expect(state.btTrechos, isEmpty,
+        reason: 'e os trechos contados na sessão anterior não são desta');
+    expect(state.btFimDasPartesMs, isEmpty,
+        reason: 'nem a régua medida sobre as partes daquela');
+    expect(state.stage, SalaStage.conversa);
+    expect(state.sessionId, harness.room.sessionIds.single);
+    expect(harness.room.pericopesAsked, hasLength(1),
+        reason: 'entrar de novo é pedir uma sessão nova para a passagem');
+    final linha = harness.emAberto.written.last;
+    expect(linha.sessionId, harness.room.sessionIds.single);
+    expect(linha.stage, SalaStage.conversa);
+    expect(linha.takes, isEmpty);
+  });
+
+  test('the row written at the next station names only what this session recorded',
+      () async {
+    final harness = SalaHarness();
+    harness.room.refuseTake = 'ensaio/${KeptScope.parte(1)}';
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await waitFor(
+      'a tomada ser oferecida',
+      () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+    );
+    notifier.takeKeep();
+    await waitFor(
+      'a gravação entrar na caixa de saída',
+      () async => (await harness.takes.pending()).isNotEmpty,
+    );
+    final naCaixa = [for (final linha in await harness.takes.pending()) linha.id];
+
+    await notifier.goConversa(pericope: 'P01', fresh: true);
+    await settle();
+    notifier.goEnsaio();
+    await settle();
+
+    final linha = harness.emAberto.written.last;
+    expect(linha.sessionId, harness.room.sessionIds.last);
+    expect(linha.stage, SalaStage.ensaio,
+        reason: 'é a linha do ensaio que se mede: a da conversa é vazia por '
+            'construção, e as duas escritas correm soltas');
+    expect(linha.takes, isEmpty,
+        reason: 'a linha era reescrita no ensaio com as gravações da sessão '
+            'anterior sob o id da nova, e o servidor guardava a sessão que a '
+            'equipe gravou sem linha nenhuma que a nomeasse');
+    expect([for (final pendente in await harness.takes.pending()) pendente.id],
+        naCaixa,
+        reason: 'começar limpo é não herdar o que a sessão anterior gravou, '
+            'não jogar fora o que ainda está subindo');
   });
 
   test('a session held through one 500 is dropped after the second, not kept forever',
@@ -229,9 +345,102 @@ void main() {
             'um id que o servidor não consegue servir');
   });
 
+  test('the next passage opens with nothing of the one before it', () async {
+    final harness = SalaHarness();
+    final gravada = File(
+      '${Directory.systemTemp.createTempSync('sala-passagem-anterior').path}/p1.m4a',
+    )..writeAsBytesSync([1, 2, 3]);
+    addTearDown(() => gravada.parent.deleteSync(recursive: true));
+    harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.retro,
+      takes: [
+        KeptTake(
+          scopeId: KeptScope.parte(1),
+          path: gravada.path,
+          takeId: 'gravacao-1',
+        ),
+      ],
+    );
+    harness.room.retroSoFar = const BackTranslationProgress(
+      segments: [
+        SegmentView(
+          segmentId: 'trecho-1',
+          takeId: 'gravacao-1',
+          startsMs: 0,
+          endsMs: 12000,
+        ),
+      ],
+    );
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+    await notifier.goConversa(pericope: 'P01');
+    await waitFor(
+      'a passagem anterior estar de pé com o que ela contou',
+      () => container.read(salaSessionProvider).btFimDasPartesMs.isNotEmpty,
+    );
+
+    await notifier.goConversa(pericope: 'P02');
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.keptTakes, isEmpty,
+        reason: 'a passagem seguinte abre sem as gravações da anterior: elas '
+            'não são desta equipe nesta passagem');
+    expect(state.btTrechos, isEmpty);
+    expect(state.btFimDasPartesMs, isEmpty,
+        reason: 'nem a régua medida sobre as partes da outra');
+    expect(state.stage, SalaStage.conversa);
+    final linha = harness.emAberto.written.last;
+    expect(linha.sessionId, harness.room.sessionIds.single);
+    expect(linha.takes, isEmpty,
+        reason: 'e a linha da passagem nova não nomeia gravação nenhuma');
+  });
+
+  test('a take recorded and never kept does not stay on the tablet when the passage starts over',
+      () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await waitFor(
+      'a tomada ser oferecida',
+      () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+    );
+    final gravada = harness.recorder.lastPath;
+
+    await notifier.goConversa(pericope: 'P01', fresh: true);
+    await settle();
+
+    expect(harness.recorder.deleted, contains(gravada),
+        reason: 'a gravação que a equipe não guardou não é nem tomada nem '
+            'lixo: deixá-la no aparelho é a órfã que sair da passagem já '
+            'sabia apagar');
+  });
+
   test('a stored id created in pt does not post a turn to it from a device now in en',
       () async {
     final harness = SalaHarness(lingua: 'en');
+    final gravada = File(
+      '${Directory.systemTemp.createTempSync('sala-outra-lingua').path}/p2.m4a',
+    )..writeAsBytesSync([1, 2, 3]);
+    addTearDown(() => gravada.parent.deleteSync(recursive: true));
+    harness.emAberto.rows['Ruth/P02'] = ResumePoint(
+      sessionId: 'sessao-p02',
+      stage: SalaStage.ensaio,
+      savedAt: DateTime.now(),
+      takes: [KeptTake(scopeId: KeptScope.parte(1), path: gravada.path)],
+    );
     harness.emAberto.rows['Ruth/P01'] = ResumePoint(
       sessionId: 'sessao-pt',
       stage: SalaStage.conversa,
@@ -243,6 +452,11 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     await notifier.abrirEscolha();
     await settle();
+    await notifier.goConversa(pericope: 'P02');
+    await waitFor(
+      'o ensaio da outra passagem estar de pé',
+      () => container.read(salaSessionProvider).keptTakes.isNotEmpty,
+    );
 
     await notifier.goConversa(pericope: 'P01');
     await settle();
@@ -253,6 +467,8 @@ void main() {
     expect(harness.room.languagesSent, contains('en'),
         reason: 'a sessão nova é pedida na língua do aparelho de hoje, não na '
             'que a sessão abandonada carregava');
+    expect(container.read(salaSessionProvider).keptTakes, isEmpty,
+        reason: 'e a sessão nova nasce sem nada da passagem anterior');
   });
 
   test('advancing past the conversa still remembers when and in what language '
@@ -274,8 +490,8 @@ void main() {
             'gravada na criação, e a checagem de idioma parava de valer a '
             'partir do primeiro avanço');
     expect(row?.savedAt, isNotNull,
-        reason: 'a mesma reescrita apagava a data, e um id de meses atrás '
-            'voltava a ser retomável assim que passava da conversa');
+        reason: 'a mesma reescrita apagava a data em que a sessão nasceu, que '
+            'é o que a linha guarda sobre ela');
   });
 
   test('the opening is told in two movements, and the necklace waits', () async {

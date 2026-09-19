@@ -138,11 +138,6 @@ final roomRetryBackoffProvider = Provider<List<Duration>>(
   ],
 );
 
-/// How long a stored session id is still worth asking the room for.
-final resumeExpiryProvider = Provider<Duration>(
-  (ref) => const Duration(days: 1),
-);
-
 /// The holes a refused approval names that this room has somewhere to take the team.
 ///
 /// Declared in the order the room opens them — the one place that order lives — which is
@@ -172,8 +167,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _roomFailures = 0;
   int _resumeFailures = 0;
   /// When and in what language the session now open was created, so a row rewritten by
-  /// a later stage advance carries the same values a resume needs to judge it by, instead
-  /// of going blank the moment the team leaves the conversa.
+  /// a later stage advance carries them instead of going blank the moment the team leaves
+  /// the conversa. A resume judges by the language; the date is the record of when the
+  /// session was born, and nothing decides by it (ADR 0031).
   DateTime? _sessionSavedAt;
   String? _sessionLanguage;
   int _slowAnswers = 0;
@@ -1514,10 +1510,28 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return language != null && language != _lingua;
   }
 
-  bool _expired(ResumePoint? point) {
-    final savedAt = point?.savedAt;
-    if (savedAt == null) return false;
-    return DateTime.now().difference(savedAt) > ref.read(resumeExpiryProvider);
+  /// Everything of the session before this one stays behind.
+  ///
+  /// Only what the book knows crosses over — the wheel, the passages started, the ones
+  /// finished, the one being offered — and entering the passage says the rest again.
+  /// Built from an empty state rather than cleared field by field, so a fact the session
+  /// gains tomorrow is born clean here without anybody remembering this branch; the
+  /// counters and latches with no home in the state go through [_forgetThePassage],
+  /// which is already where they live.
+  void _startTheSessionClean(String? pericope) {
+    final livro = state;
+    _dropThePendingTake();
+    _forgetThePassage();
+    _emCurso = pericope;
+    state = SalaSessionState(
+      stage: SalaStage.conversa,
+      voice: VoiceState.thinking,
+      naRoda: livro.naRoda,
+      comecadas: livro.comecadas,
+      feitas: livro.feitas,
+      aOferecer: livro.aOferecer,
+    );
+    _stringTheNecklaceEarly(pericope);
   }
 
   /// Enter a passage, resuming the session this tablet left in it when there is one.
@@ -1563,8 +1577,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         ? await _emAberto.of(_book, pericope)
         : null;
     if (epoch != _epoch) return;
-    final waiting =
-        _expired(stored) || _wrongLanguage(stored) ? null : stored;
+    final waiting = _wrongLanguage(stored) ? null : stored;
     try {
       final resumed = waiting != null;
       final created = opened ??
@@ -1577,6 +1590,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
               : null);
       final sessionId = waiting?.sessionId ?? created!.sessionId;
       if (epoch != _epoch) return;
+      if (!resumed) _startTheSessionClean(pericope);
       state = state.copyWith(sessionId: sessionId, coverage: created?.coverage);
       _sessionSavedAt = resumed ? waiting.savedAt : DateTime.now();
       _sessionLanguage = resumed ? waiting.language : _lingua;
@@ -1625,11 +1639,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           final told = (await _room.fetchState(sessionId)).backTranslation;
           if (epoch != _epoch) return;
           // Only when there is a telling-back to land on. A checked answer carrying no
-          // stretch contradicts itself — the check is about what was told — and
-          // [_pickTheTellingBackUp] rightly declines it, which left the room standing in
-          // the conversa until the watchdog called a person two minutes later. It falls
-          // through to the turn instead, which is the door every other empty answer takes:
-          // closing would call a passage the team never approved its final draft.
+          // stretch contradicts itself — the check is about what was told — and there is
+          // no rehearsal here to land it on either, so this door declines it: landing it
+          // left the room standing in the conversa until the watchdog called a person two
+          // minutes later. It falls through to the turn instead, which is the door every
+          // other empty answer takes: closing would call a passage the team never
+          // approved its final draft.
           //
           // Reached only when the room holds no rehearsal of its own to hand back, which
           // is the one way past this door now that a resume fetches the parts.
@@ -1900,9 +1915,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// Every reopening landed on the rehearsal, so a team that had stopped part-way through
   /// telling it back recorded the whole passage a second time and the session ended
-  /// holding two of everything. A room with no stretch has no telling-back to pick up.
+  /// holding two of everything. A room holding no stretch yet is the same team at the
+  /// same station: it comes back to the start of the untold ground, with the circle ready
+  /// to tell, and not to a rehearsal it has already recorded.
   void _pickTheTellingBackUp(BackTranslationProgress told) {
-    if (told.nothingTold) return;
     state = state.copyWith(
       stage: SalaStage.retro,
       voice: told.checked ? VoiceState.done : VoiceState.invite,
