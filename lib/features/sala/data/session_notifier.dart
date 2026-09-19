@@ -2595,10 +2595,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final epoch = _epoch;
     _micWatch ??= _recorder.interrupted.listen(_theMicrophoneChangedHands);
     final capture = await _recorder.start(fileName);
-    _recordingStarting = false;
     // The answer can arrive a minute late — `hasPermission` waits up to sixty seconds for
-    // the platform — by which time the team may be on another stage entirely.
+    // the platform — by which time the team may be on another stage entirely, with a
+    // microphone of its own still opening. Cleared under the guard, never above it: a
+    // start coming back from a passage already left let the next passage's second tap
+    // through, onto a recorder that had not opened.
     if (epoch != _epoch || _gone) return;
+    _recordingStarting = false;
     switch (capture) {
       case Capture.started:
         _captureFails = 0;

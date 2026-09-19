@@ -108,7 +108,7 @@ Future<ProviderContainer> _aRodaOferecePanorama(SalaHarness harness) async {
 }
 
 /// The session the room minted for this launch, which no row names.
-String _aMintada(SalaHarness harness) => harness.room.sessionIds.single;
+String _aMintada(SalaHarness harness) => harness.room.sessionIds.first;
 
 void main() {
   test('a linha guardada vence a sessão que a sala abriu no convite', () async {
@@ -121,6 +121,9 @@ void main() {
       'a equipe pousar na tradução que deixou',
       () => container.read(salaSessionProvider).stage == SalaStage.retro,
     );
+    expect(harness.room.sessionIds, hasLength(1),
+        reason: 'o lançamento pede uma sessão só, a do panorama; as asserções '
+            'abaixo nomeiam essa');
     final estado = container.read(salaSessionProvider);
     expect(estado.sessionId, _daLinha,
         reason: 'a linha é o fato: a passagem foi deixada nesta sessão, e é '
@@ -191,6 +194,9 @@ void main() {
       'o lugar da equipe ser anotado',
       () => harness.emAberto.rows['Ruth/$_passagem']!.sessionId != _daLinha,
     );
+    expect(harness.room.sessionIds, hasLength(1),
+        reason: 'o lançamento pede uma sessão só, a do panorama; as asserções '
+            'abaixo nomeiam essa');
     expect(container.read(salaSessionProvider).sessionId, _aMintada(harness),
         reason: 'uma linha escrita noutra língua não é desta corrida (ADR '
             '0031): a sessão que a sala abriu é a que a equipe entra');

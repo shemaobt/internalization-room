@@ -72,18 +72,18 @@ void main() {
     it.harness.recorder.startThrows = true;
     it.sala.conversaTap();
     await waitFor(
-      'o gravador recusar a primeira vez',
-      () => it.harness.recorder.captures == 1,
+      'a sala responder ao gravador que não abriu',
+      () => it.harness.recorder.captures == 1 &&
+          it.estado.voice != VoiceState.listening,
     );
-    await settle();
 
     await it.entrar('P02');
     it.sala.conversaTap();
     await waitFor(
-      'o gravador recusar na passagem nova',
-      () => it.harness.recorder.captures == 2,
+      'a sala responder ao gravador que não abriu na passagem nova',
+      () => it.harness.recorder.captures == 2 &&
+          it.estado.voice != VoiceState.listening,
     );
-    await settle();
 
     expect(it.estado.needsPerson, isFalse,
         reason: 'a conta das falhas de captura é por passagem: herdada, a '
@@ -118,15 +118,45 @@ void main() {
 
     await it.entrar('P02');
     it.sala.conversaTap();
-    await settle();
+    await waitFor(
+      'o gravador ser mesmo chamado na passagem nova',
+      () => it.harness.sounds.where((som) => som == 'recorder:start').length == 2,
+    );
 
     expect(it.estado.voice, VoiceState.listening,
         reason: 'a tranca do microfone a abrir é da passagem: herdada, o '
             'primeiro toque da passagem nova é engolido em silêncio');
-    expect(
-      it.harness.sounds.where((som) => som == 'recorder:start').length,
-      2,
-      reason: 'e o gravador é mesmo chamado, não só a tela que muda',
+  });
+
+  test('o microfone que a passagem anterior deixou a abrir não solta o desta',
+      () async {
+    final it = await _aRodaAberta();
+    await it.entrar('P01');
+    it.harness.recorder.holdNextStart();
+    it.sala.conversaTap();
+    await waitFor(
+      'o microfone da passagem anterior ficar a abrir',
+      () => it.estado.voice == VoiceState.listening,
     );
+
+    await it.entrar('P02');
+    it.harness.recorder.holdNextStart();
+    addTearDown(it.harness.recorder.finishStart);
+    it.sala.conversaTap();
+    await waitFor(
+      'o microfone desta passagem ficar a abrir',
+      () => it.harness.sounds.where((som) => som == 'recorder:start').length == 2,
+    );
+    it.harness.recorder.finishStart();
+    await settle();
+
+    it.sala.conversaTap();
+    await settle();
+
+    expect(it.harness.room.turnsSent, 0,
+        reason: 'a resposta de um microfone de outra passagem não abre a '
+            'tranca desta: o segundo toque cairia num stop sobre um gravador '
+            'que ainda abre, e mandaria à sala uma fala que ninguém gravou');
+    expect(it.estado.voice, VoiceState.listening);
   });
 }
