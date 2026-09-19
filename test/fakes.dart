@@ -342,6 +342,9 @@ class FakePlayback implements PlaybackRepository {
   /// opens freely, the way a real player's second source does. Held globally, the double
   /// queued every later clip behind the same window and no test could tell a clip the
   /// team superseded from a clip that never opened.
+  ///
+  /// One window at a time: [finishHeldOpening] releases the one an open took, or the one
+  /// still armed, so a second hold armed before the first open has landed is orphaned.
   void holdNextOpening() => _opening = Completer<void>();
 
   void finishHeldOpening() {
@@ -502,7 +505,13 @@ class FakePlayback implements PlaybackRepository {
       if (geracao != _opens) return;
       _abrindo = false;
       at = _abertaEm = from;
-      _aberto = true;
+      // As the real one does: a pause leaves the clip open and the ceiling counts what
+      // is left of it, but a stop cleared the measure on the way past, and a load
+      // settling behind it may not write back the length of a clip that never played.
+      _aberto = paradas == stops;
+      // Announced either way, held or stopped: the listening ceiling and the measure of
+      // the part in the air both hang off this, and a clip that never announces itself
+      // strands them.
       _openings.add(null);
       // A hold caught the clip while it was opening. The opening still announced itself
       // with its measure, because the ceiling and the measure of the part in the air

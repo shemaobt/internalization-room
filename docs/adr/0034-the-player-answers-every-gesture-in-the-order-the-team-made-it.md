@@ -13,22 +13,27 @@ reasoning that a resume asks for the very clip it is resuming. Under a load that
 fails: play, hold while the source is still opening, resume, and the load comes back to a
 count that still says held, so the open returns without ever telling the player to play.
 
-What the team hears then is not ours to decide: the resume's own `play()` is not swallowed
-the way the hold's `pause()` is — during a load nothing is playing, so it passes the
-`if (playing) return;` guard — but it lands on a player whose platform our own opening
-stop has just deactivated, racing the load that is reactivating it. just_audio says so
-itself, in a TODO over that very branch: "rewrite this to more cleanly handle simultaneous
-load/play requests". The ticket reports a third tap that plays nothing. Whether the tablet
-is silent or merely unreliable there, the room is asking the player for a sound and
-leaving the answer to a race.
+That leaves ADR 0024's own sentence untrue. It says the open "does not play and leaves the
+player stopped", and after a resume the player is not stopped: the resume's `play()` is
+not swallowed the way the hold's `pause()` is — during a load nothing is playing, so it
+passes just_audio's `if (playing) return;` — and it lands on a platform the opening's own
+stop deactivated but the load has already reactivated, `_active` being set synchronously.
+So it sends the platform a play request, and the clip sounds when the source is ready.
+Read in the source of just_audio 0.9.46, not measured on a tablet: the ticket reports a
+third tap that plays nothing, and the Test by hand is where that is confirmed.
 
-The same window has a second hole. Every open begins by stopping the player, which
-interrupts a load already in the air; just_audio raises `PlayerInterruptedException` for
-it. Read through the hold count, an interruption with no hold behind it is a device
-failure, and the room answers a device failure by calling for a person. So a second play
-asked before the first clip finished loading — a **Take** over a take, a stretch over a
-stretch — halted the room and made it call for a person, over a sound the team
-itself had just asked for.
+What the room had, then, was two answers to one gesture: a repository saying the clip is
+held and a player already playing it. The rule and the sound had come apart, and the
+double had come apart from both — it made sound come out of a clip whose source had not
+finished opening, so no test could see either half.
+
+The same window has a second hole, and this one the room hears. Every open begins by
+stopping the player, which interrupts a load already in the air; just_audio raises
+`PlayerInterruptedException` for it. Read through the hold count, an interruption with no
+hold behind it is a device failure, and the room answers a device failure by calling for a
+person. So a second play asked before the first clip finished loading — a **Take** over a
+take, a stretch over a stretch — halted the room and made it call for a person, over a
+sound the team itself had just asked for.
 
 ADR 0019 says no station of the room is a dead end, and a **Halt** raised over an ordinary
 gesture is the deadest end there is.
@@ -56,10 +61,16 @@ wins over an awaited load.** `PlaybackRepository` keeps the player's *wanted* st
 instead of a count: a pause or a stop holds it, a play, a playRange or a resume wants it.
 When an awaited load returns, the open plays only if the player is still wanted. This
 keeps ADR 0024's rule — a hold during the load holds — and amends the paragraph that
-states it (that ADR's "A hold that arrives during a load wins over the load"), because a
-resume given after that hold now undoes it and the load's trailing play runs. The sound
-then comes from the open, once the source is ready, instead of from a play request racing
-the load: what the room asks for is what the room gets, on any tablet.
+states it (that ADR's "A hold that arrives during a load wins over the load", and its
+"leaves the player stopped"), because a resume given after that hold now undoes it and
+the load's trailing play runs. The repository and the player stop giving two answers to
+one gesture: what the room says is held is held, and what it says is wanted sounds.
+
+**An interruption with a hold behind it that a resume has undone is a failure again.**
+The hold count marked a clip held for ever, so a device interruption arriving after a
+resume was read as our own gesture and swallowed; the room waited on a clip that was
+never coming. Read through the wanted state, only a hold still standing excuses an
+interruption.
 
 **An open a later open of ours superseded is silent, and is no failure.** Each open takes
 its own generation. A load interrupted while a later open of ours has already started
@@ -88,10 +99,13 @@ also forgets the measure.
 The playback double gained the load window **per open** rather than one window for the
 player: a clip the team superseded and a clip that is merely slow were the same thing to
 it, and every test of a second sound queued behind the first one's window. One window is
-armed at a time, as the one knob that arms it always did. It also stopped
-flattering the resume — it used to make sound come out of a clip whose source had not
-finished opening, and of a clip that had never been opened at all. That is the third
-flattery this player's double has had to give up, after the two ADR 0024 names.
+armed at a time, as the one knob that arms it always did. It also stopped flattering the
+resume — it used to make sound come out of a clip whose source had not finished opening,
+and of a clip that had never been opened at all — and stopped answering for the measure
+of a clip a stop had cleared while its source was still loading. Those are the fourth,
+fifth and sixth flatteries this player's double has had to give up, after the three ADR
+0024 names. The double is now pinned directly, by its own tests, and not only through the
+room that reads it: a double nobody measures is a double that drifts back.
 
 A team that taps listen twice in a row now hears the second sound, and the room stays in
 the station they are working in. The tablet still calls for a person when it truly cannot

@@ -140,6 +140,30 @@ void main() {
     expect(falhas, isEmpty);
   });
 
+  test('um stop durante o load não deixa o dublê respondendo pela medida',
+      () async {
+    final playback = FakePlayback();
+    addTearDown(playback.dispose);
+    final anunciadas = <void>[];
+    playback.openings.listen(anunciadas.add);
+    playback.length = const Duration(seconds: 30);
+
+    playback.holdNextOpening();
+    unawaited(playback.play('/parte-1.m4a'));
+    await playback.stop();
+    playback.finishHeldOpening();
+    await settle();
+
+    expect(playback.playingLength, isNull,
+        reason: 'o repositório apaga a medida no stop e o load que assenta '
+            'atrás dele não a escreve de volta: um dublê que respondesse aqui '
+            'daria ao teto do clipe seguinte o comprimento de um clipe que '
+            'nunca tocou');
+    expect(anunciadas, hasLength(1),
+        reason: 'anunciar-se, porém, a abertura parada ainda se anuncia: o '
+            'teto da escuta e a medida da parte no ar penduram-se nisso');
+  });
+
   test('um resume num clipe que nunca abriu não faz som nenhum', () async {
     final playback = FakePlayback();
     addTearDown(playback.dispose);
