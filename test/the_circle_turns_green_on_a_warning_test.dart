@@ -62,6 +62,93 @@ void main() {
     );
   });
 
+  test('a warning on a retold chunk turns the circle green too', () async {
+    final harness = SalaHarness()..room.chunkNeedsPerson = true;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    notifier.startRetro();
+    await settle();
+
+    harness.playback.at = const Duration(seconds: 12);
+    notifier.cortarTrecho();
+    await settle();
+    notifier.retroTap();
+    await settle();
+
+    expect(
+      read().warning,
+      isTrue,
+      reason:
+          'o pedaço veio com needs_person: true — o orçamento de retraduções '
+          'do ENG-706, ou qualquer outro motivo do servidor — e isso é lido '
+          'como aviso, não como parada (needsPerson continua falso)',
+    );
+    expect(
+      read().needsPerson,
+      isFalse,
+      reason:
+          'o mesmo pedaço não pode acender as duas leituras: uma pessoa é '
+          'chamada para olhar, e nada é recusado à equipe',
+    );
+
+    final chunks = harness.room.chunksSent;
+    harness.playback.at = const Duration(seconds: 30);
+    notifier.cortarTrecho();
+    await settle();
+    notifier.retroTap();
+    await settle();
+
+    expect(
+      harness.room.chunksSent,
+      chunks + 1,
+      reason:
+          'e a retro segue de pé: o trecho seguinte é ouvido como qualquer '
+          'outro, sob o aviso',
+    );
+  });
+
+  test('a warning on a chunk the room never captured is not dropped', () async {
+    final harness = SalaHarness()..room.chunkNeedsPerson = true;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+    notifier.takeKeep();
+    notifier.startRetro();
+    await settle();
+
+    // captured and needsPerson are independent on the wire: the very chunk that
+    // carries the warning can also be the one the room made nothing out of.
+    harness.room.chunkCaptured = false;
+    harness.playback.at = const Duration(seconds: 12);
+    notifier.cortarTrecho();
+    await settle();
+    notifier.retroTap();
+    await settle();
+
+    expect(
+      read().warning,
+      isTrue,
+      reason:
+          'a captura ter falhado não é o servidor recuando do aviso: as duas '
+          'notícias chegam juntas, e perder uma para tratar a outra deixaria '
+          'a equipe sem saber que uma pessoa foi chamada',
+    );
+  });
+
   test(
     'the warning goes away on the next state read that does not carry it',
     () async {

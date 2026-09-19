@@ -2589,6 +2589,30 @@ void main() {
             '"chame uma pessoa"');
   });
 
+  test('a retold stretch is labelled by the room, not by the app', () async {
+    final harness = SalaHarness()
+      ..room.verdictChecked = false
+      ..room.verdictFinding = BtFindingKind.missing
+      ..room.verdictFindingSegmentId = 'trecho-1';
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await _intoFindings(harness, notifier, container);
+
+    harness.room.replacePassNumber = 2;
+    notifier.traduzirDeNovoEmPortugues();
+    await waitFor(
+      'o microfone abrir',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
+    );
+    notifier.retroTap();
+    await settle();
+
+    expect(container.read(salaSessionProvider).btChunkPasses, [2, 1],
+        reason: 'o app fixava a passada em 1 para sempre, então a borda azul da '
+            'conta nunca aparecia e o pacote de evidência perdia o rótulo');
+  });
+
   test('retelling one stretch keeps every other explanation', () async {
     final harness = SalaHarness()
       ..room.verdictChecked = false
@@ -3625,7 +3649,7 @@ void main() {
             'escuta longe antes de cortar');
   });
 
-  test('telling a stretch again does not remeasure the part in the air', () async {
+  test('hearing a stretch again does not remeasure the part in the air', () async {
     final harness = SalaHarness()
       ..room.verdictChecked = false
       ..room.verdictFinding = BtFindingKind.missing

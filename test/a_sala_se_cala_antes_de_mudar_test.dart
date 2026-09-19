@@ -234,7 +234,8 @@ void _rodaATabela(String estacao, List<_Linha> tabela, List<String> daMatriz) {
   });
 }
 
-/// The back-translation's gestures, copied from the ticket's matrix.
+/// The back-translation's gestures, copied from the ticket's matrix, minus the two rows
+/// ENG-951 retired with `proximaParte` and `retellChunk` (ADR 0024's Consequences).
 const _matrizDaRetro = [
   'a aprovação',
   'terminei',

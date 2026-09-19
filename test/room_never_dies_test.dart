@@ -973,8 +973,6 @@ void main() {
   test('the next passage does not inherit the last one\'s retell', () async {
     final harness = SalaHarness();
     harness.room.verdictChecked = false;
-    harness.room.verdictFinding = BtFindingKind.missing;
-    harness.room.verdictFindingSegmentId = 'trecho-1';
     final container = await inConversaHarness(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -993,9 +991,11 @@ void main() {
     await settle();
     harness.playback.finishPlayback();
     await settle();
+    // The untold-stretch landing is the only surviving setter of _traduzindoDeNovo now
+    // that retellChunk is gone (ADR 0020's replaced-recording case sets it too, but that
+    // is a longer scenario to arrange for the same flag).
+    harness.room.verdictUntoldSegmentId = harness.room.segments.last.segmentId;
     await notifier.finishBackTranslation();
-    await settle();
-    notifier.traduzirDeNovoEmPortugues();
     await settle();
 
     notifier.leaveThePassage();

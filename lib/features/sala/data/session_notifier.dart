@@ -2987,14 +2987,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// playhead, the first cut after the landing would hand the room the ground the team
   /// already told as one new stretch — their own telling, given back a second time, which
   /// is the failure [_walkTheCursorBack] exists to undo.
-  void _tocarParteDaRetro(int parte, {bool doComeco = false}) {
+  ///
+  /// [semChaoTraduzido] moves the cursor to that same nought instead of reading it off the
+  /// told ground: the landing on an untold part has none, whether a fresh recording, whose
+  /// file nothing has told yet, or a part whose surviving stretches still name the take it
+  /// replaced. Only this landing sets it; every other caller reads the natural cursor.
+  void _tocarParteDaRetro(
+    int parte, {
+    bool doComeco = false,
+    bool semChaoTraduzido = false,
+  }) {
     // Every way a part goes in the air passes here — the crossing at a boundary, the
     // last listening of a checked passage, the next part, the landing on one nobody
     // heard — and none of them may start it under the line the Guide is still saying.
     _silenceTheRoom();
     _entradaParouSemTocar = false;
     _parteTocando = parte;
-    _trechoStart = _ondeParouNesteArquivo(parte);
+    _trechoStart =
+        semChaoTraduzido ? Duration.zero : _ondeParouNesteArquivo(parte);
     _desdeMs = 0;
     _escuta.abrir(state.partes[parte].path, 0);
     state = state.copyWith(
@@ -3736,18 +3746,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// names the part it is missing — whether nobody heard it ([semChaoTraduzido] false) or
   /// nobody told it back ([semChaoTraduzido] true). The press is not spent on the refusal:
   /// the part goes in the air, the team hears it, and *terminei* lights again at its end.
-  ///
-  /// From the part's own nought, which is the one place picking an unheard part back up
-  /// differs from picking a told one back up: a part already told back whole has its cursor
-  /// at its end, and started there it would play silence while the listening ledger — which
-  /// opens at nought either way — reported the part heard whole, the same *terminei*
-  /// refused again with nothing the team could do about it.
-  ///
-  /// [semChaoTraduzido] forces the cursor to that same nought once the part is in the air.
-  /// An unheard part may already carry told ground from an earlier round, and the first cut
-  /// after this landing must not hand that ground back to the room as a stretch nobody
-  /// asked for; an untold part carries none; either a fresh recording, whose file nothing
-  /// has told yet, or a rehearsal recorded and never told at all.
+  /// [semChaoTraduzido] carries straight through to [_tocarParteDaRetro], whose own doc
+  /// says what it does to the cursor and why.
   Future<void> _levarAParteApontadaPelaRecusa(
     String gravacao,
     int epoch, {
@@ -3799,12 +3799,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // still waiting — was suppressed under them.
       btConsertando: false,
     );
-    _tocarParteDaRetro(parte, doComeco: true);
-    // Overwrites the cursor `_tocarParteDaRetro` just derived from the told ground: an
-    // untold part has none, and a part recorded again may still carry the interval a
-    // stretch over the recording it replaced left behind (ADR 0020's untold ground), which
-    // the cord has not forgotten just because nothing points at it any more.
-    if (semChaoTraduzido) _trechoStart = Duration.zero;
+    _tocarParteDaRetro(
+      parte,
+      doComeco: true,
+      semChaoTraduzido: semChaoTraduzido,
+    );
   }
 
   /// Straight to the stretch nobody told, with the rehearsal left standing.

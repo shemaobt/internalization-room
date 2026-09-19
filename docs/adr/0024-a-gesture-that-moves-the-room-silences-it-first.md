@@ -124,6 +124,12 @@ another, and without asserting which private method ran.
 only from tests; they keep their silence and their rows, because the ticket's matrix names
 them and a button may be wired to either tomorrow.
 
+ENG-951 deleted both, with the two tests that existed only to pin them: no button was ever
+wired to either, and the boundary crossing and the recount both already had a live gesture
+of their own (`ouvirGravacao`, `traduzirDeNovoEmPortugues`) passing through the same
+silencing this ADR describes. The retro table's two rows for them are gone with the
+methods; the row already naming the live gesture for each keeps the rule under test.
+
 Two tables, one per station, list the ticket's matrix by name and fail if a row is missing,
 so a transition added later that does not silence is a red test rather than a bug the team
 hears.
