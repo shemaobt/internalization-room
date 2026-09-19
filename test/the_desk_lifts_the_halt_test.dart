@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -31,31 +30,6 @@ Future<void> _aTurn(SalaSessionNotifier notifier) async {
   notifier.conversaTap();
   await settle();
   notifier.conversaTap();
-  await settle();
-}
-
-/// The rehearsal told back and checked, stopping on a finding.
-Future<void> _intoFindings(
-  SalaHarness harness,
-  SalaSessionNotifier notifier,
-) async {
-  notifier.goEnsaio();
-  notifier.ensaioTap();
-  notifier.ensaioTap();
-  await settle();
-  notifier.takeKeep();
-  notifier.startRetro();
-  await settle();
-  for (final at in const [Duration(seconds: 12), Duration(seconds: 30)]) {
-    harness.playback.at = at;
-    notifier.cortarTrecho();
-    await settle();
-    notifier.retroTap();
-    await settle();
-  }
-  harness.playback.finishPlayback();
-  await settle();
-  await notifier.finishBackTranslation();
   await settle();
 }
 
@@ -193,45 +167,6 @@ void main() {
 
     await _aTurn(notifier);
     await waitFor('o turno chegar à sala', () => harness.room.turnsSent > turns);
-  });
-
-  test('a warning on a retold stretch lets the telling-back go on', () async {
-    final harness = SalaHarness()
-      ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.missing
-      ..room.verdictFindingSegmentId = 'trecho-1'
-      ..room.retells = 2
-      ..room.retellBudget = 3;
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-    await _intoFindings(harness, notifier);
-
-    notifier.retellChunk();
-    await settle();
-    harness.playback.finishPlayback();
-    await settle();
-    harness.playback.at = const Duration(seconds: 12);
-    notifier.cortarTrecho();
-    await settle();
-    notifier.retroTap();
-    await settle();
-
-    expect(read().needsPerson, isFalse,
-        reason: 'o orçamento de traduções de novo esgotado é o aviso do ENG-706: uma '
-            'pessoa é chamada para olhar e nada é recusado');
-
-    final chunks = harness.room.chunksSent;
-    harness.playback.at = const Duration(seconds: 30);
-    notifier.cortarTrecho();
-    await settle();
-    notifier.retroTap();
-    await settle();
-
-    expect(harness.room.chunksSent, chunks + 1,
-        reason: 'e a retro segue de pé: o trecho seguinte é ouvido como qualquer '
-            'outro');
   });
 
   test("the room's own halt is lifted by the server too", () async {

@@ -2589,64 +2589,6 @@ void main() {
             '"chame uma pessoa"');
   });
 
-  test('a retold stretch is labelled by the room, not by the app', () async {
-    final harness = SalaHarness()
-      ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.missing
-      ..room.verdictFindingSegmentId = 'trecho-1';
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    await _intoFindings(harness, notifier, container);
-
-    notifier.retellChunk();
-    await settle();
-    harness.playback.finishPlayback();
-    await settle();
-    notifier.cortarTrecho();
-    await settle();
-    notifier.retroTap();
-    await settle();
-
-    expect(container.read(salaSessionProvider).btChunkPasses, [1, 1, 2],
-        reason: 'o app fixava a passada em 1 para sempre, então a borda azul da '
-            'conta nunca aparecia e o pacote de evidência perdia o rótulo');
-  });
-
-  test('the retells running out asks for a person to watch, and refuses nothing',
-      () async {
-    final harness = SalaHarness()
-      ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.missing
-      ..room.verdictFindingSegmentId = 'trecho-1'
-      ..room.retells = 2
-      ..room.retellBudget = 3;
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    await _intoFindings(harness, notifier, container);
-
-    notifier.retellChunk();
-    await settle();
-    harness.playback.finishPlayback();
-    await settle();
-    notifier.cortarTrecho();
-    await settle();
-    notifier.retroTap();
-    await settle();
-
-    expect(container.read(salaSessionProvider).needsPerson, isFalse,
-        reason: 'o orçamento esgotado é o aviso do ENG-706: uma pessoa é chamada '
-            'para vir olhar, e nada é recusado à equipe. Fechar a retro em cima '
-            'dele tirava a equipe do trabalho por um bilhete que ninguém leu');
-    expect(
-      harness.voice.assets,
-      isNot(contains(fixedLineAsset(needsPersonLine, testLanguage))),
-      reason: 'e a sala não anuncia parada nenhuma: dita em voz alta, a equipe '
-          'para sozinha, que é exatamente o que o aviso não quer',
-    );
-  });
-
   test('retelling one stretch keeps every other explanation', () async {
     final harness = SalaHarness()
       ..room.verdictChecked = false
@@ -2657,9 +2599,13 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     await _intoFindings(harness, notifier, container);
     final before = container.read(salaSessionProvider);
-    harness.playback.ranges.clear();
 
-    notifier.retellChunk();
+    notifier.traduzirDeNovoEmPortugues();
+    await waitFor(
+      'o microfone abrir',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
+    );
+    notifier.retroTap();
     await settle();
 
     final after = container.read(salaSessionProvider);
@@ -2667,8 +2613,8 @@ void main() {
         reason: 'traduzir um trecho de novo descartava as explicações de todos os '
             'outros e mandava a equipe reescutar a gravação do zero');
     expect(after.btChunkPasses, before.btChunkPasses);
-    expect(harness.playback.ranges, hasLength(1),
-        reason: 'a sala toca aquele trecho para a equipe traduzir de novo');
+    expect(harness.room.replacesAsked, hasLength(1),
+        reason: 'a sala manda o trecho apontado para ser traduzido de novo');
     expect(after.btClipEnded, isTrue,
         reason: 'e o terminei continua ali para reconferir');
   });
@@ -3605,7 +3551,7 @@ void main() {
         reason: 'a fronteira não é o fim: terminei não pode aparecer aqui');
     expect(harness.playback.played, hasLength(1));
 
-    notifier.proximaParte();
+    notifier.ouvirGravacao();
     await settle();
     expect(harness.playback.played, hasLength(2));
     expect(container.read(salaSessionProvider).btParteFronteira, isFalse);
@@ -3655,7 +3601,7 @@ void main() {
 
     harness.playback.finishPlayback();
     await settle();
-    notifier.proximaParte();
+    notifier.ouvirGravacao();
     await settle();
     harness.playback.finishPlayback();
     await settle();
@@ -3683,7 +3629,7 @@ void main() {
             'escuta longe antes de cortar');
   });
 
-  test('telling a stretch again does not remeasure the part in the air', () async {
+  test('hearing a stretch again does not remeasure the part in the air', () async {
     final harness = SalaHarness()
       ..room.verdictChecked = false
       ..room.verdictFinding = BtFindingKind.missing
@@ -3698,7 +3644,7 @@ void main() {
         reason: 'a parte acabou, então nada está no ar');
 
     harness.playback.length = const Duration(seconds: 12);
-    notifier.retellChunk();
+    notifier.ouvirVozMaterna();
     await settle();
 
     expect(container.read(salaSessionProvider).btParteNoArMs, 0,
@@ -3845,7 +3791,7 @@ void main() {
     harness.playback.at = const Duration(seconds: 10);
     harness.playback.finishPlayback();
     await settle();
-    notifier.proximaParte();
+    notifier.ouvirGravacao();
     await settle();
     harness.playback.at = const Duration(seconds: 8);
     harness.playback.finishPlayback();
@@ -3892,7 +3838,7 @@ void main() {
     notifier.retroTap();
     await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
     await settle();
-    notifier.proximaParte();
+    notifier.ouvirGravacao();
     await settle();
     harness.playback.at = const Duration(seconds: 3);
     notifier.cortarTrecho();

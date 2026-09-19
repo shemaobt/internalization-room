@@ -141,7 +141,7 @@ void main() {
     await _traduzTrecho(harness, notifier, em: const Duration(seconds: 30));
     await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
 
-    notifier.proximaParte();
+    notifier.ouvirGravacao();
     await settle();
     await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
     await waitFor('o segundo trecho chegar à sala', () => harness.room.chunksSent == 2);

@@ -973,8 +973,6 @@ void main() {
   test('the next passage does not inherit the last one\'s retell', () async {
     final harness = SalaHarness();
     harness.room.verdictChecked = false;
-    harness.room.verdictFinding = BtFindingKind.missing;
-    harness.room.verdictFindingSegmentId = 'trecho-1';
     final container = await inConversaHarness(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -993,9 +991,10 @@ void main() {
     await settle();
     harness.playback.finishPlayback();
     await settle();
+    // There is one setter of _traduzindoDeNovo left now that retellChunk is gone, and it
+    // is reached through the verdict door: the untold-stretch landing.
+    harness.room.verdictUntoldSegmentId = harness.room.segments.last.segmentId;
     await notifier.finishBackTranslation();
-    await settle();
-    notifier.retellChunk();
     await settle();
 
     notifier.leaveThePassage();

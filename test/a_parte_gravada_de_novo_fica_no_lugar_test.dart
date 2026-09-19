@@ -66,7 +66,7 @@ Future<void> _oAchadoOutraVezNaParteDois(Sala it) async {
         it.estado.btPhase == BtPhase.playing,
   );
   await ouvirETraduzirAParteInteira(it, partesDoEnsaio[1]);
-  it.sala.proximaParte();
+  it.sala.ouvirGravacao();
   await waitFor('a parte 3 entrar no ar', () => !it.estado.btParteFronteira);
   it.harness.playback.finishPlayback();
   await waitFor('a parte 3 acabar de tocar', () => it.estado.btClipEnded);
@@ -334,7 +334,7 @@ void main() {
       () => it.harness.playback.played.last == it.partes[1].path,
     );
     await ouvirETraduzirAParteInteira(it, partesDoEnsaio[1]);
-    it.sala.proximaParte();
+    it.sala.ouvirGravacao();
     await waitFor('a parte 3 entrar no ar', () => !it.estado.btParteFronteira);
     it.harness.playback.length = partesDoEnsaio[2];
     it.harness.playback.at = partesDoEnsaio[2];

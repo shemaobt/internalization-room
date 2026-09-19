@@ -84,9 +84,9 @@ Future<ProviderContainer> _levadaAoTrechoApontado(SalaHarness harness) async {
   await waitFor('o primeiro trecho chegar à sala', () => harness.room.chunksSent == 1);
   harness.room.verdictFindingSegmentId = harness.room.segments.last.segmentId;
   harness.playback.finishPlayback();
-  // finishBackTranslation is a no-op while the clip has not ended, and ouvirVozMaterna and
-  // retellChunk are ones until the verdict is in: each tap is dropped in silence when it
-  // arrives early, so each waits for the door it goes through.
+  // finishBackTranslation is a no-op while the clip has not ended, and ouvirVozMaterna is
+  // one until the verdict is in: each tap is dropped in silence when it arrives early, so
+  // each waits for the door it goes through.
   await waitFor(
     'o clipe poder ser dado por ouvido',
     () => container.read(salaSessionProvider).canFinishBackTranslation,
@@ -101,13 +101,6 @@ Future<ProviderContainer> _levadaAoTrechoApontado(SalaHarness harness) async {
     'o trecho apontado estar tocando',
     () => container.read(salaSessionProvider).btTrechoTocando,
   );
-  notifier.retellChunk();
-  // Retelling leaves the findings for the recording and puts the stretch in the air; a
-  // tap the room dropped leaves the phase where it was, and this wait says so.
-  await waitFor('a tradução de novo levar a equipe ao trecho', () {
-    final state = container.read(salaSessionProvider);
-    return state.btPhase == BtPhase.playing && state.btTrechoTocando;
-  });
   harness.playback.finishPlayback();
   await waitFor(
     'o trecho apontado parar de tocar',
@@ -165,9 +158,8 @@ void main() {
     await waitFor('o segundo trecho chegar à sala', () => harness.room.chunksSent == 2);
     harness.room.verdictFindingSegmentId = harness.room.segments.first.segmentId;
     harness.playback.finishPlayback();
-    // finishBackTranslation is a no-op while the clip has not ended, and retellChunk is one
-    // until the verdict is in: both taps are dropped in silence when they arrive early,
-    // so each waits for the door it goes through.
+    // finishBackTranslation is a no-op while the clip has not ended: this wait is the door
+    // it goes through.
     await waitFor(
       'o clipe poder ser dado por ouvido',
       () => container.read(salaSessionProvider).canFinishBackTranslation,
@@ -178,13 +170,12 @@ void main() {
       () => container.read(salaSessionProvider).btPhase == BtPhase.findings,
     );
 
-    notifier.retellChunk();
-    await settle();
-    harness.playback.finishPlayback();
-    await settle();
     harness.recorder.returnsEmpty = true;
-    notifier.cortarTrecho();
-    await settle();
+    notifier.traduzirDeNovoEmPortugues();
+    await waitFor(
+      'o microfone abrir no trecho',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
+    );
     notifier.retroTap();
     await waitFor(
       'a sala sair do pensando',

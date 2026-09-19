@@ -94,7 +94,7 @@ Future<_Sala> _aSalaNaPergunta() async {
     'a primeira parte terminar',
     () => it.estado.btParteFronteira,
   );
-  it.sala.proximaParte();
+  it.sala.ouvirGravacao();
   await waitFor(
     'a segunda parte entrar no ar',
     () => !it.estado.btParteFronteira,

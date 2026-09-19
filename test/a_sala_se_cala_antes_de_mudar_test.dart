@@ -234,18 +234,17 @@ void _rodaATabela(String estacao, List<_Linha> tabela, List<String> daMatriz) {
   });
 }
 
-/// The back-translation's gestures, copied from the ticket's matrix.
+/// The back-translation's gestures, copied from the ticket's matrix, minus the two rows
+/// ENG-951 retired with `proximaParte` and `retellChunk` (ADR 0024's Consequences).
 const _matrizDaRetro = [
   'a aprovação',
   'terminei',
   'o círculo, capturando',
   'o círculo, nos achados',
-  'a próxima parte',
   'atravessar para a próxima parte',
   'ouvir a voz materna',
   'ouvir a tradução em português',
   'traduzir de novo, na grade',
-  'recontar o pedaço',
   'traduzir de novo, do cordão',
   'dividir o trecho',
   'dividir sem nada que dividir',
@@ -336,17 +335,10 @@ void main() {
           () => cena.harness.voice.played.length > ditas,
         );
       }, somProprio: 'voice:line'),
-      _linha('a próxima parte', _naFronteiraDaParte, (cena) async {
-        cena.sala.proximaParte();
-        await waitFor(
-          'a parte seguinte entrar no ar',
-          () => _estado(cena).btClipRodando,
-        );
-      }, somProprio: 'playback:play'),
       _linha('atravessar para a próxima parte', _naFronteiraDaParte,
           (cena) async {
-        // O gesto que a tela realmente tem: proximaParte não é chamado por widget
-        // nenhum, e é por aqui que a equipe cruza para a parte seguinte.
+        // O gesto que a tela realmente tem: é por aqui que a equipe cruza
+        // para a parte seguinte.
         cena.sala.ouvirGravacao();
         await waitFor(
           'a parte seguinte entrar no ar',
@@ -399,15 +391,6 @@ void main() {
           () => _estado(cena).btPhase == BtPhase.capturing,
         );
       }, segurando: true, somProprio: 'recorder:start'),
-      _linha('recontar o pedaço', _nosAchadosComOTrechoNoAr, (cena) async {
-        cena.sala.retellChunk();
-        await waitFor(
-          'a fatia recontada entrar no ar',
-          () =>
-              _estado(cena).btPhase == BtPhase.playing &&
-              _estado(cena).btTrechoTocando,
-        );
-      }, somProprio: 'playback:play'),
       _linha('traduzir de novo, do cordão', () async {
         final cena = await _nosAchados();
         // Com a tradução no ar. A voz materna não serve aqui: a porta do cordão

@@ -142,7 +142,7 @@ Future<void> _ouvirAteOFim(_Retomada it) async {
       () => it.estado.btClipEnded || it.estado.btParteFronteira,
     );
     if (it.estado.btClipEnded) break;
-    it.sala.proximaParte();
+    it.sala.ouvirGravacao();
     await waitFor(
       'a parte seguinte entrar no ar',
       () => !it.estado.btParteFronteira,

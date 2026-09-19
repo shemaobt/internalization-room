@@ -119,6 +119,10 @@ _Avoid_: trecho não contado, missing (a finding kind), unexplained stretch
 A part of the rehearsal the tablet's report does not cover, named by the verdict under its own address and never under a finding's; the room lands the team on it instead of leaving the press dead.
 _Avoid_: parte não ouvida, untold stretch (never told; this is never heard), unplayed part
 
+**Untold part**:
+A current part of the rehearsal over which no stretch was told back, named by the verdict by its take and never under a finding's; the room lands the team on it from its beginning, the circle ready to tell.
+_Avoid_: parte não contada, unheard part (heard by nobody; this one was heard and told nothing), untold stretch (one stretch never told; this is a whole part)
+
 **Cursor**:
 The point inside a part's own file where the telling-back stopped, from which a resumed back-translation starts playing and from which it counts what it reports as heard.
 _Avoid_: cursor da retro, playhead, reading head (what the necklace draws above the cord)

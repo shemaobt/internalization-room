@@ -64,6 +64,15 @@ class BackTranslationVerdict {
   /// empty list is a refusal that did not happen, never one this tablet worked out for
   /// itself from a silence.
   final List<String> unheardTakeIds;
+
+  /// The current parts of the rehearsal the team's report does not cover with a single
+  /// stretch told over them, named by the recording each one was kept as.
+  ///
+  /// Its own field, in the shape of [unheardTakeIds]: the room refuses a passage carrying
+  /// ground nobody told back, and says so by naming the part rather than by leaving the
+  /// team to guess it from an empty findings phase. An empty list is a refusal that did
+  /// not happen, never one this tablet worked out for itself from a silence.
+  final List<String> untoldTakeIds;
   final int findingsRemaining;
   final bool usedFailSafe;
 
@@ -75,6 +84,7 @@ class BackTranslationVerdict {
     required this.findingSegmentId,
     this.untoldSegmentId,
     this.unheardTakeIds = const [],
+    this.untoldTakeIds = const [],
     required this.findingsRemaining,
     required this.usedFailSafe,
   });
@@ -89,6 +99,10 @@ class BackTranslationVerdict {
         untoldSegmentId: json['untold_segment_id'] as String?,
         unheardTakeIds: [
           for (final nome in json['unheard_take_ids'] as List? ?? const [])
+            nome as String,
+        ],
+        untoldTakeIds: [
+          for (final nome in json['untold_take_ids'] as List? ?? const [])
             nome as String,
         ],
         findingsRemaining: json['findings_remaining'] as int? ?? 0,

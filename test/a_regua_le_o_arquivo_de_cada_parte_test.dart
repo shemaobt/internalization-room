@@ -112,7 +112,7 @@ Future<void> _contarDeNovoAParteRefeita(Sala it, Duration quanto) async {
   );
   await _contarAParteNoAr(it, quanto);
   await _ouvirAParteNoAr(it, quanto);
-  it.sala.proximaParte();
+  it.sala.ouvirGravacao();
   await waitFor(
     'a parte seguinte entrar no ar',
     () => !it.estado.btParteFronteira,

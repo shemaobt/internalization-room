@@ -66,7 +66,7 @@ Future<void> _traduzirUmTrecho(_Sala it, Duration em) async {
 Future<void> _atravessarAFronteira(_Sala it) async {
   it.harness.playback.finishPlayback();
   await waitFor('a parte terminar', () => it.estado.btParteFronteira);
-  it.sala.proximaParte();
+  it.sala.ouvirGravacao();
   await waitFor('a parte seguinte entrar no ar', () => !it.estado.btParteFronteira);
 }
 

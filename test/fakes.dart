@@ -73,6 +73,10 @@ const falaDoVeredito = '/api/internalization-room/voice/veredito';
 /// rehearsal is not covered by the report. Its own line, as the refusal is its own answer.
 const falaDaParteNaoOuvida = '/api/internalization-room/voice/parte-nao-ouvida';
 
+/// The line this room composes for a *terminei* it refused, because a current part has no
+/// stretch told over it. Its own line, as the refusal is its own answer.
+const falaDaParteNaoContada = '/api/internalization-room/voice/parte-nao-contada';
+
 Coverage coverage({int engaged = 0, int surfaced = 0}) => Coverage(
       engaged: engaged,
       surfaced: surfaced,
@@ -721,6 +725,11 @@ class FakeRoom implements RoomRepository {
   /// reading. Empty is a room that refused nothing, which is also what a server that does
   /// not send the field at all looks like from here.
   List<String> verdictUnheardTakeIds = const [];
+
+  /// Which current parts this room says have no stretch told over them, when that is what
+  /// stopped the reading. Its own field, as on the wire: read before [verdictUnheardTakeIds]
+  /// the way the server's own errands are ordered.
+  List<String> verdictUntoldTakeIds = const [];
   BtFindingKind? verdictFinding;
   String? serverStatus;
   /// Which kind of halt the room reports beside `serverStatus`. A server older than
@@ -1221,15 +1230,23 @@ class FakeRoom implements RoomRepository {
     if (refusal != null) throw refusal;
     playedByTakeSent.add([for (final parte in playedByTake) parte.toJson()]);
     _guard('finishBackTranslation');
+    final String linha;
+    if (verdictUntoldTakeIds.isNotEmpty) {
+      linha = falaDaParteNaoContada;
+    } else if (verdictUnheardTakeIds.isNotEmpty) {
+      linha = falaDaParteNaoOuvida;
+    } else {
+      linha = falaDoVeredito;
+    }
     return BackTranslationVerdict(
-      audioUrl:
-          verdictUnheardTakeIds.isEmpty ? falaDoVeredito : falaDaParteNaoOuvida,
+      audioUrl: linha,
       fixedLine: '',
       checked: verdictChecked,
       findingKind: verdictFinding,
       findingSegmentId: _oQueOAnalistaAponta(),
       untoldSegmentId: verdictUntoldSegmentId,
       unheardTakeIds: verdictUnheardTakeIds,
+      untoldTakeIds: verdictUntoldTakeIds,
       findingsRemaining: verdictFinding == null ? 0 : 1,
       usedFailSafe: verdictUsedFailSafe,
     );

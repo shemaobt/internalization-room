@@ -104,7 +104,7 @@ void main() {
 
     expect(container.read(salaSessionProvider).btParteFronteira, isTrue);
 
-    notifier.proximaParte();
+    notifier.ouvirGravacao();
     await settle(const Duration(milliseconds: 250));
 
     final state = container.read(salaSessionProvider);

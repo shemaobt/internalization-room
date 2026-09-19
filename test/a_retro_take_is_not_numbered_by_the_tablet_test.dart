@@ -103,34 +103,13 @@ void main() {
       'o veredito chegar',
       () => container.read(salaSessionProvider).btPhase == BtPhase.findings,
     );
-    notifier.ouvirVozMaterna();
-    await waitFor(
-      'o trecho apontado estar tocando',
-      () => container.read(salaSessionProvider).btTrechoTocando,
-    );
-    notifier.retellChunk();
-    await waitFor('a tradução de novo levar a equipe ao trecho', () {
-      final state = container.read(salaSessionProvider);
-      return state.btPhase == BtPhase.playing && state.btTrechoTocando;
-    });
-    harness.playback.finishPlayback();
-    // The verb refuses a stretch still sounding or a phase in transit, silently. Waiting on
-    // the sound alone let the call land a beat early on CI, do nothing, and the tap that
-    // followed opened a fresh capture instead of ending a retelling — no retro entry.
-    await waitFor('o trecho apontado parar de tocar, com a fase assentada', () {
-      final state = container.read(salaSessionProvider);
-      return !state.btTrechoTocando &&
-          (state.btPhase == BtPhase.playing || state.btPhase == BtPhase.findings);
-    });
-
-    harness.room.replaceCaptured = false;
-    await notifier.traduzirDeNovo(
-      container.read(salaSessionProvider).btTrechos.first,
-    );
+    notifier.traduzirDeNovoEmPortugues();
     await waitFor(
       'o microfone abrir no trecho',
       () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
     );
+
+    harness.room.replaceCaptured = false;
     notifier.retroTap();
     // Waited on the outbox, not on the phase. What this case reads is the row the guard
     // writes to disk, and that write can land after the phase has settled: on a loaded

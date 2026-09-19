@@ -121,7 +121,7 @@ Future<ProviderContainer> _oAchadoNoTrechoDaParteDois(
   await _contarAte(tester, harness, notifier, _parteInteira);
   harness.playback.finishPlayback();
   await tester.pump(const Duration(milliseconds: 200));
-  notifier.proximaParte();
+  notifier.ouvirGravacao();
   await tester.pump(const Duration(milliseconds: 400));
   for (final ate in const [
     Duration(seconds: 3),
@@ -231,7 +231,7 @@ void main() {
           'cada uma acabe de tocar para saber onde ela acaba',
     );
 
-    container.read(salaSessionProvider.notifier).proximaParte();
+    container.read(salaSessionProvider.notifier).ouvirGravacao();
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(cabeca(tester), greaterThan(_parteInteira.inMilliseconds),
@@ -252,7 +252,7 @@ void main() {
     // Um take longo num tablet velho leva mais que um tique da corda para abrir, e o
     // player responde pela parte anterior até abrir.
     harness.playback.holdNextOpening();
-    container.read(salaSessionProvider.notifier).proximaParte();
+    container.read(salaSessionProvider.notifier).ouvirGravacao();
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(cabeca(tester), _parteInteira.inMilliseconds,
