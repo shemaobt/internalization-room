@@ -707,9 +707,11 @@ void main() {
         reason: 'a palavra final sobre o colar continua sendo do servidor');
   });
 
-  test('the coverage necklace steps aside in the retro', () {
+  test('the necklace is on only for the conversa and the fim', () {
     expect(const SalaSessionState(stage: SalaStage.conversa).colarOn, isTrue);
-    expect(const SalaSessionState(stage: SalaStage.ensaio).colarOn, isTrue);
+    expect(const SalaSessionState(stage: SalaStage.ensaio).colarOn, isFalse,
+        reason: 'o progresso do ensaio é a fileira de contas dos pedaços; a '
+            'cobertura da conversa não muda ali');
     expect(const SalaSessionState(stage: SalaStage.retro).colarOn, isFalse,
         reason: 'na retro as contas são os trechos contados; o colar da '
             'conversa por cima lia como a mesma fileira de novo');

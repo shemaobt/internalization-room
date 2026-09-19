@@ -467,6 +467,22 @@ void main() {
             'é a razão de o colar da conversa ficar de fora daqui');
   });
 
+  testWidgets('the rehearsal shows neither the necklace nor the cord',
+      (tester) async {
+    final harness = SalaHarness();
+    final container = await pumpSala(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goConversa();
+    await tester.pump(const Duration(milliseconds: 200));
+    notifier.goEnsaio();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(bySemanticsLabelWidget('Tocar para gravar o ensaio'), findsOneWidget);
+    expect(find.byType(ColarOverlay), findsNothing);
+    expect(find.byType(RetroCord), findsNothing);
+  });
+
   testWidgets('the back-translation offers terminei once the clip ends',
       (tester) async {
     final harness = SalaHarness();

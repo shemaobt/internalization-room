@@ -144,7 +144,7 @@ One of the pieces the rehearsal recording is divided into, and the unit a stretc
 _Avoid_: parte, chunk (a position in one reading), take (what holds a part), stretch, composed passage (retired: the take the server assembled around a mend)
 
 **Necklace**:
-The cord of beads that is the room's only progress indicator: lit beads show the conversation's coverage, and during the back-translation each stretch is drawn as a band.
+The cord of beads that is the room's only progress indicator: lit beads show the conversation's coverage, and during the back-translation each stretch is drawn as a band. Drawn over the Conversation and the Closing only; the Rehearsal shows the row of part beads instead, and the Back-translation shows the Cord.
 _Avoid_: colar, progress bar, ghost bead
 
 **Cord**:
