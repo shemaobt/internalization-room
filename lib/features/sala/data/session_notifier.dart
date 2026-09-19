@@ -1520,6 +1520,30 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return DateTime.now().difference(savedAt) > ref.read(resumeExpiryProvider);
   }
 
+  /// Everything of the session before this one stays behind.
+  ///
+  /// Only what the book knows crosses over — the wheel, the passages started, the ones
+  /// finished, the one being offered — and entering the passage says the rest again.
+  /// Built from an empty state rather than cleared field by field, so a fact the session
+  /// gains tomorrow is born clean here without anybody remembering this branch; the
+  /// counters and latches with no home in the state go through [_forgetThePassage],
+  /// which is already where they live.
+  void _startTheSessionClean(String? pericope) {
+    final livro = state;
+    _dropThePendingTake();
+    _forgetThePassage();
+    _emCurso = pericope;
+    state = SalaSessionState(
+      stage: SalaStage.conversa,
+      voice: VoiceState.thinking,
+      naRoda: livro.naRoda,
+      comecadas: livro.comecadas,
+      feitas: livro.feitas,
+      aOferecer: livro.aOferecer,
+    );
+    _stringTheNecklaceEarly(pericope);
+  }
+
   /// Enter a passage, resuming the session this tablet left in it when there is one.
   ///
   /// `fresh` skips the resume, which is how the 404 path starts over: retrying without it
@@ -1577,6 +1601,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
               : null);
       final sessionId = waiting?.sessionId ?? created!.sessionId;
       if (epoch != _epoch) return;
+      if (!resumed) _startTheSessionClean(pericope);
       state = state.copyWith(sessionId: sessionId, coverage: created?.coverage);
       _sessionSavedAt = resumed ? waiting.savedAt : DateTime.now();
       _sessionLanguage = resumed ? waiting.language : _lingua;
