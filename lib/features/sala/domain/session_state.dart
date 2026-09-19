@@ -262,10 +262,7 @@ class SalaSessionState {
     this.parteARegravar,
   });
 
-  bool get colarOn =>
-      stage != SalaStage.convite &&
-      stage != SalaStage.escolha &&
-      stage != SalaStage.retro;
+  bool get colarOn => stage == SalaStage.conversa || stage == SalaStage.fim;
 
   Passagem? get oferecida {
     final roda = naRoda;

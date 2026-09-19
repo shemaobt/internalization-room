@@ -250,7 +250,8 @@ void main() {
         reason: 'a tomada nova chega à sala como as outras chegaram');
   });
 
-  testWidgets('o colar mostra o que já havia', (tester) async {
+  testWidgets('a cobertura da conversa segue guardada ao voltar ao ensaio',
+      (tester) async {
     final harness = SalaHarness(filaEmMemoria: true)
       ..room.nextCoverage = coverage(engaged: 5, surfaced: 7);
     final container = await aHistoriaSemOFim(tester, harness);
@@ -265,7 +266,9 @@ void main() {
       findsNWidgets(3),
       reason: 'uma conta por tomada guardada, no ensaio, como antes de contar',
     );
-    expect(find.byType(ColarOverlay), findsOneWidget);
+    expect(find.byType(ColarOverlay), findsNothing,
+        reason: 'o progresso do ensaio é a fileira de contas dos pedaços; o '
+            'colar da conversa não desenha ali');
     final depois = container.read(salaSessionProvider);
     expect(depois.coverage.engaged, antes.coverage.engaged,
         reason: 'o colar da passagem não perde o que a conversa já preencheu');
