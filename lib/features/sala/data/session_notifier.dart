@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/env.dart';
+import '../domain/approval_answer.dart';
 import '../domain/bt_finding.dart';
 import '../domain/capture_guard.dart';
 import '../domain/escuta_das_partes.dart';
@@ -141,6 +142,24 @@ final roomRetryBackoffProvider = Provider<List<Duration>>(
 final resumeExpiryProvider = Provider<Duration>(
   (ref) => const Duration(days: 1),
 );
+
+/// The holes a refused approval names that this room has somewhere to take the team.
+///
+/// Declared in the order the room opens them, which is not the order the gate raises them
+/// in: the gate lists the check's own errand before the holes that have ground to stand on,
+/// and a team sent to press *terminei* again over a part nobody told back is sent to be
+/// refused again.
+enum _PortaDaRecusa { trecho, parteNaoContada, parteNaoOuvida, conferir }
+
+_PortaDaRecusa? _portaDaRecusa(String blocker) => switch (blocker) {
+      'untold_stretch' => _PortaDaRecusa.trecho,
+      'untold_part' => _PortaDaRecusa.parteNaoContada,
+      'playback_did_not_cover_the_clip' => _PortaDaRecusa.parteNaoOuvida,
+      'telling_back_not_checked' ||
+      'telling_back_never_analysed' =>
+        _PortaDaRecusa.conferir,
+      _ => null,
+    };
 
 class SalaSessionNotifier extends Notifier<SalaSessionState> {
   final Map<String, Timer> _timers = {};
@@ -3717,8 +3736,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // The release is the room's already once it has been given: a press that follows a
       // line nobody heard is asking for the line again, not for a second release.
       if (!_aprovada) {
-        await _room.approveRelease(sessionId);
+        final resposta = await _room.approveRelease(sessionId);
         if (epoch != _epoch) return;
+        if (!resposta.minted) {
+          return _levarAoBuracoQueARecusaNomeia(resposta, sessionId, epoch);
+        }
         _aprovada = true;
       }
       final disse = await _voice.playAsset(fixedLineAsset(approvedLine, _lingua));
@@ -3729,9 +3751,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (!disse) return _registerUnplayableTurn();
       _unplayableTurns = 0;
       _closeTheNecklace();
-    } on ReleaseRefused {
-      if (epoch != _epoch) return;
-      _haltForAPerson();
     } on Exception catch (error) {
       if (epoch != _epoch) return;
       _handleRoomFailure(error);
@@ -3748,6 +3767,69 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// the part goes in the air, the team hears it, and *terminei* lights again at its end.
   /// [semChaoTraduzido] carries straight through to [_tocarParteDaRetro], whose own doc
   /// says what it does to the cursor and why.
+  /// Take the team to the first hole the refusal names that this room has a door for.
+  ///
+  /// The order is the room's own, read off [_PortaDaRecusa], and never the order the codes
+  /// arrived in: a refusal naming the check and a part nobody told back names the check
+  /// first, and opening that door hands the team back the very button that was refused. A
+  /// hole with no door, a code this tablet does not know, a named hole whose ground never
+  /// came, and an answer that is neither a version nor a refusal are the same thing from
+  /// here — nothing the team can do from this screen — and they end where a refused
+  /// approval has always ended.
+  Future<void> _levarAoBuracoQueARecusaNomeia(
+    ApprovalAnswer resposta,
+    String sessionId,
+    int epoch,
+  ) async {
+    final portas = <_PortaDaRecusa>{};
+    for (final blocker in resposta.blockers) {
+      final porta = _portaDaRecusa(blocker);
+      if (porta != null) portas.add(porta);
+    }
+
+    if (portas.contains(_PortaDaRecusa.trecho)) {
+      // A passage the check cleared on its first verdict never had the names read back, so
+      // the stretches it holds are the ones this tablet cut, and the name the refusal gives
+      // matches none of them.
+      await _readTheStretchesBack(sessionId, epoch);
+      if (epoch != _epoch) return;
+      final trecho = resposta.untoldSegmentId;
+      if (trecho == null) return _haltForAPerson();
+      return _levarAoTrechoNaoTraduzido(trecho);
+    }
+    if (portas.contains(_PortaDaRecusa.parteNaoContada)) {
+      final gravacoes = resposta.untoldTakeIds;
+      if (gravacoes.isEmpty) return _haltForAPerson();
+      return _levarAParteApontadaPelaRecusa(
+        gravacoes.first,
+        epoch,
+        semChaoTraduzido: true,
+      );
+    }
+    if (portas.contains(_PortaDaRecusa.parteNaoOuvida)) {
+      final gravacoes = resposta.unheardTakeIds;
+      if (gravacoes.isEmpty) return _haltForAPerson();
+      return _levarAParteApontadaPelaRecusa(
+        gravacoes.first,
+        epoch,
+        semChaoTraduzido: false,
+      );
+    }
+    if (portas.contains(_PortaDaRecusa.conferir)) {
+      // The room is already silent — the press silenced it — and the last listening of a
+      // checked passage is what took the end of the clip away, which is the whole of what
+      // *terminei* waits on.
+      state = state.copyWith(
+        btPhase: BtPhase.playing,
+        btClipEnded: true,
+        btConsertando: false,
+        voice: VoiceState.invite,
+      );
+      return;
+    }
+    _haltForAPerson();
+  }
+
   Future<void> _levarAParteApontadaPelaRecusa(
     String gravacao,
     int epoch, {

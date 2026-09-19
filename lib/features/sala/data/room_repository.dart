@@ -92,19 +92,6 @@ class NobodyToReach implements Exception {
   const NobodyToReach();
 }
 
-/// The server will not release this passage, and nothing the team can do from the
-/// back-translation screen changes that.
-///
-/// Its own exception rather than the 409 the ladder would read as `RoomBroke`, which
-/// halts only on the third failure: the team would press a dead button twice before
-/// anybody was called.
-class ReleaseRefused implements Exception {
-  const ReleaseRefused();
-
-  @override
-  String toString() => 'ReleaseRefused';
-}
-
 class RoomRepository {
   static const turnTimeout = _turnTimeout;
 
