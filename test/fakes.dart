@@ -981,6 +981,14 @@ class FakeRoom implements RoomRepository {
     );
     replacesComArquivo.add(audio.path);
     final needsPerson = replaceNeedsPerson;
+    if (needsPerson) {
+      // The room marks the session in the very transaction that answers the correction,
+      // so every state read from here on carries the warning until the desk attends it.
+      // A double that said it in the answer and nothing on the read would be a server
+      // that does not exist, and nothing the desk did could ever reach the tablet.
+      serverStatus = 'needs_person';
+      serverHalt = HaltKind.warning;
+    }
     if (!replaceCaptured) {
       return TellingAgain(
         segments: List.of(segments),
