@@ -133,3 +133,9 @@ methods; the row already naming the live gesture for each keeps the rule under t
 Two tables, one per station, list the ticket's matrix by name and fail if a row is missing,
 so a transition added later that does not silence is a red test rather than a bug the team
 hears.
+
+ADR 0034 amends the hold-during-load paragraph above: the count of holds is replaced by
+the player's wanted state, so a resume given after that hold undoes it, and an open a
+later open of ours superseded is silent instead of a failure that calls for a person.
+Its "leaves the player stopped" goes with the count — a resume's `play()` is not
+swallowed the way a hold's `pause()` is, so the player was never stopped after one.

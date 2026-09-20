@@ -115,57 +115,73 @@ class PlaybackRepository {
     await _openThen(() => _player.setFilePath(path, initialPosition: from));
   }
 
-  /// Load a source and play it, unless a hold arrived while it was still loading.
+  /// Load a source and play it, unless a later gesture of the team said otherwise.
   ///
   /// just_audio's `pause()` opens with `if (!playing) return;`, and during a load nothing
   /// is playing yet: the hold was a silent no-op, and the `play()` waiting behind the
-  /// load started the very clip the team had just stopped. Counting the holds instead of
-  /// asking the player what it is doing is what lets a hold issued into that gap win.
+  /// load started the very clip the team had just stopped. Reading the last gesture
+  /// instead of asking the player what it is doing is what lets a hold issued into that
+  /// gap win — and what lets a resume issued after it win in turn.
   ///
   /// The opening is still announced, hold or no hold: the room hangs the listening
   /// ceiling and the measure of the part in the air off it, and a clip that never
-  /// announces itself strands both.
+  /// announces itself strands both. An open a later open of ours superseded announces
+  /// nothing: what the clip owed the room dies with the clip.
   Future<void> _openThen(Future<Duration?> Function() load) async {
-    final segurava = _holds;
+    _wanted = true;
+    final geracao = ++_opens;
     final parada = _stops;
     await _player.stop();
     final Duration? length;
     try {
       length = await load();
     } on PlayerInterruptedException {
-      // Our own stop deactivates the platform at once, and the load in the air throws
-      // for it. That is the clip not playing, never this tablet failing to play the
-      // team's own voice — which calls a person and stops the room over a common gesture.
-      if (segurava != _holds) return;
+      // Our own stop, or the one a later open of ours issued, deactivates the platform
+      // at once and the load in the air throws for it. That is the clip not playing,
+      // never this tablet failing to play the team's own voice — which calls a person
+      // and stops the room over a sound the team itself asked for. A stop counts even
+      // once a resume has asked for sound again: a resume undoes a hold, and the clip
+      // the room stopped is not the clip it comes back to.
+      if (geracao != _opens || !_wanted || parada != _stops) return;
       rethrow;
     }
+    if (geracao != _opens) return;
     // A pause leaves the clip open, and the ceiling counts what is left of it, so the
     // measure stands. A stop does not: it cleared the measure on the way past, and a load
     // settling behind it would write back the length of a clip that never played — which
     // is the very length the ceiling of the next clip would be computed from.
     _openedLength = parada == _stops ? length : null;
     _openings.add(null);
-    if (segurava != _holds) return;
+    if (!_wanted || parada != _stops) return;
     await _player.play();
   }
 
-  /// How many times the room has held what is sounding. Only a hold counts: a resume
-  /// asks for the very clip it is resuming.
-  int _holds = 0;
+  /// Whether the last gesture the team made asks for sound. A pause or a stop holds the
+  /// player, a play, a playRange or a resume wants it, and an awaited load plays only if
+  /// the player is still wanted when it returns. A resume undoes a hold; the stop count
+  /// is what says the clip itself is gone.
+  bool _wanted = false;
 
-  /// How many of those holds were a stop, which is the half that also forgets what the
-  /// clip measured.
+  /// Which open is the current one. A load interrupted by a later open of ours belongs
+  /// to a clip the room has already moved off, and returns silently.
+  int _opens = 0;
+
+  /// How many stops the room has asked for, which is the half of a hold that also
+  /// forgets what the clip measured.
   int _stops = 0;
 
   Future<void> pause() {
-    _holds++;
+    _wanted = false;
     return _quietly(() => _player.pause());
   }
 
-  Future<void> resume() => _quietly(() => _player.play());
+  Future<void> resume() {
+    _wanted = true;
+    return _quietly(() => _player.play());
+  }
 
   Future<void> stop() {
-    _holds++;
+    _wanted = false;
     _stops++;
     return _quietly(() async {
       // Cleared with the playback it described. The safety ceiling for the next clip
