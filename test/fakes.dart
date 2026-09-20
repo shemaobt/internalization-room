@@ -1215,10 +1215,7 @@ class FakeRoom implements RoomRepository {
         endsMs: to.inMilliseconds,
       ));
     }
-    return BackTranslationChunk(
-      chunks: chunksSent,
-      captured: chunkCaptured,
-    );
+    return BackTranslationChunk(captured: chunkCaptured);
   }
 
   String? _oQueOAnalistaAponta() {
