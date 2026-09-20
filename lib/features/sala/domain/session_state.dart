@@ -196,9 +196,10 @@ class SalaSessionState {
   /// The room has no text on screen, so a warning that asks nobody to stop still needs
   /// a way to be seen — this follows the last state read (`halt: "warning"`) and the
   /// answer to a stretch told again the same way: true the moment one of them says so,
-  /// false the moment a state read does not — and the back-translation runs none, so one
-  /// raised there stands until the team leaves the passage. A blocking halt never sets
-  /// it; [FacilitatorCircle] draws its own halted body over this regardless of what it
+  /// false the moment a state read does not. Every route that raises one watches the
+  /// session's halt from there on, so the desk attending it turns the circle back in
+  /// whatever station the team is in. A blocking halt never sets it;
+  /// [FacilitatorCircle] draws its own halted body over this regardless of what it
   /// says.
   final bool warning;
 
