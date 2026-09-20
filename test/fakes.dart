@@ -60,6 +60,10 @@ Future<void> waitFor(
 /// standing, on a cadence that ends only with the halt or with the room. A widget test
 /// that leaves the team on a halt therefore always has one timer pending, and the
 /// `addTearDown` that disposes the container runs after the check that would see it.
+///
+/// A warning is watched the same way, so a correction answered with `replaceNeedsPerson`
+/// leaves that timer too: this double keeps saying the warning until [theDeskAttended] is
+/// called, and until then the watch re-arms itself on every beat.
 void closeTheRoom(ProviderContainer container) => container.dispose();
 
 const totalBeads = 12;
@@ -1032,6 +1036,14 @@ class FakeRoom implements RoomRepository {
     );
     replacesComArquivo.add(audio.path);
     final needsPerson = replaceNeedsPerson;
+    if (needsPerson) {
+      // The room marks the session in the very transaction that answers the correction,
+      // so every state read from here on carries the warning until the desk attends it.
+      // A double that said it in the answer and nothing on the read would be a server
+      // that does not exist, and nothing the desk did could ever reach the tablet.
+      serverStatus = 'needs_person';
+      serverHalt = HaltKind.warning;
+    }
     if (!replaceCaptured) {
       return TellingAgain(
         segments: List.of(segments),
@@ -1258,10 +1270,7 @@ class FakeRoom implements RoomRepository {
         endsMs: to.inMilliseconds,
       ));
     }
-    return BackTranslationChunk(
-      chunks: chunksSent,
-      captured: chunkCaptured,
-    );
+    return BackTranslationChunk(captured: chunkCaptured);
   }
 
   String? _oQueOAnalistaAponta() {

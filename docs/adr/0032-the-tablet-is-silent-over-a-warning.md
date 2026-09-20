@@ -46,3 +46,14 @@ answer cannot carry the news at all.
 The team crossing the mark by mending stretches sees a green circle and goes on mending.
 The facilitator's queue shows the room asking for someone as a warning, which is what the
 server had recorded all along.
+
+A warning is watched the way a blocking halt is: every route that writes one arms the same
+watch, which reads the session's halt at the poll cadence until neither kind stands or the
+team leaves the passage. So the **Desk** attending the session ends the warning in whatever
+station the team is in — without a turn and without a touch — and a blocking halt read
+while a warning stands takes the room, because it is the read that decides. The warning
+ends by its field alone: a halt walks the voice and a warning never did, so there is no
+voice to hand back.
+
+The `chunks` field on a chunk's answer goes too, for a reason of its own: nothing on the
+tablet ever read it.

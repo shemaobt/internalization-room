@@ -58,9 +58,9 @@ Future<void> _traduzTrecho(
 
 /// A sala parada num achado no segundo trecho, com o aviso de "chame uma
 /// pessoa" já ativo — erguido pelo caminho curto sobre o *primeiro* trecho, que
-/// não é o que os casos abaixo consertam: cada conserto renomeia o trecho que
-/// toca, e levantar o aviso sobre o apontado mudaria o nome debaixo deles.
-Future<ProviderContainer> _achadoComAvisoAtivo(SalaHarness harness) async {
+/// não é o que os casos que a chamam consertam: cada conserto renomeia o trecho
+/// que toca, e levantar o aviso sobre o apontado mudaria o nome debaixo deles.
+Future<ProviderContainer> achadoComAvisoAtivo(SalaHarness harness) async {
   harness.room.verdictChecked = false;
   harness.room.verdictFinding = BtFindingKind.addition;
   harness.room.verdictFindingPlace = 1;
@@ -144,7 +144,7 @@ bool aceso(WidgetTester tester, String label) =>
 void main() {
   test('com o aviso ativo, o microfone azul abre a captura', () async {
     final harness = SalaHarness();
-    final container = await _achadoComAvisoAtivo(harness);
+    final container = await achadoComAvisoAtivo(harness);
     final notifier = container.read(salaSessionProvider.notifier);
     final trecho2 = container.read(salaSessionProvider).btFindingTrecho!;
 
@@ -170,7 +170,7 @@ void main() {
 
   test('a tradução de novo feita sob aviso chega ao servidor', () async {
     final harness = SalaHarness();
-    final container = await _achadoComAvisoAtivo(harness);
+    final container = await achadoComAvisoAtivo(harness);
     final notifier = container.read(salaSessionProvider.notifier);
     final trecho2 = container.read(salaSessionProvider).btFindingTrecho!;
     final pedidosAntes = harness.room.replacesAsked.length;
@@ -311,7 +311,7 @@ void main() {
 
   test('gravar a parte de novo também não é fechado pelo aviso', () async {
     final harness = SalaHarness();
-    final container = await _achadoComAvisoAtivo(harness);
+    final container = await achadoComAvisoAtivo(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.gravarAParteDeNovo();

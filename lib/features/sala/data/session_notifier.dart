@@ -711,21 +711,30 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _askIfTheHaltIsOver() async {
     final sessionId = _haltWatched;
-    if (sessionId == null || !state.needsPerson) return;
+    if (sessionId == null) return;
     final epoch = _epoch;
     try {
       final snapshot = await _room.fetchState(sessionId);
       if (epoch != _epoch || _haltWatched != sessionId) return;
-      if (!snapshot.needsPerson) {
-        _leaveTheHalt();
-        return;
+      state = state.copyWith(warning: snapshot.halt == HaltKind.warning);
+      if (snapshot.needsPerson) {
+        if (!state.needsPerson) _haltForAPerson();
+      } else {
+        if (state.needsPerson) _leaveTheHalt();
+        if (!state.warning) {
+          // A warning walks no voice, so there is nothing to hand back: the field going
+          // out is the whole of it, and the halt's way out would give the team an invite
+          // over a clip already playing.
+          _endTheWatch();
+          return;
+        }
       }
     } on SessionGone {
       // There is no longer a session to be let out of, so there is nothing left to ask:
       // the room keeps the halt and the long press is the way out of it, as it is for a
       // build with no session at all.
       if (epoch != _epoch || _haltWatched != sessionId) return;
-      _haltWatched = null;
+      _endTheWatch();
       state = state.copyWith(clearSession: true);
       return;
     } on Exception {
@@ -984,6 +993,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (epoch == _epoch) unawaited(_countUnsent());
     }));
     state = state.copyWith(voice: VoiceState.invite);
+    // The fall took the watch with the rest of the timers. A blocking halt gets its own
+    // back the next time the room stops, but nothing stops for a warning: left here, a
+    // room that lost the network under one came back green for good.
+    if (state.warning) _watchTheHalt();
     if (state.stage == SalaStage.fim) {
       _startOver();
     } else if (state.stage == SalaStage.escolha) {
@@ -1022,9 +1035,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  void _leaveTheHalt() {
+  void _endTheWatch() {
     _haltWatched = null;
     _timers.remove('halt')?.cancel();
+  }
+
+  void _leaveTheHalt() {
+    _endTheWatch();
     _timers.remove('retry')?.cancel();
     _timers.remove('person')?.cancel();
     _personAsked = false;
@@ -1034,6 +1051,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(_networkWatch?.cancel());
     _networkWatch = null;
     state = state.copyWith(voice: VoiceState.invite);
+    // Every way out of a halt ends the watch, and a warning standing under it is a
+    // session still asking for somebody. Left ended, the halt's own exit — the beat that
+    // reads it away, or the long press on a room that is out — carried the warning off
+    // with it, and the desk's mark never reached the circle again.
+    if (state.warning) _watchTheHalt();
     // The way into the telling-back stops short of the sound when it meets a halt, so
     // lifting the halt is what finishes it: the part it had already chosen goes in the air
     // here. Left to a gesture, the room stood in the retro with no clip at all, and every
@@ -1125,10 +1147,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           state = state.copyWith(clearPing: true);
         });
       }
-      // A warning follows the last state read, and only the last one: a turn landing
-      // or the facilitator attending the session on the Desk both show up here as a
-      // read that no longer says it, and that is what turns the circle back.
       state = state.copyWith(warning: snapshot.halt == HaltKind.warning);
+      if (state.warning) _watchTheHalt();
       if (snapshot.needsPerson) {
         _haltForAPerson();
       } else if (snapshot.done && state.stage == SalaStage.conversa) {
@@ -1621,6 +1641,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             coverage: snapshot.coverage,
             warning: snapshot.halt == HaltKind.warning,
           );
+          if (state.warning) _watchTheHalt();
           if (waiting.stage == SalaStage.retro) {
             _pickTheTellingBackUp(snapshot.backTranslation);
           } else {
@@ -3332,6 +3353,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         btConsertando: false,
         warning: told.needsPerson ? true : null,
       );
+      if (told.needsPerson) _watchTheHalt();
       return;
     }
 
@@ -3354,6 +3376,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // verdict, because a warning is a field and the verdict only walks the voice.
       warning: told.needsPerson ? true : null,
     );
+    if (told.needsPerson) _watchTheHalt();
     _rememberWhereTheyAre(SalaStage.retro);
     if (epoch != _epoch) return;
     // The correction is finished, so the room goes and finds out what it was worth. The
