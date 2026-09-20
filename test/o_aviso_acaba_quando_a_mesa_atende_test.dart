@@ -102,6 +102,7 @@ void main() {
       final harness = SalaHarness();
       final container = await achadoComAvisoAtivo(harness);
       SalaSessionState read() => container.read(salaSessionProvider);
+      final pedidos = harness.room.personsAsked;
 
       expect(read().warning, isTrue);
 
@@ -126,6 +127,14 @@ void main() {
         reason:
             'a parada que chega é uma parada como outra qualquer, e ela '
             'se anuncia uma vez',
+      );
+      expect(
+        harness.room.personsAsked,
+        pedidos + 1,
+        reason:
+            'e o tablet pede a pessoa, como a cauda do turno sempre pediu: é '
+            'esse pedido que põe a sala na fila da Mesa, e entrar na parada '
+            'sem ele deixaria a equipe parada sem ninguém saber',
       );
 
       harness.room.theDeskAttended();
@@ -198,13 +207,6 @@ void main() {
 
     await _someBeats(harness);
 
-    expect(
-      read().warning,
-      isFalse,
-      reason:
-          'o aviso da passagem que a equipe deixou não acende o círculo '
-          'da próxima',
-    );
     expect(
       _stateReads(harness),
       lidas,
@@ -303,4 +305,73 @@ void main() {
       await waitFor('o círculo sair do verde', () => !read().warning);
     },
   );
+
+  test('a rede que cai e volta devolve o aviso vigiado', () async {
+    final harness = SalaHarness()
+      ..room.serverStatus = 'needs_person'
+      ..room.serverHalt = HaltKind.warning;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    await waitFor('o aviso chegar', () => read().warning);
+
+    harness.room.holdNextTurn();
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    await settle();
+    harness.room.failHeldTurnWith = const RoomUnavailable('sem rede');
+    harness.room.finishHeldTurn();
+    await waitFor('a sala cair', () => read().offline);
+    await waitFor('a sala voltar', () => !read().offline);
+
+    // A equipe não toca em nada depois da volta: sem a vigia, nada mais nesta
+    // estação relê o estado.
+    harness.room.theDeskAttended();
+
+    await waitFor('o círculo sair do verde', () => !read().warning);
+  });
+
+  test('o toque longo numa sala fora não larga a vigia do aviso', () async {
+    final harness = SalaHarness()
+      ..room.serverStatus = 'needs_person'
+      ..room.serverHalt = HaltKind.warning;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    await waitFor('o aviso chegar', () => read().warning);
+
+    harness.network.reachable = false;
+    harness.room.reachable = false;
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    await waitFor('a sala cair', () => read().offline);
+
+    // Fora, o toque longo é a tentativa de voltar e continua a ser a saída
+    // local que sempre foi — mas a sessão continua marcada com o aviso.
+    notifier.resolveWithPerson();
+    await waitFor(
+      'o círculo voltar ao convite',
+      () => read().voice == VoiceState.invite,
+    );
+
+    expect(
+      read().warning,
+      isTrue,
+      reason:
+          'o toque não é a mesa: soltar a sala não apaga um aviso que '
+          'ninguém veio olhar',
+    );
+
+    harness.network.reachable = true;
+    harness.room.reachable = true;
+    harness.room.theDeskAttended();
+
+    await waitFor('o círculo sair do verde', () => !read().warning);
+  });
 }

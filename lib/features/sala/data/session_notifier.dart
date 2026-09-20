@@ -728,9 +728,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           _endTheWatch();
           return;
         }
-        // A halt that came back as a warning is still a session asking for somebody, and
-        // the way out it just took cancelled the watch on the way.
-        _watchTheHalt();
       }
     } on SessionGone {
       // There is no longer a session to be let out of, so there is nothing left to ask:
@@ -996,6 +993,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (epoch == _epoch) unawaited(_countUnsent());
     }));
     state = state.copyWith(voice: VoiceState.invite);
+    // The fall took the watch with the rest of the timers. A blocking halt gets its own
+    // back the next time the room stops, but nothing stops for a warning: left here, a
+    // room that lost the network under one came back green for good.
+    if (state.warning) _watchTheHalt();
     if (state.stage == SalaStage.fim) {
       _startOver();
     } else if (state.stage == SalaStage.escolha) {
@@ -1050,6 +1051,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(_networkWatch?.cancel());
     _networkWatch = null;
     state = state.copyWith(voice: VoiceState.invite);
+    // Every way out of a halt ends the watch, and a warning standing under it is a
+    // session still asking for somebody. Left ended, the halt's own exit — the beat that
+    // reads it away, or the long press on a room that is out — carried the warning off
+    // with it, and the desk's mark never reached the circle again.
+    if (state.warning) _watchTheHalt();
     // The way into the telling-back stops short of the sound when it meets a halt, so
     // lifting the halt is what finishes it: the part it had already chosen goes in the air
     // here. Left to a gesture, the room stood in the retro with no clip at all, and every

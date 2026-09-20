@@ -62,37 +62,34 @@ void main() {
     );
   });
 
-  test(
-    'the warning goes away on the next state read that does not carry it',
-    () async {
-      final harness = SalaHarness()
-        ..room.serverStatus = 'needs_person'
-        ..room.serverHalt = HaltKind.warning;
-      final container = await inConversa(harness);
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-      SalaSessionState read() => container.read(salaSessionProvider);
+  test('the warning goes away on the next state read that does not carry it', () async {
+    final harness = SalaHarness()
+      ..room.serverStatus = 'needs_person'
+      ..room.serverHalt = HaltKind.warning;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
 
-      await waitFor('o aviso chegar', () => read().warning);
+    await waitFor('o aviso chegar', () => read().warning);
 
-      harness.room.serverStatus = 'in_progress';
-      harness.room.serverHalt = HaltKind.unnamed;
-      // Either read turns it off: the tail of this turn, or the beat of the watch the
-      // warning armed. What the case is about is the reading, not which one got there.
-      await _aTurn(notifier);
-      await waitFor('a sala reler de novo', () => !read().warning);
+    harness.room.serverStatus = 'in_progress';
+    harness.room.serverHalt = HaltKind.unnamed;
+    // Either read turns it off: the tail of this turn, or the beat of the watch the
+    // warning armed. What the case is about is the reading, not which one got there.
+    await _aTurn(notifier);
+    await waitFor('a sala reler de novo', () => !read().warning);
 
-      expect(
-        read().warning,
-        isFalse,
-        reason:
-            'um turno ter acontecido, ou a mesa ter marcado a sessão como '
-            'atendida, chegam aqui do mesmo jeito: uma leitura de estado que não '
-            'diz mais "warning" — e é ela, não o aviso em si, que apaga o círculo',
-      );
-      expect(read().needsPerson, isFalse);
-    },
-  );
+    expect(
+      read().warning,
+      isFalse,
+      reason:
+          'um turno ter acontecido, ou a mesa ter marcado a sessão como '
+          'atendida, chegam aqui do mesmo jeito: uma leitura de estado que não '
+          'diz mais "warning" — e é ela, não o aviso em si, que apaga o círculo',
+    );
+    expect(read().needsPerson, isFalse);
+  });
 
   test('a blocking halt is not a warning, even mid-warning', () async {
     final harness = SalaHarness()
