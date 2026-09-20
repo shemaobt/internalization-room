@@ -77,8 +77,8 @@ void main() {
 
       harness.room.serverStatus = 'in_progress';
       harness.room.serverHalt = HaltKind.unnamed;
-      // A state read only happens on the tail of a turn — the same gesture the desk's
-      // attending stands in for on this side of the fake.
+      // Either read turns it off: the tail of this turn, or the beat of the watch the
+      // warning armed. What the case is about is the reading, not which one got there.
       await _aTurn(notifier);
       await waitFor('a sala reler de novo', () => !read().warning);
 
@@ -106,9 +106,8 @@ void main() {
     await waitFor('o aviso chegar', () => read().warning);
 
     harness.room.serverHalt = HaltKind.blocking;
-    // A warning starts no watch of its own — nothing was halted to watch — so the
-    // room only learns the halt turned blocking on the tail of another turn, same as
-    // any other state read in this file.
+    // The warning armed the watch, so the room can learn the halt turned blocking on a
+    // beat of its own; the turn is the other way in, and either one stops the team.
     await _aTurn(notifier);
     await waitFor('a sala parar de vez', () => read().needsPerson);
 

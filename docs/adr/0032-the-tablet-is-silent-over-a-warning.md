@@ -29,7 +29,7 @@ a warning is a field, and nothing writes over it.
 ## Decision
 
 **Over a warning the tablet calls nobody.** Both readers of a correction's answer write
-the warning on the session and do nothing else: the room stays in the phase the same
+the warning on the session and call nobody: the room stays in the phase the same
 correction without the field leaves it in, the microphone keeps opening, no E0 line is
 spoken, and nothing waits for the Desk. A blocking halt still comes from a state read, and
 only the Desk lifts it (ADR 0009).
@@ -54,3 +54,6 @@ station the team is in — without a turn and without a touch — and a blocking
 while a warning stands takes the room, because it is the read that decides. The warning
 ends by its field alone: a halt walks the voice and a warning never did, so there is no
 voice to hand back.
+
+The `chunks` field goes with the retelling plumbing named above: nothing on the tablet ever
+read it.

@@ -742,4 +742,28 @@ void main() {
         reason: 'a sala é quem sabe quantas gravações da parte 2 ela já tem: o '
             'tablet que buscou a parte não gravou nenhuma delas');
   });
+
+  test('uma retomada para dentro de um aviso o vigia até a mesa atender',
+      () async {
+    final harness = SalaHarness()
+      ..room.serverStatus = 'needs_person'
+      ..room.serverHalt = HaltKind.warning;
+
+    final it = await _reabrir(
+      harness,
+      parouEm: SalaStage.retro,
+      aindaNoTablet: const {1, 2, 3},
+      contado: _contado([1, 2, 3]),
+    );
+    await waitFor('a equipe voltar à tradução', () => it.estado.warning);
+
+    expect(it.estado.needsPerson, isFalse,
+        reason: 'o aviso não é uma parada, e reabrir dentro dele não fecha a '
+            'estação em que a equipe parou');
+
+    // Ninguém vai tocar no tablet: a equipe reabriu e ficou a ouvir.
+    harness.room.theDeskAttended();
+
+    await waitFor('o círculo sair do verde', () => !it.estado.warning);
+  });
 }

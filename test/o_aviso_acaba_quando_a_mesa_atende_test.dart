@@ -18,8 +18,11 @@ int _haltLines(SalaHarness harness) => harness.voice.assets
     .where((asset) => asset == fixedLineAsset(needsPersonLine, testLanguage))
     .length;
 
-/// Two beats of the watch, so that a read the room owes has certainly landed.
-Future<void> _twoBeats() async => settle(const Duration(milliseconds: 300));
+/// Beats enough for a read the room owes to have landed, at whatever cadence this
+/// harness was built with: a fixed number here would be zero beats under a wider one,
+/// and a "did not grow" assertion that measured nothing would read as green.
+Future<void> _someBeats(SalaHarness harness) async =>
+    settle(harness.settleDelay * 5);
 
 void main() {
   test('a mesa atendendo acaba o aviso erguido na retro', () async {
@@ -59,7 +62,7 @@ void main() {
     );
 
     final lidas = _stateReads(harness);
-    await _twoBeats();
+    await _someBeats(harness);
     expect(
       _stateReads(harness),
       lidas,
@@ -104,6 +107,7 @@ void main() {
 
       // O mesmo par de colunas, agora dizendo a parada de verdade: o servidor
       // escreve a parada bloqueante por cima do aviso que estava lá.
+      harness.room.serverStatus = 'needs_person';
       harness.room.serverHalt = HaltKind.blocking;
 
       await waitFor('a sala parar de vez', () => read().needsPerson);
@@ -140,10 +144,14 @@ void main() {
       final harness = SalaHarness();
       final container = await achadoComAvisoAtivo(harness);
       SalaSessionState read() => container.read(salaSessionProvider);
+      // A sala continua marcada com o aviso, que é o que ela responde a cada
+      // leitura até a mesa atender.
+      harness.room.serverStatus = 'needs_person';
+      harness.room.serverHalt = HaltKind.warning;
       final lidas = _stateReads(harness);
       final pedidos = harness.room.personsAsked;
 
-      await _twoBeats();
+      await _someBeats(harness);
 
       expect(
         _stateReads(harness),
@@ -188,7 +196,7 @@ void main() {
     await settle();
     final lidas = _stateReads(harness);
 
-    await _twoBeats();
+    await _someBeats(harness);
 
     expect(
       read().warning,
@@ -213,7 +221,7 @@ void main() {
     SalaSessionState read() => container.read(salaSessionProvider);
 
     harness.room.failStateOnceWith = const RoomUnavailable('sem rede');
-    await _twoBeats();
+    await _someBeats(harness);
 
     expect(
       read().warning,
@@ -256,6 +264,43 @@ void main() {
         reason: 'a sala segue de pé: o aviso acabou, e nada mais mudou',
       );
       expect(_haltLines(harness), 0);
+    },
+  );
+
+  test(
+    'a parada bloqueante que a leitura troca por um aviso deixa o aviso vigiado',
+    () async {
+      final harness = SalaHarness()
+        ..room.serverStatus = 'needs_person'
+        ..room.serverHalt = HaltKind.blocking;
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      SalaSessionState read() => container.read(salaSessionProvider);
+
+      await waitFor('a sala parar de vez', () => read().needsPerson);
+
+      // O pedido do tablet não chegou, então a sala continua marcada com o
+      // aviso que o orçamento levantou: a leitura seguinte devolve a equipe,
+      // mas a sessão continua pedindo alguém.
+      harness.room.serverHalt = HaltKind.warning;
+
+      await waitFor(
+        'o círculo voltar ao convite',
+        () => read().voice == VoiceState.invite,
+      );
+
+      expect(
+        read().warning,
+        isTrue,
+        reason:
+            'a leitura que devolveu a equipe ainda diz o aviso, e o aviso é '
+            'o que sobra da parada: apagá-lo aqui esconderia da equipe que a '
+            'sala continua pedindo alguém',
+      );
+
+      harness.room.theDeskAttended();
+
+      await waitFor('o círculo sair do verde', () => !read().warning);
     },
   );
 }

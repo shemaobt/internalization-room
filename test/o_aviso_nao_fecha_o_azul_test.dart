@@ -58,8 +58,8 @@ Future<void> _traduzTrecho(
 
 /// A sala parada num achado no segundo trecho, com o aviso de "chame uma
 /// pessoa" já ativo — erguido pelo caminho curto sobre o *primeiro* trecho, que
-/// não é o que os casos abaixo consertam: cada conserto renomeia o trecho que
-/// toca, e levantar o aviso sobre o apontado mudaria o nome debaixo deles.
+/// não é o que os casos que a chamam consertam: cada conserto renomeia o trecho
+/// que toca, e levantar o aviso sobre o apontado mudaria o nome debaixo deles.
 Future<ProviderContainer> achadoComAvisoAtivo(SalaHarness harness) async {
   harness.room.verdictChecked = false;
   harness.room.verdictFinding = BtFindingKind.addition;

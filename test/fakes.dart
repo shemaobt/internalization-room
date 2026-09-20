@@ -60,6 +60,10 @@ Future<void> waitFor(
 /// standing, on a cadence that ends only with the halt or with the room. A widget test
 /// that leaves the team on a halt therefore always has one timer pending, and the
 /// `addTearDown` that disposes the container runs after the check that would see it.
+///
+/// A warning is watched the same way, so a correction answered with `replaceNeedsPerson`
+/// leaves that timer too: this double keeps saying the warning until [theDeskAttended] is
+/// called, and until then the watch re-arms itself on every beat.
 void closeTheRoom(ProviderContainer container) => container.dispose();
 
 const totalBeads = 12;

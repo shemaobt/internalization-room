@@ -719,22 +719,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(warning: snapshot.halt == HaltKind.warning);
       if (snapshot.needsPerson) {
         if (!state.needsPerson) _haltForAPerson();
-      } else if (state.needsPerson) {
-        _leaveTheHalt();
-        return;
-      } else if (!state.warning) {
-        // A warning walks no voice, so there is nothing to hand back: the field going
-        // out is the whole of it, and the halt's own way out would give the team an
-        // invite over a clip already playing.
-        _endTheWatch();
-        return;
+      } else {
+        if (state.needsPerson) _leaveTheHalt();
+        if (!state.warning) {
+          // A warning walks no voice, so there is nothing to hand back: the field going
+          // out is the whole of it, and the halt's way out would give the team an invite
+          // over a clip already playing.
+          _endTheWatch();
+          return;
+        }
+        // A halt that came back as a warning is still a session asking for somebody, and
+        // the way out it just took cancelled the watch on the way.
+        _watchTheHalt();
       }
     } on SessionGone {
       // There is no longer a session to be let out of, so there is nothing left to ask:
       // the room keeps the halt and the long press is the way out of it, as it is for a
       // build with no session at all.
       if (epoch != _epoch || _haltWatched != sessionId) return;
-      _haltWatched = null;
+      _endTheWatch();
       state = state.copyWith(clearSession: true);
       return;
     } on Exception {
