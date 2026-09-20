@@ -196,19 +196,28 @@ class FakeRecorder implements RecordingRepository {
   @override
   Future<bool?> hasPermission() async => permitted ? answersPermission : false;
 
-  Completer<void>? _holdingStart;
+  final List<Completer<void>> _holdingStarts = [];
+  int _startsTaken = 0;
 
-  void holdNextStart() => _holdingStart = Completer<void>();
+  /// Hold a start, the way a platform answering a minute late does. Held per call, so a
+  /// start left in the air by the passage before and one of the passage now are let go
+  /// one at a time — a single hold shared by both cannot tell them apart.
+  void holdNextStart() => _holdingStarts.add(Completer<void>());
 
   void finishStart() {
-    _holdingStart?.complete();
-    _holdingStart = null;
+    for (final held in _holdingStarts) {
+      if (held.isCompleted) continue;
+      held.complete();
+      return;
+    }
   }
 
   @override
   Future<Capture> start(String fileName) async {
     sounds.add('recorder:start');
-    final held = _holdingStart;
+    final held = _startsTaken < _holdingStarts.length
+        ? _holdingStarts[_startsTaken++]
+        : null;
     if (held != null) await held.future;
     captures++;
     if (!permitted) return Capture.denied;

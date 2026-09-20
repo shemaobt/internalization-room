@@ -1568,25 +1568,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // chain took two minutes" — which a slow but perfectly successful panorama does.
     _watchBusyState();
     // Only the passages the wheel already said have work waiting are looked up on disk,
-    // so entering a fresh one costs no read at all.
-    final stored = opened == null &&
-            !fresh &&
+    // so entering a fresh one through the wheel costs no read at all. A door the room
+    // opened has no wheel behind it — the list is still empty at the invitation — so the
+    // row is looked up there whatever the list says (ADR 0033).
+    final stored = !fresh &&
             pericope != null &&
-            state.comecadas.contains(pericope)
+            (opened != null || state.comecadas.contains(pericope))
         ? await _emAberto.of(_book, pericope)
         : null;
     if (epoch != _epoch) return;
     final waiting = _wrongLanguage(stored) ? null : stored;
     try {
       final resumed = waiting != null;
-      final created = opened ??
-          (waiting == null
-              ? await _room.createSession(
-                  pericope: pericope,
-                  afterSession: _panoramaSessionId,
-                  language: _lingua,
-                )
-              : null);
+      final created = resumed
+          ? null
+          : opened ??
+              await _room.createSession(
+                pericope: pericope,
+                afterSession: _panoramaSessionId,
+                language: _lingua,
+              );
       final sessionId = waiting?.sessionId ?? created!.sessionId;
       if (epoch != _epoch) return;
       if (!resumed) _startTheSessionClean(pericope);
@@ -2594,10 +2595,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final epoch = _epoch;
     _micWatch ??= _recorder.interrupted.listen(_theMicrophoneChangedHands);
     final capture = await _recorder.start(fileName);
-    _recordingStarting = false;
     // The answer can arrive a minute late — `hasPermission` waits up to sixty seconds for
-    // the platform — by which time the team may be on another stage entirely.
+    // the platform — by which time the team may be on another stage entirely, with a
+    // microphone of its own still opening. Cleared under the guard, never above it: a
+    // start coming back from a passage already left let the next passage's second tap
+    // through, onto a recorder that had not opened.
     if (epoch != _epoch || _gone) return;
+    _recordingStarting = false;
     switch (capture) {
       case Capture.started:
         _captureFails = 0;
@@ -4273,7 +4277,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _startOver() {
     _clearAll();
     _forgetThePassage();
-    _conviteOpened = false;
     _panoramaSessionId = null;
     state = const SalaSessionState();
     unawaited(abrirEscolha());
@@ -4314,6 +4317,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _ghostParte = 0;
     _pendingTakePath = null;
     _emCurso = null;
+    _semNome.clear();
+    _captureFails = 0;
+    _calmTurns = 0;
+    _ackSpoken = 0;
+    _recordingStarting = false;
+    _clipHeld = false;
+    _conviteOpened = false;
   }
 }
 
