@@ -505,19 +505,15 @@ class FakePlayback implements PlaybackRepository {
       if (geracao != _opens) return;
       _abrindo = false;
       at = _abertaEm = from;
-      // As the real one does: a pause leaves the clip open and the ceiling counts what
-      // is left of it, but a stop cleared the measure on the way past, and a load
-      // settling behind it may not write back the length of a clip that never played.
       _aberto = paradas == stops;
       // Announced either way, held or stopped: the listening ceiling and the measure of
       // the part in the air both hang off this, and a clip that never announces itself
       // strands them.
       _openings.add(null);
-      // A hold caught the clip while it was opening. The opening still announced itself
-      // with its measure, because the ceiling and the measure of the part in the air
-      // both hang off it, but no sound comes out. A stop counts even once a resume has
-      // asked for sound again, the way the repository counts it: a resume undoes a
-      // hold, and the clip the room stopped is not the clip it comes back to.
+      // A hold caught the clip while it was opening: announced, not sounding. A pause
+      // leaves the clip open and the ceiling counts what is left of it; a stop cleared
+      // the measure on the way past, so this load may not write it back, and a resume
+      // does not undo it — the clip the room stopped is not the clip it comes back to.
       if (!_wanted || paradas != stops) return;
       _sounding = true;
       _startWalking();

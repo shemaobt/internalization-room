@@ -137,3 +137,5 @@ hears.
 ADR 0034 amends the hold-during-load paragraph above: the count of holds is replaced by
 the player's wanted state, so a resume given after that hold undoes it, and an open a
 later open of ours superseded is silent instead of a failure that calls for a person.
+Its "leaves the player stopped" goes with the count — a resume's `play()` is not
+swallowed the way a hold's `pause()` is, so the player was never stopped after one.

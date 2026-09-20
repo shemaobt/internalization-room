@@ -401,7 +401,12 @@ void main() {
 
       expect(tocador.tocando, isTrue,
           reason: 'o último gesto da equipe foi um resume, e é ele que manda: '
-              'a espera que o hold abriu não sobrevive ao gesto que a desfez');
+              'a espera que o hold abriu não sobrevive ao gesto que a desfez. '
+              'Pino da regra, não de uma regressão: isto é verde antes e '
+              'depois do conserto, porque o som nunca dependeu do play de '
+              'cauda — o play do próprio resume já punha o clipe a tocar '
+              'assim que a fonte ficasse pronta. O que o conserto acerta é o '
+              'repositório dizer o mesmo que o player faz');
       expect(playback.playingLength, const Duration(seconds: 30),
           reason: 'e o clipe fica aberto, com a medida de que o teto da escuta '
               'e a medida da parte no ar saem');
@@ -616,9 +621,12 @@ class _Duplo extends Fake implements AudioPlayer {
   /// Which file a clipped source is a slice of. A real player has one source per file,
   /// so two slices of two different recordings are two different loads — keyed as one,
   /// the double could not hold one of them open while the other went free.
+  ///
+  /// It throws rather than falling back to one shared key: a fallback would put that
+  /// collision back silently, the day something hands this double another source.
   String _arquivoDe(AudioSource source) => source is ClippingAudioSource
       ? source.child.uri.toFilePath()
-      : 'recorte';
+      : throw UnsupportedError('o dublê só sabe recortar uma fonte de arquivo');
 
   @override
   Future<Duration?> setAudioSource(
