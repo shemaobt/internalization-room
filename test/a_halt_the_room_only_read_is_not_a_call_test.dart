@@ -80,13 +80,13 @@ void main() {
       ..room.serverHalt = HaltKind.warning;
     final container = await inConversa(harness);
     addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
     await waitFor('o aviso chegar', () => read().warning);
 
+    // The warning already armed the watch; the beat alone must find the halt, with
+    // no turn to let door (b) do the finding instead.
     harness.room.serverHalt = HaltKind.blocking;
-    await _aTurn(notifier);
     await waitFor('a sala parar de vez', () => read().needsPerson);
 
     expect(_haltLines(harness), 1,
@@ -219,7 +219,7 @@ void main() {
             'sala decidindo, e isso continua chamando alguém como sempre');
   });
 
-  test('a session the server no longer has still calls, by the device',
+  test('a passage the room lost track of still calls, by the device',
       () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
@@ -232,8 +232,10 @@ void main() {
     await waitFor('a sala parar sem sessão', () => read().needsPerson);
 
     expect(harness.room.deviceAsksReceived, ['aparelho-1'],
-        reason: 'pin: a sessão sumindo é a sala decidindo, sem sessão para '
-            'nomear; o pedido continua saindo pelo aparelho como sempre');
+        reason: 'pin: a sala decidindo que a passagem sumiu (nenhum '
+            'pedido ainda pendia sobre ela, ao contrário da reentrada do '
+            '404 dentro de um pedido em voo) continua chamando pelo '
+            'aparelho, sem sessão para nomear');
     expect(harness.room.calls, isNot(contains('askForAPerson')),
         reason: 'sem sessão não há o que pedir por ela');
   });
@@ -247,10 +249,6 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
-    // The call this halt used to make is held open, the way a test holds any call to
-    // act before the answer lands (`fakes.dart:1120`) — the seam that puts the desk's
-    // attend inside the exact window the ticket names, between the read entering the
-    // halt and that call landing.
     harness.room.holdNextAskForAPerson();
     harness.room.serverStatus = 'needs_person';
     harness.room.serverHalt = HaltKind.blocking;
@@ -266,9 +264,10 @@ void main() {
     );
 
     expect(harness.room.personsAsked, 0,
-        reason: 'nenhum pedido saiu desta parada: o atendimento que a mesa '
-            'já tinha dado não podia ser apagado por um pedido que a leitura '
-            'nunca devia ter feito');
+        reason: 'nenhum pedido saiu desta parada: com a leitura chamando '
+            'antes desta correção, o atendimento que a mesa já tinha dado '
+            'entraria na janela entre a entrada na parada e a chamada '
+            'pousando, e um pedido pousando depois apagaria esse atendimento');
     expect(harness.room.personArrivedSessions, isEmpty);
     expect(_haltLines(harness), 1,
         reason: 'uma entrada só: a parada obsoleta não se anuncia de novo '

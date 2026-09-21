@@ -170,9 +170,6 @@ void main() {
 
   test('a long press on an unconfirmed halt never tells the server a person '
       'arrived', () async {
-    // The room decides this one on its own (three turns its own audio never played),
-    // so the call it sends still exists to be held: a halt merely read (ENG-962) is
-    // watched at once and never has an unconfirmed window to speak of.
     final harness = SalaHarness(settleDelay: const Duration(seconds: 5))
       ..voice.succeeds = false
       ..room.holdNextAskForAPerson();
@@ -199,8 +196,11 @@ void main() {
       harness.room.personArrivedSessions,
       isEmpty,
       reason:
-          'a mesa nunca ouviu falar desta parada — sem vigia, o toque '
-          'solta localmente e não há pedido a fazer',
+          'a sala decidiu esta parada sozinha (três turnos sem áudio '
+          'próprio), então o pedido ainda existe para ser seguro em voo — '
+          'uma parada apenas lida (ENG-962) é vigiada na hora e não tem '
+          'mais essa janela sem confirmação; sem vigia, o toque solta '
+          'localmente e não há pedido a fazer',
     );
 
     harness.room.finishHeldAskForAPerson();
