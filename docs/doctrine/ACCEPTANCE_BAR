@@ -7,11 +7,6 @@
 #
 # BACKEND — the line is held in tripod-backend, where the prompts and the model seam live. That
 # repo's own ACCEPTANCE_BAR names the test.
-# PENDING — this repo does not hold the line today. There is one, and it is not a gap in the
-# record: at `done` the conversa stops taking speech (`lib/features/sala/data/session_notifier.dart`,
-# `conversaTap` case `VoiceState.done`) and the screen offers the way on to the ensaio. Her line
-# says the circle is alive there. ENG-835 records whose decision each line is and adds no
-# behaviour to the room, so the divergence is written down rather than fixed here.
 #
 # A fragment is matched against the line, never compared to it: a guard on her wording would go
 # red for a rename that leaves the ruling untouched.
@@ -31,7 +26,7 @@ ALFE 8th-grade register  BACKEND
 spoken-BR proclisis  BACKEND
 YHWH  BACKEND
 The two languages never confused  BACKEND
-the circle is alive at `done`  PENDING
+the circle is alive at `done`  test/session_notifier_test.dart::a tap on the circle at done still records, not a dead touch
 The voice opens the session  test/session_notifier_test.dart::the opening is told in two movements, and the necklace waits
 the team is never left in front of a silent circle  test/mic_gate_test.dart::clearing the gate opens the room, not just the screen
 P01 (Ruth 1:1–5) completes  BACKEND
