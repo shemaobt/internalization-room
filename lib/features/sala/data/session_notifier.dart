@@ -2147,12 +2147,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _noteTap() {
     switch (state.voice) {
       case VoiceState.invite:
+      case VoiceState.done:
         _startListening('pergunta_${_stamp()}');
       case VoiceState.listening:
         _sendQuestion();
       case VoiceState.thinking:
       case VoiceState.speaking:
-      case VoiceState.done:
       case VoiceState.needsPerson:
       case VoiceState.offline:
       case VoiceState.blocked:

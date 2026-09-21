@@ -2205,6 +2205,48 @@ void main() {
             'a cópia no tablet não serve para nada');
   });
 
+  test('a note raised at done still records, not a dead touch', () async {
+    final harness = SalaHarness()..room.done = true;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    expect(container.read(salaSessionProvider).voice, VoiceState.done);
+
+    notifier.handTap();
+    expect(container.read(salaSessionProvider).noteMode, isTrue);
+
+    notifier.conversaTap();
+    await settle();
+
+    expect(
+      harness.recorder.captures,
+      1,
+      reason: 'done caía no bloco de no-op de _noteTap, junto de thinking/speaking/'
+          'needsPerson/offline/blocked, e nunca chamava _startListening — a mão '
+          'armava a nota e o círculo não abria o microfone',
+    );
+    expect(harness.inbox.questionsSent, isEmpty,
+        reason: 'um só toque no círculo abre o microfone; a pergunta ainda não foi dita');
+
+    notifier.conversaTap();
+    await settle();
+
+    expect(harness.inbox.questionsSent, ['sessao-1']);
+    expect(
+      container.read(salaSessionProvider).stage,
+      SalaStage.conversa,
+      reason: 'a pergunta silenciosa nunca fecha nem reinicia a conversa sozinha — '
+          'a passagem que já tinha chegado a done não é reaberta nem trocada de etapa',
+    );
+    expect(
+      harness.room.turnsSent,
+      0,
+      reason: 'a pergunta silenciosa é um canal da mesa, não um turno da conversa — '
+          'entregá-la não reinicia a fala do Guia',
+    );
+  });
+
   test('a question that never left is kept on the tablet', () async {
     final harness = SalaHarness(retryBackoff: const [Duration(seconds: 30)])
       ..inbox.refuses = true;
