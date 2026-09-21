@@ -209,6 +209,51 @@ void main() {
     });
   });
 
+  test('a dispose that lands while a load is still in the air writes nothing '
+      'after closing', () async {
+    final tocador = _Duplo();
+    final playback = PlaybackRepository(newPlayer: () => tocador);
+    final anunciadas = <void>[];
+    playback.openings.listen(anunciadas.add);
+    tocador.segurados['/parte-1.m4a'] = Completer<void>();
+
+    final abrindo = playback.play('/parte-1.m4a');
+    await _oLoadNoAr(tocador, '/parte-1.m4a');
+
+    await playback.dispose();
+    tocador.segurados['/parte-1.m4a']!.complete();
+    await abrindo;
+
+    expect(anunciadas, isEmpty,
+        reason:
+            'o repositório já se fechou; o load que assenta atrás dele não '
+            'pode escrever numa fila de eventos fechada');
+  });
+
+  test('the same is true of the slice a stretch plays', () async {
+    final tocador = _Duplo();
+    final playback = PlaybackRepository(newPlayer: () => tocador);
+    final falhas = <void>[];
+    playback.failures.listen(falhas.add);
+    tocador.segurados['/parte-1.m4a'] = Completer<void>();
+
+    final abrindo = playback.playRange(
+      '/parte-1.m4a',
+      const Duration(seconds: 1),
+      const Duration(seconds: 2),
+    );
+    await _oLoadNoAr(tocador, '/parte-1.m4a');
+
+    await playback.dispose();
+    tocador.segurados['/parte-1.m4a']!.complete();
+    await abrindo;
+
+    expect(falhas, isEmpty,
+        reason:
+            'o repositório já se fechou; o catch da fatia não pode escrever '
+            'numa fila de eventos fechada');
+  });
+
   test('pausing a player that never opened is not an error', () async {
     final playback = PlaybackRepository(start: (_) async {});
     addTearDown(playback.dispose);
