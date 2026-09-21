@@ -1197,6 +1197,48 @@ void main() {
     expect(container.read(salaSessionProvider).conversaDone, isTrue);
   });
 
+  test('a tap on the circle at done still records, not a dead touch',
+      () async {
+    final harness = SalaHarness()..room.done = true;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    expect(container.read(salaSessionProvider).voice, VoiceState.done);
+
+    notifier.conversaTap();
+    expect(
+      container.read(salaSessionProvider).voice,
+      VoiceState.listening,
+      reason: 'o done caía no bloco de no-op do switch de conversaTap, junto '
+          'de thinking/speaking/needsPerson/offline/blocked, e nunca chamava '
+          '_actOnConversaTap — o círculo não abria o microfone de novo',
+    );
+    await settle();
+
+    notifier.conversaTap();
+    await settle();
+
+    expect(
+      harness.room.turnsSent,
+      1,
+      reason: 'sem o primeiro toque abrindo o microfone, a segunda fala nunca '
+          'virava um turno enviado ao Guia',
+    );
+    expect(
+      container.read(salaSessionProvider).stage,
+      SalaStage.conversa,
+      reason: 'done muda o que a tela oferece, nunca fecha ou reinicia a '
+          'conversa sozinha',
+    );
+    expect(
+      container.read(salaSessionProvider).conversaDone,
+      isTrue,
+      reason: 'a sala continua reportando done, então a entrada de gravação '
+          'segue oferecida ao mesmo tempo que o círculo volta a ouvir',
+    );
+  });
+
   test('a fixed line comes from the bundle, never from the wire', () async {
     final harness = SalaHarness()..room.fixedLine = 'D1';
     final container = await inConversa(harness);

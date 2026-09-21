@@ -1998,10 +1998,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (state.voice) {
       case VoiceState.invite:
       case VoiceState.listening:
+      case VoiceState.done:
         _actOnConversaTap();
       case VoiceState.thinking:
       case VoiceState.speaking:
-      case VoiceState.done:
       case VoiceState.needsPerson:
       case VoiceState.offline:
       case VoiceState.blocked:
