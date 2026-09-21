@@ -221,12 +221,19 @@ void main() {
     await _oLoadNoAr(tocador, '/parte-1.m4a');
 
     await playback.dispose();
-    tocador.segurados['/parte-1.m4a']!.complete();
+    // A load that fails, not one that lands: a load that lands never reaches
+    // _openings.add at all once the catch already covers whatever it would have
+    // thrown, so a held load that merely completes fixes nothing about this catch's
+    // own guard. The guard on _openings.add itself stays for safety, with no
+    // scenario this double can raise that tells it apart from the one here.
+    tocador.segurados['/parte-1.m4a']!.completeError(
+      const FormatException('sumiu'),
+    );
 
     await expectLater(abrindo, completes,
         reason:
-            'o repositório já se fechou; o load que assenta atrás dele não '
-            'pode escrever numa fila de eventos fechada');
+            'o repositório já se fechou; o catch do load não pode escrever '
+            'numa fila de eventos fechada');
     expect(anunciadas, isEmpty);
   });
 

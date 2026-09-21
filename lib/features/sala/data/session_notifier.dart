@@ -4354,6 +4354,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _personAskStep = 0;
     _haltWatched = null;
     _trechoTraduzidoDeNovo = null;
+    _mendArmedWithThisCapture = false;
     _degradedTurns = 0;
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
