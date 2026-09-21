@@ -139,3 +139,11 @@ the player's wanted state, so a resume given after that hold undoes it, and an o
 later open of ours superseded is silent instead of a failure that calls for a person.
 Its "leaves the player stopped" goes with the count — a resume's `play()` is not
 swallowed the way a hold's `pause()` is, so the player was never stopped after one.
+
+Two gestures put a clip in the air without passing through the silencing, and the tables
+above do not name them: the chain that plays the whole rehearsal back, part after part,
+and the listen on a pending take once its ceiling has fired. Both are toggles on the sound
+itself, which this decision exempts, and what answers a second sound under them is the
+player's wanted state of ADR 0034, which lives in the repository rather than in either
+gesture. They are written down here so the matrix is not read as the whole list of ways a
+clip starts.

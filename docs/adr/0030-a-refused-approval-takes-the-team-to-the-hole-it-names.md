@@ -94,8 +94,10 @@ hole, and the landing speaks it before the part or the stretch goes in the air; 
 carries no line and no address for one, so the approval's landing says nothing. The team
 presses, the room goes quiet, and then either the part or the stretch starts playing on its
 own — or, at the check's door, nothing plays at all and only *terminei* comes back lit.
-Whether the room should say something of its own here is a question this decision leaves
-open.
+That silence is the answer, decided on 2026-09-19: the room says nothing of its own at
+the check's door. A line invented here would be the tablet speaking for a server that has
+not spoken, and the room's own voice belongs to the verdict; the press, the quiet and the
+sound that follows are what the team reads.
 
 Two holes at once take the first door in the room's order, and the rest of the refusal is
 not remembered: the team fills that hole, checks again, and presses approve again, which is
