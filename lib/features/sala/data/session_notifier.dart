@@ -1163,7 +1163,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (state.warning) _watchTheHalt();
       if (snapshot.needsPerson) {
         _haltForAPerson(read: true);
-      } else if (snapshot.done && state.stage == SalaStage.conversa) {
+      } else if (snapshot.done &&
+          state.stage == SalaStage.conversa &&
+          state.voice == VoiceState.invite) {
         state = state.copyWith(voice: VoiceState.done, peerCue: false);
       }
     } on SessionGone {

@@ -1141,6 +1141,70 @@ void main() {
             'o mesmo id no fim da fala é o poll cego que este ticket tirou');
   });
 
+  test('a pull that finds the session done while the Guide is still speaking does not '
+      'paint the circle green until the line ends', () async {
+    final harness = SalaHarness(settleDelay: const Duration(milliseconds: 40))
+      ..room.turnIdInResponse = 'turno-1'
+      ..room.done = true;
+    harness.voice.holdNextLine();
+    final container = harness.container();
+    addTearDown(container.dispose);
+
+    final opening = container.read(salaSessionProvider.notifier).goConversa();
+    await waitFor(
+      'a fala do Guia começar',
+      () => container.read(salaSessionProvider).voice == VoiceState.speaking,
+    );
+
+    harness.room.pushCoverage(
+      const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+    );
+    await waitFor(
+      'o pull do fetchState acontecer',
+      () => harness.room.calls.where((call) => call == 'fetchState').length == 1,
+    );
+
+    expect(
+      container.read(salaSessionProvider).voice,
+      VoiceState.speaking,
+      reason: 'o pull leu snapshot.done com o Guia ainda falando; pintar done por '
+          'cima de speaking cortava a fala no meio, com o círculo já verde',
+    );
+
+    harness.voice.finishHeldLine();
+    await opening;
+
+    expect(
+      container.read(salaSessionProvider).voice,
+      VoiceState.done,
+      reason: 'quando a fala termina é o próprio turno (turn.done) que pinta done — '
+          'o pull que chegou antes não precisou e não devia ter feito isso',
+    );
+  });
+
+  test('a pull that finds the session done while the voice is idle still paints the '
+      'circle done', () async {
+    final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+      ..room.turnIdInResponse = 'turno-1';
+    final container = harness.container();
+    addTearDown(container.dispose);
+
+    await container.read(salaSessionProvider.notifier).goConversa();
+    expect(container.read(salaSessionProvider).voice, VoiceState.invite,
+        reason: 'o turno saiu sem done, então a voz descansa em invite até o pull '
+            'chegar');
+
+    harness.room.done = true;
+    harness.room.pushCoverage(
+      const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+    );
+
+    await waitFor(
+      'o pull ler done com a voz ociosa',
+      () => container.read(salaSessionProvider).voice == VoiceState.done,
+    );
+  });
+
   test('the hand inbox is still checked after a turn with nothing to wait on',
       () async {
     final harness = SalaHarness(settleDelay: const Duration(milliseconds: 40));
