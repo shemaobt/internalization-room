@@ -222,12 +222,12 @@ void main() {
 
     await playback.dispose();
     tocador.segurados['/parte-1.m4a']!.complete();
-    await abrindo;
 
-    expect(anunciadas, isEmpty,
+    await expectLater(abrindo, completes,
         reason:
             'o repositório já se fechou; o load que assenta atrás dele não '
             'pode escrever numa fila de eventos fechada');
+    expect(anunciadas, isEmpty);
   });
 
   test('the same is true of the slice a stretch plays', () async {
@@ -245,13 +245,18 @@ void main() {
     await _oLoadNoAr(tocador, '/parte-1.m4a');
 
     await playback.dispose();
-    tocador.segurados['/parte-1.m4a']!.complete();
-    await abrindo;
+    // A load that fails, not one that lands: the catch only runs if the load itself
+    // throws, and a load that lands never reaches _endings.add(false) at all — so a
+    // held load that merely completes proves nothing about this catch's own guard.
+    tocador.segurados['/parte-1.m4a']!.completeError(
+      const FormatException('sumiu'),
+    );
 
-    expect(falhas, isEmpty,
+    await expectLater(abrindo, completes,
         reason:
             'o repositório já se fechou; o catch da fatia não pode escrever '
             'numa fila de eventos fechada');
+    expect(falhas, isEmpty);
   });
 
   test('pausing a player that never opened is not an error', () async {
