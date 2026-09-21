@@ -669,7 +669,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// signal that there is no server to reach.
   void haltForABrokenBuild() => _haltForAPerson(reachable: false);
 
-  void _haltForAPerson({bool sessionIsGone = false, bool reachable = true}) {
+  void _haltForAPerson({
+    bool sessionIsGone = false,
+    bool reachable = true,
+    bool read = false,
+  }) {
     _leaveThinking();
     if (!state.needsPerson) {
       unawaited(_voice.playAsset(fixedLineAsset(needsPersonLine, _lingua)));
@@ -679,10 +683,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       peerCue: false,
       clearSession: sessionIsGone,
     );
+    if (read) {
+      _watchTheHalt();
+      return;
+    }
     if (reachable) _tellTheRoomAPersonIsNeeded();
-    // A halt the desk has already been told about is watched from here; one still being
-    // called in starts its watch when the call lands, and a halt nobody could be told
-    // about is not watched at all.
     if (_personAsked) _watchTheHalt();
   }
 
@@ -718,7 +723,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (epoch != _epoch || _haltWatched != sessionId) return;
       state = state.copyWith(warning: snapshot.halt == HaltKind.warning);
       if (snapshot.needsPerson) {
-        if (!state.needsPerson) _haltForAPerson();
+        if (!state.needsPerson) _haltForAPerson(read: true);
       } else {
         if (state.needsPerson) _leaveTheHalt();
         if (!state.warning) {
@@ -1150,7 +1155,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(warning: snapshot.halt == HaltKind.warning);
       if (state.warning) _watchTheHalt();
       if (snapshot.needsPerson) {
-        _haltForAPerson();
+        _haltForAPerson(read: true);
       } else if (snapshot.done && state.stage == SalaStage.conversa) {
         state = state.copyWith(voice: VoiceState.done, peerCue: false);
       }
@@ -1653,7 +1658,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           // After the telling-back is picked up, not before, so that the passage the team
           // comes back to is the one they left: a person resolving the halt finds them in
           // their retro rather than dropped back into the rehearsal.
-          if (snapshot.needsPerson) _haltForAPerson();
+          if (snapshot.needsPerson) _haltForAPerson(read: true);
           return;
         }
         if (waiting.stage == SalaStage.retro) {

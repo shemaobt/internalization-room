@@ -243,6 +243,10 @@ _Avoid_: aviso, cap, block, halt (the state, of which this is one kind)
 The room's action of signalling it needs someone, insisted on at intervals until it is answered. A long press on the circle asks the room to read its state again rather than lifting a blocking halt, which only the Desk lifts.
 _Avoid_: pedir uma pessoa, calling a human, SOS, `needsPerson` (the internal name)
 
+**Watch**:
+The room's periodic read of the session's halt while a halt or a warning stands. Armed by every writer of a warning, by every halt the room merely read, and, for a halt the room decided on its own, once its call for a person lands; a halt with nobody to tell — no session, or the build unreachable — is never watched. It ends when neither a halt nor a warning stands any more, or with the passage.
+_Avoid_: poll, timer, vigia (the code's name is not the term)
+
 **Meaning Map**:
 The passage's canonical content, against which the analyst compares what was told back, including what is deliberately left unrevealed.
 _Avoid_: mapa de sentido, answer key, base text

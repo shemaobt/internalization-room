@@ -57,10 +57,11 @@ Future<ProviderContainer> _reopensInto(
   return container;
 }
 
-/// The halt as the team meets it: the room says it out loud and the desk is told.
-bool _calledForAPerson(SalaHarness harness) =>
-    harness.voice.assets.contains(fixedLineAsset(needsPersonLine, testLanguage)) &&
-    harness.room.personsAsked > 0;
+/// The halt as the team meets it: the room says it out loud. A halt reopened into is
+/// one the server already holds, so it is entered without a call (ENG-962): the desk
+/// was told by whatever raised it in the first place, not by this reopening.
+bool _haltEntered(SalaHarness harness) =>
+    harness.voice.assets.contains(fixedLineAsset(needsPersonLine, testLanguage));
 
 void main() {
   test('reopening into the retro honours the halt the server is holding',
@@ -74,7 +75,7 @@ void main() {
     );
 
     await waitFor('a sala parar como a conversa pararia',
-        () => _calledForAPerson(harness));
+        () => _haltEntered(harness));
 
     final notifier = container.read(salaSessionProvider.notifier);
     final before = harness.playback.played.length;
@@ -101,7 +102,7 @@ void main() {
     final state = container.read(salaSessionProvider);
     expect(state.stage, SalaStage.retro);
     expect(state.btTrechos, hasLength(1));
-    expect(_calledForAPerson(harness), isFalse);
+    expect(_haltEntered(harness), isFalse);
   });
 
   test('reopening into the rehearsal, halted, leaves the record circle dead',
@@ -110,7 +111,7 @@ void main() {
 
     final container = await _reopensInto(harness, SalaStage.ensaio);
 
-    await waitFor('a sala parar', () => _calledForAPerson(harness));
+    await waitFor('a sala parar', () => _haltEntered(harness));
 
     container.read(salaSessionProvider.notifier).ensaioTap();
     await settle();

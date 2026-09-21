@@ -130,11 +130,11 @@ void main() {
       );
       expect(
         harness.room.personsAsked,
-        pedidos + 1,
+        pedidos,
         reason:
-            'e o tablet pede a pessoa, como a cauda do turno sempre pediu: é '
-            'esse pedido que põe a sala na fila da Mesa, e entrar na parada '
-            'sem ele deixaria a equipe parada sem ninguém saber',
+            'a vigia leu a parada; o servidor já a tinha, e um pedido do '
+            'tablet aqui apagaria um atendimento que a mesa já tivesse dado '
+            '(ENG-962)',
       );
 
       harness.room.theDeskAttended();

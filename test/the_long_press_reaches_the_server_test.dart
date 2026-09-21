@@ -171,14 +171,16 @@ void main() {
   test('a long press on an unconfirmed halt never tells the server a person '
       'arrived', () async {
     final harness = SalaHarness(settleDelay: const Duration(seconds: 5))
-      ..room.serverStatus = 'needs_person'
-      ..room.serverHalt = HaltKind.blocking
+      ..voice.succeeds = false
       ..room.holdNextAskForAPerson();
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
+    for (var i = 0; i < 3; i++) {
+      await _aTurn(notifier);
+    }
     await waitFor(
       'a sala parar com o pedido pela sessão em voo',
       () => read().needsPerson,
@@ -194,8 +196,11 @@ void main() {
       harness.room.personArrivedSessions,
       isEmpty,
       reason:
-          'a mesa nunca ouviu falar desta parada — sem vigia, o toque '
-          'solta localmente e não há pedido a fazer',
+          'a sala decidiu esta parada sozinha (três turnos sem áudio '
+          'próprio), então o pedido ainda existe para ser seguro em voo — '
+          'uma parada apenas lida (ENG-962) é vigiada na hora e não tem '
+          'mais essa janela sem confirmação; sem vigia, o toque solta '
+          'localmente e não há pedido a fazer',
     );
 
     harness.room.finishHeldAskForAPerson();
