@@ -2252,18 +2252,34 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!Env.devPularFases) return;
     final knob = ref.read(devLanguageProvider.notifier);
     knob.choose(knob.next(_lingua));
-    if (state.stage == SalaStage.convite) {
-      _clearAll();
-      _conviteOpened = false;
-      _panoramaSessionId = null;
-      state = state.copyWith(
-        conviteStep: ConviteStep.boasVindas,
-        voice: VoiceState.invite,
-        noteMode: false,
-      );
+    if (_panoramaSessionId != null) {
+      unawaited(_reabrirPanoramaNaLingua());
       return;
     }
+    if (state.stage == SalaStage.convite) return;
     _startOver();
+  }
+
+  Future<void> _reabrirPanoramaNaLingua() async {
+    _clearAll();
+    _conviteOpened = true;
+    state = state.copyWith(
+      conviteStep: ConviteStep.boasVindas,
+      voice: VoiceState.thinking,
+      noteMode: false,
+    );
+    final epoch = _epoch;
+    final created =
+        await _room.createSession(pericope: panoramaPericope, language: _lingua);
+    if (epoch != _epoch) return;
+    if (created.pericope != panoramaPericope) {
+      _conviteOpened = false;
+      state = state.copyWith(voice: VoiceState.invite);
+      return;
+    }
+    _panoramaSessionId = created.sessionId;
+    _conviteOpened = false;
+    unawaited(openConvite());
   }
 
   void goEnsaio() {

@@ -201,38 +201,66 @@ void main() {
             'da passagem numa língua e metade noutra');
   });
 
-  testWidgets(
-      'the dev language button on the panorama recreates it instead of falling to the wheel',
-      (tester) async {
+  test(
+      'the dev language button recreates an already-open panorama instead of falling to the wheel',
+      () async {
     dotenv.testLoad(
       fileInput: 'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
     );
     addTearDown(() => dotenv.testLoad(fileInput: ''));
-    tester.platformDispatcher.localesTestValue = const [Locale('pt')];
-    addTearDown(tester.platformDispatcher.clearLocalesTestValue);
-    final harness = SalaHarness(filaEmMemoria: true, lingua: null);
-    final container = await pumpSala(tester, harness);
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    notifier.conviteTap();
-    await tester.pump(const Duration(milliseconds: 300));
+    await notifier.openConvite();
+    expect(container.read(salaSessionProvider).conviteStep, ConviteStep.entrada,
+        reason: 'o panorama precisa estar de fato aberto e dito para este teste valer a '
+            'pena — o #178 só cobria o instante logo após o toque no círculo, antes de a '
+            'abertura terminar');
+    expect(container.read(salaSessionProvider).voice, VoiceState.invite);
+
     notifier.devTrocarIdioma();
-    await tester.pump(const Duration(milliseconds: 400));
+    await settle();
 
     expect(container.read(salaSessionProvider).stage, SalaStage.convite,
         reason: 'o botão de idioma é para o DEV ouvir o panorama noutra língua — jogar '
             'para a roda abandona exatamente a sessão que ele estava tentando testar');
-
-    notifier.conviteTap();
-    await tester.pump(const Duration(milliseconds: 400));
-
-    expect(container.read(salaSessionProvider).stage, SalaStage.convite);
     expect(harness.room.sessionIds, hasLength(2),
         reason: 'a sessão antiga ficou presa na língua velha; testar a nova pede uma '
-            'sessão nova, não a mesma respondendo em duas línguas');
-    expect(harness.room.languagesSent.last, isNot('pt'),
-        reason: 'a sessão recriada é da língua que o botão acabou de escolher, não da '
-            'que o panorama tinha antes do toque');
+            'sessão nova, sem esperar um segundo toque no círculo');
+  });
+
+  test(
+      'the dev language button on an open panorama does not enter the passage the room answers with instead',
+      () async {
+    dotenv.testLoad(
+      fileInput: 'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
+    );
+    addTearDown(() => dotenv.testLoad(fileInput: ''));
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.openConvite();
+    harness.room.panoramaAnsweredWith = 'P01';
+
+    final sessionsAntes = [...harness.room.sessionsSpokenTo];
+
+    notifier.devTrocarIdioma();
+    await settle();
+
+    expect(container.read(salaSessionProvider).conviteStep, ConviteStep.boasVindas,
+        reason: 'a sala já tinha dado o panorama uma vez; pedi-lo de novo é um pedido, '
+            'não uma instrução, e a sala pode responder com uma passagem de verdade — '
+            'entrar nela e dizê-la como se fosse o panorama é o que o teste manual do '
+            'João viu em 21/09: uma passagem falada e ouvida como se fosse a visão geral');
+    expect(harness.room.sessionsSpokenTo, sessionsAntes,
+        reason: 'a sessão que a sala devolveu no lugar do panorama nunca chega a ser '
+            'aberta nem dita');
+    expect(container.read(salaSessionProvider).sessionId, isNull,
+        reason: 'nenhuma passagem foi de fato aberta a partir do botão de DEV');
   });
 
   test('the dev language button drops an armed hand along with the panorama it was armed on',
