@@ -2252,34 +2252,47 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!Env.devPularFases) return;
     final knob = ref.read(devLanguageProvider.notifier);
     knob.choose(knob.next(_lingua));
-    if (_panoramaSessionId != null) {
-      unawaited(_reabrirPanoramaNaLingua());
+    if (state.stage == SalaStage.convite) {
+      if (_panoramaSessionId != null) unawaited(_reabrirPanoramaNaLingua());
       return;
     }
-    if (state.stage == SalaStage.convite) return;
     _startOver();
   }
 
   Future<void> _reabrirPanoramaNaLingua() async {
     _clearAll();
     _conviteOpened = true;
+    _panoramaSessionId = null;
     state = state.copyWith(
       conviteStep: ConviteStep.boasVindas,
       voice: VoiceState.thinking,
       noteMode: false,
     );
+    _watchBusyState();
     final epoch = _epoch;
-    final created =
-        await _room.createSession(pericope: panoramaPericope, language: _lingua);
+    final reach = await _network.reachRoom();
     if (epoch != _epoch) return;
-    if (!isThePanorama(created.pericope)) {
+    if (reach != RoomReach.fine) {
       _conviteOpened = false;
-      state = state.copyWith(voice: VoiceState.invite);
+      _goOffline(reach);
       return;
     }
-    _panoramaSessionId = created.sessionId;
-    _conviteOpened = false;
-    unawaited(openConvite());
+    try {
+      final created =
+          await _room.createSession(pericope: panoramaPericope, language: _lingua);
+      if (epoch != _epoch) return;
+      _conviteOpened = false;
+      if (!isThePanorama(created.pericope)) {
+        state = state.copyWith(voice: VoiceState.invite);
+        return;
+      }
+      _panoramaSessionId = created.sessionId;
+      unawaited(openConvite());
+    } on Object catch (error) {
+      if (epoch != _epoch) return;
+      _conviteOpened = false;
+      _handleRoomFailure(error);
+    }
   }
 
   void goEnsaio() {
