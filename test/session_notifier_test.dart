@@ -1188,7 +1188,8 @@ void main() {
             'compartilhavam um timer');
   });
 
-  test('the server closing the session puts the circle at rest', () async {
+  test('the server closing the session offers the rehearsal, not a circle at rest',
+      () async {
     final harness = SalaHarness()..room.done = true;
     final container = await inConversa(harness);
     addTearDown(container.dispose);
