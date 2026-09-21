@@ -47,6 +47,19 @@ because `_finishChunkCapture` itself already resolves every one of its own exits
 started from" is the `playing` state a capture interrupts, not the screen the mic was
 opened from, and this decision does not change that.
 
+Undoing the phase is not the whole of undoing the capture. `traduzirDeNovo` arms
+`_trechoTraduzidoDeNovo` in the same gesture that opens the capture — choosing the mend
+*is* opening the microphone on it — so a halt that discards this capture must forget the
+mend too, or the next, ordinary tap of the scissors would silently send its recording as
+a correction of a stretch the team never chose to touch again, with that stretch's own
+bounds rather than the cursor's. The analyst's door (`_levarAoTrechoNaoTraduzido`) arms
+the same field in an earlier, separate gesture — it only leads the team to the stretch and
+plays it, leaving the capture to the scissors that follow — so a halt discarding *that*
+capture must leave the arming standing, exactly as a denied or failed start already does:
+the team's next tap on the scissors is still answering the question the analyst asked.
+One flag, set where each of the two callers of `_startChunkCapture` already knows which
+case it is, tells the guard which of the two a discarded capture was.
+
 ## Consequences
 
 The other halts this tablet raises are untouched: the room-decided halt inside
