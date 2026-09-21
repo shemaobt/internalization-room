@@ -209,6 +209,63 @@ void main() {
     });
   });
 
+  test('a dispose that lands while a load is still in the air writes nothing '
+      'after closing', () async {
+    final tocador = _Duplo();
+    final playback = PlaybackRepository(newPlayer: () => tocador);
+    final anunciadas = <void>[];
+    playback.openings.listen(anunciadas.add);
+    tocador.segurados['/parte-1.m4a'] = Completer<void>();
+
+    final abrindo = playback.play('/parte-1.m4a');
+    await _oLoadNoAr(tocador, '/parte-1.m4a');
+
+    await playback.dispose();
+    // A load that fails, not one that lands: a load that lands never reaches
+    // _openings.add at all once the catch already covers whatever it would have
+    // thrown, so a held load that merely completes fixes nothing about this catch's
+    // own guard. The guard on _openings.add itself stays for safety, with no
+    // scenario this double can raise that tells it apart from the one here.
+    tocador.segurados['/parte-1.m4a']!.completeError(
+      const FormatException('sumiu'),
+    );
+
+    await expectLater(abrindo, completes,
+        reason:
+            'o repositório já se fechou; o catch do load não pode escrever '
+            'numa fila de eventos fechada');
+    expect(anunciadas, isEmpty);
+  });
+
+  test('the same is true of the slice a stretch plays', () async {
+    final tocador = _Duplo();
+    final playback = PlaybackRepository(newPlayer: () => tocador);
+    final falhas = <void>[];
+    playback.failures.listen(falhas.add);
+    tocador.segurados['/parte-1.m4a'] = Completer<void>();
+
+    final abrindo = playback.playRange(
+      '/parte-1.m4a',
+      const Duration(seconds: 1),
+      const Duration(seconds: 2),
+    );
+    await _oLoadNoAr(tocador, '/parte-1.m4a');
+
+    await playback.dispose();
+    // A load that fails, not one that lands: the catch only runs if the load itself
+    // throws, and a load that lands never reaches _endings.add(false) at all — so a
+    // held load that merely completes proves nothing about this catch's own guard.
+    tocador.segurados['/parte-1.m4a']!.completeError(
+      const FormatException('sumiu'),
+    );
+
+    await expectLater(abrindo, completes,
+        reason:
+            'o repositório já se fechou; o catch da fatia não pode escrever '
+            'numa fila de eventos fechada');
+    expect(falhas, isEmpty);
+  });
+
   test('pausing a player that never opened is not an error', () async {
     final playback = PlaybackRepository(start: (_) async {});
     addTearDown(playback.dispose);

@@ -15,6 +15,7 @@ class PlaybackRepository {
   /// source replaces it, so measuring on the playing one would take the clip out of its
   /// hands — its length, its position, and the events the room hangs off both.
   AudioPlayer? _measurer;
+  bool _disposed = false;
 
   PlaybackRepository({
     this._start,
@@ -63,7 +64,7 @@ class PlaybackRepository {
   void _watchCompletion() {
     _states ??= _player.playerStateStream.listen((playerState) {
       if (playerState.processingState == ProcessingState.completed) {
-        _endings.add(true);
+        if (!_disposed) _endings.add(true);
       }
     });
   }
@@ -88,7 +89,7 @@ class PlaybackRepository {
         await _open(path, from);
       }
     } on Object {
-      _endings.add(false);
+      if (!_disposed) _endings.add(false);
     }
   }
 
@@ -106,7 +107,7 @@ class PlaybackRepository {
         ),
       );
     } on Object {
-      _endings.add(false);
+      if (!_disposed) _endings.add(false);
     }
   }
 
@@ -151,7 +152,7 @@ class PlaybackRepository {
     // settling behind it would write back the length of a clip that never played — which
     // is the very length the ceiling of the next clip would be computed from.
     _openedLength = parada == _stops ? length : null;
-    _openings.add(null);
+    if (!_disposed) _openings.add(null);
     if (!_wanted || parada != _stops) return;
     await _player.play();
   }
@@ -203,6 +204,7 @@ class PlaybackRepository {
   }
 
   Future<void> dispose() async {
+    _disposed = true;
     await _states?.cancel();
     await _endings.close();
     await _openings.close();

@@ -216,6 +216,14 @@ class FakeRecorder implements RecordingRepository {
     }
   }
 
+  /// Whether the microphone is genuinely open right now. `stop()` and `discard()`
+  /// otherwise answer the same whether or not anything was ever recording, which is
+  /// fine for the tests that already drive a real start — but `_clearAll` calls
+  /// `discard()` on every passage transition, recording or not, and a discard that
+  /// invents a file for a microphone that was never open would delete a piece no
+  /// gesture ever made.
+  bool _recording = false;
+
   @override
   Future<Capture> start(String fileName) async {
     sounds.add('recorder:start');
@@ -226,6 +234,7 @@ class FakeRecorder implements RecordingRepository {
     captures++;
     if (!permitted) return Capture.denied;
     if (startThrows) return Capture.failed;
+    _recording = true;
     return Capture.started;
   }
 
@@ -249,6 +258,7 @@ class FakeRecorder implements RecordingRepository {
   Future<String?> stop() async {
     final held = _holdingStop;
     if (held != null) await held.future;
+    _recording = false;
     if (returnsNothing) return null;
     final file = File('${home.path}/captura-$captures.m4a')
       ..writeAsStringSync(returnsEmpty ? '' : 'a equipe falou');
@@ -259,7 +269,12 @@ class FakeRecorder implements RecordingRepository {
     ..writeAsStringSync('a equipe contou a passagem');
 
   @override
-  Future<void> discard() async {}
+  Future<void> discard() async {
+    sounds.add('recorder:discard');
+    if (!_recording) return;
+    final path = await stop();
+    if (path != null) deleted.add(path);
+  }
 
   @override
   Future<void> delete(String path) async => deleted.add(path);
@@ -1634,8 +1649,9 @@ class SalaHarness {
 
   /// Everything that made or stopped a sound, in the order it happened: `playback:play`,
   /// `playback:pause`, `playback:stop`, `voice:line`, `voice:asset`, `voice:stop`,
-  /// `recorder:start`. A gesture that moves the room has to silence it *before* its own
-  /// sound, and an order is the only way to read that without one double reading another.
+  /// `recorder:start`, `recorder:discard`. A gesture that moves the room has to silence
+  /// it *before* its own sound, and an order is the only way to read that without one
+  /// double reading another.
   final List<String> sounds = [];
   late final FakeVoice voice = FakeVoice(sounds: sounds);
   final FacilitatorVoiceService? voiceService;

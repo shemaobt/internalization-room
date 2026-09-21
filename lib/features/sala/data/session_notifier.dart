@@ -187,6 +187,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   bool _recordingStarting = false;
   String? _emCurso;
   Trecho? _trechoTraduzidoDeNovo;
+  /// Whether the capture now open is what armed [_trechoTraduzidoDeNovo]: `traduzirDeNovo`
+  /// arms it in the same gesture that opens the capture, but the analyst's door
+  /// (`_levarAoTrechoNaoTraduzido`) arms it before any capture, for the scissors to pick
+  /// up later. A halt discarding this capture must undo only what this capture itself did.
+  bool _mendArmedWithThisCapture = false;
   /// The clip is paused. `_onPlaybackComplete` deliberately survives a pause — the resume
   /// still has to be able to end the part — so it cannot be what tells a ceiling whether
   /// there is any sound left to measure.
@@ -674,6 +679,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     bool reachable = true,
     bool read = false,
   }) {
+    if (state.btPhase == BtPhase.capturing) {
+      unawaited(_recorder.discard());
+      if (_mendArmedWithThisCapture) _trechoTraduzidoDeNovo = null;
+      _mendArmedWithThisCapture = false;
+      _undoTheListening();
+    }
     _leaveThinking();
     if (!state.needsPerson) {
       unawaited(_voice.playAsset(fixedLineAsset(needsPersonLine, _lingua)));
@@ -2619,6 +2630,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _recordOrBlock(String fileName) async {
     final epoch = _epoch;
+    final openedAsAChunkCapture = state.btPhase == BtPhase.capturing;
     _micWatch ??= _recorder.interrupted.listen(_theMicrophoneChangedHands);
     final capture = await _recorder.start(fileName);
     // The answer can arrive a minute late — `hasPermission` waits up to sixty seconds for
@@ -2631,6 +2643,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (capture) {
       case Capture.started:
         _captureFails = 0;
+        // A halt landing while this start was still in the air ran its own discard
+        // early, on a recorder that had not opened yet, and left the phase in
+        // `playing`. The recorder only just answered, and nothing else will ever
+        // close it. `btPhase` only means anything for a chunk capture — checked here
+        // too, or every ordinary start outside the retro would read as one discarded.
+        if (openedAsAChunkCapture && state.btPhase != BtPhase.capturing) {
+          unawaited(_recorder.discard());
+        }
         return;
       case Capture.denied:
         // Unwound as well: the gate replaces the screen, but the state underneath it is
@@ -2654,8 +2674,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       noteMode: false,
       btPhase: capturing ? BtPhase.playing : state.btPhase,
       voice: VoiceState.invite,
-      // The microphone a correction was going to speak into never opened, so the mend
-      // has not started after all and that stretch is waiting again.
+      // Whether the microphone a correction was going to speak into never opened, or
+      // opened and was just discarded under a halt, the mend has not landed and that
+      // stretch is waiting again.
       btConsertando: false,
     );
     // The retro's clip was paused for the telling-back that never started. Its sibling
@@ -3208,6 +3229,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (_playback.position < _trechoStart) return;
       _trechoEnd = _playback.position;
     }
+    _mendArmedWithThisCapture = false;
     _startChunkCapture();
   }
 
@@ -3296,6 +3318,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       btConsertando: state.btFindingSegmentId == trecho.segmentId,
     );
+    _mendArmedWithThisCapture = true;
     _startChunkCapture();
   }
 
@@ -4331,6 +4354,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _personAskStep = 0;
     _haltWatched = null;
     _trechoTraduzidoDeNovo = null;
+    _mendArmedWithThisCapture = false;
     _degradedTurns = 0;
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;

@@ -107,6 +107,10 @@ _Avoid_: língua-ponte, L2, Portuguese (it is the role, not the fixed language),
 A piece of the back-translation already told: it points at a rehearsal take and at a time range inside that file, never at the concatenated passage.
 _Avoid_: trecho, segment (the wire name), chunk (the ephemeral position)
 
+**Capture**:
+The back-translation's open microphone, between the scissors and the tap on the circle. A closed capture becomes a stretch; a halt that lands inside one closes it and keeps nothing.
+_Avoid_: recording, gravação, chunk (the wire's name)
+
 **Place**:
 The part a stretch sits in and the interval it occupies there, which is also what the stretch plays; no mend moves it.
 _Avoid_: lugar, position, offset, range

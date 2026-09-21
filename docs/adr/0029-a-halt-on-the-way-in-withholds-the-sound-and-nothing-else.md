@@ -59,3 +59,7 @@ returns the room to the invitation only if it is still thinking. The invitation 
 over a halt let a team reopening into a room the server had already stopped straight back
 in, against ADR 0009. That path was reachable before ADR 0027 and was taken whenever the
 measuring happened to wait; making the wait unconditional made it the ordinary case.
+
+ADR 0036 governs a halt met once inside the **Back-translation**, during a **Capture**:
+there the team's own recording is in flight, unlike here, so it is undone rather than
+merely withheld.
