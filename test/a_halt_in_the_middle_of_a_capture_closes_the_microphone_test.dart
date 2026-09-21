@@ -21,6 +21,9 @@ int _haltLines(SalaHarness harness) => harness.voice.assets
     .where((asset) => asset == fixedLineAsset(needsPersonLine, testLanguage))
     .length;
 
+int _stateReads(SalaHarness harness) =>
+    harness.room.calls.where((call) => call == 'fetchState').length;
+
 /// A tablet reopening straight into an unchecked telling-back, with one part already
 /// named. Copied from `the_desk_lifts_the_halt_test.dart`: fixtures never travel between
 /// modules, only the shape does.
@@ -51,7 +54,7 @@ Future<ProviderContainer> _reopensIntoRetro(SalaHarness harness) async {
 }
 
 /// A room reopened into the retro, with a warning already standing so the watch beats,
-/// and a capture open over the resumed part: the ground T1's criterion measures.
+/// and a capture open over the resumed part: the ground the acceptance criteria measure.
 Future<
     (
       ProviderContainer,
@@ -66,6 +69,38 @@ Future<
 
   await waitFor('o aviso chegar', () => read().warning);
   notifier.cortarTrecho();
+  await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
+
+  return (container, notifier, read);
+}
+
+/// The same ground, but the capture is opened by `traduzirDeNovo` over a stretch already
+/// told, arming a mend in the same gesture — the case point 1 of the review measures.
+Future<
+    (
+      ProviderContainer,
+      SalaSessionNotifier,
+      SalaSessionState Function(),
+    )> _mendCapturingWithAWarningArmed(SalaHarness harness) async {
+  harness.room.serverStatus = 'needs_person';
+  harness.room.serverHalt = HaltKind.warning;
+  harness.room.retroSoFar = const BackTranslationProgress(
+    segments: [
+      SegmentView(
+        segmentId: 'trecho-1',
+        takeId: 'gravacao-1',
+        startsMs: 0,
+        endsMs: 12000,
+      ),
+    ],
+  );
+  final container = await _reopensIntoRetro(harness);
+  final notifier = container.read(salaSessionProvider.notifier);
+  SalaSessionState read() => container.read(salaSessionProvider);
+
+  await waitFor('o aviso chegar', () => read().warning);
+  final trecho = read().btTrechos.first;
+  notifier.traduzirDeNovo(trecho);
   await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
 
   return (container, notifier, read);
@@ -111,8 +146,7 @@ Future<ProviderContainer> _inRetro(SalaHarness harness) async {
 }
 
 void main() {
-  test(
-      'T1: a blocking halt read while capturing closes the microphone and '
+  test('a blocking halt read while capturing closes the microphone and '
       'undoes the listening', () async {
     final harness = SalaHarness();
     final (container, notifier, read) =
@@ -121,6 +155,7 @@ void main() {
 
     await _haltLandsBlocking(harness, read);
 
+    expect(read().voice, VoiceState.needsPerson);
     expect(read().needsPerson, isTrue);
     expect(_haltLines(harness), 1,
         reason: 'a parada é anunciada uma vez, como qualquer entrada nela');
@@ -129,6 +164,8 @@ void main() {
         reason:
             'o gravador tem de ser descartado depois de ter sido aberto — o '
             'testemunho que a nota do harness pede');
+    expect(harness.recorder.deleted, isNotEmpty,
+        reason: 'a peça que estava sendo escrita se foi');
     expect(read().btPhase, BtPhase.playing,
         reason: 'a fase volta para a que a captura interrompeu');
     expect(read().btClipRodando, isFalse,
@@ -137,7 +174,7 @@ void main() {
         reason: 'a captura fechada não vira um trecho enviado');
   });
 
-  test('T2: after the attend, a tap on the circle sends nothing', () async {
+  test('after the attend, a tap on the circle sends nothing', () async {
     final harness = SalaHarness();
     final (container, notifier, read) =
         await _capturingWithAWarningArmed(harness);
@@ -162,7 +199,7 @@ void main() {
     expect(read().btPhase, BtPhase.playing);
   });
 
-  test('T3: after the attend, the scissors open a fresh capture', () async {
+  test('after the attend, the scissors open a fresh capture', () async {
     final harness = SalaHarness();
     final (container, notifier, read) =
         await _capturingWithAWarningArmed(harness);
@@ -184,8 +221,8 @@ void main() {
   });
 
   test(
-      'T4: a recording already in the outbox is still delivered while the '
-      'halt stands', () async {
+      'a recording already in the outbox is still delivered while the halt '
+      'stands', () async {
     final harness = SalaHarness(filaEmMemoria: true);
     final (container, notifier, read) =
         await _capturingWithAWarningArmed(harness);
@@ -219,13 +256,15 @@ void main() {
             'que já tinha, sem esperar o atendimento');
   });
 
-  test('T5: a warning changes nothing', () async {
+  test('a warning changes nothing', () async {
     final harness = SalaHarness();
     final (container, notifier, read) =
         await _capturingWithAWarningArmed(harness);
+    final asked = _stateReads(harness);
+    await waitFor('mais uma batida da vigia', () => _stateReads(harness) > asked);
 
     expect(read().btPhase, BtPhase.capturing,
-        reason: 'a captura segue aberta');
+        reason: 'a captura segue aberta depois da vigia ler o aviso de novo');
     expect(read().warning, isTrue);
     final captureIndex = harness.sounds.lastIndexOf('recorder:start');
     expect(harness.sounds.sublist(captureIndex + 1),
@@ -234,8 +273,7 @@ void main() {
     expect(read().needsPerson, isFalse);
   });
 
-  test(
-      'T6: the halt the room decided on its own inside the capture close is '
+  test('the halt the room decided on its own inside the capture close is '
       'unchanged', () async {
     final harness = SalaHarness();
     final container = await _inRetro(harness);
@@ -246,19 +284,72 @@ void main() {
     final discardsBefore =
         harness.sounds.where((s) => s == 'recorder:discard').length;
     notifier.cortarTrecho();
-    await settle();
+    await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
     notifier.retroTap();
-    await settle();
+    await waitFor('a sala decidir sozinha', () => read().needsPerson);
 
-    expect(read().needsPerson, isTrue,
-        reason:
-            'pin: um trecho sem áudio continua parando a sala como sempre '
-            'parou');
     expect(harness.sounds.where((s) => s == 'recorder:discard').length,
         discardsBefore,
         reason:
             'o gravador já tinha sido parado por _finishChunkCapture; a '
             'entrada da parada não tem mais nada para descartar');
     expect(read().btPhase, BtPhase.playing);
+  });
+
+  test('a halt landing while the start is still in the air leaves nothing '
+      'open once it lands', () async {
+    final harness = SalaHarness();
+    harness.recorder.holdNextStart();
+    final (container, notifier, read) =
+        await _capturingWithAWarningArmed(harness);
+
+    await _haltLandsBlocking(harness, read);
+    expect(read().btPhase, BtPhase.playing);
+    final discardsBeforeStart =
+        harness.sounds.where((s) => s == 'recorder:discard').length;
+
+    harness.recorder.finishStart();
+    await settle();
+
+    expect(harness.sounds.where((s) => s == 'recorder:discard').length,
+        greaterThan(discardsBeforeStart),
+        reason:
+            'o gravador só respondeu depois de a parada já ter desistido '
+            'dele; nada mais o fecharia');
+    expect(read().btPhase, BtPhase.playing);
+  });
+
+  test('a halt landing over a mend traduzirDeNovo armed together with the '
+      'capture forgets that mend, so the next capture is an ordinary one',
+      () async {
+    final harness = SalaHarness();
+    final (container, notifier, read) =
+        await _mendCapturingWithAWarningArmed(harness);
+    await _haltLandsBlocking(harness, read);
+    harness.room.theDeskAttended();
+    await waitFor(
+      'o círculo voltar ao convite',
+      () => read().voice == VoiceState.invite,
+    );
+
+    harness.playback.at = const Duration(seconds: 15);
+    notifier.cortarTrecho();
+    await waitFor(
+      'uma nova captura abrir',
+      () => read().btPhase == BtPhase.capturing,
+    );
+    notifier.retroTap();
+    await waitFor('a sala decidir', () => read().btPhase != BtPhase.capturing);
+
+    expect(harness.room.calls, contains('sendChunk'),
+        reason: 'a tesoura nova é um trecho comum, não a correção esquecida');
+    expect(harness.room.calls, isNot(contains('replaceSegment')),
+        reason:
+            'o achado antigo não pode ser reescrito por uma gravação que a '
+            'equipe nunca associou a ele');
+    expect(harness.room.chunkSpans.last, '12000-15000',
+        reason:
+            'o cursor foi lido a partir do chão já contado; os limites não '
+            'são os do achado antigo');
   });
 }
