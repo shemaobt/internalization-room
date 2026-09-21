@@ -6,6 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
+import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
@@ -201,38 +202,200 @@ void main() {
             'da passagem numa língua e metade noutra');
   });
 
-  testWidgets(
-      'the dev language button on the panorama recreates it instead of falling to the wheel',
-      (tester) async {
+  test(
+      'the dev language button recreates an already-open panorama instead of falling to the wheel',
+      () async {
     dotenv.testLoad(
       fileInput: 'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
     );
     addTearDown(() => dotenv.testLoad(fileInput: ''));
-    tester.platformDispatcher.localesTestValue = const [Locale('pt')];
-    addTearDown(tester.platformDispatcher.clearLocalesTestValue);
-    final harness = SalaHarness(filaEmMemoria: true, lingua: null);
-    final container = await pumpSala(tester, harness);
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    notifier.conviteTap();
-    await tester.pump(const Duration(milliseconds: 300));
+    await notifier.openConvite();
+    expect(container.read(salaSessionProvider).conviteStep, ConviteStep.entrada,
+        reason: 'o panorama precisa estar de fato aberto e dito para este teste valer a '
+            'pena — o #178 só cobria o instante logo após o toque no círculo, antes de a '
+            'abertura terminar');
+    expect(container.read(salaSessionProvider).voice, VoiceState.invite);
+
     notifier.devTrocarIdioma();
-    await tester.pump(const Duration(milliseconds: 400));
+    await settle();
 
     expect(container.read(salaSessionProvider).stage, SalaStage.convite,
         reason: 'o botão de idioma é para o DEV ouvir o panorama noutra língua — jogar '
             'para a roda abandona exatamente a sessão que ele estava tentando testar');
-
-    notifier.conviteTap();
-    await tester.pump(const Duration(milliseconds: 400));
-
-    expect(container.read(salaSessionProvider).stage, SalaStage.convite);
     expect(harness.room.sessionIds, hasLength(2),
         reason: 'a sessão antiga ficou presa na língua velha; testar a nova pede uma '
-            'sessão nova, não a mesma respondendo em duas línguas');
-    expect(harness.room.languagesSent.last, isNot('pt'),
-        reason: 'a sessão recriada é da língua que o botão acabou de escolher, não da '
-            'que o panorama tinha antes do toque');
+            'sessão nova, sem esperar um segundo toque no círculo');
+  });
+
+  test(
+      'the dev language button on an open panorama does not enter the passage the room answers with instead',
+      () async {
+    dotenv.testLoad(
+      fileInput: 'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
+    );
+    addTearDown(() => dotenv.testLoad(fileInput: ''));
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.openConvite();
+    harness.room.panoramaAnsweredWith = 'P01';
+
+    final sessionsAntes = [...harness.room.sessionsSpokenTo];
+
+    notifier.devTrocarIdioma();
+    await settle();
+
+    expect(container.read(salaSessionProvider).conviteStep, ConviteStep.boasVindas,
+        reason: 'a sala já tinha dado o panorama uma vez; pedi-lo de novo é um pedido, '
+            'não uma instrução, e a sala pode responder com uma passagem de verdade — '
+            'entrar nela e dizê-la como se fosse o panorama é o que o teste manual do '
+            'João viu em 21/09: uma passagem falada e ouvida como se fosse a visão geral');
+    expect(harness.room.sessionsSpokenTo, sessionsAntes,
+        reason: 'a sessão que a sala devolveu no lugar do panorama nunca chega a ser '
+            'aberta nem dita');
+    expect(container.read(salaSessionProvider).sessionId, isNull,
+        reason: 'nenhuma passagem foi de fato aberta a partir do botão de DEV');
+  });
+
+  test(
+      'the dev language button keeps the panorama when the room answers the ask for OV with OV-Ruth',
+      () async {
+    dotenv.testLoad(
+      fileInput: 'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
+    );
+    addTearDown(() => dotenv.testLoad(fileInput: ''));
+    final binding = TestWidgetsFlutterBinding.ensureInitialized();
+    binding.platformDispatcher.localesTestValue = const [Locale('pt', 'BR')];
+    addTearDown(binding.platformDispatcher.clearLocalesTestValue);
+    final harness = SalaHarness(lingua: null);
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.openConvite();
+    expect(harness.room.languagesSent, ['pt']);
+    expect(container.read(salaSessionProvider).stage, SalaStage.convite,
+        reason: 'a sala respondeu "OV-Ruth" ao pedido "OV" — é o id real do panorama, '
+            'não uma passagem; o simulador do João em 21/09 caiu em conversa aqui');
+    expect(container.read(salaSessionProvider).conviteStep, ConviteStep.entrada);
+    expect(container.read(salaSessionProvider).voice, VoiceState.invite);
+
+    notifier.devTrocarIdioma();
+    await settle();
+
+    expect(container.read(salaSessionProvider).stage, SalaStage.convite,
+        reason: 'no aparelho do João o panorama tinha sido aberto como conversa e o '
+            'botão de idioma, sem panorama anotado, recomeçou da roda');
+    expect(harness.room.sessionIds, hasLength(2),
+        reason: 'a língua nova pede uma sessão nova do panorama');
+    expect(harness.room.languagesSent, ['pt', 'en']);
+    expect(harness.emAberto.rows.keys, isNot(contains('Ruth/OV-Ruth')),
+        reason: 'o panorama não é uma passagem em curso — o em_curso.json do simulador '
+            'guardou {"Ruth/OV-Ruth": {"stage": "conversa"}} e foi daí que a roda veio');
+  });
+
+  test('the dev language button on the wheel restarts the room, even after the panorama was said',
+      () async {
+    dotenv.testLoad(
+      fileInput: 'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
+    );
+    addTearDown(() => dotenv.testLoad(fileInput: ''));
+    final binding = TestWidgetsFlutterBinding.ensureInitialized();
+    binding.platformDispatcher.localesTestValue = const [Locale('pt', 'BR')];
+    addTearDown(binding.platformDispatcher.clearLocalesTestValue);
+    final harness = SalaHarness(lingua: null);
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.openConvite();
+    await notifier.abrirEscolha();
+    await settle();
+    expect(container.read(salaSessionProvider).stage, SalaStage.escolha);
+    expect(harness.room.languagesAsked, ['pt']);
+
+    notifier.devTrocarIdioma();
+    await settle();
+
+    expect(container.read(salaSessionProvider).voice, isNot(VoiceState.thinking),
+        reason: 'o panorama já dito vencia em qualquer etapa e o botão reabria o '
+            'convite de dentro da roda; openConvite voltava no próprio guard e a sala '
+            'ficava pensando para sempre, com uma sessão nova abandonada no servidor');
+    expect(container.read(salaSessionProvider).stage, SalaStage.escolha,
+        reason: 'a dica do botão promete recomeçar a sala — na roda, é a roda que '
+            'volta, na língua nova');
+    expect(harness.room.languagesAsked, ['pt', 'en']);
+    expect(harness.room.sessionIds, hasLength(1),
+        reason: 'fora do convite não há panorama para reabrir; a sessão nova é pedida '
+            'quando a equipe tocar o convite de novo');
+  });
+
+  test('the dev language button survives the room failing to give the panorama again',
+      () async {
+    dotenv.testLoad(
+      fileInput: 'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
+    );
+    addTearDown(() => dotenv.testLoad(fileInput: ''));
+    final binding = TestWidgetsFlutterBinding.ensureInitialized();
+    binding.platformDispatcher.localesTestValue = const [Locale('pt', 'BR')];
+    addTearDown(binding.platformDispatcher.clearLocalesTestValue);
+    final harness = SalaHarness(lingua: null);
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.openConvite();
+    expect(harness.room.sessionIds, hasLength(1));
+    harness.room.failCreateOnceWith = const RoomBroke('HTTP 500');
+
+    notifier.devTrocarIdioma();
+    await settle();
+
+    expect(container.read(salaSessionProvider).voice, VoiceState.invite,
+        reason: 'a cópia do pedido do panorama não tinha try/catch e rodava solta: um '
+            '500 estourava sem ninguém para pegar e a sala ficava pensando');
+
+    notifier.conviteTap();
+    await settle();
+
+    expect(harness.room.sessionIds, hasLength(2),
+        reason: 'a falha deixava o trinco do convite fechado para o resto da sessão — '
+            'nem o toque no círculo pedia o panorama de novo');
+    expect(harness.room.languagesSent, ['pt', 'en'],
+        reason: 'o pedido que falhou não conta; o toque pede o panorama na língua nova');
+  });
+
+  test('the dev language button with no network goes offline instead of thinking forever',
+      () async {
+    dotenv.testLoad(
+      fileInput: 'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
+    );
+    addTearDown(() => dotenv.testLoad(fileInput: ''));
+    final binding = TestWidgetsFlutterBinding.ensureInitialized();
+    binding.platformDispatcher.localesTestValue = const [Locale('pt', 'BR')];
+    addTearDown(binding.platformDispatcher.clearLocalesTestValue);
+    final harness = SalaHarness(lingua: null);
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.openConvite();
+    harness.network.radioSeesNothing = true;
+
+    notifier.devTrocarIdioma();
+    await settle();
+
+    expect(container.read(salaSessionProvider).voice, VoiceState.offline,
+        reason: 'openConvite olha o rádio antes de pedir a sala; a cópia não olhava');
+    expect(harness.room.sessionIds, hasLength(1),
+        reason: 'sem rede não há pedido a fazer');
   });
 
   test('the dev language button drops an armed hand along with the panorama it was armed on',

@@ -1220,7 +1220,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // also the session to enter: opening another for the same passage left the one the
       // room had just made abandoned, one ghost row per launch.
       final given = created?.pericope;
-      if (given != null && given != panoramaPericope) {
+      if (given != null && !isThePanorama(given)) {
         // The room answering a passage is its word that the panorama was heard. Left
         // unwritten, a tablet without the mark asked for the panorama on every launch and
         // adopted a new session each time, its coverage starting over from zero.
@@ -1488,7 +1488,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // room decides otherwise lands where the room answered, rather than being left on
       // the wheel mid an opening turn nothing here is set up to answer.
       final given = created?.pericope;
-      if (given != null && given != panoramaPericope) {
+      if (given != null && !isThePanorama(given)) {
         unawaited(goConversa(pericope: given, opened: created));
         return;
       }
@@ -2269,17 +2269,47 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final knob = ref.read(devLanguageProvider.notifier);
     knob.choose(knob.next(_lingua));
     if (state.stage == SalaStage.convite) {
-      _clearAll();
-      _conviteOpened = false;
-      _panoramaSessionId = null;
-      state = state.copyWith(
-        conviteStep: ConviteStep.boasVindas,
-        voice: VoiceState.invite,
-        noteMode: false,
-      );
+      if (_panoramaSessionId != null) unawaited(_reabrirPanoramaNaLingua());
       return;
     }
     _startOver();
+  }
+
+  Future<void> _reabrirPanoramaNaLingua() async {
+    _clearAll();
+    _conviteOpened = true;
+    _panoramaSessionId = null;
+    state = state.copyWith(
+      conviteStep: ConviteStep.boasVindas,
+      voice: VoiceState.thinking,
+      noteMode: false,
+    );
+    _watchBusyState();
+    final epoch = _epoch;
+    final reach = await _network.reachRoom();
+    if (epoch != _epoch) return;
+    if (reach != RoomReach.fine) {
+      _conviteOpened = false;
+      _goOffline(reach);
+      return;
+    }
+    _watchBusyState();
+    try {
+      final created =
+          await _room.createSession(pericope: panoramaPericope, language: _lingua);
+      if (epoch != _epoch) return;
+      _conviteOpened = false;
+      if (!isThePanorama(created.pericope)) {
+        state = state.copyWith(voice: VoiceState.invite);
+        return;
+      }
+      _panoramaSessionId = created.sessionId;
+      unawaited(openConvite());
+    } on Object catch (error) {
+      if (epoch != _epoch) return;
+      _conviteOpened = false;
+      _handleRoomFailure(error);
+    }
   }
 
   void goEnsaio() {

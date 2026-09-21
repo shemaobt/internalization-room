@@ -979,10 +979,10 @@ class FakeRoom implements RoomRepository {
     metBefore.add(afterSession != null);
     languagesSent.add(language);
     // The server decides which passage a session is for; asking for the panorama is a
-    // request, not an instruction. Today it always honours "OV", and this is where that
-    // stops being true.
-    final answered = pericope == panoramaPericope && panoramaAnsweredWith != null
-        ? panoramaAnsweredWith
+    // request, not an instruction. Honoured, the ask for "OV" comes back as the real id
+    // "OV-Ruth", the way the room answers it; this is where that stops being true.
+    final answered = pericope == panoramaPericope
+        ? panoramaAnsweredWith ?? '$panoramaPericope-Ruth'
         : pericope;
     final sessionId = 'sessao-${sessionIds.length + 1}';
     sessionIds.add(sessionId);
