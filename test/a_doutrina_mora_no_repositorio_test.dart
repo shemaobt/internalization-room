@@ -101,10 +101,11 @@ void main() {
     ];
     expect(
       pendings,
-      ['the circle is alive at `done`'],
+      isEmpty,
       reason:
-          'no done o conversaTap para de aceitar fala e a tela oferece a saída para o ensaio; '
-          'a linha dela diz que o círculo está vivo ali, e este ticket não muda comportamento',
+          'a última linha PENDING era "the circle is alive at `done`"; desde que o conversaTap '
+          'aceita o toque em done e o teste a segura, a barra não tem mais nenhuma linha que '
+          'este repositório não reivindica',
     );
   });
 
