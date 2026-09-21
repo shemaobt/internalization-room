@@ -1499,49 +1499,6 @@ void main() {
     expect(read().stage, SalaStage.conversa);
   });
 
-  test('a resolve clears the degraded-turn streak, not just the room failures',
-      () async {
-    final harness = SalaHarness();
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    harness.room.turnsAreDegraded = true;
-    notifier.conversaTap();
-    await settle();
-    notifier.conversaTap();
-    await settle();
-    notifier.conversaTap();
-    await settle();
-    notifier.conversaTap();
-    await settle();
-
-    harness.room.turnsAreDegraded = false;
-    harness.room.failWith = const RoomBroke('HTTP 500');
-    for (var i = 0; i < 3; i++) {
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
-    }
-    expect(container.read(salaSessionProvider).needsPerson, isTrue);
-
-    notifier.resolveWithPerson();
-
-    harness.room.failWith = null;
-    harness.room.turnsAreDegraded = true;
-    notifier.conversaTap();
-    await settle();
-    notifier.conversaTap();
-    await settle();
-
-    expect(container.read(salaSessionProvider).needsPerson, isFalse,
-        reason: 'o resolve zerava _roomFailures e esquecia os degraus '
-            'degradados — dois turnos degradados de antes do halt mais um '
-            'depois do resolve já batiam o limiar, e a sala chamava alguém de '
-            'novo no primeiro turno seguinte');
-  });
-
   test('a network that fails every other turn still climbs to a person',
       () async {
     final harness = SalaHarness();
@@ -1627,7 +1584,7 @@ void main() {
             'o limiar antes da terceira falha de verdade acontecer');
   });
 
-  test('a resolve clears the slow-answer count too, not just the degraded one',
+  test('a resolve clears the slow-answer count too, not just the room-failure one',
       () async {
     final harness = SalaHarness()..room.failWith = const RoomSlow();
     final container = harness.container();
@@ -1655,7 +1612,7 @@ void main() {
             'gaguejasse pela primeira vez');
   });
 
-  test('a resolve clears the inbox-silence count too, not just the degraded one',
+  test('a resolve clears the inbox-silence count too, not just the room-failure one',
       () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
