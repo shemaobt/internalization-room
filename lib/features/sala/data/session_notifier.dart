@@ -3768,7 +3768,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // tap they choose to make, on the screen that asks the question.
     } on Exception catch (error) {
       if (epoch != _epoch) return;
-      _handleRoomFailure(error, turnCall: true);
+      _handleRoomFailure(error);
     }
   }
 
