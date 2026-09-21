@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
+import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
@@ -48,7 +49,10 @@ class EscolhaView extends ConsumerWidget {
                   gradient: BeadStyles.wood,
                   halo: ShemaBrand.wood,
                   border: Border.all(color: colors.cord, width: 2),
-                  semanticLabel: 'Entrar nesta passagem',
+                  semanticLabel: entrarLabelFor(
+                    isPanorama: session.oferecida!.isPanorama,
+                    language: ref.watch(roomLanguageProvider),
+                  ),
                   ready: podeEntrar,
                   onTap: notifier.entrarNaOferecida,
                 ),

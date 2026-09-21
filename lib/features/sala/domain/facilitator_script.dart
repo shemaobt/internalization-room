@@ -60,3 +60,10 @@ const circleLabels = {
 
 String circleLabelFor(String state, String language) =>
     circleLabels[state]![language] ?? circleLabels[state]![floorLanguage]!;
+
+const panoramaEntryLabel = {'pt': 'Panorama do Livro', 'en': 'Book Panorama'};
+
+String entrarLabelFor({required bool isPanorama, required String language}) =>
+    isPanorama
+        ? (panoramaEntryLabel[language] ?? panoramaEntryLabel[floorLanguage]!)
+        : 'Entrar nesta passagem';

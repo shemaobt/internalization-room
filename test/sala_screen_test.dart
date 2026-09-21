@@ -13,6 +13,7 @@ import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/data/mic_permission.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
+import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
@@ -203,6 +204,45 @@ void main() {
 
     expect(harness.room.pericopesAsked, contains('P02'));
     expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
+  });
+
+  testWidgets(
+      'the wooden button names the panorama, not "entrar nesta passagem"',
+      (tester) async {
+    const panorama = Passagem(
+      pericope: 'panorama',
+      audioUrl: '/voice/panorama',
+      kind: PassagemKind.panorama,
+    );
+    final harness = SalaHarness()
+      ..room.passages = const [panorama, Passagem(pericope: 'P01', audioUrl: '/voice/p01')];
+    final container = await pumpSala(tester, harness);
+    await container.read(salaSessionProvider.notifier).abrirEscolha();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(bySemanticsLabelWidget('Panorama do Livro'), findsOneWidget);
+    expect(bySemanticsLabelWidget('Entrar nesta passagem'), findsNothing,
+        reason: 'o panorama é a porta de entrada da roda, mas o botão de '
+            'entrar nele ainda dizia o rótulo genérico de qualquer passagem');
+  });
+
+  testWidgets('the panorama button speaks english to an english room',
+      (tester) async {
+    const panorama = Passagem(
+      pericope: 'panorama',
+      audioUrl: '/voice/panorama',
+      kind: PassagemKind.panorama,
+    );
+    final harness = SalaHarness(lingua: 'en')
+      ..room.passages = const [panorama, Passagem(pericope: 'P01', audioUrl: '/voice/p01')];
+    final container = await pumpSala(tester, harness);
+    await container.read(salaSessionProvider.notifier).abrirEscolha();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(bySemanticsLabelWidget('Book Panorama'), findsOneWidget);
+    expect(bySemanticsLabelWidget('Panorama do Livro'), findsNothing,
+        reason: 'um aparelho em inglês não pode mostrar o nome do panorama '
+            'em português');
   });
 
   testWidgets('a finished book offers nothing to enter', (tester) async {
