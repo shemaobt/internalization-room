@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -57,11 +56,12 @@ Future<ProviderContainer> _reopensInto(
   return container;
 }
 
-/// The halt as the team meets it: the room says it out loud. A halt reopened into is
-/// one the server already holds, so it is entered without a call (ENG-962): the desk
-/// was told by whatever raised it in the first place, not by this reopening.
-bool _haltEntered(SalaHarness harness) =>
-    harness.voice.assets.contains(fixedLineAsset(needsPersonLine, testLanguage));
+/// The halt as the team meets it: `needsPerson` on. A halt reopened into is one the
+/// server already holds, so it is entered without a call (ENG-962): the desk was told
+/// by whatever raised it in the first place, not by this reopening — and the app never
+/// speaks a line of its own over the halt (ENG-811).
+bool _haltEntered(ProviderContainer container) =>
+    container.read(salaSessionProvider).needsPerson;
 
 void main() {
   test('reopening into the retro honours the halt the server is holding',
@@ -75,7 +75,7 @@ void main() {
     );
 
     await waitFor('a sala parar como a conversa pararia',
-        () => _haltEntered(harness));
+        () => _haltEntered(container));
 
     final notifier = container.read(salaSessionProvider.notifier);
     final before = harness.playback.played.length;
@@ -102,7 +102,7 @@ void main() {
     final state = container.read(salaSessionProvider);
     expect(state.stage, SalaStage.retro);
     expect(state.btTrechos, hasLength(1));
-    expect(_haltEntered(harness), isFalse);
+    expect(_haltEntered(container), isFalse);
   });
 
   test('reopening into the rehearsal, halted, leaves the record circle dead',
@@ -111,7 +111,7 @@ void main() {
 
     final container = await _reopensInto(harness, SalaStage.ensaio);
 
-    await waitFor('a sala parar', () => _haltEntered(harness));
+    await waitFor('a sala parar', () => _haltEntered(container));
 
     container.read(salaSessionProvider.notifier).ensaioTap();
     await settle();

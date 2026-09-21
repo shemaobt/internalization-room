@@ -105,7 +105,7 @@ void main() {
         ...rendered,
         ...instantAckLines,
         ...inaudibleLines,
-        needsPersonLine,
+        'E0',
         approvedLine,
       };
 
@@ -358,9 +358,15 @@ void main() {
     notifier.devTrocarIdioma();
     await settle();
 
-    expect(container.read(salaSessionProvider).voice, VoiceState.invite,
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
         reason: 'a cópia do pedido do panorama não tinha try/catch e rodava solta: um '
-            '500 estourava sem ninguém para pegar e a sala ficava pensando');
+            '500 estourava sem ninguém para pegar e a sala ficava pensando; hoje o '
+            'try/catch existe e um 500 numa chamada de turno para a sala na hora');
+
+    harness.room.theDeskAttended();
+    notifier.resolveWithPerson();
+    await waitFor('o círculo voltar ao convite',
+        () => container.read(salaSessionProvider).voice == VoiceState.invite);
 
     notifier.conviteTap();
     await settle();

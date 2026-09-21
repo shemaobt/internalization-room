@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -12,11 +11,6 @@ import 'session_notifier_test.dart' show inConversa, settle;
 /// How many times the tablet has asked the room what it is doing.
 int _stateReads(SalaHarness harness) =>
     harness.room.calls.where((call) => call == 'fetchState').length;
-
-/// How many times the room said the halt out loud.
-int _haltLines(SalaHarness harness) => harness.voice.assets
-    .where((asset) => asset == fixedLineAsset(needsPersonLine, testLanguage))
-    .length;
 
 /// Beats enough for a read the room owes to have landed, at whatever cadence this
 /// harness was built with: a fixed number here would be zero beats under a wider one,
@@ -44,13 +38,6 @@ void main() {
           'o aviso nunca prendeu a equipe, e acabar não pode prendê-la: '
           'sair dele pela porta da parada bloqueante mexeria numa voz que '
           'este aviso jamais tocou',
-    );
-    expect(
-      _haltLines(harness),
-      0,
-      reason:
-          'a fala E0 anuncia uma sala que parou; o aviso não para '
-          'nenhuma, nem ao chegar nem ao acabar',
     );
     expect(
       read().voice,
@@ -86,13 +73,6 @@ void main() {
       await waitFor('o círculo sair do verde', () => !read().warning);
 
       expect(read().needsPerson, isFalse);
-      expect(
-        _haltLines(harness),
-        0,
-        reason:
-            'a sala não fez nada do conserto e avisou; os dois ramos da '
-            'resposta escrevem o mesmo aviso, e o que a mesa atende é o mesmo',
-      );
     },
   );
 
@@ -120,13 +100,6 @@ void main() {
             'a leitura que bloqueia não é a leitura que avisa: o verde '
             'sobre uma sala parada é a mentira que o círculo existe para não '
             'contar',
-      );
-      expect(
-        _haltLines(harness),
-        1,
-        reason:
-            'a parada que chega é uma parada como outra qualquer, e ela '
-            'se anuncia uma vez',
       );
       expect(
         harness.room.personsAsked,
@@ -182,7 +155,6 @@ void main() {
             'vigiar o aviso não pode convertê-lo na parada que a regra '
             'proíbe',
       );
-      expect(_haltLines(harness), 0);
       expect(
         harness.room.personsAsked,
         pedidos,
@@ -265,7 +237,6 @@ void main() {
         VoiceState.invite,
         reason: 'a sala segue de pé: o aviso acabou, e nada mais mudou',
       );
-      expect(_haltLines(harness), 0);
     },
   );
 

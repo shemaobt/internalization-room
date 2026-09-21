@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -19,11 +18,6 @@ int _stateReads(SalaHarness harness) =>
 
 int _createdSessions(SalaHarness harness) =>
     harness.room.calls.where((call) => call == 'createSession').length;
-
-/// How many times the room said the halt out loud.
-int _haltLines(SalaHarness harness) => harness.voice.assets
-    .where((asset) => asset == fixedLineAsset(needsPersonLine, testLanguage))
-    .length;
 
 /// A whole turn, from the team touching the circle to the room hearing it.
 Future<void> _aTurn(SalaSessionNotifier notifier) async {
@@ -120,7 +114,6 @@ void main() {
 
     await waitFor('a sala parar', () => read().needsPerson);
     final asked = _stateReads(harness);
-    final lines = _haltLines(harness);
 
     notifier.resolveWithPerson();
     await waitFor('a sala perguntar ao servidor na hora',
@@ -130,8 +123,6 @@ void main() {
     expect(read().needsPerson, isTrue,
         reason: 'o servidor ainda segura a parada; soltar no toque punha a '
             'equipe de volta a falar dentro de uma sala que a mesa não atendeu');
-    expect(_haltLines(harness), lines,
-        reason: 'e a parada que continua não é anunciada de novo a cada toque');
 
     harness.room.theDeskAttended();
 
@@ -161,9 +152,6 @@ void main() {
     expect(read().needsPerson, isFalse);
     expect(read().voice, VoiceState.invite,
         reason: 'o aviso chama uma pessoa para olhar; nada é recusado à equipe');
-    expect(_haltLines(harness), 0,
-        reason: 'e nada é dito: a sala anunciar uma parada que não existe faz a '
-            'equipe parar sozinha');
 
     await _aTurn(notifier);
     await waitFor('o turno chegar à sala', () => harness.room.turnsSent > turns);

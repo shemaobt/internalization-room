@@ -16,7 +16,7 @@ import 'fakes.dart';
 import 'session_notifier_test.dart' show settle;
 
 void main() {
-  test('a book with nothing left to offer reaches a person out loud', () async {
+  test('a book with nothing left to offer reaches a person', () async {
     final harness = SalaHarness()..room.passages = const [];
     final container = harness.container();
     addTearDown(container.dispose);
@@ -28,24 +28,9 @@ void main() {
     final state = container.read(salaSessionProvider);
     expect(state.naRoda, isEmpty);
     expect(state.needsPerson, isTrue);
-    expect(harness.voice.assets, contains(fixedLineAsset(needsPersonLine, testLanguage)));
-  });
-
-  test('a halted room says why it stopped, and says it once', () async {
-    final harness = SalaHarness()..room.passages = const [];
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    await notifier.abrirEscolha();
-    await settle();
-    notifier.escolhaTap();
-    notifier.escolhaTap();
-    await settle();
-
-    final spoken = harness.voice.assets
-        .where((asset) => asset == fixedLineAsset(needsPersonLine, testLanguage));
-    expect(spoken.length, 1);
+    expect(harness.voice.assets,
+        isNot(contains(fixedLineAsset('E0', testLanguage))),
+        reason: 'o círculo parado já é o aviso; o app não fala por cima dele');
   });
 
   test('a long press is still a way out of a book with nothing to offer',
@@ -140,7 +125,7 @@ void main() {
     expect(state.stage, SalaStage.escolha,
         reason: 'a recusa chegava como sala quebrada e prendia a equipe numa conversa '
             'que nunca abriu');
-    expect(harness.voice.assets, isNot(contains(fixedLineAsset(needsPersonLine, testLanguage))),
+    expect(harness.voice.assets, isNot(contains(fixedLineAsset('E0', testLanguage))),
         reason: 'a sala pedia uma pessoa para uma passagem que pessoa nenhuma abre no tablet');
   });
 
@@ -623,7 +608,7 @@ void main() {
         reason: 'e o servidor precisa saber, senão ela volta na próxima abertura');
   });
 
-  test('the server asking for a person is said out loud too', () async {
+  test('a halt read from the server status is not announced by the app', () async {
     final harness = SalaHarness(settleDelay: const Duration(milliseconds: 30));
     harness.room.serverStatus = 'needs_person';
     final container = await inConversaHarness(harness);
@@ -631,8 +616,10 @@ void main() {
 
     await waitFor('a sala pedir uma pessoa', () => container.read(salaSessionProvider).needsPerson);
 
-    expect(harness.voice.assets, contains(fixedLineAsset(needsPersonLine, testLanguage)),
-        reason: 'o caminho em que o próprio servidor manda parar era o mais mudo dos seis');
+    expect(harness.voice.assets,
+        isNot(contains(fixedLineAsset('E0', testLanguage))),
+        reason: 'a leitura de estado não é um turno; quem fala E0 é o servidor, '
+            'no turno em que ele decidir, não a vigia que só leu a marca');
   });
 
   test('a session the room forgot does not keep being told about it', () async {
@@ -655,7 +642,7 @@ void main() {
     final state = container.read(salaSessionProvider);
     expect(state.sessionId, isNull);
     expect(state.needsPerson, isFalse);
-    expect(harness.voice.assets, isNot(contains(fixedLineAsset(needsPersonLine, testLanguage))));
+    expect(harness.voice.assets, isNot(contains(fixedLineAsset('E0', testLanguage))));
     expect(harness.room.personsAsked, asked,
         reason: 'uma sessão que o servidor já esqueceu nunca chega a ser avisada — a '
             'equipe volta para a roda em silêncio em vez de esperar alguém');
@@ -1098,26 +1085,6 @@ void main() {
     expect(container.read(salaSessionProvider).needsPerson, isFalse,
         reason: 'a equipe fazia o que a sala pediu — ensaiar na língua dela — e no terceiro '
             'turno o app parava a sessão para um facilitador que não estava na casa');
-  });
-
-  test('a room answering from the tin does not pass for a working one', () async {
-    final harness = SalaHarness();
-    harness.room.turnsAreCanned = true;
-    harness.room.turnsAreDegraded = true;
-    final container = await inConversaHarness(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    for (var turno = 0; turno < 3; turno++) {
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
-    }
-
-    expect(container.read(salaSessionProvider).needsPerson, isTrue,
-        reason: 'o servidor avisa que a resposta é enlatada porque o modelo falhou, e o '
-            'app zerava todo contador e avançava a passagem em cima disso');
   });
 
   test('a turn that says nothing about coverage leaves the necklace alone', () async {

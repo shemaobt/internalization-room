@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -15,11 +14,6 @@ import 'fakes.dart';
 Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) async {
   await Future<void>.delayed(delay);
 }
-
-/// How many times the room said the halt out loud.
-int _haltLines(SalaHarness harness) => harness.voice.assets
-    .where((asset) => asset == fixedLineAsset(needsPersonLine, testLanguage))
-    .length;
 
 int _stateReads(SalaHarness harness) =>
     harness.room.calls.where((call) => call == 'fetchState').length;
@@ -157,8 +151,6 @@ void main() {
 
     expect(read().voice, VoiceState.needsPerson);
     expect(read().needsPerson, isTrue);
-    expect(_haltLines(harness), 1,
-        reason: 'a parada é anunciada uma vez, como qualquer entrada nela');
     expect(harness.sounds.sublist(captureIndex + 1),
         contains('recorder:discard'),
         reason:

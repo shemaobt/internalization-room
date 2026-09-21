@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -16,11 +15,6 @@ import 'session_notifier_test.dart' show inConversa, settle;
 /// How many times the tablet has asked the room what it is doing.
 int _stateReads(SalaHarness harness) =>
     harness.room.calls.where((call) => call == 'fetchState').length;
-
-/// How many times the room said the halt out loud.
-int _haltLines(SalaHarness harness) => harness.voice.assets
-    .where((asset) => asset == fixedLineAsset(needsPersonLine, testLanguage))
-    .length;
 
 /// A whole turn, from the team touching the circle to the room hearing it.
 Future<void> _aTurn(SalaSessionNotifier notifier) async {
@@ -89,8 +83,6 @@ void main() {
     harness.room.serverHalt = HaltKind.blocking;
     await waitFor('a sala parar de vez', () => read().needsPerson);
 
-    expect(_haltLines(harness), 1,
-        reason: 'a parada é anunciada uma vez, como qualquer entrada nela');
     expect(harness.room.personsAsked, 0,
         reason: 'a parada foi lida na vigia; o servidor já sabe dela, e o '
             'próprio pedido do tablet apagaria o atendimento da mesa');
@@ -111,7 +103,6 @@ void main() {
 
     await waitFor('a sala parar', () => read().needsPerson);
 
-    expect(_haltLines(harness), 1);
     expect(harness.room.personsAsked, 0,
         reason: 'a leitura depois do turno de abertura já achou a parada '
             'pronta; pedir de novo marcaria a sessão como se ninguém tivesse '
@@ -134,7 +125,6 @@ void main() {
 
     await waitFor('a sala parar ao reabrir', () => read().needsPerson);
 
-    expect(_haltLines(harness), 1);
     expect(harness.room.personsAsked, 0,
         reason: 'reabrir sobre uma parada que o servidor já mantém não é a '
             'sala decidindo nada; contar de novo à mesa apagaria o que ela '
@@ -168,23 +158,6 @@ void main() {
     expect(harness.room.personsAsked, 1,
         reason: 'pin: a sala decidiu sozinha que não consegue tocar a '
             'própria equipe, e isso continua chamando alguém como sempre');
-  });
-
-  test('three degraded turns in a row still call', () async {
-    final harness = SalaHarness()..room.turnsAreDegraded = true;
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-
-    for (var i = 0; i < 3; i++) {
-      await _aTurn(notifier);
-    }
-    await waitFor('a sala parar por turnos degradados', () => read().needsPerson);
-
-    expect(harness.room.personsAsked, 1,
-        reason: 'pin: três turnos degradados são a sala decidindo, e isso '
-            'continua chamando alguém como sempre');
   });
 
   test('the recorder that never started twice in the retro still calls',
@@ -269,9 +242,6 @@ void main() {
             'entraria na janela entre a entrada na parada e a chamada '
             'pousando, e um pedido pousando depois apagaria esse atendimento');
     expect(harness.room.personArrivedSessions, isEmpty);
-    expect(_haltLines(harness), 1,
-        reason: 'uma entrada só: a parada obsoleta não se anuncia de novo '
-            'quando a vigia a solta em seguida');
   });
 
   test(
@@ -311,6 +281,5 @@ void main() {
 
     expect(read().needsPerson, isFalse);
     expect(harness.room.personsAsked, 0);
-    expect(_haltLines(harness), 0);
   });
 }
