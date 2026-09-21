@@ -1548,16 +1548,17 @@ void main() {
       () async {
     final harness = SalaHarness();
     harness.emAberto.rows['Ruth/P01'] =
-        const ResumePoint(sessionId: 'sessao-velha', stage: SalaStage.conversa);
+        const ResumePoint(sessionId: 'sessao-velha', stage: SalaStage.retro);
     final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
     await notifier.abrirEscolha();
     await settle();
 
-    // A resume keeps the three-strike ladder (it asks the room to hand back work it
-    // already holds, not to open a fresh turn) — unlike a turn call, whose own RoomBroke
-    // now calls a person on the spot.
+    // A resume with nothing to restore still checks the room for a telling-back before
+    // it falls through to the opening turn — that check keeps the three-strike ladder
+    // (it asks the room to hand back work it already holds, not to open a fresh turn),
+    // unlike the opening turn itself, whose own RoomBroke now calls a person on the spot.
     harness.room.failWith = const RoomBroke('HTTP 500');
     await notifier.goConversa(pericope: 'P01');
     await settle();
@@ -1582,6 +1583,30 @@ void main() {
         reason: 'duas trocas calmas seguidas perdoam um ponto — sem o '
             'decaimento a falha de antes somava com as duas de agora e batia '
             'o limiar antes da terceira falha de verdade acontecer');
+  });
+
+  test(
+      'a resume with nothing to restore still raises the affordance on the spot '
+      'when its own opening turn breaks', () async {
+    final harness = SalaHarness();
+    harness.emAberto.rows['Ruth/P01'] =
+        const ResumePoint(sessionId: 'sessao-velha', stage: SalaStage.conversa);
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await settle();
+
+    harness.room.failWith = const RoomBroke('HTTP 500');
+    await notifier.goConversa(pericope: 'P01');
+    await settle();
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue,
+        reason: 'nothing to restore falls through to _askForTheOpening — the same '
+            'openSession a person would have been shown E0 in — so one RoomBroke '
+            'there is a turn call too, not the first rung of a ladder that never '
+            'gets a second one: two more taps just sent the team back to the '
+            'invite');
   });
 
   test('a resolve clears the slow-answer count too, not just the room-failure one',
@@ -1813,7 +1838,7 @@ void main() {
       () async {
     final harness = SalaHarness();
     harness.emAberto.rows['Ruth/P01'] =
-        const ResumePoint(sessionId: 'sessao-velha', stage: SalaStage.conversa);
+        const ResumePoint(sessionId: 'sessao-velha', stage: SalaStage.retro);
     final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -1835,8 +1860,10 @@ void main() {
     expect(container.read(salaSessionProvider).offline, isFalse,
         reason: 'a sala volta sozinha assim que a rede responde de novo');
 
-    // A resume keeps the three-strike ladder; a turn's own RoomBroke now calls a person
-    // on the spot, so the two visible 503s below are read via a resume instead.
+    // The resume's own check for a telling-back keeps the three-strike ladder; a turn's
+    // RoomBroke — including the opening turn a resume with nothing to restore falls
+    // through to — now calls a person on the spot, so the two visible 503s below are
+    // read via that check instead.
     harness.room.failWith = const RoomBroke('HTTP 503');
     await notifier.goConversa(pericope: 'P01');
     await settle();

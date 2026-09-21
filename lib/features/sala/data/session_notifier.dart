@@ -826,10 +826,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _after('person', backoff[step], () => unawaited(retry()));
   }
 
-  /// [turnCall] marks the openSession/sendTurn/loadWheel family: a `RoomBroke` there
-  /// raises the affordance on the spot, the same turn a person would have been shown E0
-  /// in. Every other caller — resume, upload, a written question, a retro edit, an
-  /// approval — keeps the three-strike ladder `_registerRoomFailure` runs underneath.
+  /// [turnCall] marks the openSession/sendTurn/loadWheel family: every call to one of the
+  /// three, through whichever door reaches it — including the opening turn a resume with
+  /// nothing to restore falls through to. A `RoomBroke` there raises the affordance on
+  /// the spot, the same turn a person would have been shown E0 in. Every other caller —
+  /// the resume itself, upload, a written question, a retro edit, an approval — keeps the
+  /// three-strike ladder `_registerRoomFailure` runs underneath.
   void _handleRoomFailure(Object error, {bool turnCall = false}) {
     _leaveThinking();
     if (turnCall && error is RoomBroke) {
@@ -1608,6 +1610,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         : null;
     if (epoch != _epoch) return;
     final waiting = _wrongLanguage(stored) ? null : stored;
+    var reachedTheOpeningTurn = false;
     try {
       final resumed = waiting != null;
       final created = resumed
@@ -1686,6 +1689,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         }
       }
       // Re-opening carries the coverage back with it, so the necklace fills itself.
+      reachedTheOpeningTurn = true;
       await _voiceTurn(await _askForTheOpening(sessionId, epoch), epoch);
     } on SessionGone {
       if (epoch != _epoch) return;
@@ -1717,8 +1721,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       // A resume keeps the three-strike ladder above (waiting != null): the server is
       // being asked to hand back work it already holds, not to open a fresh turn. A
-      // session born clean is the turn call openConvite and its kin already are.
-      _handleRoomFailure(error, turnCall: waiting == null);
+      // session born clean is the turn call openConvite and its kin already are — and so
+      // is the opening turn a resume with nothing to restore falls through to, once it
+      // gets there: the door is `_askForTheOpening`, the same one every other empty
+      // resume takes.
+      _handleRoomFailure(
+        error,
+        turnCall: reachedTheOpeningTurn || waiting == null,
+      );
     }
   }
 
