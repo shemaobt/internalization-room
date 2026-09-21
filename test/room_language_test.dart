@@ -263,6 +263,43 @@ void main() {
         reason: 'nenhuma passagem foi de fato aberta a partir do botão de DEV');
   });
 
+  test(
+      'the dev language button keeps the panorama when the room answers the ask for OV with OV-Ruth',
+      () async {
+    dotenv.testLoad(
+      fileInput: 'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
+    );
+    addTearDown(() => dotenv.testLoad(fileInput: ''));
+    final binding = TestWidgetsFlutterBinding.ensureInitialized();
+    binding.platformDispatcher.localesTestValue = const [Locale('pt', 'BR')];
+    addTearDown(binding.platformDispatcher.clearLocalesTestValue);
+    final harness = SalaHarness(lingua: null);
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.openConvite();
+    expect(harness.room.languagesSent, ['pt']);
+    expect(container.read(salaSessionProvider).stage, SalaStage.convite,
+        reason: 'a sala respondeu "OV-Ruth" ao pedido "OV" — é o id real do panorama, '
+            'não uma passagem; o simulador do João em 21/09 caiu em conversa aqui');
+    expect(container.read(salaSessionProvider).conviteStep, ConviteStep.entrada);
+    expect(container.read(salaSessionProvider).voice, VoiceState.invite);
+
+    notifier.devTrocarIdioma();
+    await settle();
+
+    expect(container.read(salaSessionProvider).stage, SalaStage.convite,
+        reason: 'no aparelho do João o panorama tinha sido aberto como conversa e o '
+            'botão de idioma, sem panorama anotado, recomeçou da roda');
+    expect(harness.room.sessionIds, hasLength(2),
+        reason: 'a língua nova pede uma sessão nova do panorama');
+    expect(harness.room.languagesSent, ['pt', 'en']);
+    expect(harness.emAberto.rows.keys, isNot(contains('Ruth/OV-Ruth')),
+        reason: 'o panorama não é uma passagem em curso — o em_curso.json do simulador '
+            'guardou {"Ruth/OV-Ruth": {"stage": "conversa"}} e foi daí que a roda veio');
+  });
+
   test('the dev language button drops an armed hand along with the panorama it was armed on',
       () async {
     dotenv.testLoad(

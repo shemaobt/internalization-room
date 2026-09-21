@@ -17,6 +17,9 @@ String strandedTakeAsset(String language) =>
 
 const panoramaPericope = 'OV';
 
+bool isThePanorama(String pericope) =>
+    pericope == panoramaPericope || pericope.startsWith('$panoramaPericope-');
+
 String fixedLineAsset(String line, String language) =>
     'assets/audio/$language/fixed/$line.mp3';
 

@@ -1204,7 +1204,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // also the session to enter: opening another for the same passage left the one the
       // room had just made abandoned, one ghost row per launch.
       final given = created?.pericope;
-      if (given != null && given != panoramaPericope) {
+      if (given != null && !isThePanorama(given)) {
         // The room answering a passage is its word that the panorama was heard. Left
         // unwritten, a tablet without the mark asked for the panorama on every launch and
         // adopted a new session each time, its coverage starting over from zero.
@@ -1472,7 +1472,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // room decides otherwise lands where the room answered, rather than being left on
       // the wheel mid an opening turn nothing here is set up to answer.
       final given = created?.pericope;
-      if (given != null && given != panoramaPericope) {
+      if (given != null && !isThePanorama(given)) {
         unawaited(goConversa(pericope: given, opened: created));
         return;
       }
@@ -2272,7 +2272,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final created =
         await _room.createSession(pericope: panoramaPericope, language: _lingua);
     if (epoch != _epoch) return;
-    if (created.pericope != panoramaPericope) {
+    if (!isThePanorama(created.pericope)) {
       _conviteOpened = false;
       state = state.copyWith(voice: VoiceState.invite);
       return;
