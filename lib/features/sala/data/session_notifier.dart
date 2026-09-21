@@ -826,8 +826,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _after('person', backoff[step], () => unawaited(retry()));
   }
 
-  void _handleRoomFailure(Object error) {
+  /// [turnCall] marks the openSession/sendTurn/loadWheel family: a `RoomBroke` there
+  /// raises the affordance on the spot, the same turn a person would have been shown E0
+  /// in. Every other caller — resume, upload, a written question, a retro edit, an
+  /// approval — keeps the three-strike ladder `_registerRoomFailure` runs underneath.
+  void _handleRoomFailure(Object error, {bool turnCall = false}) {
     _leaveThinking();
+    if (turnCall && error is RoomBroke) {
+      _haltForAPerson();
+      return;
+    }
     switch (error) {
       case RoomRefused():
         _haltForAPerson();
@@ -1223,7 +1231,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     } on Object catch (error) {
       if (epoch != _epoch) return;
       _conviteOpened = false;
-      _handleRoomFailure(error);
+      _handleRoomFailure(error, turnCall: true);
     }
   }
 
@@ -1299,7 +1307,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       await _voicePanorama(turn);
     } on Exception catch (error) {
       if (epoch != _epoch) return;
-      _handleRoomFailure(error);
+      _handleRoomFailure(error, turnCall: true);
     } finally {
       unawaited(_recorder.delete(path));
     }
@@ -1326,7 +1334,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       todas = await _room.passagesOf(_book, language: _lingua);
     } on Object catch (error) {
       if (epoch != _epoch) return;
-      _handleRoomFailure(error);
+      _handleRoomFailure(error, turnCall: true);
       return;
     }
     if (epoch != _epoch) return;
@@ -1495,7 +1503,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(voice: VoiceState.invite);
     } on Object catch (error) {
       if (epoch != _epoch) return;
-      _handleRoomFailure(error);
+      _handleRoomFailure(error, turnCall: true);
     }
   }
 
@@ -1707,7 +1715,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           unawaited(_mindingThePlace(() => _emAberto.forget(_book, pericope!)));
         }
       }
-      _handleRoomFailure(error);
+      // A resume keeps the three-strike ladder above (waiting != null): the server is
+      // being asked to hand back work it already holds, not to open a fresh turn. A
+      // session born clean is the turn call openConvite and its kin already are.
+      _handleRoomFailure(error, turnCall: waiting == null);
     }
   }
 
@@ -1739,7 +1750,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       await _voiceTurn(await _askForTheOpening(sessionId, epoch), epoch);
     } on Exception catch (error) {
       if (epoch != _epoch) return;
-      _handleRoomFailure(error);
+      _handleRoomFailure(error, turnCall: true);
     }
   }
 
@@ -2063,7 +2074,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       await _voiceTurn(await _room.sendTurn(sessionId, File(path)), epoch);
     } on Exception catch (error) {
       if (epoch != _epoch) return;
-      _handleRoomFailure(error);
+      _handleRoomFailure(error, turnCall: true);
     } finally {
       unawaited(_recorder.delete(path));
     }
@@ -2294,7 +2305,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     } on Object catch (error) {
       if (epoch != _epoch) return;
       _conviteOpened = false;
-      _handleRoomFailure(error);
+      _handleRoomFailure(error, turnCall: true);
     }
   }
 
@@ -3747,7 +3758,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // tap they choose to make, on the screen that asks the question.
     } on Exception catch (error) {
       if (epoch != _epoch) return;
-      _handleRoomFailure(error);
+      _handleRoomFailure(error, turnCall: true);
     }
   }
 

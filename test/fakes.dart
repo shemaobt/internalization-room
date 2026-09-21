@@ -638,6 +638,11 @@ class FakeInbox implements HandInboxRepository {
   bool refuses = false;
   bool cannotBeAsked = false;
 
+  /// What the next call to [sendQuestion] throws, independent of [refuses] — a case
+  /// needs a specific exception type (e.g. `RoomBroke`) rather than the fixed
+  /// `RoomUnavailable` [refuses] always throws.
+  Exception? failWith;
+
   FakeInbox({this.replies = const []});
 
   @override
@@ -657,6 +662,8 @@ class FakeInbox implements HandInboxRepository {
 
   @override
   Future<void> sendQuestion(String sessionId, File audio) async {
+    final failure = failWith;
+    if (failure != null) throw failure;
     if (refuses) throw const RoomUnavailable('sem rede');
     questionsSent.add(sessionId);
   }

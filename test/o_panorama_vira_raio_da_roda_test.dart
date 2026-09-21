@@ -170,12 +170,18 @@ void main() {
 
     notifier.entrarNaOferecida();
     await settle();
+    await waitFor('a sala parar', () => container.read(salaSessionProvider).needsPerson);
+    harness.room.theDeskAttended();
+    notifier.resolveWithPerson();
+    await waitFor('o círculo voltar ao convite',
+        () => container.read(salaSessionProvider).voice == VoiceState.invite);
     notifier.entrarNaOferecida();
     await settle();
 
     expect(harness.room.turnIdsAsked, hasLength(2),
-        reason: 'a primeira falha ao entrar e o retoque que segue precisam '
-            'dos dois pedidos de turno para haver o que comparar');
+        reason: 'a primeira falha ao entrar já é a chamada de turno que para a sala; '
+            'o toque que segue o atendimento precisa dos dois pedidos de turno '
+            'para haver o que comparar');
     expect(harness.room.turnIdsAsked[0], isNotNull);
     expect(harness.room.turnIdsAsked[1], harness.room.turnIdsAsked[0],
         reason: 'um id novo a cada tentativa e o servidor nunca reconhece '
