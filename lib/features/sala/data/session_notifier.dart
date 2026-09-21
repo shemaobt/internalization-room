@@ -2277,6 +2277,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _goOffline(reach);
       return;
     }
+    _watchBusyState();
     try {
       final created =
           await _room.createSession(pericope: panoramaPericope, language: _lingua);
