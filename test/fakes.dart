@@ -259,7 +259,9 @@ class FakeRecorder implements RecordingRepository {
     ..writeAsStringSync('a equipe contou a passagem');
 
   @override
-  Future<void> discard() async {}
+  Future<void> discard() async {
+    sounds.add('recorder:discard');
+  }
 
   @override
   Future<void> delete(String path) async => deleted.add(path);
@@ -1634,8 +1636,9 @@ class SalaHarness {
 
   /// Everything that made or stopped a sound, in the order it happened: `playback:play`,
   /// `playback:pause`, `playback:stop`, `voice:line`, `voice:asset`, `voice:stop`,
-  /// `recorder:start`. A gesture that moves the room has to silence it *before* its own
-  /// sound, and an order is the only way to read that without one double reading another.
+  /// `recorder:start`, `recorder:discard`. A gesture that moves the room has to silence
+  /// it *before* its own sound, and an order is the only way to read that without one
+  /// double reading another.
   final List<String> sounds = [];
   late final FakeVoice voice = FakeVoice(sounds: sounds);
   final FacilitatorVoiceService? voiceService;

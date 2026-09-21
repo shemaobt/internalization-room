@@ -674,6 +674,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     bool reachable = true,
     bool read = false,
   }) {
+    if (state.btPhase == BtPhase.capturing) {
+      unawaited(_recorder.discard());
+      _undoTheListening();
+    }
     _leaveThinking();
     if (!state.needsPerson) {
       unawaited(_voice.playAsset(fixedLineAsset(needsPersonLine, _lingua)));
@@ -2654,8 +2658,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       noteMode: false,
       btPhase: capturing ? BtPhase.playing : state.btPhase,
       voice: VoiceState.invite,
-      // The microphone a correction was going to speak into never opened, so the mend
-      // has not started after all and that stretch is waiting again.
+      // Whether the microphone a correction was going to speak into never opened, or
+      // opened and was just discarded under a halt, the mend has not landed and that
+      // stretch is waiting again.
       btConsertando: false,
     );
     // The retro's clip was paused for the telling-back that never started. Its sibling
