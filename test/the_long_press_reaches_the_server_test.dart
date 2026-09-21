@@ -170,15 +170,20 @@ void main() {
 
   test('a long press on an unconfirmed halt never tells the server a person '
       'arrived', () async {
+    // The room decides this one on its own (three turns its own audio never played),
+    // so the call it sends still exists to be held: a halt merely read (ENG-962) is
+    // watched at once and never has an unconfirmed window to speak of.
     final harness = SalaHarness(settleDelay: const Duration(seconds: 5))
-      ..room.serverStatus = 'needs_person'
-      ..room.serverHalt = HaltKind.blocking
+      ..voice.succeeds = false
       ..room.holdNextAskForAPerson();
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
+    for (var i = 0; i < 3; i++) {
+      await _aTurn(notifier);
+    }
     await waitFor(
       'a sala parar com o pedido pela sessão em voo',
       () => read().needsPerson,
