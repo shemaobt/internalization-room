@@ -2512,8 +2512,10 @@ void main() {
     expect(state.needsPerson, isTrue,
         reason: 'um disco verde parado, mudo, recusando todo gesto era '
             'indistinguível de um app morto — e não há texto que explique');
-    expect(harness.voice.assets, contains(fixedLineAsset(needsPersonLine, testLanguage)),
-        reason: 'e a fala para chamar o facilitador já estava no pacote');
+    expect(harness.voice.assets,
+        isNot(contains(fixedLineAsset('E0', testLanguage))),
+        reason: 'o disco verde já mostra a parada sozinho; falar por cima dele é a '
+            'mesma sala dizendo o mesmo aviso duas vezes, uma vez local e sem o servidor');
 
     notifier.resolveWithPerson();
 
@@ -3263,8 +3265,10 @@ void main() {
     expect(state.needsPerson, isTrue);
     expect(state.offline, isFalse,
         reason: 'esperar nunca conserta chave errada — não pode virar tela de offline');
-    expect(harness.voice.assets, contains(fixedLineAsset(needsPersonLine, testLanguage)),
-        reason: 'pedir uma pessoa em silêncio é um disco parado numa sala que não lê');
+    expect(harness.voice.assets,
+        isNot(contains(fixedLineAsset('E0', testLanguage))),
+        reason: 'o disco parado é o aviso; a chave errada nunca chegou a um turno do '
+            'servidor, então não há E0 nenhum para repetir aqui');
   });
 
   test('a session the server no longer has is dropped, not retried forever', () async {

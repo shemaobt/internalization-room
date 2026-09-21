@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -99,21 +98,5 @@ void main() {
             'servidor de pé, um passo da escada que sobrou vivo sucederia e '
             'encerraria a insistência por conta própria, e o teste passaria a '
             'medir a confirmação em vez do toque');
-  });
-
-  test('the room says it needs a person even with no confirmation', () async {
-    final harness = SalaHarness(retryBackoff: const [_oneStepOfTheLadder])
-      ..room.failWith = const RoomRefused();
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-
-    await _stopForAPerson(notifier, read);
-
-    expect(harness.voice.assets, contains(fixedLineAsset(needsPersonLine, testLanguage)),
-        reason: 'a equipe está numa sala física e precisa saber que deve ir '
-            'buscar alguém; calar a linha até o servidor confirmar deixaria a '
-            'sala muda justamente quando a rede está ruim');
   });
 }

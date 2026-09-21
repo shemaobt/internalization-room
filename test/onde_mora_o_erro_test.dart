@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/onde_mora_grade.dart';
@@ -119,7 +118,6 @@ typedef CorrecaoFeita = ({
   bool warning,
   bool needsPerson,
   int pessoasChamadas,
-  bool disseAFalaDoChamado,
 });
 
 /// Take the short way once, with or without the room asking for a person, and read what
@@ -141,8 +139,6 @@ Future<CorrecaoFeita> correcaoComResposta(
     warning: state.warning,
     needsPerson: state.needsPerson,
     pessoasChamadas: harness.room.personsAsked,
-    disseAFalaDoChamado: harness.voice.assets
-        .contains(fixedLineAsset(needsPersonLine, testLanguage)),
   );
   // A tela sai antes da sala: deixá-la montada sobre um container fechado faria o
   // gesto seguinte procurar botões numa árvore que já não tem sessão nenhuma.
@@ -324,8 +320,6 @@ void main() {
         reason: 'a sala já pediu a pessoa ao marcar o aviso; o pedido do '
             'tablet marca a parada como bloqueante e viraria o aviso na '
             'parada que a regra proíbe');
-    expect(avisada.disseAFalaDoChamado, isFalse,
-        reason: 'a fala E0 anuncia uma sala que parou, e esta não parou');
     expect((avisada.phase, avisada.voice), (comum.phase, comum.voice),
         reason: 'a sala fica onde a mesma correção sem o campo a deixa — é '
             'essa igualdade que diz que nada foi recusado à equipe');
@@ -376,12 +370,6 @@ void main() {
         reason: 'e é convidada a falar, não deixada diante de uma sala parada');
     expect(harness.room.personsAsked, 0,
         reason: 'ninguém é chamado pelo tablet sobre um aviso');
-    expect(
-      harness.voice.assets
-          .contains(fixedLineAsset(needsPersonLine, testLanguage)),
-      isFalse,
-      reason: 'e a fala da sala parada não é dita sobre uma sala que segue',
-    );
     closeTheRoom(container);
   });
 

@@ -105,7 +105,7 @@ void main() {
         ...rendered,
         ...instantAckLines,
         ...inaudibleLines,
-        needsPersonLine,
+        'E0',
         approvedLine,
       };
 

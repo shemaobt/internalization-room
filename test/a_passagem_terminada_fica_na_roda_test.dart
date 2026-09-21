@@ -26,7 +26,7 @@ void main() {
             'resposta da sala a terminar o livro era chamar uma pessoa');
     expect(state.needsPerson, isFalse);
     expect(harness.voice.assets,
-        isNot(contains(fixedLineAsset(needsPersonLine, testLanguage))),
+        isNot(contains(fixedLineAsset('E0', testLanguage))),
         reason: 'o círculo é alive at done: o registro informa, ele não fecha '
             'a conversa');
   });

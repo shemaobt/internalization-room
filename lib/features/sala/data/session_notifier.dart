@@ -46,9 +46,6 @@ const _roomFailuresBeforeNeedsPerson = 3;
 /// How many times the room may answer nothing before the app stops waiting for it.
 const _slowAnswersBeforeGivingUp = 3;
 
-/// How many degraded turns in a row before the room stops pretending it is working.
-const _degradedTurnsBeforeAPerson = 3;
-
 /// How many times the recorder may fail to start in a row before the room calls a
 /// person — mirroring `micFails` in her client.
 const _captureFailsBeforeAPerson = 2;
@@ -196,7 +193,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// still has to be able to end the part — so it cannot be what tells a ceiling whether
   /// there is any sound left to measure.
   bool _clipHeld = false;
-  int _degradedTurns = 0;
   int _captureFails = 0;
   Duration _trechoStart = Duration.zero;
 
@@ -616,12 +612,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: turn.done ? VoiceState.done : VoiceState.invite,
       peerCue: turn.peerCue,
     );
-    if (turn.degraded) {
-      _degradedTurns++;
-      if (_degradedTurns >= _degradedTurnsBeforeAPerson) _haltForAPerson();
-    } else {
-      _degradedTurns = 0;
-    }
     _awaitCoverageSettle(turn);
     _scheduleInboxPoll();
   }
@@ -686,9 +676,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _undoTheListening();
     }
     _leaveThinking();
-    if (!state.needsPerson) {
-      unawaited(_voice.playAsset(fixedLineAsset(needsPersonLine, _lingua)));
-    }
     state = state.copyWith(
       voice: VoiceState.needsPerson,
       peerCue: false,
@@ -895,7 +882,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (resolved) {
       _roomFailures = 0;
       _slowAnswers = 0;
-      _degradedTurns = 0;
       _calmTurns = 0;
       return;
     }
@@ -4385,7 +4371,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _haltWatched = null;
     _trechoTraduzidoDeNovo = null;
     _mendArmedWithThisCapture = false;
-    _degradedTurns = 0;
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
     _parteTocando = 0;
