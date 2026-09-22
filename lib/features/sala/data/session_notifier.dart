@@ -3095,8 +3095,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _seguirOClipe() {
     _desdeMs = _playback.position.inMilliseconds;
     final arquivo = _parteNoAr?.path;
-    if (arquivo != null)
+    if (arquivo != null) {
       _escuta.abrir(arquivo, _playback.position.inMilliseconds);
+    }
     state = state.copyWith(btClipRodando: true);
     _letTheClipRun();
   }

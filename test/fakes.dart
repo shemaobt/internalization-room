@@ -993,8 +993,9 @@ class FakeRoom implements RoomRepository {
     required String language,
   }) async {
     _guard('createSession');
-    if (pericope != null && pericope == shutsThePassage)
+    if (pericope != null && pericope == shutsThePassage) {
       throw const PassageShut();
+    }
     final failure = failCreateOnceWith;
     if (failure != null) {
       failCreateOnceWith = null;

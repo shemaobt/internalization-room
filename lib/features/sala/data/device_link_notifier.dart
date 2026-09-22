@@ -193,8 +193,9 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
         return _collectTheCredential();
       }
       final showing = state.code;
-      if (showing == null || showing.ranOutBy(DateTime.now()))
+      if (showing == null || showing.ranOutBy(DateTime.now())) {
         return _showACode();
+      }
       _lookAgainLater();
     } on SessionGone {
       _deviceId = null;
