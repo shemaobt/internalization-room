@@ -2710,7 +2710,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ensaio: EnsaioStatus.idle,
       noteMode: false,
       btPhase: capturing ? BtPhase.playing : state.btPhase,
-      voice: VoiceState.invite,
+      voice: state.needsPerson ? null : VoiceState.invite,
       // Whether the microphone a correction was going to speak into never opened, or
       // opened and was just discarded under a halt, the mend has not landed and that
       // stretch is waiting again.
