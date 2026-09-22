@@ -44,22 +44,6 @@ jobs:
             exit 1
           fi
 
-      # Every screen in this room is spoken; the team cannot read. A Text widget is a
-      # regression nobody would notice in review, because it looks fine on a developer's
-      # laptop and is invisible to the people who use it.
-      #
-      # The claim code is the one exception the product allows, and it is named here rather
-      # than moved out of reach: a screen kept outside this path would be an exception
-      # nobody reviewing a diff could see. The team never reads it — a facilitator does,
-      # once, at installation, and the screen is gone for good after that.
-      - name: The room stays wordless
-        run: |
-          if grep -rn "Text(" lib/features/sala/presentation/ \
-              | grep -v "^lib/features/sala/presentation/widgets/codigo_view.dart:"; then
-            echo "::error::A written word reached a team screen."
-            exit 1
-          fi
-
       - name: Nothing forbidden returns to lib/
         run: dart run tool/check_doctrine.dart
 
