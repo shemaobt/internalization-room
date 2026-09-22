@@ -10,25 +10,24 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'session_notifier_test.dart' show inConversa;
+import 'session_notifier_test.dart' show inConversa, settle;
 
-Future<void> settle([
-  Duration delay = const Duration(milliseconds: 120),
-]) async {
-  await Future<void>.delayed(delay);
-}
-
-/// A tablet reopening straight into an unchecked telling-back, with one part already
-/// named. Copied from `a_halt_in_the_middle_of_a_capture_closes_the_microphone_test.dart`:
-/// fixtures never travel between modules, only the shape does.
-Future<ProviderContainer> _reopensIntoRetro(SalaHarness harness) async {
+/// A tablet reopening straight into a kept part, with one take already on disk.
+/// Copied from `a_halt_in_the_middle_of_a_capture_closes_the_microphone_test.dart`:
+/// fixtures never travel between modules, only the shape does. Landing in
+/// [SalaStage.retro] picks the telling-back up; any other stage stays in the
+/// rehearsal the resume itself lands in.
+Future<ProviderContainer> _reopensInto(
+  SalaHarness harness,
+  SalaStage stage,
+) async {
   final gravada = File(
     '${Directory.systemTemp.createTempSync('sala-982').path}/p1.m4a',
   )..writeAsBytesSync([1, 2, 3]);
   addTearDown(() => gravada.parent.deleteSync(recursive: true));
   harness.emAberto.rows['Ruth/P01'] = ResumePoint(
     sessionId: 'sessao-antiga',
-    stage: SalaStage.retro,
+    stage: stage,
     takes: [
       KeptTake(
         scopeId: KeptScope.parte(1),
@@ -48,12 +47,13 @@ Future<ProviderContainer> _reopensIntoRetro(SalaHarness harness) async {
 }
 
 /// A room reopened into the retro, with a warning already standing so the watch beats,
-/// and a capture open over the resumed part: the ground T1, T2, T5 and T6 measure.
+/// and a capture open over the resumed part: the ground for a denied or failed answer
+/// landing over a read halt, or over nothing standing at all.
 Future<(ProviderContainer, SalaSessionNotifier, SalaSessionState Function())>
 _capturingWithAWarningArmed(SalaHarness harness) async {
   harness.room.serverStatus = 'needs_person';
   harness.room.serverHalt = HaltKind.warning;
-  final container = await _reopensIntoRetro(harness);
+  final container = await _reopensInto(harness, SalaStage.retro);
   final notifier = container.read(salaSessionProvider.notifier);
   SalaSessionState read() => container.read(salaSessionProvider);
 
@@ -65,7 +65,7 @@ _capturingWithAWarningArmed(SalaHarness harness) async {
 }
 
 /// The same ground, but the capture is opened by `traduzirDeNovo` over a stretch already
-/// told, arming a mend in the same gesture — T5's ground.
+/// told, arming a mend in the same gesture.
 Future<(ProviderContainer, SalaSessionNotifier, SalaSessionState Function())>
 _mendCapturingWithAWarningArmed(SalaHarness harness) async {
   harness.room.serverStatus = 'needs_person';
@@ -80,7 +80,7 @@ _mendCapturingWithAWarningArmed(SalaHarness harness) async {
       ),
     ],
   );
-  final container = await _reopensIntoRetro(harness);
+  final container = await _reopensInto(harness, SalaStage.retro);
   final notifier = container.read(salaSessionProvider.notifier);
   SalaSessionState read() => container.read(salaSessionProvider);
 
@@ -101,6 +101,29 @@ Future<void> _haltLandsBlocking(
   await waitFor('a sala parar', () => read().needsPerson);
 }
 
+/// A room reopened straight into the rehearsal over the resumed part, with a warning
+/// already standing so the watch beats — the ground for a halt landing on a door the
+/// halt entry's own capturing guard never touches (`state.ensaio` is not `state.btPhase`),
+/// so the only place left to restore what the recorder's answer undoes is the answer
+/// itself.
+Future<(ProviderContainer, SalaSessionNotifier, SalaSessionState Function())>
+_ensaioWithAWarningArmed(SalaHarness harness) async {
+  harness.room.serverStatus = 'needs_person';
+  harness.room.serverHalt = HaltKind.warning;
+  final container = await _reopensInto(harness, SalaStage.ensaio);
+  final notifier = container.read(salaSessionProvider.notifier);
+  SalaSessionState read() => container.read(salaSessionProvider);
+
+  await waitFor('o aviso chegar', () => read().warning);
+  notifier.ensaioTap();
+  await waitFor(
+    'o ensaio começar a gravar',
+    () => read().ensaio == EnsaioStatus.recording,
+  );
+
+  return (container, notifier, read);
+}
+
 /// Record one part and wait for the room to have named it.
 Future<void> _gravaParte(
   ProviderContainer container,
@@ -117,8 +140,9 @@ Future<void> _gravaParte(
   });
 }
 
-/// The ordinary door into the retro, with no halt or warning standing — the ground T3
-/// and T4 measure, where the self-decided halt's own watch is the only one running.
+/// The ordinary door into the retro, with no halt or warning standing — the ground for a
+/// halt the room decides on its own, whose ask for a person is still in flight when the
+/// answer lands, with no other watch already running.
 Future<ProviderContainer> _inRetro(SalaHarness harness) async {
   final container = harness.container();
   addTearDown(container.dispose);
@@ -310,6 +334,30 @@ void main() {
     expect(read().btConsertando, isFalse);
     expect(read().ensaio, EnsaioStatus.idle);
   });
+
+  test(
+    'the rehearsal is still restored after a denied answer lands late, '
+    'off a door the halt entry never touches (criterion 4, rehearsal)',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 3));
+      harness.recorder.permitted = false;
+      harness.recorder.holdNextStart();
+      final (_, _, read) = await _ensaioWithAWarningArmed(harness);
+      await _haltLandsBlocking(harness, read);
+
+      harness.recorder.finishStart();
+      await settle();
+
+      expect(read().needsPerson, isTrue);
+      expect(
+        read().ensaio,
+        EnsaioStatus.idle,
+        reason:
+            'a única _undoTheListening() deste caminho é a da resposta '
+            'negada; nada mais tira o ensaio de "recording"',
+      );
+    },
+  );
 
   test('a warning changes nothing when a denied answer lands late '
       '(criterion 5)', () async {
