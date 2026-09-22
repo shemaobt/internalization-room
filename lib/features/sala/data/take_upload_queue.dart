@@ -32,6 +32,7 @@ final takeRetryBackoffProvider = Provider<List<Duration>>(
 
 class PendingTake {
   final String id;
+
   /// Where the audio is right now, resolved against `guardadas/` every time the manifest
   /// is read.
   ///
@@ -45,10 +46,12 @@ class PendingTake {
   final String scope;
   final int? passNumber;
   final int? chunkIndex;
+
   /// The name the room gave this recording, once it answered. A told-back stretch is a
   /// slice of one file and names it, so this is what the retro sends.
   final String? takeId;
   final bool stored;
+
   /// The audio this row points at is no longer on disk.
   ///
   /// `stored` is the queue's only word for "the room has it", and a vanished file used to
@@ -56,12 +59,15 @@ class PendingTake {
   /// nothing could tell the two apart. Lost is its own answer: it still counts as
   /// outstanding, it is never retried, and it is what the room says out loud.
   final bool lost;
+
   /// Times the room answered and refused. Only these spend the budget.
   final int attempts;
+
   /// Times the request never got an answer. These pace the retries but never exhaust
   /// them: a tablet on a weak link would otherwise spend all five tries on five slow
   /// minutes and abandon a recording the room may well have accepted.
   final int waits;
+
   /// When this row was last tried, written down as UTC.
   ///
   /// A local ISO string carries no zone at all, so the same instant written in one
@@ -99,67 +105,62 @@ class PendingTake {
     int? attempts,
     int? waits,
     DateTime? lastTry,
-  }) =>
-      PendingTake(
-        id: id,
-        path: path,
-        sessionId: sessionId,
-        kind: kind,
-        scope: scope,
-        passNumber: passNumber,
-        chunkIndex: chunkIndex,
-        takeId: takeId ?? this.takeId,
-        stored: stored ?? this.stored,
-        lost: lost ?? this.lost,
-        attempts: attempts ?? this.attempts,
-        waits: waits ?? this.waits,
-        lastTry: lastTry ?? this.lastTry,
-      );
+  }) => PendingTake(
+    id: id,
+    path: path,
+    sessionId: sessionId,
+    kind: kind,
+    scope: scope,
+    passNumber: passNumber,
+    chunkIndex: chunkIndex,
+    takeId: takeId ?? this.takeId,
+    stored: stored ?? this.stored,
+    lost: lost ?? this.lost,
+    attempts: attempts ?? this.attempts,
+    waits: waits ?? this.waits,
+    lastTry: lastTry ?? this.lastTry,
+  );
 
   Map<String, Object?> toJson() => {
-        'id': id,
-        'name': p.basename(path),
-        'session_id': sessionId,
-        'kind': kind,
-        'scope': scope,
-        'pass_number': passNumber,
-        'chunk_index': chunkIndex,
-        'take_id': takeId,
-        'stored': stored,
-        'lost': lost,
-        'attempts': attempts,
-        'waits': waits,
-        'last_try': lastTry?.toUtc().toIso8601String(),
-      };
+    'id': id,
+    'name': p.basename(path),
+    'session_id': sessionId,
+    'kind': kind,
+    'scope': scope,
+    'pass_number': passNumber,
+    'chunk_index': chunkIndex,
+    'take_id': takeId,
+    'stored': stored,
+    'lost': lost,
+    'attempts': attempts,
+    'waits': waits,
+    'last_try': lastTry?.toUtc().toIso8601String(),
+  };
 
   factory PendingTake.fromJson(
     Map<String, Object?> json, {
     required String folder,
-  }) =>
-      PendingTake(
-        id: json['id'] as String,
-        path: p.join(
-          folder,
-          p.basename((json['name'] ?? json['path']) as String),
-        ),
-        sessionId: json['session_id'] as String,
-        kind: json['kind'] as String,
-        scope: json['scope'] as String,
-        passNumber: json['pass_number'] as int?,
-        chunkIndex: json['chunk_index'] as int?,
-        takeId: json['take_id'] as String?,
-        stored: json['stored'] as bool? ?? false,
-        lost: json['lost'] as bool? ?? false,
-        attempts: json['attempts'] as int? ?? 0,
-        waits: json['waits'] as int? ?? 0,
-        // The row's audio and session are intact; only its pacing is unknown, and an
-        // unknown pace means due now. Raising here instead would set every pending
-        // recording aside, not this one.
-        lastTry: switch (json['last_try']) {
-          final String stamp => DateTime.tryParse(stamp),
-          _ => null,
-        },
-      );
+  }) => PendingTake(
+    id: json['id'] as String,
+    path: p.join(folder, p.basename((json['name'] ?? json['path']) as String)),
+    sessionId: json['session_id'] as String,
+    kind: json['kind'] as String,
+    scope: json['scope'] as String,
+    passNumber: json['pass_number'] as int?,
+    chunkIndex: json['chunk_index'] as int?,
+    takeId: json['take_id'] as String?,
+    stored: json['stored'] as bool? ?? false,
+    lost: json['lost'] as bool? ?? false,
+    attempts: json['attempts'] as int? ?? 0,
+    waits: json['waits'] as int? ?? 0,
+    // The row's audio and session are intact; only its pacing is unknown, and an
+    // unknown pace means due now. Raising here instead would set every pending
+    // recording aside, not this one.
+    lastTry: switch (json['last_try']) {
+      final String stamp => DateTime.tryParse(stamp),
+      _ => null,
+    },
+  );
 }
 
 class TakeUploadQueue {
@@ -177,8 +178,8 @@ class TakeUploadQueue {
     Future<Directory> Function()? home,
     this._backoff = const [],
     DateTime Function()? now,
-  })  : _home = home ?? getApplicationSupportDirectory,
-        _now = now ?? DateTime.now;
+  }) : _home = home ?? getApplicationSupportDirectory,
+       _now = now ?? DateTime.now;
 
   Future<Directory> _dir() async {
     final dir = Directory(p.join((await _home()).path, _folder));
@@ -186,7 +187,8 @@ class TakeUploadQueue {
     return dir;
   }
 
-  Future<File> _manifestFile() async => File(p.join((await _dir()).path, _manifest));
+  Future<File> _manifestFile() async =>
+      File(p.join((await _dir()).path, _manifest));
 
   String _mintId() => '${DateTime.now().microsecondsSinceEpoch}-${_minted++}';
 
@@ -213,8 +215,10 @@ class TakeUploadQueue {
 
   Future<List<PendingTake>> entries() async => await _written() ?? const [];
 
-  Future<List<PendingTake>> pending() async =>
-      [for (final entry in await entries()) if (!entry.stored) entry];
+  Future<List<PendingTake>> pending() async => [
+    for (final entry in await entries())
+      if (!entry.stored) entry,
+  ];
 
   /// Whether a written-off row's audio really is off the tablet.
   ///
@@ -269,7 +273,8 @@ class TakeUploadQueue {
     if (written == null) return 1;
     return [
       for (final entry in written)
-        if (!entry.stored && entry.kind == kind && entry.sessionId == sessionId) entry,
+        if (!entry.stored && entry.kind == kind && entry.sessionId == sessionId)
+          entry,
     ].length;
   }
 
@@ -286,7 +291,10 @@ class TakeUploadQueue {
     return null;
   }
 
-  Future<Set<String>> unsentScopesOf(String kind, {required String sessionId}) async {
+  Future<Set<String>> unsentScopesOf(
+    String kind, {
+    required String sessionId,
+  }) async {
     final written = await _written();
     if (written == null) return {unknownScope};
     return {
@@ -434,8 +442,9 @@ class TakeUploadQueue {
     var sent = 0;
     final held = <String>{};
     for (final entry in await waiting()) {
-      final part =
-          entry.kind == 'ensaio' ? '${entry.sessionId}/${entry.scope}' : null;
+      final part = entry.kind == 'ensaio'
+          ? '${entry.sessionId}/${entry.scope}'
+          : null;
       if (part != null && held.contains(part)) continue;
       if (await _landed(entry)) {
         sent++;
@@ -473,10 +482,16 @@ class TakeUploadQueue {
         chunkIndex: entry.chunkIndex,
       );
     } on RoomUnavailable {
-      await _replace(entry, row.copyWith(waits: row.waits + 1, lastTry: _now()));
+      await _replace(
+        entry,
+        row.copyWith(waits: row.waits + 1, lastTry: _now()),
+      );
       return false;
     } on RoomSlow {
-      await _replace(entry, row.copyWith(waits: row.waits + 1, lastTry: _now()));
+      await _replace(
+        entry,
+        row.copyWith(waits: row.waits + 1, lastTry: _now()),
+      );
       return false;
     } on Exception {
       await _replace(
@@ -489,14 +504,15 @@ class TakeUploadQueue {
     return true;
   }
 
-  Future<void> _replace(PendingTake target, PendingTake updated) =>
-      _mutate((written) => [
-            for (final entry in written)
-              if (entry.id == target.id && entry.kind == target.kind)
-                updated
-              else
-                entry,
-          ]);
+  Future<void> _replace(PendingTake target, PendingTake updated) => _mutate(
+    (written) => [
+      for (final entry in written)
+        if (entry.id == target.id && entry.kind == target.kind)
+          updated
+        else
+          entry,
+    ],
+  );
 }
 
 final takeUploadQueueProvider = Provider<TakeUploadQueue>(

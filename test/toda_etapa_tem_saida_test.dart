@@ -27,20 +27,23 @@ const _terminal = <SalaStage>{};
 /// know: the gesture would quietly do nothing, and the walk would report the station as
 /// having no way out — blaming the room for a hole in this table.
 final _wayOut =
-    <SalaStage, ({String name, Future<void> Function(SalaSessionNotifier) take})>{
-  SalaStage.convite: (name: 'abrirEscolha', take: (n) => n.abrirEscolha()),
-  SalaStage.escolha: (
-    name: 'entrarNaOferecida',
-    take: (n) async => n.entrarNaOferecida(),
-  ),
-  SalaStage.conversa: (name: 'goEnsaio', take: (n) async => n.goEnsaio()),
-  SalaStage.ensaio: (name: 'startRetro', take: (n) async => n.startRetro()),
-  SalaStage.retro: (
-    name: 'leaveThePassage',
-    take: (n) async => n.leaveThePassage(),
-  ),
-  SalaStage.fim: (name: 'beginAgain', take: (n) async => n.beginAgain()),
-};
+    <
+      SalaStage,
+      ({String name, Future<void> Function(SalaSessionNotifier) take})
+    >{
+      SalaStage.convite: (name: 'abrirEscolha', take: (n) => n.abrirEscolha()),
+      SalaStage.escolha: (
+        name: 'entrarNaOferecida',
+        take: (n) async => n.entrarNaOferecida(),
+      ),
+      SalaStage.conversa: (name: 'goEnsaio', take: (n) async => n.goEnsaio()),
+      SalaStage.ensaio: (name: 'startRetro', take: (n) async => n.startRetro()),
+      SalaStage.retro: (
+        name: 'leaveThePassage',
+        take: (n) async => n.leaveThePassage(),
+      ),
+      SalaStage.fim: (name: 'beginAgain', take: (n) async => n.beginAgain()),
+    };
 
 /// Put the room in [stage], through the gestures that really reach it.
 Future<void> _standIn(
@@ -58,8 +61,10 @@ Future<void> _standIn(
     // A roda diz o nome da passagem oferecida ao abrir, e o gesto de entrar só
     // responde depois disso. Esperar aqui é ficar de pé onde a equipe fica: a
     // saída existe, ela apenas não é instantânea.
-    await waitFor('a roda terminar de dizer a passagem oferecida',
-        () => read().voice == VoiceState.invite);
+    await waitFor(
+      'a roda terminar de dizer a passagem oferecida',
+      () => read().voice == VoiceState.invite,
+    );
     return;
   }
 
@@ -87,8 +92,11 @@ Future<void> _standIn(
     () => read().btPhase == BtPhase.conferida,
   );
   await notifier.aprovarRascunhoFinal();
-  await waitFor('a passagem fechar', () => read().stage == SalaStage.fim,
-      limit: const Duration(seconds: 5));
+  await waitFor(
+    'a passagem fechar',
+    () => read().stage == SalaStage.fim,
+    limit: const Duration(seconds: 5),
+  );
 }
 
 void main() {
@@ -96,7 +104,8 @@ void main() {
     expect(
       _wayOut.keys.toSet().union(_terminal),
       SalaStage.values.toSet(),
-      reason: 'a tabela é sobre o enum inteiro: uma etapa nova entra aqui sem '
+      reason:
+          'a tabela é sobre o enum inteiro: uma etapa nova entra aqui sem '
           'ninguém precisar lembrar de escrever um caso para ela',
     );
 
@@ -110,8 +119,11 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       await _standIn(stage, harness, container);
-      expect(container.read(salaSessionProvider).stage, stage,
-          reason: 'o caso precisa começar onde diz que começa');
+      expect(
+        container.read(salaSessionProvider).stage,
+        stage,
+        reason: 'o caso precisa começar onde diz que começa',
+      );
 
       await _wayOut[stage]!.take(notifier);
 
@@ -119,7 +131,7 @@ void main() {
       // tem de ser dita como tal em vez de estourar em outro lugar.
       await waitFor(
         'a equipe sair de $stage por ${_wayOut[stage]!.name} — uma etapa sem saída é '
-            'uma sala que só se deixa matando o app',
+        'uma sala que só se deixa matando o app',
         () => container.read(salaSessionProvider).stage != stage,
         limit: const Duration(seconds: 5),
       );
@@ -136,16 +148,22 @@ void main() {
     await _standIn(SalaStage.fim, harness, container);
 
     notifier.beginAgain();
-    await waitFor('a roda voltar',
-        () => container.read(salaSessionProvider).stage == SalaStage.escolha);
+    await waitFor(
+      'a roda voltar',
+      () => container.read(salaSessionProvider).stage == SalaStage.escolha,
+    );
 
     // E o gesto que a roda oferece responde: a saída leva a um lugar vivo, não a
     // outra parede.
-    await waitFor('a roda ficar pronta para o toque',
-        () => container.read(salaSessionProvider).voice == VoiceState.invite);
+    await waitFor(
+      'a roda ficar pronta para o toque',
+      () => container.read(salaSessionProvider).voice == VoiceState.invite,
+    );
     notifier.entrarNaOferecida();
-    await waitFor('a passagem abrir a partir da roda',
-        () => container.read(salaSessionProvider).stage == SalaStage.conversa);
+    await waitFor(
+      'a passagem abrir a partir da roda',
+      () => container.read(salaSessionProvider).stage == SalaStage.conversa,
+    );
   });
 
   test('the fecho also comes back on its own, without a touch', () async {
@@ -196,20 +214,26 @@ void main() {
     await notifier.aprovarRascunhoFinal();
     await tester.pump(const Duration(seconds: 3));
 
-    expect(container.read(salaSessionProvider).stage, SalaStage.fim,
-        reason: 'o caso precisa chegar ao fecho para medir o toque dele');
+    expect(
+      container.read(salaSessionProvider).stage,
+      SalaStage.fim,
+      reason: 'o caso precisa chegar ao fecho para medir o toque dele',
+    );
 
     // O que os outros casos não provam: que o gesto existe na árvore desenhada,
     // e não só no notifier.
-    await tester.tap(find.byWidgetPredicate(
-      (w) => w is Semantics && w.properties.label == 'Começar de novo',
-    ));
+    await tester.tap(
+      find.byWidgetPredicate(
+        (w) => w is Semantics && w.properties.label == 'Começar de novo',
+      ),
+    );
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(
       container.read(salaSessionProvider).stage,
       SalaStage.escolha,
-      reason: 'a saída do fecho tem de responder ao dedo na tela, não só à '
+      reason:
+          'a saída do fecho tem de responder ao dedo na tela, não só à '
           'chamada do método',
     );
   });

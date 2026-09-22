@@ -11,20 +11,21 @@ void _expectAFixtureViolatingOneRule(
   Rule rule,
   String triggerLine,
 ) {
-  test(
-      'a $label mechanism reintroduced outside the allowlist fails with '
+  test('a $label mechanism reintroduced outside the allowlist fails with '
       "its doctrine sentence", () {
     final dir = Directory.systemTemp.createTempSync('doctrine_fixture_');
     addTearDown(() => dir.deleteSync(recursive: true));
-    File(p.join(dir.path, 'reintroduced.dart'))
-        .writeAsStringSync('$triggerLine\n');
+    File(
+      p.join(dir.path, 'reintroduced.dart'),
+    ).writeAsStringSync('$triggerLine\n');
 
     final result = evaluate(scan([dir.path]), allowlist);
 
     expect(
       result.violations,
       hasLength(1),
-      reason: 'o gatilho de $label deveria bater uma vez, nenhuma allowlist cobre um arquivo novo',
+      reason:
+          'o gatilho de $label deveria bater uma vez, nenhuma allowlist cobre um arquivo novo',
     );
     expect(
       result.violations.single.rule,
@@ -35,8 +36,7 @@ void _expectAFixtureViolatingOneRule(
 }
 
 void main() {
-  test('the guard finds every bridgeMode site the allowlist already names',
-      () {
+  test('the guard finds every bridgeMode site the allowlist already names', () {
     final hits = scan(const ['lib']);
     final result = evaluate(hits, allowlist);
     final modeHits = hits.where((h) => h.rule == Rule.mode).toList();
@@ -44,7 +44,8 @@ void main() {
     expect(
       modeHits,
       hasLength(3),
-      reason: 'as três linhas de bridgeMode conhecidas hoje mudaram de número — só '
+      reason:
+          'as três linhas de bridgeMode conhecidas hoje mudaram de número — só '
           'turn_result.dart ainda declara o campo, sem leitor',
     );
     expect(
@@ -59,33 +60,37 @@ void main() {
     );
   });
 
-  test('the guard finds the two turn-clock declarations, matching the allowlist',
-      () {
-    final result = evaluate(scan(const ['lib']), allowlist);
-    final ceilingHits =
-        scan(const ['lib']).where((h) => h.rule == Rule.ceiling).toList();
+  test(
+    'the guard finds the two turn-clock declarations, matching the allowlist',
+    () {
+      final result = evaluate(scan(const ['lib']), allowlist);
+      final ceilingHits = scan(const [
+        'lib',
+      ]).where((h) => h.rule == Rule.ceiling).toList();
 
-    expect(
-      ceilingHits,
-      hasLength(2),
-      reason: 'só _turnTimeout e busyStateCeilingProvider são o relógio do turno',
-    );
-    expect(
-      ceilingHits.any((h) => h.text.contains('_stateTimeout')),
-      isFalse,
-      reason: '_stateTimeout não é o caminho do turno, não deveria bater',
-    );
-    expect(
-      result.violations,
-      isEmpty,
-      reason: 'um relógio de turno fora da allowlist deveria falhar a build',
-    );
-    expect(
-      result.stale,
-      isEmpty,
-      reason: 'as duas entradas de ceiling ainda batem o código real',
-    );
-  });
+      expect(
+        ceilingHits,
+        hasLength(2),
+        reason:
+            'só _turnTimeout e busyStateCeilingProvider são o relógio do turno',
+      );
+      expect(
+        ceilingHits.any((h) => h.text.contains('_stateTimeout')),
+        isFalse,
+        reason: '_stateTimeout não é o caminho do turno, não deveria bater',
+      );
+      expect(
+        result.violations,
+        isEmpty,
+        reason: 'um relógio de turno fora da allowlist deveria falhar a build',
+      );
+      expect(
+        result.stale,
+        isEmpty,
+        reason: 'as duas entradas de ceiling ainda batem o código real',
+      );
+    },
+  );
 
   _expectAFixtureViolatingOneRule(
     'probe',
@@ -93,14 +98,13 @@ void main() {
     'const _kind = ProbePurpose.processOnly;',
   );
 
-  test(
-      'a sublist cut into the conversation fails, and the audio cache limit '
+  test('a sublist cut into the conversation fails, and the audio cache limit '
       'does not', () {
     final dir = Directory.systemTemp.createTempSync('doctrine_fixture_');
     addTearDown(() => dir.deleteSync(recursive: true));
-    File(p.join(dir.path, 'reintroduced.dart')).writeAsStringSync(
-      'final recent = turns.sublist(turns.length - 5);\n',
-    );
+    File(
+      p.join(dir.path, 'reintroduced.dart'),
+    ).writeAsStringSync('final recent = turns.sublist(turns.length - 5);\n');
 
     final result = evaluate(scan([dir.path]), allowlist);
     final realHits = scan(const ['lib']);
@@ -116,11 +120,14 @@ void main() {
       reason: 'a violação precisa vir da regra de janela de memória',
     );
     expect(
-      realHits.any((h) =>
-          h.rule == Rule.memoryWindow &&
-          h.file.endsWith('facilitator_voice_service.dart')),
+      realHits.any(
+        (h) =>
+            h.rule == Rule.memoryWindow &&
+            h.file.endsWith('facilitator_voice_service.dart'),
+      ),
       isFalse,
-      reason: 'clips.take() apaga arquivos de áudio velhos, não corta o histórico da conversa',
+      reason:
+          'clips.take() apaga arquivos de áudio velhos, não corta o histórico da conversa',
     );
   });
 
@@ -136,14 +143,13 @@ void main() {
     "const _model = 'gemini_flash';",
   );
 
-  test(
-      'an allowlist entry the scan can no longer confirm is reported stale, '
+  test('an allowlist entry the scan can no longer confirm is reported stale, '
       'and the reworded line is its own new violation', () {
     final dir = Directory.systemTemp.createTempSync('doctrine_fixture_');
     addTearDown(() => dir.deleteSync(recursive: true));
-    File(p.join(dir.path, 'reworded.dart')).writeAsStringSync(
-      "const _mode = 'guided_microchecks reworded';\n",
-    );
+    File(
+      p.join(dir.path, 'reworded.dart'),
+    ).writeAsStringSync("const _mode = 'guided_microchecks reworded';\n");
 
     final staleEntry = AllowlistEntry(
       p.posix.joinAll(p.split(p.relative(p.join(dir.path, 'reworded.dart')))),
@@ -161,7 +167,8 @@ void main() {
     expect(
       result.violations,
       hasLength(1),
-      reason: 'a linha reescrita é uma violação nova, não coberta pela allowlist',
+      reason:
+          'a linha reescrita é uma violação nova, não coberta pela allowlist',
     );
     expect(
       result.violations.single.text,

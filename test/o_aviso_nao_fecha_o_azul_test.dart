@@ -196,54 +196,54 @@ void main() {
     );
   });
 
-  test(
-    'a parada bloqueante continua visível; o toque longo só pergunta na '
-    'hora, e é a mesa quem a levanta',
-    () async {
-      final harness = SalaHarness();
-      final container = await _paradaBloqueante(harness);
-      final notifier = container.read(salaSessionProvider.notifier);
-      SalaSessionState read() => container.read(salaSessionProvider);
+  test('a parada bloqueante continua visível; o toque longo só pergunta na '
+      'hora, e é a mesa quem a levanta', () async {
+    final harness = SalaHarness();
+    final container = await _paradaBloqueante(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
 
-      expect(read().voice, VoiceState.needsPerson);
-      expect(read().canResolveWithPerson, isTrue);
-      final antes =
-          harness.room.calls.where((call) => call == 'fetchState').length;
+    expect(read().voice, VoiceState.needsPerson);
+    expect(read().canResolveWithPerson, isTrue);
+    final antes = harness.room.calls
+        .where((call) => call == 'fetchState')
+        .length;
 
-      // O toque longo, com a sessão viva e a parada confirmada pelo servidor,
-      // só pede uma releitura na hora — não derruba o aviso por si.
-      notifier.resolveWithPerson();
-      await waitFor(
-        'a sala perguntar ao servidor na hora',
-        () =>
-            harness.room.calls.where((call) => call == 'fetchState').length >
-            antes,
-      );
+    // O toque longo, com a sessão viva e a parada confirmada pelo servidor,
+    // só pede uma releitura na hora — não derruba o aviso por si.
+    notifier.resolveWithPerson();
+    await waitFor(
+      'a sala perguntar ao servidor na hora',
+      () =>
+          harness.room.calls.where((call) => call == 'fetchState').length >
+          antes,
+    );
 
-      expect(
-        container.read(salaSessionProvider).needsPerson,
-        isTrue,
-        reason: 'o servidor ainda segura a parada; soltar no toque poria a '
-            'equipe de volta a falar dentro de uma sala que a mesa não '
-            'atendeu',
-      );
+    expect(
+      container.read(salaSessionProvider).needsPerson,
+      isTrue,
+      reason:
+          'o servidor ainda segura a parada; soltar no toque poria a '
+          'equipe de volta a falar dentro de uma sala que a mesa não '
+          'atendeu',
+    );
 
-      // Quando o servidor deixa de dizer needs_person — a mesa atendeu —, a
-      // sala volta sozinha ao convite, sem precisar de um novo toque.
-      harness.room.theDeskAttended();
-      await waitFor(
-        'o círculo voltar ao convite sozinho',
-        () => read().voice == VoiceState.invite,
-      );
+    // Quando o servidor deixa de dizer needs_person — a mesa atendeu —, a
+    // sala volta sozinha ao convite, sem precisar de um novo toque.
+    harness.room.theDeskAttended();
+    await waitFor(
+      'o círculo voltar ao convite sozinho',
+      () => read().voice == VoiceState.invite,
+    );
 
-      expect(
-        read().needsPerson,
-        isFalse,
-        reason: 'a vigia lê o estado sozinha; quem levanta a parada é a '
-            'mesa, não o toque',
-      );
-    },
-  );
+    expect(
+      read().needsPerson,
+      isFalse,
+      reason:
+          'a vigia lê o estado sozinha; quem levanta a parada é a '
+          'mesa, não o toque',
+    );
+  });
 
   test('offline continua recusando o caminho curto', () async {
     final harness = SalaHarness();
@@ -304,7 +304,8 @@ void main() {
     expect(
       aceso(tester, micParteLabel),
       isTrue,
-      reason: 'só o microfone azul é a captura curta que offline não pode '
+      reason:
+          'só o microfone azul é a captura curta que offline não pode '
           'enviar; a coluna de madeira não faz parte deste conserto',
     );
   });

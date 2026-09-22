@@ -38,17 +38,17 @@ class RememberedLink {
   });
 
   factory RememberedLink.fromJson(Map<String, Object?> json) => RememberedLink(
-        deviceId: json['device_id'] as String?,
-        team: json['project_id'] is String
-            ? TeamLink(
-                projectId: json['project_id'] as String,
-                label: json['label'] as String?,
-              )
-            : null,
-        // Read, never written back: a file from before this change still carries one,
-        // and `LinkedTeam.read()` is where that copy is moved into the vault.
-        credential: json['credential'] as String?,
-      );
+    deviceId: json['device_id'] as String?,
+    team: json['project_id'] is String
+        ? TeamLink(
+            projectId: json['project_id'] as String,
+            label: json['label'] as String?,
+          )
+        : null,
+    // Read, never written back: a file from before this change still carries one,
+    // and `LinkedTeam.read()` is where that copy is moved into the vault.
+    credential: json['credential'] as String?,
+  );
 
   /// The file's own shape — and the one thing missing from it on purpose.
   ///
@@ -56,10 +56,10 @@ class RememberedLink {
   /// (`flutter_secure_storage` here), not beside it in a file `pub get`'s dependency tree
   /// can read as plainly as the team that owns the tablet can.
   Map<String, Object?> toJson() => {
-        'device_id': ?deviceId,
-        'project_id': ?team?.projectId,
-        'label': ?team?.label,
-      };
+    'device_id': ?deviceId,
+    'project_id': ?team?.projectId,
+    'label': ?team?.label,
+  };
 }
 
 class LinkedTeam {
@@ -68,8 +68,8 @@ class LinkedTeam {
   Future<void> _writes = Future<void>.value();
 
   LinkedTeam({Future<Directory> Function()? home, CredentialVault? vault})
-      : _home = home ?? getApplicationSupportDirectory,
-        _vault = vault ?? KeychainCredentialVault();
+    : _home = home ?? getApplicationSupportDirectory,
+      _vault = vault ?? KeychainCredentialVault();
 
   Future<File> _file() async {
     final dir = Directory(p.join((await _home()).path, _folder));
@@ -118,7 +118,9 @@ class LinkedTeam {
         }
       }
       if (!unavailable) {
-        await _write((was) => RememberedLink(deviceId: was.deviceId, team: was.team));
+        await _write(
+          (was) => RememberedLink(deviceId: was.deviceId, team: was.team),
+        );
       }
     }
     return RememberedLink(
@@ -129,13 +131,11 @@ class LinkedTeam {
     );
   }
 
-  Future<void> rememberDevice(String deviceId) => _write(
-        (was) => RememberedLink(deviceId: deviceId, team: was.team),
-      );
+  Future<void> rememberDevice(String deviceId) =>
+      _write((was) => RememberedLink(deviceId: deviceId, team: was.team));
 
-  Future<void> rememberTeam(TeamLink team) => _write(
-        (was) => RememberedLink(deviceId: was.deviceId, team: team),
-      );
+  Future<void> rememberTeam(TeamLink team) =>
+      _write((was) => RememberedLink(deviceId: was.deviceId, team: team));
 
   Future<void> rememberCredential(String credential) => _vault.keep(credential);
 

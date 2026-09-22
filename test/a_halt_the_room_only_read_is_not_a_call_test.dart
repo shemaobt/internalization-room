@@ -83,17 +83,23 @@ void main() {
     harness.room.serverHalt = HaltKind.blocking;
     await waitFor('a sala parar de vez', () => read().needsPerson);
 
-    expect(harness.room.personsAsked, 0,
-        reason: 'a parada foi lida na vigia; o servidor já sabe dela, e o '
-            'próprio pedido do tablet apagaria o atendimento da mesa');
+    expect(
+      harness.room.personsAsked,
+      0,
+      reason:
+          'a parada foi lida na vigia; o servidor já sabe dela, e o '
+          'próprio pedido do tablet apagaria o atendimento da mesa',
+    );
     expect(harness.room.calls, isNot(contains('askForAPerson')));
 
     final asked = _stateReads(harness);
-    await waitFor('a vigia continuar batendo', () => _stateReads(harness) > asked);
+    await waitFor(
+      'a vigia continuar batendo',
+      () => _stateReads(harness) > asked,
+    );
   });
 
-  test('the pull after a turn enters a blocking halt without a call',
-      () async {
+  test('the pull after a turn enters a blocking halt without a call', () async {
     final harness = SalaHarness()
       ..room.serverStatus = 'needs_person'
       ..room.serverHalt = HaltKind.blocking;
@@ -103,18 +109,24 @@ void main() {
 
     await waitFor('a sala parar', () => read().needsPerson);
 
-    expect(harness.room.personsAsked, 0,
-        reason: 'a leitura depois do turno de abertura já achou a parada '
-            'pronta; pedir de novo marcaria a sessão como se ninguém tivesse '
-            'contado ao tablet ainda');
+    expect(
+      harness.room.personsAsked,
+      0,
+      reason:
+          'a leitura depois do turno de abertura já achou a parada '
+          'pronta; pedir de novo marcaria a sessão como se ninguém tivesse '
+          'contado ao tablet ainda',
+    );
     expect(harness.room.calls, isNot(contains('askForAPerson')));
 
     final asked = _stateReads(harness);
-    await waitFor('a vigia continuar batendo', () => _stateReads(harness) > asked);
+    await waitFor(
+      'a vigia continuar batendo',
+      () => _stateReads(harness) > asked,
+    );
   });
 
-  test(
-      'reopening into a landed passage enters a blocking halt without a '
+  test('reopening into a landed passage enters a blocking halt without a '
       'call', () async {
     final harness = SalaHarness()
       ..room.serverStatus = 'needs_person'
@@ -125,18 +137,24 @@ void main() {
 
     await waitFor('a sala parar ao reabrir', () => read().needsPerson);
 
-    expect(harness.room.personsAsked, 0,
-        reason: 'reabrir sobre uma parada que o servidor já mantém não é a '
-            'sala decidindo nada; contar de novo à mesa apagaria o que ela '
-            'já sabe');
+    expect(
+      harness.room.personsAsked,
+      0,
+      reason:
+          'reabrir sobre uma parada que o servidor já mantém não é a '
+          'sala decidindo nada; contar de novo à mesa apagaria o que ela '
+          'já sabe',
+    );
     expect(harness.room.calls, isNot(contains('askForAPerson')));
 
     final asked = _stateReads(harness);
-    await waitFor('a vigia continuar batendo', () => _stateReads(harness) > asked);
+    await waitFor(
+      'a vigia continuar batendo',
+      () => _stateReads(harness) > asked,
+    );
   });
 
-  test('the room deciding it cannot play its own audio still calls',
-      () async {
+  test('the room deciding it cannot play its own audio still calls', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -155,45 +173,54 @@ void main() {
     await settle();
 
     expect(read().needsPerson, isTrue);
-    expect(harness.room.personsAsked, 1,
-        reason: 'pin: a sala decidiu sozinha que não consegue tocar a '
-            'própria equipe, e isso continua chamando alguém como sempre');
-  });
-
-  test('the recorder that never started twice in the retro still calls',
-      () async {
-    final harness = SalaHarness();
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-
-    notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
-    await settle();
-    notifier.takeKeep();
-    await waitFor(
-      'a sala nomear a parte',
-      () => container.read(salaSessionProvider).partes.last.takeId != null,
+    expect(
+      harness.room.personsAsked,
+      1,
+      reason:
+          'pin: a sala decidiu sozinha que não consegue tocar a '
+          'própria equipe, e isso continua chamando alguém como sempre',
     );
-    notifier.startRetro();
-    await settle();
-
-    harness.recorder.startThrows = true;
-    notifier.cortarTrecho();
-    await settle();
-    notifier.cortarTrecho();
-    await settle();
-
-    expect(read().needsPerson, isTrue);
-    expect(harness.room.personsAsked, 1,
-        reason: 'pin: o microfone que nunca abre duas vezes seguidas é a '
-            'sala decidindo, e isso continua chamando alguém como sempre');
   });
 
-  test('a passage the room lost track of still calls, by the device',
-      () async {
+  test(
+    'the recorder that never started twice in the retro still calls',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+
+      notifier.goEnsaio();
+      notifier.ensaioTap();
+      notifier.ensaioTap();
+      await settle();
+      notifier.takeKeep();
+      await waitFor(
+        'a sala nomear a parte',
+        () => container.read(salaSessionProvider).partes.last.takeId != null,
+      );
+      notifier.startRetro();
+      await settle();
+
+      harness.recorder.startThrows = true;
+      notifier.cortarTrecho();
+      await settle();
+      notifier.cortarTrecho();
+      await settle();
+
+      expect(read().needsPerson, isTrue);
+      expect(
+        harness.room.personsAsked,
+        1,
+        reason:
+            'pin: o microfone que nunca abre duas vezes seguidas é a '
+            'sala decidindo, e isso continua chamando alguém como sempre',
+      );
+    },
+  );
+
+  test('a passage the room lost track of still calls, by the device', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -204,17 +231,23 @@ void main() {
     await _aTurn(notifier);
     await waitFor('a sala parar sem sessão', () => read().needsPerson);
 
-    expect(harness.room.deviceAsksReceived, ['aparelho-1'],
-        reason: 'pin: a sala decidindo que a passagem sumiu (nenhum '
-            'pedido ainda pendia sobre ela, ao contrário da reentrada do '
-            '404 dentro de um pedido em voo) continua chamando pelo '
-            'aparelho, sem sessão para nomear');
-    expect(harness.room.calls, isNot(contains('askForAPerson')),
-        reason: 'sem sessão não há o que pedir por ela');
+    expect(
+      harness.room.deviceAsksReceived,
+      ['aparelho-1'],
+      reason:
+          'pin: a sala decidindo que a passagem sumiu (nenhum '
+          'pedido ainda pendia sobre ela, ao contrário da reentrada do '
+          '404 dentro de um pedido em voo) continua chamando pelo '
+          'aparelho, sem sessão para nomear',
+    );
+    expect(
+      harness.room.calls,
+      isNot(contains('askForAPerson')),
+      reason: 'sem sessão não há o que pedir por ela',
+    );
   });
 
-  test(
-      'an attend that lands in the window a read-door halt used to spend '
+  test('an attend that lands in the window a read-door halt used to spend '
       'on its own call is not wiped', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
@@ -236,16 +269,19 @@ void main() {
       () => read().voice == VoiceState.invite,
     );
 
-    expect(harness.room.personsAsked, 0,
-        reason: 'nenhum pedido saiu desta parada: com a leitura chamando '
-            'antes desta correção, o atendimento que a mesa já tinha dado '
-            'entraria na janela entre a entrada na parada e a chamada '
-            'pousando, e um pedido pousando depois apagaria esse atendimento');
+    expect(
+      harness.room.personsAsked,
+      0,
+      reason:
+          'nenhum pedido saiu desta parada: com a leitura chamando '
+          'antes desta correção, o atendimento que a mesa já tinha dado '
+          'entraria na janela entre a entrada na parada e a chamada '
+          'pousando, e um pedido pousando depois apagaria esse atendimento',
+    );
     expect(harness.room.personArrivedSessions, isEmpty);
   });
 
-  test(
-      'the long press on a read halt reaches the server like any '
+  test('the long press on a read halt reaches the server like any '
       'watched halt', () async {
     final harness = SalaHarness()
       ..room.serverStatus = 'needs_person'
@@ -264,12 +300,14 @@ void main() {
     );
 
     expect(harness.room.personArrivedSessions, hasLength(1));
-    expect(harness.room.personsAsked, 0,
-        reason: 'o toque longo pergunta de novo; não é um pedido');
+    expect(
+      harness.room.personsAsked,
+      0,
+      reason: 'o toque longo pergunta de novo; não é um pedido',
+    );
   });
 
-  test('a warning read after a turn stops nothing and calls nobody',
-      () async {
+  test('a warning read after a turn stops nothing and calls nobody', () async {
     final harness = SalaHarness()
       ..room.serverStatus = 'needs_person'
       ..room.serverHalt = HaltKind.warning;

@@ -42,20 +42,20 @@ class ApprovalAnswer {
   bool get minted => version != null;
 
   factory ApprovalAnswer.fromJson(Map<String, dynamic> json) => ApprovalAnswer(
-        releaseId: json['release_id'] as String?,
-        version: json['version'] as int?,
-        blockers: [
-          for (final codigo in json['blockers'] as List? ?? const [])
-            codigo as String,
-        ],
-        untoldTakeIds: [
-          for (final nome in json['untold_take_ids'] as List? ?? const [])
-            nome as String,
-        ],
-        unheardTakeIds: [
-          for (final nome in json['unheard_take_ids'] as List? ?? const [])
-            nome as String,
-        ],
-        untoldSegmentId: json['untold_segment_id'] as String?,
-      );
+    releaseId: json['release_id'] as String?,
+    version: json['version'] as int?,
+    blockers: [
+      for (final codigo in json['blockers'] as List? ?? const [])
+        codigo as String,
+    ],
+    untoldTakeIds: [
+      for (final nome in json['untold_take_ids'] as List? ?? const [])
+        nome as String,
+    ],
+    unheardTakeIds: [
+      for (final nome in json['unheard_take_ids'] as List? ?? const [])
+        nome as String,
+    ],
+    untoldSegmentId: json['untold_segment_id'] as String?,
+  );
 }

@@ -38,22 +38,13 @@ const circleLabels = {
     'pt': 'Um momento para uma pessoa',
     'en': 'A moment for someone',
   },
-  'noteMode': {
-    'pt': 'Enviar a pergunta',
-    'en': 'Send the question',
-  },
+  'noteMode': {'pt': 'Enviar a pergunta', 'en': 'Send the question'},
   'teamTalk': {
     'pt': 'Conversem entre vocês — tocar quando quiserem me contar',
     'en': 'Talk among yourselves — tap when you want to tell me',
   },
-  'listening': {
-    'pt': 'Tocar ao terminar',
-    'en': 'Tap when you are done',
-  },
-  'default': {
-    'pt': 'Tocar para falar',
-    'en': 'Tap to speak',
-  },
+  'listening': {'pt': 'Tocar ao terminar', 'en': 'Tap when you are done'},
+  'default': {'pt': 'Tocar para falar', 'en': 'Tap to speak'},
 };
 
 String circleLabelFor(String state, String language) =>
@@ -63,5 +54,5 @@ const panoramaEntryLabel = {'pt': 'Panorama do Livro', 'en': 'Book Panorama'};
 
 String entrarLabelFor({required bool isPanorama, required String language}) =>
     isPanorama
-        ? (panoramaEntryLabel[language] ?? panoramaEntryLabel[floorLanguage]!)
-        : 'Entrar nesta passagem';
+    ? (panoramaEntryLabel[language] ?? panoramaEntryLabel[floorLanguage]!)
+    : 'Entrar nesta passagem';

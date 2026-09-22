@@ -12,7 +12,8 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
 
-String _turnBody({bool usedFailSafe = false, bool degraded = false}) => jsonEncode({
+String _turnBody({bool usedFailSafe = false, bool degraded = false}) =>
+    jsonEncode({
       'session_id': 'sessao-1',
       'audio_base64': base64Encode([1, 2, 3]),
       'mime_type': 'audio/mpeg',
@@ -48,96 +49,132 @@ void main() {
 
     await repository.openSession('sessao-1');
 
-    expect(seen.contentLength, anyOf(isNull, 0),
-        reason: 'um multipart sem nenhuma parte é um corpo que o servidor não '
-            'consegue ler, e a recusa chega ao app como se fosse falta de rede');
+    expect(
+      seen.contentLength,
+      anyOf(isNull, 0),
+      reason:
+          'um multipart sem nenhuma parte é um corpo que o servidor não '
+          'consegue ler, e a recusa chega ao app como se fosse falta de rede',
+    );
     expect(seen.headers['content-type'] ?? '', isNot(contains('multipart')));
     expect(seen.headers['X-Room-Key'], 'k');
   });
 
-  test('a retried opening turn carries the first attempt\'s id, not a fresh one',
-      () async {
-    final seenBodies = <String>[];
-    final repository = RoomRepository(
-      client: MockClient((request) async {
-        seenBodies.add(request.body);
-        return http.Response(_turnBody(), 200);
-      }),
-    );
-    addTearDown(repository.dispose);
+  test(
+    'a retried opening turn carries the first attempt\'s id, not a fresh one',
+    () async {
+      final seenBodies = <String>[];
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seenBodies.add(request.body);
+          return http.Response(_turnBody(), 200);
+        }),
+      );
+      addTearDown(repository.dispose);
 
-    await repository.openSession('sessao-1', turnId: 'turno-1');
-    await repository.openSession('sessao-1', turnId: 'turno-1');
+      await repository.openSession('sessao-1', turnId: 'turno-1');
+      await repository.openSession('sessao-1', turnId: 'turno-1');
 
-    expect(seenBodies, ['turn_id=turno-1', 'turn_id=turno-1'],
-        reason: 'o servidor so responde do jeito que ja respondeu se o id do '
+      expect(
+        seenBodies,
+        ['turn_id=turno-1', 'turn_id=turno-1'],
+        reason:
+            'o servidor so responde do jeito que ja respondeu se o id do '
             'reenvio bater com o da primeira tentativa — um id novo a cada '
-            'chamada e a mesma falha de nunca reconhecer um retry');
-  });
+            'chamada e a mesma falha de nunca reconhecer um retry',
+      );
+    },
+  );
 
-  test('a turn with a recording carries the recording, not an empty envelope',
-      () async {
-    late String seenBody;
-    late http.BaseRequest seen;
-    final repository = RoomRepository(
-      client: MockClient((request) async {
-        seen = request;
-        seenBody = request.body;
-        return http.Response(_turnBody(), 200);
-      }),
-    );
-    addTearDown(repository.dispose);
+  test(
+    'a turn with a recording carries the recording, not an empty envelope',
+    () async {
+      late String seenBody;
+      late http.BaseRequest seen;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seen = request;
+          seenBody = request.body;
+          return http.Response(_turnBody(), 200);
+        }),
+      );
+      addTearDown(repository.dispose);
 
-    final file = await _tempRecording();
-    await repository.sendTurn('sessao-1', file);
+      final file = await _tempRecording();
+      await repository.sendTurn('sessao-1', file);
 
-    expect(seen.headers['content-type'], contains('multipart/form-data'));
-    expect(seenBody, contains('name="file"'),
-        reason: 'o cabeçalho multipart é escrito mesmo sem nenhuma parte — só o '
-            'corpo prova que a gravação foi junto');
-    expect(seenBody, contains('filename='));
-  });
+      expect(seen.headers['content-type'], contains('multipart/form-data'));
+      expect(
+        seenBody,
+        contains('name="file"'),
+        reason:
+            'o cabeçalho multipart é escrito mesmo sem nenhuma parte — só o '
+            'corpo prova que a gravação foi junto',
+      );
+      expect(seenBody, contains('filename='));
+    },
+  );
 
-  test('a canned turn says whether the room was in trouble, not only that it was canned',
-      () async {
-    var inTrouble = true;
-    final repository = RoomRepository(
-      client: MockClient((request) async =>
-          http.Response(_turnBody(usedFailSafe: true, degraded: inTrouble), 200)),
-    );
-    addTearDown(repository.dispose);
+  test(
+    'a canned turn says whether the room was in trouble, not only that it was canned',
+    () async {
+      var inTrouble = true;
+      final repository = RoomRepository(
+        client: MockClient(
+          (request) async => http.Response(
+            _turnBody(usedFailSafe: true, degraded: inTrouble),
+            200,
+          ),
+        ),
+      );
+      addTearDown(repository.dispose);
 
-    final broken = await repository.sendTurn('sessao-1', await _tempRecording());
-    inTrouble = false;
-    final ensaiando = await repository.sendTurn('sessao-1', await _tempRecording());
+      final broken = await repository.sendTurn(
+        'sessao-1',
+        await _tempRecording(),
+      );
+      inTrouble = false;
+      final ensaiando = await repository.sendTurn(
+        'sessao-1',
+        await _tempRecording(),
+      );
 
-    expect(broken.degraded, isTrue);
-    expect(ensaiando.usedFailSafe, isTrue);
-    expect(ensaiando.degraded, isFalse,
-        reason: 'a sala responde da lata tanto quando falha quanto quando a equipe ensaia '
+      expect(broken.degraded, isTrue);
+      expect(ensaiando.usedFailSafe, isTrue);
+      expect(
+        ensaiando.degraded,
+        isFalse,
+        reason:
+            'a sala responde da lata tanto quando falha quanto quando a equipe ensaia '
             'na língua dela, e os dois campos juntos só provam alguma coisa se a resposta '
-            'trouxer a combinação que existe por causa da correção');
-  });
+            'trouxer a combinação que existe por causa da correção',
+      );
+    },
+  );
 
-  test('a turn carries the id classification watches, and whether classification is still running',
-      () async {
-    final repository = RoomRepository(
-      client: MockClient((request) async => http.Response(
+  test(
+    'a turn carries the id classification watches, and whether classification is still running',
+    () async {
+      final repository = RoomRepository(
+        client: MockClient(
+          (request) async => http.Response(
             jsonEncode({
               'session_id': 'sessao-1',
               'turn_id': 'turno-9',
               'classification_pending': true,
             }),
             200,
-          )),
-    );
-    addTearDown(repository.dispose);
+          ),
+        ),
+      );
+      addTearDown(repository.dispose);
 
-    final turn = await repository.openSession('sessao-1');
+      final turn = await repository.openSession('sessao-1');
 
-    expect(turn.turnId, 'turno-9');
-    expect(turn.classificationPending, isTrue);
-  });
+      expect(turn.turnId, 'turno-9');
+      expect(turn.classificationPending, isTrue);
+    },
+  );
 
   test('the panorama is asked for by name, a plain session is not', () async {
     final asked = <String>[];
@@ -169,115 +206,159 @@ void main() {
     await repository.createSession(afterSession: 'panorama-1', language: 'pt');
     await repository.createSession(language: 'en');
 
-    expect(asked, [
-      '{"pericope":"OV","language":"pt"}',
-      '{"after_session":"panorama-1","language":"pt"}',
-      '{"language":"en"}',
-    ], reason: 'nada do que a sala fala é feito aqui — um pedido que não diz a '
-        'língua volta no idioma padrão do servidor e a equipe ouve outra');
-    expect(types, everyElement(contains('application/json')),
-        reason: 'sem esse cabeçalho o FastAPI responde 422 e o app desenha '
-            'falta de rede');
-  });
-
-  test('a tablet with no device of its own asks for a code without naming one', () async {
-    late http.BaseRequest seen;
-    late String body;
-    final repository = RoomRepository(
-      client: MockClient((request) async {
-        seen = request;
-        body = request.body;
-        return http.Response(
-          jsonEncode({
-            'device_id': 'aparelho-1',
-            'code': 'QHF-3M7K',
-            'expires_at': '2026-08-26T23:15:00Z',
-          }),
-          200,
-        );
-      }),
+    expect(
+      asked,
+      [
+        '{"pericope":"OV","language":"pt"}',
+        '{"after_session":"panorama-1","language":"pt"}',
+        '{"language":"en"}',
+      ],
+      reason:
+          'nada do que a sala fala é feito aqui — um pedido que não diz a '
+          'língua volta no idioma padrão do servidor e a equipe ouve outra',
     );
-    addTearDown(repository.dispose);
-
-    final asked = await repository.askForACode(null);
-
-    expect(seen.url.path, '/api/internalization-room/devices/code');
-    expect(body, '{}',
-        reason: 'um device_id nulo virava a string "null" no corpo e o servidor '
-            'procurava um aparelho com esse id');
-    expect(seen.headers['X-Room-Key'], 'k');
-    expect(asked.code, 'QHF-3M7K');
-    expect(asked.deviceId, 'aparelho-1');
-  });
-
-  test('a tablet whose code ran out asks again under the device it already has', () async {
-    late String body;
-    final repository = RoomRepository(
-      client: MockClient((request) async {
-        body = request.body;
-        return http.Response(
-          jsonEncode({
-            'device_id': 'aparelho-1',
-            'code': 'WKD-2QP4',
-            'expires_at': '2026-08-26T23:30:00Z',
-          }),
-          200,
-        );
-      }),
+    expect(
+      types,
+      everyElement(contains('application/json')),
+      reason:
+          'sem esse cabeçalho o FastAPI responde 422 e o app desenha '
+          'falta de rede',
     );
-    addTearDown(repository.dispose);
-
-    await repository.askForACode('aparelho-1');
-
-    expect(body, '{"device_id":"aparelho-1"}',
-        reason: 'sem o id, cada código novo abandonava um aparelho e a mesa via '
-            'um código diferente do que tinha anotado');
   });
 
-  test('an unreadable expiry is a code with no expiry, not a code born dead', () async {
-    final repository = RoomRepository(
-      client: MockClient((_) async => http.Response(
+  test(
+    'a tablet with no device of its own asks for a code without naming one',
+    () async {
+      late http.BaseRequest seen;
+      late String body;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seen = request;
+          body = request.body;
+          return http.Response(
+            jsonEncode({
+              'device_id': 'aparelho-1',
+              'code': 'QHF-3M7K',
+              'expires_at': '2026-08-26T23:15:00Z',
+            }),
+            200,
+          );
+        }),
+      );
+      addTearDown(repository.dispose);
+
+      final asked = await repository.askForACode(null);
+
+      expect(seen.url.path, '/api/internalization-room/devices/code');
+      expect(
+        body,
+        '{}',
+        reason:
+            'um device_id nulo virava a string "null" no corpo e o servidor '
+            'procurava um aparelho com esse id',
+      );
+      expect(seen.headers['X-Room-Key'], 'k');
+      expect(asked.code, 'QHF-3M7K');
+      expect(asked.deviceId, 'aparelho-1');
+    },
+  );
+
+  test(
+    'a tablet whose code ran out asks again under the device it already has',
+    () async {
+      late String body;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          body = request.body;
+          return http.Response(
+            jsonEncode({
+              'device_id': 'aparelho-1',
+              'code': 'WKD-2QP4',
+              'expires_at': '2026-08-26T23:30:00Z',
+            }),
+            200,
+          );
+        }),
+      );
+      addTearDown(repository.dispose);
+
+      await repository.askForACode('aparelho-1');
+
+      expect(
+        body,
+        '{"device_id":"aparelho-1"}',
+        reason:
+            'sem o id, cada código novo abandonava um aparelho e a mesa via '
+            'um código diferente do que tinha anotado',
+      );
+    },
+  );
+
+  test(
+    'an unreadable expiry is a code with no expiry, not a code born dead',
+    () async {
+      final repository = RoomRepository(
+        client: MockClient(
+          (_) async => http.Response(
             jsonEncode({
               'device_id': 'aparelho-1',
               'code': 'QHF-3M7K',
               'expires_at': 'sometime after lunch',
             }),
             200,
-          )),
-    );
-    addTearDown(repository.dispose);
+          ),
+        ),
+      );
+      addTearDown(repository.dispose);
 
-    final asked = await repository.askForACode(null);
+      final asked = await repository.askForACode(null);
 
-    expect(asked.expiresAt, isNull,
-        reason: 'um vencimento no passado como padrão pedia um código novo a cada '
-            'volta do relógio, e a mesa nunca via o mesmo duas vezes');
-  });
+      expect(
+        asked.expiresAt,
+        isNull,
+        reason:
+            'um vencimento no passado como padrão pedia um código novo a cada '
+            'volta do relógio, e a mesa nunca via o mesmo duas vezes',
+      );
+    },
+  );
 
-  test('a device nobody has claimed answers nothing, and nothing is not a failure', () async {
-    late http.BaseRequest seen;
-    final repository = RoomRepository(
-      client: MockClient((request) async {
-        seen = request;
-        return http.Response('', 204);
-      }),
-    );
-    addTearDown(repository.dispose);
+  test(
+    'a device nobody has claimed answers nothing, and nothing is not a failure',
+    () async {
+      late http.BaseRequest seen;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seen = request;
+          return http.Response('', 204);
+        }),
+      );
+      addTearDown(repository.dispose);
 
-    final link = await repository.readTheLink('aparelho-1');
+      final link = await repository.readTheLink('aparelho-1');
 
-    expect(seen.url.path, '/api/internalization-room/devices/aparelho-1/link');
-    expect(link, isNull,
-        reason: 'um 204 caía no ramo de não-200 e virava RoomBroke, então esperar '
-            'pela mesa parecia a sala quebrada');
-  });
+      expect(
+        seen.url.path,
+        '/api/internalization-room/devices/aparelho-1/link',
+      );
+      expect(
+        link,
+        isNull,
+        reason:
+            'um 204 caía no ramo de não-200 e virava RoomBroke, então esperar '
+            'pela mesa parecia a sala quebrada',
+      );
+    },
+  );
 
   test('a claimed device comes back naming the team it belongs to', () async {
     final repository = RoomRepository(
-      client: MockClient((_) async => http.Response(
-            jsonEncode({'project_id': 'equipe-terena', 'label': 'prateleira'}),
-            200,
-          )),
+      client: MockClient(
+        (_) async => http.Response(
+          jsonEncode({'project_id': 'equipe-terena', 'label': 'prateleira'}),
+          200,
+        ),
+      ),
     );
     addTearDown(repository.dispose);
 
@@ -286,35 +367,44 @@ void main() {
     expect(link?.projectId, 'equipe-terena');
   });
 
-  test('a link with no team named is a room failure, not a team called nothing',
-      () async {
-    final repository = RoomRepository(
-      client: MockClient((_) async => http.Response('{"label":"prateleira"}', 200)),
-    );
-    addTearDown(repository.dispose);
+  test(
+    'a link with no team named is a room failure, not a team called nothing',
+    () async {
+      final repository = RoomRepository(
+        client: MockClient(
+          (_) async => http.Response('{"label":"prateleira"}', 200),
+        ),
+      );
+      addTearDown(repository.dispose);
 
-    expect(
-      () => repository.readTheLink('aparelho-1'),
-      throwsA(isA<RoomBroke>()),
-      reason: 'um project_id ausente virava equipe "" — o aparelho gravava isso em disco, '
-          'dava-se por vinculado, e a tela de instalação nunca mais voltava',
-    );
-  });
+      expect(
+        () => repository.readTheLink('aparelho-1'),
+        throwsA(isA<RoomBroke>()),
+        reason:
+            'um project_id ausente virava equipe "" — o aparelho gravava isso em disco, '
+            'dava-se por vinculado, e a tela de instalação nunca mais voltava',
+      );
+    },
+  );
 
-  test('a code with no code in it is a room failure, not an empty screen', () async {
-    final repository = RoomRepository(
-      client: MockClient(
-        (_) async => http.Response('{"expires_at":"2026-08-26T23:15:00Z"}', 200),
-      ),
-    );
-    addTearDown(repository.dispose);
+  test(
+    'a code with no code in it is a room failure, not an empty screen',
+    () async {
+      final repository = RoomRepository(
+        client: MockClient(
+          (_) async =>
+              http.Response('{"expires_at":"2026-08-26T23:15:00Z"}', 200),
+        ),
+      );
+      addTearDown(repository.dispose);
 
-    expect(
-      () => repository.askForACode(null),
-      throwsA(isA<RoomBroke>()),
-      reason: 'a mesa não pode digitar um código que a tela não mostrou',
-    );
-  });
+      expect(
+        () => repository.askForACode(null),
+        throwsA(isA<RoomBroke>()),
+        reason: 'a mesa não pode digitar um código que a tela não mostrou',
+      );
+    },
+  );
 
   test('a malformed answer is a room failure, never a crash', () async {
     final repository = RoomRepository(
@@ -325,7 +415,8 @@ void main() {
     expect(
       () => repository.createSession(language: 'pt'),
       throwsA(isA<RoomBroke>()),
-      reason: 'um TypeError escapa de todo `on Exception` e trava a sala em '
+      reason:
+          'um TypeError escapa de todo `on Exception` e trava a sala em '
           'pensando, sem gesto e sem voz',
     );
   });
@@ -347,234 +438,297 @@ void main() {
     await expectStatus(500, isA<RoomBroke>());
   });
 
-  test('a room that cannot be reached is not the same as one that answers badly',
-      () async {
-    final repository = RoomRepository(
-      client: MockClient((_) async => throw const SocketException('sem rota')),
-    );
-    addTearDown(repository.dispose);
+  test(
+    'a room that cannot be reached is not the same as one that answers badly',
+    () async {
+      final repository = RoomRepository(
+        client: MockClient(
+          (_) async => throw const SocketException('sem rota'),
+        ),
+      );
+      addTearDown(repository.dispose);
 
-    await expectLater(
-      () => repository.fetchState('s'),
-      throwsA(isA<RoomUnavailable>()),
-      reason: 'só transporte é queda de rede; resposta ruim é sala quebrada',
-    );
-  });
+      await expectLater(
+        () => repository.fetchState('s'),
+        throwsA(isA<RoomUnavailable>()),
+        reason: 'só transporte é queda de rede; resposta ruim é sala quebrada',
+      );
+    },
+  );
 
-  test('a room that takes too long is not a room that is gone', () async {
-    final repository = RoomRepository(
-      client: MockClient((_) async {
-        await Future<void>.delayed(const Duration(seconds: 30));
-        return http.Response('{}', 200);
-      }),
-    );
-    addTearDown(repository.dispose);
+  test(
+    'a room that takes too long is not a room that is gone',
+    () async {
+      final repository = RoomRepository(
+        client: MockClient((_) async {
+          await Future<void>.delayed(const Duration(seconds: 30));
+          return http.Response('{}', 200);
+        }),
+      );
+      addTearDown(repository.dispose);
 
-    await expectLater(
-      () => repository.fetchState('s'),
-      throwsA(isA<RoomSlow>()),
-      reason: 'esperar demais e não achar a sala eram a mesma exceção, e a equipe ouvia '
-          'que a internet tinha caído por causa de um servidor pensando',
-    );
-  }, timeout: const Timeout(Duration(seconds: 90)));
+      await expectLater(
+        () => repository.fetchState('s'),
+        throwsA(isA<RoomSlow>()),
+        reason:
+            'esperar demais e não achar a sala eram a mesma exceção, e a equipe ouvia '
+            'que a internet tinha caído por causa de um servidor pensando',
+      );
+    },
+    timeout: const Timeout(Duration(seconds: 90)),
+  );
 
-  test('cancelling a coverage subscription closes the connection, not only the callback',
-      () async {
-    final controller = StreamController<List<int>>();
-    final repository = RoomRepository(
-      client: MockClient.streaming(
-        (request, bodyStream) async => http.StreamedResponse(controller.stream, 200),
-      ),
-    );
-    addTearDown(repository.dispose);
+  test(
+    'cancelling a coverage subscription closes the connection, not only the callback',
+    () async {
+      final controller = StreamController<List<int>>();
+      final repository = RoomRepository(
+        client: MockClient.streaming(
+          (request, bodyStream) async =>
+              http.StreamedResponse(controller.stream, 200),
+        ),
+      );
+      addTearDown(repository.dispose);
 
-    final subscription = repository.watchCoverage('sessao-1').listen((_) {});
-    await Future<void>.delayed(const Duration(milliseconds: 20));
-    expect(controller.hasListener, isTrue);
+      final subscription = repository.watchCoverage('sessao-1').listen((_) {});
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(controller.hasListener, isTrue);
 
-    await subscription.cancel();
-    await Future<void>.delayed(const Duration(milliseconds: 20));
+      await subscription.cancel();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
 
-    expect(controller.hasListener, isFalse,
-        reason: 'a sala troca de sessão a cada passagem; uma escuta cancelada que '
-            'continua lendo o socket do servidor vaza uma conexão por passagem');
-  });
+      expect(
+        controller.hasListener,
+        isFalse,
+        reason:
+            'a sala troca de sessão a cada passagem; uma escuta cancelada que '
+            'continua lendo o socket do servidor vaza uma conexão por passagem',
+      );
+    },
+  );
 
-  test('cancelling while the connection is still opening still stops it once it does',
-      () async {
-    final connecting = Completer<http.StreamedResponse>();
-    final controller = StreamController<List<int>>();
-    final repository = RoomRepository(
-      client: MockClient.streaming((request, bodyStream) => connecting.future),
-    );
-    addTearDown(repository.dispose);
+  test(
+    'cancelling while the connection is still opening still stops it once it does',
+    () async {
+      final connecting = Completer<http.StreamedResponse>();
+      final controller = StreamController<List<int>>();
+      final repository = RoomRepository(
+        client: MockClient.streaming(
+          (request, bodyStream) => connecting.future,
+        ),
+      );
+      addTearDown(repository.dispose);
 
-    final subscription = repository.watchCoverage('sessao-1').listen((_) {});
-    await Future<void>.delayed(const Duration(milliseconds: 20));
+      final subscription = repository.watchCoverage('sessao-1').listen((_) {});
+      await Future<void>.delayed(const Duration(milliseconds: 20));
 
-    await subscription.cancel();
-    connecting.complete(http.StreamedResponse(controller.stream, 200));
-    await Future<void>.delayed(const Duration(milliseconds: 20));
+      await subscription.cancel();
+      connecting.complete(http.StreamedResponse(controller.stream, 200));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
 
-    expect(controller.hasListener, isFalse,
-        reason: 'cancelar antes de o GET terminar de conectar não pode deixar a '
-            'escuta ser ligada mesmo assim quando a resposta finalmente chega');
-  });
+      expect(
+        controller.hasListener,
+        isFalse,
+        reason:
+            'cancelar antes de o GET terminar de conectar não pode deixar a '
+            'escuta ser ligada mesmo assim quando a resposta finalmente chega',
+      );
+    },
+  );
 
-  test('cancelling while the connection is still opening still closes the socket, not just the app\'s own read',
-      () async {
-    final connecting = Completer<http.StreamedResponse>();
-    var listens = 0;
-    final controller = StreamController<List<int>>(onListen: () => listens++);
-    final repository = RoomRepository(
-      client: MockClient.streaming((request, bodyStream) => connecting.future),
-    );
-    addTearDown(repository.dispose);
+  test(
+    'cancelling while the connection is still opening still closes the socket, not just the app\'s own read',
+    () async {
+      final connecting = Completer<http.StreamedResponse>();
+      var listens = 0;
+      final controller = StreamController<List<int>>(onListen: () => listens++);
+      final repository = RoomRepository(
+        client: MockClient.streaming(
+          (request, bodyStream) => connecting.future,
+        ),
+      );
+      addTearDown(repository.dispose);
 
-    final subscription = repository.watchCoverage('sessao-1').listen((_) {});
-    await Future<void>.delayed(const Duration(milliseconds: 20));
+      final subscription = repository.watchCoverage('sessao-1').listen((_) {});
+      await Future<void>.delayed(const Duration(milliseconds: 20));
 
-    await subscription.cancel();
-    connecting.complete(http.StreamedResponse(controller.stream, 200));
-    await Future<void>.delayed(const Duration(milliseconds: 20));
+      await subscription.cancel();
+      connecting.complete(http.StreamedResponse(controller.stream, 200));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
 
-    expect(listens, greaterThan(0),
-        reason: 'abandonar a resposta sem nunca tocá-la deixa o socket aberto do '
+      expect(
+        listens,
+        greaterThan(0),
+        reason:
+            'abandonar a resposta sem nunca tocá-la deixa o socket aberto do '
             'lado do servidor; fechar de verdade passa por escutar e cancelar, '
-            'não por simplesmente nunca escutar');
-  });
+            'não por simplesmente nunca escutar',
+      );
+    },
+  );
 
-  test('a settled frame on the coverage channel names its turn and its status',
-      () async {
-    final controller = StreamController<List<int>>();
-    final repository = RoomRepository(
-      client: MockClient.streaming(
-        (request, bodyStream) async => http.StreamedResponse(controller.stream, 200),
-      ),
-    );
-    addTearDown(repository.dispose);
+  test(
+    'a settled frame on the coverage channel names its turn and its status',
+    () async {
+      final controller = StreamController<List<int>>();
+      final repository = RoomRepository(
+        client: MockClient.streaming(
+          (request, bodyStream) async =>
+              http.StreamedResponse(controller.stream, 200),
+        ),
+      );
+      addTearDown(repository.dispose);
 
-    final frames = <CoverageEvent>[];
-    final done = Completer<void>();
-    final subscription = repository
-        .watchCoverage('sessao-1')
-        .listen(frames.add, onDone: done.complete);
-    addTearDown(subscription.cancel);
+      final frames = <CoverageEvent>[];
+      final done = Completer<void>();
+      final subscription = repository
+          .watchCoverage('sessao-1')
+          .listen(frames.add, onDone: done.complete);
+      addTearDown(subscription.cancel);
 
-    controller.add(utf8.encode(
-      'event: coverage\n'
-      'data: {"turn_id": "turno-1", "status": "settled", '
-      '"coverage": {"engaged": 3, "surfaced": 4, "total": 29, "absence_index": 13}}\n\n',
-    ));
-    await controller.close();
-    await done.future;
+      controller.add(
+        utf8.encode(
+          'event: coverage\n'
+          'data: {"turn_id": "turno-1", "status": "settled", '
+          '"coverage": {"engaged": 3, "surfaced": 4, "total": 29, "absence_index": 13}}\n\n',
+        ),
+      );
+      await controller.close();
+      await done.future;
 
-    expect(frames, hasLength(1));
-    expect(frames.single.turnId, 'turno-1');
-    expect(frames.single.status, CoverageStatus.settled);
-  });
+      expect(frames, hasLength(1));
+      expect(frames.single.turnId, 'turno-1');
+      expect(frames.single.status, CoverageStatus.settled);
+    },
+  );
 
-  test('a keep-alive on the coverage channel produces nothing, and the channel keeps talking',
-      () async {
-    final controller = StreamController<List<int>>();
-    final repository = RoomRepository(
-      client: MockClient.streaming(
-        (request, bodyStream) async => http.StreamedResponse(controller.stream, 200),
-      ),
-    );
-    addTearDown(repository.dispose);
+  test(
+    'a keep-alive on the coverage channel produces nothing, and the channel keeps talking',
+    () async {
+      final controller = StreamController<List<int>>();
+      final repository = RoomRepository(
+        client: MockClient.streaming(
+          (request, bodyStream) async =>
+              http.StreamedResponse(controller.stream, 200),
+        ),
+      );
+      addTearDown(repository.dispose);
 
-    final frames = <CoverageEvent>[];
-    final done = Completer<void>();
-    final subscription = repository
-        .watchCoverage('sessao-1')
-        .listen(frames.add, onDone: done.complete);
-    addTearDown(subscription.cancel);
+      final frames = <CoverageEvent>[];
+      final done = Completer<void>();
+      final subscription = repository
+          .watchCoverage('sessao-1')
+          .listen(frames.add, onDone: done.complete);
+      addTearDown(subscription.cancel);
 
-    controller.add(utf8.encode(': keep-alive\n\n'));
-    controller.add(utf8.encode(
-      'event: coverage\n'
-      'data: {"turn_id": "turno-2", "status": "settled", '
-      '"coverage": {"engaged": 1, "surfaced": 1, "total": 29, "absence_index": -1}}\n\n',
-    ));
-    await controller.close();
-    await done.future;
+      controller.add(utf8.encode(': keep-alive\n\n'));
+      controller.add(
+        utf8.encode(
+          'event: coverage\n'
+          'data: {"turn_id": "turno-2", "status": "settled", '
+          '"coverage": {"engaged": 1, "surfaced": 1, "total": 29, "absence_index": -1}}\n\n',
+        ),
+      );
+      await controller.close();
+      await done.future;
 
-    expect(frames, hasLength(1),
+      expect(
+        frames,
+        hasLength(1),
         reason:
             'um coração sem turno nem status não pode nem virar frame nem travar o '
-            'parser antes do próximo evento de verdade chegar');
-    expect(frames.single.turnId, 'turno-2');
-  });
+            'parser antes do próximo evento de verdade chegar',
+      );
+      expect(frames.single.turnId, 'turno-2');
+    },
+  );
 
-  test('o terminei manda o que foi ouvido de cada parte, com o nome dela',
-      () async {
-    late String seenBody;
-    final repository = RoomRepository(
-      client: MockClient((request) async {
-        seenBody = request.body;
-        return http.Response(jsonEncode({'checked': true}), 200);
-      }),
-    );
-    addTearDown(repository.dispose);
+  test(
+    'o terminei manda o que foi ouvido de cada parte, com o nome dela',
+    () async {
+      late String seenBody;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seenBody = request.body;
+          return http.Response(jsonEncode({'checked': true}), 200);
+        }),
+      );
+      addTearDown(repository.dispose);
 
-    await repository.finishBackTranslation('sessao-1', playedByTake: const [
-      PlayedTake(
-        takeId: 'gravacao-1',
-        playedRanges: [
-          [0, 10000]
+      await repository.finishBackTranslation(
+        'sessao-1',
+        playedByTake: const [
+          PlayedTake(
+            takeId: 'gravacao-1',
+            playedRanges: [
+              [0, 10000],
+            ],
+            clipDurationMs: 10000,
+          ),
+          PlayedTake(
+            takeId: 'gravacao-2',
+            playedRanges: [
+              [0, 8000],
+            ],
+            clipDurationMs: 8000,
+          ),
         ],
-        clipDurationMs: 10000,
-      ),
-      PlayedTake(
-        takeId: 'gravacao-2',
-        playedRanges: [
-          [0, 8000]
-        ],
-        clipDurationMs: 8000,
-      ),
-    ]);
+      );
 
-    expect(jsonDecode(seenBody), {
-      'played_by_take': [
+      expect(
+        jsonDecode(seenBody),
         {
-          'take_id': 'gravacao-1',
-          'played_ranges': [
-            [0, 10000]
+          'played_by_take': [
+            {
+              'take_id': 'gravacao-1',
+              'played_ranges': [
+                [0, 10000],
+              ],
+              'clip_duration_ms': 10000,
+            },
+            {
+              'take_id': 'gravacao-2',
+              'played_ranges': [
+                [0, 8000],
+              ],
+              'clip_duration_ms': 8000,
+            },
           ],
-          'clip_duration_ms': 10000,
         },
-        {
-          'take_id': 'gravacao-2',
-          'played_ranges': [
-            [0, 8000]
-          ],
-          'clip_duration_ms': 8000,
-        },
-      ],
-    }, reason: 'os dois números soltos não diziam de qual gravação falavam, e '
-        'seguiam valendo como prova depois que a equipe regravava uma parte');
-  });
+        reason:
+            'os dois números soltos não diziam de qual gravação falavam, e '
+            'seguiam valendo como prova depois que a equipe regravava uma parte',
+      );
+    },
+  );
 
-  test('sem nada ouvido o terminei vai sem corpo, e a sala ainda responde',
-      () async {
-    late http.BaseRequest seen;
-    final repository = RoomRepository(
-      client: MockClient((request) async {
-        seen = request;
-        return http.Response(jsonEncode({'checked': true}), 200);
-      }),
-    );
-    addTearDown(repository.dispose);
+  test(
+    'sem nada ouvido o terminei vai sem corpo, e a sala ainda responde',
+    () async {
+      late http.BaseRequest seen;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seen = request;
+          return http.Response(jsonEncode({'checked': true}), 200);
+        }),
+      );
+      addTearDown(repository.dispose);
 
-    final verdict = await repository
-        .finishBackTranslation('sessao-1', playedByTake: const []);
+      final verdict = await repository.finishBackTranslation(
+        'sessao-1',
+        playedByTake: const [],
+      );
 
-    expect(seen.contentLength, anyOf(isNull, 0),
-        reason: 'relato nenhum é diferente de relato vazio, e é a sala que '
-            'decide o que fazer com a falta dele');
-    expect(verdict.checked, isTrue);
-  });
+      expect(
+        seen.contentLength,
+        anyOf(isNull, 0),
+        reason:
+            'relato nenhum é diferente de relato vazio, e é a sala que '
+            'decide o que fazer com a falta dele',
+      );
+      expect(verdict.checked, isTrue);
+    },
+  );
 
   group('a aprovação da equipe', () {
     const aparelho = 'aparelho-de-teste';
@@ -590,107 +744,155 @@ void main() {
 
     test('vai pela rota da release, com o aparelho e sem corpo', () async {
       late http.BaseRequest seen;
-      final repository = umaSala(MockClient((request) async {
-        seen = request;
-        return http.Response(
-          jsonEncode({
-            'release_id': 'solta-1',
-            'session_id': 'sessao-1',
-            'version': 1,
-            'package_sha256': 'abc',
-            'approved_at': '2026-09-15T00:00:00Z',
-          }),
-          200,
-        );
-      }));
+      final repository = umaSala(
+        MockClient((request) async {
+          seen = request;
+          return http.Response(
+            jsonEncode({
+              'release_id': 'solta-1',
+              'session_id': 'sessao-1',
+              'version': 1,
+              'package_sha256': 'abc',
+              'approved_at': '2026-09-15T00:00:00Z',
+            }),
+            200,
+          );
+        }),
+      );
       repository.presents('credencial-1');
 
       final solta = await repository.approveRelease('sessao-1');
 
       expect(seen.method, 'POST');
-      expect(seen.url.path, '/api/internalization-room/sessions/sessao-1/release');
-      expect(seen.contentLength, anyOf(isNull, 0),
-          reason: 'a sala monta a release do que já guarda: o tablet não tem '
-              'nada a mandar junto');
+      expect(
+        seen.url.path,
+        '/api/internalization-room/sessions/sessao-1/release',
+      );
+      expect(
+        seen.contentLength,
+        anyOf(isNull, 0),
+        reason:
+            'a sala monta a release do que já guarda: o tablet não tem '
+            'nada a mandar junto',
+      );
       expect(seen.headers['X-Room-Key'], 'k');
       expect(seen.headers['X-Device-Credential'], 'credencial-1');
-      expect(seen.headers['X-Room-Device'], aparelho,
-          reason: 'é uma escrita da equipe, e a linha da release carrega o '
-              'aparelho que a fez como toda escrita da equipe carrega');
+      expect(
+        seen.headers['X-Room-Device'],
+        aparelho,
+        reason:
+            'é uma escrita da equipe, e a linha da release carrega o '
+            'aparelho que a fez como toda escrita da equipe carrega',
+      );
       expect(seen.headers['Content-Type'], contains('application/json'));
       expect(solta.releaseId, 'solta-1');
-      expect(solta.version, 1,
-          reason: 'a versão é o que a equipe ganha por aprovar');
-      expect(solta.blockers, isEmpty,
-          reason: 'e nada ficou de pé: é o que separa esta resposta de uma '
-              'recusa, que vem no mesmo estado e no mesmo corpo');
+      expect(
+        solta.version,
+        1,
+        reason: 'a versão é o que a equipe ganha por aprovar',
+      );
+      expect(
+        solta.blockers,
+        isEmpty,
+        reason:
+            'e nada ficou de pé: é o que separa esta resposta de uma '
+            'recusa, que vem no mesmo estado e no mesmo corpo',
+      );
     });
 
     test('uma recusa vem no corpo, com os buracos que ela nomeia', () async {
-      final repository = umaSala(MockClient((request) async {
-        return http.Response(
-          jsonEncode({
-            'session_id': 'sessao-1',
-            'version': null,
-            'release_id': null,
-            'package_sha256': null,
-            'approved_at': null,
-            'blockers': ['telling_back_not_checked', 'untold_part'],
-            'untold_take_ids': ['gravacao-2'],
-            'unheard_take_ids': [],
-            'untold_segment_id': null,
-          }),
-          200,
-        );
-      }));
+      final repository = umaSala(
+        MockClient((request) async {
+          return http.Response(
+            jsonEncode({
+              'session_id': 'sessao-1',
+              'version': null,
+              'release_id': null,
+              'package_sha256': null,
+              'approved_at': null,
+              'blockers': ['telling_back_not_checked', 'untold_part'],
+              'untold_take_ids': ['gravacao-2'],
+              'unheard_take_ids': [],
+              'untold_segment_id': null,
+            }),
+            200,
+          );
+        }),
+      );
 
       final resposta = await repository.approveRelease('sessao-1');
 
-      expect(resposta.minted, isFalse,
-          reason: 'sem versão não há release nenhuma, e o colar não tem o que '
-              'fechar');
-      expect(resposta.blockers, ['telling_back_not_checked', 'untold_part'],
-          reason: 'os buracos chegam nomeados, na ordem em que o portão os '
-              'levantou: é a única coisa que diz à equipe para onde ir');
-      expect(resposta.untoldTakeIds, ['gravacao-2'],
-          reason: 'e o buraco que tem chão traz o chão: sem a gravação, a '
-              'parte não contada é um código que não leva a lugar nenhum');
+      expect(
+        resposta.minted,
+        isFalse,
+        reason:
+            'sem versão não há release nenhuma, e o colar não tem o que '
+            'fechar',
+      );
+      expect(
+        resposta.blockers,
+        ['telling_back_not_checked', 'untold_part'],
+        reason:
+            'os buracos chegam nomeados, na ordem em que o portão os '
+            'levantou: é a única coisa que diz à equipe para onde ir',
+      );
+      expect(
+        resposta.untoldTakeIds,
+        ['gravacao-2'],
+        reason:
+            'e o buraco que tem chão traz o chão: sem a gravação, a '
+            'parte não contada é um código que não leva a lugar nenhum',
+      );
     });
 
     test('um 200 sem versão e sem buracos não passa por aprovado', () async {
-      final repository = umaSala(MockClient(
-        (request) async => http.Response(
-          jsonEncode({'session_id': 'sessao-1'}),
-          200,
+      final repository = umaSala(
+        MockClient(
+          (request) async =>
+              http.Response(jsonEncode({'session_id': 'sessao-1'}), 200),
         ),
-      ));
+      );
 
       final resposta = await repository.approveRelease('sessao-1');
 
-      expect(resposta.minted, isFalse,
-          reason: 'lida como zero, a versão que o servidor não nomeou fechava '
-              'a passagem por cima de nada; é a resposta que este modelo '
-              'existe para apanhar');
-      expect(resposta.blockers, isEmpty,
-          reason: 'e não é uma recusa tampouco: é uma resposta que este tablet '
-              'não conhece, e quem decide o que fazer com ela é a sala');
-    });
-
-    test('a corrida de versão desce pela escada comum, como um pedido a repetir',
-        () async {
-      final repository = umaSala(MockClient(
-        (request) async => http.Response('a release mudou debaixo do pedido', 409),
-      ));
-
-      await expectLater(
-        () => repository.approveRelease('sessao-1'),
-        throwsA(isA<RoomBroke>()),
-        reason: 'um 409 deixou de ser a recusa e é só a versão que correu: a '
-            'escada comum o repete, e a recusa de verdade chega em 200 com os '
-            'buracos nomeados — tratá-lo como recusa levava a equipe a um '
-            'buraco que ninguém nomeou',
+      expect(
+        resposta.minted,
+        isFalse,
+        reason:
+            'lida como zero, a versão que o servidor não nomeou fechava '
+            'a passagem por cima de nada; é a resposta que este modelo '
+            'existe para apanhar',
+      );
+      expect(
+        resposta.blockers,
+        isEmpty,
+        reason:
+            'e não é uma recusa tampouco: é uma resposta que este tablet '
+            'não conhece, e quem decide o que fazer com ela é a sala',
       );
     });
+
+    test(
+      'a corrida de versão desce pela escada comum, como um pedido a repetir',
+      () async {
+        final repository = umaSala(
+          MockClient(
+            (request) async =>
+                http.Response('a release mudou debaixo do pedido', 409),
+          ),
+        );
+
+        await expectLater(
+          () => repository.approveRelease('sessao-1'),
+          throwsA(isA<RoomBroke>()),
+          reason:
+              'um 409 deixou de ser a recusa e é só a versão que correu: a '
+              'escada comum o repete, e a recusa de verdade chega em 200 com os '
+              'buracos nomeados — tratá-lo como recusa levava a equipe a um '
+              'buraco que ninguém nomeou',
+        );
+      },
+    );
 
     test('as outras recusas seguem as de sempre', () async {
       for (final caso in [
@@ -705,7 +907,8 @@ void main() {
         expect(
           () => repository.approveRelease('sessao-1'),
           throwsA(caso.erro),
-          reason: 'a release não inventa escada nenhuma para os estados que a '
+          reason:
+              'a release não inventa escada nenhuma para os estados que a '
               'sala inteira já trata',
         );
       }
@@ -713,25 +916,42 @@ void main() {
   });
 
   test(
-      'the client turn wait and the busy watchdog sit above the server bound, in order',
-      () {
-    const serverBound = Duration(seconds: 300);
-    final container = ProviderContainer();
-    addTearDown(container.dispose);
-    final watchdog = container.read(busyStateCeilingProvider);
+    'the client turn wait and the busy watchdog sit above the server bound, in order',
+    () {
+      const serverBound = Duration(seconds: 300);
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final watchdog = container.read(busyStateCeilingProvider);
 
-    expect(RoomRepository.turnTimeout, greaterThan(serverBound),
-        reason: 'a rota aceita até 300 s (ENG-817); um cliente que desiste em 90 s '
-            'derrubava um turno que o servidor ainda ia responder');
-    expect(watchdog, isNotNull);
-    expect(watchdog, greaterThan(RoomRepository.turnTimeout),
-        reason: 'o watchdog precisa sobrar depois que a chamada HTTP já teria '
-            'voltado, senão os dois relógios brigam pelo mesmo turno travado');
-    expect(RoomRepository.turnTimeout, const Duration(seconds: 310),
-        reason: 'a escada da Márcia: 300 s no servidor, 310 s no cliente, 330 s no watchdog');
-    expect(watchdog, const Duration(seconds: 330),
-        reason: 'a escada da Márcia: 300 s no servidor, 310 s no cliente, 330 s no watchdog');
-  });
+      expect(
+        RoomRepository.turnTimeout,
+        greaterThan(serverBound),
+        reason:
+            'a rota aceita até 300 s (ENG-817); um cliente que desiste em 90 s '
+            'derrubava um turno que o servidor ainda ia responder',
+      );
+      expect(watchdog, isNotNull);
+      expect(
+        watchdog,
+        greaterThan(RoomRepository.turnTimeout),
+        reason:
+            'o watchdog precisa sobrar depois que a chamada HTTP já teria '
+            'voltado, senão os dois relógios brigam pelo mesmo turno travado',
+      );
+      expect(
+        RoomRepository.turnTimeout,
+        const Duration(seconds: 310),
+        reason:
+            'a escada da Márcia: 300 s no servidor, 310 s no cliente, 330 s no watchdog',
+      );
+      expect(
+        watchdog,
+        const Duration(seconds: 330),
+        reason:
+            'a escada da Márcia: 300 s no servidor, 310 s no cliente, 330 s no watchdog',
+      );
+    },
+  );
 }
 
 Future<File> _tempRecording() async {

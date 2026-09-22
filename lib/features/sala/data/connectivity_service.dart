@@ -18,8 +18,8 @@ class ConnectivityService {
   DateTime? _lastSignal;
 
   ConnectivityService({Connectivity? connectivity, http.Client? client})
-      : _connectivity = connectivity ?? Connectivity(),
-        _client = client ?? http.Client();
+    : _connectivity = connectivity ?? Connectivity(),
+      _client = client ?? http.Client();
 
   Future<RoomReach> reachRoom() {
     return _inFlight ??= _check().whenComplete(() => _inFlight = null);
@@ -32,8 +32,9 @@ class ConnectivityService {
 
   Future<bool> _radioSeesSomething() async {
     try {
-      final results =
-          await _connectivity.checkConnectivity().timeout(_radioAnswerTimeout);
+      final results = await _connectivity.checkConnectivity().timeout(
+        _radioAnswerTimeout,
+      );
       return results.any((result) => result != ConnectivityResult.none);
     } on Object {
       return true;
@@ -52,7 +53,9 @@ class ConnectivityService {
   }
 
   Stream<void> get onNetworkReturned => _connectivity.onConnectivityChanged
-      .where((results) => results.any((result) => result != ConnectivityResult.none))
+      .where(
+        (results) => results.any((result) => result != ConnectivityResult.none),
+      )
       .where((_) => _settled())
       .map((_) {});
 

@@ -32,7 +32,7 @@ class FinishedPassages {
   Future<void> _writes = Future<void>.value();
 
   FinishedPassages({Future<Directory> Function()? home})
-      : _home = home ?? getApplicationSupportDirectory;
+    : _home = home ?? getApplicationSupportDirectory;
 
   Future<File> _file() async {
     final dir = Directory(p.join((await _home()).path, _folder));
@@ -59,8 +59,11 @@ class FinishedPassages {
     final rows = await _rows();
     return {
       for (final row in rows)
-        if (row.startsWith('$book/')) row.substring(book.length + 1)
-        else if (book == _legacyBook && !row.contains('/') && !row.startsWith('livro:'))
+        if (row.startsWith('$book/'))
+          row.substring(book.length + 1)
+        else if (book == _legacyBook &&
+            !row.contains('/') &&
+            !row.startsWith('livro:'))
           row,
     };
   }

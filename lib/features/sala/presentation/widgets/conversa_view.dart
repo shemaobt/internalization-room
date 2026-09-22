@@ -30,15 +30,15 @@ class ConversaView extends ConsumerWidget {
               FacilitatorCircle(
                 size: 158,
                 voice: session.voice,
-          reach: session.reach,
+                reach: session.reach,
                 noteMode: session.noteMode,
                 peerCue: session.peerCue,
                 warning: session.warning,
-                      semanticLabel: _circleLabel(session, language),
+                semanticLabel: _circleLabel(session, language),
                 onTap: notifier.conversaTap,
                 onLongPress: session.canResolveWithPerson
-              ? notifier.resolveWithPerson
-              : null,
+                    ? notifier.resolveWithPerson
+                    : null,
               ),
               const SizedBox(height: 44),
               SizedBox(
@@ -64,9 +64,7 @@ class ConversaView extends ConsumerWidget {
             left: 0,
             right: 0,
             bottom: 110,
-            child: Center(
-              child: const PingIn(child: KnotMark(size: 15)),
-            ),
+            child: Center(child: const PingIn(child: KnotMark(size: 15))),
           ),
       ],
     );

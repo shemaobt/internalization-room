@@ -12,7 +12,8 @@ abstract class Env {
 
   /// Whether the build carries everything the room needs, checked before it opens.
   static bool get complete =>
-      _value('BACKEND_URL') != null && _value('INTERNALIZATION_ROOM_KEY') != null;
+      _value('BACKEND_URL') != null &&
+      _value('INTERNALIZATION_ROOM_KEY') != null;
 
   /// The room's address, without the trailing slash a human will eventually type.
   ///
@@ -45,7 +46,9 @@ abstract class Env {
   static String _required(String name) {
     final value = _value(name);
     if (value == null) {
-      throw StateError('$name is missing from .env — copy .env.example and fill it in');
+      throw StateError(
+        '$name is missing from .env — copy .env.example and fill it in',
+      );
     }
     return value;
   }

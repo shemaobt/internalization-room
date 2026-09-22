@@ -8,9 +8,9 @@ class SpokenSegment {
   const SpokenSegment({required this.role, required this.audioUrl});
 
   factory SpokenSegment.fromJson(Map<String, dynamic> json) => SpokenSegment(
-        role: json['role'] as String? ?? '',
-        audioUrl: json['audio_url'] as String? ?? '',
-      );
+    role: json['role'] as String? ?? '',
+    audioUrl: json['audio_url'] as String? ?? '',
+  );
 }
 
 class TurnResult {
@@ -21,6 +21,7 @@ class TurnResult {
   final bool peerCue;
   final bool usedFailSafe;
   final bool degraded;
+
   /// Null when the turn carried no coverage at all — which is not the same as a passage
   /// with nothing in it. Reading a missing field as zero emptied the necklace, which is
   /// the only record of progress this team can perceive.
@@ -68,25 +69,23 @@ class TurnResult {
       panoramaUrl.isNotEmpty && sceneUrl.isNotEmpty && fixedLine.isEmpty;
 
   factory TurnResult.fromJson(Map<String, dynamic> json) => TurnResult(
-        sessionId: json['session_id'] as String,
-        audioUrl: json['audio_url'] as String? ?? '',
-        fixedLine: json['fixed_line'] as String? ?? '',
-        transcript: json['transcript'] as String? ?? '',
-        peerCue: json['peer_cue'] as bool? ?? false,
-        usedFailSafe: json['used_fail_safe'] as bool? ?? false,
-        degraded: json['degraded'] as bool? ?? false,
-        coverage: json['coverage'] == null
-            ? null
-            : Coverage.fromJson(
-                (json['coverage'] as Map).cast<String, dynamic>(),
-              ),
-        done: json['done'] as bool? ?? false,
-        turnId: json['turn_id'] as String?,
-        classificationPending: json['classification_pending'] as bool? ?? false,
-        bridgeMode: json['bridge_mode'] as String? ?? '',
-        segments: [
-          for (final entry in json['segments'] as List<Object?>? ?? const [])
-            SpokenSegment.fromJson((entry as Map).cast<String, dynamic>()),
-        ],
-      );
+    sessionId: json['session_id'] as String,
+    audioUrl: json['audio_url'] as String? ?? '',
+    fixedLine: json['fixed_line'] as String? ?? '',
+    transcript: json['transcript'] as String? ?? '',
+    peerCue: json['peer_cue'] as bool? ?? false,
+    usedFailSafe: json['used_fail_safe'] as bool? ?? false,
+    degraded: json['degraded'] as bool? ?? false,
+    coverage: json['coverage'] == null
+        ? null
+        : Coverage.fromJson((json['coverage'] as Map).cast<String, dynamic>()),
+    done: json['done'] as bool? ?? false,
+    turnId: json['turn_id'] as String?,
+    classificationPending: json['classification_pending'] as bool? ?? false,
+    bridgeMode: json['bridge_mode'] as String? ?? '',
+    segments: [
+      for (final entry in json['segments'] as List<Object?>? ?? const [])
+        SpokenSegment.fromJson((entry as Map).cast<String, dynamic>()),
+    ],
+  );
 }

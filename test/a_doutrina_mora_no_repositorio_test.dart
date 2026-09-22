@@ -25,38 +25,43 @@ void main() {
     );
   });
 
-  test('a vendored artefact edited in place is reported rather than accepted', () {
-    final dir = Directory.systemTemp.createTempSync('doctrine_pin_');
-    addTearDown(() => dir.deleteSync(recursive: true));
-    final vendored = File(p.join(dir.path, vendoredDoctrine));
-    vendored.parent.createSync(recursive: true);
-    vendored.writeAsStringSync('dela\n');
-    final pinFile = File(p.join(dir.path, 'DOCTRINE_PIN'));
-    writePin('a' * 40, {vendoredDoctrine: digestOf('dela\n')}, pinFile);
-    final pin = readPin(pinFile);
+  test(
+    'a vendored artefact edited in place is reported rather than accepted',
+    () {
+      final dir = Directory.systemTemp.createTempSync('doctrine_pin_');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final vendored = File(p.join(dir.path, vendoredDoctrine));
+      vendored.parent.createSync(recursive: true);
+      vendored.writeAsStringSync('dela\n');
+      final pinFile = File(p.join(dir.path, 'DOCTRINE_PIN'));
+      writePin('a' * 40, {vendoredDoctrine: digestOf('dela\n')}, pinFile);
+      final pin = readPin(pinFile);
 
-    expect(
-      drift(pin, dir.path),
-      isEmpty,
-      reason: 'o pin não concordava com os bytes de que foi escrito',
-    );
+      expect(
+        drift(pin, dir.path),
+        isEmpty,
+        reason: 'o pin não concordava com os bytes de que foi escrito',
+      );
 
-    vendored.writeAsStringSync('nossa agora\n');
+      vendored.writeAsStringSync('nossa agora\n');
 
-    expect(
-      drift(pin, dir.path),
-      ['edited: $vendoredDoctrine'],
-      reason:
-          'a comparação que aceita uma edição é a que deixa setenta e sete tickets '
-          'ajustarem o que é dela sem uma palavra dela',
-    );
-  });
+      expect(
+        drift(pin, dir.path),
+        ['edited: $vendoredDoctrine'],
+        reason:
+            'a comparação que aceita uma edição é a que deixa setenta e sete tickets '
+            'ajustarem o que é dela sem uma palavra dela',
+      );
+    },
+  );
 
   test('a pin moved with no ruling beside it is refused', () {
     final dir = Directory.systemTemp.createTempSync('doctrine_rulings_');
     addTearDown(() => dir.deleteSync(recursive: true));
     final rulings = Directory(p.join(dir.path, 'rulings'))..createSync();
-    File(p.join(rulings.path, '2026-09-03-a-doutrina-tem-dona.md')).writeAsStringSync(
+    File(
+      p.join(rulings.path, '2026-09-03-a-doutrina-tem-dona.md'),
+    ).writeAsStringSync(
       'pin: ${'c' * 40}\n'
       'word: "any change is a ruling with her word"\n'
       'written: DOCTRINE.md §5.1\n',
@@ -66,7 +71,8 @@ void main() {
     expect(
       unruled(Pin('r', 'b', 'c' * 40, const {}), recorded),
       isEmpty,
-      reason: 'um pin que a própria ruling nomeia foi chamado de não registrado',
+      reason:
+          'um pin que a própria ruling nomeia foi chamado de não registrado',
     );
 
     expect(
@@ -92,7 +98,8 @@ void main() {
     expect(
       barFaults(lines, record),
       isEmpty,
-      reason: 'uma linha da barra que ninguém reivindica é uma linha que ninguém está segurando',
+      reason:
+          'uma linha da barra que ninguém reivindica é uma linha que ninguém está segurando',
     );
 
     final pendings = [
@@ -110,7 +117,9 @@ void main() {
   });
 
   test('a line she adds on the next re-sync is not silently unprotected', () {
-    final record = {'no blessings': ['BACKEND']};
+    final record = {
+      'no blessings': ['BACKEND'],
+    };
 
     expect(barFaults(['no blessings'], record, testsExist: false), isEmpty);
     expect(
@@ -124,7 +133,9 @@ void main() {
 
   test('a row naming a test that was renamed or deleted is refused', () {
     final record = {
-      'The voice opens the session': ['test/session_notifier_test.dart::nobody kept this name'],
+      'The voice opens the session': [
+        'test/session_notifier_test.dart::nobody kept this name',
+      ],
     };
 
     expect(
@@ -136,19 +147,24 @@ void main() {
     );
   });
 
-  test('a fragment her rewording left behind is reported rather than ignored', () {
-    final faults = barFaults(
-      ['no blessings'],
-      {'no ceilings on speech': ['BACKEND']},
-      testsExist: false,
-    );
+  test(
+    'a fragment her rewording left behind is reported rather than ignored',
+    () {
+      final faults = barFaults(
+        ['no blessings'],
+        {
+          'no ceilings on speech': ['BACKEND'],
+        },
+        testsExist: false,
+      );
 
-    expect(
-      faults,
-      ['unclaimed: no blessings', 'stale: no ceilings on speech'],
-      reason:
-          'casar por fragmento é o que impede um rename de ficar vermelho, e é exatamente '
-          'por isso que um fragmento que não casa com nada tem de ser alto',
-    );
-  });
+      expect(
+        faults,
+        ['unclaimed: no blessings', 'stale: no ceilings on speech'],
+        reason:
+            'casar por fragmento é o que impede um rename de ficar vermelho, e é exatamente '
+            'por isso que um fragmento que não casa com nada tem de ser alto',
+      );
+    },
+  );
 }

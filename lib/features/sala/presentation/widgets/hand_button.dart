@@ -27,7 +27,12 @@ class HandButton extends StatelessWidget {
 
     return Semantics(
       button: true,
-      label: switch ((playingReply, hasUnheardReply, noteMode, questionPending)) {
+      label: switch ((
+        playingReply,
+        hasUnheardReply,
+        noteMode,
+        questionPending,
+      )) {
         (true, _, _, _) => 'O facilitador está respondendo',
         (_, true, _, _) => 'Ouvir a resposta do facilitador',
         (_, _, true, _) => 'Cancelar a pergunta',

@@ -22,12 +22,7 @@ const _aritmeticaGlobal = [
 /// The count is part of the net. A method losing one of its two call sites is a write the
 /// room stopped doing — holding the rehearsal and letting it run again, say — and a set of
 /// names alone answers that nothing changed.
-const _escrevemNaEscuta = {
-  'abrir': 2,
-  'fechar': 1,
-  'medida': 1,
-  'inteira': 1,
-};
+const _escrevemNaEscuta = {'abrir': 2, 'fechar': 1, 'medida': 1, 'inteira': 1};
 
 /// Every position the room is allowed to hand the ledger: the player's own answer, the
 /// length a part measured of itself, the length a part was measured at without playing,
@@ -91,10 +86,14 @@ void main() {
     final fonte = _fonteSemComentarios(_escutaPath);
 
     for (final nome in _aritmeticaGlobal) {
-      expect(fonte.contains(nome), isFalse,
-          reason: 'o registro mede cada parte contra ela mesma; $nome é a '
-              'coordenada da passagem colada, que a regravação de uma parte '
-              'destrói');
+      expect(
+        fonte.contains(nome),
+        isFalse,
+        reason:
+            'o registro mede cada parte contra ela mesma; $nome é a '
+            'coordenada da passagem colada, que a regravação de uma parte '
+            'destrói',
+      );
     }
   });
 
@@ -102,55 +101,76 @@ void main() {
     final fonte = _fonteSemComentarios(_notifierPath);
     final chamadas = _chamadasAEscuta(fonte);
 
-    expect(chamadas, isNotEmpty,
-        reason: 'se nada chama o registro, esta rede não guarda coisa nenhuma');
+    expect(
+      chamadas,
+      isNotEmpty,
+      reason: 'se nada chama o registro, esta rede não guarda coisa nenhuma',
+    );
 
     expect(
-        {
-          for (final metodo in chamadas.map((chamada) => chamada.$1).toSet())
-            metodo: chamadas.where((chamada) => chamada.$1 == metodo).length,
-        }..removeWhere((metodo, _) => !_escrevemNaEscuta.containsKey(metodo)),
-        _escrevemNaEscuta,
-        reason: 'a rede só vale enquanto conhece cada escritor do registro e '
-            'quantas vezes ele é chamado: um método novo, ou um lugar de '
-            'escrita que sumiu, passaria por ela sem ser visto');
+      {
+        for (final metodo in chamadas.map((chamada) => chamada.$1).toSet())
+          metodo: chamadas.where((chamada) => chamada.$1 == metodo).length,
+      }..removeWhere((metodo, _) => !_escrevemNaEscuta.containsKey(metodo)),
+      _escrevemNaEscuta,
+      reason:
+          'a rede só vale enquanto conhece cada escritor do registro e '
+          'quantas vezes ele é chamado: um método novo, ou um lugar de '
+          'escrita que sumiu, passaria por ela sem ser visto',
+    );
 
     for (final (metodo, argumentos) in chamadas) {
       if (!_escrevemNaEscuta.containsKey(metodo)) continue;
       final posicao = argumentos.last;
-      expect(_posicoesLocais, contains(posicao),
-          reason: '_escuta.$metodo recebe "$posicao", que não é uma posição '
-              'lida do arquivo que está tocando');
+      expect(
+        _posicoesLocais,
+        contains(posicao),
+        reason:
+            '_escuta.$metodo recebe "$posicao", que não é uma posição '
+            'lida do arquivo que está tocando',
+      );
     }
   });
 
-  test('o fim de um trecho de escuta é o que o player responde, e nada mais',
-      () {
-    final fonte = _fonteSemComentarios(_notifierPath);
+  test(
+    'o fim de um trecho de escuta é o que o player responde, e nada mais',
+    () {
+      final fonte = _fonteSemComentarios(_notifierPath);
 
-    expect(fonte.contains(_fimEOQueOPlayerDiz), isTrue,
-        reason: 'fim é o único nome da lista que não se lê sozinho: preso à '
+      expect(
+        fonte.contains(_fimEOQueOPlayerDiz),
+        isTrue,
+        reason:
+            'fim é o único nome da lista que não se lê sozinho: preso à '
             'sua definição, a lista não pode ser satisfeita por um global '
-            'batizado com o mesmo nome');
-  });
+            'batizado com o mesmo nome',
+      );
+    },
+  );
 
   test('a sala não diz mais recontar nem retrotradução', () {
-    final retirada = RegExp(r'recont|retrotradução|contandoDeNovo',
-        caseSensitive: false);
+    final retirada = RegExp(
+      r'recont|retrotradução|contandoDeNovo',
+      caseSensitive: false,
+    );
     final ofensores = <String>[];
 
-    for (final arquivo in Directory('lib')
-        .listSync(recursive: true)
-        .whereType<File>()
-        .where((arquivo) => arquivo.path.endsWith('.dart'))) {
-      final fonte =
-          arquivo.readAsStringSync().replaceAll(_commentPattern, '');
+    for (final arquivo
+        in Directory('lib')
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where((arquivo) => arquivo.path.endsWith('.dart'))) {
+      final fonte = arquivo.readAsStringSync().replaceAll(_commentPattern, '');
       if (retirada.hasMatch(fonte)) ofensores.add(arquivo.path);
     }
 
-    expect(ofensores, isEmpty,
-        reason: 'retrotradução e recontar são as palavras que a Retro deixou '
-            'de usar: contar é da Conversa e recontar é da Verificação '
-            'Externa: $ofensores');
+    expect(
+      ofensores,
+      isEmpty,
+      reason:
+          'retrotradução e recontar são as palavras que a Retro deixou '
+          'de usar: contar é da Conversa e recontar é da Verificação '
+          'Externa: $ofensores',
+    );
   });
 }

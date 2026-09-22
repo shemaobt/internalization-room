@@ -20,17 +20,17 @@ class Passagem {
   bool get isPanorama => kind == PassagemKind.panorama;
 
   factory Passagem.fromJson(Map<String, dynamic> json) => Passagem(
-        pericope: json['pericope'] as String? ?? '',
-        audioUrl: json['audio_url'] as String? ?? '',
-        beads: json['beads'] as int? ?? 0,
-        absenceIndex: json['absence_index'] as int? ?? -1,
-        kind: json['kind'] == 'panorama'
-            ? PassagemKind.panorama
-            : PassagemKind.passage,
-      );
+    pericope: json['pericope'] as String? ?? '',
+    audioUrl: json['audio_url'] as String? ?? '',
+    beads: json['beads'] as int? ?? 0,
+    absenceIndex: json['absence_index'] as int? ?? -1,
+    kind: json['kind'] == 'panorama'
+        ? PassagemKind.panorama
+        : PassagemKind.passage,
+  );
 }
 
 List<Passagem> passagensFromJson(Map<String, dynamic> json) => [
-      for (final entry in json['passages'] as List<Object?>? ?? const [])
-        Passagem.fromJson(entry as Map<String, dynamic>),
-    ];
+  for (final entry in json['passages'] as List<Object?>? ?? const [])
+    Passagem.fromJson(entry as Map<String, dynamic>),
+];

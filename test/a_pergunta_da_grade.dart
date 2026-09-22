@@ -8,8 +8,8 @@ import 'package:internalization_room/main.dart';
 import 'fakes.dart';
 
 Finder byLabel(String label) => find.byWidgetPredicate(
-      (widget) => widget is Semantics && widget.properties.label == label,
-    );
+  (widget) => widget is Semantics && widget.properties.label == label,
+);
 
 /// A team that told two stretches back over one rehearsal part and got a finding on the
 /// first, standing in front of the question of which voice must speak again.

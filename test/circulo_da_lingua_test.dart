@@ -18,19 +18,25 @@ import 'a_pergunta_da_grade.dart' show byLabel, pumpToPergunta;
 /// asking for exactly one is what keeps this from reading a ripple by mistake.
 Gradient? _disco(WidgetTester tester) {
   final pintados = tester
-      .widgetList<Container>(find.descendant(
-        of: find.byType(FacilitatorCircle),
-        matching: find.byType(Container),
-      ))
+      .widgetList<Container>(
+        find.descendant(
+          of: find.byType(FacilitatorCircle),
+          matching: find.byType(Container),
+        ),
+      )
       .map((caixa) => caixa.decoration)
       .whereType<BoxDecoration>()
       .map((decoracao) => decoracao.gradient)
       .whereType<Gradient>()
       .toList();
-  expect(pintados, hasLength(lessThan(2)),
-      reason: 'o corpo é o único desenho do círculo com gradiente; com dois '
-          'este ajudante não sabe qual deles é o disco, e um StateError cru '
-          'não diria isso a quem vier depois');
+  expect(
+    pintados,
+    hasLength(lessThan(2)),
+    reason:
+        'o corpo é o único desenho do círculo com gradiente; com dois '
+        'este ajudante não sabe qual deles é o disco, e um StateError cru '
+        'não diria isso a quem vier depois',
+  );
   return pintados.isEmpty ? null : pintados.first;
 }
 
@@ -40,37 +46,42 @@ Future<void> _pumpCirculo(
   ThemeData theme, {
   bool peerCue = false,
   bool warning = false,
-}) =>
-    tester.pumpWidget(MaterialApp(
-      key: ValueKey('$voice-$peerCue-$warning-${theme.brightness}'),
-      theme: theme,
-      home: Scaffold(
-        body: Center(
-          child: FacilitatorCircle(
-            size: 150,
-            voice: voice,
-            peerCue: peerCue,
-            warning: warning,
-            semanticLabel: 'circulo',
-            onTap: () {},
-          ),
+}) => tester.pumpWidget(
+  MaterialApp(
+    key: ValueKey('$voice-$peerCue-$warning-${theme.brightness}'),
+    theme: theme,
+    home: Scaffold(
+      body: Center(
+        child: FacilitatorCircle(
+          size: 150,
+          voice: voice,
+          peerCue: peerCue,
+          warning: warning,
+          semanticLabel: 'circulo',
+          onTap: () {},
         ),
       ),
-    ));
+    ),
+  ),
+);
 
 /// Whether the circle drew one of the glyphs a halted state wears — the userCheck,
 /// the cloudOff/serverOff, or the micOff — the mark a warning must never cover.
 bool _haltedGlyph(WidgetTester tester) => tester
-    .widgetList<Icon>(find.descendant(
-      of: find.byType(FacilitatorCircle),
-      matching: find.byType(Icon),
-    ))
-    .any((marca) => const [
-          LucideIcons.userCheck,
-          LucideIcons.cloudOff,
-          LucideIcons.serverOff,
-          LucideIcons.micOff,
-        ].contains(marca.icon));
+    .widgetList<Icon>(
+      find.descendant(
+        of: find.byType(FacilitatorCircle),
+        matching: find.byType(Icon),
+      ),
+    )
+    .any(
+      (marca) => const [
+        LucideIcons.userCheck,
+        LucideIcons.cloudOff,
+        LucideIcons.serverOff,
+        LucideIcons.micOff,
+      ].contains(marca.icon),
+    );
 
 void main() {
   testWidgets('gravando a tradução, o círculo é azul', (tester) async {
@@ -83,13 +94,18 @@ void main() {
     expect(estado.btPhase, BtPhase.capturing);
     expect(estado.voice, VoiceState.listening);
 
-    expect(_disco(tester), BeadStyles.azul,
-        reason: 'esta é a metade que já estava certa: azul é a cor do contar '
-            'em português, e distinguir a materna não pode custá-la');
+    expect(
+      _disco(tester),
+      BeadStyles.azul,
+      reason:
+          'esta é a metade que já estava certa: azul é a cor do contar '
+          'em português, e distinguir a materna não pode custá-la',
+    );
   });
 
-  testWidgets('os outros estados do círculo ficam com as cores de antes',
-      (tester) async {
+  testWidgets('os outros estados do círculo ficam com as cores de antes', (
+    tester,
+  ) async {
     for (final tema in [
       (AppTheme.light, SalaColors.light),
       (AppTheme.dark, SalaColors.dark),
@@ -112,36 +128,57 @@ void main() {
         // o quadro que `pumpWidget` desenha. Um `pump` a mais aqui e a linha do
         // pensando falha por causa da respiração, não por causa de cor.
         await _pumpCirculo(tester, entrada.key, theme);
-        expect(_disco(tester), entrada.value,
-            reason: 'um switch mexido vaza pelos ramos vizinhos, e '
-                '${entrada.key.name} não tem nada a ver com a língua materna');
+        expect(
+          _disco(tester),
+          entrada.value,
+          reason:
+              'um switch mexido vaza pelos ramos vizinhos, e '
+              '${entrada.key.name} não tem nada a ver com a língua materna',
+        );
       }
 
       await _pumpCirculo(tester, VoiceState.invite, theme, peerCue: true);
-      expect(_disco(tester), BeadStyles.telha(colors),
-          reason: 'a deixa da equipe troca o glifo e nada mais: o disco '
-              'continua sendo o mesmo alvo de telha do convite, nos dois '
-              'temas');
+      expect(
+        _disco(tester),
+        BeadStyles.telha(colors),
+        reason:
+            'a deixa da equipe troca o glifo e nada mais: o disco '
+            'continua sendo o mesmo alvo de telha do convite, nos dois '
+            'temas',
+      );
     }
   });
 
-  testWidgets(
-      'uma parada bloqueante nunca é verde, mesmo com o aviso ligado',
-      (tester) async {
-    await _pumpCirculo(tester, VoiceState.needsPerson, AppTheme.light,
-        warning: true);
+  testWidgets('uma parada bloqueante nunca é verde, mesmo com o aviso ligado', (
+    tester,
+  ) async {
+    await _pumpCirculo(
+      tester,
+      VoiceState.needsPerson,
+      AppTheme.light,
+      warning: true,
+    );
 
-    expect(_disco(tester), isNot(BeadStyles.verde),
-        reason: 'uma parada de verdade pede uma pessoa e recusa o gesto; um '
-            'aviso de segundos atrás não desfaz isso, então o disco continua '
-            'sendo o do corpo parado');
-    expect(_haltedGlyph(tester), isTrue,
-        reason: 'e o corpo parado continua desenhando o seu ícone — o aviso '
-            'nunca chega a competir com uma parada que já está na tela');
+    expect(
+      _disco(tester),
+      isNot(BeadStyles.verde),
+      reason:
+          'uma parada de verdade pede uma pessoa e recusa o gesto; um '
+          'aviso de segundos atrás não desfaz isso, então o disco continua '
+          'sendo o do corpo parado',
+    );
+    expect(
+      _haltedGlyph(tester),
+      isTrue,
+      reason:
+          'e o corpo parado continua desenhando o seu ícone — o aviso '
+          'nunca chega a competir com uma parada que já está na tela',
+    );
   });
 
-  testWidgets('o disco só fica verde com o aviso ligado e a voz solta',
-      (tester) async {
+  testWidgets('o disco só fica verde com o aviso ligado e a voz solta', (
+    tester,
+  ) async {
     const halted = {VoiceState.needsPerson, VoiceState.offline};
     const vozes = [
       VoiceState.invite,
@@ -157,50 +194,75 @@ void main() {
         await _pumpCirculo(tester, voz, AppTheme.light, warning: aviso);
         final verde = aviso && !halted.contains(voz) || voz == VoiceState.done;
 
-        expect(_disco(tester) == BeadStyles.verde, verde,
-            reason: verde
-                ? '${voz.name} com aviso=$aviso tinha de acender o disco de '
+        expect(
+          _disco(tester) == BeadStyles.verde,
+          verde,
+          reason: verde
+              ? '${voz.name} com aviso=$aviso tinha de acender o disco de '
                     '"pronto" — é o único sinal que o aviso tem, já que a sala '
                     'não fala'
-                : '${voz.name} com aviso=$aviso não pode acender o disco de '
+              : '${voz.name} com aviso=$aviso não pode acender o disco de '
                     '"pronto": ou o aviso está desligado, ou a voz já é uma '
-                    'parada que o aviso não supera');
+                    'parada que o aviso não supera',
+        );
 
         if (halted.contains(voz)) {
-          expect(_haltedGlyph(tester), isTrue,
-              reason: '${voz.name} sempre desenha o seu ícone, com aviso ou '
-                  'sem ele');
+          expect(
+            _haltedGlyph(tester),
+            isTrue,
+            reason:
+                '${voz.name} sempre desenha o seu ícone, com aviso ou '
+                'sem ele',
+          );
         }
       }
     }
   });
 
   testWidgets(
-      'o microfone bloqueado também vence o aviso — a terceira parada da lista',
-      (tester) async {
-    await _pumpCirculo(tester, VoiceState.blocked, AppTheme.light,
-        warning: true);
+    'o microfone bloqueado também vence o aviso — a terceira parada da lista',
+    (tester) async {
+      await _pumpCirculo(
+        tester,
+        VoiceState.blocked,
+        AppTheme.light,
+        warning: true,
+      );
 
-    expect(_disco(tester), isNot(BeadStyles.verde),
-        reason: '_halted lista needsPerson, offline e blocked juntos; a '
+      expect(
+        _disco(tester),
+        isNot(BeadStyles.verde),
+        reason:
+            '_halted lista needsPerson, offline e blocked juntos; a '
             'matriz acima só cobre os dois primeiros, e um terceiro estado '
             'parado que a lista promete e o teste não olha é onde uma '
-            'reordenação futura do corpo do círculo passaria despercebida');
-    expect(_haltedGlyph(tester), isTrue);
-  });
+            'reordenação futura do corpo do círculo passaria despercebida',
+      );
+      expect(_haltedGlyph(tester), isTrue);
+    },
+  );
 
   // Caso 6 (Emenda 1, 07/09): a deixa ao vivo da equipe ("é sua vez de falar")
   // é um sinal de turno, e o aviso é uma notícia de fundo — a deixa vence o
   // verde da mesma forma que uma voz parada vence.
   testWidgets('a deixa da equipe não some atrás de um aviso', (tester) async {
     for (final aviso in [true, false]) {
-      await _pumpCirculo(tester, VoiceState.invite, AppTheme.light,
-          peerCue: true, warning: aviso);
+      await _pumpCirculo(
+        tester,
+        VoiceState.invite,
+        AppTheme.light,
+        peerCue: true,
+        warning: aviso,
+      );
 
-      expect(find.byIcon(LucideIcons.users), findsOneWidget,
-          reason: 'aviso=$aviso: a marca da deixa ao vivo não é negociável — '
-              'sumir atrás de um aviso de fundo tira da equipe o único sinal '
-              'de que é a vez dela de falar');
+      expect(
+        find.byIcon(LucideIcons.users),
+        findsOneWidget,
+        reason:
+            'aviso=$aviso: a marca da deixa ao vivo não é negociável — '
+            'sumir atrás de um aviso de fundo tira da equipe o único sinal '
+            'de que é a vez dela de falar',
+      );
     }
   });
 }

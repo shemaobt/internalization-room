@@ -12,8 +12,8 @@ import 'fakes.dart';
 const _micRetro = 'Traduzir de novo só em português';
 
 Finder _byLabel(String label) => find.byWidgetPredicate(
-      (widget) => widget is Semantics && widget.properties.label == label,
-    );
+  (widget) => widget is Semantics && widget.properties.label == label,
+);
 
 SalaHarness? _harnessDaVez;
 
@@ -148,56 +148,85 @@ Future<void> _deixarOColarFechar(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('uma passagem conferida não deixa faixa vazia no colar',
-      (tester) async {
+  testWidgets('uma passagem conferida não deixa faixa vazia no colar', (
+    tester,
+  ) async {
     final container = await _pumpToPergunta(tester);
-    expect(_faixasVazias(tester, container), [0],
-        reason: 'o achado apontou o primeiro trecho — se não apontar, este '
-            'cenário não chega ao que mede');
+    expect(
+      _faixasVazias(tester, container),
+      [0],
+      reason:
+          'o achado apontou o primeiro trecho — se não apontar, este '
+          'cenário não chega ao que mede',
+    );
 
     await _consertoQueNaoPegou(tester, container);
-    expect(_faixasVazias(tester, container), [0],
-        reason: 'e o conserto não pegou, então o trecho segue esperando e o '
-            'ponteiro segue nomeando um trecho que está lá');
+    expect(
+      _faixasVazias(tester, container),
+      [0],
+      reason:
+          'e o conserto não pegou, então o trecho segue esperando e o '
+          'ponteiro segue nomeando um trecho que está lá',
+    );
 
     await _oVeredictoVoltaLimpo(tester, container);
 
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida,
-        reason: 'a sala deu a passagem por conferida');
-    expect(_faixasVazias(tester, container), isEmpty,
-        reason: 'e o colar tem de concordar com ela. Uma faixa vazia sob uma '
-            'passagem conferida é a única coisa que a equipe tem para ler '
-            'dizendo que ainda há trabalho, e não há');
+    expect(
+      container.read(salaSessionProvider).btPhase,
+      BtPhase.conferida,
+      reason: 'a sala deu a passagem por conferida',
+    );
+    expect(
+      _faixasVazias(tester, container),
+      isEmpty,
+      reason:
+          'e o colar tem de concordar com ela. Uma faixa vazia sob uma '
+          'passagem conferida é a única coisa que a equipe tem para ler '
+          'dizendo que ainda há trabalho, e não há',
+    );
 
     await _deixarOColarFechar(tester);
   });
 
-  testWidgets('a conferida solta o trecho que o achado apontava',
-      (tester) async {
+  testWidgets('a conferida solta o trecho que o achado apontava', (
+    tester,
+  ) async {
     final container = await _pumpToPergunta(tester);
     await _consertoQueNaoPegou(tester, container);
     expect(container.read(salaSessionProvider).btFindingSegmentId, 'trecho-1');
 
     await _oVeredictoVoltaLimpo(tester, container);
 
-    expect(container.read(salaSessionProvider).btFindingSegmentId, isNull,
-        reason: 'o analista não tem mais objeção, então não há trecho apontado. '
-            'O ponteiro sobrevivia ao veredito limpo porque este ramo devolve '
-            'antes de chegar onde ele é resolvido');
-    expect(container.read(salaSessionProvider).btFindingTrecho, isNull,
-        reason: 'e nada mais na sala pode agir sobre um achado que acabou');
+    expect(
+      container.read(salaSessionProvider).btFindingSegmentId,
+      isNull,
+      reason:
+          'o analista não tem mais objeção, então não há trecho apontado. '
+          'O ponteiro sobrevivia ao veredito limpo porque este ramo devolve '
+          'antes de chegar onde ele é resolvido',
+    );
+    expect(
+      container.read(salaSessionProvider).btFindingTrecho,
+      isNull,
+      reason: 'e nada mais na sala pode agir sobre um achado que acabou',
+    );
 
     await _deixarOColarFechar(tester);
   });
 
-  testWidgets('a conferida também desliga a bandeira de conserto',
-      (tester) async {
+  testWidgets('a conferida também desliga a bandeira de conserto', (
+    tester,
+  ) async {
     final container = await _pumpToPergunta(tester);
 
     await _comecarOConserto(tester);
-    expect(container.read(salaSessionProvider).btConsertando, isTrue,
-        reason: 'a bandeira acende quando a equipe assume o conserto — se não '
-            'acender, este cenário não chega ao que mede');
+    expect(
+      container.read(salaSessionProvider).btConsertando,
+      isTrue,
+      reason:
+          'a bandeira acende quando a equipe assume o conserto — se não '
+          'acender, este cenário não chega ao que mede',
+    );
 
     // Armado antes da entrega, e a equipe entrega com a bandeira acesa. Pedir o
     // resultado é o último passo que a própria sala dá num conserto que pega, então um
@@ -210,21 +239,32 @@ void main() {
     await _entregarOConserto(tester, container);
     await _oVeredictoVoltaLimpo(tester, container);
 
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida,
-        reason: 'e o conserto chegou mesmo ao veredito limpo');
+    expect(
+      container.read(salaSessionProvider).btPhase,
+      BtPhase.conferida,
+      reason: 'e o conserto chegou mesmo ao veredito limpo',
+    );
 
-    expect(container.read(salaSessionProvider).btConsertando, isFalse,
-        reason: 'não há conserto em curso debaixo de uma passagem conferida. A '
-            'bandeira sobrevivia ao fim da sessão, e quem viesse depois '
-            'encontraria meia limpeza: o ponteiro solto e ela ainda de pé');
-    expect(container.read(salaSessionProvider).btEsperandoConserto, isNull,
-        reason: 'e as duas metades concordam — é o par que decide a faixa');
+    expect(
+      container.read(salaSessionProvider).btConsertando,
+      isFalse,
+      reason:
+          'não há conserto em curso debaixo de uma passagem conferida. A '
+          'bandeira sobrevivia ao fim da sessão, e quem viesse depois '
+          'encontraria meia limpeza: o ponteiro solto e ela ainda de pé',
+    );
+    expect(
+      container.read(salaSessionProvider).btEsperandoConserto,
+      isNull,
+      reason: 'e as duas metades concordam — é o par que decide a faixa',
+    );
 
     await _deixarOColarFechar(tester);
   });
 
-  testWidgets('um veredito que ainda aponta um trecho deixa a faixa vazia',
-      (tester) async {
+  testWidgets('um veredito que ainda aponta um trecho deixa a faixa vazia', (
+    tester,
+  ) async {
     final container = await _pumpToPergunta(tester);
     final harness = _harnessDaVez!;
     await _consertoQueNaoPegou(tester, container);
@@ -238,12 +278,19 @@ void main() {
     await _notifier(container).finishBackTranslation();
     await tester.pump(const Duration(milliseconds: 500));
 
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.findings,
-        reason: 'um veredito com achado não confere a passagem');
-    expect(_faixasVazias(tester, container), [0],
-        reason: 'e a faixa daquele trecho continua vazia: soltar o trecho é '
-            'coisa do veredito limpo, e alargar isso para o ramo com achado '
-            'apagaria a única indicação de onde está o problema');
+    expect(
+      container.read(salaSessionProvider).btPhase,
+      BtPhase.findings,
+      reason: 'um veredito com achado não confere a passagem',
+    );
+    expect(
+      _faixasVazias(tester, container),
+      [0],
+      reason:
+          'e a faixa daquele trecho continua vazia: soltar o trecho é '
+          'coisa do veredito limpo, e alargar isso para o ramo com achado '
+          'apagaria a única indicação de onde está o problema',
+    );
   });
 
   testWidgets('o ramo limpo não mexe em mais nada do estado', (tester) async {
@@ -253,25 +300,35 @@ void main() {
     final trechosAntes = [
       for (final trecho in antes.btTrechos)
         '${trecho.segmentId}@${trecho.takeId}:'
-            '${trecho.from.inMilliseconds}-${trecho.to.inMilliseconds}'
+            '${trecho.from.inMilliseconds}-${trecho.to.inMilliseconds}',
     ];
 
     await _oVeredictoVoltaLimpo(tester, container);
 
     final depois = container.read(salaSessionProvider);
-    expect([
-      for (final trecho in depois.btTrechos)
-        '${trecho.segmentId}@${trecho.takeId}:'
-            '${trecho.from.inMilliseconds}-${trecho.to.inMilliseconds}'
-    ], trechosAntes,
-        reason: 'os trechos são os mesmos: conferir não reescreve o que a '
-            'equipe contou');
+    expect(
+      [
+        for (final trecho in depois.btTrechos)
+          '${trecho.segmentId}@${trecho.takeId}:'
+              '${trecho.from.inMilliseconds}-${trecho.to.inMilliseconds}',
+      ],
+      trechosAntes,
+      reason:
+          'os trechos são os mesmos: conferir não reescreve o que a '
+          'equipe contou',
+    );
     expect(depois.btChunkFailures, antes.btChunkFailures);
     expect(depois.btPass, antes.btPass);
-    expect(depois.keptTakes.length, antes.keptTakes.length,
-        reason: 'e o ensaio da equipe continua inteiro');
-    expect(depois.voice, VoiceState.done,
-        reason: 'só a fase e a voz mudam, que é o que conferir significa');
+    expect(
+      depois.keptTakes.length,
+      antes.keptTakes.length,
+      reason: 'e o ensaio da equipe continua inteiro',
+    );
+    expect(
+      depois.voice,
+      VoiceState.done,
+      reason: 'só a fase e a voz mudam, que é o que conferir significa',
+    );
 
     await _deixarOColarFechar(tester);
   });

@@ -19,7 +19,8 @@ Path cordArc(double sx, double sy) => Path()
   ..moveTo(34 * sx, 24 * sy)
   ..quadraticBezierTo(195 * sx, 92 * sy, 356 * sx, 24 * sy);
 
-Offset arcPoint(int i, int total) => cordPoint(total > 1 ? i / (total - 1) : 0.0);
+Offset arcPoint(int i, int total) =>
+    cordPoint(total > 1 ? i / (total - 1) : 0.0);
 
 Offset circlePoint(int i, int total) {
   final step = total > 0 ? 360 / total : 0.0;
@@ -146,7 +147,6 @@ class ColarOverlay extends StatelessWidget {
       ),
     );
   }
-
 }
 
 class _CordPainter extends CustomPainter {

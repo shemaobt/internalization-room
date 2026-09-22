@@ -45,8 +45,8 @@ void main() {
     final home = _home();
     final ledger = WorkInProgress(
       home: () async => home,
-      recordings: () async => Directory('${home.path}/recordings')
-        ..createSync(recursive: true),
+      recordings: () async =>
+          Directory('${home.path}/recordings')..createSync(recursive: true),
     );
     final harness = SalaHarness(emAbertoNoDisco: ledger);
     final container = harness.container();
@@ -84,8 +84,8 @@ void main() {
     _corruptTheLedger(home);
     final ledger = WorkInProgress(
       home: () async => home,
-      recordings: () async => Directory('${home.path}/recordings')
-        ..createSync(recursive: true),
+      recordings: () async =>
+          Directory('${home.path}/recordings')..createSync(recursive: true),
     );
     final harness = SalaHarness(emAbertoNoDisco: ledger);
     final container = harness.container();
@@ -114,8 +114,8 @@ void main() {
     final home = _home();
     final ledger = WorkInProgress(
       home: () async => home,
-      recordings: () async => Directory('${home.path}/recordings')
-        ..createSync(recursive: true),
+      recordings: () async =>
+          Directory('${home.path}/recordings')..createSync(recursive: true),
     );
     final harness = SalaHarness(emAbertoNoDisco: ledger);
     final container = harness.container();

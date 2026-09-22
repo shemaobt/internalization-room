@@ -67,7 +67,10 @@ Future<void> _atravessarAFronteira(_Sala it) async {
   it.harness.playback.finishPlayback();
   await waitFor('a parte terminar', () => it.estado.btParteFronteira);
   it.sala.ouvirGravacao();
-  await waitFor('a parte seguinte entrar no ar', () => !it.estado.btParteFronteira);
+  await waitFor(
+    'a parte seguinte entrar no ar',
+    () => !it.estado.btParteFronteira,
+  );
 }
 
 /// A rehearsal of two parts of twenty seconds each, told back in three stretches — the
@@ -102,7 +105,9 @@ Future<_Sala> _aSalaNaPergunta({required int apontado}) async {
   it.sala.startRetro();
   await waitFor(
     'a tradução começar a tocar a primeira parte',
-    () => it.estado.stage == SalaStage.retro && it.estado.btPhase == BtPhase.playing,
+    () =>
+        it.estado.stage == SalaStage.retro &&
+        it.estado.btPhase == BtPhase.playing,
   );
 
   await _traduzirUmTrecho(it, const Duration(seconds: 6));
@@ -115,7 +120,9 @@ Future<_Sala> _aSalaNaPergunta({required int apontado}) async {
   await it.sala.finishBackTranslation();
   await waitFor(
     'o analista apontar um trecho',
-    () => it.estado.btPhase == BtPhase.findings && it.estado.btFindingTrecho != null,
+    () =>
+        it.estado.btPhase == BtPhase.findings &&
+        it.estado.btFindingTrecho != null,
   );
   return it;
 }
@@ -177,7 +184,8 @@ void main() {
     expect(
       it.harness.playback.played.first,
       partes[1],
-      reason: 'a primeira parte está contada de ponta a ponta; a sala tem de '
+      reason:
+          'a primeira parte está contada de ponta a ponta; a sala tem de '
           'voltar no primeiro chão que ninguém contou, que está na segunda. '
           'Recomeçar a primeira faz a equipe traduzir de novo o que já contou, '
           'e o analista lê a passagem duas vezes',
@@ -198,14 +206,16 @@ void main() {
     expect(
       it.harness.room.chunkTakes.last,
       partes[1].takeId,
-      reason: 'o trecho novo é uma fatia da parte que está tocando. Contado '
+      reason:
+          'o trecho novo é uma fatia da parte que está tocando. Contado '
           'sobre a gravação da parte anterior, cada trecho novo cai em cima do '
           'áudio de outro, e foi assim que o fim da história veio antes',
     );
     expect(
       int.parse(it.harness.room.chunkSpans.last.split('-').first),
       greaterThanOrEqualTo(8000),
-      reason: 'a segunda parte já está contada até o oitavo segundo, e o corte '
+      reason:
+          'a segunda parte já está contada até o oitavo segundo, e o corte '
           'seguinte começa onde a contagem parou',
     );
   });
@@ -221,7 +231,8 @@ void main() {
     expect(
       [depois.parte, depois.lugarFrom, depois.lugarTo, depois.from, depois.to],
       [antes.parte, antes.lugarFrom, antes.lugarTo, antes.from, antes.to],
-      reason: 'traduzir de novo em português troca a explicação e mais nada: nem o '
+      reason:
+          'traduzir de novo em português troca a explicação e mais nada: nem o '
           'áudio que toca nem o lugar onde ele mora se mexem',
     );
   });
