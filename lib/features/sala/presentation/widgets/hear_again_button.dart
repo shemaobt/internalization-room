@@ -38,8 +38,8 @@ class HearAgainButton extends ConsumerWidget {
                     onTap: ref.read(salaSessionProvider.notifier).hearAgain,
                     onLongPress: twoMovements
                         ? ref
-                            .read(salaSessionProvider.notifier)
-                            .hearTheWholeOpening
+                              .read(salaSessionProvider.notifier)
+                              .hearTheWholeOpening
                         : null,
                     child: const Icon(
                       LucideIcons.rotateCcw,

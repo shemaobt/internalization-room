@@ -58,8 +58,7 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
 
   /// Find out who this tablet belongs to, and keep asking until somebody says.
   Future<void> findTheTeam() async {
-    if (Env.devAtalhos ||
-        (ref.read(debugBuildProvider) && Env.devPularFases)) {
+    if (Env.devAtalhos || (ref.read(debugBuildProvider) && Env.devPularFases)) {
       state = const DeviceLink(team: TeamLink(projectId: 'dev'));
       return;
     }
@@ -194,7 +193,9 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
         return _collectTheCredential();
       }
       final showing = state.code;
-      if (showing == null || showing.ranOutBy(DateTime.now())) return _showACode();
+      if (showing == null || showing.ranOutBy(DateTime.now())) {
+        return _showACode();
+      }
       _lookAgainLater();
     } on SessionGone {
       _deviceId = null;

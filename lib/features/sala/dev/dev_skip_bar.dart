@@ -116,7 +116,9 @@ class _DevButton extends StatelessWidget {
           color: habilitado ? const Color(0xE6332B24) : const Color(0x80332B24),
           borderRadius: BorderRadius.circular(11),
           border: Border.all(
-            color: habilitado ? const Color(0xFFB4552D) : const Color(0x40B4552D),
+            color: habilitado
+                ? const Color(0xFFB4552D)
+                : const Color(0x40B4552D),
           ),
         ),
         child: Column(

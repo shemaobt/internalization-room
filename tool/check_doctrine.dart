@@ -51,7 +51,9 @@ final rules = <DoctrineRule>[
   ),
   DoctrineRule(
     Rule.model,
-    RegExp(r'gemini_\w+|ThinkingLevel\.LOW|thinkingBudget|maxTokens|tokenBudget'),
+    RegExp(
+      r'gemini_\w+|ThinkingLevel\.LOW|thinkingBudget|maxTokens|tokenBudget',
+    ),
     'frontier Claude with adaptive thinking on the voice',
   ),
 ];
@@ -75,25 +77,28 @@ class Hit {
 List<Hit> scan(Iterable<String> roots) {
   final hits = <Hit>[];
   for (final root in roots) {
-    final files = Directory(root)
-        .listSync(recursive: true)
-        .whereType<File>()
-        .where((f) => f.path.endsWith('.dart'))
-        .toList()
-      ..sort((a, b) => a.path.compareTo(b.path));
+    final files =
+        Directory(root)
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where((f) => f.path.endsWith('.dart'))
+            .toList()
+          ..sort((a, b) => a.path.compareTo(b.path));
     for (final file in files) {
       final rel = p.posix.joinAll(p.split(p.relative(file.path)));
       final lines = file.readAsStringSync().split('\n');
       for (final rule in rules) {
         for (var i = 0; i < lines.length; i++) {
           if (rule.pattern.hasMatch(lines[i])) {
-            hits.add(Hit(
-              file: rel,
-              line: i + 1,
-              rule: rule.id,
-              text: lines[i].trim(),
-              message: rule.message,
-            ));
+            hits.add(
+              Hit(
+                file: rel,
+                line: i + 1,
+                rule: rule.id,
+                text: lines[i].trim(),
+                message: rule.message,
+              ),
+            );
           }
         }
       }
@@ -151,7 +156,9 @@ void main() {
     exit(0);
   }
   for (final hit in result.violations) {
-    stdout.writeln('✗ ${hit.file}:${hit.line}  [${hit.rule.name}] ${hit.message}');
+    stdout.writeln(
+      '✗ ${hit.file}:${hit.line}  [${hit.rule.name}] ${hit.message}',
+    );
   }
   for (final entry in result.stale) {
     stdout.writeln(

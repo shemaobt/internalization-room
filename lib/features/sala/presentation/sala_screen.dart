@@ -33,7 +33,8 @@ class SalaScreen extends ConsumerStatefulWidget {
   ConsumerState<SalaScreen> createState() => _SalaScreenState();
 }
 
-class _SalaScreenState extends ConsumerState<SalaScreen> with WidgetsBindingObserver {
+class _SalaScreenState extends ConsumerState<SalaScreen>
+    with WidgetsBindingObserver {
   late final ScreenAwake _awake = ref.read(screenAwakeProvider);
   bool _roomOpened = false;
 
@@ -51,7 +52,9 @@ class _SalaScreenState extends ConsumerState<SalaScreen> with WidgetsBindingObse
         ref
             .read(takeUploadQueueProvider)
             .flush()
-            .then((_) => ref.read(salaSessionProvider.notifier).refreshUnsent()),
+            .then(
+              (_) => ref.read(salaSessionProvider.notifier).refreshUnsent(),
+            ),
       );
       unawaited(ref.read(deviceLinkProvider.notifier).findTheTeam());
     });
@@ -66,7 +69,8 @@ class _SalaScreenState extends ConsumerState<SalaScreen> with WidgetsBindingObse
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState lifecycle) {
-    if (lifecycle == AppLifecycleState.resumed && ref.read(deviceLinkProvider).linked) {
+    if (lifecycle == AppLifecycleState.resumed &&
+        ref.read(deviceLinkProvider).linked) {
       unawaited(_openRoom());
     }
   }
@@ -100,7 +104,9 @@ class _SalaScreenState extends ConsumerState<SalaScreen> with WidgetsBindingObse
 
     if (link.linked && !_roomOpened) {
       _roomOpened = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_openRoom()));
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => unawaited(_openRoom()),
+      );
     }
 
     if (mic == MicAccess.denied) {
@@ -236,16 +242,13 @@ class _RetroCordLayerState extends ConsumerState<_RetroCordLayer> {
     // The watch above already rebuilds this layer on any session change; what the select
     // adds is the edge — the one frame the clip starts or stops — which is when the
     // asking has to be started or put down.
-    ref.listen<bool>(
-      salaSessionProvider.select(_soando),
-      (_, rodando) {
-        // The part that starts is not the one that stopped, and the player still answers
-        // for the old one until it has loaded the new. The room's own number is the one
-        // that is right on this frame.
-        if (rodando) _ouvidoMs = ref.read(salaSessionProvider).btOuvidoMs;
-        _followTheAudio(rodando);
-      },
-    );
+    ref.listen<bool>(salaSessionProvider.select(_soando), (_, rodando) {
+      // The part that starts is not the one that stopped, and the player still answers
+      // for the old one until it has loaded the new. The room's own number is the one
+      // that is right on this frame.
+      if (rodando) _ouvidoMs = ref.read(salaSessionProvider).btOuvidoMs;
+      _followTheAudio(rodando);
+    });
     return RetroCord(
       partes: session.partes.length,
       fimDasPartes: session.btFimDasPartesMs,

@@ -26,17 +26,17 @@ class SegmentView {
   });
 
   static List<SegmentView> listFrom(Map<String, dynamic> json) => [
-        for (final raw in (json['segments'] as List? ?? const []))
-          if (raw is Map) SegmentView.fromJson(raw.cast<String, dynamic>()),
-      ];
+    for (final raw in (json['segments'] as List? ?? const []))
+      if (raw is Map) SegmentView.fromJson(raw.cast<String, dynamic>()),
+  ];
 
   factory SegmentView.fromJson(Map<String, dynamic> json) => SegmentView(
-        segmentId: json['segment_id'] as String? ?? '',
-        takeId: json['take_id'] as String? ?? '',
-        startsMs: json['starts_ms'] as int? ?? 0,
-        endsMs: json['ends_ms'] as int? ?? 0,
-        told: json['told'] as bool? ?? true,
-      );
+    segmentId: json['segment_id'] as String? ?? '',
+    takeId: json['take_id'] as String? ?? '',
+    startsMs: json['starts_ms'] as int? ?? 0,
+    endsMs: json['ends_ms'] as int? ?? 0,
+    told: json['told'] as bool? ?? true,
+  );
 }
 
 /// One recording the room is holding for a session.
@@ -68,17 +68,17 @@ class TakeView {
   });
 
   static List<TakeView> listFrom(Map<String, dynamic> json) => [
-        for (final raw in (json['takes'] as List? ?? const []))
-          if (raw is Map) TakeView.fromJson(raw.cast<String, dynamic>()),
-      ];
+    for (final raw in (json['takes'] as List? ?? const []))
+      if (raw is Map) TakeView.fromJson(raw.cast<String, dynamic>()),
+  ];
 
   factory TakeView.fromJson(Map<String, dynamic> json) => TakeView(
-        takeId: json['take_id'] as String? ?? '',
-        kind: json['kind'] as String? ?? '',
-        scope: json['scope'] as String? ?? '',
-        ordinal: json['ordinal'] as int?,
-        pass: json['pass_number'] as int?,
-      );
+    takeId: json['take_id'] as String? ?? '',
+    kind: json['kind'] as String? ?? '',
+    scope: json['scope'] as String? ?? '',
+    ordinal: json['ordinal'] as int?,
+    pass: json['pass_number'] as int?,
+  );
 }
 
 /// What the room answers when a stretch is told again.
@@ -105,10 +105,10 @@ class TellingAgain {
   });
 
   factory TellingAgain.fromJson(Map<String, dynamic> json) => TellingAgain(
-        segments: SegmentView.listFrom(json),
-        captured: json['captured'] as bool? ?? true,
-        needsPerson: json['needs_person'] as bool? ?? false,
-      );
+    segments: SegmentView.listFrom(json),
+    captured: json['captured'] as bool? ?? true,
+    needsPerson: json['needs_person'] as bool? ?? false,
+  );
 }
 
 /// Where a telling-back stopped, as the room remembers it.
@@ -148,10 +148,10 @@ enum HaltKind {
   unnamed;
 
   static HaltKind fromJson(Object? raw) => switch (raw) {
-        'blocking' => HaltKind.blocking,
-        'warning' => HaltKind.warning,
-        _ => HaltKind.unnamed,
-      };
+    'blocking' => HaltKind.blocking,
+    'warning' => HaltKind.warning,
+    _ => HaltKind.unnamed,
+  };
 }
 
 class SessionSnapshot {
@@ -174,7 +174,8 @@ class SessionSnapshot {
     this.halt = HaltKind.unnamed,
   });
 
-  factory SessionSnapshot.fromJson(Map<String, dynamic> json) => SessionSnapshot(
+  factory SessionSnapshot.fromJson(Map<String, dynamic> json) =>
+      SessionSnapshot(
         sessionId: json['session_id'] as String,
         pericope: json['pericope'] as String? ?? '',
         status: json['status'] as String? ?? '',
@@ -194,6 +195,5 @@ class SessionSnapshot {
 
   /// A halt the server calls a warning asks for a person to come and watch and refuses
   /// the team nothing; reading it as a stop closed the room over a note.
-  bool get needsPerson =>
-      status == 'needs_person' && halt != HaltKind.warning;
+  bool get needsPerson => status == 'needs_person' && halt != HaltKind.warning;
 }

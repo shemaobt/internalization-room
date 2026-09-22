@@ -11,16 +11,15 @@ class PlaybackRepository {
   StreamSubscription<PlayerState>? _states;
   AudioPlayer? _opened;
   Duration? _openedLength;
+
   /// The player that only ever measures, separate from [_opened] on purpose: loading a
   /// source replaces it, so measuring on the playing one would take the clip out of its
   /// hands — its length, its position, and the events the room hangs off both.
   AudioPlayer? _measurer;
   bool _disposed = false;
 
-  PlaybackRepository({
-    this._start,
-    AudioPlayer Function()? newPlayer,
-  }) : _newPlayer = newPlayer ?? AudioPlayer.new;
+  PlaybackRepository({this._start, AudioPlayer Function()? newPlayer})
+    : _newPlayer = newPlayer ?? AudioPlayer.new;
 
   AudioPlayer get _player => _opened ??= _newPlayer();
 

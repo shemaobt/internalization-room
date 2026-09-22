@@ -23,14 +23,14 @@ Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) =>
 
 /// The room's own recordings of a rehearsal of [partes] parts, as the listing answers.
 List<TakeView> _naSala(int partes) => [
-      for (var n = 1; n <= partes; n++)
-        TakeView(
-          takeId: 'gravacao-$n',
-          kind: 'ensaio',
-          scope: KeptScope.parte(n),
-          ordinal: n,
-        ),
-    ];
+  for (var n = 1; n <= partes; n++)
+    TakeView(
+      takeId: 'gravacao-$n',
+      kind: 'ensaio',
+      scope: KeptScope.parte(n),
+      ordinal: n,
+    ),
+];
 
 /// A telling-back of the whole of each named part, as the room hands it back.
 BackTranslationProgress _contado(List<int> partes, {bool checked = false}) =>
@@ -140,8 +140,9 @@ Future<_Retomada> _reabrirDeNovo(_Retomada antes) async {
   return _Retomada(antes.harness, container, antes.nomeados, antes.linhaAntes);
 }
 
-List<String?> _nomesDasPartes(_Retomada it) =>
-    [for (final take in it.estado.partes) take.takeId];
+List<String?> _nomesDasPartes(_Retomada it) => [
+  for (final take in it.estado.partes) take.takeId,
+];
 
 /// Stand on a finding addressed to the stretch of part 2 and record that part again,
 /// which is the gesture the part's own count has to survive a resume for.
@@ -157,116 +158,167 @@ Future<void> _regravarAParteDois(_Retomada it) async {
     'a sala voltar do veredito',
     () => it.estado.btPhase != BtPhase.thinking,
   );
-  expect(it.estado.btFindingTrecho?.parte, 1,
-      reason: 'o cenário só mede alguma coisa se o achado apontar a parte 2');
+  expect(
+    it.estado.btFindingTrecho?.parte,
+    1,
+    reason: 'o cenário só mede alguma coisa se o achado apontar a parte 2',
+  );
 
   final antiga = it.estado.partes[1].path;
   it.sala.gravarAParteDeNovo();
-  await waitFor('a equipe voltar ao ensaio',
-      () => it.estado.stage == SalaStage.ensaio);
+  await waitFor(
+    'a equipe voltar ao ensaio',
+    () => it.estado.stage == SalaStage.ensaio,
+  );
   it.sala.ensaioTap();
-  await waitFor('a gravação começar',
-      () => it.estado.ensaio == EnsaioStatus.recording);
+  await waitFor(
+    'a gravação começar',
+    () => it.estado.ensaio == EnsaioStatus.recording,
+  );
   it.sala.ensaioTap();
-  await waitFor('a gravação terminar',
-      () => it.estado.ensaio == EnsaioStatus.recorded);
+  await waitFor(
+    'a gravação terminar',
+    () => it.estado.ensaio == EnsaioStatus.recorded,
+  );
   it.sala.takeKeep();
-  await waitFor('a gravação nova tomar o lugar da parte 2',
-      () => it.estado.partes[1].path != antiga);
-  await waitFor('a gravação nova chegar à sala',
-      () => it.harness.room.takesKept.contains('ensaio/${KeptScope.parte(2)}'));
+  await waitFor(
+    'a gravação nova tomar o lugar da parte 2',
+    () => it.estado.partes[1].path != antiga,
+  );
+  await waitFor(
+    'a gravação nova chegar à sala',
+    () => it.harness.room.takesKept.contains('ensaio/${KeptScope.parte(2)}'),
+  );
 }
 
 void main() {
-  test('uma linha do ensaio sem os arquivos reabre no ensaio com as partes da sala',
-      () async {
-    final harness = SalaHarness();
+  test(
+    'uma linha do ensaio sem os arquivos reabre no ensaio com as partes da sala',
+    () async {
+      final harness = SalaHarness();
 
-    final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
-    await waitFor('as partes voltarem da sala', () => it.estado.partes.length == 3);
+      final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
+      await waitFor(
+        'as partes voltarem da sala',
+        () => it.estado.partes.length == 3,
+      );
 
-    expect(it.estado.stage, SalaStage.ensaio,
-        reason: 'a equipe parou no ensaio e a sala ainda guarda o ensaio: '
+      expect(
+        it.estado.stage,
+        SalaStage.ensaio,
+        reason:
+            'a equipe parou no ensaio e a sala ainda guarda o ensaio: '
             'devolvê-la à conversa é mandá-la gravar a passagem de novo por '
-            'cima do trabalho que já existe');
-    expect(_nomesDasPartes(it), ['gravacao-1', 'gravacao-2', 'gravacao-3'],
-        reason: 'as partes correntes da sala, na ordem em que a sala as lista');
-    expect(
-      [for (final take in it.estado.partes) File(take.path).existsSync()],
-      [true, true, true],
-      reason: 'e com áudio no tablet: uma parte sem arquivo não toca nada',
-    );
-    expect(
-      it.harness.room.clipsFetched,
-      unorderedEquals([
-        _urlDaParte('gravacao-1'),
-        _urlDaParte('gravacao-2'),
-        _urlDaParte('gravacao-3'),
-      ]),
-      reason: 'cada parte é buscada pela sua própria porta de áudio',
-    );
-    expect(it.estado.btFimDasPartesMs, [10000, 20000, 30000],
-        reason: 'e medida ao chegar: sem régua o colar não desenha nada');
+            'cima do trabalho que já existe',
+      );
+      expect(
+        _nomesDasPartes(it),
+        ['gravacao-1', 'gravacao-2', 'gravacao-3'],
+        reason: 'as partes correntes da sala, na ordem em que a sala as lista',
+      );
+      expect(
+        [for (final take in it.estado.partes) File(take.path).existsSync()],
+        [true, true, true],
+        reason: 'e com áudio no tablet: uma parte sem arquivo não toca nada',
+      );
+      expect(
+        it.harness.room.clipsFetched,
+        unorderedEquals([
+          _urlDaParte('gravacao-1'),
+          _urlDaParte('gravacao-2'),
+          _urlDaParte('gravacao-3'),
+        ]),
+        reason: 'cada parte é buscada pela sua própria porta de áudio',
+      );
+      expect(
+        it.estado.btFimDasPartesMs,
+        [10000, 20000, 30000],
+        reason: 'e medida ao chegar: sem régua o colar não desenha nada',
+      );
 
-    await waitFor(
-      'a linha passar a nomear os arquivos que existem',
-      () => it.linha!.takes.first.path != it.nomeados.first,
-    );
-    expect(
-      [for (final take in it.linha!.takes) take.path],
-      [for (final take in it.estado.partes) take.path],
-      reason: 'a linha nomeia os arquivos que o tablet tem agora; deixada '
-          'apontando para os que sumiram, a próxima abertura busca tudo de '
-          'novo e a equipe paga a rede duas vezes',
-    );
-    expect(
-      [for (final take in it.linha!.takes) take.takeId],
-      ['gravacao-1', 'gravacao-2', 'gravacao-3'],
-    );
-  });
+      await waitFor(
+        'a linha passar a nomear os arquivos que existem',
+        () => it.linha!.takes.first.path != it.nomeados.first,
+      );
+      expect(
+        [for (final take in it.linha!.takes) take.path],
+        [for (final take in it.estado.partes) take.path],
+        reason:
+            'a linha nomeia os arquivos que o tablet tem agora; deixada '
+            'apontando para os que sumiram, a próxima abertura busca tudo de '
+            'novo e a equipe paga a rede duas vezes',
+      );
+      expect(
+        [for (final take in it.linha!.takes) take.takeId],
+        ['gravacao-1', 'gravacao-2', 'gravacao-3'],
+      );
+    },
+  );
 
-  test('a mesma linha com trechos na sala desenha os trechos nas partes', () async {
-    final harness = SalaHarness();
+  test(
+    'a mesma linha com trechos na sala desenha os trechos nas partes',
+    () async {
+      final harness = SalaHarness();
 
-    final it = await _reabrir(
-      harness,
-      parouEm: SalaStage.ensaio,
-      contado: _contado([1, 2]),
-    );
-    await waitFor('os trechos voltarem', () => it.estado.btTrechos.length == 2);
+      final it = await _reabrir(
+        harness,
+        parouEm: SalaStage.ensaio,
+        contado: _contado([1, 2]),
+      );
+      await waitFor(
+        'os trechos voltarem',
+        () => it.estado.btTrechos.length == 2,
+      );
 
-    expect([for (final trecho in it.estado.btTrechos) trecho.parte], [0, 1],
-        reason: 'cada trecho mora na parte que a equipe gravou (ADR 0022)');
-    expect(
-      [
-        for (final trecho in it.estado.btTrechos)
-          cordSpanMs(trecho: trecho, fimDasPartes: it.estado.btFimDasPartesMs),
-      ],
-      [(0, 10000), (10000, 20000)],
-      reason: 'e o colar desenha a faixa por cima da parte em que ele mora: é '
-          'o único lugar em que uma equipe que não lê vê onde o trabalho está',
-    );
-  });
+      expect(
+        [for (final trecho in it.estado.btTrechos) trecho.parte],
+        [0, 1],
+        reason: 'cada trecho mora na parte que a equipe gravou (ADR 0022)',
+      );
+      expect(
+        [
+          for (final trecho in it.estado.btTrechos)
+            cordSpanMs(
+              trecho: trecho,
+              fimDasPartes: it.estado.btFimDasPartesMs,
+            ),
+        ],
+        [(0, 10000), (10000, 20000)],
+        reason:
+            'e o colar desenha a faixa por cima da parte em que ele mora: é '
+            'o único lugar em que uma equipe que não lê vê onde o trabalho está',
+      );
+    },
+  );
 
-  test('uma linha da retro sem os arquivos reabre na retro no cursor', () async {
-    final harness = SalaHarness();
+  test(
+    'uma linha da retro sem os arquivos reabre na retro no cursor',
+    () async {
+      final harness = SalaHarness();
 
-    final it = await _reabrir(
-      harness,
-      parouEm: SalaStage.retro,
-      contado: _contado([1, 2]),
-    );
-    await waitFor('a retro voltar', () => it.estado.stage == SalaStage.retro);
+      final it = await _reabrir(
+        harness,
+        parouEm: SalaStage.retro,
+        contado: _contado([1, 2]),
+      );
+      await waitFor('a retro voltar', () => it.estado.stage == SalaStage.retro);
 
-    expect(it.estado.btPhase, BtPhase.playing);
-    expect(_nomesDasPartes(it), ['gravacao-1', 'gravacao-2', 'gravacao-3']);
-    expect(it.estado.btTrechos, hasLength(2));
-    await waitFor('a parte do cursor entrar no ar',
-        () => it.harness.playback.played.isNotEmpty);
-    expect(it.harness.playback.played.last, it.estado.partes[2].path,
-        reason: 'as partes 1 e 2 já foram contadas, então a retomada começa na '
-            '3: recomeçar do chão manda contar de novo o que já está contado');
-  });
+      expect(it.estado.btPhase, BtPhase.playing);
+      expect(_nomesDasPartes(it), ['gravacao-1', 'gravacao-2', 'gravacao-3']);
+      expect(it.estado.btTrechos, hasLength(2));
+      await waitFor(
+        'a parte do cursor entrar no ar',
+        () => it.harness.playback.played.isNotEmpty,
+      );
+      expect(
+        it.harness.playback.played.last,
+        it.estado.partes[2].path,
+        reason:
+            'as partes 1 e 2 já foram contadas, então a retomada começa na '
+            '3: recomeçar do chão manda contar de novo o que já está contado',
+      );
+    },
+  );
 
   test('uma passagem conferida reabre na aprovacao com audio', () async {
     final harness = SalaHarness();
@@ -276,18 +328,27 @@ void main() {
       parouEm: SalaStage.retro,
       contado: _contado([1], checked: true),
     );
-    await waitFor('a aprovação voltar', () => it.estado.btPhase == BtPhase.conferida);
+    await waitFor(
+      'a aprovação voltar',
+      () => it.estado.btPhase == BtPhase.conferida,
+    );
 
     expect(it.estado.stage, SalaStage.retro);
     expect(it.estado.voice, VoiceState.done);
-    expect(it.estado.partes, hasLength(3),
-        reason: 'a última audição que o veredito convida precisa do ensaio de pé');
+    expect(
+      it.estado.partes,
+      hasLength(3),
+      reason: 'a última audição que o veredito convida precisa do ensaio de pé',
+    );
 
     it.sala.ouvirGravacao();
     await settle();
 
-    expect(it.harness.playback.played.last, it.estado.partes.first.path,
-        reason: 'e ela toca: o botão estava na tela sobre o silêncio');
+    expect(
+      it.harness.playback.played.last,
+      it.estado.partes.first.path,
+      reason: 'e ela toca: o botão estava na tela sobre o silêncio',
+    );
     expect(it.harness.playback.playedFrom.last, Duration.zero);
   });
 
@@ -299,35 +360,61 @@ void main() {
       parouEm: SalaStage.ensaio,
       aindaNoTablet: {2},
     );
-    await waitFor('as partes voltarem da sala', () => it.estado.partes.length == 3);
+    await waitFor(
+      'as partes voltarem da sala',
+      () => it.estado.partes.length == 3,
+    );
 
     expect(
-        it.harness.room.clipsFetched,
-        unorderedEquals([_urlDaParte('gravacao-1'), _urlDaParte('gravacao-3')]),
-        reason: 'baixar de novo um arquivo que está aqui gasta a rede da equipe '
-            'e troca a gravação dela por uma cópia');
+      it.harness.room.clipsFetched,
+      unorderedEquals([_urlDaParte('gravacao-1'), _urlDaParte('gravacao-3')]),
+      reason:
+          'baixar de novo um arquivo que está aqui gasta a rede da equipe '
+          'e troca a gravação dela por uma cópia',
+    );
     expect(_nomesDasPartes(it), ['gravacao-1', 'gravacao-2', 'gravacao-3']);
-    expect(it.estado.partes[1].path, it.nomeados[1],
-        reason: 'a parte 2 continua sendo o arquivo que o tablet já tinha');
+    expect(
+      it.estado.partes[1].path,
+      it.nomeados[1],
+      reason: 'a parte 2 continua sendo o arquivo que o tablet já tinha',
+    );
   });
 
-  test('sem a lista das gravacoes a sala chama uma pessoa e guarda o ponto',
-      () async {
-    final harness = SalaHarness()..room.failTakesWith = const RoomUnavailable('sem rede');
+  test(
+    'sem a lista das gravacoes a sala chama uma pessoa e guarda o ponto',
+    () async {
+      final harness = SalaHarness()
+        ..room.failTakesWith = const RoomUnavailable('sem rede');
 
-    final it = await _reabrir(harness, parouEm: SalaStage.retro, contado: _contado([1]));
-    await waitFor('a sala chamar uma pessoa', () => it.estado.needsPerson);
+      final it = await _reabrir(
+        harness,
+        parouEm: SalaStage.retro,
+        contado: _contado([1]),
+      );
+      await waitFor('a sala chamar uma pessoa', () => it.estado.needsPerson);
 
-    expect(it.linhaAgora, it.linhaAntes,
-        reason: 'o ponto de retomada é a única coisa que sabe qual sessão é '
+      expect(
+        it.linhaAgora,
+        it.linhaAntes,
+        reason:
+            'o ponto de retomada é a única coisa que sabe qual sessão é '
             'desta passagem: reescrevê-lo depois de uma falha da sala tira da '
-            'equipe o caminho de volta para sempre');
-    expect(it.harness.room.calls, isNot(contains('openSession')),
-        reason: 'abrir a conversa põe a equipe a caminho de gravar por cima do '
-            'que a sala guarda');
-    expect(it.estado.partes, isEmpty,
-        reason: 'e meia fila de partes não é um ensaio: a sala para onde está');
-  });
+            'equipe o caminho de volta para sempre',
+      );
+      expect(
+        it.harness.room.calls,
+        isNot(contains('openSession')),
+        reason:
+            'abrir a conversa põe a equipe a caminho de gravar por cima do '
+            'que a sala guarda',
+      );
+      expect(
+        it.estado.partes,
+        isEmpty,
+        reason: 'e meia fila de partes não é um ensaio: a sala para onde está',
+      );
+    },
+  );
 
   test('uma parte que nao baixa chama uma pessoa e guarda o ponto', () async {
     final harness = SalaHarness()..room.refuseClipOf.add('gravacao-2');
@@ -335,45 +422,65 @@ void main() {
     final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
     await waitFor('a sala chamar uma pessoa', () => it.estado.needsPerson);
 
-    expect(it.linhaAgora, it.linhaAntes,
-        reason: 'meia retomada não é retomada: a linha continua nomeando as '
-            'três gravações que a equipe fez, para a próxima abertura tentar '
-            'de novo');
-    expect(it.harness.room.calls, isNot(contains('openSession')));
-    expect(it.estado.partes, isEmpty,
-        reason: 'as duas partes que baixaram não fazem um ensaio: tocá-lo com '
-            'um buraco no meio conta à equipe uma história cortada');
-  });
-
-  test('na segunda abertura com a sala de volta a equipe cai onde parou', () async {
-    final harness = SalaHarness()..room.refuseClipOf.add('gravacao-2');
-
-    final parada = await _reabrir(
-      harness,
-      parouEm: SalaStage.retro,
-      contado: _contado([1, 2]),
-    );
-    await waitFor('a sala chamar uma pessoa', () => parada.estado.needsPerson);
-
-    harness.room.refuseClipOf.clear();
-    harness.room.theDeskAttended();
-    final volta = await _reabrirDeNovo(parada);
-    await waitFor('a retro voltar', () => volta.estado.stage == SalaStage.retro);
-
-    expect(_nomesDasPartes(volta), ['gravacao-1', 'gravacao-2', 'gravacao-3'],
-        reason: 'a sala voltou e o ponto estava de pé: a equipe cai onde parou');
-    expect(volta.estado.btTrechos, hasLength(2));
-    expect(volta.estado.needsPerson, isFalse);
-    await waitFor(
-      'a linha passar a nomear os arquivos que existem',
-      () => volta.linha!.takes.first.path != volta.nomeados.first,
-    );
     expect(
-      [for (final take in volta.linha!.takes) take.path],
-      [for (final take in volta.estado.partes) take.path],
-      reason: 'e agora a linha nomeia os arquivos que este tablet tem',
+      it.linhaAgora,
+      it.linhaAntes,
+      reason:
+          'meia retomada não é retomada: a linha continua nomeando as '
+          'três gravações que a equipe fez, para a próxima abertura tentar '
+          'de novo',
+    );
+    expect(it.harness.room.calls, isNot(contains('openSession')));
+    expect(
+      it.estado.partes,
+      isEmpty,
+      reason:
+          'as duas partes que baixaram não fazem um ensaio: tocá-lo com '
+          'um buraco no meio conta à equipe uma história cortada',
     );
   });
+
+  test(
+    'na segunda abertura com a sala de volta a equipe cai onde parou',
+    () async {
+      final harness = SalaHarness()..room.refuseClipOf.add('gravacao-2');
+
+      final parada = await _reabrir(
+        harness,
+        parouEm: SalaStage.retro,
+        contado: _contado([1, 2]),
+      );
+      await waitFor(
+        'a sala chamar uma pessoa',
+        () => parada.estado.needsPerson,
+      );
+
+      harness.room.refuseClipOf.clear();
+      harness.room.theDeskAttended();
+      final volta = await _reabrirDeNovo(parada);
+      await waitFor(
+        'a retro voltar',
+        () => volta.estado.stage == SalaStage.retro,
+      );
+
+      expect(
+        _nomesDasPartes(volta),
+        ['gravacao-1', 'gravacao-2', 'gravacao-3'],
+        reason: 'a sala voltou e o ponto estava de pé: a equipe cai onde parou',
+      );
+      expect(volta.estado.btTrechos, hasLength(2));
+      expect(volta.estado.needsPerson, isFalse);
+      await waitFor(
+        'a linha passar a nomear os arquivos que existem',
+        () => volta.linha!.takes.first.path != volta.nomeados.first,
+      );
+      expect(
+        [for (final take in volta.linha!.takes) take.path],
+        [for (final take in volta.estado.partes) take.path],
+        reason: 'e agora a linha nomeia os arquivos que este tablet tem',
+      );
+    },
+  );
 
   /// A passage reopened into a room the server is still holding, with parts 1 and 2 told
   /// back whole and part 3 never told.
@@ -398,117 +505,162 @@ void main() {
       ..room.serverHalt = HaltKind.blocking;
     final it = await aRetomadaParada(harness);
 
-    expect(it.estado.needsPerson, isTrue,
-        reason: 'a parada e do servidor e so a mesa a levanta (ADR 0009)');
-    expect(harness.playback.played, isEmpty,
-        reason: 'uma parada que bloqueia nao toca nada: por o ensaio no ar '
-            'cala a sala pelo caminho, e corta a unica chamada por uma pessoa');
-    expect(it.estado.btPhase, BtPhase.playing,
-        reason: 'e a sala nao fica presa a pensar: a medicao acabou');
-    expect(it.estado.btFimDasPartesMs, [10000, 20000, 30000],
-        reason: 'a entrada mede o ensaio inteiro mesmo parada, para o colar ja '
-            'estar desenhado quando a mesa soltar a equipe');
+    expect(
+      it.estado.needsPerson,
+      isTrue,
+      reason: 'a parada e do servidor e so a mesa a levanta (ADR 0009)',
+    );
+    expect(
+      harness.playback.played,
+      isEmpty,
+      reason:
+          'uma parada que bloqueia nao toca nada: por o ensaio no ar '
+          'cala a sala pelo caminho, e corta a unica chamada por uma pessoa',
+    );
+    expect(
+      it.estado.btPhase,
+      BtPhase.playing,
+      reason: 'e a sala nao fica presa a pensar: a medicao acabou',
+    );
+    expect(
+      it.estado.btFimDasPartesMs,
+      [10000, 20000, 30000],
+      reason:
+          'a entrada mede o ensaio inteiro mesmo parada, para o colar ja '
+          'estar desenhado quando a mesa soltar a equipe',
+    );
   });
 
-  test('a mesa a soltar poe no ar a parte que a entrada tinha escolhido',
-      () async {
-    final harness = SalaHarness()
-      ..room.serverStatus = 'needs_person'
-      ..room.serverHalt = HaltKind.blocking;
-    final it = await aRetomadaParada(harness);
+  test(
+    'a mesa a soltar poe no ar a parte que a entrada tinha escolhido',
+    () async {
+      final harness = SalaHarness()
+        ..room.serverStatus = 'needs_person'
+        ..room.serverHalt = HaltKind.blocking;
+      final it = await aRetomadaParada(harness);
 
-    harness.room.theDeskAttended();
-    await waitFor('a mesa soltar a parada', () => !it.estado.needsPerson);
-    await waitFor('a parte entrar no ar', () => it.estado.btClipRodando);
+      harness.room.theDeskAttended();
+      await waitFor('a mesa soltar a parada', () => !it.estado.needsPerson);
+      await waitFor('a parte entrar no ar', () => it.estado.btClipRodando);
 
-    expect(harness.playback.played, [it.estado.partes[2].path],
-        reason: 'sem gesto nenhum: a entrada so reteve o som, e soltar a parada '
+      expect(
+        harness.playback.played,
+        [it.estado.partes[2].path],
+        reason:
+            'sem gesto nenhum: a entrada so reteve o som, e soltar a parada '
             'e o que a acaba. A sala parada na tradução sem clipe nenhum '
             'deixava a tesoura passar por todos os guardas e cortar sobre o '
-            'silencio');
-    expect(it.estado.partes[2].takeId, 'gravacao-3',
-        reason: 'e e a primeira parte com chao por contar, nao a parte 1');
-  });
+            'silencio',
+      );
+      expect(
+        it.estado.partes[2].takeId,
+        'gravacao-3',
+        reason: 'e e a primeira parte com chao por contar, nao a parte 1',
+      );
+    },
+  );
 
-  test('a parada nao apaga o que a equipe ja ouvira das partes contadas',
-      () async {
-    final harness = SalaHarness()
-      ..room.serverStatus = 'needs_person'
-      ..room.serverHalt = HaltKind.blocking;
-    final it = await aRetomadaParada(harness);
+  test(
+    'a parada nao apaga o que a equipe ja ouvira das partes contadas',
+    () async {
+      final harness = SalaHarness()
+        ..room.serverStatus = 'needs_person'
+        ..room.serverHalt = HaltKind.blocking;
+      final it = await aRetomadaParada(harness);
 
-    harness.room.theDeskAttended();
-    await waitFor('a mesa soltar a parada', () => !it.estado.needsPerson);
-    await waitFor('a parte entrar no ar', () => it.estado.btClipRodando);
-    harness.playback
-      ..length = _parte
-      ..at = _parte
-      ..finishPlayback();
-    await waitFor('a terceira parte acabar', () => it.estado.btClipEnded);
-    await it.sala.finishBackTranslation();
-    await waitFor(
-      'a sala responder ao terminei',
-      () => harness.room.playedByTakeSent.isNotEmpty,
-    );
+      harness.room.theDeskAttended();
+      await waitFor('a mesa soltar a parada', () => !it.estado.needsPerson);
+      await waitFor('a parte entrar no ar', () => it.estado.btClipRodando);
+      harness.playback
+        ..length = _parte
+        ..at = _parte
+        ..finishPlayback();
+      await waitFor('a terceira parte acabar', () => it.estado.btClipEnded);
+      await it.sala.finishBackTranslation();
+      await waitFor(
+        'a sala responder ao terminei',
+        () => harness.room.playedByTakeSent.isNotEmpty,
+      );
 
-    final relato = {
-      for (final parte in harness.room.playedByTakeSent.last)
-        parte['take_id']! as String:
-            (parte['played_ranges']! as List).cast<List<int>>(),
-    };
-    expect(relato['gravacao-1'], [
-      [0, 10000]
-    ], reason: 'a parada reteve o som e mais nada: o que a equipe ja ouvira '
-        'continua a entrar no registro, ou o terminei era recusado por partes '
-        'que ela ouviu na rodada anterior');
-    expect(relato['gravacao-2'], [
-      [0, 10000]
-    ]);
-  });
+      final relato = {
+        for (final parte in harness.room.playedByTakeSent.last)
+          parte['take_id']! as String: (parte['played_ranges']! as List)
+              .cast<List<int>>(),
+      };
+      expect(
+        relato['gravacao-1'],
+        [
+          [0, 10000],
+        ],
+        reason:
+            'a parada reteve o som e mais nada: o que a equipe ja ouvira '
+            'continua a entrar no registro, ou o terminei era recusado por partes '
+            'que ela ouviu na rodada anterior',
+      );
+      expect(relato['gravacao-2'], [
+        [0, 10000],
+      ]);
+    },
+  );
 
-  test('uma sessao que a sala esqueceu recomeca limpa, nao para para sempre',
-      () async {
-    final harness = SalaHarness()..room.failTakesWith = const SessionGone();
+  test(
+    'uma sessao que a sala esqueceu recomeca limpa, nao para para sempre',
+    () async {
+      final harness = SalaHarness()..room.failTakesWith = const SessionGone();
 
-    final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
-    await waitFor(
-      'a sala abrir a passagem de novo',
-      () => it.harness.room.calls.contains('createSession'),
-    );
+      final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
+      await waitFor(
+        'a sala abrir a passagem de novo',
+        () => it.harness.room.calls.contains('createSession'),
+      );
 
-    expect(it.estado.needsPerson, isFalse,
-        reason: 'a sessão que a linha nomeia não existe mais no servidor, e '
+      expect(
+        it.estado.needsPerson,
+        isFalse,
+        reason:
+            'a sessão que a linha nomeia não existe mais no servidor, e '
             'guardar o ponto seria pedir a mesma sessão morta em toda '
             'abertura: a passagem ficaria parada para sempre, chamando uma '
-            'pessoa que não tem o que resolver (ADR 0019)');
-    expect(it.linha!.sessionId, isNot(_sessao),
-        reason: 'a linha passa a nomear a sessão nova');
-  });
+            'pessoa que não tem o que resolver (ADR 0019)',
+      );
+      expect(
+        it.linha!.sessionId,
+        isNot(_sessao),
+        reason: 'a linha passa a nomear a sessão nova',
+      );
+    },
+  );
 
-  test('o toque longo depois de uma busca parada tenta a retomada de novo',
-      () async {
-    final harness = SalaHarness()..room.refuseClipOf.add('gravacao-2');
+  test(
+    'o toque longo depois de uma busca parada tenta a retomada de novo',
+    () async {
+      final harness = SalaHarness()..room.refuseClipOf.add('gravacao-2');
 
-    final it = await _reabrir(
-      harness,
-      parouEm: SalaStage.retro,
-      contado: _contado([1, 2]),
-    );
-    await waitFor('a sala chamar uma pessoa', () => it.estado.needsPerson);
+      final it = await _reabrir(
+        harness,
+        parouEm: SalaStage.retro,
+        contado: _contado([1, 2]),
+      );
+      await waitFor('a sala chamar uma pessoa', () => it.estado.needsPerson);
 
-    // A pessoa chegou, olhou e liberou a sala na mesa; a rede voltou com ela.
-    it.harness.room
-      ..refuseClipOf.clear()
-      ..theDeskAttended();
-    it.sala.resolveWithPerson();
-    await waitFor('a retro voltar', () => it.estado.stage == SalaStage.retro);
+      // A pessoa chegou, olhou e liberou a sala na mesa; a rede voltou com ela.
+      it.harness.room
+        ..refuseClipOf.clear()
+        ..theDeskAttended();
+      it.sala.resolveWithPerson();
+      await waitFor('a retro voltar', () => it.estado.stage == SalaStage.retro);
 
-    expect(_nomesDasPartes(it), ['gravacao-1', 'gravacao-2', 'gravacao-3'],
-        reason: 'soltar a equipe na conversa desta mesma sessão é pô-la a '
+      expect(
+        _nomesDasPartes(it),
+        ['gravacao-1', 'gravacao-2', 'gravacao-3'],
+        reason:
+            'soltar a equipe na conversa desta mesma sessão é pô-la a '
             'gravar um ensaio novo por cima do que a sala guarda — o mal que '
-            'este ticket existe para impedir');
-    expect(it.estado.btTrechos, hasLength(2));
-  });
+            'este ticket existe para impedir',
+      );
+      expect(it.estado.btTrechos, hasLength(2));
+    },
+  );
 
   test('o toque longo com a sala ainda fora chama uma pessoa de novo', () async {
     // O mesmo link morto que recusa a parte também recusa o pedido de uma
@@ -528,11 +680,18 @@ void main() {
     it.sala.resolveWithPerson();
     await settle(const Duration(milliseconds: 400));
 
-    expect(it.estado.needsPerson, isTrue,
-        reason: 'a sala continua sem entregar a parte, então a saída continua '
-            'sendo a mesma: uma pessoa');
-    expect(it.linhaAgora, it.linhaAntes,
-        reason: 'e o ponto de retomada continua intacto para a próxima vez');
+    expect(
+      it.estado.needsPerson,
+      isTrue,
+      reason:
+          'a sala continua sem entregar a parte, então a saída continua '
+          'sendo a mesma: uma pessoa',
+    );
+    expect(
+      it.linhaAgora,
+      it.linhaAntes,
+      reason: 'e o ponto de retomada continua intacto para a próxima vez',
+    );
     expect(it.harness.room.calls, isNot(contains('openSession')));
   });
 
@@ -541,35 +700,53 @@ void main() {
       ..room.clipDelay = const Duration(milliseconds: 250);
 
     final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
-    await waitFor('as partes voltarem da sala', () => it.estado.partes.length == 3);
+    await waitFor(
+      'as partes voltarem da sala',
+      () => it.estado.partes.length == 3,
+    );
 
-    expect(it.estado.needsPerson, isFalse,
-        reason: 'o teto é o que uma espera pode durar, não o que a busca '
-            'inteira soma: três partes que chegam cada uma a tempo são um link '
-            'lento, não um que parou, e chamar uma pessoa para ele tira a '
-            'equipe do trabalho por nada');
+    expect(
+      it.estado.needsPerson,
+      isFalse,
+      reason:
+          'o teto é o que uma espera pode durar, não o que a busca '
+          'inteira soma: três partes que chegam cada uma a tempo são um link '
+          'lento, não um que parou, e chamar uma pessoa para ele tira a '
+          'equipe do trabalho por nada',
+    );
     expect(it.estado.stage, SalaStage.ensaio);
   });
 
-  test('uma parte que nunca chega chama uma pessoa e o pouso nao a apaga',
-      () async {
-    final harness = SalaHarness(busyCeiling: const Duration(milliseconds: 200))
-      ..room.holdNextClip();
+  test(
+    'uma parte que nunca chega chama uma pessoa e o pouso nao a apaga',
+    () async {
+      final harness = SalaHarness(
+        busyCeiling: const Duration(milliseconds: 200),
+      )..room.holdNextClip();
 
-    final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
-    await waitFor('o vigia chamar uma pessoa', () => it.estado.needsPerson);
+      final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
+      await waitFor('o vigia chamar uma pessoa', () => it.estado.needsPerson);
 
-    it.harness.room.finishHeldClip();
-    await settle(const Duration(milliseconds: 500));
+      it.harness.room.finishHeldClip();
+      await settle(const Duration(milliseconds: 500));
 
-    expect(it.estado.needsPerson, isTrue,
-        reason: 'a espera pela parte estourou o teto e alguém foi chamado; '
+      expect(
+        it.estado.needsPerson,
+        isTrue,
+        reason:
+            'a espera pela parte estourou o teto e alguém foi chamado; '
             'pousar por cima disso deixa a equipe a trabalhar dentro de uma '
-            'sala que já parou, com o chamado de pé e ninguém a caminho');
-    expect(it.linhaAgora, it.linhaAntes,
-        reason: 'e a linha não é reescrita por uma busca que ninguém esperava '
-            'mais');
-  });
+            'sala que já parou, com o chamado de pé e ninguém a caminho',
+      );
+      expect(
+        it.linhaAgora,
+        it.linhaAntes,
+        reason:
+            'e a linha não é reescrita por uma busca que ninguém esperava '
+            'mais',
+      );
+    },
+  );
 
   for (final falha in _Falha.values) {
     test('a linha nunca e reescrita sem as gravacoes (${falha.name})', () async {
@@ -599,7 +776,8 @@ void main() {
       expect(
         [for (final escrita in harness.emAberto.written) escrita.takes],
         everyElement(isNotEmpty),
-        reason: 'uma linha escrita sem gravação nenhuma faz a próxima abertura '
+        reason:
+            'uma linha escrita sem gravação nenhuma faz a próxima abertura '
             'passar direto: o ensaio que a sala guarda fica inalcançável para '
             'sempre',
       );
@@ -633,13 +811,23 @@ void main() {
         ),
       ],
     );
-    await waitFor('as partes voltarem da sala', () => it.estado.partes.length == 2);
+    await waitFor(
+      'as partes voltarem da sala',
+      () => it.estado.partes.length == 2,
+    );
 
-    expect(_nomesDasPartes(it), ['gravacao-1', 'gravacao-2'],
-        reason: 'a voz da equipe a contar um trecho na língua ponte não é uma '
-            'parte do ensaio: posta na fila, a retro tocaria a tradução no '
-            'lugar da história');
-    expect(it.harness.room.clipsFetched, isNot(contains(_urlDaParte('contado-1'))));
+    expect(
+      _nomesDasPartes(it),
+      ['gravacao-1', 'gravacao-2'],
+      reason:
+          'a voz da equipe a contar um trecho na língua ponte não é uma '
+          'parte do ensaio: posta na fila, a retro tocaria a tradução no '
+          'lugar da história',
+    );
+    expect(
+      it.harness.room.clipsFetched,
+      isNot(contains(_urlDaParte('contado-1'))),
+    );
   });
 
   test('a parte gravada de novo na sala e a mais nova', () async {
@@ -658,112 +846,160 @@ void main() {
         ),
       ],
     );
-    await waitFor('as partes voltarem da sala', () => it.estado.partes.length == 3);
-
-    expect(_nomesDasPartes(it), ['gravacao-1', 'gravacao-9', 'gravacao-3'],
-        reason: 'a parte 2 foi gravada de novo e guarda o seu número e o seu '
-            'lugar (ADR 0020): buscar a velha devolve à equipe a gravação que '
-            'ela refez de propósito');
-  });
-
-  test('uma gravacao de ensaio sem numero e a parte no lugar em que a lista a traz',
-      () async {
-    final harness = SalaHarness();
-
-    final it = await _reabrir(
-      harness,
-      parouEm: SalaStage.ensaio,
-      partes: 2,
-      // Na ordem em que a sala responde: o ordinal sobe e o que não tem número
-      // vem primeiro, que é o que `takes_of` diz por escrito.
-      naSala: [
-        const TakeView(takeId: 'gravacao-2', kind: 'ensaio', scope: 'parte-2'),
-        const TakeView(
-          takeId: 'gravacao-1',
-          kind: 'ensaio',
-          scope: 'parte-1',
-          ordinal: 1,
-        ),
-      ],
+    await waitFor(
+      'as partes voltarem da sala',
+      () => it.estado.partes.length == 3,
     );
-    await waitFor('as partes voltarem da sala', () => it.estado.partes.length == 2);
 
-    expect(_nomesDasPartes(it), ['gravacao-2', 'gravacao-1'],
-        reason: 'um ensaio que a sala não numera é a parte do lugar em que a '
-            'lista o traz: fora da fila das partes ele não toca nem se mede');
-    expect(it.estado.btFimDasPartesMs, [10000, 20000],
-        reason: 'e o colar o desenha como a qualquer outra parte');
-  });
-
-  test('uma retomada com os arquivos aqui devolve cada parte na gravação dela',
-      () async {
-    final harness = SalaHarness();
-
-    final it = await _reabrir(
-      harness,
-      parouEm: SalaStage.retro,
-      aindaNoTablet: const {1, 2, 3},
-      passadas: const {2: 2},
-      contado: _contado([1, 2, 3]),
+    expect(
+      _nomesDasPartes(it),
+      ['gravacao-1', 'gravacao-9', 'gravacao-3'],
+      reason:
+          'a parte 2 foi gravada de novo e guarda o seu número e o seu '
+          'lugar (ADR 0020): buscar a velha devolve à equipe a gravação que '
+          'ela refez de propósito',
     );
-    await waitFor('a equipe voltar à tradução', () => it.estado.partes.length == 3);
-
-    await _regravarAParteDois(it);
-
-    expect(it.harness.room.takePasses, [3],
-        reason: 'a parte 2 voltou na sua segunda gravação, e a terceira subir sob '
-            'a passada que a sala já tem deixa a sala escolher entre as duas pela '
-            'ordem de chegada');
   });
 
-  test('uma parte buscada na sala volta na gravação que a sala conta', () async {
-    final harness = SalaHarness();
+  test(
+    'uma gravacao de ensaio sem numero e a parte no lugar em que a lista a traz',
+    () async {
+      final harness = SalaHarness();
 
-    final it = await _reabrir(
-      harness,
-      parouEm: SalaStage.retro,
-      contado: _contado([1, 2, 3]),
-      naSala: [
-        for (var n = 1; n <= 3; n++)
-          TakeView(
-            takeId: 'gravacao-$n',
+      final it = await _reabrir(
+        harness,
+        parouEm: SalaStage.ensaio,
+        partes: 2,
+        // Na ordem em que a sala responde: o ordinal sobe e o que não tem número
+        // vem primeiro, que é o que `takes_of` diz por escrito.
+        naSala: [
+          const TakeView(
+            takeId: 'gravacao-2',
             kind: 'ensaio',
-            scope: KeptScope.parte(n),
-            ordinal: n,
-            pass: n == 2 ? 3 : 1,
+            scope: 'parte-2',
           ),
-      ],
-    );
-    await waitFor('as partes voltarem da sala', () => it.estado.partes.length == 3);
+          const TakeView(
+            takeId: 'gravacao-1',
+            kind: 'ensaio',
+            scope: 'parte-1',
+            ordinal: 1,
+          ),
+        ],
+      );
+      await waitFor(
+        'as partes voltarem da sala',
+        () => it.estado.partes.length == 2,
+      );
 
-    await _regravarAParteDois(it);
+      expect(
+        _nomesDasPartes(it),
+        ['gravacao-2', 'gravacao-1'],
+        reason:
+            'um ensaio que a sala não numera é a parte do lugar em que a '
+            'lista o traz: fora da fila das partes ele não toca nem se mede',
+      );
+      expect(
+        it.estado.btFimDasPartesMs,
+        [10000, 20000],
+        reason: 'e o colar o desenha como a qualquer outra parte',
+      );
+    },
+  );
 
-    expect(it.harness.room.takePasses, [4],
-        reason: 'a sala é quem sabe quantas gravações da parte 2 ela já tem: o '
-            'tablet que buscou a parte não gravou nenhuma delas');
-  });
+  test(
+    'uma retomada com os arquivos aqui devolve cada parte na gravação dela',
+    () async {
+      final harness = SalaHarness();
 
-  test('uma retomada para dentro de um aviso o vigia até a mesa atender',
-      () async {
-    final harness = SalaHarness()
-      ..room.serverStatus = 'needs_person'
-      ..room.serverHalt = HaltKind.warning;
+      final it = await _reabrir(
+        harness,
+        parouEm: SalaStage.retro,
+        aindaNoTablet: const {1, 2, 3},
+        passadas: const {2: 2},
+        contado: _contado([1, 2, 3]),
+      );
+      await waitFor(
+        'a equipe voltar à tradução',
+        () => it.estado.partes.length == 3,
+      );
 
-    final it = await _reabrir(
-      harness,
-      parouEm: SalaStage.retro,
-      aindaNoTablet: const {1, 2, 3},
-      contado: _contado([1, 2, 3]),
-    );
-    await waitFor('a equipe voltar à tradução', () => it.estado.warning);
+      await _regravarAParteDois(it);
 
-    expect(it.estado.needsPerson, isFalse,
-        reason: 'o aviso não é uma parada, e reabrir dentro dele não fecha a '
-            'estação em que a equipe parou');
+      expect(
+        it.harness.room.takePasses,
+        [3],
+        reason:
+            'a parte 2 voltou na sua segunda gravação, e a terceira subir sob '
+            'a passada que a sala já tem deixa a sala escolher entre as duas pela '
+            'ordem de chegada',
+      );
+    },
+  );
 
-    // Ninguém vai tocar no tablet: a equipe reabriu e ficou a ouvir.
-    harness.room.theDeskAttended();
+  test(
+    'uma parte buscada na sala volta na gravação que a sala conta',
+    () async {
+      final harness = SalaHarness();
 
-    await waitFor('o círculo sair do verde', () => !it.estado.warning);
-  });
+      final it = await _reabrir(
+        harness,
+        parouEm: SalaStage.retro,
+        contado: _contado([1, 2, 3]),
+        naSala: [
+          for (var n = 1; n <= 3; n++)
+            TakeView(
+              takeId: 'gravacao-$n',
+              kind: 'ensaio',
+              scope: KeptScope.parte(n),
+              ordinal: n,
+              pass: n == 2 ? 3 : 1,
+            ),
+        ],
+      );
+      await waitFor(
+        'as partes voltarem da sala',
+        () => it.estado.partes.length == 3,
+      );
+
+      await _regravarAParteDois(it);
+
+      expect(
+        it.harness.room.takePasses,
+        [4],
+        reason:
+            'a sala é quem sabe quantas gravações da parte 2 ela já tem: o '
+            'tablet que buscou a parte não gravou nenhuma delas',
+      );
+    },
+  );
+
+  test(
+    'uma retomada para dentro de um aviso o vigia até a mesa atender',
+    () async {
+      final harness = SalaHarness()
+        ..room.serverStatus = 'needs_person'
+        ..room.serverHalt = HaltKind.warning;
+
+      final it = await _reabrir(
+        harness,
+        parouEm: SalaStage.retro,
+        aindaNoTablet: const {1, 2, 3},
+        contado: _contado([1, 2, 3]),
+      );
+      await waitFor('a equipe voltar à tradução', () => it.estado.warning);
+
+      expect(
+        it.estado.needsPerson,
+        isFalse,
+        reason:
+            'o aviso não é uma parada, e reabrir dentro dele não fecha a '
+            'estação em que a equipe parou',
+      );
+
+      // Ninguém vai tocar no tablet: a equipe reabriu e ficou a ouvir.
+      harness.room.theDeskAttended();
+
+      await waitFor('o círculo sair do verde', () => !it.estado.warning);
+    },
+  );
 }

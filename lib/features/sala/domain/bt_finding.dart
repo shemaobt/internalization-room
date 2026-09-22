@@ -1,8 +1,4 @@
-enum BtFindingKind {
-  missing,
-  addition,
-  unclear,
-}
+enum BtFindingKind { missing, addition, unclear }
 
 const _wireNames = {
   'missing': BtFindingKind.missing,

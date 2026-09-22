@@ -59,11 +59,12 @@ Future<_Sala> _aRodaAberta() async {
 /// passage that starts over and hears the second one first is a passage carrying the
 /// count of the one before it.
 List<String> _esperasDitas(SalaHarness harness) => [
-      for (final asset in harness.voice.assets)
-        if (instantAckLines
-            .any((line) => asset == fixedLineAsset(line, testLanguage)))
-          asset,
-    ];
+  for (final asset in harness.voice.assets)
+    if (instantAckLines.any(
+      (line) => asset == fixedLineAsset(line, testLanguage),
+    ))
+      asset,
+];
 
 void main() {
   test('a passagem nova não herda as falhas de captura da anterior', () async {
@@ -73,7 +74,8 @@ void main() {
     it.sala.conversaTap();
     await waitFor(
       'a sala responder ao gravador que não abriu',
-      () => it.harness.recorder.captures == 1 &&
+      () =>
+          it.harness.recorder.captures == 1 &&
           it.estado.voice != VoiceState.listening,
     );
 
@@ -81,13 +83,18 @@ void main() {
     it.sala.conversaTap();
     await waitFor(
       'a sala responder ao gravador que não abriu na passagem nova',
-      () => it.harness.recorder.captures == 2 &&
+      () =>
+          it.harness.recorder.captures == 2 &&
           it.estado.voice != VoiceState.listening,
     );
 
-    expect(it.estado.needsPerson, isFalse,
-        reason: 'a conta das falhas de captura é por passagem: herdada, a '
-            'primeira falha da passagem nova já chama uma pessoa');
+    expect(
+      it.estado.needsPerson,
+      isFalse,
+      reason:
+          'a conta das falhas de captura é por passagem: herdada, a '
+          'primeira falha da passagem nova já chama uma pessoa',
+    );
   });
 
   test('a passagem nova começa a rodar as esperas do início', () async {
@@ -99,64 +106,84 @@ void main() {
     await it.falar(2);
 
     final primeira = fixedLineAsset(instantAckLines.first, testLanguage);
-    expect(_esperasDitas(it.harness), [primeira, primeira],
-        reason: 'a rotação das esperas é da passagem: herdada, a equipe ouve '
-            'a passagem nova começar no meio da volta anterior');
+    expect(
+      _esperasDitas(it.harness),
+      [primeira, primeira],
+      reason:
+          'a rotação das esperas é da passagem: herdada, a equipe ouve '
+          'a passagem nova começar no meio da volta anterior',
+    );
   });
 
-  test('a passagem nova abre o microfone depois de um que ficou a abrir',
-      () async {
-    final it = await _aRodaAberta();
-    await it.entrar('P01');
-    it.harness.recorder.holdNextStart();
-    addTearDown(it.harness.recorder.finishStart);
-    it.sala.conversaTap();
-    await waitFor(
-      'o microfone da passagem anterior ficar a abrir',
-      () => it.estado.voice == VoiceState.listening,
-    );
+  test(
+    'a passagem nova abre o microfone depois de um que ficou a abrir',
+    () async {
+      final it = await _aRodaAberta();
+      await it.entrar('P01');
+      it.harness.recorder.holdNextStart();
+      addTearDown(it.harness.recorder.finishStart);
+      it.sala.conversaTap();
+      await waitFor(
+        'o microfone da passagem anterior ficar a abrir',
+        () => it.estado.voice == VoiceState.listening,
+      );
 
-    await it.entrar('P02');
-    it.sala.conversaTap();
-    await waitFor(
-      'o gravador ser mesmo chamado na passagem nova',
-      () => it.harness.sounds.where((som) => som == 'recorder:start').length == 2,
-    );
+      await it.entrar('P02');
+      it.sala.conversaTap();
+      await waitFor(
+        'o gravador ser mesmo chamado na passagem nova',
+        () =>
+            it.harness.sounds.where((som) => som == 'recorder:start').length ==
+            2,
+      );
 
-    expect(it.estado.voice, VoiceState.listening,
-        reason: 'a tranca do microfone a abrir é da passagem: herdada, o '
-            'primeiro toque da passagem nova é engolido em silêncio');
-  });
+      expect(
+        it.estado.voice,
+        VoiceState.listening,
+        reason:
+            'a tranca do microfone a abrir é da passagem: herdada, o '
+            'primeiro toque da passagem nova é engolido em silêncio',
+      );
+    },
+  );
 
-  test('o microfone que a passagem anterior deixou a abrir não solta o desta',
-      () async {
-    final it = await _aRodaAberta();
-    await it.entrar('P01');
-    it.harness.recorder.holdNextStart();
-    it.sala.conversaTap();
-    await waitFor(
-      'o microfone da passagem anterior ficar a abrir',
-      () => it.estado.voice == VoiceState.listening,
-    );
+  test(
+    'o microfone que a passagem anterior deixou a abrir não solta o desta',
+    () async {
+      final it = await _aRodaAberta();
+      await it.entrar('P01');
+      it.harness.recorder.holdNextStart();
+      it.sala.conversaTap();
+      await waitFor(
+        'o microfone da passagem anterior ficar a abrir',
+        () => it.estado.voice == VoiceState.listening,
+      );
 
-    await it.entrar('P02');
-    it.harness.recorder.holdNextStart();
-    addTearDown(it.harness.recorder.finishStart);
-    it.sala.conversaTap();
-    await waitFor(
-      'o microfone desta passagem ficar a abrir',
-      () => it.harness.sounds.where((som) => som == 'recorder:start').length == 2,
-    );
-    it.harness.recorder.finishStart();
-    await settle();
+      await it.entrar('P02');
+      it.harness.recorder.holdNextStart();
+      addTearDown(it.harness.recorder.finishStart);
+      it.sala.conversaTap();
+      await waitFor(
+        'o microfone desta passagem ficar a abrir',
+        () =>
+            it.harness.sounds.where((som) => som == 'recorder:start').length ==
+            2,
+      );
+      it.harness.recorder.finishStart();
+      await settle();
 
-    it.sala.conversaTap();
-    await settle();
+      it.sala.conversaTap();
+      await settle();
 
-    expect(it.harness.room.turnsSent, 0,
-        reason: 'a resposta de um microfone de outra passagem não abre a '
+      expect(
+        it.harness.room.turnsSent,
+        0,
+        reason:
+            'a resposta de um microfone de outra passagem não abre a '
             'tranca desta: o segundo toque cairia num stop sobre um gravador '
-            'que ainda abre, e mandaria à sala uma fala que ninguém gravou');
-    expect(it.estado.voice, VoiceState.listening);
-  });
+            'que ainda abre, e mandaria à sala uma fala que ninguém gravou',
+      );
+      expect(it.estado.voice, VoiceState.listening);
+    },
+  );
 }

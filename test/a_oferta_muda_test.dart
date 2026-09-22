@@ -18,8 +18,10 @@ Future<ProviderContainer> _atTheWheel(SalaHarness harness) async {
   addTearDown(container.dispose);
   final notifier = container.read(salaSessionProvider.notifier);
   await notifier.abrirEscolha();
-  await waitFor('a roda carregar',
-      () => container.read(salaSessionProvider).naRoda != null);
+  await waitFor(
+    'a roda carregar',
+    () => container.read(salaSessionProvider).naRoda != null,
+  );
   await settle();
   return container;
 }
@@ -49,7 +51,8 @@ void main() {
     expect(
       read().needsPerson,
       isTrue,
-      reason: 'numa sala sem palavra escrita, um nome que ninguém ouviu é uma '
+      reason:
+          'numa sala sem palavra escrita, um nome que ninguém ouviu é uma '
           'roda que parece parada, e uma roda parada que não chama ninguém '
           'deixa a equipe sozinha com ela',
     );
@@ -78,7 +81,8 @@ void main() {
     expect(
       read().needsPerson,
       isTrue,
-      reason: 'a oferta muda tem de subir a mesma escada dos turnos, não uma '
+      reason:
+          'a oferta muda tem de subir a mesma escada dos turnos, não uma '
           'contagem paralela sua',
     );
   });

@@ -182,13 +182,13 @@ class _RulerPainter extends CustomPainter {
           ..color = waiting
               ? mark
               : carried
-                  ? ShemaBrand.wood
-                  : cord
+              ? ShemaBrand.wood
+              : cord
           ..strokeWidth = waiting
               ? 2.5
               : carried
-                  ? 4
-                  : 2
+              ? 4
+              : 2
           ..strokeCap = StrokeCap.round,
       );
     }

@@ -16,7 +16,8 @@ void main() {
     expect(
       check,
       contains('dart run tool/check_doctrine.dart'),
-      reason: 'o guarda dos seis mecanismos foi deslocado em vez de acompanhado',
+      reason:
+          'o guarda dos seis mecanismos foi deslocado em vez de acompanhado',
     );
     expect(
       check,
@@ -27,24 +28,28 @@ void main() {
     );
   });
 
-  test('the pull request template asks for her sentence and where it is written', () {
-    final template = File('.github/pull_request_template.md');
+  test(
+    'the pull request template asks for her sentence and where it is written',
+    () {
+      final template = File('.github/pull_request_template.md');
 
-    expect(
-      template.existsSync(),
-      isTrue,
-      reason: 'sem template nada faz a pergunta que o guarda não sabe fazer',
-    );
-    final asked = template.readAsStringSync();
-    expect(asked, contains("Marcia's artifacts"));
-    expect(
-      asked,
-      contains('never an engineering default'),
-      reason: 'a frase do §5.1 não está citada, e é ela que o revisor precisa ler',
-    );
-    expect(asked, contains('Her words:'));
-    expect(asked, contains('Where it is written:'));
-  });
+      expect(
+        template.existsSync(),
+        isTrue,
+        reason: 'sem template nada faz a pergunta que o guarda não sabe fazer',
+      );
+      final asked = template.readAsStringSync();
+      expect(asked, contains("Marcia's artifacts"));
+      expect(
+        asked,
+        contains('never an engineering default'),
+        reason:
+            'a frase do §5.1 não está citada, e é ela que o revisor precisa ler',
+      );
+      expect(asked, contains('Her words:'));
+      expect(asked, contains('Where it is written:'));
+    },
+  );
 
   test('the way in says where the doctrine is', () {
     for (final name in ['AGENTS.md', 'README.md']) {

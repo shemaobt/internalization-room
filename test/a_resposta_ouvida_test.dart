@@ -48,39 +48,38 @@ class _Desk {
   }
 
   http.Client get client => MockClient((request) async {
-        if (request.url.path.endsWith('/questions/replies')) {
-          reads++;
-          return http.Response(
-            jsonEncode({
-              'replies': [
-                for (final row in heard.entries)
-                  if (!row.value)
-                    {'question_id': row.key, 'audio_url': '/voz/${row.key}'},
-              ],
-            }),
-            200,
-            headers: {'content-type': 'application/json; charset=utf-8'},
-          );
-        }
-        if (request.url.path.endsWith('/heard')) {
-          marks++;
-          await _holding?.future;
-          if (unreachable) throw const SocketException('sem rede');
-          final id = request.url.pathSegments[
-              request.url.pathSegments.length - 2];
-          if (answers >= 200 && answers < 300) heard[id] = true;
-          return http.Response('', answers);
-        }
-        return http.Response('', 404);
-      });
+    if (request.url.path.endsWith('/questions/replies')) {
+      reads++;
+      return http.Response(
+        jsonEncode({
+          'replies': [
+            for (final row in heard.entries)
+              if (!row.value)
+                {'question_id': row.key, 'audio_url': '/voz/${row.key}'},
+          ],
+        }),
+        200,
+        headers: {'content-type': 'application/json; charset=utf-8'},
+      );
+    }
+    if (request.url.path.endsWith('/heard')) {
+      marks++;
+      await _holding?.future;
+      if (unreachable) throw const SocketException('sem rede');
+      final id = request.url.pathSegments[request.url.pathSegments.length - 2];
+      if (answers >= 200 && answers < 300) heard[id] = true;
+      return http.Response('', answers);
+    }
+    return http.Response('', 404);
+  });
 }
 
 SalaHarness _tabletTalkingTo(_Desk desk) => SalaHarness(
-      inboxService: HandInboxRepository(
-        client: desk.client,
-        deviceId: () async => 'aparelho-1',
-      ),
-    );
+  inboxService: HandInboxRepository(
+    client: desk.client,
+    deviceId: () async => 'aparelho-1',
+  ),
+);
 
 /// Open the room. A second call models the app coming back: fresh state, same desk.
 Future<ProviderContainer> _opensTheRoom(_Desk desk, SalaHarness harness) async {
@@ -88,8 +87,10 @@ Future<ProviderContainer> _opensTheRoom(_Desk desk, SalaHarness harness) async {
   final container = harness.container();
   addTearDown(container.dispose);
   await container.read(salaSessionProvider.notifier).goConversa();
-  await waitFor('o tablet ler a caixa de entrada na mesa',
-      () => desk.reads > before);
+  await waitFor(
+    'o tablet ler a caixa de entrada na mesa',
+    () => desk.reads > before,
+  );
   await settle();
   return container;
 }
@@ -121,7 +122,8 @@ void main() {
     expect(
       container.read(salaSessionProvider).oldestUnheardReply?.id,
       'resposta-1',
-      reason: 'a marca nunca saiu do tablet, então a sala não pode dizer que '
+      reason:
+          'a marca nunca saiu do tablet, então a sala não pode dizer que '
           'a resposta foi entregue — o servidor vai contradizê-la',
     );
 
@@ -131,7 +133,8 @@ void main() {
     expect(
       again.read(salaSessionProvider).oldestUnheardReply?.id,
       'resposta-1',
-      reason: 'antes e depois da reconstrução a sala tem de dizer a mesma '
+      reason:
+          'antes e depois da reconstrução a sala tem de dizer a mesma '
           'coisa; era aqui que ela mudava de ideia sozinha',
     );
   });
@@ -148,12 +151,16 @@ void main() {
     expect(
       container.read(salaSessionProvider).oldestUnheardReply?.id,
       'resposta-1',
-      reason: 'a chamada chegou e voltou recusada; uma recusa e um sim nunca '
+      reason:
+          'a chamada chegou e voltou recusada; uma recusa e um sim nunca '
           'foram a mesma coisa, mas a resposta do servidor não era olhada',
     );
 
     final again = await _opensTheRoom(desk, harness);
-    expect(again.read(salaSessionProvider).oldestUnheardReply?.id, 'resposta-1');
+    expect(
+      again.read(salaSessionProvider).oldestUnheardReply?.id,
+      'resposta-1',
+    );
   });
 
   test('a reply the desk agrees was heard is never played again', () async {
@@ -163,8 +170,10 @@ void main() {
 
     await _theTeamTapsTheHand(container);
     expect(_timesPlayed(harness), 1);
-    await waitFor('a mesa registrar que a resposta foi ouvida',
-        () => desk.heard['resposta-1'] == true);
+    await waitFor(
+      'a mesa registrar que a resposta foi ouvida',
+      () => desk.heard['resposta-1'] == true,
+    );
 
     expect(container.read(salaSessionProvider).oldestUnheardReply, isNull);
 
@@ -173,35 +182,39 @@ void main() {
     expect(
       _timesPlayed(harness),
       1,
-      reason: 'tocar de novo o que a equipe já ouviu é o dano que esta fatia '
+      reason:
+          'tocar de novo o que a equipe já ouviu é o dano que esta fatia '
           'existe para impedir — e nunca marcar nada faria exatamente isso',
     );
   });
 
-  test('a reply whose mark has not been answered yet is not offered again',
-      () async {
-    final desk = _Desk()..holdsTheAnswer();
-    final harness = _tabletTalkingTo(desk);
-    final container = await _opensTheRoom(desk, harness);
+  test(
+    'a reply whose mark has not been answered yet is not offered again',
+    () async {
+      final desk = _Desk()..holdsTheAnswer();
+      final harness = _tabletTalkingTo(desk);
+      final container = await _opensTheRoom(desk, harness);
 
-    await _theTeamTapsTheHand(container);
-    expect(_timesPlayed(harness), 1);
-    await waitFor('a marca chegar à mesa', () => desk.marks == 1);
+      await _theTeamTapsTheHand(container);
+      expect(_timesPlayed(harness), 1);
+      await waitFor('a marca chegar à mesa', () => desk.marks == 1);
 
-    // A mesa ainda não respondeu. A equipe toca de novo.
-    await _theTeamTapsTheHand(container);
+      // A mesa ainda não respondeu. A equipe toca de novo.
+      await _theTeamTapsTheHand(container);
 
-    expect(
-      _timesPlayed(harness),
-      1,
-      reason: 'entre o toque e a resposta da mesa a sala não pode voltar a '
-          'oferecer a mesma resposta — é a mesma repetição do terceiro caso, '
-          'dentro de uma sessão em vez de entre duas',
-    );
-    expect(desk.marks, 1, reason: 'nem marcar a mesma resposta duas vezes');
+      expect(
+        _timesPlayed(harness),
+        1,
+        reason:
+            'entre o toque e a resposta da mesa a sala não pode voltar a '
+            'oferecer a mesma resposta — é a mesma repetição do terceiro caso, '
+            'dentro de uma sessão em vez de entre duas',
+      );
+      expect(desk.marks, 1, reason: 'nem marcar a mesma resposta duas vezes');
 
-    desk.answersAtLast();
-    await settle();
-    expect(container.read(salaSessionProvider).oldestUnheardReply, isNull);
-  });
+      desk.answersAtLast();
+      await settle();
+      expect(container.read(salaSessionProvider).oldestUnheardReply, isNull);
+    },
+  );
 }

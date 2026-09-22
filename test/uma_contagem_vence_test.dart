@@ -16,9 +16,13 @@ Future<({ProviderContainer container, FakeTakeQueue fila})> _inASession(
 ) async {
   final container = harness.container();
   addTearDown(container.dispose);
-  await container.read(salaSessionProvider.notifier).goConversa(pericope: 'P01');
-  await waitFor('a sala abrir uma sessão',
-      () => container.read(salaSessionProvider).sessionId != null);
+  await container
+      .read(salaSessionProvider.notifier)
+      .goConversa(pericope: 'P01');
+  await waitFor(
+    'a sala abrir uma sessão',
+    () => container.read(salaSessionProvider).sessionId != null,
+  );
   return (container: container, fila: harness.takes as FakeTakeQueue);
 }
 
@@ -47,8 +51,10 @@ void main() {
     // leria o disco novo junto com B: verde, e sem corrida nenhuma.
     fila.holdTheNextReading();
     unawaited(notifier.refreshUnsent());
-    await waitFor('a leitura mais velha ficar presa com os números na mão',
-        () => fila.readingHeld);
+    await waitFor(
+      'a leitura mais velha ficar presa com os números na mão',
+      () => fila.readingHeld,
+    );
 
     // As gravações vão embora e B lê o disco já vazio, e publica.
     fila.rows.clear();
@@ -62,7 +68,8 @@ void main() {
     expect(
       read().unsentTakes,
       0,
-      reason: 'a leitura mais velha terminou por último, e o número que a '
+      reason:
+          'a leitura mais velha terminou por último, e o número que a '
           'equipe vê não pode ser decidido por quem chegou depois',
     );
   });
@@ -94,8 +101,7 @@ void main() {
 
     harness.network.reachable = false;
     await notifier.goConversa(pericope: 'P01');
-    await waitFor('a sala perceber que está sem sala',
-        () => read().offline);
+    await waitFor('a sala perceber que está sem sala', () => read().offline);
 
     harness.network.reachable = true;
     notifier.retryNow();

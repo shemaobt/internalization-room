@@ -13,29 +13,32 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
-        home: Scaffold(
-          body: ColarOverlay(session: session),
-        ),
+        home: Scaffold(body: ColarOverlay(session: session)),
       ),
     );
   }
 
-  Future<void> pumpReducedColar(WidgetTester tester, SalaSessionState session) async {
+  Future<void> pumpReducedColar(
+    WidgetTester tester,
+    SalaSessionState session,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
         home: MediaQuery(
           data: const MediaQueryData(disableAnimations: true),
-          child: Scaffold(
-            body: ColarOverlay(session: session),
-          ),
+          child: Scaffold(body: ColarOverlay(session: session)),
         ),
       ),
     );
   }
 
   BoxDecoration decorationAt(WidgetTester tester, int index) =>
-      tester.widget<AnimatedContainer>(find.byType(AnimatedContainer).at(index)).decoration
+      tester
+              .widget<AnimatedContainer>(
+                find.byType(AnimatedContainer).at(index),
+              )
+              .decoration
           as BoxDecoration;
 
   testWidgets('a bead nobody has spoken into waits, whatever the guide surfaced', (
@@ -48,10 +51,18 @@ void main() {
 
     expect(find.byType(AnimatedContainer), findsNWidgets(29));
     for (var i = 0; i < 29; i++) {
-      expect(decorationAt(tester, i).gradient, isNot(isA<LinearGradient>()),
-          reason: 'a conta $i não pode desenhar o gradiente dividido do surfacedOnly');
-      expect(decorationAt(tester, i).gradient, BeadStyles.oat(SalaColors.light),
-          reason: 'uma conta que o time não falou é uma conta vazia, mesmo surfaced');
+      expect(
+        decorationAt(tester, i).gradient,
+        isNot(isA<LinearGradient>()),
+        reason:
+            'a conta $i não pode desenhar o gradiente dividido do surfacedOnly',
+      );
+      expect(
+        decorationAt(tester, i).gradient,
+        BeadStyles.oat(SalaColors.light),
+        reason:
+            'uma conta que o time não falou é uma conta vazia, mesmo surfaced',
+      );
     }
   });
 
@@ -67,21 +78,26 @@ void main() {
     for (var i = 0; i < 29; i++) {
       if (decorationAt(tester, i).gradient == BeadStyles.wood) filled++;
     }
-    expect(filled, 3,
-        reason: 'a conta enche uma a uma com o que o time falou, nunca mais nem menos');
+    expect(
+      filled,
+      3,
+      reason:
+          'a conta enche uma a uma com o que o time falou, nunca mais nem menos',
+    );
   });
 
   BoxDecoration renderedDecorationAt(WidgetTester tester, int index) =>
       tester
-          .widget<Container>(
-            find
-                .descendant(
-                  of: find.byType(AnimatedContainer).at(index),
-                  matching: find.byType(Container),
-                )
-                .first,
-          )
-          .decoration as BoxDecoration;
+              .widget<Container>(
+                find
+                    .descendant(
+                      of: find.byType(AnimatedContainer).at(index),
+                      matching: find.byType(Container),
+                    )
+                    .first,
+              )
+              .decoration
+          as BoxDecoration;
 
   testWidgets('a bead the team just spoke into settles over 1.3 s, not a pop', (
     tester,
@@ -92,21 +108,37 @@ void main() {
     await pumpColar(tester, waiting);
 
     final filled = waiting.copyWith(
-      coverage: const Coverage(engaged: 1, surfaced: 0, total: 1, absenceIndex: -1),
+      coverage: const Coverage(
+        engaged: 1,
+        surfaced: 0,
+        total: 1,
+        absenceIndex: -1,
+      ),
       ping: const PingRange(0, 1),
     );
     await pumpColar(tester, filled);
 
-    expect(find.byType(PingIn), findsNothing,
-        reason: 'a conta assenta pela transição do próprio AnimatedContainer, sem o pulo de escala do PingIn');
+    expect(
+      find.byType(PingIn),
+      findsNothing,
+      reason:
+          'a conta assenta pela transição do próprio AnimatedContainer, sem o pulo de escala do PingIn',
+    );
 
     await tester.pump(const Duration(milliseconds: 700));
-    expect(renderedDecorationAt(tester, 0).gradient, isNot(BeadStyles.wood),
-        reason: 'em 700ms a conta já teria assentado — o settle é de 1,3s, não 700ms');
+    expect(
+      renderedDecorationAt(tester, 0).gradient,
+      isNot(BeadStyles.wood),
+      reason:
+          'em 700ms a conta já teria assentado — o settle é de 1,3s, não 700ms',
+    );
 
     await tester.pump(const Duration(milliseconds: 600));
-    expect(renderedDecorationAt(tester, 0).gradient, BeadStyles.wood,
-        reason: 'em 1,3s a conta acabou de assentar no cheio, sem pulo de escala');
+    expect(
+      renderedDecorationAt(tester, 0).gradient,
+      BeadStyles.wood,
+      reason: 'em 1,3s a conta acabou de assentar no cheio, sem pulo de escala',
+    );
   });
 
   testWidgets('the necklace closes in stillness, not a loop', (tester) async {
@@ -117,47 +149,78 @@ void main() {
     );
     await pumpColar(tester, session);
 
-    expect(find.byType(Loop), findsNothing,
-        reason: 'o fecho da passagem é quietude, a tela de celebração o design proíbe');
+    expect(
+      find.byType(Loop),
+      findsNothing,
+      reason:
+          'o fecho da passagem é quietude, a tela de celebração o design proíbe',
+    );
   });
 
-  testWidgets('the absence bead rings only once the team worked that silence, not before', (
-    tester,
-  ) async {
-    const waiting = SalaSessionState(
-      coverage: Coverage(engaged: 2, surfaced: 2, total: 10, absenceIndex: 5),
-    );
-    await pumpColar(tester, waiting);
-    expect(decorationAt(tester, 5).gradient, BeadStyles.oat(SalaColors.light),
-        reason: 'a ausência fora de engaged ainda é uma conta vazia comum');
+  testWidgets(
+    'the absence bead rings only once the team worked that silence, not before',
+    (tester) async {
+      const waiting = SalaSessionState(
+        coverage: Coverage(engaged: 2, surfaced: 2, total: 10, absenceIndex: 5),
+      );
+      await pumpColar(tester, waiting);
+      expect(
+        decorationAt(tester, 5).gradient,
+        BeadStyles.oat(SalaColors.light),
+        reason: 'a ausência fora de engaged ainda é uma conta vazia comum',
+      );
 
-    const ringed = SalaSessionState(
-      coverage: Coverage(engaged: 6, surfaced: 6, total: 10, absenceIndex: 5),
-    );
-    await pumpColar(tester, ringed);
-    expect(decorationAt(tester, 5).gradient, isNull,
-        reason: 'a conta de ausência só ganha o anel quando cai dentro de engaged, e o anel não tem gradiente');
-    expect((decorationAt(tester, 5).border as Border).top.width, 3,
-        reason: 'o anel é a versão cheia da conta de ausência, não um terceiro estado');
-  });
+      const ringed = SalaSessionState(
+        coverage: Coverage(engaged: 6, surfaced: 6, total: 10, absenceIndex: 5),
+      );
+      await pumpColar(tester, ringed);
+      expect(
+        decorationAt(tester, 5).gradient,
+        isNull,
+        reason:
+            'a conta de ausência só ganha o anel quando cai dentro de engaged, e o anel não tem gradiente',
+      );
+      expect(
+        (decorationAt(tester, 5).border as Border).top.width,
+        3,
+        reason:
+            'o anel é a versão cheia da conta de ausência, não um terceiro estado',
+      );
+    },
+  );
 
-  testWidgets('a bead whose slot changes lands there on the first frame, reduced', (
-    tester,
-  ) async {
-    const arriving = SalaSessionState(
-      coverage: Coverage(engaged: 0, surfaced: 0, total: 1, absenceIndex: -1),
-    );
-    await pumpReducedColar(tester, arriving);
+  testWidgets(
+    'a bead whose slot changes lands there on the first frame, reduced',
+    (tester) async {
+      const arriving = SalaSessionState(
+        coverage: Coverage(engaged: 0, surfaced: 0, total: 1, absenceIndex: -1),
+      );
+      await pumpReducedColar(tester, arriving);
 
-    await pumpReducedColar(tester, arriving.copyWith(stage: SalaStage.fim, fimClosed: true));
-    final landedTopLeft = tester.getTopLeft(find.byType(AnimatedPositioned).first);
+      await pumpReducedColar(
+        tester,
+        arriving.copyWith(stage: SalaStage.fim, fimClosed: true),
+      );
+      final landedTopLeft = tester.getTopLeft(
+        find.byType(AnimatedPositioned).first,
+      );
 
-    await tester.pumpWidget(Container());
-    await pumpReducedColar(tester, arriving.copyWith(stage: SalaStage.fim, fimClosed: true));
-    final steadyTopLeft = tester.getTopLeft(find.byType(AnimatedPositioned).first);
+      await tester.pumpWidget(Container());
+      await pumpReducedColar(
+        tester,
+        arriving.copyWith(stage: SalaStage.fim, fimClosed: true),
+      );
+      final steadyTopLeft = tester.getTopLeft(
+        find.byType(AnimatedPositioned).first,
+      );
 
-    expect(landedTopLeft, steadyTopLeft,
-        reason: 'com o movimento reduzido a conta ainda esperava os 900ms do slide — o primeiro frame '
-            'a mostrava no lugar antigo, entre o arco e o novo lugar no círculo');
-  });
+      expect(
+        landedTopLeft,
+        steadyTopLeft,
+        reason:
+            'com o movimento reduzido a conta ainda esperava os 900ms do slide — o primeiro frame '
+            'a mostrava no lugar antigo, entre o arco e o novo lugar no círculo',
+      );
+    },
+  );
 }

@@ -10,8 +10,8 @@ import 'fakes.dart';
 import 'session_notifier_test.dart' show inConversa, settle;
 
 Finder byLabel(String label) => find.byWidgetPredicate(
-      (widget) => widget is Semantics && widget.properties.label == label,
-    );
+  (widget) => widget is Semantics && widget.properties.label == label,
+);
 
 /// A team standing at the recorded take, with the play/redo/keep row on screen.
 Future<ProviderContainer> pumpAoGravado(SalaHarness harness) async {
@@ -75,7 +75,11 @@ void main() {
       notifier.takePlay();
       await settle();
 
-      expect(harness.playback.paused, isFalse, reason: 'o dublê recebeu resume');
+      expect(
+        harness.playback.paused,
+        isFalse,
+        reason: 'o dublê recebeu resume',
+      );
       expect(
         harness.playback.played.length,
         1,
@@ -115,39 +119,42 @@ void main() {
       expect(container.read(salaSessionProvider).playPing, isTrue);
     });
 
-    test('refazer e guardar continuam disponíveis durante e depois de uma pausa',
-        () async {
-      final harness = SalaHarness();
-      final container = await pumpAoGravado(harness);
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
+    test(
+      'refazer e guardar continuam disponíveis durante e depois de uma pausa',
+      () async {
+        final harness = SalaHarness();
+        final container = await pumpAoGravado(harness);
+        addTearDown(container.dispose);
+        final notifier = container.read(salaSessionProvider.notifier);
 
-      notifier.takePlay();
-      await waitFor(
-        'o take estar tocando',
-        () => container.read(salaSessionProvider).playPing,
-      );
-      notifier.takePlay();
-      await settle();
+        notifier.takePlay();
+        await waitFor(
+          'o take estar tocando',
+          () => container.read(salaSessionProvider).playPing,
+        );
+        notifier.takePlay();
+        await settle();
 
-      expect(container.read(salaSessionProvider).takePaused, isTrue);
-      expect(
-        container.read(salaSessionProvider).ensaio,
-        EnsaioStatus.recorded,
-        reason: 'pausado, o take continua oferecendo refazer e guardar',
-      );
+        expect(container.read(salaSessionProvider).takePaused, isTrue);
+        expect(
+          container.read(salaSessionProvider).ensaio,
+          EnsaioStatus.recorded,
+          reason: 'pausado, o take continua oferecendo refazer e guardar',
+        );
 
-      notifier.takeKeep();
-      await settle();
+        notifier.takeKeep();
+        await settle();
 
-      expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.idle);
-      expect(container.read(salaSessionProvider).takes, 1);
-    });
+        expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.idle);
+        expect(container.read(salaSessionProvider).takes, 1);
+      },
+    );
   });
 
   group('o ícone segue o estado', () {
-    testWidgets('tocando mostra pausa, pausado e parado mostram tocar',
-        (tester) async {
+    testWidgets('tocando mostra pausa, pausado e parado mostram tocar', (
+      tester,
+    ) async {
       final harness = SalaHarness();
       final container = harness.container();
       addTearDown(container.dispose);
@@ -165,10 +172,12 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       IconData playIcon() => tester
-          .widget<Icon>(find.descendant(
-            of: byLabel('Ouvir a gravação'),
-            matching: find.byType(Icon),
-          ))
+          .widget<Icon>(
+            find.descendant(
+              of: byLabel('Ouvir a gravação'),
+              matching: find.byType(Icon),
+            ),
+          )
           .icon!;
 
       expect(playIcon(), LucideIcons.play, reason: 'take parado mostra tocar');
@@ -181,7 +190,11 @@ void main() {
       await tester.tap(byLabel('Ouvir a gravação'));
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(playIcon(), LucideIcons.play, reason: 'pausado mostra tocar de novo');
+      expect(
+        playIcon(),
+        LucideIcons.play,
+        reason: 'pausado mostra tocar de novo',
+      );
     });
   });
 }

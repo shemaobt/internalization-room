@@ -25,9 +25,13 @@ void main() {
 
     await _holdTheCircle(tester);
 
-    expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.recording,
-        reason: 'o toque longo ganha a arena do toque, e numa sala saudável ele '
-            'não tem o que fazer — segurar o dedo não abria microfone nenhum');
+    expect(
+      container.read(salaSessionProvider).ensaio,
+      EnsaioStatus.recording,
+      reason:
+          'o toque longo ganha a arena do toque, e numa sala saudável ele '
+          'não tem o que fazer — segurar o dedo não abria microfone nenhum',
+    );
   });
 
   testWidgets('a held press still unsticks an ensaio the room abandoned', (
@@ -46,7 +50,10 @@ void main() {
     harness.recorder.returnsNothing = false;
     await _holdTheCircle(tester);
 
-    expect(container.read(salaSessionProvider).voice, VoiceState.invite,
-        reason: 'um ensaio travado não tem outra saída pela tela');
+    expect(
+      container.read(salaSessionProvider).voice,
+      VoiceState.invite,
+      reason: 'um ensaio travado não tem outra saída pela tela',
+    );
   });
 }
