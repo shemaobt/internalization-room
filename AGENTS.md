@@ -34,6 +34,9 @@ Run `git config core.hooksPath tool/git-hooks` once to get the doctrine guard on
 - Nothing forbidden returns to `lib/`: `tool/check_doctrine.dart` mirrors the backend's
   doctrine guard (`tripod-backend`, `scripts/check_doctrine.py`) against Marcia's six rules,
   spelled in Dart, against a typed allowlist in `tool/doctrine_allowlist.dart`.
+- The source is what the pinned formatter produces: `dart format --output=none
+  --set-exit-if-changed lib test tool` must exit 0; a branch that is not formatted fails
+  the check.
 
 ## Secrets
 
