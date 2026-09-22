@@ -2829,8 +2829,101 @@ void main() {
             'a pergunta já está no servidor, esperando uma pessoa — '
             'a cópia no tablet não serve para nada',
       );
+      expect(
+        container.read(salaSessionProvider).voice,
+        VoiceState.invite,
+        reason:
+            'a mão foi levantada com a voz em invite — a pergunta silenciosa '
+            'devolve a voz que interrompeu, não uma fixa',
+      );
     },
   );
+
+  test('a note raised at done still records, not a dead touch', () async {
+    final harness = SalaHarness()..room.done = true;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    expect(container.read(salaSessionProvider).voice, VoiceState.done);
+
+    notifier.handTap();
+    expect(container.read(salaSessionProvider).noteMode, isTrue);
+
+    notifier.conversaTap();
+    await settle();
+
+    expect(
+      harness.recorder.captures,
+      1,
+      reason:
+          'done caía no bloco de no-op de _noteTap, junto de thinking/speaking/'
+          'needsPerson/offline/blocked, e nunca chamava _startListening — a mão '
+          'armava a nota e o círculo não abria o microfone',
+    );
+    expect(
+      harness.inbox.questionsSent,
+      isEmpty,
+      reason:
+          'um só toque no círculo abre o microfone; a pergunta ainda não foi dita',
+    );
+
+    notifier.conversaTap();
+    await settle();
+
+    expect(harness.inbox.questionsSent, ['sessao-1']);
+    expect(
+      container.read(salaSessionProvider).stage,
+      SalaStage.conversa,
+      reason:
+          'a pergunta silenciosa nunca fecha nem reinicia a conversa sozinha — '
+          'a passagem que já tinha chegado a done não é reaberta nem trocada de etapa',
+    );
+    expect(
+      harness.room.turnsSent,
+      0,
+      reason:
+          'a pergunta silenciosa é um canal da mesa, não um turno da conversa — '
+          'entregá-la não reinicia a fala do Guia',
+    );
+    expect(
+      container.read(salaSessionProvider).voice,
+      VoiceState.done,
+      reason:
+          '_deliverQuestion fixava voice: invite no sucesso — a mão foi '
+          'levantada com a sala em done e a pergunta silenciosa devolveu a voz errada',
+    );
+    expect(
+      container.read(salaSessionProvider).conversaDone,
+      isTrue,
+      reason:
+          'conversaDone é voice == done — perder a voz done também derruba o '
+          'AdvanceButton do ensaio que a sala continua reportando',
+    );
+  });
+
+  test('canceling a note raised at done returns to done, not invite', () async {
+    final harness = SalaHarness()..room.done = true;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    expect(container.read(salaSessionProvider).voice, VoiceState.done);
+
+    notifier.handTap();
+    expect(container.read(salaSessionProvider).noteMode, isTrue);
+
+    notifier.handTap();
+
+    expect(container.read(salaSessionProvider).noteMode, isFalse);
+    expect(
+      container.read(salaSessionProvider).voice,
+      VoiceState.done,
+      reason:
+          '_cancelQuestion fixava voice: invite mesmo com a sala em done — '
+          'a mão levantada e cancelada não pode apagar a voz que ela interrompeu',
+    );
+  });
 
   test('a question that never left is kept on the tablet', () async {
     final harness = SalaHarness(retryBackoff: const [Duration(seconds: 30)])
@@ -5379,4 +5472,43 @@ void main() {
           'por uma linha que a equipe nunca ouviu',
     );
   });
+
+  test(
+    'a hand armed while the Guide was speaking comes back to the invite, not to a '
+    'speaking that nothing plays',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.voice.holdNextLine();
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+      expect(container.read(salaSessionProvider).voice, VoiceState.speaking);
+
+      notifier.handTap();
+      expect(container.read(salaSessionProvider).noteMode, isTrue);
+
+      harness.voice.finishHeldLine();
+      await settle();
+      expect(container.read(salaSessionProvider).voice, VoiceState.invite);
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      expect(harness.inbox.questionsSent, hasLength(1));
+      expect(
+        container.read(salaSessionProvider).voice,
+        VoiceState.invite,
+        reason:
+            'a voz guardada era speaking; devolvida, o círculo ficava morto '
+            '(conversaTap quebra em speaking) com nada tocando',
+      );
+    },
+  );
 }

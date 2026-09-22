@@ -185,6 +185,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _ackSpoken = 0;
   DateTime? _listeningSince;
   bool _recordingStarting = false;
+  VoiceState _voiceBeforeQuestion = VoiceState.invite;
   String? _emCurso;
   Trecho? _trechoTraduzidoDeNovo;
 
@@ -2173,6 +2174,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _cancelQuestion();
       return;
     }
+    // Only an idle voice is worth coming back to: a hand armed while the facilitator
+    // was mid-sentence would otherwise write `speaking` back over a room where
+    // nothing plays, and a circle that breaks on `speaking` stays dead until a person.
+    _voiceBeforeQuestion = state.voice == VoiceState.done
+        ? VoiceState.done
+        : VoiceState.invite;
     state = state.copyWith(noteMode: true);
   }
 
@@ -2185,12 +2192,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _noteTap() {
     switch (state.voice) {
       case VoiceState.invite:
+      case VoiceState.done:
         _startListening('pergunta_${_stamp()}');
       case VoiceState.listening:
         _sendQuestion();
       case VoiceState.thinking:
       case VoiceState.speaking:
-      case VoiceState.done:
       case VoiceState.needsPerson:
       case VoiceState.offline:
       case VoiceState.blocked:
@@ -2259,7 +2266,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _cancelQuestion() {
     unawaited(_recorder.discard());
-    state = state.copyWith(noteMode: false, voice: VoiceState.invite);
+    state = state.copyWith(noteMode: false, voice: _voiceBeforeQuestion);
   }
 
   void _sendQuestion() {
@@ -2279,7 +2286,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (path == null || !_hasAudio(path) || sessionId == null) {
       // The team raised their hand, spoke a question, and nothing came back from the
       // recorder. Returning to the invite in silence is the room forgetting they asked.
-      state = state.copyWith(voice: VoiceState.invite, noteMode: false);
+      state = state.copyWith(voice: _voiceBeforeQuestion, noteMode: false);
       return;
     }
     try {
@@ -2294,7 +2301,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       handAck: true,
       questionPending: true,
-      voice: VoiceState.invite,
+      voice: _voiceBeforeQuestion,
     );
     _watchBusyState();
     _after('ack', const Duration(milliseconds: 3200), () {
