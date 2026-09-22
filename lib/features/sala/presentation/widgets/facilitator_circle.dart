@@ -91,45 +91,45 @@ class FacilitatorCircle extends StatelessWidget {
 
   List<Widget> _ripples(SalaColors colors) {
     Widget ring(double phase) => Ripple(
-          period: const Duration(milliseconds: 3400),
-          phase: phase,
-          builder: (context, t) => Transform.scale(
-            scale: 1 + 0.46 * t,
-            child: Container(
-              width: size,
-              height: size,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: colors.telha.withValues(alpha: 0.55 * (1 - t)),
-                  width: 3,
-                ),
-              ),
+      period: const Duration(milliseconds: 3400),
+      phase: phase,
+      builder: (context, t) => Transform.scale(
+        scale: 1 + 0.46 * t,
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: colors.telha.withValues(alpha: 0.55 * (1 - t)),
+              width: 3,
             ),
           ),
-        );
+        ),
+      ),
+    );
     return [ring(0), ring(0.65)];
   }
 
   List<Widget> _beckoning(SalaColors colors) {
     Widget ring(double phase) => Ripple(
-          period: const Duration(milliseconds: 2600),
-          phase: phase,
-          builder: (context, t) => Transform.scale(
-            scale: 1 + 0.42 * t,
-            child: Container(
-              width: size,
-              height: size,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: colors.telha.withValues(alpha: 0.55 * (1 - t)),
-                  width: 3,
-                ),
-              ),
+      period: const Duration(milliseconds: 2600),
+      phase: phase,
+      builder: (context, t) => Transform.scale(
+        scale: 1 + 0.42 * t,
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: colors.telha.withValues(alpha: 0.55 * (1 - t)),
+              width: 3,
             ),
           ),
-        );
+        ),
+      ),
+    );
     return [ring(0), ring(0.5)];
   }
 
@@ -162,7 +162,8 @@ class FacilitatorCircle extends StatelessWidget {
   }
 
   Widget _body(SalaColors colors, bool still) {
-    if (voice == VoiceState.needsPerson) return _haltedBody(colors, LucideIcons.userCheck);
+    if (voice == VoiceState.needsPerson)
+      return _haltedBody(colors, LucideIcons.userCheck);
     if (voice == VoiceState.offline) return _haltedBody(colors, _offlineGlyph);
     // The cue is a live turn signal — it is the team's own turn to speak — and a
     // warning is only a background notice; it wins over the green the same way a
@@ -189,10 +190,8 @@ class FacilitatorCircle extends StatelessWidget {
       case VoiceState.speaking:
         return Loop(
           period: const Duration(milliseconds: 3400),
-          builder: (context, t) => Transform.scale(
-            scale: 1 + 0.02 * t,
-            child: _liveDisc(colors),
-          ),
+          builder: (context, t) =>
+              Transform.scale(scale: 1 + 0.02 * t, child: _liveDisc(colors)),
         );
       case VoiceState.done:
         return _doneDisc();
@@ -206,64 +205,67 @@ class FacilitatorCircle extends StatelessWidget {
   }
 
   Widget _doneDisc() => _disc(
-        gradient: BeadStyles.verde,
-        shadows: [
-          BoxShadow(
-            color: ShemaBrand.verdeLo.withValues(alpha: 0.28),
-            offset: const Offset(0, 10),
-            blurRadius: 34,
-          ),
-        ],
-      );
+    gradient: BeadStyles.verde,
+    shadows: [
+      BoxShadow(
+        color: ShemaBrand.verdeLo.withValues(alpha: 0.28),
+        offset: const Offset(0, 10),
+        blurRadius: 34,
+      ),
+    ],
+  );
 
   Widget _liveDisc(SalaColors colors) => _disc(
-        gradient: noteMode ? BeadStyles.azul : BeadStyles.telha(colors),
-        shadows: [
-          BoxShadow(
-            color: (noteMode ? ShemaBrand.azulLo : colors.telha)
-                .withValues(alpha: 0.32),
-            offset: const Offset(0, 10),
-            blurRadius: 34,
-          ),
-        ],
-      );
+    gradient: noteMode ? BeadStyles.azul : BeadStyles.telha(colors),
+    shadows: [
+      BoxShadow(
+        color: (noteMode ? ShemaBrand.azulLo : colors.telha).withValues(
+          alpha: 0.32,
+        ),
+        offset: const Offset(0, 10),
+        blurRadius: 34,
+      ),
+    ],
+  );
 
   Widget _waiting(SalaColors colors, bool still) {
     Widget clay(double t) => _disc(
-          gradient: BeadStyles.clay(colors, t),
-          shadows: [
-            const BoxShadow(
-              color: Color(0x260A0703),
-              offset: Offset(0, 6),
-              blurRadius: 20,
-            ),
-            BoxShadow(
-              color: colors.clayHi.withValues(alpha: 0.30 * t),
-              spreadRadius: 2 + 10 * t,
-              blurRadius: 18,
-            ),
-          ],
-        );
+      gradient: BeadStyles.clay(colors, t),
+      shadows: [
+        const BoxShadow(
+          color: Color(0x260A0703),
+          offset: Offset(0, 6),
+          blurRadius: 20,
+        ),
+        BoxShadow(
+          color: colors.clayHi.withValues(alpha: 0.30 * t),
+          spreadRadius: 2 + 10 * t,
+          blurRadius: 18,
+        ),
+      ],
+    );
     if (still) {
       return Loop(
         period: const Duration(milliseconds: 3600),
         reducible: false,
-        builder: (context, t) => Opacity(opacity: 0.72 + 0.24 * t, child: clay(0)),
+        builder: (context, t) =>
+            Opacity(opacity: 0.72 + 0.24 * t, child: clay(0)),
       );
     }
     return Loop(
       period: const Duration(milliseconds: 4600),
-      builder: (context, t) => Transform.scale(scale: 1 + 0.06 * t, child: clay(t)),
+      builder: (context, t) =>
+          Transform.scale(scale: 1 + 0.06 * t, child: clay(t)),
     );
   }
 
   Widget _liveBreath(SalaColors colors) => Loop(
-        period: Duration(milliseconds: beckon ? 1800 : 4600),
-        builder: (context, t) => Transform.scale(
-          scale: 1 + (beckon ? 0.09 : 0.045) * t,
-          child: _liveDisc(colors),
-        ),
-      );
+    period: Duration(milliseconds: beckon ? 1800 : 4600),
+    builder: (context, t) => Transform.scale(
+      scale: 1 + (beckon ? 0.09 : 0.045) * t,
+      child: _liveDisc(colors),
+    ),
+  );
 
   /// A room that has stopped, and is still running.
   ///
@@ -336,23 +338,23 @@ class FacilitatorCircle extends StatelessWidget {
 
   List<Widget> _gatheringIn() {
     Widget ring(double phase) => Ripple(
-          period: const Duration(milliseconds: 3200),
-          phase: phase,
-          builder: (context, t) => Transform.scale(
-            scale: 1.46 - 0.46 * t,
-            child: Container(
-              width: size,
-              height: size,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: ShemaBrand.azulInk.withValues(alpha: 0.55 * t),
-                  width: 2.5,
-                ),
-              ),
+      period: const Duration(milliseconds: 3200),
+      phase: phase,
+      builder: (context, t) => Transform.scale(
+        scale: 1.46 - 0.46 * t,
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: ShemaBrand.azulInk.withValues(alpha: 0.55 * t),
+              width: 2.5,
             ),
           ),
-        );
+        ),
+      ),
+    );
     return [ring(0), ring(0.5)];
   }
 }

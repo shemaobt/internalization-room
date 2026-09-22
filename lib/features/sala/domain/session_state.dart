@@ -8,20 +8,23 @@ import 'passagem.dart';
 
 enum SalaStage { convite, escolha, conversa, ensaio, retro, fim }
 
-enum VoiceState { invite, listening, thinking, speaking, done, needsPerson, offline, blocked }
+enum VoiceState {
+  invite,
+  listening,
+  thinking,
+  speaking,
+  done,
+  needsPerson,
+  offline,
+  blocked,
+}
 
 enum ConviteStep { boasVindas, panorama, entrada }
 
 enum EnsaioStatus { idle, ghostPlaying, recording, recorded }
 
 /// Where the telling-back is, step by step.
-enum BtPhase {
-  playing,
-  capturing,
-  thinking,
-  findings,
-  conferida,
-}
+enum BtPhase { playing, capturing, thinking, findings, conferida }
 
 /// One stretch the team told back: a slice of one rehearsal recording.
 ///
@@ -40,6 +43,7 @@ class Trecho {
   /// pointer, which is the answer a pointer naming nothing should get anyway.
   final String? segmentId;
   final String takeId;
+
   /// The tablet's own copy of what the team said in Portuguese about this stretch, when
   /// this tablet is the one that said it. Null on a session picked back up, where the
   /// telling exists on the server and the file does not.
@@ -91,6 +95,7 @@ class PingRange {
 class SalaSessionState {
   final SalaStage stage;
   final VoiceState voice;
+
   /// Why the room is out of reach, when it is. Two different faces: a tablet with no
   /// network at all, and a network that is fine with no room answering on it.
   final RoomReach reach;
@@ -119,6 +124,7 @@ class SalaSessionState {
   final bool micTaken;
   final int takes;
   final bool playPing;
+
   /// Whether the take player is holding a position rather than sitting at rest.
   ///
   /// [playPing] already says whether the take is sounding; this is the second half
@@ -126,6 +132,7 @@ class SalaSessionState {
   /// a restart, and nothing else here carries that.
   final bool takePaused;
   final BtPhase btPhase;
+
   /// Which stretch numbers the room never took, in the order they were told.
   ///
   /// A count could not say this. A stretch is added only when one lands, and the unsent
@@ -133,12 +140,14 @@ class SalaSessionState {
   /// other hollowed a bead belonging to a stretch that had arrived while the stretch
   /// actually at risk had no bead at all.
   final List<int> btChunkFailures;
+
   /// Every passage the book offers, or null when the wheel has not been read.
   ///
   /// Null and empty must stay apart: empty is a room that answered with no passage at
   /// all, and it says so out loud. A failed load answering "empty" told the team the
   /// work was over.
   final List<Passagem>? naRoda;
+
   /// Passages of this book with work waiting in them, by pericope. The ruler draws these
   /// taller, because going back to one is a different act from starting one.
   final Set<String> comecadas;
@@ -158,6 +167,7 @@ class SalaSessionState {
 
   /// Whether the mother-tongue slice of the pointed stretch is sounding.
   final bool btTrechoTocando;
+
   /// Whether the telling in Portuguese is sounding. Its own flag, because the two voices
   /// are two targets and the team compares them one against the other.
   final bool btRetroTocando;
@@ -167,6 +177,7 @@ class SalaSessionState {
   /// Neither `tocando` nor a fresh player answers this: the next tap needs to tell a
   /// resume from a restart, and nothing else in this state carries that.
   final bool btTrechoPausada;
+
   /// Whether the Portuguese player is holding a position. Its own flag, for the reason
   /// [btTrechoPausada] gives.
   final bool btRetroPausada;
@@ -375,8 +386,10 @@ class SalaSessionState {
 
   /// The rehearsal's own recordings, in order — never a correction's own take, which is a
   /// slice of one of these and not a part of the rehearsal in its own right.
-  List<KeptTake> get partes =>
-      [for (final take in keptTakes) if (KeptScope.isParte(take.scopeId)) take];
+  List<KeptTake> get partes => [
+    for (final take in keptTakes)
+      if (KeptScope.isParte(take.scopeId)) take,
+  ];
 
   bool get canGhostPlay => partes.isNotEmpty && ensaio == EnsaioStatus.idle;
 
@@ -461,8 +474,9 @@ class SalaSessionState {
       handAck: handAck ?? this.handAck,
       questionPending: questionPending ?? this.questionPending,
       replies: replies ?? this.replies,
-      playingReplyId:
-          clearPlayingReply ? null : (playingReplyId ?? this.playingReplyId),
+      playingReplyId: clearPlayingReply
+          ? null
+          : (playingReplyId ?? this.playingReplyId),
       keptTakes: keptTakes ?? this.keptTakes,
       lastSpoken: clearLastSpoken ? null : (lastSpoken ?? this.lastSpoken),
       ensaio: ensaio ?? this.ensaio,

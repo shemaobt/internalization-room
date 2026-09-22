@@ -72,7 +72,8 @@ void main() {
     expect(
       state.livroInteiroFeito,
       isTrue,
-      reason: 'o panorama não é uma passagem — todas as passagens feitas é '
+      reason:
+          'o panorama não é uma passagem — todas as passagens feitas é '
           'livro terminado, esteja ou não o raio de ouvir o livro de novo '
           'ainda na roda',
     );
@@ -99,17 +100,21 @@ void main() {
     expect(
       state.needsPerson,
       isTrue,
-      reason: 'abrirEscolha contava o panorama como passagem ainda por '
+      reason:
+          'abrirEscolha contava o panorama como passagem ainda por '
           'fazer, o mesmo defeito que livroInteiroFeito carregava',
     );
-    expect(state.naRoda, [_panorama],
-        reason: 'o raio de ouvir o livro de novo fica na roda mesmo com o '
-            'livro inteiro terminado');
+    expect(
+      state.naRoda,
+      [_panorama],
+      reason:
+          'o raio de ouvir o livro de novo fica na roda mesmo com o '
+          'livro inteiro terminado',
+    );
   });
 
   test('the panorama alongside real passages calls nobody', () async {
-    final harness = SalaHarness()
-      ..room.passages = const [_panorama, _p01];
+    final harness = SalaHarness()..room.passages = const [_panorama, _p01];
     final container = harness.container();
     addTearDown(container.dispose);
 
@@ -119,95 +124,135 @@ void main() {
     final state = container.read(salaSessionProvider);
     expect(state.needsPerson, isFalse);
     expect(state.naRoda, [_panorama, _p01]);
-    expect(state.oferecida, _panorama,
-        reason: 'o panorama vem em primeiro na roda, à frente de toda '
-            'passagem — é a porta de entrada da roda');
+    expect(
+      state.oferecida,
+      _panorama,
+      reason:
+          'o panorama vem em primeiro na roda, à frente de toda '
+          'passagem — é a porta de entrada da roda',
+    );
   });
 
-  test('entering the panorama spoke opens a panorama session, not a passage',
-      () async {
-    final harness = SalaHarness()..room.passages = const [_panorama, _p01];
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    await notifier.abrirEscolha();
-    await settle();
+  test(
+    'entering the panorama spoke opens a panorama session, not a passage',
+    () async {
+      final harness = SalaHarness()..room.passages = const [_panorama, _p01];
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      await notifier.abrirEscolha();
+      await settle();
 
-    notifier.entrarNaOferecida();
-    await settle();
+      notifier.entrarNaOferecida();
+      await settle();
 
-    expect(harness.room.pericopesAsked, contains(panoramaPericope),
-        reason: 'o panorama é pedido pelo mesmo alias que o convite já '
+      expect(
+        harness.room.pericopesAsked,
+        contains(panoramaPericope),
+        reason:
+            'o panorama é pedido pelo mesmo alias que o convite já '
             'usa (panoramaPericope), não pelo id que a roda pôs nele — '
-            'é o mesmo pedido, venha de onde vier');
-    expect(
-      container.read(salaSessionProvider).stage,
-      SalaStage.escolha,
-      reason: 'entrar no panorama nunca cai numa passagem — a equipe '
-          'continua na roda depois de ele falar',
-    );
-    expect(harness.room.sessionsSpokenTo, hasLength(1),
-        reason: 'a sessão de panorama que a sala abriu é a que a voz fala');
-    expect(container.read(salaSessionProvider).voice, VoiceState.invite);
-    expect(
-      harness.voice.played,
-      [_panorama.audioUrl, turnoUrl],
-      reason: 'a régua diz o nome do panorama primeiro, ao apontar; entrar '
-          'nele é o turno da sala, falado depois',
-    );
-  });
+            'é o mesmo pedido, venha de onde vier',
+      );
+      expect(
+        container.read(salaSessionProvider).stage,
+        SalaStage.escolha,
+        reason:
+            'entrar no panorama nunca cai numa passagem — a equipe '
+            'continua na roda depois de ele falar',
+      );
+      expect(
+        harness.room.sessionsSpokenTo,
+        hasLength(1),
+        reason: 'a sessão de panorama que a sala abriu é a que a voz fala',
+      );
+      expect(container.read(salaSessionProvider).voice, VoiceState.invite);
+      expect(
+        harness.voice.played,
+        [_panorama.audioUrl, turnoUrl],
+        reason:
+            'a régua diz o nome do panorama primeiro, ao apontar; entrar '
+            'nele é o turno da sala, falado depois',
+      );
+    },
+  );
 
-  test('a panorama spoke retried after the room stalls asks again with the same turn id',
-      () async {
-    final harness = SalaHarness()
-      ..room.passages = const [_panorama, _p01]
-      ..room.failHeldTurnWith = const RoomBroke('HTTP 500');
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    await notifier.abrirEscolha();
-    await settle();
+  test(
+    'a panorama spoke retried after the room stalls asks again with the same turn id',
+    () async {
+      final harness = SalaHarness()
+        ..room.passages = const [_panorama, _p01]
+        ..room.failHeldTurnWith = const RoomBroke('HTTP 500');
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      await notifier.abrirEscolha();
+      await settle();
 
-    notifier.entrarNaOferecida();
-    await settle();
-    await waitFor('a sala parar', () => container.read(salaSessionProvider).needsPerson);
-    harness.room.theDeskAttended();
-    notifier.resolveWithPerson();
-    await waitFor('o círculo voltar ao convite',
-        () => container.read(salaSessionProvider).voice == VoiceState.invite);
-    notifier.entrarNaOferecida();
-    await settle();
+      notifier.entrarNaOferecida();
+      await settle();
+      await waitFor(
+        'a sala parar',
+        () => container.read(salaSessionProvider).needsPerson,
+      );
+      harness.room.theDeskAttended();
+      notifier.resolveWithPerson();
+      await waitFor(
+        'o círculo voltar ao convite',
+        () => container.read(salaSessionProvider).voice == VoiceState.invite,
+      );
+      notifier.entrarNaOferecida();
+      await settle();
 
-    expect(harness.room.turnIdsAsked, hasLength(2),
-        reason: 'a primeira falha ao entrar já é a chamada de turno que para a sala; '
+      expect(
+        harness.room.turnIdsAsked,
+        hasLength(2),
+        reason:
+            'a primeira falha ao entrar já é a chamada de turno que para a sala; '
             'o toque que segue o atendimento precisa dos dois pedidos de turno '
-            'para haver o que comparar');
-    expect(harness.room.turnIdsAsked[0], isNotNull);
-    expect(harness.room.turnIdsAsked[1], harness.room.turnIdsAsked[0],
-        reason: 'um id novo a cada tentativa e o servidor nunca reconhece '
-            'a segunda como a mesma abertura que a primeira já começou a escrever');
-  });
+            'para haver o que comparar',
+      );
+      expect(harness.room.turnIdsAsked[0], isNotNull);
+      expect(
+        harness.room.turnIdsAsked[1],
+        harness.room.turnIdsAsked[0],
+        reason:
+            'um id novo a cada tentativa e o servidor nunca reconhece '
+            'a segunda como a mesma abertura que a primeira já começou a escrever',
+      );
+    },
+  );
 
-  test('entering the panorama writes no ledger row and no resume point',
-      () async {
-    final harness = SalaHarness()..room.passages = const [_panorama, _p01];
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    await notifier.abrirEscolha();
-    await settle();
+  test(
+    'entering the panorama writes no ledger row and no resume point',
+    () async {
+      final harness = SalaHarness()..room.passages = const [_panorama, _p01];
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      await notifier.abrirEscolha();
+      await settle();
 
-    notifier.entrarNaOferecida();
-    await settle();
+      notifier.entrarNaOferecida();
+      await settle();
 
-    expect(harness.finished.done, isNot(contains('Ruth/panorama')),
-        reason: 'o panorama não é uma passagem — nunca sai da roda, '
+      expect(
+        harness.finished.done,
+        isNot(contains('Ruth/panorama')),
+        reason:
+            'o panorama não é uma passagem — nunca sai da roda, '
             'então nunca pode se marcar como uma das passagens feitas do '
-            'livro');
-    expect(harness.emAberto.rows.containsKey('Ruth/panorama'), isFalse,
-        reason: 'nada no panorama é um lugar para retomar; é a própria '
-            'roda o lugar onde a equipe volta a ele');
-  });
+            'livro',
+      );
+      expect(
+        harness.emAberto.rows.containsKey('Ruth/panorama'),
+        isFalse,
+        reason:
+            'nada no panorama é um lugar para retomar; é a própria '
+            'roda o lugar onde a equipe volta a ele',
+      );
+    },
+  );
 
   test('nothing ends the panorama on a timer or a turn count', () async {
     final harness = SalaHarness()..room.passages = const [_panorama, _p01];
@@ -221,9 +266,13 @@ void main() {
     await settle(const Duration(seconds: 5));
 
     final state = container.read(salaSessionProvider);
-    expect(state.stage, SalaStage.escolha,
-        reason: 'o panorama não tem fim previsto e nada aqui agenda um — '
-            'esperar não move a equipe para lugar nenhum');
+    expect(
+      state.stage,
+      SalaStage.escolha,
+      reason:
+          'o panorama não tem fim previsto e nada aqui agenda um — '
+          'esperar não move a equipe para lugar nenhum',
+    );
     expect(state.voice, VoiceState.invite);
     expect(state.needsPerson, isFalse);
   });
@@ -241,22 +290,33 @@ void main() {
     notifier.entrarNaOferecida();
     await settle();
 
-    expect(harness.room.sessionIds, hasLength(1),
-        reason: 'o mesmo toque repetido sem sair da roda não pode cunhar '
-            'uma segunda sessão de panorama — é exatamente o defeito que '
-            'a guarda do openConvite existe para evitar, um panorama '
-            'abandonado por toque');
-    expect(harness.room.sessionsSpokenTo, hasLength(2),
-        reason: 'cada toque ainda pede o turno de novo — só a sessão é '
-            'reaproveitada, não o pedido de abrir');
-    expect(harness.room.turnIdsAsked[1], isNot(harness.room.turnIdsAsked[0]),
-        reason: 'o primeiro toque já foi falado por inteiro; reaproveitar o '
-            'id dele no segundo faria o servidor devolver aquela abertura '
-            'em vez de abrir a de novo pedida');
+    expect(
+      harness.room.sessionIds,
+      hasLength(1),
+      reason:
+          'o mesmo toque repetido sem sair da roda não pode cunhar '
+          'uma segunda sessão de panorama — é exatamente o defeito que '
+          'a guarda do openConvite existe para evitar, um panorama '
+          'abandonado por toque',
+    );
+    expect(
+      harness.room.sessionsSpokenTo,
+      hasLength(2),
+      reason:
+          'cada toque ainda pede o turno de novo — só a sessão é '
+          'reaproveitada, não o pedido de abrir',
+    );
+    expect(
+      harness.room.turnIdsAsked[1],
+      isNot(harness.room.turnIdsAsked[0]),
+      reason:
+          'o primeiro toque já foi falado por inteiro; reaproveitar o '
+          'id dele no segundo faria o servidor devolver aquela abertura '
+          'em vez de abrir a de novo pedida',
+    );
   });
 
-  test(
-      'when the room answers the panorama with a passage instead, the team '
+  test('when the room answers the panorama with a passage instead, the team '
       'lands there, not stuck on the wheel', () async {
     final harness = SalaHarness()
       ..room.passages = const [_panorama, _p01]
@@ -274,43 +334,62 @@ void main() {
     expect(
       container.read(salaSessionProvider).stage,
       SalaStage.conversa,
-      reason: 'pedir o panorama é um pedido, não uma ordem — a sala pode '
+      reason:
+          'pedir o panorama é um pedido, não uma ordem — a sala pode '
           'responder com a passagem em que a equipe já está, e ficar na '
           'roda tocando um turno de abertura que ninguém está pronto '
           'para responder é pior do que segui-la para onde respondeu',
     );
-    expect(harness.room.sessionIds, hasLength(1),
-        reason: 'a sessão que a sala já abriu é a que a equipe entra — '
-            'pedir outra abandonaria a primeira');
+    expect(
+      harness.room.sessionIds,
+      hasLength(1),
+      reason:
+          'a sessão que a sala já abriu é a que a equipe entra — '
+          'pedir outra abandonaria a primeira',
+    );
   });
 
-  test('the team leaves the panorama by turning the wheel to a passage',
-      () async {
-    final harness = SalaHarness()..room.passages = const [_panorama, _p01];
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    await notifier.abrirEscolha();
-    await settle();
-    notifier.entrarNaOferecida();
-    await settle();
-    final panoramaSession = harness.room.sessionIds.single;
+  test(
+    'the team leaves the panorama by turning the wheel to a passage',
+    () async {
+      final harness = SalaHarness()..room.passages = const [_panorama, _p01];
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      await notifier.abrirEscolha();
+      await settle();
+      notifier.entrarNaOferecida();
+      await settle();
+      final panoramaSession = harness.room.sessionIds.single;
 
-    notifier.apontarPassagem(1);
-    notifier.dizerAPassagem();
-    await settle();
-    notifier.entrarNaOferecida();
-    await settle();
+      notifier.apontarPassagem(1);
+      notifier.dizerAPassagem();
+      await settle();
+      notifier.entrarNaOferecida();
+      await settle();
 
-    expect(container.read(salaSessionProvider).stage, SalaStage.conversa,
-        reason: 'sair do panorama é exatamente como sair de qualquer '
-            'outra sessão: virar a roda para uma passagem e entrar nela');
-    expect(harness.room.metBefore.last, isTrue,
-        reason: 'a sessão da passagem carrega a sessão de panorama que a '
-            'precedeu, do mesmo jeito que sempre carregou');
-    expect(harness.room.sessionIds, hasLength(2));
-    expect(harness.room.sessionIds.last, isNot(panoramaSession),
-        reason: 'a passagem ganha sua própria sessão — nunca reaproveita '
-            'a do panorama');
-  });
+      expect(
+        container.read(salaSessionProvider).stage,
+        SalaStage.conversa,
+        reason:
+            'sair do panorama é exatamente como sair de qualquer '
+            'outra sessão: virar a roda para uma passagem e entrar nela',
+      );
+      expect(
+        harness.room.metBefore.last,
+        isTrue,
+        reason:
+            'a sessão da passagem carrega a sessão de panorama que a '
+            'precedeu, do mesmo jeito que sempre carregou',
+      );
+      expect(harness.room.sessionIds, hasLength(2));
+      expect(
+        harness.room.sessionIds.last,
+        isNot(panoramaSession),
+        reason:
+            'a passagem ganha sua própria sessão — nunca reaproveita '
+            'a do panorama',
+      );
+    },
+  );
 }

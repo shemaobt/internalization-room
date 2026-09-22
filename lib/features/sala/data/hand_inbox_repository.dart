@@ -11,6 +11,7 @@ import 'room_repository.dart';
 
 const _basePath = '/api/internalization-room';
 const _timeout = Duration(seconds: 20);
+
 /// A question carries up to 25 MB of the team's own voice and the room stores it before
 /// answering, so it gets the same budget as the other routes that move audio — not the
 /// one meant for reading a row back.
@@ -23,8 +24,8 @@ class HandInboxRepository {
   HandInboxRepository({
     http.Client? client,
     Future<String> Function()? deviceId,
-  })  : _client = client ?? http.Client(),
-        _deviceId = deviceId ?? deviceIdentity;
+  }) : _client = client ?? http.Client(),
+       _deviceId = deviceId ?? deviceIdentity;
 
   String? _credential;
 
@@ -33,10 +34,10 @@ class HandInboxRepository {
   void presents(String? credential) => _credential = credential;
 
   Future<Map<String, String>> get _headers async => {
-        'X-Room-Key': Env.roomKey,
-        'X-Room-Device': await _deviceId(),
-        'X-Device-Credential': ?_credential,
-      };
+    'X-Room-Key': Env.roomKey,
+    'X-Room-Device': await _deviceId(),
+    'X-Device-Credential': ?_credential,
+  };
 
   Future<List<HandReply>?> fetchReplies() async {
     final http.Response response;
@@ -52,7 +53,8 @@ class HandInboxRepository {
     }
     if (response.statusCode != 200) return null;
     try {
-      final body = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final body =
+          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       return [
         for (final reply in (body['replies'] as List? ?? const []))
           HandReply.fromJson((reply as Map).cast<String, dynamic>()),
@@ -82,12 +84,15 @@ class HandInboxRepository {
   }
 
   Future<void> sendQuestion(String sessionId, File audio) async {
-    final request = http.MultipartRequest(
-      'POST',
-      Uri.parse('${Env.backendUrl}$_basePath/questions?session_id=$sessionId'),
-    )
-      ..headers.addAll(await _headers)
-      ..files.add(await http.MultipartFile.fromPath('file', audio.path));
+    final request =
+        http.MultipartRequest(
+            'POST',
+            Uri.parse(
+              '${Env.backendUrl}$_basePath/questions?session_id=$sessionId',
+            ),
+          )
+          ..headers.addAll(await _headers)
+          ..files.add(await http.MultipartFile.fromPath('file', audio.path));
     final http.Response response;
     try {
       // The deadline has to cover draining the body too: wrapping only `send` left the

@@ -50,8 +50,11 @@ void main() {
     await tester.pump();
 
     expect(forward, greaterThan(7));
-    expect(aimed.last, lessThan(forward),
-        reason: 'voltar uma passagem custava dar a volta inteira na roda');
+    expect(
+      aimed.last,
+      lessThan(forward),
+      reason: 'voltar uma passagem custava dar a volta inteira na roda',
+    );
   });
 
   testWidgets('the row stops at its ends', (tester) async {
@@ -78,10 +81,12 @@ void main() {
     await tester.drag(find.byType(PassageRuler), const Offset(300, 0));
     await tester.pump();
 
-    expect(aimed.length, greaterThan(1),
-        reason: 'o marcador acompanha o dedo');
-    expect(settled, hasLength(1),
-        reason: 'nomear cada entalhe atravessado seria gaguejar catorze áudios');
+    expect(aimed.length, greaterThan(1), reason: 'o marcador acompanha o dedo');
+    expect(
+      settled,
+      hasLength(1),
+      reason: 'nomear cada entalhe atravessado seria gaguejar catorze áudios',
+    );
   });
 
   testWidgets('a row of one still shows where the team is', (tester) async {
@@ -90,8 +95,11 @@ void main() {
     await pumpRuler(tester, total: 1, at: 0, aimed: aimed, settled: settled);
 
     expect(find.byType(PassageRuler), findsOneWidget);
-    expect(tester.getSize(find.byType(PassageRuler)).height, PassageRuler.height,
-        reason: 'a última passagem do livro ficava sem indicador nenhum');
+    expect(
+      tester.getSize(find.byType(PassageRuler)).height,
+      PassageRuler.height,
+      reason: 'a última passagem do livro ficava sem indicador nenhum',
+    );
     expect(
       find.descendant(
         of: find.byType(PassageRuler),
@@ -102,8 +110,9 @@ void main() {
     );
   });
 
-  testWidgets('a notch the team carried to the end wears the wood',
-      (tester) async {
+  testWidgets('a notch the team carried to the end wears the wood', (
+    tester,
+  ) async {
     await pumpRuler(
       tester,
       total: 3,
@@ -118,14 +127,16 @@ void main() {
       paints
         ..line(color: SalaColors.light.cord, strokeWidth: 1.5)
         ..line(color: ShemaBrand.wood, strokeWidth: 4),
-      reason: 'no claro a madeira dá 1,31:1 contra o cordão: só a cor deixa a '
+      reason:
+          'no claro a madeira dá 1,31:1 contra o cordão: só a cor deixa a '
           'passagem terminada com o mesmo entalhe de uma que ninguém tocou, e '
           'não há palavra escrita nesta tela que separe as duas',
     );
   });
 
-  testWidgets('a passage picked up again after the end reads as work waiting',
-      (tester) async {
+  testWidgets('a passage picked up again after the end reads as work waiting', (
+    tester,
+  ) async {
     await pumpRuler(
       tester,
       total: 3,
@@ -141,7 +152,8 @@ void main() {
       paints
         ..line(color: SalaColors.light.cord)
         ..line(color: SalaColors.light.telha),
-      reason: 'entrar de novo numa passagem terminada e sair no meio deixa ela '
+      reason:
+          'entrar de novo numa passagem terminada e sair no meio deixa ela '
           'nos dois conjuntos, e trabalho parado é o estado que pede a volta',
     );
   });

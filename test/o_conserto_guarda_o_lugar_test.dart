@@ -85,15 +85,14 @@ Future<_Sala> _aSalaNaPergunta() async {
   it.sala.startRetro();
   await waitFor(
     'a tradução começar a tocar a primeira parte',
-    () => it.estado.stage == SalaStage.retro && it.estado.btPhase == BtPhase.playing,
+    () =>
+        it.estado.stage == SalaStage.retro &&
+        it.estado.btPhase == BtPhase.playing,
   );
 
   await _traduzirUmTrecho(it, const Duration(seconds: 10));
   harness.playback.finishPlayback();
-  await waitFor(
-    'a primeira parte terminar',
-    () => it.estado.btParteFronteira,
-  );
+  await waitFor('a primeira parte terminar', () => it.estado.btParteFronteira);
   it.sala.ouvirGravacao();
   await waitFor(
     'a segunda parte entrar no ar',
@@ -107,7 +106,9 @@ Future<_Sala> _aSalaNaPergunta() async {
   await it.sala.finishBackTranslation();
   await waitFor(
     'o analista apontar um trecho',
-    () => it.estado.btPhase == BtPhase.findings && it.estado.btFindingTrecho != null,
+    () =>
+        it.estado.btPhase == BtPhase.findings &&
+        it.estado.btFindingTrecho != null,
   );
   return it;
 }
@@ -146,43 +147,58 @@ void main() {
     final aPonteNova = it.harness.recorder.lastPath;
 
     expect(aPonteNova, isNot(aPonteAntiga));
-    expect(_no(it.container, 1).retroPath, aPonteNova,
-        reason: 'o botão de ouvir a ponte toca o arquivo do trecho, então ele '
-            'tem de ser o que a equipe acabou de dizer — tocar o anterior '
-            'devolve a explicação que o analista já recusou');
-    expect(it.estado.btFindingTrecho?.retroPath, aPonteNova,
-        reason: 'e é por este ponteiro que a tela decide se o botão acende, '
-            'enquanto o achado estiver aberto');
+    expect(
+      _no(it.container, 1).retroPath,
+      aPonteNova,
+      reason:
+          'o botão de ouvir a ponte toca o arquivo do trecho, então ele '
+          'tem de ser o que a equipe acabou de dizer — tocar o anterior '
+          'devolve a explicação que o analista já recusou',
+    );
+    expect(
+      it.estado.btFindingTrecho?.retroPath,
+      aPonteNova,
+      reason:
+          'e é por este ponteiro que a tela decide se o botão acende, '
+          'enquanto o achado estiver aberto',
+    );
   });
 
   test('a primeira contagem continua guardando o que foi gravado', () async {
     final it = await _aSalaNaPergunta();
 
     for (final lugar in [0, 1, 2]) {
-      expect(_no(it.container, lugar).retroPath, isNotNull,
-          reason: 'todo trecho contado tem aqui a cópia do que a equipe disse '
-              'na língua-ponte');
-    }
-  });
-
-  test('os trechos vizinhos não se mexem, nem depois de dois consertos',
-      () async {
-    final it = await _aSalaNaPergunta();
-    final vizinhos = [_no(it.container, 0), _no(it.container, 2)];
-
-    await _escolherTraduzirDeNovo(it);
-    await _entregarAPonte(it);
-    await _escolherTraduzirDeNovo(it);
-    await _entregarAPonte(it);
-
-    for (final (onde, antes) in [(0, vizinhos[0]), (2, vizinhos[1])]) {
-      final depois = _no(it.container, onde);
       expect(
-        [depois.parte, depois.retroPath, depois.from, depois.to],
-        [antes.parte, antes.retroPath, antes.from, antes.to],
-        reason: 'correção é localizada: consertar um trecho não pode mover nem '
-            'emudecer os outros dois',
+        _no(it.container, lugar).retroPath,
+        isNotNull,
+        reason:
+            'todo trecho contado tem aqui a cópia do que a equipe disse '
+            'na língua-ponte',
       );
     }
   });
+
+  test(
+    'os trechos vizinhos não se mexem, nem depois de dois consertos',
+    () async {
+      final it = await _aSalaNaPergunta();
+      final vizinhos = [_no(it.container, 0), _no(it.container, 2)];
+
+      await _escolherTraduzirDeNovo(it);
+      await _entregarAPonte(it);
+      await _escolherTraduzirDeNovo(it);
+      await _entregarAPonte(it);
+
+      for (final (onde, antes) in [(0, vizinhos[0]), (2, vizinhos[1])]) {
+        final depois = _no(it.container, onde);
+        expect(
+          [depois.parte, depois.retroPath, depois.from, depois.to],
+          [antes.parte, antes.retroPath, antes.from, antes.to],
+          reason:
+              'correção é localizada: consertar um trecho não pode mover nem '
+              'emudecer os outros dois',
+        );
+      }
+    },
+  );
 }

@@ -24,6 +24,7 @@ class MicPermissionNotifier extends Notifier<MicAccess> {
   void refuse() => state = MicAccess.denied;
 }
 
-final micPermissionProvider = NotifierProvider<MicPermissionNotifier, MicAccess>(
-  MicPermissionNotifier.new,
-);
+final micPermissionProvider =
+    NotifierProvider<MicPermissionNotifier, MicAccess>(
+      MicPermissionNotifier.new,
+    );

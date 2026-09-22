@@ -116,10 +116,8 @@ class _RippleState extends State<Ripple> with SingleTickerProviderStateMixin {
     if (_still) return widget.builder(context, 0);
     return AnimatedBuilder(
       animation: _controller,
-      builder: (context, _) => widget.builder(
-        context,
-        Curves.easeOut.transform(_controller.value),
-      ),
+      builder: (context, _) =>
+          widget.builder(context, Curves.easeOut.transform(_controller.value)),
     );
   }
 }

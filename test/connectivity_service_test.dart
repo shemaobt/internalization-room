@@ -53,9 +53,13 @@ void main() {
     );
 
     expect(answers, everyElement(RoomReach.fine));
-    expect(requests, 1,
-        reason: 'cinquenta perguntas ao mesmo tempo derrubam justamente a sala '
-            'que elas queriam alcançar');
+    expect(
+      requests,
+      1,
+      reason:
+          'cinquenta perguntas ao mesmo tempo derrubam justamente a sala '
+          'que elas queriam alcançar',
+    );
   });
 
   test('a later check is asked again, not answered from memory', () async {
@@ -95,9 +99,13 @@ void main() {
     }
     await Future<void>.delayed(const Duration(milliseconds: 50));
 
-    expect(heard, 1,
-        reason: 'o iOS repete o aviso de rede sem parar; cada repetição virava '
-            'uma consulta ao servidor');
+    expect(
+      heard,
+      1,
+      reason:
+          'o iOS repete o aviso de rede sem parar; cada repetição virava '
+          'uma consulta ao servidor',
+    );
   });
 
   test('listening again does not buy a fresh signal', () async {
@@ -117,28 +125,41 @@ void main() {
       await subscription.cancel();
     }
 
-    expect(heard, 1,
-        reason: 'a sala reassina esse aviso toda vez que cai; se reassinar '
-            'zerasse a espera, cair e voltar viraria um laço fechado');
-  });
-
-  test('a network that works with no room on it is not a network that is gone', () async {
-    final connectivity = FakeConnectivity()..current = [ConnectivityResult.wifi];
-    addTearDown(connectivity.close);
-    final service = ConnectivityService(
-      connectivity: connectivity,
-      client: MockClient((_) async => http.Response('nao', 404)),
+    expect(
+      heard,
+      1,
+      reason:
+          'a sala reassina esse aviso toda vez que cai; se reassinar '
+          'zerasse a espera, cair e voltar viraria um laço fechado',
     );
-    addTearDown(service.dispose);
-
-    expect(await service.reachRoom(), RoomReach.roomSilent,
-        reason: 'endereço errado no wi-fi do local produzia a mesma resposta que um '
-            'tablet sem rede nenhuma, e a sala dizia que a internet tinha caído');
   });
+
+  test(
+    'a network that works with no room on it is not a network that is gone',
+    () async {
+      final connectivity = FakeConnectivity()
+        ..current = [ConnectivityResult.wifi];
+      addTearDown(connectivity.close);
+      final service = ConnectivityService(
+        connectivity: connectivity,
+        client: MockClient((_) async => http.Response('nao', 404)),
+      );
+      addTearDown(service.dispose);
+
+      expect(
+        await service.reachRoom(),
+        RoomReach.roomSilent,
+        reason:
+            'endereço errado no wi-fi do local produzia a mesma resposta que um '
+            'tablet sem rede nenhuma, e a sala dizia que a internet tinha caído',
+      );
+    },
+  );
 
   test('no interface at all never reaches for the network', () async {
     var requests = 0;
-    final connectivity = FakeConnectivity()..current = [ConnectivityResult.none];
+    final connectivity = FakeConnectivity()
+      ..current = [ConnectivityResult.none];
     addTearDown(connectivity.close);
     final service = ConnectivityService(
       connectivity: connectivity,

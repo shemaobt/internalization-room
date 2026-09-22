@@ -6,14 +6,14 @@ import '../../domain/session_state.dart';
 import 'facilitator_circle.dart';
 
 String _preparing(String language) => switch (language) {
-      'pt' => 'A sala está preparando o código deste aparelho',
-      _ => 'The room is getting a code for this tablet',
-    };
+  'pt' => 'A sala está preparando o código deste aparelho',
+  _ => 'The room is getting a code for this tablet',
+};
 
 String _showIt(String language) => switch (language) {
-      'pt' => 'Mostre este código ao facilitador',
-      _ => 'Show this code to the facilitator',
-    };
+  'pt' => 'Mostre este código ao facilitador',
+  _ => 'Show this code to the facilitator',
+};
 
 class CodigoView extends StatelessWidget {
   final ClaimCode? code;

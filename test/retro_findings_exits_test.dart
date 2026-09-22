@@ -13,8 +13,8 @@ const wholeClipExit = 'Ouvir e traduzir a gravação de novo';
 const continuarOEnsaio = 'Continuar o ensaio';
 
 Finder bySemanticsLabelWidget(String label) => find.byWidgetPredicate(
-      (widget) => widget is Semantics && widget.properties.label == label,
-    );
+  (widget) => widget is Semantics && widget.properties.label == label,
+);
 
 Future<ProviderContainer> pumpToFindings(
   WidgetTester tester,
@@ -61,12 +61,10 @@ Future<ProviderContainer> pumpToFindings(
 }
 
 void main() {
-  testWidgets('a verdict that names no stretch leaves the rehearsal standing',
-      (tester) async {
-    final container = await pumpToFindings(
-      tester,
-      BtFindingKind.unclear,
-    );
+  testWidgets('a verdict that names no stretch leaves the rehearsal standing', (
+    tester,
+  ) async {
+    final container = await pumpToFindings(tester, BtFindingKind.unclear);
     final rehearsed = container.read(salaSessionProvider).partes.length;
     expect(rehearsed, greaterThan(0));
 
@@ -76,8 +74,9 @@ void main() {
     expect(container.read(salaSessionProvider).partes.length, rehearsed);
   });
 
-  testWidgets('a verdict that names no stretch offers a path that works',
-      (tester) async {
+  testWidgets('a verdict that names no stretch offers a path that works', (
+    tester,
+  ) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await pumpToFindings(
       tester,
@@ -103,30 +102,35 @@ void main() {
     expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);
   });
 
-  testWidgets('a verdict that names a stretch still tells that stretch again',
-      (tester) async {
+  testWidgets('a verdict that names a stretch still tells that stretch again', (
+    tester,
+  ) async {
     final container = await pumpToFindings(
       tester,
       BtFindingKind.addition,
       trecho: 'trecho-1',
     );
 
-    await tester.tap(bySemanticsLabelWidget('Traduzir de novo só em português'));
+    await tester.tap(
+      bySemanticsLabelWidget('Traduzir de novo só em português'),
+    );
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing,
-        reason: 'contar o trecho de novo continua sendo uma saída da tela de '
-            'achados; deixou de ser a sala escolhendo-a pela equipe e passou a '
-            'ser a voz azul da grade, que a equipe toca — e ela abre o '
-            'microfone direto, sem passo intermediário');
+    expect(
+      container.read(salaSessionProvider).btPhase,
+      BtPhase.capturing,
+      reason:
+          'contar o trecho de novo continua sendo uma saída da tela de '
+          'achados; deixou de ser a sala escolhendo-a pela equipe e passou a '
+          'ser a voz azul da grade, que a equipe toca — e ela abre o '
+          'microfone direto, sem passo intermediário',
+    );
   });
 
-  testWidgets('re-recording stays on offer when no stretch was named',
-      (tester) async {
-    final container = await pumpToFindings(
-      tester,
-      BtFindingKind.unclear,
-    );
+  testWidgets('re-recording stays on offer when no stretch was named', (
+    tester,
+  ) async {
+    final container = await pumpToFindings(tester, BtFindingKind.unclear);
 
     await tester.tap(bySemanticsLabelWidget(continuarOEnsaio));
     await tester.pump(const Duration(milliseconds: 300));
@@ -142,13 +146,17 @@ void main() {
     final offered = [retellStretchExit, wholeClipExit, continuarOEnsaio]
         .where((label) => bySemanticsLabelWidget(label).evaluate().isNotEmpty)
         .toList();
-    expect(offered, [continuarOEnsaio],
-        reason: 'as duas regras valem juntas aqui. A adição pertence à '
-            'gravação, e traduzir de novo não tira dela o que a equipe pôs — '
-            'nem um trecho, nem a gravação inteira: as duas são a mesma '
-            'família de saída, e o ponteiro do achado não muda qual família '
-            'responde ao tipo dele. Sobra regravar, que é a mesma saída que a '
-            'sala já oferece para uma adição COM trecho apontado');
+    expect(
+      offered,
+      [continuarOEnsaio],
+      reason:
+          'as duas regras valem juntas aqui. A adição pertence à '
+          'gravação, e traduzir de novo não tira dela o que a equipe pôs — '
+          'nem um trecho, nem a gravação inteira: as duas são a mesma '
+          'família de saída, e o ponteiro do achado não muda qual família '
+          'responde ao tipo dele. Sobra regravar, que é a mesma saída que a '
+          'sala já oferece para uma adição COM trecho apontado',
+    );
 
     for (final label in offered) {
       final room = await pumpToFindings(tester, BtFindingKind.addition);

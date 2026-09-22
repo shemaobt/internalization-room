@@ -98,16 +98,14 @@ class RoomRepository {
   final http.Client _client;
   final Future<String> Function() _deviceId;
 
-  RoomRepository({
-    http.Client? client,
-    Future<String> Function()? deviceId,
-  })  : _client = client ?? http.Client(),
-        _deviceId = deviceId ?? deviceIdentity;
+  RoomRepository({http.Client? client, Future<String> Function()? deviceId})
+    : _client = client ?? http.Client(),
+      _deviceId = deviceId ?? deviceIdentity;
 
   Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        ..._whoWeAre,
-      };
+    'Content-Type': 'application/json',
+    ..._whoWeAre,
+  };
 
   /// Who this tablet is, on every request it makes.
   ///
@@ -115,9 +113,9 @@ class RoomRepository {
   /// a header each site spells for itself is a header the next site forgets, and the
   /// omission only ever shows against a real server.
   Map<String, String> get _whoWeAre => {
-        'X-Room-Key': Env.roomKey,
-        'X-Device-Credential': ?_credential,
-      };
+    'X-Room-Key': Env.roomKey,
+    'X-Device-Credential': ?_credential,
+  };
 
   String? _credential;
 
@@ -189,7 +187,10 @@ class RoomRepository {
   /// book and synthesizes a line for each, so it is generative work wearing the shape of
   /// a read. Twenty seconds turned a room that was still working into "the internet is
   /// gone" — spoken, to a team that cannot read the difference.
-  Future<List<Passagem>> passagesOf(String book, {required String language}) async {
+  Future<List<Passagem>> passagesOf(
+    String book, {
+    required String language,
+  }) async {
     final response = await _send(
       () => _client.get(
         _uri('/books/$book/passages?language=$language'),
@@ -220,7 +221,8 @@ class RoomRepository {
     unawaited(() async {
       try {
         final response = await _client.send(
-          http.Request('GET', _uri('/sessions/$sessionId/coverage'))..headers.addAll(_headers),
+          http.Request('GET', _uri('/sessions/$sessionId/coverage'))
+            ..headers.addAll(_headers),
         );
         if (cancelled) {
           unawaited(response.stream.listen(null).cancel());
@@ -228,25 +230,31 @@ class RoomRepository {
         }
         String? eventName;
         final data = StringBuffer();
-        lineSub = utf8.decoder.bind(response.stream).transform(const LineSplitter()).listen(
-          (line) {
-            if (line.isEmpty) {
-              final parsed = _parseCoverageEvent(eventName, data.toString());
-              if (parsed != null) controller.add(parsed);
-              eventName = null;
-              data.clear();
-              return;
-            }
-            if (line.startsWith('event:')) {
-              eventName = line.substring(6).trim();
-            } else if (line.startsWith('data:')) {
-              if (data.isNotEmpty) data.write('\n');
-              data.write(line.substring(5).trim());
-            }
-          },
-          onDone: controller.close,
-          onError: (Object _) => controller.close(),
-        );
+        lineSub = utf8.decoder
+            .bind(response.stream)
+            .transform(const LineSplitter())
+            .listen(
+              (line) {
+                if (line.isEmpty) {
+                  final parsed = _parseCoverageEvent(
+                    eventName,
+                    data.toString(),
+                  );
+                  if (parsed != null) controller.add(parsed);
+                  eventName = null;
+                  data.clear();
+                  return;
+                }
+                if (line.startsWith('event:')) {
+                  eventName = line.substring(6).trim();
+                } else if (line.startsWith('data:')) {
+                  if (data.isNotEmpty) data.write('\n');
+                  data.write(line.substring(5).trim());
+                }
+              },
+              onDone: controller.close,
+              onError: (Object _) => controller.close(),
+            );
       } on Exception {
         await controller.close();
       }
@@ -284,9 +292,10 @@ class RoomRepository {
   }
 
   Future<TurnResult> sendTurn(String sessionId, File audio) async {
-    final request = http.MultipartRequest('POST', _uri('/sessions/$sessionId/turns'))
-      ..headers.addAll(_whoWeAre)
-      ..files.add(await http.MultipartFile.fromPath('file', audio.path));
+    final request =
+        http.MultipartRequest('POST', _uri('/sessions/$sessionId/turns'))
+          ..headers.addAll(_whoWeAre)
+          ..files.add(await http.MultipartFile.fromPath('file', audio.path));
     return _read(await _sendMultipart(request), TurnResult.fromJson);
   }
 
@@ -300,16 +309,17 @@ class RoomRepository {
     required Duration from,
     required Duration to,
   }) async {
-    final request = http.MultipartRequest(
-      'POST',
-      _uri('/sessions/$sessionId/back-translation/chunks'),
-    )
-      ..headers.addAll(_whoWeAre)
-      ..headers['X-Room-Device'] = await _deviceId()
-      ..fields['take_id'] = takeId
-      ..fields['starts_ms'] = '${from.inMilliseconds}'
-      ..fields['ends_ms'] = '${to.inMilliseconds}'
-      ..files.add(await http.MultipartFile.fromPath('file', audio.path));
+    final request =
+        http.MultipartRequest(
+            'POST',
+            _uri('/sessions/$sessionId/back-translation/chunks'),
+          )
+          ..headers.addAll(_whoWeAre)
+          ..headers['X-Room-Device'] = await _deviceId()
+          ..fields['take_id'] = takeId
+          ..fields['starts_ms'] = '${from.inMilliseconds}'
+          ..fields['ends_ms'] = '${to.inMilliseconds}'
+          ..files.add(await http.MultipartFile.fromPath('file', audio.path));
     return _read(await _sendMultipart(request), BackTranslationChunk.fromJson);
   }
 
@@ -325,12 +335,13 @@ class RoomRepository {
     int? passNumber,
     int? chunkIndex,
   }) async {
-    final request = http.MultipartRequest('POST', _uri('/sessions/$sessionId/takes'))
-      ..headers.addAll(_whoWeAre)
-      ..headers['X-Room-Device'] = await _deviceId()
-      ..fields['kind'] = kind
-      ..fields['scope'] = scope
-      ..files.add(await http.MultipartFile.fromPath('file', audio.path));
+    final request =
+        http.MultipartRequest('POST', _uri('/sessions/$sessionId/takes'))
+          ..headers.addAll(_whoWeAre)
+          ..headers['X-Room-Device'] = await _deviceId()
+          ..fields['kind'] = kind
+          ..fields['scope'] = scope
+          ..files.add(await http.MultipartFile.fromPath('file', audio.path));
     if (passNumber != null) request.fields['pass_number'] = '$passNumber';
     if (chunkIndex != null) request.fields['chunk_index'] = '$chunkIndex';
     return _read(
@@ -389,15 +400,16 @@ class RoomRepository {
     required Duration from,
     required Duration to,
   }) async {
-    final request = http.MultipartRequest(
-      'POST',
-      _uri('/sessions/$sessionId/segments/$segmentId/replace'),
-    )
-      ..headers.addAll(_whoWeAre)
-      ..headers['X-Room-Device'] = await _deviceId()
-      ..fields['take_id'] = takeId
-      ..fields['starts_ms'] = '${from.inMilliseconds}'
-      ..fields['ends_ms'] = '${to.inMilliseconds}';
+    final request =
+        http.MultipartRequest(
+            'POST',
+            _uri('/sessions/$sessionId/segments/$segmentId/replace'),
+          )
+          ..headers.addAll(_whoWeAre)
+          ..headers['X-Room-Device'] = await _deviceId()
+          ..fields['take_id'] = takeId
+          ..fields['starts_ms'] = '${from.inMilliseconds}'
+          ..fields['ends_ms'] = '${to.inMilliseconds}';
     request.files.add(await http.MultipartFile.fromPath('file', audio.path));
     return _read(await _sendMultipart(request), TellingAgain.fromJson);
   }
@@ -483,10 +495,7 @@ class RoomRepository {
 
   Future<Uint8List> fetchClip(String url) async {
     final response = await _send(
-      () => _client.get(
-        Uri.parse('${Env.backendUrl}$url'),
-        headers: _whoWeAre,
-      ),
+      () => _client.get(Uri.parse('${Env.backendUrl}$url'), headers: _whoWeAre),
       _turnTimeout,
     );
     if (response.statusCode == 401 || response.statusCode == 403) {
@@ -499,9 +508,9 @@ class RoomRepository {
   }
 
   Future<http.Response> _sendMultipart(http.MultipartRequest request) => _send(
-        () async => http.Response.fromStream(await _client.send(request)),
-        _turnTimeout,
-      );
+    () async => http.Response.fromStream(await _client.send(request)),
+    _turnTimeout,
+  );
 
   Future<http.Response> _send(
     Future<http.Response> Function() call,
@@ -541,7 +550,8 @@ class RoomRepository {
       throw RoomBroke('HTTP ${response.statusCode}');
     }
     try {
-      return jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      return jsonDecode(utf8.decode(response.bodyBytes))
+          as Map<String, dynamic>;
     } on Exception catch (error) {
       throw RoomBroke('resposta ilegível: $error');
     } on TypeError catch (error) {

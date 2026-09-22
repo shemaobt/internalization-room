@@ -8,33 +8,33 @@ import 'package:internalization_room/features/sala/presentation/widgets/facilita
 import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
 
 Widget _circleIn(VoiceState voice) => MaterialApp(
-      theme: AppTheme.light,
-      home: Scaffold(
-        body: Center(
-          child: FacilitatorCircle(
-            size: 196,
-            voice: voice,
-            semanticLabel: 'circulo',
-            onTap: () {},
-          ),
-        ),
+  theme: AppTheme.light,
+  home: Scaffold(
+    body: Center(
+      child: FacilitatorCircle(
+        size: 196,
+        voice: voice,
+        semanticLabel: 'circulo',
+        onTap: () {},
       ),
-    );
+    ),
+  ),
+);
 
 Widget _circle({required bool peerCue}) => MaterialApp(
-      theme: AppTheme.light,
-      home: Scaffold(
-        body: Center(
-          child: FacilitatorCircle(
-            size: 196,
-            voice: VoiceState.invite,
-            peerCue: peerCue,
-            semanticLabel: 'circulo',
-            onTap: () {},
-          ),
-        ),
+  theme: AppTheme.light,
+  home: Scaffold(
+    body: Center(
+      child: FacilitatorCircle(
+        size: 196,
+        voice: VoiceState.invite,
+        peerCue: peerCue,
+        semanticLabel: 'circulo',
+        onTap: () {},
       ),
-    );
+    ),
+  ),
+);
 
 Future<Set<double>> _scalesOver(WidgetTester tester, Widget app) async {
   await tester.pumpWidget(app);
@@ -43,7 +43,9 @@ Future<Set<double>> _scalesOver(WidgetTester tester, Widget app) async {
   // and sampling less than half a period never approaches it at all.
   for (var frame = 0; frame < 44; frame++) {
     await tester.pump(const Duration(milliseconds: 120));
-    for (final transform in tester.widgetList<Transform>(find.byType(Transform))) {
+    for (final transform in tester.widgetList<Transform>(
+      find.byType(Transform),
+    )) {
       seen.add(transform.transform.getMaxScaleOnAxis());
     }
   }
@@ -63,8 +65,12 @@ void main() {
     // pixel on a 196 px disc. What the claim is: the same breath as every other invite,
     // so both reach the same peak, and that peak is visible.
     expect(peak(withTeam), greaterThan(1.04));
-    expect((peak(withTeam) - peak(alone)).abs(), lessThan(0.004),
-        reason: 'a afirmação não é que respira, é que respira igual a todo invite');
+    expect(
+      (peak(withTeam) - peak(alone)).abs(),
+      lessThan(0.004),
+      reason:
+          'a afirmação não é que respira, é que respira igual a todo invite',
+    );
   });
 
   testWidgets('a button that just appeared accepts the first touch', (
@@ -112,8 +118,9 @@ void main() {
     expect(seen.toSet().length, greaterThan(1));
   });
 
-  testWidgets('the room speaking is a circle that moves, not a still orange disc',
-      (tester) async {
+  testWidgets('the room speaking is a circle that moves, not a still orange disc', (
+    tester,
+  ) async {
     await tester.pumpWidget(_circleIn(VoiceState.speaking));
     final body = <double>{};
     for (var frame = 0; frame < 44; frame++) {
@@ -126,18 +133,25 @@ void main() {
             ),
           )
           .toSet();
-      for (final transform in tester.widgetList<Transform>(find.byType(Transform))) {
+      for (final transform in tester.widgetList<Transform>(
+        find.byType(Transform),
+      )) {
         if (!rings.contains(transform)) {
           body.add(transform.transform.getMaxScaleOnAxis());
         }
       }
     }
-    final swing = body.reduce((a, b) => a > b ? a : b) -
+    final swing =
+        body.reduce((a, b) => a > b ? a : b) -
         body.reduce((a, b) => a < b ? a : b);
 
-    expect(swing, greaterThan(0.015),
-        reason: 'falando é o único estado em que a sala está fazendo algo audível, e uma '
-            'bola parada não se distingue de uma sala que travou no meio da fala');
+    expect(
+      swing,
+      greaterThan(0.015),
+      reason:
+          'falando é o único estado em que a sala está fazendo algo audível, e uma '
+          'bola parada não se distingue de uma sala que travou no meio da fala',
+    );
   });
 
   testWidgets('a halted room is still visibly running', (tester) async {
@@ -147,17 +161,23 @@ void main() {
       VoiceState.blocked,
     ]) {
       final seen = await _scalesOver(tester, _circleIn(voice));
-      final swing = seen.reduce((a, b) => a > b ? a : b) -
+      final swing =
+          seen.reduce((a, b) => a > b ? a : b) -
           seen.reduce((a, b) => a < b ? a : b);
 
-      expect(swing, greaterThan(0.015),
-          reason: '$voice fala sua linha uma vez e depois nunca mais; sem movimento, '
-              'olhar para essa tela não distingue uma sala esperando de um app morto');
+      expect(
+        swing,
+        greaterThan(0.015),
+        reason:
+            '$voice fala sua linha uma vez e depois nunca mais; sem movimento, '
+            'olhar para essa tela não distingue uma sala esperando de um app morto',
+      );
     }
   });
 
-  testWidgets('a thing that arrives fades in, and never slides up into place',
-      (tester) async {
+  testWidgets('a thing that arrives fades in, and never slides up into place', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Center(child: FadeUp(child: SizedBox(width: 120, height: 120))),
@@ -166,9 +186,13 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(
-      find.descendant(of: find.byType(FadeUp), matching: find.byType(Transform)),
+      find.descendant(
+        of: find.byType(FadeUp),
+        matching: find.byType(Transform),
+      ),
       findsNothing,
-      reason: 'tudo o que aparecia na sala subia dez pixels enquanto aparecia, '
+      reason:
+          'tudo o que aparecia na sala subia dez pixels enquanto aparecia, '
           'e um deslize é a única coisa que o olho de quem está concentrado na '
           'conversa pega sem querer olhar',
     );
@@ -176,99 +200,143 @@ void main() {
     final veu = tester.widget<Opacity>(
       find.descendant(of: find.byType(FadeUp), matching: find.byType(Opacity)),
     );
-    expect(veu.opacity, greaterThan(0.0),
-        reason: 'e ele continua sendo uma chegada, não um corte');
-    expect(veu.opacity, lessThan(1.0),
-        reason: 'no meio da chegada ela ainda está acontecendo — sem isto o '
-            'caso passaria com o esmaecer arrancado junto com o deslize');
+    expect(
+      veu.opacity,
+      greaterThan(0.0),
+      reason: 'e ele continua sendo uma chegada, não um corte',
+    );
+    expect(
+      veu.opacity,
+      lessThan(1.0),
+      reason:
+          'no meio da chegada ela ainda está acontecendo — sem isto o '
+          'caso passaria com o esmaecer arrancado junto com o deslize',
+    );
   });
 
-  testWidgets('the small motions stop too when the tablet asks for less of them',
-      (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: MediaQuery(
-          data: const MediaQueryData(disableAnimations: true),
-          child: Column(
-            children: const [
-              Pulse(child: SizedBox(width: 10, height: 10)),
-              PingIn(child: SizedBox(width: 10, height: 10)),
-              FadeUp(child: SizedBox(width: 10, height: 10)),
-              ThreadIn(
-                index: 0,
-                total: 3,
-                threaded: false,
-                child: SizedBox(width: 10, height: 10),
-              ),
-            ],
+  testWidgets(
+    'the small motions stop too when the tablet asks for less of them',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: const MediaQueryData(disableAnimations: true),
+            child: Column(
+              children: const [
+                Pulse(child: SizedBox(width: 10, height: 10)),
+                PingIn(child: SizedBox(width: 10, height: 10)),
+                FadeUp(child: SizedBox(width: 10, height: 10)),
+                ThreadIn(
+                  index: 0,
+                  total: 3,
+                  threaded: false,
+                  child: SizedBox(width: 10, height: 10),
+                ),
+              ],
+            ),
           ),
         ),
-      ),
-    );
-    await tester.pump(const Duration(milliseconds: 300));
+      );
+      await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.byType(Loop), findsNothing,
-        reason: 'o pulsar de um botão continua sendo movimento para quem '
-            'desligou o movimento');
-    expect(find.byType(TweenAnimationBuilder<double>), findsNothing,
-        reason: 'e o aparecer, o chegar e o enfiar da conta no cordão também — '
+      expect(
+        find.byType(Loop),
+        findsNothing,
+        reason:
+            'o pulsar de um botão continua sendo movimento para quem '
+            'desligou o movimento',
+      );
+      expect(
+        find.byType(TweenAnimationBuilder<double>),
+        findsNothing,
+        reason:
+            'e o aparecer, o chegar e o enfiar da conta no cordão também — '
             'quatro portões escritos e nenhum caso: apagar os quatro deixava a '
-            'suíte inteira verde');
-    expect(find.byType(Transform), findsNothing,
-        reason: 'nada cresce, nada encolhe e nada anda de lugar');
+            'suíte inteira verde',
+      );
+      expect(
+        find.byType(Transform),
+        findsNothing,
+        reason: 'nada cresce, nada encolhe e nada anda de lugar',
+      );
 
-    final veu = tester.widget<Opacity>(
-      find.descendant(of: find.byType(ThreadIn), matching: find.byType(Opacity)),
-    );
-    expect(veu.opacity, 0.0,
-        reason: 'e a conta que ainda não foi enfiada continua escondida: este é '
-            'o único dos quatro que desenha coisa diferente de acordo com o '
-            'estado, e parar a animação não pode acender o cordão inteiro');
-  });
-
-  testWidgets('the microphone meter stops dancing when the tablet asks for less motion',
-      (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light,
-        home: const MediaQuery(
-          data: MediaQueryData(disableAnimations: true),
-          child: Scaffold(body: Center(child: EqBars(active: true))),
+      final veu = tester.widget<Opacity>(
+        find.descendant(
+          of: find.byType(ThreadIn),
+          matching: find.byType(Opacity),
         ),
-      ),
-    );
+      );
+      expect(
+        veu.opacity,
+        0.0,
+        reason:
+            'e a conta que ainda não foi enfiada continua escondida: este é '
+            'o único dos quatro que desenha coisa diferente de acordo com o '
+            'estado, e parar a animação não pode acender o cordão inteiro',
+      );
+    },
+  );
 
-    Set<double> alturas() => tester
-        .widgetList<AnimatedContainer>(find.descendant(
-          of: find.byType(EqBars),
-          matching: find.byType(AnimatedContainer),
-        ))
-        .map((barra) => barra.constraints!.maxHeight)
-        .toSet();
+  testWidgets(
+    'the microphone meter stops dancing when the tablet asks for less motion',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MediaQuery(
+            data: MediaQueryData(disableAnimations: true),
+            child: Scaffold(body: Center(child: EqBars(active: true))),
+          ),
+        ),
+      );
 
-    final primeiras = alturas();
-    expect(primeiras, isNotEmpty,
-        reason: 'sem barras desenhadas não há o que medir');
+      Set<double> alturas() => tester
+          .widgetList<AnimatedContainer>(
+            find.descendant(
+              of: find.byType(EqBars),
+              matching: find.byType(AnimatedContainer),
+            ),
+          )
+          .map((barra) => barra.constraints!.maxHeight)
+          .toSet();
 
-    for (var frame = 0; frame < 30; frame++) {
-      await tester.pump(const Duration(milliseconds: 100));
-      expect(alturas(), primeiras,
-          reason: 'o medidor tem o seu próprio controlador e nunca passou pelo '
+      final primeiras = alturas();
+      expect(
+        primeiras,
+        isNotEmpty,
+        reason: 'sem barras desenhadas não há o que medir',
+      );
+
+      for (var frame = 0; frame < 30; frame++) {
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(
+          alturas(),
+          primeiras,
+          reason:
+              'o medidor tem o seu próprio controlador e nunca passou pelo '
               'portão de motion.dart: vinte e quatro barras dançando num laço '
               'de 1200 ms, vivas exatamente enquanto o microfone está aberto, '
-              'que é o momento mais longo que a equipe passa olhando a tela');
-    }
+              'que é o momento mais longo que a equipe passa olhando a tela',
+        );
+      }
 
-    final acesas = tester
-        .widgetList<AnimatedContainer>(find.descendant(
-          of: find.byType(EqBars),
-          matching: find.byType(AnimatedContainer),
-        ))
-        .map((barra) => (barra.decoration! as BoxDecoration).color)
-        .toSet();
-    expect(acesas, {SalaColors.light.telha},
-        reason: 'e o medidor continua dizendo que o microfone está aberto — '
+      final acesas = tester
+          .widgetList<AnimatedContainer>(
+            find.descendant(
+              of: find.byType(EqBars),
+              matching: find.byType(AnimatedContainer),
+            ),
+          )
+          .map((barra) => (barra.decoration! as BoxDecoration).color)
+          .toSet();
+      expect(
+        acesas,
+        {SalaColors.light.telha},
+        reason:
+            'e o medidor continua dizendo que o microfone está aberto — '
             'parar o movimento não pode apagar o aviso, que é a razão de ele '
-            'existir');
-  });
+            'existir',
+      );
+    },
+  );
 }

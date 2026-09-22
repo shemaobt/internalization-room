@@ -10,7 +10,9 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 
-Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) async {
+Future<void> settle([
+  Duration delay = const Duration(milliseconds: 120),
+]) async {
   await Future<void>.delayed(delay);
 }
 
@@ -33,7 +35,9 @@ Future<ProviderContainer> _retomar(
       for (var n = 1; n <= partes; n++)
         KeptTake(
           scopeId: KeptScope.parte(n),
-          path: (File('${casa.path}/p$n.m4a')..writeAsBytesSync([1, 2, 3])).path,
+          path: (File(
+            '${casa.path}/p$n.m4a',
+          )..writeAsBytesSync([1, 2, 3])).path,
           takeId: 'gravacao-$n',
         ),
     ],
@@ -50,11 +54,11 @@ Future<ProviderContainer> _retomar(
 }
 
 SegmentView _traduzido(String gravacao, int de, int ate) => SegmentView(
-      segmentId: '$gravacao@$de-$ate',
-      takeId: gravacao,
-      startsMs: de,
-      endsMs: ate,
-    );
+  segmentId: '$gravacao@$de-$ate',
+  takeId: gravacao,
+  startsMs: de,
+  endsMs: ate,
+);
 
 /// A team recording a part and entering the telling-back for the first time, with no
 /// resume point and nothing told back yet.
@@ -86,9 +90,13 @@ Future<ProviderContainer> _primeiraRetro(SalaHarness harness) async {
 /// (`sessions.py:495`) *replaces* what the session holds on every report, so nothing a
 /// previous round sent is still there to help.
 void _cobreOEnsaio(List<Map<String, Object?>> relato, {required int partes}) {
-  expect(relato, hasLength(partes),
-      reason: 'o portão pergunta uma vez por parte, e uma parte que não está '
-          'no relato é uma parte que ninguém ouviu');
+  expect(
+    relato,
+    hasLength(partes),
+    reason:
+        'o portão pergunta uma vez por parte, e uma parte que não está '
+        'no relato é uma parte que ninguém ouviu',
+  );
   for (final parte in relato) {
     _cobreOClipe(
       parte['played_ranges']! as List<List<int>>,
@@ -100,8 +108,9 @@ void _cobreOEnsaio(List<Map<String, Object?>> relato, {required int partes}) {
 void _cobreOClipe(List<List<int>> faixas, int clipeMs) {
   const folga = 750;
   expect(faixas, isNotEmpty, reason: 'a sala recusa um relato vazio');
-  final ordenadas = [for (final faixa in faixas) [faixa[0], faixa[1]]]
-    ..sort((uma, outra) => uma[0].compareTo(outra[0]));
+  final ordenadas = [
+    for (final faixa in faixas) [faixa[0], faixa[1]],
+  ]..sort((uma, outra) => uma[0].compareTo(outra[0]));
   final unidas = <List<int>>[];
   for (final faixa in ordenadas) {
     if (unidas.isNotEmpty && faixa[0] <= unidas.last[1] + folga) {
@@ -110,13 +119,23 @@ void _cobreOClipe(List<List<int>> faixas, int clipeMs) {
       unidas.add(faixa);
     }
   }
-  expect(unidas, hasLength(1),
-      reason: 'um buraco maior que a folga parte a cobertura em duas, e o '
-          'portão pede uma que vá de ponta a ponta: $faixas');
-  expect(unidas.single.first, lessThanOrEqualTo(folga),
-      reason: 'a cobertura começa no começo do ensaio: $faixas');
-  expect(unidas.single.last, greaterThanOrEqualTo(clipeMs - folga),
-      reason: 'e alcança o fim dele ($clipeMs ms): $faixas');
+  expect(
+    unidas,
+    hasLength(1),
+    reason:
+        'um buraco maior que a folga parte a cobertura em duas, e o '
+        'portão pede uma que vá de ponta a ponta: $faixas',
+  );
+  expect(
+    unidas.single.first,
+    lessThanOrEqualTo(folga),
+    reason: 'a cobertura começa no começo do ensaio: $faixas',
+  );
+  expect(
+    unidas.single.last,
+    greaterThanOrEqualTo(clipeMs - folga),
+    reason: 'e alcança o fim dele ($clipeMs ms): $faixas',
+  );
 }
 
 /// Where the cursor is, read the only way the room lets anyone read it from outside: the
@@ -142,87 +161,112 @@ Future<Duration> _cursorPeloCorte(
 }
 
 void main() {
-  test('a part picked back up plays on from where the telling-back stopped',
-      () async {
-    final harness = SalaHarness()..playback.length = const Duration(seconds: 32);
-    final container = await _retomar(
-      harness,
-      traduzido: [_traduzido('gravacao-1', 0, 30000)],
-    );
-    final notifier = container.read(salaSessionProvider.notifier);
+  test(
+    'a part picked back up plays on from where the telling-back stopped',
+    () async {
+      final harness = SalaHarness()
+        ..playback.length = const Duration(seconds: 32);
+      final container = await _retomar(
+        harness,
+        traduzido: [_traduzido('gravacao-1', 0, 30000)],
+      );
+      final notifier = container.read(salaSessionProvider.notifier);
 
-    // Nobody writes the position here: where the clip starts is the whole question, and
-    // the two seconds after it are the team telling one more stretch back.
-    final comecou = harness.playback.at;
-    harness.playback.walkWhilePlaying(step: const Duration(seconds: 2));
-    await waitFor(
-      'o ensaio andar dois segundos',
-      () => harness.playback.at >= comecou + const Duration(seconds: 2),
-    );
-    harness.playback.stopWalking();
-    notifier.cortarTrecho();
-    await settle();
-    notifier.retroTap();
-    await settle();
+      // Nobody writes the position here: where the clip starts is the whole question, and
+      // the two seconds after it are the team telling one more stretch back.
+      final comecou = harness.playback.at;
+      harness.playback.walkWhilePlaying(step: const Duration(seconds: 2));
+      await waitFor(
+        'o ensaio andar dois segundos',
+        () => harness.playback.at >= comecou + const Duration(seconds: 2),
+      );
+      harness.playback.stopWalking();
+      notifier.cortarTrecho();
+      await settle();
+      notifier.retroTap();
+      await settle();
 
-    expect(harness.room.chunkSpans, ['30000-32000'],
-        reason: 'a equipe volta e ouve de novo os trinta segundos que já '
-            'contou, e a tesoura é recusada calada enquanto isso');
-  });
+      expect(
+        harness.room.chunkSpans,
+        ['30000-32000'],
+        reason:
+            'a equipe volta e ouve de novo os trinta segundos que já '
+            'contou, e a tesoura é recusada calada enquanto isso',
+      );
+    },
+  );
 
-  test('the told ground of a part picked back up is still reported as heard',
-      () async {
-    final harness = SalaHarness()..playback.length = const Duration(seconds: 40);
-    final container = await _retomar(
-      harness,
-      traduzido: [_traduzido('gravacao-1', 0, 30000)],
-    );
-    final notifier = container.read(salaSessionProvider.notifier);
+  test(
+    'the told ground of a part picked back up is still reported as heard',
+    () async {
+      final harness = SalaHarness()
+        ..playback.length = const Duration(seconds: 40);
+      final container = await _retomar(
+        harness,
+        traduzido: [_traduzido('gravacao-1', 0, 30000)],
+      );
+      final notifier = container.read(salaSessionProvider.notifier);
 
-    harness.playback.finishPlayback();
-    await settle();
-    await notifier.finishBackTranslation();
-    await settle();
+      harness.playback.finishPlayback();
+      await settle();
+      await notifier.finishBackTranslation();
+      await settle();
 
-    expect(harness.room.playedByTakeSent.last, [
-      {
-        'take_id': 'gravacao-1',
-        'played_ranges': [
-          [0, 40000]
+      expect(
+        harness.room.playedByTakeSent.last,
+        [
+          {
+            'take_id': 'gravacao-1',
+            'played_ranges': [
+              [0, 40000],
+            ],
+            'clip_duration_ms': 40000,
+          },
         ],
-        'clip_duration_ms': 40000,
-      },
-    ],
-        reason: 'o portão lê o relato como o que a equipe ouviu deste ensaio, '
+        reason:
+            'o portão lê o relato como o que a equipe ouviu deste ensaio, '
             'não como a escuta de uma rodada: report_playback substitui os '
             'ranges a cada relato e a cobertura tem de ir de zero ao fim da '
-            'parte, então calar o chão contado antes recusa o terminei');
-  });
+            'parte, então calar o chão contado antes recusa o terminei',
+      );
+    },
+  );
 
-  test('parts told back whole are stepped over, and the next one starts at nought',
-      () async {
-    final harness = SalaHarness();
-    final container = await _retomar(
-      harness,
-      partes: 2,
-      traduzido: [_traduzido('gravacao-1', 0, 30000)],
-    );
+  test(
+    'parts told back whole are stepped over, and the next one starts at nought',
+    () async {
+      final harness = SalaHarness();
+      final container = await _retomar(
+        harness,
+        partes: 2,
+        traduzido: [_traduzido('gravacao-1', 0, 30000)],
+      );
 
-    await waitFor(
-      'a segunda parte entrar no ar',
-      () => harness.playback.played.isNotEmpty,
-    );
-    expect(harness.playback.played.single, endsWith('p2.m4a'),
-        reason: 'a primeira parte foi contada inteira; tocá-la de novo é a '
-            'volta ao começo que esta mudança existe para não fazer');
-    expect(harness.playback.at, Duration.zero,
-        reason: 'e a segunda ninguém contou ainda, então ela começa onde '
-            'sempre começou');
-    expect(container.read(salaSessionProvider).stage, SalaStage.retro);
-  });
+      await waitFor(
+        'a segunda parte entrar no ar',
+        () => harness.playback.played.isNotEmpty,
+      );
+      expect(
+        harness.playback.played.single,
+        endsWith('p2.m4a'),
+        reason:
+            'a primeira parte foi contada inteira; tocá-la de novo é a '
+            'volta ao começo que esta mudança existe para não fazer',
+      );
+      expect(
+        harness.playback.at,
+        Duration.zero,
+        reason:
+            'e a segunda ninguém contou ainda, então ela começa onde '
+            'sempre começou',
+      );
+      expect(container.read(salaSessionProvider).stage, SalaStage.retro);
+    },
+  );
 
   test('crossing into a part nobody told back starts it at nought', () async {
-    final harness = SalaHarness()..playback.length = const Duration(seconds: 30);
+    final harness = SalaHarness()
+      ..playback.length = const Duration(seconds: 30);
     final container = await _retomar(
       harness,
       partes: 2,
@@ -236,98 +280,130 @@ void main() {
     await settle();
 
     expect(harness.playback.played.last, endsWith('p2.m4a'));
-    expect(harness.playback.at, Duration.zero,
-        reason: 'o cursor pertence ao arquivo no ar, e a parte nova não tem '
-            'chão contado nenhum');
+    expect(
+      harness.playback.at,
+      Duration.zero,
+      reason:
+          'o cursor pertence ao arquivo no ar, e a parte nova não tem '
+          'chão contado nenhum',
+    );
   });
 
-  test('crossing into a part half told back starts it at its own cursor', () async {
-    final harness = SalaHarness()..playback.length = const Duration(seconds: 30);
-    final container = await _retomar(
-      harness,
-      partes: 2,
-      traduzido: [
-        _traduzido('gravacao-1', 0, 12000),
-        _traduzido('gravacao-2', 0, 10000),
-      ],
-    );
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    harness.playback.finishPlayback();
-    await settle();
-    notifier.ouvirGravacao();
-    await settle();
-
-    expect(harness.playback.played.last, endsWith('p2.m4a'));
-    expect(harness.playback.at, const Duration(seconds: 10),
-        reason: 'atravessar não é diferente de retomar: a parte que se abre '
-            'começa depois do que já foi contado dela');
-  });
-
-  test('holding the rehearsal and letting it run again does not rewind it',
-      () async {
-    final harness = SalaHarness();
-    final container = await _retomar(
-      harness,
-      traduzido: [_traduzido('gravacao-1', 0, 30000)],
-    );
-    final notifier = container.read(salaSessionProvider.notifier);
-    await settle();
-    final tocados = harness.playback.played.length;
-
-    notifier.ouvirGravacao();
-    await settle();
-    notifier.ouvirGravacao();
-    await settle();
-
-    expect(harness.playback.played, hasLength(tocados),
-        reason: 'segurar e soltar é o mesmo som voltando, não um clipe novo — '
-            'carregá-lo outra vez é que devolveria a equipe ao começo');
-    expect(harness.playback.at, const Duration(seconds: 30),
-        reason: 'e a posição fica onde a equipe pausou');
-  });
-
-  test('a rehearsal with nothing left to tell ends without being heard again',
-      () async {
-    // The last part is never stepped over, so one told back whole now opens at its own
-    // end — and what says the clip finished stops being the player's own completion and
-    // becomes the ceiling that counts what is left of it.
-    final harness = SalaHarness(clipGrace: const Duration(milliseconds: 100))
-      ..playback.length = const Duration(seconds: 30);
-    final container = await _retomar(
-      harness,
-      traduzido: [_traduzido('gravacao-1', 0, 30000)],
-    );
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    await waitFor(
-      'a sala oferecer o terminei',
-      () => container.read(salaSessionProvider).canFinishBackTranslation,
-    );
-    await notifier.finishBackTranslation();
-    await settle();
-
-    expect(harness.playback.at, const Duration(seconds: 30),
-        reason: 'não sobrou nada para contar nesta gravação, e ouvi-la inteira '
-            'outra vez para poder encerrar é exatamente a duplicação que a '
-            'retomada existe para evitar');
-    expect(harness.room.playedByTakeSent.last, [
-      {
-        'take_id': 'gravacao-1',
-        'played_ranges': [
-          [0, 30000]
+  test(
+    'crossing into a part half told back starts it at its own cursor',
+    () async {
+      final harness = SalaHarness()
+        ..playback.length = const Duration(seconds: 30);
+      final container = await _retomar(
+        harness,
+        partes: 2,
+        traduzido: [
+          _traduzido('gravacao-1', 0, 12000),
+          _traduzido('gravacao-2', 0, 10000),
         ],
-        'clip_duration_ms': 30000,
-      },
-    ],
-        reason: 'e o relato tem de cobrir a parte inteira: playback_confirms_'
+      );
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.playback.finishPlayback();
+      await settle();
+      notifier.ouvirGravacao();
+      await settle();
+
+      expect(harness.playback.played.last, endsWith('p2.m4a'));
+      expect(
+        harness.playback.at,
+        const Duration(seconds: 10),
+        reason:
+            'atravessar não é diferente de retomar: a parte que se abre '
+            'começa depois do que já foi contado dela',
+      );
+    },
+  );
+
+  test(
+    'holding the rehearsal and letting it run again does not rewind it',
+    () async {
+      final harness = SalaHarness();
+      final container = await _retomar(
+        harness,
+        traduzido: [_traduzido('gravacao-1', 0, 30000)],
+      );
+      final notifier = container.read(salaSessionProvider.notifier);
+      await settle();
+      final tocados = harness.playback.played.length;
+
+      notifier.ouvirGravacao();
+      await settle();
+      notifier.ouvirGravacao();
+      await settle();
+
+      expect(
+        harness.playback.played,
+        hasLength(tocados),
+        reason:
+            'segurar e soltar é o mesmo som voltando, não um clipe novo — '
+            'carregá-lo outra vez é que devolveria a equipe ao começo',
+      );
+      expect(
+        harness.playback.at,
+        const Duration(seconds: 30),
+        reason: 'e a posição fica onde a equipe pausou',
+      );
+    },
+  );
+
+  test(
+    'a rehearsal with nothing left to tell ends without being heard again',
+    () async {
+      // The last part is never stepped over, so one told back whole now opens at its own
+      // end — and what says the clip finished stops being the player's own completion and
+      // becomes the ceiling that counts what is left of it.
+      final harness = SalaHarness(clipGrace: const Duration(milliseconds: 100))
+        ..playback.length = const Duration(seconds: 30);
+      final container = await _retomar(
+        harness,
+        traduzido: [_traduzido('gravacao-1', 0, 30000)],
+      );
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      await waitFor(
+        'a sala oferecer o terminei',
+        () => container.read(salaSessionProvider).canFinishBackTranslation,
+      );
+      await notifier.finishBackTranslation();
+      await settle();
+
+      expect(
+        harness.playback.at,
+        const Duration(seconds: 30),
+        reason:
+            'não sobrou nada para contar nesta gravação, e ouvi-la inteira '
+            'outra vez para poder encerrar é exatamente a duplicação que a '
+            'retomada existe para evitar',
+      );
+      expect(
+        harness.room.playedByTakeSent.last,
+        [
+          {
+            'take_id': 'gravacao-1',
+            'played_ranges': [
+              [0, 30000],
+            ],
+            'clip_duration_ms': 30000,
+          },
+        ],
+        reason:
+            'e o relato tem de cobrir a parte inteira: playback_confirms_'
             'rehearsal recusa a parte relatada vazia, então uma retomada em '
-            'que tudo já foi contado ficaria sem saída nenhuma');
-  });
+            'que tudo já foi contado ficaria sem saída nenhuma',
+      );
+    },
+  );
 
   group('the report the finish sends covers the rehearsal', () {
     test('a telling-back done in one go', () async {
-      final harness = SalaHarness()..playback.length = const Duration(seconds: 30);
+      final harness = SalaHarness()
+        ..playback.length = const Duration(seconds: 30);
       final container = await _primeiraRetro(harness);
       final notifier = container.read(salaSessionProvider.notifier);
 
@@ -340,7 +416,8 @@ void main() {
     });
 
     test('a telling-back picked back up inside a part', () async {
-      final harness = SalaHarness()..playback.length = const Duration(seconds: 40);
+      final harness = SalaHarness()
+        ..playback.length = const Duration(seconds: 40);
       final container = await _retomar(
         harness,
         traduzido: [_traduzido('gravacao-1', 0, 30000)],
@@ -461,7 +538,10 @@ void main() {
       notifier.cortarTrecho();
       await settle();
       notifier.retroTap();
-      await waitFor('o trecho chegar à sala', () => harness.room.chunksSent == 1);
+      await waitFor(
+        'o trecho chegar à sala',
+        () => harness.room.chunksSent == 1,
+      );
       notifier.ouvirGravacao();
       await settle();
 

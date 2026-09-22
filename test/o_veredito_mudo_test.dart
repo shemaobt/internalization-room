@@ -57,46 +57,56 @@ void main() {
 
     await _toTheVerdict(harness, notifier);
 
-    expect(read().needsPerson, isFalse, reason: 'um degrau não é a escada toda');
+    expect(
+      read().needsPerson,
+      isFalse,
+      reason: 'um degrau não é a escada toda',
+    );
     expect(
       read().btPhase,
       isNot(BtPhase.conferida),
-      reason: 'a sala encerrava a passagem por causa de um veredito que a '
+      reason:
+          'a sala encerrava a passagem por causa de um veredito que a '
           'equipe nunca ouviu, e numa sala sem palavra escrita isso é '
           'indistinguível de um app travado',
     );
     expect(
       read().voice,
       VoiceState.invite,
-      reason: 'um turno que não foi falado devolve o convite, como nos cinco '
+      reason:
+          'um turno que não foi falado devolve o convite, como nos cinco '
           'irmãos que já fazem isso',
     );
   });
 
-  test('a verdict that could not be said leaves the team a live gesture',
-      () async {
-    final harness = SalaHarness()..voice.refuses.add(_verdictUrl);
-    final container = await _inConversa(harness);
-    final notifier = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
+  test(
+    'a verdict that could not be said leaves the team a live gesture',
+    () async {
+      final harness = SalaHarness()..voice.refuses.add(_verdictUrl);
+      final container = await _inConversa(harness);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
 
-    await _toTheVerdict(harness, notifier);
+      await _toTheVerdict(harness, notifier);
 
-    expect(read().needsPerson, isFalse, reason: 'este é o primeiro degrau');
-    expect(
-      read().btPhase,
-      isNot(BtPhase.thinking),
-      reason: 'thinking não aceita toque e não devolve o botão de terminar: a '
-          'equipe ficaria olhando "um instante" sem nada para tocar',
-    );
-    expect(
-      read().canFinishBackTranslation,
-      isTrue,
-      reason: 'o convite tem de vir com um gesto — os cinco irmãos nunca falam '
-          'de dentro de thinking, então voice: invite bastava para eles e aqui '
-          'não basta; a equipe precisa poder pedir o veredito de novo',
-    );
-  });
+      expect(read().needsPerson, isFalse, reason: 'este é o primeiro degrau');
+      expect(
+        read().btPhase,
+        isNot(BtPhase.thinking),
+        reason:
+            'thinking não aceita toque e não devolve o botão de terminar: a '
+            'equipe ficaria olhando "um instante" sem nada para tocar',
+      );
+      expect(
+        read().canFinishBackTranslation,
+        isTrue,
+        reason:
+            'o convite tem de vir com um gesto — os cinco irmãos nunca falam '
+            'de dentro de thinking, então voice: invite bastava para eles e aqui '
+            'não basta; a equipe precisa poder pedir o veredito de novo',
+      );
+    },
+  );
 
   test('three that could not be spoken, the last of them the verdict, call a '
       'person', () async {
@@ -113,7 +123,8 @@ void main() {
     expect(
       read().needsPerson,
       isTrue,
-      reason: 'numa sala sem palavra escrita, um veredito que ninguém ouviu é '
+      reason:
+          'numa sala sem palavra escrita, um veredito que ninguém ouviu é '
           'indistinguível de um app travado — e a escada existe para chamar '
           'alguém antes disso',
     );

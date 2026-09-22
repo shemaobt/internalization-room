@@ -22,12 +22,14 @@ const continuarOEnsaioLabel = 'Continuar o ensaio';
 /// being held is that the screen offers these and nothing else, and a reading that only
 /// looked for the ones it expected could not see a sixth.
 List<String> alvosDaGrade(WidgetTester tester) => [
-      for (final alvo in tester.widgetList<Semantics>(find.descendant(
-        of: find.byType(OndeMoraGrade),
-        matching: find.byType(Semantics),
-      )))
-        if (alvo.properties.button ?? false) alvo.properties.label ?? '',
-    ];
+  for (final alvo in tester.widgetList<Semantics>(
+    find.descendant(
+      of: find.byType(OndeMoraGrade),
+      matching: find.byType(Semantics),
+    ),
+  ))
+    if (alvo.properties.button ?? false) alvo.properties.label ?? '',
+];
 
 Future<void> gravarUmaParte(
   WidgetTester tester,
@@ -117,10 +119,12 @@ Future<void> deixarOArSilenciar(
 /// The gradient of the disc at the centre of the circle: the one drawing that carries one.
 Gradient? discoDoCirculo(WidgetTester tester) {
   final pintados = tester
-      .widgetList<Container>(find.descendant(
-        of: find.byType(FacilitatorCircle),
-        matching: find.byType(Container),
-      ))
+      .widgetList<Container>(
+        find.descendant(
+          of: find.byType(FacilitatorCircle),
+          matching: find.byType(Container),
+        ),
+      )
       .map((caixa) => caixa.decoration)
       .whereType<BoxDecoration>()
       .map((decoracao) => decoracao.gradient)
@@ -133,10 +137,12 @@ Gradient? discoDoCirculo(WidgetTester tester) {
 /// rings closing in on it and their haloes.
 Set<Color> emVoltaDoCirculo(WidgetTester tester) {
   final desenhadas = tester
-      .widgetList<Container>(find.descendant(
-        of: find.byType(FacilitatorCircle),
-        matching: find.byType(Container),
-      ))
+      .widgetList<Container>(
+        find.descendant(
+          of: find.byType(FacilitatorCircle),
+          matching: find.byType(Container),
+        ),
+      )
       .map((caixa) => caixa.decoration)
       .whereType<BoxDecoration>();
   return {
@@ -151,8 +157,9 @@ bool mesmoTom(Color uma, Color outra) =>
     uma.r == outra.r && uma.g == outra.g && uma.b == outra.b;
 
 void main() {
-  testWidgets('a grade oferece quatro gestos e a tesoura, e nada mais',
-      (tester) async {
+  testWidgets('a grade oferece quatro gestos e a tesoura, e nada mais', (
+    tester,
+  ) async {
     final harness = SalaHarness(filaEmMemoria: true);
     await aPerguntaSobreAParteDois(tester, harness);
 
@@ -167,13 +174,18 @@ void main() {
         micRetroLabel,
         cortarTrechoLabel,
       },
-      reason: 'a pergunta é entre duas vozes: ouvir cada uma, pedir a cada uma '
+      reason:
+          'a pergunta é entre duas vozes: ouvir cada uma, pedir a cada uma '
           'que fale de novo, e cortar o que está no ar. O microfone por trecho '
           'da materna era um sexto alvo e saiu da tela',
     );
-    expect(alvosDaGrade(tester), hasLength(5),
-        reason: 'contado, e não só listado: um alvo repetido é um dedo que cai '
-            'no lugar errado, e o conjunto acima não o veria');
+    expect(
+      alvosDaGrade(tester),
+      hasLength(5),
+      reason:
+          'contado, e não só listado: um alvo repetido é um dedo que cai '
+          'no lugar errado, e o conjunto acima não o veria',
+    );
 
     await deixarOArSilenciar(tester, harness);
   });
@@ -182,31 +194,43 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await aPerguntaSobreAParteDois(tester, harness);
     final apontado = container.read(salaSessionProvider).btFindingTrecho!;
-    expect(apontado.parte, 1,
-        reason: 'o achado aponta um trecho da parte 2, que é o que estes casos '
-            'medem');
+    expect(
+      apontado.parte,
+      1,
+      reason:
+          'o achado aponta um trecho da parte 2, que é o que estes casos '
+          'medem',
+    );
 
     await ouvindoAMaterna(tester);
 
-    expect(harness.playback.played.last,
-        container.read(salaSessionProvider).partes[1].path,
-        reason: 'o tocador de madeira põe no ar a gravação da equipe, que é a '
-            'parte onde o trecho mora');
+    expect(
+      harness.playback.played.last,
+      container.read(salaSessionProvider).partes[1].path,
+      reason:
+          'o tocador de madeira põe no ar a gravação da equipe, que é a '
+          'parte onde o trecho mora',
+    );
 
     await tester.tap(byLabel(ouvirMaternaLabel));
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(byLabel(ouvirRetroLabel));
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(harness.playback.played.last, apontado.retroPath,
-        reason: 'e o tocador azul põe no ar a tradução em português, que é a '
-            'voz que viaja até o analista');
+    expect(
+      harness.playback.played.last,
+      apontado.retroPath,
+      reason:
+          'e o tocador azul põe no ar a tradução em português, que é a '
+          'voz que viaja até o analista',
+    );
 
     await deixarOArSilenciar(tester, harness);
   });
 
-  testWidgets('a tesoura da grade divide o trecho que está no ar',
-      (tester) async {
+  testWidgets('a tesoura da grade divide o trecho que está no ar', (
+    tester,
+  ) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await aPerguntaSobreAParteDois(tester, harness);
     final antes = container.read(salaSessionProvider).btTrechos.length;
@@ -216,13 +240,18 @@ void main() {
     await tester.tap(byLabel(cortarTrechoLabel));
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(container.read(salaSessionProvider).btTrechos, hasLength(antes + 1),
-        reason: 'o corte faz duas unidades de uma, e o colar ganha a faixa da '
-            'metade nova');
+    expect(
+      container.read(salaSessionProvider).btTrechos,
+      hasLength(antes + 1),
+      reason:
+          'o corte faz duas unidades de uma, e o colar ganha a faixa da '
+          'metade nova',
+    );
   });
 
-  testWidgets('o microfone azul da grade manda a gravação com o replace',
-      (tester) async {
+  testWidgets('o microfone azul da grade manda a gravação com o replace', (
+    tester,
+  ) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await aPerguntaSobreAParteDois(tester, harness);
     final sala = container.read(salaSessionProvider.notifier);
@@ -236,19 +265,30 @@ void main() {
     await tester.tap(byLabel(micRetroLabel));
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing,
-        reason: 'o microfone azul abre a captura da frase, sem sair da retro');
-    expect(container.read(salaSessionProvider).btEsperandoConserto, isNull,
-        reason: 'a faixa do trecho apontado enche ao escolher: a promessa do '
-            'conserto é feita aqui, antes de qualquer coisa ir para a sala');
+    expect(
+      container.read(salaSessionProvider).btPhase,
+      BtPhase.capturing,
+      reason: 'o microfone azul abre a captura da frase, sem sair da retro',
+    );
+    expect(
+      container.read(salaSessionProvider).btEsperandoConserto,
+      isNull,
+      reason:
+          'a faixa do trecho apontado enche ao escolher: a promessa do '
+          'conserto é feita aqui, antes de qualquer coisa ir para a sala',
+    );
 
     sala.retroTap();
     await letTheRehearsalReachTheRoom(tester);
     await tester.pump(const Duration(milliseconds: 600));
 
-    expect(harness.room.replacesComArquivo, [harness.recorder.lastPath],
-        reason: 'o caminho curto conta a frase de novo sobre a gravação que '
-            'não se mexeu, e é essa gravação que sobe com o replace');
+    expect(
+      harness.room.replacesComArquivo,
+      [harness.recorder.lastPath],
+      reason:
+          'o caminho curto conta a frase de novo sobre a gravação que '
+          'não se mexeu, e é essa gravação que sobe com o replace',
+    );
     expect(
       [
         for (final trecho in container.read(salaSessionProvider).btTrechos)
@@ -257,50 +297,81 @@ void main() {
             '${trecho.segmentId}:${trecho.from.inMilliseconds}-${trecho.to.inMilliseconds}',
       ],
       vizinhos,
-      reason: 'o conserto é de um trecho só: as faixas dos vizinhos ficam onde '
+      reason:
+          'o conserto é de um trecho só: as faixas dos vizinhos ficam onde '
           'estavam e com o nome que tinham',
     );
   });
 
-  testWidgets('o microfone de madeira da grade grava a parte de novo no lugar',
-      (tester) async {
+  testWidgets(
+    'o microfone de madeira da grade grava a parte de novo no lugar',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await aPerguntaSobreAParteDois(tester, harness);
+      final sala = container.read(salaSessionProvider.notifier);
+      final antes = container.read(salaSessionProvider).partes;
+      expect(antes, hasLength(3));
+
+      await tester.tap(byLabel(micParteLabel));
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(
+        container.read(salaSessionProvider).stage,
+        SalaStage.ensaio,
+        reason:
+            'a voz de madeira é a parte inteira: o que ela abre é o ensaio, '
+            'onde a parte se grava outra vez',
+      );
+
+      await gravarUmaParte(tester, sala);
+
+      final agora = container.read(salaSessionProvider).partes;
+      expect(
+        agora,
+        hasLength(3),
+        reason:
+            'a parte gravada de novo fica no lugar da parte 2: a fila do '
+            'ensaio não cresce',
+      );
+      expect(agora[1].path, isNot(antes[1].path));
+      expect(
+        [agora[0].path, agora[2].path],
+        [antes[0].path, antes[2].path],
+        reason: 'e as vizinhas ficam com a gravação que já tinham',
+      );
+    },
+  );
+
+  testWidgets('a saída para gravar mais diz continuar o ensaio', (
+    tester,
+  ) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await aPerguntaSobreAParteDois(tester, harness);
-    final sala = container.read(salaSessionProvider.notifier);
-    final antes = container.read(salaSessionProvider).partes;
-    expect(antes, hasLength(3));
-
-    await tester.tap(byLabel(micParteLabel));
-    await tester.pump(const Duration(milliseconds: 400));
-
-    expect(container.read(salaSessionProvider).stage, SalaStage.ensaio,
-        reason: 'a voz de madeira é a parte inteira: o que ela abre é o ensaio, '
-            'onde a parte se grava outra vez');
-
-    await gravarUmaParte(tester, sala);
-
-    final agora = container.read(salaSessionProvider).partes;
-    expect(agora, hasLength(3),
-        reason: 'a parte gravada de novo fica no lugar da parte 2: a fila do '
-            'ensaio não cresce');
-    expect(agora[1].path, isNot(antes[1].path));
-    expect([agora[0].path, agora[2].path], [antes[0].path, antes[2].path],
-        reason: 'e as vizinhas ficam com a gravação que já tinham');
-  });
-
-  testWidgets('a saída para gravar mais diz continuar o ensaio', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await aPerguntaSobreAParteDois(tester, harness, lugar: null);
+    final container = await aPerguntaSobreAParteDois(
+      tester,
+      harness,
+      lugar: null,
+    );
     final antes = container.read(salaSessionProvider);
-    expect(antes.btFindingTrecho, isNull,
-        reason: 'a falta não coube em trecho nenhum: a pergunta não é posta e '
-            'a tela é a das saídas');
+    expect(
+      antes.btFindingTrecho,
+      isNull,
+      reason:
+          'a falta não coube em trecho nenhum: a pergunta não é posta e '
+          'a tela é a das saídas',
+    );
 
-    expect(byLabel(continuarOEnsaioLabel), findsOneWidget,
-        reason: 'esta saída acrescenta ao ensaio, e o nome dela tem de dizer '
-            'isso: "gravar esta parte de novo" era o nome do gesto oposto');
-    expect(byLabel('Gravar esta parte de novo'), findsNothing,
-        reason: 'dois rótulos que só diferem pelo rabo nomeavam atos opostos');
+    expect(
+      byLabel(continuarOEnsaioLabel),
+      findsOneWidget,
+      reason:
+          'esta saída acrescenta ao ensaio, e o nome dela tem de dizer '
+          'isso: "gravar esta parte de novo" era o nome do gesto oposto',
+    );
+    expect(
+      byLabel('Gravar esta parte de novo'),
+      findsNothing,
+      reason: 'dois rótulos que só diferem pelo rabo nomeavam atos opostos',
+    );
 
     await tester.tap(byLabel(continuarOEnsaioLabel));
     await tester.pump(const Duration(milliseconds: 400));
@@ -310,7 +381,8 @@ void main() {
     expect(
       [for (final take in depois.keptTakes) take.takeId],
       [for (final take in antes.keptTakes) take.takeId],
-      reason: 'o fim da história é o que falta gravar; o que já foi gravado fica',
+      reason:
+          'o fim da história é o que falta gravar; o que já foi gravado fica',
     );
     expect(
       [for (final trecho in depois.btTrechos) trecho.segmentId],
@@ -330,28 +402,45 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);
-    expect(harness.room.takesKept.where((k) => k.startsWith('ensaio')), isEmpty,
-        reason: 'escolher só a tradução não grava voz nova em língua materna');
-    expect(harness.playback.measurements, isEmpty,
-        reason: 'nem mede duração de gravação nenhuma — não há gravação nova');
+    expect(
+      harness.room.takesKept.where((k) => k.startsWith('ensaio')),
+      isEmpty,
+      reason: 'escolher só a tradução não grava voz nova em língua materna',
+    );
+    expect(
+      harness.playback.measurements,
+      isEmpty,
+      reason: 'nem mede duração de gravação nenhuma — não há gravação nova',
+    );
   });
 
   testWidgets('o círculo não é madeira ao consertar', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await aPerguntaSobreAParteDois(tester, harness);
 
-    expect(discoDoCirculo(tester), isNot(BeadStyles.wood),
-        reason: 'na pergunta o círculo é a voz da sala, e não a tinta de uma '
-            'estação que saiu');
+    expect(
+      discoDoCirculo(tester),
+      isNot(BeadStyles.wood),
+      reason:
+          'na pergunta o círculo é a voz da sala, e não a tinta de uma '
+          'estação que saiu',
+    );
 
     await tester.tap(byLabel(micRetroLabel));
     await tester.pump(const Duration(milliseconds: 300));
-    expect(container.read(salaSessionProvider).voice, VoiceState.listening,
-        reason: 'o microfone tem de estar mesmo aberto para medir a cor dele');
+    expect(
+      container.read(salaSessionProvider).voice,
+      VoiceState.listening,
+      reason: 'o microfone tem de estar mesmo aberto para medir a cor dele',
+    );
 
-    expect(discoDoCirculo(tester), BeadStyles.azul,
-        reason: 'o microfone aberto na retro é sempre o da ponte: com a '
-            'estação da materna fora, não há segunda tinta a distinguir');
+    expect(
+      discoDoCirculo(tester),
+      BeadStyles.azul,
+      reason:
+          'o microfone aberto na retro é sempre o da ponte: com a '
+          'estação da materna fora, não há segunda tinta a distinguir',
+    );
     expect(
       [
         for (final tom in emVoltaDoCirculo(tester))
