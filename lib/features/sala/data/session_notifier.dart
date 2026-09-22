@@ -2174,7 +2174,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _cancelQuestion();
       return;
     }
-    _voiceBeforeQuestion = state.voice;
+    // Only an idle voice is worth coming back to: a hand armed while the facilitator
+    // was mid-sentence would otherwise write `speaking` back over a room where
+    // nothing plays, and a circle that breaks on `speaking` stays dead until a person.
+    _voiceBeforeQuestion = state.voice == VoiceState.done
+        ? VoiceState.done
+        : VoiceState.invite;
     state = state.copyWith(noteMode: true);
   }
 

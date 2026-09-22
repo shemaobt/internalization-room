@@ -5472,4 +5472,43 @@ void main() {
           'por uma linha que a equipe nunca ouviu',
     );
   });
+
+  test(
+    'a hand armed while the Guide was speaking comes back to the invite, not to a '
+    'speaking that nothing plays',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.voice.holdNextLine();
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+      expect(container.read(salaSessionProvider).voice, VoiceState.speaking);
+
+      notifier.handTap();
+      expect(container.read(salaSessionProvider).noteMode, isTrue);
+
+      harness.voice.finishHeldLine();
+      await settle();
+      expect(container.read(salaSessionProvider).voice, VoiceState.invite);
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      expect(harness.inbox.questionsSent, hasLength(1));
+      expect(
+        container.read(salaSessionProvider).voice,
+        VoiceState.invite,
+        reason:
+            'a voz guardada era speaking; devolvida, o círculo ficava morto '
+            '(conversaTap quebra em speaking) com nada tocando',
+      );
+    },
+  );
 }
