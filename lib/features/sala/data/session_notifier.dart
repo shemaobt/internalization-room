@@ -182,6 +182,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _ackSpoken = 0;
   DateTime? _listeningSince;
   bool _recordingStarting = false;
+  VoiceState _voiceBeforeQuestion = VoiceState.invite;
   String? _emCurso;
   Trecho? _trechoTraduzidoDeNovo;
   /// Whether the capture now open is what armed [_trechoTraduzidoDeNovo]: `traduzirDeNovo`
@@ -2135,6 +2136,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _cancelQuestion();
       return;
     }
+    _voiceBeforeQuestion = state.voice;
     state = state.copyWith(noteMode: true);
   }
 
@@ -2218,7 +2220,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _cancelQuestion() {
     unawaited(_recorder.discard());
-    state = state.copyWith(noteMode: false, voice: VoiceState.invite);
+    state = state.copyWith(noteMode: false, voice: _voiceBeforeQuestion);
   }
 
   void _sendQuestion() {
@@ -2237,7 +2239,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (path == null || !_hasAudio(path) || sessionId == null) {
       // The team raised their hand, spoke a question, and nothing came back from the
       // recorder. Returning to the invite in silence is the room forgetting they asked.
-      state = state.copyWith(voice: VoiceState.invite, noteMode: false);
+      state = state.copyWith(voice: _voiceBeforeQuestion, noteMode: false);
       return;
     }
     try {
@@ -2252,7 +2254,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       handAck: true,
       questionPending: true,
-      voice: VoiceState.invite,
+      voice: _voiceBeforeQuestion,
     );
     _watchBusyState();
     _after('ack', const Duration(milliseconds: 3200), () {

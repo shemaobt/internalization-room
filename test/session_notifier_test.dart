@@ -2203,6 +2203,9 @@ void main() {
     expect(harness.recorder.deleted, [endsWith('captura-1.m4a')],
         reason: 'a pergunta já está no servidor, esperando uma pessoa — '
             'a cópia no tablet não serve para nada');
+    expect(container.read(salaSessionProvider).voice, VoiceState.invite,
+        reason: 'a mão foi levantada com a voz em invite — a pergunta silenciosa '
+            'devolve a voz que interrompeu, não uma fixa');
   });
 
   test('a note raised at done still records, not a dead touch', () async {
@@ -2244,6 +2247,40 @@ void main() {
       0,
       reason: 'a pergunta silenciosa é um canal da mesa, não um turno da conversa — '
           'entregá-la não reinicia a fala do Guia',
+    );
+    expect(
+      container.read(salaSessionProvider).voice,
+      VoiceState.done,
+      reason: '_deliverQuestion fixava voice: invite no sucesso — a mão foi '
+          'levantada com a sala em done e a pergunta silenciosa devolveu a voz errada',
+    );
+    expect(
+      container.read(salaSessionProvider).conversaDone,
+      isTrue,
+      reason: 'conversaDone é voice == done — perder a voz done também derruba o '
+          'AdvanceButton do ensaio que a sala continua reportando',
+    );
+  });
+
+  test('canceling a note raised at done returns to done, not invite', () async {
+    final harness = SalaHarness()..room.done = true;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    expect(container.read(salaSessionProvider).voice, VoiceState.done);
+
+    notifier.handTap();
+    expect(container.read(salaSessionProvider).noteMode, isTrue);
+
+    notifier.handTap();
+
+    expect(container.read(salaSessionProvider).noteMode, isFalse);
+    expect(
+      container.read(salaSessionProvider).voice,
+      VoiceState.done,
+      reason: '_cancelQuestion fixava voice: invite mesmo com a sala em done — '
+          'a mão levantada e cancelada não pode apagar a voz que ela interrompeu',
     );
   });
 
