@@ -74,3 +74,8 @@ The recorder double's `discard()` was an empty no-op with nothing to read; it no
 `recorder:discard` into the room's one ordered log of sound, beside `recorder:start`, so
 a test can read that the microphone closed the way it reads everything else the room
 does — from outside, never from a private method.
+
+2026-09-22: `_undoTheListening()` wrote the voice unconditionally, so a recorder answer
+(denied or failed) landing after a halt raised elsewhere erased it; the phase, the mend
+and the halo are still put back, but the voice is now written as `invite` only when no
+halt stands (ENG-982).
