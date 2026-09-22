@@ -254,6 +254,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   String? _coverageSessionId;
   String? _awaitingCoverageTurnId;
   String? _resolvedCoverageTurnId;
+  bool _doneSeenMidTurn = false;
   StreamSubscription<bool>? _micWatch;
   VoidCallback? _onPlaybackComplete;
   VoidCallback? _onPlaybackFailed;
@@ -335,6 +336,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _cancelTimers();
     _openTurnId = null;
     _openingOwed = false;
+    _doneSeenMidTurn = false;
     state = state.copyWith(
       clearLastSpoken: true,
       clearParteARegravar: true,
@@ -609,9 +611,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _openTurnId = null;
     _openingOwed = false;
     state = state.copyWith(
-      voice: turn.done ? VoiceState.done : VoiceState.invite,
+      voice: turn.done || _doneSeenMidTurn ? VoiceState.done : VoiceState.invite,
       peerCue: turn.peerCue,
     );
+    _doneSeenMidTurn = false;
     _awaitCoverageSettle(turn);
     _scheduleInboxPoll();
   }
@@ -1163,10 +1166,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (state.warning) _watchTheHalt();
       if (snapshot.needsPerson) {
         _haltForAPerson(read: true);
-      } else if (snapshot.done &&
-          state.stage == SalaStage.conversa &&
-          state.voice == VoiceState.invite) {
-        state = state.copyWith(voice: VoiceState.done, peerCue: false);
+      } else if (snapshot.done && state.stage == SalaStage.conversa) {
+        if (state.voice == VoiceState.invite) {
+          state = state.copyWith(voice: VoiceState.done, peerCue: false);
+        } else if (state.voice == VoiceState.speaking ||
+            state.voice == VoiceState.listening ||
+            state.voice == VoiceState.thinking) {
+          _doneSeenMidTurn = true;
+        }
       }
     } on SessionGone {
       if (epoch != _epoch) return;
@@ -4414,6 +4421,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _recordingStarting = false;
     _clipHeld = false;
     _conviteOpened = false;
+    _doneSeenMidTurn = false;
   }
 }
 

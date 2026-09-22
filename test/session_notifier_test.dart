@@ -1205,6 +1205,48 @@ void main() {
     );
   });
 
+  test('a done the pull saw mid-turn still paints the circle once the line ends, even '
+      'when the turn itself never said done', () async {
+    final harness = SalaHarness(settleDelay: const Duration(milliseconds: 40))
+      ..room.turnIdInResponse = 'turno-1';
+    harness.voice.holdNextLine();
+    final container = harness.container();
+    addTearDown(container.dispose);
+
+    final opening = container.read(salaSessionProvider.notifier).goConversa();
+    await waitFor(
+      'a fala do Guia começar',
+      () => container.read(salaSessionProvider).voice == VoiceState.speaking,
+    );
+
+    harness.room.done = true;
+    harness.room.pushCoverage(
+      const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+    );
+    await waitFor(
+      'o pull do fetchState acontecer',
+      () => harness.room.calls.where((call) => call == 'fetchState').length == 1,
+    );
+
+    expect(
+      container.read(salaSessionProvider).voice,
+      VoiceState.speaking,
+      reason: 'o pull leu snapshot.done com o Guia ainda falando; a repintura só '
+          'acontece quando a fala termina',
+    );
+
+    harness.voice.finishHeldLine();
+    await opening;
+
+    expect(
+      container.read(salaSessionProvider).voice,
+      VoiceState.done,
+      reason: 'o turno em si nunca disse done (turnIdInResponse foi fixado antes de '
+          'room.done virar true), mas o pull viu done no meio da fala — esse done não '
+          'pode se perder só porque turn.done chegou falso',
+    );
+  });
+
   test('the hand inbox is still checked after a turn with nothing to wait on',
       () async {
     final harness = SalaHarness(settleDelay: const Duration(milliseconds: 40));
