@@ -44,7 +44,7 @@ void main() {
     for (final path in _wordyExceptions) {
       expect(File(path).existsSync(), isTrue,
           reason: 'the exception list names a file that is gone: $path');
-      expect(_sourceWithoutComments(path).contains('Text('), isTrue,
+      expect(_textWidgetPattern.hasMatch(_sourceWithoutComments(path)), isTrue,
           reason: '$path is listed as an exception but no longer writes '
               'Text( — drop it from the list so the sweep covers it again');
     }
