@@ -69,7 +69,8 @@ void main() {
       expect(
         container.read(salaSessionProvider).lastSpoken,
         isNull,
-        reason: 'nem o turno de abertura nem o veredito de fail-safe são lembrados',
+        reason:
+            'nem o turno de abertura nem o veredito de fail-safe são lembrados',
       );
 
       final tocadosAntes = harness.voice.played.length;
@@ -83,19 +84,22 @@ void main() {
       expect(harness.playback.ranges, isEmpty);
     });
 
-    test('os players da grade continuam tocando o trecho diretamente', () async {
-      final harness = harnessApontando();
-      final container = await pumpAoApontado(harness);
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
+    test(
+      'os players da grade continuam tocando o trecho diretamente',
+      () async {
+        final harness = harnessApontando();
+        final container = await pumpAoApontado(harness);
+        addTearDown(container.dispose);
+        final notifier = container.read(salaSessionProvider.notifier);
 
-      notifier.ouvirVozMaterna();
-      await waitFor(
-        'o trecho apontado estar tocando',
-        () => container.read(salaSessionProvider).btTrechoTocando,
-      );
+        notifier.ouvirVozMaterna();
+        await waitFor(
+          'o trecho apontado estar tocando',
+          () => container.read(salaSessionProvider).btTrechoTocando,
+        );
 
-      expect(harness.playback.ranges, isNotEmpty);
-    });
+        expect(harness.playback.ranges, isNotEmpty);
+      },
+    );
   });
 }

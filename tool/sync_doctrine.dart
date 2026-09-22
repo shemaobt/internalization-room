@@ -129,12 +129,13 @@ List<String> drift(Pin pin, [String root = '.']) {
 List<Ruling> readRulings([String? dir]) {
   final directory = Directory(dir ?? rulingsPath);
   if (!directory.existsSync()) return const [];
-  final files = directory
-      .listSync()
-      .whereType<File>()
-      .where((f) => f.path.endsWith('.md'))
-      .toList()
-    ..sort((a, b) => a.path.compareTo(b.path));
+  final files =
+      directory
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.md'))
+          .toList()
+        ..sort((a, b) => a.path.compareTo(b.path));
   return [
     for (final file in files)
       () {
@@ -165,7 +166,9 @@ List<String> unruled(Pin pin, List<Ruling> rulings) {
   }
   for (final ruling in rulings) {
     if (ruling.word.isEmpty || ruling.written.isEmpty) {
-      faults.add('${ruling.slug}: a ruling carries her sentence and where it is written');
+      faults.add(
+        '${ruling.slug}: a ruling carries her sentence and where it is written',
+      );
     }
   }
   return faults;
@@ -199,7 +202,10 @@ Map<String, List<String>> readBarRecord([String root = '.']) {
   for (final line in File(p.join(root, barPath)).readAsLinesSync()) {
     if (line.trim().isEmpty || line.startsWith('#')) continue;
     final at = line.indexOf('  ');
-    record[line.substring(0, at).trim()] = line.substring(at).trim().split(' | ');
+    record[line.substring(0, at).trim()] = line
+        .substring(at)
+        .trim()
+        .split(' | ');
   }
   return record;
 }
@@ -240,10 +246,12 @@ List<String> barFaults(
 }
 
 int sync(String source) {
-  final commit = Process.runSync('git', ['-C', source, 'rev-parse', 'HEAD'])
-      .stdout
-      .toString()
-      .trim();
+  final commit = Process.runSync('git', [
+    '-C',
+    source,
+    'rev-parse',
+    'HEAD',
+  ]).stdout.toString().trim();
   final digests = <String, String>{};
   for (final entry in vendored.entries) {
     final body = File(p.join(source, entry.key)).readAsStringSync();
@@ -262,7 +270,9 @@ int check() {
   final pin = readPin();
   final drifted = drift(pin);
   if (drifted.isNotEmpty) {
-    stderr.writeln('the vendored doctrine drifted from pin ${pin.commit.substring(0, 12)}:');
+    stderr.writeln(
+      'the vendored doctrine drifted from pin ${pin.commit.substring(0, 12)}:',
+    );
     for (final line in drifted) {
       stderr.writeln('  $line');
     }
@@ -290,8 +300,12 @@ int check() {
     return 1;
   }
 
-  final held = bar.values.where((c) => c.first != pending && c.first != backend).length;
-  stdout.writeln('the vendored doctrine matches pin ${pin.commit.substring(0, 12)}');
+  final held = bar.values
+      .where((c) => c.first != pending && c.first != backend)
+      .length;
+  stdout.writeln(
+    'the vendored doctrine matches pin ${pin.commit.substring(0, 12)}',
+  );
   stdout.writeln(
     'the acceptance bar is ${lines.length} lines — $held held here, '
     '${bar.values.where((c) => c.first == pending).length} still PENDING',
@@ -303,12 +317,16 @@ void main(List<String> args) {
   if (args.contains('--sync')) {
     final at = args.indexOf('--from');
     if (at < 0 || at + 1 >= args.length) {
-      stderr.writeln('--sync needs --from <checkout of Tripod-Internalization>');
+      stderr.writeln(
+        '--sync needs --from <checkout of Tripod-Internalization>',
+      );
       exit(2);
     }
     exit(sync(args[at + 1]));
   }
   if (args.contains('--check')) exit(check());
-  stderr.writeln('usage: dart run tool/sync_doctrine.dart --check | --sync --from <path>');
+  stderr.writeln(
+    'usage: dart run tool/sync_doctrine.dart --check | --sync --from <path>',
+  );
   exit(2);
 }

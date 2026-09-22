@@ -14,8 +14,8 @@ const ouvirRetro = 'Ouvir a tradução em português';
 const microfoneAzul = 'Continuar o ensaio';
 
 Finder byLabel(String label) => find.byWidgetPredicate(
-      (widget) => widget is Semantics && widget.properties.label == label,
-    );
+  (widget) => widget is Semantics && widget.properties.label == label,
+);
 
 SalaSessionNotifier notifier(ProviderContainer c) =>
     c.read(salaSessionProvider.notifier);
@@ -67,35 +67,59 @@ void main() {
   testWidgets('falta com endereço mostra os dois microfones', (tester) async {
     await pumpToPergunta(tester, finding: BtFindingKind.missing);
 
-    expect(byLabel(micRetroLabel), findsOneWidget,
-        reason: 'a materna pode já ter a parte; só a ponte pulou a frase, e a '
-            'equipe sabe se é o caso — não a tela por ela');
+    expect(
+      byLabel(micRetroLabel),
+      findsOneWidget,
+      reason:
+          'a materna pode já ter a parte; só a ponte pulou a frase, e a '
+          'equipe sabe se é o caso — não a tela por ela',
+    );
     expect(byLabel(micParteLabel), findsOneWidget);
-    expect(byLabel('Regravar esta parte e contá-la de novo'), findsNothing,
-        reason: 'a falta com endereço não passa mais por um caminho à parte '
-            'que esconde a escolha entre as duas vozes');
+    expect(
+      byLabel('Regravar esta parte e contá-la de novo'),
+      findsNothing,
+      reason:
+          'a falta com endereço não passa mais por um caminho à parte '
+          'que esconde a escolha entre as duas vozes',
+    );
   });
 
   testWidgets('só a ponte funciona', (tester) async {
-    final container = await pumpToPergunta(tester, finding: BtFindingKind.missing);
+    final container = await pumpToPergunta(
+      tester,
+      finding: BtFindingKind.missing,
+    );
 
     await tester.tap(byLabel(micRetroLabel));
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing,
-        reason: 'tocar o microfone só-ponte abre a captura do traduzir de novo, sem '
-            'tocar a voz materna');
+    expect(
+      container.read(salaSessionProvider).btPhase,
+      BtPhase.capturing,
+      reason:
+          'tocar o microfone só-ponte abre a captura do traduzir de novo, sem '
+          'tocar a voz materna',
+    );
   });
 
-  testWidgets('a madeira leva ao ensaio, a gravar a parte de novo', (tester) async {
-    final container = await pumpToPergunta(tester, finding: BtFindingKind.missing);
+  testWidgets('a madeira leva ao ensaio, a gravar a parte de novo', (
+    tester,
+  ) async {
+    final container = await pumpToPergunta(
+      tester,
+      finding: BtFindingKind.missing,
+    );
 
     await tester.tap(byLabel(micParteLabel));
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(container.read(salaSessionProvider).stage, SalaStage.ensaio,
-        reason: 'a voz de madeira que a equipe escolhe é a da parte inteira: o '
-            'microfone por trecho saiu da tela, e o que fica é o ensaio');
+    expect(
+      container.read(salaSessionProvider).stage,
+      SalaStage.ensaio,
+      reason:
+          'a voz de madeira que a equipe escolhe é a da parte inteira: o '
+          'microfone por trecho saiu da tela, e o que fica é o ensaio',
+    );
   });
 
   testWidgets('falta sem endereço continua indo ao ensaio', (tester) async {
@@ -105,9 +129,13 @@ void main() {
       trecho: null,
     );
 
-    expect(byLabel(microfoneAzul), findsOneWidget,
-        reason: 'sem trecho apontado não há o que regravar — a saída continua '
-            'sendo o ensaio inteiro, como hoje');
+    expect(
+      byLabel(microfoneAzul),
+      findsOneWidget,
+      reason:
+          'sem trecho apontado não há o que regravar — a saída continua '
+          'sendo o ensaio inteiro, como hoje',
+    );
     expect(byLabel(micRetroLabel), findsNothing);
     expect(byLabel(micParteLabel), findsNothing);
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);

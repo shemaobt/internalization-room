@@ -25,24 +25,35 @@ Future<void> _oLoadNoAr(_Duplo tocador, String qual) async {
 }
 
 void main() {
-  test('a clip that cannot be opened says so, and does not pass for heard', () async {
-    final playback = PlaybackRepository(
-      start: (_) async => throw const FormatException('arquivo corrompido'),
-    );
-    addTearDown(playback.dispose);
-    final failed = playback.failures.first;
-    var heard = false;
-    playback.completions.listen((_) => heard = true);
+  test(
+    'a clip that cannot be opened says so, and does not pass for heard',
+    () async {
+      final playback = PlaybackRepository(
+        start: (_) async => throw const FormatException('arquivo corrompido'),
+      );
+      addTearDown(playback.dispose);
+      final failed = playback.failures.first;
+      var heard = false;
+      playback.completions.listen((_) => heard = true);
 
-    await playback.play('/uma/tomada/estragada.m4a');
+      await playback.play('/uma/tomada/estragada.m4a');
 
-    await expectLater(failed.timeout(const Duration(seconds: 2)), completes,
-        reason: 'o ensaio e o retro só saem pelo fim da reprodução — sem aviso nenhum, '
-            'uma tomada estragada tranca a tela sem gesto de saída');
-    expect(heard, isFalse,
-        reason: 'e o aviso não pode ser "terminou": o retro abre o terminei justamente '
-            'quando o ensaio chega ao fim, e nada teria tocado');
-  });
+      await expectLater(
+        failed.timeout(const Duration(seconds: 2)),
+        completes,
+        reason:
+            'o ensaio e o retro só saem pelo fim da reprodução — sem aviso nenhum, '
+            'uma tomada estragada tranca a tela sem gesto de saída',
+      );
+      expect(
+        heard,
+        isFalse,
+        reason:
+            'e o aviso não pode ser "terminou": o retro abre o terminei justamente '
+            'quando o ensaio chega ao fim, e nada teria tocado',
+      );
+    },
+  );
 
   test('a clip that opens says nothing until it actually ends', () async {
     var ended = false;
@@ -53,8 +64,11 @@ void main() {
     await playback.play('/uma/tomada/boa.m4a');
     await Future<void>.delayed(const Duration(milliseconds: 20));
 
-    expect(ended, isFalse,
-        reason: 'anunciar o fim na abertura pularia o clipe inteiro');
+    expect(
+      ended,
+      isFalse,
+      reason: 'anunciar o fim na abertura pularia o clipe inteiro',
+    );
   });
 
   group('how long is this', () {
@@ -65,12 +79,14 @@ void main() {
     /// from `setUp` and then reassigning left the repository the test actually drives
     /// undisposed, with its controllers and its players still open.
     PlaybackRepository umRepositorio([void Function(_Duplo) afinando = _nada]) {
-      final novo = PlaybackRepository(newPlayer: () {
-        final duplo = _Duplo();
-        afinando(duplo);
-        feitos.add(duplo);
-        return duplo;
-      });
+      final novo = PlaybackRepository(
+        newPlayer: () {
+          final duplo = _Duplo();
+          afinando(duplo);
+          feitos.add(duplo);
+          return duplo;
+        },
+      );
       addTearDown(novo.dispose);
       return novo;
     }
@@ -84,11 +100,18 @@ void main() {
       final quanto = await playback.howLong('/uma/gravacao.m4a');
 
       expect(quanto, const Duration(seconds: 30));
-      expect(feitos.single.carregados, ['/uma/gravacao.m4a'],
-          reason: 'a pergunta carrega o arquivo, que é como a duração se sabe');
-      expect(feitos.single.tocando, isFalse,
-          reason: 'e não sai som: perguntar não é ouvir, e a sala fala por cima '
-              'de áudio que ninguém pediu');
+      expect(
+        feitos.single.carregados,
+        ['/uma/gravacao.m4a'],
+        reason: 'a pergunta carrega o arquivo, que é como a duração se sabe',
+      );
+      expect(
+        feitos.single.tocando,
+        isFalse,
+        reason:
+            'e não sai som: perguntar não é ouvir, e a sala fala por cima '
+            'de áudio que ninguém pediu',
+      );
     });
 
     test('asking in the middle of a playback does not interrupt it', () async {
@@ -98,42 +121,66 @@ void main() {
 
       await playback.howLong('/outra/gravacao.m4a');
 
-      expect(tocador.tocando, isTrue,
-          reason: 'o que estava tocando continua tocando');
-      expect(playback.position, const Duration(seconds: 7),
-          reason: 'e do mesmo ponto — cortarTrecho lê esta posição direto para '
-              'fechar um trecho');
-      expect(tocador.carregados, ['/o/clipe.m4a'],
-          reason: 'o player que toca não recebe o arquivo perguntado');
+      expect(
+        tocador.tocando,
+        isTrue,
+        reason: 'o que estava tocando continua tocando',
+      );
+      expect(
+        playback.position,
+        const Duration(seconds: 7),
+        reason:
+            'e do mesmo ponto — cortarTrecho lê esta posição direto para '
+            'fechar um trecho',
+      );
+      expect(
+        tocador.carregados,
+        ['/o/clipe.m4a'],
+        reason: 'o player que toca não recebe o arquivo perguntado',
+      );
     });
 
     test('asking does not corrupt the measure of what is in the air', () async {
       // Two different lengths on purpose: the clip in the air is half a minute and the
       // file being asked about is four seconds. A probe on the playing player would
       // leave the room believing the rehearsal is four seconds long.
-      playback = umRepositorio((duplo) =>
-          duplo.porArquivo['/uma/gravacao/curta.m4a'] = const Duration(seconds: 4));
+      playback = umRepositorio(
+        (duplo) => duplo.porArquivo['/uma/gravacao/curta.m4a'] = const Duration(
+          seconds: 4,
+        ),
+      );
       await playback.play('/o/clipe.m4a');
       final doClipe = playback.playingLength;
       expect(doClipe, const Duration(seconds: 30));
 
       await playback.howLong('/uma/gravacao/curta.m4a');
 
-      expect(playback.playingLength, doClipe,
-          reason: 'esta é a régua da escuta: _fimDaParteMs sai daqui e '
-              '_retroClipMs sai dele, e é o portão que impede a equipe de '
-              'encerrar sem ter ouvido. Foi assim que um ensaio de três partes '
-              'se reportou como uma parte só');
+      expect(
+        playback.playingLength,
+        doClipe,
+        reason:
+            'esta é a régua da escuta: _fimDaParteMs sai daqui e '
+            '_retroClipMs sai dele, e é o portão que impede a equipe de '
+            'encerrar sem ter ouvido. Foi assim que um ensaio de três partes '
+            'se reportou como uma parte só',
+      );
     });
 
     test('asking before any playback answers', () async {
       final quanto = await playback.howLong('/uma/gravacao.m4a');
 
-      expect(quanto, const Duration(seconds: 30),
-          reason: 'é o caso da retomada: a sonda roda antes de o primeiro '
-              'clipe abrir');
-      expect(playback.playingLength, isNull,
-          reason: 'e não inventa um clipe no ar que não existe');
+      expect(
+        quanto,
+        const Duration(seconds: 30),
+        reason:
+            'é o caso da retomada: a sonda roda antes de o primeiro '
+            'clipe abrir',
+      );
+      expect(
+        playback.playingLength,
+        isNull,
+        reason: 'e não inventa um clipe no ar que não existe',
+      );
     });
 
     test('a file that is not there does not bring the room down', () async {
@@ -143,21 +190,33 @@ void main() {
 
       final quanto = await playback.howLong('/nao/existe.m4a');
 
-      expect(quanto, isNull,
-          reason: 'quem pergunta trata a ausência de resposta; derrubar a sala '
-              'por um arquivo que sumiu é perder a passagem inteira');
+      expect(
+        quanto,
+        isNull,
+        reason:
+            'quem pergunta trata a ausência de resposta; derrubar a sala '
+            'por um arquivo que sumiu é perder a passagem inteira',
+      );
     });
 
     test('a clip asked for from a place opens there', () async {
       await playback.play('/o/clipe.m4a', from: const Duration(seconds: 30));
 
-      expect(feitos.single.iniciais, [const Duration(seconds: 30)],
-          reason: 'a retro retomada pede a parte a partir do chão já contado, e '
-              'a posição tem de valer no instante em que o arquivo abre — '
-              'mandar tocar e só depois pular deixa o começo do ensaio no ar');
-      expect(playback.position, const Duration(seconds: 30),
-          reason: 'e a posição segue contada do começo do arquivo: cortarTrecho '
-              'compara esta leitura com o cursor');
+      expect(
+        feitos.single.iniciais,
+        [const Duration(seconds: 30)],
+        reason:
+            'a retro retomada pede a parte a partir do chão já contado, e '
+            'a posição tem de valer no instante em que o arquivo abre — '
+            'mandar tocar e só depois pular deixa o começo do ensaio no ar',
+      );
+      expect(
+        playback.position,
+        const Duration(seconds: 30),
+        reason:
+            'e a posição segue contada do começo do arquivo: cortarTrecho '
+            'compara esta leitura com o cursor',
+      );
       expect(feitos.single.tocando, isTrue);
     });
 
@@ -173,21 +232,32 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 20));
 
       final medidor = feitos.single;
-      expect(medidor.carregados, ['/a.m4a'],
-          reason: 'o segundo pedido espera a vez: um AudioPlayer tem uma fonte '
-              'só, e carregar por cima tira o arquivo das mãos de quem '
-              'perguntou primeiro');
+      expect(
+        medidor.carregados,
+        ['/a.m4a'],
+        reason:
+            'o segundo pedido espera a vez: um AudioPlayer tem uma fonte '
+            'só, e carregar por cima tira o arquivo das mãos de quem '
+            'perguntou primeiro',
+      );
 
       medidor.segurados['/a.m4a']!.complete();
 
       expect(await a, const Duration(seconds: 4));
-      expect(await b, const Duration(seconds: 11),
-          reason: 'cada pergunta recebe a duração do arquivo que ela nomeou — a '
-              'retomada dispara duas destas sem esperar nenhuma, e a primeira '
-              'respondia com o tamanho da segunda, ou com nada');
+      expect(
+        await b,
+        const Duration(seconds: 11),
+        reason:
+            'cada pergunta recebe a duração do arquivo que ela nomeou — a '
+            'retomada dispara duas destas sem esperar nenhuma, e a primeira '
+            'respondia com o tamanho da segunda, ou com nada',
+      );
       expect(medidor.carregados, ['/a.m4a', '/b.m4a']);
-      expect(medidor.sobrepos, isFalse,
-          reason: 'e nunca há dois carregamentos abertos no mesmo tocador');
+      expect(
+        medidor.sobrepos,
+        isFalse,
+        reason: 'e nunca há dois carregamentos abertos no mesmo tocador',
+      );
     });
 
     test('the ordinary playback still answers as it always did', () async {
@@ -230,10 +300,13 @@ void main() {
       const FormatException('sumiu'),
     );
 
-    await expectLater(abrindo, completes,
-        reason:
-            'o repositório já se fechou; o catch do load não pode escrever '
-            'numa fila de eventos fechada');
+    await expectLater(
+      abrindo,
+      completes,
+      reason:
+          'o repositório já se fechou; o catch do load não pode escrever '
+          'numa fila de eventos fechada',
+    );
     expect(anunciadas, isEmpty);
   });
 
@@ -259,10 +332,13 @@ void main() {
       const FormatException('sumiu'),
     );
 
-    await expectLater(abrindo, completes,
-        reason:
-            'o repositório já se fechou; o catch da fatia não pode escrever '
-            'numa fila de eventos fechada');
+    await expectLater(
+      abrindo,
+      completes,
+      reason:
+          'o repositório já se fechou; o catch da fatia não pode escrever '
+          'numa fila de eventos fechada',
+    );
     expect(falhas, isEmpty);
   });
 
@@ -284,20 +360,27 @@ void main() {
       playback = _umRepositorioSobre(tocador);
     });
 
-    test('a pausa pedida durante o load vence o play que vinha atrás', () async {
-      tocador.segurados['/parte-1.m4a'] = Completer<void>();
-      final abrindo = playback.play('/parte-1.m4a');
-      await _oLoadNoAr(tocador, '/parte-1.m4a');
+    test(
+      'a pausa pedida durante o load vence o play que vinha atrás',
+      () async {
+        tocador.segurados['/parte-1.m4a'] = Completer<void>();
+        final abrindo = playback.play('/parte-1.m4a');
+        await _oLoadNoAr(tocador, '/parte-1.m4a');
 
-      await playback.pause();
-      tocador.segurados['/parte-1.m4a']!.complete();
-      await abrindo;
+        await playback.pause();
+        tocador.segurados['/parte-1.m4a']!.complete();
+        await abrindo;
 
-      expect(tocador.tocando, isFalse,
-          reason: 'a equipe segurou o clipe e o load tocou por cima: a pausa '
+        expect(
+          tocador.tocando,
+          isFalse,
+          reason:
+              'a equipe segurou o clipe e o load tocou por cima: a pausa '
               'não sai do lugar num player que ainda não toca, e o play que '
-              'vem atrás do load a apaga sem deixar rasto');
-    });
+              'vem atrás do load a apaga sem deixar rasto',
+        );
+      },
+    );
 
     test('o stop pedido durante o load também vence', () async {
       tocador.segurados['/parte-1.m4a'] = Completer<void>();
@@ -323,10 +406,14 @@ void main() {
       await abrindo;
       await Future<void>.delayed(Duration.zero);
 
-      expect(anunciadas, hasLength(1),
-          reason: 'quem espera a abertura — o teto da escuta e a medida da '
-              'parte no ar — fica encalhado se um clipe segurado nunca se '
-              'anuncia');
+      expect(
+        anunciadas,
+        hasLength(1),
+        reason:
+            'quem espera a abertura — o teto da escuta e a medida da '
+            'parte no ar — fica encalhado se um clipe segurado nunca se '
+            'anuncia',
+      );
       expect(playback.playingLength, const Duration(seconds: 30));
     });
 
@@ -339,26 +426,36 @@ void main() {
       tocador.segurados['/parte-1.m4a']!.complete();
       await abrindo;
 
-      expect(playback.playingLength, isNull,
-          reason: 'o stop limpa o que o clipe media, e o load que termina atrás '
-              'dele não pode escrever de volta: o teto do clipe seguinte sai '
-              'daqui, e sairia do comprimento de um clipe que nunca tocou');
+      expect(
+        playback.playingLength,
+        isNull,
+        reason:
+            'o stop limpa o que o clipe media, e o load que termina atrás '
+            'dele não pode escrever de volta: o teto do clipe seguinte sai '
+            'daqui, e sairia do comprimento de um clipe que nunca tocou',
+      );
     });
 
-    test('a pausa durante o load guarda a medida, que é o que o teto conta',
-        () async {
-      tocador.segurados['/parte-1.m4a'] = Completer<void>();
-      final abrindo = playback.play('/parte-1.m4a');
-      await _oLoadNoAr(tocador, '/parte-1.m4a');
+    test(
+      'a pausa durante o load guarda a medida, que é o que o teto conta',
+      () async {
+        tocador.segurados['/parte-1.m4a'] = Completer<void>();
+        final abrindo = playback.play('/parte-1.m4a');
+        await _oLoadNoAr(tocador, '/parte-1.m4a');
 
-      await playback.pause();
-      tocador.segurados['/parte-1.m4a']!.complete();
-      await abrindo;
+        await playback.pause();
+        tocador.segurados['/parte-1.m4a']!.complete();
+        await abrindo;
 
-      expect(playback.playingLength, const Duration(seconds: 30),
-          reason: 'uma pausa deixa o clipe aberto: é a mesma parte que o '
-              'próximo toque retoma, e o teto conta o que falta dela');
-    });
+        expect(
+          playback.playingLength,
+          const Duration(seconds: 30),
+          reason:
+              'uma pausa deixa o clipe aberto: é a mesma parte que o '
+              'próximo toque retoma, e o teto conta o que falta dela',
+        );
+      },
+    );
 
     test('sem nenhum hold o clipe toca, como sempre tocou', () async {
       tocador.segurados['/parte-1.m4a'] = Completer<void>();
@@ -371,24 +468,30 @@ void main() {
       expect(tocador.tocando, isTrue);
     });
 
-    test('o load que o nosso próprio stop cortou não chega como falha',
-        () async {
-      final falhas = <void>[];
-      playback.failures.listen(falhas.add);
-      tocador.cortaOLoadNoStop = true;
-      tocador.segurados['/parte-1.m4a'] = Completer<void>();
+    test(
+      'o load que o nosso próprio stop cortou não chega como falha',
+      () async {
+        final falhas = <void>[];
+        playback.failures.listen(falhas.add);
+        tocador.cortaOLoadNoStop = true;
+        tocador.segurados['/parte-1.m4a'] = Completer<void>();
 
-      final abrindo = playback.play('/parte-1.m4a');
-      await _oLoadNoAr(tocador, '/parte-1.m4a');
-      await playback.stop();
-      await abrindo;
-      await Future<void>.delayed(Duration.zero);
+        final abrindo = playback.play('/parte-1.m4a');
+        await _oLoadNoAr(tocador, '/parte-1.m4a');
+        await playback.stop();
+        await abrindo;
+        await Future<void>.delayed(Duration.zero);
 
-      expect(falhas, isEmpty,
-          reason: 'o stop é nosso: lido como o clipe não tocando, nunca como o '
+        expect(
+          falhas,
+          isEmpty,
+          reason:
+              'o stop é nosso: lido como o clipe não tocando, nunca como o '
               'tablet sem conseguir tocar a voz da equipe — que chama uma '
-              'pessoa e para a sala por cima de um gesto comum');
-    });
+              'pessoa e para a sala por cima de um gesto comum',
+        );
+      },
+    );
 
     test('um load interrompido sem hold nenhum continua sendo falha', () async {
       final falhas = <void>[];
@@ -398,10 +501,14 @@ void main() {
       await playback.play('/parte-1.m4a');
       await Future<void>.delayed(Duration.zero);
 
-      expect(falhas, hasLength(1),
-          reason: 'só o nosso próprio stop é lido como o clipe não tocando. '
-              'Sem hold nenhum, um load que o aparelho interrompeu é o tablet '
-              'sem conseguir tocar a voz da equipe, e isso chama uma pessoa');
+      expect(
+        falhas,
+        hasLength(1),
+        reason:
+            'só o nosso próprio stop é lido como o clipe não tocando. '
+            'Sem hold nenhum, um load que o aparelho interrompeu é o tablet '
+            'sem conseguir tocar a voz da equipe, e isso chama uma pessoa',
+      );
     });
 
     test('depois de um hold durante o load, o próximo play toca', () async {
@@ -414,9 +521,13 @@ void main() {
 
       await playback.play('/parte-2.m4a');
 
-      expect(tocador.tocando, isTrue,
-          reason: 'a espera vale para a abertura que o hold apanhou, não para '
-              'o próximo gesto da equipe');
+      expect(
+        tocador.tocando,
+        isTrue,
+        reason:
+            'a espera vale para a abertura que o hold apanhou, não para '
+            'o próximo gesto da equipe',
+      );
       expect(tocador.carregados, ['/parte-1.m4a', '/parte-2.m4a']);
     });
 
@@ -456,39 +567,56 @@ void main() {
       tocador.segurados['/parte-1.m4a']!.complete();
       await abrindo;
 
-      expect(tocador.tocando, isTrue,
-          reason: 'o último gesto da equipe foi um resume, e é ele que manda: '
-              'a espera que o hold abriu não sobrevive ao gesto que a desfez. '
-              'Pino da regra, não de uma regressão: isto é verde antes e '
-              'depois do conserto, porque o som nunca dependeu do play de '
-              'cauda — o play do próprio resume já punha o clipe a tocar '
-              'assim que a fonte ficasse pronta. O que o conserto acerta é o '
-              'repositório dizer o mesmo que o player faz');
-      expect(playback.playingLength, const Duration(seconds: 30),
-          reason: 'e o clipe fica aberto, com a medida de que o teto da escuta '
-              'e a medida da parte no ar saem');
+      expect(
+        tocador.tocando,
+        isTrue,
+        reason:
+            'o último gesto da equipe foi um resume, e é ele que manda: '
+            'a espera que o hold abriu não sobrevive ao gesto que a desfez. '
+            'Pino da regra, não de uma regressão: isto é verde antes e '
+            'depois do conserto, porque o som nunca dependeu do play de '
+            'cauda — o play do próprio resume já punha o clipe a tocar '
+            'assim que a fonte ficasse pronta. O que o conserto acerta é o '
+            'repositório dizer o mesmo que o player faz',
+      );
+      expect(
+        playback.playingLength,
+        const Duration(seconds: 30),
+        reason:
+            'e o clipe fica aberto, com a medida de que o teto da escuta '
+            'e a medida da parte no ar saem',
+      );
     });
 
-    test('o hold durante o load continua valendo quando nada o desfaz',
-        () async {
-      tocador.segurados['/parte-1.m4a'] = Completer<void>();
-      final abrindo = playback.play('/parte-1.m4a');
-      await _oLoadNoAr(tocador, '/parte-1.m4a');
+    test(
+      'o hold durante o load continua valendo quando nada o desfaz',
+      () async {
+        tocador.segurados['/parte-1.m4a'] = Completer<void>();
+        final abrindo = playback.play('/parte-1.m4a');
+        await _oLoadNoAr(tocador, '/parte-1.m4a');
 
-      await playback.pause();
-      tocador.segurados['/parte-1.m4a']!.complete();
-      await abrindo;
+        await playback.pause();
+        tocador.segurados['/parte-1.m4a']!.complete();
+        await abrindo;
 
-      expect(tocador.tocando, isFalse,
-          reason: 'o resume é que desfaz o hold, e ninguém pediu um');
+        expect(
+          tocador.tocando,
+          isFalse,
+          reason: 'o resume é que desfaz o hold, e ninguém pediu um',
+        );
 
-      await playback.resume();
+        await playback.resume();
 
-      expect(tocador.tocando, isTrue);
-      expect(tocador.carregados, ['/parte-1.m4a'],
-          reason: 'o clipe já está aberto: um resume põe a soar o que está '
-              'na mão, nunca manda abrir a fonte outra vez');
-    });
+        expect(tocador.tocando, isTrue);
+        expect(
+          tocador.carregados,
+          ['/parte-1.m4a'],
+          reason:
+              'o clipe já está aberto: um resume põe a soar o que está '
+              'na mão, nunca manda abrir a fonte outra vez',
+        );
+      },
+    );
 
     test('um play por cima de um play cala o primeiro em vez de chamar uma '
         'pessoa', () async {
@@ -508,17 +636,28 @@ void main() {
       await primeira;
       await Future<void>.delayed(Duration.zero);
 
-      expect(falhas, isEmpty,
-          reason: 'quem cortou o load da primeira foi a segunda abertura, '
-              'nossa: isso é o clipe não tocando, nunca o tablet sem conseguir '
-              'tocar a voz da equipe — que chama uma pessoa por cima de um som '
-              'que a própria equipe pediu');
+      expect(
+        falhas,
+        isEmpty,
+        reason:
+            'quem cortou o load da primeira foi a segunda abertura, '
+            'nossa: isso é o clipe não tocando, nunca o tablet sem conseguir '
+            'tocar a voz da equipe — que chama uma pessoa por cima de um som '
+            'que a própria equipe pediu',
+      );
       expect(tocador.tocando, isTrue);
-      expect(anunciadas, hasLength(1),
-          reason: 'só o clipe que ficou de pé se anuncia: a abertura '
-              'atropelada não tem medida nem teto a dar a ninguém');
-      expect(playback.playingLength, const Duration(seconds: 12),
-          reason: 'e a medida é a da segunda, que é a que está no ar');
+      expect(
+        anunciadas,
+        hasLength(1),
+        reason:
+            'só o clipe que ficou de pé se anuncia: a abertura '
+            'atropelada não tem medida nem teto a dar a ninguém',
+      );
+      expect(
+        playback.playingLength,
+        const Duration(seconds: 12),
+        reason: 'e a medida é a da segunda, que é a que está no ar',
+      );
     });
 
     test('o mesmo vale para duas fatias de trecho seguidas', () async {
@@ -549,55 +688,73 @@ void main() {
       expect(anunciadas, hasLength(1));
     });
 
-    test('um resume depois de um stop não ressuscita o clipe que ele parou',
-        () async {
-      final falhas = <void>[];
-      playback.failures.listen(falhas.add);
-      final anunciadas = <void>[];
-      playback.openings.listen(anunciadas.add);
-      tocador.segurados['/parte-1.m4a'] = Completer<void>();
+    test(
+      'um resume depois de um stop não ressuscita o clipe que ele parou',
+      () async {
+        final falhas = <void>[];
+        playback.failures.listen(falhas.add);
+        final anunciadas = <void>[];
+        playback.openings.listen(anunciadas.add);
+        tocador.segurados['/parte-1.m4a'] = Completer<void>();
 
-      final abrindo = playback.play('/parte-1.m4a');
-      await _oLoadNoAr(tocador, '/parte-1.m4a');
-      await playback.stop();
-      await playback.resume();
-      tocador.segurados['/parte-1.m4a']!
-          .completeError(PlayerInterruptedException('parado'));
-      await abrindo;
-      await Future<void>.delayed(Duration.zero);
+        final abrindo = playback.play('/parte-1.m4a');
+        await _oLoadNoAr(tocador, '/parte-1.m4a');
+        await playback.stop();
+        await playback.resume();
+        tocador.segurados['/parte-1.m4a']!.completeError(
+          PlayerInterruptedException('parado'),
+        );
+        await abrindo;
+        await Future<void>.delayed(Duration.zero);
 
-      expect(falhas, isEmpty,
-          reason: 'quem cortou o load foi o nosso próprio stop, e um resume '
+        expect(
+          falhas,
+          isEmpty,
+          reason:
+              'quem cortou o load foi o nosso próprio stop, e um resume '
               'dado depois dele não transforma o gesto da equipe numa falha '
-              'do tablet — que chama uma pessoa e para a sala');
-      expect(anunciadas, isEmpty,
-          reason: 'um resume desfaz uma pausa, não um stop: o clipe parado '
+              'do tablet — que chama uma pessoa e para a sala',
+        );
+        expect(
+          anunciadas,
+          isEmpty,
+          reason:
+              'um resume desfaz uma pausa, não um stop: o clipe parado '
               'não volta a se anunciar, e a medida que o stop apagou não '
-              'pode ser escrita de volta pelo load que assenta atrás dele');
-      expect(playback.playingLength, isNull);
-    });
+              'pode ser escrita de volta pelo load que assenta atrás dele',
+        );
+        expect(playback.playingLength, isNull);
+      },
+    );
 
-    test('depois de um resume, a interrupção do aparelho volta a ser falha',
-        () async {
-      final falhas = <void>[];
-      playback.failures.listen(falhas.add);
-      tocador.segurados['/parte-1.m4a'] = Completer<void>();
+    test(
+      'depois de um resume, a interrupção do aparelho volta a ser falha',
+      () async {
+        final falhas = <void>[];
+        playback.failures.listen(falhas.add);
+        tocador.segurados['/parte-1.m4a'] = Completer<void>();
 
-      final abrindo = playback.play('/parte-1.m4a');
-      await _oLoadNoAr(tocador, '/parte-1.m4a');
-      await playback.pause();
-      await playback.resume();
-      tocador.segurados['/parte-1.m4a']!
-          .completeError(PlayerInterruptedException('a sessão caiu'));
-      await abrindo;
-      await Future<void>.delayed(Duration.zero);
+        final abrindo = playback.play('/parte-1.m4a');
+        await _oLoadNoAr(tocador, '/parte-1.m4a');
+        await playback.pause();
+        await playback.resume();
+        tocador.segurados['/parte-1.m4a']!.completeError(
+          PlayerInterruptedException('a sessão caiu'),
+        );
+        await abrindo;
+        await Future<void>.delayed(Duration.zero);
 
-      expect(falhas, hasLength(1),
-          reason: 'o hold foi desfeito e nenhum gesto nosso cortou este load: '
+        expect(
+          falhas,
+          hasLength(1),
+          reason:
+              'o hold foi desfeito e nenhum gesto nosso cortou este load: '
               'o que sobra é o tablet sem conseguir tocar a voz da equipe, e '
               'isso chama uma pessoa. A contagem antiga engolia esta, porque '
-              'o hold que o resume desfez ficava marcado para sempre');
-    });
+              'o hold que o resume desfez ficava marcado para sempre',
+        );
+      },
+    );
 
     test('um resume num clipe que nunca abriu não faz nada', () async {
       final falhas = <void>[];
@@ -606,8 +763,11 @@ void main() {
       await playback.resume();
       await Future<void>.delayed(Duration.zero);
 
-      expect(tocador.tocando, isFalse,
-          reason: 'não há clipe nenhum para voltar a soar');
+      expect(
+        tocador.tocando,
+        isFalse,
+        reason: 'não há clipe nenhum para voltar a soar',
+      );
       expect(tocador.carregados, isEmpty);
       expect(falhas, isEmpty);
     });
@@ -624,6 +784,7 @@ class _Duplo extends Fake implements AudioPlayer {
   final List<Duration?> iniciais = [];
   final _states = StreamController<PlayerState>.broadcast();
   Duration? length = const Duration(seconds: 30);
+
   /// So a test can give the clip in the air one length and the file being asked about
   /// another — without that, a probe on the wrong player is indistinguishable.
   final Map<String, Duration> porArquivo = {};

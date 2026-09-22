@@ -8,8 +8,8 @@ import 'package:internalization_room/main.dart';
 import 'fakes.dart';
 
 Finder byLabel(String label) => find.byWidgetPredicate(
-      (widget) => widget is Semantics && widget.properties.label == label,
-    );
+  (widget) => widget is Semantics && widget.properties.label == label,
+);
 
 const cortar = 'Cortar aqui e traduzir esta parte';
 const traduzir = 'Traduzir esta parte na língua ponte';
@@ -52,32 +52,45 @@ Future<void> pararAGravacao(
 }
 
 void main() {
-  testWidgets('with the recording in the air the button offers to cut',
-      (tester) async {
+  testWidgets('with the recording in the air the button offers to cut', (
+    tester,
+  ) async {
     await pumpToTraduzir(tester, SalaHarness());
 
-    expect(byLabel(cortar), findsOneWidget,
-        reason: 'com o áudio correndo sob o dedo existe um instante sendo '
-            'apontado, e é isso que a equipe está escolhendo ao tocar');
+    expect(
+      byLabel(cortar),
+      findsOneWidget,
+      reason:
+          'com o áudio correndo sob o dedo existe um instante sendo '
+          'apontado, e é isso que a equipe está escolhendo ao tocar',
+    );
   });
 
-  testWidgets('with the recording stopped the same button offers to tell',
-      (tester) async {
+  testWidgets('with the recording stopped the same button offers to tell', (
+    tester,
+  ) async {
     final container = await pumpToTraduzir(tester, SalaHarness());
     await pararAGravacao(tester, container);
 
-    expect(byLabel(traduzir), findsOneWidget,
-        reason: 'parado não há instante nenhum sendo apontado, e um botão que '
-            'promete cortar aqui não descreve mais nada — o que resta do '
-            'gesto é contar');
-    expect(byLabel(cortar), findsNothing,
-        reason: 'e só uma das duas caras por vez: um botão que oferecesse as '
-            'duas ao mesmo tempo não diria nada sobre o que vai acontecer');
+    expect(
+      byLabel(traduzir),
+      findsOneWidget,
+      reason:
+          'parado não há instante nenhum sendo apontado, e um botão que '
+          'promete cortar aqui não descreve mais nada — o que resta do '
+          'gesto é contar',
+    );
+    expect(
+      byLabel(cortar),
+      findsNothing,
+      reason:
+          'e só uma das duas caras por vez: um botão que oferecesse as '
+          'duas ao mesmo tempo não diria nada sobre o que vai acontecer',
+    );
   });
 
   for (final noAr in [true, false]) {
-    testWidgets(
-        'the tap lands in the same place with the recording '
+    testWidgets('the tap lands in the same place with the recording '
         '${noAr ? "in the air" : "stopped"}', (tester) async {
       final container = await pumpToTraduzir(tester, SalaHarness());
       if (!noAr) await pararAGravacao(tester, container);
@@ -85,24 +98,35 @@ void main() {
       await tester.tap(byLabel(noAr ? cortar : traduzir));
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing,
-          reason: 'a cara do botão muda, o que ele faz não: nos dois estados o '
-              'toque abre o microfone para a equipe contar esta parte, e um '
-              'botão que mudasse de destino junto com o rótulo trocaria o '
-              'fluxo por baixo de uma mudança de palavra');
+      expect(
+        container.read(salaSessionProvider).btPhase,
+        BtPhase.capturing,
+        reason:
+            'a cara do botão muda, o que ele faz não: nos dois estados o '
+            'toque abre o microfone para a equipe contar esta parte, e um '
+            'botão que mudasse de destino junto com o rótulo trocaria o '
+            'fluxo por baixo de uma mudança de palavra',
+      );
     });
   }
 
   testWidgets('the listening button is left alone', (tester) async {
     final container = await pumpToTraduzir(tester, SalaHarness());
 
-    expect(byLabel('Pausar a gravação'), findsOneWidget,
-        reason: 'o botão de ouvir tem a sua própria fala e ela já segue o '
-            'player; o vizinho mudar de cara não pode arrastá-lo junto');
+    expect(
+      byLabel('Pausar a gravação'),
+      findsOneWidget,
+      reason:
+          'o botão de ouvir tem a sua própria fala e ela já segue o '
+          'player; o vizinho mudar de cara não pode arrastá-lo junto',
+    );
 
     await pararAGravacao(tester, container);
 
-    expect(byLabel('Ouvir a gravação'), findsOneWidget,
-        reason: 'e parado ele volta a oferecer ouvir, como sempre ofereceu');
+    expect(
+      byLabel('Ouvir a gravação'),
+      findsOneWidget,
+      reason: 'e parado ele volta a oferecer ouvir, como sempre ofereceu',
+    );
   });
 }

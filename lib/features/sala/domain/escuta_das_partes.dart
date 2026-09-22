@@ -13,10 +13,10 @@ class PlayedTake {
   });
 
   Map<String, Object?> toJson() => {
-        'take_id': takeId,
-        'played_ranges': playedRanges,
-        'clip_duration_ms': clipDurationMs,
-      };
+    'take_id': takeId,
+    'played_ranges': playedRanges,
+    'clip_duration_ms': clipDurationMs,
+  };
 }
 
 class _Escutada {
@@ -84,22 +84,23 @@ class EscutaDasPartes {
   /// sends is what it means: the reach of the listening, not the order the team wandered
   /// in.
   List<PlayedTake> relato(List<KeptTake> partes) => [
-        for (final parte in partes)
-          if (parte.takeId case final nome?)
-            if (_partes[parte.path] case final escutada?)
-              if (escutada.faixas.isNotEmpty)
-                PlayedTake(
-                  takeId: nome,
-                  playedRanges: _unidas(escutada.faixas),
-                  clipDurationMs: escutada.medida,
-                ),
-      ];
+    for (final parte in partes)
+      if (parte.takeId case final nome?)
+        if (_partes[parte.path] case final escutada?)
+          if (escutada.faixas.isNotEmpty)
+            PlayedTake(
+              takeId: nome,
+              playedRanges: _unidas(escutada.faixas),
+              clipDurationMs: escutada.medida,
+            ),
+  ];
 
   _Escutada _do(String arquivo) => _partes.putIfAbsent(arquivo, _Escutada.new);
 
   static List<List<int>> _unidas(List<List<int>> faixas) {
-    final ordenadas = [for (final faixa in faixas) [faixa[0], faixa[1]]]
-      ..sort((uma, outra) => uma[0].compareTo(outra[0]));
+    final ordenadas = [
+      for (final faixa in faixas) [faixa[0], faixa[1]],
+    ]..sort((uma, outra) => uma[0].compareTo(outra[0]));
     final unidas = <List<int>>[];
     for (final faixa in ordenadas) {
       if (unidas.isNotEmpty && faixa[0] <= unidas.last[1]) {

@@ -43,6 +43,7 @@ const cortarTrechoLabel = 'Cortar este trecho em dois, aqui';
 class OndeMoraGrade extends StatelessWidget {
   final VoidCallback onOuvirMaterna;
   final VoidCallback onOuvirRetro;
+
   /// Record the part this stretch sits in again. The wood voice is still the team's own
   /// tongue; what it opens is the whole part, not a slice of it.
   final VoidCallback onGravarAParteDeNovo;
@@ -125,6 +126,7 @@ class _Coluna extends StatelessWidget {
   final Gradient gradiente;
   final String ouvirLabel;
   final String micLabel;
+
   /// Null when there is nothing to hear on this voice.
   final VoidCallback? onOuvir;
   final VoidCallback onFalar;
@@ -201,8 +203,11 @@ class _Coluna extends StatelessWidget {
             gradiente: gradiente,
             label: micLabel,
             onTap: inerte || micInerte ? null : onFalar,
-            child:
-                const Icon(LucideIcons.mic, size: 22, color: ShemaBrand.branco),
+            child: const Icon(
+              LucideIcons.mic,
+              size: 22,
+              color: ShemaBrand.branco,
+            ),
           ),
         ),
         if (estacoesPenduradas > 0) ...[
@@ -243,12 +248,12 @@ class _SobOTocador extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(width: _tesouraSlot + _tesouraFolga),
-          child,
-        ],
-      );
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      const SizedBox(width: _tesouraSlot + _tesouraFolga),
+      child,
+    ],
+  );
 }
 
 class _Corda extends StatelessWidget {
@@ -258,11 +263,8 @@ class _Corda extends StatelessWidget {
   const _Corda({required this.colors, required this.altura});
 
   @override
-  Widget build(BuildContext context) => Container(
-        width: 2,
-        height: altura,
-        color: colors.cord,
-      );
+  Widget build(BuildContext context) =>
+      Container(width: 2, height: altura, color: colors.cord);
 }
 
 class _Player extends StatelessWidget {

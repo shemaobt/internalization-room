@@ -230,55 +230,55 @@ void main() {
     expect(trecho.to, const Duration(seconds: 4));
   });
 
-  test(
-    'o corte conta do começo mesmo quando o colar ainda guarda chão da '
-    'parte que o servidor nomeou',
-    () async {
-      final it = await umEnsaioDeTresPartesContadoInteiro();
-      final segunda = it.partes[1];
-      expect(
-        it.estado.btTrechos.any(
-          (trecho) => trecho.parte == 1 && trecho.lugarTo > Duration.zero,
-        ),
-        isTrue,
-        reason: 'o cenário só mede algo se o colar já guardar chão da '
-            'parte 2 antes do pouso',
-      );
+  test('o corte conta do começo mesmo quando o colar ainda guarda chão da '
+      'parte que o servidor nomeou', () async {
+    final it = await umEnsaioDeTresPartesContadoInteiro();
+    final segunda = it.partes[1];
+    expect(
+      it.estado.btTrechos.any(
+        (trecho) => trecho.parte == 1 && trecho.lugarTo > Duration.zero,
+      ),
+      isTrue,
+      reason:
+          'o cenário só mede algo se o colar já guardar chão da '
+          'parte 2 antes do pouso',
+    );
 
-      it.harness.room
-        ..verdictChecked = false
-        ..verdictUntoldTakeIds = [segunda.takeId!];
-      await pedirOVeredito(it);
+    it.harness.room
+      ..verdictChecked = false
+      ..verdictUntoldTakeIds = [segunda.takeId!];
+    await pedirOVeredito(it);
 
-      final trechosAntes = it.estado.btTrechos.length;
-      it.harness.playback.at = const Duration(seconds: 4);
-      it.sala.cortarTrecho();
-      expect(
-        it.estado.btPhase,
-        BtPhase.capturing,
-        reason: 'sem a linha, o cursor recusa a posição por estar atrás do '
-            'chão que o colar ainda guarda desta parte, e o corte é '
-            'ignorado em silêncio — o microfone nunca abre',
-      );
+    final trechosAntes = it.estado.btTrechos.length;
+    it.harness.playback.at = const Duration(seconds: 4);
+    it.sala.cortarTrecho();
+    expect(
+      it.estado.btPhase,
+      BtPhase.capturing,
+      reason:
+          'sem a linha, o cursor recusa a posição por estar atrás do '
+          'chão que o colar ainda guarda desta parte, e o corte é '
+          'ignorado em silêncio — o microfone nunca abre',
+    );
 
-      it.sala.retroTap();
-      await waitFor(
-        'o trecho traduzido entrar no colar',
-        () => it.estado.btTrechos.length > trechosAntes,
-      );
+    it.sala.retroTap();
+    await waitFor(
+      'o trecho traduzido entrar no colar',
+      () => it.estado.btTrechos.length > trechosAntes,
+    );
 
-      final trecho = it.estado.btTrechos.last;
-      expect(trecho.parte, 1);
-      expect(
-        trecho.from,
-        Duration.zero,
-        reason: 'o servidor nomeou esta parte como não contada; o colar '
-            'ainda guardar chão dela de uma rodada anterior não muda a '
-            'ordem, e o corte conta do começo dela mesmo assim',
-      );
-      expect(trecho.to, const Duration(seconds: 4));
-    },
-  );
+    final trecho = it.estado.btTrechos.last;
+    expect(trecho.parte, 1);
+    expect(
+      trecho.from,
+      Duration.zero,
+      reason:
+          'o servidor nomeou esta parte como não contada; o colar '
+          'ainda guardar chão dela de uma rodada anterior não muda a '
+          'ordem, e o corte conta do começo dela mesmo assim',
+    );
+    expect(trecho.to, const Duration(seconds: 4));
+  });
 
   test('um id que nenhuma parte tem chama uma pessoa', () async {
     final it = await umEnsaioDeTresPartesContadoInteiro();

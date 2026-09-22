@@ -50,11 +50,15 @@ void main() {
     await settle(_severalStepsOfTheLadder);
 
     expect(read().needsPerson, isTrue);
-    expect(_callsForAPerson(harness), greaterThan(1),
-        reason: 'o pedido que nunca chegou ao servidor era dado por feito na '
-            'hora de disparar: a sessão não entrava na fila da mesa, nenhum '
-            'facilitador era avisado, e a equipe ficava parada esperando '
-            'alguém que nunca foi chamado');
+    expect(
+      _callsForAPerson(harness),
+      greaterThan(1),
+      reason:
+          'o pedido que nunca chegou ao servidor era dado por feito na '
+          'hora de disparar: a sessão não entrava na fila da mesa, nenhum '
+          'facilitador era avisado, e a equipe ficava parada esperando '
+          'alguém que nunca foi chamado',
+    );
   });
 
   test('a call the server confirmed is not repeated', () async {
@@ -69,10 +73,14 @@ void main() {
     await settle(_severalStepsOfTheLadder);
 
     expect(read().needsPerson, isTrue);
-    expect(harness.room.personsAsked, 1,
-        reason: 'o servidor confirmou o chamado na primeira vez; uma '
-            'insistência que não sabe parar martela a rota a cada passo da '
-            'escada, para sempre, em toda sala que parou');
+    expect(
+      harness.room.personsAsked,
+      1,
+      reason:
+          'o servidor confirmou o chamado na primeira vez; uma '
+          'insistência que não sabe parar martela a rota a cada passo da '
+          'escada, para sempre, em toda sala que parou',
+    );
     expect(_callsForAPerson(harness), 1);
   });
 
@@ -85,18 +93,25 @@ void main() {
 
     harness.room.failWith = const RoomRefused();
     await _stopForAPerson(notifier, read);
-    await waitFor('a sala chamar uma pessoa', () => _callsForAPerson(harness) >= 1);
+    await waitFor(
+      'a sala chamar uma pessoa',
+      () => _callsForAPerson(harness) >= 1,
+    );
 
     final pedidos = _callsForAPerson(harness);
     notifier.resolveWithPerson();
     await settle(_severalStepsOfTheLadder);
 
-    expect(_callsForAPerson(harness), pedidos,
-        reason: 'a pessoa chegou e tocou a tela; uma sala já atendida que '
-            'continua chamando põe a mesma sessão de volta na fila da mesa. '
-            'O pedido segue falhando depois do toque de propósito: com o '
-            'servidor de pé, um passo da escada que sobrou vivo sucederia e '
-            'encerraria a insistência por conta própria, e o teste passaria a '
-            'medir a confirmação em vez do toque');
+    expect(
+      _callsForAPerson(harness),
+      pedidos,
+      reason:
+          'a pessoa chegou e tocou a tela; uma sala já atendida que '
+          'continua chamando põe a mesma sessão de volta na fila da mesa. '
+          'O pedido segue falhando depois do toque de propósito: com o '
+          'servidor de pé, um passo da escada que sobrou vivo sucederia e '
+          'encerraria a insistência por conta própria, e o teste passaria a '
+          'medir a confirmação em vez do toque',
+    );
   });
 }

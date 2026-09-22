@@ -145,9 +145,13 @@ void main() {
       ],
     });
 
-    expect(takes[0].pass, 3,
-        reason: 'é por esta conta que a sala separa a gravação que a equipe '
-            'guardou da que ela abandonou');
+    expect(
+      takes[0].pass,
+      3,
+      reason:
+          'é por esta conta que a sala separa a gravação que a equipe '
+          'guardou da que ela abandonou',
+    );
     expect(takes[1].pass, isNull);
   });
 }

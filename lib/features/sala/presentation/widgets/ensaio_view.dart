@@ -62,7 +62,9 @@ class EnsaioView extends ConsumerWidget {
                         semanticLabel: 'Ouvir a gravação',
                         pulsing: session.playPing,
                         icon: Icon(
-                          session.playPing ? LucideIcons.pause : LucideIcons.play,
+                          session.playPing
+                              ? LucideIcons.pause
+                              : LucideIcons.play,
                           size: 24,
                           color: colors.ink,
                         ),
@@ -117,7 +119,8 @@ class EnsaioView extends ConsumerWidget {
                       size: 24,
                       opacity: 0.45,
                       marcada: take.scopeId == session.escopoDaParteARegravar,
-                      filled: !session.unsentTakeScopes.contains(take.scopeId) &&
+                      filled:
+                          !session.unsentTakeScopes.contains(take.scopeId) &&
                           !session.unsentTakeScopes.contains(unknownScope),
                     ),
                   ),

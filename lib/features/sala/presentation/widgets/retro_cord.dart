@@ -59,10 +59,12 @@ double cordFraction({
   }
   if (parte >= partes) return 1;
   final inicio = parte == 0 ? 0 : fimDasPartes[parte - 1];
-  final duracao =
-      parte < fimDasPartes.length ? fimDasPartes[parte] - inicio : parteNoArMs;
-  final dentro =
-      duracao <= 0 ? 0.0 : ((atMs - inicio) / duracao).clamp(0.0, 1.0);
+  final duracao = parte < fimDasPartes.length
+      ? fimDasPartes[parte] - inicio
+      : parteNoArMs;
+  final dentro = duracao <= 0
+      ? 0.0
+      : ((atMs - inicio) / duracao).clamp(0.0, 1.0);
   return ((parte + dentro) / partes).clamp(0.0, 1.0);
 }
 
@@ -87,11 +89,11 @@ class RetroCord extends StatelessWidget {
   });
 
   double _at(int ms) => cordFraction(
-        atMs: ms,
-        partes: partes,
-        fimDasPartes: fimDasPartes,
-        parteNoArMs: parteNoArMs,
-      );
+    atMs: ms,
+    partes: partes,
+    fimDasPartes: fimDasPartes,
+    parteNoArMs: parteNoArMs,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -108,12 +110,14 @@ class RetroCord extends StatelessWidget {
       if (faixa == null) continue;
       final (de, ate) = faixa;
       final again = !contados.add(de);
-      told.add(_Span(
-        _at(de),
-        _at(ate),
-        again,
-        apontado != null && trecho.segmentId == apontado,
-      ));
+      told.add(
+        _Span(
+          _at(de),
+          _at(ate),
+          again,
+          apontado != null && trecho.segmentId == apontado,
+        ),
+      );
     }
     return Semantics(
       label: told.any((span) => span.apontado)
@@ -121,18 +125,16 @@ class RetroCord extends StatelessWidget {
           : null,
       child: IgnorePointer(
         child: LayoutBuilder(
-        builder: (context, constraints) => CustomPaint(
-          size: Size(constraints.maxWidth, constraints.maxHeight),
-          painter: _CordPainter(
-            sx: constraints.maxWidth / _designWidth,
-            sy: constraints.maxHeight / _designHeight,
-            cord: colors.cord,
-            told: told,
-            mark: _at(ouvidoMs),
-            boundaries: [
-              for (var i = 1; i < partes; i++) i / partes,
-            ],
-            colors: colors,
+          builder: (context, constraints) => CustomPaint(
+            size: Size(constraints.maxWidth, constraints.maxHeight),
+            painter: _CordPainter(
+              sx: constraints.maxWidth / _designWidth,
+              sy: constraints.maxHeight / _designHeight,
+              cord: colors.cord,
+              told: told,
+              mark: _at(ouvidoMs),
+              boundaries: [for (var i = 1; i < partes; i++) i / partes],
+              colors: colors,
             ),
           ),
         ),
@@ -145,6 +147,7 @@ class _Span {
   final double from;
   final double to;
   final bool again;
+
   /// Whether this is the stretch the analyst pointed at. The room has no readable words,
   /// so the cord is the only place the team can see *where* the problem is.
   final bool apontado;

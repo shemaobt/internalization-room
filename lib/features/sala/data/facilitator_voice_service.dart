@@ -29,10 +29,10 @@ class FacilitatorVoiceService {
     AudioPlayer? player,
     Duration? lineGrace,
     Duration? loadCeiling,
-  })  : _libraryDir = libraryDir ?? _defaultLibraryDir,
-        _opened = player,
-        _grace = lineGrace ?? _lineGrace,
-        _loadCeiling = loadCeiling ?? _unknownLineCeiling;
+  }) : _libraryDir = libraryDir ?? _defaultLibraryDir,
+       _opened = player,
+       _grace = lineGrace ?? _lineGrace,
+       _loadCeiling = loadCeiling ?? _unknownLineCeiling;
 
   AudioPlayer get _player => _opened ??= AudioPlayer();
 
@@ -105,8 +105,7 @@ class FacilitatorVoiceService {
       length = await () async {
         await _player.stop();
         return load();
-      }()
-          .timeout(_loadCeiling + _grace);
+      }().timeout(_loadCeiling + _grace);
     } on TimeoutException {
       await _giveUp();
       return false;
@@ -130,6 +129,7 @@ class FacilitatorVoiceService {
       return;
     }
   }
+
   /// The line on disk, downloading it once however many callers ask at the same moment.
   ///
   /// The opening fetches its second movement while the first is still being spoken, and

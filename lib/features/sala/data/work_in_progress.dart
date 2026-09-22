@@ -41,20 +41,20 @@ class ResumePoint {
   });
 
   Map<String, Object?> toJson() => {
-        'session_id': sessionId,
-        'stage': stage.name,
-        'saved_at': ?savedAt?.millisecondsSinceEpoch,
-        'language': ?language,
-        'takes': [
-          for (final take in takes)
-            {
-              'name': p.basename(take.path),
-              'scope': take.scopeId,
-              'take': ?take.takeId,
-              'pass': take.pass,
-            },
-        ],
-      };
+    'session_id': sessionId,
+    'stage': stage.name,
+    'saved_at': ?savedAt?.millisecondsSinceEpoch,
+    'language': ?language,
+    'takes': [
+      for (final take in takes)
+        {
+          'name': p.basename(take.path),
+          'scope': take.scopeId,
+          'take': ?take.takeId,
+          'pass': take.pass,
+        },
+    ],
+  };
 
   static ResumePoint? fromJson(
     Map<String, Object?> json, {
@@ -109,12 +109,12 @@ class WorkInProgress {
   WorkInProgress({
     Future<Directory> Function()? home,
     Future<Directory> Function()? recordings,
-  })  : _home = home ?? getApplicationSupportDirectory,
-        _recordings = recordings ?? _recordingsHome;
+  }) : _home = home ?? getApplicationSupportDirectory,
+       _recordings = recordings ?? _recordingsHome;
 
   static Future<Directory> _recordingsHome() async => Directory(
-        p.join((await getApplicationDocumentsDirectory()).path, 'recordings'),
-      );
+    p.join((await getApplicationDocumentsDirectory()).path, 'recordings'),
+  );
 
   Future<File> _file() async {
     final dir = Directory(p.join((await _home()).path, _folder));
@@ -149,9 +149,9 @@ class WorkInProgress {
 
   /// The passages of this book with work waiting in them.
   Future<Set<String>> startedIn(String book) async => {
-        for (final key in (await _rows()).keys)
-          if (key.startsWith('$book/')) key.substring(book.length + 1),
-      };
+    for (final key in (await _rows()).keys)
+      if (key.startsWith('$book/')) key.substring(book.length + 1),
+  };
 
   Future<ResumePoint?> of(String book, String pericope) async =>
       (await _rows())[_mark(book, pericope)];
@@ -201,4 +201,6 @@ class WorkInProgress {
   }
 }
 
-final workInProgressProvider = Provider<WorkInProgress>((ref) => WorkInProgress());
+final workInProgressProvider = Provider<WorkInProgress>(
+  (ref) => WorkInProgress(),
+);

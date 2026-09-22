@@ -26,14 +26,16 @@ class RetroView extends ConsumerWidget {
     // network: the team got a green circle, two buttons the guards refuse, no way out of
     // the passage, and nothing at all saying why. It cost nothing while conferida lasted
     // 700 ms; it is where the team now waits.
-    final conferida = session.btPhase == BtPhase.conferida &&
+    final conferida =
+        session.btPhase == BtPhase.conferida &&
         !session.needsPerson &&
         !session.offline;
     final clipRunning = session.btClipRodando || session.btTrechoTocando;
 
     // The question is its own composition, not a row of buttons under the usual circle:
     // the grid is the screen, and the room's voice steps back to make room for it.
-    if (session.btPhase == BtPhase.findings && session.btFindingTrecho != null) {
+    if (session.btPhase == BtPhase.findings &&
+        session.btFindingTrecho != null) {
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -43,8 +45,9 @@ class RetroView extends ConsumerWidget {
             warning: session.warning,
             semanticLabel: _circleLabel(session),
             onTap: notifier.retroTap,
-            onLongPress:
-                session.canResolveWithPerson ? notifier.resolveWithPerson : null,
+            onLongPress: session.canResolveWithPerson
+                ? notifier.resolveWithPerson
+                : null,
           ),
           const SizedBox(height: 46),
           OndeMoraGrade(
@@ -88,10 +91,7 @@ class RetroView extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 44),
-        SizedBox(
-          height: 64,
-          child: _actions(session, notifier),
-        ),
+        SizedBox(height: 64, child: _actions(session, notifier)),
       ],
     );
   }
@@ -124,8 +124,9 @@ class RetroView extends ConsumerWidget {
       // to what it always did — including reading the kind: telling the whole recording
       // again settles nothing a re-recording kind names, and the pointer being absent must
       // not smuggle that offer back in.
-      final retellingCanSettleIt =
-          !session.btFindings.any((finding) => finding.exitsByReRecording);
+      final retellingCanSettleIt = !session.btFindings.any(
+        (finding) => finding.exitsByReRecording,
+      );
       return FadeUp(
         child: Row(
           mainAxisSize: MainAxisSize.min,

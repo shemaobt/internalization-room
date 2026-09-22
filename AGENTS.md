@@ -29,11 +29,15 @@ Run `git config core.hooksPath tool/git-hooks` once to get the doctrine guard on
 ## What CI enforces beyond the suite
 
 - No test is skipped.
-- The room stays wordless: no `Text(` widget in the room's presentation layer, the claim
-  code screen being the one named exception.
+- The room stays wordless: no `Text(` widget in the room's presentation layer, enforced by
+  `test/the_room_stays_wordless_test.dart` against a named exception list — the claim code
+  screen, read by the facilitator and not the team, is the only one today.
 - Nothing forbidden returns to `lib/`: `tool/check_doctrine.dart` mirrors the backend's
   doctrine guard (`tripod-backend`, `scripts/check_doctrine.py`) against Marcia's six rules,
   spelled in Dart, against a typed allowlist in `tool/doctrine_allowlist.dart`.
+- The source is what the pinned formatter produces: `dart format --output=none
+  --set-exit-if-changed lib test tool` must exit 0; a branch that is not formatted fails
+  the check.
 
 ## Secrets
 

@@ -9,11 +9,7 @@ class SpokenLine {
   /// under a long press, so nothing said once becomes unreachable.
   final String panoramaUrl;
 
-  const SpokenLine({
-    this.url = '',
-    this.fixedLine = '',
-    this.panoramaUrl = '',
-  });
+  const SpokenLine({this.url = '', this.fixedLine = '', this.panoramaUrl = ''});
 
   bool get exists => url.isNotEmpty || fixedLine.isNotEmpty;
 
