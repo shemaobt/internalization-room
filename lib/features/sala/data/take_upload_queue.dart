@@ -367,6 +367,8 @@ class TakeUploadQueue {
       flush: true,
     );
     await staging.rename(file.path);
+    final stat = await file.stat();
+    _cachedRead = _CachedRead(stat.modified, stat.size, entries);
   }
 
   /// Rewrite the manifest from what is actually on disk, one writer at a time.
@@ -383,6 +385,7 @@ class TakeUploadQueue {
     final next = _writes.then((_) async {
       final written = await _written();
       if (written == null) {
+        _cachedRead = null;
         await (await _manifestFile()).rename((await _quarantineFile()).path);
         await _write(change(const []));
         return;
