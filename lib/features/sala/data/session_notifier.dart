@@ -1259,7 +1259,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         ping: advanced ? PingRange(before, told.engaged) : null,
       );
     }
-    if (state.ping != null) {
+    if (advanced) {
       _after('ping', const Duration(milliseconds: 700), () {
         state = state.copyWith(clearPing: true);
       });

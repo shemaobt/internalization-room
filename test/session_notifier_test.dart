@@ -1784,6 +1784,43 @@ void main() {
   );
 
   test(
+    'a pull that confirms the frame inside the ping does not stretch it past the frame\'s own 700 ms',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1'
+        ..room.settledCoverage = coverage(engaged: 3, surfaced: 4);
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+      harness.room.holdNextState();
+
+      harness.room.pushCoverage(
+        CoverageEvent(
+          turnId: 'turno-1',
+          status: CoverageStatus.settled,
+          coverage: coverage(engaged: 3, surfaced: 4),
+        ),
+      );
+      await waitFor(
+        'o aviso acender o papel',
+        () => container.read(salaSessionProvider).ping?.to == 3,
+      );
+      await settle(const Duration(milliseconds: 400));
+      harness.room.finishHeldState();
+      await settle(const Duration(milliseconds: 450));
+
+      expect(
+        container.read(salaSessionProvider).ping,
+        isNull,
+        reason:
+            'o papel dura 700 ms a partir do aviso; o pull que só confirma '
+            'o mesmo número não pode rearmar o apagar para pull + 700 ms',
+      );
+    },
+  );
+
+  test(
     'a frame that reports fewer beads than the necklace already shows changes nothing',
     () async {
       final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
