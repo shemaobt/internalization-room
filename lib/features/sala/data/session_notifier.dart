@@ -1248,21 +1248,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// that raced ahead of a slower one used to be able to put it back. The same guard
   /// runs whether the number came from the coverage frame or from the state pull that
   /// follows it, so the pull confirming what the frame already painted never re-marks
-  /// the clock or re-lights a ping that is already on.
+  /// the clock a second time.
   bool _applyCoverage(Coverage? told, {TurnClock? clock}) {
     final before = state.coverage.engaged;
     final advanced = told != null && told.engaged > before;
     if (advanced) clock?.mark('beads');
     if (told != null && told.engaged >= before) {
-      state = state.copyWith(
-        coverage: told,
-        ping: advanced ? PingRange(before, told.engaged) : null,
-      );
-    }
-    if (advanced) {
-      _after('ping', const Duration(milliseconds: 700), () {
-        state = state.copyWith(clearPing: true);
-      });
+      state = state.copyWith(coverage: told);
     }
     return advanced;
   }

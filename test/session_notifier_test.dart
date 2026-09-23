@@ -927,15 +927,6 @@ void main() {
     expect(const SalaSessionState(stage: SalaStage.fim).colarOn, isTrue);
   });
 
-  test('ping range covers newly engaged beads only', () {
-    const ping = PingRange(4, 6);
-
-    expect(ping.contains(3), isFalse);
-    expect(ping.contains(4), isTrue);
-    expect(ping.contains(5), isTrue);
-    expect(ping.contains(6), isFalse);
-  });
-
   test('entering the passage opens a session on the backend', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
@@ -1712,7 +1703,7 @@ void main() {
   );
 
   test(
-    'a frame carrying coverage pings the newly engaged beads, same as the pull would',
+    'a frame that advances the beads updates the screen once, not twice for a ping nothing draws',
     () async {
       final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
         ..room.turnIdInResponse = 'turno-1'
@@ -1721,6 +1712,9 @@ void main() {
       addTearDown(container.dispose);
 
       await container.read(salaSessionProvider.notifier).goConversa();
+
+      var emits = 0;
+      container.listen(salaSessionProvider, (_, _) => emits++);
 
       harness.room.pushCoverage(
         CoverageEvent(
@@ -1733,90 +1727,17 @@ void main() {
         'o colar assentar pelo aviso',
         () => container.read(salaSessionProvider).coverage.engaged == 3,
       );
+      await settle(const Duration(milliseconds: 750));
 
-      final ping = container.read(salaSessionProvider).ping;
       expect(
-        ping?.from,
-        0,
+        emits,
+        1,
         reason:
-            'o aviso pinta o colar direto — o papel de contas novas tinha '
-            'que acender junto, não só quando o pull confirmar depois',
+            'o aviso pintava o colar e, 700ms depois, apagava um papel que '
+            'nenhum widget desenha — dois toques na tela por um só evento',
       );
-      expect(ping?.to, 3);
 
       harness.room.finishHeldState();
-    },
-  );
-
-  test(
-    'a pull that only confirms what the frame already painted does not cut the ping short',
-    () async {
-      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
-        ..room.turnIdInResponse = 'turno-1'
-        ..room.settledCoverage = coverage(engaged: 3, surfaced: 4);
-      final container = harness.container();
-      addTearDown(container.dispose);
-
-      await container.read(salaSessionProvider.notifier).goConversa();
-
-      harness.room.pushCoverage(
-        CoverageEvent(
-          turnId: 'turno-1',
-          status: CoverageStatus.settled,
-          coverage: coverage(engaged: 3, surfaced: 4),
-        ),
-      );
-      await waitFor(
-        'o pull que o aviso settled dispara terminar',
-        () => harness.room.calls.where((c) => c == 'fetchState').length == 1,
-      );
-      await settle(const Duration(milliseconds: 50));
-
-      expect(
-        container.read(salaSessionProvider).ping?.to,
-        3,
-        reason:
-            'o pull que só confirma o mesmo número não pode apagar o papel '
-            'que o aviso já tinha aceso — a equipe veria um flash mais '
-            'curto do que o desenhado',
-      );
-    },
-  );
-
-  test(
-    'a pull that confirms the frame inside the ping does not stretch it past the frame\'s own 700 ms',
-    () async {
-      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
-        ..room.turnIdInResponse = 'turno-1'
-        ..room.settledCoverage = coverage(engaged: 3, surfaced: 4);
-      final container = harness.container();
-      addTearDown(container.dispose);
-
-      await container.read(salaSessionProvider.notifier).goConversa();
-      harness.room.holdNextState();
-
-      harness.room.pushCoverage(
-        CoverageEvent(
-          turnId: 'turno-1',
-          status: CoverageStatus.settled,
-          coverage: coverage(engaged: 3, surfaced: 4),
-        ),
-      );
-      await waitFor(
-        'o aviso acender o papel',
-        () => container.read(salaSessionProvider).ping?.to == 3,
-      );
-      await settle(const Duration(milliseconds: 400));
-      harness.room.finishHeldState();
-      await settle(const Duration(milliseconds: 450));
-
-      expect(
-        container.read(salaSessionProvider).ping,
-        isNull,
-        reason:
-            'o papel dura 700 ms a partir do aviso; o pull que só confirma '
-            'o mesmo número não pode rearmar o apagar para pull + 700 ms',
-      );
     },
   );
 

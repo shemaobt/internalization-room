@@ -114,7 +114,6 @@ void main() {
         total: 1,
         absenceIndex: -1,
       ),
-      ping: const PingRange(0, 1),
     );
     await pumpColar(tester, filled);
 
