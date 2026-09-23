@@ -340,16 +340,7 @@ class TakeUploadQueue {
   >
   tally({required String? sessionId}) async {
     final written = await _written();
-    final rows = written ?? const <PendingTake>[];
-    var stuck = false;
-    for (final entry in rows) {
-      if (entry.stored) continue;
-      if (entry.exhausted || entry.stalled || await _reallyGone(entry)) {
-        stuck = true;
-        break;
-      }
-    }
-    final stranded = stuck || await lostHistory();
+    final stranded = (await giveUps()).isNotEmpty || await lostHistory();
 
     if (written == null) {
       return (

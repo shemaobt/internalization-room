@@ -1660,17 +1660,55 @@ class FakeTakeQueue implements TakeUploadQueue {
   Future<Set<String>> unsentScopesOf(
     String kind, {
     required String sessionId,
-  }) async {
+  }) async => {
+    for (final entry in rows)
+      if (!entry.stored && entry.kind == kind && entry.sessionId == sessionId)
+        entry.scope,
+  };
+
+  @override
+  Future<
+    ({
+      bool stranded,
+      int unsentTakes,
+      int unsentChunks,
+      Set<String> unsentTakeScopes,
+    })
+  >
+  tally({required String? sessionId}) async {
     final held = _armed;
     _armed = null;
     if (held != null) _holding = held;
-    final scopes = {
-      for (final entry in rows)
-        if (!entry.stored && entry.kind == kind && entry.sessionId == sessionId)
-          entry.scope,
-    };
+    // Nenhum await antes daqui: os números precisam ser tomados no mesmo turno
+    // síncrono em que a espera é armada, do jeito que unsentScopesOf já fazia —
+    // um await entre as duas coisas muda quando a leitura vê a fila, não só
+    // quando ela responde.
+    final result = (
+      stranded: false,
+      unsentTakes: [
+        for (final entry in rows)
+          if (!entry.stored &&
+              entry.kind == 'ensaio' &&
+              entry.sessionId == sessionId)
+            entry,
+      ].length,
+      unsentChunks: [
+        for (final entry in rows)
+          if (!entry.stored &&
+              entry.kind == 'retro' &&
+              entry.sessionId == sessionId)
+            entry,
+      ].length,
+      unsentTakeScopes: {
+        for (final entry in rows)
+          if (!entry.stored &&
+              entry.kind == 'ensaio' &&
+              entry.sessionId == sessionId)
+            entry.scope,
+      },
+    );
     if (held != null) await held.future;
-    return scopes;
+    return result;
   }
 
   @override
