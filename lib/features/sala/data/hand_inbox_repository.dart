@@ -20,12 +20,14 @@ const _uploadTimeout = Duration(seconds: 90);
 
 class HandInboxRepository {
   final http.Client _client;
+  final bool _ownsClient;
   final Future<String> Function() _deviceId;
 
   HandInboxRepository({
     http.Client? client,
     Future<String> Function()? deviceId,
   }) : _client = client ?? http.Client(),
+       _ownsClient = client == null,
        _deviceId = deviceId ?? deviceIdentity;
 
   http.Client get client => _client;
@@ -112,7 +114,9 @@ class HandInboxRepository {
     }
   }
 
-  void dispose() => _client.close();
+  void dispose() {
+    if (_ownsClient) _client.close();
+  }
 }
 
 final handInboxRepositoryProvider = Provider<HandInboxRepository>((ref) {

@@ -1,11 +1,50 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:internalization_room/features/sala/data/connectivity_service.dart';
 import 'package:internalization_room/features/sala/data/hand_inbox_repository.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/shared_http_client.dart';
 
+class _RecordingClient extends http.BaseClient {
+  bool closed = false;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) =>
+      throw UnimplementedError();
+
+  @override
+  void close() {
+    closed = true;
+    super.close();
+  }
+}
+
 void main() {
+  test(
+    'a repository that only borrowed the shared client leaves it open at dispose',
+    () {
+      final borrowedByRoom = _RecordingClient();
+      RoomRepository(client: borrowedByRoom).dispose();
+      expect(
+        borrowedByRoom.closed,
+        isFalse,
+        reason:
+            'os três repositórios compartilham um cliente só; se qualquer '
+            'um fechasse o que apenas pegou emprestado, os outros dois '
+            'perdiam a conexão junto',
+      );
+
+      final borrowedByHand = _RecordingClient();
+      HandInboxRepository(client: borrowedByHand).dispose();
+      expect(borrowedByHand.closed, isFalse);
+
+      final borrowedByNetwork = _RecordingClient();
+      ConnectivityService(client: borrowedByNetwork).dispose();
+      expect(borrowedByNetwork.closed, isFalse);
+    },
+  );
+
   test(
     'the room, the hand and the network reach through the same client, not three',
     () {

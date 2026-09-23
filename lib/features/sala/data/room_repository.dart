@@ -97,10 +97,12 @@ class RoomRepository {
   static const turnTimeout = _turnTimeout;
 
   final http.Client _client;
+  final bool _ownsClient;
   final Future<String> Function() _deviceId;
 
   RoomRepository({http.Client? client, Future<String> Function()? deviceId})
     : _client = client ?? http.Client(),
+      _ownsClient = client == null,
       _deviceId = deviceId ?? deviceIdentity;
 
   http.Client get client => _client;
@@ -567,7 +569,9 @@ class RoomRepository {
     }
   }
 
-  void dispose() => _client.close();
+  void dispose() {
+    if (_ownsClient) _client.close();
+  }
 }
 
 final roomRepositoryProvider = Provider<RoomRepository>((ref) {

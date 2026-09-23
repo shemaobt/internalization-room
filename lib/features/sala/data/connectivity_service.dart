@@ -15,12 +15,14 @@ const _quietBetweenSignals = Duration(seconds: 3);
 class ConnectivityService {
   final Connectivity _connectivity;
   final http.Client _client;
+  final bool _ownsClient;
   Future<RoomReach>? _inFlight;
   DateTime? _lastSignal;
 
   ConnectivityService({Connectivity? connectivity, http.Client? client})
     : _connectivity = connectivity ?? Connectivity(),
-      _client = client ?? http.Client();
+      _client = client ?? http.Client(),
+      _ownsClient = client == null;
 
   http.Client get client => _client;
 
@@ -72,7 +74,9 @@ class ConnectivityService {
     return true;
   }
 
-  void dispose() => _client.close();
+  void dispose() {
+    if (_ownsClient) _client.close();
+  }
 }
 
 final connectivityServiceProvider = Provider<ConnectivityService>((ref) {
