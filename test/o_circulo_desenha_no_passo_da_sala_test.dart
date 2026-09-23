@@ -143,6 +143,82 @@ void main() {
   );
 
   testWidgets(
+    'a ring that crosses from listening into speaking answers to her new pace, not the one it woke up with',
+    (tester) async {
+      await _pumpCircle(tester, VoiceState.listening);
+      await _pumpCircle(tester, VoiceState.speaking);
+      await tester.pump(const Duration(milliseconds: 1190));
+
+      final secondRing = tester
+          .widgetList<Ripple>(
+            find.descendant(
+              of: find.byType(FacilitatorCircle),
+              matching: find.byType(Ripple),
+            ),
+          )
+          .firstWhere((ring) => ring.phase == 0.65);
+
+      final scale = tester
+          .widget<Transform>(
+            find.descendant(
+              of: find.byWidget(secondRing),
+              matching: find.byType(Transform),
+            ),
+          )
+          .transform
+          .getMaxScaleOnAxis();
+
+      expect(
+        scale,
+        closeTo(1.0, 1e-9),
+        reason:
+            'o anel ainda estava na fase 0,5 dos 3200 ms de quando ouvia — '
+            '1190 ms depois da troca ele devia ter voltado ao começo do '
+            'laço novo (3400 ms, fase 0,65), não seguir a 0,87 do laço velho',
+      );
+    },
+  );
+
+  testWidgets(
+    'a rebuild that keeps her pace does not reopen the ring from the start',
+    (tester) async {
+      await _pumpCircle(tester, VoiceState.speaking);
+      await tester.pump(const Duration(milliseconds: 850));
+      await _pumpCircle(tester, VoiceState.speaking);
+      await tester.pump(const Duration(milliseconds: 2550));
+
+      final firstRing = tester
+          .widgetList<Ripple>(
+            find.descendant(
+              of: find.byType(FacilitatorCircle),
+              matching: find.byType(Ripple),
+            ),
+          )
+          .firstWhere((ring) => ring.phase == 0);
+
+      final scale = tester
+          .widget<Transform>(
+            find.descendant(
+              of: find.byWidget(firstRing),
+              matching: find.byType(Transform),
+            ),
+          )
+          .transform
+          .getMaxScaleOnAxis();
+
+      expect(
+        scale,
+        closeTo(1.0, 1e-9),
+        reason:
+            'nada em period ou phase mudou entre as duas reconstruções — só '
+            'o laço de 3400 ms inteiro, medido desde o primeiro quadro, '
+            'devia fechar de volta ao começo; reabrir a cada reconstrução '
+            'deixaria o anel a 0,75 do laço, não de volta a zero',
+      );
+    },
+  );
+
+  testWidgets(
     'a tablet put away stops drawing the circle, and draws it again when it comes back',
     (tester) async {
       await _pumpCircle(tester, VoiceState.invite);
