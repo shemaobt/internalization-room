@@ -295,7 +295,9 @@ class RoomRepository {
         status: status,
         coverage: json['coverage'] == null
             ? null
-            : Coverage.fromJson((json['coverage'] as Map).cast<String, dynamic>()),
+            : Coverage.fromJson(
+                (json['coverage'] as Map).cast<String, dynamic>(),
+              ),
       );
     } on FormatException {
       return null;

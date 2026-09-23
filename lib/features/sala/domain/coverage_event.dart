@@ -7,5 +7,9 @@ class CoverageEvent {
   final CoverageStatus status;
   final Coverage? coverage;
 
-  const CoverageEvent({required this.turnId, required this.status, this.coverage});
+  const CoverageEvent({
+    required this.turnId,
+    required this.status,
+    this.coverage,
+  });
 }
