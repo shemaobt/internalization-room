@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import '../../../core/config/env.dart';
 import '../domain/approval_answer.dart';
 import '../domain/bt_finding.dart';
+import '../domain/coverage.dart';
 import '../domain/coverage_event.dart';
 import '../domain/device_link.dart';
 import '../domain/escuta_das_partes.dart';
@@ -233,6 +234,18 @@ class RoomRepository {
           unawaited(response.stream.listen(null).cancel());
           return;
         }
+        if (response.statusCode != 200) {
+          unawaited(response.stream.listen(null).cancel());
+          if (response.statusCode == 401 || response.statusCode == 403) {
+            controller.addError(const RoomRefused());
+          } else if (response.statusCode == 404) {
+            controller.addError(const SessionGone());
+          } else {
+            controller.addError(RoomBroke('HTTP ${response.statusCode}'));
+          }
+          await controller.close();
+          return;
+        }
         String? eventName;
         final data = StringBuffer();
         lineSub = utf8.decoder
@@ -258,9 +271,13 @@ class RoomRepository {
                 }
               },
               onDone: controller.close,
-              onError: (Object _) => controller.close(),
+              onError: (Object error) {
+                if (!cancelled) controller.addError(RoomUnavailable('$error'));
+                controller.close();
+              },
             );
-      } on Exception {
+      } on Exception catch (error) {
+        if (!cancelled) controller.addError(RoomUnavailable('$error'));
         await controller.close();
       }
     }());
@@ -278,7 +295,15 @@ class RoomRepository {
         _ => null,
       };
       if (turnId == null || status == null) return null;
-      return CoverageEvent(turnId: turnId, status: status);
+      return CoverageEvent(
+        turnId: turnId,
+        status: status,
+        coverage: json['coverage'] == null
+            ? null
+            : Coverage.fromJson(
+                (json['coverage'] as Map).cast<String, dynamic>(),
+              ),
+      );
     } on FormatException {
       return null;
     }
@@ -296,17 +321,26 @@ class RoomRepository {
     return _read(response, TurnResult.fromJson);
   }
 
+  /// One voiced take, under the id it keeps across every resend. The id is not optional:
+  /// a take sent without one is a new turn to the room each time it goes, and a resend
+  /// of it is answered twice.
   Future<TurnResult> sendTurn(
     String sessionId,
     File audio, {
+    required String turnId,
     String? clientTiming,
+    Duration? timeout,
   }) async {
     final request =
         http.MultipartRequest('POST', _uri('/sessions/$sessionId/turns'))
           ..headers.addAll(_whoWeAre)
+          ..fields['turn_id'] = turnId
           ..files.add(await http.MultipartFile.fromPath('file', audio.path));
     if (clientTiming != null) request.fields['client_timing'] = clientTiming;
-    return _read(await _sendMultipart(request), TurnResult.fromJson);
+    return _read(
+      await _sendMultipart(request, timeout ?? _turnTimeout),
+      TurnResult.fromJson,
+    );
   }
 
   /// One stretch told back: which rehearsal recording it explains, and the slice of
@@ -517,9 +551,12 @@ class RoomRepository {
     return response.bodyBytes;
   }
 
-  Future<http.Response> _sendMultipart(http.MultipartRequest request) => _send(
+  Future<http.Response> _sendMultipart(
+    http.MultipartRequest request, [
+    Duration timeout = _turnTimeout,
+  ]) => _send(
     () async => http.Response.fromStream(await _client.send(request)),
-    _turnTimeout,
+    timeout,
   );
 
   Future<http.Response> _send(

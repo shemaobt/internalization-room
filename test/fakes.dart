@@ -687,13 +687,28 @@ class FakeRoom implements RoomRepository {
   @override
   http.Client get client => throw UnimplementedError();
 
-  final StreamController<CoverageEvent> _coverage =
+  StreamController<CoverageEvent> _coverage =
       StreamController<CoverageEvent>.broadcast();
+
+  int watchCoverageCalls = 0;
 
   void pushCoverage(CoverageEvent event) => _coverage.add(event);
 
+  /// Ends the channel a caller is listening to right now, the way Cloud Run's 300 s cut
+  /// or a room refusal does — the next [watchCoverage] call gets a fresh stream, since the
+  /// old one is gone for good.
+  void dropCoverageStream({Object? error}) {
+    final dying = _coverage;
+    _coverage = StreamController<CoverageEvent>.broadcast();
+    if (error != null) dying.addError(error);
+    dying.close();
+  }
+
   @override
-  Stream<CoverageEvent> watchCoverage(String sessionId) => _coverage.stream;
+  Stream<CoverageEvent> watchCoverage(String sessionId) {
+    watchCoverageCalls++;
+    return _coverage.stream;
+  }
 
   /// What a turn's own response says about the id classification will settle under, and
   /// whether classification is still running for it. Pending by default — the way a real
@@ -876,6 +891,10 @@ class FakeRoom implements RoomRepository {
 
   /// The turn id each opening turn carried, null included, in the order it was asked.
   final List<String?> turnIdsAsked = [];
+
+  final List<String> turnIdsSent = [];
+
+  final List<String> recordingsSent = [];
 
   int personsAsked = 0;
 
@@ -1287,13 +1306,20 @@ class FakeRoom implements RoomRepository {
   Future<TurnResult> sendTurn(
     String sessionId,
     File audio, {
+    required String turnId,
     String? clientTiming,
+    Duration? timeout,
   }) async {
     _guard('sendTurn');
     sessionsSpokenTo.add(sessionId);
     clientTimingsSent.add(clientTiming);
+    turnIdsSent.add(turnId);
+    recordingsSent.add(audio.path);
     turnsSent++;
-    await _turnArrives();
+    final arrives = _turnArrives();
+    await (timeout == null
+        ? arrives
+        : arrives.timeout(timeout, onTimeout: () => throw const RoomSlow()));
     return _turn(sessionId);
   }
 
@@ -1451,6 +1477,8 @@ class FakeRoom implements RoomRepository {
       untoldSegmentId: releaseUntoldSegmentId,
     );
   }
+
+  bool get coverageHasListener => _coverage.hasListener;
 
   @override
   void dispose() => _coverage.close();
@@ -1768,6 +1796,7 @@ class SalaHarness {
   final Duration settleDelay;
   final List<Duration> retryBackoff;
   final Duration? busyCeiling;
+  final Duration resendMargin;
   final Duration? rewarm;
   final Duration? playbackCeiling;
   final Duration clipGrace;
@@ -1791,6 +1820,7 @@ class SalaHarness {
     this.settleDelay = const Duration(milliseconds: 60),
     this.retryBackoff = const [Duration(milliseconds: 20)],
     this.busyCeiling,
+    this.resendMargin = const Duration(milliseconds: 50),
     this.rewarm,
     this.playbackCeiling,
     this.clipGrace = const Duration(seconds: 10),
@@ -1839,6 +1869,7 @@ class SalaHarness {
     coverageFallbackDelayProvider.overrideWithValue(settleDelay),
     roomRetryBackoffProvider.overrideWithValue(retryBackoff),
     busyStateCeilingProvider.overrideWithValue(busyCeiling),
+    resendMarginProvider.overrideWithValue(resendMargin),
     connectionRewarmIntervalProvider.overrideWithValue(rewarm),
     playbackCeilingProvider.overrideWithValue(playbackCeiling),
     clipGraceProvider.overrideWithValue(clipGrace),
