@@ -319,4 +319,45 @@ void main() {
           'se tudo passar a valer falso a sala se declara doente estando sa',
     );
   });
+
+  test(
+    'the clip cache is pruned once the reply actually sounds, not while it downloads',
+    () async {
+      final player = SpeakingPlayer();
+      final voice = service(player: player);
+
+      for (var i = 0; i < 65; i++) {
+        await voice.clipFor('/api/internalization-room/voice/c$i');
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(
+        library.listSync().whereType<File>(),
+        hasLength(65),
+        reason:
+            'com o cache cheio, a sala listava e ordenava cada clipe guardado '
+            'para apagar o mais velho bem na hora em que a resposta começava a tocar',
+      );
+
+      final speaking = voice.play('/api/internalization-room/voice/c64');
+      await waitFor('o tocador soar', () => player.sounding);
+
+      expect(
+        library.listSync().whereType<File>(),
+        hasLength(65),
+        reason:
+            'o play() já foi chamado, mas o tocador ainda não confirmou que soa '
+            '— podar aqui é a mesma trava de antes, só que adiada um passo',
+      );
+
+      player.startSounding();
+      await waitFor(
+        'a poda rodar',
+        () => library.listSync().whereType<File>().length <= 60,
+      );
+
+      player.reachTheEnd();
+      expect(await speaking, isTrue);
+    },
+  );
 }

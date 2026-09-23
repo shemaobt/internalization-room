@@ -42,7 +42,10 @@ class FacilitatorVoiceService {
       final file = await clipFor(url);
       return _sayItWhole(
         () => _player.setFilePath(file.path),
-        onSoundStart: onSoundStart,
+        onSoundStart: () {
+          unawaited(_tidyLibrary());
+          onSoundStart?.call();
+        },
       );
     });
   }
@@ -177,7 +180,6 @@ class FacilitatorVoiceService {
     final staging = File('${file.path}.novo');
     await staging.writeAsBytes(await _fetch(url), flush: true);
     await staging.rename(file.path);
-    unawaited(_dropOldestBeyondBudget(dir));
     return file;
   }
 
@@ -189,6 +191,11 @@ class FacilitatorVoiceService {
     } on Exception {
       return;
     }
+  }
+
+  Future<void> _tidyLibrary() async {
+    final dir = await _libraryDir();
+    await _dropOldestBeyondBudget(dir);
   }
 
   Future<void> _dropOldestBeyondBudget(Directory dir) async {
