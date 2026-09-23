@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import '../../../core/config/env.dart';
 import '../domain/approval_answer.dart';
 import '../domain/bt_finding.dart';
+import '../domain/coverage.dart';
 import '../domain/coverage_event.dart';
 import '../domain/device_link.dart';
 import '../domain/escuta_das_partes.dart';
@@ -289,7 +290,13 @@ class RoomRepository {
         _ => null,
       };
       if (turnId == null || status == null) return null;
-      return CoverageEvent(turnId: turnId, status: status);
+      return CoverageEvent(
+        turnId: turnId,
+        status: status,
+        coverage: json['coverage'] == null
+            ? null
+            : Coverage.fromJson((json['coverage'] as Map).cast<String, dynamic>()),
+      );
     } on FormatException {
       return null;
     }

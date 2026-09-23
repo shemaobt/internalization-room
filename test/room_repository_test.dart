@@ -640,6 +640,50 @@ void main() {
   );
 
   test(
+    'a settled frame carries the same beads the state endpoint would answer with',
+    () async {
+      final controller = StreamController<List<int>>();
+      final repository = RoomRepository(
+        client: MockClient.streaming(
+          (request, bodyStream) async =>
+              http.StreamedResponse(controller.stream, 200),
+        ),
+      );
+      addTearDown(repository.dispose);
+
+      final frames = <CoverageEvent>[];
+      final done = Completer<void>();
+      final subscription = repository
+          .watchCoverage('sessao-1')
+          .listen(frames.add, onDone: done.complete);
+      addTearDown(subscription.cancel);
+
+      controller.add(
+        utf8.encode(
+          'event: coverage\n'
+          'data: {"turn_id": "turno-1", "status": "settled", '
+          '"coverage": {"engaged": 3, "surfaced": 4, "total": 29, "absence_index": 13}}\n\n',
+        ),
+      );
+      await controller.close();
+      await done.future;
+
+      final coverage = frames.single.coverage;
+      expect(
+        coverage,
+        isNotNull,
+        reason:
+            'o aviso já carrega as contas — esperar o fetchState pedia de '
+            'novo o que o próprio evento acabou de responder',
+      );
+      expect(coverage!.engaged, 3);
+      expect(coverage.surfaced, 4);
+      expect(coverage.total, 29);
+      expect(coverage.absenceIndex, 13);
+    },
+  );
+
+  test(
     'a keep-alive on the coverage channel produces nothing, and the channel keeps talking',
     () async {
       final controller = StreamController<List<int>>();
