@@ -241,6 +241,33 @@ void main() {
     },
   );
 
+  test(
+    'onSoundStart fires when the player itself says it is sounding, not when play() is called',
+    () async {
+      final player = SpeakingPlayer();
+      final voice = service(player: player);
+      var started = false;
+
+      final speaking = voice.play(_clip, onSoundStart: () => started = true);
+      await waitFor('o tocador soar', () => player.sounding);
+
+      expect(
+        started,
+        isFalse,
+        reason:
+            'o just_audio pode levar um tempo real para começar a soar depois '
+            'do play() — contar do play() emitido mediria o carregamento, não '
+            'a espera que a equipe sente',
+      );
+
+      player.startSounding();
+      await waitFor('onSoundStart disparar', () => started);
+      player.reachTheEnd();
+
+      expect(await speaking, isTrue);
+    },
+  );
+
   test('a line played to the end is still counted as heard', () async {
     final player = SpeakingPlayer();
     final voice = service(player: player);

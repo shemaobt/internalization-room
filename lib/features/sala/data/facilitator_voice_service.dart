@@ -36,11 +36,14 @@ class FacilitatorVoiceService {
 
   AudioPlayer get _player => _opened ??= AudioPlayer();
 
-  Future<bool> play(String url) {
+  Future<bool> play(String url, {void Function()? onSoundStart}) {
     if (url.isEmpty) return Future.value(false);
     return _afterTheCurrentLine(() async {
       final file = await clipFor(url);
-      return _sayItWhole(() => _player.setFilePath(file.path));
+      return _sayItWhole(
+        () => _player.setFilePath(file.path),
+        onSoundStart: onSoundStart,
+      );
     });
   }
 
@@ -70,9 +73,12 @@ class FacilitatorVoiceService {
     }
   }
 
-  Future<bool> playAsset(String assetPath) {
+  Future<bool> playAsset(String assetPath, {void Function()? onSoundStart}) {
     return _afterTheCurrentLine(
-      () => _sayItWhole(() => _player.setAsset(assetPath)),
+      () => _sayItWhole(
+        () => _player.setAsset(assetPath),
+        onSoundStart: onSoundStart,
+      ),
     );
   }
 
@@ -94,7 +100,10 @@ class FacilitatorVoiceService {
   /// line, but equally on a pause, on a stop, or when another app takes the output. Reading
   /// that as success let an interrupted line clear every health counter the room keeps, and
   /// pushed the team on to answer a question they were never asked.
-  Future<bool> _sayItWhole(Future<Duration?> Function() load) async {
+  Future<bool> _sayItWhole(
+    Future<Duration?> Function() load, {
+    void Function()? onSoundStart,
+  }) async {
     // The load has a ceiling of its own. Since the room stopped judging a line it is
     // speaking (the voice is the judge), a `setFilePath` that never settled would leave
     // `play` hanging and the team in front of a circle that never speaks, with nobody
@@ -110,11 +119,18 @@ class FacilitatorVoiceService {
       await _giveUp();
       return false;
     }
+    final soundStart = onSoundStart == null
+        ? null
+        : _player.playerStateStream
+              .where((playerState) => playerState.playing)
+              .listen((_) => onSoundStart());
     try {
       await _player.play().timeout((length ?? _unknownLineCeiling) + _grace);
     } on TimeoutException {
       await _giveUp();
       return false;
+    } finally {
+      await soundStart?.cancel();
     }
     return _player.processingState == ProcessingState.completed;
   }

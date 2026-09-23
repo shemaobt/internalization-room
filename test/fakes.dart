@@ -123,10 +123,11 @@ class FakeVoice implements FacilitatorVoiceService {
   void Function()? aoFalar;
 
   @override
-  Future<bool> play(String url) {
+  Future<bool> play(String url, {void Function()? onSoundStart}) {
     played.add(url);
     sounds.add('voice:line');
     aoFalar?.call();
+    onSoundStart?.call();
     if (refuses.contains(url)) return Future.value(false);
     return _answer();
   }
@@ -158,10 +159,11 @@ class FakeVoice implements FacilitatorVoiceService {
   }
 
   @override
-  Future<bool> playAsset(String assetPath) {
+  Future<bool> playAsset(String assetPath, {void Function()? onSoundStart}) {
     assets.add(assetPath);
     sounds.add('voice:asset');
     aoFalar?.call();
+    onSoundStart?.call();
     if (refuses.contains(assetPath)) return Future.value(false);
     return _answer();
   }
@@ -1869,6 +1871,10 @@ class SpeakingPlayer extends Fake implements AudioPlayer {
     _state = ProcessingState.completed;
     _states.add(PlayerState(false, ProcessingState.completed));
     _quiet();
+  }
+
+  void startSounding() {
+    _states.add(PlayerState(true, _state));
   }
 
   void _quiet() {
