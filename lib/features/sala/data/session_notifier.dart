@@ -4563,6 +4563,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// first stretch of the next back translation upload as a correction of a stretch that
   /// does not exist.
   void _forgetThePassage() {
+    unawaited(_coverageWatch?.cancel());
+    _coverageWatch = null;
+    _coverageSessionId = null;
     _unplayableTurns = 0;
     _roomFailures = 0;
     _resumeFailures = 0;

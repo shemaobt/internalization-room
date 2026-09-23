@@ -1731,6 +1731,30 @@ void main() {
   );
 
   test(
+    'leaving the passage closes the coverage channel, not just the wait for it',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60));
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      expect(harness.room.coverageHasListener, isTrue);
+
+      notifier.leaveThePassage();
+      await settle();
+
+      expect(
+        harness.room.coverageHasListener,
+        isFalse,
+        reason:
+            'o canal ficava escutando depois que a equipe saiu da passagem, '
+            'mandando um keep-alive a cada 15s e mantendo o rádio acordado na '
+            'roda, no ensaio e no retro',
+      );
+    },
+  );
+
+  test(
     'a turn already settled while it still spoke is not armed again when it finishes',
     () async {
       final harness = SalaHarness(settleDelay: const Duration(milliseconds: 40))
