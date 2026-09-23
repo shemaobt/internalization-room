@@ -7282,6 +7282,28 @@ void main() {
     },
   );
 
+  test('a panorama turn the room refused still keeps the recording', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.openConvite();
+    harness.room.failWith = const RoomUnavailable('sem rede');
+
+    notifier.conviteTap();
+    await settle();
+    notifier.conviteTap();
+    await settle();
+
+    expect(
+      harness.recorder.deleted,
+      isEmpty,
+      reason:
+          'o mesmo caso mais grave vale para o panorama: o servidor não '
+          'guardou nada, e apagar aqui perderia a fala da equipe de vez',
+    );
+  });
+
   test('a panorama turn whose room disposes before the fake turn answers '
       'leaves quietly, and the recording is still kept', () async {
     final harness = SalaHarness();
