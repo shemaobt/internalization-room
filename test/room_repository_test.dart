@@ -680,6 +680,46 @@ void main() {
     },
   );
 
+  test('each refusal on the coverage channel keeps its own meaning', () async {
+    Future<void> expectStatus(int status, Matcher matcher) async {
+      final repository = RoomRepository(
+        client: MockClient.streaming(
+          (request, bodyStream) async =>
+              http.StreamedResponse(const Stream<List<int>>.empty(), status),
+        ),
+      );
+      addTearDown(repository.dispose);
+
+      final frames = <CoverageEvent>[];
+      Object? error;
+      final done = Completer<void>();
+      final subscription = repository
+          .watchCoverage('sessao-1')
+          .listen(
+            frames.add,
+            onError: (Object e) => error = e,
+            onDone: done.complete,
+          );
+      addTearDown(subscription.cancel);
+
+      await done.future;
+      expect(frames, isEmpty);
+      expect(
+        error,
+        matcher,
+        reason:
+            'um corpo de erro sem eventos de coverage lia como um stream '
+            'vazio comum, e o canal fechava quieto em vez de dizer o que '
+            'a sala respondeu',
+      );
+    }
+
+    await expectStatus(401, isA<RoomRefused>());
+    await expectStatus(403, isA<RoomRefused>());
+    await expectStatus(404, isA<SessionGone>());
+    await expectStatus(500, isA<RoomBroke>());
+  });
+
   test(
     'o terminei manda o que foi ouvido de cada parte, com o nome dela',
     () async {
