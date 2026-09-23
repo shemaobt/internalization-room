@@ -212,6 +212,50 @@ void main() {
   });
 
   testWidgets(
+    'a breath lands back where it started after her period, at its peak halfway there',
+    (tester) async {
+      const halves = {
+        VoiceState.thinking: Duration(milliseconds: 2300),
+        VoiceState.speaking: Duration(milliseconds: 1700),
+      };
+      const peaks = {VoiceState.thinking: 1.06, VoiceState.speaking: 1.02};
+
+      double scale() => tester
+          .widget<Transform>(
+            find.descendant(
+              of: find.byType(Loop),
+              matching: find.byType(Transform),
+            ),
+          )
+          .transform
+          .getMaxScaleOnAxis();
+
+      for (final half in halves.entries) {
+        await _pumpCircle(tester, half.key);
+        await tester.pump(half.value);
+        expect(
+          scale(),
+          closeTo(peaks[half.key]!, 1e-6),
+          reason:
+              '${half.key.name} respirava a meio caminho do pico na metade '
+              'do período dela, não no pico — o ciclo inteiro só fecha no '
+              'dobro do tempo que ela desenhou',
+        );
+
+        await tester.pump(half.value);
+        expect(
+          scale(),
+          closeTo(1, 1e-6),
+          reason:
+              'um período inteiro depois ${half.key.name} ainda estava '
+              'subindo para o pico, em vez de já ter voltado ao ponto de '
+              'partida — o dobro do tempo dela outra vez',
+        );
+      }
+    },
+  );
+
+  testWidgets(
     'only a stop says itself with a mark; the room\'s own voices draw none',
     (tester) async {
       const marks = {

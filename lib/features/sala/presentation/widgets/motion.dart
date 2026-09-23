@@ -121,10 +121,12 @@ class _LoopState extends State<Loop> {
     if (!_joined) return widget.builder(context, 0);
     final now = SchedulerBinding.instance.currentFrameTimeStamp;
     final start = _start ??= now;
-    final sweep = (now - start).inMicroseconds / _period.inMicroseconds % 2;
+    final half = _period.inMicroseconds / 2;
+    final sweep = (now - start).inMicroseconds / half % 2;
     if (widget.period != _period) {
       _period = widget.period;
-      _start = now - _period * sweep;
+      final newHalf = _period.inMicroseconds / 2;
+      _start = now - Duration(microseconds: (newHalf * sweep).round());
     }
     return widget.builder(
       context,
