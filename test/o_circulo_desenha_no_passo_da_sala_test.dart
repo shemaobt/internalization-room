@@ -117,27 +117,27 @@ void main() {
       await tester.pump(const Duration(milliseconds: 2700));
       expect(
         breath.last,
-        closeTo(0.5, 1e-9),
-        reason:
-            'uma volta e meia depois, o chamado está a meio caminho, descendo',
+        closeTo(1, 1e-9),
+        reason: 'uma volta e meia depois, o chamado está no pico',
       );
 
       await breathing(const Duration(milliseconds: 4600));
       expect(
         breath.last,
-        closeTo(0.5, 1e-9),
+        closeTo(1, 1e-9),
         reason:
             'o disco saltava no instante em que o chamado virava convite: a '
-            'respiração recomeçava a contar do tempo todo, no ritmo novo',
+            'respiração recomeçava a contar do tempo todo, do mesmo pico, '
+            'no ritmo novo',
       );
 
       await tester.pump(const Duration(milliseconds: 100));
       expect(
         breath.last,
-        lessThan(0.5),
+        lessThan(1),
         reason:
-            'e o que descia passava a subir — a troca de ritmo virava a '
-            'respiração do avesso no meio do fôlego',
+            'e o que estava no pico passava a descer — a troca de ritmo não '
+            'reabre um fôlego novo do zero',
       );
     },
   );
