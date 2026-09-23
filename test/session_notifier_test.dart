@@ -1486,7 +1486,7 @@ void main() {
   );
 
   test(
-    'the conversation keeps the words and throws the recording away',
+    'a spoken turn that reaches the room keeps its recording, not just the words',
     () async {
       final harness = SalaHarness();
       final container = await inConversa(harness);
@@ -1501,15 +1501,15 @@ void main() {
       expect(harness.room.turnsSent, 1);
       expect(
         harness.recorder.deleted,
-        [endsWith('captura-1.m4a')],
+        isEmpty,
         reason:
-            'o registro da conversa é o texto no servidor — o áudio da equipe '
-            'não é o produto e não pode ficar enchendo o tablet',
+            'a equipe gravou a fala, e a doc é clara: nada aqui apaga áudio '
+            'que a equipe fez — nem quando o texto já chegou ao servidor',
       );
     },
   );
 
-  test('a turn the room refused still throws the recording away', () async {
+  test('a turn the room refused still keeps the recording', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -1521,11 +1521,19 @@ void main() {
     notifier.conversaTap();
     await settle();
 
+    final path = harness.recorder.lastPath;
+    expect(
+      harness.room.calls,
+      contains('sendTurn'),
+      reason: 'a recusa só prova a regra se o envio de fato foi tentado',
+    );
+    expect(path, isNotNull);
     expect(
       harness.recorder.deleted,
-      [endsWith('captura-1.m4a')],
+      isEmpty,
       reason:
-          'nenhum caminho de erro reenvia o arquivo, então guardá-lo só ocupa espaço',
+          'o servidor não guardou nada — apagar aqui perderia a fala da '
+          'equipe de vez, o caso mais grave que a regra existe para evitar',
     );
   });
 
@@ -7231,7 +7239,7 @@ void main() {
   );
 
   test('a voiced turn whose room disposes before the fake turn answers '
-      'leaves quietly, and the take is still gone', () async {
+      'leaves quietly, and the recording is still kept', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -7248,16 +7256,76 @@ void main() {
     await settle(const Duration(milliseconds: 400));
 
     expect(
+      harness.room.turnsSent,
+      1,
+      reason: 'o turno tem de ter chegado de verdade para a garantia valer',
+    );
+    expect(path, isNotNull);
+    expect(
       harness.recorder.deleted,
-      contains(path),
+      isNot(contains(path)),
       reason:
-          'a sala fechou com o turno em voo; o áudio gravado não pode '
-          'ficar preso no aparelho',
+          'a sala fechou com o turno em voo, mas o turno chegou — a equipe '
+          'já não está lá para ouvir a resposta, e isso não apaga a fala dela',
     );
   }, timeout: const Timeout(Duration(seconds: 20)));
 
+  test(
+    'a panorama turn that reaches the room keeps its recording too',
+    () async {
+      final harness = SalaHarness();
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      await notifier.openConvite();
+
+      notifier.conviteTap();
+      await settle();
+      notifier.conviteTap();
+      await settle();
+
+      expect(harness.room.turnsSent, 1);
+      expect(
+        harness.recorder.deleted,
+        isEmpty,
+        reason:
+            'o panorama é a mesma regra da conversa: nada aqui apaga áudio '
+            'que a equipe fez, nem quando o texto já chegou ao servidor',
+      );
+    },
+  );
+
+  test('a panorama turn the room refused still keeps the recording', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.openConvite();
+    harness.room.failWith = const RoomUnavailable('sem rede');
+
+    notifier.conviteTap();
+    await settle();
+    notifier.conviteTap();
+    await settle();
+
+    final path = harness.recorder.lastPath;
+    expect(
+      harness.room.calls,
+      contains('sendTurn'),
+      reason: 'a recusa só prova a regra se o envio de fato foi tentado',
+    );
+    expect(path, isNotNull);
+    expect(
+      harness.recorder.deleted,
+      isEmpty,
+      reason:
+          'o mesmo caso mais grave vale para o panorama: o servidor não '
+          'guardou nada, e apagar aqui perderia a fala da equipe de vez',
+    );
+  });
+
   test('a panorama turn whose room disposes before the fake turn answers '
-      'leaves quietly, and the take is still gone', () async {
+      'leaves quietly, and the recording is still kept', () async {
     final harness = SalaHarness();
     final container = harness.container();
     final notifier = container.read(salaSessionProvider.notifier);
@@ -7275,16 +7343,22 @@ void main() {
     await settle(const Duration(milliseconds: 400));
 
     expect(
+      harness.room.turnsSent,
+      1,
+      reason: 'o turno tem de ter chegado de verdade para a garantia valer',
+    );
+    expect(path, isNotNull);
+    expect(
       harness.recorder.deleted,
-      contains(path),
+      isNot(contains(path)),
       reason:
-          'o panorama também fecha com o turno em voo; a mesma sala que '
-          'some não pode travar o apagar',
+          'o panorama também fecha com o turno em voo, mas o turno chegou — '
+          'a mesma sala que some não apaga a fala que a equipe fez',
     );
   }, timeout: const Timeout(Duration(seconds: 20)));
 
   test('a voiced turn whose room disposes while a dropped send asks the '
-      'network leaves quietly too', () async {
+      'network leaves quietly too, and the recording is still kept', () async {
     final harness = SalaHarness(busyCeiling: const Duration(seconds: 5));
     final container = await inConversa(harness);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -7302,11 +7376,18 @@ void main() {
     await settle(const Duration(milliseconds: 400));
 
     expect(
+      harness.room.calls,
+      contains('sendTurn'),
+      reason: 'a queda só prova a regra se o envio de fato foi tentado',
+    );
+    expect(path, isNotNull);
+    expect(
       harness.recorder.deleted,
-      contains(path),
+      isNot(contains(path)),
       reason:
           'a queda também fecha o turno em voo, e o pedido de rede que a '
-          'reenviar faz não pode travar no mesmo lugar',
+          'reenviar faz não pode travar no mesmo lugar — nem apagar a fala '
+          'que o servidor nunca chegou a guardar',
     );
   }, timeout: const Timeout(Duration(seconds: 20)));
 
