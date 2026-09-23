@@ -1464,10 +1464,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final run = ++_wheelPrefetch;
     final roda = state.naRoda;
     if (roda == null || roda.isEmpty) return;
-    final start = state.aOferecer;
-    for (var i = 0; i < roda.length; i++) {
+    final pending = List<int>.generate(roda.length, (i) => i);
+    while (pending.isNotEmpty) {
       if (epoch != _epoch || run != _wheelPrefetch) return;
-      final url = roda[(start + i) % roda.length].audioUrl;
+      final aim = state.aOferecer;
+      pending.sort(
+        (a, b) => ((a - aim) % roda.length).compareTo((b - aim) % roda.length),
+      );
+      final url = roda[pending.removeAt(0)].audioUrl;
       if (url.isEmpty || await _voice.holds(url)) continue;
       await _voice.fetch(url);
     }
