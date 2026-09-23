@@ -1506,15 +1506,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(voice: VoiceState.thinking);
     _watchBusyState();
     final recorder = _recorder;
+    var reachedTheRoom = false;
     try {
       final turn = await _sendTheTake(panorama, File(path), epoch);
+      reachedTheRoom = true;
       if (epoch != _epoch) return;
       await _voicePanorama(turn);
     } on Exception catch (error) {
       if (epoch != _epoch) return;
       _handleRoomFailure(error, turnCall: true);
     } finally {
-      unawaited(recorder.delete(path));
+      if (!reachedTheRoom) unawaited(recorder.delete(path));
     }
   }
 

@@ -7256,8 +7256,33 @@ void main() {
     );
   }, timeout: const Timeout(Duration(seconds: 20)));
 
+  test(
+    'a panorama turn that reaches the room keeps its recording too',
+    () async {
+      final harness = SalaHarness();
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      await notifier.openConvite();
+
+      notifier.conviteTap();
+      await settle();
+      notifier.conviteTap();
+      await settle();
+
+      expect(harness.room.turnsSent, 1);
+      expect(
+        harness.recorder.deleted,
+        isEmpty,
+        reason:
+            'o panorama é a mesma regra da conversa: nada aqui apaga áudio '
+            'que a equipe fez, nem quando o texto já chegou ao servidor',
+      );
+    },
+  );
+
   test('a panorama turn whose room disposes before the fake turn answers '
-      'leaves quietly, and the take is still gone', () async {
+      'leaves quietly, and the recording is still kept', () async {
     final harness = SalaHarness();
     final container = harness.container();
     final notifier = container.read(salaSessionProvider.notifier);
@@ -7276,10 +7301,10 @@ void main() {
 
     expect(
       harness.recorder.deleted,
-      contains(path),
+      isNot(contains(path)),
       reason:
-          'o panorama também fecha com o turno em voo; a mesma sala que '
-          'some não pode travar o apagar',
+          'o panorama também fecha com o turno em voo, mas o turno chegou — '
+          'a mesma sala que some não apaga a fala que a equipe fez',
     );
   }, timeout: const Timeout(Duration(seconds: 20)));
 
