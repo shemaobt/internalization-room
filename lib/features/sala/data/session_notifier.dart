@@ -2234,6 +2234,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       } on Exception catch (error) {
         if (error is! RoomUnavailable && error is! RoomSlow) rethrow;
         if (window == null) rethrow;
+        // A slow room answered, so it is there. A send that never reached it may have
+        // lost a moment of the network or all of it, and only the network can say which:
+        // with none at all this failed in milliseconds and was paused and resent for the
+        // whole wait while the team watched thinking, where it had always gone offline
+        // at once. Asked before the window is read, so the question's own seconds are
+        // spent like any other.
+        if (error is RoomUnavailable &&
+            await _network.reachRoom() != RoomReach.fine) {
+          rethrow;
+        }
         final step = resends < backoff.length ? resends : backoff.length - 1;
         final pause = backoff[step];
         if (window - waited.elapsed - pause - margin < margin) rethrow;

@@ -1233,6 +1233,69 @@ void main() {
   );
 
   test(
+    'a take lost with the network gone ends offline at once, never waiting to be resent',
+    () async {
+      final harness = SalaHarness(
+        busyCeiling: const Duration(seconds: 30),
+        retryBackoff: const [Duration(seconds: 5)],
+      );
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      harness.network.radioSeesNothing = true;
+      harness.room.failTurnsWith = const RoomUnavailable('sem rede');
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle(const Duration(milliseconds: 200));
+
+      final state = container.read(salaSessionProvider);
+      expect(
+        state.offline,
+        isTrue,
+        reason:
+            'sem rede nenhuma o tablet passava cinco minutos pausando e '
+            'reenviando com a equipe olhando o pensando, onde antes o '
+            'offline vinha em menos de um segundo',
+      );
+      expect(state.reach, RoomReach.noNetwork);
+      expect(harness.voice.assets, contains(offlineNoticeAsset(testLanguage)));
+      expect(harness.room.turnsSent, 1);
+    },
+  );
+
+  test(
+    'a take dropped on a live network is resent once, after the network is asked, and heard once',
+    () async {
+      final harness = SalaHarness(busyCeiling: const Duration(seconds: 5));
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      harness.voice.played.clear();
+      harness.room.failHeldTurnWith = const RoomUnavailable('a conexão caiu');
+
+      notifier.conversaTap();
+      await settle();
+      final asked = harness.network.checks;
+      notifier.conversaTap();
+      await settle(const Duration(milliseconds: 400));
+
+      expect(
+        harness.network.checks,
+        asked + 1,
+        reason:
+            'sem perguntar à rede o tablet não sabia se a queda era um '
+            'soluço ou a rede inteira fora',
+      );
+      expect(harness.room.turnIdsSent, hasLength(2));
+      expect(harness.room.turnIdsSent.last, harness.room.turnIdsSent.first);
+      expect(harness.voice.played, [turnoUrl]);
+      expect(container.read(salaSessionProvider).offline, isFalse);
+    },
+  );
+
+  test(
     'a room that stays out of reach is asked again at the retry pace, not in a burst',
     () async {
       final harness = SalaHarness(
