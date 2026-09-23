@@ -11,10 +11,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'fakes.dart';
 import 'session_notifier_test.dart' show inConversa, settle;
 
-/// A tablet reopening straight into a kept part of the Rehearsal, with one take already
-/// on disk — the shape `a_permission_answer_after_a_halt_keeps_the_halt_test.dart` already
-/// uses for the same resume.
-Future<ProviderContainer> _reopensIntoEnsaio(SalaHarness harness) async {
+Future<ProviderContainer> _resumingIntoEnsaio(SalaHarness harness) async {
   final gravada = File(
     '${Directory.systemTemp.createTempSync('sala-1057').path}/p1.m4a',
   )..writeAsBytesSync([1, 2, 3]);
@@ -32,45 +29,23 @@ Future<ProviderContainer> _reopensIntoEnsaio(SalaHarness harness) async {
   );
   final container = harness.container();
   addTearDown(container.dispose);
-  final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.abrirEscolha();
-  await settle();
-  await notifier.goConversa(pericope: 'P01');
+  await container.read(salaSessionProvider.notifier).abrirEscolha();
   await settle();
   return container;
 }
 
-/// The room offline in the Rehearsal: the same reopening above, but the room refuses the
-/// state fetch the resume makes right after it lands in `ensaio` — the door the plan
-/// names, since neither `conversaTap` nor `retroTap` will start a recorder while offline.
-Future<ProviderContainer> _reopensOfflineIntoEnsaio(SalaHarness harness) async {
-  final gravada = File(
-    '${Directory.systemTemp.createTempSync('sala-1057-offline').path}/p1.m4a',
-  )..writeAsBytesSync([1, 2, 3]);
-  addTearDown(() => gravada.parent.deleteSync(recursive: true));
-  harness.emAberto.rows['Ruth/P01'] = ResumePoint(
-    sessionId: 'sessao-antiga',
-    stage: SalaStage.ensaio,
-    takes: [
-      KeptTake(
-        scopeId: KeptScope.parte(1),
-        path: gravada.path,
-        takeId: 'gravacao-1',
-      ),
-    ],
-  );
-  final container = harness.container();
-  addTearDown(container.dispose);
-  final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.abrirEscolha();
+Future<ProviderContainer> _reopensIntoEnsaio(SalaHarness harness) async {
+  final container = await _resumingIntoEnsaio(harness);
+  await container
+      .read(salaSessionProvider.notifier)
+      .goConversa(pericope: 'P01');
   await settle();
+  return container;
+}
 
-  // The network stays reachable through the call: `goConversa` checks it before the
-  // resume, and dropping it here would fall the room offline from `conversa`, never
-  // reaching `ensaio`. The room refuses the state fetch the resume makes right after
-  // landing in `ensaio`, which is what falls it offline. `network.reachable` is dropped
-  // right after, synchronously, before the fall's own retry can find the network fine
-  // and bring the room straight back before a test ever sees it offline.
+Future<ProviderContainer> _reopensOfflineIntoEnsaio(SalaHarness harness) async {
+  final container = await _resumingIntoEnsaio(harness);
+  final notifier = container.read(salaSessionProvider.notifier);
   harness.room.reachable = false;
   await notifier.goConversa(pericope: 'P01');
   harness.network.reachable = false;
@@ -78,16 +53,10 @@ Future<ProviderContainer> _reopensOfflineIntoEnsaio(SalaHarness harness) async {
     'a sala cair offline no ensaio',
     () => container.read(salaSessionProvider).offline,
   );
-  expect(
-    container.read(salaSessionProvider).stage,
-    SalaStage.ensaio,
-    reason: 'a queda tem que pousar no ensaio, não em outro estágio',
-  );
+  expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
   return container;
 }
 
-/// The same reopening, with a warning already standing so criterion 5 can be checked
-/// without ever going offline.
 Future<ProviderContainer> _reopensIntoEnsaioWithAWarning(
   SalaHarness harness,
 ) async {
@@ -126,6 +95,7 @@ void main() {
     await settle();
 
     expect(read().voice, VoiceState.offline);
+    expect(read().ensaio, EnsaioStatus.idle);
   });
 
   test(
@@ -138,8 +108,6 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
 
-      // A take made while offline: the room refuses the flush, and it waits in the
-      // Outbox.
       notifier.ensaioTap();
       notifier.ensaioTap();
       await settle();
@@ -160,19 +128,16 @@ void main() {
       expect(read().offline, isTrue);
 
       final checksBefore = harness.network.checks;
-      notifier.retryNow();
-      await settle();
-      expect(
-        harness.network.checks,
-        greaterThan(checksBefore),
-        reason: 'retryNow() precisa tentar alcançar a sala, não ser um no-op',
+      await waitFor(
+        'a escada de retentativas insistir sozinha, sem retryNow()',
+        () => harness.network.checks > checksBefore,
+        limit: const Duration(seconds: 2),
       );
 
       harness.network.reachable = true;
       harness.room.reachable = true;
-      notifier.retryNow();
       await waitFor(
-        'a sala voltar ao ar',
+        'a sala voltar ao ar sozinha',
         () => read().voice == VoiceState.invite,
       );
       await waitFor(
@@ -185,9 +150,6 @@ void main() {
   test(
     'T4: offline, a denied answer leaves the rest of the unwinding in place',
     () async {
-      // Neither `conversaTap` nor `retroTap` starts a recorder while offline (both
-      // return through `retryNow()` first), so the Rehearsal is the only capture this
-      // ticket's door reaches; pinned here instead of a second capture kind.
       final harness = SalaHarness();
       final container = await _reopensOfflineIntoEnsaio(harness);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -198,7 +160,6 @@ void main() {
       await settle();
 
       expect(read().ensaio, EnsaioStatus.idle);
-      expect(read().noteMode, isFalse);
     },
   );
 

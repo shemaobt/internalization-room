@@ -80,6 +80,7 @@ does — from outside, never from a private method.
 and the halo are still put back, but the voice is now written as `invite` only when no
 halt stands (ENG-982).
 
-2026-09-23: the same unwinding also left an offline voice standing only by accident, for
-a recorder answer landing while a halt stood; it now keeps the voice whenever a halt or
-the room's own offline state stands (ENG-1057).
+2026-09-23: the same unwinding also wrote invite over an offline voice, so a recorder
+answer (denied or failed) on a Rehearsal take started while offline erased the offline
+state and the way back returned at its first line; the voice is now kept whenever a halt
+or offline stands (ENG-1057).
