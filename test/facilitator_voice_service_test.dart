@@ -317,6 +317,45 @@ void main() {
     },
   );
 
+  testWidgets('a long line sent at a lower bitrate is not cut before its end', (
+    tester,
+  ) async {
+    const grace = Duration(seconds: 8);
+    final player = SpeakingPlayer()..lineLength = null;
+    final body = StreamController<List<int>>();
+    final voice = FacilitatorVoiceService(
+      open: (_, {from, ifRange}) async => http.StreamedResponse(
+        body.stream,
+        200,
+        contentLength: 480000,
+        headers: {'etag': 'e1'},
+      ),
+      libraryDir: () async => library,
+      player: player,
+      lineGrace: grace,
+    );
+
+    bool? heard;
+    unawaited(voice.play(_clip).then((played) => heard = played));
+    await tester.pump();
+    expect(player.sounding, isTrue);
+
+    await tester.pump(const Duration(seconds: 60) + grace);
+    expect(
+      player.sounding,
+      isTrue,
+      reason:
+          '480 000 bytes a 64 kbps são 60 s de fala; o teto lido a 128 kbps '
+          'desistia aos 38 s e dava a fala como não ouvida no meio da frase',
+    );
+
+    player.reachTheEnd();
+    unawaited(body.close());
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pump();
+    expect(heard, isTrue);
+  });
+
   test(
     'with streaming switched off a reply reaches the player only once it is whole',
     () async {

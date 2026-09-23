@@ -18,7 +18,7 @@ const _clipsKept = 60;
 const _lineGrace = Duration(seconds: 8);
 const _unknownLineCeiling = Duration(seconds: 90);
 const _staleStagingAge = Duration(minutes: 10);
-const _bytesPerSecond = 16000;
+const _slowestBytesPerSecond = 4000;
 const _restartsAllowed = 2;
 
 class FacilitatorVoiceService {
@@ -343,8 +343,16 @@ class _ArrivingClip extends StreamAudioSource {
 
   Future<void> get firstBytes => _firstBytes.future;
 
+  /// The longest the line can last, read off its size at the slowest bitrate a voice is
+  /// plausibly sent at.
+  ///
+  /// It is the play ceiling of a line the platform cannot time, so it errs long. The clips
+  /// are `mp3_44100_128` today, but the size says nothing of the rate: read at 128 kbps, a
+  /// 60 s line sent at 64 kbps was given up at 38 s and reported unheard mid-sentence. Read
+  /// at 32 kbps, a line that truly wedges is still bounded, only later; the grace is added
+  /// on top as before.
   Duration get _length =>
-      Duration(milliseconds: _bytes.length * 1000 ~/ _bytesPerSecond);
+      Duration(milliseconds: _bytes.length * 1000 ~/ _slowestBytesPerSecond);
 
   void _kept(File file) => _opened.complete(file);
 
