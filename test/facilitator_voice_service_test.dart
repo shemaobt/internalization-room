@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/facilitator_voice_service.dart';
+import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:just_audio/just_audio.dart';
 
 import 'fakes.dart';
@@ -12,11 +15,45 @@ const _clip = '/api/internalization-room/voice/aaa';
 const _other = '/api/internalization-room/voice/bbb';
 const _lenta = '/api/internalization-room/voice/lenta';
 
+typedef _Open =
+    Future<http.StreamedResponse> Function(
+      String url, {
+      int? from,
+      String? ifRange,
+    });
+
+http.StreamedResponse _whole(List<int> bytes, {String etag = 'e1'}) =>
+    http.StreamedResponse(
+      Stream.value(bytes),
+      200,
+      contentLength: bytes.length,
+      headers: {'etag': etag},
+    );
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  setUpAll(() {
+    dotenv.testLoad(
+      fileInput: 'BACKEND_URL=http://sala.local\nINTERNALIZATION_ROOM_KEY=k',
+    );
+  });
+
   late Directory library;
   late List<String> fetched;
+
+  _Open roomAnswering(
+    FutureOr<http.StreamedResponse> Function(http.BaseRequest request) answer,
+  ) {
+    final room = RoomRepository(
+      client: MockClient.streaming((request, _) async {
+        fetched.add(request.url.path);
+        return answer(request);
+      }),
+    );
+    addTearDown(room.dispose);
+    return room.openClip;
+  }
 
   setUp(() {
     library = Directory.systemTemp.createTempSync('sala-voz');
@@ -32,10 +69,7 @@ void main() {
     Duration? grace,
     Duration? loadCeiling,
   }) => FacilitatorVoiceService(
-    fetch: (url) async {
-      fetched.add(url);
-      return Uint8List.fromList([1, 2, 3]);
-    },
+    open: roomAnswering((_) => _whole([1, 2, 3])),
     libraryDir: () async => library,
     player: player,
     lineGrace: grace,
@@ -65,6 +99,299 @@ void main() {
       for (final file in together) {
         expect(file.existsSync(), isTrue);
         expect(file.lengthSync(), greaterThan(0));
+      }
+    },
+  );
+
+  test(
+    'a reply starts sounding on its first bytes, not after the whole clip',
+    () async {
+      final player = SpeakingPlayer();
+      final body = StreamController<List<int>>();
+      final voice = FacilitatorVoiceService(
+        open: roomAnswering(
+          (_) => http.StreamedResponse(
+            body.stream,
+            200,
+            contentLength: 6,
+            headers: {'etag': 'e1'},
+          ),
+        ),
+        libraryDir: () async => library,
+        player: player,
+      );
+      body.add([1, 2, 3]);
+
+      final speaking = voice.play(_clip);
+      await waitFor('o tocador soar', () => player.sounding);
+      final heard = await player.arriving!.request(0);
+
+      expect(
+        await heard.stream.first,
+        [1, 2, 3],
+        reason:
+            'o tablet baixava a resposta inteira antes de tocar, e a equipe '
+            'ficava em silêncio esperando o arquivo todo numa rede lenta',
+      );
+      expect(fetched, [_clip]);
+
+      body
+        ..add([4, 5, 6])
+        ..close();
+      player.reachTheEnd();
+      expect(await speaking, isTrue);
+    },
+  );
+
+  test(
+    'a request past what has arrived waits for those bytes, instead of ending short',
+    () async {
+      final player = SpeakingPlayer();
+      final body = StreamController<List<int>>();
+      final voice = FacilitatorVoiceService(
+        open: roomAnswering(
+          (_) => http.StreamedResponse(
+            body.stream,
+            200,
+            contentLength: 6,
+            headers: {'etag': 'e1'},
+          ),
+        ),
+        libraryDir: () async => library,
+        player: player,
+      );
+      body.add([1, 2, 3]);
+
+      final speaking = voice.play(_clip);
+      await waitFor('o tocador soar', () => player.sounding);
+      final tail = await player.arriving!.request(3);
+      final got = <int>[];
+      final served = tail.stream.forEach(got.addAll);
+      body
+        ..add([4, 5, 6])
+        ..close();
+      await served;
+
+      expect(
+        got,
+        [4, 5, 6],
+        reason:
+            'o AVPlayer sonda o fim do arquivo antes de ele chegar, e um pedido '
+            'além do que já tinha chegado terminava vazio no meio da fala',
+      );
+      expect(tail.offset, 3);
+      expect(tail.sourceLength, 6);
+
+      player.reachTheEnd();
+      expect(await speaking, isTrue);
+    },
+  );
+
+  test(
+    'a line fetched, asked for and played at once is downloaded once',
+    () async {
+      final player = SpeakingPlayer();
+      final bodies = <StreamController<List<int>>>[];
+      final voice = FacilitatorVoiceService(
+        open: roomAnswering((_) {
+          final body = StreamController<List<int>>();
+          bodies.add(body);
+          return http.StreamedResponse(
+            body.stream,
+            200,
+            contentLength: 3,
+            headers: {'etag': 'e1'},
+          );
+        }),
+        libraryDir: () async => library,
+        player: player,
+      );
+
+      final fetching = voice.fetch(_clip);
+      final speaking = voice.play(_clip);
+      final asked = voice.clipFor(_clip);
+      await waitFor('o tocador soar', () => player.sounding);
+      for (final body in bodies) {
+        body
+          ..add([1, 2, 3])
+          ..close();
+      }
+
+      expect(
+        fetched,
+        [_clip],
+        reason:
+            'a pré-busca e o play abriam cada um o seu GET da mesma fala, '
+            'pagando duas vezes a rede lenta que o streaming existe para poupar',
+      );
+      expect(await fetching, isTrue);
+      expect((await asked).readAsBytesSync(), [1, 2, 3]);
+      player.reachTheEnd();
+      expect(await speaking, isTrue);
+    },
+  );
+
+  test(
+    'a reply still arriving is not held, so a replay never gets it cut short',
+    () async {
+      final player = SpeakingPlayer();
+      final body = StreamController<List<int>>();
+      final voice = FacilitatorVoiceService(
+        open: roomAnswering(
+          (_) => http.StreamedResponse(
+            body.stream,
+            200,
+            contentLength: 6,
+            headers: {'etag': 'e1'},
+          ),
+        ),
+        libraryDir: () async => library,
+        player: player,
+      );
+      body.add([1, 2, 3]);
+
+      final speaking = voice.play(_clip);
+      await waitFor('o tocador soar', () => player.sounding);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(
+        await voice.holds(_clip),
+        isFalse,
+        reason:
+            'um .mp3 escrito enquanto a fala ainda chega passa no length > 0, e '
+            'o "ouvir de novo" tocaria a metade que tinha chegado',
+      );
+      expect(File('${library.path}/aaa.mp3').existsSync(), isFalse);
+
+      body
+        ..add([4, 5, 6])
+        ..close();
+      await voice.clipFor(_clip);
+
+      expect(File('${library.path}/aaa.mp3').readAsBytesSync(), [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+      ]);
+      expect(File('${library.path}/aaa.mp3.novo').existsSync(), isFalse);
+      player.reachTheEnd();
+      expect(await speaking, isTrue);
+    },
+  );
+
+  test(
+    'a streamed line the platform cannot time is bounded by its size, not by ninety seconds',
+    () async {
+      final player = SpeakingPlayer()..lineLength = null;
+      final voice = FacilitatorVoiceService(
+        open: roomAnswering(
+          (request) =>
+              _whole(List.filled(request.url.path == _clip ? 1600 : 32000, 0)),
+        ),
+        libraryDir: () async => library,
+        player: player,
+        lineGrace: const Duration(milliseconds: 30),
+      );
+
+      expect(
+        await voice.play(_clip).timeout(const Duration(seconds: 5)),
+        isFalse,
+        reason:
+            'sem a duração da plataforma o teto caía nos 90 s do desconhecido, e '
+            'uma fala de 0,1 s travada deixava a sala muda um minuto e meio',
+      );
+
+      final longer = voice.play(_other);
+      await waitFor('o tocador soar', () => player.sounding);
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      expect(
+        player.sounding,
+        isTrue,
+        reason: '32 000 bytes a 128 kbps são 2 s de fala; desistir antes corta',
+      );
+      player.reachTheEnd();
+      expect(await longer, isTrue);
+    },
+  );
+
+  test(
+    'with streaming switched off a reply reaches the player only once it is whole',
+    () async {
+      final player = SpeakingPlayer();
+      final body = StreamController<List<int>>();
+      final voice = FacilitatorVoiceService(
+        open: roomAnswering(
+          (_) => http.StreamedResponse(
+            body.stream,
+            200,
+            contentLength: 6,
+            headers: {'etag': 'e1'},
+          ),
+        ),
+        playsAsItArrives: false,
+        libraryDir: () async => library,
+        player: player,
+      );
+      body.add([1, 2, 3]);
+
+      final speaking = voice.play(_clip);
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      expect(
+        player.sounding,
+        isFalse,
+        reason:
+            'a chave existe para o iPad cujo AVPlayer se enrosca no streaming: '
+            'desligada, nada pode chegar ao tocador antes do arquivo inteiro',
+      );
+
+      body
+        ..add([4, 5, 6])
+        ..close();
+      await waitFor('o tocador soar', () => player.sounding);
+      expect(player.arriving, isNull);
+      player.reachTheEnd();
+      expect(await speaking, isTrue);
+    },
+  );
+
+  test(
+    'a line is ready on its first bytes, or only once whole with streaming switched off',
+    () async {
+      for (final streams in [true, false]) {
+        fetched.clear();
+        final body = StreamController<List<int>>();
+        final voice = FacilitatorVoiceService(
+          open: roomAnswering(
+            (_) => http.StreamedResponse(
+              body.stream,
+              200,
+              contentLength: 6,
+              headers: {'etag': 'e1'},
+            ),
+          ),
+          playsAsItArrives: streams,
+          libraryDir: () async =>
+              Directory('${library.path}/$streams').create(),
+        );
+        var ready = false;
+        unawaited(voice.ready(_clip).then((_) => ready = true));
+        body.add([1, 2, 3]);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        expect(
+          ready,
+          streams,
+          reason:
+              'a sala fica em "pensando" até a fala estar pronta; com a chave '
+              'desligada, pronta volta a ser o arquivo inteiro como antes',
+        );
+        body
+          ..add([4, 5, 6])
+          ..close();
+        await waitFor('a fala ficar pronta', () => ready);
       }
     },
   );
@@ -121,12 +448,357 @@ void main() {
 
   test('a fetch that fails is a failure to play, never a crash', () async {
     final voice = FacilitatorVoiceService(
-      fetch: (_) async => throw const SocketException('sem rede'),
+      open: roomAnswering((_) => throw const SocketException('sem rede')),
       libraryDir: () async => library,
     );
 
     expect(await voice.play(_clip), isFalse);
   });
+
+  test(
+    'a clip the room will not serve fails as the room, not as a line that will not play',
+    () async {
+      for (final (status, failure) in [
+        (403, isA<RoomRefused>()),
+        (401, isA<RoomRefused>()),
+        (503, isA<RoomBroke>()),
+      ]) {
+        final voice = FacilitatorVoiceService(
+          open: roomAnswering(
+            (_) => http.StreamedResponse(const Stream.empty(), status),
+          ),
+          libraryDir: () async => library,
+        );
+
+        await expectLater(
+          voice.clipFor(_clip),
+          throwsA(failure),
+          reason:
+              'a recusa do servidor chegava como um erro qualquer e a sala a '
+              'lia como uma fala que não toca, sem nunca chamar ninguém',
+        );
+      }
+    },
+  );
+
+  test(
+    'a reply that breaks before any byte arrives fails as the room being gone',
+    () async {
+      final voice = FacilitatorVoiceService(
+        open: roomAnswering(
+          (_) => http.StreamedResponse(
+            Stream.error(http.ClientException('a conexão caiu')),
+            200,
+            contentLength: 6,
+            headers: {'etag': 'e1'},
+          ),
+        ),
+        libraryDir: () async => library,
+      );
+
+      await expectLater(
+        voice.clipFor(_clip),
+        throwsA(isA<RoomUnavailable>()),
+        reason:
+            'a queda no meio do corpo subia como ClientException cru, que a '
+            'sala não reconhece como a rede indo embora',
+      );
+    },
+  );
+
+  test(
+    'a player waiting on bytes that will never come is told, instead of hanging',
+    () async {
+      final player = SpeakingPlayer();
+      final body = StreamController<List<int>>();
+      final voice = FacilitatorVoiceService(
+        open: roomAnswering(
+          (_) => http.StreamedResponse(
+            body.stream,
+            200,
+            contentLength: 6,
+            headers: {'etag': 'e1'},
+          ),
+        ),
+        libraryDir: () async => library,
+        player: player,
+      );
+
+      final speaking = voice.play(_clip);
+      await waitFor('o tocador soar', () => player.sounding);
+      final tail = await player.arriving!.request(0);
+      body.addError(http.ClientException('a conexão caiu'));
+
+      await expectLater(
+        tail.stream.toList().timeout(const Duration(seconds: 2)),
+        throwsA(isA<RoomUnavailable>()),
+        reason:
+            'o pedido do tocador esperava para sempre por bytes de um download '
+            'que já tinha morrido',
+      );
+      player.reachTheEnd();
+      await speaking;
+    },
+  );
+
+  test(
+    'a reply cut mid-way resumes from the byte it stopped at, and the file is the whole clip',
+    () async {
+      final asked = <http.BaseRequest>[];
+      final first = StreamController<List<int>>();
+      final voice = FacilitatorVoiceService(
+        open: roomAnswering((request) {
+          asked.add(request);
+          if (asked.length == 1) {
+            return http.StreamedResponse(
+              first.stream,
+              200,
+              contentLength: 6,
+              headers: {'etag': 'e1'},
+            );
+          }
+          return http.StreamedResponse(
+            Stream.value([4, 5, 6]),
+            206,
+            contentLength: 3,
+            headers: {'etag': 'e1', 'content-range': 'bytes 3-5/6'},
+          );
+        }),
+        libraryDir: () async => library,
+      );
+
+      final arriving = voice.clipFor(_clip);
+      first
+        ..add([1, 2, 3])
+        ..addError(http.ClientException('a conexão caiu'));
+
+      expect(
+        (await arriving).readAsBytesSync(),
+        [1, 2, 3, 4, 5, 6],
+        reason:
+            'uma queda no meio perdia a fala inteira, e numa rede de campo a '
+            'queda é o caso comum, não a exceção',
+      );
+      expect(asked, hasLength(2));
+      expect(asked[1].headers['Range'], 'bytes=3-');
+      expect(
+        asked[1].headers['If-Range'],
+        'e1',
+        reason:
+            'sem o If-Range, uma retomada contra outra renderização da mesma '
+            'fala emendava duas vozes no meio de uma frase',
+      );
+    },
+  );
+
+  test(
+    'a reply that keeps ending short gives up, instead of asking forever',
+    () async {
+      final voice = FacilitatorVoiceService(
+        open: roomAnswering(
+          (request) => request.headers.containsKey('Range')
+              ? http.StreamedResponse(
+                  const Stream.empty(),
+                  206,
+                  contentLength: 0,
+                  headers: {'etag': 'e1'},
+                )
+              : http.StreamedResponse(
+                  Stream.value([1, 2, 3]),
+                  200,
+                  contentLength: 6,
+                  headers: {'etag': 'e1'},
+                ),
+        ),
+        libraryDir: () async => library,
+      );
+
+      await expectLater(
+        voice.clipFor(_clip).timeout(const Duration(seconds: 2)),
+        throwsA(isA<RoomBroke>()),
+        reason:
+            'uma retomada que não traz byte novo pedia de novo sem fim, e a '
+            'fala nunca terminava nem falhava',
+      );
+      expect(fetched, hasLength(2));
+    },
+  );
+
+  test(
+    'a resume answered with the whole clip starts over, and never splices two renderings',
+    () async {
+      final first = StreamController<List<int>>();
+      final voice = FacilitatorVoiceService(
+        open: roomAnswering(
+          (request) => request.headers.containsKey('Range')
+              ? _whole([7, 8, 9, 10, 11, 12])
+              : http.StreamedResponse(
+                  first.stream,
+                  200,
+                  contentLength: 6,
+                  headers: {'etag': 'e1'},
+                ),
+        ),
+        libraryDir: () async => library,
+      );
+
+      final arriving = voice.clipFor(_clip);
+      first
+        ..add([1, 2, 3])
+        ..addError(http.ClientException('a conexão caiu'));
+
+      expect(
+        (await arriving).readAsBytesSync(),
+        [7, 8, 9, 10, 11, 12],
+        reason:
+            'um 200 na retomada é o servidor mandando tudo de novo, talvez outra '
+            'renderização; colar o que veio depois do byte 3 emendava duas vozes',
+      );
+    },
+  );
+
+  test(
+    'a resume that cannot prove it is the same rendering starts over from nothing',
+    () async {
+      for (final firstTag in <String?>['e1', null]) {
+        fetched.clear();
+        final asked = <http.BaseRequest>[];
+        final first = StreamController<List<int>>();
+        final voice = FacilitatorVoiceService(
+          open: roomAnswering((request) {
+            asked.add(request);
+            if (asked.length == 1) {
+              return http.StreamedResponse(
+                first.stream,
+                200,
+                contentLength: 6,
+                headers: {'etag': ?firstTag},
+              );
+            }
+            if (request.headers.containsKey('Range')) {
+              return http.StreamedResponse(
+                Stream.value([10, 11, 12]),
+                206,
+                contentLength: 3,
+                headers: {
+                  'etag': ?(firstTag == null ? null : 'e2'),
+                  'content-range': 'bytes 3-5/6',
+                },
+              );
+            }
+            return _whole([7, 8, 9, 10, 11, 12], etag: 'e2');
+          }),
+          libraryDir: () async =>
+              Directory('${library.path}/${firstTag ?? 'sem'}').create(),
+        );
+
+        final arriving = voice.clipFor(_clip);
+        first
+          ..add([1, 2, 3])
+          ..addError(http.ClientException('a conexão caiu'));
+
+        expect(
+          (await arriving).readAsBytesSync(),
+          [7, 8, 9, 10, 11, 12],
+          reason:
+              'um 206 de outra etiqueta (ou de nenhuma) é um servidor que '
+              'ignorou o If-Range: o resto era de outra renderização',
+        );
+        expect(asked.last.headers.containsKey('Range'), isFalse);
+      }
+    },
+  );
+
+  test(
+    'a player that heard the first rendering is never handed the second',
+    () async {
+      final player = SpeakingPlayer();
+      final first = StreamController<List<int>>();
+      final second = StreamController<List<int>>();
+      final voice = FacilitatorVoiceService(
+        open: roomAnswering(
+          (request) => http.StreamedResponse(
+            request.headers.containsKey('Range') ? second.stream : first.stream,
+            200,
+            contentLength: 6,
+            headers: {'etag': 'e1'},
+          ),
+        ),
+        libraryDir: () async => library,
+        player: player,
+      );
+
+      final speaking = voice.play(_clip);
+      await waitFor('o tocador soar', () => player.sounding);
+      final heard = await player.arriving!.request(0);
+      final got = <int>[];
+      final served = heard.stream.forEach(got.addAll);
+      first.add([1, 2, 3]);
+      await waitFor('os primeiros bytes chegarem', () => got.length == 3);
+      first.addError(http.ClientException('a conexão caiu'));
+      second
+        ..add([7, 8, 9, 10, 11, 12])
+        ..close();
+
+      await expectLater(served, throwsA(isA<RoomBroke>()));
+      expect(
+        got,
+        [1, 2, 3],
+        reason:
+            'o tocador já tinha ouvido o começo de uma renderização e recebia o '
+            'resto da outra: a frase mudava de voz no meio',
+      );
+      player.reachTheEnd();
+      await speaking;
+    },
+  );
+
+  test(
+    'a reply whose bytes stop coming is given up as slow, not waited on forever',
+    () async {
+      final voice = FacilitatorVoiceService(
+        open: roomAnswering(
+          (_) => http.StreamedResponse(
+            StreamController<List<int>>().stream,
+            200,
+            contentLength: 6,
+            headers: {'etag': 'e1'},
+          ),
+        ),
+        libraryDir: () async => library,
+        lineGrace: const Duration(milliseconds: 30),
+        loadCeiling: const Duration(milliseconds: 30),
+      );
+
+      await expectLater(
+        voice.clipFor(_clip).timeout(const Duration(seconds: 2)),
+        throwsA(isA<RoomSlow>()),
+        reason:
+            'o fetchClip inteiro tinha teto; o corpo em stream não, e uma '
+            'conexão muda prendia a fala e todo play dela até reabrir o app',
+      );
+    },
+  );
+
+  test(
+    'a reply with no declared size fails as the room, not as a crash',
+    () async {
+      final voice = FacilitatorVoiceService(
+        open: roomAnswering(
+          (_) => http.StreamedResponse(Stream.value([1, 2, 3]), 200),
+        ),
+        libraryDir: () async => library,
+      );
+
+      await expectLater(
+        voice.clipFor(_clip),
+        throwsA(isA<RoomBroke>()),
+        reason:
+            'sem Content-Length o buffer não tem tamanho, e o ! virava um '
+            'TypeError que nenhum on Exception da sala pega',
+      );
+    },
+  );
 
   test('a truncated file on disk is fetched again, not played', () async {
     File('${library.path}/aaa.mp3').writeAsBytesSync([]);
@@ -422,10 +1094,7 @@ void main() {
     () async {
       var calls = 0;
       final voice = FacilitatorVoiceService(
-        fetch: (url) async {
-          fetched.add(url);
-          return Uint8List.fromList([1, 2, 3]);
-        },
+        open: roomAnswering((_) => _whole([1, 2, 3])),
         libraryDir: () async {
           calls++;
           return library;
@@ -451,10 +1120,7 @@ void main() {
     () async {
       var attempt = 0;
       final voice = FacilitatorVoiceService(
-        fetch: (url) async {
-          fetched.add(url);
-          return Uint8List.fromList([1, 2, 3]);
-        },
+        open: roomAnswering((_) => _whole([1, 2, 3])),
         libraryDir: () async {
           attempt++;
           if (attempt == 1) throw Exception('disco cheio');
@@ -480,14 +1146,18 @@ void main() {
     'a stale .novo leftover is swept; a fresh one, or one still downloading, is not',
     () async {
       final player = SpeakingPlayer();
-      final downloading = Completer<Uint8List>();
+      final downloading = Completer<List<int>>();
       final voice = FacilitatorVoiceService(
-        fetch: (url) async {
-          fetched.add(url);
-          return url == _lenta
-              ? downloading.future
-              : Uint8List.fromList([1, 2, 3]);
-        },
+        open: roomAnswering(
+          (request) => request.url.path == _lenta
+              ? http.StreamedResponse(
+                  Stream.fromFuture(downloading.future),
+                  200,
+                  contentLength: 3,
+                  headers: {'etag': 'e1'},
+                )
+              : _whole([1, 2, 3]),
+        ),
         libraryDir: () async => library,
         player: player,
       );
@@ -531,7 +1201,7 @@ void main() {
             'baixa morta, mesmo que o arquivo pareça velho',
       );
 
-      downloading.complete(Uint8List.fromList([9, 9, 9]));
+      downloading.complete([9, 9, 9]);
       await arriving;
       player.reachTheEnd();
       expect(await speaking, isTrue);

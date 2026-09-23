@@ -505,7 +505,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (fixedLine.isEmpty) {
       state = state.copyWith(voice: VoiceState.thinking);
       _watchBusyState();
-      await _voice.fetch(url);
+      await _voice.ready(url);
     }
   }
 

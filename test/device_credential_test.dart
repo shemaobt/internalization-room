@@ -75,6 +75,7 @@ final Map<String, _Request> _everyRequest = {
   'finishBackTranslation': (room, _) =>
       room.finishBackTranslation('sessao-1', playedByTake: const []),
   'fetchClip': (room, _) => room.fetchClip('/voice/p01'),
+  'openClip': (room, _) => room.openClip('/voice/p01', from: 3, ifRange: 'e1'),
   'approveRelease': (room, _) => room.approveRelease('sessao-1'),
 };
 
