@@ -3742,6 +3742,69 @@ void main() {
   );
 
   test(
+    'dragging the ruler mid-download moves the next fetch to where the finger landed, not where the wheel opened',
+    () async {
+      final harness = SalaHarness();
+      harness.room.passages = const [
+        Passagem(pericope: 'P00', audioUrl: '/voice/p00'),
+        Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+        Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
+        Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
+        Passagem(pericope: 'P04', audioUrl: '/voice/p04'),
+      ];
+      harness.voice.missing.addAll({
+        '/voice/p01',
+        '/voice/p02',
+        '/voice/p03',
+        '/voice/p04',
+      });
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.voice.holdNextFetch();
+      unawaited(notifier.abrirEscolha());
+      await settle();
+      harness.voice.finishHeldFetch();
+      harness.voice.holdNextFetch();
+      await settle();
+
+      expect(
+        harness.voice.fetched,
+        ['/voice/p00', '/voice/p01'],
+        reason:
+            'p00 chega pela própria fala oferecida; a fila achou p01 '
+            'faltando e estava presa nele quando a régua se moveu',
+      );
+
+      notifier.apontarPassagem(4);
+      harness.voice.finishHeldFetch();
+      harness.voice.holdNextFetch();
+      await settle();
+
+      expect(
+        harness.voice.fetched,
+        ['/voice/p00', '/voice/p01', '/voice/p04'],
+        reason:
+            'p01 já estava em voo e terminou normalmente; a régua pousou '
+            'em p04, e é ele que a fila busca a seguir, não p02, que '
+            'seria o próximo na ordem antiga',
+      );
+
+      harness.voice.finishHeldFetch();
+      await settle();
+
+      expect(
+        harness.voice.fetched,
+        ['/voice/p00', '/voice/p01', '/voice/p04', '/voice/p02', '/voice/p03'],
+        reason:
+            'com a régua parada em p04, o resto da fila termina pela '
+            'distância até ela: p02 antes de p03',
+      );
+    },
+  );
+
+  test(
     "a hand that enters the panorama spoke cuts the wheel's quiet download short too",
     () async {
       final harness = SalaHarness();
