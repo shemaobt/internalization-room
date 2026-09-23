@@ -35,9 +35,10 @@ class TurnResult {
 
   /// The opening cut where the Guide marked it: the whole passage, then the scene and its
   /// invitation. Empty on every other turn, and `audioUrl` always holds the whole thing —
-  /// so a turn whose segments are missing is simply spoken in one breath. A turn that does
-  /// carry segments never downloads `audioUrl` at all: the movements are what the tablet
-  /// fetches and plays.
+  /// so a turn whose segments are missing is simply spoken in one breath. A turn told in
+  /// two movements (see [toldInTwoMovements]: both a panorama and a scene, and no fixed
+  /// line) never downloads `audioUrl` at all: the movements are what the tablet fetches and
+  /// plays. Any other turn, segments or not, still fetches and plays `audioUrl`.
   final List<SpokenSegment> segments;
 
   const TurnResult({
