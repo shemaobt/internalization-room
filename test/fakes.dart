@@ -680,13 +680,28 @@ class FakeRoom implements RoomRepository {
   @override
   http.Client get client => throw UnimplementedError();
 
-  final StreamController<CoverageEvent> _coverage =
+  StreamController<CoverageEvent> _coverage =
       StreamController<CoverageEvent>.broadcast();
+
+  int watchCoverageCalls = 0;
 
   void pushCoverage(CoverageEvent event) => _coverage.add(event);
 
+  /// Ends the channel a caller is listening to right now, the way Cloud Run's 300 s cut
+  /// or a room refusal does — the next [watchCoverage] call gets a fresh stream, since the
+  /// old one is gone for good.
+  void dropCoverageStream({Object? error}) {
+    final dying = _coverage;
+    _coverage = StreamController<CoverageEvent>.broadcast();
+    if (error != null) dying.addError(error);
+    dying.close();
+  }
+
   @override
-  Stream<CoverageEvent> watchCoverage(String sessionId) => _coverage.stream;
+  Stream<CoverageEvent> watchCoverage(String sessionId) {
+    watchCoverageCalls++;
+    return _coverage.stream;
+  }
 
   /// What a turn's own response says about the id classification will settle under, and
   /// whether classification is still running for it. Pending by default — the way a real
@@ -1455,6 +1470,8 @@ class FakeRoom implements RoomRepository {
       untoldSegmentId: releaseUntoldSegmentId,
     );
   }
+
+  bool get coverageHasListener => _coverage.hasListener;
 
   @override
   void dispose() => _coverage.close();

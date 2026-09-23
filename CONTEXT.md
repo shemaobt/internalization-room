@@ -18,6 +18,10 @@ _Avoid_: conversa in prose (`conversa` is the enum value), telling, narration
 The station where the team records the whole passage in the mother tongue, listens, re-records or keeps it.
 _Avoid_: ensaio in prose (`ensaio` is the enum value), passage recording (the recording itself is the take)
 
+**Record entry**:
+The affordance on the Conversation that opens the Rehearsal, reachable from the first turn of a passage until the session ends; a blocking halt is the one thing that hides it.
+_Avoid_: botão de gravar, record button (it is where the team goes, not the shape it wears), handoff, rehearsal gate (it gates nothing)
+
 **Back-translation** (`retro`):
 The station where the rehearsal recording plays back and the team tells, stretch by stretch and in the bridge language, what each piece says, until `terminei` fires the check.
 On screen and in the voice its Portuguese is *traduzir / tradução*; *contar* belongs to the Conversation alone, and *recontar* to the External Check.
