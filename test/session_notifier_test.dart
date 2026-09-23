@@ -1023,6 +1023,47 @@ void main() {
   );
 
   test(
+    'a phantom tap between two turns does not throw away the first one\'s wait',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      harness.recorder.returnsNothing = true;
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      expect(
+        harness.room.turnsSent,
+        1,
+        reason: 'o toque fantasma nunca chega a mandar um turno',
+      );
+      harness.recorder.returnsNothing = false;
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      expect(harness.room.clientTimingsSent, hasLength(2));
+      expect(
+        harness.room.clientTimingsSent[1],
+        contains('stop_to_answer='),
+        reason:
+            'o toque fantasma não gravou nada de novo — o relógio que devia '
+            'viajar é o do primeiro turno de verdade, não um recém-criado',
+      );
+    },
+  );
+
+  test(
     'the coverage wait a turn arms settles onto that turn\'s own clock, not a later one',
     () async {
       final harness = SalaHarness(settleDelay: const Duration(seconds: 60));

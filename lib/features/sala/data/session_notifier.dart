@@ -2151,9 +2151,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _finishListening() async {
     final epoch = _epoch;
-    final clientTiming = _pendingClock?.clientTiming(_clockSegments);
     final clock = TurnClock()..mark('stop');
-    _pendingClock = clock;
     final path = await _recorder.stop();
     clock.mark('recorder');
     if (epoch != _epoch) return;
@@ -2182,6 +2180,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(voice: VoiceState.thinking);
     _watchBusyState();
     try {
+      final clientTiming = _pendingClock?.clientTiming(_clockSegments);
+      _pendingClock = clock;
       final turn = await _room.sendTurn(
         sessionId,
         File(path),
