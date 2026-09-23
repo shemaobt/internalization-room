@@ -268,35 +268,38 @@ void main() {
     },
   );
 
-  test('tally counts what unsentOf and unsentScopesOf count, from one read', () async {
-    final room = FakeRoom()..reachable = false;
-    final queue = queueOn(room);
-    await queue.enqueue(
-      aTake('um'),
-      sessionId: 'sessao-1',
-      kind: 'ensaio',
-      scope: 'inteira',
-    );
-    await queue.enqueue(
-      aTake('dois'),
-      sessionId: 'sessao-1',
-      kind: 'retro',
-      scope: 'inteira',
-    );
-    await queue.enqueue(
-      aTake('tres'),
-      sessionId: 'sessao-2',
-      kind: 'ensaio',
-      scope: 'inteira',
-    );
+  test(
+    'tally counts what unsentOf and unsentScopesOf count, from one read',
+    () async {
+      final room = FakeRoom()..reachable = false;
+      final queue = queueOn(room);
+      await queue.enqueue(
+        aTake('um'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'inteira',
+      );
+      await queue.enqueue(
+        aTake('dois'),
+        sessionId: 'sessao-1',
+        kind: 'retro',
+        scope: 'inteira',
+      );
+      await queue.enqueue(
+        aTake('tres'),
+        sessionId: 'sessao-2',
+        kind: 'ensaio',
+        scope: 'inteira',
+      );
 
-    final tally = await queue.tally(sessionId: 'sessao-1');
+      final tally = await queue.tally(sessionId: 'sessao-1');
 
-    expect(tally.stranded, isFalse);
-    expect(tally.unsentTakes, 1, reason: 'só a linha ensaio da sessao-1');
-    expect(tally.unsentChunks, 1, reason: 'só a linha retro da sessao-1');
-    expect(tally.unsentTakeScopes, {'inteira'});
-  });
+      expect(tally.stranded, isFalse);
+      expect(tally.unsentTakes, 1, reason: 'só a linha ensaio da sessao-1');
+      expect(tally.unsentChunks, 1, reason: 'só a linha retro da sessao-1');
+      expect(tally.unsentTakeScopes, {'inteira'});
+    },
+  );
 
   test(
     'a manifest tally cannot read never claims the audio is safe either',
@@ -316,39 +319,44 @@ void main() {
       expect(
         tally.unsentTakes,
         1,
-        reason: 'um manifesto ilegível nunca pode dizer que não há nada pendente',
+        reason:
+            'um manifesto ilegível nunca pode dizer que não há nada pendente',
       );
       expect(tally.unsentChunks, 1);
       expect(tally.unsentTakeScopes, {unknownScope});
     },
   );
 
-  test('tally is stranded once quarantine has happened, from the same read', () async {
-    final room = FakeRoom()..reachable = false;
-    final queue = queueOn(room);
-    await queue.enqueue(
-      aTake('velha-1'),
-      sessionId: 'sessao-1',
-      kind: 'ensaio',
-      scope: 'inteira',
-    );
+  test(
+    'tally is stranded once quarantine has happened, from the same read',
+    () async {
+      final room = FakeRoom()..reachable = false;
+      final queue = queueOn(room);
+      await queue.enqueue(
+        aTake('velha-1'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'inteira',
+      );
 
-    manifest().writeAsStringSync('[{"id": "velha-1", tru');
-    await queue.enqueue(
-      aTake('nova'),
-      sessionId: 'sessao-1',
-      kind: 'ensaio',
-      scope: 'inteira',
-    );
+      manifest().writeAsStringSync('[{"id": "velha-1", tru');
+      await queue.enqueue(
+        aTake('nova'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'inteira',
+      );
 
-    final tally = await queue.tally(sessionId: 'sessao-1');
+      final tally = await queue.tally(sessionId: 'sessao-1');
 
-    expect(
-      tally.stranded,
-      isTrue,
-      reason: 'a quarentena aconteceu — a mesma leitura que conta precisa saber disso',
-    );
-  });
+      expect(
+        tally.stranded,
+        isTrue,
+        reason:
+            'a quarentena aconteceu — a mesma leitura que conta precisa saber disso',
+      );
+    },
+  );
 
   test(
     'a manifest of three thousand rows is parsed once and reused, not on every read',
