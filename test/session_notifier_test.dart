@@ -6993,6 +6993,86 @@ void main() {
     timeout: const Timeout(Duration(seconds: 20)),
   );
 
+  test('a voiced turn whose room disposes before the fake turn answers '
+      'leaves quietly, and the take is still gone', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.conversaTap();
+    await settle();
+    harness.room.holdNextTurn();
+    notifier.conversaTap();
+    await settle();
+    final path = harness.recorder.lastPath;
+
+    container.dispose();
+    harness.room.finishHeldTurn();
+    await settle(const Duration(milliseconds: 400));
+
+    expect(
+      harness.recorder.deleted,
+      contains(path),
+      reason:
+          'a sala fechou com o turno em voo; o áudio gravado não pode '
+          'ficar preso no aparelho',
+    );
+  }, timeout: const Timeout(Duration(seconds: 20)));
+
+  test('a panorama turn whose room disposes before the fake turn answers '
+      'leaves quietly, and the take is still gone', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.openConvite();
+
+    notifier.conviteTap();
+    await settle();
+    harness.room.holdNextTurn();
+    notifier.conviteTap();
+    await settle();
+    final path = harness.recorder.lastPath;
+
+    container.dispose();
+    harness.room.finishHeldTurn();
+    await settle(const Duration(milliseconds: 400));
+
+    expect(
+      harness.recorder.deleted,
+      contains(path),
+      reason:
+          'o panorama também fecha com o turno em voo; a mesma sala que '
+          'some não pode travar o apagar',
+    );
+  }, timeout: const Timeout(Duration(seconds: 20)));
+
+  test('a voiced turn whose room disposes while a dropped send asks the '
+      'network leaves quietly too', () async {
+    final harness = SalaHarness(busyCeiling: const Duration(seconds: 5));
+    final container = await inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.conversaTap();
+    await settle();
+    harness.room.holdNextTurn();
+    harness.room.failHeldTurnWith = const RoomUnavailable('a conexão caiu');
+    notifier.conversaTap();
+    await settle();
+    final path = harness.recorder.lastPath;
+
+    container.dispose();
+    harness.room.finishHeldTurn();
+    await settle(const Duration(milliseconds: 400));
+
+    expect(
+      harness.recorder.deleted,
+      contains(path),
+      reason:
+          'a queda também fecha o turno em voo, e o pedido de rede que a '
+          'reenviar faz não pode travar no mesmo lugar',
+    );
+  }, timeout: const Timeout(Duration(seconds: 20)));
+
   test(
     'a room that goes while the count is in flight touches no provider',
     () async {

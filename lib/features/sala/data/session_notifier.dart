@@ -1459,6 +1459,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _sayImThinking();
     state = state.copyWith(voice: VoiceState.thinking);
     _watchBusyState();
+    final recorder = _recorder;
     try {
       final turn = await _sendTheTake(panorama, File(path), epoch);
       if (epoch != _epoch) return;
@@ -1467,7 +1468,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (epoch != _epoch) return;
       _handleRoomFailure(error, turnCall: true);
     } finally {
-      unawaited(_recorder.delete(path));
+      unawaited(recorder.delete(path));
     }
   }
 
@@ -2296,6 +2297,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _sayImThinking();
     state = state.copyWith(voice: VoiceState.thinking);
     _watchBusyState();
+    final recorder = _recorder;
     try {
       final clientTiming = _pendingClock?.clientTiming(_clockSegments);
       _pendingClock = clock;
@@ -2315,7 +2317,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (epoch != _epoch) return;
       _handleRoomFailure(error, turnCall: true);
     } finally {
-      unawaited(_recorder.delete(path));
+      unawaited(recorder.delete(path));
     }
   }
 
@@ -2344,6 +2346,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       } on Exception catch (error) {
         if (error is! RoomUnavailable && error is! RoomSlow) rethrow;
         if (window == null) rethrow;
+        if (epoch != _epoch) rethrow;
         // A slow room answered, so it is there. A send that never reached it may have
         // lost a moment of the network or all of it, and only the network can say which:
         // with none at all this failed in milliseconds and was paused and resent for the
