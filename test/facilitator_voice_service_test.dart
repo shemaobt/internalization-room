@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -9,6 +10,7 @@ import 'fakes.dart';
 
 const _clip = '/api/internalization-room/voice/aaa';
 const _other = '/api/internalization-room/voice/bbb';
+const _lenta = '/api/internalization-room/voice/lenta';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -441,6 +443,69 @@ void main() {
             'cada holds() e clipFor() refazia getApplicationSupportDirectory() '
             'mais create(recursive: true), disco de novo a cada pergunta',
       );
+    },
+  );
+
+  test(
+    'a stale .novo leftover is swept; a fresh one, or one still downloading, is not',
+    () async {
+      final player = SpeakingPlayer();
+      final downloading = Completer<Uint8List>();
+      final voice = FacilitatorVoiceService(
+        fetch: (url) async {
+          fetched.add(url);
+          return url == _lenta
+              ? downloading.future
+              : Uint8List.fromList([1, 2, 3]);
+        },
+        libraryDir: () async => library,
+        player: player,
+        staleStagingAge: const Duration(milliseconds: 30),
+      );
+
+      File('${library.path}/orfao.mp3.novo')
+        ..writeAsBytesSync([1])
+        ..setLastModifiedSync(
+          DateTime.now().subtract(const Duration(minutes: 20)),
+        );
+      File('${library.path}/fresco.mp3.novo').writeAsBytesSync([1]);
+
+      final arriving = voice.clipFor(_lenta);
+      await waitFor('a busca lenta começar', () => fetched.contains(_lenta));
+      File('${library.path}/lenta.mp3.novo')
+        ..writeAsBytesSync([1])
+        ..setLastModifiedSync(
+          DateTime.now().subtract(const Duration(minutes: 20)),
+        );
+
+      final speaking = voice.play(_clip);
+      await waitFor('o tocador soar', () => player.sounding);
+      player.startSounding();
+
+      await waitFor(
+        'a poda varrer o órfão',
+        () => !File('${library.path}/orfao.mp3.novo').existsSync(),
+      );
+
+      expect(
+        File('${library.path}/fresco.mp3.novo').existsSync(),
+        isTrue,
+        reason:
+            'um .novo recente pode ser uma escrita em andamento; a idade '
+            'segura existe exatamente para não confundir isso com lixo',
+      );
+      expect(
+        File('${library.path}/lenta.mp3.novo').existsSync(),
+        isTrue,
+        reason:
+            'a linha ainda está em _arriving — uma busca lenta não é uma '
+            'baixa morta, mesmo que o arquivo pareça velho',
+      );
+
+      downloading.complete(Uint8List.fromList([9, 9, 9]));
+      await arriving;
+      player.reachTheEnd();
+      expect(await speaking, isTrue);
     },
   );
 }

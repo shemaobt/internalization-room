@@ -13,6 +13,7 @@ const _libraryFolder = 'voz';
 const _clipsKept = 60;
 const _lineGrace = Duration(seconds: 8);
 const _unknownLineCeiling = Duration(seconds: 90);
+const _staleStagingAge = Duration(minutes: 10);
 
 class FacilitatorVoiceService {
   final Future<Uint8List> Function(String url) _fetch;
@@ -21,6 +22,7 @@ class FacilitatorVoiceService {
   AudioPlayer? _opened;
   final Duration _grace;
   final Duration _loadCeiling;
+  final Duration _staleAge;
   Future<void> _speaking = Future<void>.value();
   final Map<String, Future<File>> _arriving = {};
 
@@ -30,10 +32,12 @@ class FacilitatorVoiceService {
     AudioPlayer? player,
     Duration? lineGrace,
     Duration? loadCeiling,
+    Duration? staleStagingAge,
   }) : _libraryDir = libraryDir ?? _defaultLibraryDir,
        _opened = player,
        _grace = lineGrace ?? _lineGrace,
-       _loadCeiling = loadCeiling ?? _unknownLineCeiling;
+       _loadCeiling = loadCeiling ?? _unknownLineCeiling,
+       _staleAge = staleStagingAge ?? _staleStagingAge;
 
   AudioPlayer get _player => _opened ??= AudioPlayer();
 
@@ -199,6 +203,29 @@ class FacilitatorVoiceService {
   Future<void> _tidyLibrary() async {
     final dir = await _resolvedDir;
     await _dropOldestBeyondBudget(dir);
+    await _sweepStaleStaging(dir);
+  }
+
+  Future<void> _sweepStaleStaging(Directory dir) async {
+    try {
+      final protected = _arriving.keys
+          .map((url) => p.join(dir.path, '${_nameFor(url)}.mp3.novo'))
+          .toSet();
+      final novos = await dir
+          .list()
+          .where((entry) => entry is File && entry.path.endsWith('.novo'))
+          .cast<File>()
+          .toList();
+      final cutoff = DateTime.now().subtract(_staleAge);
+      for (final novo in novos) {
+        if (protected.contains(novo.path)) continue;
+        if ((await novo.stat()).modified.isBefore(cutoff)) {
+          await novo.delete();
+        }
+      }
+    } on Exception {
+      return;
+    }
   }
 
   Future<void> _dropOldestBeyondBudget(Directory dir) async {
