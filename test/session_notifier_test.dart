@@ -1521,6 +1521,18 @@ void main() {
     notifier.conversaTap();
     await settle();
 
+    final path = harness.recorder.lastPath;
+    expect(
+      harness.room.calls,
+      contains('sendTurn'),
+      reason: 'a recusa só prova a regra se o envio de fato foi tentado',
+    );
+    expect(path, isNotNull);
+    expect(
+      File(path!).existsSync(),
+      isTrue,
+      reason: 'deleted vazio não basta — o arquivo tem de existir de verdade',
+    );
     expect(
       harness.recorder.deleted,
       isEmpty,
@@ -7249,6 +7261,17 @@ void main() {
     await settle(const Duration(milliseconds: 400));
 
     expect(
+      harness.room.turnsSent,
+      1,
+      reason: 'o turno tem de ter chegado de verdade para a garantia valer',
+    );
+    expect(path, isNotNull);
+    expect(
+      File(path!).existsSync(),
+      isTrue,
+      reason: 'deleted vazio não basta — o arquivo tem de existir de verdade',
+    );
+    expect(
       harness.recorder.deleted,
       isNot(contains(path)),
       reason:
@@ -7295,6 +7318,18 @@ void main() {
     notifier.conviteTap();
     await settle();
 
+    final path = harness.recorder.lastPath;
+    expect(
+      harness.room.calls,
+      contains('sendTurn'),
+      reason: 'a recusa só prova a regra se o envio de fato foi tentado',
+    );
+    expect(path, isNotNull);
+    expect(
+      File(path!).existsSync(),
+      isTrue,
+      reason: 'deleted vazio não basta — o arquivo tem de existir de verdade',
+    );
     expect(
       harness.recorder.deleted,
       isEmpty,
@@ -7323,6 +7358,17 @@ void main() {
     await settle(const Duration(milliseconds: 400));
 
     expect(
+      harness.room.turnsSent,
+      1,
+      reason: 'o turno tem de ter chegado de verdade para a garantia valer',
+    );
+    expect(path, isNotNull);
+    expect(
+      File(path!).existsSync(),
+      isTrue,
+      reason: 'deleted vazio não basta — o arquivo tem de existir de verdade',
+    );
+    expect(
       harness.recorder.deleted,
       isNot(contains(path)),
       reason:
@@ -7349,6 +7395,17 @@ void main() {
     harness.room.finishHeldTurn();
     await settle(const Duration(milliseconds: 400));
 
+    expect(
+      harness.room.calls,
+      contains('sendTurn'),
+      reason: 'a queda só prova a regra se o envio de fato foi tentado',
+    );
+    expect(path, isNotNull);
+    expect(
+      File(path!).existsSync(),
+      isTrue,
+      reason: 'deleted vazio não basta — o arquivo tem de existir de verdade',
+    );
     expect(
       harness.recorder.deleted,
       isNot(contains(path)),
