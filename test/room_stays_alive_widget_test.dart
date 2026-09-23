@@ -290,15 +290,18 @@ void main() {
         ),
       );
 
-      Set<double> alturas() => tester
-          .widgetList<AnimatedContainer>(
-            find.descendant(
-              of: find.byType(EqBars),
-              matching: find.byType(AnimatedContainer),
-            ),
-          )
-          .map((barra) => barra.constraints!.maxHeight)
-          .toSet();
+      EqBarsPainter pintor() =>
+          tester
+                  .widget<CustomPaint>(
+                    find.descendant(
+                      of: find.byType(EqBars),
+                      matching: find.byType(CustomPaint),
+                    ),
+                  )
+                  .painter
+              as EqBarsPainter;
+
+      Set<double> alturas() => pintor().heights.toSet();
 
       final primeiras = alturas();
       expect(
@@ -320,17 +323,8 @@ void main() {
         );
       }
 
-      final acesas = tester
-          .widgetList<AnimatedContainer>(
-            find.descendant(
-              of: find.byType(EqBars),
-              matching: find.byType(AnimatedContainer),
-            ),
-          )
-          .map((barra) => (barra.decoration! as BoxDecoration).color)
-          .toSet();
       expect(
-        acesas,
+        {pintor().barColor},
         {SalaColors.light.telha},
         reason:
             'e o medidor continua dizendo que o microfone está aberto — '

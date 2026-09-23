@@ -79,3 +79,8 @@ does — from outside, never from a private method.
 (denied or failed) landing after a halt raised elsewhere erased it; the phase, the mend
 and the halo are still put back, but the voice is now written as `invite` only when no
 halt stands (ENG-982).
+
+2026-09-23: the same unwinding also wrote invite over an offline voice, so a recorder
+answer (denied or failed) on a Rehearsal take started while offline erased the offline
+state and the way back returned at its first line; the voice is now kept whenever a halt
+or offline stands (ENG-1057).

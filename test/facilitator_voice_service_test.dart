@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -9,6 +10,7 @@ import 'fakes.dart';
 
 const _clip = '/api/internalization-room/voice/aaa';
 const _other = '/api/internalization-room/voice/bbb';
+const _lenta = '/api/internalization-room/voice/lenta';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -319,4 +321,220 @@ void main() {
           'se tudo passar a valer falso a sala se declara doente estando sa',
     );
   });
+
+  test(
+    'the clip cache is pruned once the reply actually sounds, not while it downloads',
+    () async {
+      final player = SpeakingPlayer();
+      final voice = service(player: player);
+
+      for (var i = 0; i < 65; i++) {
+        await voice.clipFor('/api/internalization-room/voice/c$i');
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(
+        library.listSync().whereType<File>(),
+        hasLength(65),
+        reason:
+            'com o cache cheio, a sala listava e ordenava cada clipe guardado '
+            'para apagar o mais velho bem na hora em que a resposta começava a tocar',
+      );
+
+      final speaking = voice.play('/api/internalization-room/voice/c64');
+      await waitFor('o tocador soar', () => player.sounding);
+
+      expect(
+        library.listSync().whereType<File>(),
+        hasLength(65),
+        reason:
+            'o play() já foi chamado, mas o tocador ainda não confirmou que soa '
+            '— podar aqui é a mesma trava de antes, só que adiada um passo',
+      );
+
+      player.startSounding();
+      await waitFor(
+        'a poda rodar',
+        () => library.listSync().whereType<File>().length <= 60,
+      );
+
+      player.reachTheEnd();
+      expect(await speaking, isTrue);
+    },
+  );
+
+  test(
+    'the budget prune counts only the mp3 clips, never a staging leftover',
+    () async {
+      final player = SpeakingPlayer();
+      final voice = service(player: player);
+
+      for (var i = 0; i < 65; i++) {
+        File('${library.path}/c$i.mp3')
+          ..writeAsBytesSync([1])
+          ..setLastModifiedSync(DateTime(2026).add(Duration(minutes: i)));
+      }
+      for (var i = 0; i < 3; i++) {
+        File('${library.path}/staging$i.mp3.novo').writeAsBytesSync([1]);
+      }
+
+      final speaking = voice.play('/api/internalization-room/voice/played');
+      await waitFor('o tocador soar', () => player.sounding);
+      player.startSounding();
+      await waitFor(
+        'a poda terminar',
+        () =>
+            library
+                .listSync()
+                .whereType<File>()
+                .where((f) => f.path.endsWith('.mp3'))
+                .length <=
+            60,
+      );
+
+      expect(
+        library.listSync().whereType<File>().where(
+          (f) => f.path.endsWith('.mp3'),
+        ),
+        hasLength(60),
+        reason: 'os 60 clipes mais recentes ficam, o resto sai',
+      );
+      expect(
+        library.listSync().whereType<File>().where(
+          (f) => f.path.endsWith('.novo'),
+        ),
+        hasLength(3),
+        reason:
+            'contar o .novo no orçamento apaga um download em andamento por '
+            'baixo do outro',
+      );
+      expect(File('${library.path}/c0.mp3').existsSync(), isFalse);
+      expect(File('${library.path}/c64.mp3').existsSync(), isTrue);
+      expect(File('${library.path}/played.mp3').existsSync(), isTrue);
+
+      player.reachTheEnd();
+      expect(await speaking, isTrue);
+    },
+  );
+
+  test(
+    'the library directory is resolved once, not on every call that needs it',
+    () async {
+      var calls = 0;
+      final voice = FacilitatorVoiceService(
+        fetch: (url) async {
+          fetched.add(url);
+          return Uint8List.fromList([1, 2, 3]);
+        },
+        libraryDir: () async {
+          calls++;
+          return library;
+        },
+      );
+
+      await voice.holds(_clip);
+      await voice.clipFor(_clip);
+      await voice.holds(_other);
+
+      expect(
+        calls,
+        1,
+        reason:
+            'cada holds() e clipFor() refazia getApplicationSupportDirectory() '
+            'mais create(recursive: true), disco de novo a cada pergunta',
+      );
+    },
+  );
+
+  test(
+    'a library directory that fails once is tried again, not remembered as broken',
+    () async {
+      var attempt = 0;
+      final voice = FacilitatorVoiceService(
+        fetch: (url) async {
+          fetched.add(url);
+          return Uint8List.fromList([1, 2, 3]);
+        },
+        libraryDir: () async {
+          attempt++;
+          if (attempt == 1) throw Exception('disco cheio');
+          return library;
+        },
+      );
+
+      await voice.holds(_clip);
+      expect(attempt, 1);
+
+      await voice.holds(_clip);
+      expect(
+        attempt,
+        2,
+        reason:
+            'a Future rejeitada ficava guardada para sempre; toda chamada '
+            'seguinte reusava a mesma falha em vez de tentar o diretório de novo',
+      );
+    },
+  );
+
+  test(
+    'a stale .novo leftover is swept; a fresh one, or one still downloading, is not',
+    () async {
+      final player = SpeakingPlayer();
+      final downloading = Completer<Uint8List>();
+      final voice = FacilitatorVoiceService(
+        fetch: (url) async {
+          fetched.add(url);
+          return url == _lenta
+              ? downloading.future
+              : Uint8List.fromList([1, 2, 3]);
+        },
+        libraryDir: () async => library,
+        player: player,
+      );
+
+      File('${library.path}/orfao.mp3.novo')
+        ..writeAsBytesSync([1])
+        ..setLastModifiedSync(
+          DateTime.now().subtract(const Duration(minutes: 20)),
+        );
+      File('${library.path}/fresco.mp3.novo').writeAsBytesSync([1]);
+
+      final arriving = voice.clipFor(_lenta);
+      await waitFor('a busca lenta começar', () => fetched.contains(_lenta));
+      File('${library.path}/lenta.mp3.novo')
+        ..writeAsBytesSync([1])
+        ..setLastModifiedSync(
+          DateTime.now().subtract(const Duration(minutes: 20)),
+        );
+
+      final speaking = voice.play(_clip);
+      await waitFor('o tocador soar', () => player.sounding);
+      player.startSounding();
+
+      await waitFor(
+        'a poda varrer o órfão',
+        () => !File('${library.path}/orfao.mp3.novo').existsSync(),
+      );
+
+      expect(
+        File('${library.path}/fresco.mp3.novo').existsSync(),
+        isTrue,
+        reason:
+            'um .novo recente pode ser uma escrita em andamento; a idade '
+            'segura existe exatamente para não confundir isso com lixo',
+      );
+      expect(
+        File('${library.path}/lenta.mp3.novo').existsSync(),
+        isTrue,
+        reason:
+            'a linha ainda está em _arriving — uma busca lenta não é uma '
+            'baixa morta, mesmo que o arquivo pareça velho',
+      );
+
+      downloading.complete(Uint8List.fromList([9, 9, 9]));
+      await arriving;
+      player.reachTheEnd();
+      expect(await speaking, isTrue);
+    },
+  );
 }

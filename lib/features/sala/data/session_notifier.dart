@@ -88,6 +88,16 @@ final busyStateCeilingProvider = Provider<Duration?>(
   (ref) => const Duration(seconds: 330),
 );
 
+/// How often an open microphone touches the room again. The shared client lets an idle
+/// connection go at 90 s and only the team's tap ends a take, so a take longer than that
+/// would otherwise hand its upload a connection that already lapsed. A provider, not a
+/// constant, so a test can reach the second touch without waiting a minute; null, like
+/// the busy ceiling, leaves only the first touch, for tests that end with the microphone
+/// open and cannot outlive a pending timer.
+final connectionRewarmIntervalProvider = Provider<Duration?>(
+  (ref) => const Duration(seconds: 60),
+);
+
 /// Slack added to a clip's own length before the room decides the playback is lost. A
 /// provider, not a constant, because a ceiling nothing can shrink is a ceiling no test
 /// can reach — which is how the paused-clip bug shipped.
@@ -197,6 +207,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _ackSpoken = 0;
   DateTime? _listeningSince;
   bool _recordingStarting = false;
+  int _starts = 0;
   VoiceState _voiceBeforeQuestion = VoiceState.invite;
   String? _emCurso;
   Trecho? _trechoTraduzidoDeNovo;
@@ -274,6 +285,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   String? _coverageSessionId;
   String? _awaitingCoverageTurnId;
   String? _resolvedCoverageTurnId;
+  String? _coverageReopenedForTurnId;
   bool _doneSeenMidTurn = false;
   StreamSubscription<bool>? _micWatch;
   VoidCallback? _onPlaybackComplete;
@@ -1175,18 +1187,90 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_coverageSessionId == sessionId) return;
     unawaited(_coverageWatch?.cancel());
     _coverageSessionId = sessionId;
-    _coverageWatch = _room.watchCoverage(sessionId).listen(_onCoverageFrame);
+    // The repository closes the channel right after every error it raises
+    // (RR:watchCoverage), so onDone is where the channel dies, once; onError only records
+    // why. Only the room refusing the device or no longer holding the session is a
+    // refusal. A body that breaks mid-stream, or a status the room could not serve, may be
+    // how Cloud Run's 300 s cut reaches the tablet — read as a refusal, it left the beads
+    // waiting on the fallback again, the very bug the reopen exists to fix.
+    var refused = false;
+    _coverageWatch = _room
+        .watchCoverage(sessionId)
+        .listen(
+          _onCoverageFrame,
+          onDone: () => _coverageChannelDied(sessionId, reopen: !refused),
+          onError: (Object error) {
+            refused = error is RoomRefused || error is SessionGone;
+          },
+        );
+  }
+
+  /// A dead channel is always forgotten, so the next turn that needs one does not find a
+  /// subscription this class already thinks is alive. Only an ordinary end — the Cloud
+  /// Run cut, not a refusal — reopens it right away, and only for a turn still waiting on
+  /// it; a session with nothing pending is left closed for the next `_awaitCoverageSettle`
+  /// to reopen, and a refusal is never retried on its own. That reopen still fires at most
+  /// once per armed turn: a room the client cannot reach keeps closing the channel it just
+  /// reopened, and reopening on every one of those deaths turned an unreachable room into
+  /// a reopen-and-fetch loop for the whole 30 s fallback window. The guard is scoped to the
+  /// turn's own id, not a flag `_awaitCoverageSettle` clears — that method arms the same
+  /// turn twice, once before it speaks and once after, and a flag reset on every arm let a
+  /// death landing between those two calls buy the turn a second reopen.
+  void _coverageChannelDied(String sessionId, {required bool reopen}) {
+    _coverageWatch = null;
+    _coverageSessionId = null;
+    if (reopen &&
+        _awaitingCoverageTurnId != null &&
+        _coverageReopenedForTurnId != _awaitingCoverageTurnId) {
+      _coverageReopenedForTurnId = _awaitingCoverageTurnId;
+      _watchCoverageChannel(sessionId);
+      unawaited(_recoverCoverageWait(sessionId));
+    }
+  }
+
+  /// The reopen's own recovery read: a frame published while the channel was down is
+  /// lost, so this asks the state directly instead of waiting on the channel to say it
+  /// again. Landing an advance for the turn still waiting closes that wait right here —
+  /// left open, the 30 s fallback still fired later, asked the state a second time, and
+  /// restamped the beads clock on a turn that had already landed.
+  Future<void> _recoverCoverageWait(String sessionId) async {
+    final turnId = _awaitingCoverageTurnId;
+    final advanced = await _pullState(
+      sessionId,
+      clock: _coverageClock,
+    ).catchError((_) => false);
+    if (turnId != null && advanced && _awaitingCoverageTurnId == turnId) {
+      _resolveCoverageWait(sessionId, turnId, pullState: false);
+    }
   }
 
   void _onCoverageFrame(CoverageEvent frame) {
     if (frame.turnId != _awaitingCoverageTurnId) return;
     final sessionId = state.sessionId;
     if (sessionId == null) return;
+    _applyCoverage(frame.coverage, clock: _coverageClock);
     _resolveCoverageWait(
       sessionId,
       frame.turnId,
       pullState: frame.status == CoverageStatus.settled,
     );
+  }
+
+  /// A turn that carried no coverage, or fewer beads than the necklace already shows,
+  /// leaves the necklace where it is. Reading a missing field as zero emptied the cord
+  /// mid-passage — the only record of progress this team can perceive — and a read
+  /// that raced ahead of a slower one used to be able to put it back. The same guard
+  /// runs whether the number came from the coverage frame or from the state pull that
+  /// follows it, so the pull confirming what the frame already painted never re-marks
+  /// the clock a second time.
+  bool _applyCoverage(Coverage? told, {TurnClock? clock}) {
+    final before = state.coverage.engaged;
+    final advanced = told != null && told.engaged > before;
+    if (advanced) clock?.mark('beads');
+    if (told != null && told.engaged >= before) {
+      state = state.copyWith(coverage: told);
+    }
+    return advanced;
   }
 
   void _resolveCoverageWait(
@@ -1200,34 +1284,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final clock = _coverageClock;
     _coverageClock = null;
     if (pullState) {
-      unawaited(_pullState(sessionId, clock: clock).catchError((_) {}));
+      unawaited(_pullState(sessionId, clock: clock).catchError((_) => false));
     }
     unawaited(_pullInbox());
   }
 
-  Future<void> _pullState(String sessionId, {TurnClock? clock}) async {
+  /// Reads the state directly, folding in whatever the coverage channel might have
+  /// missed. Reports whether the necklace actually moved, so a caller settling a wait
+  /// from this alone — the recovery read after a reopen — knows whether it landed
+  /// something, and the clock that measures the trip only marks a beat that happened:
+  /// stamping it on a pull that changed nothing timed a turn that never actually landed.
+  Future<bool> _pullState(String sessionId, {TurnClock? clock}) async {
     final epoch = _epoch;
     try {
       final snapshot = await _room.fetchState(sessionId);
-      if (epoch != _epoch || state.sessionId != sessionId) return;
-      clock?.mark('beads');
-      final told = snapshot.coverage;
-      final before = state.coverage.engaged;
-      // A turn that carried no coverage, or fewer beads than the necklace already shows,
-      // leaves the necklace where it is. Reading a missing field as zero emptied the cord
-      // mid-passage — the only record of progress this team can perceive — and a read
-      // that raced ahead of a slower one used to be able to put it back.
-      if (told != null && told.engaged >= before) {
-        state = state.copyWith(
-          coverage: told,
-          ping: told.engaged > before ? PingRange(before, told.engaged) : null,
-        );
-      }
-      if (state.ping != null) {
-        _after('ping', const Duration(milliseconds: 700), () {
-          state = state.copyWith(clearPing: true);
-        });
-      }
+      if (epoch != _epoch || state.sessionId != sessionId) return false;
+      final advanced = _applyCoverage(snapshot.coverage, clock: clock);
       state = state.copyWith(warning: snapshot.halt == HaltKind.warning);
       if (state.warning) _watchTheHalt();
       if (snapshot.needsPerson) {
@@ -1241,12 +1313,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           _doneSeenMidTurn = true;
         }
       }
+      return advanced;
     } on SessionGone {
-      if (epoch != _epoch) return;
+      if (epoch != _epoch) return false;
       _leaveTheDeadPassage();
+      return false;
     } on RoomRefused {
-      if (epoch != _epoch) return;
+      if (epoch != _epoch) return false;
       _haltForAPerson();
+      return false;
     }
   }
 
@@ -1440,7 +1515,31 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _haltForAPerson();
       return;
     }
-    unawaited(_dizerAOferecida());
+    unawaited(
+      _dizerAOferecida().then((_) => _fetchTheNamesTheWheelLacks(epoch)),
+    );
+  }
+
+  /// One number per quiet download of the wheel's names. Every way off the wheel bumps the
+  /// epoch except the panorama spoke, which never passes through `_clearAll`; entering any
+  /// spoke bumps this instead, so a download started for the wheel dies with it either way.
+  int _wheelPrefetch = 0;
+
+  Future<void> _fetchTheNamesTheWheelLacks(int epoch) async {
+    final run = ++_wheelPrefetch;
+    final roda = state.naRoda;
+    if (roda == null || roda.isEmpty) return;
+    final pending = List<int>.generate(roda.length, (i) => i);
+    while (pending.isNotEmpty) {
+      if (epoch != _epoch || run != _wheelPrefetch) return;
+      final aim = state.aOferecer;
+      pending.sort(
+        (a, b) => ((a - aim) % roda.length).compareTo((b - aim) % roda.length),
+      );
+      final url = roda[pending.removeAt(0)].audioUrl;
+      if (url.isEmpty || await _voice.holds(url)) continue;
+      await _voice.fetch(url);
+    }
   }
 
   /// The circle on the wheel says the passage again. It no longer moves.
@@ -1517,6 +1616,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void entrarNaOferecida() {
     final passagem = state.oferecida;
     if (passagem == null || state.voice != VoiceState.invite) return;
+    _wheelPrefetch++;
     // Acima dos dois ramos: o panorama não passa pelo _clearAll do goConversa, e a
     // linha que a roda acabou de oferecer seguia soando por cima da espera dele.
     _silenceTheRoom();
@@ -2141,6 +2241,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _silenceTheRoom();
     _recordingStarting = true;
     _listeningSince = DateTime.now();
+    _keepTheConnectionWarm();
     // The line is kept, not dropped. `canHearAgain` already hides the button for every
     // voice but `invite`, so it is gone while the microphone is open either way — and
     // forgetting it here meant that when the room could only answer with a canned line,
@@ -2151,6 +2252,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   bool _hasAudio(String path) =>
       File(path).existsSync() && File(path).lengthSync() > 0;
+
+  void _keepTheConnectionWarm() {
+    unawaited(_network.reachRoom());
+    final every = ref.read(connectionRewarmIntervalProvider);
+    if (every == null) return;
+    _after('warm', every, () {
+      if (state.voice == VoiceState.listening) _keepTheConnectionWarm();
+    });
+  }
 
   Future<void> _finishListening() async {
     final epoch = _epoch;
@@ -2214,10 +2324,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (fetched == null) return;
     if (fetched.isEmpty || _gone) return;
     final known = {for (final reply in state.replies) reply.id: reply};
-    state = state.copyWith(
-      replies: [for (final reply in fetched) known[reply.id] ?? reply],
-      questionPending: false,
-    );
+    final merged = [for (final reply in fetched) known[reply.id] ?? reply];
+    if (_sameReplies(merged, state.replies) && !state.questionPending) return;
+    state = state.copyWith(replies: merged, questionPending: false);
+  }
+
+  // merged above already reused known[id] for any id it recognised, so a shared id at
+  // the same position is the same HandReply object — a server re-sending audio_url for a
+  // question_id already on the hand is discarded there, before this ever runs. Ids in
+  // the same order is the whole comparison.
+  bool _sameReplies(List<HandReply> a, List<HandReply> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i].id != b[i].id) return false;
+    }
+    return true;
   }
 
   void handTap() {
@@ -2799,15 +2920,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _recordOrBlock(String fileName) async {
     final epoch = _epoch;
+    final start = ++_starts;
     final openedAsAChunkCapture = state.btPhase == BtPhase.capturing;
     _micWatch ??= _recorder.interrupted.listen(_theMicrophoneChangedHands);
     final capture = await _recorder.start(fileName);
+    if (_gone) return;
     // The answer can arrive a minute late — `hasPermission` waits up to sixty seconds for
     // the platform — by which time the team may be on another stage entirely, with a
     // microphone of its own still opening. Cleared under the guard, never above it: a
     // start coming back from a passage already left let the next passage's second tap
     // through, onto a recorder that had not opened.
-    if (epoch != _epoch || _gone) return;
+    if (epoch != _epoch) {
+      if (start == _starts && capture == Capture.started) {
+        _recordingStarting = false;
+        unawaited(_recorder.discard());
+      }
+      return;
+    }
     _recordingStarting = false;
     switch (capture) {
       case Capture.started:
@@ -2842,7 +2971,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ensaio: EnsaioStatus.idle,
       noteMode: false,
       btPhase: capturing ? BtPhase.playing : state.btPhase,
-      voice: state.needsPerson ? null : VoiceState.invite,
+      voice: state.canResolveWithPerson ? null : VoiceState.invite,
       // Whether the microphone a correction was going to speak into never opened, or
       // opened and was just discarded under a halt, the mend has not landed and that
       // stretch is waiting again.
@@ -2892,24 +3021,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final epoch = _epoch;
     final counting = ++_newestCount;
     final queue = _takes;
+    final sessionId = state.sessionId;
     // Whether a recording is stuck is not a question about the session in progress, and
     // asking it only when one existed meant the check at the first frame — the moment a
     // facilitator is standing there and could act — did nothing at all.
-    final stranded =
-        (await queue.giveUps()).isNotEmpty || await queue.lostHistory();
+    final tally = await queue.tally(sessionId: sessionId);
     if (_gone) return;
-    if (stranded && epoch == _epoch) _sayARecordingIsStranded();
+    if (tally.stranded && epoch == _epoch) _sayARecordingIsStranded();
     if (epoch != _epoch) return;
-    final sessionId = state.sessionId;
     if (sessionId == null) return;
-    final takes = await queue.unsentOf('ensaio', sessionId: sessionId);
-    final chunks = await queue.unsentOf('retro', sessionId: sessionId);
-    final scopes = await queue.unsentScopesOf('ensaio', sessionId: sessionId);
     if (_gone || epoch != _epoch || counting != _newestCount) return;
     state = state.copyWith(
-      unsentTakes: takes,
-      unsentChunks: chunks,
-      unsentTakeScopes: scopes,
+      unsentTakes: tally.unsentTakes,
+      unsentChunks: tally.unsentChunks,
+      unsentTakeScopes: tally.unsentTakeScopes,
     );
   }
 
@@ -4537,6 +4662,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// first stretch of the next back translation upload as a correction of a stretch that
   /// does not exist.
   void _forgetThePassage() {
+    unawaited(_coverageWatch?.cancel());
+    _coverageWatch = null;
+    _coverageSessionId = null;
     _unplayableTurns = 0;
     _roomFailures = 0;
     _resumeFailures = 0;
