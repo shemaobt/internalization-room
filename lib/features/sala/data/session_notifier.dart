@@ -285,6 +285,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   StreamSubscription<void>? _playbackFailed;
   StreamSubscription<void>? _playbackOpened;
   StreamSubscription<void>? _networkWatch;
+  Timer? _ladder;
   StreamSubscription<CoverageEvent>? _coverageWatch;
   String? _coverageSessionId;
   String? _awaitingCoverageTurnId;
@@ -334,6 +335,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     ref.onDispose(() {
       _gone = true;
       _cancelTimers();
+      _ladder?.cancel();
       unawaited(_playbackDone?.cancel());
       unawaited(_playbackFailed?.cancel());
       unawaited(_playbackOpened?.cancel());
@@ -1038,7 +1040,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _goOffline(RoomReach why) {
-    if (state.offline) return;
+    if (state.unreachable) {
+      _drawTheFallAgain(why);
+      return;
+    }
     _cancelTimers();
     _leaveThinking();
     state = state.copyWith(
@@ -1054,6 +1059,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _scheduleRetry();
   }
 
+  void _drawTheFallAgain(RoomReach why) {
+    if (state.offline || state.needsPerson) return;
+    _leaveThinking();
+    state = state.copyWith(
+      voice: VoiceState.offline,
+      reach: why,
+      peerCue: false,
+    );
+  }
+
   void _watchForNetwork() {
     _networkWatch ??= _network.onNetworkReturned.listen((_) {
       unawaited(_attemptReturn());
@@ -1064,19 +1079,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final backoff = ref.read(roomRetryBackoffProvider);
     final step = _retryStep < backoff.length ? _retryStep : backoff.length - 1;
     _retryStep++;
-    _after('retry', backoff[step], () => unawaited(_attemptReturn()));
+    _ladder?.cancel();
+    _ladder = Timer(backoff[step], () => unawaited(_attemptReturn()));
   }
 
   Future<void> _attemptReturn() async {
-    if (!state.offline || _returning) return;
+    if (!state.unreachable || _returning) return;
     _returning = true;
-    final epoch = _epoch;
     try {
       final reach = await _network.reachRoom();
-      if (epoch != _epoch) return;
+      if (_gone || !state.unreachable) return;
       if (reach == RoomReach.fine) {
         _comeBack();
-      } else if (state.offline) {
+      } else {
         state = state.copyWith(reach: reach);
         _scheduleRetry();
       }
@@ -1086,14 +1101,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void retryNow() {
-    if (!state.offline) return;
-    _timers.remove('retry')?.cancel();
+    if (!state.unreachable) return;
+    _ladder?.cancel();
     unawaited(_attemptReturn());
   }
 
   void _comeBack() {
-    if (!state.offline) return;
-    _timers.remove('retry')?.cancel();
+    if (!state.unreachable) return;
+    _ladder?.cancel();
     unawaited(_networkWatch?.cancel());
     _networkWatch = null;
     final epoch = _epoch;
@@ -1105,11 +1120,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (epoch == _epoch) unawaited(_countUnsent());
       }),
     );
-    state = state.copyWith(voice: VoiceState.invite);
+    state = state.copyWith(reach: RoomReach.fine);
     // The fall took the watch with the rest of the timers. A blocking halt gets its own
     // back the next time the room stops, but nothing stops for a warning: left here, a
     // room that lost the network under one came back green for good.
     if (state.warning) _watchTheHalt();
+    if (!state.offline) return;
+    state = state.copyWith(voice: VoiceState.invite);
     if (state.stage == SalaStage.fim) {
       _startOver();
     } else if (state.stage == SalaStage.escolha) {
@@ -1155,7 +1172,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _leaveTheHalt() {
     _endTheWatch();
-    _timers.remove('retry')?.cancel();
+    _ladder?.cancel();
     _timers.remove('person')?.cancel();
     _personAsked = false;
     _personAskStep = 0;
@@ -1163,7 +1180,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _resumeFailures = 0;
     unawaited(_networkWatch?.cancel());
     _networkWatch = null;
-    state = state.copyWith(voice: VoiceState.invite);
+    state = state.copyWith(voice: VoiceState.invite, reach: RoomReach.fine);
     // Every way out of a halt ends the watch, and a warning standing under it is a
     // session still asking for somebody. Left ended, the halt's own exit — the beat that
     // reads it away, or the long press on a room that is out — carried the warning off
@@ -2436,10 +2453,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (state.stage == SalaStage.convite && _panoramaSessionId == null) return;
     if (state.offline) {
-      // `_haltForAPerson` writes over `voice: offline`, and every way back — the retry
-      // timer, the network watch, the touch — is guarded on `state.offline`. One tap on
-      // the lit hand during an outage turned a room that would have healed itself into
-      // one that needs a person to walk in.
+      // `_haltForAPerson` writes over `voice: offline`. One tap on the lit hand during an
+      // outage turned a room that heals itself into one that needs a person to walk in.
       retryNow();
       return;
     }

@@ -321,6 +321,8 @@ class SalaSessionState {
 
   bool get offline => voice == VoiceState.offline;
 
+  bool get unreachable => reach != RoomReach.fine;
+
   bool get canFinishBackTranslation =>
       stage == SalaStage.retro && btPhase == BtPhase.playing && btClipEnded;
 
