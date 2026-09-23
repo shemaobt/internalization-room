@@ -207,6 +207,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _ackSpoken = 0;
   DateTime? _listeningSince;
   bool _recordingStarting = false;
+  int _starts = 0;
   VoiceState _voiceBeforeQuestion = VoiceState.invite;
   String? _emCurso;
   Trecho? _trechoTraduzidoDeNovo;
@@ -2844,15 +2845,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _recordOrBlock(String fileName) async {
     final epoch = _epoch;
+    final start = ++_starts;
     final openedAsAChunkCapture = state.btPhase == BtPhase.capturing;
     _micWatch ??= _recorder.interrupted.listen(_theMicrophoneChangedHands);
     final capture = await _recorder.start(fileName);
+    if (_gone) return;
     // The answer can arrive a minute late — `hasPermission` waits up to sixty seconds for
     // the platform — by which time the team may be on another stage entirely, with a
     // microphone of its own still opening. Cleared under the guard, never above it: a
     // start coming back from a passage already left let the next passage's second tap
     // through, onto a recorder that had not opened.
-    if (epoch != _epoch || _gone) return;
+    if (epoch != _epoch) {
+      if (start == _starts && capture == Capture.started) {
+        _recordingStarting = false;
+        unawaited(_recorder.discard());
+      }
+      return;
+    }
     _recordingStarting = false;
     switch (capture) {
       case Capture.started:
@@ -2887,7 +2896,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ensaio: EnsaioStatus.idle,
       noteMode: false,
       btPhase: capturing ? BtPhase.playing : state.btPhase,
-      voice: state.needsPerson ? null : VoiceState.invite,
+      voice: state.canResolveWithPerson ? null : VoiceState.invite,
       // Whether the microphone a correction was going to speak into never opened, or
       // opened and was just discarded under a halt, the mend has not landed and that
       // stretch is waiting again.
