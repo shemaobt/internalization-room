@@ -949,6 +949,27 @@ void main() {
     expect(harness.voice.played, hasLength(1));
   });
 
+  test(
+    'the passage entry has no turn of its own to carry it, so it rides on the first real one',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      expect(harness.room.clientTimingsSent, hasLength(1));
+      final timing = harness.room.clientTimingsSent[0];
+      expect(timing, contains('health_to_session='));
+      expect(timing, contains('session_to_open='));
+      expect(timing, contains('open_to_sound='));
+    },
+  );
+
   test('a turn sends the recording and plays what comes back', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
@@ -966,6 +987,149 @@ void main() {
     expect(harness.voice.played, hasLength(2));
     expect(container.read(salaSessionProvider).voice, VoiceState.invite);
   });
+
+  test(
+    'a turn carries the passage entry\'s timing, not its own, and the next one carries its own wait',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      expect(harness.room.clientTimingsSent, hasLength(2));
+      expect(
+        harness.room.clientTimingsSent[0],
+        contains('open_to_sound='),
+        reason:
+            'a primeira volta da conversa carrega o tempo da abertura da '
+            'passagem, que ainda não tinha sido mandado',
+      );
+      final second = harness.room.clientTimingsSent[1];
+      expect(second, contains('recorder_stop='));
+      expect(second, contains('stop_to_answer='));
+      expect(second, contains('answer_to_clip='));
+      expect(second, contains('clip_to_sound='));
+    },
+  );
+
+  test(
+    'a phantom tap between two turns does not throw away the first one\'s wait',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      harness.recorder.returnsNothing = true;
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      expect(
+        harness.room.turnsSent,
+        1,
+        reason: 'o toque fantasma nunca chega a mandar um turno',
+      );
+      harness.recorder.returnsNothing = false;
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      expect(harness.room.clientTimingsSent, hasLength(2));
+      expect(
+        harness.room.clientTimingsSent[1],
+        contains('stop_to_answer='),
+        reason:
+            'o toque fantasma não gravou nada de novo — o relógio que devia '
+            'viajar é o do primeiro turno de verdade, não um recém-criado',
+      );
+    },
+  );
+
+  test(
+    'the coverage wait a turn arms settles onto that turn\'s own clock, not a later one',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60));
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.room.turnIdInResponse = 'turno-2';
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-2', status: CoverageStatus.settled),
+      );
+      await waitFor(
+        'o colar assentar pelo canal',
+        () => harness.room.calls.where((c) => c == 'fetchState').isNotEmpty,
+      );
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      expect(harness.room.clientTimingsSent, hasLength(2));
+      expect(harness.room.clientTimingsSent[1], contains('sound_to_beads='));
+    },
+  );
+
+  test(
+    'a session the panorama already opened does not fake a creation of its own',
+    () async {
+      final harness = SalaHarness();
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      await notifier.goConversa(
+        pericope: 'P01',
+        opened: const SessionSnapshot(
+          sessionId: 'sessao-1',
+          pericope: 'P01',
+          status: 'aberta',
+          coverage: null,
+          done: false,
+        ),
+      );
+      await settle();
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      expect(harness.room.clientTimingsSent, hasLength(1));
+      expect(
+        harness.room.clientTimingsSent[0],
+        isNot(contains('health_to_session=')),
+        reason:
+            'a sessão já veio pronta da panorama — medir a criação mediria '
+            'zero, não o que de fato aconteceu',
+      );
+    },
+  );
 
   test(
     'the conversation keeps the words and throws the recording away',
