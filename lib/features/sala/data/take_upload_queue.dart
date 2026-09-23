@@ -327,6 +327,56 @@ class TakeUploadQueue {
     };
   }
 
+  /// giveUps() + lostHistory() + unsentOf('ensaio') + unsentOf('retro') +
+  /// unsentScopesOf('ensaio'), from the one read this cache already keeps —
+  /// what `_countUnsent` asked for five times over is asked for once here.
+  Future<
+    ({
+      bool stranded,
+      int unsentTakes,
+      int unsentChunks,
+      Set<String> unsentTakeScopes,
+    })
+  >
+  tally({required String? sessionId}) async {
+    final written = await _written();
+    final rows = written ?? const <PendingTake>[];
+    var stuck = false;
+    for (final entry in rows) {
+      if (entry.stored) continue;
+      if (entry.exhausted || entry.stalled || await _reallyGone(entry)) {
+        stuck = true;
+        break;
+      }
+    }
+    final stranded = stuck || await lostHistory();
+
+    if (written == null) {
+      return (
+        stranded: stranded,
+        unsentTakes: 1,
+        unsentChunks: 1,
+        unsentTakeScopes: {unknownScope},
+      );
+    }
+    return (
+      stranded: stranded,
+      unsentTakes: [
+        for (final e in written)
+          if (!e.stored && e.kind == 'ensaio' && e.sessionId == sessionId) e,
+      ].length,
+      unsentChunks: [
+        for (final e in written)
+          if (!e.stored && e.kind == 'retro' && e.sessionId == sessionId) e,
+      ].length,
+      unsentTakeScopes: {
+        for (final e in written)
+          if (!e.stored && e.kind == 'ensaio' && e.sessionId == sessionId)
+            e.scope,
+      },
+    );
+  }
+
   /// The rows the room says out loud, because nothing more will happen to them on their
   /// own. A row written off while its audio is still on the tablet is not one of them —
   /// the next flush picks it up, and saying it is stranded would be a false alarm on
