@@ -623,7 +623,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     clock?.mark('answer');
     _awaitCoverageSettle(turn, clock: clock);
     _scheduleInboxPoll();
-    await _readyToSpeak(turn.audioUrl, turn.fixedLine);
+    await _readyToSpeak(
+      turn.toldInTwoMovements ? turn.panoramaUrl : turn.audioUrl,
+      turn.fixedLine,
+    );
     if (epoch != _epoch) return;
     clock?.mark('clip');
     if (turn.audioUrl.isEmpty && turn.fixedLine.isEmpty) {

@@ -637,6 +637,23 @@ void main() {
   );
 
   test(
+    'a two-movement opening fetches the first movement, never the whole line',
+    () async {
+      final harness = SalaHarness()..room.opensInTwoMovements = true;
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+
+      expect(
+        harness.voice.fetched,
+        [panoramaUrl, sceneUrl],
+        reason:
+            'o que baixa antes de tocar é o primeiro movimento — a linha '
+            'inteira (turnoUrl) nunca é pedida, porque nunca é ela quem soa',
+      );
+    },
+  );
+
+  test(
     'the necklace stays off the cord while the whole is being told',
     () async {
       final harness = SalaHarness()..room.opensInTwoMovements = true;
