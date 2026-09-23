@@ -985,8 +985,8 @@ void main() {
       container.read(salaSessionProvider).offline,
       isTrue,
       reason:
-          'a mão escrevia needsPerson por cima de offline, e toda volta — o timer, '
-          'a escuta de rede, o toque — é guardada em state.offline',
+          'a mão escrevia needsPerson por cima de offline, e uma queda de rede '
+          'virava uma parada à espera de uma pessoa',
     );
 
     harness.network.reachable = true;

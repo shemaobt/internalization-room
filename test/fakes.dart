@@ -1492,10 +1492,25 @@ class FakeNetwork implements ConnectivityService {
   bool reachable = true;
   bool radioSeesNothing = false;
   int checks = 0;
+  Completer<void>? _holdingCheck;
+  Completer<void>? _heldCheck;
+
+  void holdNextCheck() => _holdingCheck = Completer<void>();
+
+  void finishHeldCheck() {
+    _heldCheck?.complete();
+    _heldCheck = null;
+  }
 
   @override
   Future<RoomReach> reachRoom() async {
     checks++;
+    final held = _holdingCheck;
+    if (held != null) {
+      _holdingCheck = null;
+      _heldCheck = held;
+      await held.future;
+    }
     if (radioSeesNothing) return RoomReach.noNetwork;
     return reachable ? RoomReach.fine : RoomReach.roomSilent;
   }

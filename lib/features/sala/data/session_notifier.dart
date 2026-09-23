@@ -823,7 +823,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (snapshot.needsPerson) {
         if (!state.needsPerson) _haltForAPerson(read: true);
       } else {
-        if (state.needsPerson) _leaveTheHalt();
+        if (state.needsPerson) {
+          _comeBack();
+          _leaveTheHalt();
+        }
         if (!state.warning) {
           // A warning walks no voice, so there is nothing to hand back: the field going
           // out is the whole of it, and the halt's way out would give the team an invite
