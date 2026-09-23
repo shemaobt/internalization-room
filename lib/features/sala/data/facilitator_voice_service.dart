@@ -394,11 +394,7 @@ class _ArrivingClip extends StreamAudioSource {
       if (_received == before) throw cut;
       final etag = _etag;
       response = await _open(_url, from: _received, ifRange: etag);
-      if (response.statusCode == 206 &&
-          etag != null &&
-          response.headers['etag'] == etag) {
-        continue;
-      }
+      if (_isTheRest(response, etag)) continue;
       if (restarts == _restartsAllowed) {
         unawaited(response.stream.listen(null).cancel());
         throw cut;
@@ -410,6 +406,25 @@ class _ArrivingClip extends StreamAudioSource {
       }
       _begin(response);
     }
+  }
+
+  /// Whether a resume answered with the rest of this rendering, and only the rest.
+  ///
+  /// The ETag says which rendering; only the size and the range say which bytes. A range
+  /// implementation that ignored the offset answered 206 with the whole clip under the
+  /// right ETag, and writing it after what had arrived ran past the end of the buffer — a
+  /// `RangeError`, which no `on Exception` in the room catches. Anything else is started
+  /// over, like a resume from another rendering.
+  bool _isTheRest(http.StreamedResponse response, String? etag) {
+    if (response.statusCode != 206 ||
+        etag == null ||
+        response.headers['etag'] != etag) {
+      return false;
+    }
+    final range = response.headers['content-range'];
+    return response.contentLength == _bytes.length - _received &&
+        (range == null ||
+            range == 'bytes $_received-${_bytes.length - 1}/${_bytes.length}');
   }
 
   void _begin(http.StreamedResponse response) {

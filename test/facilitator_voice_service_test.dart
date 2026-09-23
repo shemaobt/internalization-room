@@ -600,8 +600,8 @@ void main() {
               ? http.StreamedResponse(
                   const Stream.empty(),
                   206,
-                  contentLength: 0,
-                  headers: {'etag': 'e1'},
+                  contentLength: 3,
+                  headers: {'etag': 'e1', 'content-range': 'bytes 3-5/6'},
                 )
               : http.StreamedResponse(
                   Stream.value([1, 2, 3]),
@@ -753,6 +753,52 @@ void main() {
         );
         expect(asked.last.headers.containsKey('Range'), isFalse);
       }
+    },
+  );
+
+  test(
+    'a partial answer that is not the part still missing starts over, instead of overrunning the clip',
+    () async {
+      final asked = <http.BaseRequest>[];
+      final first = StreamController<List<int>>();
+      final voice = FacilitatorVoiceService(
+        open: roomAnswering((request) {
+          asked.add(request);
+          if (request.headers.containsKey('Range')) {
+            return http.StreamedResponse(
+              Stream.value([1, 2, 3, 4, 5, 6]),
+              206,
+              contentLength: 6,
+              headers: {'etag': 'e1', 'content-range': 'bytes 0-5/6'},
+            );
+          }
+          if (asked.length == 1) {
+            return http.StreamedResponse(
+              first.stream,
+              200,
+              contentLength: 6,
+              headers: {'etag': 'e1'},
+            );
+          }
+          return _whole([1, 2, 3, 4, 5, 6]);
+        }),
+        libraryDir: () async => library,
+      );
+
+      final arriving = voice.clipFor(_clip);
+      first
+        ..add([1, 2, 3])
+        ..addError(http.ClientException('a conexão caiu'));
+
+      expect(
+        (await arriving).readAsBytesSync(),
+        [1, 2, 3, 4, 5, 6],
+        reason:
+            'um Range que ignorava o deslocamento respondia 206 com a fala '
+            'inteira sob a mesma etiqueta; escrita depois do byte 3 ela passava '
+            'do fim do buffer num RangeError, que nenhum on Exception da sala pega',
+      );
+      expect(asked.last.headers.containsKey('Range'), isFalse);
     },
   );
 
