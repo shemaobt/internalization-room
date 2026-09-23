@@ -6207,6 +6207,32 @@ void main() {
     timeout: const Timeout(Duration(seconds: 20)),
   );
 
+  test('a voiced turn whose room disposes before the fake turn answers '
+      'leaves quietly, and the take is still gone', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.conversaTap();
+    await settle();
+    harness.room.holdNextTurn();
+    notifier.conversaTap();
+    await settle();
+    final path = harness.recorder.lastPath;
+
+    container.dispose();
+    harness.room.finishHeldTurn();
+    await settle(const Duration(milliseconds: 400));
+
+    expect(
+      harness.recorder.deleted,
+      contains(path),
+      reason:
+          'a sala fechou com o turno em voo; o áudio gravado não pode '
+          'ficar preso no aparelho',
+    );
+  }, timeout: const Timeout(Duration(seconds: 20)));
+
   test(
     'a room that goes while the count is in flight touches no provider',
     () async {
