@@ -1397,7 +1397,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final recorder = _recorder;
     try {
       final turn = await _sendTheTake(panorama, File(path), epoch);
-      if (epoch != _epoch || _gone) return;
+      if (epoch != _epoch) return;
       await _voicePanorama(turn);
     } on Exception catch (error) {
       if (epoch != _epoch) return;
@@ -2238,7 +2238,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         epoch,
         clientTiming: clientTiming,
       );
-      if (_gone) return;
       await _voiceTurn(
         turn,
         epoch,
