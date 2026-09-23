@@ -863,7 +863,7 @@ class FakeRoom implements RoomRepository {
   /// The turn id each opening turn carried, null included, in the order it was asked.
   final List<String?> turnIdsAsked = [];
 
-  final List<String?> turnIdsSent = [];
+  final List<String> turnIdsSent = [];
 
   final List<String> recordingsSent = [];
 
@@ -1277,7 +1277,7 @@ class FakeRoom implements RoomRepository {
   Future<TurnResult> sendTurn(
     String sessionId,
     File audio, {
-    String? turnId,
+    required String turnId,
     String? clientTiming,
     Duration? timeout,
   }) async {

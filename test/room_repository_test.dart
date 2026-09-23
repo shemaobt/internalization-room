@@ -101,7 +101,7 @@ void main() {
       addTearDown(repository.dispose);
 
       final file = await _tempRecording();
-      await repository.sendTurn('sessao-1', file);
+      await repository.sendTurn('sessao-1', file, turnId: 'turno-1');
 
       expect(seen.headers['content-type'], contains('multipart/form-data'));
       expect(
@@ -141,6 +141,41 @@ void main() {
               'reconhecer o reenvio de uma resposta que ele já tinha dado',
         );
       }
+    },
+  );
+
+  test(
+    'a voiced turn names itself on every send, with or without marks from the last one',
+    () async {
+      final seenBodies = <String>[];
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seenBodies.add(request.body);
+          return http.Response(_turnBody(), 200);
+        }),
+      );
+      addTearDown(repository.dispose);
+
+      await repository.sendTurn(
+        'sessao-1',
+        await _tempRecording(),
+        turnId: 'turno-3',
+        clientTiming: 'stop_to_answer=120',
+      );
+      await repository.sendTurn(
+        'sessao-1',
+        await _tempRecording(),
+        turnId: 'turno-4',
+      );
+
+      expect(
+        seenBodies,
+        [
+          contains('name="turn_id"\r\n\r\nturno-3\r\n'),
+          contains('name="turn_id"\r\n\r\nturno-4\r\n'),
+        ],
+        reason: 'um turno falado sem id não pode ser reenviado como ele mesmo',
+      );
     },
   );
 
@@ -196,9 +231,14 @@ void main() {
       await repository.sendTurn(
         'sessao-1',
         await _tempRecording(),
+        turnId: 'turno-1',
         clientTiming: 'stop_to_answer=120',
       );
-      await repository.sendTurn('sessao-1', await _tempRecording());
+      await repository.sendTurn(
+        'sessao-1',
+        await _tempRecording(),
+        turnId: 'turno-2',
+      );
 
       expect(seenBodyWithTiming, contains('name="client_timing"'));
       expect(seenBodyWithTiming, contains('stop_to_answer=120'));
@@ -229,11 +269,13 @@ void main() {
       final broken = await repository.sendTurn(
         'sessao-1',
         await _tempRecording(),
+        turnId: 'turno-1',
       );
       inTrouble = false;
       final ensaiando = await repository.sendTurn(
         'sessao-1',
         await _tempRecording(),
+        turnId: 'turno-2',
       );
 
       expect(broken.degraded, isTrue);

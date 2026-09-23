@@ -291,18 +291,21 @@ class RoomRepository {
     return _read(response, TurnResult.fromJson);
   }
 
+  /// One voiced take, under the id it keeps across every resend. The id is not optional:
+  /// a take sent without one is a new turn to the room each time it goes, and a resend
+  /// of it is answered twice.
   Future<TurnResult> sendTurn(
     String sessionId,
     File audio, {
-    String? turnId,
+    required String turnId,
     String? clientTiming,
     Duration? timeout,
   }) async {
     final request =
         http.MultipartRequest('POST', _uri('/sessions/$sessionId/turns'))
           ..headers.addAll(_whoWeAre)
+          ..fields['turn_id'] = turnId
           ..files.add(await http.MultipartFile.fromPath('file', audio.path));
-    if (turnId != null) request.fields['turn_id'] = turnId;
     if (clientTiming != null) request.fields['client_timing'] = clientTiming;
     return _read(
       await _sendMultipart(request, timeout ?? _turnTimeout),
