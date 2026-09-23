@@ -92,6 +92,16 @@ final resendMarginProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 5),
 );
 
+/// How often an open microphone touches the room again. The shared client lets an idle
+/// connection go at 90 s and only the team's tap ends a take, so a take longer than that
+/// would otherwise hand its upload a connection that already lapsed. A provider, not a
+/// constant, so a test can reach the second touch without waiting a minute; null, like
+/// the busy ceiling, leaves only the first touch, for tests that end with the microphone
+/// open and cannot outlive a pending timer.
+final connectionRewarmIntervalProvider = Provider<Duration?>(
+  (ref) => const Duration(seconds: 60),
+);
+
 /// Slack added to a clip's own length before the room decides the playback is lost. A
 /// provider, not a constant, because a ceiling nothing can shrink is a ceiling no test
 /// can reach — which is how the paused-clip bug shipped.
@@ -1444,7 +1454,27 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _haltForAPerson();
       return;
     }
-    unawaited(_dizerAOferecida());
+    unawaited(
+      _dizerAOferecida().then((_) => _fetchTheNamesTheWheelLacks(epoch)),
+    );
+  }
+
+  /// One number per quiet download of the wheel's names. Every way off the wheel bumps the
+  /// epoch except the panorama spoke, which never passes through `_clearAll`; entering any
+  /// spoke bumps this instead, so a download started for the wheel dies with it either way.
+  int _wheelPrefetch = 0;
+
+  Future<void> _fetchTheNamesTheWheelLacks(int epoch) async {
+    final run = ++_wheelPrefetch;
+    final roda = state.naRoda;
+    if (roda == null || roda.isEmpty) return;
+    final start = state.aOferecer;
+    for (var i = 0; i < roda.length; i++) {
+      if (epoch != _epoch || run != _wheelPrefetch) return;
+      final url = roda[(start + i) % roda.length].audioUrl;
+      if (url.isEmpty || await _voice.holds(url)) continue;
+      await _voice.fetch(url);
+    }
   }
 
   /// The circle on the wheel says the passage again. It no longer moves.
@@ -1521,6 +1551,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void entrarNaOferecida() {
     final passagem = state.oferecida;
     if (passagem == null || state.voice != VoiceState.invite) return;
+    _wheelPrefetch++;
     // Acima dos dois ramos: o panorama não passa pelo _clearAll do goConversa, e a
     // linha que a roda acabou de oferecer seguia soando por cima da espera dele.
     _silenceTheRoom();
@@ -2145,6 +2176,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _silenceTheRoom();
     _recordingStarting = true;
     _listeningSince = DateTime.now();
+    _keepTheConnectionWarm();
     // The line is kept, not dropped. `canHearAgain` already hides the button for every
     // voice but `invite`, so it is gone while the microphone is open either way — and
     // forgetting it here meant that when the room could only answer with a canned line,
@@ -2155,6 +2187,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   bool _hasAudio(String path) =>
       File(path).existsSync() && File(path).lengthSync() > 0;
+
+  void _keepTheConnectionWarm() {
+    unawaited(_network.reachRoom());
+    final every = ref.read(connectionRewarmIntervalProvider);
+    if (every == null) return;
+    _after('warm', every, () {
+      if (state.voice == VoiceState.listening) _keepTheConnectionWarm();
+    });
+  }
 
   Future<void> _finishListening() async {
     final epoch = _epoch;
