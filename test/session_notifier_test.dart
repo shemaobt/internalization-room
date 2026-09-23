@@ -3677,6 +3677,46 @@ void main() {
     },
   );
 
+  test(
+    "a hand that enters the panorama spoke cuts the wheel's quiet download short too",
+    () async {
+      final harness = SalaHarness();
+      harness.room.passages = const [
+        Passagem(
+          pericope: 'PAN',
+          audioUrl: '/voice/pan',
+          kind: PassagemKind.panorama,
+        ),
+        Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+        Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
+      ];
+      harness.voice.missing.addAll({'/voice/p01', '/voice/p02'});
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.voice.holdNextFetch();
+      unawaited(notifier.abrirEscolha());
+      await settle();
+      harness.voice.finishHeldFetch();
+      harness.voice.holdNextFetch();
+      await settle();
+
+      notifier.entrarNaOferecida();
+      harness.voice.finishHeldFetch();
+      await settle();
+
+      expect(
+        harness.voice.fetched,
+        isNot(contains('/voice/p02')),
+        reason:
+            'o panorama não passa pelo _clearAll e não troca o epoch; a fila '
+            'seguia baixando nomes pelo mesmo link que a abertura lenta do '
+            'panorama estava usando',
+      );
+    },
+  );
+
   test('the row has ends, and stops at them instead of wrapping', () async {
     final harness = SalaHarness();
     final container = harness.container();

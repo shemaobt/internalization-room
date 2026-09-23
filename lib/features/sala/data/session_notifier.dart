@@ -1445,12 +1445,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
+  /// One number per quiet download of the wheel's names. Every way off the wheel bumps the
+  /// epoch except the panorama spoke, which never passes through `_clearAll`; entering any
+  /// spoke bumps this instead, so a download started for the wheel dies with it either way.
+  int _wheelPrefetch = 0;
+
   Future<void> _fetchTheNamesTheWheelLacks(int epoch) async {
+    final run = ++_wheelPrefetch;
     final roda = state.naRoda;
     if (roda == null || roda.isEmpty) return;
     final start = state.aOferecer;
     for (var i = 0; i < roda.length; i++) {
-      if (epoch != _epoch) return;
+      if (epoch != _epoch || run != _wheelPrefetch) return;
       final url = roda[(start + i) % roda.length].audioUrl;
       if (url.isEmpty || await _voice.holds(url)) continue;
       await _voice.fetch(url);
@@ -1531,6 +1537,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void entrarNaOferecida() {
     final passagem = state.oferecida;
     if (passagem == null || state.voice != VoiceState.invite) return;
+    _wheelPrefetch++;
     // Acima dos dois ramos: o panorama não passa pelo _clearAll do goConversa, e a
     // linha que a roda acabou de oferecer seguia soando por cima da espera dele.
     _silenceTheRoom();
