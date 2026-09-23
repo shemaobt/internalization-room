@@ -1761,6 +1761,7 @@ class SalaHarness {
   final Duration settleDelay;
   final List<Duration> retryBackoff;
   final Duration? busyCeiling;
+  final Duration rewarm;
   final Duration? playbackCeiling;
   final Duration clipGrace;
   final CaptureGuard captureGuard;
@@ -1783,6 +1784,7 @@ class SalaHarness {
     this.settleDelay = const Duration(milliseconds: 60),
     this.retryBackoff = const [Duration(milliseconds: 20)],
     this.busyCeiling,
+    this.rewarm = const Duration(seconds: 60),
     this.playbackCeiling,
     this.clipGrace = const Duration(seconds: 10),
     this.captureGuard = const CaptureGuard(
@@ -1830,6 +1832,7 @@ class SalaHarness {
     coverageFallbackDelayProvider.overrideWithValue(settleDelay),
     roomRetryBackoffProvider.overrideWithValue(retryBackoff),
     busyStateCeilingProvider.overrideWithValue(busyCeiling),
+    connectionRewarmIntervalProvider.overrideWithValue(rewarm),
     playbackCeilingProvider.overrideWithValue(playbackCeiling),
     clipGraceProvider.overrideWithValue(clipGrace),
     captureGuardProvider.overrideWithValue(captureGuard),

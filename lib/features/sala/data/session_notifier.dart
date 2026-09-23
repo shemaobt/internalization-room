@@ -88,6 +88,14 @@ final busyStateCeilingProvider = Provider<Duration?>(
   (ref) => const Duration(seconds: 330),
 );
 
+/// How often an open microphone touches the room again. The shared client lets an idle
+/// connection go at 90 s and only the team's tap ends a take, so a take longer than that
+/// would otherwise hand its upload a connection that already lapsed. A provider, not a
+/// constant, so a test can reach the second touch without waiting a minute.
+final connectionRewarmIntervalProvider = Provider<Duration>(
+  (ref) => const Duration(seconds: 60),
+);
+
 /// Slack added to a clip's own length before the room decides the playback is lost. A
 /// provider, not a constant, because a ceiling nothing can shrink is a ceiling no test
 /// can reach — which is how the paused-clip bug shipped.
@@ -2141,7 +2149,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _silenceTheRoom();
     _recordingStarting = true;
     _listeningSince = DateTime.now();
-    unawaited(_network.reachRoom());
+    _keepTheConnectionWarm();
     // The line is kept, not dropped. `canHearAgain` already hides the button for every
     // voice but `invite`, so it is gone while the microphone is open either way — and
     // forgetting it here meant that when the room could only answer with a canned line,
@@ -2152,6 +2160,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   bool _hasAudio(String path) =>
       File(path).existsSync() && File(path).lengthSync() > 0;
+
+  void _keepTheConnectionWarm() {
+    unawaited(_network.reachRoom());
+    _after('warm', ref.read(connectionRewarmIntervalProvider), () {
+      if (state.voice == VoiceState.listening) _keepTheConnectionWarm();
+    });
+  }
 
   Future<void> _finishListening() async {
     final epoch = _epoch;

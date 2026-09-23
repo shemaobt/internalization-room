@@ -1028,6 +1028,40 @@ void main() {
   );
 
   test(
+    'a long take keeps touching the room while the microphone is open, and stops when it closes',
+    () async {
+      final harness = SalaHarness(rewarm: const Duration(milliseconds: 40));
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      final before = harness.network.checks;
+
+      notifier.conversaTap();
+      await settle(const Duration(milliseconds: 150));
+
+      expect(
+        harness.network.checks - before,
+        greaterThanOrEqualTo(3),
+        reason:
+            'o cliente larga a conexão ociosa aos 90 s e só o toque de fim '
+            'encerra uma tomada; sem um toque na sala a cada intervalo, uma '
+            'tomada longa volta a pagar o handshake no envio',
+      );
+
+      notifier.conversaTap();
+      await settle();
+      final whenItClosed = harness.network.checks;
+      await settle(const Duration(milliseconds: 150));
+
+      expect(
+        harness.network.checks,
+        whenItClosed,
+        reason: 'com o microfone fechado, nada mais aquece a conexão',
+      );
+    },
+  );
+
+  test(
     'a warm-up the room refuses does not take the microphone offline, only its own answer',
     () async {
       final harness = SalaHarness();

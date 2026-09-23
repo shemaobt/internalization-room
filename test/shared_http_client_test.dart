@@ -62,8 +62,10 @@ void main() {
   test(
     'the shared client stays open long enough to outlive a turn, not the 15 s dart:io default',
     () {
+      final socket = newSharedHttpClient();
+      addTearDown(socket.close);
       expect(
-        sharedHttpIdleTimeout,
+        socket.idleTimeout,
         const Duration(seconds: 90),
         reason:
             'um valor mais curto volta a abrir um handshake por turno — o '
