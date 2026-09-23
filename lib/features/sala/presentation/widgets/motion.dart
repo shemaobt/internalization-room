@@ -1,4 +1,63 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+
+const _breathStep = Duration(microseconds: 1000000 ~/ 30);
+const _rippleStep = Duration(microseconds: 1000000 ~/ 60);
+
+final _ambient = _AmbientClock();
+
+const _away = {
+  AppLifecycleState.hidden,
+  AppLifecycleState.paused,
+  AppLifecycleState.detached,
+};
+
+class _AmbientClock {
+  final _loops = <VoidCallback>{};
+  final _ripples = <VoidCallback>{};
+  Timer? _ticking;
+  Duration? _step;
+  AppLifecycleListener? _lifecycle;
+
+  bool get _empty => _loops.isEmpty && _ripples.isEmpty;
+
+  void join(VoidCallback redraw, {bool ripple = false}) {
+    (ripple ? _ripples : _loops).add(redraw);
+    _lifecycle ??= AppLifecycleListener(onStateChange: (_) => _tune());
+    _tune();
+  }
+
+  void leave(VoidCallback redraw) {
+    _loops.remove(redraw);
+    _ripples.remove(redraw);
+    if (_empty) {
+      _lifecycle?.dispose();
+      _lifecycle = null;
+    }
+    _tune();
+  }
+
+  void _tune() {
+    final step =
+        _empty || _away.contains(WidgetsBinding.instance.lifecycleState)
+        ? null
+        : _ripples.isEmpty
+        ? _breathStep
+        : _rippleStep;
+    if (step == _step) return;
+    _ticking?.cancel();
+    _step = step;
+    _ticking = step == null
+        ? null
+        : Timer.periodic(step, (_) {
+            for (final redraw in [..._loops, ..._ripples]) {
+              redraw();
+            }
+          });
+  }
+}
 
 class Loop extends StatefulWidget {
   final Duration period;
@@ -18,11 +77,10 @@ class Loop extends StatefulWidget {
   State<Loop> createState() => _LoopState();
 }
 
-class _LoopState extends State<Loop> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: widget.period,
-  );
+class _LoopState extends State<Loop> {
+  bool _joined = false;
+  Duration? _start;
+  late Duration _period = widget.period;
   bool get _still =>
       widget.reducible && MediaQuery.disableAnimationsOf(context);
 
@@ -35,37 +93,42 @@ class _LoopState extends State<Loop> with SingleTickerProviderStateMixin {
   @override
   void didUpdateWidget(Loop oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.period != oldWidget.period && _controller.isAnimating) {
-      _controller.stop();
-    }
-    _controller.duration = widget.period;
     _follow();
   }
 
   void _follow() {
-    if (widget.animate && !_still) {
-      if (!_controller.isAnimating) _controller.repeat(reverse: true);
-    } else if (_controller.isAnimating) {
-      _controller.stop();
-      _controller.value = 0;
+    final moving = widget.animate && !_still;
+    if (moving == _joined) return;
+    _joined = moving;
+    _start = null;
+    if (moving) {
+      _ambient.join(_redraw);
+    } else {
+      _ambient.leave(_redraw);
     }
   }
 
+  void _redraw() => setState(() {});
+
   @override
   void dispose() {
-    _controller.dispose();
+    if (_joined) _ambient.leave(_redraw);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_still) return widget.builder(context, 0);
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, _) => widget.builder(
-        context,
-        Curves.easeInOut.transform(_controller.value),
-      ),
+    if (!_joined) return widget.builder(context, 0);
+    final now = SchedulerBinding.instance.currentFrameTimeStamp;
+    final start = _start ??= now;
+    final sweep = (now - start).inMicroseconds / _period.inMicroseconds % 2;
+    if (widget.period != _period) {
+      _period = widget.period;
+      _start = now - _period * sweep;
+    }
+    return widget.builder(
+      context,
+      Curves.easeInOut.transform(sweep <= 1 ? sweep : 2 - sweep),
     );
   }
 }
@@ -86,39 +149,49 @@ class Ripple extends StatefulWidget {
   State<Ripple> createState() => _RippleState();
 }
 
-class _RippleState extends State<Ripple> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: widget.period,
-    value: widget.phase,
-  );
-  bool _still = false;
+class _RippleState extends State<Ripple> {
+  late final Duration _period;
+  late final double _phase;
+  bool _joined = false;
+  Duration? _start;
+
+  @override
+  void initState() {
+    super.initState();
+    _period = widget.period;
+    _phase = widget.phase;
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _still = MediaQuery.disableAnimationsOf(context);
-    if (_still) {
-      if (_controller.isAnimating) _controller.stop();
-    } else if (!_controller.isAnimating) {
-      _controller.repeat();
+    final moving = !MediaQuery.disableAnimationsOf(context);
+    if (moving == _joined) return;
+    _joined = moving;
+    _start = null;
+    if (moving) {
+      _ambient.join(_redraw, ripple: true);
+    } else {
+      _ambient.leave(_redraw);
     }
   }
 
+  void _redraw() => setState(() {});
+
   @override
   void dispose() {
-    _controller.dispose();
+    if (_joined) _ambient.leave(_redraw);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_still) return widget.builder(context, 0);
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, _) =>
-          widget.builder(context, Curves.easeOut.transform(_controller.value)),
-    );
+    if (!_joined) return widget.builder(context, 0);
+    final now = SchedulerBinding.instance.currentFrameTimeStamp;
+    final start = _start ??= now;
+    final sweep =
+        (_phase + (now - start).inMicroseconds / _period.inMicroseconds) % 1;
+    return widget.builder(context, Curves.easeOut.transform(sweep));
   }
 }
 
