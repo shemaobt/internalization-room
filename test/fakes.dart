@@ -885,6 +885,10 @@ class FakeRoom implements RoomRepository {
   /// The turn id each opening turn carried, null included, in the order it was asked.
   final List<String?> turnIdsAsked = [];
 
+  final List<String> turnIdsSent = [];
+
+  final List<String> recordingsSent = [];
+
   int personsAsked = 0;
 
   final List<String?> codesAskedFor = [];
@@ -1295,13 +1299,20 @@ class FakeRoom implements RoomRepository {
   Future<TurnResult> sendTurn(
     String sessionId,
     File audio, {
+    required String turnId,
     String? clientTiming,
+    Duration? timeout,
   }) async {
     _guard('sendTurn');
     sessionsSpokenTo.add(sessionId);
     clientTimingsSent.add(clientTiming);
+    turnIdsSent.add(turnId);
+    recordingsSent.add(audio.path);
     turnsSent++;
-    await _turnArrives();
+    final arrives = _turnArrives();
+    await (timeout == null
+        ? arrives
+        : arrives.timeout(timeout, onTimeout: () => throw const RoomSlow()));
     return _turn(sessionId);
   }
 
@@ -1778,6 +1789,7 @@ class SalaHarness {
   final Duration settleDelay;
   final List<Duration> retryBackoff;
   final Duration? busyCeiling;
+  final Duration resendMargin;
   final Duration? rewarm;
   final Duration? playbackCeiling;
   final Duration clipGrace;
@@ -1801,6 +1813,7 @@ class SalaHarness {
     this.settleDelay = const Duration(milliseconds: 60),
     this.retryBackoff = const [Duration(milliseconds: 20)],
     this.busyCeiling,
+    this.resendMargin = const Duration(milliseconds: 50),
     this.rewarm,
     this.playbackCeiling,
     this.clipGrace = const Duration(seconds: 10),
@@ -1849,6 +1862,7 @@ class SalaHarness {
     coverageFallbackDelayProvider.overrideWithValue(settleDelay),
     roomRetryBackoffProvider.overrideWithValue(retryBackoff),
     busyStateCeilingProvider.overrideWithValue(busyCeiling),
+    resendMarginProvider.overrideWithValue(resendMargin),
     connectionRewarmIntervalProvider.overrideWithValue(rewarm),
     playbackCeilingProvider.overrideWithValue(playbackCeiling),
     clipGraceProvider.overrideWithValue(clipGrace),

@@ -14,6 +14,7 @@ import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -1398,6 +1399,381 @@ void main() {
           'nenhum caminho de erro reenvia o arquivo, então guardá-lo só ocupa espaço',
     );
   });
+
+  test(
+    'a take the connection dropped is sent again as the same take, and its answer is heard once',
+    () async {
+      final harness = SalaHarness(busyCeiling: const Duration(seconds: 5));
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      harness.voice.played.clear();
+      harness.room.failHeldTurnWith = const RoomUnavailable('a conexão caiu');
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle(const Duration(milliseconds: 400));
+
+      expect(harness.room.turnIdsSent, hasLength(2));
+      expect(harness.room.turnIdsSent.first, isNotNull);
+      expect(
+        harness.room.turnIdsSent.last,
+        harness.room.turnIdsSent.first,
+        reason:
+            'sem o mesmo id o servidor não reconhecia o reenvio e respondia '
+            'a mesma fala duas vezes',
+      );
+      expect(harness.room.recordingsSent, [
+        endsWith('captura-1.m4a'),
+        endsWith('captura-1.m4a'),
+      ]);
+      expect(
+        harness.voice.played,
+        [turnoUrl],
+        reason:
+            'a queda virava offline e a equipe perdia a resposta que o '
+            'servidor já tinha dado',
+      );
+      expect(container.read(salaSessionProvider).offline, isFalse);
+    },
+  );
+
+  test(
+    'a take lost with the network gone ends offline at once, never waiting to be resent',
+    () async {
+      final harness = SalaHarness(
+        busyCeiling: const Duration(seconds: 30),
+        retryBackoff: const [Duration(seconds: 5)],
+      );
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      harness.network.radioSeesNothing = true;
+      harness.room.failTurnsWith = const RoomUnavailable('sem rede');
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle(const Duration(milliseconds: 200));
+
+      final state = container.read(salaSessionProvider);
+      expect(
+        state.offline,
+        isTrue,
+        reason:
+            'sem rede nenhuma o tablet passava cinco minutos pausando e '
+            'reenviando com a equipe olhando o pensando, onde antes o '
+            'offline vinha em menos de um segundo',
+      );
+      expect(state.reach, RoomReach.noNetwork);
+      expect(harness.voice.assets, contains(offlineNoticeAsset(testLanguage)));
+      expect(harness.room.turnsSent, 1);
+    },
+  );
+
+  test(
+    'a take dropped on a live network is resent once, after the network is asked, and heard once',
+    () async {
+      final harness = SalaHarness(busyCeiling: const Duration(seconds: 5));
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      harness.voice.played.clear();
+      harness.room.failHeldTurnWith = const RoomUnavailable('a conexão caiu');
+
+      notifier.conversaTap();
+      await settle();
+      final asked = harness.network.checks;
+      notifier.conversaTap();
+      await settle(const Duration(milliseconds: 400));
+
+      expect(
+        harness.network.checks,
+        asked + 1,
+        reason:
+            'sem perguntar à rede o tablet não sabia se a queda era um '
+            'soluço ou a rede inteira fora',
+      );
+      expect(harness.room.turnIdsSent, hasLength(2));
+      expect(harness.room.turnIdsSent.last, harness.room.turnIdsSent.first);
+      expect(harness.voice.played, [turnoUrl]);
+      expect(container.read(salaSessionProvider).offline, isFalse);
+    },
+  );
+
+  test(
+    'a room that stays out of reach is asked again at the retry pace, not in a burst',
+    () async {
+      final harness = SalaHarness(
+        busyCeiling: const Duration(milliseconds: 600),
+        retryBackoff: const [Duration(milliseconds: 150)],
+      );
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      harness.room.failTurnsWith = const RoomUnavailable('a conexão caiu');
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle(const Duration(milliseconds: 900));
+
+      expect(
+        harness.room.turnsSent,
+        inInclusiveRange(3, 5),
+        reason:
+            'sem pausa entre as tentativas o tablet martelava o servidor '
+            'centenas de vezes por segundo enquanto a rede estava fora',
+      );
+    },
+  );
+
+  test(
+    'a drop that never heals ends offline inside the wait, not with a person called',
+    () async {
+      const window = Duration(milliseconds: 600);
+      final harness = SalaHarness(
+        busyCeiling: window,
+        retryBackoff: const [Duration(milliseconds: 100)],
+      );
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      harness.room.failTurnsWith = const RoomUnavailable('a conexão caiu');
+      final clock = Stopwatch();
+      Duration? endedAt;
+      SalaSessionState? ended;
+      container.listen(salaSessionProvider, (_, next) {
+        if (ended == null && (next.offline || next.needsPerson)) {
+          endedAt = clock.elapsed;
+          ended = next;
+        }
+      });
+
+      notifier.conversaTap();
+      await settle();
+      clock.start();
+      notifier.conversaTap();
+      await settle(const Duration(milliseconds: 900));
+      final sent = harness.room.turnsSent;
+      await settle(const Duration(milliseconds: 300));
+
+      expect(
+        ended?.needsPerson,
+        isFalse,
+        reason:
+            'os reenvios iam até o vigia, e o vigia chamava uma pessoa para '
+            'uma rede que tinha caído',
+      );
+      expect(ended?.offline, isTrue);
+      expect(ended?.reach, RoomReach.noNetwork);
+      expect(sent, greaterThan(1));
+      expect(harness.room.turnsSent, sent);
+      expect(
+        endedAt,
+        lessThan(window),
+        reason: 'o turno com reenvios passava da janela do vigia',
+      );
+    },
+  );
+
+  test(
+    'a room that holds every send ends the take as a slow turn before the wait runs out, never with a person called',
+    () async {
+      const window = Duration(milliseconds: 600);
+      final harness = SalaHarness(
+        busyCeiling: window,
+        retryBackoff: const [Duration(milliseconds: 100)],
+      );
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      harness.room.failHeldTurnWith = const RoomSlow();
+      final clock = Stopwatch();
+      Duration? endedAt;
+      SalaSessionState? ended;
+      container.listen(salaSessionProvider, (previous, next) {
+        if (ended == null &&
+            previous?.voice == VoiceState.thinking &&
+            next.voice != VoiceState.thinking) {
+          endedAt = clock.elapsed;
+          ended = next;
+        }
+      });
+
+      notifier.conversaTap();
+      await settle();
+      clock.start();
+      notifier.conversaTap();
+      await settle(const Duration(milliseconds: 50));
+      harness.room.holdNextTurn();
+      await settle(const Duration(milliseconds: 900));
+
+      expect(harness.room.turnsSent, 2);
+      expect(
+        ended?.needsPerson,
+        isFalse,
+        reason:
+            'o reenvio esperava os 310 s cheios, o vigia vencia e chamava '
+            'uma pessoa à mesa por uma rede lenta',
+      );
+      expect(ended?.voice, VoiceState.invite);
+      expect(ended?.offline, isFalse);
+      expect(
+        endedAt,
+        lessThan(window),
+        reason: 'o turno com reenvios passava da janela do vigia',
+      );
+    },
+  );
+
+  test(
+    'a take the room keeps answering slowly is resent as itself, and still ends as a slow turn',
+    () async {
+      final harness = SalaHarness(
+        busyCeiling: const Duration(milliseconds: 600),
+        retryBackoff: const [Duration(milliseconds: 100)],
+      );
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      harness.room.failTurnsWith = const RoomSlow();
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle(const Duration(milliseconds: 900));
+
+      expect(
+        harness.room.turnIdsSent.length,
+        greaterThan(1),
+        reason:
+            'um turno lento voltava ao convite, e a equipe falava de novo o '
+            'que o servidor talvez já tivesse respondido',
+      );
+      expect(harness.room.turnIdsSent.toSet(), hasLength(1));
+      final state = container.read(salaSessionProvider);
+      expect(state.voice, VoiceState.invite);
+      expect(state.needsPerson, isFalse);
+      expect(state.offline, isFalse);
+    },
+  );
+
+  test(
+    'a take the room broke, refused or forgot is never sent again',
+    () async {
+      for (final failure in <Exception>[
+        const RoomBroke('HTTP 500'),
+        const RoomRefused(),
+        const SessionGone(),
+      ]) {
+        final harness = SalaHarness(busyCeiling: const Duration(seconds: 5));
+        final container = await inConversa(harness);
+        addTearDown(container.dispose);
+        final notifier = container.read(salaSessionProvider.notifier);
+        harness.room.failHeldTurnWith = failure;
+
+        notifier.conversaTap();
+        await settle();
+        notifier.conversaTap();
+        await settle(const Duration(milliseconds: 300));
+
+        expect(
+          harness.room.turnsSent,
+          1,
+          reason:
+              '$failure é resposta do servidor, não queda do caminho — '
+              'reenviar escondia a falha atrás de um pensando',
+        );
+      }
+    },
+  );
+
+  test(
+    'a panorama question the connection dropped is sent again as the same take',
+    () async {
+      final harness = SalaHarness(busyCeiling: const Duration(seconds: 5));
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      await notifier.openConvite();
+      harness.room.failHeldTurnWith = const RoomUnavailable('a conexão caiu');
+
+      notifier.conviteTap();
+      await settle();
+      notifier.conviteTap();
+      await settle(const Duration(milliseconds: 400));
+
+      expect(harness.room.turnIdsSent, hasLength(2));
+      expect(harness.room.turnIdsSent.first, isNotNull);
+      expect(
+        harness.room.turnIdsSent.last,
+        harness.room.turnIdsSent.first,
+        reason:
+            'a pergunta do panorama também é um turno falado, e a queda a '
+            'perdia do mesmo jeito',
+      );
+      expect(harness.room.recordingsSent.toSet(), hasLength(1));
+      expect(container.read(salaSessionProvider).offline, isFalse);
+    },
+  );
+
+  test(
+    'a take waiting to be resent is let go when the team leaves the passage',
+    () async {
+      final harness = SalaHarness(
+        busyCeiling: const Duration(seconds: 5),
+        retryBackoff: const [Duration(milliseconds: 300)],
+      );
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      harness.room.failHeldTurnWith = const RoomUnavailable('a conexão caiu');
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle(const Duration(milliseconds: 100));
+      notifier.leaveThePassage();
+      await settle(const Duration(milliseconds: 400));
+
+      expect(
+        harness.room.turnsSent,
+        1,
+        reason:
+            'a tomada da passagem que a equipe deixou ainda ia para o '
+            'servidor depois da pausa',
+      );
+    },
+  );
+
+  test(
+    'the next take is a new turn to the room, with an id of its own',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      for (var take = 0; take < 2; take++) {
+        notifier.conversaTap();
+        await settle();
+        notifier.conversaTap();
+        await settle();
+      }
+
+      expect(harness.room.turnIdsSent, hasLength(2));
+      expect(harness.room.turnIdsSent, everyElement(isNotNull));
+      expect(
+        harness.room.turnIdsSent.last,
+        isNot(harness.room.turnIdsSent.first),
+        reason:
+            'com o id da tomada anterior o servidor devolvia a resposta velha '
+            'no lugar de ouvir a nova',
+      );
+    },
+  );
 
   test('the app never decides coverage — it mirrors the server', () async {
     final harness = SalaHarness()

@@ -88,6 +88,10 @@ final busyStateCeilingProvider = Provider<Duration?>(
   (ref) => const Duration(seconds: 330),
 );
 
+final resendMarginProvider = Provider<Duration>(
+  (ref) => const Duration(seconds: 5),
+);
+
 /// How often an open microphone touches the room again. The shared client lets an idle
 /// connection go at 90 s and only the team's tap ends a take, so a take longer than that
 /// would otherwise hand its upload a connection that already lapsed. A provider, not a
@@ -1456,7 +1460,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(voice: VoiceState.thinking);
     _watchBusyState();
     try {
-      final turn = await _room.sendTurn(panorama, File(path));
+      final turn = await _sendTheTake(panorama, File(path), epoch);
       if (epoch != _epoch) return;
       await _voicePanorama(turn);
     } on Exception catch (error) {
@@ -2295,9 +2299,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     try {
       final clientTiming = _pendingClock?.clientTiming(_clockSegments);
       _pendingClock = clock;
-      final turn = await _room.sendTurn(
+      final turn = await _sendTheTake(
         sessionId,
         File(path),
+        epoch,
         clientTiming: clientTiming,
       );
       await _voiceTurn(
@@ -2311,6 +2316,52 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _handleRoomFailure(error, turnCall: true);
     } finally {
       unawaited(_recorder.delete(path));
+    }
+  }
+
+  Future<TurnResult> _sendTheTake(
+    String sessionId,
+    File take,
+    int epoch, {
+    String? clientTiming,
+  }) async {
+    final turnId = _stamp();
+    final window = ref.read(busyStateCeilingProvider);
+    final backoff = ref.read(roomRetryBackoffProvider);
+    final margin = ref.read(resendMarginProvider);
+    final waited = Stopwatch()..start();
+    var resends = 0;
+    Duration? timeout;
+    while (true) {
+      try {
+        return await _room.sendTurn(
+          sessionId,
+          take,
+          turnId: turnId,
+          clientTiming: clientTiming,
+          timeout: timeout,
+        );
+      } on Exception catch (error) {
+        if (error is! RoomUnavailable && error is! RoomSlow) rethrow;
+        if (window == null) rethrow;
+        // A slow room answered, so it is there. A send that never reached it may have
+        // lost a moment of the network or all of it, and only the network can say which:
+        // with none at all this failed in milliseconds and was paused and resent for the
+        // whole wait while the team watched thinking, where it had always gone offline
+        // at once. Asked before the window is read, so the question's own seconds are
+        // spent like any other.
+        if (error is RoomUnavailable &&
+            await _network.reachRoom() != RoomReach.fine) {
+          rethrow;
+        }
+        final step = resends < backoff.length ? resends : backoff.length - 1;
+        final pause = backoff[step];
+        if (window - waited.elapsed - pause - margin < margin) rethrow;
+        resends++;
+        await Future<void>.delayed(pause);
+        if (epoch != _epoch) rethrow;
+        timeout = window - waited.elapsed - margin;
+      }
     }
   }
 
