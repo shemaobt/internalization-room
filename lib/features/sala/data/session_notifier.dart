@@ -2892,24 +2892,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final epoch = _epoch;
     final counting = ++_newestCount;
     final queue = _takes;
+    final sessionId = state.sessionId;
     // Whether a recording is stuck is not a question about the session in progress, and
     // asking it only when one existed meant the check at the first frame — the moment a
     // facilitator is standing there and could act — did nothing at all.
-    final stranded =
-        (await queue.giveUps()).isNotEmpty || await queue.lostHistory();
+    final tally = await queue.tally(sessionId: sessionId);
     if (_gone) return;
-    if (stranded && epoch == _epoch) _sayARecordingIsStranded();
+    if (tally.stranded && epoch == _epoch) _sayARecordingIsStranded();
     if (epoch != _epoch) return;
-    final sessionId = state.sessionId;
     if (sessionId == null) return;
-    final takes = await queue.unsentOf('ensaio', sessionId: sessionId);
-    final chunks = await queue.unsentOf('retro', sessionId: sessionId);
-    final scopes = await queue.unsentScopesOf('ensaio', sessionId: sessionId);
     if (_gone || epoch != _epoch || counting != _newestCount) return;
     state = state.copyWith(
-      unsentTakes: takes,
-      unsentChunks: chunks,
-      unsentTakeScopes: scopes,
+      unsentTakes: tally.unsentTakes,
+      unsentChunks: tally.unsentChunks,
+      unsentTakeScopes: tally.unsentTakeScopes,
     );
   }
 
