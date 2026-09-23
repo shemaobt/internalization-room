@@ -13,10 +13,12 @@ const _libraryFolder = 'voz';
 const _clipsKept = 60;
 const _lineGrace = Duration(seconds: 8);
 const _unknownLineCeiling = Duration(seconds: 90);
+const _staleStagingAge = Duration(minutes: 10);
 
 class FacilitatorVoiceService {
   final Future<Uint8List> Function(String url) _fetch;
   final Future<Directory> Function() _libraryDir;
+  Future<Directory>? _dir;
   AudioPlayer? _opened;
   final Duration _grace;
   final Duration _loadCeiling;
@@ -36,13 +38,24 @@ class FacilitatorVoiceService {
 
   AudioPlayer get _player => _opened ??= AudioPlayer();
 
+  Future<Directory> get _resolvedDir {
+    final dir = _dir ??= _libraryDir();
+    return dir.catchError((Object error, StackTrace stackTrace) {
+      _dir = null;
+      return Future<Directory>.error(error, stackTrace);
+    });
+  }
+
   Future<bool> play(String url, {void Function()? onSoundStart}) {
     if (url.isEmpty) return Future.value(false);
     return _afterTheCurrentLine(() async {
       final file = await clipFor(url);
       return _sayItWhole(
         () => _player.setFilePath(file.path),
-        onSoundStart: onSoundStart,
+        onSoundStart: () {
+          unawaited(_tidyLibrary());
+          onSoundStart?.call();
+        },
       );
     });
   }
@@ -65,7 +78,7 @@ class FacilitatorVoiceService {
   Future<bool> holds(String url) async {
     if (url.isEmpty) return false;
     try {
-      final dir = await _libraryDir();
+      final dir = await _resolvedDir;
       final file = File(p.join(dir.path, '${_nameFor(url)}.mp3'));
       return file.existsSync() && file.lengthSync() > 0;
     } on Exception {
@@ -165,7 +178,7 @@ class FacilitatorVoiceService {
   }
 
   Future<File> _bringItIn(String url) async {
-    final dir = await _libraryDir();
+    final dir = await _resolvedDir;
     final file = File(p.join(dir.path, '${_nameFor(url)}.mp3'));
     if (file.existsSync() && file.lengthSync() > 0) {
       unawaited(_touch(file));
@@ -177,7 +190,6 @@ class FacilitatorVoiceService {
     final staging = File('${file.path}.novo');
     await staging.writeAsBytes(await _fetch(url), flush: true);
     await staging.rename(file.path);
-    unawaited(_dropOldestBeyondBudget(dir));
     return file;
   }
 
@@ -191,15 +203,48 @@ class FacilitatorVoiceService {
     }
   }
 
+  Future<void> _tidyLibrary() async {
+    final dir = await _resolvedDir;
+    await _dropOldestBeyondBudget(dir);
+    await _sweepStaleStaging(dir);
+  }
+
+  Future<void> _sweepStaleStaging(Directory dir) async {
+    try {
+      final protected = _arriving.keys
+          .map((url) => p.join(dir.path, '${_nameFor(url)}.mp3.novo'))
+          .toSet();
+      final novos = await dir
+          .list()
+          .where((entry) => entry is File && entry.path.endsWith('.novo'))
+          .cast<File>()
+          .toList();
+      final cutoff = DateTime.now().subtract(_staleStagingAge);
+      for (final novo in novos) {
+        if (protected.contains(novo.path)) continue;
+        if ((await novo.stat()).modified.isBefore(cutoff)) {
+          await novo.delete();
+        }
+      }
+    } on Exception {
+      return;
+    }
+  }
+
   Future<void> _dropOldestBeyondBudget(Directory dir) async {
     try {
-      final clips = dir.listSync().whereType<File>().toList();
+      final clips = await dir
+          .list()
+          .where((entry) => entry is File && entry.path.endsWith('.mp3'))
+          .cast<File>()
+          .toList();
       if (clips.length <= _clipsKept) return;
-      clips.sort(
-        (a, b) => a.statSync().modified.compareTo(b.statSync().modified),
+      final dated = await Future.wait(
+        clips.map((clip) async => (clip, (await clip.stat()).modified)),
       );
-      for (final clip in clips.take(clips.length - _clipsKept)) {
-        await clip.delete();
+      dated.sort((a, b) => a.$2.compareTo(b.$2));
+      for (final entry in dated.take(dated.length - _clipsKept)) {
+        await entry.$1.delete();
       }
     } on Exception {
       return;
