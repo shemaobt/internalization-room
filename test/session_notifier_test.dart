@@ -1133,6 +1133,62 @@ void main() {
   );
 
   test(
+    'a pull that lands long after the frame does not move the beads clock mark to itself',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60));
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.room.turnIdInResponse = 'turno-2';
+      harness.room.settledCoverage = coverage(engaged: 3, surfaced: 4);
+      harness.room.holdNextState();
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      harness.room.pushCoverage(
+        CoverageEvent(
+          turnId: 'turno-2',
+          status: CoverageStatus.settled,
+          coverage: coverage(engaged: 3, surfaced: 4),
+        ),
+      );
+      await waitFor(
+        'o colar assentar pelo aviso',
+        () => container.read(salaSessionProvider).coverage.engaged == 3,
+      );
+
+      await settle(const Duration(milliseconds: 400));
+      harness.room.finishHeldState();
+      await settle();
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      expect(harness.room.clientTimingsSent, hasLength(2));
+      final timing = harness.room.clientTimingsSent[1]!;
+      final match = RegExp(r'sound_to_beads=(\d+)').firstMatch(timing);
+      expect(
+        match,
+        isNotNull,
+        reason: 'o aviso pousou as contas — a marca tinha que existir',
+      );
+      expect(
+        int.parse(match!.group(1)!),
+        lessThan(300),
+        reason:
+            'o pull tardio (soltado 400ms depois do aviso) só confirmou o '
+            'mesmo número — se ele tivesse recarimbado o relógio em vez do '
+            'aviso, a marca seria >= 400ms, não perto de zero',
+      );
+    },
+  );
+
+  test(
     'a settle that lands no new beads does not stamp the clock beads never actually reached',
     () async {
       final harness = SalaHarness(settleDelay: const Duration(seconds: 60));
