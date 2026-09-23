@@ -163,6 +163,15 @@ class PendingTake {
   );
 }
 
+class _CachedRead {
+  final String folder;
+  final DateTime modified;
+  final int size;
+  final List<PendingTake>? rows;
+
+  _CachedRead(this.folder, this.modified, this.size, this.rows);
+}
+
 class TakeUploadQueue {
   final RoomRepository _room;
   final Future<Directory> Function() _home;
@@ -172,6 +181,7 @@ class TakeUploadQueue {
   bool _flushAgainRequested = false;
   Future<void> _writes = Future<void>.value();
   int _minted = 0;
+  _CachedRead? _cachedRead;
 
   TakeUploadQueue({
     required this._room,
@@ -201,14 +211,29 @@ class TakeUploadQueue {
   Future<List<PendingTake>?> _written() async {
     final folder = (await _dir()).path;
     final file = File(p.join(folder, _manifest));
-    if (!await file.exists()) return const [];
+    final stat = await file.stat();
+    if (stat.type == FileSystemEntityType.notFound) {
+      _cachedRead = null;
+      return const [];
+    }
+    final cached = _cachedRead;
+    if (cached != null &&
+        cached.folder == folder &&
+        cached.modified == stat.modified &&
+        cached.size == stat.size) {
+      final rows = cached.rows;
+      return rows == null ? null : [for (final e in rows) e];
+    }
     try {
       final raw = jsonDecode(await file.readAsString()) as List<Object?>;
-      return [
+      final rows = [
         for (final entry in raw)
           PendingTake.fromJson(entry as Map<String, Object?>, folder: folder),
       ];
+      _cachedRead = _CachedRead(folder, stat.modified, stat.size, rows);
+      return [for (final e in rows) e];
     } on Object {
+      _cachedRead = _CachedRead(folder, stat.modified, stat.size, null);
       return null;
     }
   }
@@ -268,8 +293,14 @@ class TakeUploadQueue {
   /// A manifest we cannot read is counted as one outstanding take rather than none: the
   /// bead stays hollow, the room keeps saying there is something to send, and the error
   /// falls on the safe side of a recording nobody is allowed to lose.
-  Future<int> unsentOf(String kind, {required String sessionId}) async {
-    final written = await _written();
+  Future<int> unsentOf(String kind, {required String sessionId}) async =>
+      _unsentIn(await _written(), kind, sessionId);
+
+  static int _unsentIn(
+    List<PendingTake>? written,
+    String kind,
+    String? sessionId,
+  ) {
     if (written == null) return 1;
     return [
       for (final entry in written)
@@ -294,14 +325,41 @@ class TakeUploadQueue {
   Future<Set<String>> unsentScopesOf(
     String kind, {
     required String sessionId,
-  }) async {
-    final written = await _written();
+  }) async => _unsentScopesIn(await _written(), kind, sessionId);
+
+  static Set<String> _unsentScopesIn(
+    List<PendingTake>? written,
+    String kind,
+    String? sessionId,
+  ) {
     if (written == null) return {unknownScope};
     return {
       for (final entry in written)
         if (!entry.stored && entry.kind == kind && entry.sessionId == sessionId)
           entry.scope,
     };
+  }
+
+  /// giveUps() + lostHistory() + unsentOf('ensaio') + unsentOf('retro') +
+  /// unsentScopesOf('ensaio'), from the one read this cache already keeps —
+  /// what `_countUnsent` asked for five times over is asked for once here.
+  Future<
+    ({
+      bool stranded,
+      int unsentTakes,
+      int unsentChunks,
+      Set<String> unsentTakeScopes,
+    })
+  >
+  tally({required String? sessionId}) async {
+    final written = await _written();
+    final stranded = (await giveUps()).isNotEmpty || await lostHistory();
+    return (
+      stranded: stranded,
+      unsentTakes: _unsentIn(written, 'ensaio', sessionId),
+      unsentChunks: _unsentIn(written, 'retro', sessionId),
+      unsentTakeScopes: _unsentScopesIn(written, 'ensaio', sessionId),
+    );
   }
 
   /// The rows the room says out loud, because nothing more will happen to them on their
@@ -337,13 +395,18 @@ class TakeUploadQueue {
   }
 
   Future<void> _write(List<PendingTake> entries) async {
-    final file = await _manifestFile();
+    final dir = await _dir();
+    final file = File(p.join(dir.path, _manifest));
     final staging = File('${file.path}.novo');
     await staging.writeAsString(
       jsonEncode([for (final e in entries) e.toJson()]),
       flush: true,
     );
     await staging.rename(file.path);
+    final stat = await file.stat();
+    _cachedRead = _CachedRead(dir.path, stat.modified, stat.size, [
+      for (final e in entries) e,
+    ]);
   }
 
   /// Rewrite the manifest from what is actually on disk, one writer at a time.
@@ -360,6 +423,7 @@ class TakeUploadQueue {
     final next = _writes.then((_) async {
       final written = await _written();
       if (written == null) {
+        _cachedRead = null;
         await (await _manifestFile()).rename((await _quarantineFile()).path);
         await _write(change(const []));
         return;

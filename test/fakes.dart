@@ -6,6 +6,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
 import 'package:internalization_room/features/sala/data/connectivity_service.dart';
 import 'package:internalization_room/features/sala/data/credential_vault.dart';
@@ -632,6 +633,9 @@ class FakeWorkInProgress implements WorkInProgress {
 }
 
 class FakeInbox implements HandInboxRepository {
+  @override
+  http.Client get client => throw UnimplementedError();
+
   /// What this tablet last told the hand to present as itself. What the header actually
   /// carries is measured against real HTTP, not here.
   String? presented;
@@ -673,13 +677,31 @@ class FakeInbox implements HandInboxRepository {
 }
 
 class FakeRoom implements RoomRepository {
-  final StreamController<CoverageEvent> _coverage =
+  @override
+  http.Client get client => throw UnimplementedError();
+
+  StreamController<CoverageEvent> _coverage =
       StreamController<CoverageEvent>.broadcast();
+
+  int watchCoverageCalls = 0;
 
   void pushCoverage(CoverageEvent event) => _coverage.add(event);
 
+  /// Ends the channel a caller is listening to right now, the way Cloud Run's 300 s cut
+  /// or a room refusal does — the next [watchCoverage] call gets a fresh stream, since the
+  /// old one is gone for good.
+  void dropCoverageStream({Object? error}) {
+    final dying = _coverage;
+    _coverage = StreamController<CoverageEvent>.broadcast();
+    if (error != null) dying.addError(error);
+    dying.close();
+  }
+
   @override
-  Stream<CoverageEvent> watchCoverage(String sessionId) => _coverage.stream;
+  Stream<CoverageEvent> watchCoverage(String sessionId) {
+    watchCoverageCalls++;
+    return _coverage.stream;
+  }
 
   /// What a turn's own response says about the id classification will settle under, and
   /// whether classification is still running for it. Pending by default — the way a real
@@ -1438,11 +1460,16 @@ class FakeRoom implements RoomRepository {
     );
   }
 
+  bool get coverageHasListener => _coverage.hasListener;
+
   @override
   void dispose() => _coverage.close();
 }
 
 class FakeNetwork implements ConnectivityService {
+  @override
+  http.Client get client => throw UnimplementedError();
+
   final StreamController<void> _returned = StreamController<void>.broadcast();
   bool reachable = true;
   bool radioSeesNothing = false;
@@ -1660,17 +1687,55 @@ class FakeTakeQueue implements TakeUploadQueue {
   Future<Set<String>> unsentScopesOf(
     String kind, {
     required String sessionId,
-  }) async {
+  }) async => {
+    for (final entry in rows)
+      if (!entry.stored && entry.kind == kind && entry.sessionId == sessionId)
+        entry.scope,
+  };
+
+  @override
+  Future<
+    ({
+      bool stranded,
+      int unsentTakes,
+      int unsentChunks,
+      Set<String> unsentTakeScopes,
+    })
+  >
+  tally({required String? sessionId}) async {
     final held = _armed;
     _armed = null;
     if (held != null) _holding = held;
-    final scopes = {
-      for (final entry in rows)
-        if (!entry.stored && entry.kind == kind && entry.sessionId == sessionId)
-          entry.scope,
-    };
+    // Nenhum await antes daqui: os números precisam ser tomados no mesmo turno
+    // síncrono em que a espera é armada, do jeito que unsentScopesOf já fazia —
+    // um await entre as duas coisas muda quando a leitura vê a fila, não só
+    // quando ela responde.
+    final result = (
+      stranded: false,
+      unsentTakes: [
+        for (final entry in rows)
+          if (!entry.stored &&
+              entry.kind == 'ensaio' &&
+              entry.sessionId == sessionId)
+            entry,
+      ].length,
+      unsentChunks: [
+        for (final entry in rows)
+          if (!entry.stored &&
+              entry.kind == 'retro' &&
+              entry.sessionId == sessionId)
+            entry,
+      ].length,
+      unsentTakeScopes: {
+        for (final entry in rows)
+          if (!entry.stored &&
+              entry.kind == 'ensaio' &&
+              entry.sessionId == sessionId)
+            entry.scope,
+      },
+    );
     if (held != null) await held.future;
-    return scopes;
+    return result;
   }
 
   @override
@@ -1713,6 +1778,7 @@ class SalaHarness {
   final Duration settleDelay;
   final List<Duration> retryBackoff;
   final Duration? busyCeiling;
+  final Duration? rewarm;
   final Duration? playbackCeiling;
   final Duration clipGrace;
   final CaptureGuard captureGuard;
@@ -1735,6 +1801,7 @@ class SalaHarness {
     this.settleDelay = const Duration(milliseconds: 60),
     this.retryBackoff = const [Duration(milliseconds: 20)],
     this.busyCeiling,
+    this.rewarm,
     this.playbackCeiling,
     this.clipGrace = const Duration(seconds: 10),
     this.captureGuard = const CaptureGuard(
@@ -1782,6 +1849,7 @@ class SalaHarness {
     coverageFallbackDelayProvider.overrideWithValue(settleDelay),
     roomRetryBackoffProvider.overrideWithValue(retryBackoff),
     busyStateCeilingProvider.overrideWithValue(busyCeiling),
+    connectionRewarmIntervalProvider.overrideWithValue(rewarm),
     playbackCeilingProvider.overrideWithValue(playbackCeiling),
     clipGraceProvider.overrideWithValue(clipGrace),
     captureGuardProvider.overrideWithValue(captureGuard),
