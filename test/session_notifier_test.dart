@@ -6015,6 +6015,60 @@ void main() {
     },
   );
 
+  test(
+    'the room stays thinking while a line has answered but sent no sound yet',
+    () async {
+      final player = SpeakingPlayer();
+      final body = StreamController<List<int>>();
+      final library = Directory.systemTemp.createTempSync('sala-voz-cabecalho');
+      addTearDown(() => library.deleteSync(recursive: true));
+      var answered = false;
+      final harness = SalaHarness(
+        voiceService: FacilitatorVoiceService(
+          open: (_, {from, ifRange}) async {
+            answered = true;
+            return http.StreamedResponse(
+              body.stream,
+              200,
+              contentLength: 6,
+              headers: {'etag': 'e1'},
+            );
+          },
+          libraryDir: () async => library,
+          player: player,
+        ),
+      );
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      unawaited(container.read(salaSessionProvider.notifier).goConversa());
+      await waitFor('a fala responder', () => answered);
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      expect(
+        container.read(salaSessionProvider).voice,
+        VoiceState.thinking,
+        reason:
+            'os cabeçalhos dizem só que a sala respondeu; "falando" sobre eles '
+            'fazia o círculo ondular enquanto nada saía, que é o que "pensando" '
+            'existe para não fazer',
+      );
+
+      body.add([1, 2, 3]);
+      await waitFor(
+        'a sala falar',
+        () => container.read(salaSessionProvider).voice == VoiceState.speaking,
+        limit: const Duration(seconds: 3),
+      );
+
+      body
+        ..add([4, 5, 6])
+        ..close();
+      player.reachTheEnd();
+      await settle();
+    },
+  );
+
   test('lines the team never hears halt the room for a person', () async {
     final player = SpeakingPlayer()..stopsBeforeTheEnd = true;
     final library = Directory.systemTemp.createTempSync('sala-voz-parada');

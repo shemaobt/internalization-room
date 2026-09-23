@@ -90,11 +90,19 @@ class FacilitatorVoiceService {
     }
   }
 
+  /// Whether the line has sound to give: its first bytes, or the whole file with
+  /// streaming switched off.
+  ///
+  /// The room turns `speaking` on this. An answer that has opened says only that the
+  /// room answered — its body can still be seconds away on a field link — and the circle
+  /// rippled over that silence, which is exactly what `thinking` exists to cover.
   Future<bool> ready(String url) async {
     if (url.isEmpty) return false;
     try {
       final clip = _clipArriving(url);
-      if (await clip.opened == null && !_playsAsItArrives) await clip.file;
+      if (await clip.opened == null) {
+        await (_playsAsItArrives ? clip.firstBytes : clip.file);
+      }
       return true;
     } on Exception {
       return false;
@@ -316,6 +324,7 @@ class _ArrivingClip extends StreamAudioSource {
   final String _url;
   final Duration _stall;
   final _opened = Completer<File?>();
+  final _firstBytes = Completer<void>();
   late final Future<File> file;
   Object? _broke;
   String? _etag;
@@ -327,9 +336,12 @@ class _ArrivingClip extends StreamAudioSource {
 
   _ArrivingClip(this._open, this._url, this._stall) {
     _opened.future.ignore();
+    _firstBytes.future.ignore();
   }
 
   Future<File?> get opened => _opened.future;
+
+  Future<void> get firstBytes => _firstBytes.future;
 
   Duration get _length =>
       Duration(milliseconds: _bytes.length * 1000 ~/ _bytesPerSecond);
@@ -339,7 +351,12 @@ class _ArrivingClip extends StreamAudioSource {
   void _fail(Object error) {
     _broke = error;
     if (!_opened.isCompleted) _opened.completeError(error);
+    if (!_firstBytes.isCompleted) _firstBytes.completeError(error);
     _wake();
+  }
+
+  void _firstBytesIn() {
+    if (!_firstBytes.isCompleted) _firstBytes.complete();
   }
 
   /// The line, resumed across drops and started over when a resume cannot prove it is
@@ -361,6 +378,7 @@ class _ArrivingClip extends StreamAudioSource {
         await for (final chunk in response.stream.timeout(_stall)) {
           _bytes.setRange(_received, _received + chunk.length, chunk);
           _received += chunk.length;
+          _firstBytesIn();
           _wake();
         }
       } on TimeoutException {
@@ -368,7 +386,10 @@ class _ArrivingClip extends StreamAudioSource {
       } on Exception catch (error) {
         drop = RoomUnavailable('$error');
       }
-      if (_received == _bytes.length) return _bytes;
+      if (_received == _bytes.length) {
+        _firstBytesIn();
+        return _bytes;
+      }
       final cut = drop ?? const RoomBroke('fala cortada');
       if (_received == before) throw cut;
       final etag = _etag;
