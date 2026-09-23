@@ -265,9 +265,13 @@ class RoomRepository {
                 }
               },
               onDone: controller.close,
-              onError: (Object _) => controller.close(),
+              onError: (Object error) {
+                if (!cancelled) controller.addError(RoomUnavailable('$error'));
+                controller.close();
+              },
             );
-      } on Exception {
+      } on Exception catch (error) {
+        if (!cancelled) controller.addError(RoomUnavailable('$error'));
         await controller.close();
       }
     }());
