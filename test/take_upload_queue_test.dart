@@ -167,6 +167,82 @@ void main() {
     expect(await afterRestart.pending(), isEmpty);
   });
 
+  test(
+    'a manifest whose stat has not changed is not read from disk again',
+    () async {
+      final room = FakeRoom()..reachable = false;
+      final queue = queueOn(room);
+      await queue.enqueue(
+        aTake('tomada'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'inteira',
+      );
+
+      final file = manifest();
+      // setLastModified só é fiel a granularidade de segundo neste sistema
+      // de arquivos — um valor sem fração de segundo é o único que sobrevive
+      // ao round-trip sem o teste provar uma diferença de precisão, não de
+      // comportamento.
+      final stamp = DateTime(2026, 1, 1);
+      final size = await file.length();
+      await file.setLastModified(stamp);
+      expect(await queue.entries(), hasLength(1));
+
+      file.writeAsBytesSync(List.filled(size, 'x'.codeUnitAt(0)));
+      await file.setLastModified(stamp);
+      final after = await file.stat();
+      expect(
+        after.modified,
+        stamp,
+        reason: 'o teste só prova algo se o stat continuar igual ao de antes',
+      );
+      expect(after.size, size);
+
+      expect(
+        await queue.entries(),
+        hasLength(1),
+        reason:
+            'o stat não mudou, então a leitura de antes ainda vale — reparsear '
+            'os bytes de agora devolveria uma lista vazia, não a de uma linha',
+      );
+    },
+  );
+
+  test(
+    'a manifest rewritten by something other than this queue is read again',
+    () async {
+      final room = FakeRoom()..reachable = false;
+      final queue = queueOn(room);
+      await queue.enqueue(
+        aTake('primeira'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'inteira',
+      );
+      expect(await queue.entries(), hasLength(1));
+
+      manifest().writeAsStringSync(
+        '[{"id":"externa-1","path":"${home.path}/guardadas/externa1.m4a",'
+        '"session_id":"sessao-2","kind":"ensaio","scope":"inteira",'
+        '"pass_number":null,"chunk_index":null,"stored":false,"lost":false,'
+        '"attempts":0,"waits":0,"last_try":null},'
+        '{"id":"externa-2","path":"${home.path}/guardadas/externa2.m4a",'
+        '"session_id":"sessao-2","kind":"ensaio","scope":"inteira",'
+        '"pass_number":null,"chunk_index":null,"stored":false,"lost":false,'
+        '"attempts":0,"waits":0,"last_try":null}]',
+      );
+
+      expect(
+        await queue.entries(),
+        hasLength(2),
+        reason:
+            'o arquivo mudou de verdade por fora — o cache tem que perceber '
+            'e reler, não continuar servindo a leitura de uma linha só',
+      );
+    },
+  );
+
   test('the audio file is never deleted, even after the room has it', () async {
     final room = FakeRoom();
     final queue = queueOn(room);

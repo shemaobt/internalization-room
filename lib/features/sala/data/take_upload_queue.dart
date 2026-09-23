@@ -163,6 +163,14 @@ class PendingTake {
   );
 }
 
+class _CachedRead {
+  final DateTime modified;
+  final int size;
+  final List<PendingTake>? rows;
+
+  _CachedRead(this.modified, this.size, this.rows);
+}
+
 class TakeUploadQueue {
   final RoomRepository _room;
   final Future<Directory> Function() _home;
@@ -172,6 +180,7 @@ class TakeUploadQueue {
   bool _flushAgainRequested = false;
   Future<void> _writes = Future<void>.value();
   int _minted = 0;
+  _CachedRead? _cachedRead;
 
   TakeUploadQueue({
     required this._room,
@@ -201,14 +210,28 @@ class TakeUploadQueue {
   Future<List<PendingTake>?> _written() async {
     final folder = (await _dir()).path;
     final file = File(p.join(folder, _manifest));
-    if (!await file.exists()) return const [];
+    final stat = await file.stat();
+    if (stat.type == FileSystemEntityType.notFound) {
+      _cachedRead = null;
+      return const [];
+    }
+    final cached = _cachedRead;
+    if (cached != null &&
+        cached.modified == stat.modified &&
+        cached.size == stat.size) {
+      final rows = cached.rows;
+      return rows == null ? null : [for (final e in rows) e];
+    }
     try {
       final raw = jsonDecode(await file.readAsString()) as List<Object?>;
-      return [
+      final rows = [
         for (final entry in raw)
           PendingTake.fromJson(entry as Map<String, Object?>, folder: folder),
       ];
+      _cachedRead = _CachedRead(stat.modified, stat.size, rows);
+      return [for (final e in rows) e];
     } on Object {
+      _cachedRead = _CachedRead(stat.modified, stat.size, null);
       return null;
     }
   }
