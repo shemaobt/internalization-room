@@ -565,15 +565,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (epoch != _epoch) return;
     state = state.copyWith(voice: VoiceState.speaking);
     _watchBusyState();
-    final played = await _speak(
-      line.url,
-      line.fixedLine,
-      panoramaUrl: line.panoramaUrl,
-    );
-    if (epoch != _epoch) return;
-    if (!played) return _registerUnplayableTurn(leavesTeamTalk: false);
-    _unplayableTurns = 0;
-    state = state.copyWith(voice: VoiceState.invite);
+    try {
+      final played = await _speak(
+        line.url,
+        line.fixedLine,
+        panoramaUrl: line.panoramaUrl,
+      );
+      if (epoch != _epoch) return;
+      if (!played) return _registerUnplayableTurn(leavesTeamTalk: false);
+      _unplayableTurns = 0;
+      state = state.copyWith(voice: VoiceState.invite);
+    } on Exception catch (error) {
+      if (epoch != _epoch) return;
+      _handleRoomFailure(error);
+    }
   }
 
   /// The whole opening again — the shape of the passage, and then the scene.
@@ -596,20 +601,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (epoch != _epoch) return;
     state = state.copyWith(voice: VoiceState.speaking);
     _watchBusyState();
-    final played = await _speak(
-      line.panoramaUrl,
-      '',
-      panoramaUrl: line.panoramaUrl,
-    );
-    if (epoch != _epoch) return;
-    state = state.copyWith(contasEnfiadas: true);
-    if (!played) return _registerUnplayableTurn(leavesTeamTalk: false);
-    _watchBusyState();
-    final scene = await _speak(line.url, '', panoramaUrl: line.panoramaUrl);
-    if (epoch != _epoch) return;
-    if (!scene) return _registerUnplayableTurn(leavesTeamTalk: false);
-    _unplayableTurns = 0;
-    state = state.copyWith(voice: VoiceState.invite);
+    try {
+      final played = await _speak(
+        line.panoramaUrl,
+        '',
+        panoramaUrl: line.panoramaUrl,
+      );
+      if (epoch != _epoch) return;
+      state = state.copyWith(contasEnfiadas: true);
+      if (!played) return _registerUnplayableTurn(leavesTeamTalk: false);
+      _watchBusyState();
+      final scene = await _speak(line.url, '', panoramaUrl: line.panoramaUrl);
+      if (epoch != _epoch) return;
+      if (!scene) return _registerUnplayableTurn(leavesTeamTalk: false);
+      _unplayableTurns = 0;
+      state = state.copyWith(voice: VoiceState.invite);
+    } on Exception catch (error) {
+      if (epoch != _epoch) return;
+      _handleRoomFailure(error);
+    }
   }
 
   Future<void> _voiceTurn(
@@ -1525,13 +1535,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (moved()) return;
     state = state.copyWith(voice: VoiceState.speaking);
     _watchBusyState();
-    final spoke = await _speak(passagem.audioUrl, '');
-    if (moved()) return;
-    // A wheel that has gone silent looks to the team exactly like a wheel that has
-    // stopped, and there is no written word here to tell them apart.
-    if (!spoke) return _registerUnplayableTurn();
-    _unplayableTurns = 0;
-    state = state.copyWith(voice: VoiceState.invite);
+    try {
+      final spoke = await _speak(passagem.audioUrl, '');
+      if (moved()) return;
+      // A wheel that has gone silent looks to the team exactly like a wheel that has
+      // stopped, and there is no written word here to tell them apart.
+      if (!spoke) return _registerUnplayableTurn();
+      _unplayableTurns = 0;
+      state = state.copyWith(voice: VoiceState.invite);
+    } on Exception catch (error) {
+      if (moved()) return;
+      _handleRoomFailure(error);
+    }
   }
 
   void entrarNaOferecida() {

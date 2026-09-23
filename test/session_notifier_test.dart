@@ -796,6 +796,29 @@ void main() {
     expect(harness.voice.played, [sceneUrl]);
   });
 
+  test(
+    'a repeat that fails on the GET calls a person, instead of a dead replay',
+    () async {
+      final harness = SalaHarness()..room.opensInTwoMovements = true;
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.voice.roomFailsWith = const RoomRefused();
+      await notifier.hearAgain();
+      await settle();
+
+      expect(
+        container.read(salaSessionProvider).needsPerson,
+        isTrue,
+        reason:
+            'ouvir de novo não passava por nenhum catch — a mesma recusa '
+            'que o turno original já chamava uma pessoa por, aqui caía '
+            'muda como um replay comum que não tocou',
+      );
+    },
+  );
+
   test('a held press gives the whole opening back, necklace and all', () async {
     final harness = SalaHarness()..room.opensInTwoMovements = true;
     final container = await inConversa(harness);
@@ -830,6 +853,29 @@ void main() {
     expect(harness.voice.played, [panoramaUrl, sceneUrl]);
     expect(container.read(salaSessionProvider).contasEnfiadas, isTrue);
   });
+
+  test(
+    'the whole opening replayed calls a person when its GET fails, instead of a dead necklace',
+    () async {
+      final harness = SalaHarness()..room.opensInTwoMovements = true;
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.voice.roomFailsWith = const RoomRefused();
+      await notifier.hearTheWholeOpening();
+      await settle();
+
+      expect(
+        container.read(salaSessionProvider).needsPerson,
+        isTrue,
+        reason:
+            'a abertura pedida de novo não passava por nenhum catch — a '
+            'mesma recusa que o turno original já chamava uma pessoa por, '
+            'aqui caía muda como um gesto que não tocou',
+      );
+    },
+  );
 
   test('an opening told in one breath shows the necklace at once', () async {
     final harness = SalaHarness();
@@ -3600,6 +3646,32 @@ void main() {
     expect(container.read(salaSessionProvider).oferecida?.pericope, 'P02');
     expect(harness.voice.played, ['/voice/p01', '/voice/p01', '/voice/p02']);
   });
+
+  test(
+    'a passage name that fails on the GET calls a person, instead of a dead wheel',
+    () async {
+      final harness = SalaHarness();
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      await notifier.abrirEscolha();
+      await settle();
+
+      harness.voice.roomFailsWith = const RoomRefused();
+      notifier.dizerAPassagem();
+      await settle();
+
+      expect(
+        container.read(salaSessionProvider).needsPerson,
+        isTrue,
+        reason:
+            'a queda caía no mesmo catch do player e a roda ficava muda '
+            'por até três nomes antes de chamar alguém — a mesma recusa '
+            'vinda do turno já chama na hora',
+      );
+    },
+  );
 
   test(
     'the wheel quietly downloads the names it lacks, one at a time, skipping the one it already holds',
