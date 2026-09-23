@@ -41,7 +41,13 @@ class FacilitatorVoiceService {
 
   AudioPlayer get _player => _opened ??= AudioPlayer();
 
-  Future<Directory> get _resolvedDir => _dir ??= _libraryDir();
+  Future<Directory> get _resolvedDir {
+    final dir = _dir ??= _libraryDir();
+    return dir.catchError((Object error, StackTrace stackTrace) {
+      _dir = null;
+      return Future<Directory>.error(error, stackTrace);
+    });
+  }
 
   Future<bool> play(String url, {void Function()? onSoundStart}) {
     if (url.isEmpty) return Future.value(false);

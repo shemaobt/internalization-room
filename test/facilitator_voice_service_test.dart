@@ -447,6 +447,36 @@ void main() {
   );
 
   test(
+    'a library directory that fails once is tried again, not remembered as broken',
+    () async {
+      var attempt = 0;
+      final voice = FacilitatorVoiceService(
+        fetch: (url) async {
+          fetched.add(url);
+          return Uint8List.fromList([1, 2, 3]);
+        },
+        libraryDir: () async {
+          attempt++;
+          if (attempt == 1) throw Exception('disco cheio');
+          return library;
+        },
+      );
+
+      await voice.holds(_clip);
+      expect(attempt, 1);
+
+      await voice.holds(_clip);
+      expect(
+        attempt,
+        2,
+        reason:
+            'a Future rejeitada ficava guardada para sempre; toda chamada '
+            'seguinte reusava a mesma falha em vez de tentar o diretório de novo',
+      );
+    },
+  );
+
+  test(
     'a stale .novo leftover is swept; a fresh one, or one still downloading, is not',
     () async {
       final player = SpeakingPlayer();
