@@ -296,6 +296,7 @@ class RoomRepository {
     File audio, {
     String? turnId,
     String? clientTiming,
+    Duration? timeout,
   }) async {
     final request =
         http.MultipartRequest('POST', _uri('/sessions/$sessionId/turns'))
@@ -303,7 +304,10 @@ class RoomRepository {
           ..files.add(await http.MultipartFile.fromPath('file', audio.path));
     if (turnId != null) request.fields['turn_id'] = turnId;
     if (clientTiming != null) request.fields['client_timing'] = clientTiming;
-    return _read(await _sendMultipart(request), TurnResult.fromJson);
+    return _read(
+      await _sendMultipart(request, timeout ?? _turnTimeout),
+      TurnResult.fromJson,
+    );
   }
 
   /// One stretch told back: which rehearsal recording it explains, and the slice of
@@ -514,9 +518,12 @@ class RoomRepository {
     return response.bodyBytes;
   }
 
-  Future<http.Response> _sendMultipart(http.MultipartRequest request) => _send(
+  Future<http.Response> _sendMultipart(
+    http.MultipartRequest request, [
+    Duration timeout = _turnTimeout,
+  ]) => _send(
     () async => http.Response.fromStream(await _client.send(request)),
-    _turnTimeout,
+    timeout,
   );
 
   Future<http.Response> _send(

@@ -1279,6 +1279,7 @@ class FakeRoom implements RoomRepository {
     File audio, {
     String? turnId,
     String? clientTiming,
+    Duration? timeout,
   }) async {
     _guard('sendTurn');
     sessionsSpokenTo.add(sessionId);
@@ -1286,7 +1287,10 @@ class FakeRoom implements RoomRepository {
     turnIdsSent.add(turnId);
     recordingsSent.add(audio.path);
     turnsSent++;
-    await _turnArrives();
+    final arrives = _turnArrives();
+    await (timeout == null
+        ? arrives
+        : arrives.timeout(timeout, onTimeout: () => throw const RoomSlow()));
     return _turn(sessionId);
   }
 
@@ -1758,6 +1762,7 @@ class SalaHarness {
   final Duration settleDelay;
   final List<Duration> retryBackoff;
   final Duration? busyCeiling;
+  final Duration resendMargin;
   final Duration? playbackCeiling;
   final Duration clipGrace;
   final CaptureGuard captureGuard;
@@ -1780,6 +1785,7 @@ class SalaHarness {
     this.settleDelay = const Duration(milliseconds: 60),
     this.retryBackoff = const [Duration(milliseconds: 20)],
     this.busyCeiling,
+    this.resendMargin = const Duration(milliseconds: 50),
     this.playbackCeiling,
     this.clipGrace = const Duration(seconds: 10),
     this.captureGuard = const CaptureGuard(
@@ -1827,6 +1833,7 @@ class SalaHarness {
     coverageFallbackDelayProvider.overrideWithValue(settleDelay),
     roomRetryBackoffProvider.overrideWithValue(retryBackoff),
     busyStateCeilingProvider.overrideWithValue(busyCeiling),
+    resendMarginProvider.overrideWithValue(resendMargin),
     playbackCeilingProvider.overrideWithValue(playbackCeiling),
     clipGraceProvider.overrideWithValue(clipGrace),
     captureGuardProvider.overrideWithValue(captureGuard),

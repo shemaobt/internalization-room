@@ -1309,37 +1309,51 @@ void main() {
   );
 
   test(
-    'a resend that hangs is cut by the wait that began at the tap, not a fresh one',
+    'a room that holds every send ends the take as a slow turn before the wait runs out, never with a person called',
     () async {
+      const window = Duration(milliseconds: 600);
       final harness = SalaHarness(
-        busyCeiling: const Duration(milliseconds: 600),
-        retryBackoff: const [Duration(milliseconds: 300)],
+        busyCeiling: window,
+        retryBackoff: const [Duration(milliseconds: 100)],
       );
       final container = await inConversa(harness);
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
-      harness.room.failHeldTurnWith = const RoomUnavailable('a conexão caiu');
+      harness.room.failHeldTurnWith = const RoomSlow();
       final clock = Stopwatch();
       Duration? endedAt;
-      container.listen(salaSessionProvider, (_, next) {
-        if (endedAt == null && next.needsPerson) endedAt = clock.elapsed;
+      SalaSessionState? ended;
+      container.listen(salaSessionProvider, (previous, next) {
+        if (ended == null &&
+            previous?.voice == VoiceState.thinking &&
+            next.voice != VoiceState.thinking) {
+          endedAt = clock.elapsed;
+          ended = next;
+        }
       });
 
       notifier.conversaTap();
       await settle();
       clock.start();
       notifier.conversaTap();
-      await settle(const Duration(milliseconds: 150));
+      await settle(const Duration(milliseconds: 50));
       harness.room.holdNextTurn();
-      await settle(const Duration(milliseconds: 1100));
+      await settle(const Duration(milliseconds: 900));
 
       expect(harness.room.turnsSent, 2);
       expect(
-        endedAt,
-        lessThan(const Duration(milliseconds: 800)),
+        ended?.needsPerson,
+        isFalse,
         reason:
-            'o vigia rearmado no reenvio esticava a espera do turno além da '
-            'janela contada do toque de parar',
+            'o reenvio esperava os 310 s cheios, o vigia vencia e chamava '
+            'uma pessoa à mesa por uma rede lenta',
+      );
+      expect(ended?.voice, VoiceState.invite);
+      expect(ended?.offline, isFalse);
+      expect(
+        endedAt,
+        lessThan(window),
+        reason: 'o turno com reenvios passava da janela do vigia',
       );
     },
   );

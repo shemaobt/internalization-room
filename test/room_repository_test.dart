@@ -145,6 +145,37 @@ void main() {
   );
 
   test(
+    'a resend given only the seconds left gives up at them as a slow room',
+    () async {
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          await Future<void>.delayed(const Duration(seconds: 2));
+          return http.Response(_turnBody(), 200);
+        }),
+      );
+      addTearDown(repository.dispose);
+      final clock = Stopwatch()..start();
+
+      await expectLater(
+        repository.sendTurn(
+          'sessao-1',
+          await _tempRecording(),
+          turnId: 'turno-7',
+          timeout: const Duration(milliseconds: 100),
+        ),
+        throwsA(isA<RoomSlow>()),
+      );
+      expect(
+        clock.elapsed,
+        lessThan(const Duration(seconds: 1)),
+        reason:
+            'o reenvio esperava os 310 s cheios e passava do vigia, que '
+            'chamava uma pessoa por uma rede lenta',
+      );
+    },
+  );
+
+  test(
     'a turn with marks from the previous one carries them, a turn with none carries no field at all',
     () async {
       late String seenBodyWithTiming;

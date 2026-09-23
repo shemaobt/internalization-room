@@ -88,6 +88,10 @@ final busyStateCeilingProvider = Provider<Duration?>(
   (ref) => const Duration(seconds: 330),
 );
 
+final resendMarginProvider = Provider<Duration>(
+  (ref) => const Duration(seconds: 5),
+);
+
 /// Slack added to a clip's own length before the room decides the playback is lost. A
 /// provider, not a constant, because a ceiling nothing can shrink is a ceiling no test
 /// can reach — which is how the paused-clip bug shipped.
@@ -2214,8 +2218,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final turnId = _stamp();
     final window = ref.read(busyStateCeilingProvider);
     final backoff = ref.read(roomRetryBackoffProvider);
+    final margin = ref.read(resendMarginProvider);
     final waited = Stopwatch()..start();
     var resends = 0;
+    Duration? timeout;
     while (true) {
       try {
         return await _room.sendTurn(
@@ -2223,15 +2229,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           take,
           turnId: turnId,
           clientTiming: clientTiming,
+          timeout: timeout,
         );
       } on Exception catch (error) {
         if (error is! RoomUnavailable && error is! RoomSlow) rethrow;
         if (window == null) rethrow;
         final step = resends < backoff.length ? resends : backoff.length - 1;
-        if (waited.elapsed + backoff[step] >= window) rethrow;
+        final pause = backoff[step];
+        if (window - waited.elapsed - pause - margin < margin) rethrow;
         resends++;
-        await Future<void>.delayed(backoff[step]);
+        await Future<void>.delayed(pause);
         if (epoch != _epoch) rethrow;
+        timeout = window - waited.elapsed - margin;
       }
     }
   }
