@@ -1172,7 +1172,36 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_coverageSessionId == sessionId) return;
     unawaited(_coverageWatch?.cancel());
     _coverageSessionId = sessionId;
-    _coverageWatch = _room.watchCoverage(sessionId).listen(_onCoverageFrame);
+    // A terminal status closes the controller right after erroring it (RR:watchCoverage),
+    // so onDone still fires once onError already has — the flag is what tells the second
+    // one this death was a refusal, not the ordinary end a reopen answers.
+    var refused = false;
+    _coverageWatch = _room
+        .watchCoverage(sessionId)
+        .listen(
+          _onCoverageFrame,
+          onDone: () => _coverageChannelDied(sessionId, reopen: !refused),
+          onError: (Object _) {
+            refused = true;
+            _coverageChannelDied(sessionId, reopen: false);
+          },
+        );
+  }
+
+  /// A dead channel is always forgotten, so the next turn that needs one does not find a
+  /// subscription this class already thinks is alive. Only an ordinary end — the Cloud
+  /// Run cut, not a refusal — reopens it right away, and only for a turn still waiting on
+  /// it; a session with nothing pending is left closed for the next `_awaitCoverageSettle`
+  /// to reopen, and a refusal is never retried on its own.
+  void _coverageChannelDied(String sessionId, {required bool reopen}) {
+    _coverageWatch = null;
+    _coverageSessionId = null;
+    if (reopen && _awaitingCoverageTurnId != null) {
+      _watchCoverageChannel(sessionId);
+      unawaited(
+        _pullState(sessionId, clock: _coverageClock).catchError((_) {}),
+      );
+    }
   }
 
   void _onCoverageFrame(CoverageEvent frame) {
