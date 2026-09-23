@@ -16,6 +16,7 @@ import '../domain/passagem.dart';
 import '../domain/session_snapshot.dart';
 import '../domain/turn_result.dart';
 import 'device_identity.dart';
+import 'shared_http_client.dart';
 
 const _basePath = '/api/internalization-room';
 
@@ -101,6 +102,8 @@ class RoomRepository {
   RoomRepository({http.Client? client, Future<String> Function()? deviceId})
     : _client = client ?? http.Client(),
       _deviceId = deviceId ?? deviceIdentity;
+
+  http.Client get client => _client;
 
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
@@ -568,7 +571,9 @@ class RoomRepository {
 }
 
 final roomRepositoryProvider = Provider<RoomRepository>((ref) {
-  final repository = RoomRepository();
+  final repository = RoomRepository(
+    client: ref.watch(sharedHttpClientProvider),
+  );
   ref.onDispose(repository.dispose);
   return repository;
 });

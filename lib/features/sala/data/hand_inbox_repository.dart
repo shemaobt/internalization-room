@@ -8,6 +8,7 @@ import '../../../core/config/env.dart';
 import '../domain/hand_reply.dart';
 import 'device_identity.dart';
 import 'room_repository.dart';
+import 'shared_http_client.dart';
 
 const _basePath = '/api/internalization-room';
 const _timeout = Duration(seconds: 20);
@@ -26,6 +27,8 @@ class HandInboxRepository {
     Future<String> Function()? deviceId,
   }) : _client = client ?? http.Client(),
        _deviceId = deviceId ?? deviceIdentity;
+
+  http.Client get client => _client;
 
   String? _credential;
 
@@ -113,7 +116,9 @@ class HandInboxRepository {
 }
 
 final handInboxRepositoryProvider = Provider<HandInboxRepository>((ref) {
-  final repository = HandInboxRepository();
+  final repository = HandInboxRepository(
+    client: ref.watch(sharedHttpClientProvider),
+  );
   ref.onDispose(repository.dispose);
   return repository;
 });

@@ -6,6 +6,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
 import 'package:internalization_room/features/sala/data/connectivity_service.dart';
 import 'package:internalization_room/features/sala/data/credential_vault.dart';
@@ -632,6 +633,9 @@ class FakeWorkInProgress implements WorkInProgress {
 }
 
 class FakeInbox implements HandInboxRepository {
+  @override
+  http.Client get client => throw UnimplementedError();
+
   /// What this tablet last told the hand to present as itself. What the header actually
   /// carries is measured against real HTTP, not here.
   String? presented;
@@ -673,6 +677,9 @@ class FakeInbox implements HandInboxRepository {
 }
 
 class FakeRoom implements RoomRepository {
+  @override
+  http.Client get client => throw UnimplementedError();
+
   final StreamController<CoverageEvent> _coverage =
       StreamController<CoverageEvent>.broadcast();
 
@@ -1443,6 +1450,9 @@ class FakeRoom implements RoomRepository {
 }
 
 class FakeNetwork implements ConnectivityService {
+  @override
+  http.Client get client => throw UnimplementedError();
+
   final StreamController<void> _returned = StreamController<void>.broadcast();
   bool reachable = true;
   bool radioSeesNothing = false;

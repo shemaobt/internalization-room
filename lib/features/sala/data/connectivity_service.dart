@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 
 import '../../../core/config/env.dart';
 import '../domain/room_reach.dart';
+import 'shared_http_client.dart';
 
 const _pingTimeout = Duration(seconds: 6);
 const _radioAnswerTimeout = Duration(seconds: 4);
@@ -20,6 +21,8 @@ class ConnectivityService {
   ConnectivityService({Connectivity? connectivity, http.Client? client})
     : _connectivity = connectivity ?? Connectivity(),
       _client = client ?? http.Client();
+
+  http.Client get client => _client;
 
   Future<RoomReach> reachRoom() {
     return _inFlight ??= _check().whenComplete(() => _inFlight = null);
@@ -73,7 +76,9 @@ class ConnectivityService {
 }
 
 final connectivityServiceProvider = Provider<ConnectivityService>((ref) {
-  final service = ConnectivityService();
+  final service = ConnectivityService(
+    client: ref.watch(sharedHttpClientProvider),
+  );
   ref.onDispose(service.dispose);
   return service;
 });
