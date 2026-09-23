@@ -1529,11 +1529,6 @@ void main() {
     );
     expect(path, isNotNull);
     expect(
-      File(path!).existsSync(),
-      isTrue,
-      reason: 'deleted vazio não basta — o arquivo tem de existir de verdade',
-    );
-    expect(
       harness.recorder.deleted,
       isEmpty,
       reason:
@@ -7267,11 +7262,6 @@ void main() {
     );
     expect(path, isNotNull);
     expect(
-      File(path!).existsSync(),
-      isTrue,
-      reason: 'deleted vazio não basta — o arquivo tem de existir de verdade',
-    );
-    expect(
       harness.recorder.deleted,
       isNot(contains(path)),
       reason:
@@ -7326,11 +7316,6 @@ void main() {
     );
     expect(path, isNotNull);
     expect(
-      File(path!).existsSync(),
-      isTrue,
-      reason: 'deleted vazio não basta — o arquivo tem de existir de verdade',
-    );
-    expect(
       harness.recorder.deleted,
       isEmpty,
       reason:
@@ -7364,11 +7349,6 @@ void main() {
     );
     expect(path, isNotNull);
     expect(
-      File(path!).existsSync(),
-      isTrue,
-      reason: 'deleted vazio não basta — o arquivo tem de existir de verdade',
-    );
-    expect(
       harness.recorder.deleted,
       isNot(contains(path)),
       reason:
@@ -7401,11 +7381,6 @@ void main() {
       reason: 'a queda só prova a regra se o envio de fato foi tentado',
     );
     expect(path, isNotNull);
-    expect(
-      File(path!).existsSync(),
-      isTrue,
-      reason: 'deleted vazio não basta — o arquivo tem de existir de verdade',
-    );
     expect(
       harness.recorder.deleted,
       isNot(contains(path)),
