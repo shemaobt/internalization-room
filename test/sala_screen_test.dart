@@ -884,6 +884,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     notifier.goEnsaio();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(seconds: 2));
     notifier.ensaioTap();
     notifier.ensaioTap();
     await tester.pump(const Duration(milliseconds: 300));
