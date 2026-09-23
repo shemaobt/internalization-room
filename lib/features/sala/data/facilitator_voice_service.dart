@@ -200,13 +200,18 @@ class FacilitatorVoiceService {
 
   Future<void> _dropOldestBeyondBudget(Directory dir) async {
     try {
-      final clips = dir.listSync().whereType<File>().toList();
+      final clips = await dir
+          .list()
+          .where((entry) => entry is File && entry.path.endsWith('.mp3'))
+          .cast<File>()
+          .toList();
       if (clips.length <= _clipsKept) return;
-      clips.sort(
-        (a, b) => a.statSync().modified.compareTo(b.statSync().modified),
+      final dated = await Future.wait(
+        clips.map((clip) async => (clip, (await clip.stat()).modified)),
       );
-      for (final clip in clips.take(clips.length - _clipsKept)) {
-        await clip.delete();
+      dated.sort((a, b) => a.$2.compareTo(b.$2));
+      for (final entry in dated.take(dated.length - _clipsKept)) {
+        await entry.$1.delete();
       }
     } on Exception {
       return;

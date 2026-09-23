@@ -360,4 +360,58 @@ void main() {
       expect(await speaking, isTrue);
     },
   );
+
+  test(
+    'the budget prune counts only the mp3 clips, never a staging leftover',
+    () async {
+      final player = SpeakingPlayer();
+      final voice = service(player: player);
+
+      for (var i = 0; i < 65; i++) {
+        File('${library.path}/c$i.mp3')
+          ..writeAsBytesSync([1])
+          ..setLastModifiedSync(DateTime(2026).add(Duration(minutes: i)));
+      }
+      for (var i = 0; i < 3; i++) {
+        File('${library.path}/staging$i.mp3.novo').writeAsBytesSync([1]);
+      }
+
+      final speaking = voice.play('/api/internalization-room/voice/played');
+      await waitFor('o tocador soar', () => player.sounding);
+      player.startSounding();
+      await waitFor(
+        'a poda terminar',
+        () =>
+            library
+                .listSync()
+                .whereType<File>()
+                .where((f) => f.path.endsWith('.mp3'))
+                .length <=
+            60,
+      );
+
+      expect(
+        library.listSync().whereType<File>().where(
+          (f) => f.path.endsWith('.mp3'),
+        ),
+        hasLength(60),
+        reason: 'os 60 clipes mais recentes ficam, o resto sai',
+      );
+      expect(
+        library.listSync().whereType<File>().where(
+          (f) => f.path.endsWith('.novo'),
+        ),
+        hasLength(3),
+        reason:
+            'contar o .novo no orçamento apaga um download em andamento por '
+            'baixo do outro',
+      );
+      expect(File('${library.path}/c0.mp3').existsSync(), isFalse);
+      expect(File('${library.path}/c64.mp3').existsSync(), isTrue);
+      expect(File('${library.path}/played.mp3').existsSync(), isTrue);
+
+      player.reachTheEnd();
+      expect(await speaking, isTrue);
+    },
+  );
 }
