@@ -412,6 +412,43 @@ void main() {
     },
   );
 
+  test(
+    'a manifest moved to a new home, its stat preserved, resolves audio '
+    'against the new folder, not the one that is gone',
+    () async {
+      final room = FakeRoom()..reachable = false;
+      final queue = queueOn(room);
+      await queue.enqueue(
+        aTake('tomada'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'inteira',
+      );
+
+      final stamp = DateTime(2026, 1, 1);
+      await manifest().setLastModified(stamp);
+      final before = await queue.entries();
+      final oldPath = before.single.path;
+
+      theContainerIsRenamed();
+      await manifest().setLastModified(stamp);
+
+      final after = await queue.entries();
+      expect(
+        after.single.path,
+        isNot(equals(oldPath)),
+        reason:
+            'a pasta mudou de verdade — servir o caminho antigo aponta para '
+            'um áudio que não está mais lá, mesmo com o manifesto intacto',
+      );
+      expect(
+        File(after.single.path).existsSync(),
+        isTrue,
+        reason: 'o caminho devolvido precisa apontar para onde o áudio está agora',
+      );
+    },
+  );
+
   test('the audio file is never deleted, even after the room has it', () async {
     final room = FakeRoom();
     final queue = queueOn(room);

@@ -164,11 +164,12 @@ class PendingTake {
 }
 
 class _CachedRead {
+  final String folder;
   final DateTime modified;
   final int size;
   final List<PendingTake>? rows;
 
-  _CachedRead(this.modified, this.size, this.rows);
+  _CachedRead(this.folder, this.modified, this.size, this.rows);
 }
 
 class TakeUploadQueue {
@@ -217,6 +218,7 @@ class TakeUploadQueue {
     }
     final cached = _cachedRead;
     if (cached != null &&
+        cached.folder == folder &&
         cached.modified == stat.modified &&
         cached.size == stat.size) {
       final rows = cached.rows;
@@ -228,10 +230,10 @@ class TakeUploadQueue {
         for (final entry in raw)
           PendingTake.fromJson(entry as Map<String, Object?>, folder: folder),
       ];
-      _cachedRead = _CachedRead(stat.modified, stat.size, rows);
+      _cachedRead = _CachedRead(folder, stat.modified, stat.size, rows);
       return [for (final e in rows) e];
     } on Object {
-      _cachedRead = _CachedRead(stat.modified, stat.size, null);
+      _cachedRead = _CachedRead(folder, stat.modified, stat.size, null);
       return null;
     }
   }
@@ -401,7 +403,8 @@ class TakeUploadQueue {
   }
 
   Future<void> _write(List<PendingTake> entries) async {
-    final file = await _manifestFile();
+    final dir = await _dir();
+    final file = File(p.join(dir.path, _manifest));
     final staging = File('${file.path}.novo');
     await staging.writeAsString(
       jsonEncode([for (final e in entries) e.toJson()]),
@@ -409,7 +412,9 @@ class TakeUploadQueue {
     );
     await staging.rename(file.path);
     final stat = await file.stat();
-    _cachedRead = _CachedRead(stat.modified, stat.size, entries);
+    _cachedRead = _CachedRead(dir.path, stat.modified, stat.size, [
+      for (final e in entries) e,
+    ]);
   }
 
   /// Rewrite the manifest from what is actually on disk, one writer at a time.
