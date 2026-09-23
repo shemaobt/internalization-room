@@ -1006,6 +1006,37 @@ void main() {
   });
 
   test(
+    'a clip that fails on the GET calls a person, the same as the turn that sent it',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      notifier.conversaTap();
+      await settle();
+      harness.voice.roomFailsWith = const RoomBroke('HTTP 503');
+      notifier.conversaTap();
+      await settle();
+
+      final state = container.read(salaSessionProvider);
+      expect(
+        state.needsPerson,
+        isTrue,
+        reason:
+            'o GET do áudio falhava calado dentro do play() e virava strike '
+            'de "não toca" — a mesma falha vinda do POST do turno já chama '
+            'uma pessoa na hora, sem esperar três',
+      );
+      expect(
+        state.sessionId,
+        isNotNull,
+        reason: 'uma queda de rede não é a sessão que sumiu',
+      );
+    },
+  );
+
+  test(
     'a turn carries the passage entry\'s timing, not its own, and the next one carries its own wait',
     () async {
       final harness = SalaHarness();

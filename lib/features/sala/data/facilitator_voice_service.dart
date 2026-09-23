@@ -99,6 +99,14 @@ class FacilitatorVoiceService {
     final spoken = _speaking.then((_) async {
       try {
         return await speak();
+      } on RoomUnavailable {
+        rethrow;
+      } on RoomSlow {
+        rethrow;
+      } on RoomBroke {
+        rethrow;
+      } on RoomRefused {
+        rethrow;
       } on Exception {
         return false;
       }

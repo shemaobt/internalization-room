@@ -104,6 +104,11 @@ class FakeVoice implements FacilitatorVoiceService {
   /// Lines this voice refuses to say, by url or by asset path — for the halves of one
   /// turn, and for the bundled line a room can fail to play like any other.
   final Set<String> refuses = {};
+
+  /// What the next `play()` throws, when the room — not the player — is why the line
+  /// does not sound. Distinct from [refuses]: that is the player failing with the file
+  /// already in hand.
+  Exception? roomFailsWith;
   Completer<bool>? _holding;
 
   void holdNextLine() => _holding = Completer<bool>();
@@ -125,6 +130,8 @@ class FakeVoice implements FacilitatorVoiceService {
   @override
   Future<bool> play(String url, {void Function()? onSoundStart}) {
     played.add(url);
+    final failure = roomFailsWith;
+    if (failure != null) return Future.error(failure);
     sounds.add('voice:line');
     aoFalar?.call();
     onSoundStart?.call();

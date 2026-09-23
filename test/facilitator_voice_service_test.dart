@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/facilitator_voice_service.dart';
+import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:just_audio/just_audio.dart';
 
 import 'fakes.dart';
@@ -127,6 +128,32 @@ void main() {
 
     expect(await voice.play(_clip), isFalse);
   });
+
+  test(
+    'a fetch that fails because the room is down is not a failure to play',
+    () async {
+      Future<void> expectSurfaced(Exception error) async {
+        final voice = FacilitatorVoiceService(
+          fetch: (_) async => throw error,
+          libraryDir: () async => library,
+        );
+
+        await expectLater(
+          voice.play(_clip),
+          throwsA(same(error)),
+          reason:
+              'o GET do clipe caía no mesmo catch do player e virava "não '
+              'toca" — uma queda de rede ou um 5xx da sala precisam chegar '
+              'ao mesmo tratamento que o POST do turno já recebe',
+        );
+      }
+
+      await expectSurfaced(const RoomBroke('HTTP 503'));
+      await expectSurfaced(const RoomUnavailable('sem rede'));
+      await expectSurfaced(const RoomSlow());
+      await expectSurfaced(const RoomRefused());
+    },
+  );
 
   test('a truncated file on disk is fetched again, not played', () async {
     File('${library.path}/aaa.mp3').writeAsBytesSync([]);
