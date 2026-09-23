@@ -1744,12 +1744,13 @@ void main() {
   test(
     'a pull that finds the same replies already on the hand does not touch the screen',
     () async {
-      final harness = SalaHarness(
-        settleDelay: const Duration(seconds: 60),
-        replies: const [HandReply(id: 'r1', audioUrl: '/voice/r1')],
-      )
-        ..room.turnIdInResponse = 'turno-1'
-        ..room.holdNextState();
+      final harness =
+          SalaHarness(
+              settleDelay: const Duration(seconds: 60),
+              replies: const [HandReply(id: 'r1', audioUrl: '/voice/r1')],
+            )
+            ..room.turnIdInResponse = 'turno-1'
+            ..room.holdNextState();
       final container = harness.container();
       addTearDown(container.dispose);
 
@@ -1782,12 +1783,13 @@ void main() {
   test(
     'a pull that finds a reply new to the hand does touch the screen',
     () async {
-      final harness = SalaHarness(
-        settleDelay: const Duration(seconds: 60),
-        replies: const [HandReply(id: 'r1', audioUrl: '/voice/r1')],
-      )
-        ..room.turnIdInResponse = 'turno-1'
-        ..room.holdNextState();
+      final harness =
+          SalaHarness(
+              settleDelay: const Duration(seconds: 60),
+              replies: const [HandReply(id: 'r1', audioUrl: '/voice/r1')],
+            )
+            ..room.turnIdInResponse = 'turno-1'
+            ..room.holdNextState();
       final container = harness.container();
       addTearDown(container.dispose);
 
