@@ -1742,6 +1742,89 @@ void main() {
   );
 
   test(
+    'a pull that finds the same replies already on the hand does not touch the screen',
+    () async {
+      final harness = SalaHarness(
+        settleDelay: const Duration(seconds: 60),
+        replies: const [HandReply(id: 'r1', audioUrl: '/voice/r1')],
+      )
+        ..room.turnIdInResponse = 'turno-1'
+        ..room.holdNextState();
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+      await waitFor(
+        'a primeira leitura da caixa trazer r1',
+        () => container.read(salaSessionProvider).replies.length == 1,
+      );
+
+      var emits = 0;
+      container.listen(salaSessionProvider, (_, _) => emits++);
+
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+      );
+      await settle(const Duration(milliseconds: 100));
+
+      expect(
+        emits,
+        0,
+        reason:
+            'a caixa segue devolvendo só r1 — nada novo chegou, e o pull '
+            'não tinha porque reconstruir a tela por uma lista igual',
+      );
+
+      harness.room.finishHeldState();
+    },
+  );
+
+  test(
+    'a pull that finds a reply new to the hand does touch the screen',
+    () async {
+      final harness = SalaHarness(
+        settleDelay: const Duration(seconds: 60),
+        replies: const [HandReply(id: 'r1', audioUrl: '/voice/r1')],
+      )
+        ..room.turnIdInResponse = 'turno-1'
+        ..room.holdNextState();
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+      await waitFor(
+        'a primeira leitura da caixa trazer r1',
+        () => container.read(salaSessionProvider).replies.length == 1,
+      );
+
+      harness.inbox.replies = const [
+        HandReply(id: 'r1', audioUrl: '/voice/r1'),
+        HandReply(id: 'r2', audioUrl: '/voice/r2'),
+      ];
+      var emits = 0;
+      container.listen(salaSessionProvider, (_, _) => emits++);
+
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+      );
+      await waitFor(
+        'r2 chegar à mão',
+        () => container.read(salaSessionProvider).replies.length == 2,
+      );
+
+      expect(
+        emits,
+        greaterThan(0),
+        reason:
+            'r2 é nova — a mão só sabe de uma resposta que chegou se a '
+            'tela for reconstruída',
+      );
+
+      harness.room.finishHeldState();
+    },
+  );
+
+  test(
     'a frame that reports fewer beads than the necklace already shows changes nothing',
     () async {
       final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
