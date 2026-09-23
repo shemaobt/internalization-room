@@ -91,8 +91,10 @@ final busyStateCeilingProvider = Provider<Duration?>(
 /// How often an open microphone touches the room again. The shared client lets an idle
 /// connection go at 90 s and only the team's tap ends a take, so a take longer than that
 /// would otherwise hand its upload a connection that already lapsed. A provider, not a
-/// constant, so a test can reach the second touch without waiting a minute.
-final connectionRewarmIntervalProvider = Provider<Duration>(
+/// constant, so a test can reach the second touch without waiting a minute; null, like
+/// the busy ceiling, leaves only the first touch, for tests that end with the microphone
+/// open and cannot outlive a pending timer.
+final connectionRewarmIntervalProvider = Provider<Duration?>(
   (ref) => const Duration(seconds: 60),
 );
 
@@ -2163,7 +2165,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _keepTheConnectionWarm() {
     unawaited(_network.reachRoom());
-    _after('warm', ref.read(connectionRewarmIntervalProvider), () {
+    final every = ref.read(connectionRewarmIntervalProvider);
+    if (every == null) return;
+    _after('warm', every, () {
       if (state.voice == VoiceState.listening) _keepTheConnectionWarm();
     });
   }
