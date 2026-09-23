@@ -1006,6 +1006,51 @@ void main() {
   });
 
   test(
+    'the microphone opening warms the connection to the room, not just the invite',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      final checksBeforeTheFinger = harness.network.checks;
+
+      notifier.conversaTap();
+
+      expect(
+        harness.network.checks,
+        greaterThan(checksBeforeTheFinger),
+        reason:
+            'o dedo levanta o microfone e a conexão fica livre até o toque '
+            'de fim — esperar o toque de fim para tocar a rede é o '
+            'handshake que este ticket tirou do envio',
+      );
+    },
+  );
+
+  test(
+    'a warm-up the room refuses does not take the microphone offline, only its own answer',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.network.reachable = false;
+      notifier.conversaTap();
+      await settle();
+
+      expect(container.read(salaSessionProvider).voice, VoiceState.listening);
+      expect(
+        container.read(salaSessionProvider).offline,
+        isFalse,
+        reason:
+            'o aquecimento só adianta uma conexão; uma recusa dele não é '
+            'motivo para tirar a equipe do que já estava gravando',
+      );
+    },
+  );
+
+  test(
     'a turn carries the passage entry\'s timing, not its own, and the next one carries its own wait',
     () async {
       final harness = SalaHarness();

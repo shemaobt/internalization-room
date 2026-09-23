@@ -2141,6 +2141,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _silenceTheRoom();
     _recordingStarting = true;
     _listeningSince = DateTime.now();
+    unawaited(_network.reachRoom());
     // The line is kept, not dropped. `canHearAgain` already hides the button for every
     // voice but `invite`, so it is gone while the microphone is open either way — and
     // forgetting it here meant that when the room could only answer with a canned line,
