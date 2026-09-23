@@ -2,6 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 
+const _barCount = 24;
+const _barWidth = 5.0;
+const _barRadius = 3.0;
+const _step = 8.0;
+const _meterHeight = 40.0;
+const _chaseDuration = Duration(milliseconds: 60);
+
 class EqBars extends StatefulWidget {
   final bool active;
 
@@ -17,7 +24,13 @@ class _EqBarsState extends State<EqBars> with SingleTickerProviderStateMixin {
     duration: const Duration(milliseconds: 1200),
   );
 
+  List<double> _heights = List.generate(_barCount, _baseHeight);
+  List<double> _targets = List.generate(_barCount, _baseHeight);
+  Duration? _lastElapsed;
+
   bool get _still => MediaQuery.disableAnimationsOf(context);
+
+  static double _baseHeight(int i) => 10.0 + (i * 7) % 26;
 
   @override
   void didChangeDependencies() {
@@ -33,10 +46,10 @@ class _EqBarsState extends State<EqBars> with SingleTickerProviderStateMixin {
 
   void _follow() {
     if (widget.active && !_still) {
-      if (!_controller.isAnimating) _controller.repeat();
-    } else if (_controller.isAnimating) {
-      _controller.stop();
-      _controller.value = 0;
+      if (!_controller.isAnimating) {
+        _controller.repeat();
+        if (_lastElapsed != null) _lastElapsed = Duration.zero;
+      }
     }
   }
 
@@ -54,43 +67,86 @@ class _EqBarsState extends State<EqBars> with SingleTickerProviderStateMixin {
     // strongest "the microphone is on" cue on the rehearsal screen, and it was the least
     // legible thing on it — on a tablet outdoors, which is where this runs.
     final activeColor = colors.telha;
-    return SizedBox(
-      height: 40,
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) => Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            for (var i = 0; i < 24; i++)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 1.5),
-                child: _bar(i, colors, activeColor),
-              ),
-          ],
-        ),
-      ),
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        _chase();
+        return RepaintBoundary(
+          child: CustomPaint(
+            size: const Size(_barCount * _step, _meterHeight),
+            painter: EqBarsPainter(
+              heights: List.of(_heights),
+              barColor: widget.active ? activeColor : colors.cord,
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _bar(int i, SalaColors colors, Color activeColor) {
-    final baseHeight = 10.0 + (i * 7) % 26;
-    var height = baseHeight;
-    if (widget.active && !_still) {
-      final phase = (_controller.value * (2 + i % 3) + i * 0.11) % 1.0;
-      final wave = (0.35 + 0.65 * (0.5 + 0.5 * _triangle(phase)));
-      height = baseHeight * wave;
+  double _target(int i) {
+    if (!widget.active || _still) return _baseHeight(i);
+    final phase = (_controller.value * (2 + i % 3) + i * 0.11) % 1.0;
+    final wave = 0.35 + 0.65 * (0.5 + 0.5 * _triangle(phase));
+    return _baseHeight(i) * wave;
+  }
+
+  void _chase() {
+    final elapsed = _controller.lastElapsedDuration ?? Duration.zero;
+    final freshTargets = List.generate(_barCount, _target);
+    final lastElapsed = _lastElapsed;
+    if (lastElapsed == null) {
+      _heights = List.of(freshTargets);
+    } else {
+      final dt = elapsed - lastElapsed;
+      final weight = (dt.inMicroseconds / _chaseDuration.inMicroseconds).clamp(
+        0.0,
+        1.0,
+      );
+      for (var i = 0; i < _barCount; i++) {
+        _heights[i] = _heights[i] + weight * (_targets[i] - _heights[i]);
+      }
     }
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 60),
-      width: 5,
-      height: height,
-      decoration: BoxDecoration(
-        color: widget.active ? activeColor : colors.cord,
-        borderRadius: BorderRadius.circular(3),
-      ),
-    );
+    _targets = freshTargets;
+    _lastElapsed = elapsed;
+    if ((!widget.active || _still) && _controller.isAnimating && _settled()) {
+      _controller.stop();
+    }
+  }
+
+  bool _settled() {
+    for (var i = 0; i < _barCount; i++) {
+      if ((_heights[i] - _baseHeight(i)).abs() > 0.01) return false;
+    }
+    return true;
   }
 
   double _triangle(double t) => t < 0.5 ? 4 * t - 1 : 3 - 4 * t;
+}
+
+class EqBarsPainter extends CustomPainter {
+  final List<double> heights;
+  final Color barColor;
+
+  const EqBarsPainter({required this.heights, required this.barColor});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = barColor;
+    for (var i = 0; i < heights.length; i++) {
+      final rect = Rect.fromLTWH(
+        i * _step + 1.5,
+        size.height - heights[i],
+        _barWidth,
+        heights[i],
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect, const Radius.circular(_barRadius)),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(EqBarsPainter old) => true;
 }

@@ -88,6 +88,16 @@ final busyStateCeilingProvider = Provider<Duration?>(
   (ref) => const Duration(seconds: 330),
 );
 
+/// How often an open microphone touches the room again. The shared client lets an idle
+/// connection go at 90 s and only the team's tap ends a take, so a take longer than that
+/// would otherwise hand its upload a connection that already lapsed. A provider, not a
+/// constant, so a test can reach the second touch without waiting a minute; null, like
+/// the busy ceiling, leaves only the first touch, for tests that end with the microphone
+/// open and cannot outlive a pending timer.
+final connectionRewarmIntervalProvider = Provider<Duration?>(
+  (ref) => const Duration(seconds: 60),
+);
+
 /// Slack added to a clip's own length before the room decides the playback is lost. A
 /// provider, not a constant, because a ceiling nothing can shrink is a ceiling no test
 /// can reach — which is how the paused-clip bug shipped.
@@ -197,6 +207,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _ackSpoken = 0;
   DateTime? _listeningSince;
   bool _recordingStarting = false;
+  int _starts = 0;
   VoiceState _voiceBeforeQuestion = VoiceState.invite;
   String? _emCurso;
   Trecho? _trechoTraduzidoDeNovo;
@@ -624,7 +635,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     clock?.mark('answer');
     _awaitCoverageSettle(turn, clock: clock);
     _scheduleInboxPoll();
-    await _readyToSpeak(turn.audioUrl, turn.fixedLine);
+    await _readyToSpeak(
+      turn.toldInTwoMovements ? turn.panoramaUrl : turn.audioUrl,
+      turn.fixedLine,
+    );
     if (epoch != _epoch) return;
     clock?.mark('clip');
     if (turn.audioUrl.isEmpty && turn.fixedLine.isEmpty) {
@@ -1501,7 +1515,31 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _haltForAPerson();
       return;
     }
-    unawaited(_dizerAOferecida());
+    unawaited(
+      _dizerAOferecida().then((_) => _fetchTheNamesTheWheelLacks(epoch)),
+    );
+  }
+
+  /// One number per quiet download of the wheel's names. Every way off the wheel bumps the
+  /// epoch except the panorama spoke, which never passes through `_clearAll`; entering any
+  /// spoke bumps this instead, so a download started for the wheel dies with it either way.
+  int _wheelPrefetch = 0;
+
+  Future<void> _fetchTheNamesTheWheelLacks(int epoch) async {
+    final run = ++_wheelPrefetch;
+    final roda = state.naRoda;
+    if (roda == null || roda.isEmpty) return;
+    final pending = List<int>.generate(roda.length, (i) => i);
+    while (pending.isNotEmpty) {
+      if (epoch != _epoch || run != _wheelPrefetch) return;
+      final aim = state.aOferecer;
+      pending.sort(
+        (a, b) => ((a - aim) % roda.length).compareTo((b - aim) % roda.length),
+      );
+      final url = roda[pending.removeAt(0)].audioUrl;
+      if (url.isEmpty || await _voice.holds(url)) continue;
+      await _voice.fetch(url);
+    }
   }
 
   /// The circle on the wheel says the passage again. It no longer moves.
@@ -1578,6 +1616,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void entrarNaOferecida() {
     final passagem = state.oferecida;
     if (passagem == null || state.voice != VoiceState.invite) return;
+    _wheelPrefetch++;
     // Acima dos dois ramos: o panorama não passa pelo _clearAll do goConversa, e a
     // linha que a roda acabou de oferecer seguia soando por cima da espera dele.
     _silenceTheRoom();
@@ -2202,6 +2241,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _silenceTheRoom();
     _recordingStarting = true;
     _listeningSince = DateTime.now();
+    _keepTheConnectionWarm();
     // The line is kept, not dropped. `canHearAgain` already hides the button for every
     // voice but `invite`, so it is gone while the microphone is open either way — and
     // forgetting it here meant that when the room could only answer with a canned line,
@@ -2212,6 +2252,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   bool _hasAudio(String path) =>
       File(path).existsSync() && File(path).lengthSync() > 0;
+
+  void _keepTheConnectionWarm() {
+    unawaited(_network.reachRoom());
+    final every = ref.read(connectionRewarmIntervalProvider);
+    if (every == null) return;
+    _after('warm', every, () {
+      if (state.voice == VoiceState.listening) _keepTheConnectionWarm();
+    });
+  }
 
   Future<void> _finishListening() async {
     final epoch = _epoch;
@@ -2871,15 +2920,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _recordOrBlock(String fileName) async {
     final epoch = _epoch;
+    final start = ++_starts;
     final openedAsAChunkCapture = state.btPhase == BtPhase.capturing;
     _micWatch ??= _recorder.interrupted.listen(_theMicrophoneChangedHands);
     final capture = await _recorder.start(fileName);
+    if (_gone) return;
     // The answer can arrive a minute late — `hasPermission` waits up to sixty seconds for
     // the platform — by which time the team may be on another stage entirely, with a
     // microphone of its own still opening. Cleared under the guard, never above it: a
     // start coming back from a passage already left let the next passage's second tap
     // through, onto a recorder that had not opened.
-    if (epoch != _epoch || _gone) return;
+    if (epoch != _epoch) {
+      if (start == _starts && capture == Capture.started) {
+        _recordingStarting = false;
+        unawaited(_recorder.discard());
+      }
+      return;
+    }
     _recordingStarting = false;
     switch (capture) {
       case Capture.started:
@@ -2914,7 +2971,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ensaio: EnsaioStatus.idle,
       noteMode: false,
       btPhase: capturing ? BtPhase.playing : state.btPhase,
-      voice: state.needsPerson ? null : VoiceState.invite,
+      voice: state.canResolveWithPerson ? null : VoiceState.invite,
       // Whether the microphone a correction was going to speak into never opened, or
       // opened and was just discarded under a halt, the mend has not landed and that
       // stretch is waiting again.
@@ -2964,24 +3021,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final epoch = _epoch;
     final counting = ++_newestCount;
     final queue = _takes;
+    final sessionId = state.sessionId;
     // Whether a recording is stuck is not a question about the session in progress, and
     // asking it only when one existed meant the check at the first frame — the moment a
     // facilitator is standing there and could act — did nothing at all.
-    final stranded =
-        (await queue.giveUps()).isNotEmpty || await queue.lostHistory();
+    final tally = await queue.tally(sessionId: sessionId);
     if (_gone) return;
-    if (stranded && epoch == _epoch) _sayARecordingIsStranded();
+    if (tally.stranded && epoch == _epoch) _sayARecordingIsStranded();
     if (epoch != _epoch) return;
-    final sessionId = state.sessionId;
     if (sessionId == null) return;
-    final takes = await queue.unsentOf('ensaio', sessionId: sessionId);
-    final chunks = await queue.unsentOf('retro', sessionId: sessionId);
-    final scopes = await queue.unsentScopesOf('ensaio', sessionId: sessionId);
     if (_gone || epoch != _epoch || counting != _newestCount) return;
     state = state.copyWith(
-      unsentTakes: takes,
-      unsentChunks: chunks,
-      unsentTakeScopes: scopes,
+      unsentTakes: tally.unsentTakes,
+      unsentChunks: tally.unsentChunks,
+      unsentTakeScopes: tally.unsentTakeScopes,
     );
   }
 

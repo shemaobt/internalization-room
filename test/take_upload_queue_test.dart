@@ -167,6 +167,276 @@ void main() {
     expect(await afterRestart.pending(), isEmpty);
   });
 
+  test(
+    'a manifest whose stat has not changed is not read from disk again',
+    () async {
+      final room = FakeRoom()..reachable = false;
+      final queue = queueOn(room);
+      await queue.enqueue(
+        aTake('tomada'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'inteira',
+      );
+
+      final file = manifest();
+      final stamp = DateTime(2026, 1, 1);
+      final size = await file.length();
+      await file.setLastModified(stamp);
+      expect(await queue.entries(), hasLength(1));
+
+      file.writeAsBytesSync(List.filled(size, 'x'.codeUnitAt(0)));
+      await file.setLastModified(stamp);
+      final after = await file.stat();
+      expect(
+        after.modified,
+        stamp,
+        reason:
+            'o teste só prova algo se o stat continuar igual ao de antes — um '
+            'timestamp com fração de segundo não sobrevive ao round-trip de '
+            'setLastModified neste sistema de arquivos, daí o carimbo redondo',
+      );
+      expect(after.size, size);
+
+      expect(
+        await queue.entries(),
+        hasLength(1),
+        reason:
+            'o stat não mudou, então a leitura de antes ainda vale — reparsear '
+            'os bytes de agora devolveria uma lista vazia, não a de uma linha',
+      );
+    },
+  );
+
+  test(
+    'a manifest rewritten by something other than this queue is read again',
+    () async {
+      final room = FakeRoom()..reachable = false;
+      final queue = queueOn(room);
+      await queue.enqueue(
+        aTake('primeira'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'inteira',
+      );
+      expect(await queue.entries(), hasLength(1));
+
+      manifest().writeAsStringSync(
+        '[{"id":"externa-1","path":"${home.path}/guardadas/externa1.m4a",'
+        '"session_id":"sessao-2","kind":"ensaio","scope":"inteira",'
+        '"pass_number":null,"chunk_index":null,"stored":false,"lost":false,'
+        '"attempts":0,"waits":0,"last_try":null},'
+        '{"id":"externa-2","path":"${home.path}/guardadas/externa2.m4a",'
+        '"session_id":"sessao-2","kind":"ensaio","scope":"inteira",'
+        '"pass_number":null,"chunk_index":null,"stored":false,"lost":false,'
+        '"attempts":0,"waits":0,"last_try":null}]',
+      );
+
+      expect(
+        await queue.entries(),
+        hasLength(2),
+        reason:
+            'o arquivo mudou de verdade por fora — o cache tem que perceber '
+            'e reler, não continuar servindo a leitura de uma linha só',
+      );
+    },
+  );
+
+  test(
+    'clearing a list entries() handed back does not empty the next one',
+    () async {
+      final room = FakeRoom()..reachable = false;
+      final queue = queueOn(room);
+      await queue.enqueue(
+        aTake('tomada'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'inteira',
+      );
+
+      final first = await queue.entries();
+      first.clear();
+
+      expect(
+        await queue.entries(),
+        hasLength(1),
+        reason:
+            'a lista devolvida é uma cópia da leitura guardada — mexer nela '
+            'por fora não pode apagar o que o cache guarda',
+      );
+    },
+  );
+
+  test(
+    'tally counts what unsentOf and unsentScopesOf count, from one read',
+    () async {
+      final room = FakeRoom()..reachable = false;
+      final queue = queueOn(room);
+      await queue.enqueue(
+        aTake('um'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'inteira',
+      );
+      await queue.enqueue(
+        aTake('dois'),
+        sessionId: 'sessao-1',
+        kind: 'retro',
+        scope: 'inteira',
+      );
+      await queue.enqueue(
+        aTake('tres'),
+        sessionId: 'sessao-2',
+        kind: 'ensaio',
+        scope: 'inteira',
+      );
+
+      final tally = await queue.tally(sessionId: 'sessao-1');
+
+      expect(tally.stranded, isFalse);
+      expect(tally.unsentTakes, 1, reason: 'só a linha ensaio da sessao-1');
+      expect(tally.unsentChunks, 1, reason: 'só a linha retro da sessao-1');
+      expect(tally.unsentTakeScopes, {'inteira'});
+    },
+  );
+
+  test(
+    'a manifest tally cannot read never claims the audio is safe either',
+    () async {
+      final room = FakeRoom()..reachable = false;
+      final queue = queueOn(room);
+      await queue.enqueue(
+        aTake('velha'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'inteira',
+      );
+      manifest().writeAsStringSync('[{"id": "velha-1", tru');
+
+      final tally = await queue.tally(sessionId: 'sessao-1');
+
+      expect(
+        tally.unsentTakes,
+        1,
+        reason:
+            'um manifesto ilegível nunca pode dizer que não há nada pendente',
+      );
+      expect(tally.unsentChunks, 1);
+      expect(tally.unsentTakeScopes, {unknownScope});
+    },
+  );
+
+  test(
+    'tally is stranded once quarantine has happened, from the same read',
+    () async {
+      final room = FakeRoom()..reachable = false;
+      final queue = queueOn(room);
+      await queue.enqueue(
+        aTake('velha-1'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'inteira',
+      );
+
+      manifest().writeAsStringSync('[{"id": "velha-1", tru');
+      await queue.enqueue(
+        aTake('nova'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'inteira',
+      );
+
+      final tally = await queue.tally(sessionId: 'sessao-1');
+
+      expect(
+        tally.stranded,
+        isTrue,
+        reason:
+            'a quarentena aconteceu — a mesma leitura que conta precisa saber disso',
+      );
+    },
+  );
+
+  test(
+    'a manifest of three thousand rows is parsed once and reused, not on every read',
+    () async {
+      final room = FakeRoom()..reachable = false;
+      final queue = queueOn(room);
+
+      final buffer = StringBuffer('[');
+      for (var n = 0; n < 3000; n++) {
+        if (n > 0) buffer.write(',');
+        buffer.write(
+          '{"id":"linha-$n","path":"${home.path}/guardadas/tomada-$n.m4a",'
+          '"session_id":"sessao-1","kind":"ensaio","scope":"parte-${n % 12}",'
+          '"pass_number":null,"chunk_index":null,"stored":false,"lost":false,'
+          '"attempts":0,"waits":0,"last_try":null}',
+        );
+      }
+      buffer.write(']');
+      Directory('${home.path}/guardadas').createSync(recursive: true);
+      final file = manifest();
+      file.writeAsStringSync(buffer.toString());
+
+      final stamp = DateTime(2026, 1, 1);
+      await file.setLastModified(stamp);
+      expect(
+        await queue.entries(),
+        hasLength(3000),
+        reason: 'a primeira leitura precisa mesmo parsear as 3.000 linhas',
+      );
+
+      final size = await file.length();
+      for (var round = 0; round < 20; round++) {
+        file.writeAsBytesSync(List.filled(size, 'x'.codeUnitAt(0)));
+        await file.setLastModified(stamp);
+        expect(
+          await queue.entries(),
+          hasLength(3000),
+          reason:
+              'o stat não mudou — a leitura das 3.000 linhas de antes ainda '
+              'vale; reparsear os bytes corrompidos de agora devolveria uma '
+              'lista vazia, não 3.000',
+        );
+      }
+    },
+  );
+
+  test('a manifest moved to a new home, its stat preserved, resolves audio '
+      'against the new folder, not the one that is gone', () async {
+    final room = FakeRoom()..reachable = false;
+    final queue = queueOn(room);
+    await queue.enqueue(
+      aTake('tomada'),
+      sessionId: 'sessao-1',
+      kind: 'ensaio',
+      scope: 'inteira',
+    );
+
+    final stamp = DateTime(2026, 1, 1);
+    await manifest().setLastModified(stamp);
+    final before = await queue.entries();
+    final oldPath = before.single.path;
+
+    theContainerIsRenamed();
+    await manifest().setLastModified(stamp);
+
+    final after = await queue.entries();
+    expect(
+      after.single.path,
+      isNot(equals(oldPath)),
+      reason:
+          'a pasta mudou de verdade — servir o caminho antigo aponta para '
+          'um áudio que não está mais lá, mesmo com o manifesto intacto',
+    );
+    expect(
+      File(after.single.path).existsSync(),
+      isTrue,
+      reason:
+          'o caminho devolvido precisa apontar para onde o áudio está agora',
+    );
+  });
+
   test('the audio file is never deleted, even after the room has it', () async {
     final room = FakeRoom();
     final queue = queueOn(room);

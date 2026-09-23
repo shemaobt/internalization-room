@@ -637,6 +637,23 @@ void main() {
   );
 
   test(
+    'a two-movement opening fetches the first movement, never the whole line',
+    () async {
+      final harness = SalaHarness()..room.opensInTwoMovements = true;
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+
+      expect(
+        harness.voice.fetched,
+        [panoramaUrl, sceneUrl],
+        reason:
+            'o que baixa antes de tocar é o primeiro movimento — a linha '
+            'inteira (turnoUrl) nunca é pedida, porque nunca é ela quem soa',
+      );
+    },
+  );
+
+  test(
     'the necklace stays off the cord while the whole is being told',
     () async {
       final harness = SalaHarness()..room.opensInTwoMovements = true;
@@ -978,6 +995,85 @@ void main() {
     expect(harness.voice.played, hasLength(2));
     expect(container.read(salaSessionProvider).voice, VoiceState.invite);
   });
+
+  test(
+    'the microphone opening warms the connection to the room, not just the invite',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      final checksBeforeTheFinger = harness.network.checks;
+
+      notifier.conversaTap();
+
+      expect(
+        harness.network.checks,
+        greaterThan(checksBeforeTheFinger),
+        reason:
+            'o dedo levanta o microfone e a conexão fica livre até o toque '
+            'de fim — esperar o toque de fim para tocar a rede é o '
+            'handshake que este ticket tirou do envio',
+      );
+    },
+  );
+
+  test(
+    'a long take keeps touching the room while the microphone is open, and stops when it closes',
+    () async {
+      final harness = SalaHarness(rewarm: const Duration(milliseconds: 40));
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      final before = harness.network.checks;
+
+      notifier.conversaTap();
+      await settle(const Duration(milliseconds: 150));
+
+      expect(
+        harness.network.checks - before,
+        greaterThanOrEqualTo(3),
+        reason:
+            'o cliente larga a conexão ociosa aos 90 s e só o toque de fim '
+            'encerra uma tomada; sem um toque na sala a cada intervalo, uma '
+            'tomada longa volta a pagar o handshake no envio',
+      );
+
+      notifier.conversaTap();
+      await settle();
+      final whenItClosed = harness.network.checks;
+      await settle(const Duration(milliseconds: 150));
+
+      expect(
+        harness.network.checks,
+        whenItClosed,
+        reason: 'com o microfone fechado, nada mais aquece a conexão',
+      );
+    },
+  );
+
+  test(
+    'a warm-up the room refuses does not take the microphone offline, only its own answer',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.network.reachable = false;
+      notifier.conversaTap();
+      await settle();
+
+      expect(container.read(salaSessionProvider).voice, VoiceState.listening);
+      expect(
+        container.read(salaSessionProvider).offline,
+        isFalse,
+        reason:
+            'o aquecimento só adianta uma conexão; uma recusa dele não é '
+            'motivo para tirar a equipe do que já estava gravando',
+      );
+    },
+  );
 
   test(
     'a turn carries the passage entry\'s timing, not its own, and the next one carries its own wait',
@@ -2556,7 +2652,6 @@ void main() {
       addTearDown(container.dispose);
 
       expect(container.read(salaSessionProvider).voice, VoiceState.done);
-      expect(container.read(salaSessionProvider).conversaDone, isTrue);
     },
   );
 
@@ -2595,13 +2690,6 @@ void main() {
       reason:
           'done muda o que a tela oferece, nunca fecha ou reinicia a '
           'conversa sozinha',
-    );
-    expect(
-      container.read(salaSessionProvider).conversaDone,
-      isTrue,
-      reason:
-          'a sala continua reportando done, então a entrada de gravação '
-          'segue oferecida ao mesmo tempo que o círculo volta a ouvir',
     );
   });
 
@@ -3914,13 +4002,6 @@ void main() {
           '_deliverQuestion fixava voice: invite no sucesso — a mão foi '
           'levantada com a sala em done e a pergunta silenciosa devolveu a voz errada',
     );
-    expect(
-      container.read(salaSessionProvider).conversaDone,
-      isTrue,
-      reason:
-          'conversaDone é voice == done — perder a voz done também derruba o '
-          'AdvanceButton do ensaio que a sala continua reportando',
-    );
   });
 
   test('canceling a note raised at done returns to done, not invite', () async {
@@ -4290,6 +4371,216 @@ void main() {
     expect(container.read(salaSessionProvider).oferecida?.pericope, 'P02');
     expect(harness.voice.played, ['/voice/p01', '/voice/p01', '/voice/p02']);
   });
+
+  test(
+    'the wheel quietly downloads the names it lacks, one at a time, skipping the one it already holds',
+    () async {
+      final harness = SalaHarness();
+      harness.room.passages = const [
+        Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+        Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
+        Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
+        Passagem(pericope: 'P04', audioUrl: '/voice/p04'),
+      ];
+      harness.voice.missing.addAll({'/voice/p03', '/voice/p04'});
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      await notifier.abrirEscolha();
+      await settle();
+
+      expect(
+        harness.voice.fetched,
+        ['/voice/p01', '/voice/p03', '/voice/p04'],
+        reason:
+            'p01 chega pela própria fala oferecida; p02 já estava no '
+            'aparelho e não pedia nada; p03 e p04 faltavam e a fila os '
+            'buscou na ordem da roda, um de cada vez',
+      );
+    },
+  );
+
+  test(
+    'reopening the wheel starts a fresh download and cuts the one before it short',
+    () async {
+      final harness = SalaHarness();
+      harness.room.passages = const [
+        Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+        Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
+        Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
+      ];
+      harness.voice.missing.addAll({'/voice/p02', '/voice/p03'});
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.voice.holdNextFetch();
+      unawaited(notifier.abrirEscolha());
+      await settle();
+      harness.voice.finishHeldFetch();
+      harness.voice.holdNextFetch();
+      await settle();
+
+      expect(
+        harness.voice.fetched,
+        ['/voice/p01', '/voice/p02'],
+        reason:
+            'a primeira fala já pediu p01; a fila achou p02 faltando e '
+            'estava presa nele quando a roda reabriu',
+      );
+
+      unawaited(notifier.abrirEscolha());
+      harness.voice.finishHeldFetch();
+      await settle();
+
+      expect(
+        harness.voice.fetched.where((url) => url == '/voice/p03').length,
+        1,
+        reason:
+            'a fila antiga viu o epoch trocado e parou antes de pedir p03; '
+            'só a fila nova, aberta pela roda reaberta, pediu esse nome',
+      );
+    },
+  );
+
+  test(
+    "a hand that enters a passage cuts the wheel's quiet download short",
+    () async {
+      final harness = SalaHarness();
+      harness.room.passages = const [
+        Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+        Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
+        Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
+      ];
+      harness.voice.missing.addAll({'/voice/p02', '/voice/p03'});
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.voice.holdNextFetch();
+      unawaited(notifier.abrirEscolha());
+      await settle();
+      harness.voice.finishHeldFetch();
+      harness.voice.holdNextFetch();
+      await settle();
+
+      notifier.entrarNaOferecida();
+      harness.voice.finishHeldFetch();
+      await settle();
+
+      expect(
+        harness.voice.fetched,
+        isNot(contains('/voice/p03')),
+        reason:
+            'a equipe entrou em P01 enquanto a fila ainda esperava por p02; '
+            'a fila viu o estágio sair da escolha e nunca pediu p03',
+      );
+    },
+  );
+
+  test(
+    'dragging the ruler mid-download moves the next fetch to where the finger landed, not where the wheel opened',
+    () async {
+      final harness = SalaHarness();
+      harness.room.passages = const [
+        Passagem(pericope: 'P00', audioUrl: '/voice/p00'),
+        Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+        Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
+        Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
+        Passagem(pericope: 'P04', audioUrl: '/voice/p04'),
+      ];
+      harness.voice.missing.addAll({
+        '/voice/p01',
+        '/voice/p02',
+        '/voice/p03',
+        '/voice/p04',
+      });
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.voice.holdNextFetch();
+      unawaited(notifier.abrirEscolha());
+      await settle();
+      harness.voice.finishHeldFetch();
+      harness.voice.holdNextFetch();
+      await settle();
+
+      expect(
+        harness.voice.fetched,
+        ['/voice/p00', '/voice/p01'],
+        reason:
+            'p00 chega pela própria fala oferecida; a fila achou p01 '
+            'faltando e estava presa nele quando a régua se moveu',
+      );
+
+      notifier.apontarPassagem(4);
+      harness.voice.finishHeldFetch();
+      harness.voice.holdNextFetch();
+      await settle();
+
+      expect(
+        harness.voice.fetched,
+        ['/voice/p00', '/voice/p01', '/voice/p04'],
+        reason:
+            'p01 já estava em voo e terminou normalmente; a régua pousou '
+            'em p04, e é ele que a fila busca a seguir, não p02, que '
+            'seria o próximo na ordem antiga',
+      );
+
+      harness.voice.finishHeldFetch();
+      await settle();
+
+      expect(
+        harness.voice.fetched,
+        ['/voice/p00', '/voice/p01', '/voice/p04', '/voice/p02', '/voice/p03'],
+        reason:
+            'com a régua parada em p04, o resto da fila termina pela '
+            'distância até ela: p02 antes de p03',
+      );
+    },
+  );
+
+  test(
+    "a hand that enters the panorama spoke cuts the wheel's quiet download short too",
+    () async {
+      final harness = SalaHarness();
+      harness.room.passages = const [
+        Passagem(
+          pericope: 'PAN',
+          audioUrl: '/voice/pan',
+          kind: PassagemKind.panorama,
+        ),
+        Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+        Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
+      ];
+      harness.voice.missing.addAll({'/voice/p01', '/voice/p02'});
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.voice.holdNextFetch();
+      unawaited(notifier.abrirEscolha());
+      await settle();
+      harness.voice.finishHeldFetch();
+      harness.voice.holdNextFetch();
+      await settle();
+
+      notifier.entrarNaOferecida();
+      harness.voice.finishHeldFetch();
+      await settle();
+
+      expect(
+        harness.voice.fetched,
+        isNot(contains('/voice/p02')),
+        reason:
+            'o panorama não passa pelo _clearAll e não troca o epoch; a fila '
+            'seguia baixando nomes pelo mesmo link que a abertura lenta do '
+            'panorama estava usando',
+      );
+    },
+  );
 
   test('the row has ends, and stops at them instead of wrapping', () async {
     final harness = SalaHarness();

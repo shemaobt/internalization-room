@@ -283,9 +283,6 @@ class SalaSessionState {
 
   bool get onFim => stage == SalaStage.fim;
 
-  bool get conversaDone =>
-      stage == SalaStage.conversa && voice == VoiceState.done;
-
   bool get ensaioDone => takes >= 1 && ensaio == EnsaioStatus.idle;
 
   bool get ensaioHasATake => takes >= 1;

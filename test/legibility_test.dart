@@ -161,14 +161,19 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 80));
 
-    final painted = tester
-        .widgetList<AnimatedContainer>(find.byType(AnimatedContainer))
-        .map((bar) => (bar.decoration as BoxDecoration?)?.color)
-        .whereType<Color>()
-        .toSet();
+    final painted =
+        (tester
+                .widget<CustomPaint>(
+                  find.descendant(
+                    of: find.byType(EqBars),
+                    matching: find.byType(CustomPaint),
+                  ),
+                )
+                .painter
+            as EqBarsPainter);
 
     expect(
-      painted,
+      {painted.barColor},
       contains(SalaColors.light.telha),
       reason:
           'o medidor usava um laranja fixo afinado no fundo escuro — 2,5:1 no papel '
@@ -180,4 +185,100 @@ void main() {
       greaterThan(4),
     );
   });
+
+  testWidgets('a bar chases last frame\'s target, not this one\'s', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const Scaffold(body: Center(child: EqBars(active: true))),
+      ),
+    );
+
+    double heightOfBarZero() =>
+        (tester
+                    .widget<CustomPaint>(
+                      find.descendant(
+                        of: find.byType(EqBars),
+                        matching: find.byType(CustomPaint),
+                      ),
+                    )
+                    .painter
+                as EqBarsPainter)
+            .heights[0];
+
+    expect(
+      heightOfBarZero(),
+      closeTo(3.5, 0.001),
+      reason:
+          'primeiro quadro, sem quadro anterior para atrasar: a altura já é o '
+          'próprio alvo calculado com _controller.value = 0',
+    );
+
+    await tester.pump(const Duration(milliseconds: 30));
+    expect(
+      heightOfBarZero(),
+      closeTo(3.5, 0.001),
+      reason:
+          'o alvo deste quadro subiu para 4.15, mas o atraso de um quadro faz a '
+          'barra perseguir ainda o alvo do quadro anterior (3.5) — sem o atraso '
+          'ela já estaria em 3.825',
+    );
+
+    await tester.pump(const Duration(milliseconds: 30));
+    expect(heightOfBarZero(), closeTo(3.825, 0.001));
+
+    await tester.pump(const Duration(milliseconds: 30));
+    expect(heightOfBarZero(), closeTo(4.3125, 0.001));
+  });
+
+  testWidgets(
+    'a bar settles at rest when recording stops mid-wave, not where it froze',
+    (tester) async {
+      Future<void> pumpActive(bool active) => tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: Scaffold(
+            body: Center(child: EqBars(active: active)),
+          ),
+        ),
+      );
+
+      double heightOfBarZero() =>
+          (tester
+                      .widget<CustomPaint>(
+                        find.descendant(
+                          of: find.byType(EqBars),
+                          matching: find.byType(CustomPaint),
+                        ),
+                      )
+                      .painter
+                  as EqBarsPainter)
+              .heights[0];
+
+      await pumpActive(true);
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(
+        heightOfBarZero(),
+        isNot(closeTo(10.0, 0.5)),
+        reason: 'depois de tocar, a barra está em algum ponto da onda',
+      );
+
+      await pumpActive(false);
+      for (var frame = 0; frame < 10; frame++) {
+        await tester.pump(const Duration(milliseconds: 30));
+      }
+
+      expect(
+        heightOfBarZero(),
+        closeTo(10.0, 0.5),
+        reason:
+            'cada AnimatedContainer assentava em baseHeight sozinho quando a '
+            'gravação parava no meio da onda; parar de perseguir o alvo '
+            'junto com o controlador compartilhado congelava a barra onde a '
+            'gravação parou, não em repouso',
+      );
+    },
+  );
 }
