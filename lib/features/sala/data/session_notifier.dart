@@ -1440,7 +1440,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _haltForAPerson();
       return;
     }
-    unawaited(_dizerAOferecida());
+    unawaited(
+      _dizerAOferecida().then((_) => _fetchTheNamesTheWheelLacks(epoch)),
+    );
+  }
+
+  Future<void> _fetchTheNamesTheWheelLacks(int epoch) async {
+    final roda = state.naRoda;
+    if (roda == null || roda.isEmpty) return;
+    final start = state.aOferecer;
+    for (var i = 0; i < roda.length; i++) {
+      if (epoch != _epoch) return;
+      final url = roda[(start + i) % roda.length].audioUrl;
+      if (url.isEmpty || await _voice.holds(url)) continue;
+      await _voice.fetch(url);
+    }
   }
 
   /// The circle on the wheel says the passage again. It no longer moves.
