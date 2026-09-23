@@ -640,6 +640,50 @@ void main() {
   );
 
   test(
+    'a settled frame carries the same beads the state endpoint would answer with',
+    () async {
+      final controller = StreamController<List<int>>();
+      final repository = RoomRepository(
+        client: MockClient.streaming(
+          (request, bodyStream) async =>
+              http.StreamedResponse(controller.stream, 200),
+        ),
+      );
+      addTearDown(repository.dispose);
+
+      final frames = <CoverageEvent>[];
+      final done = Completer<void>();
+      final subscription = repository
+          .watchCoverage('sessao-1')
+          .listen(frames.add, onDone: done.complete);
+      addTearDown(subscription.cancel);
+
+      controller.add(
+        utf8.encode(
+          'event: coverage\n'
+          'data: {"turn_id": "turno-1", "status": "settled", '
+          '"coverage": {"engaged": 3, "surfaced": 4, "total": 29, "absence_index": 13}}\n\n',
+        ),
+      );
+      await controller.close();
+      await done.future;
+
+      final coverage = frames.single.coverage;
+      expect(
+        coverage,
+        isNotNull,
+        reason:
+            'o aviso já carrega as contas — esperar o fetchState pedia de '
+            'novo o que o próprio evento acabou de responder',
+      );
+      expect(coverage!.engaged, 3);
+      expect(coverage.surfaced, 4);
+      expect(coverage.total, 29);
+      expect(coverage.absenceIndex, 13);
+    },
+  );
+
+  test(
     'a keep-alive on the coverage channel produces nothing, and the channel keeps talking',
     () async {
       final controller = StreamController<List<int>>();
@@ -677,6 +721,120 @@ void main() {
             'parser antes do próximo evento de verdade chegar',
       );
       expect(frames.single.turnId, 'turno-2');
+    },
+  );
+
+  test('each refusal on the coverage channel keeps its own meaning', () async {
+    Future<void> expectStatus(int status, Matcher matcher) async {
+      final repository = RoomRepository(
+        client: MockClient.streaming(
+          (request, bodyStream) async =>
+              http.StreamedResponse(const Stream<List<int>>.empty(), status),
+        ),
+      );
+      addTearDown(repository.dispose);
+
+      final frames = <CoverageEvent>[];
+      Object? error;
+      final done = Completer<void>();
+      final subscription = repository
+          .watchCoverage('sessao-1')
+          .listen(
+            frames.add,
+            onError: (Object e) => error = e,
+            onDone: done.complete,
+          );
+      addTearDown(subscription.cancel);
+
+      await done.future;
+      expect(frames, isEmpty);
+      expect(
+        error,
+        matcher,
+        reason:
+            'um corpo de erro sem eventos de coverage lia como um stream '
+            'vazio comum, e o canal fechava quieto em vez de dizer o que '
+            'a sala respondeu',
+      );
+    }
+
+    await expectStatus(401, isA<RoomRefused>());
+    await expectStatus(403, isA<RoomRefused>());
+    await expectStatus(404, isA<SessionGone>());
+    await expectStatus(500, isA<RoomBroke>());
+  });
+
+  test(
+    'a coverage channel that never manages to connect says so, instead of reading the drop as an empty stream',
+    () async {
+      final repository = RoomRepository(
+        client: MockClient.streaming(
+          (request, bodyStream) async =>
+              throw const SocketException('sem rota'),
+        ),
+      );
+      addTearDown(repository.dispose);
+
+      final frames = <CoverageEvent>[];
+      Object? error;
+      final done = Completer<void>();
+      final subscription = repository
+          .watchCoverage('sessao-1')
+          .listen(
+            frames.add,
+            onError: (Object e) => error = e,
+            onDone: done.complete,
+          );
+      addTearDown(subscription.cancel);
+
+      await done.future;
+      expect(frames, isEmpty);
+      expect(
+        error,
+        isA<RoomUnavailable>(),
+        reason:
+            'uma sala inalcançável fechava o canal quieto, e o lado que '
+            'escuta não tinha como distinguir isso de um fim comum e parar '
+            'de reabrir a cada queda',
+      );
+    },
+  );
+
+  test(
+    'a coverage channel whose body drops mid-stream says so, instead of reading the drop as an empty stream',
+    () async {
+      final controller = StreamController<List<int>>();
+      final repository = RoomRepository(
+        client: MockClient.streaming(
+          (request, bodyStream) async =>
+              http.StreamedResponse(controller.stream, 200),
+        ),
+      );
+      addTearDown(repository.dispose);
+
+      final frames = <CoverageEvent>[];
+      Object? error;
+      final done = Completer<void>();
+      final subscription = repository
+          .watchCoverage('sessao-1')
+          .listen(
+            frames.add,
+            onError: (Object e) => error = e,
+            onDone: done.complete,
+          );
+      addTearDown(subscription.cancel);
+
+      controller.addError(const SocketException('conexão caiu'));
+
+      await done.future;
+      expect(frames, isEmpty);
+      expect(
+        error,
+        isA<RoomUnavailable>(),
+        reason:
+            'o corpo caindo no meio da leitura fechava o canal quieto, do '
+            'mesmo jeito que uma sala nunca alcançada',
+      );
     },
   );
 

@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import '../../../core/config/env.dart';
 import '../domain/approval_answer.dart';
 import '../domain/bt_finding.dart';
+import '../domain/coverage.dart';
 import '../domain/coverage_event.dart';
 import '../domain/device_link.dart';
 import '../domain/escuta_das_partes.dart';
@@ -16,6 +17,7 @@ import '../domain/passagem.dart';
 import '../domain/session_snapshot.dart';
 import '../domain/turn_result.dart';
 import 'device_identity.dart';
+import 'shared_http_client.dart';
 
 const _basePath = '/api/internalization-room';
 
@@ -96,11 +98,15 @@ class RoomRepository {
   static const turnTimeout = _turnTimeout;
 
   final http.Client _client;
+  final bool _ownsClient;
   final Future<String> Function() _deviceId;
 
   RoomRepository({http.Client? client, Future<String> Function()? deviceId})
     : _client = client ?? http.Client(),
+      _ownsClient = client == null,
       _deviceId = deviceId ?? deviceIdentity;
+
+  http.Client get client => _client;
 
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
@@ -228,6 +234,18 @@ class RoomRepository {
           unawaited(response.stream.listen(null).cancel());
           return;
         }
+        if (response.statusCode != 200) {
+          unawaited(response.stream.listen(null).cancel());
+          if (response.statusCode == 401 || response.statusCode == 403) {
+            controller.addError(const RoomRefused());
+          } else if (response.statusCode == 404) {
+            controller.addError(const SessionGone());
+          } else {
+            controller.addError(RoomBroke('HTTP ${response.statusCode}'));
+          }
+          await controller.close();
+          return;
+        }
         String? eventName;
         final data = StringBuffer();
         lineSub = utf8.decoder
@@ -253,9 +271,13 @@ class RoomRepository {
                 }
               },
               onDone: controller.close,
-              onError: (Object _) => controller.close(),
+              onError: (Object error) {
+                if (!cancelled) controller.addError(RoomUnavailable('$error'));
+                controller.close();
+              },
             );
-      } on Exception {
+      } on Exception catch (error) {
+        if (!cancelled) controller.addError(RoomUnavailable('$error'));
         await controller.close();
       }
     }());
@@ -273,7 +295,15 @@ class RoomRepository {
         _ => null,
       };
       if (turnId == null || status == null) return null;
-      return CoverageEvent(turnId: turnId, status: status);
+      return CoverageEvent(
+        turnId: turnId,
+        status: status,
+        coverage: json['coverage'] == null
+            ? null
+            : Coverage.fromJson(
+                (json['coverage'] as Map).cast<String, dynamic>(),
+              ),
+      );
     } on FormatException {
       return null;
     }
@@ -564,11 +594,15 @@ class RoomRepository {
     }
   }
 
-  void dispose() => _client.close();
+  void dispose() {
+    if (_ownsClient) _client.close();
+  }
 }
 
 final roomRepositoryProvider = Provider<RoomRepository>((ref) {
-  final repository = RoomRepository();
+  final repository = RoomRepository(
+    client: ref.watch(sharedHttpClientProvider),
+  );
   ref.onDispose(repository.dispose);
   return repository;
 });
