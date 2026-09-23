@@ -968,6 +968,35 @@ void main() {
   });
 
   test(
+    'a turn carries no timing of its own, and the next one carries its wait',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      expect(harness.room.clientTimingsSent, hasLength(2));
+      expect(
+        harness.room.clientTimingsSent[0],
+        isNull,
+        reason:
+            'a primeira volta da conversa não tem turno anterior para medir',
+      );
+      expect(harness.room.clientTimingsSent[1], contains('stop_to_answer='));
+    },
+  );
+
+  test(
     'the conversation keeps the words and throws the recording away',
     () async {
       final harness = SalaHarness();

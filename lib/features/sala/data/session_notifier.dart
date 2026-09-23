@@ -19,6 +19,7 @@ import '../domain/room_reach.dart';
 import '../domain/session_snapshot.dart';
 import '../domain/session_state.dart';
 import '../domain/spoken_line.dart';
+import '../domain/turn_clock.dart';
 import '../domain/turn_result.dart';
 import 'connectivity_service.dart';
 import 'facilitator_voice_service.dart';
@@ -39,6 +40,14 @@ final roomPollDelayProvider = Provider<Duration>(
 final coverageFallbackDelayProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 30),
 );
+
+const _clockSegments = <(String, String, String)>[
+  ('recorder_stop', 'stop', 'recorder'),
+  ('stop_to_answer', 'stop', 'answer'),
+  ('answer_to_clip', 'answer', 'clip'),
+  ('clip_to_sound', 'clip', 'sound'),
+  ('sound_to_beads', 'sound', 'beads'),
+];
 
 const _unplayableTurnsBeforeNeedsPerson = 3;
 const _roomFailuresBeforeNeedsPerson = 3;
@@ -250,6 +259,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// it runs the whole pipeline again instead of answering with what it already produced.
   String? _openTurnId;
   bool _openingOwed = false;
+  TurnClock? _pendingClock;
+  TurnClock? _coverageClock;
 
   String? _pendingTakePath;
   StreamSubscription<void>? _playbackDone;
@@ -506,11 +517,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     String fixedLine, {
     String panoramaUrl = '',
     bool remember = true,
+    void Function()? onSoundStart,
   }) async {
     final epoch = _epoch;
     final played = fixedLine.isEmpty
-        ? await _voice.play(url)
-        : await _voice.playAsset(fixedLineAsset(fixedLine, _lingua));
+        ? await _voice.play(url, onSoundStart: onSoundStart)
+        : await _voice.playAsset(
+            fixedLineAsset(fixedLine, _lingua),
+            onSoundStart: onSoundStart,
+          );
     if (played && remember && epoch == _epoch) {
       state = state.copyWith(
         lastSpoken: SpokenLine(
@@ -594,13 +609,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(voice: VoiceState.invite);
   }
 
-  Future<void> _voiceTurn(TurnResult turn, int epoch) async {
+  Future<void> _voiceTurn(
+    TurnResult turn,
+    int epoch, {
+    TurnClock? clock,
+    void Function()? onSoundStart,
+  }) async {
     if (epoch != _epoch) return;
     state = state.copyWith(coverage: turn.coverage);
-    _awaitCoverageSettle(turn);
+    clock?.mark('answer');
+    _awaitCoverageSettle(turn, clock: clock);
     _scheduleInboxPoll();
     await _readyToSpeak(turn.audioUrl, turn.fixedLine);
     if (epoch != _epoch) return;
+    clock?.mark('clip');
     if (turn.audioUrl.isEmpty && turn.fixedLine.isEmpty) {
       _registerUnplayableTurn();
       return;
@@ -608,11 +630,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(voice: VoiceState.speaking);
     _watchBusyState();
     final played = turn.toldInTwoMovements
-        ? await _speakTheOpening(turn, epoch)
+        ? await _speakTheOpening(turn, epoch, onSoundStart: onSoundStart)
         : await _speak(
             turn.audioUrl,
             turn.fixedLine,
             remember: !turn.usedFailSafe,
+            onSoundStart: onSoundStart,
           );
     if (epoch != _epoch) return;
     if (!played) {
@@ -640,7 +663,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// them over the passage's own shape said the work was already laid out. Whatever
   /// happens to the scene's clip, the beads are handed over — a necklace held back by a
   /// failure would never come.
-  Future<bool> _speakTheOpening(TurnResult turn, int epoch) async {
+  Future<bool> _speakTheOpening(
+    TurnResult turn,
+    int epoch, {
+    void Function()? onSoundStart,
+  }) async {
     state = state.copyWith(contasEnfiadas: false);
     // Brought in while the first movement is being spoken, so the second follows it
     // without a gap — and awaited before it is asked for, so the download and the playing
@@ -650,6 +677,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       turn.panoramaUrl,
       '',
       panoramaUrl: turn.panoramaUrl,
+      onSoundStart: onSoundStart,
     );
     if (epoch != _epoch) return opened;
     state = state.copyWith(contasEnfiadas: true);
@@ -1113,7 +1141,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// turn the server already settled by the time it answered. Called twice per turn, once
   /// before it speaks and once after — a turn the channel already settled while it spoke
   /// stays settled, rather than being rearmed for the same wait a second time.
-  void _awaitCoverageSettle(TurnResult turn) {
+  void _awaitCoverageSettle(TurnResult turn, {TurnClock? clock}) {
     final sessionId = state.sessionId;
     final turnId = turn.turnId;
     if (sessionId == null ||
@@ -1124,6 +1152,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     _watchCoverageChannel(sessionId);
     _awaitingCoverageTurnId = turnId;
+    _coverageClock = clock;
     _after('coverage', ref.read(coverageFallbackDelayProvider), () {
       if (_awaitingCoverageTurnId != turnId) return;
       _resolveCoverageWait(sessionId, turnId, pullState: true);
@@ -1162,15 +1191,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _awaitingCoverageTurnId = null;
     _resolvedCoverageTurnId = turnId;
     _timers.remove('coverage')?.cancel();
-    if (pullState) unawaited(_pullState(sessionId).catchError((_) {}));
+    final clock = _coverageClock;
+    _coverageClock = null;
+    if (pullState) {
+      unawaited(_pullState(sessionId, clock: clock).catchError((_) {}));
+    }
     unawaited(_pullInbox());
   }
 
-  Future<void> _pullState(String sessionId) async {
+  Future<void> _pullState(String sessionId, {TurnClock? clock}) async {
     final epoch = _epoch;
     try {
       final snapshot = await _room.fetchState(sessionId);
       if (epoch != _epoch || state.sessionId != sessionId) return;
+      clock?.mark('beads');
       final told = snapshot.coverage;
       final before = state.coverage.engaged;
       // A turn that carried no coverage, or fewer beads than the necklace already shows,
@@ -2104,7 +2138,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _finishListening() async {
     final epoch = _epoch;
+    final clientTiming = _pendingClock?.clientTiming(_clockSegments);
+    final clock = TurnClock()..mark('stop');
+    _pendingClock = clock;
     final path = await _recorder.stop();
+    clock.mark('recorder');
     if (epoch != _epoch) return;
     final sessionId = state.sessionId;
     final elapsed = _listeningSince == null
@@ -2131,7 +2169,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(voice: VoiceState.thinking);
     _watchBusyState();
     try {
-      await _voiceTurn(await _room.sendTurn(sessionId, File(path)), epoch);
+      final turn = await _room.sendTurn(
+        sessionId,
+        File(path),
+        clientTiming: clientTiming,
+      );
+      await _voiceTurn(
+        turn,
+        epoch,
+        clock: clock,
+        onSoundStart: () => clock.mark('sound'),
+      );
     } on Exception catch (error) {
       if (epoch != _epoch) return;
       _handleRoomFailure(error, turnCall: true);
