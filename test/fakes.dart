@@ -691,6 +691,7 @@ class FakeRoom implements RoomRepository {
   final List<String> calls = [];
   final List<String?> pericopesAsked = [];
   final List<String> languagesSent = [];
+  final List<String?> clientTimingsSent = [];
   final List<String> languagesAsked = [];
   final List<List<Map<String, Object?>>> playedByTakeSent = [];
   final List<bool> metBefore = [];
@@ -1267,9 +1268,14 @@ class FakeRoom implements RoomRepository {
   }
 
   @override
-  Future<TurnResult> sendTurn(String sessionId, File audio) async {
+  Future<TurnResult> sendTurn(
+    String sessionId,
+    File audio, {
+    String? clientTiming,
+  }) async {
     _guard('sendTurn');
     sessionsSpokenTo.add(sessionId);
+    clientTimingsSent.add(clientTiming);
     turnsSent++;
     await _turnArrives();
     return _turn(sessionId);

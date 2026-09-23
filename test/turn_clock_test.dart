@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/turn_clock.dart';
 
 class _FakeStopwatch extends Fake implements Stopwatch {
+  @override
   int elapsedMilliseconds = 0;
 }
 

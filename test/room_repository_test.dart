@@ -116,6 +116,43 @@ void main() {
   );
 
   test(
+    'a turn with marks from the previous one carries them, a turn with none carries no field at all',
+    () async {
+      late String seenBodyWithTiming;
+      late String seenBodyWithout;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          final body = request.body;
+          if (body.contains('client_timing')) {
+            seenBodyWithTiming = body;
+          } else {
+            seenBodyWithout = body;
+          }
+          return http.Response(_turnBody(), 200);
+        }),
+      );
+      addTearDown(repository.dispose);
+
+      await repository.sendTurn(
+        'sessao-1',
+        await _tempRecording(),
+        clientTiming: 'stop_to_answer=120',
+      );
+      await repository.sendTurn('sessao-1', await _tempRecording());
+
+      expect(seenBodyWithTiming, contains('name="client_timing"'));
+      expect(seenBodyWithTiming, contains('stop_to_answer=120'));
+      expect(
+        seenBodyWithout,
+        isNot(contains('client_timing')),
+        reason:
+            'sem marcas do turno anterior o campo não pode ir — o backend '
+            'ignora o formato errado, mas um campo vazio ainda é um campo',
+      );
+    },
+  );
+
+  test(
     'a canned turn says whether the room was in trouble, not only that it was canned',
     () async {
       var inTrouble = true;
