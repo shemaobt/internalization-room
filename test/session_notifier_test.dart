@@ -1486,7 +1486,7 @@ void main() {
   );
 
   test(
-    'the conversation keeps the words and throws the recording away',
+    'a spoken turn that reaches the room keeps its recording, not just the words',
     () async {
       final harness = SalaHarness();
       final container = await inConversa(harness);
@@ -1501,10 +1501,10 @@ void main() {
       expect(harness.room.turnsSent, 1);
       expect(
         harness.recorder.deleted,
-        [endsWith('captura-1.m4a')],
+        isEmpty,
         reason:
-            'o registro da conversa é o texto no servidor — o áudio da equipe '
-            'não é o produto e não pode ficar enchendo o tablet',
+            'a equipe gravou a fala, e a doc é clara: nada aqui apaga áudio '
+            'que a equipe fez — nem quando o texto já chegou ao servidor',
       );
     },
   );
@@ -7231,7 +7231,7 @@ void main() {
   );
 
   test('a voiced turn whose room disposes before the fake turn answers '
-      'leaves quietly, and the take is still gone', () async {
+      'leaves quietly, and the recording is still kept', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -7249,10 +7249,10 @@ void main() {
 
     expect(
       harness.recorder.deleted,
-      contains(path),
+      isNot(contains(path)),
       reason:
-          'a sala fechou com o turno em voo; o áudio gravado não pode '
-          'ficar preso no aparelho',
+          'a sala fechou com o turno em voo, mas o turno chegou — a equipe '
+          'já não está lá para ouvir a resposta, e isso não apaga a fala dela',
     );
   }, timeout: const Timeout(Duration(seconds: 20)));
 

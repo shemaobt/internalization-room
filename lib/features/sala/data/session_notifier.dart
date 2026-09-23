@@ -2348,6 +2348,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(voice: VoiceState.thinking);
     _watchBusyState();
     final recorder = _recorder;
+    var reachedTheRoom = false;
     try {
       final clientTiming = _pendingClock?.clientTiming(_clockSegments);
       _pendingClock = clock;
@@ -2357,6 +2358,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         epoch,
         clientTiming: clientTiming,
       );
+      reachedTheRoom = true;
       await _voiceTurn(
         turn,
         epoch,
@@ -2367,7 +2369,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (epoch != _epoch) return;
       _handleRoomFailure(error, turnCall: true);
     } finally {
-      unawaited(recorder.delete(path));
+      if (!reachedTheRoom) unawaited(recorder.delete(path));
     }
   }
 
