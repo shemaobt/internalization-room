@@ -46,7 +46,13 @@ void main() {
     await settle();
     notifier.retroTap();
     await waitFor('o trecho chegar à sala', () => harness.room.chunksSent == 1);
-    await settle();
+    // Waited on the outbox, not on time, for the reason the case below gives: the guard's
+    // write to disk can land after the chunk reached the room, and on a loaded runner a
+    // fixed settle read an empty outbox.
+    await waitFor('a retro chegar à caixa de saída', () async {
+      final naCaixa = await harness.takes.entries();
+      return naCaixa.any((entrada) => entrada.kind == 'retro');
+    });
 
     final guardadas = await harness.takes.entries();
     final retro = guardadas.singleWhere((e) => e.kind == 'retro');
