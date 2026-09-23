@@ -152,8 +152,8 @@ class Ripple extends StatefulWidget {
 }
 
 class _RippleState extends State<Ripple> {
-  late final Duration _period;
-  late final double _phase;
+  late Duration _period;
+  late double _phase;
   bool _joined = false;
   Duration? _start;
 
@@ -162,6 +162,15 @@ class _RippleState extends State<Ripple> {
     super.initState();
     _period = widget.period;
     _phase = widget.phase;
+  }
+
+  @override
+  void didUpdateWidget(Ripple oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.period == _period && widget.phase == _phase) return;
+    _period = widget.period;
+    _phase = widget.phase;
+    _start = null;
   }
 
   @override
