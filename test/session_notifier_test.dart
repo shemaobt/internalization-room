@@ -1135,6 +1135,85 @@ void main() {
   );
 
   test(
+    'the microphone opening warms the connection to the room, not just the invite',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      final checksBeforeTheFinger = harness.network.checks;
+
+      notifier.conversaTap();
+
+      expect(
+        harness.network.checks,
+        greaterThan(checksBeforeTheFinger),
+        reason:
+            'o dedo levanta o microfone e a conexão fica livre até o toque '
+            'de fim — esperar o toque de fim para tocar a rede é o '
+            'handshake que este ticket tirou do envio',
+      );
+    },
+  );
+
+  test(
+    'a long take keeps touching the room while the microphone is open, and stops when it closes',
+    () async {
+      final harness = SalaHarness(rewarm: const Duration(milliseconds: 40));
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      final before = harness.network.checks;
+
+      notifier.conversaTap();
+      await settle(const Duration(milliseconds: 150));
+
+      expect(
+        harness.network.checks - before,
+        greaterThanOrEqualTo(3),
+        reason:
+            'o cliente larga a conexão ociosa aos 90 s e só o toque de fim '
+            'encerra uma tomada; sem um toque na sala a cada intervalo, uma '
+            'tomada longa volta a pagar o handshake no envio',
+      );
+
+      notifier.conversaTap();
+      await settle();
+      final whenItClosed = harness.network.checks;
+      await settle(const Duration(milliseconds: 150));
+
+      expect(
+        harness.network.checks,
+        whenItClosed,
+        reason: 'com o microfone fechado, nada mais aquece a conexão',
+      );
+    },
+  );
+
+  test(
+    'a warm-up the room refuses does not take the microphone offline, only its own answer',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.network.reachable = false;
+      notifier.conversaTap();
+      await settle();
+
+      expect(container.read(salaSessionProvider).voice, VoiceState.listening);
+      expect(
+        container.read(salaSessionProvider).offline,
+        isFalse,
+        reason:
+            'o aquecimento só adianta uma conexão; uma recusa dele não é '
+            'motivo para tirar a equipe do que já estava gravando',
+      );
+    },
+  );
+
+  test(
     'a turn carries the passage entry\'s timing, not its own, and the next one carries its own wait',
     () async {
       final harness = SalaHarness();
