@@ -3570,6 +3570,153 @@ void main() {
     expect(harness.voice.played, ['/voice/p01', '/voice/p01', '/voice/p02']);
   });
 
+  test(
+    'the wheel quietly downloads the names it lacks, one at a time, skipping the one it already holds',
+    () async {
+      final harness = SalaHarness();
+      harness.room.passages = const [
+        Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+        Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
+        Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
+        Passagem(pericope: 'P04', audioUrl: '/voice/p04'),
+      ];
+      harness.voice.missing.addAll({'/voice/p03', '/voice/p04'});
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      await notifier.abrirEscolha();
+      await settle();
+
+      expect(
+        harness.voice.fetched,
+        ['/voice/p01', '/voice/p03', '/voice/p04'],
+        reason:
+            'p01 chega pela própria fala oferecida; p02 já estava no '
+            'aparelho e não pedia nada; p03 e p04 faltavam e a fila os '
+            'buscou na ordem da roda, um de cada vez',
+      );
+    },
+  );
+
+  test(
+    'reopening the wheel starts a fresh download and cuts the one before it short',
+    () async {
+      final harness = SalaHarness();
+      harness.room.passages = const [
+        Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+        Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
+        Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
+      ];
+      harness.voice.missing.addAll({'/voice/p02', '/voice/p03'});
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.voice.holdNextFetch();
+      unawaited(notifier.abrirEscolha());
+      await settle();
+      harness.voice.finishHeldFetch();
+      harness.voice.holdNextFetch();
+      await settle();
+
+      expect(
+        harness.voice.fetched,
+        ['/voice/p01', '/voice/p02'],
+        reason:
+            'a primeira fala já pediu p01; a fila achou p02 faltando e '
+            'estava presa nele quando a roda reabriu',
+      );
+
+      unawaited(notifier.abrirEscolha());
+      harness.voice.finishHeldFetch();
+      await settle();
+
+      expect(
+        harness.voice.fetched.where((url) => url == '/voice/p03').length,
+        1,
+        reason:
+            'a fila antiga viu o epoch trocado e parou antes de pedir p03; '
+            'só a fila nova, aberta pela roda reaberta, pediu esse nome',
+      );
+    },
+  );
+
+  test(
+    "a hand that enters a passage cuts the wheel's quiet download short",
+    () async {
+      final harness = SalaHarness();
+      harness.room.passages = const [
+        Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+        Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
+        Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
+      ];
+      harness.voice.missing.addAll({'/voice/p02', '/voice/p03'});
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.voice.holdNextFetch();
+      unawaited(notifier.abrirEscolha());
+      await settle();
+      harness.voice.finishHeldFetch();
+      harness.voice.holdNextFetch();
+      await settle();
+
+      notifier.entrarNaOferecida();
+      harness.voice.finishHeldFetch();
+      await settle();
+
+      expect(
+        harness.voice.fetched,
+        isNot(contains('/voice/p03')),
+        reason:
+            'a equipe entrou em P01 enquanto a fila ainda esperava por p02; '
+            'a fila viu o estágio sair da escolha e nunca pediu p03',
+      );
+    },
+  );
+
+  test(
+    "a hand that enters the panorama spoke cuts the wheel's quiet download short too",
+    () async {
+      final harness = SalaHarness();
+      harness.room.passages = const [
+        Passagem(
+          pericope: 'PAN',
+          audioUrl: '/voice/pan',
+          kind: PassagemKind.panorama,
+        ),
+        Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+        Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
+      ];
+      harness.voice.missing.addAll({'/voice/p01', '/voice/p02'});
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.voice.holdNextFetch();
+      unawaited(notifier.abrirEscolha());
+      await settle();
+      harness.voice.finishHeldFetch();
+      harness.voice.holdNextFetch();
+      await settle();
+
+      notifier.entrarNaOferecida();
+      harness.voice.finishHeldFetch();
+      await settle();
+
+      expect(
+        harness.voice.fetched,
+        isNot(contains('/voice/p02')),
+        reason:
+            'o panorama não passa pelo _clearAll e não troca o epoch; a fila '
+            'seguia baixando nomes pelo mesmo link que a abertura lenta do '
+            'panorama estava usando',
+      );
+    },
+  );
+
   test('the row has ends, and stops at them instead of wrapping', () async {
     final harness = SalaHarness();
     final container = harness.container();
