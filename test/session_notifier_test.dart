@@ -1072,6 +1072,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       harness.room.turnIdInResponse = 'turno-2';
+      harness.room.settledCoverage = coverage(engaged: 3, surfaced: 4);
       notifier.conversaTap();
       await settle();
       notifier.conversaTap();
@@ -1092,6 +1093,50 @@ void main() {
 
       expect(harness.room.clientTimingsSent, hasLength(2));
       expect(harness.room.clientTimingsSent[1], contains('sound_to_beads='));
+    },
+  );
+
+  test(
+    'a settle that lands no new beads does not stamp the clock beads never actually reached',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60));
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.room.turnIdInResponse = 'turno-2';
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-2', status: CoverageStatus.settled),
+      );
+      await waitFor(
+        'o colar assentar pelo canal',
+        () => harness.room.calls.where((c) => c == 'fetchState').isNotEmpty,
+      );
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      expect(harness.room.clientTimingsSent, hasLength(2));
+      expect(
+        harness.room.clientTimingsSent[1],
+        isNot(contains('sound_to_beads=')),
+        reason:
+            'a leitura de recuperação não trouxe nenhuma conta nova — '
+            'carimbar o relógio mesmo assim media um pouso que nunca '
+            'aconteceu',
+      );
+      expect(
+        harness.room.clientTimingsSent[1],
+        contains('stop_to_answer='),
+        reason: 'os outros trechos do relógio seguem carimbados normalmente',
+      );
     },
   );
 
@@ -1644,6 +1689,69 @@ void main() {
       await waitFor(
         'o colar assentar pelo canal reaberto, não pelo fallback de 60s',
         () => container.read(salaSessionProvider).coverage.engaged == 3,
+      );
+    },
+  );
+
+  test(
+    'a coverage channel that dies, whose recovery pull already lands an advance, closes the wait so the fallback never fetches again',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(milliseconds: 40))
+        ..room.turnIdInResponse = 'turno-1'
+        ..room.settledCoverage = coverage(engaged: 3, surfaced: 4);
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+      expect(harness.room.watchCoverageCalls, 1);
+
+      harness.room.dropCoverageStream();
+      await waitFor(
+        'o colar assentar pelo pull de recuperação',
+        () => container.read(salaSessionProvider).coverage.engaged == 3,
+      );
+
+      await settle(const Duration(milliseconds: 400));
+
+      expect(
+        harness.room.calls.where((call) => call == 'fetchState').length,
+        1,
+        reason:
+            'o pull de recuperação já mostrou que as contas pousaram, mas a '
+            'espera continuava armada — o fallback ainda pedia um segundo '
+            'fetchState e recarimbava beads bem depois de as contas já '
+            'terem pousado',
+      );
+    },
+  );
+
+  test(
+    'a coverage channel that dies twice while the same turn still waits reopens only once',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1';
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+      expect(harness.room.watchCoverageCalls, 1);
+
+      harness.room.dropCoverageStream();
+      await waitFor(
+        'o canal reabrir depois da primeira queda',
+        () => harness.room.watchCoverageCalls == 2,
+      );
+
+      harness.room.dropCoverageStream();
+      await settle(const Duration(milliseconds: 200));
+
+      expect(
+        harness.room.watchCoverageCalls,
+        2,
+        reason:
+            'uma sala inalcançável reabria a cada queda dentro da mesma '
+            'espera — um turno nunca resolvido virava um laço de '
+            'reaberturas e fetchStates até o fallback de 30s',
       );
     },
   );

@@ -274,6 +274,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   String? _coverageSessionId;
   String? _awaitingCoverageTurnId;
   String? _resolvedCoverageTurnId;
+  bool _coverageReopened = false;
   bool _doneSeenMidTurn = false;
   StreamSubscription<bool>? _micWatch;
   VoidCallback? _onPlaybackComplete;
@@ -1156,6 +1157,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchCoverageChannel(sessionId);
     _awaitingCoverageTurnId = turnId;
     _coverageClock = clock;
+    _coverageReopened = false;
     _after('coverage', ref.read(coverageFallbackDelayProvider), () {
       if (_awaitingCoverageTurnId != turnId) return;
       _resolveCoverageWait(sessionId, turnId, pullState: true);
@@ -1192,15 +1194,33 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// subscription this class already thinks is alive. Only an ordinary end — the Cloud
   /// Run cut, not a refusal — reopens it right away, and only for a turn still waiting on
   /// it; a session with nothing pending is left closed for the next `_awaitCoverageSettle`
-  /// to reopen, and a refusal is never retried on its own.
+  /// to reopen, and a refusal is never retried on its own. That reopen still fires at most
+  /// once per armed turn: a room the client cannot reach keeps closing the channel it just
+  /// reopened, and reopening on every one of those deaths turned an unreachable room into
+  /// a reopen-and-fetch loop for the whole 30 s fallback window.
   void _coverageChannelDied(String sessionId, {required bool reopen}) {
     _coverageWatch = null;
     _coverageSessionId = null;
-    if (reopen && _awaitingCoverageTurnId != null) {
+    if (reopen && _awaitingCoverageTurnId != null && !_coverageReopened) {
+      _coverageReopened = true;
       _watchCoverageChannel(sessionId);
-      unawaited(
-        _pullState(sessionId, clock: _coverageClock).catchError((_) {}),
-      );
+      unawaited(_recoverCoverageWait(sessionId));
+    }
+  }
+
+  /// The reopen's own recovery read: a frame published while the channel was down is
+  /// lost, so this asks the state directly instead of waiting on the channel to say it
+  /// again. Landing an advance for the turn still waiting closes that wait right here —
+  /// left open, the 30 s fallback still fired later, asked the state a second time, and
+  /// restamped the beads clock on a turn that had already landed.
+  Future<void> _recoverCoverageWait(String sessionId) async {
+    final turnId = _awaitingCoverageTurnId;
+    final advanced = await _pullState(
+      sessionId,
+      clock: _coverageClock,
+    ).catchError((_) => false);
+    if (turnId != null && advanced && _awaitingCoverageTurnId == turnId) {
+      _resolveCoverageWait(sessionId, turnId, pullState: false);
     }
   }
 
@@ -1226,19 +1246,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final clock = _coverageClock;
     _coverageClock = null;
     if (pullState) {
-      unawaited(_pullState(sessionId, clock: clock).catchError((_) {}));
+      unawaited(_pullState(sessionId, clock: clock).catchError((_) => false));
     }
     unawaited(_pullInbox());
   }
 
-  Future<void> _pullState(String sessionId, {TurnClock? clock}) async {
+  /// Reads the state directly, folding in whatever the coverage channel might have
+  /// missed. Reports whether the necklace actually moved, so a caller settling a wait
+  /// from this alone — the recovery read after a reopen — knows whether it landed
+  /// something, and the clock that measures the trip only marks a beat that happened:
+  /// stamping it on a pull that changed nothing timed a turn that never actually landed.
+  Future<bool> _pullState(String sessionId, {TurnClock? clock}) async {
     final epoch = _epoch;
     try {
       final snapshot = await _room.fetchState(sessionId);
-      if (epoch != _epoch || state.sessionId != sessionId) return;
-      clock?.mark('beads');
+      if (epoch != _epoch || state.sessionId != sessionId) return false;
       final told = snapshot.coverage;
       final before = state.coverage.engaged;
+      final advanced = told != null && told.engaged > before;
+      if (advanced) clock?.mark('beads');
       // A turn that carried no coverage, or fewer beads than the necklace already shows,
       // leaves the necklace where it is. Reading a missing field as zero emptied the cord
       // mid-passage — the only record of progress this team can perceive — and a read
@@ -1267,12 +1293,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           _doneSeenMidTurn = true;
         }
       }
+      return advanced;
     } on SessionGone {
-      if (epoch != _epoch) return;
+      if (epoch != _epoch) return false;
       _leaveTheDeadPassage();
+      return false;
     } on RoomRefused {
-      if (epoch != _epoch) return;
+      if (epoch != _epoch) return false;
       _haltForAPerson();
+      return false;
     }
   }
 
