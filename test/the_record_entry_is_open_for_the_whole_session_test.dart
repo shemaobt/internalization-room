@@ -9,9 +9,6 @@ import 'fakes.dart';
 import 'sala_screen_test.dart' show bySemanticsLabelWidget, pumpSala;
 import 'session_notifier_test.dart' show inConversa, settle;
 
-/// `Future.delayed`/`Timer` never fire on their own under the test binding's virtual
-/// clock; only `tester.pump(duration)` advances it. Widget tests here poll with pumps
-/// instead of the notifier tests' real-time `waitFor`.
 Future<void> _pumpWhile(
   WidgetTester tester,
   bool Function() notYet, {
@@ -155,19 +152,24 @@ void main() {
     final container = await _pumpInConversa(tester, harness);
     SalaSessionState read() => container.read(salaSessionProvider);
 
-    final withEntry = tester.getRect(find.byType(FacilitatorCircle).first);
-
     await _pumpWhile(tester, () => !read().needsPerson);
     expect(read().needsPerson, isTrue);
+    expect(bySemanticsLabelWidget(_entry), findsNothing);
 
     final withHalt = tester.getRect(find.byType(FacilitatorCircle).first);
+
+    harness.room.theDeskAttended();
+    await _pumpWhile(tester, () => read().voice != VoiceState.invite);
+    expect(bySemanticsLabelWidget(_entry), findsOneWidget);
+
+    final withEntry = tester.getRect(find.byType(FacilitatorCircle).first);
 
     expect(
       withHalt,
       withEntry,
       reason:
-          'a fileira de 64px já reserva o lugar da entrada, então '
-          'escondê-la não move o círculo',
+          'a fileira de 64px já reserva o lugar da entrada, então mostrá-la '
+          'não move o círculo',
     );
     closeTheRoom(container);
   });
@@ -187,33 +189,88 @@ void main() {
       expect(read().voice, VoiceState.listening);
 
       notifier.goEnsaio();
-      // _clearAll already ran a discard on the recorder before it had opened — a no-op
-      // that still logs, and would hide a missing real discard if counted. Only a
-      // discard logged after the late start actually resolves witnesses the fix.
-      final beforeTheLateStart = harness.sounds.length;
+      final deletedBefore = harness.recorder.deleted.length;
       harness.recorder.finishStart();
       await settle();
 
       expect(read().stage, SalaStage.ensaio);
       expect(
-        harness.sounds.skip(beforeTheLateStart),
-        contains('recorder:discard'),
+        harness.recorder.deleted.length,
+        greaterThan(deletedBefore),
         reason:
             'a abertura do microfone que chegou depois do goEnsaio precisa '
             'ser descartada, não deixada aberta dentro do ensaio',
       );
+    },
+  );
 
+  test(
+    'the rehearsal own start is not discarded by the conversa mic answering late',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+
+      harness.recorder.holdNextStart();
+      notifier.conversaTap();
+      await settle();
+      expect(read().voice, VoiceState.listening);
+
+      notifier.goEnsaio();
       notifier.ensaioTap();
+      await settle();
+      expect(read().ensaio, EnsaioStatus.recording);
+
+      final deletedBefore = harness.recorder.deleted.length;
+      harness.recorder.finishStart();
       await settle();
 
       expect(
         read().ensaio,
         EnsaioStatus.recording,
         reason:
-            'um toque no ensaio depois disso tem de abrir uma gravação de '
-            'verdade, não ficar travado numa bandeira de início que nunca '
-            'se soltou',
+            'a conversa é que ficou a abrir; o ensaio já abriu o seu '
+            'próprio microfone de verdade, e a resposta atrasada da '
+            'conversa não pode fechar o que o ensaio abriu',
       );
+      expect(harness.recorder.deleted.length, deletedBefore);
+    },
+  );
+
+  test(
+    'the next passage own start is not discarded by the previous one answering late',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+
+      harness.recorder.holdNextStart();
+      notifier.conversaTap();
+      await settle();
+      expect(read().voice, VoiceState.listening);
+
+      await notifier.goConversa(pericope: 'P02');
+      await waitFor('P02 abrir', () => read().voice == VoiceState.invite);
+      notifier.conversaTap();
+      await settle();
+      expect(read().voice, VoiceState.listening);
+
+      final deletedBefore = harness.recorder.deleted.length;
+      harness.recorder.finishStart();
+      await settle();
+
+      expect(
+        read().voice,
+        VoiceState.listening,
+        reason:
+            'P01 é que ficou a abrir; P02 já abriu o seu próprio microfone '
+            'de verdade, e a resposta atrasada de P01 não pode fechá-lo',
+      );
+      expect(harness.recorder.deleted.length, deletedBefore);
     },
   );
 

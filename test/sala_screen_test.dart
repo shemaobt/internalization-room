@@ -884,9 +884,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     notifier.goEnsaio();
-    // Long enough for the conversa's own crossfade to finish leaving — its record entry
-    // is drawn through every voice now, not just at done, so a shorter wait here would
-    // still catch it mid-fade alongside the ensaio's own button.
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(seconds: 2));
     notifier.ensaioTap();

@@ -207,6 +207,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _ackSpoken = 0;
   DateTime? _listeningSince;
   bool _recordingStarting = false;
+
+  /// Counts every call to [_recordOrBlock], not just the ones the epoch still owns:
+  /// the recorder is one instance shared across passages, so a stale answer has to
+  /// know it is the LATEST stale answer before touching it — a moved epoch alone
+  /// cannot tell two abandoned starts apart, and discarding on the wrong one closes
+  /// a microphone a newer start already opened.
+  int _starts = 0;
   VoiceState _voiceBeforeQuestion = VoiceState.invite;
   String? _emCurso;
   Trecho? _trechoTraduzidoDeNovo;
@@ -2840,19 +2847,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _recordOrBlock(String fileName) async {
     final epoch = _epoch;
+    final start = ++_starts;
     final openedAsAChunkCapture = state.btPhase == BtPhase.capturing;
     _micWatch ??= _recorder.interrupted.listen(_theMicrophoneChangedHands);
     final capture = await _recorder.start(fileName);
-    if (_gone) return;
     // The answer can arrive a minute late — `hasPermission` waits up to sixty seconds for
     // the platform — by which time the team may be on another stage entirely, with a
-    // microphone of its own still opening. `_recordingStarting` is cleared under the
-    // guard below, never here: a stale answer clearing it would let a tap on that other,
-    // still-opening microphone through as a stop. A started capture is still the one
-    // answer that opened something real, so a moved epoch has to discard it — nothing
-    // later will, the epoch guard everywhere else is exactly what keeps it from trying.
-    if (epoch != _epoch) {
-      if (capture == Capture.started) unawaited(_recorder.discard());
+    // microphone of its own still opening. Cleared under the guard, never above it: a
+    // start coming back from a passage already left let the next passage's second tap
+    // through, onto a recorder that had not opened.
+    if (epoch != _epoch || _gone) {
+      if (start == _starts && capture == Capture.started) {
+        _recordingStarting = false;
+        unawaited(_recorder.discard());
+      }
       return;
     }
     _recordingStarting = false;
