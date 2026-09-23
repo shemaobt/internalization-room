@@ -243,6 +243,31 @@ void main() {
     },
   );
 
+  test(
+    'clearing a list entries() handed back does not empty the next one',
+    () async {
+      final room = FakeRoom()..reachable = false;
+      final queue = queueOn(room);
+      await queue.enqueue(
+        aTake('tomada'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'inteira',
+      );
+
+      final first = await queue.entries();
+      first.clear();
+
+      expect(
+        await queue.entries(),
+        hasLength(1),
+        reason:
+            'a lista devolvida é uma cópia da leitura guardada — mexer nela '
+            'por fora não pode apagar o que o cache guarda',
+      );
+    },
+  );
+
   test('the audio file is never deleted, even after the room has it', () async {
     final room = FakeRoom();
     final queue = queueOn(room);
