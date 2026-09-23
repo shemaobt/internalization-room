@@ -581,15 +581,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (epoch != _epoch) return;
     state = state.copyWith(voice: VoiceState.speaking);
     _watchBusyState();
-    final played = await _speak(
-      line.url,
-      line.fixedLine,
-      panoramaUrl: line.panoramaUrl,
-    );
-    if (epoch != _epoch) return;
-    if (!played) return _registerUnplayableTurn(leavesTeamTalk: false);
-    _unplayableTurns = 0;
-    state = state.copyWith(voice: VoiceState.invite);
+    try {
+      final played = await _speak(
+        line.url,
+        line.fixedLine,
+        panoramaUrl: line.panoramaUrl,
+      );
+      if (epoch != _epoch) return;
+      if (!played) return _registerUnplayableTurn(leavesTeamTalk: false);
+      _unplayableTurns = 0;
+      state = state.copyWith(voice: VoiceState.invite);
+    } on Exception catch (error) {
+      if (epoch != _epoch) return;
+      _handleRoomFailure(error);
+    }
   }
 
   /// The whole opening again — the shape of the passage, and then the scene.
@@ -612,20 +617,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (epoch != _epoch) return;
     state = state.copyWith(voice: VoiceState.speaking);
     _watchBusyState();
-    final played = await _speak(
-      line.panoramaUrl,
-      '',
-      panoramaUrl: line.panoramaUrl,
-    );
-    if (epoch != _epoch) return;
-    state = state.copyWith(contasEnfiadas: true);
-    if (!played) return _registerUnplayableTurn(leavesTeamTalk: false);
-    _watchBusyState();
-    final scene = await _speak(line.url, '', panoramaUrl: line.panoramaUrl);
-    if (epoch != _epoch) return;
-    if (!scene) return _registerUnplayableTurn(leavesTeamTalk: false);
-    _unplayableTurns = 0;
-    state = state.copyWith(voice: VoiceState.invite);
+    try {
+      final played = await _speakTheFirstMovement(line.panoramaUrl, epoch);
+      if (epoch != _epoch) return;
+      if (!played) return _registerUnplayableTurn(leavesTeamTalk: false);
+      _watchBusyState();
+      final scene = await _speak(line.url, '', panoramaUrl: line.panoramaUrl);
+      if (epoch != _epoch) return;
+      if (!scene) return _registerUnplayableTurn(leavesTeamTalk: false);
+      _unplayableTurns = 0;
+      state = state.copyWith(voice: VoiceState.invite);
+    } on Exception catch (error) {
+      if (epoch != _epoch) return;
+      _handleRoomFailure(error);
+    }
   }
 
   Future<void> _voiceTurn(
@@ -695,14 +700,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // without a gap — and awaited before it is asked for, so the download and the playing
     // are never two callers racing for the same file.
     final arriving = _voice.fetch(turn.sceneUrl);
-    final opened = await _speak(
+    final opened = await _speakTheFirstMovement(
       turn.panoramaUrl,
-      '',
-      panoramaUrl: turn.panoramaUrl,
+      epoch,
       onSoundStart: onSoundStart,
     );
     if (epoch != _epoch) return opened;
-    state = state.copyWith(contasEnfiadas: true);
     if (!opened) return false;
     await arriving;
     if (epoch != _epoch) return true;
@@ -711,6 +714,29 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // room had stopped talking while it was still mid-sentence.
     _watchBusyState();
     return _speak(turn.sceneUrl, '', panoramaUrl: turn.panoramaUrl);
+  }
+
+  /// The passage's own shape, with the beads handed over however it ends.
+  ///
+  /// Both openings take the necklace off the cord before it and string it again after — a
+  /// line that played, one that did not, and one the room failed to serve alike. Handed
+  /// over only past the call, a failure the room threw jumped the hand-over, and the
+  /// necklace stayed off until the team left the passage.
+  Future<bool> _speakTheFirstMovement(
+    String panoramaUrl,
+    int epoch, {
+    void Function()? onSoundStart,
+  }) async {
+    try {
+      return await _speak(
+        panoramaUrl,
+        '',
+        panoramaUrl: panoramaUrl,
+        onSoundStart: onSoundStart,
+      );
+    } finally {
+      if (epoch == _epoch) state = state.copyWith(contasEnfiadas: true);
+    }
   }
 
   void _registerUnplayableTurn({bool leavesTeamTalk = true}) {
@@ -1609,13 +1635,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (moved()) return;
     state = state.copyWith(voice: VoiceState.speaking);
     _watchBusyState();
-    final spoke = await _speak(passagem.audioUrl, '');
-    if (moved()) return;
-    // A wheel that has gone silent looks to the team exactly like a wheel that has
-    // stopped, and there is no written word here to tell them apart.
-    if (!spoke) return _registerUnplayableTurn();
-    _unplayableTurns = 0;
-    state = state.copyWith(voice: VoiceState.invite);
+    try {
+      final spoke = await _speak(passagem.audioUrl, '');
+      if (moved()) return;
+      // A wheel that has gone silent looks to the team exactly like a wheel that has
+      // stopped, and there is no written word here to tell them apart.
+      if (!spoke) return _registerUnplayableTurn();
+      _unplayableTurns = 0;
+      state = state.copyWith(voice: VoiceState.invite);
+    } on Exception catch (error) {
+      if (moved()) return;
+      _handleRoomFailure(error);
+    }
   }
 
   void entrarNaOferecida() {
@@ -2462,11 +2493,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// is offered again, and again, and the team loses the one gesture they have for
   /// reaching a person. The answer is already lost — refusing to let go of it costs them
   /// the ability to ask anything else.
+  ///
+  /// A room that cannot serve the clip is one more way for an answer not to play, and it is
+  /// let go of the same way — never through `_handleRoomFailure`. The hand is a side
+  /// channel: a halt raised over a reply would take the circle along with it.
+  ///
+  /// The playing mark is given back on every way out. `_markHeard` is what clears it, and a
+  /// reply that outlived its epoch never reached it: the mark stayed, and the hand, the
+  /// circle and the convite all returned early on it for good.
   Future<void> _playReply(HandReply reply) async {
     final epoch = _epoch;
-    await _voice.play(reply.audioUrl);
-    if (epoch != _epoch) return;
-    unawaited(_markHeard(reply.id));
+    try {
+      await _voice.play(reply.audioUrl);
+    } on Exception {
+      // Nothing to do here: what follows is the same for a line that did not sound.
+    }
+    if (epoch == _epoch) {
+      unawaited(_markHeard(reply.id));
+    } else if (!_gone && state.playingReplyId == reply.id) {
+      state = state.copyWith(clearPlayingReply: true);
+    }
   }
 
   /// A reply is heard when the desk agrees, and not before.
