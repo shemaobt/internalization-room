@@ -68,6 +68,38 @@ void main() {
   );
 
   testWidgets(
+    'a voice speaking draws its rings sixty times a second, not at the panel rate',
+    (tester) async {
+      await _pumpCircle(tester, VoiceState.speaking);
+
+      expect(
+        await _redrawsOverASecondAt120Hz(tester),
+        inInclusiveRange(59, 61),
+        reason:
+            'enquanto o Guia falava, o disco e os dois anéis andavam cada '
+            'um no seu vsync, a 120 quadros por segundo',
+      );
+    },
+  );
+
+  testWidgets(
+    'a voice that stops speaking lets the circle slow back to thirty, not stay at sixty',
+    (tester) async {
+      await _pumpCircle(tester, VoiceState.speaking);
+      await tester.pump(const Duration(seconds: 1));
+      await _pumpCircle(tester, VoiceState.invite);
+
+      expect(
+        await _redrawsOverASecondAt120Hz(tester),
+        inInclusiveRange(29, 31),
+        reason:
+            'o convite nunca abre sozinho: chega sempre de dentro de outra '
+            'voz, e os anéis que saem precisam levar o passo rápido com eles',
+      );
+    },
+  );
+
+  testWidgets(
     'a beckon that settles into the invite carries on from where its breath was, not from a new one',
     (tester) async {
       final breath = <double>[];
