@@ -1014,7 +1014,43 @@ void main() {
             'a primeira volta da conversa carrega o tempo da abertura da '
             'passagem, que ainda não tinha sido mandado',
       );
-      expect(harness.room.clientTimingsSent[1], contains('stop_to_answer='));
+      final second = harness.room.clientTimingsSent[1];
+      expect(second, contains('recorder_stop='));
+      expect(second, contains('stop_to_answer='));
+      expect(second, contains('answer_to_clip='));
+      expect(second, contains('clip_to_sound='));
+    },
+  );
+
+  test(
+    'the coverage wait a turn arms settles onto that turn\'s own clock, not a later one',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60));
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.room.turnIdInResponse = 'turno-2';
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-2', status: CoverageStatus.settled),
+      );
+      await waitFor(
+        'o colar assentar pelo canal',
+        () => harness.room.calls.where((c) => c == 'fetchState').isNotEmpty,
+      );
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      expect(harness.room.clientTimingsSent, hasLength(2));
+      expect(harness.room.clientTimingsSent[1], contains('sound_to_beads='));
     },
   );
 

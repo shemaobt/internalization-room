@@ -656,7 +656,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       peerCue: turn.peerCue,
     );
     _doneSeenMidTurn = false;
-    _awaitCoverageSettle(turn);
+    _awaitCoverageSettle(turn, clock: clock);
     _scheduleInboxPoll();
   }
 
