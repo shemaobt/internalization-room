@@ -877,6 +877,58 @@ void main() {
     },
   );
 
+  test(
+    'the whole opening replayed hands the necklace back when the room fails its first clip',
+    () async {
+      final harness = SalaHarness()..room.opensInTwoMovements = true;
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.voice.roomFailsWith = const RoomBroke('HTTP 503');
+      await notifier.hearTheWholeOpening();
+      await settle();
+
+      final state = container.read(salaSessionProvider);
+      expect(
+        state.needsPerson,
+        isFalse,
+        reason:
+            'uma queda abaixo do limite volta ao convite, sem chamar ninguém',
+      );
+      expect(
+        state.contasEnfiadas,
+        isTrue,
+        reason:
+            'o gesto tira as contas do fio e o panorama as devolve, tocado ou '
+            'não — a queda lançada pulava a devolução e o colar ficava fora até '
+            'a equipe sair da passagem',
+      );
+    },
+  );
+
+  test(
+    'an opening whose first clip the room fails still hands the necklace over',
+    () async {
+      final harness = SalaHarness()..room.opensInTwoMovements = true;
+      harness.voice.roomFailsWith = const RoomBroke('HTTP 503');
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      await notifier.goConversa(pericope: 'P01');
+      await settle();
+
+      expect(
+        container.read(salaSessionProvider).contasEnfiadas,
+        isTrue,
+        reason:
+            'a abertura tira as contas antes do panorama e as entrega depois, '
+            'aconteça o que acontecer — a queda lançada pulava a entrega',
+      );
+    },
+  );
+
   test('an opening told in one breath shows the necklace at once', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);

@@ -602,13 +602,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(voice: VoiceState.speaking);
     _watchBusyState();
     try {
-      final played = await _speak(
-        line.panoramaUrl,
-        '',
-        panoramaUrl: line.panoramaUrl,
-      );
+      final played = await _speakTheFirstMovement(line.panoramaUrl, epoch);
       if (epoch != _epoch) return;
-      state = state.copyWith(contasEnfiadas: true);
       if (!played) return _registerUnplayableTurn(leavesTeamTalk: false);
       _watchBusyState();
       final scene = await _speak(line.url, '', panoramaUrl: line.panoramaUrl);
@@ -689,14 +684,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // without a gap — and awaited before it is asked for, so the download and the playing
     // are never two callers racing for the same file.
     final arriving = _voice.fetch(turn.sceneUrl);
-    final opened = await _speak(
+    final opened = await _speakTheFirstMovement(
       turn.panoramaUrl,
-      '',
-      panoramaUrl: turn.panoramaUrl,
+      epoch,
       onSoundStart: onSoundStart,
     );
     if (epoch != _epoch) return opened;
-    state = state.copyWith(contasEnfiadas: true);
     if (!opened) return false;
     await arriving;
     if (epoch != _epoch) return true;
@@ -705,6 +698,29 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // room had stopped talking while it was still mid-sentence.
     _watchBusyState();
     return _speak(turn.sceneUrl, '', panoramaUrl: turn.panoramaUrl);
+  }
+
+  /// The passage's own shape, with the beads handed over however it ends.
+  ///
+  /// Both openings take the necklace off the cord before it and string it again after — a
+  /// line that played, one that did not, and one the room failed to serve alike. Handed
+  /// over only past the call, a failure the room threw jumped the hand-over, and the
+  /// necklace stayed off until the team left the passage.
+  Future<bool> _speakTheFirstMovement(
+    String panoramaUrl,
+    int epoch, {
+    void Function()? onSoundStart,
+  }) async {
+    try {
+      return await _speak(
+        panoramaUrl,
+        '',
+        panoramaUrl: panoramaUrl,
+        onSoundStart: onSoundStart,
+      );
+    } finally {
+      if (epoch == _epoch) state = state.copyWith(contasEnfiadas: true);
+    }
   }
 
   void _registerUnplayableTurn({bool leavesTeamTalk = true}) {
