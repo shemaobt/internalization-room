@@ -625,6 +625,53 @@ void main() {
   );
 
   test(
+    'a clip whose resumes keep starting over gives up, instead of pulling forever',
+    () async {
+      for (final (drop, failure) in [
+        (null, isA<RoomBroke>()),
+        (http.ClientException('a conexão caiu'), isA<RoomUnavailable>()),
+      ]) {
+        fetched.clear();
+        Stream<List<int>> cutMidway() async* {
+          yield [1, 2, 3];
+          if (drop != null) throw drop;
+        }
+
+        final voice = FacilitatorVoiceService(
+          open: roomAnswering((_) async {
+            // A real pause between answers: a loop that never ends would otherwise
+            // starve the timer below and hang the suite instead of failing it.
+            await Future<void>.delayed(Duration.zero);
+            return http.StreamedResponse(
+              cutMidway(),
+              200,
+              contentLength: 6,
+              headers: {'etag': 'e1'},
+            );
+          }),
+          libraryDir: () async => library,
+        );
+
+        await expectLater(
+          voice.clipFor(_clip).timeout(const Duration(seconds: 2)),
+          throwsA(failure),
+          reason:
+              'um backend sem Range responde 200 a toda retomada; o recomeço '
+              'zerava o que tinha chegado, e num link que cai sempre a fala '
+              'baixava o MP3 inteiro de novo sem fim, sem nunca falhar',
+        );
+        expect(
+          fetched,
+          hasLength(4),
+          reason:
+              'a primeira resposta, dois recomeços, e a retomada que seria o '
+              'terceiro é onde a fala desiste',
+        );
+      }
+    },
+  );
+
+  test(
     'a resume answered with the whole clip starts over, and never splices two renderings',
     () async {
       final first = StreamController<List<int>>();

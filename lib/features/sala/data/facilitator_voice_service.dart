@@ -19,6 +19,7 @@ const _lineGrace = Duration(seconds: 8);
 const _unknownLineCeiling = Duration(seconds: 90);
 const _staleStagingAge = Duration(minutes: 10);
 const _bytesPerSecond = 16000;
+const _restartsAllowed = 2;
 
 class FacilitatorVoiceService {
   final Future<http.StreamedResponse> Function(
@@ -341,10 +342,18 @@ class _ArrivingClip extends StreamAudioSource {
     _wake();
   }
 
+  /// The line, resumed across drops and started over when a resume cannot prove it is
+  /// the same rendering.
+  ///
+  /// Progress is what bounds a resume, and a restart throws the progress away: against a
+  /// room that answers every range with the whole clip, a link that keeps dropping pulled
+  /// the MP3 again and again, and the line never arrived nor failed. Restarts get a count
+  /// of their own, and past it the line gives up as a resume that brings nothing does.
   Future<Uint8List> _arrive() async {
     var response = await _open(_url);
     _begin(response);
     _opened.complete(null);
+    var restarts = 0;
     while (true) {
       final before = _received;
       Object? drop;
@@ -360,7 +369,8 @@ class _ArrivingClip extends StreamAudioSource {
         drop = RoomUnavailable('$error');
       }
       if (_received == _bytes.length) return _bytes;
-      if (_received == before) throw drop ?? const RoomBroke('fala cortada');
+      final cut = drop ?? const RoomBroke('fala cortada');
+      if (_received == before) throw cut;
       final etag = _etag;
       response = await _open(_url, from: _received, ifRange: etag);
       if (response.statusCode == 206 &&
@@ -368,6 +378,11 @@ class _ArrivingClip extends StreamAudioSource {
           response.headers['etag'] == etag) {
         continue;
       }
+      if (restarts == _restartsAllowed) {
+        unawaited(response.stream.listen(null).cancel());
+        throw cut;
+      }
+      restarts++;
       if (response.statusCode == 206) {
         unawaited(response.stream.listen(null).cancel());
         response = await _open(_url);
