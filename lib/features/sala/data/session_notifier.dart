@@ -2843,12 +2843,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final openedAsAChunkCapture = state.btPhase == BtPhase.capturing;
     _micWatch ??= _recorder.interrupted.listen(_theMicrophoneChangedHands);
     final capture = await _recorder.start(fileName);
+    if (_gone) return;
     // The answer can arrive a minute late — `hasPermission` waits up to sixty seconds for
     // the platform — by which time the team may be on another stage entirely, with a
-    // microphone of its own still opening. Cleared under the guard, never above it: a
-    // start coming back from a passage already left let the next passage's second tap
-    // through, onto a recorder that had not opened.
-    if (epoch != _epoch || _gone) return;
+    // microphone of its own still opening. `_recordingStarting` is cleared under the
+    // guard below, never here: a stale answer clearing it would let a tap on that other,
+    // still-opening microphone through as a stop. A started capture is still the one
+    // answer that opened something real, so a moved epoch has to discard it — nothing
+    // later will, the epoch guard everywhere else is exactly what keeps it from trying.
+    if (epoch != _epoch) {
+      if (capture == Capture.started) unawaited(_recorder.discard());
+      return;
+    }
     _recordingStarting = false;
     switch (capture) {
       case Capture.started:

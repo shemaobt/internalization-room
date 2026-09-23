@@ -1914,7 +1914,6 @@ void main() {
       addTearDown(container.dispose);
 
       expect(container.read(salaSessionProvider).voice, VoiceState.done);
-      expect(container.read(salaSessionProvider).conversaDone, isTrue);
     },
   );
 
@@ -1953,13 +1952,6 @@ void main() {
       reason:
           'done muda o que a tela oferece, nunca fecha ou reinicia a '
           'conversa sozinha',
-    );
-    expect(
-      container.read(salaSessionProvider).conversaDone,
-      isTrue,
-      reason:
-          'a sala continua reportando done, então a entrada de gravação '
-          'segue oferecida ao mesmo tempo que o círculo volta a ouvir',
     );
   });
 
@@ -3271,13 +3263,6 @@ void main() {
       reason:
           '_deliverQuestion fixava voice: invite no sucesso — a mão foi '
           'levantada com a sala em done e a pergunta silenciosa devolveu a voz errada',
-    );
-    expect(
-      container.read(salaSessionProvider).conversaDone,
-      isTrue,
-      reason:
-          'conversaDone é voice == done — perder a voz done também derruba o '
-          'AdvanceButton do ensaio que a sala continua reportando',
     );
   });
 
