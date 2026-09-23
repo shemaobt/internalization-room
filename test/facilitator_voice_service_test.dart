@@ -490,7 +490,6 @@ void main() {
         },
         libraryDir: () async => library,
         player: player,
-        staleStagingAge: const Duration(milliseconds: 30),
       );
 
       File('${library.path}/orfao.mp3.novo')

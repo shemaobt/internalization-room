@@ -22,7 +22,6 @@ class FacilitatorVoiceService {
   AudioPlayer? _opened;
   final Duration _grace;
   final Duration _loadCeiling;
-  final Duration _staleAge;
   Future<void> _speaking = Future<void>.value();
   final Map<String, Future<File>> _arriving = {};
 
@@ -32,12 +31,10 @@ class FacilitatorVoiceService {
     AudioPlayer? player,
     Duration? lineGrace,
     Duration? loadCeiling,
-    Duration? staleStagingAge,
   }) : _libraryDir = libraryDir ?? _defaultLibraryDir,
        _opened = player,
        _grace = lineGrace ?? _lineGrace,
-       _loadCeiling = loadCeiling ?? _unknownLineCeiling,
-       _staleAge = staleStagingAge ?? _staleStagingAge;
+       _loadCeiling = loadCeiling ?? _unknownLineCeiling;
 
   AudioPlayer get _player => _opened ??= AudioPlayer();
 
@@ -222,7 +219,7 @@ class FacilitatorVoiceService {
           .where((entry) => entry is File && entry.path.endsWith('.novo'))
           .cast<File>()
           .toList();
-      final cutoff = DateTime.now().subtract(_staleAge);
+      final cutoff = DateTime.now().subtract(_staleStagingAge);
       for (final novo in novos) {
         if (protected.contains(novo.path)) continue;
         if ((await novo.stat()).modified.isBefore(cutoff)) {
