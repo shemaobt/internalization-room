@@ -47,6 +47,9 @@ const _clockSegments = <(String, String, String)>[
   ('answer_to_clip', 'answer', 'clip'),
   ('clip_to_sound', 'clip', 'sound'),
   ('sound_to_beads', 'sound', 'beads'),
+  ('health_to_session', 'health', 'session'),
+  ('session_to_open', 'session', 'open'),
+  ('open_to_sound', 'open', 'sound'),
 ];
 
 const _unplayableTurnsBeforeNeedsPerson = 3;
@@ -1661,8 +1664,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     _stringTheNecklaceEarly(pericope);
     _watchBusyState();
+    final openingClock = TurnClock();
+    _pendingClock = openingClock;
     final reach = await _network.reachRoom();
     if (epoch != _epoch) return;
+    openingClock.mark('health');
     if (reach != RoomReach.fine) {
       _goOffline(reach);
       return;
@@ -1694,6 +1700,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
                   afterSession: _panoramaSessionId,
                   language: _lingua,
                 );
+      if (!resumed && opened == null) openingClock.mark('session');
       final sessionId = waiting?.sessionId ?? created!.sessionId;
       if (epoch != _epoch) return;
       if (!resumed) _startTheSessionClean(pericope);
@@ -1765,7 +1772,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       // Re-opening carries the coverage back with it, so the necklace fills itself.
       reachedTheOpeningTurn = true;
-      await _voiceTurn(await _askForTheOpening(sessionId, epoch), epoch);
+      final opening = await _askForTheOpening(sessionId, epoch);
+      openingClock.mark('open');
+      await _voiceTurn(
+        opening,
+        epoch,
+        onSoundStart: () => openingClock.mark('sound'),
+      );
     } on SessionGone {
       if (epoch != _epoch) return;
       if (pericope != null) {

@@ -949,6 +949,27 @@ void main() {
     expect(harness.voice.played, hasLength(1));
   });
 
+  test(
+    'the passage entry has no turn of its own to carry it, so it rides on the first real one',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      expect(harness.room.clientTimingsSent, hasLength(1));
+      final timing = harness.room.clientTimingsSent[0];
+      expect(timing, contains('health_to_session='));
+      expect(timing, contains('session_to_open='));
+      expect(timing, contains('open_to_sound='));
+    },
+  );
+
   test('a turn sends the recording and plays what comes back', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
@@ -968,7 +989,7 @@ void main() {
   });
 
   test(
-    'a turn carries no timing of its own, and the next one carries its wait',
+    'a turn carries the passage entry\'s timing, not its own, and the next one carries its own wait',
     () async {
       final harness = SalaHarness();
       final container = await inConversa(harness);
@@ -988,11 +1009,48 @@ void main() {
       expect(harness.room.clientTimingsSent, hasLength(2));
       expect(
         harness.room.clientTimingsSent[0],
-        isNull,
+        contains('open_to_sound='),
         reason:
-            'a primeira volta da conversa não tem turno anterior para medir',
+            'a primeira volta da conversa carrega o tempo da abertura da '
+            'passagem, que ainda não tinha sido mandado',
       );
       expect(harness.room.clientTimingsSent[1], contains('stop_to_answer='));
+    },
+  );
+
+  test(
+    'a session the panorama already opened does not fake a creation of its own',
+    () async {
+      final harness = SalaHarness();
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      await notifier.goConversa(
+        pericope: 'P01',
+        opened: const SessionSnapshot(
+          sessionId: 'sessao-1',
+          pericope: 'P01',
+          status: 'aberta',
+          coverage: null,
+          done: false,
+        ),
+      );
+      await settle();
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      expect(harness.room.clientTimingsSent, hasLength(1));
+      expect(
+        harness.room.clientTimingsSent[0],
+        isNot(contains('health_to_session=')),
+        reason:
+            'a sessão já veio pronta da panorama — medir a criação mediria '
+            'zero, não o que de fato aconteceu',
+      );
     },
   );
 
