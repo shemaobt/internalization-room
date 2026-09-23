@@ -293,8 +293,14 @@ class TakeUploadQueue {
   /// A manifest we cannot read is counted as one outstanding take rather than none: the
   /// bead stays hollow, the room keeps saying there is something to send, and the error
   /// falls on the safe side of a recording nobody is allowed to lose.
-  Future<int> unsentOf(String kind, {required String sessionId}) async {
-    final written = await _written();
+  Future<int> unsentOf(String kind, {required String sessionId}) async =>
+      _unsentIn(await _written(), kind, sessionId);
+
+  static int _unsentIn(
+    List<PendingTake>? written,
+    String kind,
+    String? sessionId,
+  ) {
     if (written == null) return 1;
     return [
       for (final entry in written)
@@ -319,8 +325,13 @@ class TakeUploadQueue {
   Future<Set<String>> unsentScopesOf(
     String kind, {
     required String sessionId,
-  }) async {
-    final written = await _written();
+  }) async => _unsentScopesIn(await _written(), kind, sessionId);
+
+  static Set<String> _unsentScopesIn(
+    List<PendingTake>? written,
+    String kind,
+    String? sessionId,
+  ) {
     if (written == null) return {unknownScope};
     return {
       for (final entry in written)
@@ -343,30 +354,11 @@ class TakeUploadQueue {
   tally({required String? sessionId}) async {
     final written = await _written();
     final stranded = (await giveUps()).isNotEmpty || await lostHistory();
-
-    if (written == null) {
-      return (
-        stranded: stranded,
-        unsentTakes: 1,
-        unsentChunks: 1,
-        unsentTakeScopes: {unknownScope},
-      );
-    }
     return (
       stranded: stranded,
-      unsentTakes: [
-        for (final e in written)
-          if (!e.stored && e.kind == 'ensaio' && e.sessionId == sessionId) e,
-      ].length,
-      unsentChunks: [
-        for (final e in written)
-          if (!e.stored && e.kind == 'retro' && e.sessionId == sessionId) e,
-      ].length,
-      unsentTakeScopes: {
-        for (final e in written)
-          if (!e.stored && e.kind == 'ensaio' && e.sessionId == sessionId)
-            e.scope,
-      },
+      unsentTakes: _unsentIn(written, 'ensaio', sessionId),
+      unsentChunks: _unsentIn(written, 'retro', sessionId),
+      unsentTakeScopes: _unsentScopesIn(written, 'ensaio', sessionId),
     );
   }
 

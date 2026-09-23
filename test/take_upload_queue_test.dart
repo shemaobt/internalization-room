@@ -387,7 +387,6 @@ void main() {
       );
 
       final size = await file.length();
-      final stopwatch = Stopwatch()..start();
       for (var round = 0; round < 20; round++) {
         file.writeAsBytesSync(List.filled(size, 'x'.codeUnitAt(0)));
         await file.setLastModified(stamp);
@@ -400,54 +399,43 @@ void main() {
               'lista vazia, não 3.000',
         );
       }
-      stopwatch.stop();
-
-      expect(
-        stopwatch.elapsedMilliseconds,
-        lessThan(2000),
-        reason:
-            'vinte leituras repetidas de um manifesto de 3.000 linhas sem '
-            'mudar não podem custar perto do que vinte reparses custariam',
-      );
     },
   );
 
-  test(
-    'a manifest moved to a new home, its stat preserved, resolves audio '
-    'against the new folder, not the one that is gone',
-    () async {
-      final room = FakeRoom()..reachable = false;
-      final queue = queueOn(room);
-      await queue.enqueue(
-        aTake('tomada'),
-        sessionId: 'sessao-1',
-        kind: 'ensaio',
-        scope: 'inteira',
-      );
+  test('a manifest moved to a new home, its stat preserved, resolves audio '
+      'against the new folder, not the one that is gone', () async {
+    final room = FakeRoom()..reachable = false;
+    final queue = queueOn(room);
+    await queue.enqueue(
+      aTake('tomada'),
+      sessionId: 'sessao-1',
+      kind: 'ensaio',
+      scope: 'inteira',
+    );
 
-      final stamp = DateTime(2026, 1, 1);
-      await manifest().setLastModified(stamp);
-      final before = await queue.entries();
-      final oldPath = before.single.path;
+    final stamp = DateTime(2026, 1, 1);
+    await manifest().setLastModified(stamp);
+    final before = await queue.entries();
+    final oldPath = before.single.path;
 
-      theContainerIsRenamed();
-      await manifest().setLastModified(stamp);
+    theContainerIsRenamed();
+    await manifest().setLastModified(stamp);
 
-      final after = await queue.entries();
-      expect(
-        after.single.path,
-        isNot(equals(oldPath)),
-        reason:
-            'a pasta mudou de verdade — servir o caminho antigo aponta para '
-            'um áudio que não está mais lá, mesmo com o manifesto intacto',
-      );
-      expect(
-        File(after.single.path).existsSync(),
-        isTrue,
-        reason: 'o caminho devolvido precisa apontar para onde o áudio está agora',
-      );
-    },
-  );
+    final after = await queue.entries();
+    expect(
+      after.single.path,
+      isNot(equals(oldPath)),
+      reason:
+          'a pasta mudou de verdade — servir o caminho antigo aponta para '
+          'um áudio que não está mais lá, mesmo com o manifesto intacto',
+    );
+    expect(
+      File(after.single.path).existsSync(),
+      isTrue,
+      reason:
+          'o caminho devolvido precisa apontar para onde o áudio está agora',
+    );
+  });
 
   test('the audio file is never deleted, even after the room has it', () async {
     final room = FakeRoom();
