@@ -1625,10 +1625,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (roda == null || roda.isEmpty) return;
     final at = index.clamp(0, roda.length - 1);
     if (at == state.aOferecer && state.voice == VoiceState.invite) return;
-    // Not `_cancelTimers()`: it bumps the epoch and clears every timer in the room,
-    // including the one that retries the network. A finger on the ruler would have killed
-    // the way back from offline. Cutting the line short is enough, and `_dizerAOferecida`
-    // checks for itself that the finger has not moved on.
+    // Not `_cancelTimers()`: it bumps the epoch and clears every timer in the room.
+    // Cutting the line short is enough, and `_dizerAOferecida` checks for itself that the
+    // finger has not moved on.
     _silenceTheRoom();
     state = state.copyWith(aOferecer: at, voice: VoiceState.invite);
   }
@@ -2453,8 +2452,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (state.stage == SalaStage.convite && _panoramaSessionId == null) return;
     if (state.offline) {
-      // `_haltForAPerson` writes over `voice: offline`. One tap on the lit hand during an
-      // outage turned a room that heals itself into one that needs a person to walk in.
       retryNow();
       return;
     }
