@@ -1827,6 +1827,53 @@ void main() {
   );
 
   test(
+    'a pull that finds a different id in the same slot does touch the screen',
+    () async {
+      final harness =
+          SalaHarness(
+              settleDelay: const Duration(seconds: 60),
+              replies: const [HandReply(id: 'r1', audioUrl: '/voice/r1')],
+            )
+            ..room.turnIdInResponse = 'turno-1'
+            ..room.holdNextState();
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+      await waitFor(
+        'a primeira leitura da caixa trazer r1',
+        () => container.read(salaSessionProvider).replies.length == 1,
+      );
+
+      harness.inbox.replies = const [
+        HandReply(id: 'r2', audioUrl: '/voice/r2'),
+      ];
+      var emits = 0;
+      container.listen(salaSessionProvider, (_, _) => emits++);
+
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+      );
+      await waitFor(
+        'r2 tomar o lugar de r1',
+        () =>
+            container.read(salaSessionProvider).replies.length == 1 &&
+            container.read(salaSessionProvider).replies.first.id == 'r2',
+      );
+
+      expect(
+        emits,
+        greaterThan(0),
+        reason:
+            'mesmo tamanho, id diferente na mesma posição — não é a '
+            'mesma lista, e a tela precisa saber',
+      );
+
+      harness.room.finishHeldState();
+    },
+  );
+
+  test(
     'a pull that finds the same replies again still lowers a question asked after they arrived',
     () async {
       final harness =

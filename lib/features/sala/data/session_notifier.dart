@@ -2280,14 +2280,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(replies: merged, questionPending: false);
   }
 
+  // merged above already reused known[id] for any id it recognised, so a shared id at
+  // the same position is the same HandReply object — a server re-sending audio_url for a
+  // question_id already on the hand is discarded there, before this ever runs. Ids in
+  // the same order is the whole comparison.
   bool _sameReplies(List<HandReply> a, List<HandReply> b) {
     if (a.length != b.length) return false;
     for (var i = 0; i < a.length; i++) {
-      if (a[i].id != b[i].id ||
-          a[i].audioUrl != b[i].audioUrl ||
-          a[i].heard != b[i].heard) {
-        return false;
-      }
+      if (a[i].id != b[i].id) return false;
     }
     return true;
   }
