@@ -1193,6 +1193,98 @@ void main() {
   );
 
   test(
+    'a frame carrying coverage stamps the beads clock itself, without waiting for the pull that follows',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60));
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.room.turnIdInResponse = 'turno-2';
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      harness.room.pushCoverage(
+        CoverageEvent(
+          turnId: 'turno-2',
+          status: CoverageStatus.settled,
+          coverage: coverage(engaged: 3, surfaced: 4),
+        ),
+      );
+      await waitFor(
+        'o colar assentar pelo aviso',
+        () => container.read(salaSessionProvider).coverage.engaged == 3,
+      );
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      expect(harness.room.clientTimingsSent, hasLength(2));
+      expect(harness.room.clientTimingsSent[1], contains('sound_to_beads='));
+    },
+  );
+
+  test(
+    'a pull that lands long after the frame does not move the beads clock mark to itself',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60));
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.room.turnIdInResponse = 'turno-2';
+      harness.room.settledCoverage = coverage(engaged: 3, surfaced: 4);
+      harness.room.holdNextState();
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      harness.room.pushCoverage(
+        CoverageEvent(
+          turnId: 'turno-2',
+          status: CoverageStatus.settled,
+          coverage: coverage(engaged: 3, surfaced: 4),
+        ),
+      );
+      await waitFor(
+        'o colar assentar pelo aviso',
+        () => container.read(salaSessionProvider).coverage.engaged == 3,
+      );
+
+      await settle(const Duration(milliseconds: 400));
+      harness.room.finishHeldState();
+      await settle();
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      expect(harness.room.clientTimingsSent, hasLength(2));
+      final timing = harness.room.clientTimingsSent[1]!;
+      final match = RegExp(r'sound_to_beads=(\d+)').firstMatch(timing);
+      expect(
+        match,
+        isNotNull,
+        reason: 'o aviso pousou as contas — a marca tinha que existir',
+      );
+      expect(
+        int.parse(match!.group(1)!),
+        lessThan(300),
+        reason:
+            'o pull tardio (soltado 400ms depois do aviso) só confirmou o '
+            'mesmo número — se ele tivesse recarimbado o relógio em vez do '
+            'aviso, a marca seria >= 400ms, não perto de zero',
+      );
+    },
+  );
+
+  test(
     'a settle that lands no new beads does not stamp the clock beads never actually reached',
     () async {
       final harness = SalaHarness(settleDelay: const Duration(seconds: 60));
@@ -1676,6 +1768,191 @@ void main() {
         harness.room.calls.where((call) => call == 'fetchState').length,
         1,
       );
+    },
+  );
+
+  test(
+    'a frame carrying coverage paints the necklace before fetchState answers',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1'
+        ..room.holdNextState();
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+      expect(container.read(salaSessionProvider).coverage.engaged, 0);
+
+      harness.room.pushCoverage(
+        CoverageEvent(
+          turnId: 'turno-1',
+          status: CoverageStatus.settled,
+          coverage: coverage(engaged: 3, surfaced: 4),
+        ),
+      );
+      await waitFor(
+        'o colar assentar direto do aviso',
+        () => container.read(salaSessionProvider).coverage.engaged == 3,
+      );
+
+      expect(
+        harness.room.calls.where((call) => call == 'fetchState').length,
+        1,
+        reason:
+            'o fetchState que o próprio aviso settled dispara ainda está no '
+            'ar — o colar já assentou sem esperar por ele',
+      );
+
+      harness.room.finishHeldState();
+    },
+  );
+
+  test(
+    'a frame carrying coverage pings the newly engaged beads, same as the pull would',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1'
+        ..room.holdNextState();
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+
+      harness.room.pushCoverage(
+        CoverageEvent(
+          turnId: 'turno-1',
+          status: CoverageStatus.settled,
+          coverage: coverage(engaged: 3, surfaced: 4),
+        ),
+      );
+      await waitFor(
+        'o colar assentar pelo aviso',
+        () => container.read(salaSessionProvider).coverage.engaged == 3,
+      );
+
+      final ping = container.read(salaSessionProvider).ping;
+      expect(
+        ping?.from,
+        0,
+        reason:
+            'o aviso pinta o colar direto — o papel de contas novas tinha '
+            'que acender junto, não só quando o pull confirmar depois',
+      );
+      expect(ping?.to, 3);
+
+      harness.room.finishHeldState();
+    },
+  );
+
+  test(
+    'a pull that only confirms what the frame already painted does not cut the ping short',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1'
+        ..room.settledCoverage = coverage(engaged: 3, surfaced: 4);
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+
+      harness.room.pushCoverage(
+        CoverageEvent(
+          turnId: 'turno-1',
+          status: CoverageStatus.settled,
+          coverage: coverage(engaged: 3, surfaced: 4),
+        ),
+      );
+      await waitFor(
+        'o pull que o aviso settled dispara terminar',
+        () => harness.room.calls.where((c) => c == 'fetchState').length == 1,
+      );
+      await settle(const Duration(milliseconds: 50));
+
+      expect(
+        container.read(salaSessionProvider).ping?.to,
+        3,
+        reason:
+            'o pull que só confirma o mesmo número não pode apagar o papel '
+            'que o aviso já tinha aceso — a equipe veria um flash mais '
+            'curto do que o desenhado',
+      );
+    },
+  );
+
+  test(
+    'a pull that confirms the frame inside the ping does not stretch it past the frame\'s own 700 ms',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1'
+        ..room.settledCoverage = coverage(engaged: 3, surfaced: 4);
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+      harness.room.holdNextState();
+
+      harness.room.pushCoverage(
+        CoverageEvent(
+          turnId: 'turno-1',
+          status: CoverageStatus.settled,
+          coverage: coverage(engaged: 3, surfaced: 4),
+        ),
+      );
+      await waitFor(
+        'o aviso acender o papel',
+        () => container.read(salaSessionProvider).ping?.to == 3,
+      );
+      await settle(const Duration(milliseconds: 400));
+      harness.room.finishHeldState();
+      await settle(const Duration(milliseconds: 450));
+
+      expect(
+        container.read(salaSessionProvider).ping,
+        isNull,
+        reason:
+            'o papel dura 700 ms a partir do aviso; o pull que só confirma '
+            'o mesmo número não pode rearmar o apagar para pull + 700 ms',
+      );
+    },
+  );
+
+  test(
+    'a frame that reports fewer beads than the necklace already shows changes nothing',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1'
+        ..room.nextCoverage = coverage(engaged: 5, surfaced: 5)
+        ..room.holdNextState();
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+      expect(container.read(salaSessionProvider).coverage.engaged, 5);
+
+      harness.room.pushCoverage(
+        CoverageEvent(
+          turnId: 'turno-1',
+          status: CoverageStatus.settled,
+          coverage: coverage(engaged: 2, surfaced: 2),
+        ),
+      );
+      await waitFor(
+        'o aviso ser tratado, com o fetchState que ele dispara ainda no ar',
+        () =>
+            harness.room.calls.where((call) => call == 'fetchState').length ==
+            1,
+      );
+
+      expect(
+        container.read(salaSessionProvider).coverage.engaged,
+        5,
+        reason:
+            'um aviso que chega atrás não pode devolver o colar para trás '
+            'do que a equipe já viu encher, mesmo antes do fetchState '
+            'seguinte confirmar qualquer coisa',
+      );
+
+      harness.room.finishHeldState();
     },
   );
 
