@@ -1173,18 +1173,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_coverageSessionId == sessionId) return;
     unawaited(_coverageWatch?.cancel());
     _coverageSessionId = sessionId;
-    // A terminal status closes the controller right after erroring it (RR:watchCoverage),
-    // so onDone still fires once onError already has — the flag is what tells the second
-    // one this death was a refusal, not the ordinary end a reopen answers.
+    // The repository closes the channel right after every error it raises
+    // (RR:watchCoverage), so onDone is where the channel dies, once; onError only records
+    // why. Only the room refusing the device or no longer holding the session is a
+    // refusal. A body that breaks mid-stream, or a status the room could not serve, may be
+    // how Cloud Run's 300 s cut reaches the tablet — read as a refusal, it left the beads
+    // waiting on the fallback again, the very bug the reopen exists to fix.
     var refused = false;
     _coverageWatch = _room
         .watchCoverage(sessionId)
         .listen(
           _onCoverageFrame,
           onDone: () => _coverageChannelDied(sessionId, reopen: !refused),
-          onError: (Object _) {
-            refused = true;
-            _coverageChannelDied(sessionId, reopen: false);
+          onError: (Object error) {
+            refused = error is RoomRefused || error is SessionGone;
           },
         );
   }

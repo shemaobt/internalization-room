@@ -2026,6 +2026,79 @@ void main() {
   );
 
   test(
+    'a coverage channel whose body breaks mid-stream reopens once, the way an ordinary end does',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1'
+        ..room.settledCoverage = coverage(engaged: 3, surfaced: 4);
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+      expect(harness.room.watchCoverageCalls, 1);
+
+      harness.room.dropCoverageStream(
+        error: const RoomUnavailable('Connection closed while receiving data'),
+      );
+      await waitFor(
+        'o canal reabrir depois de uma queda de transporte',
+        () => harness.room.watchCoverageCalls == 2,
+      );
+
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+      );
+      await waitFor(
+        'o colar assentar pelo canal reaberto, não pelo fallback de 60s',
+        () => container.read(salaSessionProvider).coverage.engaged == 3,
+      );
+    },
+  );
+
+  test(
+    'a coverage channel the room answers with a status it cannot serve reopens once, and no more',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1';
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+      expect(harness.room.watchCoverageCalls, 1);
+
+      harness.room.dropCoverageStream(error: const RoomBroke('HTTP 503'));
+      await waitFor(
+        'o canal reabrir depois de um 503',
+        () => harness.room.watchCoverageCalls == 2,
+      );
+      harness.room.dropCoverageStream(error: const RoomBroke('HTTP 503'));
+      await settle(const Duration(milliseconds: 200));
+      expect(
+        harness.room.watchCoverageCalls,
+        2,
+        reason:
+            'uma sala fora do ar fecha o canal que acabou de reabrir — '
+            'reabrir a cada queda vira um laço durante os 60s do fallback',
+      );
+    },
+  );
+
+  test(
+    'a coverage channel that closes because the session is gone never reopens on its own',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60));
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+
+      expect(harness.room.watchCoverageCalls, 1);
+
+      harness.room.dropCoverageStream(error: const SessionGone());
+      await settle(const Duration(milliseconds: 200));
+      expect(harness.room.watchCoverageCalls, 1);
+    },
+  );
+
+  test(
     'a coverage channel that closes with a refusal never reopens on its own, even with a turn waiting',
     () async {
       final harness = SalaHarness(settleDelay: const Duration(seconds: 60));
