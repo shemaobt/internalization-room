@@ -2323,11 +2323,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// is offered again, and again, and the team loses the one gesture they have for
   /// reaching a person. The answer is already lost — refusing to let go of it costs them
   /// the ability to ask anything else.
+  ///
+  /// A room that cannot serve the clip is one more way for an answer not to play, and it is
+  /// let go of the same way — never through `_handleRoomFailure`. The hand is a side
+  /// channel: a halt raised over a reply would take the circle along with it.
+  ///
+  /// The playing mark is given back on every way out. `_markHeard` is what clears it, and a
+  /// reply that outlived its epoch never reached it: the mark stayed, and the hand, the
+  /// circle and the convite all returned early on it for good.
   Future<void> _playReply(HandReply reply) async {
     final epoch = _epoch;
-    await _voice.play(reply.audioUrl);
-    if (epoch != _epoch) return;
-    unawaited(_markHeard(reply.id));
+    try {
+      await _voice.play(reply.audioUrl);
+    } on Exception {
+      // Nothing to do here: what follows is the same for a line that did not sound.
+    }
+    if (epoch == _epoch) {
+      unawaited(_markHeard(reply.id));
+    } else if (!_gone && state.playingReplyId == reply.id) {
+      state = state.copyWith(clearPlayingReply: true);
+    }
   }
 
   /// A reply is heard when the desk agrees, and not before.

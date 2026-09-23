@@ -3408,6 +3408,88 @@ void main() {
     expect(harness.inbox.heard, ['r1']);
   });
 
+  test(
+    'a reply the room cannot serve gives the hand and the circle back, with nobody called',
+    () async {
+      final harness = SalaHarness(
+        replies: const [HandReply(id: 'r1', audioUrl: '/voice/r1')],
+      );
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.voice.roomFailsWith = const RoomBroke('HTTP 503');
+      notifier.handTap();
+      await settle();
+
+      final state = container.read(salaSessionProvider);
+      expect(
+        state.playingReplyId,
+        isNull,
+        reason:
+            'o play() agora lança a queda da sala, e ela pulava o _markHeard — '
+            'o único que limpa a resposta tocando, em que a mão, o círculo e o '
+            'convite todos voltam cedo',
+      );
+      expect(
+        state.needsPerson,
+        isFalse,
+        reason:
+            'a mão é um canal lateral — uma resposta que não chegou não chama '
+            'ninguém, e a equipe fica com os gestos que tinha',
+      );
+
+      harness.voice.roomFailsWith = null;
+      notifier.handTap();
+      expect(
+        container.read(salaSessionProvider).noteMode,
+        isTrue,
+        reason:
+            'uma resposta quebrada nunca toma o gesto — é largada como a que '
+            'o player não abre, e o próximo toque na mão arma uma pergunta',
+      );
+      notifier.conversaTap();
+      await settle();
+
+      expect(
+        harness.recorder.captures,
+        1,
+        reason: 'o círculo abre o microfone de novo',
+      );
+    },
+  );
+
+  test(
+    'a reply outlived by its stage still gives the hand back when it ends',
+    () async {
+      final harness = SalaHarness(
+        replies: const [HandReply(id: 'r1', audioUrl: '/voice/r1')],
+      );
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.voice.holdNextLine();
+      notifier.handTap();
+      await waitFor(
+        'a resposta começar a tocar',
+        () => harness.voice.played.contains('/voice/r1'),
+      );
+      notifier.goEnsaio();
+      harness.voice.finishHeldLine();
+      await settle();
+
+      expect(
+        container.read(salaSessionProvider).playingReplyId,
+        isNull,
+        reason:
+            'a troca de etapa muda a época e o _playReply voltava antes do '
+            '_markHeard — a resposta seguia "tocando" para sempre, e a conversa '
+            'reaberta não atendia mais nenhum toque no círculo',
+      );
+    },
+  );
+
   test('a kept take leaves the tablet', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
