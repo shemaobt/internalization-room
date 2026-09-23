@@ -207,12 +207,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _ackSpoken = 0;
   DateTime? _listeningSince;
   bool _recordingStarting = false;
-
-  /// Counts every call to [_recordOrBlock], not just the ones the epoch still owns:
-  /// the recorder is one instance shared across passages, so a stale answer has to
-  /// know it is the LATEST stale answer before touching it — a moved epoch alone
-  /// cannot tell two abandoned starts apart, and discarding on the wrong one closes
-  /// a microphone a newer start already opened.
   int _starts = 0;
   VoiceState _voiceBeforeQuestion = VoiceState.invite;
   String? _emCurso;
@@ -2851,12 +2845,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final openedAsAChunkCapture = state.btPhase == BtPhase.capturing;
     _micWatch ??= _recorder.interrupted.listen(_theMicrophoneChangedHands);
     final capture = await _recorder.start(fileName);
+    if (_gone) return;
     // The answer can arrive a minute late — `hasPermission` waits up to sixty seconds for
     // the platform — by which time the team may be on another stage entirely, with a
     // microphone of its own still opening. Cleared under the guard, never above it: a
     // start coming back from a passage already left let the next passage's second tap
     // through, onto a recorder that had not opened.
-    if (epoch != _epoch || _gone) {
+    if (epoch != _epoch) {
       if (start == _starts && capture == Capture.started) {
         _recordingStarting = false;
         unawaited(_recorder.discard());

@@ -174,6 +174,20 @@ void main() {
     closeTheRoom(container);
   });
 
+  test('a start answering after the room is gone touches nothing', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    harness.recorder.holdNextStart();
+    notifier.conversaTap();
+    await settle();
+
+    container.dispose();
+    harness.recorder.finishStart();
+    await settle();
+  });
+
   test(
     'goEnsaio while the recorder start is still in the air leaves no microphone open',
     () async {
