@@ -1262,21 +1262,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// that raced ahead of a slower one used to be able to put it back. The same guard
   /// runs whether the number came from the coverage frame or from the state pull that
   /// follows it, so the pull confirming what the frame already painted never re-marks
-  /// the clock or re-lights a ping that is already on.
+  /// the clock a second time.
   bool _applyCoverage(Coverage? told, {TurnClock? clock}) {
     final before = state.coverage.engaged;
     final advanced = told != null && told.engaged > before;
     if (advanced) clock?.mark('beads');
     if (told != null && told.engaged >= before) {
-      state = state.copyWith(
-        coverage: told,
-        ping: advanced ? PingRange(before, told.engaged) : null,
-      );
-    }
-    if (advanced) {
-      _after('ping', const Duration(milliseconds: 700), () {
-        state = state.copyWith(clearPing: true);
-      });
+      state = state.copyWith(coverage: told);
     }
     return advanced;
   }
@@ -2332,10 +2324,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (fetched == null) return;
     if (fetched.isEmpty || _gone) return;
     final known = {for (final reply in state.replies) reply.id: reply};
-    state = state.copyWith(
-      replies: [for (final reply in fetched) known[reply.id] ?? reply],
-      questionPending: false,
-    );
+    final merged = [for (final reply in fetched) known[reply.id] ?? reply];
+    if (_sameReplies(merged, state.replies) && !state.questionPending) return;
+    state = state.copyWith(replies: merged, questionPending: false);
+  }
+
+  // merged above already reused known[id] for any id it recognised, so a shared id at
+  // the same position is the same HandReply object — a server re-sending audio_url for a
+  // question_id already on the hand is discarded there, before this ever runs. Ids in
+  // the same order is the whole comparison.
+  bool _sameReplies(List<HandReply> a, List<HandReply> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i].id != b[i].id) return false;
+    }
+    return true;
   }
 
   void handTap() {

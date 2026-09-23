@@ -83,15 +83,6 @@ class Trecho {
   });
 }
 
-class PingRange {
-  final int from;
-  final int to;
-
-  const PingRange(this.from, this.to);
-
-  bool contains(int index) => index >= from && index < to;
-}
-
 class SalaSessionState {
   final SalaStage stage;
   final VoiceState voice;
@@ -111,7 +102,6 @@ class SalaSessionState {
   /// first movement is being spoken; true everywhere else, so no other stage can be
   /// caught without it.
   final bool contasEnfiadas;
-  final PingRange? ping;
   final bool peerCue;
   final bool noteMode;
   final bool handAck;
@@ -231,7 +221,6 @@ class SalaSessionState {
     this.sessionId,
     this.coverage = Coverage.empty,
     this.contasEnfiadas = true,
-    this.ping,
     this.peerCue = false,
     this.noteMode = false,
     this.handAck = false,
@@ -409,8 +398,6 @@ class SalaSessionState {
     bool clearSession = false,
     Coverage? coverage,
     bool? contasEnfiadas,
-    PingRange? ping,
-    bool clearPing = false,
     bool? peerCue,
     bool? noteMode,
     bool? handAck,
@@ -465,7 +452,6 @@ class SalaSessionState {
       sessionId: clearSession ? null : (sessionId ?? this.sessionId),
       coverage: coverage ?? this.coverage,
       contasEnfiadas: contasEnfiadas ?? this.contasEnfiadas,
-      ping: clearPing ? null : (ping ?? this.ping),
       peerCue: peerCue ?? this.peerCue,
       noteMode: noteMode ?? this.noteMode,
       handAck: handAck ?? this.handAck,
