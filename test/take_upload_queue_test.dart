@@ -350,6 +350,61 @@ void main() {
     );
   });
 
+  test(
+    'a manifest of three thousand rows is parsed once and reused, not on every read',
+    () async {
+      final room = FakeRoom()..reachable = false;
+      final queue = queueOn(room);
+
+      final buffer = StringBuffer('[');
+      for (var n = 0; n < 3000; n++) {
+        if (n > 0) buffer.write(',');
+        buffer.write(
+          '{"id":"linha-$n","path":"${home.path}/guardadas/tomada-$n.m4a",'
+          '"session_id":"sessao-1","kind":"ensaio","scope":"parte-${n % 12}",'
+          '"pass_number":null,"chunk_index":null,"stored":false,"lost":false,'
+          '"attempts":0,"waits":0,"last_try":null}',
+        );
+      }
+      buffer.write(']');
+      Directory('${home.path}/guardadas').createSync(recursive: true);
+      final file = manifest();
+      file.writeAsStringSync(buffer.toString());
+
+      final stamp = DateTime(2026, 1, 1);
+      await file.setLastModified(stamp);
+      expect(
+        await queue.entries(),
+        hasLength(3000),
+        reason: 'a primeira leitura precisa mesmo parsear as 3.000 linhas',
+      );
+
+      final size = await file.length();
+      final stopwatch = Stopwatch()..start();
+      for (var round = 0; round < 20; round++) {
+        // Corrompe os bytes preservando (modified, size) — se o cache não
+        // servir a leitura de antes, isto vira uma lista vazia, não 3.000.
+        file.writeAsBytesSync(List.filled(size, 'x'.codeUnitAt(0)));
+        await file.setLastModified(stamp);
+        expect(
+          await queue.entries(),
+          hasLength(3000),
+          reason:
+              'o stat não mudou — a leitura das 3.000 linhas de antes ainda vale',
+        );
+      }
+      stopwatch.stop();
+
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(2000),
+        reason:
+            'vinte leituras repetidas de um manifesto de 3.000 linhas sem '
+            'mudar não podem custar perto do que vinte reparses custariam',
+      );
+    },
+  );
+
   test('the audio file is never deleted, even after the room has it', () async {
     final room = FakeRoom();
     final queue = queueOn(room);
