@@ -59,3 +59,7 @@ doctrine says it is: a fact the ledger states, which never ends the conversation
 A halt keeps its one lifter. Every other door that writes the invite voice over a state
 that should stand remains what it was — a defect where it exists, fixed one named arm at
 a time, never by a sweep.
+
+2026-09-23: opening the Rehearsal while the microphone was still opening did need a guard
+of its own after all — `_recordOrBlock` only lets the most recent start discard a capture
+that answers late, against the "needs no guard of its own" this decision recorded.
