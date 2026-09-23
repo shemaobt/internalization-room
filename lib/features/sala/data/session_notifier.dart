@@ -1232,11 +1232,37 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (frame.turnId != _awaitingCoverageTurnId) return;
     final sessionId = state.sessionId;
     if (sessionId == null) return;
+    _applyCoverage(frame.coverage, clock: _coverageClock);
     _resolveCoverageWait(
       sessionId,
       frame.turnId,
       pullState: frame.status == CoverageStatus.settled,
     );
+  }
+
+  /// A turn that carried no coverage, or fewer beads than the necklace already shows,
+  /// leaves the necklace where it is. Reading a missing field as zero emptied the cord
+  /// mid-passage — the only record of progress this team can perceive — and a read
+  /// that raced ahead of a slower one used to be able to put it back. The same guard
+  /// runs whether the number came from the coverage frame or from the state pull that
+  /// follows it, so the pull confirming what the frame already painted never re-marks
+  /// the clock or re-lights a ping that is already on.
+  bool _applyCoverage(Coverage? told, {TurnClock? clock}) {
+    final before = state.coverage.engaged;
+    final advanced = told != null && told.engaged > before;
+    if (advanced) clock?.mark('beads');
+    if (told != null && told.engaged >= before) {
+      state = state.copyWith(
+        coverage: told,
+        ping: advanced ? PingRange(before, told.engaged) : null,
+      );
+    }
+    if (state.ping != null) {
+      _after('ping', const Duration(milliseconds: 700), () {
+        state = state.copyWith(clearPing: true);
+      });
+    }
+    return advanced;
   }
 
   void _resolveCoverageWait(
@@ -1265,25 +1291,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     try {
       final snapshot = await _room.fetchState(sessionId);
       if (epoch != _epoch || state.sessionId != sessionId) return false;
-      final told = snapshot.coverage;
-      final before = state.coverage.engaged;
-      final advanced = told != null && told.engaged > before;
-      if (advanced) clock?.mark('beads');
-      // A turn that carried no coverage, or fewer beads than the necklace already shows,
-      // leaves the necklace where it is. Reading a missing field as zero emptied the cord
-      // mid-passage — the only record of progress this team can perceive — and a read
-      // that raced ahead of a slower one used to be able to put it back.
-      if (told != null && told.engaged >= before) {
-        state = state.copyWith(
-          coverage: told,
-          ping: told.engaged > before ? PingRange(before, told.engaged) : null,
-        );
-      }
-      if (state.ping != null) {
-        _after('ping', const Duration(milliseconds: 700), () {
-          state = state.copyWith(clearPing: true);
-        });
-      }
+      final advanced = _applyCoverage(snapshot.coverage, clock: clock);
       state = state.copyWith(warning: snapshot.halt == HaltKind.warning);
       if (state.warning) _watchTheHalt();
       if (snapshot.needsPerson) {
