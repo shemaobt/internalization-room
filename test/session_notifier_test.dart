@@ -1509,7 +1509,7 @@ void main() {
     },
   );
 
-  test('a turn the room refused still throws the recording away', () async {
+  test('a turn the room refused still keeps the recording', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -1523,9 +1523,10 @@ void main() {
 
     expect(
       harness.recorder.deleted,
-      [endsWith('captura-1.m4a')],
+      isEmpty,
       reason:
-          'nenhum caminho de erro reenvia o arquivo, então guardá-lo só ocupa espaço',
+          'o servidor não guardou nada — apagar aqui perderia a fala da '
+          'equipe de vez, o caso mais grave que a regra existe para evitar',
     );
   });
 
@@ -7309,7 +7310,7 @@ void main() {
   }, timeout: const Timeout(Duration(seconds: 20)));
 
   test('a voiced turn whose room disposes while a dropped send asks the '
-      'network leaves quietly too', () async {
+      'network leaves quietly too, and the recording is still kept', () async {
     final harness = SalaHarness(busyCeiling: const Duration(seconds: 5));
     final container = await inConversa(harness);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -7328,10 +7329,11 @@ void main() {
 
     expect(
       harness.recorder.deleted,
-      contains(path),
+      isNot(contains(path)),
       reason:
           'a queda também fecha o turno em voo, e o pedido de rede que a '
-          'reenviar faz não pode travar no mesmo lugar',
+          'reenviar faz não pode travar no mesmo lugar — nem apagar a fala '
+          'que o servidor nunca chegou a guardar',
     );
   }, timeout: const Timeout(Duration(seconds: 20)));
 
