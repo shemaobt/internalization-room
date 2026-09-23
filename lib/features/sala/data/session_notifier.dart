@@ -274,7 +274,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   String? _coverageSessionId;
   String? _awaitingCoverageTurnId;
   String? _resolvedCoverageTurnId;
-  bool _coverageReopened = false;
+  String? _coverageReopenedForTurnId;
   bool _doneSeenMidTurn = false;
   StreamSubscription<bool>? _micWatch;
   VoidCallback? _onPlaybackComplete;
@@ -1157,7 +1157,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchCoverageChannel(sessionId);
     _awaitingCoverageTurnId = turnId;
     _coverageClock = clock;
-    _coverageReopened = false;
     _after('coverage', ref.read(coverageFallbackDelayProvider), () {
       if (_awaitingCoverageTurnId != turnId) return;
       _resolveCoverageWait(sessionId, turnId, pullState: true);
@@ -1197,12 +1196,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// to reopen, and a refusal is never retried on its own. That reopen still fires at most
   /// once per armed turn: a room the client cannot reach keeps closing the channel it just
   /// reopened, and reopening on every one of those deaths turned an unreachable room into
-  /// a reopen-and-fetch loop for the whole 30 s fallback window.
+  /// a reopen-and-fetch loop for the whole 30 s fallback window. The guard is scoped to the
+  /// turn's own id, not a flag `_awaitCoverageSettle` clears — that method arms the same
+  /// turn twice, once before it speaks and once after, and a flag reset on every arm let a
+  /// death landing between those two calls buy the turn a second reopen.
   void _coverageChannelDied(String sessionId, {required bool reopen}) {
     _coverageWatch = null;
     _coverageSessionId = null;
-    if (reopen && _awaitingCoverageTurnId != null && !_coverageReopened) {
-      _coverageReopened = true;
+    if (reopen &&
+        _awaitingCoverageTurnId != null &&
+        _coverageReopenedForTurnId != _awaitingCoverageTurnId) {
+      _coverageReopenedForTurnId = _awaitingCoverageTurnId;
       _watchCoverageChannel(sessionId);
       unawaited(_recoverCoverageWait(sessionId));
     }

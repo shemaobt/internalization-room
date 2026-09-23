@@ -1757,6 +1757,44 @@ void main() {
   );
 
   test(
+    'a coverage channel that dies once before the turn speaks and once again after still reopens only once',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1';
+      harness.voice.holdNextLine();
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      final opening = container.read(salaSessionProvider.notifier).goConversa();
+      await waitFor(
+        'o canal abrir antes da fala',
+        () => harness.room.watchCoverageCalls == 1,
+      );
+
+      harness.room.dropCoverageStream();
+      await waitFor(
+        'o canal reabrir depois da queda entre as duas armadas',
+        () => harness.room.watchCoverageCalls == 2,
+      );
+
+      harness.voice.finishHeldLine();
+      await opening;
+
+      harness.room.dropCoverageStream();
+      await settle(const Duration(milliseconds: 200));
+
+      expect(
+        harness.room.watchCoverageCalls,
+        2,
+        reason:
+            '_awaitCoverageSettle arma o mesmo turno duas vezes — antes e '
+            'depois de falar — e uma queda entre essas duas armadas não '
+            'pode comprar uma segunda reabertura para o mesmo turno',
+      );
+    },
+  );
+
+  test(
     'a coverage channel that dies with nothing pending stays closed until the next turn arms it',
     () async {
       final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
