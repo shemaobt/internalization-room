@@ -294,12 +294,14 @@ class RoomRepository {
   Future<TurnResult> sendTurn(
     String sessionId,
     File audio, {
+    String? turnId,
     String? clientTiming,
   }) async {
     final request =
         http.MultipartRequest('POST', _uri('/sessions/$sessionId/turns'))
           ..headers.addAll(_whoWeAre)
           ..files.add(await http.MultipartFile.fromPath('file', audio.path));
+    if (turnId != null) request.fields['turn_id'] = turnId;
     if (clientTiming != null) request.fields['client_timing'] = clientTiming;
     return _read(await _sendMultipart(request), TurnResult.fromJson);
   }

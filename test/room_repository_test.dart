@@ -116,6 +116,35 @@ void main() {
   );
 
   test(
+    'a resent recording carries the id of its first send, so the room can answer it once',
+    () async {
+      final seenBodies = <String>[];
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seenBodies.add(request.body);
+          return http.Response(_turnBody(), 200);
+        }),
+      );
+      addTearDown(repository.dispose);
+
+      final take = await _tempRecording();
+      await repository.sendTurn('sessao-1', take, turnId: 'turno-7');
+      await repository.sendTurn('sessao-1', take, turnId: 'turno-7');
+
+      expect(seenBodies, hasLength(2));
+      for (final body in seenBodies) {
+        expect(
+          body,
+          contains('name="turn_id"\r\n\r\nturno-7\r\n'),
+          reason:
+              'o turno falado ia sem id, e o servidor não tinha como '
+              'reconhecer o reenvio de uma resposta que ele já tinha dado',
+        );
+      }
+    },
+  );
+
+  test(
     'a turn with marks from the previous one carries them, a turn with none carries no field at all',
     () async {
       late String seenBodyWithTiming;

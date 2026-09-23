@@ -1381,7 +1381,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(voice: VoiceState.thinking);
     _watchBusyState();
     try {
-      final turn = await _room.sendTurn(panorama, File(path));
+      final turn = await _sendTheTake(panorama, File(path), epoch);
       if (epoch != _epoch) return;
       await _voicePanorama(turn);
     } on Exception catch (error) {
@@ -2185,9 +2185,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     try {
       final clientTiming = _pendingClock?.clientTiming(_clockSegments);
       _pendingClock = clock;
-      final turn = await _room.sendTurn(
+      final turn = await _sendTheTake(
         sessionId,
         File(path),
+        epoch,
         clientTiming: clientTiming,
       );
       await _voiceTurn(
@@ -2201,6 +2202,37 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _handleRoomFailure(error, turnCall: true);
     } finally {
       unawaited(_recorder.delete(path));
+    }
+  }
+
+  Future<TurnResult> _sendTheTake(
+    String sessionId,
+    File take,
+    int epoch, {
+    String? clientTiming,
+  }) async {
+    final turnId = _stamp();
+    final window = ref.read(busyStateCeilingProvider);
+    final backoff = ref.read(roomRetryBackoffProvider);
+    final waited = Stopwatch()..start();
+    var resends = 0;
+    while (true) {
+      try {
+        return await _room.sendTurn(
+          sessionId,
+          take,
+          turnId: turnId,
+          clientTiming: clientTiming,
+        );
+      } on Exception catch (error) {
+        if (error is! RoomUnavailable && error is! RoomSlow) rethrow;
+        if (window == null) rethrow;
+        final step = resends < backoff.length ? resends : backoff.length - 1;
+        if (waited.elapsed + backoff[step] >= window) rethrow;
+        resends++;
+        await Future<void>.delayed(backoff[step]);
+        if (epoch != _epoch) rethrow;
+      }
     }
   }
 
