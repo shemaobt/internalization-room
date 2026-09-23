@@ -268,6 +268,35 @@ void main() {
     },
   );
 
+  test(
+    'onSoundStart fires once, not moved by the iOS quirk of reporting playing again at the end',
+    () async {
+      final player = SpeakingPlayer();
+      final voice = service(player: player);
+      var starts = 0;
+
+      final speaking = voice.play(_clip, onSoundStart: () => starts++);
+      await waitFor('o tocador soar', () => player.sounding);
+
+      player.startSounding();
+      await waitFor('onSoundStart disparar', () => starts == 1);
+
+      player.startSounding();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(
+        starts,
+        1,
+        reason:
+            'o iOS nunca limpa playing no fim de uma fala — o mesmo evento '
+            'que soa o começo soa de novo o fim, e um ouvinte que não se '
+            'desliga move a marca para o fim da fala inteira',
+      );
+      player.reachTheEnd();
+      expect(await speaking, isTrue);
+    },
+  );
+
   test('a line played to the end is still counted as heard', () async {
     final player = SpeakingPlayer();
     final voice = service(player: player);

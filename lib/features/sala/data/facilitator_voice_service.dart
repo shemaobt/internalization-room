@@ -119,11 +119,15 @@ class FacilitatorVoiceService {
       await _giveUp();
       return false;
     }
-    final soundStart = onSoundStart == null
-        ? null
-        : _player.playerStateStream
-              .where((playerState) => playerState.playing)
-              .listen((_) => onSoundStart());
+    StreamSubscription<PlayerState>? soundStart;
+    if (onSoundStart != null) {
+      soundStart = _player.playerStateStream
+          .where((playerState) => playerState.playing)
+          .listen((_) {
+            onSoundStart();
+            soundStart?.cancel();
+          });
+    }
     try {
       await _player.play().timeout((length ?? _unknownLineCeiling) + _grace);
     } on TimeoutException {
