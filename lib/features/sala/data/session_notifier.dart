@@ -2276,7 +2276,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (fetched.isEmpty || _gone) return;
     final known = {for (final reply in state.replies) reply.id: reply};
     final merged = [for (final reply in fetched) known[reply.id] ?? reply];
-    if (_sameReplies(merged, state.replies)) return;
+    if (_sameReplies(merged, state.replies) && !state.questionPending) return;
     state = state.copyWith(replies: merged, questionPending: false);
   }
 

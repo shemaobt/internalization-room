@@ -1827,6 +1827,61 @@ void main() {
   );
 
   test(
+    'a pull that finds the same replies again still lowers a question asked after they arrived',
+    () async {
+      final harness =
+          SalaHarness(
+              settleDelay: const Duration(seconds: 60),
+              replies: const [
+                HandReply(id: 'r1', audioUrl: '/voice/r1', heard: true),
+              ],
+            )
+            ..room.turnIdInResponse = 'turno-1'
+            ..room.holdNextState();
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      await notifier.goConversa();
+      await waitFor(
+        'a primeira leitura da caixa trazer r1',
+        () => container.read(salaSessionProvider).replies.length == 1,
+      );
+
+      notifier.handTap();
+      notifier.conversaTap();
+      notifier.conversaTap();
+      await settle();
+      expect(container.read(salaSessionProvider).questionPending, isTrue);
+
+      var emits = 0;
+      container.listen(salaSessionProvider, (_, _) => emits++);
+
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+      );
+      await settle(const Duration(milliseconds: 100));
+
+      expect(
+        emits,
+        greaterThan(0),
+        reason:
+            'a caixa segue devolvendo só r1, mas a mão pendia por uma '
+            'pergunta nova — o pull idêntico não pode deixar o ponto aceso',
+      );
+      expect(
+        container.read(salaSessionProvider).questionPending,
+        isFalse,
+        reason:
+            'todo pull não vazio sempre baixou o pedido pendente, mesmo '
+            'sem resposta nova — a lista igual não pode ser a exceção',
+      );
+
+      harness.room.finishHeldState();
+    },
+  );
+
+  test(
     'a frame that reports fewer beads than the necklace already shows changes nothing',
     () async {
       final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
