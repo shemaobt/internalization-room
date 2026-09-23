@@ -414,4 +414,33 @@ void main() {
       expect(await speaking, isTrue);
     },
   );
+
+  test(
+    'the library directory is resolved once, not on every call that needs it',
+    () async {
+      var calls = 0;
+      final voice = FacilitatorVoiceService(
+        fetch: (url) async {
+          fetched.add(url);
+          return Uint8List.fromList([1, 2, 3]);
+        },
+        libraryDir: () async {
+          calls++;
+          return library;
+        },
+      );
+
+      await voice.holds(_clip);
+      await voice.clipFor(_clip);
+      await voice.holds(_other);
+
+      expect(
+        calls,
+        1,
+        reason:
+            'cada holds() e clipFor() refazia getApplicationSupportDirectory() '
+            'mais create(recursive: true), disco de novo a cada pergunta',
+      );
+    },
+  );
 }

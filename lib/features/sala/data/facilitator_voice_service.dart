@@ -17,6 +17,7 @@ const _unknownLineCeiling = Duration(seconds: 90);
 class FacilitatorVoiceService {
   final Future<Uint8List> Function(String url) _fetch;
   final Future<Directory> Function() _libraryDir;
+  Future<Directory>? _dir;
   AudioPlayer? _opened;
   final Duration _grace;
   final Duration _loadCeiling;
@@ -35,6 +36,8 @@ class FacilitatorVoiceService {
        _loadCeiling = loadCeiling ?? _unknownLineCeiling;
 
   AudioPlayer get _player => _opened ??= AudioPlayer();
+
+  Future<Directory> get _resolvedDir => _dir ??= _libraryDir();
 
   Future<bool> play(String url, {void Function()? onSoundStart}) {
     if (url.isEmpty) return Future.value(false);
@@ -68,7 +71,7 @@ class FacilitatorVoiceService {
   Future<bool> holds(String url) async {
     if (url.isEmpty) return false;
     try {
-      final dir = await _libraryDir();
+      final dir = await _resolvedDir;
       final file = File(p.join(dir.path, '${_nameFor(url)}.mp3'));
       return file.existsSync() && file.lengthSync() > 0;
     } on Exception {
@@ -168,7 +171,7 @@ class FacilitatorVoiceService {
   }
 
   Future<File> _bringItIn(String url) async {
-    final dir = await _libraryDir();
+    final dir = await _resolvedDir;
     final file = File(p.join(dir.path, '${_nameFor(url)}.mp3'));
     if (file.existsSync() && file.lengthSync() > 0) {
       unawaited(_touch(file));
@@ -194,7 +197,7 @@ class FacilitatorVoiceService {
   }
 
   Future<void> _tidyLibrary() async {
-    final dir = await _libraryDir();
+    final dir = await _resolvedDir;
     await _dropOldestBeyondBudget(dir);
   }
 
