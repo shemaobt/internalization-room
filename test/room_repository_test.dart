@@ -572,7 +572,7 @@ void main() {
     await expectStatus(401, isA<RoomRefused>());
     await expectStatus(403, isA<RoomRefused>());
     await expectStatus(404, isA<SessionGone>());
-    await expectStatus(400, isA<PassageShut>());
+    await expectStatus(400, isA<RoomBroke>());
     await expectStatus(422, isA<RoomBroke>());
     await expectStatus(500, isA<RoomBroke>());
   });
@@ -1194,7 +1194,7 @@ void main() {
     test('as outras recusas seguem as de sempre', () async {
       for (final caso in [
         (status: 404, erro: isA<SessionGone>()),
-        (status: 400, erro: isA<PassageShut>()),
+        (status: 400, erro: isA<RoomBroke>()),
         (status: 403, erro: isA<RoomRefused>()),
       ]) {
         final repository = umaSala(
@@ -1211,6 +1211,154 @@ void main() {
       }
     });
   });
+
+  group(
+    'a status code is a verdict on the passage only at the doors that ask for the session',
+    () {
+      RoomRepository answering(int status) {
+        final repository = RoomRepository(
+          client: MockClient((_) async => http.Response('{}', status)),
+          deviceId: () async => 'aparelho-1',
+        );
+        addTearDown(repository.dispose);
+        return repository;
+      }
+
+      final sessionDoors = <String, Future<Object?> Function(RoomRepository)>{
+        'fetchState': (room) => room.fetchState('sessao-1'),
+        'openSession': (room) => room.openSession('sessao-1'),
+        'sendTurn': (room) async => room.sendTurn(
+          'sessao-1',
+          await _tempRecording(),
+          turnId: 'turno-1',
+        ),
+        'takesOf': (room) => room.takesOf('sessao-1'),
+        'askForAPerson': (room) => room.askForAPerson('sessao-1'),
+        'personArrived': (room) => room.personArrived('sessao-1'),
+        'approveRelease': (room) => room.approveRelease('sessao-1'),
+        'finishBackTranslation': (room) =>
+            room.finishBackTranslation('sessao-1', playedByTake: const []),
+        'sendTake': (room) async => room.sendTake(
+          'sessao-1',
+          await _tempRecording(),
+          kind: 'ensaio',
+          scope: 'parte-1',
+        ),
+      };
+
+      final stretchCalls = <String, Future<Object?> Function(RoomRepository)>{
+        'sendChunk': (room) async => room.sendChunk(
+          'sessao-1',
+          await _tempRecording(),
+          takeId: 'gravacao-1',
+          from: const Duration(seconds: 4),
+          to: const Duration(seconds: 4),
+        ),
+        'divideSegment': (room) => room.divideSegment(
+          'sessao-1',
+          'trecho-1',
+          at: const Duration(seconds: 2),
+        ),
+        'replaceSegment': (room) async => room.replaceSegment(
+          'sessao-1',
+          'trecho-1',
+          await _tempRecording(),
+          takeId: 'gravacao-1',
+          from: Duration.zero,
+          to: const Duration(seconds: 4),
+        ),
+      };
+
+      final notAboutASession =
+          <String, Future<Object?> Function(RoomRepository)>{
+            'createSession': (room) => room.createSession(language: 'pt'),
+            'passagesOf': (room) => room.passagesOf('Ruth', language: 'pt'),
+            'collectTheCredential': (room) =>
+                room.collectTheCredential('aparelho-1'),
+            'askForACode': (room) => room.askForACode('aparelho-1'),
+            'readTheLink': (room) => room.readTheLink('aparelho-1'),
+            'askForAPersonWithoutASession': (room) =>
+                room.askForAPersonWithoutASession('aparelho-1'),
+          };
+
+      test(
+        'a door that asks for the session reads a 404 as the session gone',
+        () async {
+          for (final door in sessionDoors.entries) {
+            await expectLater(
+              () => door.value(answering(404)),
+              throwsA(isA<SessionGone>()),
+              reason:
+                  '${door.key} pergunta pela sessão; o 404 dele é ela sumida',
+            );
+          }
+        },
+      );
+
+      test(
+        'a call that names a take or a stretch reads a 404 as a refused call',
+        () async {
+          for (final call in stretchCalls.entries) {
+            await expectLater(
+              () => call.value(answering(404)),
+              throwsA(isA<RoomBroke>()),
+              reason:
+                  '${call.key}: o 404 é a gravação ou o trecho que não são desta '
+                  'sessão, e lido como sessão sumida esquecia a linha de uma '
+                  'sessão viva',
+            );
+          }
+        },
+      );
+
+      test(
+        'a 400 is a refused call on every call, never a verdict on the passage',
+        () async {
+          for (final call in {
+            ...sessionDoors,
+            ...stretchCalls,
+            ...notAboutASession,
+          }.entries) {
+            await expectLater(
+              () => call.value(answering(400)),
+              throwsA(isA<RoomBroke>()),
+              reason:
+                  '${call.key}: o servidor não tem resposta que queira dizer '
+                  'passagem fechada; um trecho vazio recusado levava a sessão junto',
+            );
+          }
+        },
+      );
+
+      test('the device routes keep their own answers', () async {
+        await expectLater(
+          () => answering(404).collectTheCredential('aparelho-1'),
+          throwsA(isA<SessionGone>()),
+        );
+        await expectLater(
+          () => answering(409).collectTheCredential('aparelho-1'),
+          throwsA(isA<CredentialNotYet>()),
+        );
+        await expectLater(
+          () => answering(403).collectTheCredential('aparelho-1'),
+          throwsA(isA<CredentialTaken>()),
+        );
+        await expectLater(
+          () => answering(404).readTheLink('aparelho-1'),
+          throwsA(isA<SessionGone>()),
+        );
+        expect(await answering(204).readTheLink('aparelho-1'), isNull);
+        await expectLater(
+          () => answering(404).askForAPersonWithoutASession('aparelho-1'),
+          throwsA(isA<NobodyToReach>()),
+        );
+        await expectLater(
+          () => answering(409).askForAPersonWithoutASession('aparelho-1'),
+          throwsA(isA<NobodyToReach>()),
+        );
+      });
+    },
+  );
 
   test(
     'the client turn wait and the busy watchdog sit above the server bound, in order',

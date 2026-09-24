@@ -83,10 +83,6 @@ class CredentialTaken implements Exception {
   String toString() => 'CredentialTaken';
 }
 
-class PassageShut implements Exception {
-  const PassageShut();
-}
-
 /// The device has no team to reach: nobody claimed it, it was taken out of service, or
 /// the id was never minted. Asking again cannot change that, the way a spent credential
 /// cannot be handed out twice — final, not retried.
@@ -364,7 +360,11 @@ class RoomRepository {
           ..fields['starts_ms'] = '${from.inMilliseconds}'
           ..fields['ends_ms'] = '${to.inMilliseconds}'
           ..files.add(await http.MultipartFile.fromPath('file', audio.path));
-    return _read(await _sendMultipart(request), BackTranslationChunk.fromJson);
+    return _read(
+      await _sendMultipart(request),
+      BackTranslationChunk.fromJson,
+      notFoundIsTheSessionGone: false,
+    );
   }
 
   /// Store one take and answer with the name the room gave it.
@@ -429,7 +429,11 @@ class RoomRepository {
       ),
       _stateTimeout,
     );
-    return _read(response, SegmentView.listFrom);
+    return _read(
+      response,
+      SegmentView.listFrom,
+      notFoundIsTheSessionGone: false,
+    );
   }
 
   /// A new version of one stretch: the explanation redone over the same slice.
@@ -455,7 +459,11 @@ class RoomRepository {
           ..fields['starts_ms'] = '${from.inMilliseconds}'
           ..fields['ends_ms'] = '${to.inMilliseconds}';
     request.files.add(await http.MultipartFile.fromPath('file', audio.path));
-    return _read(await _sendMultipart(request), TellingAgain.fromJson);
+    return _read(
+      await _sendMultipart(request),
+      TellingAgain.fromJson,
+      notFoundIsTheSessionGone: false,
+    );
   }
 
   /// The team's approval of its own final draft.
@@ -572,8 +580,15 @@ class RoomRepository {
     }
   }
 
-  T _read<T>(http.Response response, T Function(Map<String, dynamic>) build) {
-    final body = _decode(response);
+  T _read<T>(
+    http.Response response,
+    T Function(Map<String, dynamic>) build, {
+    bool notFoundIsTheSessionGone = true,
+  }) {
+    final body = _decode(
+      response,
+      notFoundIsTheSessionGone: notFoundIsTheSessionGone,
+    );
     try {
       return build(body);
     } on TypeError catch (error) {
@@ -583,15 +598,15 @@ class RoomRepository {
     }
   }
 
-  Map<String, dynamic> _decode(http.Response response) {
+  Map<String, dynamic> _decode(
+    http.Response response, {
+    required bool notFoundIsTheSessionGone,
+  }) {
     if (response.statusCode == 401 || response.statusCode == 403) {
       throw const RoomRefused();
     }
-    if (response.statusCode == 404) {
+    if (response.statusCode == 404 && notFoundIsTheSessionGone) {
       throw const SessionGone();
-    }
-    if (response.statusCode == 400) {
-      throw const PassageShut();
     }
     if (response.statusCode != 200) {
       throw RoomBroke('HTTP ${response.statusCode}');

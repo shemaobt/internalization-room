@@ -117,63 +117,6 @@ void main() {
   });
 
   test(
-    'a passage the room refuses sends the team back to the wheel, not to a person',
-    () async {
-      final harness = SalaHarness()..room.shutsThePassage = 'P01';
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      await notifier.abrirEscolha();
-      await settle();
-      notifier.entrarNaOferecida();
-      await settle();
-
-      final state = container.read(salaSessionProvider);
-      expect(
-        state.stage,
-        SalaStage.escolha,
-        reason:
-            'a recusa chegava como sala quebrada e prendia a equipe numa conversa '
-            'que nunca abriu',
-      );
-      expect(
-        harness.voice.assets,
-        isNot(contains(fixedLineAsset('E0', testLanguage))),
-        reason:
-            'a sala pedia uma pessoa para uma passagem que pessoa nenhuma abre no tablet',
-      );
-    },
-  );
-
-  test(
-    'three passages that cannot open never spend a strike on the room',
-    () async {
-      final harness = SalaHarness()..room.shutsThePassage = 'P01';
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      await notifier.abrirEscolha();
-      await settle();
-      for (var attempt = 0; attempt < 3; attempt++) {
-        notifier.entrarNaOferecida();
-        await settle();
-      }
-
-      final state = container.read(salaSessionProvider);
-      expect(
-        state.needsPerson,
-        isFalse,
-        reason:
-            'a recusa andava na mesma escada do 500, e a terceira parava a sala '
-            'para chamar alguém',
-      );
-      expect(state.stage, SalaStage.escolha);
-    },
-  );
-
-  test(
     'a refusal anywhere else stops for a person, never for a network that is fine',
     () async {
       final harness = SalaHarness()..room.failWith = const RoomRefused();
@@ -235,31 +178,6 @@ void main() {
         contains('P01'),
         reason: 'a passagem continua oferecida na roda',
       );
-    },
-  );
-
-  test(
-    'a passage shut mid conversation returns to the wheel, not to a person',
-    () async {
-      final harness = SalaHarness();
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-      await notifier.abrirEscolha();
-      await settle();
-      notifier.entrarNaOferecida();
-      await settle();
-
-      harness.room.failHeldTurnWith = const PassageShut();
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
-
-      final state = container.read(salaSessionProvider);
-      expect(state.stage, SalaStage.escolha);
-      expect(state.needsPerson, isFalse);
-      expect(harness.room.personsAsked, 0);
     },
   );
 
@@ -1506,38 +1424,6 @@ void main() {
             'presa numa conversa que não abre, a equipe volta à roda',
       );
       expect(state.needsPerson, isFalse);
-    },
-  );
-
-  test(
-    'a passage shut on a remembered entry drops the resume point too',
-    () async {
-      final harness = SalaHarness();
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      await notifier.abrirEscolha();
-      await settle();
-      notifier.entrarNaOferecida();
-      await settle();
-      notifier.leaveThePassage();
-      await settle();
-      expect(harness.emAberto.rows, contains('Ruth/P01'));
-
-      harness.room.failHeldTurnWith = const PassageShut();
-      notifier.entrarNaOferecida();
-      await settle();
-
-      final state = container.read(salaSessionProvider);
-      expect(state.stage, SalaStage.escolha);
-      expect(
-        harness.emAberto.rows,
-        isNot(contains('Ruth/P01')),
-        reason:
-            'uma passagem que o servidor fechou não pode continuar oferecendo um '
-            'retorno para uma sessão que ela mesma recusou',
-      );
     },
   );
 
