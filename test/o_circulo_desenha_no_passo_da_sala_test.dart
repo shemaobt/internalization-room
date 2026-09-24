@@ -100,6 +100,31 @@ void main() {
   );
 
   testWidgets(
+    'a thinking circle turns its arcs sixty times a second, and hands the clock back at thirty',
+    (tester) async {
+      await _pumpCircle(tester, VoiceState.thinking);
+
+      expect(
+        await _redrawsOverASecondAt120Hz(tester),
+        inInclusiveRange(59, 61),
+        reason:
+            'a trinta quadros o arco de 1,6 s da volta pulava uns 15 px por '
+            'quadro na borda de um círculo de 196 px — um giro que tropeça '
+            'lê como um aplicativo engasgado, que é o contrário do que ele diz',
+      );
+
+      await _pumpCircle(tester, VoiceState.invite);
+      expect(
+        await _redrawsOverASecondAt120Hz(tester),
+        inInclusiveRange(29, 31),
+        reason:
+            'e quando o pensar acaba, os arcos levam os sessenta com eles e o '
+            'convite volta a respirar a trinta',
+      );
+    },
+  );
+
+  testWidgets(
     'a beckon that settles into the invite carries on from where its breath was, not from a new one',
     (tester) async {
       final breath = <double>[];

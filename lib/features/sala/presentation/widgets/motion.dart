@@ -228,7 +228,7 @@ class _SpinState extends State<Spin> {
     _joined = moving;
     _start = null;
     if (moving) {
-      _ambient.join(_redraw);
+      _ambient.join(_redraw, ripple: true);
     } else {
       _ambient.leave(_redraw);
     }
