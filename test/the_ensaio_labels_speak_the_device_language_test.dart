@@ -50,6 +50,56 @@ void main() {
     );
   });
 
+  testWidgets(
+    'the take-play button names the tap it is about to receive, in english',
+    (tester) async {
+      final container = await _pumpAoGravadoEmIngles(tester);
+      addTearDown(container.dispose);
+
+      await tester.tap(bySemanticsLabelWidget('Listen to the recording'));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(
+        bySemanticsLabelWidget('Pause the recording'),
+        findsOneWidget,
+        reason:
+            'o ícone já vira pausa; o rótulo em inglês precisa dizer a '
+            'mesma coisa, não repetir "listen" sobre um toque que pausa',
+      );
+      expect(bySemanticsLabelWidget('Listen to the recording'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'the take-play button names the tap it is about to receive, in portuguese',
+    (tester) async {
+      final harness = SalaHarness();
+      final container = harness.container();
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(container: container, child: const SalaApp()),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+      final notifier = container.read(salaSessionProvider.notifier);
+      await notifier.goConversa();
+      await tester.pump(const Duration(milliseconds: 200));
+      notifier.goEnsaio();
+      notifier.ensaioTap();
+      notifier.ensaioTap();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(bySemanticsLabelWidget('Ouvir a gravação'));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(
+        bySemanticsLabelWidget('Pausar a gravação'),
+        findsOneWidget,
+        reason: 'a mesma palavra que retro_view.dart já usa para o mesmo gesto',
+      );
+      expect(bySemanticsLabelWidget('Ouvir a gravação'), findsNothing);
+    },
+  );
+
   testWidgets('the ghost-play button speaks english to an english room', (
     tester,
   ) async {

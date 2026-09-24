@@ -84,6 +84,7 @@ const ensaioLabels = {
     'pt': 'Tocar para gravar o ensaio',
     'en': 'Tap to record the rehearsal',
   },
+  'pausar': {'pt': 'Pausar a gravação', 'en': 'Pause the recording'},
 };
 
 String ensaioLabelFor(String key, String language) =>

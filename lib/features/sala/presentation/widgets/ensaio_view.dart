@@ -63,7 +63,9 @@ class EnsaioView extends ConsumerWidget {
                     children: [
                       _TakeActionButton(
                         colors: colors,
-                        semanticLabel: ensaioLabelFor('ouvir', language),
+                        semanticLabel: session.playPing
+                            ? ensaioLabelFor('pausar', language)
+                            : ensaioLabelFor('ouvir', language),
                         pulsing: session.playPing,
                         icon: Icon(
                           session.playPing

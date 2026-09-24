@@ -171,23 +171,32 @@ void main() {
       notifier.ensaioTap();
       await tester.pump(const Duration(milliseconds: 100));
 
+      Finder takeButton() => find.byWidgetPredicate(
+        (widget) =>
+            widget is Semantics &&
+            (widget.properties.label == 'Ouvir a gravação' ||
+                widget.properties.label == 'Pausar a gravação'),
+      );
       IconData playIcon() => tester
           .widget<Icon>(
-            find.descendant(
-              of: byLabel('Ouvir a gravação'),
-              matching: find.byType(Icon),
-            ),
+            find.descendant(of: takeButton(), matching: find.byType(Icon)),
           )
           .icon!;
 
       expect(playIcon(), LucideIcons.play, reason: 'take parado mostra tocar');
+      expect(byLabel('Ouvir a gravação'), findsOneWidget);
 
-      await tester.tap(byLabel('Ouvir a gravação'));
+      await tester.tap(takeButton());
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(playIcon(), LucideIcons.pause, reason: 'tocando mostra pausar');
+      expect(
+        byLabel('Pausar a gravação'),
+        findsOneWidget,
+        reason: 'a mesma palavra que retro_view.dart já usa para o mesmo gesto',
+      );
 
-      await tester.tap(byLabel('Ouvir a gravação'));
+      await tester.tap(takeButton());
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(
