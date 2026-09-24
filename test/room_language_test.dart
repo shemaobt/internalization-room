@@ -137,7 +137,6 @@ void main() {
         final spoken = {
           ...rendered,
           ...instantAckLines,
-          ...inaudibleLines,
           'E0',
           approvedLine,
         };

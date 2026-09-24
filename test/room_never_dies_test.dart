@@ -1334,14 +1334,14 @@ void main() {
     },
   );
 
-  test('a team rehearsing in its own language is not a room in trouble', () async {
+  test('a fixed line spoken three times in a row does not stop the room', () async {
     final harness = SalaHarness();
     final container = await inConversaHarness(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
 
     harness.room.turnsAreCanned = true;
-    harness.room.fixedLine = 'G0';
+    harness.room.fixedLine = 'D0';
 
     for (var turno = 0; turno < 3; turno++) {
       notifier.conversaTap();
@@ -1351,7 +1351,7 @@ void main() {
     }
 
     final ditas = harness.voice.assets
-        .where((a) => a == fixedLineAsset('G0', testLanguage))
+        .where((a) => a == fixedLineAsset('D0', testLanguage))
         .length;
     expect(
       ditas,
@@ -1364,8 +1364,8 @@ void main() {
       container.read(salaSessionProvider).needsPerson,
       isFalse,
       reason:
-          'a equipe fazia o que a sala pediu — ensaiar na língua dela — e no terceiro '
-          'turno o app parava a sessão para um facilitador que não estava na casa',
+          'três turnos de emergência seguidos não podem parar a sessão para um '
+          'facilitador que não estava na casa',
     );
   });
 
