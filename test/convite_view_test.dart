@@ -43,6 +43,19 @@ void main() {
 
     await notifier.openConvite();
     await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(
+      tester
+          .widget<Semantics>(bySemanticsLabelWidget('Entrar na passagem'))
+          .properties
+          .enabled,
+      isTrue,
+      reason:
+          'a conta precisa estar atendendo antes da gravação, senão o surdo '
+          'abaixo é só o segundo depois da abertura',
+    );
     await tester.tap(bySemanticsLabelWidget('Falar com o facilitador'));
     await tester.pump(const Duration(milliseconds: 200));
 
@@ -80,11 +93,14 @@ void main() {
     harness.voice.holdNextLine();
     await tester.tap(bySemanticsLabelWidget('Falar com o facilitador'));
     await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(
       container.read(salaSessionProvider).voice,
       VoiceState.speaking,
-      reason: 'a asserção abaixo só vale com o Guia respondendo',
+      reason:
+          'a asserção abaixo só vale com o Guia respondendo há mais de um segundo',
     );
     expect(
       tester
@@ -127,6 +143,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     for (final voice in [VoiceState.thinking, VoiceState.speaking]) {
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(milliseconds: 100));
       expect(
         container.read(salaSessionProvider).voice,
         voice,
