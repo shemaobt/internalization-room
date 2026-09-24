@@ -436,6 +436,40 @@ void main() {
   );
 
   testWidgets(
+    'each arc is painted inside a box that holds the whole ring, not the disc\'s box',
+    (tester) async {
+      await _pumpCircle(tester, VoiceState.thinking, size: 232);
+
+      for (final (period, ring) in const [
+        (Duration(milliseconds: 1600), 264.48),
+        (Duration(milliseconds: 2600), 292.32),
+      ]) {
+        final painted = tester.getSize(
+          find.descendant(
+            of: find.byWidgetPredicate(
+              (widget) => widget is Spin && widget.period == period,
+            ),
+            matching: find.byType(CustomPaint),
+          ),
+        );
+        expect(
+          [painted.width, painted.height],
+          everyElement(greaterThanOrEqualTo(ring - 1e-9)),
+          reason:
+              'o anel de ${ring.toStringAsFixed(2)} px era pintado numa caixa '
+              'do tamanho do disco (232 px), dentro de uma RepaintBoundary: '
+              'o que passa da caixa fica à mercê do motor não cortar',
+        );
+      }
+      expect(
+        tester.getSize(find.byType(FacilitatorCircle)),
+        const Size(232, 232),
+        reason: 'e o círculo continua ocupando só o disco na tela',
+      );
+    },
+  );
+
+  testWidgets(
     'the 54 px retro circle wears the same arcs at its own scale, not at 232 px strokes',
     (tester) async {
       await _pumpCircle(tester, VoiceState.thinking, size: 54);

@@ -255,8 +255,15 @@ class FacilitatorCircle extends StatelessWidget {
       animate: turning,
       builder: (context, t) => Transform.rotate(
         angle: way * 2 * math.pi * t,
-        child: RepaintBoundary(
-          child: CustomPaint(size: Size.square(size), painter: painter),
+        child: OverflowBox(
+          maxWidth: painter.side,
+          maxHeight: painter.side,
+          child: RepaintBoundary(
+            child: CustomPaint(
+              size: Size.square(painter.side),
+              painter: painter,
+            ),
+          ),
         ),
       ),
     );
