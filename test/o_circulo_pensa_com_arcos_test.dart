@@ -3,11 +3,15 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
+import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
+
+import 'fakes.dart';
+import 'sala_screen_test.dart' show pumpSala;
 
 Future<void> _pumpCircle(
   WidgetTester tester,
@@ -373,6 +377,65 @@ void main() {
             'mas a tela ainda diz que está trabalhando: só os arcos param, a '
             'respiração e o brilho seguem',
       );
+    },
+  );
+
+  testWidgets(
+    'a tablet that turns on Reduce Motion in the middle of a think stops the arcs that were already turning',
+    (tester) async {
+      final harness = SalaHarness();
+      final container = await pumpSala(tester, harness);
+      final notifier = container.read(salaSessionProvider.notifier);
+      await notifier.goConversa(pericope: 'P01');
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(seconds: 2));
+      harness.room.holdNextTurn();
+      harness.voice.holdNextLine();
+      notifier.conversaTap();
+      await tester.pump(const Duration(milliseconds: 200));
+      notifier.conversaTap();
+      await letTheRehearsalReachTheRoom(tester);
+      expect(container.read(salaSessionProvider).voice, VoiceState.thinking);
+
+      const thick = Duration(milliseconds: 1600);
+      final turning = _turnOf(tester, thick);
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(
+        _turnOf(tester, thick),
+        isNot(closeTo(turning, 1e-6)),
+        reason: 'o caso precisa começar com os arcos girando',
+      );
+
+      final before = tester.platformDispatcher.accessibilityFeatures;
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          FakeAccessibilityFeatures(
+            accessibleNavigation: before.accessibleNavigation,
+            invertColors: before.invertColors,
+            disableAnimations: before.disableAnimations,
+            boldText: before.boldText,
+            reduceMotion: true,
+            highContrast: before.highContrast,
+            onOffSwitchLabels: before.onOffSwitchLabels,
+            supportsAnnounce: before.supportsAnnounce,
+            autoPlayAnimatedImages: before.autoPlayAnimatedImages,
+            autoPlayVideos: before.autoPlayVideos,
+            deterministicCursor: before.deterministicCursor,
+          );
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      await tester.pump();
+      final stopped = _turnOf(tester, thick);
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(
+        [stopped, _turnOf(tester, thick)],
+        [0.0, 0.0],
+        reason:
+            'o iOS manda o Reduzir Movimento como reduceMotion, não como '
+            'disableAnimations — a sala só lia o segundo, e no simulador do '
+            'João os arcos seguiram girando com o ajuste ligado',
+      );
+      closeTheRoom(container);
     },
   );
 
