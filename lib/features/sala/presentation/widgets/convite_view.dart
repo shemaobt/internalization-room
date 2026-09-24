@@ -58,14 +58,15 @@ class _Entrada extends ConsumerStatefulWidget {
 
 class _EntradaState extends ConsumerState<_Entrada>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _settle = AnimationController(
-    vsync: this,
-    duration: ref.read(entradaSettleProvider),
-  )..addStatusListener((_) => setState(() {}));
+  late final AnimationController _settle;
 
   @override
   void initState() {
     super.initState();
+    _settle = AnimationController(
+      vsync: this,
+      duration: ref.read(entradaSettleProvider),
+    )..addStatusListener((_) => setState(() {}));
     if (widget.live) _settle.forward();
   }
 

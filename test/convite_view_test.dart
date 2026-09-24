@@ -250,4 +250,41 @@ void main() {
 
     expect(container.read(salaSessionProvider).stage, SalaStage.escolha);
   });
+
+  testWidgets(
+    'a panorama that finds no room takes the bead away without a crash',
+    (tester) async {
+      final harness = SalaHarness(retryBackoff: const [Duration(seconds: 30)]);
+      final container = await pumpSala(tester, harness);
+
+      harness.network.holdNextCheck();
+      await tester.tap(bySemanticsLabelWidget('Falar com o facilitador'));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(
+        bySemanticsLabelWidget('Entrar na passagem'),
+        findsOneWidget,
+        reason: 'a conta precisa estar na mesa, surda, para o teste valer',
+      );
+
+      harness.network.reachable = false;
+      harness.network.finishHeldCheck();
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(container.read(salaSessionProvider).offline, isTrue);
+      expect(bySemanticsLabelWidget('Entrar na passagem'), findsNothing);
+      expect(
+        tester.takeException(),
+        isNull,
+        reason:
+            'a conta que saía da mesa sem nunca ter atendido lia o provider '
+            'no dispose, com o widget já desmontado',
+      );
+
+      await tester.pumpWidget(const SizedBox());
+      container.dispose();
+      await tester.pump();
+    },
+  );
 }
