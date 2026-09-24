@@ -46,7 +46,7 @@ class ConversaView extends ConsumerWidget {
                 child: !session.needsPerson
                     ? AdvanceButton(
                         gradient: BeadStyles.verde,
-                        semanticLabel: 'Ir para o ensaio',
+                        semanticLabel: recordEntryLabelFor(language),
                         onTap: notifier.goEnsaio,
                         child: const Icon(
                           LucideIcons.mic,

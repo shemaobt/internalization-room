@@ -56,3 +56,11 @@ String entrarLabelFor({required bool isPanorama, required String language}) =>
     isPanorama
     ? (panoramaEntryLabel[language] ?? panoramaEntryLabel[floorLanguage]!)
     : 'Entrar nesta passagem';
+
+const recordEntryLabel = {
+  'pt': 'Gravar o ensaio de vocês',
+  'en': 'Record your rehearsal',
+};
+
+String recordEntryLabelFor(String language) =>
+    recordEntryLabel[language] ?? recordEntryLabel[floorLanguage]!;
