@@ -35,43 +35,81 @@ void main() {
     },
   );
 
-  testWidgets('the bead stays live through a whole panorama exchange, not only '
-      'while the invite sits idle', (tester) async {
-    final container = await pumpSala(tester, SalaHarness());
+  testWidgets('the bead stays on the table through a whole panorama exchange, '
+      'but answers only once the exchange is over', (tester) async {
+    final harness = SalaHarness();
+    final container = await pumpSala(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
     await notifier.openConvite();
     await tester.pump(const Duration(milliseconds: 200));
-    notifier.conviteTap();
+    await tester.tap(bySemanticsLabelWidget('Falar com o facilitador'));
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(
       container.read(salaSessionProvider).voice,
       VoiceState.listening,
       reason:
-          'a asserção abaixo só prova algo enquanto a sala está no meio '
-          'de um turno, não parada no convite',
+          'a asserção abaixo só prova algo enquanto a equipe está gravando '
+          'a resposta, não parada no convite',
     );
-    final bead = tester.widget<Semantics>(
-      bySemanticsLabelWidget('Entrar na passagem'),
-    );
+    expect(bySemanticsLabelWidget('Entrar na passagem'), findsOneWidget);
     expect(
-      bead.properties.enabled,
-      isTrue,
+      tester
+          .widget<Semantics>(bySemanticsLabelWidget('Entrar na passagem'))
+          .properties
+          .enabled,
+      isFalse,
       reason:
-          'a conta é a saída a qualquer momento — inclusive com a equipe '
-          'gravando a próxima pergunta, não só entre um turno e outro',
+          'a conta atendia no meio da gravação e jogava a resposta da equipe '
+          'fora — a dela só atende fora de turno e de fala',
     );
 
+    await tester.tap(
+      bySemanticsLabelWidget('Entrar na passagem'),
+      warnIfMissed: false,
+    );
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      container.read(salaSessionProvider).voice,
+      VoiceState.listening,
+      reason: 'o toque na conta interrompia a gravação e abria a roda',
+    );
+
+    harness.voice.holdNextLine();
+    await tester.tap(bySemanticsLabelWidget('Falar com o facilitador'));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      container.read(salaSessionProvider).voice,
+      VoiceState.speaking,
+      reason: 'a asserção abaixo só vale com o Guia respondendo',
+    );
+    expect(
+      tester
+          .widget<Semantics>(bySemanticsLabelWidget('Entrar na passagem'))
+          .properties
+          .enabled,
+      isFalse,
+      reason: 'a conta atendia por cima da resposta do Guia',
+    );
+
+    harness.voice.finishHeldLine();
+    await tester.pump(const Duration(seconds: 2));
+
+    expect(
+      container.read(salaSessionProvider).voice,
+      VoiceState.invite,
+      reason: 'a troca precisa ter acabado para a conta voltar a atender',
+    );
     await tester.tap(bySemanticsLabelWidget('Entrar na passagem'));
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(
       container.read(salaSessionProvider).stage,
       SalaStage.escolha,
-      reason:
-          'a conta precisa realmente funcionar nesse instante, não só '
-          'parecer acesa',
+      reason: 'com a troca encerrada, a conta precisa realmente funcionar',
     );
   });
 

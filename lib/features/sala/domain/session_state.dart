@@ -311,6 +311,7 @@ class SalaSessionState {
 
   bool get entradaLive =>
       entradaOffered &&
+      voice != VoiceState.listening &&
       voice != VoiceState.thinking &&
       voice != VoiceState.speaking;
 
