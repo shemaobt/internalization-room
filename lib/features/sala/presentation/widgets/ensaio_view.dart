@@ -45,6 +45,7 @@ class EnsaioView extends ConsumerWidget {
           dimmed: ghosting,
           parteARegravar: session.parteARegravar,
           colors: colors,
+          language: language,
           onTap: notifier.ensaioTap,
           onLongPress: session.canResolveWithPerson
               ? notifier.resolveWithPerson
@@ -199,6 +200,7 @@ class _RecordCircle extends StatelessWidget {
   final bool dimmed;
   final int? parteARegravar;
   final SalaColors colors;
+  final String language;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
 
@@ -208,6 +210,7 @@ class _RecordCircle extends StatelessWidget {
     required this.dimmed,
     required this.parteARegravar,
     required this.colors,
+    required this.language,
     required this.onTap,
     required this.onLongPress,
   });
@@ -218,10 +221,13 @@ class _RecordCircle extends StatelessWidget {
     return Semantics(
       button: true,
       label: switch ((recording, dimmed, parteARegravar)) {
-        (true, _, _) => 'Tocar ao terminar',
-        (false, true, _) => 'O ensaio guardado está tocando',
-        (false, false, final parte?) => 'Gravar a parte ${parte + 1} de novo',
-        _ => 'Tocar para gravar o ensaio',
+        (true, _, _) => circleLabelFor('listening', language),
+        (false, true, _) => ensaioLabelFor('tocando', language),
+        (false, false, final parte?) => gravarParteDeNovoLabelFor(
+          parte + 1,
+          language,
+        ),
+        _ => ensaioLabelFor('tocarParaGravar', language),
       },
       child: GestureDetector(
         onTap: onTap,

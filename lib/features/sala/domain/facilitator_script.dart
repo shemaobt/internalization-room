@@ -78,7 +78,21 @@ const ensaioLabels = {
     'pt': 'Ouvir o ensaio guardado antes de gravar',
     'en': 'Listen to the saved rehearsal before recording',
   },
+  'tocando': {
+    'pt': 'O ensaio guardado está tocando',
+    'en': 'The saved rehearsal is playing',
+  },
+  'tocarParaGravar': {
+    'pt': 'Tocar para gravar o ensaio',
+    'en': 'Tap to record the rehearsal',
+  },
 };
 
 String ensaioLabelFor(String key, String language) =>
     ensaioLabels[key]![language] ?? ensaioLabels[key]![floorLanguage]!;
+
+String gravarParteDeNovoLabelFor(int partNumber, String language) =>
+    switch (language) {
+      'pt' => 'Gravar a parte $partNumber de novo',
+      _ => 'Record part $partNumber again',
+    };
