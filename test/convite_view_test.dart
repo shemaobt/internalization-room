@@ -96,7 +96,9 @@ void main() {
     );
 
     harness.voice.finishHeldLine();
-    await tester.pump(const Duration(seconds: 2));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(
       container.read(salaSessionProvider).voice,
@@ -163,5 +165,71 @@ void main() {
     }
     harness.voice.finishHeldLine();
     await tester.pump(const Duration(milliseconds: 200));
+  });
+
+  testWidgets('a touch that reaches the bead as the opening ends goes nowhere, '
+      'and the circle still records', (tester) async {
+    final harness = SalaHarness();
+    final container = await pumpSala(tester, harness);
+
+    await tester.tap(bySemanticsLabelWidget('Falar com o facilitador'));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      container.read(salaSessionProvider).conviteStep,
+      ConviteStep.entrada,
+      reason: 'o que vem abaixo só vale com a abertura já dita',
+    );
+    expect(
+      tester
+          .widget<Semantics>(bySemanticsLabelWidget('Entrar na passagem'))
+          .properties
+          .enabled,
+      isFalse,
+      reason:
+          'a conta atendia no mesmo quadro em que a abertura terminava, e o '
+          'toque que ia ao círculo abriu a roda no portão',
+    );
+
+    await tester.tap(
+      bySemanticsLabelWidget('Entrar na passagem'),
+      warnIfMissed: false,
+    );
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(container.read(salaSessionProvider).stage, SalaStage.convite);
+
+    await tester.tap(bySemanticsLabelWidget('Falar com o facilitador'));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      container.read(salaSessionProvider).voice,
+      VoiceState.listening,
+      reason: 'o primeiro toque no círculo depois da abertura grava a equipe',
+    );
+  });
+
+  testWidgets('a second after the opening, the bead opens the wheel', (
+    tester,
+  ) async {
+    final harness = SalaHarness();
+    final container = await pumpSala(tester, harness);
+
+    await tester.tap(bySemanticsLabelWidget('Falar com o facilitador'));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(
+      tester
+          .widget<Semantics>(bySemanticsLabelWidget('Entrar na passagem'))
+          .properties
+          .enabled,
+      isTrue,
+      reason: 'passado o segundo, a saída dela volta a estar à mão',
+    );
+    await tester.tap(bySemanticsLabelWidget('Entrar na passagem'));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(container.read(salaSessionProvider).stage, SalaStage.escolha);
   });
 }

@@ -35,16 +35,8 @@ class ConviteView extends ConsumerWidget {
         SizedBox(
           height: 78,
           child: session.entradaOffered
-              ? AdvanceButton(
-                  ready: session.entradaLive,
-                  size: 78,
-                  gradient: BeadStyles.wood,
-                  halo: ShemaBrand.wood,
-                  border: Border.all(
-                    color: SalaColors.of(context).cord,
-                    width: 2,
-                  ),
-                  semanticLabel: 'Entrar na passagem',
+              ? _Entrada(
+                  live: session.entradaLive,
                   onTap: notifier.abrirEscolha,
                 )
               : null,
@@ -52,4 +44,55 @@ class ConviteView extends ConsumerWidget {
       ],
     );
   }
+}
+
+class _Entrada extends ConsumerStatefulWidget {
+  final bool live;
+  final VoidCallback onTap;
+
+  const _Entrada({required this.live, required this.onTap});
+
+  @override
+  ConsumerState<_Entrada> createState() => _EntradaState();
+}
+
+class _EntradaState extends ConsumerState<_Entrada>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _settle = AnimationController(
+    vsync: this,
+    duration: ref.read(entradaSettleProvider),
+  )..addStatusListener((_) => setState(() {}));
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.live) _settle.forward();
+  }
+
+  @override
+  void didUpdateWidget(_Entrada old) {
+    super.didUpdateWidget(old);
+    if (!widget.live) {
+      _settle.reset();
+    } else if (!old.live) {
+      _settle.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _settle.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AdvanceButton(
+    ready: widget.live && _settle.isCompleted,
+    size: 78,
+    gradient: BeadStyles.wood,
+    halo: ShemaBrand.wood,
+    border: Border.all(color: SalaColors.of(context).cord, width: 2),
+    semanticLabel: 'Entrar na passagem',
+    onTap: widget.onTap,
+  );
 }

@@ -155,6 +155,10 @@ final fimLingerProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 14),
 );
 
+final entradaSettleProvider = Provider<Duration>(
+  (ref) => const Duration(seconds: 1),
+);
+
 final roomRetryBackoffProvider = Provider<List<Duration>>(
   (ref) => const [
     Duration(seconds: 5),
