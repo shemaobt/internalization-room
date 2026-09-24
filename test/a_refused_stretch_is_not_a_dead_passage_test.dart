@@ -220,9 +220,19 @@ void main() {
       final harness = SalaHarness();
       final it = await _retomadaNaRetro(harness);
       harness.playback.at = _inicioDoTrecho;
+      expect(
+        harness.playback.sounding,
+        isTrue,
+        reason: 'o clipe toca antes do corte',
+      );
 
       it.sala.cortarTrecho();
       await settle();
+      expect(
+        harness.playback.sounding,
+        isFalse,
+        reason: 'o corte recusado segura o clipe',
+      );
 
       expect(
         it.estado.btPhase,
@@ -234,6 +244,16 @@ void main() {
         harness.room.chunkSpans,
         isEmpty,
         reason: 'o trecho vazio ia à sala e voltava recusado com 400',
+      );
+
+      it.sala.ouvirGravacao();
+      await settle();
+      expect(
+        harness.playback.sounding,
+        isTrue,
+        reason:
+            'o corte recusado segura o clipe; um toque em ouvir tem de trazê-lo '
+            'de volta, não pedir dois',
       );
     },
   );
@@ -249,6 +269,9 @@ void main() {
       await settle();
       expect(it.estado.btPhase, isNot(BtPhase.capturing));
       expect(harness.room.chunkSpans, isEmpty);
+      it.sala.ouvirGravacao();
+      await settle();
+      expect(harness.playback.sounding, isTrue);
 
       await _ateAParteTresNoAr(it);
       harness.playback.at = _inicioDoTrecho + const Duration(milliseconds: 1);
