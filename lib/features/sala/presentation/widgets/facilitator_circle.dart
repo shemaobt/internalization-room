@@ -242,13 +242,6 @@ class FacilitatorCircle extends StatelessWidget {
         ),
       ],
     );
-    if (still) {
-      return Loop(
-        period: const Duration(milliseconds: 3600),
-        reducible: false,
-        builder: (context, t) => Opacity(opacity: 0.72 + 0.24 * t, child: disc),
-      );
-    }
     Widget arc(Duration period, double way, ArcPainter painter) => Spin(
       period: period,
       builder: (context, t) => Transform.rotate(
@@ -285,21 +278,34 @@ class FacilitatorCircle extends StatelessWidget {
         ),
       ),
     ];
+    Widget over(List<Widget> light) => Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [disc, ...light],
+    );
+    if (still) {
+      return Loop(
+        period: const Duration(milliseconds: 2400),
+        reducible: false,
+        builder: (context, t) => Opacity(
+          opacity: 0.72 + 0.24 * t,
+          child: over([
+            glow,
+            for (final standing in arcs) Opacity(opacity: 0.9, child: standing),
+          ]),
+        ),
+      );
+    }
     return Loop(
       period: const Duration(milliseconds: 2400),
       builder: (context, t) => Transform.scale(
         scale: 0.97 + 0.06 * t,
         child: Opacity(
           opacity: 0.82 + 0.18 * t,
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.center,
-            children: [
-              disc,
-              Opacity(opacity: 0.45 + 0.55 * t, child: glow),
-              ...arcs,
-            ],
-          ),
+          child: over([
+            Opacity(opacity: 0.45 + 0.55 * t, child: glow),
+            ...arcs,
+          ]),
         ),
       ),
     );

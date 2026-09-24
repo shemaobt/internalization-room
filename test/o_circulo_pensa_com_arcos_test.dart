@@ -12,17 +12,21 @@ Future<void> _pumpCircle(
   VoiceState voice, {
   double size = 158,
   ThemeData? theme,
+  bool still = false,
 }) => tester.pumpWidget(
   MaterialApp(
-    key: ValueKey('$voice-$size-${theme?.brightness}'),
+    key: ValueKey('$voice-$size-${theme?.brightness}-$still'),
     theme: theme ?? AppTheme.light,
-    home: Scaffold(
-      body: Center(
-        child: FacilitatorCircle(
-          size: size,
-          voice: voice,
-          semanticLabel: 'circulo',
-          onTap: () {},
+    home: MediaQuery(
+      data: MediaQueryData(disableAnimations: still),
+      child: Scaffold(
+        body: Center(
+          child: FacilitatorCircle(
+            size: size,
+            voice: voice,
+            semanticLabel: 'circulo',
+            onTap: () {},
+          ),
         ),
       ),
     ),
@@ -215,6 +219,82 @@ void main() {
             'o disco dela é translúcido e o brilho aparece através dele; o '
             'nosso barro é opaco, e um brilho pintado por baixo sumiria inteiro',
       );
+    },
+  );
+
+  testWidgets(
+    'a tablet that asks for less motion still sees the arcs, standing, and a 2.4 s pulse of light',
+    (tester) async {
+      await _pumpCircle(tester, VoiceState.thinking, still: true);
+      final angles = <double>{};
+      final sizes = <double>{};
+      double veil() => tester
+          .widgetList<Opacity>(
+            find.descendant(
+              of: find.byType(FacilitatorCircle),
+              matching: find.byType(Opacity),
+            ),
+          )
+          .first
+          .opacity;
+      void look() {
+        angles
+          ..add(_turnOf(tester, const Duration(milliseconds: 1600)))
+          ..add(_turnOf(tester, const Duration(milliseconds: 2600)));
+        for (final moved in tester.widgetList<Transform>(
+          find.descendant(
+            of: find.byType(FacilitatorCircle),
+            matching: find.byType(Transform),
+          ),
+        )) {
+          sizes.add(
+            moved.transform.entry(0, 0).abs() +
+                moved.transform.entry(1, 0).abs(),
+          );
+        }
+      }
+
+      look();
+      expect(
+        veil(),
+        closeTo(0.72, 1e-6),
+        reason: 'thinkPulse dela abre em opacidade .72',
+      );
+      await tester.pump(const Duration(milliseconds: 1200));
+      look();
+      expect(
+        veil(),
+        closeTo(0.96, 1e-6),
+        reason:
+            'e chega a .96 na metade dos 2,4 s — o pulso de 3,6 s ficou no '
+            'andamento antigo quando ela acelerou o pensar',
+      );
+      await tester.pump(const Duration(milliseconds: 650));
+      look();
+
+      expect(angles, {
+        0.0,
+      }, reason: 'com movimento reduzido os arcos dela ficam, mas parados');
+      expect(sizes, {1.0}, reason: 'e o círculo não cresce nem encolhe');
+      for (final period in const [
+        Duration(milliseconds: 1600),
+        Duration(milliseconds: 2600),
+      ]) {
+        final arc = find.byWidgetPredicate(
+          (widget) => widget is Spin && widget.period == period,
+        );
+        expect(
+          tester
+              .widget<Opacity>(
+                find.ancestor(of: arc, matching: find.byType(Opacity)).first,
+              )
+              .opacity,
+          closeTo(0.9, 1e-6),
+          reason:
+              'os arcos parados dela ficam em opacidade .9 (:205): quem pede '
+              'menos movimento ainda precisa ver que a sala está trabalhando',
+        );
+      }
     },
   );
 
