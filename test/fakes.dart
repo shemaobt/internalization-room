@@ -204,6 +204,7 @@ class FakeRecorder implements RecordingRepository {
   bool returnsEmpty = false;
   final List<String> deleted = [];
   String? lastPath;
+  bool? lastDraft;
 
   bool permitted = true;
 
@@ -239,6 +240,7 @@ class FakeRecorder implements RecordingRepository {
 
   @override
   Future<Capture> start(String fileName, {bool draft = false}) async {
+    lastDraft = draft;
     sounds.add('recorder:start');
     final held = _startsTaken < _holdingStarts.length
         ? _holdingStarts[_startsTaken++]

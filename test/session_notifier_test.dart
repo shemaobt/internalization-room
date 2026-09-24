@@ -5893,6 +5893,78 @@ void main() {
     );
   });
 
+  test('an ensaio take asks the recorder for the deliverable config', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    await settle();
+
+    expect(
+      harness.recorder.lastDraft,
+      isTrue,
+      reason:
+          'a tomada do ensaio vai para o Refine, e o que decide o config é '
+          'o estágio da sala, não uma bandeira separada que alguém '
+          'esqueceria de levantar',
+    );
+  });
+
+  test(
+    'a retro chunk capture asks the recorder for the deliverable config too',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      notifier.goEnsaio();
+      notifier.ensaioTap();
+      notifier.ensaioTap();
+      await settle();
+      notifier.takeKeep();
+      await waitFor(
+        'a sala nomear a parte',
+        () => container.read(salaSessionProvider).partes.last.takeId != null,
+      );
+      notifier.startRetro();
+      await settle();
+      notifier.cortarTrecho();
+      await settle();
+
+      expect(
+        harness.recorder.lastDraft,
+        isTrue,
+        reason:
+            'o pedaço da retro também vai para o Refine — o mesmo config do '
+            'ensaio, decidido pelo mesmo estágio que já distingue a captura '
+            'de um pedaço',
+      );
+    },
+  );
+
+  test('a conversa turn asks the recorder for the room\'s own config, not the '
+      'deliverable one', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.conversaTap();
+    await settle();
+
+    expect(
+      harness.recorder.lastDraft,
+      isFalse,
+      reason:
+          'a fala com a sala nunca perde o filtro dela — só a tomada '
+          'entregável perde',
+    );
+  });
+
   test(
     'each pause closes a stretch, and the stretches follow the recording',
     () async {
