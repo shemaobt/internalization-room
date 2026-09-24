@@ -64,3 +64,13 @@ const recordEntryLabel = {
 
 String recordEntryLabelFor(String language) =>
     recordEntryLabel[language] ?? recordEntryLabel[floorLanguage]!;
+
+const ensaioLabels = {
+  'ouvir': {'pt': 'Ouvir a gravação', 'en': 'Listen to the recording'},
+  'gravarDeNovo': {'pt': 'Gravar de novo', 'en': 'Record again'},
+  'guardar': {'pt': 'Guardar esta gravação', 'en': 'Keep this recording'},
+  'irParaTraducao': {'pt': 'Ir para a tradução', 'en': 'Go to the translation'},
+};
+
+String ensaioLabelFor(String key, String language) =>
+    ensaioLabels[key]![language] ?? ensaioLabels[key]![floorLanguage]!;

@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../data/take_upload_queue.dart';
+import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
 import 'bead.dart';
 import 'bead_styles.dart';
@@ -18,6 +19,7 @@ class EnsaioView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);
+    final language = ref.watch(roomLanguageProvider);
     final colors = SalaColors.of(context);
     final recording = session.ensaio == EnsaioStatus.recording;
     final ghosting = session.ensaio == EnsaioStatus.ghostPlaying;
@@ -59,7 +61,7 @@ class EnsaioView extends ConsumerWidget {
                     children: [
                       _TakeActionButton(
                         colors: colors,
-                        semanticLabel: 'Ouvir a gravação',
+                        semanticLabel: ensaioLabelFor('ouvir', language),
                         pulsing: session.playPing,
                         icon: Icon(
                           session.playPing
@@ -73,7 +75,7 @@ class EnsaioView extends ConsumerWidget {
                       const SizedBox(width: 24),
                       _TakeActionButton(
                         colors: colors,
-                        semanticLabel: 'Gravar de novo',
+                        semanticLabel: ensaioLabelFor('gravarDeNovo', language),
                         icon: Icon(
                           LucideIcons.rotateCcw,
                           size: 24,
@@ -84,7 +86,7 @@ class EnsaioView extends ConsumerWidget {
                       const SizedBox(width: 24),
                       RoundActionButton(
                         size: 60,
-                        semanticLabel: 'Guardar esta gravação',
+                        semanticLabel: ensaioLabelFor('guardar', language),
                         gradient: BeadStyles.verde,
                         shadows: [
                           BoxShadow(
@@ -135,7 +137,7 @@ class EnsaioView extends ConsumerWidget {
               ? AdvanceButton(
                   ready: session.ensaioDone,
                   gradient: BeadStyles.verde,
-                  semanticLabel: 'Ir para a tradução',
+                  semanticLabel: ensaioLabelFor('irParaTraducao', language),
                   onTap: notifier.startRetro,
                   child: const Icon(
                     LucideIcons.checkCheck,

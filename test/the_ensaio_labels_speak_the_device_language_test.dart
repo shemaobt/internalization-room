@@ -1,0 +1,58 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/main.dart';
+
+import 'fakes.dart';
+
+Finder byLabel(String label) => find.byWidgetPredicate(
+  (widget) => widget is Semantics && widget.properties.label == label,
+);
+
+/// An english room, standing at the recorded take, with the play/redo/keep row on screen.
+Future<ProviderContainer> _pumpAoGravadoEmIngles(WidgetTester tester) async {
+  final harness = SalaHarness(lingua: 'en');
+  final container = harness.container();
+  await tester.pumpWidget(
+    UncontrolledProviderScope(container: container, child: const SalaApp()),
+  );
+  await tester.pump(const Duration(milliseconds: 100));
+
+  final notifier = container.read(salaSessionProvider.notifier);
+  await notifier.goConversa();
+  await tester.pump(const Duration(milliseconds: 200));
+  notifier.goEnsaio();
+  notifier.ensaioTap();
+  notifier.ensaioTap();
+  await tester.pump(const Duration(milliseconds: 100));
+
+  return container;
+}
+
+void main() {
+  testWidgets(
+    'the recorded-take row speaks english to an english room',
+    (tester) async {
+      final container = await _pumpAoGravadoEmIngles(tester);
+      addTearDown(container.dispose);
+
+      expect(
+        byLabel('Listen to the recording'),
+        findsOneWidget,
+        reason: 'quem gravou em inglês ouve o próprio idioma no play do take',
+      );
+      expect(byLabel('Record again'), findsOneWidget);
+      expect(byLabel('Keep this recording'), findsOneWidget);
+
+      container.read(salaSessionProvider.notifier).takeKeep();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(
+        byLabel('Go to the translation'),
+        findsOneWidget,
+        reason: 'o botão que leva à tradução também não fica preso ao português',
+      );
+    },
+  );
+}
