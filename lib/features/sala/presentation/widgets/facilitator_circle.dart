@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -253,10 +255,44 @@ class FacilitatorCircle extends StatelessWidget {
             Opacity(opacity: 0.72 + 0.24 * t, child: clay(0)),
       );
     }
-    return Loop(
-      period: const Duration(milliseconds: 4600),
-      builder: (context, t) =>
-          Transform.scale(scale: 1 + 0.06 * t, child: clay(t)),
+    Widget arc(Duration period, double way, ArcPainter painter) => Spin(
+      period: period,
+      builder: (context, t) => Transform.rotate(
+        angle: way * 2 * math.pi * t,
+        child: RepaintBoundary(
+          child: CustomPaint(size: Size.square(size), painter: painter),
+        ),
+      ),
+    );
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [
+        Loop(
+          period: const Duration(milliseconds: 4600),
+          builder: (context, t) =>
+              Transform.scale(scale: 1 + 0.06 * t, child: clay(t)),
+        ),
+        arc(
+          const Duration(milliseconds: 1600),
+          1,
+          ArcPainter(
+            side: size * 1.14,
+            stroke: size * 4 / 232,
+            top: colors.telha,
+            right: colors.telha.withValues(alpha: 0.35),
+          ),
+        ),
+        arc(
+          const Duration(milliseconds: 2600),
+          -1,
+          ArcPainter(
+            side: size * 1.26,
+            stroke: size * 2 / 232,
+            bottom: colors.telha.withValues(alpha: 0.55),
+          ),
+        ),
+      ],
     );
   }
 
@@ -358,4 +394,48 @@ class FacilitatorCircle extends StatelessWidget {
     );
     return [ring(0), ring(0.5)];
   }
+}
+
+class ArcPainter extends CustomPainter {
+  final double side;
+  final double stroke;
+  final Color? top;
+  final Color? right;
+  final Color? bottom;
+
+  const ArcPainter({
+    required this.side,
+    required this.stroke,
+    this.top,
+    this.right,
+    this.bottom,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final ring = Rect.fromCenter(
+      center: size.center(Offset.zero),
+      width: side - stroke,
+      height: side - stroke,
+    );
+    final pen = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke;
+    for (final (color, start) in [
+      (top, -0.75 * math.pi),
+      (right, -0.25 * math.pi),
+      (bottom, 0.25 * math.pi),
+    ]) {
+      if (color == null) continue;
+      canvas.drawArc(ring, start, math.pi / 2, false, pen..color = color);
+    }
+  }
+
+  @override
+  bool shouldRepaint(ArcPainter old) =>
+      old.side != side ||
+      old.stroke != stroke ||
+      old.top != top ||
+      old.right != right ||
+      old.bottom != bottom;
 }
