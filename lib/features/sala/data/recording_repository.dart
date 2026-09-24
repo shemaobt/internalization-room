@@ -35,17 +35,22 @@ class RecordingRepository {
     }
   }
 
-  Future<Capture> start(String fileName) async {
+  // The deliverable takes (ensaio, retro) drop noise suppression and gain — the September
+  // reference's DRAFT_MIC_CONSTRAINTS (wavRecorder.ts:141-144), so Refine hears the team's
+  // voice unfiltered. The conversation mic keeps every filter on: her getUserMedia({audio:
+  // true}) already runs them by browser default (page.tsx:341), and record's own bare
+  // defaults — everything off, stereo — do not reproduce that.
+  Future<Capture> start(String fileName, {bool draft = false}) async {
     if (await hasPermission() == false) return Capture.denied;
     try {
       final dir = await _recordingsDir();
       await _recorder.start(
-        const RecordConfig(
+        RecordConfig(
           encoder: AudioEncoder.aacLc,
           audioInterruption: AudioInterruptionMode.pauseResume,
           echoCancel: true,
-          noiseSuppress: true,
-          autoGain: true,
+          noiseSuppress: !draft,
+          autoGain: !draft,
           numChannels: 1,
         ),
         path: p.join(dir.path, '$fileName.m4a'),

@@ -114,7 +114,7 @@ void main() {
       final recording = RecordingRepository();
       addTearDown(recording.dispose);
 
-      await recording.start('ensaio');
+      await recording.start('conversa');
 
       final config = microphone.openedWith;
       expect(
@@ -133,6 +133,46 @@ void main() {
         config?.autoGain,
         isTrue,
         reason: 'uma voz mais baixa não pode virar um trecho perdido',
+      );
+      expect(
+        config?.numChannels,
+        1,
+        reason:
+            'a passagem falada é uma faixa, e um canal a menos é metade do '
+            'arquivo que a fila de upload carrega à toa',
+      );
+    },
+  );
+
+  test(
+    'an ensaio or retro take is captured plain, not smoothed like the room\'s five voices',
+    () async {
+      final recording = RecordingRepository();
+      addTearDown(recording.dispose);
+
+      await recording.start('ensaio_tomada', draft: true);
+
+      final config = microphone.openedWith;
+      expect(
+        config?.echoCancel,
+        isTrue,
+        reason:
+            'o microfone fica na mesma mesa das caixas, e o eco delas não '
+            'pode virar fala da equipe',
+      );
+      expect(
+        config?.noiseSuppress,
+        isFalse,
+        reason:
+            'a tomada que vai para o Refine não pode ganhar um filtro que '
+            'colore a voz da equipe antes de alguém ouvir',
+      );
+      expect(
+        config?.autoGain,
+        isFalse,
+        reason:
+            'o ganho automático coloriria a mesma voz que o Refine precisa '
+            'ouvir sem tratamento',
       );
       expect(
         config?.numChannels,

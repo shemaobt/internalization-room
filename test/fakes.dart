@@ -238,7 +238,7 @@ class FakeRecorder implements RecordingRepository {
   bool _recording = false;
 
   @override
-  Future<Capture> start(String fileName) async {
+  Future<Capture> start(String fileName, {bool draft = false}) async {
     sounds.add('recorder:start');
     final held = _startsTaken < _holdingStarts.length
         ? _holdingStarts[_startsTaken++]
