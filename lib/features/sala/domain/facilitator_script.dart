@@ -70,6 +70,14 @@ const ensaioLabels = {
   'gravarDeNovo': {'pt': 'Gravar de novo', 'en': 'Record again'},
   'guardar': {'pt': 'Guardar esta gravação', 'en': 'Keep this recording'},
   'irParaTraducao': {'pt': 'Ir para a tradução', 'en': 'Go to the translation'},
+  'ghostParar': {
+    'pt': 'Parar de ouvir o ensaio guardado',
+    'en': 'Stop listening to the saved rehearsal',
+  },
+  'ghostOuvir': {
+    'pt': 'Ouvir o ensaio guardado antes de gravar',
+    'en': 'Listen to the saved rehearsal before recording',
+  },
 };
 
 String ensaioLabelFor(String key, String language) =>

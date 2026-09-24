@@ -33,6 +33,7 @@ class EnsaioView extends ConsumerWidget {
               ? _GhostButton(
                   playing: ghosting,
                   colors: colors,
+                  language: language,
                   onTap: notifier.ghostPlay,
                 )
               : null,
@@ -155,11 +156,13 @@ class EnsaioView extends ConsumerWidget {
 class _GhostButton extends StatelessWidget {
   final bool playing;
   final SalaColors colors;
+  final String language;
   final VoidCallback onTap;
 
   const _GhostButton({
     required this.playing,
     required this.colors,
+    required this.language,
     required this.onTap,
   });
 
@@ -170,8 +173,8 @@ class _GhostButton extends StatelessWidget {
       child: RoundActionButton(
         size: 52,
         semanticLabel: playing
-            ? 'Parar de ouvir o ensaio guardado'
-            : 'Ouvir o ensaio guardado antes de gravar',
+            ? ensaioLabelFor('ghostParar', language)
+            : ensaioLabelFor('ghostOuvir', language),
         gradient: BeadStyles.wood,
         onTap: onTap,
         child: Icon(

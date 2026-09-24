@@ -55,4 +55,33 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'the ghost-play button speaks english to an english room',
+    (tester) async {
+      final container = await _pumpAoGravadoEmIngles(tester);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      notifier.takeKeep();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(
+        byLabel('Listen to the saved rehearsal before recording'),
+        findsOneWidget,
+        reason:
+            'antes de gravar de novo, a equipe inglesa também precisa saber '
+            'que pode ouvir o que já guardou',
+      );
+
+      notifier.ghostPlay();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(
+        byLabel('Stop listening to the saved rehearsal'),
+        findsOneWidget,
+        reason: 'e parar de ouvir precisa do mesmo rótulo no próprio idioma',
+      );
+    },
+  );
 }
