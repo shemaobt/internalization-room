@@ -7,22 +7,26 @@ import 'package:internalization_room/features/sala/presentation/widgets/motion.d
 
 const _umQuadroA120Hz = Duration(milliseconds: 8);
 
-Future<void> _pumpCircle(WidgetTester tester, VoiceState voice) =>
-    tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light,
-        home: Scaffold(
-          body: Center(
-            child: FacilitatorCircle(
-              size: 158,
-              voice: voice,
-              semanticLabel: 'circulo',
-              onTap: () {},
-            ),
-          ),
+Future<void> _pumpCircle(
+  WidgetTester tester,
+  VoiceState voice, {
+  bool turning = true,
+}) => tester.pumpWidget(
+  MaterialApp(
+    theme: AppTheme.light,
+    home: Scaffold(
+      body: Center(
+        child: FacilitatorCircle(
+          size: 158,
+          voice: voice,
+          turning: turning,
+          semanticLabel: 'circulo',
+          onTap: () {},
         ),
       ),
-    );
+    ),
+  ),
+);
 
 List<Transform> _drawn(WidgetTester tester) => tester
     .widgetList<Transform>(
@@ -120,6 +124,24 @@ void main() {
         reason:
             'e quando o pensar acaba, os arcos levam os sessenta com eles e o '
             'convite volta a respirar a trinta',
+      );
+    },
+  );
+
+  testWidgets(
+    'arcs told to stop turning on a live circle let go of the fast clock',
+    (tester) async {
+      await _pumpCircle(tester, VoiceState.thinking);
+      await tester.pump(const Duration(milliseconds: 300));
+      await _pumpCircle(tester, VoiceState.thinking, turning: false);
+
+      expect(
+        await _redrawsOverASecondAt120Hz(tester),
+        inInclusiveRange(29, 31),
+        reason:
+            'o Spin só lia o animate ao entrar no relógio: um círculo que '
+            'parava os arcos sem ser remontado seguia a sessenta com os '
+            'arcos parados',
       );
     },
   );

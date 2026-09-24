@@ -229,6 +229,16 @@ class _SpinState extends State<Spin> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _follow();
+  }
+
+  @override
+  void didUpdateWidget(Spin oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _follow();
+  }
+
+  void _follow() {
     final moving = widget.animate && !MediaQuery.disableAnimationsOf(context);
     if (moving == _joined) return;
     _joined = moving;
