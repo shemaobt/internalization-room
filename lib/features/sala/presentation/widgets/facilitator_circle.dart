@@ -241,7 +241,7 @@ class FacilitatorCircle extends StatelessWidget {
     final body =
         disc ??
         _disc(
-          gradient: BeadStyles.clay(colors, 0),
+          gradient: BeadStyles.clay(colors),
           shadows: const [
             BoxShadow(
               color: Color(0x260A0703),
@@ -356,7 +356,7 @@ class FacilitatorCircle extends StatelessWidget {
           height: size,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: BeadStyles.clay(colors, 0),
+            gradient: BeadStyles.clay(colors),
             border: Border.all(color: colors.cord, width: 2),
           ),
           child: glyph == null

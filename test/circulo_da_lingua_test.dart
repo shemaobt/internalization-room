@@ -115,11 +115,11 @@ void main() {
         VoiceState.invite: BeadStyles.telha(colors),
         VoiceState.speaking: BeadStyles.telha(colors),
         VoiceState.listening: BeadStyles.azul,
-        VoiceState.thinking: BeadStyles.clay(colors, 0),
+        VoiceState.thinking: BeadStyles.clay(colors),
         VoiceState.done: BeadStyles.verde,
-        VoiceState.needsPerson: BeadStyles.clay(colors, 0),
-        VoiceState.offline: BeadStyles.clay(colors, 0),
-        VoiceState.blocked: BeadStyles.clay(colors, 0),
+        VoiceState.needsPerson: BeadStyles.clay(colors),
+        VoiceState.offline: BeadStyles.clay(colors),
+        VoiceState.blocked: BeadStyles.clay(colors),
       };
 
       for (final entrada in deAntes.entries) {
