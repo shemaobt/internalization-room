@@ -209,8 +209,14 @@ class _RippleState extends State<Ripple> {
 class Spin extends StatefulWidget {
   final Duration period;
   final Widget Function(BuildContext context, double t) builder;
+  final bool animate;
 
-  const Spin({super.key, required this.period, required this.builder});
+  const Spin({
+    super.key,
+    required this.period,
+    required this.builder,
+    this.animate = true,
+  });
 
   @override
   State<Spin> createState() => _SpinState();
@@ -223,7 +229,7 @@ class _SpinState extends State<Spin> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final moving = !MediaQuery.disableAnimationsOf(context);
+    final moving = widget.animate && !MediaQuery.disableAnimationsOf(context);
     if (moving == _joined) return;
     _joined = moving;
     _start = null;

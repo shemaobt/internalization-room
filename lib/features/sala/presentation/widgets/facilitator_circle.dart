@@ -16,6 +16,7 @@ class FacilitatorCircle extends StatelessWidget {
   final bool noteMode;
   final bool peerCue;
   final bool beckon;
+  final bool turning;
 
   /// Whether the server's last word was a warning rather than silence.
   ///
@@ -38,6 +39,7 @@ class FacilitatorCircle extends StatelessWidget {
     this.noteMode = false,
     this.peerCue = false,
     this.beckon = false,
+    this.turning = true,
     this.warning = false,
     this.opacity = 1,
     this.onTap,
@@ -250,6 +252,7 @@ class FacilitatorCircle extends StatelessWidget {
         );
     Widget arc(Duration period, double way, ArcPainter painter) => Spin(
       period: period,
+      animate: turning,
       builder: (context, t) => Transform.rotate(
         angle: way * 2 * math.pi * t,
         child: RepaintBoundary(

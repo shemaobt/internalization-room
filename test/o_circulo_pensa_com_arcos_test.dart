@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
 
@@ -329,6 +330,49 @@ void main() {
               'menos movimento ainda precisa ver que a sala está trabalhando',
         );
       }
+    },
+  );
+
+  testWidgets(
+    'the tablet waiting for its code shows the arcs standing, and never spins them without end',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const Scaffold(body: CodigoView(language: 'pt')),
+        ),
+      );
+      double breath() => tester
+          .widgetList<Transform>(
+            find.descendant(
+              of: find.byType(FacilitatorCircle),
+              matching: find.byType(Transform),
+            ),
+          )
+          .first
+          .transform
+          .entry(0, 0);
+
+      expect(breath(), closeTo(0.97, 1e-6));
+      await tester.pump(const Duration(milliseconds: 1200));
+      expect(
+        [
+          _turnOf(tester, const Duration(milliseconds: 1600)),
+          _turnOf(tester, const Duration(milliseconds: 2600)),
+        ],
+        [0.0, 0.0],
+        reason:
+            'sem sala, o pedido do código tenta de novo para sempre; arcos '
+            'girando ali deixariam o relógio a sessenta sem fim, num aparelho '
+            'que ninguém está olhando',
+      );
+      expect(
+        breath(),
+        closeTo(1.03, 1e-6),
+        reason:
+            'mas a tela ainda diz que está trabalhando: só os arcos param, a '
+            'respiração e o brilho seguem',
+      );
     },
   );
 
