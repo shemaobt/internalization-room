@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
 
@@ -13,9 +14,10 @@ Future<void> _pumpCircle(
   double size = 158,
   ThemeData? theme,
   bool still = false,
+  bool warning = false,
 }) => tester.pumpWidget(
   MaterialApp(
-    key: ValueKey('$voice-$size-${theme?.brightness}-$still'),
+    key: ValueKey('$voice-$size-${theme?.brightness}-$still-$warning'),
     theme: theme ?? AppTheme.light,
     home: MediaQuery(
       data: MediaQueryData(disableAnimations: still),
@@ -24,6 +26,7 @@ Future<void> _pumpCircle(
           child: FacilitatorCircle(
             size: size,
             voice: voice,
+            warning: warning,
             semanticLabel: 'circulo',
             onTap: () {},
           ),
@@ -92,6 +95,37 @@ void main() {
       );
     }
   });
+
+  testWidgets(
+    'a warning that arrives during a think keeps its green, and the arcs still turn around it',
+    (tester) async {
+      await _pumpCircle(tester, VoiceState.thinking, warning: true);
+
+      final discs = tester
+          .widgetList<Container>(
+            find.descendant(
+              of: find.byType(FacilitatorCircle),
+              matching: find.byType(Container),
+            ),
+          )
+          .map((box) => (box.decoration as BoxDecoration?)?.gradient)
+          .whereType<Gradient>();
+      expect(
+        discs,
+        [BeadStyles.verde],
+        reason:
+            'o verde é o aviso de que alguém deve vir olhar, e dura turnos '
+            'inteiros; ele não some a cada vez que o Guia pensa',
+      );
+      expect(
+        _arcs(),
+        findsNWidgets(2),
+        reason:
+            'com o aviso, o pensar de ~50 s era um disco verde parado — a '
+            'mesma espera que lia como "nada está acontecendo"',
+      );
+    },
+  );
 
   testWidgets(
     'the thick arc turns with the clock in 1.6 s and the thin one against it in 2.6 s',

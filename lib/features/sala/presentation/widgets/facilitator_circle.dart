@@ -172,7 +172,11 @@ class FacilitatorCircle extends StatelessWidget {
     // warning is only a background notice; it wins over the green the same way a
     // halted voice does.
     if (_teamTalk) return _liveBreath(colors);
-    if (warning && !_halted) return _doneDisc();
+    if (warning && !_halted) {
+      return voice == VoiceState.thinking
+          ? _waiting(colors, still, disc: _doneDisc())
+          : _doneDisc();
+    }
 
     switch (voice) {
       case VoiceState.invite:
@@ -231,17 +235,19 @@ class FacilitatorCircle extends StatelessWidget {
     ],
   );
 
-  Widget _waiting(SalaColors colors, bool still) {
-    final disc = _disc(
-      gradient: BeadStyles.clay(colors, 0),
-      shadows: const [
-        BoxShadow(
-          color: Color(0x260A0703),
-          offset: Offset(0, 6),
-          blurRadius: 20,
-        ),
-      ],
-    );
+  Widget _waiting(SalaColors colors, bool still, {Widget? disc}) {
+    final body =
+        disc ??
+        _disc(
+          gradient: BeadStyles.clay(colors, 0),
+          shadows: const [
+            BoxShadow(
+              color: Color(0x260A0703),
+              offset: Offset(0, 6),
+              blurRadius: 20,
+            ),
+          ],
+        );
     Widget arc(Duration period, double way, ArcPainter painter) => Spin(
       period: period,
       builder: (context, t) => Transform.rotate(
@@ -281,7 +287,7 @@ class FacilitatorCircle extends StatelessWidget {
     Widget over(List<Widget> light) => Stack(
       clipBehavior: Clip.none,
       alignment: Alignment.center,
-      children: [disc, ...light],
+      children: [body, ...light],
     );
     if (still) {
       return Loop(
