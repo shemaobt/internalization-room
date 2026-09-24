@@ -232,18 +232,13 @@ class FacilitatorCircle extends StatelessWidget {
   );
 
   Widget _waiting(SalaColors colors, bool still) {
-    Widget clay(double t) => _disc(
-      gradient: BeadStyles.clay(colors, t),
-      shadows: [
-        const BoxShadow(
+    final disc = _disc(
+      gradient: BeadStyles.clay(colors, 0),
+      shadows: const [
+        BoxShadow(
           color: Color(0x260A0703),
           offset: Offset(0, 6),
           blurRadius: 20,
-        ),
-        BoxShadow(
-          color: colors.clayHi.withValues(alpha: 0.30 * t),
-          spreadRadius: 2 + 10 * t,
-          blurRadius: 18,
         ),
       ],
     );
@@ -251,8 +246,7 @@ class FacilitatorCircle extends StatelessWidget {
       return Loop(
         period: const Duration(milliseconds: 3600),
         reducible: false,
-        builder: (context, t) =>
-            Opacity(opacity: 0.72 + 0.24 * t, child: clay(0)),
+        builder: (context, t) => Opacity(opacity: 0.72 + 0.24 * t, child: disc),
       );
     }
     Widget arc(Duration period, double way, ArcPainter painter) => Spin(
@@ -264,35 +258,50 @@ class FacilitatorCircle extends StatelessWidget {
         ),
       ),
     );
-    return Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.center,
-      children: [
-        Loop(
-          period: const Duration(milliseconds: 4600),
-          builder: (context, t) =>
-              Transform.scale(scale: 1 + 0.06 * t, child: clay(t)),
+    final glow = RepaintBoundary(
+      child: CustomPaint(
+        size: Size.square(size),
+        painter: GlowPainter(color: colors.telha.withValues(alpha: 0.16)),
+      ),
+    );
+    final arcs = [
+      arc(
+        const Duration(milliseconds: 1600),
+        1,
+        ArcPainter(
+          side: size * 1.14,
+          stroke: size * 4 / 232,
+          top: colors.telha,
+          right: colors.telha.withValues(alpha: 0.35),
         ),
-        arc(
-          const Duration(milliseconds: 1600),
-          1,
-          ArcPainter(
-            side: size * 1.14,
-            stroke: size * 4 / 232,
-            top: colors.telha,
-            right: colors.telha.withValues(alpha: 0.35),
+      ),
+      arc(
+        const Duration(milliseconds: 2600),
+        -1,
+        ArcPainter(
+          side: size * 1.26,
+          stroke: size * 2 / 232,
+          bottom: colors.telha.withValues(alpha: 0.55),
+        ),
+      ),
+    ];
+    return Loop(
+      period: const Duration(milliseconds: 2400),
+      builder: (context, t) => Transform.scale(
+        scale: 0.97 + 0.06 * t,
+        child: Opacity(
+          opacity: 0.82 + 0.18 * t,
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              disc,
+              Opacity(opacity: 0.45 + 0.55 * t, child: glow),
+              ...arcs,
+            ],
           ),
         ),
-        arc(
-          const Duration(milliseconds: 2600),
-          -1,
-          ArcPainter(
-            side: size * 1.26,
-            stroke: size * 2 / 232,
-            bottom: colors.telha.withValues(alpha: 0.55),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -438,4 +447,28 @@ class ArcPainter extends CustomPainter {
       old.top != top ||
       old.right != right ||
       old.bottom != bottom;
+}
+
+class GlowPainter extends CustomPainter {
+  final Color color;
+
+  const GlowPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final disc = Rect.fromCircle(
+      center: size.center(Offset.zero),
+      radius: size.shortestSide / 2,
+    );
+    canvas.drawOval(
+      disc,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [color, color.withValues(alpha: 0)],
+        ).createShader(disc),
+    );
+  }
+
+  @override
+  bool shouldRepaint(GlowPainter old) => old.color != color;
 }

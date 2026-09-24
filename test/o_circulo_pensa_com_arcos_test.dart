@@ -115,6 +115,110 @@ void main() {
   );
 
   testWidgets(
+    'the whole circle breathes fuller on her 2.4 s while it thinks, the arcs with it',
+    (tester) async {
+      await _pumpCircle(tester, VoiceState.thinking);
+      final breath = find.descendant(
+        of: find.byType(FacilitatorCircle),
+        matching: find.byType(Loop),
+      );
+      List<double> drawn() => [
+        tester
+            .widgetList<Transform>(
+              find.descendant(of: breath, matching: find.byType(Transform)),
+            )
+            .first
+            .transform
+            .entry(0, 0),
+        tester
+            .widgetList<Opacity>(
+              find.descendant(of: breath, matching: find.byType(Opacity)),
+            )
+            .first
+            .opacity,
+      ];
+
+      expect(drawn(), [
+        closeTo(0.97, 1e-6),
+        closeTo(0.82, 1e-6),
+      ], reason: 'thinkBreath dela abre em scale(.97) e opacity .82');
+
+      await tester.pump(const Duration(milliseconds: 1200));
+      expect(
+        drawn(),
+        [closeTo(1.03, 1e-6), closeTo(1, 1e-6)],
+        reason:
+            'e chega a 1.03 e opacidade cheia na metade dos 2,4 s — a '
+            'respiração de 4,6 s e 6% lia como uma sala parada',
+      );
+
+      expect(
+        find.descendant(of: breath, matching: find.byType(Spin)),
+        findsNWidgets(2),
+        reason:
+            'a respiração dela está no alvo inteiro, pai dos arcos: um disco '
+            'que respira com os arcos parados no lugar os deixaria soltos',
+      );
+    },
+  );
+
+  testWidgets(
+    'a terracotta glow warms the clay from inside and pulses on her 2.4 s',
+    (tester) async {
+      await _pumpCircle(tester, VoiceState.thinking);
+      final glow = find.descendant(
+        of: find.byType(FacilitatorCircle),
+        matching: find.byWidgetPredicate(
+          (widget) => widget is CustomPaint && widget.painter is GlowPainter,
+        ),
+      );
+      double glowing() => tester
+          .widget<Opacity>(
+            find.ancestor(of: glow, matching: find.byType(Opacity)).first,
+          )
+          .opacity;
+
+      expect(
+        (tester.widget<CustomPaint>(glow).painter! as GlowPainter).color,
+        _telha(0.16),
+        reason: '.glow dela no pensar: radial-gradient de rgba(190,74,1,.16)',
+      );
+      expect(
+        glowing(),
+        closeTo(0.45, 1e-6),
+        reason: 'thinkGlow dela abre em opacidade .45',
+      );
+      await tester.pump(const Duration(milliseconds: 1200));
+      expect(
+        glowing(),
+        closeTo(1, 1e-6),
+        reason: 'e acende por inteiro na metade dos 2,4 s',
+      );
+
+      final drawn = find
+          .descendant(
+            of: find.byType(FacilitatorCircle),
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  (widget is CustomPaint && widget.painter is GlowPainter) ||
+                  (widget is Container &&
+                      (widget.decoration as BoxDecoration?)?.gradient != null),
+            ),
+          )
+          .evaluate()
+          .map((element) => element.widget)
+          .toList();
+      expect(
+        drawn.last,
+        isA<CustomPaint>(),
+        reason:
+            'o disco dela é translúcido e o brilho aparece através dele; o '
+            'nosso barro é opaco, e um brilho pintado por baixo sumiria inteiro',
+      );
+    },
+  );
+
+  testWidgets(
     'on her 232 px circle the arcs sit at her insets, widths and alphas',
     (tester) async {
       await _pumpCircle(tester, VoiceState.thinking, size: 232);
