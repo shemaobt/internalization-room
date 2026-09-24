@@ -5328,6 +5328,7 @@ void main() {
     notifier.takeKeep();
     notifier.startRetro();
     await settle();
+    harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
@@ -5427,6 +5428,7 @@ void main() {
     notifier.takeKeep();
     notifier.startRetro();
     await settle();
+    harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
@@ -5468,6 +5470,7 @@ void main() {
       notifier.takeKeep();
       notifier.startRetro();
       await settle();
+      harness.playback.at = const Duration(seconds: 2);
       notifier.cortarTrecho();
       await settle();
       notifier.retroTap();
@@ -6513,6 +6516,7 @@ void main() {
       notifier.startRetro();
       await settle();
 
+      harness.playback.at = const Duration(seconds: 2);
       notifier.cortarTrecho();
       await settle();
       notifier.retroTap();

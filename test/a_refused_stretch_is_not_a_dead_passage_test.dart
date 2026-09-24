@@ -233,12 +233,15 @@ void main() {
         isFalse,
         reason: 'o corte recusado segura o clipe',
       );
-
       expect(
         it.estado.btPhase,
         isNot(BtPhase.capturing),
         reason: 'um trecho que termina onde começa não tem nada a contar',
       );
+
+      it.sala.retroTap();
+      await settle();
+
       expect(harness.room.chunksSent, 0);
       expect(
         harness.room.chunkSpans,
@@ -268,6 +271,8 @@ void main() {
       it.sala.cortarTrecho();
       await settle();
       expect(it.estado.btPhase, isNot(BtPhase.capturing));
+      it.sala.retroTap();
+      await settle();
       expect(harness.room.chunkSpans, isEmpty);
       it.sala.ouvirGravacao();
       await settle();

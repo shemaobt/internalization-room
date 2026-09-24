@@ -1938,8 +1938,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         unawaited(_mindingThePlace(() => _emAberto.forget(_book, pericope)));
       }
       if (fresh) {
-        // Already the clean attempt: the session born a moment ago is gone too, not only
-        // the one we remembered. Retrying again is the loop this guard exists to stop.
+        // Already the clean attempt: the room answered it with a session it does not know
+        // either. Retrying again is the loop this guard exists to stop.
         leaveThePassage();
         return;
       }

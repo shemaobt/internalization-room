@@ -1330,6 +1330,24 @@ void main() {
         },
       );
 
+      test(
+        'opening a session and listing the passages keep a 404 as the session gone',
+        () async {
+          await expectLater(
+            () =>
+                answering(404).createSession(language: 'pt', afterSession: 's'),
+            throwsA(isA<SessionGone>()),
+            reason:
+                'o 404 de /sessions é a sessão anterior que a sala não conhece '
+                'mais, um veredito sobre uma sessão',
+          );
+          await expectLater(
+            () => answering(404).passagesOf('Ruth', language: 'pt'),
+            throwsA(isA<SessionGone>()),
+          );
+        },
+      );
+
       test('the device routes keep their own answers', () async {
         await expectLater(
           () => answering(404).collectTheCredential('aparelho-1'),
