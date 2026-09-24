@@ -287,4 +287,44 @@ void main() {
       await tester.pump();
     },
   );
+
+  testWidgets('the second the bead waits is a second even on a tablet that '
+      'turned animations off', (tester) async {
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    final harness = SalaHarness();
+    final container = await pumpSala(tester, harness);
+
+    await tester.tap(bySemanticsLabelWidget('Falar com o facilitador'));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(
+      container.read(salaSessionProvider).conviteStep,
+      ConviteStep.entrada,
+      reason: 'o que vem abaixo só vale com a abertura já dita',
+    );
+    expect(
+      tester
+          .widget<Semantics>(bySemanticsLabelWidget('Entrar na passagem'))
+          .properties
+          .enabled,
+      isFalse,
+      reason:
+          'com as animações desligadas o segundo encolhia para 50 ms, e a '
+          'conta voltava a atender debaixo do dedo',
+    );
+
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(
+      tester
+          .widget<Semantics>(bySemanticsLabelWidget('Entrar na passagem'))
+          .properties
+          .enabled,
+      isTrue,
+    );
+  });
 }

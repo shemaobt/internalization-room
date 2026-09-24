@@ -66,6 +66,7 @@ class _EntradaState extends ConsumerState<_Entrada>
     _settle = AnimationController(
       vsync: this,
       duration: ref.read(entradaSettleProvider),
+      animationBehavior: AnimationBehavior.preserve,
     )..addStatusListener((_) => setState(() {}));
     if (widget.live) _settle.forward();
   }
