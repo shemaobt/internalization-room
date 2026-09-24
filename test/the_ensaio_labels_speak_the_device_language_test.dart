@@ -10,7 +10,6 @@ Finder byLabel(String label) => find.byWidgetPredicate(
   (widget) => widget is Semantics && widget.properties.label == label,
 );
 
-/// An english room, standing at the recorded take, with the play/redo/keep row on screen.
 Future<ProviderContainer> _pumpAoGravadoEmIngles(WidgetTester tester) async {
   final harness = SalaHarness(lingua: 'en');
   final container = harness.container();
@@ -31,100 +30,97 @@ Future<ProviderContainer> _pumpAoGravadoEmIngles(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets(
-    'the recorded-take row speaks english to an english room',
-    (tester) async {
-      final container = await _pumpAoGravadoEmIngles(tester);
-      addTearDown(container.dispose);
+  testWidgets('the recorded-take row speaks english to an english room', (
+    tester,
+  ) async {
+    final container = await _pumpAoGravadoEmIngles(tester);
+    addTearDown(container.dispose);
 
-      expect(
-        byLabel('Listen to the recording'),
-        findsOneWidget,
-        reason: 'quem gravou em inglês ouve o próprio idioma no play do take',
-      );
-      expect(byLabel('Record again'), findsOneWidget);
-      expect(byLabel('Keep this recording'), findsOneWidget);
+    expect(
+      byLabel('Listen to the recording'),
+      findsOneWidget,
+      reason: 'quem gravou em inglês ouve o próprio idioma no play do take',
+    );
+    expect(byLabel('Record again'), findsOneWidget);
+    expect(byLabel('Keep this recording'), findsOneWidget);
 
-      container.read(salaSessionProvider.notifier).takeKeep();
-      await tester.pump(const Duration(milliseconds: 100));
+    container.read(salaSessionProvider.notifier).takeKeep();
+    await tester.pump(const Duration(milliseconds: 100));
 
-      expect(
-        byLabel('Go to the translation'),
-        findsOneWidget,
-        reason: 'o botão que leva à tradução também não fica preso ao português',
-      );
-    },
-  );
+    expect(
+      byLabel('Go to the translation'),
+      findsOneWidget,
+      reason: 'o botão que leva à tradução também não fica preso ao português',
+    );
+  });
 
-  testWidgets(
-    'the ghost-play button speaks english to an english room',
-    (tester) async {
-      final container = await _pumpAoGravadoEmIngles(tester);
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
+  testWidgets('the ghost-play button speaks english to an english room', (
+    tester,
+  ) async {
+    final container = await _pumpAoGravadoEmIngles(tester);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
 
-      notifier.takeKeep();
-      await tester.pump(const Duration(milliseconds: 100));
+    notifier.takeKeep();
+    await tester.pump(const Duration(milliseconds: 100));
 
-      expect(
-        byLabel('Listen to the saved rehearsal before recording'),
-        findsOneWidget,
-        reason:
-            'antes de gravar de novo, a equipe inglesa também precisa saber '
-            'que pode ouvir o que já guardou',
-      );
+    expect(
+      byLabel('Listen to the saved rehearsal before recording'),
+      findsOneWidget,
+      reason:
+          'antes de gravar de novo, a equipe inglesa também precisa saber '
+          'que pode ouvir o que já guardou',
+    );
 
-      notifier.ghostPlay();
-      await tester.pump(const Duration(milliseconds: 100));
+    notifier.ghostPlay();
+    await tester.pump(const Duration(milliseconds: 100));
 
-      expect(
-        byLabel('Stop listening to the saved rehearsal'),
-        findsOneWidget,
-        reason: 'e parar de ouvir precisa do mesmo rótulo no próprio idioma',
-      );
-      expect(
-        byLabel('The saved rehearsal is playing'),
-        findsOneWidget,
-        reason:
-            'o círculo apagado durante o ghost play também precisa dizer '
-            'isso em inglês, não só o botão ao lado',
-      );
-    },
-  );
+    expect(
+      byLabel('Stop listening to the saved rehearsal'),
+      findsOneWidget,
+      reason: 'e parar de ouvir precisa do mesmo rótulo no próprio idioma',
+    );
+    expect(
+      byLabel('The saved rehearsal is playing'),
+      findsOneWidget,
+      reason:
+          'o círculo apagado durante o ghost play também precisa dizer '
+          'isso em inglês, não só o botão ao lado',
+    );
+  });
 
-  testWidgets(
-    'the record circle speaks english to an english room',
-    (tester) async {
-      final harness = SalaHarness(lingua: 'en');
-      final container = harness.container();
-      addTearDown(container.dispose);
-      await tester.pumpWidget(
-        UncontrolledProviderScope(container: container, child: const SalaApp()),
-      );
-      await tester.pump(const Duration(milliseconds: 100));
+  testWidgets('the record circle speaks english to an english room', (
+    tester,
+  ) async {
+    final harness = SalaHarness(lingua: 'en');
+    final container = harness.container();
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const SalaApp()),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
 
-      final notifier = container.read(salaSessionProvider.notifier);
-      await notifier.goConversa();
-      await tester.pump(const Duration(milliseconds: 200));
-      notifier.goEnsaio();
-      await tester.pump(const Duration(milliseconds: 100));
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.goConversa();
+    await tester.pump(const Duration(milliseconds: 200));
+    notifier.goEnsaio();
+    await tester.pump(const Duration(milliseconds: 100));
 
-      expect(
-        byLabel('Tap to record the rehearsal'),
-        findsOneWidget,
-        reason: 'a tela recém-aberta convida a gravar, no idioma da equipe',
-      );
+    expect(
+      byLabel('Tap to record the rehearsal'),
+      findsOneWidget,
+      reason: 'a tela recém-aberta convida a gravar, no idioma da equipe',
+    );
 
-      notifier.ensaioTap();
-      await tester.pump(const Duration(milliseconds: 100));
+    notifier.ensaioTap();
+    await tester.pump(const Duration(milliseconds: 100));
 
-      expect(
-        byLabel('Tap when you are done'),
-        findsOneWidget,
-        reason:
-            'gravando, o círculo reaproveita o mesmo par que o convite da '
-            'conversa já usa para "ouvindo"',
-      );
-    },
-  );
+    expect(
+      byLabel('Tap when you are done'),
+      findsOneWidget,
+      reason:
+          'gravando, o círculo reaproveita o mesmo par que o convite da '
+          'conversa já usa para "ouvindo"',
+    );
+  });
 }

@@ -45,6 +45,14 @@ void main() {
     expect(languageFor(['PT']), 'pt');
   });
 
+  test(
+    'the part-redo label carries the same number in portuguese and in english',
+    () {
+      expect(gravarParteDeNovoLabelFor(2, 'pt'), 'Gravar a parte 2 de novo');
+      expect(gravarParteDeNovoLabelFor(2, 'en'), 'Record part 2 again');
+    },
+  );
+
   testWidgets(
     'a Brazilian tablet is a Portuguese room, not a language of its own',
     (tester) async {
@@ -134,12 +142,7 @@ void main() {
         final rendered = (jsonDecode(manifest) as Map<String, dynamic>).keys
             .where(named.hasMatch)
             .toSet();
-        final spoken = {
-          ...rendered,
-          ...instantAckLines,
-          'E0',
-          approvedLine,
-        };
+        final spoken = {...rendered, ...instantAckLines, 'E0', approvedLine};
 
         expect(
           spoken.length,
