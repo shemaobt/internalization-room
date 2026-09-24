@@ -5932,9 +5932,17 @@ void main() {
       );
       notifier.startRetro();
       await settle();
+      final capturesBefore = harness.recorder.captures;
       notifier.cortarTrecho();
       await settle();
 
+      expect(
+        harness.recorder.captures,
+        greaterThan(capturesBefore),
+        reason:
+            'sem essa checagem o teste passava com o microfone do pedaço '
+            'nunca aberto, só com o lastDraft que sobrava do ensaio de cima',
+      );
       expect(
         harness.recorder.lastDraft,
         isTrue,
