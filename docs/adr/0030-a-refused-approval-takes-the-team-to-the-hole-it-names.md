@@ -110,3 +110,8 @@ approved line and close the cord over nothing.
 Coverage and comprehension are a person's here only because the door does not exist yet.
 When the room learns the way back to the conversation, they become two more doors in the
 tablet's order, and nothing else about this decision changes.
+
+2026-09-24: `coverage_floor_not_met` and `comprehension_needs_more_work` no longer arrive. The
+server's ADR 0037 took both out of the gate — the team's approval asks only about the
+telling-back — so the way back to the conversation this decision anticipated is not owed for
+them. The four doors and the person's remainder are unchanged.
