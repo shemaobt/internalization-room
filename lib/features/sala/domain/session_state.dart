@@ -304,7 +304,15 @@ class SalaSessionState {
       voice == VoiceState.invite;
 
   bool get entradaOffered =>
-      stage == SalaStage.convite && conviteStep == ConviteStep.entrada;
+      stage == SalaStage.convite &&
+      (conviteStep == ConviteStep.entrada ||
+          voice == VoiceState.thinking ||
+          voice == VoiceState.speaking);
+
+  bool get entradaLive =>
+      entradaOffered &&
+      voice != VoiceState.thinking &&
+      voice != VoiceState.speaking;
 
   bool get hasUnheardReply => replies.any((reply) => !reply.heard);
 
