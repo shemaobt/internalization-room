@@ -1252,7 +1252,7 @@ void main() {
           await _tempRecording(),
           takeId: 'gravacao-1',
           from: const Duration(seconds: 4),
-          to: const Duration(seconds: 4),
+          to: const Duration(seconds: 7),
         ),
         'divideSegment': (room) => room.divideSegment(
           'sessao-1',
