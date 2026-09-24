@@ -327,4 +327,53 @@ void main() {
       isTrue,
     );
   });
+
+  testWidgets('the bead fades onto the table instead of appearing whole', (
+    tester,
+  ) async {
+    final harness = SalaHarness();
+    await pumpSala(tester, harness);
+
+    double shown() {
+      final above = find.ancestor(
+        of: bySemanticsLabelWidget('Entrar na passagem'),
+        matching: find.byWidgetPredicate(
+          (widget) => widget is Opacity || widget is FadeTransition,
+        ),
+      );
+      return tester
+          .widgetList(above)
+          .fold(
+            1.0,
+            (shown, widget) =>
+                shown *
+                (widget is Opacity
+                    ? widget.opacity
+                    : (widget as FadeTransition).opacity.value),
+          );
+    }
+
+    harness.voice.holdNextLine();
+    await tester.tap(bySemanticsLabelWidget('Falar com o facilitador'));
+    await tester.pump();
+
+    expect(bySemanticsLabelWidget('Entrar na passagem'), findsOneWidget);
+    expect(
+      shown(),
+      lessThan(0.5),
+      reason:
+          'um alvo que surge inteiro de um quadro para o outro puxa o dedo '
+          'que ia ao círculo',
+    );
+
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(
+      shown(),
+      1.0,
+      reason: 'o fade chega ao fim, a conta não fica apagada',
+    );
+    harness.voice.finishHeldLine();
+    await tester.pump(const Duration(milliseconds: 200));
+  });
 }
