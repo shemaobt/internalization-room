@@ -1229,4 +1229,44 @@ void main() {
       closeTheRoom(container);
     },
   );
+
+  testWidgets('the first touch after the panorama opening records the team, '
+      'even when the app has just come back to the front', (tester) async {
+    final harness = SalaHarness();
+    final container = await pumpSala(tester, harness);
+
+    await tester.tap(bySemanticsLabelWidget('Falar com o facilitador'));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      container.read(salaSessionProvider).conviteStep,
+      ConviteStep.entrada,
+      reason: 'o que vem abaixo só vale com a abertura já dita',
+    );
+    expect(
+      await harness.finished.bookOpened('Ruth'),
+      isTrue,
+      reason:
+          'o resumed só leva à roda num livro já aberto — sem a marca o teste '
+          'passaria sem nunca chegar à porta que abria a roda',
+    );
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.tap(bySemanticsLabelWidget('Falar com o facilitador'));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    final state = container.read(salaSessionProvider);
+    expect(
+      state.stage,
+      SalaStage.convite,
+      reason: 'a volta ao primeiro plano abria a roda por cima do panorama',
+    );
+    expect(
+      state.voice,
+      VoiceState.listening,
+      reason: 'o toque depois da abertura grava a resposta da equipe',
+    );
+  });
 }
