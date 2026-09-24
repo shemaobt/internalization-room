@@ -3631,8 +3631,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // that part's, and holding the clip and letting it run again never rewinds — but
       // the position is the player's answer, not the room's, and a player that comes back
       // from behind it would send a stretch that ends before it begins and then walk the
-      // cursor backwards over every stretch after it.
-      if (_playback.position < _trechoStart) return;
+      // cursor backwards over every stretch after it. A playhead still on the cursor, before
+      // anything played, would send a stretch with nothing in it.
+      if (_playback.position <= _trechoStart) return;
       _trechoEnd = _playback.position;
     }
     _mendArmedWithThisCapture = false;

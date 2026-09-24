@@ -92,7 +92,9 @@ void main() {
   for (final noAr in [true, false]) {
     testWidgets('the tap lands in the same place with the recording '
         '${noAr ? "in the air" : "stopped"}', (tester) async {
-      final container = await pumpToTraduzir(tester, SalaHarness());
+      final harness = SalaHarness();
+      final container = await pumpToTraduzir(tester, harness);
+      harness.playback.at = const Duration(seconds: 2);
       if (!noAr) await pararAGravacao(tester, container);
 
       await tester.tap(byLabel(noAr ? cortar : traduzir));

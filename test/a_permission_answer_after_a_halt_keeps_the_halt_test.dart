@@ -58,6 +58,7 @@ _capturingWithAWarningArmed(SalaHarness harness) async {
   SalaSessionState read() => container.read(salaSessionProvider);
 
   await waitFor('o aviso chegar', () => read().warning);
+  harness.playback.at = const Duration(seconds: 2);
   notifier.cortarTrecho();
   await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
 
@@ -225,6 +226,7 @@ void main() {
     harness.recorder.returnsEmpty = true;
     harness.recorder.permitted = false;
     harness.recorder.holdNextStart();
+    harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
     await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
     notifier.retroTap();
@@ -274,6 +276,7 @@ void main() {
     harness.recorder.returnsEmpty = true;
     harness.recorder.permitted = false;
     harness.recorder.holdNextStart();
+    harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
     await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
     notifier.retroTap();

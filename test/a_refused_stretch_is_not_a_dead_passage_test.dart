@@ -213,4 +213,57 @@ void main() {
       expect(harness.room.calls, isNot(contains('createSession')));
     },
   );
+
+  test(
+    'a cut with the playhead still on the stretch start opens no microphone and sends nothing',
+    () async {
+      final harness = SalaHarness();
+      final it = await _retomadaNaRetro(harness);
+      harness.playback.at = _inicioDoTrecho;
+
+      it.sala.cortarTrecho();
+      await settle();
+
+      expect(
+        it.estado.btPhase,
+        isNot(BtPhase.capturing),
+        reason: 'um trecho que termina onde começa não tem nada a contar',
+      );
+      expect(harness.room.chunksSent, 0);
+      expect(
+        harness.room.chunkSpans,
+        isEmpty,
+        reason: 'o trecho vazio ia à sala e voltava recusado com 400',
+      );
+    },
+  );
+
+  test(
+    'a cut behind the stretch start records nothing, and one step past it tells the stretch',
+    () async {
+      final harness = SalaHarness();
+      final it = await _retomadaNaRetro(harness);
+
+      harness.playback.at = _inicioDoTrecho - const Duration(milliseconds: 1);
+      it.sala.cortarTrecho();
+      await settle();
+      expect(it.estado.btPhase, isNot(BtPhase.capturing));
+      expect(harness.room.chunkSpans, isEmpty);
+
+      await _ateAParteTresNoAr(it);
+      harness.playback.at = _inicioDoTrecho + const Duration(milliseconds: 1);
+      it.sala.cortarTrecho();
+      await waitFor(
+        'o microfone abrir',
+        () => it.estado.btPhase == BtPhase.capturing,
+      );
+      it.sala.retroTap();
+      await waitFor(
+        'o trecho chegar à sala',
+        () => harness.room.chunkSpans.isNotEmpty,
+      );
+
+      expect(harness.room.chunkSpans, ['4000-4001']);
+    },
+  );
 }
