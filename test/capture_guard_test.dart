@@ -11,6 +11,33 @@ void main() {
     );
   });
 
+  test(
+    'a tap inside the default window is ignored, never treated as a stop',
+    () {
+      const guard = CaptureGuard();
+
+      expect(
+        guard.decide(
+          isRecording: true,
+          elapsed: const Duration(milliseconds: 699),
+        ),
+        TapDecision.ignore,
+      );
+    },
+  );
+
+  test('a tap once the default window has passed stops the take', () {
+    const guard = CaptureGuard();
+
+    expect(
+      guard.decide(
+        isRecording: true,
+        elapsed: const Duration(milliseconds: 700),
+      ),
+      TapDecision.stop,
+    );
+  });
+
   test('a tap inside the window is ignored, never treated as a stop', () {
     const guard = CaptureGuard(minDuration: Duration(milliseconds: 1200));
 

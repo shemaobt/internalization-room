@@ -3031,8 +3031,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final epoch = _epoch;
     final start = ++_starts;
     final openedAsAChunkCapture = state.btPhase == BtPhase.capturing;
+    final draft =
+        state.ensaio == EnsaioStatus.recording || openedAsAChunkCapture;
     _micWatch ??= _recorder.interrupted.listen(_theMicrophoneChangedHands);
-    final capture = await _recorder.start(fileName);
+    final capture = await _recorder.start(fileName, draft: draft);
     if (_gone) return;
     // The answer can arrive a minute late — `hasPermission` waits up to sixty seconds for
     // the platform — by which time the team may be on another stage entirely, with a
