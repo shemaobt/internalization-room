@@ -577,6 +577,31 @@ class TakeUploadQueue {
           entry,
     ],
   );
+
+  /// Take a pending row off the manifest before it can ever be delivered, and delete
+  /// the copy `enqueue` made of it.
+  ///
+  /// A no-op for a row already stored or for a file the queue never held — the caller
+  /// discards a recording whether or not a guard ever queued it, and asking should
+  /// never be an error either way.
+  Future<void> withdraw(File audio) async {
+    PendingTake? removed;
+    await _mutate((written) {
+      final kept = <PendingTake>[];
+      for (final entry in written) {
+        if (!entry.stored && entry.path == audio.path) {
+          removed = entry;
+          continue;
+        }
+        kept.add(entry);
+      }
+      return kept;
+    });
+    final entry = removed;
+    if (entry == null) return;
+    final file = File(entry.path);
+    if (await file.exists()) await file.delete();
+  }
 }
 
 final takeUploadQueueProvider = Provider<TakeUploadQueue>(
