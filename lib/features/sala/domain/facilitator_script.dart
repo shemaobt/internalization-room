@@ -25,8 +25,6 @@ String fixedLineAsset(String line, String language) =>
 
 const instantAckLines = ['F0', 'F1', 'F2', 'F3'];
 
-const inaudibleLines = ['D0', 'D1', 'D2'];
-
 /// The fourth of Marcia's process lines, read by position: start, tell, unheard,
 /// approved. The approval's is the fourth, never rotated.
 const approvedLine = 'P3';
