@@ -7,13 +7,14 @@ import 'package:internalization_room/features/sala/presentation/widgets/eq_bars.
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
 
-Widget _circleIn(VoiceState voice) => MaterialApp(
+Widget _circleIn(VoiceState voice, {bool turning = true}) => MaterialApp(
   theme: AppTheme.light,
   home: Scaffold(
     body: Center(
       child: FacilitatorCircle(
         size: 196,
         voice: voice,
+        turning: turning,
         semanticLabel: 'circulo',
         onTap: () {},
       ),
@@ -44,9 +45,12 @@ Future<Set<double>> _scalesOver(WidgetTester tester, Widget app) async {
   for (var frame = 0; frame < 44; frame++) {
     await tester.pump(const Duration(milliseconds: 120));
     for (final transform in tester.widgetList<Transform>(
-      find.byType(Transform),
+      find.descendant(
+        of: find.byType(FacilitatorCircle),
+        matching: find.byType(Transform),
+      ),
     )) {
-      seen.add(transform.transform.getMaxScaleOnAxis());
+      seen.add(transform.transform.entry(0, 0));
     }
   }
   return seen;
@@ -72,6 +76,27 @@ void main() {
           'a afirmação não é que respira, é que respira igual a todo invite',
     );
   });
+
+  testWidgets(
+    'a room breathing below one is not mistaken for a room standing still',
+    (tester) async {
+      // turning: false freezes the arcs. Without it their own spin also reads
+      // below 1, and this would pass even with a disc that never shrank.
+      final seen = await _scalesOver(
+        tester,
+        _circleIn(VoiceState.thinking, turning: false),
+      );
+
+      expect(
+        seen.any((scale) => scale < 1.0),
+        isTrue,
+        reason:
+            'a espera desce a 0,97 a cada volta, e getMaxScaleOnAxis conta o '
+            'eixo z parado em 1 como se fosse o maior — o encolhimento nunca '
+            'aparecia',
+      );
+    },
+  );
 
   testWidgets('a button that just appeared accepts the first touch', (
     tester,
