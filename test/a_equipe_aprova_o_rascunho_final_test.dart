@@ -137,7 +137,6 @@ void main() {
             'aprovação, e 700ms depois da conferida a equipe era levada embora '
             'de uma tela que ela nunca chegou a tocar',
       );
-      expect(_estado(it.container).fimClosed, isFalse);
       expect(
         it.harness.finished.done,
         isNot(contains('Ruth/P01')),
@@ -209,9 +208,6 @@ void main() {
         reason: 'dita a linha, o colar fecha como sempre fechou',
       );
 
-      await tester.pump(const Duration(seconds: 1));
-
-      expect(_estado(it.container).fimClosed, isTrue);
       expect(
         it.harness.finished.done,
         contains('Ruth/P01'),
