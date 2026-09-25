@@ -20,3 +20,8 @@ recording runs, mending and mended look the same on the cord; the circle is what
 capture is in the air. A capture that fails drains the band again, because filling it is a
 promise and a promise nobody kept has to be taken back, and a second **Finding** on the same
 stretch drains it too — filling is never final.
+
+## Note of 2026-09-25
+
+The band is gone with the cord (ADR 0040); the meaning stays on the Bead row: a drained bead is
+waiting to be mended, not wrong.
