@@ -9,12 +9,14 @@ class BeadRowEntry {
   final BeadFill fill;
   final bool current;
   final bool dimmed;
+  final bool delivered;
   final String semanticLabel;
 
   const BeadRowEntry({
     required this.fill,
     this.current = false,
     this.dimmed = false,
+    this.delivered = true,
     required this.semanticLabel,
   });
 }
@@ -82,6 +84,20 @@ class BeadRow extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(color: colors.telha, width: 2.5),
+                  ),
+                ),
+              if (!entry.delivered)
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: colors.telha,
+                      border: Border.all(color: colors.paper, width: 1.5),
+                    ),
                   ),
                 ),
             ],

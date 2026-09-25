@@ -219,6 +219,15 @@ class SalaSessionState {
   /// replacing one.
   final int? parteARegravar;
 
+  /// Which part of the rehearsal sounds right now, 0-based, or null when nothing plays.
+  ///
+  /// The Bead row's ring follows this rather than the play/pause flags alone: the whole
+  /// rehearsal's play walks it forward as the head crosses each part's boundary, and a tap
+  /// on one bead sets it to that part alone. A pending take standing in [parteARegravar]'s
+  /// place still carries its own part number here, so the ring lands on the right bead
+  /// while it sounds.
+  final int? parteTocando;
+
   const SalaSessionState({
     this.stage = SalaStage.convite,
     this.voice = VoiceState.invite,
@@ -272,6 +281,7 @@ class SalaSessionState {
     this.unsentTakeScopes = const {},
     this.warning = false,
     this.parteARegravar,
+    this.parteTocando,
   });
 
   bool get colarOn => stage == SalaStage.conversa || stage == SalaStage.fim;
@@ -529,6 +539,8 @@ class SalaSessionState {
     bool? warning,
     int? parteARegravar,
     bool clearParteARegravar = false,
+    int? parteTocando,
+    bool clearParteTocando = false,
   }) {
     return SalaSessionState(
       stage: stage ?? this.stage,
@@ -597,6 +609,9 @@ class SalaSessionState {
       parteARegravar: clearParteARegravar
           ? null
           : (parteARegravar ?? this.parteARegravar),
+      parteTocando: clearParteTocando
+          ? null
+          : (parteTocando ?? this.parteTocando),
     );
   }
 }

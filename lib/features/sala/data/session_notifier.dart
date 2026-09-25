@@ -278,7 +278,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   final EscutaDasPartes _escuta = EscutaDasPartes();
   int _desdeMs = 0;
   VoidCallback? _depoisDaPausa;
-  List<(String, (Duration, Duration)?)> _ensaioATocar = const [];
+  List<(String, (Duration, Duration)?, int)> _ensaioATocar = const [];
   String? _panoramaSessionId;
 
   /// The opening turn this instance is asking for, minted once and carried across every
@@ -436,6 +436,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       clearContaEscolhida: true,
       playPing: false,
       takePaused: false,
+      clearParteTocando: true,
     );
   }
 
@@ -2722,7 +2723,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _tocarDoEnsaio(int onde) {
     void acabou() {
-      state = state.copyWith(playPing: false, takePaused: false);
+      state = state.copyWith(
+        playPing: false,
+        takePaused: false,
+        clearParteTocando: true,
+      );
     }
 
     void aProxima() {
@@ -2738,7 +2743,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       acabou();
       return;
     }
-    final (path, trecho) = _ensaioATocar[onde];
+    final (path, trecho, parte) = _ensaioATocar[onde];
+    state = state.copyWith(parteTocando: parte);
     if (trecho == null) {
       _play(path, onComplete: aProxima, onFailed: acabou);
       return;
@@ -2751,20 +2757,55 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchPlayback(clipStillOpening: true);
   }
 
-  List<(String, (Duration, Duration)?)> _oEnsaioAteAqui() {
-    final pendente = _pendingTakePath;
+  /// A tap on one bead: that part alone, from its start, stopping at its own end.
+  ///
+  /// Tapping the part already sounding toggles pause the same way the play/pause circle
+  /// does — [playTheRehearsal] already carries that logic, and duplicating it here would
+  /// drift from it the first time either one changed. Tapping a different part stops
+  /// whatever is in the air and starts this one instead of resuming it.
+  void tocarAParte(int indice) {
+    if (state.stage != SalaStage.ensaio) return;
+    if (state.needsPerson) return;
+    if (state.ensaio != EnsaioStatus.idle) return;
+    if (indice < 0 || indice >= state.partes.length) return;
+    if (indice == state.parteTocando) {
+      playTheRehearsal();
+      return;
+    }
+    _silenceTheRoom();
+    _ensaioATocar = [
+      for (final clip in _clipesDaParte(indice)) (clip.$1, clip.$2, indice),
+    ];
+    state = state.copyWith(
+      playPing: true,
+      takePaused: false,
+      parteTocando: indice,
+    );
+    _tocarDoEnsaio(0);
+  }
+
+  List<(String, (Duration, Duration)?, int)> _oEnsaioAteAqui() {
     final partes = state.partes;
+    final pendente = _pendingTakePath;
     final regravada = state.parteARegravar;
     final noLugar =
         pendente != null && regravada != null && regravada < partes.length;
     return [
       for (var parte = 0; parte < partes.length; parte++)
-        if (noLugar && parte == regravada)
-          (pendente, null)
-        else
-          ..._oQueTocaDaParte(parte),
-      if (pendente != null && !noLugar) (pendente, null),
+        for (final clip in _clipesDaParte(parte)) (clip.$1, clip.$2, parte),
+      if (pendente != null && !noLugar) (pendente, null, partes.length),
     ];
+  }
+
+  /// What plays for one part of the rehearsal: the pending take standing in its place when
+  /// this is the part the team came back to record again, or its own recording and the
+  /// stretches told back over it otherwise.
+  List<(String, (Duration, Duration)?)> _clipesDaParte(int parte) {
+    final pendente = _pendingTakePath;
+    if (pendente != null && state.parteARegravar == parte) {
+      return [(pendente, null)];
+    }
+    return _oQueTocaDaParte(parte);
   }
 
   List<(String, (Duration, Duration)?)> _oQueTocaDaParte(int parte) {
