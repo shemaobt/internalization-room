@@ -1292,4 +1292,75 @@ void main() {
 
     closeTheRoom(it.container);
   });
+
+  testWidgets('a passage the room called checked is announced in english to an '
+      'english room', (tester) async {
+    final it = await _ateAConferida(
+      tester,
+      comEsta: SalaHarness(filaEmMemoria: true, lingua: 'en'),
+    );
+
+    expect(_estado(it.container).btPhase, BtPhase.conferida);
+    expect(
+      _circulo(tester).semanticLabel,
+      'Translated',
+      reason:
+          'a passagem conferida era anunciada "Traduzida" a uma sala em '
+          'inglês',
+    );
+
+    closeTheRoom(it.container);
+  });
+
+  testWidgets(
+    'a retro that lost the network asks an english room to try again in '
+    'english',
+    (tester) async {
+      final it = await _ateAConferida(
+        tester,
+        comEsta: SalaHarness(filaEmMemoria: true, lingua: 'en'),
+      );
+      it.harness.room.reachable = false;
+      it.harness.network.reachable = false;
+
+      await tester.tap(_byLabel('Approve as the final draft'));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(_circulo(tester).voice, VoiceState.offline);
+      expect(
+        _circulo(tester).semanticLabel,
+        'Tap to try again',
+        reason:
+            'sem rede, o retro pedia "Tocar para tentar de novo" a uma sala '
+            'em inglês',
+      );
+
+      closeTheRoom(it.container);
+    },
+  );
+
+  testWidgets(
+    'a retro that calls a person says so in english to an english room',
+    (tester) async {
+      final it = await _ateAConferida(
+        tester,
+        comEsta: SalaHarness(filaEmMemoria: true, lingua: 'en'),
+      );
+      it.harness.room.releaseBlockers = ['no_project'];
+
+      await tester.tap(_byLabel('Approve as the final draft'));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(_circulo(tester).voice, VoiceState.needsPerson);
+      expect(
+        _circulo(tester).semanticLabel,
+        'A moment for someone',
+        reason:
+            'o retro chamando uma pessoa dizia "Um momento para uma pessoa" '
+            'a uma sala em inglês',
+      );
+
+      closeTheRoom(it.container);
+    },
+  );
 }

@@ -87,6 +87,9 @@ const retroLabels = {
     'pt': 'Aprovar como rascunho final',
     'en': 'Approve as the final draft',
   },
+  'tryAgain': {'pt': 'Tocar para tentar de novo', 'en': 'Tap to try again'},
+  'aMoment': {'pt': 'Um instante', 'en': 'One moment'},
+  'translated': {'pt': 'Traduzida', 'en': 'Translated'},
 };
 
 String retroLabelFor(String control, String language) =>
