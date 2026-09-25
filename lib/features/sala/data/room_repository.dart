@@ -381,7 +381,7 @@ class RoomRepository {
     return _read(
       await _sendMultipart(request),
       BackTranslationChunk.fromJson,
-      notFoundIsTheSessionGone: false,
+      notFoundIsTheSessionGone: true,
     );
   }
 

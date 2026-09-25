@@ -169,11 +169,49 @@ void main() {
   );
 
   test(
+    'ENG-1133: a chunk answered with the session gone leaves the passage, unlike a refused take',
+    () async {
+      final harness = SalaHarness();
+      final it = await _retomadaNaRetro(harness);
+      harness.room.failChunkWith = const SessionGone();
+
+      it.harness.playback.at = const Duration(seconds: 7);
+      it.sala.cortarTrecho();
+      it.sala.retroTap();
+      await waitFor(
+        'o microfone abrir',
+        () => it.estado.btPhase == BtPhase.capturing,
+      );
+      await confirmarATraducao(it.container);
+      await waitFor(
+        'a sala deixar a passagem',
+        () => it.estado.stage == SalaStage.escolha,
+      );
+
+      expect(
+        it.estado.sessionId,
+        isNull,
+        reason: 'a sessão sumiu, como em toda outra porta que pergunta por ela',
+      );
+      expect(
+        await harness.emAberto.of('Ruth', 'P01'),
+        isNull,
+        reason: 'a sessão sumida não deixa onde retomar',
+      );
+      expect(
+        it.estado.needsPerson,
+        isFalse,
+        reason: 'a sessão sumida deixa a passagem; não risca rumo a uma pessoa',
+      );
+    },
+  );
+
+  test(
     'the third refused stretch calls a person, and the session is still the same',
     () async {
       final harness = SalaHarness();
       final it = await _retomadaNaRetro(harness);
-      harness.room.failChunkWith = const RoomBroke('HTTP 404');
+      harness.room.failChunkWith = const RoomBroke('HTTP 422');
 
       await _contarUmTrechoRecusado(it);
       expect(
