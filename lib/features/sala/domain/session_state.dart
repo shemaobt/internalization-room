@@ -164,7 +164,7 @@ class SalaSessionState {
   final bool btConsertando;
 
   /// Whether a mother-tongue slice is sounding: the pointed stretch, the stretch the
-  /// verdict named, or the pending stretch played again after a cut.
+  /// verdict named, the pending stretch played again after a cut, or a tapped bead.
   final bool btTrechoTocando;
 
   /// Whether the telling in Portuguese is sounding. Its own flag, because the two voices
@@ -198,6 +198,7 @@ class SalaSessionState {
   final int btParte;
   final String? btTraducaoPendente;
   final Trecho? btTrechoTraduzidoDeNovo;
+  final int? btContaEscolhida;
   final List<BtFindingKind> btFindings;
   final int btPass;
   final bool fimClosed;
@@ -272,6 +273,7 @@ class SalaSessionState {
     this.btParte = 0,
     this.btTraducaoPendente,
     this.btTrechoTraduzidoDeNovo,
+    this.btContaEscolhida,
     this.btFindings = const [],
     this.btPass = 1,
     this.fimClosed = false,
@@ -384,7 +386,7 @@ class SalaSessionState {
       btClipEnded && _btParteContada && btTraducaoPendente == null;
 
   bool get canAdvanceToTheVerdict =>
-      canFinishBackTranslation && btContadaInteira;
+      canFinishBackTranslation && btContadaInteira && btContaEscolhida == null;
 
   bool get btRestoDepoisDoCorte {
     if (!btCortado) return false;
@@ -396,7 +398,9 @@ class SalaSessionState {
 
   bool get canCut {
     if (!_btNaVez || btTraducaoPendente != null) return false;
-    if (btTrechoTraduzidoDeNovo != null) return false;
+    if (btTrechoTraduzidoDeNovo != null || btContaEscolhida != null) {
+      return false;
+    }
     if (btTrechoTocando || btTrechoPausada) {
       return btCortado && !btClipEnded && !btParteFronteira;
     }
@@ -410,11 +414,13 @@ class SalaSessionState {
         (limite == null || cabeca < limite);
   }
 
-  bool get canConfirmTranslation => _btNaVez && btTraducaoPendente != null;
+  bool get canConfirmTranslation =>
+      _btNaVez && btTraducaoPendente != null && btContaEscolhida == null;
 
   bool get canListenToThePendingStretch =>
       _btNaVez &&
       (btClipRodando ||
+          btContaEscolhida != null ||
           btTrechoTocando ||
           btTrechoPausada ||
           btCortado ||
@@ -538,6 +544,8 @@ class SalaSessionState {
     bool clearTraducaoPendente = false,
     Trecho? btTrechoTraduzidoDeNovo,
     bool clearTrechoTraduzidoDeNovo = false,
+    int? btContaEscolhida,
+    bool clearContaEscolhida = false,
     List<BtFindingKind>? btFindings,
     int? btPass,
     bool? fimClosed,
@@ -601,6 +609,9 @@ class SalaSessionState {
       btTrechoTraduzidoDeNovo: clearTrechoTraduzidoDeNovo
           ? null
           : (btTrechoTraduzidoDeNovo ?? this.btTrechoTraduzidoDeNovo),
+      btContaEscolhida: clearContaEscolhida
+          ? null
+          : (btContaEscolhida ?? this.btContaEscolhida),
       btFindings: btFindings ?? this.btFindings,
       btPass: btPass ?? this.btPass,
       fimClosed: fimClosed ?? this.fimClosed,

@@ -14,6 +14,8 @@ const _conversaLine =
 
 const _rotulosDeTraduzir = {
   'Tocar para gravar a tradução deste trecho',
+  'Tocar para gravar a tradução de novo',
+  'Ouvir a tradução',
   'Confirmar a tradução e seguir',
   'Conferir a tradução',
   'Ouvir e traduzir a gravação de novo',

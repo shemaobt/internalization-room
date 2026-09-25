@@ -575,21 +575,16 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('B3f — com uma tradução pendente a tesoura se apaga e o círculo '
-      'não abre outra captura', (tester) async {
+  testWidgets('B3f — com uma tradução pendente a tesoura se apaga', (
+    tester,
+  ) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
 
     harness.playback.at = cabeca;
     await tocar(tester, tesoura);
     await gravarATraducao(tester);
-    await tocar(tester, ouvir);
     expect(aceso(tester, tesoura), isFalse);
-
-    final capturas = harness.recorder.captures;
-    await tocar(tester, gravar);
-    expect(harness.recorder.captures, capturas);
-    expect(byLabel(terminar), findsNothing);
     closeTheRoom(container);
   });
 
