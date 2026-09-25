@@ -848,6 +848,49 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('B7p — o sucessor é o que está na fatia do trecho recusado, não '
+      'o primeiro trecho contado', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness, partes: 1);
+    final sala = container.read(salaSessionProvider.notifier);
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    await tocar(tester, confirmar);
+    await contarAteOFimDaParte(tester, harness);
+    final doPrimeiro = container.read(salaSessionProvider).btTrechos.first;
+    harness.room
+      ..verdictChecked = false
+      ..verdictUntoldSegmentId = 'trecho-2';
+    await tocar(tester, conferir);
+    await tester.pump(const Duration(milliseconds: 600));
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+    harness.room.verdictUntoldSegmentId = null;
+    await gravarATraducao(tester);
+
+    harness.room.loseTheNextReplaceAnswerWith = const RoomSlow();
+    await confirmarEEsperar(tester);
+    final contadaNoServidor = harness.room.replacesComArquivo.single;
+    await confirmarEEsperar(tester);
+
+    sala.ouvirOTrechoContado(1);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(harness.playback.played.last, contadaNoServidor);
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+    sala.ouvirOTrechoContado(0);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      harness.playback.played.last,
+      doPrimeiro.retroPath,
+      reason: 'o trecho 1 segue com a própria explicação',
+    );
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+    closeTheRoom(container);
+  });
+
   testWidgets('B3d — uma substituição recusada guarda a tradução pendente', (
     tester,
   ) async {
