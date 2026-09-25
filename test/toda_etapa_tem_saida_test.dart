@@ -237,4 +237,65 @@ void main() {
           'chamada do método',
     );
   });
+
+  testWidgets('the fecho offers to begin again in english to an english room', (
+    tester,
+  ) async {
+    dotenv.testLoad(
+      fileInput: 'BACKEND_URL=http://sala.local\nINTERNALIZATION_ROOM_KEY=k',
+    );
+    final harness = SalaHarness(
+      filaEmMemoria: true,
+      fimLinger: const Duration(minutes: 5),
+      lingua: 'en',
+    );
+    final container = harness.container();
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const SalaApp()),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.abrirEscolha();
+    await tester.pump(const Duration(milliseconds: 300));
+    await notifier.goConversa(pericope: 'P01');
+    await tester.pump(const Duration(milliseconds: 300));
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await tester.pump(const Duration(milliseconds: 300));
+    notifier.takeKeep();
+    notifier.startRetro();
+    await tester.pump(const Duration(milliseconds: 300));
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+    await notifier.finishBackTranslation();
+    await tester.pump(const Duration(milliseconds: 300));
+    await notifier.aprovarRascunhoFinal();
+    await tester.pump(const Duration(seconds: 3));
+
+    expect(container.read(salaSessionProvider).stage, SalaStage.fim);
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is Semantics && w.properties.label == 'Begin again',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is Semantics && w.properties.label == 'Começar de novo',
+      ),
+      findsNothing,
+      reason: 'o fecho oferecia "Começar de novo" a um aparelho em inglês',
+    );
+
+    await tester.tap(
+      find.byWidgetPredicate(
+        (w) => w is Semantics && w.properties.label == 'Begin again',
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(container.read(salaSessionProvider).stage, SalaStage.escolha);
+  });
 }

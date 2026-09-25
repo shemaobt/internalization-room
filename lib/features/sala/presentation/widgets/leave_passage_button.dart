@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
+import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
 
 class LeavePassageButton extends ConsumerWidget {
@@ -47,7 +48,10 @@ class LeavePassageButton extends ConsumerWidget {
           duration: const Duration(milliseconds: 400),
           child: Semantics(
             button: true,
-            label: 'Deixar esta passagem e escolher outra',
+            label: roomLabelFor(
+              'leavePassage',
+              ref.watch(roomLanguageProvider),
+            ),
             child: GestureDetector(
               onTap: ref.read(salaSessionProvider.notifier).leaveThePassage,
               behavior: HitTestBehavior.opaque,
