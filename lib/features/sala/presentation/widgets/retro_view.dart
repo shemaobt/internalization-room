@@ -122,14 +122,10 @@ class RetroView extends ConsumerWidget {
 
   (VoiceState, Tongue?) _voz(SalaSessionState session, bool conferida) {
     if (conferida) return (VoiceState.done, null);
-    switch (session.voice) {
-      case VoiceState.invite:
-        break;
-      case VoiceState.listening:
-        return (VoiceState.listening, Tongue.bridge);
-      default:
-        return (session.voice, null);
+    if (session.voice == VoiceState.listening) {
+      return (VoiceState.listening, Tongue.bridge);
     }
+    if (session.voice != VoiceState.invite) return (session.voice, null);
     if (session.btRetroTocando) return (VoiceState.speaking, Tongue.bridge);
     if (session.btClipRodando || session.btTrechoTocando) {
       return (VoiceState.speaking, Tongue.motherTongue);
@@ -321,7 +317,8 @@ class RetroView extends ConsumerWidget {
             semanticLabel: retroLabelFor(
               soando
                   ? 'pause'
-                  : session.btTraducaoPendente != null
+                  : session.btTraducaoPendente != null &&
+                        session.btContaEscolhida == null
                   ? 'listenToTheTranslation'
                   : 'listen',
               language,

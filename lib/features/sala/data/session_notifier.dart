@@ -3682,8 +3682,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _tirarAParteDoPlayer() {
-    _cabecaForaDoPlayer ??= _cabeca;
     _silenceTheRoom();
+    _cabecaForaDoPlayer ??= Duration(
+      milliseconds: state.btOuvidoMs - _inicioDaParteMs(_parteTocando),
+    );
   }
 
   void _calarOQueSeOuvia() {
