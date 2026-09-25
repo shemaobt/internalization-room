@@ -20,7 +20,7 @@ Future<void> _pumpWhile(
   }
 }
 
-const _entry = 'Ir para o ensaio';
+const _entry = 'Terminar a conversa e ir para o ensaio';
 
 Future<ProviderContainer> _pumpInConversa(
   WidgetTester tester,

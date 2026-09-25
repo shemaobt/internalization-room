@@ -50,10 +50,10 @@ class ConversaView extends ConsumerWidget {
                           mood: ButtonMood.beckoning,
                           gradient: BeadStyles.verde,
                           shadows: RoundActionButton.dropShadow,
-                          semanticLabel: 'Ir para o ensaio',
+                          semanticLabel: recordEntryLabelFor(language),
                           onTap: notifier.goEnsaio,
                           child: const Icon(
-                            LucideIcons.mic,
+                            LucideIcons.check,
                             size: 26,
                             color: ShemaBrand.branco,
                           ),

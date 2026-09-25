@@ -50,6 +50,14 @@ const circleLabels = {
 String circleLabelFor(String state, String language) =>
     circleLabels[state]![language] ?? circleLabels[state]![floorLanguage]!;
 
+const recordEntryLabel = {
+  'pt': 'Terminar a conversa e ir para o ensaio',
+  'en': 'Finish the conversation and go to the rehearsal',
+};
+
+String recordEntryLabelFor(String language) =>
+    recordEntryLabel[language] ?? recordEntryLabel[floorLanguage]!;
+
 const panoramaEntryLabel = {'pt': 'Panorama do Livro', 'en': 'Book Panorama'};
 
 String entrarLabelFor({required bool isPanorama, required String language}) =>
