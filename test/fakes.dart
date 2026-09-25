@@ -492,6 +492,7 @@ class FakePlayback implements PlaybackRepository {
     if (_abrindo) return;
     // Nothing was ever opened, so there is nothing to bring back.
     if (_opens == 0) return;
+    if (stops != _paradasDaAbertura) return;
     // Sound coming back out, not a new clip: the future `play` handed out is long since
     // completed by the pause, so it cannot be what says whether anything is sounding.
     _sounding = true;
@@ -500,6 +501,7 @@ class FakePlayback implements PlaybackRepository {
 
   /// How many times the room told this player to stop, whatever it was playing.
   int stops = 0;
+  int _paradasDaAbertura = 0;
 
   @override
   Future<void> stop() async {
@@ -536,6 +538,7 @@ class FakePlayback implements PlaybackRepository {
     _wanted = true;
     final geracao = ++_opens;
     final paradas = stops;
+    _paradasDaAbertura = paradas;
     // A clip is not open the instant it is asked for: the source loads first, and only
     // then does the player know where it starts and how long it is.
     final anterior = _segurada;
