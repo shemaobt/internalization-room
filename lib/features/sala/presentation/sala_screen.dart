@@ -208,6 +208,7 @@ class _HandLayer extends ConsumerWidget {
         questionPending: session.questionPending,
         hasUnheardReply: session.hasUnheardReply,
         playingReply: session.playingReplyId != null,
+        language: ref.watch(roomLanguageProvider),
         onTap: notifier.handTap,
       ),
     );

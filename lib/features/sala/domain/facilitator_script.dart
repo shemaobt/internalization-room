@@ -57,6 +57,26 @@ String conviteLabelFor(String control, String language) =>
     conviteLabels[control]![language] ??
     conviteLabels[control]![floorLanguage]!;
 
+const handLabels = {
+  'answering': {
+    'pt': 'O facilitador está respondendo',
+    'en': 'The facilitator is answering',
+  },
+  'hearTheAnswer': {
+    'pt': 'Ouvir a resposta do facilitador',
+    'en': 'Hear the facilitator\'s answer',
+  },
+  'cancel': {'pt': 'Cancelar a pergunta', 'en': 'Cancel the question'},
+  'sent': {
+    'pt': 'Pergunta enviada, aguardando resposta',
+    'en': 'Question sent, waiting for an answer',
+  },
+  'raise': {'pt': 'Levantar a mão', 'en': 'Raise a hand'},
+};
+
+String handLabelFor(String state, String language) =>
+    handLabels[state]![language] ?? handLabels[state]![floorLanguage]!;
+
 const recordEntryLabel = {
   'pt': 'Terminar a conversa e ir para o ensaio',
   'en': 'Finish the conversation and go to the rehearsal',

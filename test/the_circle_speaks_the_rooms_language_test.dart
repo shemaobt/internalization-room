@@ -18,6 +18,7 @@ void main() {
       'findingLabels': findingLabels,
       'conviteLabels': conviteLabels,
       'escolhaLabels': escolhaLabels,
+      'handLabels': handLabels,
       'recordEntryLabel': {'entry': recordEntryLabel},
       'panoramaEntryLabel': {'entry': panoramaEntryLabel},
     };

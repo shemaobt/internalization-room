@@ -716,6 +716,134 @@ void main() {
     );
   });
 
+  testWidgets('the hand speaks english to an english room', (tester) async {
+    final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
+    container.read(salaSessionProvider.notifier).goConversa();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(bySemanticsLabelWidget('Raise a hand'), findsOneWidget);
+    expect(
+      bySemanticsLabelWidget('Levantar a mão'),
+      findsNothing,
+      reason: 'a mão dizia "Levantar a mão" a um aparelho em inglês',
+    );
+  });
+
+  testWidgets('an unheard reply is offered in english to an english room', (
+    tester,
+  ) async {
+    final container = await pumpSala(
+      tester,
+      SalaHarness(
+        lingua: 'en',
+        replies: const [
+          HandReply(
+            id: 'r1',
+            audioUrl: '/api/internalization-room/voice/resposta',
+          ),
+        ],
+      ),
+    );
+    container.read(salaSessionProvider.notifier).goConversa();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      bySemanticsLabelWidget("Hear the facilitator's answer"),
+      findsOneWidget,
+    );
+    expect(
+      bySemanticsLabelWidget('Ouvir a resposta do facilitador'),
+      findsNothing,
+      reason:
+          'a resposta do facilitador era oferecida em português a um '
+          'aparelho em inglês',
+    );
+  });
+
+  testWidgets('an armed question is cancelled in english in an english room', (
+    tester,
+  ) async {
+    final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
+    final notifier = container.read(salaSessionProvider.notifier);
+    notifier.goConversa();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    notifier.handTap();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(container.read(salaSessionProvider).noteMode, isTrue);
+    expect(bySemanticsLabelWidget('Cancel the question'), findsOneWidget);
+    expect(
+      bySemanticsLabelWidget('Cancelar a pergunta'),
+      findsNothing,
+      reason:
+          'a mão armada dizia "Cancelar a pergunta" a um aparelho em inglês',
+    );
+  });
+
+  testWidgets('a question sent waits in english in an english room', (
+    tester,
+  ) async {
+    final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
+    final notifier = container.read(salaSessionProvider.notifier);
+    notifier.goConversa();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    notifier.handTap();
+    notifier.conversaTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    notifier.conversaTap();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).questionPending, isTrue);
+    expect(
+      bySemanticsLabelWidget('Question sent, waiting for an answer'),
+      findsOneWidget,
+    );
+    expect(
+      bySemanticsLabelWidget('Pergunta enviada, aguardando resposta'),
+      findsNothing,
+      reason: 'a pergunta enviada esperava em português num aparelho em inglês',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a reply playing is announced in english to an english room', (
+    tester,
+  ) async {
+    final harness = SalaHarness(
+      lingua: 'en',
+      replies: const [
+        HandReply(id: 'r1', audioUrl: '/api/internalization-room/voice/r1'),
+      ],
+    );
+    final container = await pumpSala(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    notifier.goConversa();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    harness.voice.holdNextLine();
+    notifier.handTap();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(container.read(salaSessionProvider).playingReplyId, 'r1');
+    expect(
+      bySemanticsLabelWidget('The facilitator is answering'),
+      findsOneWidget,
+    );
+    expect(
+      bySemanticsLabelWidget('O facilitador está respondendo'),
+      findsNothing,
+      reason:
+          'a resposta tocando era anunciada em português a um aparelho em '
+          'inglês',
+    );
+
+    harness.voice.finishHeldLine();
+    await tester.pump(const Duration(milliseconds: 200));
+    closeTheRoom(container);
+  });
+
   testWidgets('an unheard reply turns the hand into a listening affordance', (
     tester,
   ) async {
