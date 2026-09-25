@@ -60,8 +60,14 @@ List<String> contasEm(WidgetTester tester, Type tela) => [
 SalaSessionState estadoDe(ProviderContainer container) =>
     container.read(salaSessionProvider);
 
-int traducoesGuardadas(SalaHarness harness) =>
-    harness.room.takesKept.where((take) => take.startsWith('retro/')).length;
+Future<int> traducoesGuardadas(WidgetTester tester, SalaHarness harness) async {
+  await tester.runAsync(
+    () => Future<void>.delayed(const Duration(milliseconds: 300)),
+  );
+  await tester.pump();
+  final naCaixa = await harness.takes.entries();
+  return naCaixa.where((entrada) => entrada.kind == 'retro').length;
+}
 
 Future<void> abrirOAchado(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 1400));
@@ -311,7 +317,7 @@ void main() {
     );
     await abrirOAchado(tester);
     final antiga = estadoDe(container).btTrechos[0].retroPath!;
-    final guardadas = traducoesGuardadas(harness);
+    final guardadas = await traducoesGuardadas(tester, harness);
 
     await tocar(tester, microfoneAzul);
     await tester.pump(const Duration(milliseconds: 200));
@@ -326,7 +332,7 @@ void main() {
 
     expect(harness.recorder.deleted, isNot(contains(antiga)));
     expect(harness.recorder.deleted, contains(nova));
-    expect(traducoesGuardadas(harness), guardadas);
+    expect(await traducoesGuardadas(tester, harness), guardadas);
     closeTheRoom(container);
   });
 
@@ -341,7 +347,7 @@ void main() {
     );
     await abrirOAchado(tester);
     final antiga = estadoDe(container).btTrechos[0].retroPath!;
-    final guardadas = traducoesGuardadas(harness);
+    final guardadas = await traducoesGuardadas(tester, harness);
 
     await tocar(tester, microfoneAzul);
     await tester.pump(const Duration(milliseconds: 200));
@@ -349,7 +355,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(harness.recorder.deleted, isNot(contains(antiga)));
-    expect(traducoesGuardadas(harness), guardadas);
+    expect(await traducoesGuardadas(tester, harness), guardadas);
     closeTheRoom(container);
   });
 
@@ -367,14 +373,20 @@ void main() {
 
     expect(contasEm(tester, RetroView), ['solid', 'solid', 'solid']);
     expect(await olhar(tester), 'telha parado');
-    for (final rotulo in [
-      ...rotulosDaGrade,
-      microfoneDeMadeira,
-      microfoneAzul,
-      tesoura,
-    ]) {
+    for (final rotulo in [...rotulosDaGrade, tesoura]) {
       expect(byLabel(rotulo), findsNothing, reason: rotulo);
     }
+    for (final rotulo in [
+      ouvirOTrechoEATraducao,
+      microfoneDeMadeira,
+      microfoneAzul,
+    ]) {
+      expect(aceso(tester, rotulo), isFalse, reason: rotulo);
+    }
+    expect(
+      tester.getTopLeft(byLabel(ouvirOTrechoEATraducao)),
+      const Offset(296, 680),
+    );
     expect(aceso(tester, continuarOEnsaio), isTrue);
     expect(tester.getSize(byLabel(continuarOEnsaio)), const Size(78, 78));
     expect(

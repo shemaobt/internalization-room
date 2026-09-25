@@ -147,7 +147,7 @@ Future<_Cena> _nosAchados() async {
 }
 
 /// The same screen with the pointed stretch actually sounding, which is the state every
-/// gesture of the grid is really made in.
+/// gesture of the findings is really made in.
 Future<_Cena> _nosAchadosComOTrechoNoAr() async {
   final cena = await _nosAchados();
   cena.sala.ouvirOTrechoEATraducao();
@@ -540,7 +540,7 @@ void main() {
           );
         await cena.sala.finishBackTranslation();
         await waitFor(
-          'a grade abrir',
+          'o achado abrir',
           () => _estado(cena).btPhase == BtPhase.findings,
         );
         expect(

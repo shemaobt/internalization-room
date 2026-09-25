@@ -248,13 +248,17 @@ void main() {
         );
 
         expect(
-          byLabel(micParteLabel),
-          findsNothing,
+          tester.widget<Semantics>(byLabel(micParteLabel)).properties.enabled,
+          isFalse,
           reason:
               'sem trecho apontado não há o que substituir, e o achado '
-              'pergunta sobre um trecho',
+              'pergunta sobre um trecho: o microfone fica apagado, nunca '
+              'escondido (ADR 0040)',
         );
-        expect(byLabel(micRetro), findsNothing);
+        expect(
+          tester.widget<Semantics>(byLabel(micRetro)).properties.enabled,
+          isFalse,
+        );
         expect(
           container.read(salaSessionProvider).btPhase,
           BtPhase.findings,

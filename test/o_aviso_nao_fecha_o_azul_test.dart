@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -247,6 +248,59 @@ void main() {
           'mesa, não o toque',
     );
   });
+
+  test(
+    'uma parada no meio da gravação por cima não solta o trecho armado',
+    () async {
+      final harness = SalaHarness();
+      final container = await achadoComAvisoAtivo(harness);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+      final apontado = read().btFindingTrecho!;
+      final pedidosAntes = harness.room.replacesAsked.length;
+      final pedacosAntes = harness.room.chunksSent;
+
+      notifier.traduzirDeNovoEmPortugues();
+      notifier.retroTap();
+      await waitFor(
+        'o microfone abrir sobre a tradução emprestada',
+        () => read().btPhase == BtPhase.capturing,
+      );
+      harness.room.serverHalt = HaltKind.blocking;
+      await waitFor('a sala parar', () => read().needsPerson);
+      harness.room.theDeskAttended();
+      await waitFor(
+        'o círculo voltar ao convite',
+        () => read().voice == VoiceState.invite,
+      );
+
+      expect(
+        read().btTrechoTraduzidoDeNovo?.segmentId,
+        apontado.segmentId,
+        reason:
+            'o trecho armado só é solto por uma tradução que aterra: a parada '
+            'descartou a gravação, não o conserto',
+      );
+
+      notifier.retroTap();
+      await waitFor(
+        'o microfone abrir de novo no mesmo trecho',
+        () => read().btPhase == BtPhase.capturing,
+      );
+      await fecharACaptura(container);
+      await notifier.confirmarTraducao();
+      await waitFor(
+        'a sala sair do pensando',
+        () => read().btPhase != BtPhase.thinking,
+      );
+
+      expect(harness.room.replacesAsked.sublist(pedidosAntes), [
+        '${apontado.segmentId}@${apontado.takeId}:'
+            '${apontado.from.inMilliseconds}-${apontado.to.inMilliseconds}',
+      ]);
+      expect(harness.room.chunksSent, pedacosAntes);
+    },
+  );
 
   test('gravar a parte de novo também não é fechado pelo aviso', () async {
     final harness = SalaHarness();

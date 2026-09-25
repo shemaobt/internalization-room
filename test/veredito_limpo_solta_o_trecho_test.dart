@@ -45,7 +45,7 @@ List<int> _faixasVazias(WidgetTester tester, ProviderContainer container) => [
 /// The kind is scenery, not subject: nothing here reads it, and what every case needs is
 /// only a finding that names a stretch and a correction route out of it. It is named
 /// rather than left to a default because one kind is no longer interchangeable — a finding
-/// of *falta* draws no grid of voices at all, since asking which voice the error lives in
+/// of *falta* with no stretch offers no voice at all, since asking which voice the error lives in
 /// has no answer when the team told truly and told too little. Proven by experiment before
 /// it was written down: a copy of this file with the kind swapped and nothing else changed
 /// passes, and still fails without the fix.

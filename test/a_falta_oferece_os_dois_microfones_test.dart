@@ -138,8 +138,13 @@ void main() {
           'sem trecho apontado não há o que regravar — a saída continua '
           'sendo o ensaio inteiro, como hoje',
     );
-    expect(byLabel(micRetroLabel), findsNothing);
-    expect(byLabel(micParteLabel), findsNothing);
+    for (final microfone in [micRetroLabel, micParteLabel]) {
+      expect(
+        tester.widget<Semantics>(byLabel(microfone)).properties.enabled,
+        isFalse,
+        reason: 'sem trecho, os microfones ficam apagados, nunca escondidos',
+      );
+    }
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
   });
 

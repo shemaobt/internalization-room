@@ -220,10 +220,10 @@ void main() {
 
     expect(container.read(salaSessionProvider).btTrechoTocando, isTrue);
 
-    // The materna player pauses the stretch rather than restarting it: a second tap while
+    // The findings' play pauses the stretch rather than restarting it: a second tap while
     // it is sounding no longer sends a fresh playRange. (The circle no longer plays the
     // trecho at all in findings — it repeats the verdict's own line instead — so this
-    // exercises the player through the grid's own gesture, `ouvirOTrechoEATraducao`.)
+    // exercises the player through the findings' own play, `ouvirOTrechoEATraducao`.)
     notifier.ouvirOTrechoEATraducao();
     await settle();
     expect(container.read(salaSessionProvider).btTrechoTocando, isFalse);

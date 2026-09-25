@@ -221,7 +221,9 @@ class RetroView extends ConsumerWidget {
     String language,
   ) {
     if (session.btPhase == BtPhase.findings) {
-      if (session.btFindingTrecho == null) return null;
+      final humor = session.btFindingTrecho == null
+          ? ButtonMood.dimmed
+          : ButtonMood.lit;
       final soando = session.btTrechoTocando || session.btRetroTocando;
       return FadeUp(
         child: Row(
@@ -230,6 +232,7 @@ class RetroView extends ConsumerWidget {
             RoundActionButton(
               size: 60,
               semanticLabel: findingLabelFor('play', language),
+              mood: humor,
               gradient: BeadStyles.wood,
               onTap: notifier.ouvirOTrechoEATraducao,
               child: Icon(
@@ -242,6 +245,7 @@ class RetroView extends ConsumerWidget {
             RoundActionButton(
               size: 60,
               semanticLabel: findingLabelFor('recordThePart', language),
+              mood: humor,
               gradient: BeadStyles.wood,
               onTap: notifier.gravarAParteDeNovo,
               child: const Icon(
@@ -254,6 +258,7 @@ class RetroView extends ConsumerWidget {
             RoundActionButton(
               size: 60,
               semanticLabel: findingLabelFor('translateTheStretch', language),
+              mood: humor,
               gradient: BeadStyles.azul,
               onTap: notifier.traduzirDeNovoEmPortugues,
               child: const Icon(
