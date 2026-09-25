@@ -56,6 +56,10 @@ abstract class BeadStyles {
 enum ButtonMood { lit, dimmed, beckoning }
 
 class RoundActionButton extends StatelessWidget {
+  static const dropShadow = [
+    BoxShadow(color: Color(0x330A0703), offset: Offset(0, 4), blurRadius: 12),
+  ];
+
   final double size;
   final VoidCallback onTap;
   final Widget? child;
@@ -103,20 +107,15 @@ class RoundActionButton extends StatelessWidget {
             gradient: gradient,
             color: background,
             border: border,
-            boxShadow: mood == ButtonMood.lit
-                ? shadows
-                : [
+            boxShadow: mood == ButtonMood.beckoning
+                ? [
                     ...?shadows,
-                    const BoxShadow(
-                      color: Color(0x330A0703),
-                      offset: Offset(0, 4),
-                      blurRadius: 12,
-                    ),
                     BoxShadow(
                       color: halo.withValues(alpha: 0.35 * (1 - t)),
                       spreadRadius: 12 * t,
                     ),
-                  ],
+                  ]
+                : shadows,
           ),
           child: child == null ? null : Center(child: child),
         ),

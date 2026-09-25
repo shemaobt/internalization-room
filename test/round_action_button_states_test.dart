@@ -153,11 +153,15 @@ void main() {
   testWidgets('a mood change updates the same button, it does not remount it', (
     tester,
   ) async {
-    await pump(tester, ButtonMood.lit, onTap: () {});
+    const given = [
+      BoxShadow(color: Color(0x330A0703), offset: Offset(0, 4), blurRadius: 12),
+    ];
+    await pump(tester, ButtonMood.lit, onTap: () {}, shadows: given);
     final beforeOpacity = tester.state(find.byType(AnimatedOpacity).first);
     final beforeLoop = tester.state(find.byType(Loop).first);
+    final beforeShadow = _boxShadow(tester);
 
-    await pump(tester, ButtonMood.dimmed, onTap: () {});
+    await pump(tester, ButtonMood.dimmed, onTap: () {}, shadows: given);
     final afterOpacity = tester.state(find.byType(AnimatedOpacity).first);
     final afterLoop = tester.state(find.byType(Loop).first);
 
@@ -171,6 +175,11 @@ void main() {
       isTrue,
       reason:
           'nem o AnimatedOpacity, que carrega a transição de 300ms em curso',
+    );
+    expect(
+      _boxShadow(tester),
+      beforeShadow,
+      reason: 'dimmed não soma sombra nenhuma que lit não tinha',
     );
   });
 }

@@ -96,6 +96,7 @@ class _EntradaState extends ConsumerState<_Entrada>
           : ButtonMood.dimmed,
       size: 78,
       gradient: BeadStyles.wood,
+      shadows: RoundActionButton.dropShadow,
       halo: ShemaBrand.wood,
       border: Border.all(color: SalaColors.of(context).cord, width: 2),
       semanticLabel: 'Entrar na passagem',

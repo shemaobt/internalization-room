@@ -139,6 +139,7 @@ class EnsaioView extends ConsumerWidget {
                         ? ButtonMood.beckoning
                         : ButtonMood.dimmed,
                     gradient: BeadStyles.verde,
+                    shadows: RoundActionButton.dropShadow,
                     semanticLabel: 'Ir para a tradução',
                     onTap: notifier.startRetro,
                     child: const Icon(

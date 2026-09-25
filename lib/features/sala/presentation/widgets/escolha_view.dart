@@ -50,6 +50,7 @@ class EscolhaView extends ConsumerWidget {
                     size: 78,
                     mood: podeEntrar ? ButtonMood.beckoning : ButtonMood.dimmed,
                     gradient: BeadStyles.wood,
+                    shadows: RoundActionButton.dropShadow,
                     halo: ShemaBrand.wood,
                     border: Border.all(color: colors.cord, width: 2),
                     semanticLabel: entrarLabelFor(

@@ -49,6 +49,7 @@ class ConversaView extends ConsumerWidget {
                           size: 64,
                           mood: ButtonMood.beckoning,
                           gradient: BeadStyles.verde,
+                          shadows: RoundActionButton.dropShadow,
                           semanticLabel: 'Ir para o ensaio',
                           onTap: notifier.goEnsaio,
                           child: const Icon(
