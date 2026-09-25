@@ -58,7 +58,14 @@ bool aceso(WidgetTester tester, String label) {
 
 List<String> contas(WidgetTester tester) => [
   for (final conta
-      in tester.widget<BeadRow>(find.byType(BeadRow).first).entries)
+      in tester
+          .widget<BeadRow>(
+            find.descendant(
+              of: find.byType(RetroView),
+              matching: find.byType(BeadRow),
+            ),
+          )
+          .entries)
     '${conta.fill.name}${conta.current ? ' com anel' : ''}',
 ];
 

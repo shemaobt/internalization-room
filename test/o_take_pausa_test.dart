@@ -13,7 +13,7 @@ Finder byLabel(String label) => find.byWidgetPredicate(
   (widget) => widget is Semantics && widget.properties.label == label,
 );
 
-/// A team standing at the recorded take, with the play/redo/keep row on screen.
+/// A team standing at the pending part, with the play and the check lit.
 Future<ProviderContainer> pumpAoGravado(SalaHarness harness) async {
   final container = await inConversa(harness);
   final notifier = container.read(salaSessionProvider.notifier);
@@ -27,20 +27,20 @@ Future<ProviderContainer> pumpAoGravado(SalaHarness harness) async {
 }
 
 void main() {
-  group('o play do take', () {
+  group('o play do ensaio', () {
     test('tocar e tocar de novo pausa em vez de recomeçar', () async {
       final harness = SalaHarness();
       final container = await pumpAoGravado(harness);
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      notifier.takePlay();
+      notifier.playTheRehearsal();
       await waitFor(
         'o take estar tocando',
         () => container.read(salaSessionProvider).playPing,
       );
 
-      notifier.takePlay();
+      notifier.playTheRehearsal();
       await settle();
 
       expect(
@@ -65,14 +65,14 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      notifier.takePlay();
+      notifier.playTheRehearsal();
       await waitFor(
         'o take estar tocando',
         () => container.read(salaSessionProvider).playPing,
       );
-      notifier.takePlay();
+      notifier.playTheRehearsal();
       await settle();
-      notifier.takePlay();
+      notifier.playTheRehearsal();
       await settle();
 
       expect(
@@ -97,7 +97,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      notifier.takePlay();
+      notifier.playTheRehearsal();
       await waitFor(
         'o take estar tocando',
         () => container.read(salaSessionProvider).playPing,
@@ -108,7 +108,7 @@ void main() {
         () => !container.read(salaSessionProvider).playPing,
       );
 
-      notifier.takePlay();
+      notifier.playTheRehearsal();
       await settle();
 
       expect(
@@ -120,26 +120,26 @@ void main() {
     });
 
     test(
-      'refazer e guardar continuam disponíveis durante e depois de uma pausa',
+      'gravar por cima e confirmar continuam disponíveis durante e depois de uma pausa',
       () async {
         final harness = SalaHarness();
         final container = await pumpAoGravado(harness);
         addTearDown(container.dispose);
         final notifier = container.read(salaSessionProvider.notifier);
 
-        notifier.takePlay();
+        notifier.playTheRehearsal();
         await waitFor(
           'o take estar tocando',
           () => container.read(salaSessionProvider).playPing,
         );
-        notifier.takePlay();
+        notifier.playTheRehearsal();
         await settle();
 
         expect(container.read(salaSessionProvider).takePaused, isTrue);
         expect(
           container.read(salaSessionProvider).ensaio,
           EnsaioStatus.recorded,
-          reason: 'pausado, o take continua oferecendo refazer e guardar',
+          reason: 'pausado, a parte continua pendente',
         );
 
         notifier.takeKeep();
@@ -171,27 +171,32 @@ void main() {
       notifier.ensaioTap();
       await tester.pump(const Duration(milliseconds: 100));
 
-      IconData playIcon() => tester
+      IconData playIcon(String label) => tester
           .widget<Icon>(
-            find.descendant(
-              of: byLabel('Ouvir a gravação'),
-              matching: find.byType(Icon),
-            ),
+            find.descendant(of: byLabel(label), matching: find.byType(Icon)),
           )
           .icon!;
 
-      expect(playIcon(), LucideIcons.play, reason: 'take parado mostra tocar');
+      expect(
+        playIcon('Ouvir o ensaio até aqui'),
+        LucideIcons.play,
+        reason: 'parado mostra tocar',
+      );
 
-      await tester.tap(byLabel('Ouvir a gravação'));
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(playIcon(), LucideIcons.pause, reason: 'tocando mostra pausar');
-
-      await tester.tap(byLabel('Ouvir a gravação'));
+      await tester.tap(byLabel('Ouvir o ensaio até aqui'));
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(
-        playIcon(),
+        playIcon('Pausar o ensaio'),
+        LucideIcons.pause,
+        reason: 'tocando mostra pausar',
+      );
+
+      await tester.tap(byLabel('Pausar o ensaio'));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(
+        playIcon('Ouvir o ensaio até aqui'),
         LucideIcons.play,
         reason: 'pausado mostra tocar de novo',
       );

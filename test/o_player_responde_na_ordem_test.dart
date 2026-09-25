@@ -39,7 +39,7 @@ void main() {
     final cena = await _ensaioDeDuasPartes();
     cena.harness.playback.holdNextOpening();
 
-    cena.sala.ghostPlay();
+    cena.sala.playTheRehearsal();
     await waitFor(
       'a segunda parte ser pedida por cima do load da primeira',
       () => cena.harness.playback.played.length >= 2,
@@ -57,8 +57,8 @@ void main() {
           'fixa que a sala não chama ninguém por um som que a equipe pediu',
     );
     expect(
-      estado.ensaio,
-      EnsaioStatus.ghostPlaying,
+      estado.playPing,
+      isTrue,
       reason: 'e o ensaio segue correndo na parte que ficou de pé',
     );
   });
@@ -71,7 +71,7 @@ void main() {
       cena.harness.playback.openings.listen(anunciadas.add);
       cena.harness.playback.holdNextOpening();
 
-      cena.sala.ghostPlay();
+      cena.sala.playTheRehearsal();
       await waitFor(
         'a segunda parte soar por cima do load da primeira',
         () => cena.harness.playback.sounding,
@@ -95,10 +95,7 @@ void main() {
             'e a parte que está no ar não é interrompida pelo load que '
             'chegou tarde',
       );
-      expect(
-        cena.container.read(salaSessionProvider).ensaio,
-        EnsaioStatus.ghostPlaying,
-      );
+      expect(cena.container.read(salaSessionProvider).playPing, isTrue);
     },
   );
 
