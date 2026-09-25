@@ -6,6 +6,10 @@ The oral translation team's tablet app: it walks the team through a Bible passag
 
 ### Stations
 
+**Station**:
+One of the stops a session passes through, from the Invitation to the Closing; the server names the one the team is in for the Desk, reading it off what the session holds.
+_Avoid_: stage (`SalaStage` is the enum, not the term), phase, screen, step
+
 **Invitation** (`convite`):
 The session's first station, where the room's voice presents the book (panorama) and the passage (scene) before opening the conversation.
 _Avoid_: convite in prose (`convite` is the enum value), introduction, opening, welcome
@@ -78,8 +82,12 @@ The person the room calls when it cannot carry on alone, and who answers through
 _Avoid_: facilitador, guide, consultant (the `Facilitator` prefix in code names the Guide's voice, not this person)
 
 **Desk**:
-The facilitator's web app, where they see the teams, the questions and the halted rooms, and mark a halt as answered.
+The facilitator's web app, where they see the teams, the questions and the halted rooms, mark a halt as answered, and open a session's page to read its stations.
 _Avoid_: mesa, panel, dashboard
+
+**Session page**:
+The Desk's page for one session, with a tab for the Conversation, one for the passage (the Rehearsal and the Back-translation, part by part) and one for the Approval; it opens on the station the team is in and marks that station on its tab.
+_Avoid_: session detail, session view, página da sessão in English prose
 
 ### What is recorded and told
 
