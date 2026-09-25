@@ -4886,7 +4886,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _after('fim', const Duration(milliseconds: 700), () {
       state = state.copyWith(stage: SalaStage.fim, voice: VoiceState.done);
       _after('close', const Duration(milliseconds: 1000), () {
-        state = state.copyWith(fimClosed: true);
         _after('recomecar', ref.read(fimLingerProvider), _startOver);
       });
     });

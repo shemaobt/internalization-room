@@ -201,7 +201,6 @@ class SalaSessionState {
   final int? btContaEscolhida;
   final List<BtFindingKind> btFindings;
   final int btPass;
-  final bool fimClosed;
   final int unsentTakes;
   final int unsentChunks;
   final Set<String> unsentTakeScopes;
@@ -276,7 +275,6 @@ class SalaSessionState {
     this.btContaEscolhida,
     this.btFindings = const [],
     this.btPass = 1,
-    this.fimClosed = false,
     this.unsentTakes = 0,
     this.unsentChunks = 0,
     this.unsentTakeScopes = const {},
@@ -538,7 +536,6 @@ class SalaSessionState {
     bool clearContaEscolhida = false,
     List<BtFindingKind>? btFindings,
     int? btPass,
-    bool? fimClosed,
     int? unsentTakes,
     int? unsentChunks,
     Set<String>? unsentTakeScopes,
@@ -604,7 +601,6 @@ class SalaSessionState {
           : (btContaEscolhida ?? this.btContaEscolhida),
       btFindings: btFindings ?? this.btFindings,
       btPass: btPass ?? this.btPass,
-      fimClosed: fimClosed ?? this.fimClosed,
       unsentTakes: unsentTakes ?? this.unsentTakes,
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentTakeScopes: unsentTakeScopes ?? this.unsentTakeScopes,

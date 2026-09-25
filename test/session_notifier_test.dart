@@ -2352,6 +2352,52 @@ void main() {
   );
 
   test(
+    'the closed necklace stays still on the fim screen, not touched again for a flag nothing draws',
+    () async {
+      final harness = SalaHarness(fimLinger: const Duration(seconds: 30));
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      notifier.goEnsaio();
+      notifier.ensaioTap();
+      notifier.ensaioTap();
+      await settle();
+      notifier.takeKeep();
+      notifier.startRetro();
+      await settle();
+      harness.playback.at = const Duration(seconds: 2);
+      notifier.cortarTrecho();
+      notifier.retroTap();
+      await settle();
+      await confirmarATraducao(container);
+      await settle();
+      harness.playback.finishPlayback();
+      await settle();
+      await notifier.finishBackTranslation();
+      await settle();
+      await notifier.aprovarRascunhoFinal();
+      await waitFor(
+        'o colar fechar',
+        () => container.read(salaSessionProvider).stage == SalaStage.fim,
+      );
+
+      var emits = 0;
+      container.listen(salaSessionProvider, (_, _) => emits++);
+      await settle(const Duration(milliseconds: 1300));
+
+      expect(
+        emits,
+        0,
+        reason:
+            'um segundo depois do fim a sala ligava um fimClosed que nenhum '
+            'widget lê — a tela inteira se refazia para nada',
+      );
+      expect(container.read(salaSessionProvider).stage, SalaStage.fim);
+    },
+  );
+
+  test(
     'a pull that finds the same replies already on the hand does not touch the screen',
     () async {
       final harness =

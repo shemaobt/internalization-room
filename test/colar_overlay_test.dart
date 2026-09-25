@@ -143,7 +143,6 @@ void main() {
   testWidgets('the necklace closes in stillness, not a loop', (tester) async {
     const session = SalaSessionState(
       stage: SalaStage.fim,
-      fimClosed: true,
       coverage: Coverage(engaged: 5, surfaced: 5, total: 5, absenceIndex: -1),
     );
     await pumpColar(tester, session);
@@ -196,19 +195,13 @@ void main() {
       );
       await pumpReducedColar(tester, arriving);
 
-      await pumpReducedColar(
-        tester,
-        arriving.copyWith(stage: SalaStage.fim, fimClosed: true),
-      );
+      await pumpReducedColar(tester, arriving.copyWith(stage: SalaStage.fim));
       final landedTopLeft = tester.getTopLeft(
         find.byType(AnimatedPositioned).first,
       );
 
       await tester.pumpWidget(Container());
-      await pumpReducedColar(
-        tester,
-        arriving.copyWith(stage: SalaStage.fim, fimClosed: true),
-      );
+      await pumpReducedColar(tester, arriving.copyWith(stage: SalaStage.fim));
       final steadyTopLeft = tester.getTopLeft(
         find.byType(AnimatedPositioned).first,
       );
