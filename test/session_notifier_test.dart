@@ -2530,6 +2530,55 @@ void main() {
   );
 
   test(
+    'a heard reply leaves the hand when the desk empties, quiet on the next check',
+    () async {
+      final harness = SalaHarness(
+        replies: const [
+          HandReply(id: 'r1', audioUrl: '/voice/r1', heard: true),
+        ],
+      )..room.holdNextState();
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+      await waitFor(
+        'a primeira leitura da caixa trazer r1',
+        () => container.read(salaSessionProvider).replies.length == 1,
+      );
+
+      harness.inbox.replies = const [];
+      var emits = 0;
+      container.listen(salaSessionProvider, (_, _) => emits++);
+
+      await waitFor(
+        'a resposta já ouvida sair do estado quando a mesa esvazia a lista',
+        () => container.read(salaSessionProvider).replies.isEmpty,
+      );
+
+      expect(
+        container.read(salaSessionProvider).replies,
+        isEmpty,
+        reason:
+            'a mesa não lista mais r1 — mesmo já ouvida, ela não podia continuar '
+            'no estado local só porque a última lista chegou vazia',
+      );
+
+      await settle(const Duration(milliseconds: 300));
+
+      expect(
+        emits,
+        1,
+        reason:
+            'o poll da caixa e o retorno do prazo de cobertura chegam os dois com '
+            'a mesma lista vazia — o segundo não tem réplica nenhuma a menos e não '
+            'devia refazer a tela que o primeiro já esvaziou',
+      );
+
+      harness.room.finishHeldState();
+    },
+  );
+
+  test(
     'a reply the facilitator recorded again is played from its new address, not the old one',
     () async {
       final harness =
@@ -4878,6 +4927,64 @@ void main() {
       ];
       harness.room.pushCoverage(
         const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+      );
+      await waitFor(
+        'a resposta chegar à mão',
+        () => container.read(salaSessionProvider).hasUnheardReply,
+      );
+
+      expect(
+        container.read(salaSessionProvider).questionPending,
+        isFalse,
+        reason:
+            'a resposta chegou — o ponto agora é o de ouvir, não o de esperar',
+      );
+    },
+  );
+
+  test(
+    'a pending question survives an empty pull, and clears once a reply lands',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1';
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      notifier.handTap();
+      notifier.conversaTap();
+      notifier.conversaTap();
+      await settle();
+
+      expect(harness.inbox.questionsSent, ['sessao-1']);
+      expect(container.read(salaSessionProvider).questionPending, isTrue);
+
+      harness.inbox.replies = const [];
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+      );
+      await settle();
+
+      expect(
+        container.read(salaSessionProvider).questionPending,
+        isTrue,
+        reason:
+            'a mesa ainda não lista nada — a facilitadora não respondeu, e o '
+            'ponto de espera é o único sinal, numa sala sem letra, de que a '
+            'pergunta ainda está no ar',
+      );
+
+      harness.room.turnIdInResponse = 'turno-2';
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      harness.inbox.replies = const [
+        HandReply(id: 'r1', audioUrl: '/voice/r1'),
+      ];
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-2', status: CoverageStatus.settled),
       );
       await waitFor(
         'a resposta chegar à mão',
