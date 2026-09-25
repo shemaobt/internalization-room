@@ -177,7 +177,7 @@ void main() {
     );
   });
 
-  test('after the attend, a tap on the circle sends nothing', () async {
+  test('after the attend, the check sends nothing', () async {
     final harness = SalaHarness();
     final (container, notifier, read) = await _capturingWithAWarningArmed(
       harness,
@@ -191,23 +191,18 @@ void main() {
       () => read().voice == VoiceState.invite,
     );
 
-    notifier.retroTap();
+    await notifier.confirmarTraducao();
     await settle();
 
     expect(
       harness.room.calls,
       isNot(contains('sendChunk')),
       reason:
-          'a captura já estava fechada quando a parada pousou; o toque '
-          'depois do atendimento não pode reabri-la como se fosse um '
-          'trecho novo',
+          'a captura já estava fechada quando a parada pousou; o V depois '
+          'do atendimento não pode mandá-la como se fosse uma tradução '
+          'pendente',
     );
     expect(harness.room.chunksSent, chunksBefore);
-    expect(
-      read().btTraducaoPendente,
-      isNull,
-      reason: 'a captura fechada pela parada não vira tradução pendente',
-    );
   });
 
   test('after the attend, the circle opens a fresh capture', () async {

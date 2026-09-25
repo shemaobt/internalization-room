@@ -107,20 +107,26 @@ Future<void> _ateAParteTresNoAr(_Retomada it) async {
 
 Future<void> _contarUmTrechoRecusado(_Retomada it) async {
   final recusadosAntes = it.estado.btChunkFailures.length;
-  if (it.estado.btTraducaoPendente != null) {
-    await it.sala.confirmarTraducao();
-  } else {
-    it.harness.playback.at = const Duration(seconds: 7);
-    it.sala.cortarTrecho();
-    it.sala.retroTap();
-    await waitFor(
-      'o microfone abrir',
-      () => it.estado.btPhase == BtPhase.capturing,
-    );
-    await confirmarATraducao(it.container);
-  }
+  it.harness.playback.at = const Duration(seconds: 7);
+  it.sala.cortarTrecho();
+  it.sala.retroTap();
+  await waitFor(
+    'o microfone abrir',
+    () => it.estado.btPhase == BtPhase.capturing,
+  );
+  await confirmarATraducao(it.container);
   await waitFor(
     'a sala recusar o trecho',
+    () => it.estado.btChunkFailures.length > recusadosAntes,
+  );
+  await settle();
+}
+
+Future<void> _confirmarDeNovoARecusada(_Retomada it) async {
+  final recusadosAntes = it.estado.btChunkFailures.length;
+  await it.sala.confirmarTraducao();
+  await waitFor(
+    'a sala recusar o trecho de novo',
     () => it.estado.btChunkFailures.length > recusadosAntes,
   );
   await settle();
@@ -169,15 +175,19 @@ void main() {
       final it = await _retomadaNaRetro(harness);
       harness.room.failChunkWith = const RoomBroke('HTTP 404');
 
-      for (var recusa = 1; recusa <= 2; recusa++) {
-        await _contarUmTrechoRecusado(it);
-        expect(
-          it.estado.needsPerson,
-          isFalse,
-          reason: 'a recusa $recusa ainda está abaixo das três da escada',
-        );
-      }
       await _contarUmTrechoRecusado(it);
+      expect(
+        it.estado.needsPerson,
+        isFalse,
+        reason: 'a recusa 1 ainda está abaixo das três da escada',
+      );
+      await _confirmarDeNovoARecusada(it);
+      expect(
+        it.estado.needsPerson,
+        isFalse,
+        reason: 'a recusa 2 ainda está abaixo das três da escada',
+      );
+      await _confirmarDeNovoARecusada(it);
 
       expect(
         it.estado.needsPerson,

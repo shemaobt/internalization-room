@@ -91,19 +91,15 @@ Future<void> _oAchadoOutraVezNaParteDois(Sala it) async {
 /// a part with no name takes the nameless path and no stretch enters the cord.
 Future<void> _contarUmTrecho(Sala it, Duration quanto) async {
   final antes = it.estado.btTrechos.length + it.estado.btChunkFailures.length;
-  if (it.estado.btTraducaoPendente != null) {
-    await it.sala.confirmarTraducao();
-  } else {
-    it.harness.playback.length = quanto;
-    it.harness.playback.at = quanto;
-    it.sala.cortarTrecho();
-    it.sala.retroTap();
-    await waitFor(
-      'o microfone abrir no trecho',
-      () => it.estado.btPhase == BtPhase.capturing,
-    );
-    await confirmarATraducao(it.container);
-  }
+  it.harness.playback.length = quanto;
+  it.harness.playback.at = quanto;
+  it.sala.cortarTrecho();
+  it.sala.retroTap();
+  await waitFor(
+    'o microfone abrir no trecho',
+    () => it.estado.btPhase == BtPhase.capturing,
+  );
+  await confirmarATraducao(it.container);
   await waitFor(
     'a sala responder pelo trecho',
     () =>
@@ -309,7 +305,13 @@ void main() {
             'retro sem nome que subiu no mesmo flush',
       );
 
-      await _contarUmTrecho(it, partesDoEnsaio[1]);
+      await it.sala.confirmarTraducao();
+      await waitFor(
+        'o trecho pendente subir com o nome da parte',
+        () =>
+            it.harness.room.chunkTakes.isNotEmpty &&
+            it.harness.room.chunkTakes.last == it.partes[1].takeId,
+      );
 
       expect(
         it.harness.room.chunkTakes.last,
