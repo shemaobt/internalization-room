@@ -15,7 +15,7 @@ class MicGateView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Center(
       child: FacilitatorCircle(
-        size: 196,
+        size: facilitatorCircleSize,
         voice: VoiceState.blocked,
         semanticLabel: 'A sala precisa do microfone para funcionar',
         onTap: () => unawaited(_askAgain(ref)),

@@ -11,6 +11,8 @@ import 'motion.dart';
 
 enum Tongue { guide, motherTongue, bridge }
 
+const facilitatorCircleSize = 160.0;
+
 class FacilitatorCircle extends StatelessWidget {
   final double size;
   final VoiceState voice;
