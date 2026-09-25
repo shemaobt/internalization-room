@@ -716,6 +716,44 @@ void main() {
     );
   });
 
+  testWidgets('hearing a line again is offered in english to an english room', (
+    tester,
+  ) async {
+    final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
+    container.read(salaSessionProvider.notifier).conviteTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(container.read(salaSessionProvider).canHearAgain, isTrue);
+    expect(bySemanticsLabelWidget('Hear it again'), findsOneWidget);
+    expect(
+      bySemanticsLabelWidget('Ouvir de novo'),
+      findsNothing,
+      reason:
+          'o botão de ouvir de novo falava português a um aparelho em inglês',
+    );
+  });
+
+  testWidgets('the way out of a passage speaks english to an english room', (
+    tester,
+  ) async {
+    final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
+    container.read(salaSessionProvider.notifier).goConversa();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      bySemanticsLabelWidget('Leave this passage and choose another'),
+      findsOneWidget,
+    );
+    expect(
+      bySemanticsLabelWidget('Deixar esta passagem e escolher outra'),
+      findsNothing,
+      reason:
+          'a saída da passagem se anunciava em português a um aparelho em '
+          'inglês',
+    );
+  });
+
   testWidgets('the hand speaks english to an english room', (tester) async {
     final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
     container.read(salaSessionProvider.notifier).goConversa();

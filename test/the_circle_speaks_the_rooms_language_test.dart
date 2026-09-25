@@ -19,6 +19,7 @@ void main() {
       'conviteLabels': conviteLabels,
       'escolhaLabels': escolhaLabels,
       'handLabels': handLabels,
+      'roomLabels': roomLabels,
       'recordEntryLabel': {'entry': recordEntryLabel},
       'panoramaEntryLabel': {'entry': panoramaEntryLabel},
     };
