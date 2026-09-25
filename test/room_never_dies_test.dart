@@ -173,6 +173,11 @@ void main() {
             'a recusa na porta não é a sala falhando, e a terceira não pode '
             'parar a sala para chamar alguém',
       );
+      expect(
+        harness.room.calls.where((call) => call == 'createSession'),
+        hasLength(3),
+        reason: 'cada toque na roda tem de bater na porta de novo',
+      );
       expect(harness.room.personsAsked, 0);
       expect(state.stage, SalaStage.escolha);
     },
