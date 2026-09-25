@@ -2586,6 +2586,76 @@ void main() {
   );
 
   test(
+    'a reply recorded again while the first one plays is not marked heard by the one that played',
+    () async {
+      final harness =
+          SalaHarness(
+              settleDelay: const Duration(seconds: 60),
+              replies: const [HandReply(id: 'r1', audioUrl: '/voice/r1-a')],
+            )
+            ..room.turnIdInResponse = 'turno-1'
+            ..room.holdNextState();
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      await notifier.goConversa();
+      await waitFor(
+        'a primeira leitura da caixa trazer r1',
+        () => container.read(salaSessionProvider).replies.length == 1,
+      );
+      harness.voice.holdNextLine();
+      notifier.handTap();
+      await settle();
+      expect(harness.voice.played.last, '/voice/r1-a');
+
+      harness.inbox.replies = const [
+        HandReply(id: 'r1', audioUrl: '/voice/r1-b'),
+      ];
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+      );
+      await waitFor(
+        'a leitura trazer r1 no endereço novo',
+        () =>
+            container.read(salaSessionProvider).replies.first.audioUrl ==
+            '/voice/r1-b',
+      );
+      expect(
+        container.read(salaSessionProvider).replies.first.audioUrl,
+        '/voice/r1-b',
+      );
+
+      harness.voice.finishHeldLine();
+      await settle();
+
+      expect(
+        harness.inbox.heard,
+        isEmpty,
+        reason:
+            'a marca do fim da r1-a saía pela pergunta e a mesa carimbava '
+            'como ouvida a resposta regravada, que ninguém tinha ouvido',
+      );
+      expect(
+        container.read(salaSessionProvider).hasUnheardReply,
+        isTrue,
+        reason: 'a mão ficava apagada com a segunda resposta por ouvir',
+      );
+
+      notifier.handTap();
+      await settle();
+
+      expect(
+        harness.voice.played.where((url) => url.startsWith('/voice/r1')),
+        ['/voice/r1-a', '/voice/r1-b'],
+        reason: 'a resposta regravada durante a escuta nunca tocava',
+      );
+
+      harness.room.finishHeldState();
+    },
+  );
+
+  test(
     'a reply already heard that the desk still lists at the same address is not offered again',
     () async {
       final harness =

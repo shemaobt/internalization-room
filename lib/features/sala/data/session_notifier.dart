@@ -2519,7 +2519,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     } on Exception {
       // Nothing to do here: what follows is the same for a line that did not sound.
     }
-    if (epoch == _epoch) {
+    if (epoch == _epoch &&
+        !state.replies.any(
+          (kept) => kept.id == reply.id && kept.audioUrl != reply.audioUrl,
+        )) {
       unawaited(_markHeard(reply.id));
     } else if (!_gone && state.playingReplyId == reply.id) {
       state = state.copyWith(clearPlayingReply: true);
