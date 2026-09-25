@@ -925,9 +925,10 @@ void main() {
 /// A stand-in for the platform player, so the tests can watch what the repository does
 /// with it — which player it loads a file into, and what it leaves behind.
 ///
-/// It fails wherever just_audio 0.9.46 on iOS can fail, because a double that forgives
-/// the platform is how every gate stayed green over a room that halted on the tablet. The
-/// platform takes one change at a time:
+/// It fails where the repository's own gestures make just_audio 0.9.46 on iOS fail,
+/// because a double that forgives the platform is how every gate stayed green over a room
+/// that halted on the tablet. It does not model the platform deactivating itself when it
+/// goes idle. The platform takes one change at a time:
 /// - a load begun while a stop is still settling fails, `Loading interrupted`, which is
 ///   stricter than the library: there the load wins and the settling stop is dropped
 ///   silently, with its future never completing;
