@@ -13,7 +13,7 @@ Future<void> _pumpCircle(
   double size = 158,
   ThemeData? theme,
   bool still = false,
-  bool warning = false,
+  String? warning,
 }) => tester.pumpWidget(
   MaterialApp(
     key: ValueKey('$voice-$size-${theme?.brightness}-$still-$warning'),
@@ -26,7 +26,6 @@ Future<void> _pumpCircle(
             size: size,
             voice: voice,
             warning: warning,
-            warningLabel: 'Alguém deve vir olhar',
             semanticLabel: 'circulo',
             onTap: () {},
           ),
@@ -39,10 +38,17 @@ Future<void> _pumpCircle(
 Color _telha(double alpha) =>
     Color.from(alpha: alpha, red: 190 / 255, green: 74 / 255, blue: 1 / 255);
 
-Finder _spins() => find.descendant(
-  of: find.byType(FacilitatorCircle),
-  matching: find.byType(Spin),
-);
+bool _rotates(Transform transform) =>
+    transform.transform.entry(0, 1) != 0 ||
+    transform.transform.entry(1, 0) != 0;
+
+Iterable<Transform> _transformsInCircle(WidgetTester tester) =>
+    tester.widgetList<Transform>(
+      find.descendant(
+        of: find.byType(FacilitatorCircle),
+        matching: find.byType(Transform),
+      ),
+    );
 
 Iterable<Gradient> _gradients(WidgetTester tester) => tester
     .widgetList<Container>(
@@ -57,25 +63,58 @@ Iterable<Gradient> _gradients(WidgetTester tester) => tester
     .whereType<Gradient>();
 
 void main() {
-  testWidgets('no voice ever draws a turning arc any more', (tester) async {
+  testWidgets('no voice ever draws a turning transform', (tester) async {
     for (final voice in VoiceState.values) {
       await _pumpCircle(tester, voice);
+      await tester.pump(const Duration(milliseconds: 400));
       expect(
-        _spins(),
-        findsNothing,
+        _transformsInCircle(tester),
+        isNot(anyElement(predicate(_rotates))),
         reason:
             'os arcos giravam sozinhos, sem dizer nada que a respiração e o '
             'brilho já não dissessem — e nos ~50 s do turno de pensar a sala '
             'lia como um relógio, não como alguém trabalhando (Henok, '
-            'revertendo o PR #230)',
+            'revertendo o PR #230); em ${voice.name} não pode haver nem essa '
+            'volta',
       );
     }
   });
 
   testWidgets(
+    'the thinking circle paints only the clay disc and its glow, nothing else',
+    (tester) async {
+      await _pumpCircle(tester, VoiceState.thinking);
+
+      final painters = find
+          .descendant(
+            of: find.byType(FacilitatorCircle),
+            matching: find.byType(CustomPaint),
+          )
+          .evaluate()
+          .map((element) => (element.widget as CustomPaint).painter)
+          .whereType<Object>()
+          .map((painter) => painter.runtimeType)
+          .toSet();
+
+      expect(
+        painters,
+        {GlowPainter},
+        reason:
+            'ArcPainter pintava dois arcos por cima do disco; sem eles não '
+            'sobra nenhum outro CustomPaint além do brilho',
+      );
+    },
+  );
+
+  testWidgets(
     'a warning that arrives during a think leaves the clay disc as it was',
     (tester) async {
-      await _pumpCircle(tester, VoiceState.thinking, warning: true);
+      final handle = tester.ensureSemantics();
+      await _pumpCircle(
+        tester,
+        VoiceState.thinking,
+        warning: 'Alguém deve vir olhar',
+      );
 
       expect(
         _gradients(tester),
@@ -85,56 +124,52 @@ void main() {
             'uma cor do disco, em nenhuma voz',
       );
       expect(
-        find.byWidgetPredicate(
-          (widget) =>
-              widget is Semantics &&
-              widget.properties.label == 'Alguém deve vir olhar',
-        ),
+        find.bySemanticsLabel('Alguém deve vir olhar'),
         findsOneWidget,
         reason: 'o aviso ainda existe — só que ao lado, nunca por cima',
       );
+      handle.dispose();
     },
   );
 
-  testWidgets(
-    'the whole circle breathes fuller on her 2.4 s while it thinks, the arcs with it',
-    (tester) async {
-      await _pumpCircle(tester, VoiceState.thinking);
-      final breath = find.descendant(
-        of: find.byType(FacilitatorCircle),
-        matching: find.byType(Loop),
-      );
-      List<double> drawn() => [
-        tester
-            .widgetList<Transform>(
-              find.descendant(of: breath, matching: find.byType(Transform)),
-            )
-            .first
-            .transform
-            .entry(0, 0),
-        tester
-            .widgetList<Opacity>(
-              find.descendant(of: breath, matching: find.byType(Opacity)),
-            )
-            .first
-            .opacity,
-      ];
+  testWidgets('the whole circle breathes fuller on her 2.4 s while it thinks', (
+    tester,
+  ) async {
+    await _pumpCircle(tester, VoiceState.thinking);
+    final breath = find.descendant(
+      of: find.byType(FacilitatorCircle),
+      matching: find.byType(Loop),
+    );
+    List<double> drawn() => [
+      tester
+          .widgetList<Transform>(
+            find.descendant(of: breath, matching: find.byType(Transform)),
+          )
+          .first
+          .transform
+          .entry(0, 0),
+      tester
+          .widgetList<Opacity>(
+            find.descendant(of: breath, matching: find.byType(Opacity)),
+          )
+          .first
+          .opacity,
+    ];
 
-      expect(drawn(), [
-        closeTo(0.97, 1e-6),
-        closeTo(0.82, 1e-6),
-      ], reason: 'thinkBreath dela abre em scale(.97) e opacity .82');
+    expect(drawn(), [
+      closeTo(0.97, 1e-6),
+      closeTo(0.82, 1e-6),
+    ], reason: 'thinkBreath dela abre em scale(.97) e opacity .82');
 
-      await tester.pump(const Duration(milliseconds: 1200));
-      expect(
-        drawn(),
-        [closeTo(1.03, 1e-6), closeTo(1, 1e-6)],
-        reason:
-            'e chega a 1.03 e opacidade cheia na metade dos 2,4 s — a '
-            'respiração de 4,6 s e 6% lia como uma sala parada',
-      );
-    },
-  );
+    await tester.pump(const Duration(milliseconds: 1200));
+    expect(
+      drawn(),
+      [closeTo(1.03, 1e-6), closeTo(1, 1e-6)],
+      reason:
+          'e chega a 1.03 e opacidade cheia na metade dos 2,4 s — a '
+          'respiração de 4,6 s e 6% lia como uma sala parada',
+    );
+  });
 
   testWidgets(
     'a terracotta glow warms the clay from inside and pulses on her 2.4 s',

@@ -51,8 +51,7 @@ class RetroView extends ConsumerWidget {
           size: facilitatorCircleSize,
           voice: voz,
           tongue: lingua,
-          warning: session.warning,
-          warningLabel: warningNoticeLabelFor(language),
+          warning: session.warning ? warningNoticeLabelFor(language) : null,
           semanticLabel: _circleLabel(session, language),
           onTap: notifier.retroTap,
           onLongPress: session.canResolveWithPerson

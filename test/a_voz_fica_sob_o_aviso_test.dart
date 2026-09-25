@@ -11,7 +11,7 @@ Future<void> _pumpCircle(
   WidgetTester tester,
   VoiceState voice, {
   Tongue? tongue,
-  bool warning = false,
+  String? warning,
 }) => tester.pumpWidget(
   MaterialApp(
     key: ValueKey('$voice-$tongue-$warning'),
@@ -23,7 +23,6 @@ Future<void> _pumpCircle(
           voice: voice,
           tongue: tongue,
           warning: warning,
-          warningLabel: _aviso,
           semanticLabel: 'circulo',
           onTap: () {},
         ),
@@ -44,10 +43,6 @@ Iterable<Gradient> _gradients(WidgetTester tester) => tester
     .map((paint) => paint.gradient)
     .whereType<Gradient>();
 
-Finder _warningMark() => find.byWidgetPredicate(
-  (widget) => widget is Semantics && widget.properties.label == _aviso,
-);
-
 void main() {
   testWidgets('a warning does not paint over the wood of the mother tongue', (
     tester,
@@ -56,7 +51,7 @@ void main() {
       tester,
       VoiceState.speaking,
       tongue: Tongue.motherTongue,
-      warning: true,
+      warning: _aviso,
     );
 
     expect(
@@ -75,15 +70,18 @@ void main() {
       tester,
       VoiceState.speaking,
       tongue: Tongue.bridge,
-      warning: true,
+      warning: _aviso,
     );
 
     expect(_gradients(tester), contains(BeadStyles.azul));
   });
 
   testWidgets(
-    'the warning shows beside the circle, said by its own VoiceOver label',
+    'the warning shows beside the circle, as a mark of its own on the '
+    'semantics tree — never merged into the circle button',
     (tester) async {
+      final handle = tester.ensureSemantics();
+
       for (final voice in [
         VoiceState.invite,
         VoiceState.listening,
@@ -91,40 +89,55 @@ void main() {
         VoiceState.speaking,
         VoiceState.done,
       ]) {
-        await _pumpCircle(tester, voice, warning: true);
+        await _pumpCircle(tester, voice, warning: _aviso);
         expect(
-          _warningMark(),
+          find.bySemanticsLabel(_aviso),
           findsOneWidget,
           reason:
-              'a sala não tem texto (glossário): sem uma marca com etiqueta '
-              'própria, um aviso que chegasse em ${voice.name} não teria como '
-              'ser dito',
+              'a sala não tem texto (glossário): sem um nó de semântica '
+              'próprio, um leitor de tela ouviria só "circulo" e o aviso de '
+              '${voice.name} nunca chegaria a ser dito',
+        );
+        expect(
+          find.bySemanticsLabel('circulo\n$_aviso'),
+          findsNothing,
+          reason:
+              'o rótulo do aviso fundido dentro do botão do círculo é o '
+              'mesmo bug que a marca deveria corrigir: um único nó lido como '
+              '"circulo, AVISO" continua sem dizer que há dois avisos',
         );
       }
+      handle.dispose();
     },
   );
 
   testWidgets('a room already halted does not also wear the warning mark', (
     tester,
   ) async {
+    final handle = tester.ensureSemantics();
+
     for (final voice in [
       VoiceState.needsPerson,
       VoiceState.offline,
       VoiceState.blocked,
     ]) {
-      await _pumpCircle(tester, voice, warning: true);
+      await _pumpCircle(tester, voice, warning: _aviso);
       expect(
-        _warningMark(),
+        find.bySemanticsLabel(_aviso),
         findsNothing,
         reason:
             'um aviso é menor que qualquer parada; ${voice.name} já diz que '
             'a equipe deve esperar, e o aviso não soma nada a isso',
       );
     }
+    handle.dispose();
   });
 
   testWidgets('no warning, no mark', (tester) async {
-    await _pumpCircle(tester, VoiceState.invite, warning: false);
-    expect(_warningMark(), findsNothing);
+    final handle = tester.ensureSemantics();
+
+    await _pumpCircle(tester, VoiceState.invite, warning: null);
+    expect(find.bySemanticsLabel(_aviso), findsNothing);
+    handle.dispose();
   });
 }

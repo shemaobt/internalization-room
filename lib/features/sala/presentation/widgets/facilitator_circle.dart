@@ -11,9 +11,6 @@ enum Tongue { guide, motherTongue, bridge }
 
 const facilitatorCircleSize = 160.0;
 
-/// Marks the warning mark's own box, so a test can tell it apart from the disc's.
-const warningMarkKey = ValueKey('facilitatorCircleWarningMark');
-
 class FacilitatorCircle extends StatelessWidget {
   final double size;
   final VoiceState voice;
@@ -23,16 +20,14 @@ class FacilitatorCircle extends StatelessWidget {
   final bool peerCue;
   final bool beckon;
 
-  /// Whether the server's last word was a warning rather than silence.
+  /// What the warning mark says to VoiceOver, or null while the server's last word
+  /// was silence rather than a warning.
   ///
   /// The room has no text on screen, so a warning is a small mark beside the disc,
   /// never a colour drawn over it: the disc keeps saying the voice. Read only while
   /// [voice] is not one of the halted states — a room the team cannot use yet is
   /// still a stop, whatever the last warning said.
-  final bool warning;
-
-  /// What the warning mark says to VoiceOver. Read only while [warning] shows it.
-  final String? warningLabel;
+  final String? warning;
   final double opacity;
   final String semanticLabel;
   final VoidCallback? onTap;
@@ -48,8 +43,7 @@ class FacilitatorCircle extends StatelessWidget {
     this.noteMode = false,
     this.peerCue = false,
     this.beckon = false,
-    this.warning = false,
-    this.warningLabel,
+    this.warning,
     this.opacity = 1,
     this.onTap,
     this.onLongPress,
@@ -83,7 +77,7 @@ class FacilitatorCircle extends StatelessWidget {
                 if (voice == VoiceState.speaking) ..._ripples(colors),
                 if (voice == VoiceState.listening) _listenRing(colors),
                 if (voice == VoiceState.listening) ..._gatheringIn(),
-                if (warning && !_halted) _warningMark(),
+                if (warning != null && !_halted) _warningMark(warning!),
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 1000),
                   child: _modeGlyph == null
@@ -328,13 +322,13 @@ class FacilitatorCircle extends StatelessWidget {
     );
   }
 
-  Widget _warningMark() => Positioned(
+  Widget _warningMark(String label) => Positioned(
     right: 0,
     bottom: 0,
     child: Semantics(
-      label: warningLabel,
+      container: true,
+      label: label,
       child: Container(
-        key: warningMarkKey,
         width: size * 0.22,
         height: size * 0.22,
         decoration: const BoxDecoration(

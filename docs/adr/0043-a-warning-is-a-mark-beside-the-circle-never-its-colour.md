@@ -7,18 +7,19 @@ date: 2026-09-25
 
 ## Context
 
-ADR 0040 made the circle's colour the voice — telha for the Guide, wood for the mother
-tongue, azul for the bridge language — and kept green for the verdict alone. Before that
-ADR, and still through ADR 0032 (the tablet is silent over a warning), a warning had drawn
-the circle green: the room's only way to say "someone should come watch" was to borrow the
-verdict's own colour, over whatever voice was sounding. A warning that landed while a
-recording played turned wood or azul into green mid-turn, and the team lost the one signal
-that said which language the room was hearing.
+ADR 0032 (the tablet is silent over a warning) took as its premise that "the circle turns
+green" on a warning (0032:6) and that "the team crossing the mark ... sees a green circle"
+(0032:46) — the room's only way to say "someone should come watch" was to borrow the
+verdict's own colour, over whatever voice was sounding. ADR 0040 later made the circle's
+colour the voice — telha for the Guide, wood for the mother tongue, azul for the bridge
+language — but never mentions green or warnings, so it shipped without saying whether the
+green-on-warning premise still held. A warning that landed while a recording played turned
+wood or azul into green mid-turn, and the team lost the one signal that said which language
+the room was hearing.
 
-ADR 0032 kept that green as its premise — the tablet still called nobody, only the colour
-carried the news — but the colour itself was never examined: green was already how a
-warning showed itself by the time 0032 was written, and 0040 shipped without saying whether
-it still applied.
+0032's own Decision (the tablet calls nobody over a warning) never depended on the colour
+being green — only on a warning reaching the team at all — but the colour itself was never
+examined until now.
 
 ## Considered Options
 

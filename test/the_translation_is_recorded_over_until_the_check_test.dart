@@ -716,6 +716,25 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('R2b — the warning mark speaks the rooms language', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
+    final container = await retomarComAviso(tester, harness);
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(
+      find.bySemanticsLabel(warningNoticeLabelFor('en')),
+      findsOneWidget,
+      reason:
+          'a marca existe ao lado do círculo, mas o que ela diz a um leitor '
+          'de tela em inglês precisa vir do mapa, não do português fixo',
+    );
+    handle.dispose();
+    closeTheRoom(container);
+  });
+
   testWidgets('R4 — gravar, regravar e confirmar fica na tradução e conta o '
       'trecho uma vez', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);

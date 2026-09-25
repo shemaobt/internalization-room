@@ -10,11 +10,27 @@ import 'package:internalization_room/features/sala/presentation/widgets/facilita
 
 import 'a_pergunta_da_grade.dart' show byLabel, pumpToPergunta;
 
+/// Whether [elemento] sits inside a [Positioned] child of its own
+/// [FacilitatorCircle] — the warning mark's own box, never the disc's.
+bool _sobUmaMarca(Element elemento) {
+  var achou = false;
+  elemento.visitAncestorElements((ancestral) {
+    if (ancestral.widget is FacilitatorCircle) return false;
+    if (ancestral.widget is Positioned) {
+      achou = true;
+      return false;
+    }
+    return true;
+  });
+  return achou;
+}
+
 /// The gradient the disc at the centre of the circle is painted with.
 ///
 /// The rings around it carry borders and no gradient, so the disc is the only one, and
 /// asking for exactly one is what keeps this from reading a ripple by mistake. The
-/// warning mark also paints a gradient, so it is excluded by its own key.
+/// warning mark also paints a gradient, so it is excluded by sitting under its own
+/// [Positioned] box.
 Gradient? _disco(WidgetTester tester) {
   final pintados = <Gradient>[
     for (final elemento
@@ -24,7 +40,7 @@ Gradient? _disco(WidgetTester tester) {
               matching: find.byType(Container),
             )
             .evaluate())
-      if (elemento.widget.key != warningMarkKey)
+      if (!_sobUmaMarca(elemento))
         if ((elemento.widget as Container).decoration case BoxDecoration(
           :final gradient?,
         ))
@@ -57,7 +73,7 @@ Future<void> _pumpCirculo(
           size: 150,
           voice: voice,
           peerCue: peerCue,
-          warning: warning,
+          warning: warning ? 'aviso' : null,
           semanticLabel: 'circulo',
           onTap: () {},
         ),
