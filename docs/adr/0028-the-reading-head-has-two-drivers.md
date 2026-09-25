@@ -1,3 +1,7 @@
+---
+status: superseded by ADR-0040
+---
+
 # The reading head has two drivers
 
 ## Context
