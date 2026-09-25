@@ -2093,7 +2093,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // carry a correction's own take, kept beside the parts but not one of them.
       takes: takes.where((take) => KeptScope.isParte(take.scopeId)).length,
       parteARegravar: waiting.partBeingRecordedAgain,
-      clearParteARegravar: waiting.partBeingRecordedAgain == null,
     );
     if (faltavam) {
       state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
@@ -3173,8 +3172,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.stage == SalaStage.ensaio && state.ensaio != EnsaioStatus.idle) {
       return;
     }
-    _rememberWhereTheyAre(SalaStage.retro);
+    // Before the write, not after: the mark belongs to the Rehearsal alone, and a row
+    // saved for the retro must never carry one to restore.
     _clearAll();
+    _rememberWhereTheyAre(SalaStage.retro);
     state = state.copyWith(
       stage: SalaStage.retro,
       voice: VoiceState.invite,
