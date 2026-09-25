@@ -92,7 +92,7 @@ void main() {
         addTearDown(container.dispose);
         final notifier = container.read(salaSessionProvider.notifier);
 
-        notifier.ouvirVozMaterna();
+        notifier.ouvirOTrechoEATraducao();
         await waitFor(
           'o trecho apontado estar tocando',
           () => container.read(salaSessionProvider).btTrechoTocando,

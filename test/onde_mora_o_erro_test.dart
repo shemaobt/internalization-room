@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
@@ -7,14 +6,14 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/onde_mora_grade.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 
-const ouvirMaterna = 'Ouvir a voz de vocês, na língua materna';
-const ouvirRetro = 'Ouvir a tradução em português';
-const micRetro = 'Traduzir de novo só em português';
+const ouvirOTrecho = 'Ouvir o trecho e a tradução';
+const micParteLabel = 'Gravar a parte de novo na língua materna';
+const micRetro = 'Traduzir este trecho de novo';
+const confirmar = 'Confirmar a tradução e seguir';
 
 Finder byLabel(String label) => find.byWidgetPredicate(
   (widget) => widget is Semantics && widget.properties.label == label,
@@ -70,24 +69,6 @@ Future<ProviderContainer> pumpToPergunta(
   return container;
 }
 
-Future<void> _pumpGrade(WidgetTester tester, {required bool podeOuvirRetro}) =>
-    tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light,
-        home: Scaffold(
-          body: Center(
-            child: OndeMoraGrade(
-              onOuvirMaterna: () {},
-              onOuvirRetro: () {},
-              onGravarAParteDeNovo: () {},
-              onTraduzirDeNovo: () {},
-              podeOuvirRetro: podeOuvirRetro,
-            ),
-          ),
-        ),
-      ),
-    );
-
 /// How many times the room was asked for a verdict. Each entry is one such ask reaching
 /// the room, which is the whole point: the team gets an answer only because somebody
 /// asked for one.
@@ -103,14 +84,19 @@ Future<void> terminarACaptura(
   await tester.pump(const Duration(milliseconds: 800));
 }
 
-/// The error was in the telling, so only the telling is redone — one step.
+/// The error was in the telling, so only the telling is redone: the azul microphone lands
+/// on the translation, the circle records over the old telling, the check sends it.
 Future<void> traduzirDeNovo(
   WidgetTester tester,
   ProviderContainer container,
 ) async {
   await tester.tap(byLabel(micRetro));
   await tester.pump(const Duration(milliseconds: 300));
+  notifier(container).retroTap();
+  await tester.pump(const Duration(milliseconds: 300));
   await terminarACaptura(tester, container);
+  await tester.tap(byLabel(confirmar));
+  await tester.pump(const Duration(milliseconds: 800));
 }
 
 /// What one correction leaves behind, read the way the team meets it.
@@ -150,44 +136,6 @@ Future<CorrecaoFeita> correcaoComResposta(
 }
 
 void main() {
-  testWidgets('the blue player is dark when the tablet holds no telling', (
-    tester,
-  ) async {
-    await _pumpGrade(tester, podeOuvirRetro: false);
-
-    expect(
-      tester.widget<Semantics>(byLabel(ouvirRetro)).properties.enabled,
-      isFalse,
-      reason:
-          'numa sessão retomada o contar existe no servidor e o arquivo '
-          'não está aqui; um player aceso que responde com silêncio não tem '
-          'como se explicar numa sala sem palavra escrita',
-    );
-    expect(
-      tester.widget<Semantics>(byLabel(micRetro)).properties.enabled,
-      isTrue,
-      reason:
-          'escolher não precisa do arquivo: a equipe sabe qual voz errou '
-          'sem reouvi-la, e o contar novo é gravado do zero',
-    );
-    expect(
-      tester.widget<Semantics>(byLabel(ouvirMaterna)).properties.enabled,
-      isTrue,
-      reason: 'a voz de madeira é fatia do ensaio, que está no tablet',
-    );
-  });
-
-  testWidgets('both players are live when the tablet holds the telling', (
-    tester,
-  ) async {
-    await _pumpGrade(tester, podeOuvirRetro: true);
-
-    expect(
-      tester.widget<Semantics>(byLabel(ouvirRetro)).properties.enabled,
-      isTrue,
-    );
-  });
-
   // O invariante deste laço — o tipo do achado não escolhe pela equipe qual voz
   // corrigir — vale para cada tipo, falta incluída desde 03/09: a materna
   // pode já ter a parte que a ponte pulou, e só a equipe sabe se é o caso.
@@ -205,8 +153,7 @@ void main() {
             'escondia a saída de traduzir de novo',
       );
       expect(byLabel(micRetro), findsOneWidget);
-      expect(byLabel(ouvirMaterna), findsOneWidget);
-      expect(byLabel(ouvirRetro), findsOneWidget);
+      expect(byLabel(ouvirOTrecho), findsOneWidget);
     });
   }
 
@@ -222,13 +169,16 @@ void main() {
 
     expect(
       container.read(salaSessionProvider).btPhase,
-      BtPhase.capturing,
+      BtPhase.playing,
       reason:
-          'só o contar escorregou, então o microfone abre para a equipe '
-          'contar aquele trecho de novo',
+          'só o contar escorregou, então a equipe cai na tradução daquele '
+          'trecho para contá-lo de novo',
     );
 
     notifier(container).retroTap();
+    await tester.pump(const Duration(milliseconds: 300));
+    await terminarACaptura(tester, container);
+    await tester.tap(byLabel(confirmar));
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(
@@ -246,65 +196,13 @@ void main() {
     );
   });
 
-  testWidgets('a stretch back from the room keeps both halves of itself', (
-    tester,
-  ) async {
-    final container = await pumpToPergunta(tester);
-    final harness = harnessDaVez!;
-
-    // Hearing the pointed stretch is what lets the team divide it where they are
-    // listening, and dividing is what makes the room answer with stretches nobody has
-    // explained yet — the case where the two halves of this construction disagree.
-    await tester.tap(byLabel(ouvirMaterna));
-    await tester.pump(const Duration(milliseconds: 300));
-    harness.playback.at = const Duration(seconds: 4);
-    await notifier(container).dividirTrecho();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    final trechos = container.read(salaSessionProvider).btTrechos;
-    expect(
-      trechos,
-      hasLength(3),
-      reason: 'a leitura da sala é quem manda em quantos trechos existem',
-    );
-
-    // The room's half: whether anyone has explained this stretch. It is what the first
-    // round's gate consumes, and the app used to throw it away. The two new halves are
-    // units the room counts and nobody has told back.
-    expect(
-      trechos.map((t) => t.contado).toList(),
-      [false, false, true],
-      reason:
-          'sem isto um trecho à espera é indistinguível de um já '
-          'explicado, e o portão da primeira rodada não tem o que ler',
-    );
-
-    // The tablet's half: the copy of the telling, which only this tablet holds. It was
-    // thrown away on every reading, and the blue voice had nothing to play.
-    expect(
-      trechos.last.retroPath,
-      isNotNull,
-      reason: 'o trecho que ninguém tocou continua com a sua explicação aqui',
-    );
-    expect(
-      trechos.take(2).map((t) => t.retroPath).toList(),
-      [null, null],
-      reason:
-          'e uma metade que ninguém contou não guarda arquivo de uma '
-          'explicação que não existe',
-    );
-
-    // Both halves live in one construction: resolving that conflict by picking a side
-    // would have lost the other in silence, and each branch was green on its own.
-  });
-
   testWidgets('listening is free and decides nothing', (tester) async {
     final container = await pumpToPergunta(tester);
 
     final harness = harnessDaVez!;
     harness.playback.played.clear();
 
-    await tester.tap(byLabel(ouvirMaterna));
+    await tester.tap(byLabel(ouvirOTrecho));
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(
@@ -322,11 +220,8 @@ void main() {
           'gravação em língua materna',
     );
 
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(milliseconds: 300));
     harness.playback.played.clear();
-
-    await tester.tap(byLabel(ouvirRetro));
+    harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
@@ -334,9 +229,11 @@ void main() {
       harness.playback.played,
       isNotEmpty,
       reason:
-          'o player azul toca o contar em português daquele trecho — '
-          'sem isso a equipe compara uma voz com o silêncio',
+          'depois da materna o play toca o contar em português daquele '
+          'trecho — sem isso a equipe compara uma voz com o silêncio',
     );
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
   });
 
   for (final kind in [BtFindingKind.missing, BtFindingKind.addition]) {
@@ -354,7 +251,7 @@ void main() {
           byLabel(micParteLabel),
           findsNothing,
           reason:
-              'sem trecho apontado não há o que substituir, e a grade '
+              'sem trecho apontado não há o que substituir, e o achado '
               'pergunta sobre um trecho',
         );
         expect(byLabel(micRetro), findsNothing);

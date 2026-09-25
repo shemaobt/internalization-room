@@ -21,12 +21,6 @@ void main() {
     ]);
   });
 
-  test('exitsByReRecording is true for addition alone', () {
-    for (final kind in BtFindingKind.values) {
-      expect(kind.exitsByReRecording, kind == BtFindingKind.addition);
-    }
-  });
-
   test('a kind this build does not know yet degrades to null, not a crash', () {
     expect(btFindingKindFrom('algo_novo_do_servidor'), isNull);
     expect(btFindingKindFrom(null), isNull);

@@ -69,39 +69,10 @@ void main() {
     final rehearsed = container.read(salaSessionProvider).partes.length;
     expect(rehearsed, greaterThan(0));
 
-    await tester.tap(bySemanticsLabelWidget(wholeClipExit));
+    await tester.tap(bySemanticsLabelWidget(continuarOEnsaio));
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).partes.length, rehearsed);
-  });
-
-  testWidgets('a verdict that names no stretch offers a path that works', (
-    tester,
-  ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await pumpToFindings(
-      tester,
-      BtFindingKind.unclear,
-      harness: harness,
-    );
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    await tester.tap(bySemanticsLabelWidget(wholeClipExit));
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
-
-    // The cut is made past the ten seconds already told back, not at nought. Cutting at
-    // nought used to work because this exit forgot every stretch and started the clip
-    // over — and the room had not forgotten them, so the analyst received the passage
-    // twice, the old stretches concatenated with the new. The stretches stay now, and
-    // the exit only takes a cut over ground nobody has told back yet.
-    harness.playback.at = const Duration(seconds: 20);
-    notifier.cortarTrecho();
-    notifier.retroTap();
-    await tester.pump(const Duration(milliseconds: 200));
-
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);
   });
 
   testWidgets('a verdict that names a stretch still tells that stretch again', (
@@ -113,19 +84,17 @@ void main() {
       trecho: 'trecho-1',
     );
 
-    await tester.tap(
-      bySemanticsLabelWidget('Traduzir de novo só em português'),
-    );
+    await tester.tap(bySemanticsLabelWidget('Traduzir este trecho de novo'));
     await tester.pump(const Duration(milliseconds: 300));
 
+    final estado = container.read(salaSessionProvider);
     expect(
-      container.read(salaSessionProvider).btPhase,
-      BtPhase.capturing,
+      (estado.btPhase, estado.btTrechoTraduzidoDeNovo?.segmentId),
+      (BtPhase.playing, 'trecho-1'),
       reason:
           'contar o trecho de novo continua sendo uma saída da tela de '
-          'achados; deixou de ser a sala escolhendo-a pela equipe e passou a '
-          'ser a voz azul da grade, que a equipe toca — e ela abre o '
-          'microfone direto, sem passo intermediário',
+          'achados; a equipe a escolhe pelo microfone azul, que leva à '
+          'tradução com aquele trecho armado (ADR 0040)',
     );
   });
 

@@ -12,12 +12,11 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/onde_mora_grade.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 
-const microfoneAzul = 'Continuar o ensaio';
+const continuarOEnsaio = 'Continuar o ensaio';
 const irParaARetro = 'Ir para a tradução';
 const umaParteInteira = Duration(seconds: 30);
 
@@ -219,7 +218,7 @@ void main() {
     final naSala = List.of(harness.room.segmentIds);
     final pedidos = harness.room.calls.length;
 
-    await tester.tap(byLabel(microfoneAzul));
+    await tester.tap(byLabel(continuarOEnsaio));
     await tester.pump(const Duration(milliseconds: 400));
 
     final depois = container.read(salaSessionProvider);
@@ -258,7 +257,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       final antigas = gravacoesDe(container.read(salaSessionProvider));
 
-      await tester.tap(byLabel(microfoneAzul));
+      await tester.tap(byLabel(continuarOEnsaio));
       await tester.pump(const Duration(milliseconds: 400));
 
       var agora = container.read(salaSessionProvider);
@@ -301,7 +300,7 @@ void main() {
     final antes = container.read(salaSessionProvider);
     expect(antes.coverage.engaged, 5);
 
-    await tester.tap(byLabel(microfoneAzul));
+    await tester.tap(byLabel(continuarOEnsaio));
     await tester.pump(const Duration(milliseconds: 700));
 
     expect(
@@ -339,7 +338,7 @@ void main() {
     final antigas = trechosDe(container.read(salaSessionProvider));
     final contadosAntes = harness.room.chunkTakes.length;
 
-    await tester.tap(byLabel(microfoneAzul));
+    await tester.tap(byLabel(continuarOEnsaio));
     await tester.pump(const Duration(milliseconds: 400));
     await gravarUmaParte(tester, notifier);
     final nova = container.read(salaSessionProvider).keptTakes.last;
@@ -583,7 +582,7 @@ void main() {
     final container = await aHistoriaSemOFim(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await tester.tap(byLabel(microfoneAzul));
+    await tester.tap(byLabel(continuarOEnsaio));
     await tester.pump(const Duration(milliseconds: 400));
     await gravarUmaParte(tester, notifier);
     final nova = container.read(salaSessionProvider).keptTakes.last;
@@ -625,7 +624,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
   });
 
-  testWidgets('uma falta com endereço vai para a grade, não para o ensaio', (
+  testWidgets('uma falta com endereço pergunta pela voz, não vai ao ensaio', (
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
@@ -639,18 +638,23 @@ void main() {
     expect(agora.stage, SalaStage.retro);
     expect(agora.btPhase, BtPhase.findings);
     expect(agora.btFindingTrecho?.segmentId, 'trecho-2');
+    for (final microfone in [
+      'Gravar a parte de novo na língua materna',
+      'Traduzir este trecho de novo',
+    ]) {
+      expect(
+        byLabel(microfone),
+        findsOneWidget,
+        reason:
+            'a falta cabe num trecho: a equipe sabe se a materna já tem o '
+            'que faltou, então o achado oferece os dois microfones como para '
+            'qualquer outro achado',
+      );
+    }
     expect(
-      find.byType(OndeMoraGrade),
-      findsOneWidget,
-      reason:
-          'a falta cabe num trecho: a equipe sabe se a materna já tem o '
-          'que faltou, então a grade oferece os dois microfones como para '
-          'qualquer outro achado',
-    );
-    expect(
-      byLabel(microfoneAzul),
+      byLabel(continuarOEnsaio),
       findsNothing,
-      reason: 'o botão que devolve ao ensaio é só para a falta sem endereço',
+      reason: 'o disco que devolve ao ensaio é só para a falta sem endereço',
     );
   });
 }

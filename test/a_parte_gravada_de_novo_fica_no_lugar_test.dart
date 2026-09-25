@@ -12,7 +12,7 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/onde_mora_grade.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -26,6 +26,7 @@ Finder byLabel(String label) => find.byWidgetPredicate(
 const _aprovar = 'Aprovar como rascunho final';
 const _ouvir = 'Ouvir a gravação';
 const _sairDaPassagem = 'Deixar esta passagem e escolher outra';
+const micParteLabel = 'Gravar a parte de novo na língua materna';
 
 /// A team standing on a finding the analyst addressed to the stretch of part 2, with the
 /// three parts recorded, told back whole and nothing pressed yet.
@@ -911,7 +912,9 @@ void main() {
     },
   );
 
-  testWidgets('o microfone da grade grava a parte de novo', (tester) async {
+  testWidgets('o microfone de madeira do achado grava a parte de novo', (
+    tester,
+  ) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await resto.aHistoriaSemOFim(
       tester,
@@ -1136,8 +1139,19 @@ void main() {
       reason: 'nenhuma faixa sobre a parte 2: o chão dela está por contar',
     );
     expect(
-      estado.btEsperandoConserto,
-      isNull,
+      [
+        for (final conta
+            in tester
+                .widget<BeadRow>(
+                  find.descendant(
+                    of: find.byType(RetroView),
+                    matching: find.byType(BeadRow),
+                  ),
+                )
+                .entries)
+          conta.fill,
+      ],
+      isNot(contains(BeadFill.drained)),
       reason:
           'e nenhuma faixa vazia: vazia quer dizer à espera de conserto, '
           'e este chão não espera conserto nenhum, espera ser contado',

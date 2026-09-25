@@ -131,6 +131,7 @@ class EnsaioView extends ConsumerWidget {
               ? BeadFill.translucent
               : BeadFill.drained,
           current: index == again,
+          dimmed: replacing && index != again,
           semanticLabel: rehearsalLabelFor('part', language, part: index + 1),
         ),
       if (open && !replacing)

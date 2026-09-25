@@ -233,6 +233,10 @@ _Avoid_: the long way round, caminho longo, re-recording the stretch (retired: t
 The mend that only tells the stretch again in the bridge language, over the mother tongue recording already there.
 _Avoid_: the short path, caminho curto, retell only, simple correction
 
+**Borrowed translation**:
+The telling a stretch already has on the server, left as the pending translation when a finding sends the team to translate that stretch again. It can be heard and recorded over, is never deleted by this tablet, and the check waits for a telling recorded in this visit.
+_Avoid_: old file, lent file, emprestada in English prose
+
 **Resumed back-translation**:
 A back-translation carrying on from where it stopped in a reopened session: playback restarts at the cursor and the stretches already told come back from the server.
 _Avoid_: retro retomada, resuming from scratch

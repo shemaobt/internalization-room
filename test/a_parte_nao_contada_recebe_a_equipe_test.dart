@@ -159,7 +159,6 @@ void main() {
         isTrue,
         reason: 'a parte entra no ar sozinha, sem mais um toque',
       );
-      expect(it.estado.btConsertando, isFalse);
       expect(
         it.estado.canFinishBackTranslation,
         isFalse,

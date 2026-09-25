@@ -108,17 +108,17 @@ void main() {
       final sala = container.read(salaSessionProvider.notifier);
       harness.playback.holdNextOpening();
 
-      sala.ouvirVozMaterna();
+      sala.ouvirOTrechoEATraducao();
       await waitFor(
         'a sala pedir o trecho',
         () => container.read(salaSessionProvider).btTrechoTocando,
       );
-      sala.ouvirVozMaterna();
+      sala.ouvirOTrechoEATraducao();
       await waitFor(
         'a equipe segurar o trecho',
         () => container.read(salaSessionProvider).btTrechoPausada,
       );
-      sala.ouvirVozMaterna();
+      sala.ouvirOTrechoEATraducao();
       await waitFor(
         'a equipe soltar o trecho',
         () => container.read(salaSessionProvider).btTrechoTocando,

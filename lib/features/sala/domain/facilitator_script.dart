@@ -116,6 +116,27 @@ String rehearsalLabelFor(String state, String language, {int? part}) =>
             rehearsalLabels[state]![floorLanguage]!)
         .replaceAll('{n}', '$part');
 
+const findingLabels = {
+  'circle': {'pt': 'Ouvir o achado de novo', 'en': 'Hear the finding again'},
+  'play': {
+    'pt': 'Ouvir o trecho e a tradução',
+    'en': 'Hear the stretch and its translation',
+  },
+  'recordThePart': {
+    'pt': 'Gravar a parte de novo na língua materna',
+    'en': 'Record the part again in the mother tongue',
+  },
+  'translateTheStretch': {
+    'pt': 'Traduzir este trecho de novo',
+    'en': 'Translate this stretch again',
+  },
+  'continue': {'pt': 'Continuar o ensaio', 'en': 'Continue the rehearsal'},
+};
+
+String findingLabelFor(String control, String language) =>
+    findingLabels[control]![language] ??
+    findingLabels[control]![floorLanguage]!;
+
 const panoramaEntryLabel = {'pt': 'Panorama do Livro', 'en': 'Book Panorama'};
 
 String entrarLabelFor({required bool isPanorama, required String language}) =>

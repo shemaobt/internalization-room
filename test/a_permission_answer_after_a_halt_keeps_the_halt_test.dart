@@ -66,34 +66,6 @@ _capturingWithAWarningArmed(SalaHarness harness) async {
   return (container, notifier, read);
 }
 
-/// The same ground, but the capture is opened by `traduzirDeNovo` over a stretch already
-/// told, arming a mend in the same gesture.
-Future<(ProviderContainer, SalaSessionNotifier, SalaSessionState Function())>
-_mendCapturingWithAWarningArmed(SalaHarness harness) async {
-  harness.room.serverStatus = 'needs_person';
-  harness.room.serverHalt = HaltKind.warning;
-  harness.room.retroSoFar = const BackTranslationProgress(
-    segments: [
-      SegmentView(
-        segmentId: 'trecho-1',
-        takeId: 'gravacao-1',
-        startsMs: 0,
-        endsMs: 12000,
-      ),
-    ],
-  );
-  final container = await _reopensInto(harness, SalaStage.retro);
-  final notifier = container.read(salaSessionProvider.notifier);
-  SalaSessionState read() => container.read(salaSessionProvider);
-
-  await waitFor('o aviso chegar', () => read().warning);
-  final trecho = read().btTrechos.first;
-  notifier.traduzirDeNovo(trecho);
-  await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
-
-  return (container, notifier, read);
-}
-
 /// Turn the standing warning blocking, and wait for the watch's next beat to find it.
 Future<void> _haltLandsBlocking(
   SalaHarness harness,
@@ -321,24 +293,6 @@ void main() {
       'o círculo voltar ao convite',
       () => read().voice == VoiceState.invite,
     );
-  });
-
-  test('the phase, the mend and the halo are still restored after a denied '
-      'answer lands late (criterion 4, mend capture)', () async {
-    final harness = SalaHarness(settleDelay: const Duration(seconds: 3));
-    harness.recorder.permitted = false;
-    harness.recorder.holdNextStart();
-    final (_, _, read) = await _mendCapturingWithAWarningArmed(harness);
-    await _haltLandsBlocking(harness, read);
-
-    harness.recorder.finishStart();
-    await settle();
-
-    expect(read().needsPerson, isTrue);
-    expect(read().btPhase, BtPhase.playing);
-    expect(read().btClipRodando, isFalse);
-    expect(read().btConsertando, isFalse);
-    expect(read().ensaio, EnsaioStatus.idle);
   });
 
   test(
