@@ -534,6 +534,137 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('R3 — uma conta tocada com a parte ainda abrindo não deixa a '
+      'cabeça atrás do cursor', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness);
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester, harness);
+    harness.playback.at = Duration.zero;
+    harness.playback.holdNextOpening();
+    await tocar(tester, confirmar);
+    await tocar(tester, pausar);
+    harness.playback.finishHeldOpening();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tocar(tester, 'Trecho 1');
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tocar(tester, ouvir);
+
+    expect(harness.playback.playedFrom.last, cabeca);
+    closeTheRoom(container);
+  });
+
+  testWidgets('R3 — a tesoura depois de uma conta tocada corta na cabeça de '
+      'antes', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness);
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester, harness);
+    await tocar(tester, confirmar);
+    harness.playback.at = const Duration(seconds: 7);
+    await tocar(tester, pausar);
+
+    await tocar(tester, 'Trecho 1');
+    harness.playback.at = const Duration(seconds: 2);
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tocar(tester, tesoura);
+    await tocar(tester, ouvir);
+
+    expect(harness.playback.ranges.last, '4000-7000');
+    closeTheRoom(container);
+  });
+
+  testWidgets('R3 — o disco de avanço se apaga enquanto uma conta toca', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness);
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester, harness);
+    await tocar(tester, confirmar);
+    for (var vez = 0; vez < 2; vez++) {
+      harness.playback.at = parte;
+      harness.playback.finishPlayback();
+      await tester.pump(const Duration(milliseconds: 300));
+      await gravarATraducao(tester, harness);
+      await tocar(tester, confirmar);
+    }
+    expect(aceso(tester, conferir), isTrue);
+
+    await tocar(tester, 'Trecho 1');
+    expect(aceso(tester, conferir), isFalse);
+
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(aceso(tester, conferir), isTrue);
+    closeTheRoom(container);
+  });
+
+  testWidgets('R2 — uma parada lida com o clipe tocando vence a madeira', (
+    tester,
+  ) async {
+    final gravada = File(
+      '${Directory.systemTemp.createTempSync('sala-1117').path}/p1.m4a',
+    )..writeAsBytesSync([1, 2, 3]);
+    addTearDown(() => gravada.parent.deleteSync(recursive: true));
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.playback
+      ..measured = parte
+      ..length = parte;
+    harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.retro,
+      takes: [
+        KeptTake(
+          scopeId: KeptScope.parte(1),
+          path: gravada.path,
+          takeId: 'gravacao-1',
+        ),
+      ],
+    );
+    harness.room
+      ..serverHalt = HaltKind.warning
+      ..retroSoFar = const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-1',
+            startsMs: 0,
+            endsMs: 4000,
+          ),
+        ],
+      );
+    final container = harness.container();
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const SalaApp()),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    final notifier = container.read(salaSessionProvider.notifier);
+    await tester.runAsync(notifier.abrirEscolha);
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.runAsync(() => notifier.goConversa(pericope: 'P01'));
+    await tester.pump(const Duration(milliseconds: 600));
+    harness.room
+      ..serverStatus = 'needs_person'
+      ..serverHalt = HaltKind.blocking;
+    for (var vez = 0; vez < 10; vez++) {
+      await tester.pump(const Duration(seconds: 1));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+    }
+    expect(byLabel('Um momento para uma pessoa'), findsOneWidget);
+    expect(await olhar(tester), isNot(startsWith('wood')));
+    closeTheRoom(container);
+  });
+
   testWidgets('R4 — gravar, regravar e confirmar fica na tradução e conta o '
       'trecho uma vez', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);

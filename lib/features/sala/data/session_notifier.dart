@@ -3470,7 +3470,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           : _ondeParouNesteArquivo(parte);
     }
     _trechoEnd = _trechoStart;
-    _desdeMs = 0;
+    final de = desde ?? (doComeco ? Duration.zero : _trechoStart);
+    _desdeMs = de.inMilliseconds;
     _escuta.abrir(state.partes[parte].path, 0);
     state = state.copyWith(
       btParteFronteira: false,
@@ -3487,7 +3488,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     _play(
       state.partes[parte].path,
-      from: desde ?? (doComeco ? Duration.zero : _trechoStart),
+      from: de,
       onComplete: _fimDeParte,
       onFailed: () {
         // Back to the rehearsal is the answer while there is still passage left to tell
@@ -3750,8 +3751,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// Cut the stretch that is playing in two, where the team is hearing it.
   ///
   /// It only ever answers for the stretch in the air, which is the only stretch the team
-  /// can hear again: the room leads them to the one a finding named, and nothing else
-  /// replays a stretch they already told. So there is nothing to choose first — what is
+  /// can hear again on the findings: the room leads them to the one a finding named, and
+  /// a tapped bead replays a told stretch only on the back-translation, where this never
+  /// answers. So there is nothing to choose first — what is
   /// playing is what divides — and the point is where the audio is, which is the same
   /// relation the other pair of scissors already has.
   ///

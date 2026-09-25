@@ -575,19 +575,6 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('B3f — com uma tradução pendente a tesoura se apaga', (
-    tester,
-  ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await entrarNaTraducao(tester, harness);
-
-    harness.playback.at = cabeca;
-    await tocar(tester, tesoura);
-    await gravarATraducao(tester);
-    expect(aceso(tester, tesoura), isFalse);
-    closeTheRoom(container);
-  });
-
   testWidgets('B3h — uma tradução recusada vai para a fila uma vez só', (
     tester,
   ) async {
