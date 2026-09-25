@@ -4942,6 +4942,64 @@ void main() {
     },
   );
 
+  test(
+    'a pending question survives an empty pull, and clears once a reply lands',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1';
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      notifier.handTap();
+      notifier.conversaTap();
+      notifier.conversaTap();
+      await settle();
+
+      expect(harness.inbox.questionsSent, ['sessao-1']);
+      expect(container.read(salaSessionProvider).questionPending, isTrue);
+
+      harness.inbox.replies = const [];
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+      );
+      await settle();
+
+      expect(
+        container.read(salaSessionProvider).questionPending,
+        isTrue,
+        reason:
+            'a mesa ainda não lista nada — a facilitadora não respondeu, e o '
+            'ponto de espera é o único sinal, numa sala sem letra, de que a '
+            'pergunta ainda está no ar',
+      );
+
+      harness.room.turnIdInResponse = 'turno-2';
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      harness.inbox.replies = const [
+        HandReply(id: 'r1', audioUrl: '/voice/r1'),
+      ];
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-2', status: CoverageStatus.settled),
+      );
+      await waitFor(
+        'a resposta chegar à mão',
+        () => container.read(salaSessionProvider).hasUnheardReply,
+      );
+
+      expect(
+        container.read(salaSessionProvider).questionPending,
+        isFalse,
+        reason:
+            'a resposta chegou — o ponto agora é o de ouvir, não o de esperar',
+      );
+    },
+  );
+
   test('an unheard reply waits on the hand and is played on tap', () async {
     final harness = SalaHarness(
       replies: const [
