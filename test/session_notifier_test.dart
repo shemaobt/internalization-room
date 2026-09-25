@@ -5352,7 +5352,7 @@ void main() {
     expect(after.takes, 0);
   });
 
-  test('the ensaio does not freeze on a ghost play that never ends', () async {
+  test('the ensaio does not freeze on a play that never ends', () async {
     final harness = SalaHarness(
       playbackCeiling: const Duration(milliseconds: 40),
     );
@@ -5365,18 +5365,15 @@ void main() {
     notifier.ensaioTap();
     await settle();
     notifier.takeKeep();
-    notifier.ghostPlay();
+    notifier.playTheRehearsal();
 
-    expect(
-      container.read(salaSessionProvider).ensaio,
-      EnsaioStatus.ghostPlaying,
-    );
+    expect(container.read(salaSessionProvider).playPing, isTrue);
 
     await settle(const Duration(milliseconds: 140));
 
     expect(
-      container.read(salaSessionProvider).ensaio,
-      EnsaioStatus.idle,
+      container.read(salaSessionProvider).playPing,
+      isFalse,
       reason:
           'sem teto, uma reprodução interrompida deixava a tela do ensaio '
           'sem nenhum gesto vivo — nada para tocar, e nada escrito para explicar',
@@ -6835,31 +6832,39 @@ void main() {
     expect(state.ensaioDone, isTrue);
   });
 
-  test('a part still waiting for its check rides into the retro', () async {
-    final harness = SalaHarness();
-    final container = await inConversa(harness);
-    final notifier = container.read(salaSessionProvider.notifier);
+  test(
+    'a part still waiting for its check holds the door to the retro',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      final notifier = container.read(salaSessionProvider.notifier);
 
-    notifier.goEnsaio();
-    await gravaParte(notifier);
-    notifier.ensaioTap();
-    notifier.ensaioTap();
-    await settle();
+      notifier.goEnsaio();
+      await gravaParte(notifier);
+      notifier.ensaioTap();
+      notifier.ensaioTap();
+      await settle();
 
-    expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.recorded);
-    notifier.startRetro();
-    await settle();
+      expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.recorded);
+      notifier.startRetro();
+      await settle();
 
-    final state = container.read(salaSessionProvider);
-    expect(state.stage, SalaStage.retro);
-    expect(
-      [for (final t in state.partes) t.scopeId],
-      ['parte-1', 'parte-2'],
-      reason:
-          'um pedaço gravado e ainda sem o check sumia calado no pulo '
-          'para a retro',
-    );
-  });
+      final state = container.read(salaSessionProvider);
+      expect(
+        state.stage,
+        SalaStage.ensaio,
+        reason: 'com uma parte pendente o disco não leva à tradução',
+      );
+      expect(
+        state.ensaio,
+        EnsaioStatus.recorded,
+        reason:
+            'e a parte continua pendente: só o check a confirma, nunca o '
+            'caminho para a retro',
+      );
+      expect([for (final t in state.partes) t.scopeId], ['parte-1']);
+    },
+  );
 
   test('a recording still running holds the door to the retro', () async {
     final harness = SalaHarness();
@@ -6885,7 +6890,7 @@ void main() {
     );
   });
 
-  test('the ghost play walks every part in order', () async {
+  test('the rehearsal play walks every part in order', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -6894,7 +6899,7 @@ void main() {
     await gravaParte(notifier);
     await gravaParte(notifier);
 
-    notifier.ghostPlay();
+    notifier.playTheRehearsal();
     await settle();
     expect(harness.playback.played, hasLength(1));
     harness.playback.finishPlayback();

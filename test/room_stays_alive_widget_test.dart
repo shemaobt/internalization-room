@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
-import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/eq_bars.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
 
@@ -273,63 +271,6 @@ void main() {
             'e a conta que ainda não foi enfiada continua escondida: este é '
             'o único dos quatro que desenha coisa diferente de acordo com o '
             'estado, e parar a animação não pode acender o cordão inteiro',
-      );
-    },
-  );
-
-  testWidgets(
-    'the microphone meter stops dancing when the tablet asks for less motion',
-    (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: const MediaQuery(
-            data: MediaQueryData(disableAnimations: true),
-            child: Scaffold(body: Center(child: EqBars(active: true))),
-          ),
-        ),
-      );
-
-      EqBarsPainter pintor() =>
-          tester
-                  .widget<CustomPaint>(
-                    find.descendant(
-                      of: find.byType(EqBars),
-                      matching: find.byType(CustomPaint),
-                    ),
-                  )
-                  .painter
-              as EqBarsPainter;
-
-      Set<double> alturas() => pintor().heights.toSet();
-
-      final primeiras = alturas();
-      expect(
-        primeiras,
-        isNotEmpty,
-        reason: 'sem barras desenhadas não há o que medir',
-      );
-
-      for (var frame = 0; frame < 30; frame++) {
-        await tester.pump(const Duration(milliseconds: 100));
-        expect(
-          alturas(),
-          primeiras,
-          reason:
-              'o medidor tem o seu próprio controlador e nunca passou pelo '
-              'portão de motion.dart: vinte e quatro barras dançando num laço '
-              'de 1200 ms, vivas exatamente enquanto o microfone está aberto, '
-              'que é o momento mais longo que a equipe passa olhando a tela',
-        );
-      }
-
-      expect(
-        {pintor().barColor},
-        {SalaColors.light.telha},
-        reason:
-            'e o medidor continua dizendo que o microfone está aberto — '
-            'parar o movimento não pode apagar o aviso, que é a razão de ele '
-            'existir',
       );
     },
   );

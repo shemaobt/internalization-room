@@ -122,7 +122,7 @@ Future<_Cena> _noRetro({int partes = 1}) async {
 }
 
 /// A rehearsal recorded and offered, with the take still pending: the one state the
-/// listen/redo/keep gestures live in.
+/// check and the circle's record-over live in.
 Future<_Cena> _comATomadaNaMao() async {
   final harness = SalaHarness();
   final container = await inConversa(harness);
@@ -645,9 +645,9 @@ void main() {
       'abrir o microfone',
       () async {
         final cena = await _comATomadaNaMao();
-        cena.sala.takeRedo();
+        cena.sala.takeKeep();
         await waitFor(
-          'a tomada ser descartada',
+          'a tomada ser confirmada',
           () => _estado(cena).ensaio == EnsaioStatus.idle,
         );
         return cena;
@@ -665,20 +665,23 @@ void main() {
       'gravar a tomada de novo',
       () async {
         final cena = await _comATomadaNaMao();
-        cena.sala.takePlay();
+        cena.sala.playTheRehearsal();
         await waitFor(
           'a tomada tocar',
           () => _estado(cena).playPing && cena.harness.playback.sounding,
         );
+        cena.sala.playTheRehearsal();
+        await waitFor('a tomada pausar', () => _estado(cena).takePaused);
         return cena;
       },
       (cena) async {
-        cena.sala.takeRedo();
+        cena.sala.ensaioTap();
         await waitFor(
-          'a tomada ser descartada',
-          () => _estado(cena).ensaio == EnsaioStatus.idle,
+          'o microfone abrir por cima da tomada',
+          () => _estado(cena).ensaio == EnsaioStatus.recording,
         );
       },
+      somProprio: 'recorder:start',
     ),
     _linha('ir para o ensaio', _noRetro, (cena) async {
       cena.sala.goEnsaio();
@@ -853,11 +856,11 @@ void main() {
     final cena = await _comATomadaNaMao();
     final paradasAntes = cena.harness.playback.stops;
 
-    cena.sala.takePlay();
+    cena.sala.playTheRehearsal();
     await waitFor('a tomada tocar', () => _estado(cena).playPing);
-    cena.sala.takePlay();
+    cena.sala.playTheRehearsal();
     await waitFor('a tomada pausar', () => _estado(cena).takePaused);
-    cena.sala.takePlay();
+    cena.sala.playTheRehearsal();
     await waitFor('a tomada retomar', () => _estado(cena).playPing);
 
     expect(

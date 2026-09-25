@@ -21,7 +21,7 @@ enum VoiceState {
 
 enum ConviteStep { boasVindas, panorama, entrada }
 
-enum EnsaioStatus { idle, ghostPlaying, recording, recorded }
+enum EnsaioStatus { idle, recording, recorded }
 
 /// Where the telling-back is, step by step.
 enum BtPhase { playing, capturing, thinking, findings, conferida }
@@ -115,9 +115,9 @@ class SalaSessionState {
   final int takes;
   final bool playPing;
 
-  /// Whether the take player is holding a position rather than sitting at rest.
+  /// Whether the rehearsal's play is holding a position rather than sitting at rest.
   ///
-  /// [playPing] already says whether the take is sounding; this is the second half
+  /// [playPing] already says whether the rehearsal is sounding; this is the second half
   /// [btTrechoPausada] gives for its own player — the next tap needs to tell a resume from
   /// a restart, and nothing else here carries that.
   final bool takePaused;
@@ -283,9 +283,8 @@ class SalaSessionState {
 
   bool get onFim => stage == SalaStage.fim;
 
-  bool get ensaioDone => takes >= 1 && ensaio == EnsaioStatus.idle;
-
-  bool get ensaioHasATake => takes >= 1;
+  bool get ensaioDone =>
+      takes >= 1 && ensaio == EnsaioStatus.idle && parteARegravar == null;
 
   bool get awaitingFirstTouch =>
       stage == SalaStage.convite &&
@@ -370,17 +369,6 @@ class SalaSessionState {
   /// gives for itself.
   String? get btEsperandoConserto => btConsertando ? null : btFindingSegmentId;
 
-  /// Which take the rehearsal screen marks, when the team came back to record a part
-  /// again.
-  ///
-  /// Scope and number are the same fact said twice, so they are counted from the same
-  /// place here rather than at each screen that needs one of them — the reason
-  /// `_aParteVoltaAoSeuLugar` gives for counting them together on the way out.
-  String? get escopoDaParteARegravar {
-    final parte = parteARegravar;
-    return parte == null ? null : KeptScope.parte(parte + 1);
-  }
-
   /// The rehearsal's own recordings, in order — never a correction's own take, which is a
   /// slice of one of these and not a part of the rehearsal in its own right.
   List<KeptTake> get partes => [
@@ -388,7 +376,9 @@ class SalaSessionState {
       if (KeptScope.isParte(take.scopeId)) take,
   ];
 
-  bool get canGhostPlay => partes.isNotEmpty && ensaio == EnsaioStatus.idle;
+  bool get canPlayTheRehearsal =>
+      (partes.isNotEmpty || ensaio == EnsaioStatus.recorded) &&
+      ensaio != EnsaioStatus.recording;
 
   /// Whether the last listening the clean verdict invites has anything to play.
   ///
