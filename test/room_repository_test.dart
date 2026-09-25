@@ -1271,7 +1271,6 @@ void main() {
 
       final notAboutASession =
           <String, Future<Object?> Function(RoomRepository)>{
-            'createSession': (room) => room.createSession(language: 'pt'),
             'passagesOf': (room) => room.passagesOf('Ruth', language: 'pt'),
             'collectTheCredential': (room) =>
                 room.collectTheCredential('aparelho-1'),
@@ -1312,7 +1311,20 @@ void main() {
       );
 
       test(
-        'a 400 is a refused call on every call, never a verdict on the passage',
+        'a 400 on opening a session is the passage that cannot open',
+        () async {
+          await expectLater(
+            () => answering(400).createSession(pericope: 'P01', language: 'pt'),
+            throwsA(isA<PassageCannotOpen>()),
+            reason:
+                'o /sessions responde 400 para uma passagem que não abre, e lido '
+                'como chamada recusada chamava uma pessoa na hora',
+          );
+        },
+      );
+
+      test(
+        'a 400 is a refused call on every other call, never a verdict on the passage',
         () async {
           for (final call in {
             ...sessionDoors,
@@ -1323,8 +1335,8 @@ void main() {
               () => call.value(answering(400)),
               throwsA(isA<RoomBroke>()),
               reason:
-                  '${call.key}: o servidor não tem resposta que queira dizer '
-                  'passagem fechada; um trecho vazio recusado levava a sessão junto',
+                  '${call.key}: fora da criação da sessão, o 400 não fala da '
+                  'passagem; um trecho vazio recusado levava a sessão junto',
             );
           }
         },

@@ -951,6 +951,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _haltForAPerson();
       case SessionGone():
         _leaveTheDeadPassage();
+      case PassageCannotOpen():
+        unawaited(abrirEscolha());
       case RoomBroke():
         _registerRoomFailure();
       case RoomSlow():

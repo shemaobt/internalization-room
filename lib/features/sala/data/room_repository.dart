@@ -65,6 +65,10 @@ class SessionGone implements Exception {
   const SessionGone();
 }
 
+class PassageCannotOpen implements Exception {
+  const PassageCannotOpen();
+}
+
 /// The row is not claimed yet, or was taken out of service. Temporary: the answer to it
 /// is to go on asking whose the tablet is, and to try collecting again next cycle.
 class CredentialNotYet implements Exception {
@@ -184,6 +188,7 @@ class RoomRepository {
       ),
       _stateTimeout,
     );
+    if (response.statusCode == 400) throw const PassageCannotOpen();
     return _read(
       response,
       SessionSnapshot.fromJson,
