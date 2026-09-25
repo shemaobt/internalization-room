@@ -10,6 +10,7 @@ import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
+import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -272,6 +273,46 @@ void main() {
         harness.voice.assets,
         isNot(contains(fixedLineAsset('E0', testLanguage))),
       );
+    },
+  );
+
+  test(
+    'three panorama spokes refused at the door never spend a strike on the room',
+    () async {
+      final harness = SalaHarness()
+        ..room.passages = const [
+          Passagem(
+            pericope: 'panorama',
+            audioUrl: '/voice/panorama',
+            kind: PassagemKind.panorama,
+          ),
+          Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+        ]
+        ..room.passageThatCannotOpen = panoramaPericope;
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      await notifier.abrirEscolha();
+      await settle();
+      for (var attempt = 0; attempt < 3; attempt++) {
+        notifier.entrarNaOferecida();
+        await settle();
+      }
+
+      final state = container.read(salaSessionProvider);
+      expect(
+        harness.room.calls.where((call) => call == 'createSession'),
+        hasLength(3),
+      );
+      expect(
+        state.needsPerson,
+        isFalse,
+        reason:
+            'na roda nada apaga a escada, e cada recusa contada levava a '
+            'terceira a chamar alguém',
+      );
+      expect(harness.room.personsAsked, 0);
     },
   );
 
