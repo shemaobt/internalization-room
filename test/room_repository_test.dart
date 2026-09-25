@@ -1388,7 +1388,7 @@ void main() {
       });
 
       test(
-        'the chunk and divide routes keep a 400 or a 422 as a refused call',
+        'sendChunk and divideSegment each keep a 400 or a 422 as a refused call',
         () async {
           for (final call in ['sendChunk', 'divideSegment']) {
             for (final status in [400, 422]) {
