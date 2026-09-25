@@ -100,10 +100,9 @@ void main() {
             'a seguinte atropelou não tem medida nem teto a dar a ninguém, e '
             'anunciada armaria o relógio de um clipe que nunca tocou',
       );
-      expect(
-        cena.container.read(salaSessionProvider).voice,
-        isNot(VoiceState.needsPerson),
-      );
+      final estado = cena.container.read(salaSessionProvider);
+      expect(estado.voice, isNot(VoiceState.needsPerson));
+      expect(estado.playPing, isTrue);
     },
   );
 
@@ -144,6 +143,27 @@ void main() {
       await waitFor(
         'o trecho soar quando a fonte fica pronta',
         () => harness.playback.sounding,
+      );
+    },
+  );
+
+  test(
+    'no dublê, um resume depois do stop de um clipe aberto não soa',
+    () async {
+      final playback = FakePlayback();
+      addTearDown(playback.dispose);
+
+      unawaited(playback.play('/parte-1.m4a'));
+      await settle();
+      await playback.stop();
+      await playback.resume();
+
+      expect(
+        playback.sounding,
+        isFalse,
+        reason:
+            'o repositório não toca a plataforma num resume depois de um stop: '
+            'o clipe que a sala parou não é o clipe a que ela volta',
       );
     },
   );
