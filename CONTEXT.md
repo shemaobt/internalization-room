@@ -196,7 +196,7 @@ The queue of takes and stretches waiting to reach the server, with a manifest th
 _Avoid_: fila, caixa de saída, upload queue, buffer
 
 **Resume point**:
-The row kept per passage saying where the team left it — the session, the station, the kept takes and the part being recorded again, when one is marked (ADR 0026) — so a reopening lands there rather than at the start, on a tablet that still holds the recordings or on one that fetches them from the room again. It never expires by age: what drops it are facts about the room or the passage — the room no longer knowing the session, the approval closing the passage, the language changing — never the clock.
+The row kept per passage saying where the team left it — the session, the station, the kept takes and the part being recorded again, when one is marked (ADR 0042) — so a reopening lands there rather than at the start, on a tablet that still holds the recordings or on one that fetches them from the room again. It never expires by age: what drops it are facts about the room or the passage — the room no longer knowing the session, the approval closing the passage, the language changing — never the clock.
 _Avoid_: ponto de retomada, em curso, checkpoint, snapshot (the session's own lives on the server)
 
 ### Findings and mends
