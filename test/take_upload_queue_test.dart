@@ -1309,7 +1309,7 @@ void main() {
     final copia = File(pendente.path);
     expect(copia.existsSync(), isTrue);
 
-    await queue.withdraw(copia);
+    await queue.withdraw(pendente);
 
     expect(await queue.entries(), isEmpty);
     expect(copia.existsSync(), isFalse);
@@ -1327,7 +1327,7 @@ void main() {
     await queue.flush();
     expect((await queue.entries()).single.stored, isTrue);
 
-    await queue.withdraw(File(entregue.path));
+    await queue.withdraw(entregue);
 
     expect(
       await queue.entries(),
@@ -1337,7 +1337,7 @@ void main() {
     expect((await queue.entries()).single.stored, isTrue);
   });
 
-  test('withdraw of a file the queue never held is a no-op', () async {
+  test('withdraw of a row the queue no longer holds is a no-op', () async {
     final room = FakeRoom();
     final queue = queueOn(room);
     await queue.enqueue(
@@ -1346,14 +1346,21 @@ void main() {
       kind: 'retro',
       scope: 'inteira',
     );
+    const desconhecida = PendingTake(
+      id: 'nunca-existiu',
+      path: '/nao/existe.m4a',
+      sessionId: 'sessao-1',
+      kind: 'retro',
+      scope: 'inteira',
+    );
 
-    await queue.withdraw(File('${home.path}/guardadas/desconhecido.m4a'));
+    await queue.withdraw(desconhecida);
 
     expect(
       await queue.entries(),
       hasLength(1),
       reason:
-          'um arquivo que a fila nunca guardou não dá erro nem mexe nas outras linhas',
+          'uma linha que a fila nunca guardou não dá erro nem mexe nas outras linhas',
     );
   });
 
@@ -1370,7 +1377,7 @@ void main() {
         kind: 'retro',
         scope: 'inteira',
       );
-      await queue.withdraw(File(nova.path));
+      await queue.withdraw(nova);
 
       expect(
         await queue.flush(),

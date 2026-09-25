@@ -581,15 +581,16 @@ class TakeUploadQueue {
   /// Take a pending row off the manifest before it can ever be delivered, and delete
   /// the copy `enqueue` made of it.
   ///
-  /// A no-op for a row already stored or for a file the queue never held — the caller
+  /// A no-op for a row already stored or one the queue no longer holds — the caller
   /// discards a recording whether or not a guard ever queued it, and asking should
-  /// never be an error either way.
-  Future<void> withdraw(File audio) async {
+  /// never be an error either way. Matched by id and kind, the same pair `_replace`
+  /// reads a row by.
+  Future<void> withdraw(PendingTake row) async {
     PendingTake? removed;
     await _mutate((written) {
       final kept = <PendingTake>[];
       for (final entry in written) {
-        if (!entry.stored && entry.path == audio.path) {
+        if (!entry.stored && entry.id == row.id && entry.kind == row.kind) {
           removed = entry;
           continue;
         }

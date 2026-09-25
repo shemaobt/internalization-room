@@ -6662,6 +6662,12 @@ void main() {
     );
     final copiaNaFila = File(naFila.path);
     expect(copiaNaFila.existsSync(), isTrue);
+    await notifier.refreshUnsent();
+    expect(
+      container.read(salaSessionProvider).unsentChunks,
+      1,
+      reason: 'a cópia de reserva conta como um trecho por enviar',
+    );
 
     final capturasAntes = harness.recorder.captures;
     notifier.retroTap();
@@ -6697,6 +6703,14 @@ void main() {
       contains(recusada),
       reason:
           'o arquivo do gravador para a tradução recusada também é descartado',
+    );
+    expect(
+      container.read(salaSessionProvider).unsentChunks,
+      0,
+      reason:
+          'o withdraw já atualiza a conta sozinho — sem isso a sala '
+          'continuaria dizendo que um trecho está por enviar depois que ele '
+          'foi retirado da fila',
     );
   });
 
@@ -6752,6 +6766,222 @@ void main() {
       reason:
           'sair da passagem sem nunca ter regravado a parte também não pode '
           'deixar a tradução recusada rumo ao servidor',
+    );
+  });
+
+  test('a back-translation capture that closes after the session is lost '
+      'deletes its file', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await waitFor(
+      'a gravação da parte terminar',
+      () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+    );
+    notifier.takeKeep();
+    await waitFor(
+      'a sala nomear a parte',
+      () => container.read(salaSessionProvider).partes.last.takeId != null,
+    );
+    notifier.startRetro();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
+
+    harness.playback.at = const Duration(seconds: 2);
+    notifier.cortarTrecho();
+    notifier.retroTap();
+    await waitFor(
+      'o microfone abrir para o trecho',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
+    );
+    harness.room.failWith = const SessionGone();
+    await confirmarATraducao(container);
+    await waitFor(
+      'a sessão sumir',
+      () => container.read(salaSessionProvider).sessionId == null,
+    );
+
+    harness.room.failWith = null;
+    notifier.resolveWithPerson();
+    await waitFor(
+      'a sala deixar de pedir uma pessoa',
+      () => !container.read(salaSessionProvider).needsPerson,
+    );
+    expect(
+      container.read(salaSessionProvider).sessionId,
+      isNull,
+      reason: 'fora da conversa, sair do halt não reabre uma sessão sozinho',
+    );
+
+    notifier.retroTap();
+    await waitFor(
+      'o microfone abrir de novo',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
+    );
+    notifier.retroTap();
+    await waitFor('a captura fechar', () {
+      final fase = container.read(salaSessionProvider).btPhase;
+      return fase != BtPhase.capturing && fase != BtPhase.thinking;
+    });
+
+    final path = harness.recorder.lastPath;
+    expect(path, isNotNull);
+    expect(
+      harness.recorder.deleted,
+      contains(path),
+      reason: 'uma captura fechada sem sessão não fica esquecida no disco',
+    );
+  });
+
+  test('a chunk that lands after an earlier guard withdraws the fallback that '
+      'guard parked in the outbox', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await waitFor(
+      'a gravação da parte terminar',
+      () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+    );
+    notifier.takeKeep();
+    await waitFor(
+      'a sala nomear a parte',
+      () => container.read(salaSessionProvider).partes.last.takeId != null,
+    );
+    notifier.startRetro();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
+
+    harness.playback.at = const Duration(seconds: 2);
+    notifier.cortarTrecho();
+    notifier.retroTap();
+    await waitFor(
+      'o microfone abrir para o trecho',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
+    );
+
+    // A cópia de reserva que o guard enfileira fica pendente, do jeito que
+    // fica no aparelho de verdade enquanto o envio ainda não aconteceu — em
+    // vez de já sair como uma tomada entregue antes que o trecho seja
+    // contado de novo.
+    harness.room.refuseTake = 'retro/${KeptScope.whole}';
+    harness.room.failChunkWith = const RoomSlow();
+    await confirmarATraducao(container);
+    await waitFor(
+      'o trecho ficar por enviar',
+      () async => (await harness.takes.entries()).any((e) => e.kind == 'retro'),
+    );
+    expect(
+      (await harness.takes.entries()).where((e) => e.kind == 'retro'),
+      hasLength(1),
+    );
+
+    harness.room.failChunkWith = null;
+    await notifier.confirmarTraducao();
+    await settle();
+    await waitFor(
+      'a cópia de reserva sair da fila',
+      () async =>
+          (await harness.takes.entries()).every((e) => e.kind != 'retro'),
+    );
+
+    expect(
+      harness.room.chunksSent,
+      1,
+      reason: 'a segunda tentativa é que chega a ser contada',
+    );
+    expect(
+      (await harness.takes.entries()).where((e) => e.kind == 'retro'),
+      isEmpty,
+      reason:
+          'o trecho chegou por sendChunk; a cópia de reserva não pode '
+          'chegar ao servidor como uma tomada da passagem inteira',
+    );
+  });
+
+  test('a withdraw the disk refuses says a recording is stuck, not an '
+      'unhandled error', () async {
+    final harness = SalaHarness(
+      takesOverride: (room, home) =>
+          QueueWithdrawThrows(room: room, home: () async => home),
+    )..room.chunkCaptured = false;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await waitFor(
+      'a gravação da parte terminar',
+      () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+    );
+    notifier.takeKeep();
+    await waitFor(
+      'a sala nomear a parte',
+      () => container.read(salaSessionProvider).partes.last.takeId != null,
+    );
+    notifier.startRetro();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
+
+    final capturasDoTrecho = harness.recorder.captures;
+    harness.playback.at = const Duration(seconds: 2);
+    notifier.cortarTrecho();
+    notifier.retroTap();
+    await waitFor(
+      'o microfone abrir para o trecho',
+      () => harness.recorder.captures == capturasDoTrecho + 1,
+    );
+    await confirmarATraducao(container);
+    await waitFor(
+      'a sala sair do pensando',
+      () => container.read(salaSessionProvider).btPhase != BtPhase.thinking,
+    );
+    await waitFor(
+      'a tradução recusada entrar na fila',
+      () async => (await harness.takes.entries()).any((e) => e.kind == 'retro'),
+    );
+
+    final capturasAntes = harness.recorder.captures;
+    notifier.retroTap();
+    await waitFor(
+      'o microfone abrir de novo',
+      () => harness.recorder.captures == capturasAntes + 1,
+    );
+    notifier.retroTap();
+    await waitFor('a captura fechar', () {
+      final fase = container.read(salaSessionProvider).btPhase;
+      return fase != BtPhase.capturing && fase != BtPhase.thinking;
+    });
+
+    await waitFor(
+      'a sala dizer que uma tomada ficou presa',
+      () => harness.voice.assets.contains(strandedTakeAsset(testLanguage)),
+    );
+
+    expect(
+      harness.voice.assets.where((a) => a == strandedTakeAsset(testLanguage)),
+      hasLength(1),
+      reason:
+          'um withdraw que o disco recusa não pode travar como um erro '
+          'sem dono — a sala fala que algo ficou preso, do mesmo jeito '
+          'que um enqueue recusado já faz',
     );
   });
 

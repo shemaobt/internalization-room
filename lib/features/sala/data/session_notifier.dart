@@ -2347,6 +2347,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (sessionId == null) {
       state = state.copyWith(voice: VoiceState.invite);
       _haltForAPerson(sessionIsGone: true);
+      unawaited(_recorder.delete(path));
       return;
     }
     _sayImThinking();
@@ -3007,7 +3008,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _retirarDaFilaSeGuardada(String path) async {
     final linha = _traducaoNaFila.remove(path);
     if (linha == null) return;
-    await _takes.withdraw(File(linha.path));
+    try {
+      await _takes.withdraw(linha);
+    } on Object {
+      // The same disk withdraw's own manifest write can fail on, read the same way
+      // `_guard`'s enqueue already does: the team is told something is stuck rather
+      // than left believing a row that never left is on its way.
+      _sayARecordingIsStranded();
+      return;
+    }
+    await _countUnsent();
   }
 
   /// Take back the names the room gave the rehearsal recordings this tablet made.
@@ -4035,6 +4045,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       lugarTo: _trechoEnd,
     );
     _trechoStart = _trechoEnd;
+    unawaited(_retirarDaFilaSeGuardada(path));
     state = state.copyWith(
       btPhase: BtPhase.playing,
       voice: VoiceState.invite,
