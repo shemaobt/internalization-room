@@ -792,6 +792,8 @@ class FakeRoom implements RoomRepository {
   String? refuseTake;
   Exception? failDivideWith;
   Exception? failReplaceWith;
+  Exception? loseTheNextReplaceAnswerWith;
+  final Set<String> _retired = {};
   Exception? failChunkWith;
 
   /// What the next call to `fetchState` throws, independent of `failWith` — a case needs
@@ -1149,6 +1151,7 @@ class FakeRoom implements RoomRepository {
         needsPerson: needsPerson,
       );
     }
+    if (_retired.contains(segmentId)) throw const StretchNoLongerCounts();
     final at = segments.indexWhere((one) => one.segmentId == segmentId);
     final antes = at >= 0 ? segments[at] : null;
     if (antes != null) {
@@ -1164,6 +1167,12 @@ class FakeRoom implements RoomRepository {
         endsMs: antes.endsMs,
         told: true,
       );
+      _retired.add(antes.segmentId);
+    }
+    final lost = loseTheNextReplaceAnswerWith;
+    if (lost != null) {
+      loseTheNextReplaceAnswerWith = null;
+      throw lost;
     }
     return TellingAgain(
       segments: List.of(segments),
