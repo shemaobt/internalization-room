@@ -51,10 +51,18 @@ void main() {
     },
   );
 
+  testWidgets('it speaks the room language when it is en', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
+    await _pumpInConversa(tester, harness);
+
+    expect(bySemanticsLabelWidget(_entryEn), findsOneWidget);
+    expect(bySemanticsLabelWidget(_entryPt), findsNothing);
+  });
+
   testWidgets(
-    'it speaks the room language, en falls back like circleLabelFor',
+    'an unknown language falls back like circleLabelFor, to en, not to pt',
     (tester) async {
-      final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
+      final harness = SalaHarness(filaEmMemoria: true, lingua: 'xx');
       await _pumpInConversa(tester, harness);
 
       expect(bySemanticsLabelWidget(_entryEn), findsOneWidget);
