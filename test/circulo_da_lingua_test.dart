@@ -123,10 +123,10 @@ void main() {
       };
 
       for (final entrada in deAntes.entries) {
-        // Sem quadro nenhum depois de montar: pensando respira, e o barro é
-        // clareado pela respiração. O gradiente exato só existe em t = 0, que é
-        // o quadro que `pumpWidget` desenha. Um `pump` a mais aqui e a linha do
-        // pensando falha por causa da respiração, não por causa de cor.
+        // Sem quadro nenhum depois de montar: o barro do pensando usava a respiração
+        // para clarear, e um `pump` a mais mudava a cor que `_disco()` lê. O disco
+        // virou um widget fixo — só a opacidade, a escala e o brilho ao redor
+        // respiram —, então o quadro que `pumpWidget` desenha já é qualquer outro.
         await _pumpCirculo(tester, entrada.key, theme);
         expect(
           _disco(tester),
