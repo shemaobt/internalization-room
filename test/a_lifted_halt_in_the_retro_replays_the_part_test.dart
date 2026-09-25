@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -19,10 +20,6 @@ Future<void> settle([
 ]) async {
   await Future<void>.delayed(delay);
 }
-
-/// One tick past the notifier's cursor watch (100ms): enough for a head moved with no
-/// gesture of its own to be caught.
-const cursorWatchTick = Duration(milliseconds: 150);
 
 Finder _byLabel(String label) => find.byWidgetPredicate(
   (widget) => widget is Semantics && widget.properties.label == label,
@@ -107,6 +104,34 @@ _playingWithAToldStretchAndAWarningArmed(SalaHarness harness) async {
     () => read().btTrechos.isNotEmpty,
   );
   return (container, notifier, read, path);
+}
+
+/// The same ground as [_playingWithAToldStretchAndAWarningArmed], but with a cursor
+/// small enough that a real wait for the one-shot deadline to fire stays a fast test.
+Future<(ProviderContainer, SalaSessionNotifier, SalaSessionState Function())>
+_playingWithASmallToldCursorAndAWarningArmed(SalaHarness harness) async {
+  harness.room.serverStatus = 'needs_person';
+  harness.room.serverHalt = HaltKind.warning;
+  harness.room.retroSoFar = const BackTranslationProgress(
+    segments: [
+      SegmentView(
+        segmentId: 'trecho-1',
+        takeId: 'gravacao-1',
+        startsMs: 0,
+        endsMs: 300,
+      ),
+    ],
+  );
+  final (container, _) = await _reopensIntoRetro(harness);
+  final notifier = container.read(salaSessionProvider.notifier);
+  SalaSessionState read() => container.read(salaSessionProvider);
+  await waitFor('o aviso chegar', () => read().warning);
+  await waitFor('a parte tocar', () => read().btPhase == BtPhase.playing);
+  await waitFor(
+    'o trecho já contado chegar',
+    () => read().btTrechos.isNotEmpty,
+  );
+  return (container, notifier, read);
 }
 
 /// A room reopened straight into a blocking halt already standing, before the entry
@@ -251,30 +276,36 @@ void main() {
     },
   );
 
-  testWidgets(
-    'T2w: the head passing the cursor with no gesture turns the label to '
-    'record on its own',
-    (tester) async {
-      final harness = SalaHarness();
-      final container = await _freshlyInRetro(tester, harness);
+  test('the one-shot witness: landing writes the fact from the position the '
+      'clip actually opens at, never a stale one, and a resume rechecks it '
+      'against wherever the head genuinely stands', () async {
+    final harness = SalaHarness();
+    final (_, notifier, read) =
+        await _playingWithASmallToldCursorAndAWarningArmed(harness);
+    // The landing itself opens exactly at the 300ms cursor (ADR 0034's own belt: no
+    // way the room starts playback behind it) — nothing has been heard *since* a
+    // cursor the head is standing on.
+    expect(
+      read().btOuvidoAlemDoCursor,
+      isFalse,
+      reason: 'a cabeça pousa exatamente no cursor, nada foi ouvido ainda',
+    );
 
-      expect(_byLabel('Ouvir primeiro'), findsOneWidget);
+    // A pause-then-resume with the head moved genuinely past the cursor in between
+    // rechecks the deadline against the position it actually resumes from, not a
+    // stale one left over from before the pause.
+    notifier.ouvirGravacao();
+    await waitFor('a parte pausar', () => !read().btClipRodando);
+    harness.playback.at = const Duration(seconds: 1);
+    notifier.ouvirGravacao();
+    await waitFor('a parte voltar a tocar', () => read().btClipRodando);
 
-      harness.playback.at = const Duration(seconds: 4);
-      await tester.pump(cursorWatchTick);
-
-      expect(
-        _byLabel('Ouvir primeiro'),
-        findsNothing,
-        reason: 'a cabeça já passou o cursor, sem nenhum gesto',
-      );
-      expect(
-        _byLabel('Tocar para gravar a tradução deste trecho'),
-        findsOneWidget,
-      );
-      closeTheRoom(container);
-    },
-  );
+    expect(
+      read().btOuvidoAlemDoCursor,
+      isTrue,
+      reason: 'a cabeça já passou o cursor ao retomar',
+    );
+  });
 
   test('T3: a halt lifted while a bead replay was sounding resumes the part '
       'from the cursor, not the bead', () async {
@@ -474,6 +505,142 @@ void main() {
     expect(read().btTrechos, hasLength(1));
     expect(read().btTrechos.single.from, Duration.zero);
     expect(read().btTrechos.single.to, const Duration(seconds: 4));
+  });
+
+  test('P1: a tap right after a fresh landing never opens a capture with a '
+      'zero-length cut', () async {
+    final harness = SalaHarness();
+    final (_, notifier, read, _) = await _playingWithAWarningArmed(harness);
+
+    notifier.retroTap();
+    await settle();
+
+    expect(
+      read().btPhase,
+      BtPhase.playing,
+      reason: 'a captura foi recusada; a cabeça está no cursor',
+    );
+  });
+
+  test('P2: the scissors right after a fresh landing never cut behind the '
+      'cursor', () async {
+    final harness = SalaHarness();
+    final (_, notifier, read, _) = await _playingWithAWarningArmed(harness);
+
+    notifier.cortarTrecho();
+    await settle();
+
+    expect(
+      read().btCortado,
+      isFalse,
+      reason: 'o corte foi recusado; a cabeça está no cursor',
+    );
+  });
+
+  test(
+    'P3: a halt caught listening to the pending translation does not wipe '
+    'it, and the confirm that follows still sends the cut the team made',
+    () async {
+      final harness = SalaHarness();
+      final (_, notifier, read, _) = await _playingWithAWarningArmed(harness);
+      await _cutsAndRecordsATranslation(
+        harness,
+        notifier,
+        read,
+        const Duration(seconds: 4),
+      );
+
+      notifier.ouvirGravacao();
+      await waitFor('a tradução pendente tocar', () => read().btRetroTocando);
+
+      await _haltLandsBlocking(harness, read);
+      await _liftsTheHalt(harness, read);
+
+      expect(
+        read().btTraducaoPendente,
+        isNotNull,
+        reason: 'a tradução pendente sobrevive à parada',
+      );
+
+      await notifier.confirmarTraducao();
+      await settle();
+
+      expect(harness.room.chunkSpans, ['0-4000']);
+    },
+  );
+
+  test(
+    'P4: a halt caught listening to the cut stretch does not wipe the cut',
+    () async {
+      final harness = SalaHarness();
+      final (_, notifier, read, _) = await _playingWithAWarningArmed(harness);
+
+      harness.playback.at = const Duration(seconds: 4);
+      notifier.cortarTrecho();
+      await waitFor('o corte ficar de pé', () => read().btCortado);
+      notifier.ouvirGravacao();
+      await waitFor('o trecho cortado tocar', () => read().btTrechoTocando);
+
+      await _haltLandsBlocking(harness, read);
+      await _liftsTheHalt(harness, read);
+
+      expect(read().btCorte, const Duration(seconds: 4));
+      expect(read().btCortado, isTrue);
+    },
+  );
+
+  test('a halt caught listening to a retell already armed does not wipe its '
+      'own place', () async {
+    final harness = SalaHarness();
+    final (_, notifier, read, _) = await _playingWithAWarningArmed(harness);
+    await _cutsAndRecordsATranslation(
+      harness,
+      notifier,
+      read,
+      const Duration(seconds: 4),
+    );
+    await notifier.confirmarTraducao();
+    await waitFor('o trecho chegar à sala', () => harness.room.chunksSent == 1);
+
+    harness.room.verdictChecked = false;
+    harness.room.verdictFinding = BtFindingKind.addition;
+    harness.room.verdictFindingSegmentId = harness.room.segments.last.segmentId;
+    harness.playback.finishPlayback();
+    await waitFor(
+      'o clipe poder ser dado por terminado',
+      () => read().canFinishBackTranslation,
+    );
+    await notifier.finishBackTranslation();
+    await waitFor(
+      'o veredito chegar',
+      () => read().btPhase == BtPhase.findings,
+    );
+
+    notifier.traduzirDeNovoEmPortugues();
+    await waitFor(
+      'o trecho ficar armado para retraduzir',
+      () => read().btPhase == BtPhase.playing,
+    );
+    notifier.ouvirGravacao();
+    await waitFor(
+      'o trecho apontado tocar',
+      () => read().btTrechoTocando || read().btRetroTocando,
+    );
+
+    await _haltLandsBlocking(harness, read);
+    await _liftsTheHalt(harness, read);
+
+    expect(
+      read().btTrechoTraduzidoDeNovo,
+      isNotNull,
+      reason: 'o retell segue armado',
+    );
+    expect(
+      read().btCursor,
+      Duration.zero,
+      reason: 'o lugar do trecho, não o do cursor da parte',
+    );
+    expect(read().btCorte, const Duration(seconds: 4));
   });
 
   test('T11: a halt silences the room outside the retro too, cutting the '

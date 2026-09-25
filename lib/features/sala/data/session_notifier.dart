@@ -245,12 +245,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Duration get _trechoStart => state.btCursor;
 
   /// Moving the cursor always asks the head-since-cursor question again: whatever the
-  /// watch answered about the ground before this move says nothing about the ground
-  /// after it.
-  set _trechoStart(Duration cursor) {
-    state = state.copyWith(btCursor: cursor, btOuvidoAlemDoCursor: false);
-    _armCursorWatch();
-  }
+  /// deadline answered about the ground before this move says nothing about the ground
+  /// after it. A landing's own `openings` event schedules the deadline fresh, against a
+  /// position that belongs to this cursor; a retell's own walk-back moves the cursor with
+  /// no clip of its own in the air, and leaves the fact false until the room lands
+  /// somewhere again — the label reads none of this while a retell is armed, so nothing
+  /// asks the fact in the meantime.
+  set _trechoStart(Duration cursor) =>
+      state = state.copyWith(btCursor: cursor, btOuvidoAlemDoCursor: false);
 
   Duration get _trechoEnd => state.btCorte;
   set _trechoEnd(Duration corte) => state = state.copyWith(btCorte: corte);
@@ -436,6 +438,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _onPlaybackComplete = null;
       _onPlaybackFailed = null;
       _timers.remove('playback')?.cancel();
+      _timers.remove('cursor')?.cancel();
       unawaited(_playback.stop());
     }
     unawaited(_voice.stop());
@@ -474,6 +477,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _playbackOpened ??= _playback.openings.listen((_) {
       _watchPlayback();
       _medirAParteNoAr();
+      // Only the part's own clip carries a cursor: a bead or a stretch replay opens
+      // through the same event, with no cursor of its own to arm a deadline against.
+      if (state.btClipRodando) _armCursorDeadline();
     });
   }
 
@@ -517,12 +523,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _clipHeld = true;
     _timers.remove('playback')?.cancel();
     unawaited(_playback.pause());
+    // A held head has stopped moving, and a wall-clock deadline armed against it would
+    // fire on schedule over a clip that never reached the cursor. Checked now instead,
+    // against wherever the head actually stands.
+    _checkCursorNow();
   }
 
   void _letTheClipRun() {
     _clipHeld = false;
     unawaited(_playback.resume());
     _watchPlayback();
+    if (state.btClipRodando) _armCursorDeadline();
   }
 
   /// Straight to speaking for a line already on the tablet.
@@ -792,12 +803,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     bool read = false,
   }) {
     // A lift only replays what this halt actually caught sounding — a part, a bead
-    // replay, or a part chosen but never landed yet. A held part or one already at its
-    // end is not touched: read before the silence, because that is what clears the very
-    // flags this asks about.
+    // replay, or a part chosen but never landed yet. A held part, or one already at its
+    // end with nothing else sounding over it, answers false on its own: an ended part
+    // clears `btClipRodando` and, having played once, `_parteJaTocou` is already true.
+    // Read before the silence, because that is what clears the very flags this asks
+    // about.
     _soavaQuandoParou =
         state.stage == SalaStage.retro &&
-        !state.btClipEnded &&
         (state.btClipRodando ||
             state.btTrechoTocando ||
             state.btRetroTocando ||
@@ -1223,13 +1235,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // A halt withholds the sound and nothing else: a lift replays only what it caught
     // sounding, from the part's own cursor — a part, a bead replay, or a part chosen but
     // never landed yet, the way `_soavaQuandoParou` reads it. A part a hold left silent,
-    // or one already at its end, comes back exactly as it stood: this never re-cursors
-    // and never touches the cut, so a confirm or a correction still in flight when the
-    // halt landed finds its own `_trechoStart`/`_trechoEnd` untouched when it resolves.
+    // or one already at its end, comes back exactly as it stood.
+    //
+    // A cut, a pending translation or a retell already armed are the team's own work in
+    // progress, never touched by this — not even when the halt caught the team listening
+    // to the very thing it named. `_tocarParteDaRetro` re-cursors and re-cuts
+    // unconditionally, which is right for the part this reading covers and wrong for one
+    // already telling something back: a confirm or a correction still in flight when the
+    // halt landed reads its own `_trechoStart`/`_trechoEnd` fresh once it resolves, and a
+    // lift that had touched them first would send what it reads as a stretch of no
+    // length.
     if (state.stage == SalaStage.retro &&
         state.btPhase == BtPhase.playing &&
         _parteNoAr != null &&
-        _soavaQuandoParou) {
+        _soavaQuandoParou &&
+        !state.btCortado &&
+        state.btTraducaoPendente == null &&
+        _trechoTraduzidoDeNovo == null) {
       _tocarParteDaRetro(_parteTocando);
     }
     if (_haltedResuming ||
@@ -3498,7 +3520,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btOuvidoAlemDoCursor: false,
     );
     _parteJaTocou = true;
-    _armCursorWatch();
+    // The deadline is armed once this clip's own `openings` event lands, never here:
+    // `_playback.position` still answers for whatever clip was in the air before this
+    // one, and a deadline read from it counts against a cursor that is not its own.
     _play(
       state.partes[parte].path,
       from: de,
@@ -3749,10 +3773,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // cursor backwards over every stretch after it. Unconditional: a cut can never end
     // before it begins, whatever else stands.
     _silenceTheRoom(holdTheClip: true);
-    // The watch ticks in the background for a label nobody has touched; a gesture that
-    // asks the question itself cannot wait for the next tick to land.
-    _armCursorWatch();
-    if (state.nothingHeardSinceCursor) return;
+    if (_cabeca <= _trechoStart) return;
     _trechoEnd = _cabeca;
   }
 
@@ -3764,28 +3785,50 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return _cabecaForaDoPlayer ?? _playback.position;
   }
 
-  /// Read the live head against the cursor once, and write a crossing down as a state
-  /// fact.
+  /// Arm a one-shot deadline for the moment the head will pass the cursor, read from the
+  /// position of the clip that has just finished opening — never from whatever the
+  /// previous clip's position happened to be, which is still what `_playback.position`
+  /// answers for the instant between a new source being asked for and its `openings`
+  /// event landing.
   ///
-  /// `SalaSessionState.nothingHeardSinceCursor` is what the capture, the scissors and the
-  /// circle's label all read — a plain field, the way `canCut` and
-  /// `canConfirmTranslation` are — because nothing else in state changes while a part
-  /// simply plays on, and a label baked from a live read at the last state change would
-  /// go stale the moment the room stopped touching state for it. A gesture that asks the
-  /// capture or the scissors' own question calls this itself, for an answer no older than
-  /// the tap; [refreshCursorWatch] is the same read, public so the circle can repeat it
-  /// on a cadence of its own — this one-shot, so nothing here keeps a timer of its own
-  /// alive between two rebuilds nobody asked for.
-  void _armCursorWatch() {
-    if (state.btOuvidoAlemDoCursor) return;
-    if (_cabeca > _trechoStart) {
+  /// `SalaSessionState.nothingHeardSinceCursor` is what the circle's label reads — a
+  /// plain field, the way `canCut` and `canConfirmTranslation` are, because nothing else
+  /// in state changes while a part simply plays on, and a label baked from a live read at
+  /// the last state change would go stale the moment the room stopped touching state for
+  /// it. The capture and the scissors do not read this field: a fact this timer can only
+  /// answer to the nearest hundred milliseconds is not the belt a cut's own boundary
+  /// needs, so both still read `_cabeca` live, as they always have.
+  void _armCursorDeadline() {
+    _timers.remove('cursor')?.cancel();
+    if (_writeCursorCrossingNow()) return;
+    // Nought exactly: a landing always opens right at the cursor, by ADR 0034's own
+    // belt, and nothing has been heard *since* a cursor the head is standing on. Left
+    // scheduled at a nought delay it would fire on the very next tick, over a head that
+    // never actually moved — the label stays "listen first" here, with nothing
+    // scheduled, until whatever moves the head again asks the question afresh.
+    final restante = _trechoStart - _cabeca;
+    if (restante == Duration.zero) return;
+    _after('cursor', restante, () {
       state = state.copyWith(btOuvidoAlemDoCursor: true);
-    }
+    });
   }
 
-  /// The circle's own cadence for asking whether the head has passed the cursor while
-  /// nothing else changes state to ask it for free. See [_armCursorWatch].
-  void refreshCursorWatch() => _armCursorWatch();
+  /// The same read [_armCursorDeadline] opens with, but never schedules anything: called
+  /// where the head has just stopped moving (a hold), so a gap still open when the head
+  /// stands still stays open — a wall-clock timer armed against a frozen head would fire
+  /// on schedule over a clip that never reached the cursor.
+  void _checkCursorNow() {
+    _timers.remove('cursor')?.cancel();
+    _writeCursorCrossingNow();
+  }
+
+  /// Whether the head has passed the cursor right now, written down as the state fact
+  /// either way.
+  bool _writeCursorCrossingNow() {
+    final passou = _cabeca > _trechoStart;
+    state = state.copyWith(btOuvidoAlemDoCursor: passou);
+    return passou;
+  }
 
   Future<void> _tellThatStretchAgain(
     Trecho alvo,
@@ -3925,8 +3968,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _abrirACaptura() {
     if (_trechoTraduzidoDeNovo == null && !state.btCortado) {
-      _armCursorWatch();
-      if (state.nothingHeardSinceCursor) return;
+      if (_cabeca <= _trechoStart) return;
       _silenceTheRoom(holdTheClip: true);
       _trechoEnd = _cabeca;
     } else {
