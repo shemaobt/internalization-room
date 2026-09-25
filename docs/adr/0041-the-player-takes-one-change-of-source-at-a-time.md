@@ -58,8 +58,10 @@ each open (its own stop plus the load), waits for the one before it to settle.
   without sounding, as ADR 0024 says.
 - An open waiting its turn keeps its generation. If a later open of ours supersedes it
   while it waits, it never loads.
-- A resume given while an open is still pending does not touch the platform. It only
-  wants the sound, and the open plays when its load returns.
+- A resume touches the platform only for the clip in hand. With an open still pending it
+  only wants the sound, and the open plays when its load returns. After a stop it does
+  nothing: the clip the room stopped is not the clip it comes back to (ADR 0034), and a
+  play given over a stop that is still settling would activate the platform under it.
 
 **The end of a clip is read from the processing state alone.** The repository listens for
 the processing state becoming `completed`, once per clip. A change of `playing` is never
@@ -83,5 +85,17 @@ the player state the way just_audio does. It throws where the real player hangs,
 test fails instead of timing out. It refuses a second load in the air outright, which is
 stricter than the platform.
 
-A load that never returns would now block every stop and open behind it. Only a leaked
-native player causes such a load, and the leak is what this decision prevents.
+A platform call that never returns now blocks every stop and open behind it, and the
+queue has no timeout. The repository's own gestures no longer leak a native player, but
+other things still can hang a call:
+
+- just_audio deactivates the platform by itself, outside the queue, when the platform
+  reports it is idle.
+- A native player left over from a debug hot restart answers every later init with
+  `Platform player already exists`.
+
+What bounds this for the team today is the notifier's listening ceiling. A clip that never
+announces itself is released by the generic ceiling, six minutes, so the room plays
+silence for that long and then moves on. It
+does not halt, and it does not stay "sounding". No timeout is added until a hang is seen
+where the ceiling does not cover it.
