@@ -1793,6 +1793,11 @@ class FakeTakeQueue implements TakeUploadQueue {
   }
 
   @override
+  Future<void> withdraw(File audio) async {
+    rows.removeWhere((entry) => !entry.stored && entry.path == audio.path);
+  }
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
