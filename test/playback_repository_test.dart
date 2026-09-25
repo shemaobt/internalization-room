@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:internalization_room/features/sala/data/playback_repository.dart';
@@ -253,11 +254,6 @@ void main() {
             'respondia com o tamanho da segunda, ou com nada',
       );
       expect(medidor.carregados, ['/a.m4a', '/b.m4a']);
-      expect(
-        medidor.sobrepos,
-        isFalse,
-        reason: 'e nunca há dois carregamentos abertos no mesmo tocador',
-      );
     });
 
     test('the ordinary playback still answers as it always did', () async {
@@ -387,9 +383,10 @@ void main() {
       final abrindo = playback.play('/parte-1.m4a');
       await _oLoadNoAr(tocador, '/parte-1.m4a');
 
-      await playback.stop();
+      final parando = playback.stop();
       tocador.segurados['/parte-1.m4a']!.complete();
       await abrindo;
+      await parando;
 
       expect(tocador.tocando, isFalse);
     });
@@ -422,9 +419,10 @@ void main() {
       final abrindo = playback.play('/parte-1.m4a');
       await _oLoadNoAr(tocador, '/parte-1.m4a');
 
-      await playback.stop();
+      final parando = playback.stop();
       tocador.segurados['/parte-1.m4a']!.complete();
       await abrindo;
+      await parando;
 
       expect(
         playback.playingLength,
@@ -469,27 +467,31 @@ void main() {
     });
 
     test(
-      'o load que o nosso próprio stop cortou não chega como falha',
+      'o stop dado durante o load espera o load, e a abertura seguinte toca',
       () async {
         final falhas = <void>[];
         playback.failures.listen(falhas.add);
-        tocador.cortaOLoadNoStop = true;
         tocador.segurados['/parte-1.m4a'] = Completer<void>();
 
         final abrindo = playback.play('/parte-1.m4a');
         await _oLoadNoAr(tocador, '/parte-1.m4a');
-        await playback.stop();
+        final parando = playback.stop();
+        tocador.segurados['/parte-1.m4a']!.complete();
         await abrindo;
+        await parando;
+        await playback.play('/parte-2.m4a');
         await Future<void>.delayed(Duration.zero);
 
         expect(
           falhas,
           isEmpty,
           reason:
-              'o stop é nosso: lido como o clipe não tocando, nunca como o '
-              'tablet sem conseguir tocar a voz da equipe — que chama uma '
-              'pessoa e para a sala por cima de um gesto comum',
+              'um stop que corta o load no ar deixa o player nativo para '
+              'trás, e toda abertura seguinte responde que o player já '
+              'existe: a sala chamava uma pessoa por um toque comum da equipe',
         );
+        expect(tocador.carregados, ['/parte-1.m4a', '/parte-2.m4a']);
+        expect(tocador.tocando, isTrue);
       },
     );
 
@@ -624,7 +626,6 @@ void main() {
       playback.failures.listen(falhas.add);
       final anunciadas = <void>[];
       playback.openings.listen(anunciadas.add);
-      tocador.cortaOLoadNoStop = true;
       tocador.porArquivo['/parte-1.m4a'] = const Duration(seconds: 30);
       tocador.porArquivo['/parte-2.m4a'] = const Duration(seconds: 12);
       tocador.segurados['/parte-1.m4a'] = Completer<void>();
@@ -632,18 +633,20 @@ void main() {
       final primeira = playback.play('/parte-1.m4a');
       await _oLoadNoAr(tocador, '/parte-1.m4a');
 
-      await playback.play('/parte-2.m4a');
+      final segunda = playback.play('/parte-2.m4a');
+      tocador.segurados['/parte-1.m4a']!.complete();
       await primeira;
+      await segunda;
       await Future<void>.delayed(Duration.zero);
 
       expect(
         falhas,
         isEmpty,
         reason:
-            'quem cortou o load da primeira foi a segunda abertura, '
-            'nossa: isso é o clipe não tocando, nunca o tablet sem conseguir '
-            'tocar a voz da equipe — que chama uma pessoa por cima de um som '
-            'que a própria equipe pediu',
+            'a segunda abertura é nossa e espera a primeira assentar: '
+            'aberta por cima do load no ar, o player nativo responde que já '
+            'existe, e isso chama uma pessoa por cima de um som que a própria '
+            'equipe pediu',
       );
       expect(tocador.tocando, isTrue);
       expect(
@@ -665,7 +668,6 @@ void main() {
       playback.failures.listen(falhas.add);
       final anunciadas = <void>[];
       playback.openings.listen(anunciadas.add);
-      tocador.cortaOLoadNoStop = true;
       tocador.segurados['/parte-1.m4a'] = Completer<void>();
 
       final primeira = playback.playRange(
@@ -675,12 +677,14 @@ void main() {
       );
       await _oLoadNoAr(tocador, '/parte-1.m4a');
 
-      await playback.playRange(
+      final segunda = playback.playRange(
         '/parte-2.m4a',
         const Duration(seconds: 3),
         const Duration(seconds: 4),
       );
+      tocador.segurados['/parte-1.m4a']!.complete();
       await primeira;
+      await segunda;
       await Future<void>.delayed(Duration.zero);
 
       expect(falhas, isEmpty);
@@ -699,19 +703,20 @@ void main() {
 
         final abrindo = playback.play('/parte-1.m4a');
         await _oLoadNoAr(tocador, '/parte-1.m4a');
-        await playback.stop();
+        final parando = playback.stop();
         await playback.resume();
         tocador.segurados['/parte-1.m4a']!.completeError(
           PlayerInterruptedException('parado'),
         );
         await abrindo;
+        await parando;
         await Future<void>.delayed(Duration.zero);
 
         expect(
           falhas,
           isEmpty,
           reason:
-              'quem cortou o load foi o nosso próprio stop, e um resume '
+              'o load caiu com um stop nosso já pedido, e um resume '
               'dado depois dele não transforma o gesto da equipe numa falha '
               'do tablet — que chama uma pessoa e para a sala',
         );
@@ -756,6 +761,66 @@ void main() {
       },
     );
 
+    test(
+      'a troca de fonte espera o stop que calou a anterior assentar',
+      () async {
+        final falhas = <void>[];
+        playback.failures.listen(falhas.add);
+        await playback.play('/a-lingua-materna.m4a');
+
+        tocador.segurarOProximoStop();
+        unawaited(playback.stop());
+        final aTraducao = playback.play('/a-traducao.m4a');
+        await Future<void>.delayed(Duration.zero);
+        tocador.soltarOStop();
+        await aTraducao;
+        await Future<void>.delayed(Duration.zero);
+
+        expect(
+          falhas,
+          isEmpty,
+          reason:
+              'a língua materna acabou e a tradução foi pedida com o stop '
+              'ainda no ar: o load cai com "Loading interrupted" e a sala '
+              'para no meio do achado',
+        );
+        expect(tocador.carregados, [
+          '/a-lingua-materna.m4a',
+          '/a-traducao.m4a',
+        ]);
+        expect(tocador.tocando, isTrue);
+      },
+    );
+
+    test('o gesto mais novo vence a abertura que esperava o stop', () async {
+      final falhas = <void>[];
+      playback.failures.listen(falhas.add);
+      final anunciadas = <void>[];
+      await playback.play('/parte-1.m4a');
+      playback.openings.listen(anunciadas.add);
+
+      tocador.segurarOProximoStop();
+      unawaited(playback.stop());
+      final primeira = playback.play('/conta-1.m4a');
+      final segunda = playback.play('/conta-2.m4a');
+      await Future<void>.delayed(Duration.zero);
+      tocador.soltarOStop();
+      await primeira;
+      await segunda;
+      await Future<void>.delayed(Duration.zero);
+
+      expect(falhas, isEmpty);
+      expect(
+        tocador.carregados,
+        ['/parte-1.m4a', '/conta-2.m4a'],
+        reason:
+            'uma abertura é uma geração: a conta que a equipe tocou por '
+            'cima enquanto a primeira esperava é a única que abre',
+      );
+      expect(anunciadas, hasLength(1));
+      expect(tocador.tocando, isTrue);
+    });
+
     test('um resume num clipe que nunca abriu não faz nada', () async {
       final falhas = <void>[];
       playback.failures.listen(falhas.add);
@@ -776,6 +841,17 @@ void main() {
 
 /// A stand-in for the platform player, so the tests can watch what the repository does
 /// with it — which player it loads a file into, and what it leaves behind.
+///
+/// It fails where just_audio 0.9.46 on iOS fails, because a double that forgives the
+/// platform is how every gate stayed green over a room that halted on the tablet. The
+/// platform takes one change at a time:
+/// - a load begun while a stop is still settling is interrupted, `Loading interrupted`;
+/// - a load begun while another load is still in the air fails, `Platform player already
+///   exists`;
+/// - a stop given while a load is in the air cuts that load and leaves its native player
+///   behind, so every later load fails with `Platform player already exists`.
+/// The real player hangs rather than throws on the last two; the double throws, so a test
+/// reads red instead of timing out. A slice that changes playback inherits these rules.
 class _Duplo extends Fake implements AudioPlayer {
   final List<String> carregados = [];
 
@@ -797,13 +873,17 @@ class _Duplo extends Fake implements AudioPlayer {
   /// a held file and a free one are answered by the same rule.
   final Map<String, Completer<void>> segurados = {};
 
-  /// Whether a load ever started while another was still open on this player.
-  ///
-  /// A real [AudioPlayer] has one source: the second load replaces the first, and the
-  /// first call comes back answering for the wrong file or for nothing. The double cannot
-  /// reproduce that corruption, so it records the overlap that causes it.
-  bool sobrepos = false;
   int _abertos = 0;
+  final List<Completer<void>> _cortes = [];
+  bool _deixouUmPlayerNativo = false;
+  Completer<void>? _proximoStop;
+  Completer<void>? _stopNoAr;
+
+  /// Hold the next stop in the air until [soltarOStop], the way a real deactivation takes
+  /// its time to dispose the native player.
+  void segurarOProximoStop() => _proximoStop = Completer<void>();
+
+  void soltarOStop() => _stopNoAr?.complete();
 
   @override
   Stream<PlayerState> get playerStateStream => _states.stream;
@@ -823,15 +903,8 @@ class _Duplo extends Fake implements AudioPlayer {
   }) async {
     final no = recusa;
     if (no != null) throw no;
-    if (_abertos > 0) sobrepos = true;
-    _abertos++;
-    carregados.add(filePath);
     iniciais.add(initialPosition);
-    try {
-      await segurados[filePath]?.future;
-    } finally {
-      _abertos--;
-    }
+    await _carregar(filePath);
     at = initialPosition ?? Duration.zero;
     return porArquivo[filePath] ?? length;
   }
@@ -854,15 +927,33 @@ class _Duplo extends Fake implements AudioPlayer {
     Duration? initialPosition,
   }) async {
     final arquivo = _arquivoDe(source);
+    await _carregar(arquivo);
+    return porArquivo[arquivo] ?? length;
+  }
+
+  Future<void> _carregar(String arquivo) async {
     carregados.add(arquivo);
-    if (_abertos > 0) sobrepos = true;
+    if (_stopNoAr != null) {
+      throw PlayerInterruptedException('Loading interrupted');
+    }
+    if (_abertos > 0 || _deixouUmPlayerNativo) {
+      throw PlatformException(
+        code: 'error',
+        message: 'Platform player already exists',
+      );
+    }
     _abertos++;
+    final corte = Completer<void>();
+    _cortes.add(corte);
     try {
-      await segurados[arquivo]?.future;
+      await Future.any([
+        segurados[arquivo]?.future ?? Future<void>.value(),
+        corte.future,
+      ]);
     } finally {
       _abertos--;
+      _cortes.remove(corte);
     }
-    return porArquivo[arquivo] ?? length;
   }
 
   @override
@@ -874,20 +965,21 @@ class _Duplo extends Fake implements AudioPlayer {
     tocando = true;
   }
 
-  /// What a real player does to a load its own deactivation cut short: just_audio
-  /// deactivates the platform at once and the pending load throws.
-  bool cortaOLoadNoStop = false;
-
   @override
   Future<void> stop() async {
     tocando = false;
-    // Only a load already in the air: the open's own stop runs before the load starts,
-    // and a real player has nothing to interrupt there.
-    if (!cortaOLoadNoStop || _abertos == 0) return;
-    for (final segurado in segurados.values) {
-      if (!segurado.isCompleted) {
-        segurado.completeError(PlayerInterruptedException('parado'));
-      }
+    if (_cortes.isNotEmpty) _deixouUmPlayerNativo = true;
+    for (final corte in List.of(_cortes)) {
+      corte.completeError(PlayerInterruptedException('Loading interrupted'));
+    }
+    final segurado = _proximoStop;
+    _proximoStop = null;
+    if (segurado == null) return;
+    _stopNoAr = segurado;
+    try {
+      await segurado.future;
+    } finally {
+      _stopNoAr = null;
     }
   }
 

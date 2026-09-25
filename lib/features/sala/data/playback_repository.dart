@@ -131,13 +131,15 @@ class PlaybackRepository {
     _wanted = true;
     final geracao = ++_opens;
     final parada = _stops;
-    await _player.stop();
     final Duration? length;
     try {
-      length = await load();
+      length = await _naVez(() async {
+        if (geracao != _opens) return null;
+        await _player.stop();
+        return load();
+      });
     } on PlayerInterruptedException {
-      // Our own stop, or the one a later open of ours issued, deactivates the platform
-      // at once and the load in the air throws for it. That is the clip not playing,
+      // A load interrupted with a gesture of ours behind it is the clip not playing,
       // never this tablet failing to play the team's own voice — which calls a person
       // and stops the room over a sound the team itself asked for. A stop counts even
       // once a resume has asked for sound again: a resume undoes a hold, and the clip
@@ -162,8 +164,9 @@ class PlaybackRepository {
   /// is what says the clip itself is gone.
   bool _wanted = false;
 
-  /// Which open is the current one. A load interrupted by a later open of ours belongs
-  /// to a clip the room has already moved off, and returns silently.
+  /// Which open is the current one. An open a later open of ours superseded belongs to
+  /// a clip the room has already moved off: waiting its turn it never loads, and loading
+  /// it returns silently.
   int _opens = 0;
 
   /// How many stops the room has asked for, which is the half of a hold that also
@@ -187,9 +190,17 @@ class PlaybackRepository {
       // Cleared with the playback it described. The safety ceiling for the next clip
       // was computed from the length of the last one.
       _openedLength = null;
-      await _player.stop();
+      await _naVez(_player.stop);
     });
   }
+
+  Future<T> _naVez<T>(Future<T> Function() mudanca) {
+    final vez = _mudando.then((_) => mudanca());
+    _mudando = vez.then((_) {}, onError: (_) {});
+    return vez;
+  }
+
+  Future<void> _mudando = Future.value();
 
   Future<void> _quietly(Future<void> Function() act) async {
     if (_opened == null) return;
