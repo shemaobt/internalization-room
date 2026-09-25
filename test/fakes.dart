@@ -1799,15 +1799,20 @@ Future<void> letTheRehearsalReachTheRoom(WidgetTester tester) async {
 
 Future<void> confirmarATraducao(ProviderContainer container) async {
   final sala = container.read(salaSessionProvider.notifier);
-  SalaSessionState estado() => container.read(salaSessionProvider);
   sala.retroTap();
+  await waitFor(
+    'a tradução ficar pendente',
+    () => container.read(salaSessionProvider).btTraducaoPendente != null,
+  );
+  await sala.confirmarTraducao();
+}
+
+Future<void> fecharACaptura(ProviderContainer container) async {
+  container.read(salaSessionProvider.notifier).retroTap();
   await waitFor('a captura fechar', () {
-    final agora = estado();
-    return agora.btTraducaoPendente != null ||
-        (agora.btPhase != BtPhase.capturing &&
-            agora.btPhase != BtPhase.thinking);
+    final fase = container.read(salaSessionProvider).btPhase;
+    return fase != BtPhase.capturing && fase != BtPhase.thinking;
   });
-  if (estado().btTraducaoPendente != null) await sala.confirmarTraducao();
 }
 
 Future<void> confirmarATraducaoNaTela(
@@ -1817,9 +1822,12 @@ Future<void> confirmarATraducaoNaTela(
   final sala = container.read(salaSessionProvider.notifier);
   sala.retroTap();
   await tester.pump(const Duration(milliseconds: 300));
-  if (container.read(salaSessionProvider).btTraducaoPendente != null) {
-    await sala.confirmarTraducao();
-  }
+  expect(
+    container.read(salaSessionProvider).btTraducaoPendente,
+    isNotNull,
+    reason: 'o segundo toque deixa a tradução pendente',
+  );
+  await sala.confirmarTraducao();
 }
 
 class SalaHarness {

@@ -315,7 +315,7 @@ void main() {
     notifier.cortarTrecho();
     notifier.retroTap();
     await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
-    await confirmarATraducao(container);
+    notifier.retroTap();
     await waitFor('a sala decidir sozinha', () => read().needsPerson);
 
     expect(

@@ -544,7 +544,9 @@ void main() {
     'the cursor lands in the same place whether the correction was taken or not',
     () async {
       Future<String> corteDepoisDaCorrecao({required bool aceita}) async {
-        final harness = SalaHarness()..room.verdictChecked = false;
+        final harness = SalaHarness()
+          ..room.verdictChecked = false
+          ..playback.length = const Duration(seconds: 40);
         final container = await _levadaAoTrechoApontado(harness);
         final notifier = container.read(salaSessionProvider.notifier);
         harness.room.replaceCaptured = aceita;

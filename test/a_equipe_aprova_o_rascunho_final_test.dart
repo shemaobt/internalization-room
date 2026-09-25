@@ -517,11 +517,13 @@ void main() {
     await semAprovar(BtPhase.capturing);
 
     harness.recorder.holdNextStop();
-    await confirmarATraducaoNaTela(tester, container);
+    sala.retroTap();
     await tester.pump(const Duration(milliseconds: 100));
     await semAprovar(BtPhase.thinking);
     harness.recorder.finishStop();
     await letTheRehearsalReachTheRoom(tester);
+    await tester.pump(const Duration(milliseconds: 400));
+    await sala.confirmarTraducao();
     await tester.pump(const Duration(milliseconds: 400));
 
     harness.playback.finishPlayback();

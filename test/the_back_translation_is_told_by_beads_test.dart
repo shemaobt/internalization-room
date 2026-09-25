@@ -354,6 +354,46 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('B3d — uma substituição recusada guarda a tradução pendente', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness, partes: 1);
+    final gravacao = harness.room.takeIds.first;
+
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    await tocar(tester, confirmar);
+    await contarAteOFimDaParte(tester, harness);
+
+    harness.room
+      ..verdictChecked = false
+      ..verdictUntoldSegmentId = 'trecho-1';
+    await tocar(tester, conferir);
+    await tester.pump(const Duration(milliseconds: 600));
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+    harness.room.verdictUntoldSegmentId = null;
+    await gravarATraducao(tester);
+    final capturas = harness.recorder.captures;
+
+    harness.room.failReplaceWith = const RoomBroke('HTTP 500');
+    await tocar(tester, confirmar);
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(aceso(tester, confirmar), isTrue);
+
+    harness.room.failReplaceWith = null;
+    await tocar(tester, confirmar);
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(harness.room.replacesAsked.last, 'trecho-1@$gravacao:0-4000');
+    expect(harness.room.chunksSent, 2, reason: 'nenhum trecho novo');
+    expect(harness.recorder.captures, capturas, reason: 'não se grava de novo');
+    closeTheRoom(container);
+  });
+
   testWidgets('B8 — os rótulos falam a língua da sala', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
     final container = await entrarNaTraducao(tester, harness);
@@ -388,6 +428,32 @@ void main() {
 
     expect(harness.playback.ranges.last, '0-4000');
     expect(harness.playback.sounding, isTrue);
+    closeTheRoom(container);
+  });
+
+  testWidgets('B9b — cortar de novo enquanto o trecho repete move o corte', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness);
+
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    await tocar(tester, confirmar);
+
+    harness.playback.at = const Duration(seconds: 8);
+    await tocar(tester, tesoura);
+    await tocar(tester, ouvir);
+    expect(harness.playback.ranges.last, '4000-8000');
+
+    harness.playback.at = const Duration(seconds: 2);
+    expect(aceso(tester, tesoura), isTrue);
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    await tocar(tester, confirmar);
+
+    expect(harness.room.chunkSpans, ['0-4000', '4000-6000']);
     closeTheRoom(container);
   });
 }

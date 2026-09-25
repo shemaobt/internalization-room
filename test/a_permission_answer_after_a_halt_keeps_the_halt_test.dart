@@ -231,7 +231,7 @@ void main() {
     notifier.cortarTrecho();
     notifier.retroTap();
     await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
-    await confirmarATraducao(container);
+    notifier.retroTap();
     await waitFor('a sala decidir sozinha', () => read().needsPerson);
     expect(
       harness.room.calls.where((call) => call == 'askForAPerson').length,
@@ -282,7 +282,7 @@ void main() {
     notifier.cortarTrecho();
     notifier.retroTap();
     await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
-    await confirmarATraducao(container);
+    notifier.retroTap();
     await waitFor('a sala decidir sozinha', () => read().needsPerson);
 
     // A resposta negada pousa enquanto o primeiro pedido ainda está preso no

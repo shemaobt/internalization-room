@@ -624,7 +624,7 @@ void main() {
     notifier.cortarTrecho();
     notifier.retroTap();
     await settle();
-    await confirmarATraducao(container);
+    notifier.retroTap();
     await settle();
 
     expect(

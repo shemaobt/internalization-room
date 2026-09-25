@@ -54,7 +54,8 @@ Future<void> _traduzTrecho(
   notifier.cortarTrecho();
   notifier.retroTap();
   await settle();
-  await confirmarATraducao(container);
+  await fecharACaptura(container);
+  await notifier.confirmarTraducao();
   await settle();
 }
 

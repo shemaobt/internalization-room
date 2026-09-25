@@ -3619,6 +3619,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void cortarTrecho() {
     if (!state.canCut) return;
     if (_trechoTraduzidoDeNovo != null) return;
+    if (state.btTrechoTocando || state.btTrechoPausada) {
+      final cabeca = _trechoStart + _playback.position;
+      _silenceTheRoom();
+      if (cabeca > _trechoStart && cabeca < _trechoEnd) _trechoEnd = cabeca;
+      return;
+    }
     // A belt. No way the room starts playback puts the playhead behind the cursor any
     // more — a part picked back up opens at its cursor, crossing into a part opens at
     // that part's, and holding the clip and letting it run again never rewinds — but
@@ -3704,8 +3710,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// way to explain a refusal to a team that cannot read.
   Future<void> traduzirDeNovo(Trecho trecho) async {
     if (state.stage != SalaStage.retro) return;
-    // Two doors reach the same verb: the cord, where a stretch is tapped while the
-    // rehearsal plays, and the question the room puts when the analyst points at one.
+    // The question the room puts when the analyst points at a stretch reaches this verb.
     if (state.btPhase != BtPhase.playing && state.btPhase != BtPhase.findings) {
       return;
     }
@@ -3809,6 +3814,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btPhase: BtPhase.playing,
       voice: VoiceState.invite,
       btTrechos: trechos.isEmpty ? state.btTrechos : trechos,
+      clearTraducaoPendente: true,
       // The room asking for a person over a stretch told again is a warning: somebody is
       // called to come and watch, and the team is refused nothing. Written before the
       // verdict, because a warning is a field and the verdict only walks the voice.
@@ -3958,8 +3964,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final traduzidoDeNovo = _trechoTraduzidoDeNovo;
     if (traduzidoDeNovo != null) {
       _trechoTraduzidoDeNovo = null;
-      state = state.copyWith(clearTraducaoPendente: true);
       await _tellThatStretchAgain(traduzidoDeNovo, path, sessionId, epoch);
+      if (epoch != _epoch || state.btTraducaoPendente == null) return;
+      _trechoTraduzidoDeNovo = traduzidoDeNovo;
+      if (state.btPhase == BtPhase.thinking) {
+        state = state.copyWith(btPhase: BtPhase.playing);
+      }
       return;
     }
 

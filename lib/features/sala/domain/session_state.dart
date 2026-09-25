@@ -393,7 +393,9 @@ class SalaSessionState {
 
   bool get canCut {
     if (!_btNaVez || btTraducaoPendente != null) return false;
-    if (btTrechoTocando || btTrechoPausada) return false;
+    if (btTrechoTocando || btTrechoPausada) {
+      return btCortado && !btClipEnded && !btParteFronteira;
+    }
     if (btClipRodando) return true;
     if (btClipEnded || btParteFronteira) return false;
     final inicio = _btInicioDaParteMs;
