@@ -42,3 +42,18 @@ about it, as before (ADR 0031). A refused stretch costs the team a person after 
 instead of their session. The device routes keep their own answers; session creation and the
 passages listing are not about a session, and where their 404 lands is the executor's call,
 said in the PR.
+
+## Note of 2026-09-25
+
+The Context above says the server's only 400 on session creation is an unknown language. That
+is false: `POST /sessions` also answers 400 when the passage cannot be opened, through
+`require_walkable(load_map(...))` in shema-api `services/internalization_room/sessions.py:172`.
+With the decision as written, that 400 became a refused call with `turnCall: true`, so a person
+was called at once, which is the behaviour e2e5be5 had fixed. It is reachable from a wheel older
+than a deploy, or from a resume whose fresh session lands on a passage that has since become
+unwalkable.
+
+Henok decided on 2026-09-25: **a 400 at session creation, and only there, is the passage that
+cannot open.** The team goes back to the wheel, no strike is counted and no person is called.
+Every other 400 stays a refused call on the three-strike ladder. The code lands in a follow-up
+PR of ENG-1108.
