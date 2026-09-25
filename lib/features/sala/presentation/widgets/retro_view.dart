@@ -48,7 +48,7 @@ class RetroView extends ConsumerWidget {
         ),
         const Spacer(flex: 330),
         FacilitatorCircle(
-          size: 160,
+          size: facilitatorCircleSize,
           voice: voz,
           tongue: lingua,
           warning: session.warning,
