@@ -48,6 +48,15 @@ const circleLabels = {
 String circleLabelFor(String state, String language) =>
     circleLabels[state]![language] ?? circleLabels[state]![floorLanguage]!;
 
+const conviteLabels = {
+  'circle': {'pt': 'Falar com o facilitador', 'en': 'Talk to the facilitator'},
+  'enter': {'pt': 'Entrar na passagem', 'en': 'Enter the passage'},
+};
+
+String conviteLabelFor(String control, String language) =>
+    conviteLabels[control]![language] ??
+    conviteLabels[control]![floorLanguage]!;
+
 const recordEntryLabel = {
   'pt': 'Terminar a conversa e ir para o ensaio',
   'en': 'Finish the conversation and go to the rehearsal',

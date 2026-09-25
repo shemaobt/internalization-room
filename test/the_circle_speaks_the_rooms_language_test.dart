@@ -16,6 +16,7 @@ void main() {
       'retroLabels': retroLabels,
       'rehearsalLabels': rehearsalLabels,
       'findingLabels': findingLabels,
+      'conviteLabels': conviteLabels,
       'recordEntryLabel': {'entry': recordEntryLabel},
       'panoramaEntryLabel': {'entry': panoramaEntryLabel},
     };
