@@ -14,6 +14,7 @@ Future<void> _pumpCircle(
   bool peerCue = false,
   bool noteMode = false,
   bool inPlace = false,
+  bool turning = true,
 }) => tester.pumpWidget(
   MaterialApp(
     key: inPlace
@@ -27,6 +28,7 @@ Future<void> _pumpCircle(
           voice: voice,
           peerCue: peerCue,
           noteMode: noteMode,
+          turning: turning,
           semanticLabel: 'circulo',
           onTap: () {},
         ),
@@ -100,7 +102,7 @@ Future<({Set<double> scales, Set<double> veils})> _overAMinuteOfFrames(
         matching: find.byType(Transform),
       ),
     )) {
-      scales.add(moved.transform.getMaxScaleOnAxis());
+      scales.add(moved.transform.entry(0, 0));
     }
     for (final veil in tester.widgetList<Opacity>(
       find.descendant(
@@ -176,6 +178,25 @@ void main() {
             'estão no círculo: uma tela completamente congelada ali lê como um '
             'aplicativo que morreu, então a luz continua respirando — que é a '
             'única coisa que se mexe sem mexer nada de lugar',
+      );
+    },
+  );
+
+  testWidgets(
+    'a breath that dips below one is not mistaken for a breath that never moved',
+    (tester) async {
+      // turning: false freezes the arcs. Without it their own spin also reads
+      // below 1, and this would pass even with a disc that never shrank.
+      await _pumpCircle(tester, VoiceState.thinking, turning: false);
+      final drawn = await _overAMinuteOfFrames(tester);
+
+      expect(
+        drawn.scales.any((scale) => scale < 1.0),
+        isTrue,
+        reason:
+            'a espera desce a 0,97 a cada volta, e getMaxScaleOnAxis conta o '
+            'eixo z parado em 1 como se fosse o maior — o encolhimento nunca '
+            'aparecia',
       );
     },
   );
