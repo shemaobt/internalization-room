@@ -72,10 +72,11 @@ named.** What "caught sounding" means is read once, in `_haltForAPerson`, before
 the air, a bead replay from the row, or a part the entry had chosen but never landed (ADR
 0029's case, folded into this same read rather than kept as its own latch). A part a hold
 left silent, or one already at its end, is not sounding by this reading either. `_leaveTheHalt`
-only calls `_tocarParteDaRetro` when that reading holds *and* nothing is cut, pending or
-armed for a retell — the second half of the guard is unconditional on top of the first, not
-folded into it, because the team's own work in progress is never touched regardless of what
-was sounding. Henok, 25-09.
+only calls `_tocarParteDaRetro` when that reading holds *and* nothing is cut — the second
+half of the guard is unconditional on top of the first, not folded into it, because the
+team's own work in progress is never touched regardless of what was sounding. A cut is the
+whole of that second half: a pending translation always stands on one, and a retell arms
+its own (its cursor at the stretch's start, its cut at the stretch's end). Henok, 25-09.
 
 **`_haltForAPerson` silences the room first, unconditionally, in every station.** The one
 line every gesture that moves the room already passes through (ADR 0024) now also opens the
@@ -90,7 +91,11 @@ wherever the head stops or resumes moving (`_holdClip`, `_letTheClipRun`), so a 
 never fires a deadline it can no longer be honest about. The deadline lives in the
 notifier, next to the state it writes, and needs no widget of its own to own a timer: armed
 once per landing or per hold/resume, it never re-arms itself the way the retired poll did,
-so nothing here outlives a test that lands a part and moves on.
+so nothing here outlives a test that lands a part and moves on. It is never skipped: a
+landing opens right on the cursor, so the time left to reach it is almost always nought,
+and the deadline is armed for at least `_umInstanteOuvido` (400 ms). When it fires it writes
+the fact true unconditionally — a hold or a stop cancels it first, so it only ever fires
+over a clip that has actually run that long.
 
 ## Consequences
 
@@ -100,12 +105,12 @@ now, not two.
 
 A confirm or a correction still in flight when a halt lands reads its own `_trechoStart`/
 `_trechoEnd` no differently for having been interrupted: neither is touched, because the
-lift's resume is refused outright whenever a translation is pending or a stretch is armed
-for a retell — regardless of whether the halt also caught that pending translation or that
-stretch sounding.
+lift's resume is refused outright whenever a cut stands — and a pending translation or a
+stretch armed for a retell always stands on one — regardless of whether the halt also caught
+that pending translation or that stretch sounding.
 
-The label can, for one instant, answer "listen first" a moment after the head has actually
-passed the cursor — the deadline is armed from a position read once, at the clip's own
-`openings`, and does not itself track continuous real-time drift the way a poll would. The
-scissors and the capture do not share this imprecision: reading the live head at the moment
-of the gesture, they are exact where the label is only current.
+The label answers "listen first" for the first `_umInstanteOuvido` of every landing, even
+though the head has already moved a few milliseconds past the cursor, and a tap in that
+window still opens the capture. The scissors and the capture do not share this
+imprecision: reading the live head at the moment of the gesture, they are exact where the
+label is only current.

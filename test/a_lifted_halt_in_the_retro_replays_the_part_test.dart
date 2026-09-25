@@ -106,34 +106,6 @@ _playingWithAToldStretchAndAWarningArmed(SalaHarness harness) async {
   return (container, notifier, read, path);
 }
 
-/// The same ground as [_playingWithAToldStretchAndAWarningArmed], but with a cursor
-/// small enough that a real wait for the one-shot deadline to fire stays a fast test.
-Future<(ProviderContainer, SalaSessionNotifier, SalaSessionState Function())>
-_playingWithASmallToldCursorAndAWarningArmed(SalaHarness harness) async {
-  harness.room.serverStatus = 'needs_person';
-  harness.room.serverHalt = HaltKind.warning;
-  harness.room.retroSoFar = const BackTranslationProgress(
-    segments: [
-      SegmentView(
-        segmentId: 'trecho-1',
-        takeId: 'gravacao-1',
-        startsMs: 0,
-        endsMs: 300,
-      ),
-    ],
-  );
-  final (container, _) = await _reopensIntoRetro(harness);
-  final notifier = container.read(salaSessionProvider.notifier);
-  SalaSessionState read() => container.read(salaSessionProvider);
-  await waitFor('o aviso chegar', () => read().warning);
-  await waitFor('a parte tocar', () => read().btPhase == BtPhase.playing);
-  await waitFor(
-    'o trecho já contado chegar',
-    () => read().btTrechos.isNotEmpty,
-  );
-  return (container, notifier, read);
-}
-
 /// A room reopened straight into a blocking halt already standing, before the entry
 /// ever chose a part to play — the narrow case `_entradaParouSemTocar` alone used to
 /// cover.
@@ -276,36 +248,24 @@ void main() {
     },
   );
 
-  test('the one-shot witness: landing writes the fact from the position the '
-      'clip actually opens at, never a stale one, and a resume rechecks it '
-      'against wherever the head genuinely stands', () async {
-    final harness = SalaHarness();
-    final (_, notifier, read) =
-        await _playingWithASmallToldCursorAndAWarningArmed(harness);
-    // The landing itself opens exactly at the 300ms cursor (ADR 0034's own belt: no
-    // way the room starts playback behind it) — nothing has been heard *since* a
-    // cursor the head is standing on.
-    expect(
-      read().btOuvidoAlemDoCursor,
-      isFalse,
-      reason: 'a cabeça pousa exatamente no cursor, nada foi ouvido ainda',
-    );
+  testWidgets(
+    'the circle stops saying listen first once the part has run past the '
+    'cursor, with no gesture of its own',
+    (tester) async {
+      final harness = SalaHarness();
+      final container = await _freshlyInRetro(tester, harness);
+      expect(_byLabel('Ouvir primeiro'), findsOneWidget);
 
-    // A pause-then-resume with the head moved genuinely past the cursor in between
-    // rechecks the deadline against the position it actually resumes from, not a
-    // stale one left over from before the pause.
-    notifier.ouvirGravacao();
-    await waitFor('a parte pausar', () => !read().btClipRodando);
-    harness.playback.at = const Duration(seconds: 1);
-    notifier.ouvirGravacao();
-    await waitFor('a parte voltar a tocar', () => read().btClipRodando);
+      await tester.pump(const Duration(seconds: 1));
 
-    expect(
-      read().btOuvidoAlemDoCursor,
-      isTrue,
-      reason: 'a cabeça já passou o cursor ao retomar',
-    );
-  });
+      expect(_byLabel('Ouvir primeiro'), findsNothing);
+      expect(
+        _byLabel('Tocar para gravar a tradução deste trecho'),
+        findsOneWidget,
+      );
+      closeTheRoom(container);
+    },
+  );
 
   test('T3: a halt lifted while a bead replay was sounding resumes the part '
       'from the cursor, not the bead', () async {
@@ -507,34 +467,16 @@ void main() {
     expect(read().btTrechos.single.to, const Duration(seconds: 4));
   });
 
-  test('P1: a tap right after a fresh landing never opens a capture with a '
-      'zero-length cut', () async {
+  test('P2: the scissors never cut behind the cursor', () async {
     final harness = SalaHarness();
-    final (_, notifier, read, _) = await _playingWithAWarningArmed(harness);
+    final (_, notifier, read, _) =
+        await _playingWithAToldStretchAndAWarningArmed(harness);
 
-    notifier.retroTap();
-    await settle();
-
-    expect(
-      read().btPhase,
-      BtPhase.playing,
-      reason: 'a captura foi recusada; a cabeça está no cursor',
-    );
-  });
-
-  test('P2: the scissors right after a fresh landing never cut behind the '
-      'cursor', () async {
-    final harness = SalaHarness();
-    final (_, notifier, read, _) = await _playingWithAWarningArmed(harness);
-
+    harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
     await settle();
 
-    expect(
-      read().btCortado,
-      isFalse,
-      reason: 'o corte foi recusado; a cabeça está no cursor',
-    );
+    expect(read().btCorte, const Duration(seconds: 12));
   });
 
   test(

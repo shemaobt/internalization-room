@@ -66,6 +66,8 @@ const _captureFailsBeforeAPerson = 2;
 /// before the id is dropped, the way a 404 drops it.
 const _resumeFailuresBeforeForgetting = 2;
 
+const _umInstanteOuvido = Duration(milliseconds: 400);
+
 /// What a reopening found where the team left off.
 enum _Resume {
   /// The station they left, standing again, with the rehearsal under it.
@@ -1237,10 +1239,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // never landed yet, the way `_soavaQuandoParou` reads it. A part a hold left silent,
     // or one already at its end, comes back exactly as it stood.
     //
-    // A cut, a pending translation or a retell already armed are the team's own work in
-    // progress, never touched by this — not even when the halt caught the team listening
-    // to the very thing it named. `_tocarParteDaRetro` re-cursors and re-cuts
-    // unconditionally, which is right for the part this reading covers and wrong for one
+    // A cut is the team's own work in progress, never touched by this — not even when
+    // the halt caught the team listening to the very thing it named. A pending
+    // translation always stands on one, and a retell arms its own. `_tocarParteDaRetro`
+    // re-cursors and re-cuts unconditionally, which is right for the part this reading covers and wrong for one
     // already telling something back: a confirm or a correction still in flight when the
     // halt landed reads its own `_trechoStart`/`_trechoEnd` fresh once it resolves, and a
     // lift that had touched them first would send what it reads as a stretch of no
@@ -1249,9 +1251,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state.btPhase == BtPhase.playing &&
         _parteNoAr != null &&
         _soavaQuandoParou &&
-        !state.btCortado &&
-        state.btTraducaoPendente == null &&
-        _trechoTraduzidoDeNovo == null) {
+        !state.btCortado) {
       _tocarParteDaRetro(_parteTocando);
     }
     if (_haltedResuming ||
@@ -3801,16 +3801,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _armCursorDeadline() {
     _timers.remove('cursor')?.cancel();
     if (_writeCursorCrossingNow()) return;
-    // Nought exactly: a landing always opens right at the cursor, by ADR 0034's own
-    // belt, and nothing has been heard *since* a cursor the head is standing on. Left
-    // scheduled at a nought delay it would fire on the very next tick, over a head that
-    // never actually moved — the label stays "listen first" here, with nothing
-    // scheduled, until whatever moves the head again asks the question afresh.
     final restante = _trechoStart - _cabeca;
-    if (restante == Duration.zero) return;
-    _after('cursor', restante, () {
-      state = state.copyWith(btOuvidoAlemDoCursor: true);
-    });
+    _after(
+      'cursor',
+      restante > _umInstanteOuvido ? restante : _umInstanteOuvido,
+      () => state = state.copyWith(btOuvidoAlemDoCursor: true),
+    );
   }
 
   /// The same read [_armCursorDeadline] opens with, but never schedules anything: called
