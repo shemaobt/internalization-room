@@ -74,6 +74,11 @@ silent, and is no failure". The superseded open is still silent. The difference 
 the later open no longer interrupts it. The later open waits for the first load to
 settle, and the first open then returns without announcing.
 
+It also amends a paragraph of ADR 0034's Consequences, the one saying the playback double
+stopped queuing every test of a second sound behind the first one's load window. The
+repository now makes a second open wait for a load still in the air, so the playback
+double makes it wait again. The window stays per open.
+
 ## Consequences
 
 The second of two quick gestures now waits for the first clip's file to finish loading
@@ -86,16 +91,19 @@ test fails instead of timing out. It refuses a second load in the air outright, 
 stricter than the platform.
 
 A platform call that never returns now blocks every stop and open behind it, and the
-queue has no timeout. The repository's own gestures no longer leak a native player, but
-other things still can hang a call:
+queue has no timeout. The repository's own gestures no longer leak a native player. One
+thing outside the queue can still hang a call: just_audio deactivates the platform by
+itself when the platform reports it is idle.
 
-- just_audio deactivates the platform by itself, outside the queue, when the platform
-  reports it is idle.
-- A native player left over from a debug hot restart answers every later init with
-  `Platform player already exists`.
+After such a hang the player is dead for the rest of the session:
 
-What bounds this for the team today is the notifier's listening ceiling. A clip that never
-announces itself is released by the generic ceiling, six minutes, so the room plays
-silence for that long and then moves on. It
-does not halt, and it does not stay "sounding". No timeout is added until a hang is seen
-where the ceiling does not cover it.
+- The open that hung never settles, so every later resume does nothing.
+- Every later stop and open waits behind it.
+
+Nothing bounds the hang itself. The notifier's listening ceiling bounds each clip, one at a
+time. A clip that never announces itself is released by the generic ceiling of six
+minutes, and the room's state moves on. For a rehearsal of three parts, that is about
+eighteen minutes of silence with the rehearsal still showing as playing, and then six
+minutes of silence for every clip after it, until the app restarts. The room does not
+halt, and it does not stay "sounding" for ever. No timeout is added until such a hang is
+seen on a tablet.
