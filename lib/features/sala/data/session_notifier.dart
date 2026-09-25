@@ -273,6 +273,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   final Map<String, int> _tamanhoDaParteMs = {};
   final EscutaDasPartes _escuta = EscutaDasPartes();
   int _desdeMs = 0;
+  VoidCallback? _depoisDaPausa;
   String? _panoramaSessionId;
 
   /// The opening turn this instance is asking for, minted once and carried across every
@@ -2684,12 +2685,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void playTheRehearsal() {
     if (state.playPing) {
+      _depoisDaPausa = null;
       _holdClip();
       state = state.copyWith(playPing: false, takePaused: true);
       return;
     }
     if (state.takePaused) {
+      final seguir = _depoisDaPausa;
+      _depoisDaPausa = null;
       state = state.copyWith(playPing: true, takePaused: false);
+      if (seguir != null) {
+        seguir();
+        return;
+      }
       _letTheClipRun();
       return;
     }
@@ -2704,7 +2712,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
 
     void aProxima() {
-      if (!state.playPing && !state.takePaused) return;
+      if (state.takePaused) {
+        _depoisDaPausa = () => _tocarDoEnsaio(onde + 1);
+        return;
+      }
+      if (!state.playPing) return;
       _tocarDoEnsaio(onde + 1);
     }
 

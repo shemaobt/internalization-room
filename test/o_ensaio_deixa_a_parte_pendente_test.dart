@@ -251,6 +251,38 @@ void main() {
     );
   });
 
+  testWidgets('a parte que acaba durante a pausa espera o play para seguir', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _noEnsaio(tester, harness: harness);
+    await _gravarEDeixarPendente(tester, _gravarOEnsaio);
+    await _confirmarAParte(tester);
+    await _gravarEDeixarPendente(tester, _gravarAProxima);
+    await _confirmarAParte(tester);
+    final partes = [
+      for (final parte in container.read(salaSessionProvider).partes)
+        parte.path,
+    ];
+
+    await _tocar(tester, _ouvirOEnsaio);
+    await _tocar(tester, _pausarOEnsaio);
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      harness.playback.played,
+      [partes[0]],
+      reason: 'pausado, o ensaio não segue sozinho para a parte 2',
+    );
+    expect(byLabel(_ouvirOEnsaio), findsOneWidget);
+
+    await _tocar(tester, _ouvirOEnsaio);
+
+    expect(harness.playback.played, partes, reason: 'o play segue para a 2');
+    expect(harness.playback.sounding, isTrue);
+  });
+
   testWidgets('o play toca a parte pendente depois das confirmadas', (
     tester,
   ) async {
