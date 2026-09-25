@@ -177,7 +177,7 @@ Future<void> _tocar(WidgetTester tester, String label) async {
 /// The circle records the part, records it over, and the check confirms it: every
 /// gesture a gesture the team has on the rehearsal screen.
 Future<void> _gravarAParteDoisPorCimaEConfirmar(WidgetTester tester) async {
-  await _tocar(tester, 'Gravar a parte 2 de novo');
+  await _tocar(tester, 'Tocar para gravar esta parte de novo');
   await _tocar(tester, 'Tocar ao terminar');
   await _tocar(tester, 'Tocar para gravar esta parte de novo');
   await _tocar(tester, 'Tocar ao terminar');
@@ -988,11 +988,11 @@ void main() {
       reason: 'nada foi consertado ainda: o disco não leva de volta à tradução',
     );
     expect(
-      byLabel('Gravar a parte 2 de novo'),
+      byLabel('Tocar para gravar esta parte de novo'),
       findsOneWidget,
       reason:
-          'e o círculo diz de que parte se trata, que é a única coisa '
-          'que uma sala sem texto tem para dizer isso',
+          'e o círculo convida a regravar com o texto da placa; a conta '
+          'esvaziada já diz de qual parte se trata',
     );
     expect(
       byLabel('Tocar para gravar a próxima parte'),
@@ -1002,7 +1002,7 @@ void main() {
           'de uma parte que já existe',
     );
 
-    await _tocar(tester, 'Gravar a parte 2 de novo');
+    await _tocar(tester, 'Tocar para gravar esta parte de novo');
     expect(
       [for (final conta in _contasDoEnsaio(tester)) conta.fill],
       [BeadFill.solid, BeadFill.translucent, BeadFill.solid],

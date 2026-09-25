@@ -26,7 +26,7 @@ const confirmarATraducao = 'Confirmar a tradução e seguir';
 const tesoura = 'Cortar aqui';
 const conferir = 'Conferir a tradução';
 
-const gravarAParteDoisDeNovo = 'Gravar a parte 2 de novo';
+const gravarAParteDoisDeNovo = 'Tocar para gravar esta parte de novo';
 const confirmarAParte = 'Confirmar esta parte';
 const irParaATraducao = 'Ir para a tradução';
 const sairDaPassagem = 'Deixar esta passagem e escolher outra';
