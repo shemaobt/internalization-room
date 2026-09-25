@@ -2483,6 +2483,160 @@ void main() {
   );
 
   test(
+    'a reply the facilitator recorded again is played from its new address, not the old one',
+    () async {
+      final harness =
+          SalaHarness(
+              settleDelay: const Duration(seconds: 60),
+              replies: const [HandReply(id: 'r1', audioUrl: '/voice/r1-a')],
+            )
+            ..room.turnIdInResponse = 'turno-1'
+            ..room.holdNextState();
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      await notifier.goConversa();
+      await waitFor(
+        'a primeira leitura da caixa trazer r1',
+        () => container.read(salaSessionProvider).replies.length == 1,
+      );
+
+      harness.inbox.replies = const [
+        HandReply(id: 'r1', audioUrl: '/voice/r1-b'),
+      ];
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+      );
+      await settle();
+
+      notifier.handTap();
+      await settle();
+
+      expect(
+        harness.voice.played,
+        contains('/voice/r1-b'),
+        reason:
+            'a facilitadora regravou a resposta e a mesa passou a servir '
+            'outro endereço, mas a mão guardava o primeiro que viu',
+      );
+      expect(
+        harness.voice.played,
+        isNot(contains('/voice/r1-a')),
+        reason:
+            'o endereço antigo já não é da pergunta — a mesa responde 404 '
+            'e a resposta nova era marcada ouvida sem soar',
+      );
+
+      harness.room.finishHeldState();
+    },
+  );
+
+  test(
+    'a reply heard once and then recorded again is offered to the hand again',
+    () async {
+      final harness =
+          SalaHarness(
+              settleDelay: const Duration(seconds: 60),
+              replies: const [HandReply(id: 'r1', audioUrl: '/voice/r1-a')],
+            )
+            ..room.turnIdInResponse = 'turno-1'
+            ..room.holdNextState();
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      await notifier.goConversa();
+      await waitFor(
+        'a primeira leitura da caixa trazer r1',
+        () => container.read(salaSessionProvider).replies.length == 1,
+      );
+      notifier.handTap();
+      await settle();
+      expect(harness.inbox.heard, ['r1']);
+      expect(container.read(salaSessionProvider).hasUnheardReply, isFalse);
+
+      harness.inbox.replies = const [
+        HandReply(id: 'r1', audioUrl: '/voice/r1-b'),
+      ];
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+      );
+      await settle();
+
+      expect(
+        container.read(salaSessionProvider).hasUnheardReply,
+        isTrue,
+        reason:
+            'a mesa voltou a listar r1 como não ouvida, com a resposta '
+            'regravada, e a mão seguia apagada pela primeira escuta',
+      );
+
+      notifier.handTap();
+      await settle();
+
+      expect(
+        harness.voice.played.where((url) => url.startsWith('/voice/r1')),
+        ['/voice/r1-a', '/voice/r1-b'],
+        reason: 'a segunda resposta nunca chegava a tocar',
+      );
+
+      harness.room.finishHeldState();
+    },
+  );
+
+  test(
+    'a reply already heard that the desk still lists at the same address is not offered again',
+    () async {
+      final harness =
+          SalaHarness(
+              settleDelay: const Duration(seconds: 60),
+              replies: const [HandReply(id: 'r1', audioUrl: '/voice/r1-a')],
+            )
+            ..room.turnIdInResponse = 'turno-1'
+            ..room.holdNextState();
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      await notifier.goConversa();
+      await waitFor(
+        'a primeira leitura da caixa trazer r1',
+        () => container.read(salaSessionProvider).replies.length == 1,
+      );
+      notifier.handTap();
+      await settle();
+      expect(harness.inbox.heard, ['r1']);
+
+      harness.inbox.replies = const [
+        HandReply(id: 'r1', audioUrl: '/voice/r1-a'),
+        HandReply(id: 'r2', audioUrl: '/voice/r2'),
+      ];
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+      );
+      await waitFor(
+        'r2 chegar à mão',
+        () => container.read(salaSessionProvider).replies.length == 2,
+      );
+
+      notifier.handTap();
+      await settle();
+
+      expect(
+        harness.voice.played.where((url) => url.startsWith('/voice/')),
+        ['/voice/r1-a', '/voice/r2'],
+        reason:
+            'a mesa ainda listava r1 no mesmo endereço antes de gravar a '
+            'escuta, e a leitura nova desfazia o ouvida — a equipe ouvia '
+            'r1 de novo em vez de r2',
+      );
+
+      harness.room.finishHeldState();
+    },
+  );
+
+  test(
     'a pull that finds the same replies again still lowers a question asked after they arrived',
     () async {
       final harness =

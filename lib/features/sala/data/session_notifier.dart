@@ -2417,19 +2417,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (fetched == null) return;
     if (fetched.isEmpty || _gone) return;
     final known = {for (final reply in state.replies) reply.id: reply};
-    final merged = [for (final reply in fetched) known[reply.id] ?? reply];
+    // The desk does re-send audio_url for a question_id it already served: a reply the
+    // facilitator records again supersedes the first under a new content-hashed key and
+    // comes back unheard, while the old address stops answering. Keeping the first
+    // address seen played a 404 and marked the new reply heard without a sound.
+    final merged = [
+      for (final reply in fetched)
+        if (known[reply.id] case final kept?
+            when kept.audioUrl == reply.audioUrl)
+          kept
+        else
+          reply,
+    ];
     if (_sameReplies(merged, state.replies) && !state.questionPending) return;
     state = state.copyWith(replies: merged, questionPending: false);
   }
 
-  // merged above already reused known[id] for any id it recognised, so a shared id at
-  // the same position is the same HandReply object — a server re-sending audio_url for a
-  // question_id already on the hand is discarded there, before this ever runs. Ids in
-  // the same order is the whole comparison.
   bool _sameReplies(List<HandReply> a, List<HandReply> b) {
     if (a.length != b.length) return false;
     for (var i = 0; i < a.length; i++) {
-      if (a[i].id != b[i].id) return false;
+      if (a[i].id != b[i].id || a[i].audioUrl != b[i].audioUrl) return false;
     }
     return true;
   }
