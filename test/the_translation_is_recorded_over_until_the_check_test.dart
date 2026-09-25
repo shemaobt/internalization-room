@@ -72,6 +72,7 @@ String _cor(Gradient? tinta) {
   if (tinta == BeadStyles.wood) return 'wood';
   if (tinta == BeadStyles.azul) return 'azul';
   if (tinta == BeadStyles.telha(SalaColors.light)) return 'telha';
+  if (tinta == BeadStyles.clay(SalaColors.light)) return 'clay';
   return '$tinta';
 }
 
@@ -606,14 +607,14 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('R2 — uma parada lida com o clipe tocando vence a madeira', (
-    tester,
+  Future<ProviderContainer> retomarComAviso(
+    WidgetTester tester,
+    SalaHarness harness,
   ) async {
     final gravada = File(
       '${Directory.systemTemp.createTempSync('sala-1117').path}/p1.m4a',
     )..writeAsBytesSync([1, 2, 3]);
     addTearDown(() => gravada.parent.deleteSync(recursive: true));
-    final harness = SalaHarness(filaEmMemoria: true);
     harness.playback
       ..measured = parte
       ..length = parte;
@@ -651,17 +652,58 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     await tester.runAsync(() => notifier.goConversa(pericope: 'P01'));
     await tester.pump(const Duration(milliseconds: 600));
+    return container;
+  }
+
+  Future<void> pararPorUmaPessoa(
+    WidgetTester tester,
+    SalaHarness harness,
+  ) async {
     harness.room
       ..serverStatus = 'needs_person'
       ..serverHalt = HaltKind.blocking;
-    for (var vez = 0; vez < 10; vez++) {
+    for (
+      var vez = 0;
+      vez < 30 && byLabel('Um momento para uma pessoa').evaluate().isEmpty;
+      vez++
+    ) {
       await tester.pump(const Duration(seconds: 1));
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 20)),
       );
     }
+  }
+
+  testWidgets('R2 — uma parada lida com o clipe tocando vence a madeira', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await retomarComAviso(tester, harness);
+
+    await pararPorUmaPessoa(tester, harness);
+
     expect(byLabel('Um momento para uma pessoa'), findsOneWidget);
-    expect(await olhar(tester), isNot(startsWith('wood')));
+    expect(await olhar(tester), 'clay parado');
+    closeTheRoom(container);
+  });
+
+  testWidgets('R2 — uma parada lida com uma tradução tocando vence o azul', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await retomarComAviso(tester, harness);
+    harness.playback.at = const Duration(seconds: 7);
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester, harness);
+    await tocar(tester, confirmar);
+    await tocar(tester, pausar);
+    await tocar(tester, 'Trecho 2');
+    expect(harness.playback.sounding, isTrue);
+
+    await pararPorUmaPessoa(tester, harness);
+
+    expect(byLabel('Um momento para uma pessoa'), findsOneWidget);
+    expect(await olhar(tester), 'clay parado');
     closeTheRoom(container);
   });
 
