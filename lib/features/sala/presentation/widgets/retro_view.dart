@@ -68,84 +68,121 @@ class RetroView extends ConsumerWidget {
       );
     }
 
-    return Column(
-      children: [
-        const SizedBox(height: 92),
-        SizedBox(
-          height: 40,
-          child: BeadRow(entries: _contas(session, language), onTap: (_) {}),
-        ),
-        Expanded(
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                FacilitatorCircle(
-                  size: 160,
-                  voice: conferida ? VoiceState.done : session.voice,
-                  warning: session.warning,
-                  semanticLabel: _circleLabel(session, language),
-                  onTap: notifier.retroTap,
-                  onLongPress: session.canResolveWithPerson
-                      ? notifier.resolveWithPerson
-                      : null,
+    return Align(
+      alignment: Alignment.topCenter,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: SizedBox(
+          width: 820,
+          height: 876,
+          child: Stack(
+            children: [
+              Positioned(
+                top: 86,
+                left: 0,
+                right: 0,
+                height: 40,
+                child: Center(
+                  child: BeadRow(
+                    entries: _contas(session, language),
+                    onTap: (_) {},
+                  ),
                 ),
-                const SizedBox(height: 116),
-                SizedBox(
-                  height: 64,
-                  child: _actions(session, notifier, language),
+              ),
+              Positioned(
+                top: 456,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: FacilitatorCircle(
+                    size: 160,
+                    voice: conferida ? VoiceState.done : session.voice,
+                    warning: session.warning,
+                    semanticLabel: _circleLabel(session, language),
+                    onTap: notifier.retroTap,
+                    onLongPress: session.canResolveWithPerson
+                        ? notifier.resolveWithPerson
+                        : null,
+                  ),
                 ),
-                if (session.btPhase != BtPhase.findings &&
-                    session.btPhase != BtPhase.conferida) ...[
-                  const SizedBox(height: 66),
-                  FadeUp(
-                    child: RoundActionButton(
-                      size: 78,
-                      semanticLabel: retroLabelFor('advance', language),
-                      gradient: BeadStyles.wood,
-                      shadows: RoundActionButton.dropShadow,
-                      mood: session.canAdvanceToTheVerdict
-                          ? ButtonMood.beckoning
-                          : ButtonMood.dimmed,
-                      onTap: () => unawaited(notifier.finishBackTranslation()),
+              ),
+              Positioned(
+                top: 680,
+                left: 0,
+                right: 0,
+                height: 60,
+                child: Center(child: _actions(session, notifier, language)),
+              ),
+              if (session.btPhase != BtPhase.findings &&
+                  session.btPhase != BtPhase.conferida)
+                Positioned(
+                  top: 798,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: FadeUp(
+                      child: RoundActionButton(
+                        size: 78,
+                        semanticLabel: retroLabelFor('advance', language),
+                        gradient: BeadStyles.wood,
+                        shadows: RoundActionButton.dropShadow,
+                        mood: session.canAdvanceToTheVerdict
+                            ? ButtonMood.beckoning
+                            : ButtonMood.dimmed,
+                        onTap: () =>
+                            unawaited(notifier.finishBackTranslation()),
+                      ),
                     ),
                   ),
-                ],
-              ],
-            ),
+                ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 
   List<BeadRowEntry> _contas(SalaSessionState session, String language) {
     final aberta = session.btPhase != BtPhase.conferida;
-    final fills = [
+    final nomeado = aberta ? session.btTrechoTraduzidoDeNovo : null;
+    final contas = <(BeadFill, bool)>[
       for (final trecho in session.btTrechos)
-        if (trecho.segmentId != null &&
-            trecho.segmentId == session.btEsperandoConserto)
-          BeadFill.drained
-        else if (trecho.contado)
-          BeadFill.solid
-        else
-          BeadFill.translucent,
+        (
+          _fillOf(trecho, session),
+          nomeado != null && trecho.segmentId == nomeado.segmentId,
+        ),
     ];
-    final pendente = fills.length;
-    if (aberta && !session.btContadaInteira) {
-      fills.add(BeadFill.translucent);
-      if (session.btRestoDepoisDoCorte) fills.add(BeadFill.translucent);
+    if (aberta && nomeado == null && !session.btContadaInteira) {
+      final lugar = session.btTrechos
+          .where(
+            (trecho) =>
+                trecho.parte < session.btParte ||
+                (trecho.parte == session.btParte &&
+                    trecho.lugarFrom < session.btCursor),
+          )
+          .length;
+      contas.insertAll(lugar, [
+        (BeadFill.translucent, true),
+        if (session.btRestoDepoisDoCorte) (BeadFill.translucent, false),
+      ]);
     }
     final nome = retroLabelFor('stretch', language);
     return [
-      for (var onde = 0; onde < fills.length; onde++)
+      for (var onde = 0; onde < contas.length; onde++)
         BeadRowEntry(
-          fill: fills[onde],
-          current: aberta && onde == pendente,
+          fill: contas[onde].$1,
+          current: contas[onde].$2,
           semanticLabel: '$nome ${onde + 1}',
         ),
     ];
+  }
+
+  BeadFill _fillOf(Trecho trecho, SalaSessionState session) {
+    if (trecho.segmentId != null &&
+        trecho.segmentId == session.btEsperandoConserto) {
+      return BeadFill.drained;
+    }
+    return trecho.contado ? BeadFill.solid : BeadFill.translucent;
   }
 
   IconData _listenGlyph(SalaSessionState session) {

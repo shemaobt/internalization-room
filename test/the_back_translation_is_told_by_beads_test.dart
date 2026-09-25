@@ -65,10 +65,11 @@ Future<ProviderContainer> entrarNaTraducao(
   WidgetTester tester,
   SalaHarness harness, {
   int partes = 2,
+  Duration? medida = parte,
 }) async {
   harness.playback
-    ..measured = parte
-    ..length = parte;
+    ..measured = medida
+    ..length = medida;
   final container = harness.container();
   addTearDown(container.dispose);
   await tester.pumpWidget(
@@ -333,8 +334,26 @@ void main() {
       ..verdictUntoldSegmentId = 'trecho-1';
     await tocar(tester, conferir);
     await tester.pump(const Duration(milliseconds: 600));
+    expect(
+      contas(tester),
+      ['solid com anel', 'solid'],
+      reason: 'uma conta por trecho, e o anel no trecho nomeado, no seu lugar',
+    );
+    final daChegada = (
+      harness.playback.played.last,
+      harness.playback.ranges.last,
+    );
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
+    await tocar(tester, ouvir);
+    expect(
+      (harness.playback.played.last, harness.playback.ranges.last),
+      daChegada,
+      reason: 'ouvir toca a fatia do próprio trecho nomeado',
+    );
+    expect(aceso(tester, tesoura), isFalse);
+    expect(contas(tester), ['solid com anel', 'solid']);
+    await tocar(tester, pausar);
 
     harness.room.verdictUntoldSegmentId = null;
     final vereditos = harness.room.playedByTakeSent.length;
@@ -391,6 +410,172 @@ void main() {
     expect(harness.room.replacesAsked.last, 'trecho-1@$gravacao:0-4000');
     expect(harness.room.chunksSent, 2, reason: 'nenhum trecho novo');
     expect(harness.recorder.captures, capturas, reason: 'não se grava de novo');
+    closeTheRoom(container);
+  });
+
+  testWidgets('B1b — o trecho pendente de uma parte anterior fica no seu '
+      'lugar', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness);
+    final primeira = harness.room.takeIds.first;
+
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    await tocar(tester, confirmar);
+    harness.playback.at = parte;
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tocar(tester, ouvir);
+    await contarAteOFimDaParte(tester, harness);
+    harness.playback.at = parte;
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    harness.room
+      ..verdictChecked = false
+      ..verdictUnheardTakeIds = [primeira];
+    await tester.tap(byLabel(conferir));
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(contas(tester), ['solid', 'translucent com anel', 'solid']);
+    closeTheRoom(container);
+  });
+
+  testWidgets('B3e — o círculo com o clipe tocando grava até a cabeça', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness);
+
+    harness.playback.at = cabeca;
+    await gravarATraducao(tester);
+    await tocar(tester, confirmar);
+
+    expect(harness.room.chunkSpans, ['0-4000']);
+    closeTheRoom(container);
+  });
+
+  testWidgets('B3f — com uma tradução pendente a tesoura se apaga e o círculo '
+      'não abre outra captura', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness);
+
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    await tocar(tester, ouvir);
+    expect(aceso(tester, tesoura), isFalse);
+
+    final capturas = harness.recorder.captures;
+    await tocar(tester, gravar);
+    expect(harness.recorder.captures, capturas);
+    expect(byLabel(terminar), findsNothing);
+    closeTheRoom(container);
+  });
+
+  testWidgets('B3h — uma tradução recusada vai para a fila uma vez só', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness);
+    final fila = harness.takes as FakeTakeQueue;
+
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    final gravada = harness.recorder.lastPath;
+
+    harness.room.failChunkWith = const RoomBroke('HTTP 500');
+    await tocar(tester, confirmar);
+    await letTheRehearsalReachTheRoom(tester);
+    await tocar(tester, confirmar);
+    await letTheRehearsalReachTheRoom(tester);
+    harness.room.failChunkWith = null;
+    await tocar(tester, confirmar);
+    await letTheRehearsalReachTheRoom(tester);
+
+    expect(harness.room.chunkFiles, [gravada]);
+    expect(
+      [
+        for (final linha in fila.rows)
+          if (linha.path == gravada) linha.kind,
+      ],
+      ['retro'],
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('B4b — o disco fica apagado enquanto sobra chão por contar na '
+      'última parte', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness, partes: 1);
+
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    await tocar(tester, confirmar);
+    harness.playback.at = parte;
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(aceso(tester, confirmar), isFalse);
+    expect(aceso(tester, conferir), isFalse);
+    closeTheRoom(container);
+  });
+
+  testWidgets('B4c — uma parte que o player não mede não prende o disco', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(
+      tester,
+      harness,
+      partes: 1,
+      medida: null,
+    );
+
+    harness.playback.at = cabeca;
+    await gravarATraducao(tester);
+    await tocar(tester, confirmar);
+    harness.playback.at = Duration.zero;
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(aceso(tester, conferir), isTrue);
+    closeTheRoom(container);
+  });
+
+  testWidgets('B5b — deixar a passagem apaga a tradução pendente', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness);
+
+    harness.playback.at = cabeca;
+    await gravarATraducao(tester);
+    final gravada = harness.recorder.lastPath;
+    container.read(salaSessionProvider.notifier).leaveThePassage();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(harness.recorder.deleted, contains(gravada));
+    closeTheRoom(container);
+  });
+
+  testWidgets('B10 — a tela segue o quadro T1', (tester) async {
+    tester.view
+      ..physicalSize = const Size(820, 1180)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness);
+
+    expect(tester.getTopLeft(find.byType(BeadRow)).dy, 86);
+    expect(tester.getTopLeft(byLabel(gravar)), const Offset(330, 456));
+    expect(tester.getTopLeft(byLabel(pausar)), const Offset(296, 680));
+    expect(tester.getTopLeft(byLabel(tesoura)), const Offset(380, 680));
+    expect(tester.getTopLeft(byLabel(confirmar)), const Offset(464, 680));
+    expect(tester.getTopLeft(byLabel(conferir)), const Offset(371, 798));
     closeTheRoom(container);
   });
 

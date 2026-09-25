@@ -218,7 +218,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _starts = 0;
   VoiceState _voiceBeforeQuestion = VoiceState.invite;
   String? _emCurso;
-  Trecho? _trechoTraduzidoDeNovo;
+  Trecho? get _trechoTraduzidoDeNovo => state.btTrechoTraduzidoDeNovo;
+  set _trechoTraduzidoDeNovo(Trecho? trecho) => state = trecho == null
+      ? state.copyWith(clearTrechoTraduzidoDeNovo: true)
+      : state.copyWith(btTrechoTraduzidoDeNovo: trecho);
+
+  final Set<String> _traducoesGuardadas = {};
 
   /// Whether the capture now open is what armed [_trechoTraduzidoDeNovo]: `traduzirDeNovo`
   /// arms it in the same gesture that opens the capture, but the analyst's door
@@ -397,8 +402,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// move it: silencing inside each gesture is what left the last sound playing under
   /// the next one.
   ///
-  /// [holdTheClip] for the three gestures that come back to the very part they leave —
-  /// the scissors, telling a stretch again, and the circle that closes a capture. A hold
+  /// [holdTheClip] for the gestures that come back to the very part they leave — the
+  /// scissors, the circle that opens and closes a capture, telling a stretch again, and
+  /// the check. A hold
   /// silences the rehearsal just as well and is what keeps the clip open: stopped, the
   /// room loses the length that the listening ceiling and the end of the part are both
   /// measured against.
@@ -2079,8 +2085,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // failure either: the conversa is where a passage with nothing behind it starts.
     if (takes.isEmpty) return _Resume.nothingToRestore;
     // Before the landing, while the room still says it is thinking. Measuring waits on the
-    // player, and landed first the team is invited to tap over a cord drawn short of the
-    // sound it covers.
+    // player, and landed first the team is invited to tap over a rehearsal whose parts
+    // have no end yet.
     if (faltavam) await _medirAsPartes(takes, epoch);
     if (epoch != _epoch || _gone) return _Resume.abandoned;
     state = state.copyWith(
@@ -2114,7 +2120,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// They are numbered by their place in this row rather than by the number the room
   /// holds. The two agree for every rehearsal this tablet sent up, and where they cannot
   /// — a recording the room does not number — the place is what a part is addressed by
-  /// everywhere else: the cord draws it there, a stretch sits on it there, and recording
+  /// everywhere else: a stretch sits on it there, and recording
   /// it again finds it there.
   ///
   /// A file still on the tablet under a current part's name is kept as it is: it is the
@@ -2877,10 +2883,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// the listening, which is kept by file and so starts over with nothing to clear.
   ///
   /// The stretches told over the recording this one replaces go with it. Left standing,
-  /// the cord would draw them over ground nobody has explained yet and the next
-  /// telling-back would step over a part the team has not heard. They leave as untold
-  /// ground and not as drained bands: a drained band means waiting to be mended, and
-  /// this ground is waiting to be told.
+  /// they would stand over ground nobody has explained yet and the next telling-back would
+  /// step over a part the team has not heard. They leave as untold ground and not as
+  /// drained beads: a drained bead means waiting to be mended, and this ground is waiting
+  /// to be told.
   ///
   /// The recording goes up under the count after the one the part it replaces went up
   /// with. Under the same count the room has only arrival to choose between the two, and
@@ -2924,9 +2930,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _rememberWhereTheyAre(SalaStage.ensaio);
   }
 
-  /// The cord is drawn over the parts as they now are, and this part is a file of its own
-  /// length. Measured here rather than left to the next playthrough, because the part must
-  /// not go on being drawn at the length of the recording it replaces.
+  /// The parts end where they now do, and this part is a file of its own length. Measured
+  /// here rather than left to the next playthrough, because the part must not go on being
+  /// read at the length of the recording it replaces.
   Future<void> _medirAParteRegravada(String arquivo, int epoch) async {
     final quanto = await _playback.howLong(arquivo);
     if (quanto == null || epoch != _epoch || _gone) return;
@@ -3193,8 +3199,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btFindings: const [],
       btPass: 1,
       peerCue: false,
-      clearTraducaoPendente: true,
     );
+    _descartarATraducaoPendente();
     unawaited(_playFromTheUntoldGround(_epoch));
   }
 
@@ -3349,7 +3355,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// Write down how long [arquivo] turned out to be, once it has measured itself.
   ///
   /// A nought is the player with nothing to say about the file, never a part of no length:
-  /// written to the ruler it squeezes that part to nothing instead of ending the cord
+  /// written to the ruler it squeezes that part to nothing instead of ending the ruler
   /// there, which is the one thing the ruler promises not to do.
   void _marcarOFimDaParte(String arquivo, int medido) {
     if (medido <= 0) return;
@@ -3527,7 +3533,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (arquivo != null) _marcarOFimDaParte(arquivo, medido);
     _pararOClipe(ate: medido);
     // Whether the rehearsal has played through, which is what the finish waits on, and
-    // whether the cord can draw every part, which is the ruler's business: one question
+    // whether every part has an end on the ruler, which is the ruler's business: one question
     // each. They were one line while the ruler could only fill in order, so the last part
     // ending and the ruler being complete were the same instant. A landing jumps over a
     // part, and a part nothing could measure then held the boundary open past the end of
@@ -3543,7 +3549,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  /// Listen to the rehearsal, hold it, or cross into the next part.
+  /// Listen to the rehearsal, hold it, or cross into the next part; once a stretch is
+  /// cut, or named by the verdict, hear that stretch again.
   ///
   /// One gesture with one meaning. It used to share the circle with cutting a stretch and
   /// opening the microphone, which is why the room could only guess how much had been
@@ -3565,6 +3572,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (state.btClipRodando) {
       _pararOClipe();
+      return;
+    }
+    final traduzidoDeNovo = _trechoTraduzidoDeNovo;
+    if (!conferida && traduzidoDeNovo != null) {
+      _silenceTheRoom();
+      _leadThemToTheTrecho(traduzidoDeNovo);
       return;
     }
     if (!conferida && state.btCortado) {
@@ -3757,14 +3770,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
       if (epoch != _epoch) return;
     } on Exception catch (error) {
-      unawaited(
-        _guard(
-          path,
-          kind: 'retro',
-          scope: KeptScope.whole,
-          passNumber: state.btPass,
-        ),
-      );
+      _guardarATraducao(path);
       if (epoch != _epoch) return;
       state = state.copyWith(
         btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
@@ -3777,14 +3783,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // The room made nothing out of it, which is also what a transcriber outage looks
       // like from here. The stretch is left exactly as it was — an explanation is not
       // swapped for an empty one over somebody else's failure — and their audio is kept.
-      unawaited(
-        _guard(
-          path,
-          kind: 'retro',
-          scope: KeptScope.whole,
-          passNumber: state.btPass,
-        ),
-      );
+      _guardarATraducao(path);
       // A refusal leaves the stretches as they were, so the ground told back is the same
       // ground the taken correction would have left: read it off what the tablet already
       // holds rather than off an answer that carries nothing.
@@ -3981,14 +3980,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // to adopt the name. That is not the room being broken, and a corte landing here
       // must not read as one: it kept the room open for a team that had done nothing
       // wrong, over a name that is (almost always) already on its way.
-      unawaited(
-        _guard(
-          path,
-          kind: 'retro',
-          scope: KeptScope.whole,
-          passNumber: state.btPass,
-        ),
-      );
+      _guardarATraducao(path);
       state = state.copyWith(
         btPhase: BtPhase.playing,
         voice: VoiceState.invite,
@@ -4012,14 +4004,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         // like from here. Either way the stretch they just told is audio, and it used to
         // be dropped on both sides: the server returns before it stores anything, and
         // this branch kept no copy.
-        unawaited(
-          _guard(
-            path,
-            kind: 'retro',
-            scope: KeptScope.whole,
-            passNumber: state.btPass,
-          ),
-        );
+        _guardarATraducao(path);
         state = state.copyWith(
           btPhase: BtPhase.playing,
           voice: VoiceState.invite,
@@ -4028,14 +4013,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return;
       }
     } on Exception catch (error) {
-      unawaited(
-        _guard(
-          path,
-          kind: 'retro',
-          scope: KeptScope.whole,
-          passNumber: state.btPass,
-        ),
-      );
+      _guardarATraducao(path);
       if (epoch != _epoch) return;
       state = state.copyWith(
         btPhase: BtPhase.playing,
@@ -4064,6 +4042,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       clearTraducaoPendente: true,
     );
     _tocarOProximoTrecho();
+  }
+
+  void _guardarATraducao(String path) {
+    if (!_traducoesGuardadas.add(path)) return;
+    unawaited(
+      _guard(
+        path,
+        kind: 'retro',
+        scope: KeptScope.whole,
+        passNumber: state.btPass,
+      ),
+    );
+  }
+
+  void _descartarATraducaoPendente() {
+    final path = state.btTraducaoPendente;
+    if (path == null) return;
+    state = state.copyWith(clearTraducaoPendente: true);
+    unawaited(_recorder.delete(path));
   }
 
   void _tocarOProximoTrecho() {
@@ -4354,9 +4351,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _haltForAPerson();
       return;
     }
-    // Landing forward over a part nobody has measured sits the cord's head short of the
-    // sound by the whole of that part, so a file the player still answers nothing about
-    // is measured here.
+    // Landing forward over a part nobody has measured leaves the ruler short by the whole
+    // of that part, so a file the player still answers nothing about is measured here.
     //
     // The row is read again after every wait, and a path that has left it is left alone:
     // a part recorded again in the middle of this would otherwise have a length written
@@ -4465,8 +4461,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// [noLugarDe] is the stretch a replacement took the place of and [lugar] where it sat,
   /// on the routes that know. Identity is what ties the room's reading back to what this
   /// tablet holds, and a take the tablet does not hold breaks it: nothing about such a
-  /// stretch matches. Its place on the cord has to survive that — it is the same stretch,
-  /// and the necklace is where a team who cannot read sees where it went.
+  /// stretch matches. Its place has to survive that — it is the same stretch, and the bead
+  /// row is where a team who cannot read sees where it went.
   ///
   /// [naParte] says which part of the rehearsal a recording this tablet does not hold
   /// answers for, for the stretches the room named over one. Read from the room's listing
@@ -4620,7 +4616,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// Which take answers for a stretch's audio: the one its own id names, never the one
   /// sitting at its place in the rehearsal. A correction moves the file without moving
-  /// the place — [Trecho.parte] stays the cord's address, and has nothing to do with
+  /// the place — [Trecho.parte] stays the stretch's address, and has nothing to do with
   /// which recording plays.
   String? _pathForTrecho(Trecho trecho) {
     for (final take in state.keptTakes) {
@@ -4847,7 +4843,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
     _parteTocando = 0;
-    state = state.copyWith(clearTraducaoPendente: true);
+    _descartarATraducaoPendente();
+    _traducoesGuardadas.clear();
     _entradaParouSemTocar = false;
     _tamanhoDaParteMs.clear();
     _pousadaNaParteApontadaPelaRecusa = false;
