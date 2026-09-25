@@ -50,6 +50,36 @@ const circleLabels = {
 String circleLabelFor(String state, String language) =>
     circleLabels[state]![language] ?? circleLabels[state]![floorLanguage]!;
 
+const rehearsalLabels = {
+  'firstPart': {
+    'pt': 'Tocar para gravar o ensaio',
+    'en': 'Tap to record the rehearsal',
+  },
+  'nextPart': {
+    'pt': 'Tocar para gravar a próxima parte',
+    'en': 'Tap to record the next part',
+  },
+  'recording': {'pt': 'Tocar ao terminar', 'en': 'Tap when you finish'},
+  'pending': {
+    'pt': 'Tocar para gravar esta parte de novo',
+    'en': 'Tap to record this part again',
+  },
+  'partAgain': {
+    'pt': 'Gravar a parte {n} de novo',
+    'en': 'Record part {n} again',
+  },
+  'play': {'pt': 'Ouvir o ensaio até aqui', 'en': 'Hear the rehearsal so far'},
+  'pause': {'pt': 'Pausar o ensaio', 'en': 'Pause the rehearsal'},
+  'check': {'pt': 'Confirmar esta parte', 'en': 'Confirm this part'},
+  'advance': {'pt': 'Ir para a tradução', 'en': 'Go to the translation'},
+  'part': {'pt': 'Parte {n}', 'en': 'Part {n}'},
+};
+
+String rehearsalLabelFor(String state, String language, {int? part}) =>
+    (rehearsalLabels[state]![language] ??
+            rehearsalLabels[state]![floorLanguage]!)
+        .replaceAll('{n}', '$part');
+
 const panoramaEntryLabel = {'pt': 'Panorama do Livro', 'en': 'Book Panorama'};
 
 String entrarLabelFor({required bool isPanorama, required String language}) =>

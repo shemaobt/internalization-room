@@ -391,7 +391,7 @@ void main() {
     notifier.ensaioTap();
     notifier.ensaioTap();
     await settle();
-    notifier.takePlay();
+    notifier.playTheRehearsal();
     await settle();
     expect(container.read(salaSessionProvider).playPing, isTrue);
 
@@ -776,7 +776,7 @@ void main() {
     },
   );
 
-  test('a ghost play that fails gives the ensaio back its gestures', () async {
+  test('a rehearsal play that fails gives the ensaio back its gestures', () async {
     final harness = SalaHarness();
     final container = await inConversaHarness(harness);
     addTearDown(container.dispose);
@@ -788,22 +788,19 @@ void main() {
     await settle();
     notifier.takeKeep();
     await settle();
-    notifier.ghostPlay();
+    notifier.playTheRehearsal();
     await settle();
-    expect(
-      container.read(salaSessionProvider).ensaio,
-      EnsaioStatus.ghostPlaying,
-    );
+    expect(container.read(salaSessionProvider).playPing, isTrue);
 
     harness.playback.failPlayback();
     await settle();
 
     expect(
-      container.read(salaSessionProvider).ensaio,
-      EnsaioStatus.idle,
+      container.read(salaSessionProvider).playPing,
+      isFalse,
       reason:
-          'preso em ghostPlaying, o toque no círculo e o botão fantasma não fazem '
-          'nada, e o ensaio não desenha o glifo de parada — a tela move e não responde',
+          'preso tocando, o toque no círculo não faz nada e o play não '
+          'desenha o glifo de tocar — a tela move e não responde',
     );
     expect(container.read(salaSessionProvider).needsPerson, isTrue);
 
