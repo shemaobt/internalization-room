@@ -83,6 +83,10 @@ const roomLabels = {
     'pt': 'Deixar esta passagem e escolher outra',
     'en': 'Leave this passage and choose another',
   },
+  'micBlocked': {
+    'pt': 'A sala precisa do microfone para funcionar',
+    'en': 'The room needs the microphone to work',
+  },
 };
 
 String roomLabelFor(String control, String language) =>
