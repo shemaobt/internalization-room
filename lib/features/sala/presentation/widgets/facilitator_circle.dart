@@ -9,9 +9,17 @@ import '../../domain/session_state.dart';
 import 'bead_styles.dart';
 import 'motion.dart';
 
+/// Which of the room's three voices a listening or speaking circle wears.
+///
+/// [VoiceState] is the conversation's own turn state, set in dozens of places; a
+/// station that also knows which voice it draws (the Rehearsal, the Back-translation)
+/// says so here instead, without adding a value [VoiceState] would carry everywhere else.
+enum Tongue { guide, motherTongue, bridge }
+
 class FacilitatorCircle extends StatelessWidget {
   final double size;
   final VoiceState voice;
+  final Tongue? tongue;
   final RoomReach reach;
   final bool noteMode;
   final bool peerCue;
@@ -34,6 +42,7 @@ class FacilitatorCircle extends StatelessWidget {
     super.key,
     required this.size,
     required this.voice,
+    this.tongue,
     this.reach = RoomReach.fine,
     required this.semanticLabel,
     this.noteMode = false,
@@ -93,7 +102,24 @@ class FacilitatorCircle extends StatelessWidget {
     );
   }
 
+  /// The colour a sounding circle's outward ripples borrow from the voice.
+  ///
+  /// Unset draws the Guide's telha, as it always did before a station could say which
+  /// voice was speaking.
+  Color _soundColor(SalaColors colors) {
+    switch (tongue) {
+      case Tongue.motherTongue:
+        return ShemaBrand.woodLo;
+      case Tongue.bridge:
+        return ShemaBrand.azulInk;
+      case Tongue.guide:
+      case null:
+        return colors.telha;
+    }
+  }
+
   List<Widget> _ripples(SalaColors colors) {
+    final color = _soundColor(colors);
     Widget ring(double phase) => Ripple(
       period: const Duration(milliseconds: 3400),
       phase: phase,
@@ -105,7 +131,7 @@ class FacilitatorCircle extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-              color: colors.telha.withValues(alpha: 0.55 * (1 - t)),
+              color: color.withValues(alpha: 0.55 * (1 - t)),
               width: 3,
             ),
           ),
@@ -185,10 +211,16 @@ class FacilitatorCircle extends StatelessWidget {
         return _liveBreath(colors);
       case VoiceState.listening:
         return _disc(
-          gradient: BeadStyles.azul,
+          gradient: tongue == Tongue.motherTongue
+              ? BeadStyles.wood
+              : BeadStyles.azul,
           shadows: [
             BoxShadow(
-              color: ShemaBrand.azulLo.withValues(alpha: 0.3),
+              color:
+                  (tongue == Tongue.motherTongue
+                          ? ShemaBrand.woodLo
+                          : ShemaBrand.azulLo)
+                      .withValues(alpha: 0.3),
               offset: const Offset(0, 10),
               blurRadius: 30,
             ),
@@ -224,13 +256,35 @@ class FacilitatorCircle extends StatelessWidget {
     ],
   );
 
+  Gradient _liveGradient(SalaColors colors) {
+    switch (tongue) {
+      case Tongue.motherTongue:
+        return BeadStyles.wood;
+      case Tongue.bridge:
+        return BeadStyles.azul;
+      case Tongue.guide:
+      case null:
+        return noteMode ? BeadStyles.azul : BeadStyles.telha(colors);
+    }
+  }
+
+  Color _liveShadow(SalaColors colors) {
+    switch (tongue) {
+      case Tongue.motherTongue:
+        return ShemaBrand.woodLo;
+      case Tongue.bridge:
+        return ShemaBrand.azulLo;
+      case Tongue.guide:
+      case null:
+        return noteMode ? ShemaBrand.azulLo : colors.telha;
+    }
+  }
+
   Widget _liveDisc(SalaColors colors) => _disc(
-    gradient: noteMode ? BeadStyles.azul : BeadStyles.telha(colors),
+    gradient: _liveGradient(colors),
     shadows: [
       BoxShadow(
-        color: (noteMode ? ShemaBrand.azulLo : colors.telha).withValues(
-          alpha: 0.32,
-        ),
+        color: _liveShadow(colors).withValues(alpha: 0.32),
         offset: const Offset(0, 10),
         blurRadius: 34,
       ),
@@ -384,7 +438,18 @@ class FacilitatorCircle extends StatelessWidget {
     );
   }
 
+  /// The colour a listening circle's ring and inward ripples borrow from the voice.
+  ///
+  /// Unset draws the Bridge language's azulInk, as it always did before a station
+  /// could say which voice was listening.
+  Color get _listenColor =>
+      tongue == Tongue.motherTongue ? ShemaBrand.woodLo : ShemaBrand.azulInk;
+
   Widget _listenRing(SalaColors colors) {
+    final ring = _listenColor;
+    final glow = tongue == Tongue.motherTongue
+        ? ShemaBrand.wood
+        : ShemaBrand.azul;
     return Loop(
       period: const Duration(milliseconds: 3200),
       builder: (context, t) => Container(
@@ -392,10 +457,10 @@ class FacilitatorCircle extends StatelessWidget {
         height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(color: ShemaBrand.azulInk, width: 3),
+          border: Border.all(color: ring, width: 3),
           boxShadow: [
             BoxShadow(
-              color: ShemaBrand.azul.withValues(alpha: 0.5 * (1 - t)),
+              color: glow.withValues(alpha: 0.5 * (1 - t)),
               spreadRadius: 4 + 12 * t,
             ),
           ],
@@ -405,6 +470,7 @@ class FacilitatorCircle extends StatelessWidget {
   }
 
   List<Widget> _gatheringIn() {
+    final color = _listenColor;
     Widget ring(double phase) => Ripple(
       period: const Duration(milliseconds: 3200),
       phase: phase,
@@ -416,7 +482,7 @@ class FacilitatorCircle extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-              color: ShemaBrand.azulInk.withValues(alpha: 0.55 * t),
+              color: color.withValues(alpha: 0.55 * t),
               width: 2.5,
             ),
           ),

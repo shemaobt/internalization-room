@@ -44,8 +44,9 @@ class EscolhaView extends ConsumerWidget {
           height: 78,
           child: session.oferecida == null
               ? null
-              : AdvanceButton(
+              : RoundActionButton(
                   size: 78,
+                  mood: podeEntrar ? ButtonMood.beckoning : ButtonMood.dimmed,
                   gradient: BeadStyles.wood,
                   halo: ShemaBrand.wood,
                   border: Border.all(color: colors.cord, width: 2),
@@ -53,7 +54,6 @@ class EscolhaView extends ConsumerWidget {
                     isPanorama: session.oferecida!.isPanorama,
                     language: ref.watch(roomLanguageProvider),
                   ),
-                  ready: podeEntrar,
                   onTap: notifier.entrarNaOferecida,
                 ),
         ),

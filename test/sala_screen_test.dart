@@ -239,7 +239,11 @@ void main() {
     );
 
     await tester.pump(const Duration(milliseconds: 800));
-    await tester.tap(find.byType(AdvanceButton));
+    await tester.tap(
+      find.byWidgetPredicate(
+        (w) => w is RoundActionButton && w.mood != ButtonMood.lit,
+      ),
+    );
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(harness.room.pericopesAsked, contains('P02'));
@@ -852,7 +856,12 @@ void main() {
     await notifier.openConvite();
     await tester.pump(const Duration(milliseconds: 400));
     expect(container.read(salaSessionProvider).showEntrada, isTrue);
-    expect(find.byType(AdvanceButton), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is RoundActionButton && w.mood != ButtonMood.lit,
+      ),
+      findsOneWidget,
+    );
 
     harness.voice.holdNextLine();
     unawaited(notifier.hearAgain());
@@ -864,7 +873,9 @@ void main() {
       reason: 'a sala está falando, então o toque não vale agora',
     );
     expect(
-      find.byType(AdvanceButton),
+      find.byWidgetPredicate(
+        (w) => w is RoundActionButton && w.mood != ButtonMood.lit,
+      ),
       findsOneWidget,
       reason:
           'mas o alvo não pode sumir: ouvir o panorama de novo leva um a dois '
@@ -892,14 +903,21 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     notifier.takeKeep();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.byType(AdvanceButton), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is RoundActionButton && w.mood != ButtonMood.lit,
+      ),
+      findsOneWidget,
+    );
 
     notifier.ghostPlay();
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).ensaioDone, isFalse);
     expect(
-      find.byType(AdvanceButton),
+      find.byWidgetPredicate(
+        (w) => w is RoundActionButton && w.mood != ButtonMood.lit,
+      ),
       findsOneWidget,
       reason: 'ouvir o ensaio guardado apagava o caminho para a retro',
     );

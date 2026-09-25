@@ -132,8 +132,11 @@ class EnsaioView extends ConsumerWidget {
         SizedBox(
           height: 64,
           child: session.ensaioHasATake
-              ? AdvanceButton(
-                  ready: session.ensaioDone,
+              ? RoundActionButton(
+                  size: 64,
+                  mood: session.ensaioDone
+                      ? ButtonMood.beckoning
+                      : ButtonMood.dimmed,
                   gradient: BeadStyles.verde,
                   semanticLabel: 'Ir para a tradução',
                   onTap: notifier.startRetro,

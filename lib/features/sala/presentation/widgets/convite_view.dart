@@ -88,8 +88,10 @@ class _EntradaState extends ConsumerState<_Entrada>
   }
 
   @override
-  Widget build(BuildContext context) => AdvanceButton(
-    ready: widget.live && _settle.isCompleted,
+  Widget build(BuildContext context) => RoundActionButton(
+    mood: widget.live && _settle.isCompleted
+        ? ButtonMood.beckoning
+        : ButtonMood.dimmed,
     size: 78,
     gradient: BeadStyles.wood,
     halo: ShemaBrand.wood,

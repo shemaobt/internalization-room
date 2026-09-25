@@ -44,7 +44,9 @@ class ConversaView extends ConsumerWidget {
               SizedBox(
                 height: 64,
                 child: !session.needsPerson
-                    ? AdvanceButton(
+                    ? RoundActionButton(
+                        size: 64,
+                        mood: ButtonMood.beckoning,
                         gradient: BeadStyles.verde,
                         semanticLabel: 'Ir para o ensaio',
                         onTap: notifier.goEnsaio,
