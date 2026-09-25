@@ -101,6 +101,19 @@ _playingWithAToldStretchAndAWarningArmed(SalaHarness harness) async {
   return (container, notifier, read, path);
 }
 
+/// A room reopened straight into a blocking halt already standing, before the entry
+/// ever chose a part to play — the narrow case `_entradaParouSemTocar` alone used to
+/// cover.
+Future<(ProviderContainer, SalaSessionState Function(), String)>
+_reopensBlockedBeforeAnyPlay(SalaHarness harness) async {
+  harness.room.serverStatus = 'needs_person';
+  harness.room.serverHalt = HaltKind.blocking;
+  final (container, path) = await _reopensIntoRetro(harness);
+  SalaSessionState read() => container.read(salaSessionProvider);
+  await waitFor('a sala parar ao reabrir', () => read().needsPerson);
+  return (container, read, path);
+}
+
 /// Turn the standing warning blocking, and wait for the watch's next beat to find it.
 Future<void> _haltLandsBlocking(
   SalaHarness harness,
@@ -263,5 +276,26 @@ void main() {
     await _freshlyInRetro(tester, harness);
 
     expect(_byLabel('Listen first'), findsOneWidget);
+  });
+
+  test('T6: a halt already blocking when the entry chose its part plays it '
+      'once lifted, the same as any other lift', () async {
+    final harness = SalaHarness();
+    final (_, read, path) = await _reopensBlockedBeforeAnyPlay(harness);
+    expect(
+      harness.playback.playedFrom,
+      isEmpty,
+      reason: 'a entrada escolheu a parte e parou antes de tocar',
+    );
+
+    harness.room.theDeskAttended();
+    await waitFor(
+      'a parte tocar pela primeira vez',
+      () => harness.playback.playedFrom.isNotEmpty,
+    );
+
+    expect(read().needsPerson, isFalse);
+    expect(harness.playback.played.last, path);
+    expect(harness.playback.playedFrom.last, Duration.zero);
   });
 }

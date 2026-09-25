@@ -1191,7 +1191,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // reads it away, or the long press on a room that is out — carried the warning off
     // with it, and the desk's mark never reached the circle again.
     if (state.warning) _watchTheHalt();
-    // A halt withholds the sound and nothing else (ADR 0009): every lift inside the
+    // A halt withholds the sound and nothing else: every lift inside the
     // back-translation puts the current part in the air again, from its own cursor,
     // whether the halt caught the room still choosing which part to play, sounding one
     // already, or sounding a bead from the row instead. Left to a gesture, the room stood
