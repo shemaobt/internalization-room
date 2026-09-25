@@ -44,6 +44,7 @@ void main() {
       'a segunda parte ser pedida por cima do load da primeira',
       () => cena.harness.playback.played.length >= 2,
     );
+    cena.harness.playback.finishHeldOpening();
 
     await waitFor('a segunda parte soar', () => cena.harness.playback.sounding);
 
@@ -64,7 +65,7 @@ void main() {
   });
 
   test(
-    'a abertura atropelada não se anuncia nem deixa teto para trás',
+    'a parte seguinte espera o load da anterior e soa sem deixar teto para trás',
     () async {
       final cena = await _ensaioDeDuasPartes();
       final anunciadas = <void>[];
@@ -73,11 +74,22 @@ void main() {
 
       cena.sala.playTheRehearsal();
       await waitFor(
-        'a segunda parte soar por cima do load da primeira',
-        () => cena.harness.playback.sounding,
+        'a segunda parte ser pedida enquanto a primeira ainda abre',
+        () => cena.harness.playback.played.length >= 2,
+      );
+      expect(
+        cena.harness.playback.sounding,
+        isFalse,
+        reason:
+            'a segunda abertura espera o load da primeira assentar: aberta '
+            'por cima dele, o player nativo responde que já existe',
       );
 
       cena.harness.playback.finishHeldOpening();
+      await waitFor(
+        'a segunda parte soar',
+        () => cena.harness.playback.sounding,
+      );
       await settle();
 
       expect(
@@ -89,13 +101,9 @@ void main() {
             'anunciada armaria o relógio de um clipe que nunca tocou',
       );
       expect(
-        cena.harness.playback.sounding,
-        isTrue,
-        reason:
-            'e a parte que está no ar não é interrompida pelo load que '
-            'chegou tarde',
+        cena.container.read(salaSessionProvider).voice,
+        isNot(VoiceState.needsPerson),
       );
-      expect(cena.container.read(salaSessionProvider).playPing, isTrue);
     },
   );
 
