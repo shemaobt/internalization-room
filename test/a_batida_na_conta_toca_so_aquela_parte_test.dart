@@ -5,6 +5,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 
 import 'fakes.dart';
@@ -30,6 +31,20 @@ Future<void> _gravarEConfirmar(WidgetTester tester, String circulo) async {
   await _tocar(tester, _terminar);
   await _tocar(tester, _confirmar);
   await letTheRehearsalReachTheRoom(tester);
+}
+
+Future<void> _ateEnsaio(
+  WidgetTester tester,
+  ProviderContainer container,
+  EnsaioStatus alvo,
+) async {
+  for (
+    var vezes = 0;
+    vezes < 40 && container.read(salaSessionProvider).ensaio != alvo;
+    vezes++
+  ) {
+    await tester.pump(const Duration(milliseconds: 50));
+  }
 }
 
 List<BeadRowEntry> _contas(WidgetTester tester) => tester
@@ -258,12 +273,14 @@ void main() {
       final (container, harness) = await _achadoNaParteUm(tester);
       final notifier = container.read(salaSessionProvider.notifier);
       notifier.ensaioTap();
-      await tester.pump(const Duration(milliseconds: 100));
+      await _ateEnsaio(tester, container, EnsaioStatus.recording);
       notifier.ensaioTap();
-      await tester.pump(const Duration(milliseconds: 100));
+      await _ateEnsaio(tester, container, EnsaioStatus.recorded);
 
       notifier.playTheRehearsal();
-      await tester.pump(const Duration(milliseconds: 200));
+      for (var vezes = 0; vezes < 40 && !harness.playback.sounding; vezes++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
 
       expect(
         [for (final conta in _contas(tester)) conta.current],
