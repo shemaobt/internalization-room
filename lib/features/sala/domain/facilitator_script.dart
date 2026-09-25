@@ -89,6 +89,7 @@ const retroLabels = {
     'pt': 'Aprovar como rascunho final',
     'en': 'Approve as the final draft',
   },
+  'listenFirst': {'pt': 'Ouvir primeiro', 'en': 'Listen first'},
 };
 
 String retroLabelFor(String control, String language) =>

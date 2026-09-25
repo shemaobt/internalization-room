@@ -608,6 +608,8 @@ void main() {
     final container = await entrarNaTraducao(tester, harness);
 
     harness.playback.at = cabeca;
+    await tocar(tester, pausar);
+    await tocar(tester, ouvir);
     await gravarATraducao(tester);
     await tocar(tester, confirmar);
 
@@ -677,6 +679,8 @@ void main() {
     );
 
     harness.playback.at = cabeca;
+    await tocar(tester, pausar);
+    await tocar(tester, ouvir);
     await gravarATraducao(tester);
     await tocar(tester, confirmar);
     harness.playback.at = Duration.zero;
@@ -694,6 +698,8 @@ void main() {
     final container = await entrarNaTraducao(tester, harness);
 
     harness.playback.at = cabeca;
+    await tocar(tester, pausar);
+    await tocar(tester, ouvir);
     await gravarATraducao(tester);
     final gravada = harness.recorder.lastPath;
     container.read(salaSessionProvider.notifier).leaveThePassage();
@@ -710,6 +716,9 @@ void main() {
     addTearDown(tester.view.reset);
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
+    harness.playback.at = cabeca;
+    await tocar(tester, pausar);
+    await tocar(tester, ouvir);
 
     expect(
       tester
@@ -737,6 +746,9 @@ void main() {
     addTearDown(tester.view.reset);
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
+    harness.playback.at = cabeca;
+    await tocar(tester, pausar);
+    await tocar(tester, ouvir);
 
     expect(tester.getRect(byLabel(gravar)).size, const Size(160, 160));
     expect(tester.getRect(byLabel(conferir)).size, const Size(78, 78));
@@ -746,6 +758,11 @@ void main() {
   testWidgets('B8 — os rótulos falam a língua da sala', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
     final container = await entrarNaTraducao(tester, harness);
+    harness.playback.at = cabeca;
+    await tester.tap(byLabel('Pause'));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(byLabel('Listen'));
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(byLabel("Tap to record this stretch's translation"), findsOneWidget);
     expect(byLabel('Pause'), findsOneWidget);
