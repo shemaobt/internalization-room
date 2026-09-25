@@ -131,6 +131,7 @@ class PlaybackRepository {
     _wanted = true;
     final geracao = ++_opens;
     final parada = _stops;
+    _stopsAtOpen = parada;
     final Duration? length;
     _pending++;
     try {
@@ -140,11 +141,12 @@ class PlaybackRepository {
         return load();
       });
     } on PlayerInterruptedException {
-      // A load interrupted with a gesture of ours behind it is the clip not playing,
-      // never this tablet failing to play the team's own voice — which calls a person
-      // and stops the room over a sound the team itself asked for. A stop counts even
-      // once a resume has asked for sound again: a resume undoes a hold, and the clip
-      // the room stopped is not the clip it comes back to.
+      // Our own gestures never cut a load any more: they wait their turn. What still
+      // interrupts one comes from outside the repository — the platform, the audio
+      // session, a dispose. With a hold or a stop of ours standing, that is the clip
+      // not playing, never this tablet failing to play the team's own voice, which calls
+      // a person. A stop counts even once a resume has asked for sound again: a resume
+      // undoes a hold, and the clip the room stopped is not the clip it comes back to.
       if (geracao != _opens || !_wanted || parada != _stops) return;
       rethrow;
     } finally {
@@ -183,11 +185,12 @@ class PlaybackRepository {
 
   Future<void> resume() {
     _wanted = true;
-    if (_pending > 0) return Future.value();
+    if (_pending > 0 || _stops != _stopsAtOpen) return Future.value();
     return _quietly(() => _player.play());
   }
 
   int _pending = 0;
+  int _stopsAtOpen = 0;
 
   Future<void> stop() {
     _wanted = false;

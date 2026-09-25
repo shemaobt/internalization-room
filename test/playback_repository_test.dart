@@ -877,6 +877,33 @@ void main() {
       },
     );
 
+    test(
+      'um resume depois de um stop que ainda assenta não toca a plataforma',
+      () async {
+        final falhas = <void>[];
+        playback.failures.listen(falhas.add);
+        await playback.play('/a-lingua-materna.m4a');
+
+        tocador.segurarOProximoStop();
+        unawaited(playback.stop());
+        await Future<void>.delayed(Duration.zero);
+        await playback.resume();
+        tocador.soltarOStop();
+        await Future<void>.delayed(Duration.zero);
+        await playback.play('/a-traducao.m4a');
+        await Future<void>.delayed(Duration.zero);
+
+        expect(
+          falhas,
+          isEmpty,
+          reason:
+              'o resume ativava a plataforma por baixo do stop, e a abertura '
+              'seguinte cortava essa ativação e deixava o player nativo para trás',
+        );
+        expect(tocador.tocando, isTrue);
+      },
+    );
+
     test('um resume num clipe que nunca abriu não faz nada', () async {
       final falhas = <void>[];
       playback.failures.listen(falhas.add);
@@ -898,10 +925,12 @@ void main() {
 /// A stand-in for the platform player, so the tests can watch what the repository does
 /// with it — which player it loads a file into, and what it leaves behind.
 ///
-/// It fails where just_audio 0.9.46 on iOS fails, because a double that forgives the
-/// platform is how every gate stayed green over a room that halted on the tablet. The
+/// It fails wherever just_audio 0.9.46 on iOS can fail, because a double that forgives
+/// the platform is how every gate stayed green over a room that halted on the tablet. The
 /// platform takes one change at a time:
-/// - a load begun while a stop is still settling is interrupted, `Loading interrupted`;
+/// - a load begun while a stop is still settling fails, `Loading interrupted`, which is
+///   stricter than the library: there the load wins and the settling stop is dropped
+///   silently, with its future never completing;
 /// - a load begun while another load is still in the air fails, `Platform player already
 ///   exists`, which is stricter than the platform: there it is the open's own stop that
 ///   cuts the first load;
