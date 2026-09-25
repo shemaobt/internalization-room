@@ -812,6 +812,42 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('B7o — com duas gravações sem resposta, a recusa não sabe qual '
+      'pousou e conta de novo com a pendente', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await ateOTrechoNomeado(tester, harness);
+    final sala = container.read(salaSessionProvider.notifier);
+    final gravacao = harness.room.takeIds.first;
+
+    harness.room.loseTheNextReplaceAnswerWith = const RoomSlow();
+    await confirmarEEsperar(tester);
+    sala.retroTap();
+    await tester.pump(const Duration(milliseconds: 300));
+    sala.retroTap();
+    await tester.pump(const Duration(milliseconds: 300));
+    final segunda = container.read(salaSessionProvider).btTraducaoPendente!;
+
+    harness.room.failReplaceWith = const RoomSlow();
+    await confirmarEEsperar(tester);
+    harness.room.failReplaceWith = null;
+    await confirmarEEsperar(tester);
+
+    expect(
+      aceso(tester, confirmar),
+      isTrue,
+      reason: 'a segunda segue pendente',
+    );
+    expect(contas(tester), [
+      'solid com anel',
+      'solid',
+    ], reason: 'armada sobre o sucessor');
+
+    await confirmarEEsperar(tester);
+    expect(harness.room.replacesAsked.last, 'trecho-1-v1@$gravacao:0-4000');
+    expect(harness.room.replacesComArquivo.last, segunda);
+    closeTheRoom(container);
+  });
+
   testWidgets('B3d — uma substituição recusada guarda a tradução pendente', (
     tester,
   ) async {

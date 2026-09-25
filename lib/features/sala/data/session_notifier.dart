@@ -196,7 +196,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _unplayableTurns = 0;
   int _roomFailures = 0;
   List<String>? _fileiraDaUltimaRecusa;
-  String? _contadaSemResposta;
+  final Set<String> _contadasSemResposta = {};
   int _resumeFailures = 0;
 
   /// When and in what language the session now open was created, so a row rewritten by
@@ -3762,14 +3762,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     } on Exception catch (error) {
       _fileiraDaUltimaRecusa = null;
-      _contadaSemResposta = path;
+      _contadasSemResposta.add(path);
       _guardarATraducao(path);
       if (epoch != _epoch) return;
       _theCorrectionFailed(error);
       return;
     }
     _fileiraDaUltimaRecusa = null;
-    _contadaSemResposta = null;
+    _contadasSemResposta.clear();
 
     if (!told.captured) {
       // The room made nothing out of it, which is also what a transcriber outage looks
@@ -3856,8 +3856,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           segment.startsMs == alvo.from.inMilliseconds &&
           segment.endsMs == alvo.to.inMilliseconds,
     );
-    final aContadaPousou = path == _contadaSemResposta;
-    _contadaSemResposta = null;
+    final aContadaPousou =
+        _contadasSemResposta.length == 1 && _contadasSemResposta.contains(path);
+    _contadasSemResposta.clear();
     if (sucessor < 0) {
       _theStretchIsGone(segments);
       return;
@@ -4890,7 +4891,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _unplayableTurns = 0;
     _roomFailures = 0;
     _fileiraDaUltimaRecusa = null;
-    _contadaSemResposta = null;
+    _contadasSemResposta.clear();
     _resumeFailures = 0;
     _slowAnswers = 0;
     _retryStep = 0;
