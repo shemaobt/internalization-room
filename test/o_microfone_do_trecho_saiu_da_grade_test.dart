@@ -7,7 +7,7 @@ import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/onde_mora_grade.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
 
 import 'a_pergunta_da_grade.dart' show byLabel, pumpToPergunta;
@@ -15,20 +15,25 @@ import 'fakes.dart';
 
 const umaParteInteira = Duration(seconds: 30);
 const continuarOEnsaioLabel = 'Continuar o ensaio';
+const ouvirOTrechoLabel = 'Ouvir o trecho e a tradução';
+const micParteLabel = 'Gravar a parte de novo na língua materna';
+const micRetroLabel = 'Traduzir este trecho de novo';
+const gravarDeNovoLabel = 'Tocar para gravar a tradução de novo';
+const confirmarLabel = 'Confirmar a tradução e seguir';
 
-/// Every target on the grid the team can put a finger on, in the order they are drawn.
+/// Every button on the finding the team can put a finger on, in the order they are drawn.
 ///
 /// Read off the buttons rather than off a list of labels this test also writes: what is
 /// being held is that the screen offers these and nothing else, and a reading that only
-/// looked for the ones it expected could not see a sixth.
-List<String> alvosDaGrade(WidgetTester tester) => [
-  for (final alvo in tester.widgetList<Semantics>(
+/// looked for the ones it expected could not see a fourth.
+List<String> botoesDoAchado(WidgetTester tester) => [
+  for (final botao in tester.widgetList<RoundActionButton>(
     find.descendant(
-      of: find.byType(OndeMoraGrade),
-      matching: find.byType(Semantics),
+      of: find.byType(RetroView),
+      matching: find.byType(RoundActionButton),
     ),
   ))
-    if (alvo.properties.button ?? false) alvo.properties.label ?? '',
+    botao.semanticLabel,
 ];
 
 Future<void> gravarUmaParte(
@@ -102,12 +107,6 @@ Future<ProviderContainer> aPerguntaSobreAParteDois(
   return container;
 }
 
-/// The mother tongue in the air, which is the only state the scissors is drawn in.
-Future<void> ouvindoAMaterna(WidgetTester tester) async {
-  await tester.tap(byLabel(ouvirMaternaLabel));
-  await tester.pump(const Duration(milliseconds: 300));
-}
-
 /// Let whatever is sounding reach its end, so the ceiling watching it is spent rather
 /// than left running past the widget tree it belongs to.
 Future<void> deixarOArSilenciar(
@@ -159,104 +158,40 @@ bool mesmoTom(Color uma, Color outra) =>
     uma.r == outra.r && uma.g == outra.g && uma.b == outra.b;
 
 void main() {
-  testWidgets('a grade oferece quatro gestos e a tesoura, e nada mais', (
+  testWidgets('o achado oferece o play e os dois microfones, e nada mais', (
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
     await aPerguntaSobreAParteDois(tester, harness);
 
-    await ouvindoAMaterna(tester);
+    await tester.tap(byLabel(ouvirOTrechoLabel));
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(
-      alvosDaGrade(tester).toSet(),
-      {
-        ouvirMaternaLabel,
-        ouvirRetroLabel,
-        micParteLabel,
-        micRetroLabel,
-        cortarTrechoLabel,
-      },
+      botoesDoAchado(tester),
+      [ouvirOTrechoLabel, micParteLabel, micRetroLabel],
       reason:
-          'a pergunta é entre duas vozes: ouvir cada uma, pedir a cada uma '
-          'que fale de novo, e cortar o que está no ar. O microfone por trecho '
-          'da materna era um sexto alvo e saiu da tela',
+          'a pergunta é entre duas vozes: ouvir as duas e pedir a uma delas '
+          'que fale de novo. A tesoura, os dois tocadores e a seta de '
+          'recomeçar saíram da tela',
     );
     expect(
-      alvosDaGrade(tester),
-      hasLength(5),
+      botoesDoAchado(tester),
+      hasLength(3),
       reason:
           'contado, e não só listado: um alvo repetido é um dedo que cai '
           'no lugar errado, e o conjunto acima não o veria',
     );
 
     await deixarOArSilenciar(tester, harness);
-  });
-
-  testWidgets('os dois tocadores da grade põem cada voz no ar', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await aPerguntaSobreAParteDois(tester, harness);
-    final apontado = container.read(salaSessionProvider).btFindingTrecho!;
-    expect(
-      apontado.parte,
-      1,
-      reason:
-          'o achado aponta um trecho da parte 2, que é o que estes casos '
-          'medem',
-    );
-
-    await ouvindoAMaterna(tester);
-
-    expect(
-      harness.playback.played.last,
-      container.read(salaSessionProvider).partes[1].path,
-      reason:
-          'o tocador de madeira põe no ar a gravação da equipe, que é a '
-          'parte onde o trecho mora',
-    );
-
-    await tester.tap(byLabel(ouvirMaternaLabel));
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(byLabel(ouvirRetroLabel));
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(
-      harness.playback.played.last,
-      apontado.retroPath,
-      reason:
-          'e o tocador azul põe no ar a tradução em português, que é a '
-          'voz que viaja até o analista',
-    );
-
     await deixarOArSilenciar(tester, harness);
   });
 
-  testWidgets('a tesoura da grade divide o trecho que está no ar', (
+  testWidgets('o microfone azul leva à tradução e o check manda o replace', (
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await aPerguntaSobreAParteDois(tester, harness);
-    final antes = container.read(salaSessionProvider).btTrechos.length;
-
-    await ouvindoAMaterna(tester);
-    harness.playback.at = const Duration(seconds: 4);
-    await tester.tap(byLabel(cortarTrechoLabel));
-    await tester.pump(const Duration(milliseconds: 400));
-
-    expect(
-      container.read(salaSessionProvider).btTrechos,
-      hasLength(antes + 1),
-      reason:
-          'o corte faz duas unidades de uma, e o colar ganha a faixa da '
-          'metade nova',
-    );
-  });
-
-  testWidgets('o microfone azul da grade manda a gravação com o replace', (
-    tester,
-  ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await aPerguntaSobreAParteDois(tester, harness);
-    final sala = container.read(salaSessionProvider.notifier);
     final apontado = container.read(salaSessionProvider).btFindingSegmentId;
     final vizinhos = [
       for (final trecho in container.read(salaSessionProvider).btTrechos)
@@ -269,18 +204,15 @@ void main() {
 
     expect(
       container.read(salaSessionProvider).btPhase,
-      BtPhase.capturing,
-      reason: 'o microfone azul abre a captura da frase, sem sair da retro',
-    );
-    expect(
-      container.read(salaSessionProvider).btEsperandoConserto,
-      isNull,
-      reason:
-          'a faixa do trecho apontado enche ao escolher: a promessa do '
-          'conserto é feita aqui, antes de qualquer coisa ir para a sala',
+      BtPhase.playing,
+      reason: 'o microfone azul leva à tradução, sem abrir captura nenhuma',
     );
 
-    sala.retroTap();
+    await tester.tap(byLabel(gravarDeNovoLabel));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(byLabel('Tocar ao terminar'));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(byLabel(confirmarLabel));
     await letTheRehearsalReachTheRoom(tester);
     await tester.pump(const Duration(milliseconds: 600));
 
@@ -403,7 +335,7 @@ void main() {
     await tester.tap(byLabel(micRetroLabel));
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);
+    expect(container.read(salaSessionProvider).stage, SalaStage.retro);
     expect(
       harness.room.takesKept.where((k) => k.startsWith('ensaio')),
       isEmpty,
@@ -430,6 +362,8 @@ void main() {
 
     await tester.tap(byLabel(micRetroLabel));
     await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(byLabel(gravarDeNovoLabel));
+    await tester.pump(const Duration(milliseconds: 300));
     expect(
       container.read(salaSessionProvider).voice,
       VoiceState.listening,
@@ -440,7 +374,7 @@ void main() {
       discoDoCirculo(tester),
       BeadStyles.azul,
       reason:
-          'o microfone aberto na retro é sempre o da ponte: com a '
+          'o microfone aberto na tradução é sempre o da ponte: com a '
           'estação da materna fora, não há segunda tinta a distinguir',
     );
     expect(

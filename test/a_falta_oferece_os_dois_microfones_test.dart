@@ -4,14 +4,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/onde_mora_grade.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 
-const ouvirMaterna = 'Ouvir a voz de vocês, na língua materna';
-const ouvirRetro = 'Ouvir a tradução em português';
-const microfoneAzul = 'Continuar o ensaio';
+const ouvirOTrecho = 'Ouvir o trecho e a tradução';
+const micParteLabel = 'Gravar a parte de novo na língua materna';
+const micRetroLabel = 'Traduzir este trecho de novo';
+const continuarOEnsaio = 'Continuar o ensaio';
 
 Finder byLabel(String label) => find.byWidgetPredicate(
   (widget) => widget is Semantics && widget.properties.label == label,
@@ -94,11 +94,12 @@ void main() {
     await tester.tap(byLabel(micRetroLabel));
     await tester.pump(const Duration(milliseconds: 300));
 
+    final estado = container.read(salaSessionProvider);
     expect(
-      container.read(salaSessionProvider).btPhase,
-      BtPhase.capturing,
+      (estado.stage, estado.btPhase, estado.btTrechoTocando),
+      (SalaStage.retro, BtPhase.playing, false),
       reason:
-          'tocar o microfone só-ponte abre a captura do traduzir de novo, sem '
+          'tocar o microfone só-ponte leva à tradução daquele trecho, sem '
           'tocar a voz materna',
     );
   });
@@ -131,14 +132,19 @@ void main() {
     );
 
     expect(
-      byLabel(microfoneAzul),
+      byLabel(continuarOEnsaio),
       findsOneWidget,
       reason:
           'sem trecho apontado não há o que regravar — a saída continua '
           'sendo o ensaio inteiro, como hoje',
     );
-    expect(byLabel(micRetroLabel), findsNothing);
-    expect(byLabel(micParteLabel), findsNothing);
+    for (final microfone in [micRetroLabel, micParteLabel]) {
+      expect(
+        tester.widget<Semantics>(byLabel(microfone)).properties.enabled,
+        isFalse,
+        reason: 'sem trecho, os microfones ficam apagados, nunca escondidos',
+      );
+    }
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
   });
 
@@ -147,7 +153,6 @@ void main() {
 
     expect(byLabel(micParteLabel), findsOneWidget);
     expect(byLabel(micRetroLabel), findsOneWidget);
-    expect(byLabel(ouvirMaterna), findsOneWidget);
-    expect(byLabel(ouvirRetro), findsOneWidget);
+    expect(byLabel(ouvirOTrecho), findsOneWidget);
   });
 }

@@ -8,11 +8,13 @@ enum BeadFill { translucent, solid, drained }
 class BeadRowEntry {
   final BeadFill fill;
   final bool current;
+  final bool dimmed;
   final String semanticLabel;
 
   const BeadRowEntry({
     required this.fill,
     this.current = false,
+    this.dimmed = false,
     required this.semanticLabel,
   });
 }
@@ -49,7 +51,7 @@ class BeadRow extends StatelessWidget {
 
   Widget _bead(BeadRowEntry entry, int index, SalaColors colors) {
     final bead = Opacity(
-      opacity: _opacityOf(entry.fill),
+      opacity: _opacityOf(entry.fill) * (entry.dimmed ? 0.35 : 1),
       child: Container(
         width: _beadSize,
         height: _beadSize,

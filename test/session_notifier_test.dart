@@ -5828,7 +5828,7 @@ void main() {
           'o nome vem do servidor; derivá-lo da posição na lista '
           'desalinha assim que uma resposta se perde depois de persistir',
     );
-    notifier.ouvirVozMaterna();
+    notifier.ouvirOTrechoEATraducao();
     await waitFor(
       'o trecho apontado estar tocando',
       () => container.read(salaSessionProvider).btTrechoTocando,
@@ -5909,11 +5909,13 @@ void main() {
     final before = container.read(salaSessionProvider);
 
     notifier.traduzirDeNovoEmPortugues();
+    notifier.retroTap();
     await waitFor(
       'o microfone abrir',
       () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
     );
-    notifier.retroTap();
+    await fecharACaptura(container);
+    await notifier.confirmarTraducao();
     await settle();
 
     final after = container.read(salaSessionProvider);
@@ -6291,7 +6293,7 @@ void main() {
           'precisa falar de novo, e ouvir é um gesto da equipe',
     );
 
-    notifier.ouvirVozMaterna();
+    notifier.ouvirOTrechoEATraducao();
     await settle();
 
     expect(
@@ -6507,7 +6509,6 @@ void main() {
     final state = container.read(salaSessionProvider);
     expect(state.btPhase, BtPhase.findings);
     expect(state.btFindings, [BtFindingKind.addition]);
-    expect(state.btFindings.single.exitsByReRecording, isTrue);
     expect(harness.voice.played.last, contains('veredito'));
   });
 
@@ -7288,7 +7289,7 @@ void main() {
       );
 
       harness.playback.length = const Duration(seconds: 12);
-      notifier.ouvirVozMaterna();
+      notifier.ouvirOTrechoEATraducao();
       await settle();
 
       expect(
@@ -7541,7 +7542,7 @@ void main() {
     await notifier.finishBackTranslation();
     await settle();
 
-    notifier.ouvirVozMaterna();
+    notifier.ouvirOTrechoEATraducao();
     await settle();
 
     expect(harness.playback.ranges, isNotEmpty);

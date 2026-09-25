@@ -225,12 +225,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   final Set<String> _traducoesGuardadas = {};
 
-  /// Whether the capture now open is what armed [_trechoTraduzidoDeNovo]: `traduzirDeNovo`
-  /// arms it in the same gesture that opens the capture, but the analyst's door
-  /// (`_levarAoTrechoNaoTraduzido`) arms it before any capture, for the circle to pick
-  /// up later. A halt discarding this capture must undo only what this capture itself did.
-  bool _mendArmedWithThisCapture = false;
-
   /// The clip is paused. `_onPlaybackComplete` deliberately survives a pause — the resume
   /// still has to be able to end the part — so it cannot be what tells a ceiling whether
   /// there is any sound left to measure.
@@ -581,7 +575,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// Repeat the narrator's last line on the circle in `findings`, instead of the stretch
-  /// the grid's own players already offer.
+  /// the findings' play already offers.
   ///
   /// [canHearAgain] hides its button for the whole retro stage, so this reaches
   /// [_repeatLastSpoken] on its own guard: a stored line and a room not already speaking
@@ -787,8 +781,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }) {
     if (state.btPhase == BtPhase.capturing) {
       unawaited(_recorder.discard());
-      if (_mendArmedWithThisCapture) _trechoTraduzidoDeNovo = null;
-      _mendArmedWithThisCapture = false;
       _undoTheListening();
     }
     _leaveThinking();
@@ -1046,15 +1038,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// The room gave up on a call it was making, however it came to that.
   ///
-  /// A correction under it is over with it, so that stretch goes back to waiting. This is
-  /// the seam rather than `_handleRoomFailure`, because the watchdog that gives up on a
-  /// busy state is not a room failure — it is this tablet deciding the wait is over — and
-  /// it is the one give-up that fires while a correction's own call is in the air, with no
-  /// refusal and no offline circle to show for it. Both stations do all their waiting in
-  /// this phase, so this is where the promise the band made is taken back.
+  /// This is the seam rather than `_handleRoomFailure`, because the watchdog that gives up
+  /// on a busy state is not a room failure — it is this tablet deciding the wait is over —
+  /// and it is the one give-up that fires while a correction's own call is in the air, with
+  /// no refusal and no offline circle to show for it. Both stations do all their waiting in
+  /// this phase.
   void _leaveThinking() {
     if (state.stage == SalaStage.retro && state.btPhase == BtPhase.thinking) {
-      state = state.copyWith(btPhase: BtPhase.playing, btConsertando: false);
+      state = state.copyWith(btPhase: BtPhase.playing);
     }
   }
 
@@ -3085,10 +3076,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       noteMode: false,
       btPhase: capturing ? BtPhase.playing : state.btPhase,
       voice: state.canResolveWithPerson ? null : VoiceState.invite,
-      // Whether the microphone a correction was going to speak into never opened, or
-      // opened and was just discarded under a halt, the mend has not landed and that
-      // stretch is waiting again.
-      btConsertando: false,
     );
     // The retro's clip was paused for the telling-back that never started. Its sibling
     // `_finishChunkCapture` resumes it; this path left it frozen with the halo running.
@@ -3742,95 +3729,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return _cabecaForaDoPlayer ?? _playback.position;
   }
 
-  /// Cut the stretch that is playing in two, where the team is hearing it.
-  ///
-  /// It only ever answers for the stretch in the air, which is the only stretch the team
-  /// can hear again on the findings: the room leads them to the one a finding named, and
-  /// a tapped bead replays a told stretch only on the back-translation, where this never
-  /// answers. So there is nothing to choose first — what is
-  /// playing is what divides — and the point is where the audio is, which is the same
-  /// relation the other pair of scissors already has.
-  ///
-  /// The position is read from the player, which is playing inside one file, so it is
-  /// already counted from that recording's beginning. Adding the parts before it would be
-  /// the global timeline under a new name.
-  ///
-  /// The finding ends here rather than being handed on. The two halves are born with no
-  /// explanation, and the first round does not run while a final stretch is missing one,
-  /// so no verdict stands until the team has told them both — and the finding that comes
-  /// back after that names the half it belongs to, decided by reading rather than by a
-  /// guess of ours. Cleared, not left unpointed: the branch for a finding with no stretch
-  /// exists for an analyst who could not attribute one, which is a different thing from a
-  /// finding that is over.
-  Future<void> dividirTrecho() async {
-    if (state.stage != SalaStage.retro) return;
-    if (!state.btTrechoTocando) return;
-    if (state.needsPerson || state.offline) return;
-    // Where the team is hearing it, read before the room goes quiet: a stop leaves the
-    // playhead answering for the place the clip opened at, and the division would fall
-    // at the beginning of the stretch instead of under their finger.
-    final at = _playback.position;
-    _silenceTheRoom();
-    final sessionId = state.sessionId;
-    final trecho = state.btFindingTrecho;
-    final named = trecho?.segmentId;
-    if (sessionId == null || trecho == null || named == null) return;
-
-    final epoch = _epoch;
-    try {
-      final told = await _room.divideSegment(sessionId, named, at: at);
-      if (epoch != _epoch) return;
-      final trechos = _trechosFrom(told);
-      if (trechos.isEmpty) return;
-      state = state.copyWith(
-        btTrechos: trechos,
-        btPhase: BtPhase.playing,
-        voice: VoiceState.invite,
-        btFindings: const [],
-        btTrechoTocando: false,
-        clearFindingSegment: true,
-      );
-    } on Exception catch (error) {
-      if (epoch != _epoch) return;
-      _handleRoomFailure(error);
-    }
-  }
-
-  /// Tell one stretch again: the same slice of the same recording, a new explanation.
-  ///
-  /// This is the correction that leaves the mother tongue where it is — the one the room
-  /// needs after a division, because the two halves are born with nothing told about them
-  /// and the first round does not run while a final stretch is missing its explanation.
-  /// Telling a stretch back the ordinary way makes a *new* one at the next position, so
-  /// it could never fill a half; this fills it.
-  ///
-  /// A stretch with no name is not offered: the route addresses one, and the room has no
-  /// way to explain a refusal to a team that cannot read.
-  Future<void> traduzirDeNovo(Trecho trecho) async {
-    if (state.stage != SalaStage.retro) return;
-    // The question the room puts when the analyst points at a stretch reaches this verb.
-    if (state.btPhase != BtPhase.playing && state.btPhase != BtPhase.findings) {
-      return;
-    }
-    // The warning asks for a person; it is not a ceiling. Both microphones keep
-    // opening while it is up — only offline, which cannot record anything to send,
-    // closes this one.
-    if (state.offline) return;
-    if (state.btTrechoTocando) return;
-    if (trecho.segmentId == null) return;
-    _silenceTheRoom(holdTheClip: true);
-    _trechoTraduzidoDeNovo = trecho;
-    // The short way's whole gesture is this one: choosing it opens the microphone on the
-    // stretch, and that is where its mend starts. Conditioned rather than asserted,
-    // because the other door here is a half born of a division, which no finding points
-    // at — and a flag that claimed a mend of nothing would be a lie about itself.
-    state = state.copyWith(
-      btConsertando: state.btFindingSegmentId == trecho.segmentId,
-    );
-    _mendArmedWithThisCapture = true;
-    _startChunkCapture();
-  }
-
   Future<void> _tellThatStretchAgain(
     Trecho alvo,
     String path,
@@ -3877,7 +3775,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         btPhase: BtPhase.playing,
         voice: VoiceState.invite,
         btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
-        btConsertando: false,
         warning: told.needsPerson ? true : null,
       );
       if (told.needsPerson) _watchTheHalt();
@@ -3977,7 +3874,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     } else {
       _silenceTheRoom(holdTheClip: true);
     }
-    _mendArmedWithThisCapture = false;
     _startChunkCapture();
   }
 
@@ -4001,31 +3897,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
 
     if (path != null && !_hasAudio(path)) {
-      if (_mendArmedWithThisCapture) _trechoTraduzidoDeNovo = null;
       _trechoStart = _ondeParouNesteArquivo(_parteTocando);
-      state = state.copyWith(btPhase: BtPhase.playing, btConsertando: false);
+      state = state.copyWith(btPhase: BtPhase.playing);
       _haltForAPerson();
       return;
     }
 
     if (path == null || sessionId == null) {
-      if (_mendArmedWithThisCapture) _trechoTraduzidoDeNovo = null;
       state = state.copyWith(
         btPhase: BtPhase.playing,
         voice: VoiceState.invite,
-        btConsertando: false,
       );
       return;
     }
 
-    if (_mendArmedWithThisCapture) {
-      final traduzidoDeNovo = _trechoTraduzidoDeNovo!;
-      _trechoTraduzidoDeNovo = null;
-      await _tellThatStretchAgain(traduzidoDeNovo, path, sessionId, epoch);
-      return;
-    }
-
-    final substituida = state.btTraducaoPendente;
+    final substituida = state.btTraducaoPendenteEmprestada
+        ? null
+        : state.btTraducaoPendente;
     state = state.copyWith(
       btPhase: BtPhase.playing,
       voice: VoiceState.invite,
@@ -4144,8 +4032,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _descartarATraducaoPendente() {
     final path = state.btTraducaoPendente;
     if (path == null) return;
+    final emprestada = state.btTraducaoPendenteEmprestada;
     state = state.copyWith(clearTraducaoPendente: true);
-    unawaited(_recorder.delete(path));
+    if (!emprestada) unawaited(_recorder.delete(path));
   }
 
   void _tocarOProximoTrecho() {
@@ -4251,12 +4140,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           btPhase: BtPhase.conferida,
           voice: VoiceState.done,
           clearFindingSegment: true,
-          // Its other half. The flag is switched on when the team takes a correction on
-          // and nothing on the way out of one that lands switches it off, so it outlived
-          // the session it belonged to. The two are one fact — whether a stretch is
-          // waiting to be mended — and leaving one of them standing is half a cleanup for
-          // whoever comes next.
-          btConsertando: false,
         );
         return;
       }
@@ -4285,11 +4168,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             : [verdict.findingKind!],
         btFindingSegmentId: verdict.findingSegmentId,
         clearFindingSegment: verdict.findingSegmentId == null,
-        // A verdict is the room asking again, so nothing is being mended yet — including
-        // when it points at the stretch the team just mended. Filling the band is not
-        // permanent, and a mend that did not satisfy the analyst has to show as waiting a
-        // second time.
-        btConsertando: false,
       );
       // The stretch is no longer played at the team. Which voice needs to speak again is
       // theirs to say, and they say it by comparing the two — so hearing either one is a
@@ -4407,7 +4285,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state = state.copyWith(
           btPhase: BtPhase.playing,
           btClipEnded: true,
-          btConsertando: false,
           voice: VoiceState.invite,
         );
       case null:
@@ -4468,10 +4345,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btPhase: BtPhase.playing,
       voice: VoiceState.invite,
       btFimDasPartesMs: _fimDaParteMs,
-      // This branch returns above the two that clear it, so a team sent to an unheard
-      // part mid-mend kept the flag on and the drained band — the only mark of a stretch
-      // still waiting — was suppressed under them.
-      btConsertando: false,
     );
     _tocarParteDaRetro(
       parte,
@@ -4500,20 +4373,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // chama, não uma regra, e a fatia que esta aterragem põe no ar sai por
     // _leadThemToTheTrecho, que não passa por onde uma parte passa.
     _silenceTheRoom();
-    final trecho = state.trechoChamado(named);
-    if (trecho == null ||
-        trecho.parte < 0 ||
-        trecho.parte >= state.partes.length) {
-      // A name this tablet cannot turn into a slice of a recording it is holding. There
-      // is nothing to lead them to and no way to say so without words, and every quiet
-      // way out of here ends on the exit that empties the rehearsal.
-      _haltForAPerson();
-      return;
-    }
-    _parteTocando = trecho.parte;
-    _trechoStart = trecho.from;
-    _trechoEnd = trecho.to;
-    _trechoTraduzidoDeNovo = trecho;
+    final trecho = _armarOTrecho(state.trechoChamado(named));
+    if (trecho == null) return;
     state = state.copyWith(
       btPhase: BtPhase.playing,
       voice: VoiceState.invite,
@@ -4521,6 +4382,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       clearFindingSegment: true,
     );
     _leadThemToTheTrecho(trecho);
+  }
+
+  Trecho? _armarOTrecho(Trecho? trecho) {
+    if (trecho == null ||
+        trecho.parte < 0 ||
+        trecho.parte >= state.partes.length) {
+      // A name this tablet cannot turn into a slice of a recording it is holding. There
+      // is nothing to lead them to and no way to say so without words, and every quiet
+      // way out of here ends on the exit that empties the rehearsal.
+      _haltForAPerson();
+      return null;
+    }
+    _parteTocando = trecho.parte;
+    _trechoStart = trecho.from;
+    _trechoEnd = trecho.to;
+    _trechoTraduzidoDeNovo = trecho;
+    return trecho;
   }
 
   /// Take the room's own reading of the stretches, names and all.
@@ -4693,10 +4571,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(btTrechos: _trechosFrom(segments, naParte: naParte));
   }
 
-  void _leadThemToTheTrecho(Trecho trecho) {
+  void _leadThemToTheTrecho(Trecho trecho, {VoidCallback? depois}) {
     if (_ondeTocar(trecho) == null) return;
     state = state.copyWith(btTrechoTocando: true);
-    _tocarOTrecho(trecho);
+    _tocarOTrecho(trecho, depois: depois);
   }
 
   /// Which take answers for a stretch's audio: the one its own id names, never the one
@@ -4742,7 +4620,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// boundary when a stretch spanned two recordings. A stretch cannot span two recordings
   /// any more — it is a slice of one — so the resolving and the stitching are gone with
   /// the ruler that needed them.
-  void _tocarOTrecho(Trecho trecho) {
+  void _tocarOTrecho(Trecho trecho, {VoidCallback? depois}) {
     final onde = _ondeTocar(trecho);
     if (onde == null) {
       state = state.copyWith(btTrechoTocando: false, btTrechoPausada: false);
@@ -4760,7 +4638,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(btTrechoTocando: false, btTrechoPausada: false);
     }
 
-    _onPlaybackComplete = quiet;
+    _onPlaybackComplete = () {
+      quiet();
+      depois?.call();
+    };
     _onPlaybackFailed = quiet;
     _clipHeld = false;
     _listenForTheEnd();
@@ -4768,54 +4649,39 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchPlayback(clipStillOpening: true);
   }
 
-  /// Hear the team's own voice on the stretch the analyst pointed at.
-  ///
-  /// Free, and it decides nothing: the room used to read the kind of finding and pick the
-  /// correction itself, so the team never compared the two voices before the choice was
-  /// already made for them.
-  void ouvirVozMaterna() {
+  void ouvirOTrechoEATraducao() {
     if (state.btPhase != BtPhase.findings) return;
     if (state.btTrechoTocando) {
       _holdClip();
       state = state.copyWith(btTrechoTocando: false, btTrechoPausada: true);
       return;
     }
-    if (state.btRetroTocando) return;
+    if (state.btRetroTocando) {
+      _holdClip();
+      state = state.copyWith(btRetroTocando: false, btRetroPausada: true);
+      return;
+    }
     if (state.btTrechoPausada) {
       state = state.copyWith(btTrechoTocando: true, btTrechoPausada: false);
+      _letTheClipRun();
+      return;
+    }
+    if (state.btRetroPausada) {
+      state = state.copyWith(btRetroTocando: true, btRetroPausada: false);
       _letTheClipRun();
       return;
     }
     final trecho = state.btFindingTrecho;
     if (trecho == null) return;
     _silenceTheRoom();
-    _leadThemToTheTrecho(trecho);
+    _leadThemToTheTrecho(trecho, depois: () => _ouvirATraducaoDada(trecho));
   }
 
-  /// Hear the telling in Portuguese — the voice that travels to the analyst.
-  void ouvirTraducaoEmPortugues() {
-    if (state.btPhase != BtPhase.findings) return;
-    if (state.btRetroTocando) {
-      _holdClip();
-      state = state.copyWith(btRetroTocando: false, btRetroPausada: true);
-      return;
-    }
-    if (state.btTrechoTocando) return;
-    final path = state.btFindingTrecho?.retroPath;
-    if (path == null) return;
-    if (state.btRetroPausada) {
-      state = state.copyWith(btRetroTocando: true, btRetroPausada: false);
-      _letTheClipRun();
-      return;
-    }
-    void quiet() {
-      unawaited(_playback.stop());
-      state = state.copyWith(btRetroTocando: false, btRetroPausada: false);
-    }
-
-    _silenceTheRoom();
+  void _ouvirATraducaoDada(Trecho trecho) {
+    final path = trecho.retroPath;
+    if (path == null || state.btPhase != BtPhase.findings) return;
     state = state.copyWith(btRetroTocando: true);
-    _play(path, onComplete: quiet, onFailed: quiet);
+    _play(path, onComplete: _calarOQueSeOuvia, onFailed: _calarOQueSeOuvia);
   }
 
   /// The team's own voice stands and only the telling slipped: the explanation is redone
@@ -4823,8 +4689,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void traduzirDeNovoEmPortugues() {
     final trecho = state.btFindingTrecho;
     if (state.btPhase != BtPhase.findings || trecho == null) return;
-    state = state.copyWith(btTrechoTocando: false, btRetroTocando: false);
-    unawaited(traduzirDeNovo(trecho));
+    _silenceTheRoom();
+    if (_armarOTrecho(trecho) == null) return;
+    state = state.copyWith(
+      btPhase: BtPhase.playing,
+      voice: VoiceState.invite,
+      btFindings: const [],
+      btTraducaoPendente: trecho.retroPath,
+      btTraducaoEmprestada: trecho.retroPath,
+    );
   }
 
   /// Back to the rehearsal with everything kept, to record what the story still lacks.
@@ -4925,7 +4798,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _personAskStep = 0;
     _haltWatched = null;
     _trechoTraduzidoDeNovo = null;
-    _mendArmedWithThisCapture = false;
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
     _parteTocando = 0;

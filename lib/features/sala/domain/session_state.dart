@@ -154,15 +154,6 @@ class SalaSessionState {
   final List<Trecho> btTrechos;
   final String? btFindingSegmentId;
 
-  /// Whether the team is mending the stretch the finding points at.
-  ///
-  /// Its own flag rather than a reading of the phase. The pointer is the room's working
-  /// name for that stretch and every station of the correction reads it, so it has to
-  /// stand through the whole mend; and the phase a failed mend lands on is `playing`, the
-  /// same one a delivered mend lands on. Neither answers the question the bead row asks —
-  /// whether that stretch is still waiting for the team to do something about it.
-  final bool btConsertando;
-
   /// Whether a mother-tongue slice is sounding: the pointed stretch, the stretch the
   /// verdict named, the pending stretch played again after a cut, or a tapped bead.
   final bool btTrechoTocando;
@@ -197,6 +188,7 @@ class SalaSessionState {
   final Duration btCorte;
   final int btParte;
   final String? btTraducaoPendente;
+  final String? btTraducaoEmprestada;
   final Trecho? btTrechoTraduzidoDeNovo;
   final int? btContaEscolhida;
   final List<BtFindingKind> btFindings;
@@ -257,7 +249,6 @@ class SalaSessionState {
     this.aOferecer = 0,
     this.btTrechos = const [],
     this.btFindingSegmentId,
-    this.btConsertando = false,
     this.btTrechoTocando = false,
     this.btRetroTocando = false,
     this.btTrechoPausada = false,
@@ -272,6 +263,7 @@ class SalaSessionState {
     this.btCorte = Duration.zero,
     this.btParte = 0,
     this.btTraducaoPendente,
+    this.btTraducaoEmprestada,
     this.btTrechoTraduzidoDeNovo,
     this.btContaEscolhida,
     this.btFindings = const [],
@@ -413,8 +405,14 @@ class SalaSessionState {
         (limite == null || cabeca < limite);
   }
 
+  bool get btTraducaoPendenteEmprestada =>
+      btTraducaoPendente != null && btTraducaoPendente == btTraducaoEmprestada;
+
   bool get canConfirmTranslation =>
-      _btNaVez && btTraducaoPendente != null && btContaEscolhida == null;
+      _btNaVez &&
+      btTraducaoPendente != null &&
+      !btTraducaoPendenteEmprestada &&
+      btContaEscolhida == null;
 
   bool get canListenToThePendingStretch =>
       _btNaVez &&
@@ -449,17 +447,6 @@ class SalaSessionState {
     }
     return null;
   }
-
-  /// The stretch the bead row draws drained, or null while no stretch is waiting.
-  ///
-  /// An empty band means *this is the one waiting to be mended*, and the team stops it
-  /// waiting by starting the mend — not by finishing it. Reading the pointer straight left
-  /// the band empty through the choosing, the recording and the upload, so the cord said
-  /// nothing had been done while the team was doing it.
-  ///
-  /// The rule lives here and not on the screen, which is the same reason [btFindingTrecho]
-  /// gives for itself.
-  String? get btEsperandoConserto => btConsertando ? null : btFindingSegmentId;
 
   /// The rehearsal's own recordings, in order — never a correction's own take, which is a
   /// slice of one of these and not a part of the rehearsal in its own right.
@@ -516,7 +503,6 @@ class SalaSessionState {
     List<Trecho>? btTrechos,
     String? btFindingSegmentId,
     bool clearFindingSegment = false,
-    bool? btConsertando,
     bool? btTrechoTocando,
     bool? btRetroTocando,
     bool? btTrechoPausada,
@@ -532,6 +518,7 @@ class SalaSessionState {
     int? btParte,
     String? btTraducaoPendente,
     bool clearTraducaoPendente = false,
+    String? btTraducaoEmprestada,
     Trecho? btTrechoTraduzidoDeNovo,
     bool clearTrechoTraduzidoDeNovo = false,
     int? btContaEscolhida,
@@ -579,7 +566,6 @@ class SalaSessionState {
       btFindingSegmentId: clearFindingSegment
           ? null
           : (btFindingSegmentId ?? this.btFindingSegmentId),
-      btConsertando: btConsertando ?? this.btConsertando,
       btTrechoTocando: btTrechoTocando ?? this.btTrechoTocando,
       btRetroTocando: btRetroTocando ?? this.btRetroTocando,
       btTrechoPausada: btTrechoPausada ?? this.btTrechoPausada,
@@ -596,6 +582,9 @@ class SalaSessionState {
       btTraducaoPendente: clearTraducaoPendente
           ? null
           : (btTraducaoPendente ?? this.btTraducaoPendente),
+      btTraducaoEmprestada: clearTraducaoPendente
+          ? null
+          : (btTraducaoEmprestada ?? this.btTraducaoEmprestada),
       btTrechoTraduzidoDeNovo: clearTrechoTraduzidoDeNovo
           ? null
           : (btTrechoTraduzidoDeNovo ?? this.btTrechoTraduzidoDeNovo),

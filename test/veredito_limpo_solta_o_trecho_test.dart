@@ -4,11 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 
-const _micRetro = 'Traduzir de novo só em português';
+const _micRetro = 'Traduzir este trecho de novo';
 
 Finder _byLabel(String label) => find.byWidgetPredicate(
   (widget) => widget is Semantics && widget.properties.label == label,
@@ -24,25 +26,25 @@ SalaSessionNotifier _notifier(ProviderContainer c) =>
 /// A stretch is drained exactly when it is the one waiting to be mended. The whole
 /// list rather than one place at a time, so the answer can be wrong: asking only about the
 /// place the finding named can never catch a pointer somewhere else.
-List<int> _faixasVazias(WidgetTester tester, ProviderContainer container) {
-  final estado = container.read(salaSessionProvider);
-  final apontado = estado.btEsperandoConserto;
-  final trechos = estado.btTrechos;
-  return [
-    for (var lugar = 0; lugar < trechos.length; lugar++)
-      if (apontado != null && trechos[lugar].segmentId == apontado) lugar,
-  ];
-}
+List<int> _faixasVazias(WidgetTester tester, ProviderContainer container) => [
+  for (final (lugar, conta)
+      in tester
+          .widget<BeadRow>(
+            find.descendant(
+              of: find.byType(RetroView),
+              matching: find.byType(BeadRow),
+            ),
+          )
+          .entries
+          .indexed)
+    if (conta.fill == BeadFill.drained) lugar,
+];
 
 /// A team standing at the question, with a finding on the first of two stretches.
 ///
-/// The kind is scenery, not subject: nothing here reads it, and what every case needs is
-/// only a finding that names a stretch and a correction route out of it. It is named
-/// rather than left to a default because one kind is no longer interchangeable — a finding
-/// of *falta* draws no grid of voices at all, since asking which voice the error lives in
-/// has no answer when the team told truly and told too little. Proven by experiment before
-/// it was written down: a copy of this file with the kind swapped and nothing else changed
-/// passes, and still fails without the fix.
+/// The kind is scenery, not subject: nothing here reads it, and swapping it for any other
+/// leaves every case as it is. What every case needs is only a finding that names a
+/// stretch, and a correction route out of it.
 Future<ProviderContainer> _pumpToPergunta(WidgetTester tester) async {
   final harness = SalaHarness(filaEmMemoria: true)
     ..room.verdictChecked = false
@@ -97,29 +99,13 @@ Future<void> _consertoQueNaoPegou(
   await tester.tap(_byLabel(_micRetro));
   await tester.pump(const Duration(milliseconds: 300));
   _notifier(container).retroTap();
+  await tester.pump(const Duration(milliseconds: 300));
+  _notifier(container).retroTap();
+  await tester.pump(const Duration(milliseconds: 300));
+  await _notifier(container).confirmarTraducao();
   await letTheRehearsalReachTheRoom(tester);
   await tester.pump(const Duration(milliseconds: 500));
   _harnessDaVez!.room.replaceCaptured = true;
-}
-
-/// The team takes the correction on: the microphone opens on that stretch.
-Future<void> _comecarOConserto(WidgetTester tester) async {
-  await tester.tap(_byLabel(_micRetro));
-  await tester.pump(const Duration(milliseconds: 300));
-}
-
-/// Hand the correction over, and let the room reach whatever result follows.
-///
-/// Asking for the result is the room's own last step of a correction that lands, so the
-/// verdict has to be armed before this — a stretch named afterwards is answering a
-/// question that was already asked.
-Future<void> _entregarOConserto(
-  WidgetTester tester,
-  ProviderContainer container,
-) async {
-  _notifier(container).retroTap();
-  await letTheRehearsalReachTheRoom(tester);
-  await tester.pump(const Duration(milliseconds: 500));
 }
 
 /// The team says they have finished, and the analyst has no more objections.
@@ -162,10 +148,11 @@ void main() {
     await _consertoQueNaoPegou(tester, container);
     expect(
       _faixasVazias(tester, container),
-      [0],
+      isEmpty,
       reason:
-          'e o conserto não pegou, então o trecho segue esperando e o '
-          'ponteiro segue nomeando um trecho que está lá',
+          'o conserto não pegou e a tradução nova segue pendente sobre o '
+          'trecho: translúcida, como toda regravação pendente (ADR 0040), '
+          'e o ponteiro segue nomeando um trecho que está lá',
     );
 
     await _oVeredictoVoltaLimpo(tester, container);
@@ -208,54 +195,6 @@ void main() {
       container.read(salaSessionProvider).btFindingTrecho,
       isNull,
       reason: 'e nada mais na sala pode agir sobre um achado que acabou',
-    );
-
-    await _deixarOColarFechar(tester);
-  });
-
-  testWidgets('a conferida também desliga a bandeira de conserto', (
-    tester,
-  ) async {
-    final container = await _pumpToPergunta(tester);
-
-    await _comecarOConserto(tester);
-    expect(
-      container.read(salaSessionProvider).btConsertando,
-      isTrue,
-      reason:
-          'a bandeira acende quando a equipe assume o conserto — se não '
-          'acender, este cenário não chega ao que mede',
-    );
-
-    // Armado antes da entrega, e a equipe entrega com a bandeira acesa. Pedir o
-    // resultado é o último passo que a própria sala dá num conserto que pega, então um
-    // veredito nomeado depois responderia uma pergunta já feita. A chamada manual abaixo
-    // é o mesmo gesto para uma sala que ainda não pede sozinha: onde ela já pede, cai na
-    // guarda de `canFinishBackTranslation` e não faz nada.
-    _harnessDaVez!.room.verdictChecked = true;
-    _harnessDaVez!.room.verdictFinding = null;
-    _harnessDaVez!.room.verdictFindingSegmentId = null;
-    await _entregarOConserto(tester, container);
-    await _oVeredictoVoltaLimpo(tester, container);
-
-    expect(
-      container.read(salaSessionProvider).btPhase,
-      BtPhase.conferida,
-      reason: 'e o conserto chegou mesmo ao veredito limpo',
-    );
-
-    expect(
-      container.read(salaSessionProvider).btConsertando,
-      isFalse,
-      reason:
-          'não há conserto em curso debaixo de uma passagem conferida. A '
-          'bandeira sobrevivia ao fim da sessão, e quem viesse depois '
-          'encontraria meia limpeza: o ponteiro solto e ela ainda de pé',
-    );
-    expect(
-      container.read(salaSessionProvider).btEsperandoConserto,
-      isNull,
-      reason: 'e as duas metades concordam — é o par que decide a faixa',
     );
 
     await _deixarOColarFechar(tester);

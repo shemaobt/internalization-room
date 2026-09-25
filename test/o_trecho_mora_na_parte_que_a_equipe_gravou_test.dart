@@ -243,7 +243,7 @@ void main() {
         () => it.estado.btPhase == BtPhase.findings,
       );
 
-      it.sala.ouvirVozMaterna();
+      it.sala.ouvirOTrechoEATraducao();
       await waitFor('o trecho apontado tocar', () => it.estado.btTrechoTocando);
 
       expect(

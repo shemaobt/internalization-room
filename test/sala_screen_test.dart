@@ -693,14 +693,14 @@ void main() {
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
     expect(
-      bySemanticsLabelWidget('Gravar esta parte de novo na língua materna'),
+      bySemanticsLabelWidget('Gravar a parte de novo na língua materna'),
       findsOneWidget,
       reason:
-          'as duas saídas continuam ali, mas agora como as duas vozes da '
-          'grade, e é a equipe que diz qual precisa falar de novo',
+          'as duas saídas continuam ali, mas agora como os dois microfones '
+          'do achado, e é a equipe que diz qual voz precisa falar de novo',
     );
     expect(
-      bySemanticsLabelWidget('Traduzir de novo só em português'),
+      bySemanticsLabelWidget('Traduzir este trecho de novo'),
       findsOneWidget,
     );
     expect(
@@ -733,11 +733,13 @@ void main() {
   });
 
   for (final kind in [BtFindingKind.missing, BtFindingKind.unclear]) {
-    testWidgets('a ${kind.name} finding offers both exits', (tester) async {
+    testWidgets('a ${kind.name} finding with no stretch offers the way on', (
+      tester,
+    ) async {
       final container = await pumpToFindings(tester, kind);
 
       expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
-      expect(bySemanticsLabelWidget(wholeClipExit), findsOneWidget);
+      expect(bySemanticsLabelWidget(wholeClipExit), findsNothing);
       expect(bySemanticsLabelWidget(continuarOEnsaio), findsOneWidget);
     });
   }

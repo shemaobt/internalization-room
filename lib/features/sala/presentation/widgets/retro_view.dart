@@ -6,12 +6,10 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
-import '../../domain/bt_finding.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
 import 'bead_row.dart';
 import 'bead_styles.dart';
-import 'onde_mora_grade.dart';
 import 'facilitator_circle.dart';
 import 'motion.dart';
 
@@ -32,41 +30,6 @@ class RetroView extends ConsumerWidget {
         session.btPhase == BtPhase.conferida &&
         !session.needsPerson &&
         !session.offline;
-
-    // The question is its own composition, not a row of buttons under the usual circle:
-    // the grid is the screen, and the room's voice steps back to make room for it.
-    if (session.btPhase == BtPhase.findings &&
-        session.btFindingTrecho != null) {
-      return Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          FacilitatorCircle(
-            size: 54,
-            voice: session.voice,
-            warning: session.warning,
-            semanticLabel: _circleLabel(session, language),
-            onTap: notifier.retroTap,
-            onLongPress: session.canResolveWithPerson
-                ? notifier.resolveWithPerson
-                : null,
-          ),
-          const SizedBox(height: 46),
-          OndeMoraGrade(
-            onOuvirMaterna: notifier.ouvirVozMaterna,
-            onOuvirRetro: notifier.ouvirTraducaoEmPortugues,
-            onGravarAParteDeNovo: notifier.gravarAParteDeNovo,
-            onTraduzirDeNovo: notifier.traduzirDeNovoEmPortugues,
-            tocandoMaterna: session.btTrechoTocando,
-            tocandoRetro: session.btRetroTocando,
-            podeOuvirRetro: session.btFindingTrecho?.retroPath != null,
-            offline: session.offline,
-            onCortar: session.btTrechoTocando
-                ? () => unawaited(notifier.dividirTrecho())
-                : null,
-          ),
-        ],
-      );
-    }
 
     final avanca =
         session.btPhase != BtPhase.findings &&
@@ -98,25 +61,44 @@ class RetroView extends ConsumerWidget {
         const Spacer(flex: 64),
         SizedBox(height: 60, child: _actions(session, notifier, language)),
         const Spacer(flex: 58),
-        SizedBox(
-          height: 78,
-          child: avanca
-              ? FadeUp(
-                  child: RoundActionButton(
-                    size: 78,
-                    semanticLabel: retroLabelFor('advance', language),
-                    gradient: BeadStyles.wood,
-                    shadows: RoundActionButton.dropShadow,
-                    mood: session.canAdvanceToTheVerdict
-                        ? ButtonMood.beckoning
-                        : ButtonMood.dimmed,
-                    onTap: () => unawaited(notifier.finishBackTranslation()),
-                  ),
-                )
-              : null,
-        ),
+        SizedBox(height: 78, child: _disc(session, notifier, language, avanca)),
         const Spacer(flex: 304),
       ],
+    );
+  }
+
+  Widget? _disc(
+    SalaSessionState session,
+    SalaSessionNotifier notifier,
+    String language,
+    bool avanca,
+  ) {
+    if (session.btPhase == BtPhase.findings &&
+        session.btFindingTrecho == null) {
+      return FadeUp(
+        child: RoundActionButton(
+          size: 78,
+          semanticLabel: findingLabelFor('continue', language),
+          gradient: BeadStyles.wood,
+          shadows: RoundActionButton.dropShadow,
+          halo: ShemaBrand.wood,
+          mood: ButtonMood.beckoning,
+          onTap: notifier.continuarOEnsaio,
+        ),
+      );
+    }
+    if (!avanca) return null;
+    return FadeUp(
+      child: RoundActionButton(
+        size: 78,
+        semanticLabel: retroLabelFor('advance', language),
+        gradient: BeadStyles.wood,
+        shadows: RoundActionButton.dropShadow,
+        mood: session.canAdvanceToTheVerdict
+            ? ButtonMood.beckoning
+            : ButtonMood.dimmed,
+        onTap: () => unawaited(notifier.finishBackTranslation()),
+      ),
     );
   }
 
@@ -138,21 +120,36 @@ class RetroView extends ConsumerWidget {
     SalaSessionNotifier notifier,
     String language,
   ) {
-    final aberta = session.btPhase != BtPhase.conferida;
+    final naPergunta = session.btPhase == BtPhase.findings;
+    final aberta = session.btPhase != BtPhase.conferida && !naPergunta;
     final nomeado = aberta ? session.btTrechoTraduzidoDeNovo : null;
     final escolhida = aberta ? session.btContaEscolhida : null;
-    final contas = <(BeadFill, bool, VoidCallback?)>[
+    final apontado = naPergunta
+        ? session.btFindingTrecho?.segmentId
+        : nomeado?.segmentId == session.btFindingSegmentId
+        ? nomeado?.segmentId
+        : null;
+    final contas = <(BeadFill, bool, bool, VoidCallback?)>[
       for (final (onde, trecho) in session.btTrechos.indexed)
-        if (nomeado != null && trecho.segmentId == nomeado.segmentId)
+        if (naPergunta)
+          (
+            _fillOf(trecho, session),
+            trecho.segmentId == apontado,
+            apontado != null && trecho.segmentId != apontado,
+            null,
+          )
+        else if (nomeado != null && trecho.segmentId == nomeado.segmentId)
           (
             _fillOf(trecho, session),
             escolhida == null,
+            false,
             notifier.ouvirOTrechoPendente,
           )
         else
           (
             _fillOf(trecho, session),
             escolhida == onde,
+            apontado != null,
             aberta && trecho.contado
                 ? () => notifier.ouvirOTrechoContado(onde)
                 : null,
@@ -171,18 +168,21 @@ class RetroView extends ConsumerWidget {
         (
           BeadFill.translucent,
           escolhida == null,
+          false,
           notifier.ouvirOTrechoPendente,
         ),
-        if (session.btRestoDepoisDoCorte) (BeadFill.translucent, false, null),
+        if (session.btRestoDepoisDoCorte)
+          (BeadFill.translucent, false, false, null),
       ]);
     }
     final nome = retroLabelFor('stretch', language);
     return [
-      for (final (onde, (fill, current, onTap)) in contas.indexed)
+      for (final (onde, (fill, current, dimmed, onTap)) in contas.indexed)
         (
           BeadRowEntry(
             fill: fill,
             current: current,
+            dimmed: dimmed,
             semanticLabel: '$nome ${onde + 1}',
           ),
           onTap,
@@ -192,8 +192,13 @@ class RetroView extends ConsumerWidget {
 
   BeadFill _fillOf(Trecho trecho, SalaSessionState session) {
     if (trecho.segmentId != null &&
-        trecho.segmentId == session.btEsperandoConserto) {
-      return BeadFill.drained;
+        trecho.segmentId == session.btFindingSegmentId) {
+      final regravando =
+          session.btPhase == BtPhase.capturing ||
+          (session.btPhase != BtPhase.findings &&
+              session.btTraducaoPendente != null &&
+              !session.btTraducaoPendenteEmprestada);
+      return regravando ? BeadFill.translucent : BeadFill.drained;
     }
     return trecho.contado ? BeadFill.solid : BeadFill.translucent;
   }
@@ -216,44 +221,46 @@ class RetroView extends ConsumerWidget {
     String language,
   ) {
     if (session.btPhase == BtPhase.findings) {
-      // Which voice needs to speak again is the team's to say. It used to be read off the
-      // kind of finding, and the team was never asked, on the one question only they can
-      // answer.
-      // With no stretch to ask about, the question cannot be put, and the room falls back
-      // to what it always did — including reading the kind: telling the whole recording
-      // again settles nothing a re-recording kind names, and the pointer being absent must
-      // not smuggle that offer back in.
-      final retellingCanSettleIt = !session.btFindings.any(
-        (finding) => finding.exitsByReRecording,
-      );
+      final humor = session.btFindingTrecho == null
+          ? ButtonMood.dimmed
+          : ButtonMood.lit;
+      final soando = session.btTrechoTocando || session.btRetroTocando;
       return FadeUp(
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (retellingCanSettleIt) ...[
-              RoundActionButton(
-                size: 60,
-                semanticLabel: 'Ouvir e traduzir a gravação de novo',
-                gradient: BeadStyles.wood,
-                onTap: notifier.startRetro,
-                child: const Icon(
-                  LucideIcons.rotateCcw,
-                  size: 24,
-                  color: ShemaBrand.branco,
-                ),
-              ),
-              const SizedBox(width: 28),
-            ],
-            // Back to the rehearsal with the takes, the stretches and the colar kept: a
-            // finding of something missing that fits in no stretch is the end of the
-            // story never recorded, and what it asks for is more recording, not the
-            // recording again. The name says the additive act, because the grid's wood
-            // microphone next door records a part again in place.
             RoundActionButton(
               size: 60,
-              semanticLabel: 'Continuar o ensaio',
+              semanticLabel: findingLabelFor('play', language),
+              mood: humor,
+              gradient: BeadStyles.wood,
+              onTap: notifier.ouvirOTrechoEATraducao,
+              child: Icon(
+                soando ? LucideIcons.pause : LucideIcons.play,
+                size: 24,
+                color: ShemaBrand.branco,
+              ),
+            ),
+            const SizedBox(width: 24),
+            RoundActionButton(
+              size: 60,
+              semanticLabel: findingLabelFor('recordThePart', language),
+              mood: humor,
+              gradient: BeadStyles.wood,
+              onTap: notifier.gravarAParteDeNovo,
+              child: const Icon(
+                LucideIcons.mic,
+                size: 24,
+                color: ShemaBrand.branco,
+              ),
+            ),
+            const SizedBox(width: 24),
+            RoundActionButton(
+              size: 60,
+              semanticLabel: findingLabelFor('translateTheStretch', language),
+              mood: humor,
               gradient: BeadStyles.azul,
-              onTap: notifier.continuarOEnsaio,
+              onTap: notifier.traduzirDeNovoEmPortugues,
               child: const Icon(
                 LucideIcons.mic,
                 size: 24,
@@ -379,7 +386,7 @@ class RetroView extends ConsumerWidget {
       case BtPhase.capturing:
         return retroLabelFor('recording', language);
       case BtPhase.findings:
-        return 'Ouvir a pergunta de novo';
+        return findingLabelFor('circle', language);
       case BtPhase.thinking:
         return 'Um instante';
       case BtPhase.conferida:
