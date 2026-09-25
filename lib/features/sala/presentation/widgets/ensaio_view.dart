@@ -4,11 +4,11 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
-import '../../data/take_upload_queue.dart';
+import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
-import 'bead.dart';
+import 'bead_row.dart';
 import 'bead_styles.dart';
-import 'eq_bars.dart';
+import 'facilitator_circle.dart';
 import 'motion.dart';
 
 class EnsaioView extends ConsumerWidget {
@@ -18,287 +18,127 @@ class EnsaioView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);
-    final colors = SalaColors.of(context);
-    final recording = session.ensaio == EnsaioStatus.recording;
-    final ghosting = session.ensaio == EnsaioStatus.ghostPlaying;
+    final language = ref.watch(roomLanguageProvider);
+    final pending = session.ensaio == EnsaioStatus.recorded;
 
     return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        const Spacer(flex: 92),
         SizedBox(
-          height: 52,
-          child: session.canGhostPlay || ghosting
-              ? _GhostButton(
-                  playing: ghosting,
-                  colors: colors,
-                  onTap: notifier.ghostPlay,
-                )
-              : null,
+          height: 40,
+          child: BeadRow(entries: _beads(session, language), onTap: (_) {}),
         ),
-        const SizedBox(height: 26),
-        _RecordCircle(
-          recording: recording,
-          interrupted: session.micTaken,
-          dimmed: ghosting,
-          parteARegravar: session.parteARegravar,
-          colors: colors,
+        const Spacer(flex: 264),
+        FacilitatorCircle(
+          size: 160,
+          voice: _voice(session),
+          tongue: Tongue.motherTongue,
+          semanticLabel: _circleLabel(session, language),
           onTap: notifier.ensaioTap,
           onLongPress: session.canResolveWithPerson
               ? notifier.resolveWithPerson
               : null,
         ),
-        const SizedBox(height: 38),
-        EqBars(active: recording && !session.micTaken),
-        const SizedBox(height: 38),
-        SizedBox(
-          height: 60,
-          child: session.ensaio == EnsaioStatus.recorded
-              ? FadeUp(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _TakeActionButton(
-                        colors: colors,
-                        semanticLabel: 'Ouvir a gravação',
-                        pulsing: session.playPing,
-                        icon: Icon(
-                          session.playPing
-                              ? LucideIcons.pause
-                              : LucideIcons.play,
-                          size: 24,
-                          color: colors.ink,
-                        ),
-                        onTap: notifier.takePlay,
-                      ),
-                      const SizedBox(width: 24),
-                      _TakeActionButton(
-                        colors: colors,
-                        semanticLabel: 'Gravar de novo',
-                        icon: Icon(
-                          LucideIcons.rotateCcw,
-                          size: 24,
-                          color: colors.mut,
-                        ),
-                        onTap: notifier.takeRedo,
-                      ),
-                      const SizedBox(width: 24),
-                      RoundActionButton(
-                        size: 60,
-                        semanticLabel: 'Guardar esta gravação',
-                        gradient: BeadStyles.verde,
-                        shadows: [
-                          BoxShadow(
-                            color: ShemaBrand.verdeLo.withValues(alpha: 0.3),
-                            offset: const Offset(0, 4),
-                            blurRadius: 12,
-                          ),
-                        ],
-                        onTap: notifier.takeKeep,
-                        child: const Icon(
-                          LucideIcons.check,
-                          size: 24,
-                          color: ShemaBrand.branco,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : null,
+        const Spacer(flex: 116),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            RoundActionButton(
+              size: 60,
+              mood: session.canPlayTheRehearsal
+                  ? ButtonMood.lit
+                  : ButtonMood.dimmed,
+              gradient: BeadStyles.wood,
+              semanticLabel: rehearsalLabelFor(
+                session.playPing ? 'pause' : 'play',
+                language,
+              ),
+              onTap: notifier.playTheRehearsal,
+              child: Icon(
+                session.playPing ? LucideIcons.pause : LucideIcons.play,
+                size: 24,
+                color: ShemaBrand.branco,
+              ),
+            ),
+            const SizedBox(width: 24),
+            RoundActionButton(
+              size: 60,
+              mood: pending ? ButtonMood.lit : ButtonMood.dimmed,
+              gradient: BeadStyles.verde,
+              semanticLabel: rehearsalLabelFor('check', language),
+              onTap: notifier.takeKeep,
+              child: const Icon(
+                LucideIcons.check,
+                size: 24,
+                color: ShemaBrand.branco,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 20),
-        SizedBox(
-          height: 26,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final take in session.keptTakes)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 7),
-                  child: PingIn(
-                    child: Bead(
-                      size: 24,
-                      opacity: 0.45,
-                      marcada: take.scopeId == session.escopoDaParteARegravar,
-                      filled:
-                          !session.unsentTakeScopes.contains(take.scopeId) &&
-                          !session.unsentTakeScopes.contains(unknownScope),
-                    ),
-                  ),
-                ),
-            ],
+        const Spacer(flex: 66),
+        FadeUp(
+          child: RoundActionButton(
+            size: 78,
+            mood: session.ensaioDone ? ButtonMood.beckoning : ButtonMood.dimmed,
+            gradient: BeadStyles.wood,
+            shadows: RoundActionButton.dropShadow,
+            halo: ShemaBrand.wood,
+            semanticLabel: rehearsalLabelFor('advance', language),
+            onTap: notifier.startRetro,
           ),
         ),
-        const SizedBox(height: 20),
-        SizedBox(
-          height: 64,
-          child: session.ensaioHasATake
-              ? FadeUp(
-                  child: RoundActionButton(
-                    size: 64,
-                    mood: session.ensaioDone
-                        ? ButtonMood.beckoning
-                        : ButtonMood.dimmed,
-                    gradient: BeadStyles.verde,
-                    shadows: RoundActionButton.dropShadow,
-                    semanticLabel: 'Ir para a tradução',
-                    onTap: notifier.startRetro,
-                    child: const Icon(
-                      LucideIcons.checkCheck,
-                      size: 26,
-                      color: ShemaBrand.branco,
-                    ),
-                  ),
-                )
-              : null,
-        ),
+        const Spacer(flex: 304),
       ],
     );
   }
-}
 
-class _GhostButton extends StatelessWidget {
-  final bool playing;
-  final SalaColors colors;
-  final VoidCallback onTap;
-
-  const _GhostButton({
-    required this.playing,
-    required this.colors,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final button = Opacity(
-      opacity: 0.55,
-      child: RoundActionButton(
-        size: 52,
-        semanticLabel: playing
-            ? 'Parar de ouvir o ensaio guardado'
-            : 'Ouvir o ensaio guardado antes de gravar',
-        gradient: BeadStyles.wood,
-        onTap: onTap,
-        child: Icon(
-          playing ? LucideIcons.pause : LucideIcons.play,
-          size: 22,
-          color: ShemaBrand.branco,
-        ),
-      ),
-    );
-    if (!playing) return FadeUp(child: button);
-    return Pulse(
-      amount: 0.08,
-      period: const Duration(milliseconds: 1200),
-      child: button,
-    );
+  VoiceState _voice(SalaSessionState session) {
+    if (session.ensaio == EnsaioStatus.recording && !session.micTaken) {
+      return VoiceState.listening;
+    }
+    if (session.playPing) return VoiceState.speaking;
+    return VoiceState.invite;
   }
-}
 
-class _RecordCircle extends StatelessWidget {
-  final bool recording;
-  final bool interrupted;
-  final bool dimmed;
-  final int? parteARegravar;
-  final SalaColors colors;
-  final VoidCallback onTap;
-  final VoidCallback? onLongPress;
+  String _circleLabel(SalaSessionState session, String language) {
+    final again = session.parteARegravar;
+    if (session.ensaio == EnsaioStatus.recording) {
+      return rehearsalLabelFor('recording', language);
+    }
+    if (session.ensaio == EnsaioStatus.recorded) {
+      return rehearsalLabelFor('pending', language);
+    }
+    if (again != null) {
+      return rehearsalLabelFor('partAgain', language, part: again + 1);
+    }
+    if (session.partes.isNotEmpty) {
+      return rehearsalLabelFor('nextPart', language);
+    }
+    return rehearsalLabelFor('firstPart', language);
+  }
 
-  const _RecordCircle({
-    required this.recording,
-    required this.interrupted,
-    required this.dimmed,
-    required this.parteARegravar,
-    required this.colors,
-    required this.onTap,
-    required this.onLongPress,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final live = recording && !interrupted;
-    return Semantics(
-      button: true,
-      label: switch ((recording, dimmed, parteARegravar)) {
-        (true, _, _) => 'Tocar ao terminar',
-        (false, true, _) => 'O ensaio guardado está tocando',
-        (false, false, final parte?) => 'Gravar a parte ${parte + 1} de novo',
-        _ => 'Tocar para gravar o ensaio',
-      },
-      child: GestureDetector(
-        onTap: onTap,
-        onLongPress: onLongPress,
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedOpacity(
-          opacity: dimmed ? 0.3 : 1,
-          duration: const Duration(milliseconds: 400),
-          child: Loop(
-            period: const Duration(milliseconds: 4600),
-            animate: true,
-            builder: (context, t) => Transform.scale(
-              scale: 1 + (live ? 0.06 : 0.045) * t,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 400),
-                width: 160,
-                height: 160,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: BeadStyles.telha(colors),
-                  boxShadow: live
-                      ? [
-                          BoxShadow(color: colors.halo, spreadRadius: 10),
-                          BoxShadow(
-                            color: colors.telha.withValues(alpha: 0.38),
-                            offset: const Offset(0, 12),
-                            blurRadius: 38,
-                          ),
-                        ]
-                      : [
-                          BoxShadow(
-                            color: colors.telha.withValues(alpha: 0.32),
-                            offset: const Offset(0, 10),
-                            blurRadius: 34,
-                          ),
-                        ],
-                ),
-                child: const Icon(
-                  LucideIcons.mic,
-                  size: 52,
-                  color: ShemaBrand.branco,
-                ),
-              ),
-            ),
+  List<BeadRowEntry> _beads(SalaSessionState session, String language) {
+    final open = session.ensaio != EnsaioStatus.idle;
+    final partes = session.partes;
+    final again = session.parteARegravar;
+    final replacing = again != null && again < partes.length;
+    return [
+      for (var index = 0; index < partes.length; index++)
+        BeadRowEntry(
+          fill: open && index == again ? BeadFill.translucent : BeadFill.solid,
+          current: index == again,
+          semanticLabel: rehearsalLabelFor('part', language, part: index + 1),
+        ),
+      if (open && !replacing)
+        BeadRowEntry(
+          fill: BeadFill.translucent,
+          current: true,
+          semanticLabel: rehearsalLabelFor(
+            'part',
+            language,
+            part: partes.length + 1,
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _TakeActionButton extends StatelessWidget {
-  final SalaColors colors;
-  final String semanticLabel;
-  final Widget icon;
-  final VoidCallback onTap;
-  final bool pulsing;
-
-  const _TakeActionButton({
-    required this.colors,
-    required this.semanticLabel,
-    required this.icon,
-    required this.onTap,
-    this.pulsing = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final button = RoundActionButton(
-      size: 60,
-      semanticLabel: semanticLabel,
-      background: colors.elev,
-      border: Border.all(color: colors.line, width: 1.5),
-      onTap: onTap,
-      child: icon,
-    );
-    return Pulse(animate: pulsing, child: button);
+    ];
   }
 }

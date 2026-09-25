@@ -10,8 +10,7 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/onde_mora_grade.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_cord.dart';
 import 'package:internalization_room/main.dart';
@@ -108,10 +107,54 @@ Future<void> _contarUmTrecho(Sala it, Duration quanto) async {
   );
 }
 
-/// The rehearsal's own row of beads, in the order the screen draws it.
-Iterable<Bead> _contasDoEnsaio(WidgetTester tester) => tester.widgetList<Bead>(
-  find.descendant(of: find.byType(EnsaioView), matching: find.byType(Bead)),
-);
+/// Record the part, leave it pending, and record it over: the circle's third and fourth
+/// taps. Answers the file left pending, after checking the one it replaced left the tablet.
+Future<String> _gravarPorCima(Sala it) async {
+  it.sala.ensaioTap();
+  await waitFor(
+    'a gravação começar',
+    () => it.estado.ensaio == EnsaioStatus.recording,
+  );
+  it.sala.ensaioTap();
+  await waitFor(
+    'a parte ficar pendente',
+    () => it.estado.ensaio == EnsaioStatus.recorded,
+  );
+  final substituida = it.harness.recorder.lastPath!;
+  it.sala.ensaioTap();
+  await waitFor(
+    'a gravação por cima começar',
+    () => it.estado.ensaio == EnsaioStatus.recording,
+  );
+  it.sala.ensaioTap();
+  await waitFor(
+    'a gravação por cima ficar pendente',
+    () =>
+        it.estado.ensaio == EnsaioStatus.recorded &&
+        it.harness.recorder.lastPath != substituida,
+  );
+  expect(it.harness.recorder.deleted, contains(substituida));
+  return it.harness.recorder.lastPath!;
+}
+
+List<BeadRowEntry> _contasDoEnsaio(WidgetTester tester) =>
+    tester.widget<BeadRow>(find.byType(BeadRow)).entries;
+
+Future<void> _tocar(WidgetTester tester, String label) async {
+  await tester.tap(byLabel(label));
+  await tester.pump(const Duration(milliseconds: 200));
+}
+
+/// The circle records the part, records it over, and the check confirms it: every
+/// gesture a gesture the team has on the rehearsal screen.
+Future<void> _gravarAParteDoisPorCimaEConfirmar(WidgetTester tester) async {
+  await _tocar(tester, 'Gravar a parte 2 de novo');
+  await _tocar(tester, 'Tocar ao terminar');
+  await _tocar(tester, 'Tocar para gravar esta parte de novo');
+  await _tocar(tester, 'Tocar ao terminar');
+  await _tocar(tester, 'Confirmar esta parte');
+  await letTheRehearsalReachTheRoom(tester);
+}
 
 /// What the report the tablet sends says about each part, by the name the room gave it.
 Map<String, List<List<int>>> _escutaRelatada(Sala it) => {
@@ -127,7 +170,24 @@ void main() {
     final enviadas = it.harness.room.takes.length;
 
     it.sala.gravarAParteDeNovo();
-    await regravarAParte(it, 1);
+    final porCima = await _gravarPorCima(it);
+    it.sala.takeKeep();
+    await waitFor(
+      'a gravação confirmada tomar o lugar da parte 2',
+      () => it.partes[1].path != antes[1].path,
+    );
+    expect(
+      it.partes[1].path,
+      porCima,
+      reason: 'é a última gravação por cima que o check confirma',
+    );
+    expect(
+      it.estado.btTrechos.where((trecho) => trecho.parte == 1),
+      isEmpty,
+      reason:
+          'os trechos contados sobre a gravação substituída saem como chão '
+          'por contar (ADR 0020)',
+    );
     await waitFor(
       'a gravação nova chegar à sala',
       () => it.harness.room.takes.length > enviadas,
@@ -569,9 +629,10 @@ void main() {
     expect(it.partes.last.scopeId, KeptScope.parte(4));
   });
 
-  test('descartar e gravar de novo ainda troca a parte dois', () async {
+  test('gravar por cima duas vezes ainda troca a parte dois', () async {
     final it = await _oAchadoNaParteDois();
     final antes = it.partes;
+    final enviadas = it.harness.room.takes.length;
 
     it.sala.gravarAParteDeNovo();
     expect(
@@ -581,45 +642,50 @@ void main() {
           'a tela do ensaio marca a conta por este número: guardado só '
           'no notifier, a tela não tinha como saber o que desenhar',
     );
+    await _gravarPorCima(it);
     it.sala.ensaioTap();
     await waitFor(
-      'a gravação começar',
+      'a segunda gravação por cima começar',
       () => it.estado.ensaio == EnsaioStatus.recording,
     );
     it.sala.ensaioTap();
     await waitFor(
-      'a gravação terminar',
+      'a segunda gravação por cima ficar pendente',
       () => it.estado.ensaio == EnsaioStatus.recorded,
     );
-    it.sala.takeRedo();
-    await waitFor(
-      'o círculo ficar livre',
-      () => it.estado.ensaio == EnsaioStatus.idle,
-    );
+    final ultima = it.harness.recorder.lastPath!;
     expect(
       it.estado.parteARegravar,
       1,
       reason:
-          'jogar fora a tomada não desfaz a escolha da parte, e a marca '
-          'tem de continuar de pé para a gravação seguinte tomar o lugar '
-          'certo',
+          'gravar por cima não desfaz a escolha da parte, e a marca tem de '
+          'continuar de pé para o check pôr a gravação no lugar certo',
+    );
+    expect(
+      it.harness.room.takes,
+      hasLength(enviadas),
+      reason: 'nada sobe antes do check',
     );
 
-    await regravarAParte(it, 1);
+    it.sala.takeKeep();
+    await waitFor(
+      'a gravação nova tomar o lugar da parte 2',
+      () => it.partes[1].path == ultima,
+    );
 
     expect(
       it.estado.parteARegravar,
       isNull,
       reason:
-          'e guardar gasta-a: de pé, a gravação seguinte viria tomar o '
+          'e confirmar gasta-a: de pé, a gravação seguinte viria tomar o '
           'lugar da parte 2 outra vez',
     );
     expect(
       it.partes,
       hasLength(3),
       reason:
-          'jogar fora uma tomada e gravar outra é a mesma gravação outra '
-          'vez; a sala não pode esquecer qual parte a equipe veio refazer',
+          'gravar por cima é a mesma gravação outra vez; a sala não pode '
+          'esquecer qual parte a equipe veio refazer',
     );
     expect(it.partes[1].scopeId, KeptScope.parte(2));
     expect(it.partes[1].path, isNot(antes[1].path));
@@ -816,10 +882,7 @@ void main() {
           'passa por posto nenhum pelo caminho',
     );
 
-    await resto.gravarUmaParte(
-      tester,
-      container.read(salaSessionProvider.notifier),
-    );
+    await _gravarAParteDoisPorCimaEConfirmar(tester);
 
     final agora = container.read(salaSessionProvider).partes;
     expect(agora, hasLength(3));
@@ -837,12 +900,19 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(
-      [for (final conta in _contasDoEnsaio(tester)) conta.marcada],
-      [false, true, false],
+      [
+        for (final conta in _contasDoEnsaio(tester))
+          (conta.fill, conta.current),
+      ],
+      [
+        (BeadFill.solid, false),
+        (BeadFill.solid, true),
+        (BeadFill.solid, false),
+      ],
       reason:
           'a equipe veio refazer a parte 2, e é a conta dela que o ensaio '
-          'distingue: sem marca nenhuma a tela diz que vai nascer uma parte '
-          'nova no fim do ensaio',
+          'põe em evidência desde a entrada: sem marca nenhuma a tela diz '
+          'que vai nascer uma parte nova no fim do ensaio',
     );
     expect(
       byLabel('Gravar a parte 2 de novo'),
@@ -852,39 +922,69 @@ void main() {
           'que uma sala sem texto tem para dizer isso',
     );
     expect(
-      byLabel('Tocar para gravar o ensaio'),
+      byLabel('Tocar para gravar a próxima parte'),
       findsNothing,
       reason:
           'o rótulo da parte nova mente aqui: esta gravação toma o lugar '
           'de uma parte que já existe',
     );
+
+    await _tocar(tester, 'Gravar a parte 2 de novo');
+    await _tocar(tester, 'Tocar ao terminar');
+    expect(
+      [
+        for (final conta in _contasDoEnsaio(tester))
+          (conta.fill, conta.current),
+      ],
+      [
+        (BeadFill.solid, false),
+        (BeadFill.translucent, true),
+        (BeadFill.solid, false),
+      ],
+      reason:
+          'a regravação pendente é a conta 2, translúcida, no seu lugar: '
+          'nenhuma conta nova nasce no fim',
+    );
   });
 
-  testWidgets('guardar a gravação nova solta a marca da parte', (tester) async {
+  testWidgets('confirmar a gravação nova solta a marca da parte', (
+    tester,
+  ) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await resto.aHistoriaSemOFim(
       tester,
       harness,
       ondeFalta: 'trecho-2',
     );
-    final notifier = container.read(salaSessionProvider.notifier);
     final antes = container.read(salaSessionProvider).partes;
 
     await tester.tap(byLabel(micParteLabel));
     await tester.pump(const Duration(milliseconds: 400));
-    await resto.gravarUmaParte(tester, notifier);
+    await _gravarAParteDoisPorCimaEConfirmar(tester);
 
     expect(
-      [for (final conta in _contasDoEnsaio(tester)) conta.marcada],
-      [false, false, false],
+      [
+        for (final conta in _contasDoEnsaio(tester))
+          (conta.fill, conta.current),
+      ],
+      [
+        (BeadFill.solid, false),
+        (BeadFill.solid, false),
+        (BeadFill.solid, false),
+      ],
       reason:
-          'a marca gasta-se no guardar: deixada de pé, a próxima '
+          'a marca gasta-se no check: deixada de pé, a próxima '
           'gravação da equipe parecia vir tomar o lugar da parte 2 outra vez',
     );
     expect(
-      byLabel('Tocar para gravar o ensaio'),
+      byLabel('Tocar para gravar a próxima parte'),
       findsOneWidget,
       reason: 'e o círculo volta a ser o da parte nova',
+    );
+    expect(
+      container.read(salaSessionProvider).partes[1].pass,
+      antes[1].pass + 1,
+      reason: 'a parte regravada sobe sob a passada seguinte',
     );
     final agora = container.read(salaSessionProvider).partes;
     expect(
@@ -906,7 +1006,6 @@ void main() {
       harness,
       ondeFalta: 'trecho-2',
     );
-    final notifier = container.read(salaSessionProvider.notifier);
     for (final parte in container.read(salaSessionProvider).partes) {
       harness.playback.lengths[parte.path] = resto.umaParteInteira;
     }
@@ -914,7 +1013,7 @@ void main() {
 
     await tester.tap(byLabel(micParteLabel));
     await tester.pump(const Duration(milliseconds: 400));
-    await resto.gravarUmaParte(tester, notifier);
+    await _gravarAParteDoisPorCimaEConfirmar(tester);
 
     expect(
       container.read(salaSessionProvider).btFimDasPartesMs,
@@ -927,8 +1026,13 @@ void main() {
 
     final partes = container.read(salaSessionProvider).partes;
     final medidasAntes = List.of(harness.playback.measurements);
-    notifier.startRetro();
+    await tester.tap(byLabel('Ir para a tradução'));
     await tester.pump(const Duration(milliseconds: 400));
+    expect(
+      container.read(salaSessionProvider).stage,
+      SalaStage.retro,
+      reason: 'o disco de madeira leva de volta à tradução',
+    );
 
     final cord = tester.widget<RetroCord>(find.byType(RetroCord));
     expect(cord.partes, 3, reason: 'o ensaio continua tendo três partes');

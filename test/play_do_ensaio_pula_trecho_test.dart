@@ -132,12 +132,12 @@ Future<_Sala> _seisPartesSeisTrechos() async {
   return it;
 }
 
-/// Drive the fake player's clip to completion for every stretch the ghost play opens,
+/// Drive the fake player's clip to completion for every stretch the rehearsal's play opens,
 /// until it stops on its own or gives up waiting.
-Future<void> _tocarOFantasmaAteAcabar(_Sala it) async {
+Future<void> _tocarOEnsaioAteAcabar(_Sala it) async {
   for (
     var tentativas = 0;
-    tentativas < 12 && it.estado.ensaio == EnsaioStatus.ghostPlaying;
+    tentativas < 12 && it.estado.playPing;
     tentativas++
   ) {
     it.harness.playback.finishPlayback();
@@ -182,8 +182,8 @@ void main() {
     it.harness.playback.played.clear();
     it.harness.playback.ranges.clear();
 
-    it.sala.ghostPlay();
-    await _tocarOFantasmaAteAcabar(it);
+    it.sala.playTheRehearsal();
+    await _tocarOEnsaioAteAcabar(it);
 
     expect(
       it.estado.ensaio,
@@ -263,8 +263,8 @@ void main() {
     );
     harness.playback.played.clear();
 
-    it.sala.ghostPlay();
-    await _tocarOFantasmaAteAcabar(it);
+    it.sala.playTheRehearsal();
+    await _tocarOEnsaioAteAcabar(it);
 
     expect(
       it.estado.ensaio,

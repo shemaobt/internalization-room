@@ -21,7 +21,7 @@ enum VoiceState {
 
 enum ConviteStep { boasVindas, panorama, entrada }
 
-enum EnsaioStatus { idle, ghostPlaying, recording, recorded }
+enum EnsaioStatus { idle, recording, recorded }
 
 /// Where the telling-back is, step by step.
 enum BtPhase { playing, capturing, thinking, findings, conferida }
@@ -115,9 +115,9 @@ class SalaSessionState {
   final int takes;
   final bool playPing;
 
-  /// Whether the take player is holding a position rather than sitting at rest.
+  /// Whether the rehearsal's play is holding a position rather than sitting at rest.
   ///
-  /// [playPing] already says whether the take is sounding; this is the second half
+  /// [playPing] already says whether the rehearsal is sounding; this is the second half
   /// [btTrechoPausada] gives for its own player — the next tap needs to tell a resume from
   /// a restart, and nothing else here carries that.
   final bool takePaused;
@@ -285,8 +285,6 @@ class SalaSessionState {
 
   bool get ensaioDone => takes >= 1 && ensaio == EnsaioStatus.idle;
 
-  bool get ensaioHasATake => takes >= 1;
-
   bool get awaitingFirstTouch =>
       stage == SalaStage.convite &&
       conviteStep == ConviteStep.boasVindas &&
@@ -388,7 +386,9 @@ class SalaSessionState {
       if (KeptScope.isParte(take.scopeId)) take,
   ];
 
-  bool get canGhostPlay => partes.isNotEmpty && ensaio == EnsaioStatus.idle;
+  bool get canPlayTheRehearsal =>
+      (partes.isNotEmpty || ensaio == EnsaioStatus.recorded) &&
+      ensaio != EnsaioStatus.recording;
 
   /// Whether the last listening the clean verdict invites has anything to play.
   ///

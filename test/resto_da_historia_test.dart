@@ -9,9 +9,8 @@ import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/onde_mora_grade.dart';
 import 'package:internalization_room/main.dart';
 
@@ -303,8 +302,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 700));
 
     expect(
-      find.descendant(of: find.byType(EnsaioView), matching: find.byType(Bead)),
-      findsNWidgets(3),
+      tester.widget<BeadRow>(find.byType(BeadRow)).entries,
+      hasLength(3),
       reason: 'uma conta por tomada guardada, no ensaio, como antes de contar',
     );
     expect(
