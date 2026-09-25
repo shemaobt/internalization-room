@@ -788,15 +788,16 @@ class FakeRoom implements RoomRepository {
   String? refuseTake;
   Exception? failDivideWith;
   Exception? failReplaceWith;
+  Exception? failChunkWith;
 
   /// What the next call to `fetchState` throws, independent of `failWith` — a case needs
   /// the settle poll to fail exactly once, so the read after it can succeed instead of
   /// failing the same way forever.
   Exception? failStateOnceWith;
 
-  /// What the next call to `createSession` throws, independent of `failWith` and of
-  /// `shutsThePassage` — a case needs a retry that opens a session for the same passage
-  /// to fail exactly once too, so the attempt after it can land.
+  /// What the next call to `createSession` throws, independent of `failWith` — a case
+  /// needs a retry that opens a session for the same passage to fail exactly once too, so
+  /// the attempt after it can land.
   Exception? failCreateOnceWith;
 
   /// What the ask for a verdict throws, when it is set. The one knob that lets a test put
@@ -917,8 +918,6 @@ class FakeRoom implements RoomRepository {
 
   Exception? failWith;
 
-  String? shutsThePassage;
-
   Completer<void>? _holdingTurn;
   Completer<void>? _holdingCode;
 
@@ -1031,9 +1030,6 @@ class FakeRoom implements RoomRepository {
     required String language,
   }) async {
     _guard('createSession');
-    if (pericope != null && pericope == shutsThePassage) {
-      throw const PassageShut();
-    }
     final failure = failCreateOnceWith;
     if (failure != null) {
       failCreateOnceWith = null;
@@ -1355,6 +1351,8 @@ class FakeRoom implements RoomRepository {
     required Duration to,
   }) async {
     _guard('sendChunk');
+    final refusal = failChunkWith;
+    if (refusal != null) throw refusal;
     chunksSent++;
     chunkSpans.add('${from.inMilliseconds}-${to.inMilliseconds}');
     chunkTakes.add(takeId);

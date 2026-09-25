@@ -951,8 +951,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _haltForAPerson();
       case SessionGone():
         _leaveTheDeadPassage();
-      case PassageShut():
-        _leaveTheDeadPassage();
       case RoomBroke():
         _registerRoomFailure();
       case RoomSlow():
@@ -1944,19 +1942,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         unawaited(_mindingThePlace(() => _emAberto.forget(_book, pericope)));
       }
       if (fresh) {
-        // Already the clean attempt: the server is refusing the passage itself, not the
-        // session we remembered. Retrying again is the loop this guard exists to stop.
+        // Already the clean attempt, and the room still does not know a session it was asked
+        // about: the panorama this one opened after, or the one it just opened. Retrying
+        // again is the loop this guard exists to stop.
         leaveThePassage();
         return;
       }
       // The tablet remembered a session the server has forgotten. Start clean, once.
       unawaited(goConversa(pericope: pericope, fresh: true));
-    } on PassageShut {
-      if (epoch != _epoch) return;
-      if (pericope != null) {
-        unawaited(_mindingThePlace(() => _emAberto.forget(_book, pericope)));
-      }
-      unawaited(abrirEscolha());
     } on Exception catch (error) {
       if (epoch != _epoch) return;
       if (waiting != null && error is RoomBroke) {
@@ -2126,11 +2119,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// or the disk. Nothing is written for it: the resume point stays exactly as it was and
   /// the next opening tries again.
   ///
-  /// Except for a room that has no such session or no such passage any more. This is the
-  /// first call that names the remembered session on a resume, so the two answers that
-  /// retire a session arrive here now, and swallowed they would make every opening ask a
-  /// dead session for a rehearsal and call a person who has nothing to resolve. They go
-  /// to the handlers that already start the passage clean.
+  /// Except for a room that has no such session any more. This is the first call that
+  /// names the remembered session on a resume, so the answer that retires a session
+  /// arrives here now, and swallowed it would make every opening ask a dead session for a
+  /// rehearsal and call a person who has nothing to resolve. It goes to the handler that
+  /// already starts the passage clean.
   Future<List<KeptTake>?> _asPartesDaSala(
     ResumePoint waiting,
     List<KeptTake> aqui,
@@ -2144,8 +2137,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _watchBusyState();
       guardadas = await _room.takesOf(waiting.sessionId);
     } on SessionGone {
-      rethrow;
-    } on PassageShut {
       rethrow;
     } on Exception {
       return null;
@@ -3646,7 +3637,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // the position is the player's answer, not the room's, and a player that comes back
       // from behind it would send a stretch that ends before it begins and then walk the
       // cursor backwards over every stretch after it.
-      if (_playback.position < _trechoStart) return;
+      if (_playback.position <= _trechoStart) return;
       _trechoEnd = _playback.position;
     }
     _mendArmedWithThisCapture = false;

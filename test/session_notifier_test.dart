@@ -5328,6 +5328,7 @@ void main() {
     notifier.takeKeep();
     notifier.startRetro();
     await settle();
+    harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
@@ -5427,6 +5428,7 @@ void main() {
     notifier.takeKeep();
     notifier.startRetro();
     await settle();
+    harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
     await settle();
     notifier.retroTap();
@@ -5468,6 +5470,7 @@ void main() {
       notifier.takeKeep();
       notifier.startRetro();
       await settle();
+      harness.playback.at = const Duration(seconds: 2);
       notifier.cortarTrecho();
       await settle();
       notifier.retroTap();
@@ -5644,6 +5647,7 @@ void main() {
     );
     harness.room.failWith = const RoomRefused();
     final capturasAntes = harness.recorder.captures;
+    harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
     await waitFor(
       'o microfone abrir para o trecho',
@@ -5933,6 +5937,7 @@ void main() {
       notifier.startRetro();
       await settle();
       final capturesBefore = harness.recorder.captures;
+      harness.playback.at = const Duration(seconds: 2);
       notifier.cortarTrecho();
       await settle();
 
@@ -6131,6 +6136,7 @@ void main() {
 
     harness.room.failWith = const RoomUnavailable('sem rede');
     final capturasAntes = harness.recorder.captures;
+    harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
     await waitFor(
       'o microfone abrir para o trecho',
@@ -6181,6 +6187,7 @@ void main() {
 
     final spokenBefore = harness.voice.played.length;
     final capturasAntes = harness.recorder.captures;
+    harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
     await waitFor(
       'o microfone abrir para o trecho',
@@ -6228,6 +6235,7 @@ void main() {
     );
 
     final capturasAntes = harness.recorder.captures;
+    harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
     await waitFor(
       'o microfone abrir para o trecho',
@@ -6354,6 +6362,7 @@ void main() {
 
       harness.room.reachable = false;
       final capturasAntes = harness.recorder.captures;
+      harness.playback.at = const Duration(seconds: 2);
       notifier.cortarTrecho();
       await waitFor(
         'o microfone abrir para o trecho',
@@ -6507,6 +6516,7 @@ void main() {
       notifier.startRetro();
       await settle();
 
+      harness.playback.at = const Duration(seconds: 2);
       notifier.cortarTrecho();
       await settle();
       notifier.retroTap();

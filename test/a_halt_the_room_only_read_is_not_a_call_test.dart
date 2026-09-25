@@ -204,6 +204,7 @@ void main() {
       await settle();
 
       harness.recorder.startThrows = true;
+      harness.playback.at = const Duration(seconds: 2);
       notifier.cortarTrecho();
       await settle();
       notifier.cortarTrecho();
