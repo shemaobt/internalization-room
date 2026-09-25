@@ -206,6 +206,70 @@ class _RippleState extends State<Ripple> {
   }
 }
 
+class Spin extends StatefulWidget {
+  final Duration period;
+  final Widget Function(BuildContext context, double t) builder;
+  final bool animate;
+
+  const Spin({
+    super.key,
+    required this.period,
+    required this.builder,
+    this.animate = true,
+  });
+
+  @override
+  State<Spin> createState() => _SpinState();
+}
+
+class _SpinState extends State<Spin> {
+  bool _joined = false;
+  Duration? _start;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _follow();
+  }
+
+  @override
+  void didUpdateWidget(Spin oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _follow();
+  }
+
+  void _follow() {
+    final moving = widget.animate && !MediaQuery.disableAnimationsOf(context);
+    if (moving == _joined) return;
+    _joined = moving;
+    _start = null;
+    if (moving) {
+      _ambient.join(_redraw, ripple: true);
+    } else {
+      _ambient.leave(_redraw);
+    }
+  }
+
+  void _redraw() => setState(() {});
+
+  @override
+  void dispose() {
+    if (_joined) _ambient.leave(_redraw);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_joined) return widget.builder(context, 0);
+    final now = SchedulerBinding.instance.currentFrameTimeStamp;
+    final start = _start ??= now;
+    return widget.builder(
+      context,
+      (now - start).inMicroseconds / widget.period.inMicroseconds % 1,
+    );
+  }
+}
+
 class Pulse extends StatelessWidget {
   final Widget child;
   final double amount;

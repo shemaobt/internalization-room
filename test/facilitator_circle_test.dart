@@ -185,7 +185,7 @@ void main() {
   ) async {
     const tempos = {
       VoiceState.listening: Duration(milliseconds: 3200),
-      VoiceState.thinking: Duration(milliseconds: 4600),
+      VoiceState.thinking: Duration(milliseconds: 2400),
       VoiceState.speaking: Duration(milliseconds: 3400),
     };
 
@@ -215,20 +215,22 @@ void main() {
     'a breath lands back where it started after her period, at its peak halfway there',
     (tester) async {
       const halves = {
-        VoiceState.thinking: Duration(milliseconds: 2300),
+        VoiceState.thinking: Duration(milliseconds: 1200),
         VoiceState.speaking: Duration(milliseconds: 1700),
       };
-      const peaks = {VoiceState.thinking: 1.06, VoiceState.speaking: 1.02};
+      const peaks = {VoiceState.thinking: 1.03, VoiceState.speaking: 1.02};
+      const rests = {VoiceState.thinking: 0.97, VoiceState.speaking: 1.0};
 
       double scale() => tester
-          .widget<Transform>(
+          .widgetList<Transform>(
             find.descendant(
               of: find.byType(Loop),
               matching: find.byType(Transform),
             ),
           )
+          .first
           .transform
-          .getMaxScaleOnAxis();
+          .entry(0, 0);
 
       for (final half in halves.entries) {
         await _pumpCircle(tester, half.key);
@@ -245,7 +247,7 @@ void main() {
         await tester.pump(half.value);
         expect(
           scale(),
-          closeTo(1, 1e-6),
+          closeTo(rests[half.key]!, 1e-6),
           reason:
               'um período inteiro depois ${half.key.name} ainda estava '
               'subindo para o pico, em vez de já ter voltado ao ponto de '

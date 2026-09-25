@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -14,6 +16,7 @@ class FacilitatorCircle extends StatelessWidget {
   final bool noteMode;
   final bool peerCue;
   final bool beckon;
+  final bool turning;
 
   /// Whether the server's last word was a warning rather than silence.
   ///
@@ -36,6 +39,7 @@ class FacilitatorCircle extends StatelessWidget {
     this.noteMode = false,
     this.peerCue = false,
     this.beckon = false,
+    this.turning = true,
     this.warning = false,
     this.opacity = 1,
     this.onTap,
@@ -170,7 +174,11 @@ class FacilitatorCircle extends StatelessWidget {
     // warning is only a background notice; it wins over the green the same way a
     // halted voice does.
     if (_teamTalk) return _liveBreath(colors);
-    if (warning && !_halted) return _doneDisc();
+    if (warning && !_halted) {
+      return voice == VoiceState.thinking
+          ? _waiting(colors, still, disc: _doneDisc())
+          : _doneDisc();
+    }
 
     switch (voice) {
       case VoiceState.invite:
@@ -229,34 +237,93 @@ class FacilitatorCircle extends StatelessWidget {
     ],
   );
 
-  Widget _waiting(SalaColors colors, bool still) {
-    Widget clay(double t) => _disc(
-      gradient: BeadStyles.clay(colors, t),
-      shadows: [
-        const BoxShadow(
-          color: Color(0x260A0703),
-          offset: Offset(0, 6),
-          blurRadius: 20,
+  Widget _waiting(SalaColors colors, bool still, {Widget? disc}) {
+    final body =
+        disc ??
+        _disc(
+          gradient: BeadStyles.clay(colors),
+          shadows: const [
+            BoxShadow(
+              color: Color(0x260A0703),
+              offset: Offset(0, 6),
+              blurRadius: 20,
+            ),
+          ],
+        );
+    Widget arc(Duration period, double way, ArcPainter painter) => Spin(
+      period: period,
+      animate: turning,
+      builder: (context, t) => Transform.rotate(
+        angle: way * 2 * math.pi * t,
+        child: OverflowBox(
+          maxWidth: painter.side,
+          maxHeight: painter.side,
+          child: RepaintBoundary(
+            child: CustomPaint(
+              size: Size.square(painter.side),
+              painter: painter,
+            ),
+          ),
         ),
-        BoxShadow(
-          color: colors.clayHi.withValues(alpha: 0.30 * t),
-          spreadRadius: 2 + 10 * t,
-          blurRadius: 18,
+      ),
+    );
+    final glow = RepaintBoundary(
+      child: CustomPaint(
+        size: Size.square(size),
+        painter: GlowPainter(color: colors.telha.withValues(alpha: 0.16)),
+      ),
+    );
+    final arcs = [
+      arc(
+        const Duration(milliseconds: 1600),
+        1,
+        ArcPainter(
+          side: size * 1.14,
+          stroke: size * 4 / 232,
+          top: colors.telha,
+          right: colors.telha.withValues(alpha: 0.35),
         ),
-      ],
+      ),
+      arc(
+        const Duration(milliseconds: 2600),
+        -1,
+        ArcPainter(
+          side: size * 1.26,
+          stroke: size * 2 / 232,
+          bottom: colors.telha.withValues(alpha: 0.55),
+        ),
+      ),
+    ];
+    Widget over(List<Widget> light) => Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [body, ...light],
     );
     if (still) {
       return Loop(
-        period: const Duration(milliseconds: 3600),
+        period: const Duration(milliseconds: 2400),
         reducible: false,
-        builder: (context, t) =>
-            Opacity(opacity: 0.72 + 0.24 * t, child: clay(0)),
+        builder: (context, t) => Opacity(
+          opacity: 0.72 + 0.24 * t,
+          child: over([
+            glow,
+            for (final standing in arcs) Opacity(opacity: 0.9, child: standing),
+          ]),
+        ),
       );
     }
     return Loop(
-      period: const Duration(milliseconds: 4600),
-      builder: (context, t) =>
-          Transform.scale(scale: 1 + 0.06 * t, child: clay(t)),
+      period: const Duration(milliseconds: 2400),
+      builder: (context, t) => Transform.scale(
+        scale: 0.97 + 0.06 * t,
+        child: Opacity(
+          opacity: 0.82 + 0.18 * t,
+          child: over([
+            Opacity(opacity: 0.45 + 0.55 * t, child: glow),
+            ...arcs,
+          ]),
+        ),
+      ),
     );
   }
 
@@ -289,7 +356,7 @@ class FacilitatorCircle extends StatelessWidget {
           height: size,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: BeadStyles.clay(colors, 0),
+            gradient: BeadStyles.clay(colors),
             border: Border.all(color: colors.cord, width: 2),
           ),
           child: glyph == null
@@ -358,4 +425,72 @@ class FacilitatorCircle extends StatelessWidget {
     );
     return [ring(0), ring(0.5)];
   }
+}
+
+class ArcPainter extends CustomPainter {
+  final double side;
+  final double stroke;
+  final Color? top;
+  final Color? right;
+  final Color? bottom;
+
+  const ArcPainter({
+    required this.side,
+    required this.stroke,
+    this.top,
+    this.right,
+    this.bottom,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final ring = Rect.fromCenter(
+      center: size.center(Offset.zero),
+      width: side - stroke,
+      height: side - stroke,
+    );
+    final pen = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke;
+    for (final (color, start) in [
+      (top, -0.75 * math.pi),
+      (right, -0.25 * math.pi),
+      (bottom, 0.25 * math.pi),
+    ]) {
+      if (color == null) continue;
+      canvas.drawArc(ring, start, math.pi / 2, false, pen..color = color);
+    }
+  }
+
+  @override
+  bool shouldRepaint(ArcPainter old) =>
+      old.side != side ||
+      old.stroke != stroke ||
+      old.top != top ||
+      old.right != right ||
+      old.bottom != bottom;
+}
+
+class GlowPainter extends CustomPainter {
+  final Color color;
+
+  const GlowPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final disc = Rect.fromCircle(
+      center: size.center(Offset.zero),
+      radius: size.shortestSide / 2,
+    );
+    canvas.drawOval(
+      disc,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [color, color.withValues(alpha: 0)],
+        ).createShader(disc),
+    );
+  }
+
+  @override
+  bool shouldRepaint(GlowPainter old) => old.color != color;
 }

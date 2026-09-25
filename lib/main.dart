@@ -42,7 +42,48 @@ class SalaApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
+      builder: (context, child) => _LessMotion(child: child!),
       home: SalaScreen(built: built),
+    );
+  }
+}
+
+class _LessMotion extends StatefulWidget {
+  final Widget child;
+
+  const _LessMotion({required this.child});
+
+  @override
+  State<_LessMotion> createState() => _LessMotionState();
+}
+
+class _LessMotionState extends State<_LessMotion> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAccessibilityFeatures() => setState(() {});
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final reduced = View.of(
+      context,
+    ).platformDispatcher.accessibilityFeatures.reduceMotion;
+    return MediaQuery(
+      data: media.copyWith(
+        disableAnimations: media.disableAnimations || reduced,
+      ),
+      child: widget.child,
     );
   }
 }

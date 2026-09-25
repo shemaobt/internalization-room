@@ -34,13 +34,10 @@ abstract class BeadStyles {
     stops: const [0, 0.7],
   );
 
-  static RadialGradient clay(SalaColors colors, double glow) => RadialGradient(
+  static RadialGradient clay(SalaColors colors) => RadialGradient(
     center: _beadCenter,
     radius: 1.0,
-    colors: [
-      Color.lerp(colors.clayHi, Colors.white, glow * 0.14)!,
-      Color.lerp(colors.clay, Colors.white, glow * 0.14)!,
-    ],
+    colors: [colors.clayHi, colors.clay],
     stops: const [0, 0.7],
   );
 
