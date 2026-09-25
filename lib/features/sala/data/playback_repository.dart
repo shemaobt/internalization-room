@@ -8,7 +8,7 @@ class PlaybackRepository {
   final AudioPlayer Function() _newPlayer;
   final StreamController<bool> _endings = StreamController<bool>.broadcast();
   final StreamController<void> _openings = StreamController<void>.broadcast();
-  StreamSubscription<PlayerState>? _states;
+  StreamSubscription<ProcessingState>? _states;
   AudioPlayer? _opened;
   Duration? _openedLength;
 
@@ -61,8 +61,8 @@ class PlaybackRepository {
   Duration get position => _opened?.position ?? Duration.zero;
 
   void _watchCompletion() {
-    _states ??= _player.playerStateStream.listen((playerState) {
-      if (playerState.processingState == ProcessingState.completed) {
+    _states ??= _player.processingStateStream.listen((processingState) {
+      if (processingState == ProcessingState.completed) {
         if (!_disposed) _endings.add(true);
       }
     });
@@ -132,8 +132,9 @@ class PlaybackRepository {
     final geracao = ++_opens;
     final parada = _stops;
     final Duration? length;
+    _pending++;
     try {
-      length = await _naVez(() async {
+      length = await _inTurn(() async {
         if (geracao != _opens) return null;
         await _player.stop();
         return load();
@@ -146,6 +147,8 @@ class PlaybackRepository {
       // the room stopped is not the clip it comes back to.
       if (geracao != _opens || !_wanted || parada != _stops) return;
       rethrow;
+    } finally {
+      _pending--;
     }
     if (geracao != _opens) return;
     // A pause leaves the clip open, and the ceiling counts what is left of it, so the
@@ -180,8 +183,11 @@ class PlaybackRepository {
 
   Future<void> resume() {
     _wanted = true;
+    if (_pending > 0) return Future.value();
     return _quietly(() => _player.play());
   }
+
+  int _pending = 0;
 
   Future<void> stop() {
     _wanted = false;
@@ -190,17 +196,17 @@ class PlaybackRepository {
       // Cleared with the playback it described. The safety ceiling for the next clip
       // was computed from the length of the last one.
       _openedLength = null;
-      await _naVez(_player.stop);
+      await _inTurn(_player.stop);
     });
   }
 
-  Future<T> _naVez<T>(Future<T> Function() mudanca) {
-    final vez = _mudando.then((_) => mudanca());
-    _mudando = vez.then((_) {}, onError: (_) {});
-    return vez;
+  Future<T> _inTurn<T>(Future<T> Function() change) {
+    final turn = _changing.then((_) => change());
+    _changing = turn.then((_) {}, onError: (_) {});
+    return turn;
   }
 
-  Future<void> _mudando = Future.value();
+  Future<void> _changing = Future.value();
 
   Future<void> _quietly(Future<void> Function() act) async {
     if (_opened == null) return;

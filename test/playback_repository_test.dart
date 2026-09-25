@@ -821,6 +821,62 @@ void main() {
       expect(tocador.tocando, isTrue);
     });
 
+    test(
+      'o fim de um clipe chega uma vez só, e o stop depois dele não é outro fim',
+      () async {
+        final fins = <void>[];
+        playback.completions.listen(fins.add);
+        await playback.play('/a-lingua-materna.m4a');
+
+        tocador.chegarAoFim();
+        await Future<void>.delayed(Duration.zero);
+        await playback.stop();
+        await playback.play('/a-traducao.m4a');
+        await Future<void>.delayed(Duration.zero);
+
+        expect(
+          fins,
+          hasLength(1),
+          reason:
+              'a língua materna acabou uma vez: o stop que a sala dá antes da '
+              'tradução muda só o playing, e lido como outro fim encerrava a '
+              'tradução antes de ela soar',
+        );
+        expect(tocador.tocando, isTrue);
+      },
+    );
+
+    test(
+      'um resume dado enquanto a abertura espera o stop fica para ela',
+      () async {
+        final falhas = <void>[];
+        playback.failures.listen(falhas.add);
+        await playback.play('/a-lingua-materna.m4a');
+
+        tocador.segurarOProximoStop();
+        unawaited(playback.stop());
+        final aTraducao = playback.play('/a-traducao.m4a');
+        await playback.pause();
+        await playback.resume();
+        tocador.soltarOStop();
+        await aTraducao;
+        await Future<void>.delayed(Duration.zero);
+
+        expect(
+          falhas,
+          isEmpty,
+          reason:
+              'segurar e soltar entre as duas vozes do achado ativava a '
+              'plataforma por baixo do stop, e a abertura seguinte a cortava',
+        );
+        expect(tocador.carregados, [
+          '/a-lingua-materna.m4a',
+          '/a-traducao.m4a',
+        ]);
+        expect(tocador.tocando, isTrue);
+      },
+    );
+
     test('um resume num clipe que nunca abriu não faz nada', () async {
       final falhas = <void>[];
       playback.failures.listen(falhas.add);
@@ -847,11 +903,17 @@ void main() {
 /// platform takes one change at a time:
 /// - a load begun while a stop is still settling is interrupted, `Loading interrupted`;
 /// - a load begun while another load is still in the air fails, `Platform player already
-///   exists`;
+///   exists`, which is stricter than the platform: there it is the open's own stop that
+///   cuts the first load;
 /// - a stop given while a load is in the air cuts that load and leaves its native player
-///   behind, so every later load fails with `Platform player already exists`.
+///   behind, so every later load fails with `Platform player already exists`;
+/// - a play given while a stop is still settling activates the platform under it, and the
+///   next stop cuts that activation the same way.
 /// The real player hangs rather than throws on the last two; the double throws, so a test
-/// reads red instead of timing out. A slice that changes playback inherits these rules.
+/// reads red instead of timing out. And, as the real one does, it keeps `playing` true at
+/// the end of a clip and pairs it with the processing state on `playerStateStream`, so a
+/// stop after the end says `completed` a second time. A slice that changes playback
+/// inherits these rules.
 class _Duplo extends Fake implements AudioPlayer {
   final List<String> carregados = [];
 
@@ -885,11 +947,40 @@ class _Duplo extends Fake implements AudioPlayer {
 
   void soltarOStop() => _stopNoAr?.complete();
 
+  final _processamentos = StreamController<ProcessingState>.broadcast();
+  ProcessingState _processamento = ProcessingState.idle;
+  PlayerState? _ultimoEstado;
+
+  void chegarAoFim() => _processar(ProcessingState.completed);
+
+  void _processar(ProcessingState novo) {
+    if (novo != _processamento) {
+      _processamento = novo;
+      _processamentos.add(novo);
+    }
+    _anunciarOEstado();
+  }
+
+  void _tocar(bool agora) {
+    tocando = agora;
+    _anunciarOEstado();
+  }
+
+  void _anunciarOEstado() {
+    final estado = PlayerState(tocando, _processamento);
+    if (estado == _ultimoEstado) return;
+    _ultimoEstado = estado;
+    _states.add(estado);
+  }
+
   @override
   Stream<PlayerState> get playerStateStream => _states.stream;
 
   @override
-  ProcessingState get processingState => ProcessingState.ready;
+  Stream<ProcessingState> get processingStateStream => _processamentos.stream;
+
+  @override
+  ProcessingState get processingState => _processamento;
 
   @override
   Duration get position => at;
@@ -942,6 +1033,7 @@ class _Duplo extends Fake implements AudioPlayer {
         message: 'Platform player already exists',
       );
     }
+    _processar(ProcessingState.loading);
     _abertos++;
     final corte = Completer<void>();
     _cortes.add(corte);
@@ -954,6 +1046,7 @@ class _Duplo extends Fake implements AudioPlayer {
       _abertos--;
       _cortes.remove(corte);
     }
+    _processar(ProcessingState.ready);
   }
 
   @override
@@ -962,13 +1055,17 @@ class _Duplo extends Fake implements AudioPlayer {
     // a play issued over a player already playing is not a second sound. Without this,
     // a double answers "it played" for a repository that said nothing at all.
     if (tocando) return;
-    tocando = true;
+    if (_stopNoAr != null) _ativacaoNoAr = true;
+    _tocar(true);
   }
+
+  bool _ativacaoNoAr = false;
 
   @override
   Future<void> stop() async {
-    tocando = false;
-    if (_cortes.isNotEmpty) _deixouUmPlayerNativo = true;
+    _tocar(false);
+    if (_cortes.isNotEmpty || _ativacaoNoAr) _deixouUmPlayerNativo = true;
+    _ativacaoNoAr = false;
     for (final corte in List.of(_cortes)) {
       corte.completeError(PlayerInterruptedException('Loading interrupted'));
     }
@@ -985,7 +1082,7 @@ class _Duplo extends Fake implements AudioPlayer {
 
   @override
   Future<void> pause() async {
-    tocando = false;
+    _tocar(false);
   }
 
   @override
