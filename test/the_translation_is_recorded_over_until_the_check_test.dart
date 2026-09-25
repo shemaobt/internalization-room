@@ -472,6 +472,22 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('R3 — a conta pendente, sem conta escolhida, toca o trecho '
+      'pendente como o play', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness);
+
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    expect(harness.playback.sounding, isFalse);
+    await tocar(tester, 'Trecho 1');
+
+    expect(harness.playback.ranges.last, '0-4000');
+    expect(harness.playback.sounding, isTrue);
+    expect(contas(tester), ['translucent com anel', 'translucent']);
+    closeTheRoom(container);
+  });
+
   testWidgets('R3b — ouvir uma conta não conta como ouvir a parte', (
     tester,
   ) async {
