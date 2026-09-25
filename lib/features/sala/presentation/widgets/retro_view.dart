@@ -52,6 +52,7 @@ class RetroView extends ConsumerWidget {
           voice: voz,
           tongue: lingua,
           warning: session.warning,
+          warningLabel: warningNoticeLabelFor(language),
           semanticLabel: _circleLabel(session, language),
           onTap: notifier.retroTap,
           onLongPress: session.canResolveWithPerson
@@ -375,8 +376,8 @@ class RetroView extends ConsumerWidget {
   }
 
   String _circleLabel(SalaSessionState session, String language) {
-    if (session.needsPerson) return 'Um momento para uma pessoa';
-    if (session.offline) return 'Tocar para tentar de novo';
+    if (session.needsPerson) return circleLabelFor('needsPerson', language);
+    if (session.offline) return circleLabelFor('offline', language);
     switch (session.btPhase) {
       case BtPhase.playing:
         return retroLabelFor(
@@ -388,9 +389,9 @@ class RetroView extends ConsumerWidget {
       case BtPhase.findings:
         return findingLabelFor('circle', language);
       case BtPhase.thinking:
-        return 'Um instante';
+        return retroLabelFor('thinking', language);
       case BtPhase.conferida:
-        return 'Traduzida';
+        return retroLabelFor('translated', language);
     }
   }
 }

@@ -34,6 +34,7 @@ class ConversaView extends ConsumerWidget {
                 noteMode: session.noteMode,
                 peerCue: session.peerCue,
                 warning: session.warning,
+                warningLabel: warningNoticeLabelFor(language),
                 semanticLabel: _circleLabel(session, language),
                 onTap: notifier.conversaTap,
                 onLongPress: session.canResolveWithPerson

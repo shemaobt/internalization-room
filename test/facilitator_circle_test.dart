@@ -14,7 +14,6 @@ Future<void> _pumpCircle(
   bool peerCue = false,
   bool noteMode = false,
   bool inPlace = false,
-  bool turning = true,
 }) => tester.pumpWidget(
   MaterialApp(
     key: inPlace
@@ -28,7 +27,6 @@ Future<void> _pumpCircle(
           voice: voice,
           peerCue: peerCue,
           noteMode: noteMode,
-          turning: turning,
           semanticLabel: 'circulo',
           onTap: () {},
         ),
@@ -185,9 +183,7 @@ void main() {
   testWidgets(
     'a breath that dips below one is not mistaken for a breath that never moved',
     (tester) async {
-      // turning: false freezes the arcs. Without it their own spin also reads
-      // below 1, and this would pass even with a disc that never shrank.
-      await _pumpCircle(tester, VoiceState.thinking, turning: false);
+      await _pumpCircle(tester, VoiceState.thinking);
       final drawn = await _overAMinuteOfFrames(tester);
 
       expect(

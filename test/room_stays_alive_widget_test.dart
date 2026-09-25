@@ -5,14 +5,13 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
 
-Widget _circleIn(VoiceState voice, {bool turning = true}) => MaterialApp(
+Widget _circleIn(VoiceState voice) => MaterialApp(
   theme: AppTheme.light,
   home: Scaffold(
     body: Center(
       child: FacilitatorCircle(
         size: 196,
         voice: voice,
-        turning: turning,
         semanticLabel: 'circulo',
         onTap: () {},
       ),
@@ -78,12 +77,7 @@ void main() {
   testWidgets(
     'a room breathing below one is not mistaken for a room standing still',
     (tester) async {
-      // turning: false freezes the arcs. Without it their own spin also reads
-      // below 1, and this would pass even with a disc that never shrank.
-      final seen = await _scalesOver(
-        tester,
-        _circleIn(VoiceState.thinking, turning: false),
-      );
+      final seen = await _scalesOver(tester, _circleIn(VoiceState.thinking));
 
       expect(
         seen.any((scale) => scale < 1.0),

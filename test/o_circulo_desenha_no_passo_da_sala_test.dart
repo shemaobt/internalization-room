@@ -7,26 +7,22 @@ import 'package:internalization_room/features/sala/presentation/widgets/motion.d
 
 const _umQuadroA120Hz = Duration(milliseconds: 8);
 
-Future<void> _pumpCircle(
-  WidgetTester tester,
-  VoiceState voice, {
-  bool turning = true,
-}) => tester.pumpWidget(
-  MaterialApp(
-    theme: AppTheme.light,
-    home: Scaffold(
-      body: Center(
-        child: FacilitatorCircle(
-          size: 158,
-          voice: voice,
-          turning: turning,
-          semanticLabel: 'circulo',
-          onTap: () {},
+Future<void> _pumpCircle(WidgetTester tester, VoiceState voice) =>
+    tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: Center(
+            child: FacilitatorCircle(
+              size: 158,
+              voice: voice,
+              semanticLabel: 'circulo',
+              onTap: () {},
+            ),
+          ),
         ),
       ),
-    ),
-  ),
-);
+    );
 
 List<Transform> _drawn(WidgetTester tester) => tester
     .widgetList<Transform>(
@@ -104,44 +100,16 @@ void main() {
   );
 
   testWidgets(
-    'a thinking circle turns its arcs sixty times a second, and hands the clock back at thirty',
+    'a thinking circle draws its breath thirty times a second, not at the panel rate',
     (tester) async {
       await _pumpCircle(tester, VoiceState.thinking);
 
       expect(
         await _redrawsOverASecondAt120Hz(tester),
-        inInclusiveRange(59, 61),
-        reason:
-            'a trinta quadros o arco de 1,6 s da volta pulava uns 15 px por '
-            'quadro na borda de um círculo de 196 px — um giro que tropeça '
-            'lê como um aplicativo engasgado, que é o contrário do que ele diz',
-      );
-
-      await _pumpCircle(tester, VoiceState.invite);
-      expect(
-        await _redrawsOverASecondAt120Hz(tester),
         inInclusiveRange(29, 31),
         reason:
-            'e quando o pensar acaba, os arcos levam os sessenta com eles e o '
-            'convite volta a respirar a trinta',
-      );
-    },
-  );
-
-  testWidgets(
-    'arcs told to stop turning on a live circle let go of the fast clock',
-    (tester) async {
-      await _pumpCircle(tester, VoiceState.thinking);
-      await tester.pump(const Duration(milliseconds: 300));
-      await _pumpCircle(tester, VoiceState.thinking, turning: false);
-
-      expect(
-        await _redrawsOverASecondAt120Hz(tester),
-        inInclusiveRange(29, 31),
-        reason:
-            'o Spin só lia o animate ao entrar no relógio: um círculo que '
-            'parava os arcos sem ser remontado seguia a sessenta com os '
-            'arcos parados',
+            'sem arcos, o pensar não tem nada que precise do relógio rápido: '
+            'a respiração e o brilho bastam no mesmo passo do convite',
       );
     },
   );

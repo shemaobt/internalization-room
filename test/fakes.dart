@@ -1387,7 +1387,19 @@ class FakeRoom implements RoomRepository {
         ),
       );
     }
+    final held = _holdingChunk;
+    if (held != null) await held.future;
     return BackTranslationChunk(captured: chunkCaptured);
+  }
+
+  Completer<void>? _holdingChunk;
+
+  /// Holds a stretch's delivery in flight, so a test can see the room still thinking.
+  void holdNextChunk() => _holdingChunk = Completer<void>();
+
+  void finishHeldChunk() {
+    _holdingChunk?.complete();
+    _holdingChunk = null;
   }
 
   String? _oQueOAnalistaAponta() {
