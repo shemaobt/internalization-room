@@ -1105,6 +1105,15 @@ class FakeRoom implements RoomRepository {
     return _turn(sessionId);
   }
 
+  Completer<void>? _substituicaoSegura;
+
+  void holdNextReplace() => _substituicaoSegura = Completer<void>();
+
+  void finishHeldReplace() {
+    _substituicaoSegura?.complete();
+    _substituicaoSegura = null;
+  }
+
   @override
   Future<TellingAgain> replaceSegment(
     String sessionId,
@@ -1115,6 +1124,8 @@ class FakeRoom implements RoomRepository {
     required Duration to,
   }) async {
     _guard('replaceSegment');
+    final segura = _substituicaoSegura;
+    if (segura != null) await segura.future;
     final refusal = failReplaceWith;
     if (refusal != null) throw refusal;
     replacesAsked.add(

@@ -172,8 +172,8 @@ final roomRetryBackoffProvider = Provider<List<Duration>>(
 ///
 /// Declared in the order the room opens them — the one place that order lives — which is
 /// not the order the gate raises them in: the gate lists the check's own errand before the
-/// holes that have ground to stand on, and a team sent to press *terminei* again over a
-/// part nobody told back is sent to be refused again.
+/// holes that have ground to stand on, and a team sent to ask for the verdict again over
+/// a part nobody told back is sent to be refused again.
 ///
 /// A code no arm of [_portaDaRecusa] names has no door, and the switch's own default sends
 /// it to a person.
@@ -404,10 +404,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ///
   /// [holdTheClip] for the gestures that come back to the very part they leave — the
   /// scissors, the circle that opens and closes a capture, telling a stretch again, and
-  /// the check. A hold
-  /// silences the rehearsal just as well and is what keeps the clip open: stopped, the
-  /// room loses the length that the listening ceiling and the end of the part are both
-  /// measured against.
+  /// the check. A hold silences the rehearsal just as well and is what keeps the clip
+  /// open: stopped, the room loses the length that the listening ceiling and the end of
+  /// the part are both measured against.
   ///
   /// It never cancels the room's timers, never bumps the epoch and never touches the
   /// recorder: those belong to [_clearAll], which leaves a passage rather than moving
@@ -2120,8 +2119,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// They are numbered by their place in this row rather than by the number the room
   /// holds. The two agree for every rehearsal this tablet sent up, and where they cannot
   /// — a recording the room does not number — the place is what a part is addressed by
-  /// everywhere else: a stretch sits on it there, and recording
-  /// it again finds it there.
+  /// everywhere else: a stretch sits on it there, and recording it again finds it there.
   ///
   /// A file still on the tablet under a current part's name is kept as it is: it is the
   /// team's own recording, and fetching a copy over the room's link would spend their
@@ -3528,7 +3526,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // a nought here is the player with nothing to say about the clip that just ended. The
     // ledger's copy is the `clip_duration_ms` the report carries, which is what the room
     // reads to decide this very refusal: a part the team heard whole, reported as nought
-    // milliseconds long, is the same *terminei* refused again.
+    // milliseconds long, is the same verdict refused again.
     if (arquivo != null && medido > 0) _escuta.medida(arquivo, medido);
     if (arquivo != null) _marcarOFimDaParte(arquivo, medido);
     _pararOClipe(ate: medido);
@@ -3809,6 +3807,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       contadoEm: path,
     );
     _walkTheCursorBack(trechos);
+    _trechoTraduzidoDeNovo = null;
     state = state.copyWith(
       btPhase: BtPhase.playing,
       voice: VoiceState.invite,
@@ -3962,10 +3961,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
     final traduzidoDeNovo = _trechoTraduzidoDeNovo;
     if (traduzidoDeNovo != null) {
-      _trechoTraduzidoDeNovo = null;
       await _tellThatStretchAgain(traduzidoDeNovo, path, sessionId, epoch);
       if (epoch != _epoch || state.btTraducaoPendente == null) return;
-      _trechoTraduzidoDeNovo = traduzidoDeNovo;
       if (state.btPhase == BtPhase.thinking) {
         state = state.copyWith(btPhase: BtPhase.playing);
       }
@@ -4317,8 +4314,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         );
       case _PortaDaRecusa.conferir:
         // The room is already silent — the press silenced it — and the last listening of a
-        // checked passage is what took the end of the clip away, which is the whole of
-        // what *terminei* waits on.
+        // checked passage is what took the end of the clip away, which the advance disc
+        // waits on beside told ground and nothing pending.
         state = state.copyWith(
           btPhase: BtPhase.playing,
           btClipEnded: true,
@@ -4817,13 +4814,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// Everything a passage leaves behind that the next one must not inherit.
   ///
-  /// These are counters and latches with no home in the state object, so nothing about
-  /// them is reset by rebuilding it. `leaveThePassage` reset none of them and `_startOver`
-  /// reset most: a new passage could start with the previous one's strike count and halt
-  /// for a person on its first failure, and the stretch being told again — armed when the
-  /// team asks to tell one again and let go only by a telling that lands — made the very
-  /// first stretch of the next back translation upload as a correction of a stretch that
-  /// does not exist.
+  /// Mostly counters and latches with no home in the state object, so nothing about them
+  /// is reset by rebuilding it; the cursor, the cut, the stretch being told again and the
+  /// pending translation live in the state and are let go here too, the pending file with
+  /// them. `leaveThePassage` reset none of them and `_startOver` reset most: a new passage
+  /// could start with the previous one's strike count and halt for a person on its first
+  /// failure, and the stretch being told again — armed when the team asks to tell one
+  /// again and let go only by a telling that lands — made the very first stretch of the
+  /// next back translation upload as a correction of a stretch that does not exist.
   void _forgetThePassage() {
     unawaited(_coverageWatch?.cancel());
     _coverageWatch = null;

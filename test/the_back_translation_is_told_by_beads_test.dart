@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -373,6 +375,64 @@ void main() {
     closeTheRoom(container);
   });
 
+  Future<ProviderContainer> ateOTrechoNomeado(
+    WidgetTester tester,
+    SalaHarness harness,
+  ) async {
+    final container = await entrarNaTraducao(tester, harness, partes: 1);
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    await tocar(tester, confirmar);
+    await contarAteOFimDaParte(tester, harness);
+    harness.room
+      ..verdictChecked = false
+      ..verdictUntoldSegmentId = 'trecho-1';
+    await tocar(tester, conferir);
+    await tester.pump(const Duration(milliseconds: 600));
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+    harness.room.verdictUntoldSegmentId = null;
+    await gravarATraducao(tester);
+    return container;
+  }
+
+  testWidgets('B7c — o trecho nomeado segue armado enquanto a substituição '
+      'viaja', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await ateOTrechoNomeado(tester, harness);
+
+    harness.room.holdNextReplace();
+    await tocar(tester, confirmar);
+    expect(contas(tester), ['solid com anel', 'solid']);
+
+    harness.room.finishHeldReplace();
+    await tester.pump(const Duration(milliseconds: 600));
+    closeTheRoom(container);
+  });
+
+  testWidgets('B7d — uma substituição que cai na rede é tentada de novo como '
+      'substituição', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await ateOTrechoNomeado(tester, harness);
+    final gravacao = harness.room.takeIds.first;
+
+    harness.room.failReplaceWith = const SocketException('sem rede');
+    await tocar(tester, confirmar);
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(contas(tester), ['solid com anel', 'solid']);
+
+    harness.room.failReplaceWith = null;
+    container.read(salaSessionProvider.notifier).retryNow();
+    await tester.pump(const Duration(milliseconds: 600));
+    await tocar(tester, confirmar);
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(harness.room.replacesAsked, ['trecho-1@$gravacao:0-4000']);
+    expect(harness.room.chunksSent, 2, reason: 'nenhum trecho novo');
+    closeTheRoom(container);
+  });
+
   testWidgets('B3d — uma substituição recusada guarda a tradução pendente', (
     tester,
   ) async {
@@ -576,6 +636,19 @@ void main() {
     expect(tester.getTopLeft(byLabel(tesoura)), const Offset(380, 680));
     expect(tester.getTopLeft(byLabel(confirmar)), const Offset(464, 680));
     expect(tester.getTopLeft(byLabel(conferir)), const Offset(371, 798));
+    closeTheRoom(container);
+  });
+
+  testWidgets('B10b — o círculo tem 160 px numa tela menor', (tester) async {
+    tester.view
+      ..physicalSize = const Size(768, 900)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness);
+
+    expect(tester.getRect(byLabel(gravar)).size, const Size(160, 160));
+    expect(tester.getRect(byLabel(conferir)).size, const Size(78, 78));
     closeTheRoom(container);
   });
 

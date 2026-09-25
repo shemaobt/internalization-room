@@ -68,77 +68,49 @@ class RetroView extends ConsumerWidget {
       );
     }
 
-    return Align(
-      alignment: Alignment.topCenter,
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: SizedBox(
-          width: 820,
-          height: 876,
-          child: Stack(
-            children: [
-              Positioned(
-                top: 86,
-                left: 0,
-                right: 0,
-                height: 40,
-                child: Center(
-                  child: BeadRow(
-                    entries: _contas(session, language),
-                    onTap: (_) {},
-                  ),
-                ),
-              ),
-              Positioned(
-                top: 456,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: FacilitatorCircle(
-                    size: 160,
-                    voice: conferida ? VoiceState.done : session.voice,
-                    warning: session.warning,
-                    semanticLabel: _circleLabel(session, language),
-                    onTap: notifier.retroTap,
-                    onLongPress: session.canResolveWithPerson
-                        ? notifier.resolveWithPerson
-                        : null,
-                  ),
-                ),
-              ),
-              Positioned(
-                top: 680,
-                left: 0,
-                right: 0,
-                height: 60,
-                child: Center(child: _actions(session, notifier, language)),
-              ),
-              if (session.btPhase != BtPhase.findings &&
-                  session.btPhase != BtPhase.conferida)
-                Positioned(
-                  top: 798,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: FadeUp(
-                      child: RoundActionButton(
-                        size: 78,
-                        semanticLabel: retroLabelFor('advance', language),
-                        gradient: BeadStyles.wood,
-                        shadows: RoundActionButton.dropShadow,
-                        mood: session.canAdvanceToTheVerdict
-                            ? ButtonMood.beckoning
-                            : ButtonMood.dimmed,
-                        onTap: () =>
-                            unawaited(notifier.finishBackTranslation()),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
+    final avanca =
+        session.btPhase != BtPhase.findings &&
+        session.btPhase != BtPhase.conferida;
+    return Column(
+      children: [
+        const Spacer(flex: 86),
+        SizedBox(
+          height: 40,
+          child: BeadRow(entries: _contas(session, language), onTap: (_) {}),
         ),
-      ),
+        const Spacer(flex: 330),
+        FacilitatorCircle(
+          size: 160,
+          voice: conferida ? VoiceState.done : session.voice,
+          warning: session.warning,
+          semanticLabel: _circleLabel(session, language),
+          onTap: notifier.retroTap,
+          onLongPress: session.canResolveWithPerson
+              ? notifier.resolveWithPerson
+              : null,
+        ),
+        const Spacer(flex: 64),
+        SizedBox(height: 60, child: _actions(session, notifier, language)),
+        const Spacer(flex: 58),
+        SizedBox(
+          height: 78,
+          child: avanca
+              ? FadeUp(
+                  child: RoundActionButton(
+                    size: 78,
+                    semanticLabel: retroLabelFor('advance', language),
+                    gradient: BeadStyles.wood,
+                    shadows: RoundActionButton.dropShadow,
+                    mood: session.canAdvanceToTheVerdict
+                        ? ButtonMood.beckoning
+                        : ButtonMood.dimmed,
+                    onTap: () => unawaited(notifier.finishBackTranslation()),
+                  ),
+                )
+              : null,
+        ),
+        const Spacer(flex: 304),
+      ],
     );
   }
 
