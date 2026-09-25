@@ -283,7 +283,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   final Map<String, int> _tamanhoDaParteMs = {};
   final EscutaDasPartes _escuta = EscutaDasPartes();
   int _desdeMs = 0;
-  int _ghostParte = 0;
+  VoidCallback? _depoisDaPausa;
+  List<(String, (Duration, Duration)?)> _ensaioATocar = const [];
   String? _panoramaSessionId;
 
   /// The opening turn this instance is asking for, minted once and carried across every
@@ -2693,111 +2694,128 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  void ghostPlay() {
-    if (state.ensaio == EnsaioStatus.ghostPlaying) {
-      // The button already showed a pause glyph; it just did not pause.
-      state = state.copyWith(ensaio: EnsaioStatus.idle);
-      _releasePlayback();
-      unawaited(_playback.stop());
+  void playTheRehearsal() {
+    if (state.playPing) {
+      _depoisDaPausa = null;
+      _holdClip();
+      state = state.copyWith(playPing: false, takePaused: true);
       return;
     }
-    if (state.partes.isEmpty || state.ensaio != EnsaioStatus.idle) return;
-    state = state.copyWith(ensaio: EnsaioStatus.ghostPlaying);
-    _ghostParte = 0;
-    // The retro's own stretches, once it has any, are the passage: a correction lives in
-    // one of them and nowhere among the raw parts, so hearing the passage means hearing
-    // them, in the order the necklace already holds them.
-    if (state.btTrechos.isNotEmpty) {
-      _tocarTrechoFantasma();
-    } else {
-      _tocarParteFantasma();
-    }
-  }
-
-  void _tocarTrechoFantasma() {
-    void backToTheCircle() {
-      state = state.copyWith(ensaio: EnsaioStatus.idle);
-    }
-
-    void aProximo() {
-      _ghostParte++;
-      if (_ghostParte >= state.btTrechos.length ||
-          state.ensaio != EnsaioStatus.ghostPlaying) {
-        backToTheCircle();
+    if (state.takePaused) {
+      final seguir = _depoisDaPausa;
+      _depoisDaPausa = null;
+      state = state.copyWith(playPing: true, takePaused: false);
+      if (seguir != null) {
+        seguir();
         return;
       }
-      _tocarTrechoFantasma();
-    }
-
-    final trecho = state.btTrechos[_ghostParte];
-    final onde = _ondeTocar(trecho);
-    if (onde == null) {
-      aProximo();
+      _letTheClipRun();
       return;
     }
-    _clipHeld = false;
-    _onPlaybackComplete = aProximo;
-    _onPlaybackFailed = backToTheCircle;
-    _listenForTheEnd();
-    unawaited(_playback.playRange(onde.$1, onde.$2, onde.$3));
-    _watchPlayback(clipStillOpening: true);
+    if (!state.canPlayTheRehearsal) return;
+    state = state.copyWith(playPing: true, takePaused: false);
+    _ensaioATocar = _oEnsaioAteAqui();
+    _tocarDoEnsaio(0);
   }
 
-  void _tocarParteFantasma() {
-    void backToTheCircle() {
-      state = state.copyWith(ensaio: EnsaioStatus.idle);
+  void _tocarDoEnsaio(int onde) {
+    void acabou() {
+      state = state.copyWith(playPing: false, takePaused: false);
     }
 
     void aProxima() {
-      _ghostParte++;
-      if (_ghostParte >= state.partes.length ||
-          state.ensaio != EnsaioStatus.ghostPlaying) {
-        backToTheCircle();
+      if (state.takePaused) {
+        _depoisDaPausa = () => _tocarDoEnsaio(onde + 1);
         return;
       }
-      _tocarParteFantasma();
+      if (!state.playPing) return;
+      _tocarDoEnsaio(onde + 1);
     }
 
-    _play(
-      state.partes[_ghostParte].path,
-      onComplete: aProxima,
-      onFailed: backToTheCircle,
-    );
+    if (onde >= _ensaioATocar.length) {
+      acabou();
+      return;
+    }
+    final (path, trecho) = _ensaioATocar[onde];
+    if (trecho == null) {
+      _play(path, onComplete: aProxima, onFailed: acabou);
+      return;
+    }
+    _clipHeld = false;
+    _onPlaybackComplete = aProxima;
+    _onPlaybackFailed = acabou;
+    _listenForTheEnd();
+    unawaited(_playback.playRange(path, trecho.$1, trecho.$2));
+    _watchPlayback(clipStillOpening: true);
+  }
+
+  List<(String, (Duration, Duration)?)> _oEnsaioAteAqui() {
+    final pendente = _pendingTakePath;
+    final partes = state.partes;
+    final regravada = state.parteARegravar;
+    final noLugar =
+        pendente != null && regravada != null && regravada < partes.length;
+    return [
+      for (var parte = 0; parte < partes.length; parte++)
+        if (noLugar && parte == regravada)
+          (pendente, null)
+        else
+          ..._oQueTocaDaParte(parte),
+      if (pendente != null && !noLugar) (pendente, null),
+    ];
+  }
+
+  List<(String, (Duration, Duration)?)> _oQueTocaDaParte(int parte) {
+    // The retro's own stretches, once it has any, are the passage: a correction lives in
+    // one of them and nowhere among the raw parts, so hearing the passage means hearing
+    // them, in the order the necklace already holds them.
+    final trechos = [
+      for (final trecho in state.btTrechos)
+        if (trecho.parte == parte) trecho,
+    ];
+    if (trechos.isEmpty) return [(state.partes[parte].path, null)];
+    return [
+      for (final trecho in trechos)
+        if (_ondeTocar(trecho) case (final path, final from, final to))
+          (path, (from, to)),
+    ];
   }
 
   void ensaioTap() {
-    if (state.needsPerson) return;
+    if (state.needsPerson || state.playPing) return;
     switch (state.ensaio) {
       case EnsaioStatus.idle:
+      case EnsaioStatus.recorded:
         _silenceTheRoom();
         state = state.copyWith(ensaio: EnsaioStatus.recording);
         unawaited(_recordOrBlock('ensaio_tomada_${_stamp()}'));
       case EnsaioStatus.recording:
         unawaited(_finishTake());
-      case EnsaioStatus.ghostPlaying:
-      case EnsaioStatus.recorded:
-        break;
     }
   }
 
-  /// The take is only offered once the recorder has handed the file back.
+  EnsaioStatus get _semGravacaoAberta =>
+      _pendingTakePath == null ? EnsaioStatus.idle : EnsaioStatus.recorded;
+
+  /// The part is only pending once the recorder has handed the file back.
   ///
-  /// Flipping to `recorded` first showed the keep/redo/listen buttons while `stop()` was
-  /// still writing, and a quick keep found no path and dropped the take without a word.
-  /// Staying in `recording` for those few frames is also the truer thing to show.
+  /// Flipping to `recorded` first lit the check while `stop()` was still writing, and a
+  /// quick check found no path and dropped the take without a word. Staying in
+  /// `recording` for those few frames is also the truer thing to show.
   Future<void> _finishTake() async {
     final epoch = _epoch;
     final path = await _recorder.stop();
     if (epoch != _epoch) return;
     if (path == null || !_hasAudio(path)) {
-      // Nothing came back. Offering keep, redo and listen over a take that does not exist
-      // let a team confirm a rehearsal into nothing — the buttons vanished exactly as on a
-      // good keep, no bead appeared, and the way to the retro never opened.
-      state = state.copyWith(ensaio: EnsaioStatus.idle);
+      // Nothing came back. A check over a take that does not exist let a team confirm a
+      // rehearsal into nothing — no bead appeared, and the way to the retro never opened.
+      state = state.copyWith(ensaio: _semGravacaoAberta);
       _haltForAPerson();
       return;
     }
+    final substituida = _pendingTakePath;
     _pendingTakePath = path;
+    if (substituida != null) unawaited(_recorder.delete(substituida));
     state = state.copyWith(
       ensaio: EnsaioStatus.recorded,
       playPing: false,
@@ -2805,41 +2823,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  /// Play the take, pausing and resuming it on the taps after the first.
-  ///
-  /// Modelled on [ouvirVozMaterna]: the same [_holdClip]/[_letTheClipRun] pair, and its own
-  /// pair of flags for the same reason — a tap has to tell a resume from a restart, and
-  /// nothing else here carries that.
-  void takePlay() {
-    final path = _pendingTakePath;
-    if (path == null) return;
-    if (state.playPing) {
-      _holdClip();
-      state = state.copyWith(playPing: false, takePaused: true);
-      return;
-    }
-    if (state.takePaused) {
-      state = state.copyWith(playPing: true, takePaused: false);
-      _letTheClipRun();
-      return;
-    }
-    state = state.copyWith(playPing: true, takePaused: false);
-    void stopThePulse() {
-      state = state.copyWith(playPing: false, takePaused: false);
-    }
-
-    _play(path, onComplete: stopThePulse, onFailed: stopThePulse);
-  }
-
-  void takeRedo() {
-    _silenceTheRoom();
-    final path = _pendingTakePath;
-    if (path != null) unawaited(_recorder.delete(path));
-    _pendingTakePath = null;
-    state = state.copyWith(ensaio: EnsaioStatus.idle);
-  }
-
   void takeKeep() {
+    _silenceTheRoom();
     final path = _pendingTakePath;
     _pendingTakePath = null;
     if (path == null) {
@@ -3086,7 +3071,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _undoTheListening() {
     final capturing = state.btPhase == BtPhase.capturing;
     state = state.copyWith(
-      ensaio: EnsaioStatus.idle,
+      ensaio: _semGravacaoAberta,
       noteMode: false,
       btPhase: capturing ? BtPhase.playing : state.btPhase,
       voice: state.canResolveWithPerson ? null : VoiceState.invite,
@@ -3184,9 +3169,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void startRetro() {
-    if (state.stage == SalaStage.ensaio) {
-      if (state.ensaio == EnsaioStatus.recording) return;
-      if (state.ensaio == EnsaioStatus.recorded) takeKeep();
+    if (state.stage == SalaStage.ensaio && state.ensaio != EnsaioStatus.idle) {
+      return;
     }
     _rememberWhereTheyAre(SalaStage.retro);
     _clearAll();
@@ -4945,7 +4929,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _aprovada = false;
     _escuta.esquecerTudo();
     _desdeMs = 0;
-    _ghostParte = 0;
     _pendingTakePath = null;
     _emCurso = null;
     _semNome.clear();

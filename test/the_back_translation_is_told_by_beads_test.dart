@@ -7,6 +7,7 @@ import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -50,7 +51,14 @@ bool aceso(WidgetTester tester, String label) {
 
 List<String> contas(WidgetTester tester) => [
   for (final conta
-      in tester.widget<BeadRow>(find.byType(BeadRow).first).entries)
+      in tester
+          .widget<BeadRow>(
+            find.descendant(
+              of: find.byType(RetroView),
+              matching: find.byType(BeadRow),
+            ),
+          )
+          .entries)
     '${conta.fill.name}${conta.current ? ' com anel' : ''}',
 ];
 
@@ -703,7 +711,17 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
 
-    expect(tester.getTopLeft(find.byType(BeadRow)).dy, 86);
+    expect(
+      tester
+          .getTopLeft(
+            find.descendant(
+              of: find.byType(RetroView),
+              matching: find.byType(BeadRow),
+            ),
+          )
+          .dy,
+      86,
+    );
     expect(tester.getTopLeft(byLabel(gravar)), const Offset(330, 456));
     expect(tester.getTopLeft(byLabel(pausar)), const Offset(296, 680));
     expect(tester.getTopLeft(byLabel(tesoura)), const Offset(380, 680));
