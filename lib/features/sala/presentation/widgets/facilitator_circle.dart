@@ -11,6 +11,9 @@ enum Tongue { guide, motherTongue, bridge }
 
 const facilitatorCircleSize = 160.0;
 
+/// Marks the warning mark's own box, so a test can tell it apart from the disc's.
+const warningMarkKey = ValueKey('facilitatorCircleWarningMark');
+
 class FacilitatorCircle extends StatelessWidget {
   final double size;
   final VoiceState voice;
@@ -331,6 +334,7 @@ class FacilitatorCircle extends StatelessWidget {
     child: Semantics(
       label: warningLabel,
       child: Container(
+        key: warningMarkKey,
         width: size * 0.22,
         height: size * 0.22,
         decoration: const BoxDecoration(
