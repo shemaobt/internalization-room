@@ -2420,7 +2420,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _pullInbox() async {
     final fetched = await _inbox.fetchReplies();
     if (fetched == null) return;
-    if (fetched.isEmpty || _gone) return;
+    if (_gone) return;
     final known = {for (final reply in state.replies) reply.id: reply};
     // The desk does re-send audio_url for a question_id it already served: a reply the
     // facilitator records again supersedes the first under a new content-hashed key and

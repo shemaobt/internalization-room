@@ -2530,6 +2530,55 @@ void main() {
   );
 
   test(
+    'a heard reply leaves the hand when the desk empties, quiet on the next check',
+    () async {
+      final harness = SalaHarness(
+        replies: const [
+          HandReply(id: 'r1', audioUrl: '/voice/r1', heard: true),
+        ],
+      )..room.holdNextState();
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+      await waitFor(
+        'a primeira leitura da caixa trazer r1',
+        () => container.read(salaSessionProvider).replies.length == 1,
+      );
+
+      harness.inbox.replies = const [];
+      var emits = 0;
+      container.listen(salaSessionProvider, (_, _) => emits++);
+
+      await waitFor(
+        'a resposta já ouvida sair do estado quando a mesa esvazia a lista',
+        () => container.read(salaSessionProvider).replies.isEmpty,
+      );
+
+      expect(
+        container.read(salaSessionProvider).replies,
+        isEmpty,
+        reason:
+            'a mesa não lista mais r1 — mesmo já ouvida, ela não podia continuar '
+            'no estado local só porque a última lista chegou vazia',
+      );
+
+      await settle(const Duration(milliseconds: 300));
+
+      expect(
+        emits,
+        1,
+        reason:
+            'o poll da caixa e o retorno do prazo de cobertura chegam os dois com '
+            'a mesma lista vazia — o segundo não tem réplica nenhuma a menos e não '
+            'devia refazer a tela que o primeiro já esvaziou',
+      );
+
+      harness.room.finishHeldState();
+    },
+  );
+
+  test(
     'a reply the facilitator recorded again is played from its new address, not the old one',
     () async {
       final harness =
