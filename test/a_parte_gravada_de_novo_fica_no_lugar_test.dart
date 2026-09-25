@@ -642,6 +642,60 @@ void main() {
     );
   });
 
+  test('a marca da parte a regravar sobrevive à morte do app, e o guardar '
+      'seguinte troca a parte (ENG-1138)', () async {
+    final it = await _oAchadoNaParteDois();
+    final antes = it.partes;
+
+    it.sala.gravarAParteDeNovo();
+    await waitFor(
+      'o lugar da equipe guardar a marca da parte',
+      () => it.harness.emAberto.rows['Ruth/P01']?.partBeingRecordedAgain == 1,
+    );
+
+    it.container.dispose();
+    it.container = it.harness.container();
+    addTearDown(it.container.dispose);
+    await it.sala.abrirEscolha();
+    await waitFor(
+      'a roda dizer que esta passagem tem trabalho parado',
+      () => it.estado.comecadas.contains('P01'),
+    );
+    await it.sala.goConversa(pericope: 'P01');
+    await waitFor(
+      'a equipe voltar ao ensaio',
+      () => it.estado.stage == SalaStage.ensaio,
+    );
+
+    expect(
+      it.estado.parteARegravar,
+      1,
+      reason:
+          'a marca sobrevive à morte do app: a sala reabre sabendo qual '
+          'parte a equipe veio regravar',
+    );
+
+    await regravarAParte(it, 1);
+
+    final agora = it.partes;
+    expect(
+      agora,
+      hasLength(3),
+      reason:
+          'a gravação guardada depois da retomada substitui a parte 2, '
+          'e não acrescenta uma quarta',
+    );
+    expect(agora[1].scopeId, KeptScope.parte(2));
+    expect(agora[1].path, isNot(antes[1].path));
+    expect(
+      it.harness.emAberto.rows['Ruth/P01']!.partBeingRecordedAgain,
+      isNull,
+      reason:
+          'o guardar gasta a marca também na linha guardada, como já a '
+          'gasta em memória',
+    );
+  });
+
   test('uma falta sem endereço continua acrescentando no fim', () async {
     final it = await umEnsaioDeTresPartesContadoInteiro();
     it.harness.room

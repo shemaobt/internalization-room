@@ -2044,6 +2044,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             takes: state.keptTakes,
             savedAt: _sessionSavedAt,
             language: _sessionLanguage,
+            partBeingRecordedAgain: state.parteARegravar,
           ),
         ),
       ),
@@ -2091,6 +2092,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // Counted among the rehearsal's own parts — a row read off the tablet can also
       // carry a correction's own take, kept beside the parts but not one of them.
       takes: takes.where((take) => KeptScope.isParte(take.scopeId)).length,
+      parteARegravar: waiting.partBeingRecordedAgain,
+      clearParteARegravar: waiting.partBeingRecordedAgain == null,
     );
     if (faltavam) {
       state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
@@ -4732,6 +4735,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     _voltarAoEnsaio();
     state = state.copyWith(parteARegravar: parte);
+    _rememberWhereTheyAre(SalaStage.ensaio);
   }
 
   void _voltarAoEnsaio() {
