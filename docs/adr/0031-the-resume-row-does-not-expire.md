@@ -44,3 +44,12 @@ the 404 path then starts the passage clean, as it already did.
 
 The row is read at every door into the passage, including one the room opened before the
 tablet knew which passage it was (ADR 0033).
+
+## Note of 2026-09-25
+
+The Decision above names "the room saying … the passage is shut" among the facts that drop
+the row. ADR 0039 retired that reading on 2026-09-24: a 400 is never a verdict on the passage,
+and the meaning "passage shut" left with its class. What drops the row today is the room
+saying it does not know the session, a resume the room failed twice in a row to serve, the
+**Approval** closing the passage, and a row created in another language. Nothing else here
+changes.
