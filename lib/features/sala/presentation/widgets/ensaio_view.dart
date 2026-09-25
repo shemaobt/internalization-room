@@ -34,7 +34,7 @@ class EnsaioView extends ConsumerWidget {
         ),
         const Spacer(flex: 270),
         FacilitatorCircle(
-          size: 160,
+          size: facilitatorCircleSize,
           voice: _voice(session),
           tongue: Tongue.motherTongue,
           semanticLabel: _circleLabel(session, language),

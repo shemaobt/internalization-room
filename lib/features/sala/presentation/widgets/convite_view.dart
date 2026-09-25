@@ -19,7 +19,7 @@ class ConviteView extends ConsumerWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         FacilitatorCircle(
-          size: 196,
+          size: facilitatorCircleSize,
           voice: session.voice,
           reach: session.reach,
           beckon: session.awaitingFirstTouch,
