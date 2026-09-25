@@ -910,9 +910,25 @@ void main() {
 
     expect(container.read(salaSessionProvider).playPing, isTrue);
     expect(
-      bySemanticsLabelWidget('Ir para a tradução'),
-      findsOneWidget,
+      tester
+          .widget<Semantics>(bySemanticsLabelWidget('Ir para a tradução'))
+          .properties
+          .enabled,
+      isTrue,
       reason: 'ouvir o ensaio guardado apagava o caminho para a retro',
+    );
+    expect(
+      tester
+          .widget<AnimatedOpacity>(
+            find
+                .descendant(
+                  of: bySemanticsLabelWidget('Ir para a tradução'),
+                  matching: find.byType(AnimatedOpacity),
+                )
+                .first,
+          )
+          .opacity,
+      1,
     );
   });
 

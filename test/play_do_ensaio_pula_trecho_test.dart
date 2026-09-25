@@ -186,8 +186,8 @@ void main() {
     await _tocarOEnsaioAteAcabar(it);
 
     expect(
-      it.estado.ensaio,
-      EnsaioStatus.idle,
+      it.estado.playPing,
+      isFalse,
       reason:
           'o play do ensaio deve terminar sozinho depois das seis '
           'partes, não ficar preso',
@@ -267,8 +267,8 @@ void main() {
     await _tocarOEnsaioAteAcabar(it);
 
     expect(
-      it.estado.ensaio,
-      EnsaioStatus.idle,
+      it.estado.playPing,
+      isFalse,
       reason:
           'o play do ensaio termina mesmo com um trecho sem áudio '
           'nenhum — ele é pulado, não trava a sala',

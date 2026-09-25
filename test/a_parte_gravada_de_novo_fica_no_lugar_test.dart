@@ -137,6 +137,27 @@ Future<String> _gravarPorCima(Sala it) async {
   return it.harness.recorder.lastPath!;
 }
 
+bool _discoAceso(WidgetTester tester) =>
+    tester
+        .widget<Semantics>(byLabel('Ir para a tradução'))
+        .properties
+        .enabled ==
+    true;
+
+/// Play the rehearsal so far to its end, answering what the player opened in order.
+Future<List<String>> _ouvirOEnsaioAteAqui(Sala it) async {
+  it.harness.playback.played.clear();
+  it.sala.playTheRehearsal();
+  await waitFor('o ensaio começar a tocar', () => it.estado.playPing);
+  for (var vezes = 0; vezes < 12 && it.estado.playPing; vezes++) {
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    it.harness.playback.finishPlayback();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+  }
+  expect(it.estado.playPing, isFalse, reason: 'o ensaio termina sozinho');
+  return List.of(it.harness.playback.played);
+}
+
 List<BeadRowEntry> _contasDoEnsaio(WidgetTester tester) =>
     tester.widget<BeadRow>(find.byType(BeadRow)).entries;
 
@@ -629,6 +650,36 @@ void main() {
     expect(it.partes.last.scopeId, KeptScope.parte(4));
   });
 
+  test('o ensaio até aqui toca a parte regravada no lugar dela', () async {
+    final it = await _oAchadoNaParteDois();
+    final antes = it.partes;
+
+    it.sala.gravarAParteDeNovo();
+    final pendente = await _gravarPorCima(it);
+
+    expect(
+      await _ouvirOEnsaioAteAqui(it),
+      [antes[0].path, pendente, antes[2].path],
+      reason:
+          'a regravação pendente toma o lugar da parte 2: a gravação antiga '
+          'dela não toca, e nada toca no fim',
+    );
+
+    it.sala.takeKeep();
+    await waitFor(
+      'a gravação confirmada tomar o lugar da parte 2',
+      () => it.partes[1].path == pendente,
+    );
+
+    expect(
+      await _ouvirOEnsaioAteAqui(it),
+      [antes[0].path, pendente, antes[2].path],
+      reason:
+          'confirmada, a parte 2 é ouvida no lugar dela, pelo arquivo, já '
+          'que os trechos dela saíram (ADR 0020)',
+    );
+  });
+
   test('gravar por cima duas vezes ainda troca a parte dois', () async {
     final it = await _oAchadoNaParteDois();
     final antes = it.partes;
@@ -906,13 +957,19 @@ void main() {
       ],
       [
         (BeadFill.solid, false),
-        (BeadFill.solid, true),
+        (BeadFill.drained, true),
         (BeadFill.solid, false),
       ],
       reason:
           'a equipe veio refazer a parte 2, e é a conta dela que o ensaio '
-          'põe em evidência desde a entrada: sem marca nenhuma a tela diz '
-          'que vai nascer uma parte nova no fim do ensaio',
+          'põe em evidência desde a entrada, esvaziada à espera do conserto '
+          '(ADR 0011): sem marca nenhuma a tela diz que vai nascer uma parte '
+          'nova no fim do ensaio',
+    );
+    expect(
+      _discoAceso(tester),
+      isFalse,
+      reason: 'nada foi consertado ainda: o disco não leva de volta à tradução',
     );
     expect(
       byLabel('Gravar a parte 2 de novo'),
@@ -930,6 +987,11 @@ void main() {
     );
 
     await _tocar(tester, 'Gravar a parte 2 de novo');
+    expect(
+      [for (final conta in _contasDoEnsaio(tester)) conta.fill],
+      [BeadFill.solid, BeadFill.translucent, BeadFill.solid],
+      reason: 'a regravação aberta é a conta 2, translúcida',
+    );
     await _tocar(tester, 'Tocar ao terminar');
     expect(
       [
@@ -945,6 +1007,7 @@ void main() {
           'a regravação pendente é a conta 2, translúcida, no seu lugar: '
           'nenhuma conta nova nasce no fim',
     );
+    expect(_discoAceso(tester), isFalse);
   });
 
   testWidgets('confirmar a gravação nova solta a marca da parte', (
@@ -962,6 +1025,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     await _gravarAParteDoisPorCimaEConfirmar(tester);
 
+    expect(
+      _discoAceso(tester),
+      isTrue,
+      reason: 'a parte 2 confirmada, o disco leva de volta à tradução',
+    );
     expect(
       [
         for (final conta in _contasDoEnsaio(tester))

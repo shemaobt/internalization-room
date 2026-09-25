@@ -125,7 +125,11 @@ class EnsaioView extends ConsumerWidget {
     return [
       for (var index = 0; index < partes.length; index++)
         BeadRowEntry(
-          fill: open && index == again ? BeadFill.translucent : BeadFill.solid,
+          fill: index != again
+              ? BeadFill.solid
+              : open
+              ? BeadFill.translucent
+              : BeadFill.drained,
           current: index == again,
           semanticLabel: rehearsalLabelFor('part', language, part: index + 1),
         ),

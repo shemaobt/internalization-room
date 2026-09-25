@@ -274,6 +274,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   final EscutaDasPartes _escuta = EscutaDasPartes();
   int _desdeMs = 0;
   VoidCallback? _depoisDaPausa;
+  List<(String, (Duration, Duration)?)> _ensaioATocar = const [];
   String? _panoramaSessionId;
 
   /// The opening turn this instance is asking for, minted once and carried across every
@@ -2703,6 +2704,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (!state.canPlayTheRehearsal) return;
     state = state.copyWith(playPing: true, takePaused: false);
+    _ensaioATocar = _oEnsaioAteAqui();
     _tocarDoEnsaio(0);
   }
 
@@ -2720,37 +2722,53 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _tocarDoEnsaio(onde + 1);
     }
 
+    if (onde >= _ensaioATocar.length) {
+      acabou();
+      return;
+    }
+    final (path, trecho) = _ensaioATocar[onde];
+    if (trecho == null) {
+      _play(path, onComplete: aProxima, onFailed: acabou);
+      return;
+    }
+    _clipHeld = false;
+    _onPlaybackComplete = aProxima;
+    _onPlaybackFailed = acabou;
+    _listenForTheEnd();
+    unawaited(_playback.playRange(path, trecho.$1, trecho.$2));
+    _watchPlayback(clipStillOpening: true);
+  }
+
+  List<(String, (Duration, Duration)?)> _oEnsaioAteAqui() {
+    final pendente = _pendingTakePath;
+    final partes = state.partes;
+    final regravada = state.parteARegravar;
+    final noLugar =
+        pendente != null && regravada != null && regravada < partes.length;
+    return [
+      for (var parte = 0; parte < partes.length; parte++)
+        if (noLugar && parte == regravada)
+          (pendente, null)
+        else
+          ..._oQueTocaDaParte(parte),
+      if (pendente != null && !noLugar) (pendente, null),
+    ];
+  }
+
+  List<(String, (Duration, Duration)?)> _oQueTocaDaParte(int parte) {
     // The retro's own stretches, once it has any, are the passage: a correction lives in
     // one of them and nowhere among the raw parts, so hearing the passage means hearing
     // them, in the order the necklace already holds them.
-    final trechos = state.btTrechos;
-    final confirmadas = trechos.isNotEmpty
-        ? trechos.length
-        : state.partes.length;
-    if (onde < confirmadas) {
-      if (trechos.isEmpty) {
-        _play(state.partes[onde].path, onComplete: aProxima, onFailed: acabou);
-        return;
-      }
-      final trecho = _ondeTocar(trechos[onde]);
-      if (trecho == null) {
-        aProxima();
-        return;
-      }
-      _clipHeld = false;
-      _onPlaybackComplete = aProxima;
-      _onPlaybackFailed = acabou;
-      _listenForTheEnd();
-      unawaited(_playback.playRange(trecho.$1, trecho.$2, trecho.$3));
-      _watchPlayback(clipStillOpening: true);
-      return;
-    }
-    final pendente = _pendingTakePath;
-    if (onde == confirmadas && pendente != null) {
-      _play(pendente, onComplete: acabou, onFailed: acabou);
-      return;
-    }
-    acabou();
+    final trechos = [
+      for (final trecho in state.btTrechos)
+        if (trecho.parte == parte) trecho,
+    ];
+    if (trechos.isEmpty) return [(state.partes[parte].path, null)];
+    return [
+      for (final trecho in trechos)
+        if (_ondeTocar(trecho) case (final path, final from, final to))
+          (path, (from, to)),
+    ];
   }
 
   void ensaioTap() {

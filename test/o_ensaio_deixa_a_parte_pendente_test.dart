@@ -177,7 +177,13 @@ void main() {
       await _gravarEDeixarPendente(tester, _gravarOEnsaio);
       await _confirmarAParte(tester);
 
-      await _gravarEDeixarPendente(tester, _gravarAProxima);
+      await _tocar(tester, _gravarAProxima);
+      expect(
+        _apagado(tester, _ouvirOEnsaio),
+        isTrue,
+        reason: 'com a parte 1 confirmada, nada toca enquanto a 2 grava',
+      );
+      await _tocar(tester, _terminar);
       expect(
         [for (final conta in _contas(tester)) (conta.fill, conta.current)],
         [(BeadFill.solid, false), (BeadFill.translucent, true)],
@@ -353,6 +359,58 @@ void main() {
       sala.playTheRehearsal();
       await waitFor('tocar', () => harness.playback.played.isNotEmpty);
       expect(harness.playback.played, [pendente]);
+    },
+  );
+
+  testWidgets(
+    'o microfone que não abre por cima deixa a parte pendente de antes',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _noEnsaio(tester, harness: harness);
+      await _gravarEDeixarPendente(tester, _gravarOEnsaio);
+      await _confirmarAParte(tester);
+      await _gravarEDeixarPendente(tester, _gravarAProxima);
+
+      harness.recorder.startThrows = true;
+      await _tocar(tester, _gravarDeNovo);
+
+      expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.recorded);
+      expect(_aceso(tester, _confirmar), isTrue);
+      expect(_apagado(tester, _irParaATraducao), isTrue);
+    },
+  );
+
+  test(
+    'o microfone recusado por cima deixa a parte pendente de antes',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final sala = _sala(container);
+      EnsaioStatus ensaio() => container.read(salaSessionProvider).ensaio;
+      sala.goEnsaio();
+      sala.ensaioTap();
+      await waitFor('gravar', () => ensaio() == EnsaioStatus.recording);
+      sala.ensaioTap();
+      await waitFor(
+        'a parte ficar pendente',
+        () => ensaio() == EnsaioStatus.recorded,
+      );
+      final pendente = harness.recorder.lastPath!;
+
+      harness.recorder.permitted = false;
+      sala.ensaioTap();
+      await waitFor('a recusa voltar', () => harness.recorder.captures == 2);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(ensaio(), EnsaioStatus.recorded);
+      harness.recorder.permitted = true;
+      sala.takeKeep();
+      await waitFor(
+        'a parte pendente de antes ser confirmada',
+        () => container.read(salaSessionProvider).partes.isNotEmpty,
+      );
+      expect(container.read(salaSessionProvider).partes.single.path, pendente);
     },
   );
 

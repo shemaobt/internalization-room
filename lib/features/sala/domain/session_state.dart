@@ -283,7 +283,8 @@ class SalaSessionState {
 
   bool get onFim => stage == SalaStage.fim;
 
-  bool get ensaioDone => takes >= 1 && ensaio == EnsaioStatus.idle;
+  bool get ensaioDone =>
+      takes >= 1 && ensaio == EnsaioStatus.idle && parteARegravar == null;
 
   bool get awaitingFirstTouch =>
       stage == SalaStage.convite &&
@@ -367,17 +368,6 @@ class SalaSessionState {
   /// The rule lives here and not on the screen, which is the same reason [btFindingTrecho]
   /// gives for itself.
   String? get btEsperandoConserto => btConsertando ? null : btFindingSegmentId;
-
-  /// Which take the rehearsal screen marks, when the team came back to record a part
-  /// again.
-  ///
-  /// Scope and number are the same fact said twice, so they are counted from the same
-  /// place here rather than at each screen that needs one of them — the reason
-  /// `_aParteVoltaAoSeuLugar` gives for counting them together on the way out.
-  String? get escopoDaParteARegravar {
-    final parte = parteARegravar;
-    return parte == null ? null : KeptScope.parte(parte + 1);
-  }
 
   /// The rehearsal's own recordings, in order — never a correction's own take, which is a
   /// slice of one of these and not a part of the rehearsal in its own right.
