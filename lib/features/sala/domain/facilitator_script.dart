@@ -155,9 +155,39 @@ String findingLabelFor(String control, String language) =>
     findingLabels[control]![language] ??
     findingLabels[control]![floorLanguage]!;
 
+const escolhaLabels = {
+  'allDone': {
+    'pt': 'Todas as passagens foram trabalhadas',
+    'en': 'Every passage has been worked through',
+  },
+  'readTheWheel': {
+    'pt': 'Tocar para procurar as passagens',
+    'en': 'Tap to look for the passages',
+  },
+  'hearAgain': {
+    'pt': 'Ouvir esta passagem de novo',
+    'en': 'Hear this passage again',
+  },
+  'enter': {'pt': 'Entrar nesta passagem', 'en': 'Enter this passage'},
+  'ruler': {
+    'pt': 'Escolher a passagem, correndo o dedo pela fileira',
+    'en': 'Choose the passage by running a finger along the row',
+  },
+  'place': {'pt': '{n} de {total}', 'en': '{n} of {total}'},
+};
+
+String escolhaLabelFor(String control, String language) =>
+    escolhaLabels[control]![language] ??
+    escolhaLabels[control]![floorLanguage]!;
+
+String rulerPlaceFor(int place, int total, String language) => escolhaLabelFor(
+  'place',
+  language,
+).replaceAll('{n}', '$place').replaceAll('{total}', '$total');
+
 const panoramaEntryLabel = {'pt': 'Panorama do Livro', 'en': 'Book Panorama'};
 
 String entrarLabelFor({required bool isPanorama, required String language}) =>
     isPanorama
     ? (panoramaEntryLabel[language] ?? panoramaEntryLabel[floorLanguage]!)
-    : 'Entrar nesta passagem';
+    : escolhaLabelFor('enter', language);

@@ -17,6 +17,7 @@ void main() {
       'rehearsalLabels': rehearsalLabels,
       'findingLabels': findingLabels,
       'conviteLabels': conviteLabels,
+      'escolhaLabels': escolhaLabels,
       'recordEntryLabel': {'entry': recordEntryLabel},
       'panoramaEntryLabel': {'entry': panoramaEntryLabel},
     };
