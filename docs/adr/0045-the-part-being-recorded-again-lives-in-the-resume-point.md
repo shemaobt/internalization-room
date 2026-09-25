@@ -38,8 +38,7 @@ in the Rehearsal.
 The row is never asked to carry the mark past the Rehearsal. Every gesture that releases the
 mark in memory (ADR 0026) does so before the next write of the row, so a row saved for the
 Retro or any later stage never carries a mark to restore — `startRetro` releases it ahead of
-writing rather than after, the one ordering the room's other stage-leaving gestures already
-had.
+writing rather than after.
 
 This amends the reading of ADR 0026's Consequences that "every gesture that moves the room
 out of the rehearsal releases it" as a fact of memory alone. It is now also a fact of the

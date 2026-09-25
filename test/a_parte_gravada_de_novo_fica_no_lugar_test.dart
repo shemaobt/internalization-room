@@ -740,12 +740,12 @@ void main() {
     );
     // A escrita da linha é disparada e não esperada: matar o app antes
     // dela pousar mediria um disco que ainda não tem o que este caso
-    // testa.
-    await waitFor('a linha pousar como retro, sem a marca', () async {
-      final ponto = await ledger.of('Ruth', 'P01');
-      return ponto?.stage == SalaStage.retro &&
-          ponto?.partBeingRecordedAgain == null;
-    });
+    // testa. A marca em si é o que o assert abaixo mede, depois da
+    // retomada.
+    await waitFor(
+      'a linha pousar como retro',
+      () async => (await ledger.of('Ruth', 'P01'))?.stage == SalaStage.retro,
+    );
 
     it.container.dispose();
     it.container = it.harness.container();
