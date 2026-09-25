@@ -5,6 +5,7 @@ import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
+import 'motion.dart';
 
 class ConviteView extends ConsumerWidget {
   const ConviteView({super.key});
@@ -88,15 +89,17 @@ class _EntradaState extends ConsumerState<_Entrada>
   }
 
   @override
-  Widget build(BuildContext context) => RoundActionButton(
-    mood: widget.live && _settle.isCompleted
-        ? ButtonMood.beckoning
-        : ButtonMood.dimmed,
-    size: 78,
-    gradient: BeadStyles.wood,
-    halo: ShemaBrand.wood,
-    border: Border.all(color: SalaColors.of(context).cord, width: 2),
-    semanticLabel: 'Entrar na passagem',
-    onTap: widget.onTap,
+  Widget build(BuildContext context) => FadeUp(
+    child: RoundActionButton(
+      mood: widget.live && _settle.isCompleted
+          ? ButtonMood.beckoning
+          : ButtonMood.dimmed,
+      size: 78,
+      gradient: BeadStyles.wood,
+      halo: ShemaBrand.wood,
+      border: Border.all(color: SalaColors.of(context).cord, width: 2),
+      semanticLabel: 'Entrar na passagem',
+      onTap: widget.onTap,
+    ),
   );
 }

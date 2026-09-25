@@ -9,11 +9,6 @@ import '../../domain/session_state.dart';
 import 'bead_styles.dart';
 import 'motion.dart';
 
-/// Which of the room's three voices a listening or speaking circle wears.
-///
-/// [VoiceState] is the conversation's own turn state, set in dozens of places; a
-/// station that also knows which voice it draws (the Rehearsal, the Back-translation)
-/// says so here instead, without adding a value [VoiceState] would carry everywhere else.
 enum Tongue { guide, motherTongue, bridge }
 
 class FacilitatorCircle extends StatelessWidget {
@@ -102,10 +97,6 @@ class FacilitatorCircle extends StatelessWidget {
     );
   }
 
-  /// The colour a sounding circle's outward ripples borrow from the voice.
-  ///
-  /// Unset draws the Guide's telha, as it always did before a station could say which
-  /// voice was speaking.
   Color _soundColor(SalaColors colors) {
     switch (tongue) {
       case Tongue.motherTongue:
@@ -257,6 +248,9 @@ class FacilitatorCircle extends StatelessWidget {
   );
 
   Gradient _liveGradient(SalaColors colors) {
+    if (voice != VoiceState.speaking) {
+      return noteMode ? BeadStyles.azul : BeadStyles.telha(colors);
+    }
     switch (tongue) {
       case Tongue.motherTongue:
         return BeadStyles.wood;
@@ -269,6 +263,9 @@ class FacilitatorCircle extends StatelessWidget {
   }
 
   Color _liveShadow(SalaColors colors) {
+    if (voice != VoiceState.speaking) {
+      return noteMode ? ShemaBrand.azulLo : colors.telha;
+    }
     switch (tongue) {
       case Tongue.motherTongue:
         return ShemaBrand.woodLo;
@@ -438,10 +435,6 @@ class FacilitatorCircle extends StatelessWidget {
     );
   }
 
-  /// The colour a listening circle's ring and inward ripples borrow from the voice.
-  ///
-  /// Unset draws the Bridge language's azulInk, as it always did before a station
-  /// could say which voice was listening.
   Color get _listenColor =>
       tongue == Tongue.motherTongue ? ShemaBrand.woodLo : ShemaBrand.azulInk;
 

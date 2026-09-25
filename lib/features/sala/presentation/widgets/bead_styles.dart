@@ -53,8 +53,6 @@ abstract class BeadStyles {
   ];
 }
 
-/// A round button's state: lit answers a tap, dimmed stays in place and refuses,
-/// beckoning is lit with a pulsing halo asking to be pressed.
 enum ButtonMood { lit, dimmed, beckoning }
 
 class RoundActionButton extends StatelessWidget {
@@ -128,13 +126,10 @@ class RoundActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (mood == ButtonMood.lit) return _button(0);
-    return FadeUp(
-      child: Loop(
-        period: const Duration(milliseconds: 2400),
-        animate: mood == ButtonMood.beckoning,
-        builder: (context, t) => _button(t),
-      ),
+    return Loop(
+      period: const Duration(milliseconds: 2400),
+      animate: mood == ButtonMood.beckoning,
+      builder: (context, t) => _button(t),
     );
   }
 }

@@ -20,7 +20,7 @@ class BeadRowEntry {
 class BeadRow extends StatelessWidget {
   static const _beadSize = 28.0;
   static const _ringSize = 40.0;
-  static const _gap = 16.0;
+  static const _gap = 4.0;
 
   final List<BeadRowEntry> entries;
   final ValueChanged<int> onTap;
@@ -79,7 +79,7 @@ class BeadRow extends StatelessWidget {
                   height: _ringSize,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: ShemaBrand.telha, width: 2.5),
+                    border: Border.all(color: colors.telha, width: 2.5),
                   ),
                 ),
             ],

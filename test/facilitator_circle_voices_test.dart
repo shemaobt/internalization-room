@@ -42,7 +42,6 @@ Gradient? _disc(WidgetTester tester) {
   return painted.isEmpty ? null : painted.first;
 }
 
-/// The listening ring only: a border with its own glow, unlike a ripple's bare border.
 List<Border> _rings(WidgetTester tester) => tester
     .widgetList<Container>(
       find.descendant(
@@ -56,6 +55,19 @@ List<Border> _rings(WidgetTester tester) => tester
     .map((paint) => paint.border as Border)
     .toList();
 
+List<Border> _rippleBorders(WidgetTester tester) => tester
+    .widgetList<Container>(
+      find.descendant(
+        of: find.byType(Ripple),
+        matching: find.byType(Container),
+      ),
+    )
+    .map((box) => box.decoration)
+    .whereType<BoxDecoration>()
+    .where((paint) => paint.boxShadow == null && paint.border != null)
+    .map((paint) => paint.border as Border)
+    .toList();
+
 List<Duration> _ripplePeriods(WidgetTester tester) => tester
     .widgetList<Ripple>(
       find.descendant(
@@ -66,20 +78,34 @@ List<Duration> _ripplePeriods(WidgetTester tester) => tester
     .map((ripple) => ripple.period)
     .toList();
 
-Future<Set<double>> _scalesOverAWindow(WidgetTester tester) async {
-  final scales = <double>{};
-  for (var frame = 0; frame < 30; frame++) {
-    await tester.pump(const Duration(milliseconds: 120));
-    for (final moved in tester.widgetList<Transform>(
+bool _sameHue(Color a, Color b) =>
+    (a.r - b.r).abs() < 0.01 &&
+    (a.g - b.g).abs() < 0.01 &&
+    (a.b - b.b).abs() < 0.01;
+
+double _firstRippleScale(WidgetTester tester) => tester
+    .widgetList<Transform>(
       find.descendant(
         of: find.byType(Ripple),
         matching: find.byType(Transform),
       ),
-    )) {
-      scales.add(double.parse(moved.transform.entry(0, 0).toStringAsFixed(3)));
-    }
+    )
+    .first
+    .transform
+    .getMaxScaleOnAxis();
+
+Future<void> _expectRippleDirection(
+  WidgetTester tester, {
+  required bool outward,
+}) async {
+  final before = _firstRippleScale(tester);
+  await tester.pump(const Duration(milliseconds: 120));
+  final after = _firstRippleScale(tester);
+  if (outward) {
+    expect(after, greaterThan(before), reason: 'ripples de fora crescem');
+  } else {
+    expect(after, lessThan(before), reason: 'ripples de dentro encolhem');
   }
-  return scales;
 }
 
 void main() {
@@ -90,18 +116,21 @@ void main() {
       await _pump(tester, VoiceState.speaking, tongue: Tongue.guide);
 
       expect(_disc(tester), BeadStyles.telha(SalaColors.light));
+      expect(_rings(tester), isEmpty);
+      expect(_ripplePeriods(tester), isNotEmpty);
       expect(
         _ripplePeriods(tester),
         everyElement(const Duration(milliseconds: 3400)),
       );
-      expect(_rings(tester), isEmpty);
-
-      final scales = await _scalesOverAWindow(tester);
+      expect(_rippleBorders(tester), isNotEmpty);
       expect(
-        scales.any((s) => s > 1.3),
+        _rippleBorders(
+          tester,
+        ).every((b) => _sameHue(b.top.color, SalaColors.light.telha)),
         isTrue,
-        reason: 'ripples de fora crescem de 1 até 1.46',
       );
+
+      await _expectRippleDirection(tester, outward: true);
     });
 
     testWidgets(
@@ -110,21 +139,25 @@ void main() {
         await _pump(tester, VoiceState.listening, tongue: Tongue.motherTongue);
 
         expect(_disc(tester), BeadStyles.wood);
+        expect(_rings(tester), isNotEmpty);
         expect(
-          _rings(tester).any((border) => border.top.color == ShemaBrand.woodLo),
+          _rings(tester).every((b) => b.top.color == ShemaBrand.woodLo),
           isTrue,
         );
+        expect(_ripplePeriods(tester), isNotEmpty);
         expect(
           _ripplePeriods(tester),
           everyElement(const Duration(milliseconds: 3200)),
         );
-
-        final scales = await _scalesOverAWindow(tester);
+        expect(_rippleBorders(tester), isNotEmpty);
         expect(
-          scales.any((s) => s < 1.2),
+          _rippleBorders(
+            tester,
+          ).every((b) => _sameHue(b.top.color, ShemaBrand.woodLo)),
           isTrue,
-          reason: 'ripples de dentro encolhem de 1.46 até 1',
         );
+
+        await _expectRippleDirection(tester, outward: false);
       },
     );
 
@@ -135,13 +168,20 @@ void main() {
 
         expect(_disc(tester), BeadStyles.wood);
         expect(_rings(tester), isEmpty);
+        expect(_ripplePeriods(tester), isNotEmpty);
         expect(
           _ripplePeriods(tester),
           everyElement(const Duration(milliseconds: 3400)),
         );
+        expect(_rippleBorders(tester), isNotEmpty);
+        expect(
+          _rippleBorders(
+            tester,
+          ).every((b) => _sameHue(b.top.color, ShemaBrand.woodLo)),
+          isTrue,
+        );
 
-        final scales = await _scalesOverAWindow(tester);
-        expect(scales.any((s) => s > 1.3), isTrue);
+        await _expectRippleDirection(tester, outward: true);
       },
     );
 
@@ -151,16 +191,25 @@ void main() {
         await _pump(tester, VoiceState.listening, tongue: Tongue.bridge);
 
         expect(_disc(tester), BeadStyles.azul);
+        expect(_rings(tester), isNotEmpty);
         expect(
-          _rings(
-            tester,
-          ).any((border) => border.top.color == ShemaBrand.azulInk),
+          _rings(tester).every((b) => b.top.color == ShemaBrand.azulInk),
           isTrue,
         );
+        expect(_ripplePeriods(tester), isNotEmpty);
         expect(
           _ripplePeriods(tester),
           everyElement(const Duration(milliseconds: 3200)),
         );
+        expect(_rippleBorders(tester), isNotEmpty);
+        expect(
+          _rippleBorders(
+            tester,
+          ).every((b) => _sameHue(b.top.color, ShemaBrand.azulInk)),
+          isTrue,
+        );
+
+        await _expectRippleDirection(tester, outward: false);
       },
     );
 
@@ -171,13 +220,20 @@ void main() {
 
         expect(_disc(tester), BeadStyles.azul);
         expect(_rings(tester), isEmpty);
+        expect(_ripplePeriods(tester), isNotEmpty);
         expect(
           _ripplePeriods(tester),
           everyElement(const Duration(milliseconds: 3400)),
         );
+        expect(_rippleBorders(tester), isNotEmpty);
+        expect(
+          _rippleBorders(
+            tester,
+          ).every((b) => _sameHue(b.top.color, ShemaBrand.azulInk)),
+          isTrue,
+        );
 
-        final scales = await _scalesOverAWindow(tester);
-        expect(scales.any((s) => s > 1.3), isTrue);
+        await _expectRippleDirection(tester, outward: true);
       },
     );
 
@@ -187,6 +243,19 @@ void main() {
       expect(_disc(tester), BeadStyles.telha(SalaColors.light));
       expect(_rings(tester), isEmpty);
       expect(_ripplePeriods(tester), isEmpty);
+    });
+
+    testWidgets('idle stays telha whatever tongue is set', (tester) async {
+      for (final tongue in Tongue.values) {
+        await _pump(tester, VoiceState.invite, tongue: tongue);
+
+        expect(
+          _disc(tester),
+          BeadStyles.telha(SalaColors.light),
+          reason:
+              'a voz só se lê enquanto a sala escuta ou soa; $tongue parado é telha',
+        );
+      }
     });
   });
 }

@@ -14,6 +14,18 @@ double _opacity(WidgetTester tester) => tester
     .first
     .opacity;
 
+List<BoxShadow> _boxShadow(WidgetTester tester) {
+  final box = tester
+      .widgetList<Container>(
+        find.descendant(
+          of: find.byType(RoundActionButton),
+          matching: find.byType(Container),
+        ),
+      )
+      .first;
+  return (box.decoration as BoxDecoration).boxShadow ?? const [];
+}
+
 Future<double> _haloSpreadAfter(WidgetTester tester, Duration wait) async {
   await tester.pump(wait);
   final box = tester
@@ -34,15 +46,18 @@ void main() {
     WidgetTester tester,
     ButtonMood mood, {
     required VoidCallback onTap,
+    List<BoxShadow>? shadows,
   }) => tester.pumpWidget(
     MaterialApp(
       theme: AppTheme.light,
       home: Scaffold(
         body: Center(
           child: RoundActionButton(
+            key: const ValueKey('o mesmo botão'),
             size: 64,
             mood: mood,
             gradient: BeadStyles.verde,
+            shadows: shadows,
             semanticLabel: 'botão',
             onTap: onTap,
             child: const SizedBox.shrink(),
@@ -56,7 +71,15 @@ void main() {
     tester,
   ) async {
     var tapped = false;
-    await pump(tester, ButtonMood.lit, onTap: () => tapped = true);
+    const given = [
+      BoxShadow(color: Color(0x330A0703), offset: Offset(0, 4), blurRadius: 12),
+    ];
+    await pump(
+      tester,
+      ButtonMood.lit,
+      onTap: () => tapped = true,
+      shadows: given,
+    );
 
     expect(_opacity(tester), 1);
     await tester.tap(find.byType(RoundActionButton));
@@ -73,12 +96,18 @@ void main() {
     expect(semantics.properties.enabled, isNot(false));
 
     expect(
+      _boxShadow(tester),
+      given,
+      reason: 'lit não soma halo nenhum ao que a estação já pediu',
+    );
+
+    expect(
       find.descendant(
         of: find.byType(RoundActionButton),
         matching: find.byType(Loop),
       ),
-      findsNothing,
-      reason: 'lit não desenha halo nenhum, então não há laço para animar',
+      findsWidgets,
+      reason: 'lit é o mesmo Loop parado, não uma árvore sem laço nenhum',
     );
   });
 
@@ -119,5 +148,29 @@ void main() {
       const Duration(milliseconds: 1200),
     );
     expect(before, isNot(after), reason: 'o halo do beckoning pulsa');
+  });
+
+  testWidgets('a mood change updates the same button, it does not remount it', (
+    tester,
+  ) async {
+    await pump(tester, ButtonMood.lit, onTap: () {});
+    final beforeOpacity = tester.state(find.byType(AnimatedOpacity).first);
+    final beforeLoop = tester.state(find.byType(Loop).first);
+
+    await pump(tester, ButtonMood.dimmed, onTap: () {});
+    final afterOpacity = tester.state(find.byType(AnimatedOpacity).first);
+    final afterLoop = tester.state(find.byType(Loop).first);
+
+    expect(
+      identical(beforeLoop, afterLoop),
+      isTrue,
+      reason: 'trocar de humor não pode derrubar e reerguer o Loop do halo',
+    );
+    expect(
+      identical(beforeOpacity, afterOpacity),
+      isTrue,
+      reason:
+          'nem o AnimatedOpacity, que carrega a transição de 300ms em curso',
+    );
   });
 }
