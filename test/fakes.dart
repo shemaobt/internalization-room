@@ -385,9 +385,8 @@ class FakePlayback implements PlaybackRepository {
   /// Hold the source load, the way an old tablet with a long take does.
   ///
   /// One open, not the player: a second clip asked for while this one is still loading
-  /// opens freely, the way a real player's second source does. Held globally, the double
-  /// queued every later clip behind the same window and no test could tell a clip the
-  /// team superseded from a clip that never opened.
+  /// waits for this load to settle, as the repository makes it (ADR 0041), and then this
+  /// one returns without announcing itself and the second opens.
   ///
   /// One window at a time: [finishHeldOpening] releases the one an open took, or the one
   /// still armed, so a second hold armed before the first open has landed is orphaned.
@@ -493,6 +492,7 @@ class FakePlayback implements PlaybackRepository {
     if (_abrindo) return;
     // Nothing was ever opened, so there is nothing to bring back.
     if (_opens == 0) return;
+    if (stops != _paradasDaAbertura) return;
     // Sound coming back out, not a new clip: the future `play` handed out is long since
     // completed by the pause, so it cannot be what says whether anything is sounding.
     _sounding = true;
@@ -501,6 +501,7 @@ class FakePlayback implements PlaybackRepository {
 
   /// How many times the room told this player to stop, whatever it was playing.
   int stops = 0;
+  int _paradasDaAbertura = 0;
 
   @override
   Future<void> stop() async {
@@ -537,13 +538,16 @@ class FakePlayback implements PlaybackRepository {
     _wanted = true;
     final geracao = ++_opens;
     final paradas = stops;
+    _paradasDaAbertura = paradas;
     // A clip is not open the instant it is asked for: the source loads first, and only
     // then does the player know where it starts and how long it is.
+    final anterior = _segurada;
     final held = _opening;
     _opening = null;
     if (held != null) _segurada = held;
     _abrindo = true;
     scheduleMicrotask(() async {
+      if (anterior != null) await anterior.future;
       await held?.future;
       // A later clip of ours took this one's place while it was still loading. What the
       // clip owed the room dies with the clip: it announces nothing, so no ceiling and
