@@ -159,10 +159,13 @@ void main() {
           )
           .toSet();
       for (final transform in tester.widgetList<Transform>(
-        find.byType(Transform),
+        find.descendant(
+          of: find.byType(FacilitatorCircle),
+          matching: find.byType(Transform),
+        ),
       )) {
         if (!rings.contains(transform)) {
-          body.add(transform.transform.getMaxScaleOnAxis());
+          body.add(transform.transform.entry(0, 0));
         }
       }
     }
