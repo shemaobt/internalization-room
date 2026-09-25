@@ -15,6 +15,10 @@ import 'fakes.dart';
 const parte = Duration(seconds: 10);
 const cabeca = Duration(seconds: 4);
 
+/// One tick past the notifier's cursor watch (100ms): enough for the label to catch up
+/// with a head moved by hand, with no gesture of its own.
+const cursorWatchTick = Duration(milliseconds: 150);
+
 const gravar = 'Tocar para gravar a tradução deste trecho';
 const terminar = 'Tocar ao terminar';
 const ouvir = 'Ouvir';
@@ -608,8 +612,7 @@ void main() {
     final container = await entrarNaTraducao(tester, harness);
 
     harness.playback.at = cabeca;
-    await tocar(tester, pausar);
-    await tocar(tester, ouvir);
+    await tester.pump(cursorWatchTick);
     await gravarATraducao(tester);
     await tocar(tester, confirmar);
 
@@ -679,8 +682,7 @@ void main() {
     );
 
     harness.playback.at = cabeca;
-    await tocar(tester, pausar);
-    await tocar(tester, ouvir);
+    await tester.pump(cursorWatchTick);
     await gravarATraducao(tester);
     await tocar(tester, confirmar);
     harness.playback.at = Duration.zero;
@@ -698,8 +700,7 @@ void main() {
     final container = await entrarNaTraducao(tester, harness);
 
     harness.playback.at = cabeca;
-    await tocar(tester, pausar);
-    await tocar(tester, ouvir);
+    await tester.pump(cursorWatchTick);
     await gravarATraducao(tester);
     final gravada = harness.recorder.lastPath;
     container.read(salaSessionProvider.notifier).leaveThePassage();
@@ -717,8 +718,7 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
     harness.playback.at = cabeca;
-    await tocar(tester, pausar);
-    await tocar(tester, ouvir);
+    await tester.pump(cursorWatchTick);
 
     expect(
       tester
@@ -747,8 +747,7 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
     harness.playback.at = cabeca;
-    await tocar(tester, pausar);
-    await tocar(tester, ouvir);
+    await tester.pump(cursorWatchTick);
 
     expect(tester.getRect(byLabel(gravar)).size, const Size(160, 160));
     expect(tester.getRect(byLabel(conferir)).size, const Size(78, 78));
@@ -759,10 +758,7 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
     final container = await entrarNaTraducao(tester, harness);
     harness.playback.at = cabeca;
-    await tester.tap(byLabel('Pause'));
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(byLabel('Listen'));
-    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(cursorWatchTick);
 
     expect(byLabel("Tap to record this stretch's translation"), findsOneWidget);
     expect(byLabel('Pause'), findsOneWidget);

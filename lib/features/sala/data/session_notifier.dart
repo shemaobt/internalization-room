@@ -231,8 +231,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   bool _clipHeld = false;
   Duration? _cabecaForaDoPlayer;
   int _captureFails = 0;
+
+  /// Whether the part currently chosen has ever actually gone in the air.
+  ///
+  /// False only between the entry picking a part and `_tocarParteDaRetro` landing it —
+  /// the one window nothing else in state tells apart from a part a hold left silent
+  /// partway through.
+  bool _parteJaTocou = false;
+
+  /// What a halt found the room doing, read before `_silenceTheRoom` clears every flag
+  /// that would answer the question afterwards.
+  bool _soavaQuandoParou = false;
   Duration get _trechoStart => state.btCursor;
-  set _trechoStart(Duration cursor) => state = state.copyWith(btCursor: cursor);
+
+  /// Moving the cursor always asks the head-since-cursor question again: whatever the
+  /// watch answered about the ground before this move says nothing about the ground
+  /// after it.
+  set _trechoStart(Duration cursor) {
+    state = state.copyWith(btCursor: cursor, btOuvidoAlemDoCursor: false);
+    _armCursorWatch();
+  }
 
   Duration get _trechoEnd => state.btCorte;
   set _trechoEnd(Duration corte) => state = state.copyWith(btCorte: corte);
@@ -773,6 +791,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     bool reachable = true,
     bool read = false,
   }) {
+    // A lift only replays what this halt actually caught sounding — a part, a bead
+    // replay, or a part chosen but never landed yet. A held part or one already at its
+    // end is not touched: read before the silence, because that is what clears the very
+    // flags this asks about.
+    _soavaQuandoParou =
+        state.stage == SalaStage.retro &&
+        !state.btClipEnded &&
+        (state.btClipRodando ||
+            state.btTrechoTocando ||
+            state.btRetroTocando ||
+            !_parteJaTocou);
     _silenceTheRoom();
     if (state.btPhase == BtPhase.capturing) {
       unawaited(_recorder.discard());
@@ -1191,15 +1220,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // reads it away, or the long press on a room that is out — carried the warning off
     // with it, and the desk's mark never reached the circle again.
     if (state.warning) _watchTheHalt();
-    // A halt withholds the sound and nothing else: every lift inside the
-    // back-translation puts the current part in the air again, from its own cursor,
-    // whether the halt caught the room still choosing which part to play, sounding one
-    // already, or sounding a bead from the row instead. Left to a gesture, the room stood
-    // in the retro with no clip at all, and every gesture that needs one — the scissors
-    // above all — passed its guards and worked over silence.
+    // A halt withholds the sound and nothing else: a lift replays only what it caught
+    // sounding, from the part's own cursor — a part, a bead replay, or a part chosen but
+    // never landed yet, the way `_soavaQuandoParou` reads it. A part a hold left silent,
+    // or one already at its end, comes back exactly as it stood: this never re-cursors
+    // and never touches the cut, so a confirm or a correction still in flight when the
+    // halt landed finds its own `_trechoStart`/`_trechoEnd` untouched when it resolves.
     if (state.stage == SalaStage.retro &&
         state.btPhase == BtPhase.playing &&
-        _parteNoAr != null) {
+        _parteNoAr != null &&
+        _soavaQuandoParou) {
       _tocarParteDaRetro(_parteTocando);
     }
     if (_haltedResuming ||
@@ -3226,6 +3256,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
     _parteTocando = 0;
+    _parteJaTocou = false;
     _tamanhoDaParteMs.clear();
     _pousadaNaParteApontadaPelaRecusa = false;
     _cabecaForaDoPlayer = null;
@@ -3289,7 +3320,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _escuta.inteira(medidas[parte].path, medido);
       parte++;
     }
-    // A blocking halt withholds the sound and nothing else (ADR 0009): putting a part in
+    // A blocking halt withholds the sound and nothing else: putting a part in
     // the air here would silence the room on the way, cutting off the one call for a
     // person, which is said once. Which part, and what the team already heard of the ones
     // before it, are answered either way — a halt that skipped them would report none of
@@ -3461,7 +3492,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btClipRodando: true,
       btOuvidoMs: _pontoNoColar(0),
       btParteNoArMs: 0,
+      btOuvidoAlemDoCursor: false,
     );
+    _parteJaTocou = true;
+    _armCursorWatch();
     _play(
       state.partes[parte].path,
       from: de,
@@ -3709,9 +3743,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // that part's, and holding the clip and letting it run again never rewinds — but
     // the position is the player's answer, not the room's, and a player that comes back
     // from behind it would send a stretch that ends before it begins and then walk the
-    // cursor backwards over every stretch after it.
+    // cursor backwards over every stretch after it. Unconditional: a cut can never end
+    // before it begins, whatever else stands.
     _silenceTheRoom(holdTheClip: true);
-    if (nothingHeardSinceCursor) return;
+    // The watch ticks in the background for a label nobody has touched; a gesture that
+    // asks the question itself cannot wait for the next tick to land.
+    _armCursorWatch();
+    if (state.nothingHeardSinceCursor) return;
     _trechoEnd = _cabeca;
   }
 
@@ -3723,16 +3761,28 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return _cabecaForaDoPlayer ?? _playback.position;
   }
 
-  /// Whether nothing has been heard since the cursor: the guard the capture, the
-  /// scissors and the circle's label all share.
+  /// Read the live head against the cursor once, and write a crossing down as a state
+  /// fact.
   ///
-  /// A stretch already cut, or a stretch armed for a retell, is not this question any
-  /// more — the capture that follows is not the first one over this ground, and asks
-  /// nothing of the head.
-  bool get nothingHeardSinceCursor =>
-      _trechoTraduzidoDeNovo == null &&
-      !state.btCortado &&
-      _cabeca <= _trechoStart;
+  /// `SalaSessionState.nothingHeardSinceCursor` is what the capture, the scissors and the
+  /// circle's label all read — a plain field, the way `canCut` and
+  /// `canConfirmTranslation` are — because nothing else in state changes while a part
+  /// simply plays on, and a label baked from a live read at the last state change would
+  /// go stale the moment the room stopped touching state for it. A gesture that asks the
+  /// capture or the scissors' own question calls this itself, for an answer no older than
+  /// the tap; [refreshCursorWatch] is the same read, public so the circle can repeat it
+  /// on a cadence of its own — this one-shot, so nothing here keeps a timer of its own
+  /// alive between two rebuilds nobody asked for.
+  void _armCursorWatch() {
+    if (state.btOuvidoAlemDoCursor) return;
+    if (_cabeca > _trechoStart) {
+      state = state.copyWith(btOuvidoAlemDoCursor: true);
+    }
+  }
+
+  /// The circle's own cadence for asking whether the head has passed the cursor while
+  /// nothing else changes state to ask it for free. See [_armCursorWatch].
+  void refreshCursorWatch() => _armCursorWatch();
 
   Future<void> _tellThatStretchAgain(
     Trecho alvo,
@@ -3872,7 +3922,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _abrirACaptura() {
     if (_trechoTraduzidoDeNovo == null && !state.btCortado) {
-      if (nothingHeardSinceCursor) return;
+      _armCursorWatch();
+      if (state.nothingHeardSinceCursor) return;
       _silenceTheRoom(holdTheClip: true);
       _trechoEnd = _cabeca;
     } else {
@@ -4804,6 +4855,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
     _parteTocando = 0;
+    _parteJaTocou = false;
+    _soavaQuandoParou = false;
     _cabecaForaDoPlayer = null;
     _descartarATraducaoPendente();
     _traducoesGuardadas.clear();

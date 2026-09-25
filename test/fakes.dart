@@ -1365,6 +1365,15 @@ class FakeRoom implements RoomRepository {
         : const [],
   );
 
+  Completer<void>? _chunkSegura;
+
+  void holdNextChunk() => _chunkSegura = Completer<void>();
+
+  void finishHeldChunk() {
+    _chunkSegura?.complete();
+    _chunkSegura = null;
+  }
+
   @override
   Future<BackTranslationChunk> sendChunk(
     String sessionId,
@@ -1374,6 +1383,8 @@ class FakeRoom implements RoomRepository {
     required Duration to,
   }) async {
     _guard('sendChunk');
+    final segura = _chunkSegura;
+    if (segura != null) await segura.future;
     final refusal = failChunkWith;
     if (refusal != null) throw refusal;
     chunksSent++;

@@ -12,12 +12,17 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+import 'session_notifier_test.dart' show inConversa;
 
 Future<void> settle([
   Duration delay = const Duration(milliseconds: 120),
 ]) async {
   await Future<void>.delayed(delay);
 }
+
+/// One tick past the notifier's cursor watch (100ms): enough for a head moved with no
+/// gesture of its own to be caught.
+const cursorWatchTick = Duration(milliseconds: 150);
 
 Finder _byLabel(String label) => find.byWidgetPredicate(
   (widget) => widget is Semantics && widget.properties.label == label,
@@ -56,7 +61,8 @@ Future<(ProviderContainer, String)> _reopensIntoRetro(
 }
 
 /// A room reopened into the retro, warned but not yet blocked, with the resumed part
-/// already playing — the ground T1 and T4 measure.
+/// already playing — the ground most of this file measures. The cursor starts at
+/// nought: only T1 and T3 need it pinned elsewhere, and do that themselves.
 Future<
   (ProviderContainer, SalaSessionNotifier, SalaSessionState Function(), String)
 >
@@ -72,7 +78,9 @@ _playingWithAWarningArmed(SalaHarness harness) async {
 }
 
 /// The same ground as above, but with a stretch already told over the resumed part, so a
-/// bead can be heard from the row without the team telling anything new.
+/// bead can be heard from the row without the team telling anything new. Pins the
+/// cursor at 12s, away from both nought and wherever a live read might wrongly resume
+/// from.
 Future<
   (ProviderContainer, SalaSessionNotifier, SalaSessionState Function(), String)
 >
@@ -123,6 +131,18 @@ Future<void> _haltLandsBlocking(
   await waitFor('a sala parar', () => read().needsPerson);
 }
 
+/// The desk attends, and the circle hands the room back.
+Future<void> _liftsTheHalt(
+  SalaHarness harness,
+  SalaSessionState Function() read,
+) async {
+  harness.room.theDeskAttended();
+  await waitFor(
+    'o círculo voltar ao convite',
+    () => read().voice == VoiceState.invite,
+  );
+}
+
 /// A team standing on a freshly recorded part, nothing heard yet since the cursor.
 Future<ProviderContainer> _freshlyInRetro(
   WidgetTester tester,
@@ -148,17 +168,40 @@ Future<ProviderContainer> _freshlyInRetro(
   return container;
 }
 
+/// The team cuts, records and closes a translation over the resumed part — the ground
+/// the cut/pending-translation blocker measures. Leaves the room in `playing`, with the
+/// clip held (not sounding) and a translation pending, cut at [ate].
+Future<void> _cutsAndRecordsATranslation(
+  SalaHarness harness,
+  SalaSessionNotifier notifier,
+  SalaSessionState Function() read,
+  Duration ate,
+) async {
+  harness.playback.at = ate;
+  notifier.cortarTrecho();
+  notifier.retroTap();
+  await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
+  notifier.retroTap();
+  await waitFor(
+    'a tradução ficar pendente',
+    () => read().btTraducaoPendente != null,
+  );
+}
+
 void main() {
   test('T1: a blocking halt lifted mid-part plays the current part again from '
-      'the cursor', () async {
+      'the cursor, not from wherever the head had reached', () async {
     final harness = SalaHarness();
-    final (_, _, read, path) = await _playingWithAWarningArmed(harness);
-    final cursorBefore = harness.playback.playedFrom.last;
+    final (_, _, read, path) = await _playingWithAToldStretchAndAWarningArmed(
+      harness,
+    );
+    // The head is read live, ahead of the told cursor: a lift that replayed from it
+    // instead of from the cursor would start the part here.
+    harness.playback.at = const Duration(milliseconds: 15000);
     final playsBefore = harness.playback.playedFrom.length;
 
     await _haltLandsBlocking(harness, read);
-
-    harness.room.theDeskAttended();
+    await _liftsTheHalt(harness, read);
     await waitFor(
       'a parte voltar a tocar',
       () => harness.playback.playedFrom.length > playsBefore,
@@ -172,8 +215,8 @@ void main() {
     );
     expect(
       harness.playback.playedFrom.last,
-      cursorBefore,
-      reason: 'do cursor onde a fala parou, não do início',
+      const Duration(milliseconds: 12000),
+      reason: 'do cursor onde a fala parou, não da cabeça nem do começo',
     );
   });
 
@@ -204,6 +247,32 @@ void main() {
         startsBefore,
         reason: 'nenhum microfone abriu',
       );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'T2w: the head passing the cursor with no gesture turns the label to '
+    'record on its own',
+    (tester) async {
+      final harness = SalaHarness();
+      final container = await _freshlyInRetro(tester, harness);
+
+      expect(_byLabel('Ouvir primeiro'), findsOneWidget);
+
+      harness.playback.at = const Duration(seconds: 4);
+      await tester.pump(cursorWatchTick);
+
+      expect(
+        _byLabel('Ouvir primeiro'),
+        findsNothing,
+        reason: 'a cabeça já passou o cursor, sem nenhum gesto',
+      );
+      expect(
+        _byLabel('Tocar para gravar a tradução deste trecho'),
+        findsOneWidget,
+      );
+      closeTheRoom(container);
     },
   );
 
@@ -224,7 +293,7 @@ void main() {
     expect(read().btTrechoTocando, isFalse);
     expect(read().btRetroTocando, isFalse);
 
-    harness.room.theDeskAttended();
+    await _liftsTheHalt(harness, read);
     await waitFor(
       'a parte voltar a tocar',
       () => harness.playback.playedFrom.length > playsBefore,
@@ -271,11 +340,12 @@ void main() {
     expect(retroLabelFor('listenFirst', 'en'), 'Listen first');
   });
 
-  testWidgets('T5: in english the circle says listen first', (tester) async {
+  testWidgets('T5w: in english the circle says listen first', (tester) async {
     final harness = SalaHarness(lingua: 'en');
-    await _freshlyInRetro(tester, harness);
+    final container = await _freshlyInRetro(tester, harness);
 
     expect(_byLabel('Listen first'), findsOneWidget);
+    closeTheRoom(container);
   });
 
   test('T6: a halt already blocking when the entry chose its part plays it '
@@ -288,7 +358,7 @@ void main() {
       reason: 'a entrada escolheu a parte e parou antes de tocar',
     );
 
-    harness.room.theDeskAttended();
+    await _liftsTheHalt(harness, read);
     await waitFor(
       'a parte tocar pela primeira vez',
       () => harness.playback.playedFrom.isNotEmpty,
@@ -297,5 +367,138 @@ void main() {
     expect(read().needsPerson, isFalse);
     expect(harness.playback.played.last, path);
     expect(harness.playback.playedFrom.last, Duration.zero);
+  });
+
+  test(
+    "T7: a halt over a paused part gives the room back exactly as it stood — "
+    'Henok, 25-09',
+    () async {
+      final harness = SalaHarness();
+      final (_, notifier, read, _) = await _playingWithAWarningArmed(harness);
+
+      notifier.ouvirGravacao();
+      await waitFor('a parte pausar', () => !read().btClipRodando);
+      final playsBefore = harness.playback.playedFrom.length;
+      final soundingBefore = harness.playback.sounding;
+      expect(soundingBefore, isFalse);
+
+      await _haltLandsBlocking(harness, read);
+      await _liftsTheHalt(harness, read);
+
+      expect(
+        read().btClipRodando,
+        isFalse,
+        reason: 'a equipe tinha pausado; a parada não devolve tocando',
+      );
+      expect(
+        harness.playback.playedFrom.length,
+        playsBefore,
+        reason: 'nada é reposto sozinho sobre uma parte pausada',
+      );
+      expect(harness.playback.sounding, isFalse);
+    },
+  );
+
+  test('T8: a halt over a part already at its end gives the room back exactly '
+      'as it stood — Henok, 25-09', () async {
+    final harness = SalaHarness();
+    final (_, _, read, _) = await _playingWithAWarningArmed(harness);
+
+    harness.playback.finishPlayback();
+    await waitFor('a parte terminar', () => read().btClipEnded);
+    final playsBefore = harness.playback.playedFrom.length;
+
+    await _haltLandsBlocking(harness, read);
+    await _liftsTheHalt(harness, read);
+
+    expect(
+      read().btClipEnded,
+      isTrue,
+      reason: 'o fim da parte não é desfeito por uma parada',
+    );
+    expect(
+      harness.playback.playedFrom.length,
+      playsBefore,
+      reason: 'nada é reposto sozinho sobre uma parte já terminada',
+    );
+  });
+
+  test('T9: a halt landing after a cut and a pending translation, lifted '
+      'before the confirm, sends the cut the team actually made', () async {
+    final harness = SalaHarness();
+    final (_, notifier, read, _) = await _playingWithAWarningArmed(harness);
+    await _cutsAndRecordsATranslation(
+      harness,
+      notifier,
+      read,
+      const Duration(seconds: 4),
+    );
+
+    await _haltLandsBlocking(harness, read);
+    await _liftsTheHalt(harness, read);
+    await notifier.confirmarTraducao();
+    await settle();
+
+    expect(harness.room.chunkSpans, ['0-4000']);
+  });
+
+  test('T10: a halt landing and lifted while the confirm itself is still in '
+      'flight does not touch the cursor or the cut waiting on it', () async {
+    final harness = SalaHarness();
+    final (_, notifier, read, _) = await _playingWithAWarningArmed(harness);
+    await _cutsAndRecordsATranslation(
+      harness,
+      notifier,
+      read,
+      const Duration(seconds: 4),
+    );
+
+    harness.room.holdNextChunk();
+    final confirming = notifier.confirmarTraducao();
+    await waitFor(
+      'a sala pensar enquanto o V viaja',
+      () => read().btPhase == BtPhase.thinking,
+    );
+
+    await _haltLandsBlocking(harness, read);
+    await _liftsTheHalt(harness, read);
+
+    harness.room.finishHeldChunk();
+    await confirming;
+    await settle();
+
+    // `chunkSpans` is captured from the arguments at the call, before the halt ever
+    // landed, and so is correct either way: the vulnerable read is the local `Trecho`
+    // this builds *after* the await, from whatever `_trechoStart`/`_trechoEnd` are by
+    // the time the network answers.
+    expect(read().btTrechos, hasLength(1));
+    expect(read().btTrechos.single.from, Duration.zero);
+    expect(read().btTrechos.single.to, const Duration(seconds: 4));
+  });
+
+  test('T11: a halt silences the room outside the retro too, cutting the '
+      'Guide off mid-line', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    harness.voice.holdNextLine();
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    await settle();
+    expect(read().voice, VoiceState.speaking);
+    final stopsBefore = harness.sounds.where((s) => s == 'voice:stop').length;
+
+    notifier.haltForABrokenBuild();
+
+    expect(read().needsPerson, isTrue);
+    expect(
+      harness.sounds.where((s) => s == 'voice:stop').length,
+      greaterThan(stopsBefore),
+      reason: 'ADR 0044: a halt silences every station, not only the retro',
+    );
   });
 }

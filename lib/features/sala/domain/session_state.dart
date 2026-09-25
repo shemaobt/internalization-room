@@ -186,6 +186,11 @@ class SalaSessionState {
   final int btOuvidoMs;
   final Duration btCursor;
   final Duration btCorte;
+
+  /// Whether the head has passed [btCursor] since it was last set — the one fact the
+  /// capture, the scissors and the circle's label all read to ask whether anything has
+  /// been heard since the cursor.
+  final bool btOuvidoAlemDoCursor;
   final int btParte;
   final String? btTraducaoPendente;
   final String? btTraducaoEmprestada;
@@ -260,6 +265,7 @@ class SalaSessionState {
     this.btOuvidoMs = 0,
     this.btCursor = Duration.zero,
     this.btCorte = Duration.zero,
+    this.btOuvidoAlemDoCursor = false,
     this.btParte = 0,
     this.btTraducaoPendente,
     this.btTraducaoEmprestada,
@@ -352,6 +358,10 @@ class SalaSessionState {
       !offline;
 
   bool get btCortado => btCorte > btCursor;
+
+  /// Whether nothing has been heard since the cursor: the guard the capture, the
+  /// scissors and the circle's label all share.
+  bool get nothingHeardSinceCursor => !btOuvidoAlemDoCursor;
 
   int? get _btInicioDaParteMs {
     if (btParte == 0) return 0;
@@ -513,6 +523,7 @@ class SalaSessionState {
     int? btOuvidoMs,
     Duration? btCursor,
     Duration? btCorte,
+    bool? btOuvidoAlemDoCursor,
     int? btParte,
     String? btTraducaoPendente,
     bool clearTraducaoPendente = false,
@@ -575,6 +586,7 @@ class SalaSessionState {
       btOuvidoMs: btOuvidoMs ?? this.btOuvidoMs,
       btCursor: btCursor ?? this.btCursor,
       btCorte: btCorte ?? this.btCorte,
+      btOuvidoAlemDoCursor: btOuvidoAlemDoCursor ?? this.btOuvidoAlemDoCursor,
       btParte: btParte ?? this.btParte,
       btTraducaoPendente: clearTraducaoPendente
           ? null

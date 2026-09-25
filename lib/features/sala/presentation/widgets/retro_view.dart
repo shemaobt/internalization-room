@@ -13,14 +13,49 @@ import 'bead_styles.dart';
 import 'facilitator_circle.dart';
 import 'motion.dart';
 
-class RetroView extends ConsumerWidget {
+class RetroView extends ConsumerStatefulWidget {
   const RetroView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RetroView> createState() => _RetroViewState();
+}
+
+class _RetroViewState extends ConsumerState<RetroView> {
+  /// The circle's own cadence for asking whether the head has passed the cursor while
+  /// nothing else moves state to ask it for free — the coarser question the cord's own
+  /// reading head, walking ten times a second (ADR 0028), does not need to answer at
+  /// that rate. Owned here, not in the notifier, so a session left mid-part in a test
+  /// clears it the ordinary way a widget's own timer clears: on dispose, before anything
+  /// looks for one still ticking — a self-rearming timer kept in session state instead
+  /// outlives the widget that wanted it, on every part landed and never listened to.
+  Timer? _cursorPoll;
+
+  @override
+  void dispose() {
+    _cursorPoll?.cancel();
+    super.dispose();
+  }
+
+  void _pollTheCursorWhile(SalaSessionState session) {
+    final wanted =
+        session.btPhase == BtPhase.playing && !session.btOuvidoAlemDoCursor;
+    if (!wanted) {
+      _cursorPoll?.cancel();
+      _cursorPoll = null;
+      return;
+    }
+    _cursorPoll ??= Timer.periodic(const Duration(milliseconds: 100), (_) {
+      if (!mounted) return;
+      ref.read(salaSessionProvider.notifier).refreshCursorWatch();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);
     final language = ref.watch(roomLanguageProvider);
+    _pollTheCursorWhile(session);
     // A halted voice is never painted over. The checked circle is drawn done because the
     // passage is right, and that read over a room stopped for a person or with no
     // network: the team got a green circle, two buttons the guards refuse, no way out of
@@ -52,7 +87,7 @@ class RetroView extends ConsumerWidget {
           voice: voz,
           tongue: lingua,
           warning: session.warning,
-          semanticLabel: _circleLabel(session, notifier, language),
+          semanticLabel: _circleLabel(session, language),
           onTap: notifier.retroTap,
           onLongPress: session.canResolveWithPerson
               ? notifier.resolveWithPerson
@@ -374,16 +409,14 @@ class RetroView extends ConsumerWidget {
     );
   }
 
-  String _circleLabel(
-    SalaSessionState session,
-    SalaSessionNotifier notifier,
-    String language,
-  ) {
+  String _circleLabel(SalaSessionState session, String language) {
     if (session.needsPerson) return 'Um momento para uma pessoa';
     if (session.offline) return 'Tocar para tentar de novo';
     switch (session.btPhase) {
       case BtPhase.playing:
-        if (notifier.nothingHeardSinceCursor) {
+        if (session.btTrechoTraduzidoDeNovo == null &&
+            !session.btCortado &&
+            session.nothingHeardSinceCursor) {
           return retroLabelFor('listenFirst', language);
         }
         return retroLabelFor(
