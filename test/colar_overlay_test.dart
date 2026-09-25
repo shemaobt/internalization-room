@@ -235,4 +235,32 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'a bead just spoken into lands filled on the first frame, reduced',
+    (tester) async {
+      const waiting = SalaSessionState(
+        coverage: Coverage(engaged: 0, surfaced: 0, total: 1, absenceIndex: -1),
+      );
+      await pumpReducedColar(tester, waiting);
+
+      final filled = waiting.copyWith(
+        coverage: const Coverage(
+          engaged: 1,
+          surfaced: 0,
+          total: 1,
+          absenceIndex: -1,
+        ),
+      );
+      await pumpReducedColar(tester, filled);
+
+      expect(
+        renderedDecorationAt(tester, 0).gradient,
+        BeadStyles.wood,
+        reason:
+            'com o movimento reduzido o preenchimento ainda levava 1,3s para assentar — '
+            'o primeiro frame mostrava a conta a meio caminho do cheio',
+      );
+    },
+  );
 }

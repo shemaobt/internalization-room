@@ -123,7 +123,9 @@ class ColarOverlay extends StatelessWidget {
       width: size,
       height: size,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 1300),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 1300),
         decoration: decoration,
       ),
     );
