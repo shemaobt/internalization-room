@@ -794,6 +794,14 @@ class FakeRoom implements RoomRepository {
   Exception? failReplaceWith;
   Exception? loseTheNextReplaceAnswerWith;
   final Set<String> _retired = {};
+
+  void recordThePartAgain(String takeId) {
+    for (final segment in segments.where((one) => one.takeId == takeId)) {
+      _retired.add(segment.segmentId);
+    }
+    segments.removeWhere((one) => one.takeId == takeId);
+  }
+
   Exception? failChunkWith;
 
   /// What the next call to `fetchState` throws, independent of `failWith` — a case needs
@@ -1131,6 +1139,7 @@ class FakeRoom implements RoomRepository {
     if (segura != null) await segura.future;
     final refusal = failReplaceWith;
     if (refusal != null) throw refusal;
+    if (_retired.contains(segmentId)) throw const StretchNoLongerCounts();
     replacesAsked.add(
       '$segmentId@$takeId:${from.inMilliseconds}-${to.inMilliseconds}',
     );
@@ -1151,7 +1160,6 @@ class FakeRoom implements RoomRepository {
         needsPerson: needsPerson,
       );
     }
-    if (_retired.contains(segmentId)) throw const StretchNoLongerCounts();
     final at = segments.indexWhere((one) => one.segmentId == segmentId);
     final antes = at >= 0 ? segments[at] : null;
     if (antes != null) {

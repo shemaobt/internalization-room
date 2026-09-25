@@ -196,6 +196,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _unplayableTurns = 0;
   int _roomFailures = 0;
   List<String>? _fileiraDaUltimaRecusa;
+  String? _contadaSemResposta;
   int _resumeFailures = 0;
 
   /// When and in what language the session now open was created, so a row rewritten by
@@ -3757,23 +3758,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (epoch != _epoch) return;
     } on StretchNoLongerCounts catch (refusal) {
       if (epoch != _epoch) return;
-      await _readWhatTheRefusalSays(
-        alvo,
-        lugar,
-        path,
-        sessionId,
-        epoch,
-        refusal,
-      );
+      await _readWhatTheRefusalSays(alvo, path, sessionId, epoch, refusal);
       return;
     } on Exception catch (error) {
       _fileiraDaUltimaRecusa = null;
+      _contadaSemResposta = path;
       _guardarATraducao(path);
       if (epoch != _epoch) return;
       _theCorrectionFailed(error);
       return;
     }
     _fileiraDaUltimaRecusa = null;
+    _contadaSemResposta = null;
 
     if (!told.captured) {
       // The room made nothing out of it, which is also what a transcriber outage looks
@@ -3826,7 +3822,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _readWhatTheRefusalSays(
     Trecho alvo,
-    int lugar,
     String path,
     String sessionId,
     int epoch,
@@ -3853,7 +3848,45 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _theCorrectionFailed(refusal);
       return;
     }
-    _theTellingLandedOn(segments, alvo: alvo, lugar: lugar, path: path);
+    final sucessor = segments.indexWhere(
+      (segment) =>
+          segment.told &&
+          segment.segmentId != alvo.segmentId &&
+          segment.takeId == alvo.takeId &&
+          segment.startsMs == alvo.from.inMilliseconds &&
+          segment.endsMs == alvo.to.inMilliseconds,
+    );
+    final aContadaPousou = path == _contadaSemResposta;
+    _contadaSemResposta = null;
+    if (sucessor < 0) {
+      _theStretchIsGone(segments);
+      return;
+    }
+    if (aContadaPousou) {
+      _theTellingLandedOn(segments, alvo: alvo, lugar: sucessor, path: path);
+      return;
+    }
+    final trechos = _trechosFrom(segments, lugar: sucessor, noLugarDe: alvo);
+    state = state.copyWith(
+      btPhase: BtPhase.playing,
+      voice: VoiceState.invite,
+      btTrechos: trechos,
+    );
+    _armarOTrecho(trechos[sucessor]);
+    _rememberWhereTheyAre(SalaStage.retro);
+  }
+
+  void _theStretchIsGone(List<SegmentView> segments) {
+    final trechos = _trechosFrom(segments);
+    _walkTheCursorBack(trechos);
+    _trechoTraduzidoDeNovo = null;
+    _descartarATraducaoPendente();
+    state = state.copyWith(
+      btPhase: BtPhase.playing,
+      voice: VoiceState.invite,
+      btTrechos: trechos,
+    );
+    _rememberWhereTheyAre(SalaStage.retro);
   }
 
   void _theTellingLandedOn(
@@ -3880,8 +3913,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btTrechos: trechos.isEmpty ? state.btTrechos : trechos,
       clearTraducaoPendente: true,
       // The room asking for a person over a stretch told again is a warning: somebody is
-      // called to come and watch, and the team is refused nothing. Written before the
-      // verdict, because a warning is a field and the verdict only walks the voice.
+      // called to come and watch, and the team is refused nothing. Written with the row,
+      // because a warning is a field and whatever follows the landing only walks the voice.
       warning: needsPerson ? true : null,
     );
     if (needsPerson) _watchTheHalt();
@@ -4562,7 +4595,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             takeId: segment.takeId,
             retroPath: !segment.told
                 ? null
-                : onde == lugar && contadoEm != null
+                : onde == lugar
                 ? contadoEm
                 : (aqui.isNotEmpty ? aqui.first.retroPath : null),
             parte: parte,
@@ -4857,6 +4890,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _unplayableTurns = 0;
     _roomFailures = 0;
     _fileiraDaUltimaRecusa = null;
+    _contadaSemResposta = null;
     _resumeFailures = 0;
     _slowAnswers = 0;
     _retryStep = 0;

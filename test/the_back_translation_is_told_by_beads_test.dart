@@ -578,6 +578,11 @@ void main() {
       contadaNoServidor,
       reason: 'a voz azul do trecho 1 é a explicação que o servidor guardou',
     );
+    expect(
+      harness.recorder.deleted,
+      isNot(contains(contadaNoServidor)),
+      reason: 'o arquivo que pousou é o do trecho, não se apaga',
+    );
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -593,10 +598,9 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('B7i — recusada sempre, com a fileira igual depois da '
-      'releitura, só a primeira recusa pousa; as seguintes são strike', (
-    tester,
-  ) async {
+  testWidgets('B7i — recusada sempre sobre um trecho que ainda vale, a sala '
+      'não entra em laço: as recusas seguidas sobre a mesma fileira são '
+      'strike', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await ateOTrechoNomeado(tester, harness);
 
@@ -619,8 +623,9 @@ void main() {
       container.read(salaSessionProvider).needsPerson,
       isTrue,
       reason:
-          'depois da recusa que pousou, três recusas seguidas sobre a '
-          'mesma fileira chamam uma pessoa',
+          'o servidor de hoje não recusa um trecho que ainda vale; a recusa '
+          'é injetada porque a trava existe para a sala nunca repetir a mesma '
+          'recusa sem chamar uma pessoa',
     );
     closeTheRoom(container);
   });
@@ -681,6 +686,129 @@ void main() {
     expect(harness.playback.played.last, contadaNoServidor);
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
+    closeTheRoom(container);
+  });
+
+  testWidgets('B7l — a tradução gravada depois de uma resposta perdida '
+      'conta de novo o trecho que pousou', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await ateOTrechoNomeado(tester, harness);
+    final sala = container.read(salaSessionProvider.notifier);
+    final gravacao = harness.room.takeIds.first;
+
+    harness.room.loseTheNextReplaceAnswerWith = const RoomSlow();
+    await confirmarEEsperar(tester);
+    final primeira = harness.room.replacesComArquivo.single;
+    sala.retroTap();
+    await tester.pump(const Duration(milliseconds: 300));
+    sala.retroTap();
+    await tester.pump(const Duration(milliseconds: 300));
+    final segunda = container.read(salaSessionProvider).btTraducaoPendente!;
+    expect(segunda, isNot(primeira));
+
+    await confirmarEEsperar(tester);
+    expect(
+      aceso(tester, confirmar),
+      isTrue,
+      reason: 'a segunda segue pendente',
+    );
+    expect(contas(tester), [
+      'solid com anel',
+      'solid',
+    ], reason: 'armada sobre o sucessor');
+
+    sala.ouvirOTrechoContado(0);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      harness.playback.played.last,
+      container.read(salaSessionProvider).partes.first.path,
+      reason:
+          'o tablet não tem mais a primeira e nunca toca um arquivo que o '
+          'servidor não guarda para o trecho: toca a língua materna',
+    );
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await confirmarEEsperar(tester);
+    expect(harness.room.replacesAsked.last, 'trecho-1-v1@$gravacao:0-4000');
+    expect(harness.room.replacesComArquivo.last, segunda);
+    closeTheRoom(container);
+  });
+
+  testWidgets('B7m — sem sucessor na releitura nada pousou: a fileira fica '
+      'como o servidor a tem, a pendente sai, e não há strike', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await ateOTrechoNomeado(tester, harness);
+    final sala = container.read(salaSessionProvider.notifier);
+    final pendente = container.read(salaSessionProvider).btTraducaoPendente!;
+
+    harness.room.recordThePartAgain(harness.room.takeIds.first);
+    await confirmarEEsperar(tester);
+
+    expect(
+      container.read(salaSessionProvider).btTrechos,
+      isEmpty,
+      reason: 'a tradução recomeçada não deixa fileira velha na tela',
+    );
+    expect(aceso(tester, confirmar), isFalse);
+    expect(harness.recorder.deleted, contains(pendente));
+
+    harness.room.failChunkWith = const RoomBroke('HTTP 500');
+    for (var falha = 0; falha < 2; falha++) {
+      sala.retroTap();
+      await tester.pump(const Duration(milliseconds: 300));
+      sala.retroTap();
+      await tester.pump(const Duration(milliseconds: 300));
+      await confirmarEEsperar(tester);
+    }
+    expect(
+      container.read(salaSessionProvider).needsPerson,
+      isFalse,
+      reason:
+          'duas falhas comuns depois da recusa são o primeiro e o segundo '
+          'strike',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('B7n — outra falha entre duas recusas quebra o "em seguida"', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await ateOTrechoNomeado(tester, harness);
+
+    harness.room.loseTheNextReplaceAnswerWith = const RoomSlow();
+    await confirmarEEsperar(tester);
+    await confirmarEEsperar(tester);
+
+    harness.room.verdictUntoldSegmentId = 'trecho-1-v1';
+    await tocar(tester, conferir);
+    await tester.pump(const Duration(milliseconds: 600));
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+    harness.room.verdictUntoldSegmentId = null;
+    await gravarATraducao(tester);
+
+    harness.room.failReplaceWith = const RoomBroke('HTTP 500');
+    await confirmarEEsperar(tester);
+    harness.room.failReplaceWith = const StretchNoLongerCounts();
+    await confirmarEEsperar(tester);
+    harness.room.failReplaceWith = null;
+    expect(
+      aceso(tester, confirmar),
+      isFalse,
+      reason: 'a recusa solta a pendente em vez de guardá-la como strike',
+    );
+
+    await falharAoConferir(tester, harness);
+    expect(
+      container.read(salaSessionProvider).needsPerson,
+      isFalse,
+      reason:
+          'a recusa depois de outra falha não é "em seguida": só a falha e '
+          'a conferência contam. A recusa sobre um trecho que ainda vale é '
+          'injetada; o servidor de hoje não a produz',
+    );
     closeTheRoom(container);
   });
 
