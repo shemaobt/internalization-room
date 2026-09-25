@@ -132,15 +132,21 @@ class EnsaioView extends ConsumerWidget {
         SizedBox(
           height: 64,
           child: session.ensaioHasATake
-              ? AdvanceButton(
-                  ready: session.ensaioDone,
-                  gradient: BeadStyles.verde,
-                  semanticLabel: 'Ir para a tradução',
-                  onTap: notifier.startRetro,
-                  child: const Icon(
-                    LucideIcons.checkCheck,
-                    size: 26,
-                    color: ShemaBrand.branco,
+              ? FadeUp(
+                  child: RoundActionButton(
+                    size: 64,
+                    mood: session.ensaioDone
+                        ? ButtonMood.beckoning
+                        : ButtonMood.dimmed,
+                    gradient: BeadStyles.verde,
+                    shadows: RoundActionButton.dropShadow,
+                    semanticLabel: 'Ir para a tradução',
+                    onTap: notifier.startRetro,
+                    child: const Icon(
+                      LucideIcons.checkCheck,
+                      size: 26,
+                      color: ShemaBrand.branco,
+                    ),
                   ),
                 )
               : null,
