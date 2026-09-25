@@ -55,8 +55,16 @@ const retroLabels = {
     'pt': 'Tocar para gravar a tradução deste trecho',
     'en': 'Tap to record this stretch\'s translation',
   },
+  'recordAgain': {
+    'pt': 'Tocar para gravar a tradução de novo',
+    'en': 'Tap to record the translation again',
+  },
   'recording': {'pt': 'Tocar ao terminar', 'en': 'Tap when you finish'},
   'listen': {'pt': 'Ouvir', 'en': 'Listen'},
+  'listenToTheTranslation': {
+    'pt': 'Ouvir a tradução',
+    'en': 'Listen to the translation',
+  },
   'pause': {'pt': 'Pausar', 'en': 'Pause'},
   'cut': {'pt': 'Cortar aqui', 'en': 'Cut here'},
   'confirm': {

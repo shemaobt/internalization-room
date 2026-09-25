@@ -235,6 +235,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// still has to be able to end the part — so it cannot be what tells a ceiling whether
   /// there is any sound left to measure.
   bool _clipHeld = false;
+  Duration? _cabecaForaDoPlayer;
   int _captureFails = 0;
   Duration get _trechoStart => state.btCursor;
   set _trechoStart(Duration cursor) => state = state.copyWith(btCursor: cursor);
@@ -437,6 +438,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btTrechoPausada: false,
       btRetroTocando: false,
       btRetroPausada: false,
+      clearContaEscolhida: true,
       playPing: false,
       takePaused: false,
     );
@@ -3248,6 +3250,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _entradaParouSemTocar = false;
     _tamanhoDaParteMs.clear();
     _pousadaNaParteApontadaPelaRecusa = false;
+    _cabecaForaDoPlayer = null;
     _escuta.esquecerTudo();
     _desdeMs = 0;
     state = state.copyWith(
@@ -3452,12 +3455,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     bool doComeco = false,
     bool semChaoTraduzido = false,
     bool noCursor = false,
+    Duration? desde,
   }) {
     // Every way a part goes in the air passes here — the crossing at a boundary, the
     // last listening of a checked passage, the next part, the landing on one nobody
     // heard — and none of them may start it under the line the Guide is still saying.
     _silenceTheRoom();
     _entradaParouSemTocar = false;
+    _cabecaForaDoPlayer = null;
     _parteTocando = parte;
     if (!noCursor) {
       _trechoStart = semChaoTraduzido
@@ -3465,7 +3470,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           : _ondeParouNesteArquivo(parte);
     }
     _trechoEnd = _trechoStart;
-    _desdeMs = 0;
+    final de = desde ?? (doComeco ? Duration.zero : _trechoStart);
+    _desdeMs = de.inMilliseconds;
     _escuta.abrir(state.partes[parte].path, 0);
     state = state.copyWith(
       btParteFronteira: false,
@@ -3482,7 +3488,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     _play(
       state.partes[parte].path,
-      from: doComeco ? Duration.zero : _trechoStart,
+      from: de,
       onComplete: _fimDeParte,
       onFailed: () {
         // Back to the rehearsal is the answer while there is still passage left to tell
@@ -3548,7 +3554,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// Listen to the rehearsal, hold it, or cross into the next part; once a stretch is
-  /// cut, or named by the verdict, hear that stretch again.
+  /// cut, or named by the verdict, hear that stretch again, and once its translation is
+  /// pending, hear the translation.
   ///
   /// One gesture with one meaning. It used to share the circle with cutting a stretch and
   /// opening the microphone, which is why the room could only guess how much had been
@@ -3568,8 +3575,29 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _letTheClipRun();
       return;
     }
+    if (state.btRetroTocando) {
+      _holdClip();
+      state = state.copyWith(btRetroTocando: false, btRetroPausada: true);
+      return;
+    }
+    if (state.btRetroPausada) {
+      state = state.copyWith(btRetroTocando: true, btRetroPausada: false);
+      _letTheClipRun();
+      return;
+    }
     if (state.btClipRodando) {
       _pararOClipe();
+      return;
+    }
+    final pendente = state.btTraducaoPendente;
+    if (!conferida && pendente != null) {
+      _tirarAParteDoPlayer();
+      state = state.copyWith(btRetroTocando: true);
+      _play(
+        pendente,
+        onComplete: _calarOQueSeOuvia,
+        onFailed: _calarOQueSeOuvia,
+      );
       return;
     }
     final traduzidoDeNovo = _trechoTraduzidoDeNovo;
@@ -3605,7 +3633,71 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (state.btClipEnded) return;
+    final cabeca = _cabecaForaDoPlayer;
+    if (cabeca != null) {
+      _tocarParteDaRetro(_parteTocando, noCursor: true, desde: cabeca);
+      return;
+    }
     _seguirOClipe();
+  }
+
+  void ouvirOTrechoContado(int indice) {
+    if (state.stage != SalaStage.retro || state.btPhase != BtPhase.playing) {
+      return;
+    }
+    if (state.needsPerson || state.offline) return;
+    if (indice < 0 || indice >= state.btTrechos.length) return;
+    final trecho = state.btTrechos[indice];
+    if (!trecho.contado) return;
+    final traducao = trecho.retroPath;
+    final materna = _ondeTocar(trecho);
+    if (traducao == null && materna == null) return;
+    _tirarAParteDoPlayer();
+    state = state.copyWith(
+      btContaEscolhida: indice,
+      btRetroTocando: traducao != null,
+      btTrechoTocando: traducao == null,
+    );
+    if (traducao != null) {
+      _play(
+        traducao,
+        onComplete: _calarOQueSeOuvia,
+        onFailed: _calarOQueSeOuvia,
+      );
+      return;
+    }
+    _clipHeld = false;
+    _onPlaybackComplete = _calarOQueSeOuvia;
+    _onPlaybackFailed = _calarOQueSeOuvia;
+    _listenForTheEnd();
+    unawaited(_playback.playRange(materna!.$1, materna.$2, materna.$3));
+    _watchPlayback(clipStillOpening: true);
+  }
+
+  void ouvirOTrechoPendente() {
+    if (state.btContaEscolhida != null) {
+      _silenceTheRoom();
+      return;
+    }
+    ouvirGravacao();
+  }
+
+  void _tirarAParteDoPlayer() {
+    _silenceTheRoom();
+    _cabecaForaDoPlayer ??= Duration(
+      milliseconds: state.btOuvidoMs - _inicioDaParteMs(_parteTocando),
+    );
+  }
+
+  void _calarOQueSeOuvia() {
+    unawaited(_playback.stop());
+    state = state.copyWith(
+      btTrechoTocando: false,
+      btTrechoPausada: false,
+      btRetroTocando: false,
+      btRetroPausada: false,
+      clearContaEscolhida: true,
+    );
   }
 
   void _ouvirOTrechoCortado() {
@@ -3643,7 +3735,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // from behind it would send a stretch that ends before it begins and then walk the
     // cursor backwards over every stretch after it.
     _silenceTheRoom(holdTheClip: true);
-    final cabeca = _playback.position;
+    final cabeca = _cabeca;
     if (cabeca <= _trechoStart) return;
     _trechoEnd = cabeca;
   }
@@ -3653,14 +3745,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       final medido = _tamanhoDaParteMs[_parteNoAr?.path];
       if (medido != null) return Duration(milliseconds: medido);
     }
-    return _playback.position;
+    return _cabecaForaDoPlayer ?? _playback.position;
   }
 
   /// Cut the stretch that is playing in two, where the team is hearing it.
   ///
   /// It only ever answers for the stretch in the air, which is the only stretch the team
-  /// can hear again: the room leads them to the one a finding named, and nothing else
-  /// replays a stretch they already told. So there is nothing to choose first — what is
+  /// can hear again on the findings: the room leads them to the one a finding named, and
+  /// a tapped bead replays a told stretch only on the back-translation, where this never
+  /// answers. So there is nothing to choose first — what is
   /// playing is what divides — and the point is where the audio is, which is the same
   /// relation the other pair of scissors already has.
   ///
@@ -3882,7 +3975,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _abrirACaptura() {
-    if (state.btTraducaoPendente != null) return;
     if (_trechoTraduzidoDeNovo == null && !state.btCortado) {
       final cabeca = _cabeca;
       if (cabeca <= _trechoStart) return;
@@ -3939,11 +4031,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
 
+    final substituida = state.btTraducaoPendente;
     state = state.copyWith(
       btPhase: BtPhase.playing,
       voice: VoiceState.invite,
       btTraducaoPendente: path,
     );
+    if (substituida != null) unawaited(_recorder.delete(substituida));
   }
 
   Future<void> confirmarTraducao() async {
@@ -4841,6 +4935,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
     _parteTocando = 0;
+    _cabecaForaDoPlayer = null;
     _descartarATraducaoPendente();
     _traducoesGuardadas.clear();
     _entradaParouSemTocar = false;

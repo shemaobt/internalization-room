@@ -71,17 +71,23 @@ class RetroView extends ConsumerWidget {
     final avanca =
         session.btPhase != BtPhase.findings &&
         session.btPhase != BtPhase.conferida;
+    final contas = _contas(session, notifier, language);
+    final (voz, lingua) = _voz(session, conferida);
     return Column(
       children: [
         const Spacer(flex: 86),
         SizedBox(
           height: 40,
-          child: BeadRow(entries: _contas(session, language), onTap: (_) {}),
+          child: BeadRow(
+            entries: [for (final conta in contas) conta.$1],
+            onTap: (onde) => contas[onde].$2?.call(),
+          ),
         ),
         const Spacer(flex: 330),
         FacilitatorCircle(
           size: 160,
-          voice: conferida ? VoiceState.done : session.voice,
+          voice: voz,
+          tongue: lingua,
           warning: session.warning,
           semanticLabel: _circleLabel(session, language),
           onTap: notifier.retroTap,
@@ -114,15 +120,43 @@ class RetroView extends ConsumerWidget {
     );
   }
 
-  List<BeadRowEntry> _contas(SalaSessionState session, String language) {
+  (VoiceState, Tongue?) _voz(SalaSessionState session, bool conferida) {
+    if (conferida) return (VoiceState.done, null);
+    if (session.voice == VoiceState.listening) {
+      return (VoiceState.listening, Tongue.bridge);
+    }
+    if (session.voice != VoiceState.invite) return (session.voice, null);
+    if (session.btRetroTocando) return (VoiceState.speaking, Tongue.bridge);
+    if (session.btClipRodando || session.btTrechoTocando) {
+      return (VoiceState.speaking, Tongue.motherTongue);
+    }
+    return (VoiceState.invite, null);
+  }
+
+  List<(BeadRowEntry, VoidCallback?)> _contas(
+    SalaSessionState session,
+    SalaSessionNotifier notifier,
+    String language,
+  ) {
     final aberta = session.btPhase != BtPhase.conferida;
     final nomeado = aberta ? session.btTrechoTraduzidoDeNovo : null;
-    final contas = <(BeadFill, bool)>[
-      for (final trecho in session.btTrechos)
-        (
-          _fillOf(trecho, session),
-          nomeado != null && trecho.segmentId == nomeado.segmentId,
-        ),
+    final escolhida = aberta ? session.btContaEscolhida : null;
+    final contas = <(BeadFill, bool, VoidCallback?)>[
+      for (final (onde, trecho) in session.btTrechos.indexed)
+        if (nomeado != null && trecho.segmentId == nomeado.segmentId)
+          (
+            _fillOf(trecho, session),
+            escolhida == null,
+            notifier.ouvirOTrechoPendente,
+          )
+        else
+          (
+            _fillOf(trecho, session),
+            escolhida == onde,
+            aberta && trecho.contado
+                ? () => notifier.ouvirOTrechoContado(onde)
+                : null,
+          ),
     ];
     if (aberta && nomeado == null && !session.btContadaInteira) {
       final lugar = session.btTrechos
@@ -134,17 +168,24 @@ class RetroView extends ConsumerWidget {
           )
           .length;
       contas.insertAll(lugar, [
-        (BeadFill.translucent, true),
-        if (session.btRestoDepoisDoCorte) (BeadFill.translucent, false),
+        (
+          BeadFill.translucent,
+          escolhida == null,
+          notifier.ouvirOTrechoPendente,
+        ),
+        if (session.btRestoDepoisDoCorte) (BeadFill.translucent, false, null),
       ]);
     }
     final nome = retroLabelFor('stretch', language);
     return [
-      for (var onde = 0; onde < contas.length; onde++)
-        BeadRowEntry(
-          fill: contas[onde].$1,
-          current: contas[onde].$2,
-          semanticLabel: '$nome ${onde + 1}',
+      for (final (onde, (fill, current, onTap)) in contas.indexed)
+        (
+          BeadRowEntry(
+            fill: fill,
+            current: current,
+            semanticLabel: '$nome ${onde + 1}',
+          ),
+          onTap,
         ),
     ];
   }
@@ -158,7 +199,9 @@ class RetroView extends ConsumerWidget {
   }
 
   IconData _listenGlyph(SalaSessionState session) {
-    if (session.btClipRodando || session.btTrechoTocando) {
+    if (session.btClipRodando ||
+        session.btTrechoTocando ||
+        session.btRetroTocando) {
       return LucideIcons.pause;
     }
     if (session.btParteFronteira && !session.btCortado) {
@@ -221,7 +264,10 @@ class RetroView extends ConsumerWidget {
         ),
       );
     }
-    final soando = session.btClipRodando || session.btTrechoTocando;
+    final soando =
+        session.btClipRodando ||
+        session.btTrechoTocando ||
+        session.btRetroTocando;
     if (session.btPhase == BtPhase.conferida) {
       // The room stays open after a clean verdict: the voice invites one last listening
       // and then the approval, and the passage is not finished until the team presses.
@@ -268,7 +314,15 @@ class RetroView extends ConsumerWidget {
         children: [
           RoundActionButton(
             size: 60,
-            semanticLabel: retroLabelFor(soando ? 'pause' : 'listen', language),
+            semanticLabel: retroLabelFor(
+              soando
+                  ? 'pause'
+                  : session.btTraducaoPendente != null &&
+                        session.btContaEscolhida == null
+                  ? 'listenToTheTranslation'
+                  : 'listen',
+              language,
+            ),
             gradient: BeadStyles.wood,
             mood: session.canListenToThePendingStretch
                 ? ButtonMood.lit
@@ -318,7 +372,10 @@ class RetroView extends ConsumerWidget {
     if (session.offline) return 'Tocar para tentar de novo';
     switch (session.btPhase) {
       case BtPhase.playing:
-        return retroLabelFor('record', language);
+        return retroLabelFor(
+          session.btTraducaoPendente != null ? 'recordAgain' : 'record',
+          language,
+        );
       case BtPhase.capturing:
         return retroLabelFor('recording', language);
       case BtPhase.findings:
