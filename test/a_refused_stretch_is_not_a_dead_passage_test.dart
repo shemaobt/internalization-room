@@ -107,13 +107,18 @@ Future<void> _ateAParteTresNoAr(_Retomada it) async {
 
 Future<void> _contarUmTrechoRecusado(_Retomada it) async {
   final recusadosAntes = it.estado.btChunkFailures.length;
-  it.harness.playback.at = const Duration(seconds: 7);
-  it.sala.cortarTrecho();
-  await waitFor(
-    'o microfone abrir',
-    () => it.estado.btPhase == BtPhase.capturing,
-  );
-  it.sala.retroTap();
+  if (it.estado.btTraducaoPendente != null) {
+    await it.sala.confirmarTraducao();
+  } else {
+    it.harness.playback.at = const Duration(seconds: 7);
+    it.sala.cortarTrecho();
+    it.sala.retroTap();
+    await waitFor(
+      'o microfone abrir',
+      () => it.estado.btPhase == BtPhase.capturing,
+    );
+    await confirmarATraducao(it.container);
+  }
   await waitFor(
     'a sala recusar o trecho',
     () => it.estado.btChunkFailures.length > recusadosAntes,
@@ -227,6 +232,7 @@ void main() {
       );
 
       it.sala.cortarTrecho();
+      it.sala.retroTap();
       await settle();
       expect(
         harness.playback.sounding,
@@ -238,10 +244,6 @@ void main() {
         isNot(BtPhase.capturing),
         reason: 'um trecho que termina onde começa não tem nada a contar',
       );
-
-      it.sala.retroTap();
-      await settle();
-
       expect(harness.room.chunksSent, 0);
       expect(
         harness.room.chunkSpans,
@@ -269,10 +271,9 @@ void main() {
 
       harness.playback.at = _inicioDoTrecho - const Duration(milliseconds: 1);
       it.sala.cortarTrecho();
-      await settle();
-      expect(it.estado.btPhase, isNot(BtPhase.capturing));
       it.sala.retroTap();
       await settle();
+      expect(it.estado.btPhase, isNot(BtPhase.capturing));
       expect(harness.room.chunkSpans, isEmpty);
       it.sala.ouvirGravacao();
       await settle();
@@ -281,11 +282,12 @@ void main() {
       await _ateAParteTresNoAr(it);
       harness.playback.at = _inicioDoTrecho + const Duration(milliseconds: 1);
       it.sala.cortarTrecho();
+      it.sala.retroTap();
       await waitFor(
         'o microfone abrir',
         () => it.estado.btPhase == BtPhase.capturing,
       );
-      it.sala.retroTap();
+      await confirmarATraducao(it.container);
       await waitFor(
         'o trecho chegar à sala',
         () => harness.room.chunkSpans.isNotEmpty,

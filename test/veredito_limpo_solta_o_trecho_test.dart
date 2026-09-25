@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/retro_cord.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -20,19 +19,18 @@ SalaHarness? _harnessDaVez;
 SalaSessionNotifier _notifier(ProviderContainer c) =>
     c.read(salaSessionProvider.notifier);
 
-/// Which places on the cord are drawn drained, by their order along it.
+/// Which stretches are drawn drained, by their order.
 ///
-/// The painter's own rule read from outside: a band is emptied — and wears the halo —
-/// exactly when the stretch it draws is the one the cord was told to point at. The whole
+/// A stretch is drained exactly when it is the one waiting to be mended. The whole
 /// list rather than one place at a time, so the answer can be wrong: asking only about the
-/// place the finding named can never catch a cord pointing somewhere else.
+/// place the finding named can never catch a pointer somewhere else.
 List<int> _faixasVazias(WidgetTester tester, ProviderContainer container) {
-  final cord = tester.widget<RetroCord>(find.byType(RetroCord));
-  final trechos = container.read(salaSessionProvider).btTrechos;
+  final estado = container.read(salaSessionProvider);
+  final apontado = estado.btEsperandoConserto;
+  final trechos = estado.btTrechos;
   return [
     for (var lugar = 0; lugar < trechos.length; lugar++)
-      if (cord.apontado != null && trechos[lugar].segmentId == cord.apontado)
-        lugar,
+      if (apontado != null && trechos[lugar].segmentId == apontado) lugar,
   ];
 }
 
@@ -73,8 +71,9 @@ Future<ProviderContainer> _pumpToPergunta(WidgetTester tester) async {
   for (final at in const [Duration(seconds: 10), Duration(seconds: 20)]) {
     harness.playback.at = at;
     sala.cortarTrecho();
-    await tester.pump(const Duration(milliseconds: 200));
     sala.retroTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    await confirmarATraducaoNaTela(tester, container);
     await tester.pump(const Duration(milliseconds: 600));
   }
   harness.playback.finishPlayback();

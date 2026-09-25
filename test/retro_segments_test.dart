@@ -50,13 +50,15 @@ Future<ProviderContainer> _inRetro(
 
 Future<void> _traduzTrecho(
   SalaHarness harness,
-  SalaSessionNotifier notifier, {
+  ProviderContainer container, {
   required Duration em,
 }) async {
+  final notifier = container.read(salaSessionProvider.notifier);
   harness.playback.at = em;
   notifier.cortarTrecho();
-  await settle();
   notifier.retroTap();
+  await settle();
+  await confirmarATraducao(container);
   await settle();
 }
 
@@ -64,9 +66,8 @@ void main() {
   test('a stretch names the recording it came from', () async {
     final harness = SalaHarness();
     final container = await _inRetro(harness);
-    final notifier = container.read(salaSessionProvider.notifier);
 
-    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
+    await _traduzTrecho(harness, container, em: const Duration(seconds: 10));
     await waitFor(
       'o primeiro trecho chegar à sala',
       () => harness.room.chunksSent == 1,
@@ -85,10 +86,9 @@ void main() {
   test('a stretch recorded into nothing does not pass as told back', () async {
     final harness = SalaHarness();
     final container = await _inRetro(harness);
-    final notifier = container.read(salaSessionProvider.notifier);
 
     harness.recorder.returnsEmpty = true;
-    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
+    await _traduzTrecho(harness, container, em: const Duration(seconds: 10));
 
     expect(
       harness.room.chunksSent,
@@ -123,7 +123,7 @@ void main() {
       harness.playback.at = const Duration(seconds: 10);
       harness.playback.finishPlayback();
       await settle();
-      await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
+      await _traduzTrecho(harness, container, em: const Duration(seconds: 10));
       await waitFor(
         'o primeiro trecho chegar à sala',
         () => harness.room.chunksSent == 1,
@@ -131,7 +131,7 @@ void main() {
 
       notifier.ouvirGravacao();
       await settle();
-      await _traduzTrecho(harness, notifier, em: const Duration(seconds: 5));
+      await _traduzTrecho(harness, container, em: const Duration(seconds: 5));
       await waitFor(
         'o segundo trecho chegar à sala',
         () => harness.room.chunksSent == 2,
@@ -160,7 +160,7 @@ void main() {
     final container = await _inRetro(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
+    await _traduzTrecho(harness, container, em: const Duration(seconds: 10));
     harness.room.verdictFindingSegmentId = harness.room.segmentIds.first;
     harness.playback.finishPlayback();
     await settle();
@@ -185,7 +185,7 @@ void main() {
       final container = await _inRetro(harness);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
+      await _traduzTrecho(harness, container, em: const Duration(seconds: 10));
       harness.room.verdictFindingSegmentId = null;
       harness.playback.finishPlayback();
       await settle();
@@ -209,7 +209,7 @@ void main() {
       final container = await _inRetro(harness);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
+      await _traduzTrecho(harness, container, em: const Duration(seconds: 10));
       harness.room.verdictFindingSegmentId = 'trecho-que-nao-existe';
       harness.playback.finishPlayback();
       await settle();
@@ -245,7 +245,7 @@ void main() {
     await settle();
     harness.playback.finishPlayback();
     await settle();
-    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 5));
+    await _traduzTrecho(harness, container, em: const Duration(seconds: 5));
     harness.playback.finishPlayback();
     await settle();
     await notifier.finishBackTranslation();

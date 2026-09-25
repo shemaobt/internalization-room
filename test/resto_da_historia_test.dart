@@ -141,12 +141,14 @@ Future<void> gravarUmaParte(
 Future<void> traduzirAParteInteira(
   WidgetTester tester,
   SalaHarness harness,
-  SalaSessionNotifier notifier,
+  ProviderContainer container,
 ) async {
+  final notifier = container.read(salaSessionProvider.notifier);
   harness.playback.at = umaParteInteira;
   notifier.cortarTrecho();
-  await tester.pump(const Duration(milliseconds: 200));
   notifier.retroTap();
+  await tester.pump(const Duration(milliseconds: 200));
+  await confirmarATraducaoNaTela(tester, container);
   await tester.pump(const Duration(milliseconds: 600));
   harness.playback.finishPlayback();
   await tester.pump(const Duration(milliseconds: 200));
@@ -187,7 +189,7 @@ Future<ProviderContainer> aHistoriaSemOFim(
   notifier.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
   for (var parte = 0; parte < 3; parte++) {
-    await traduzirAParteInteira(tester, harness, notifier);
+    await traduzirAParteInteira(tester, harness, container);
     if (parte < 2) {
       notifier.ouvirGravacao();
       await tester.pump(const Duration(milliseconds: 200));
@@ -354,8 +356,9 @@ void main() {
 
     harness.playback.at = const Duration(seconds: 12);
     notifier.cortarTrecho();
-    await tester.pump(const Duration(milliseconds: 200));
     notifier.retroTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    await confirmarATraducaoNaTela(tester, container);
     await tester.pump(const Duration(milliseconds: 600));
 
     agora = container.read(salaSessionProvider);
@@ -375,8 +378,6 @@ void main() {
     // end. The three parts the team stepped over were heard in the round before, when
     // they were told back; a report of this round's listening alone would have the room
     // send the team back to hear the whole story again.
-    notifier.ouvirGravacao();
-    await tester.pump(const Duration(milliseconds: 200));
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 200));
     await notifier.finishBackTranslation();
@@ -436,8 +437,9 @@ void main() {
 
       harness.playback.at = const Duration(seconds: 12);
       notifier.cortarTrecho();
-      await settle();
       notifier.retroTap();
+      await settle();
+      await confirmarATraducao(container);
       await waitFor(
         'o trecho chegar à sala',
         () => harness.room.chunksSent == 1,
@@ -499,6 +501,7 @@ void main() {
 
     harness.playback.at = const Duration(seconds: 12);
     notifier.cortarTrecho();
+    notifier.retroTap();
     await settle();
     expect(
       harness.room.chunksSent,
@@ -508,8 +511,9 @@ void main() {
 
     harness.playback.at = const Duration(seconds: 28);
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await waitFor('o trecho chegar à sala', () => harness.room.chunksSent == 1);
     expect(harness.room.chunkSpans, ['25000-28000']);
     expect(harness.room.chunkTakes, [partes[1].takeId]);
@@ -590,6 +594,7 @@ void main() {
           'medir espera pelo tocador, e a sala está ocupada enquanto espera',
     );
     notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.ouvirGravacao();
     await tester.pump(const Duration(milliseconds: 200));
     expect(

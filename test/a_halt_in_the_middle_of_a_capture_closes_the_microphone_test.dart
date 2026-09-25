@@ -62,6 +62,7 @@ _capturingWithAWarningArmed(SalaHarness harness) async {
   await waitFor('o aviso chegar', () => read().warning);
   harness.playback.at = const Duration(seconds: 2);
   notifier.cortarTrecho();
+  notifier.retroTap();
   await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
 
   return (container, notifier, read);
@@ -202,10 +203,14 @@ void main() {
           'trecho novo',
     );
     expect(harness.room.chunksSent, chunksBefore);
-    expect(read().btPhase, BtPhase.playing);
+    expect(
+      read().btTraducaoPendente,
+      isNull,
+      reason: 'a captura fechada pela parada não vira tradução pendente',
+    );
   });
 
-  test('after the attend, the scissors open a fresh capture', () async {
+  test('after the attend, the circle opens a fresh capture', () async {
     final harness = SalaHarness();
     final (container, notifier, read) = await _capturingWithAWarningArmed(
       harness,
@@ -219,6 +224,7 @@ void main() {
 
     harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
+    notifier.retroTap();
     await waitFor(
       'uma nova captura abrir',
       () => read().btPhase == BtPhase.capturing,
@@ -227,7 +233,7 @@ void main() {
     expect(
       harness.sounds.where((s) => s == 'recorder:start').length,
       2,
-      reason: 'a tesoura abre um microfone novo, do zero, como sempre abriu',
+      reason: 'o círculo abre um microfone novo, do zero',
     );
   });
 
@@ -312,8 +318,9 @@ void main() {
         .length;
     harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
-    await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
     notifier.retroTap();
+    await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
+    await confirmarATraducao(container);
     await waitFor('a sala decidir sozinha', () => read().needsPerson);
 
     expect(
@@ -370,11 +377,12 @@ void main() {
 
       harness.playback.at = const Duration(seconds: 15);
       notifier.cortarTrecho();
+      notifier.retroTap();
       await waitFor(
         'uma nova captura abrir',
         () => read().btPhase == BtPhase.capturing,
       );
-      notifier.retroTap();
+      await confirmarATraducao(container);
       await waitFor(
         'a sala decidir',
         () => read().btPhase != BtPhase.capturing,

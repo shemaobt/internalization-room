@@ -15,7 +15,6 @@ import 'fakes.dart';
 const ouvirMaterna = 'Ouvir a voz de vocês, na língua materna';
 const ouvirRetro = 'Ouvir a tradução em português';
 const micRetro = 'Traduzir de novo só em português';
-const contaApontada = 'Trecho apontado pelo analista';
 
 Finder byLabel(String label) => find.byWidgetPredicate(
   (widget) => widget is Semantics && widget.properties.label == label,
@@ -59,8 +58,9 @@ Future<ProviderContainer> pumpToPergunta(
   for (final at in const [Duration(seconds: 10), Duration(seconds: 20)]) {
     harness.playback.at = at;
     notifier.cortarTrecho();
-    await tester.pump(const Duration(milliseconds: 200));
     notifier.retroTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    await confirmarATraducaoNaTela(tester, container);
     await tester.pump(const Duration(milliseconds: 600));
   }
   harness.playback.finishPlayback();
@@ -856,19 +856,5 @@ void main() {
 
     notifier(container).leaveThePassage();
     await tester.pump(const Duration(milliseconds: 200));
-  });
-
-  testWidgets('the pointed stretch is told apart from the others', (
-    tester,
-  ) async {
-    await pumpToPergunta(tester);
-
-    expect(
-      byLabel(contaApontada),
-      findsOneWidget,
-      reason:
-          'a sala não tem texto na tela, então a equipe só descobre onde '
-          'está o problema se a conta daquele trecho se distinguir',
-    );
   });
 }

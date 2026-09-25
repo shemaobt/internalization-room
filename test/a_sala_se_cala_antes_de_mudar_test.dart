@@ -175,11 +175,12 @@ Future<_Cena> _prontoParaTerminei() async {
   final cena = await _noRetro();
   cena.harness.playback.at = const Duration(milliseconds: 40);
   cena.sala.cortarTrecho();
+  cena.sala.retroTap();
   await waitFor(
     'o microfone abrir no trecho',
     () => _estado(cena).btPhase == BtPhase.capturing,
   );
-  cena.sala.retroTap();
+  await confirmarATraducao(cena.container);
   await waitFor(
     'o trecho chegar à sala',
     () =>
@@ -334,6 +335,7 @@ void main() {
         final cena = await _noRetro();
         cena.harness.playback.at = const Duration(milliseconds: 40);
         cena.sala.cortarTrecho();
+        cena.sala.retroTap();
         await waitFor(
           'o microfone abrir',
           () => _estado(cena).btPhase == BtPhase.capturing,
@@ -341,7 +343,7 @@ void main() {
         return cena;
       },
       (cena) async {
-        cena.sala.retroTap();
+        await confirmarATraducao(cena.container);
         await waitFor(
           'o pedaço chegar à sala',
           () =>
@@ -491,6 +493,7 @@ void main() {
       },
       (cena) async {
         cena.sala.cortarTrecho();
+        cena.sala.retroTap();
         await waitFor(
           'o microfone abrir',
           () => _estado(cena).btPhase == BtPhase.capturing,
@@ -505,19 +508,17 @@ void main() {
         final cena = await _noRetro();
         cena.harness.playback.at = const Duration(milliseconds: 400);
         cena.sala.cortarTrecho();
+        cena.sala.retroTap();
         await waitFor(
           'o microfone abrir',
           () => _estado(cena).btPhase == BtPhase.capturing,
         );
-        cena.sala.retroTap();
+        await confirmarATraducao(cena.container);
         await waitFor(
-          'o trecho chegar à sala',
-          () => _estado(cena).btPhase == BtPhase.playing,
-        );
-        cena.sala.ouvirGravacao();
-        await waitFor(
-          'a gravação voltar ao ar',
-          () => cena.harness.playback.sounding,
+          'o trecho chegar à sala e a gravação seguir no ar',
+          () =>
+              _estado(cena).btPhase == BtPhase.playing &&
+              cena.harness.playback.sounding,
         );
         // O cursor está no último corte; a cabeça volta atrás dele, que é a única
         // leitura que a sala recusa em vez de mandar um trecho que acaba antes de
@@ -527,6 +528,7 @@ void main() {
       },
       (cena) async {
         cena.sala.cortarTrecho();
+        cena.sala.retroTap();
         expect(
           _estado(cena).btPhase,
           BtPhase.playing,

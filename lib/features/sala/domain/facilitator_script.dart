@@ -50,6 +50,34 @@ const circleLabels = {
 String circleLabelFor(String state, String language) =>
     circleLabels[state]![language] ?? circleLabels[state]![floorLanguage]!;
 
+const retroLabels = {
+  'record': {
+    'pt': 'Tocar para gravar a tradução deste trecho',
+    'en': 'Tap to record this stretch\'s translation',
+  },
+  'recording': {'pt': 'Tocar ao terminar', 'en': 'Tap when you finish'},
+  'listen': {'pt': 'Ouvir', 'en': 'Listen'},
+  'pause': {'pt': 'Pausar', 'en': 'Pause'},
+  'cut': {'pt': 'Cortar aqui', 'en': 'Cut here'},
+  'confirm': {
+    'pt': 'Confirmar a tradução e seguir',
+    'en': 'Confirm the translation and go on',
+  },
+  'advance': {'pt': 'Conferir a tradução', 'en': 'Check the translation'},
+  'stretch': {'pt': 'Trecho', 'en': 'Stretch'},
+  'listenToTheRecording': {
+    'pt': 'Ouvir a gravação',
+    'en': 'Listen to the recording',
+  },
+  'approve': {
+    'pt': 'Aprovar como rascunho final',
+    'en': 'Approve as the final draft',
+  },
+};
+
+String retroLabelFor(String control, String language) =>
+    retroLabels[control]![language] ?? retroLabels[control]![floorLanguage]!;
+
 const panoramaEntryLabel = {'pt': 'Panorama do Livro', 'en': 'Book Panorama'};
 
 String entrarLabelFor({required bool isPanorama, required String language}) =>

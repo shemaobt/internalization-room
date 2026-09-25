@@ -84,6 +84,7 @@ void main() {
       final before = harness.playback.played.length;
       notifier.retroTap();
       notifier.cortarTrecho();
+      notifier.retroTap();
       await settle();
       expect(
         harness.playback.played.length,

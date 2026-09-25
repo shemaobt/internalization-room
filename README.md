@@ -28,9 +28,11 @@ facilitator, which becomes a knot on the cord.
 **Rehearsal** — the team records the whole passage in its own tongue, listens, and either
 records it again or keeps it. Kept recordings can be replayed before recording anew.
 
-**Back-translation** — the team's own recording plays back, and a tap pauses it to capture a
-piece told back in the bridge language. When the clip ends, the check runs: it lands on a
-clean verdict, on findings, or straight at a stretch that was recorded and never told back.
+**Back-translation** — the team's own recording plays back by itself; the scissors cut a
+stretch, a tap on the circle records its translation in the bridge language, and the green
+check sends it and plays on. Once every stretch is confirmed, the advance disc runs the
+check: it lands on a clean verdict, on findings, or straight at a stretch that was recorded
+and never told back.
 A finding that names a stretch asks the team where the error lives; a finding that names
 none offers telling the whole recording again, or going back to the rehearsal to record
 ground the passage still lacks.

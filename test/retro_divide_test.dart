@@ -52,13 +52,15 @@ Future<ProviderContainer> _inRetro(
 
 Future<void> _traduzTrecho(
   SalaHarness harness,
-  SalaSessionNotifier notifier, {
+  ProviderContainer container, {
   required Duration em,
 }) async {
+  final notifier = container.read(salaSessionProvider.notifier);
   harness.playback.at = em;
   notifier.cortarTrecho();
-  await settle();
   notifier.retroTap();
+  await settle();
+  await confirmarATraducao(container);
   await settle();
 }
 
@@ -99,7 +101,7 @@ Future<ProviderContainer> _umTrechoTraduzidoETocando(
 }) async {
   final container = await _inRetro(harness, partes: partes);
   final notifier = container.read(salaSessionProvider.notifier);
-  await _traduzTrecho(harness, notifier, em: ate);
+  await _traduzTrecho(harness, container, em: ate);
   await waitFor(
     'o primeiro trecho chegar à sala',
     () => harness.room.chunksSent == 1,
@@ -158,7 +160,7 @@ void main() {
       harness.playback.at = const Duration(seconds: 30);
       harness.playback.finishPlayback();
       await settle();
-      await _traduzTrecho(harness, notifier, em: const Duration(seconds: 30));
+      await _traduzTrecho(harness, container, em: const Duration(seconds: 30));
       await waitFor(
         'o primeiro trecho chegar à sala',
         () => harness.room.chunksSent == 1,
@@ -166,7 +168,7 @@ void main() {
 
       notifier.ouvirGravacao();
       await settle();
-      await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
+      await _traduzTrecho(harness, container, em: const Duration(seconds: 10));
       await waitFor(
         'o segundo trecho chegar à sala',
         () => harness.room.chunksSent == 2,
@@ -256,7 +258,7 @@ void main() {
           'está no ar, e no meio do ensaio quem corta é a outra tesoura',
     );
 
-    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 20));
+    await _traduzTrecho(harness, container, em: const Duration(seconds: 20));
     await waitFor(
       'o primeiro trecho chegar à sala',
       () => harness.room.chunksSent == 1,
@@ -276,6 +278,7 @@ void main() {
     );
 
     notifier.cortarTrecho();
+    notifier.retroTap();
     await settle();
 
     expect(
@@ -330,12 +333,12 @@ void main() {
     final container = await _inRetro(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
+    await _traduzTrecho(harness, container, em: const Duration(seconds: 10));
     await waitFor(
       'o primeiro trecho chegar à sala',
       () => harness.room.chunksSent == 1,
     );
-    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 20));
+    await _traduzTrecho(harness, container, em: const Duration(seconds: 20));
     await waitFor(
       'o segundo trecho chegar à sala',
       () => harness.room.chunksSent == 2,

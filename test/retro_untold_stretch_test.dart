@@ -90,8 +90,9 @@ void main() {
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 200));
     notifier.cortarTrecho();
-    await tester.pump(const Duration(milliseconds: 200));
     notifier.retroTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    await confirmarATraducaoNaTela(tester, container);
     await tester.pump(const Duration(milliseconds: 600));
 
     depois = container.read(salaSessionProvider);
@@ -130,8 +131,9 @@ void main() {
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 200));
     notifier.cortarTrecho();
-    await tester.pump(const Duration(milliseconds: 200));
     notifier.retroTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    await confirmarATraducaoNaTela(tester, container);
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(
@@ -163,6 +165,7 @@ void main() {
     // deixa ao ouvir a metade anterior antes de contar esta.
     harness.playback.at = const Duration(seconds: 1);
     notifier.cortarTrecho();
+    notifier.retroTap();
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(
@@ -174,7 +177,7 @@ void main() {
           'silêncio e o círculo fica morto sobre o único trecho que falta',
     );
 
-    notifier.retroTap();
+    await confirmarATraducaoNaTela(tester, container);
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(
@@ -353,8 +356,9 @@ Future<ProviderContainer> pumpUpToAVerdict(
 
   harness.playback.at = const Duration(seconds: 10);
   notifier.cortarTrecho();
-  await tester.pump(const Duration(milliseconds: 200));
   notifier.retroTap();
+  await tester.pump(const Duration(milliseconds: 200));
+  await confirmarATraducaoNaTela(tester, container);
   await tester.pump(const Duration(milliseconds: 600));
   harness.playback.finishPlayback();
   await tester.pump(const Duration(milliseconds: 200));
