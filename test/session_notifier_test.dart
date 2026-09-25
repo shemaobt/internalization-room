@@ -6912,8 +6912,8 @@ void main() {
     );
   });
 
-  test('a withdraw the disk refuses says a recording is stuck, not an '
-      'unhandled error', () async {
+  test('a withdraw the disk refuses is logged and dropped, no unhandled '
+      'error and no false stranded line', () async {
     final harness = SalaHarness(
       takesOverride: (room, home) =>
           QueueWithdrawThrows(room: room, home: () async => home),
@@ -6970,18 +6970,23 @@ void main() {
       return fase != BtPhase.capturing && fase != BtPhase.thinking;
     });
 
-    await waitFor(
-      'a sala dizer que uma tomada ficou presa',
-      () => harness.voice.assets.contains(strandedTakeAsset(testLanguage)),
-    );
+    await settle(const Duration(milliseconds: 300));
 
     expect(
-      harness.voice.assets.where((a) => a == strandedTakeAsset(testLanguage)),
-      hasLength(1),
+      harness.voice.assets,
+      isNot(contains(strandedTakeAsset(testLanguage))),
       reason:
-          'um withdraw que o disco recusa não pode travar como um erro '
-          'sem dono — a sala fala que algo ficou preso, do mesmo jeito '
-          'que um enqueue recusado já faz',
+          'nada aqui ficou preso: a linha ainda pendente sobe normalmente, ou '
+          'sobrou só uma cópia órfã — nenhum dos dois é o que essa fala diz',
+    );
+
+    // A captura seguinte prova que a sala segue funcionando: um erro sem
+    // dono no withdraw a teria travado antes de chegar aqui.
+    final capturasDepois = harness.recorder.captures;
+    notifier.retroTap();
+    await waitFor(
+      'o microfone abrir mais uma vez',
+      () => harness.recorder.captures == capturasDepois + 1,
     );
   });
 

@@ -3010,11 +3010,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (linha == null) return;
     try {
       await _takes.withdraw(linha);
-    } on Object {
-      // The same disk withdraw's own manifest write can fail on, read the same way
-      // `_guard`'s enqueue already does: the team is told something is stuck rather
-      // than left believing a row that never left is on its way.
-      _sayARecordingIsStranded();
+    } on Object catch (error) {
+      // Nothing here is stuck: a manifest write that failed leaves the row pending
+      // and it still goes up, an upload the team never asked twice for but Henok
+      // accepted; a delete that failed after the write leaves only an orphaned copy
+      // behind. Neither is the silence `_sayARecordingIsStranded` speaks for, so this
+      // is logged and dropped the way `_porCadaTrechoNaSuaParte`'s own read failure
+      // already is.
+      debugPrint(
+        'Uma tradução guardada não pôde ser retirada da fila ($path): $error',
+      );
       return;
     }
     await _countUnsent();
