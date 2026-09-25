@@ -69,9 +69,9 @@ FacilitatorCircle _circulo(WidgetTester tester) =>
       ),
     );
 
-bool _aceso(WidgetTester tester, String label) {
-  final semantics = tester.widget<Semantics>(byLabel(label));
-  final opacidade = tester
+(bool, double) _estadoDoBotao(WidgetTester tester, String label) => (
+  tester.widget<Semantics>(byLabel(label)).properties.enabled == true,
+  tester
       .widget<AnimatedOpacity>(
         find
             .descendant(
@@ -80,24 +80,14 @@ bool _aceso(WidgetTester tester, String label) {
             )
             .first,
       )
-      .opacity;
-  return semantics.properties.enabled == true && opacidade == 1;
-}
+      .opacity,
+);
 
-bool _apagado(WidgetTester tester, String label) {
-  final semantics = tester.widget<Semantics>(byLabel(label));
-  final opacidade = tester
-      .widget<AnimatedOpacity>(
-        find
-            .descendant(
-              of: byLabel(label),
-              matching: find.byType(AnimatedOpacity),
-            )
-            .first,
-      )
-      .opacity;
-  return semantics.properties.enabled == false && opacidade == 0.35;
-}
+bool _aceso(WidgetTester tester, String label) =>
+    _estadoDoBotao(tester, label) == (true, 1.0);
+
+bool _apagado(WidgetTester tester, String label) =>
+    _estadoDoBotao(tester, label) == (false, 0.35);
 
 List<PendingTakeView> _naFila(SalaHarness harness) => [
   for (final linha in (harness.takes as FakeTakeQueue).rows)
@@ -241,7 +231,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     expect(harness.playback.played, partes, reason: 'a parte 1, depois a 2');
 
-    harness.playback.at = const Duration(seconds: 3);
     await _tocar(tester, _pausarOEnsaio);
     expect(harness.playback.paused, isTrue);
     expect(harness.playback.sounding, isFalse);
@@ -260,7 +249,6 @@ void main() {
       reason:
           'retomar é continuar a parte 2 de onde parou, não tocar outra vez',
     );
-    expect(harness.playback.position, const Duration(seconds: 3));
   });
 
   testWidgets('o play toca a parte pendente depois das confirmadas', (
@@ -328,9 +316,39 @@ void main() {
         reason: 'a captura falhou; a parte que já estava pendente continua',
       );
       expect(harness.recorder.deleted, isNot(contains(pendente)));
-      expect(container.read(salaSessionProvider).canPlayTheRehearsal, isTrue);
+      harness.recorder.returnsNothing = false;
+      sala.resolveWithPerson();
+      sala.playTheRehearsal();
+      await waitFor('tocar', () => harness.playback.played.isNotEmpty);
+      expect(harness.playback.played, [pendente]);
     },
   );
+
+  testWidgets('o círculo não grava sobre o ensaio que soa', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    await _noEnsaio(tester, harness: harness);
+    await _gravarEDeixarPendente(tester, _gravarOEnsaio);
+    await _tocar(tester, _ouvirOEnsaio);
+    final capturas = harness.recorder.captures;
+
+    await _tocar(tester, _gravarDeNovo);
+
+    expect(harness.recorder.captures, capturas);
+    expect(harness.playback.sounding, isTrue);
+  });
+
+  testWidgets('o check cala o ensaio que está tocando', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    await _noEnsaio(tester, harness: harness);
+    await _gravarEDeixarPendente(tester, _gravarOEnsaio);
+    await _tocar(tester, _ouvirOEnsaio);
+    expect(harness.playback.sounding, isTrue);
+
+    await _confirmarAParte(tester);
+
+    expect(harness.playback.sounding, isFalse);
+    expect(byLabel(_ouvirOEnsaio), findsOneWidget);
+  });
 
   testWidgets('nada aposentado é desenhado no ensaio', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);

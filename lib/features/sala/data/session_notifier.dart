@@ -2784,6 +2784,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void takeKeep() {
+    _silenceTheRoom();
     final path = _pendingTakePath;
     _pendingTakePath = null;
     if (path == null) {

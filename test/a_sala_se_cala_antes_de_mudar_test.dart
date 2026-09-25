@@ -122,7 +122,7 @@ Future<_Cena> _noRetro({int partes = 1}) async {
 }
 
 /// A rehearsal recorded and offered, with the take still pending: the one state the
-/// listen/redo/keep gestures live in.
+/// check and the circle's record-over live in.
 Future<_Cena> _comATomadaNaMao() async {
   final harness = SalaHarness();
   final container = await inConversa(harness);

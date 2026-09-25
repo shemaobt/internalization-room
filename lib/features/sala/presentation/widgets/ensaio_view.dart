@@ -23,12 +23,12 @@ class EnsaioView extends ConsumerWidget {
 
     return Column(
       children: [
-        const Spacer(flex: 92),
+        const Spacer(flex: 86),
         SizedBox(
           height: 40,
           child: BeadRow(entries: _beads(session, language), onTap: (_) {}),
         ),
-        const Spacer(flex: 264),
+        const Spacer(flex: 270),
         FacilitatorCircle(
           size: 160,
           voice: _voice(session),
