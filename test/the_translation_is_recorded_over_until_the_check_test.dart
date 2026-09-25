@@ -725,7 +725,7 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     expect(
-      find.bySemanticsLabel(warningNoticeLabelFor('en')),
+      find.bySemanticsLabel('A warning is asking someone to come watch'),
       findsOneWidget,
       reason:
           'a marca existe ao lado do círculo, mas o que ela diz a um leitor '

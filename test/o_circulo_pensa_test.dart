@@ -64,19 +64,21 @@ Iterable<Gradient> _gradients(WidgetTester tester) => tester
 
 void main() {
   testWidgets('no voice ever draws a turning transform', (tester) async {
-    for (final voice in VoiceState.values) {
-      await _pumpCircle(tester, voice);
-      await tester.pump(const Duration(milliseconds: 400));
-      expect(
-        _transformsInCircle(tester),
-        isNot(anyElement(predicate(_rotates))),
-        reason:
-            'os arcos giravam sozinhos, sem dizer nada que a respiração e o '
-            'brilho já não dissessem — e nos ~50 s do turno de pensar a sala '
-            'lia como um relógio, não como alguém trabalhando (Henok, '
-            'revertendo o PR #230); em ${voice.name} não pode haver nem essa '
-            'volta',
-      );
+    for (final still in [false, true]) {
+      for (final voice in VoiceState.values) {
+        await _pumpCircle(tester, voice, still: still);
+        await tester.pump(const Duration(milliseconds: 400));
+        expect(
+          _transformsInCircle(tester),
+          isNot(anyElement(predicate(_rotates))),
+          reason:
+              'os arcos giravam sozinhos, sem dizer nada que a respiração e o '
+              'brilho já não dissessem — e nos ~50 s do turno de pensar a sala '
+              'lia como um relógio, não como alguém trabalhando (Henok, '
+              'revertendo o PR #230); em ${voice.name} (still=$still) não pode '
+              'haver nem essa volta',
+        );
+      }
     }
   });
 

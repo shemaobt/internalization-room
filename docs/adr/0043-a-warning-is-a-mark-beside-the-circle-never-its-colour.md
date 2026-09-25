@@ -54,7 +54,8 @@ Decision is unchanged — the tablet still calls nobody over a warning — only 
 ("the only way to show a warning is the colour") is corrected: the mark is the way, and it
 does not require the whole disc.
 
-`ArcPainter` and the `turning` parameter go with the arcs; nothing else read them.
+`ArcPainter` and the `turning` parameter go with the arcs; nothing else read them. `Spin`,
+the motion primitive the arcs turned on, has no caller left either and goes with them.
 
 `CONTEXT.md`'s Circle and Warning entries did not name the green, so neither needed a
 clause changed. A new entry, Warning mark, names the mark itself.

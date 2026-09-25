@@ -19,7 +19,7 @@ Future<void> _aTurn(SalaSessionNotifier notifier) async {
 }
 
 void main() {
-  test('a warning turns the circle green while the room goes on', () async {
+  test('a warning stands while the room goes on', () async {
     final harness = SalaHarness()
       ..room.serverStatus = 'needs_person'
       ..room.serverHalt = HaltKind.warning;

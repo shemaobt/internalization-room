@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -59,7 +58,7 @@ void main() {
         reason: 'e com o aviso já de pé, herdado da retomada',
       );
       expect(
-        find.bySemanticsLabel(warningNoticeLabelFor('en')),
+        find.bySemanticsLabel('A warning is asking someone to come watch'),
         findsOneWidget,
         reason:
             'a Rehearsal é onde a língua materna é gravada (madeira), e um '
