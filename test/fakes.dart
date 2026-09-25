@@ -796,6 +796,15 @@ class FakeRoom implements RoomRepository {
   Exception? failDivideWith;
   Exception? failReplaceWith;
   Exception? loseTheNextReplaceAnswerWith;
+  Exception? loseTheNextReplaceAnswerAndLandItLaterWith;
+  void Function()? _landingLater;
+
+  void landTheLostReplace() {
+    final landing = _landingLater;
+    _landingLater = null;
+    landing?.call();
+  }
+
   final Set<String> _retired = {};
 
   void recordThePartAgain(String takeId) {
@@ -1143,6 +1152,19 @@ class FakeRoom implements RoomRepository {
     final refusal = failReplaceWith;
     if (refusal != null) throw refusal;
     if (_retired.contains(segmentId)) throw const StretchNoLongerCounts();
+    final later = loseTheNextReplaceAnswerAndLandItLaterWith;
+    if (later != null) {
+      loseTheNextReplaceAnswerAndLandItLaterWith = null;
+      _landingLater = () {
+        if (_retired.contains(segmentId)) return;
+        replacesAsked.add(
+          '$segmentId@$takeId:${from.inMilliseconds}-${to.inMilliseconds}',
+        );
+        replacesComArquivo.add(audio.path);
+        _tellAgain(segmentId);
+      };
+      throw later;
+    }
     replacesAsked.add(
       '$segmentId@$takeId:${from.inMilliseconds}-${to.inMilliseconds}',
     );
@@ -1163,6 +1185,20 @@ class FakeRoom implements RoomRepository {
         needsPerson: needsPerson,
       );
     }
+    _tellAgain(segmentId);
+    final lost = loseTheNextReplaceAnswerWith;
+    if (lost != null) {
+      loseTheNextReplaceAnswerWith = null;
+      throw lost;
+    }
+    return TellingAgain(
+      segments: List.of(segments),
+      captured: true,
+      needsPerson: needsPerson,
+    );
+  }
+
+  void _tellAgain(String segmentId) {
     final at = segments.indexWhere((one) => one.segmentId == segmentId);
     final antes = at >= 0 ? segments[at] : null;
     if (antes != null) {
@@ -1180,16 +1216,6 @@ class FakeRoom implements RoomRepository {
       );
       _retired.add(antes.segmentId);
     }
-    final lost = loseTheNextReplaceAnswerWith;
-    if (lost != null) {
-      loseTheNextReplaceAnswerWith = null;
-      throw lost;
-    }
-    return TellingAgain(
-      segments: List.of(segments),
-      captured: true,
-      needsPerson: needsPerson,
-    );
   }
 
   @override

@@ -3769,7 +3769,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _fileiraDaUltimaRecusa = null;
-    _contadasSemResposta.clear();
 
     if (!told.captured) {
       // The room made nothing out of it, which is also what a transcriber outage looks
@@ -3790,6 +3789,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
 
+    _contadasSemResposta.clear();
     _theTellingLandedOn(
       told.segments,
       alvo: alvo,
