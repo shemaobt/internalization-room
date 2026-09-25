@@ -4,7 +4,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/motion.d
 
 void main() {
   testWidgets(
-    'a loop mounted before the first frame does not assert, and starts still',
+    'a spin mounted before the first frame does not assert, and starts still',
     (tester) async {
       final seen = <double>[];
 
@@ -12,8 +12,8 @@ void main() {
         tester.binding.wrapWithDefaultView(
           Directionality(
             textDirection: TextDirection.ltr,
-            child: Loop(
-              period: const Duration(milliseconds: 4600),
+            child: Spin(
+              period: const Duration(milliseconds: 1600),
               builder: (context, t) {
                 seen.add(t);
                 return const SizedBox(width: 10, height: 10);
@@ -38,7 +38,7 @@ void main() {
         seen,
         [0.0],
         reason:
-            'motion.dart:122 lia currentFrameTimeStamp sem checar a fase do agendador; '
+            'motion.dart:267 lia currentFrameTimeStamp sem checar a fase do agendador; '
             'sem um frame para medir contra, o primeiro giro fica parado',
       );
     },

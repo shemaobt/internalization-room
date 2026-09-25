@@ -200,7 +200,10 @@ class _RippleState extends State<Ripple> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_joined) return widget.builder(context, 0);
+    if (!_joined ||
+        SchedulerBinding.instance.schedulerPhase == SchedulerPhase.idle) {
+      return widget.builder(context, 0);
+    }
     final now = SchedulerBinding.instance.currentFrameTimeStamp;
     final start = _start ??= now;
     final sweep =
@@ -263,7 +266,10 @@ class _SpinState extends State<Spin> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_joined) return widget.builder(context, 0);
+    if (!_joined ||
+        SchedulerBinding.instance.schedulerPhase == SchedulerPhase.idle) {
+      return widget.builder(context, 0);
+    }
     final now = SchedulerBinding.instance.currentFrameTimeStamp;
     final start = _start ??= now;
     return widget.builder(
