@@ -87,6 +87,7 @@ const roomLabels = {
     'pt': 'A sala precisa do microfone para funcionar',
     'en': 'The room needs the microphone to work',
   },
+  'beginAgain': {'pt': 'Começar de novo', 'en': 'Begin again'},
 };
 
 String roomLabelFor(String control, String language) =>
