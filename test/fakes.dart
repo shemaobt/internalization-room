@@ -923,6 +923,7 @@ class FakeRoom implements RoomRepository {
   Exception? failWith;
 
   String? passageThatCannotOpen;
+  Set<String> passagesThatCannotOpen = {};
 
   Completer<void>? _holdingTurn;
   Completer<void>? _holdingCode;
@@ -1036,7 +1037,9 @@ class FakeRoom implements RoomRepository {
     required String language,
   }) async {
     _guard('createSession');
-    if (pericope != null && pericope == passageThatCannotOpen) {
+    if (pericope != null &&
+        (pericope == passageThatCannotOpen ||
+            passagesThatCannotOpen.contains(pericope))) {
       throw const PassageCannotOpen();
     }
     final failure = failCreateOnceWith;

@@ -210,6 +210,12 @@ class SalaSessionState {
   /// says.
   final bool warning;
 
+  /// Whether every non-panorama passage on the wheel was refused at creation this visit,
+  /// rather than the server itself having nothing left. [livroInteiroFeito] must not read
+  /// as a finished book while this holds: the passages are only off the wheel until the
+  /// Choice is opened afresh, not worked.
+  final bool refusedEverything;
+
   /// Which part of the rehearsal the team came back to record again, 0-based, or null when
   /// the next recording is a part of its own.
   ///
@@ -271,6 +277,7 @@ class SalaSessionState {
     this.unsentChunks = 0,
     this.unsentTakeScopes = const {},
     this.warning = false,
+    this.refusedEverything = false,
     this.parteARegravar,
   });
 
@@ -290,7 +297,8 @@ class SalaSessionState {
   bool get livroInteiroFeito =>
       stage == SalaStage.escolha &&
       naRoda != null &&
-      naRoda!.every((passagem) => passagem.isPanorama);
+      naRoda!.every((passagem) => passagem.isPanorama) &&
+      !refusedEverything;
 
   bool get onFim => stage == SalaStage.fim;
 
@@ -527,6 +535,7 @@ class SalaSessionState {
     int? unsentChunks,
     Set<String>? unsentTakeScopes,
     bool? warning,
+    bool? refusedEverything,
     int? parteARegravar,
     bool clearParteARegravar = false,
   }) {
@@ -594,6 +603,7 @@ class SalaSessionState {
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentTakeScopes: unsentTakeScopes ?? this.unsentTakeScopes,
       warning: warning ?? this.warning,
+      refusedEverything: refusedEverything ?? this.refusedEverything,
       parteARegravar: clearParteARegravar
           ? null
           : (parteARegravar ?? this.parteARegravar),

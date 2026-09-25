@@ -218,6 +218,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _starts = 0;
   VoiceState _voiceBeforeQuestion = VoiceState.invite;
   String? _emCurso;
+
+  /// Pericopes the Choice has offered and the room refused to open, in this visit. Left
+  /// off the wheel until the Choice is opened afresh from outside; the reload a refusal
+  /// itself triggers keeps this, since the server has not been asked again.
+  final Set<String> _refusedThisVisit = {};
   Trecho? get _trechoTraduzidoDeNovo => state.btTrechoTraduzidoDeNovo;
   set _trechoTraduzidoDeNovo(Trecho? trecho) => state = trecho == null
       ? state.copyWith(clearTrechoTraduzidoDeNovo: true)
@@ -957,7 +962,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case SessionGone():
         _leaveTheDeadPassage();
       case PassageCannotOpen():
-        unawaited(abrirEscolha());
+        final refused = _emCurso;
+        if (refused != null) _refusedThisVisit.add(refused);
+        unawaited(abrirEscolha(afterRefusal: true));
       case RoomBroke():
         _registerRoomFailure();
       case RoomSlow():
@@ -1523,13 +1530,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  Future<void> abrirEscolha() async {
+  Future<void> abrirEscolha({bool afterRefusal = false}) async {
+    // Still the same visit to the Choice when this call never left its stage — a network
+    // blip that comes back mid-visit, or the wheel-never-loaded retry — as well as the
+    // reload a refusal itself triggers, which leaves the stage but is not a fresh entry.
+    final sameVisit = afterRefusal || state.stage == SalaStage.escolha;
     if (state.stage != SalaStage.escolha) {
       final unplayableTurns = _unplayableTurns;
       _forgetThePassage();
       _unplayableTurns = unplayableTurns;
     }
     _clearAll();
+    if (!sameVisit) _refusedThisVisit.clear();
     final epoch = _epoch;
     state = state.copyWith(
       stage: SalaStage.escolha,
@@ -1555,14 +1567,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final feitas = await ledger.all(book);
     final comecadas = await open.startedIn(book);
     if (epoch != _epoch || _gone) return;
+    final ofertaveis = todas
+        .where(
+          (passagem) =>
+              passagem.isPanorama ||
+              !_refusedThisVisit.contains(passagem.pericope),
+        )
+        .toList();
     state = state.copyWith(
-      naRoda: todas,
+      naRoda: ofertaveis,
       comecadas: comecadas,
       feitas: feitas,
       aOferecer: 0,
       voice: VoiceState.invite,
+      refusedEverything: _refusedThisVisit.isNotEmpty,
     );
-    if (todas.every((passagem) => passagem.isPanorama)) {
+    if (ofertaveis.every((passagem) => passagem.isPanorama)) {
       // Nothing left for the room to offer, which is exactly what needsPerson means —
       // and it is the only state here with a glyph, a spoken line and a way out. A green
       // disc that refused every gesture in silence looked like a room that had died.

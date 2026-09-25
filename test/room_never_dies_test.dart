@@ -31,6 +31,11 @@ void main() {
     expect(state.naRoda, isEmpty);
     expect(state.needsPerson, isTrue);
     expect(
+      state.livroInteiroFeito,
+      isTrue,
+      reason: 'o servidor mesmo não devolveu nenhuma passagem',
+    );
+    expect(
       harness.voice.assets,
       isNot(contains(fixedLineAsset('E0', testLanguage))),
       reason: 'o círculo parado já é o aviso; o app não fala por cima dele',
@@ -152,9 +157,10 @@ void main() {
   );
 
   test(
-    'three passages that cannot open never spend a strike on the room',
+    'three passages that all cannot open call a person, and never spend a strike',
     () async {
-      final harness = SalaHarness()..room.passageThatCannotOpen = 'P01';
+      final harness = SalaHarness()
+        ..room.passagesThatCannotOpen = {'P01', 'P02', 'P03'};
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -168,19 +174,111 @@ void main() {
 
       final state = container.read(salaSessionProvider);
       expect(
-        state.needsPerson,
-        isFalse,
-        reason:
-            'a recusa na porta não é a sala falhando, e a terceira não pode '
-            'parar a sala para chamar alguém',
-      );
-      expect(
         harness.room.calls.where((call) => call == 'createSession'),
         hasLength(3),
         reason: 'cada toque na roda tem de bater na porta de novo',
       );
+      expect(
+        state.needsPerson,
+        isTrue,
+        reason:
+            'todas as passagens da roda foram recusadas nesta visita à '
+            'escolha, e isso é o mesmo que a roda não ter nada a oferecer',
+      );
       expect(harness.room.personsAsked, 0);
-      expect(state.stage, SalaStage.escolha);
+      expect(
+        harness.voice.assets,
+        isNot(contains(fixedLineAsset('E0', testLanguage))),
+        reason:
+            'a sala chama uma pessoa pelo mesmo caminho de um livro sem nada '
+            'a oferecer, sem uma fala fixa nova',
+      );
+      expect(
+        state.livroInteiroFeito,
+        isFalse,
+        reason:
+            'as passagens saíram da roda por recusa nesta visita, e não '
+            'porque o time as trabalhou; a próxima visita as devolve',
+      );
+    },
+  );
+
+  test(
+    'a passage refused at creation is not offered again in the same visit to the Choice',
+    () async {
+      final harness = SalaHarness()
+        ..room.passages = const [
+          Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+          Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
+        ]
+        ..room.passagesThatCannotOpen = {'P01', 'P02'};
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      await notifier.abrirEscolha();
+      await settle();
+      notifier.entrarNaOferecida();
+      await settle();
+
+      var state = container.read(salaSessionProvider);
+      expect(
+        state.naRoda?.map((passagem) => passagem.pericope),
+        isNot(contains('P01')),
+        reason: 'a passagem recusada saiu da roda',
+      );
+      expect(state.needsPerson, isFalse);
+
+      notifier.entrarNaOferecida();
+      await settle();
+
+      state = container.read(salaSessionProvider);
+      expect(
+        harness.room.calls.where((call) => call == 'createSession'),
+        hasLength(2),
+      );
+      expect(state.needsPerson, isTrue);
+      expect(state.naRoda, isEmpty);
+      expect(harness.room.personsAsked, 0);
+    },
+  );
+
+  test(
+    'a refused passage is offered again on the next visit to the Choice',
+    () async {
+      final harness = SalaHarness()..room.passageThatCannotOpen = 'P01';
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      await notifier.abrirEscolha();
+      await settle();
+      notifier.entrarNaOferecida();
+      await settle();
+      expect(
+        container
+            .read(salaSessionProvider)
+            .naRoda
+            ?.map((passagem) => passagem.pericope),
+        isNot(contains('P01')),
+      );
+
+      // A visita muda de verdade: entra numa passagem que abre e sai dela, em
+      // vez de reabrir a escolha na mão.
+      notifier.entrarNaOferecida();
+      await settle();
+      expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
+      notifier.leaveThePassage();
+      await settle();
+
+      expect(
+        container
+            .read(salaSessionProvider)
+            .naRoda
+            ?.map((passagem) => passagem.pericope),
+        contains('P01'),
+        reason: 'a escolha foi reaberta de fora, e o servidor pode ter mudado',
+      );
     },
   );
 
