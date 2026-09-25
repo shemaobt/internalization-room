@@ -338,7 +338,7 @@ void main() {
       await notifier.abrirEscolha();
       await tester.pump(const Duration(milliseconds: 300));
 
-      notifier.entrarNaOferecida();
+      await tester.tap(bySemanticsLabelWidget('Entrar nesta passagem'));
       await tester.pump(const Duration(milliseconds: 300));
       expect(
         bySemanticsLabelWidget('Todas as passagens foram trabalhadas'),
@@ -347,7 +347,7 @@ void main() {
       );
       expect(container.read(salaSessionProvider).needsPerson, isFalse);
 
-      notifier.entrarNaOferecida();
+      await tester.tap(bySemanticsLabelWidget('Entrar nesta passagem'));
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(

@@ -62,10 +62,16 @@ void main() {
     notifier.resolveWithPerson();
     await settle();
 
+    final state = container.read(salaSessionProvider);
     expect(
-      container.read(salaSessionProvider).needsPerson,
+      state.needsPerson,
       isFalse,
       reason: 'a escolha foi reaberta de fora, e o servidor tinha mudado',
+    );
+    expect(
+      state.oferecida?.pericope,
+      'P01',
+      reason: 'a roda recarregada de fato oferece a passagem nova',
     );
   });
 
@@ -276,6 +282,45 @@ void main() {
         reason:
             'levantar o halt na escolha é uma visita nova: a memória de '
             'recusa some e o servidor é perguntado de novo',
+      );
+    },
+  );
+
+  test(
+    'the increase from a passage before a refused one lands past it',
+    () async {
+      final harness = SalaHarness();
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      await notifier.abrirEscolha();
+      await settle();
+      harness.room.passagesThatCannotOpen = {'P02'};
+      notifier.apontarPassagem(1);
+      await settle();
+      notifier.entrarNaOferecida();
+      await settle();
+      expect(container.read(salaSessionProvider).stage, SalaStage.escolha);
+      expect(
+        container.read(salaSessionProvider).oferecida?.pericope,
+        'P01',
+        reason: 'a roda recarregou e parou na primeira ofertável',
+      );
+
+      // O incremento que a régua faz a cada passo mira em P01+1, e P02
+      // (o índice mirado) foi recusado nesta visita: o passo tem de
+      // continuar até P03, não travar em P02.
+      notifier.apontarPassagem(1);
+      await settle();
+
+      expect(
+        container.read(salaSessionProvider).oferecida?.pericope,
+        'P03',
+        reason:
+            'o incremento de VoiceOver mira P01+1 (P02, recusado); parado no '
+            'meio do nada, ele não move o dedo — o passo tem de terminar em '
+            'P03',
       );
     },
   );

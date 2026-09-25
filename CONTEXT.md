@@ -33,8 +33,9 @@ _Avoid_: retrotradução, retro in prose (`retro` is the code prefix, not the te
 
 **Choice** (`escolha`):
 The station where the team picks the next passage among those on the wheel. One visit to it
-lasts from opening the station until it is opened afresh from outside; a passage the room
-refused to open is not offered again within one visit, but is again on the next.
+lasts until the Choice is opened afresh — lifting a halt raised here, or a passage really
+opening, both end it from inside; a passage the room refused to open is not offered again
+within one visit, but is again on the next.
 _Avoid_: escolha in prose (`escolha` is the enum value), selection, wheel (the wheel is the list of passages, not the station)
 
 **Closing** (`fim`):

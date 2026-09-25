@@ -218,14 +218,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _starts = 0;
   VoiceState _voiceBeforeQuestion = VoiceState.invite;
   String? _emCurso;
-
-  /// Pericopes the Choice has offered and the room refused to open, in this visit.
-  /// `naRoda` is always the server's own list — a wheel this holds nothing over is still
-  /// the book, not a book finished — but `_isOfertavel` and every setter of `aOferecer`
-  /// skip these until the Choice is opened afresh: entering a passage for real, leaving
-  /// one, starting over, or a halt lifted at the Choice. The reload a refusal itself
-  /// triggers keeps this, since the server has not been asked again.
-  final Set<String> _refusedThisVisit = {};
   Trecho? get _trechoTraduzidoDeNovo => state.btTrechoTraduzidoDeNovo;
   set _trechoTraduzidoDeNovo(Trecho? trecho) => state = trecho == null
       ? state.copyWith(clearTrechoTraduzidoDeNovo: true)
@@ -972,7 +964,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _leaveTheDeadPassage();
       case PassageCannotOpen():
         final refused = _emCurso;
-        if (refused != null) _refusedThisVisit.add(refused);
+        if (refused != null) {
+          state = state.copyWith(
+            refusedThisVisit: {...state.refusedThisVisit, refused},
+          );
+        }
         unawaited(abrirEscolha(afterRefusal: true));
       case RoomBroke():
         _registerRoomFailure();
@@ -1233,8 +1229,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // other door without leaving the Choice's stage (the panorama's) is not this: it
     // retries that same door, not the wheel behind it.
     if (state.wheelHalted) {
-      state = state.copyWith(wheelHalted: false);
-      _refusedThisVisit.clear();
+      state = state.copyWith(wheelHalted: false, refusedThisVisit: {});
       unawaited(abrirEscolha());
     }
   }
@@ -1562,13 +1557,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _unplayableTurns = unplayableTurns;
     }
     _clearAll();
-    if (!sameVisit) _refusedThisVisit.clear();
     final epoch = _epoch;
     state = state.copyWith(
       stage: SalaStage.escolha,
       voice: VoiceState.thinking,
       peerCue: false,
       clearRoda: true,
+      refusedThisVisit: sameVisit ? null : const {},
     );
     _watchBusyState();
     final List<Passagem> todas;
@@ -1595,10 +1590,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       feitas: feitas,
       aOferecer: primeiraOfertavel < 0 ? 0 : primeiraOfertavel,
       voice: VoiceState.invite,
+      // A reload that finds something to offer must never leave `oferecida` stuck null
+      // under a halt this same reload is about to lift or that never applied to begin
+      // with.
+      wheelHalted: false,
     );
     if (todas.every(
       (passagem) =>
-          passagem.isPanorama || _refusedThisVisit.contains(passagem.pericope),
+          passagem.isPanorama ||
+          state.refusedThisVisit.contains(passagem.pericope),
     )) {
       // Nothing left for the room to offer, which is exactly what needsPerson means —
       // and it is the only state here with a glyph, a spoken line and a way out. A green
@@ -1618,7 +1618,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// always is, and a real passage is unless this same visit to the Choice already had
   /// it refused at creation.
   bool _isOfertavel(Passagem passagem) =>
-      passagem.isPanorama || !_refusedThisVisit.contains(passagem.pericope);
+      passagem.isPanorama ||
+      !state.refusedThisVisit.contains(passagem.pericope);
 
   /// One number per quiet download of the wheel's names. Every way off the wheel bumps the
   /// epoch except the panorama spoke, which never passes through `_clearAll`; entering any
@@ -1676,13 +1677,27 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final roda = state.naRoda;
     if (roda == null || roda.isEmpty) return;
     final at = index.clamp(0, roda.length - 1);
-    if (!_isOfertavel(roda[at])) return;
-    if (at == state.aOferecer && state.voice == VoiceState.invite) return;
+    final landing = _nearestOfertavel(roda, at, from: state.aOferecer);
+    if (landing == null) return;
+    if (landing == state.aOferecer && state.voice == VoiceState.invite) return;
     // Not `_cancelTimers()`: it bumps the epoch and clears every timer in the room.
     // Cutting the line short is enough, and `_dizerAOferecida` checks for itself that the
     // finger has not moved on.
     _silenceTheRoom();
-    state = state.copyWith(aOferecer: at, voice: VoiceState.invite);
+    state = state.copyWith(aOferecer: landing, voice: VoiceState.invite);
+  }
+
+  /// The nearest spoke to [target] the wheel can land on, walking from [from] toward
+  /// [target] rather than jumping straight there. A refused spoke is still on the ruler
+  /// (ADR 0040: dimmed, never hidden) but is not a stop: VoiceOver's one-step increase
+  /// landing on one used to move nothing at all, stuck there for good.
+  int? _nearestOfertavel(List<Passagem> roda, int target, {required int from}) {
+    if (_isOfertavel(roda[target])) return target;
+    final step = target >= from ? 1 : -1;
+    for (var at = target; at >= 0 && at < roda.length; at += step) {
+      if (_isOfertavel(roda[at])) return at;
+    }
+    return null;
   }
 
   /// Say where the finger landed.
@@ -1915,9 +1930,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // the Choice, and whatever visit was refusing passages there is over. A stumble
       // past this point — a session gone mid-open, a fresh retry the room also refuses —
       // is this passage's own new refusal, not the last visit's.
-      _refusedThisVisit.clear();
       if (!resumed) _startTheSessionClean(pericope);
-      state = state.copyWith(sessionId: sessionId, coverage: created?.coverage);
+      state = state.copyWith(
+        sessionId: sessionId,
+        coverage: created?.coverage,
+        refusedThisVisit: const {},
+      );
       _sessionSavedAt = resumed ? waiting.savedAt : DateTime.now();
       _sessionLanguage = resumed ? waiting.language : _lingua;
       if (pericope != null && !resumed) {

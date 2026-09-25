@@ -218,6 +218,11 @@ class SalaSessionState {
   /// is not finished merely because this visit's refusals emptied it.
   final bool wheelHalted;
 
+  /// Pericopes the Choice has offered and the room refused to open, in this visit.
+  /// [EscolhaView] reads this to dim their spokes on the ruler; the notifier reads it
+  /// to keep [aOferecer] off them. Cleared when the Choice is opened afresh.
+  final Set<String> refusedThisVisit;
+
   /// Which part of the rehearsal the team came back to record again, 0-based, or null when
   /// the next recording is a part of its own.
   ///
@@ -280,6 +285,7 @@ class SalaSessionState {
     this.unsentTakeScopes = const {},
     this.warning = false,
     this.wheelHalted = false,
+    this.refusedThisVisit = const {},
     this.parteARegravar,
   });
 
@@ -538,6 +544,7 @@ class SalaSessionState {
     Set<String>? unsentTakeScopes,
     bool? warning,
     bool? wheelHalted,
+    Set<String>? refusedThisVisit,
     int? parteARegravar,
     bool clearParteARegravar = false,
   }) {
@@ -606,6 +613,7 @@ class SalaSessionState {
       unsentTakeScopes: unsentTakeScopes ?? this.unsentTakeScopes,
       warning: warning ?? this.warning,
       wheelHalted: wheelHalted ?? this.wheelHalted,
+      refusedThisVisit: refusedThisVisit ?? this.refusedThisVisit,
       parteARegravar: clearParteARegravar
           ? null
           : (parteARegravar ?? this.parteARegravar),
