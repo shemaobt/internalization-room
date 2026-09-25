@@ -13,9 +13,12 @@ because the server's chunk route answered both a dead session and a take that is
 session's rehearsal take with the same 404.
 
 ENG-1133 split that 404 in shema-api: the chunk route (and the replace route) now resolve
-the session first, and a session gone keeps the 404 the session read already gives; only a
-take named in the form body and belonging to another session answers 422
-`UNKNOWN_REFERENCE`, naming the take. The chunk door can now tell the two misses apart.
+the session first, and a session gone keeps the 404 the session read already gives. The
+take named in the form body is resolved by one query filtering on session, take id and
+kind (rehearsal) together, so any of three misses on it — a take of another session, a
+take id that never existed, or a take of this same session that is a back-translation
+take rather than a rehearsal one — answers the same 422 `UNKNOWN_REFERENCE`, naming the
+take. The chunk door can now tell a session gone apart from any of the three.
 
 ## Decision
 

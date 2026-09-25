@@ -2,16 +2,64 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
+
+/// Sends `sendChunk` through the real [RoomRepository] — the actual production decode, not
+/// a hand-picked exception — so a test using this room stays sensitive to a regression in
+/// `sendChunk`'s own `notFoundIsTheSessionGone` argument. Everything else this room is asked
+/// for still comes from [FakeRoom].
+class _RealSendChunkRoom extends FakeRoom {
+  int? sendChunkStatus;
+
+  @override
+  Future<BackTranslationChunk> sendChunk(
+    String sessionId,
+    File audio, {
+    required String takeId,
+    required Duration from,
+    required Duration to,
+  }) {
+    final status = sendChunkStatus;
+    if (status == null) {
+      return super.sendChunk(
+        sessionId,
+        audio,
+        takeId: takeId,
+        from: from,
+        to: to,
+      );
+    }
+    final real = RoomRepository(
+      client: MockClient(
+        (_) async => http.Response(
+          status == 422
+              ? jsonEncode({
+                  'detail':
+                      'Internalization room rehearsal take $takeId not found',
+                  'code': 'UNKNOWN_REFERENCE',
+                })
+              : '{}',
+          status,
+        ),
+      ),
+      deviceId: () async => 'aparelho-1',
+    );
+    return real.sendChunk(sessionId, audio, takeId: takeId, from: from, to: to);
+  }
+}
 
 const _sessao = 'sessao-antiga';
 const _parte = Duration(seconds: 10);
@@ -154,6 +202,12 @@ void _aSessaoContinuaAMesma(_Retomada it) {
 }
 
 void main() {
+  setUpAll(() {
+    dotenv.testLoad(
+      fileInput: 'BACKEND_URL=http://sala.local\nINTERNALIZATION_ROOM_KEY=k',
+    );
+  });
+
   test(
     'a stretch the room refuses leaves the session, the resume row and the station as they were',
     () async {
@@ -169,11 +223,12 @@ void main() {
   );
 
   test(
-    'ENG-1133: a chunk answered with the session gone leaves the passage, unlike a refused take',
+    'ENG-1133: a chunk answered 404 by the real door leaves the passage',
     () async {
-      final harness = SalaHarness();
+      final room = _RealSendChunkRoom();
+      final harness = SalaHarness(room: room);
       final it = await _retomadaNaRetro(harness);
-      harness.room.failChunkWith = const SessionGone();
+      room.sendChunkStatus = 404;
 
       it.harness.playback.at = const Duration(seconds: 7);
       it.sala.cortarTrecho();
@@ -202,6 +257,38 @@ void main() {
         it.estado.needsPerson,
         isFalse,
         reason: 'a sessão sumida deixa a passagem; não risca rumo a uma pessoa',
+      );
+    },
+  );
+
+  test(
+    'ENG-1133: a chunk answered 422 by the real door strikes, and the session stays',
+    () async {
+      final room = _RealSendChunkRoom();
+      final harness = SalaHarness(room: room);
+      final it = await _retomadaNaRetro(harness);
+      room.sendChunkStatus = 422;
+
+      it.harness.playback.at = const Duration(seconds: 7);
+      it.sala.cortarTrecho();
+      it.sala.retroTap();
+      await waitFor(
+        'o microfone abrir',
+        () => it.estado.btPhase == BtPhase.capturing,
+      );
+      final recusadosAntes = it.estado.btChunkFailures.length;
+      await confirmarATraducao(it.container);
+      await waitFor(
+        'a sala recusar o trecho',
+        () => it.estado.btChunkFailures.length > recusadosAntes,
+      );
+      await settle();
+
+      _aSessaoContinuaAMesma(it);
+      expect(
+        it.estado.needsPerson,
+        isFalse,
+        reason: 'uma só recusa ainda está abaixo das três da escada',
       );
     },
   );
