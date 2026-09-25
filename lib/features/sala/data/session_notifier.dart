@@ -3915,7 +3915,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
 
     if (path != null && !_hasAudio(path)) {
-      _trechoTraduzidoDeNovo = null;
+      if (_mendArmedWithThisCapture) _trechoTraduzidoDeNovo = null;
       _trechoStart = _ondeParouNesteArquivo(_parteTocando);
       state = state.copyWith(btPhase: BtPhase.playing, btConsertando: false);
       _haltForAPerson();
@@ -3923,7 +3923,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
 
     if (path == null || sessionId == null) {
-      _trechoTraduzidoDeNovo = null;
+      if (_mendArmedWithThisCapture) _trechoTraduzidoDeNovo = null;
       state = state.copyWith(
         btPhase: BtPhase.playing,
         voice: VoiceState.invite,

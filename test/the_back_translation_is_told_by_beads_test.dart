@@ -377,8 +377,9 @@ void main() {
 
   Future<ProviderContainer> ateOTrechoNomeado(
     WidgetTester tester,
-    SalaHarness harness,
-  ) async {
+    SalaHarness harness, {
+    bool gravando = true,
+  }) async {
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
     await tocar(tester, tesoura);
@@ -393,7 +394,7 @@ void main() {
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
     harness.room.verdictUntoldSegmentId = null;
-    await gravarATraducao(tester);
+    if (gravando) await gravarATraducao(tester);
     return container;
   }
 
@@ -430,6 +431,64 @@ void main() {
 
     expect(harness.room.replacesAsked, ['trecho-1@$gravacao:0-4000']);
     expect(harness.room.chunksSent, 2, reason: 'nenhum trecho novo');
+    closeTheRoom(container);
+  });
+
+  testWidgets('B7e — a substituição que chega solta o trecho nomeado, mesmo '
+      'com o veredito perdido na rede', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await ateOTrechoNomeado(tester, harness);
+
+    harness.room.failFinishWith = const SocketException('sem rede');
+    await tocar(tester, confirmar);
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(harness.room.replacesAsked, hasLength(1));
+
+    harness.room.failFinishWith = null;
+    container.read(salaSessionProvider.notifier).retryNow();
+    await tester.pump(const Duration(milliseconds: 600));
+    final capturas = harness.recorder.captures;
+    container.read(salaSessionProvider.notifier).retroTap();
+    await tester.pump(const Duration(milliseconds: 300));
+    container.read(salaSessionProvider.notifier).retroTap();
+    await tester.pump(const Duration(milliseconds: 300));
+    await container.read(salaSessionProvider.notifier).confirmarTraducao();
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(
+      harness.recorder.captures,
+      capturas,
+      reason: 'o trecho 1 já foi contado de novo',
+    );
+    expect(harness.room.replacesAsked, hasLength(1));
+    closeTheRoom(container);
+  });
+
+  testWidgets('B7f — uma captura muda sobre o trecho nomeado não o desarma', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await ateOTrechoNomeado(tester, harness, gravando: false);
+    final gravacao = harness.room.takeIds.first;
+    final sala = container.read(salaSessionProvider.notifier);
+
+    harness.recorder.returnsEmpty = true;
+    await tocar(tester, gravar);
+    await tocar(tester, terminar);
+    expect(container.read(salaSessionProvider).needsPerson, isTrue);
+
+    harness.room.theDeskAttended();
+    sala.resolveWithPerson();
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(contas(tester), ['solid com anel', 'solid']);
+
+    harness.recorder.returnsEmpty = false;
+    await gravarATraducao(tester);
+    await tocar(tester, confirmar);
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(harness.room.replacesAsked, ['trecho-1@$gravacao:0-4000']);
+    expect(harness.room.chunksSent, 2);
     closeTheRoom(container);
   });
 
