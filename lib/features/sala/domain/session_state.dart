@@ -23,6 +23,14 @@ enum ConviteStep { boasVindas, panorama, entrada }
 
 enum EnsaioStatus { idle, recording, recorded }
 
+/// How far short of a part's end the told ground may stop and still count as its end.
+///
+/// The last cut of a part is made where the clip stopped, and a position read as a
+/// clip finishes can sit a little before the length measured without playing it. This
+/// end's choice: the number is the slack the room's gate was read to allow itself when
+/// it checks what was heard, not a contract the room promises.
+const folgaDoFimDaParte = Duration(milliseconds: 750);
+
 /// Where the telling-back is, step by step.
 enum BtPhase { playing, capturing, thinking, findings, conferida }
 
@@ -32,9 +40,9 @@ enum BtPhase { playing, capturing, thinking, findings, conferida }
 /// passage. It was the globalness, not the use of intervals, that made re-recording one
 /// stretch shift every stretch after it.
 ///
-/// [parte] is which recording that is, by its place in the rehearsal. The cord draws the
-/// whole rehearsal as one line — the listening ruler, which stays global — and it is the
-/// offset of the part that carries a local address onto it.
+/// [parte] is which recording that is, by its place in the rehearsal. The listening ruler
+/// reads the whole rehearsal as one line, and it is the offset of the part that carries a
+/// local address onto it.
 class Trecho {
   /// The room's own name for this stretch, or null while it has not said one.
   ///
@@ -151,11 +159,12 @@ class SalaSessionState {
   /// Its own flag rather than a reading of the phase. The pointer is the room's working
   /// name for that stretch and every station of the correction reads it, so it has to
   /// stand through the whole mend; and the phase a failed mend lands on is `playing`, the
-  /// same one a delivered mend lands on. Neither answers the question the cord asks —
+  /// same one a delivered mend lands on. Neither answers the question the bead row asks —
   /// whether that stretch is still waiting for the team to do something about it.
   final bool btConsertando;
 
-  /// Whether the mother-tongue slice of the pointed stretch is sounding.
+  /// Whether a mother-tongue slice is sounding: the pointed stretch, the stretch the
+  /// verdict named, the pending stretch played again after a cut, or a tapped bead.
   final bool btTrechoTocando;
 
   /// Whether the telling in Portuguese is sounding. Its own flag, because the two voices
@@ -184,6 +193,12 @@ class SalaSessionState {
   final List<int> btFimDasPartesMs;
   final int btParteNoArMs;
   final int btOuvidoMs;
+  final Duration btCursor;
+  final Duration btCorte;
+  final int btParte;
+  final String? btTraducaoPendente;
+  final Trecho? btTrechoTraduzidoDeNovo;
+  final int? btContaEscolhida;
   final List<BtFindingKind> btFindings;
   final int btPass;
   final bool fimClosed;
@@ -253,6 +268,12 @@ class SalaSessionState {
     this.btFimDasPartesMs = const [],
     this.btParteNoArMs = 0,
     this.btOuvidoMs = 0,
+    this.btCursor = Duration.zero,
+    this.btCorte = Duration.zero,
+    this.btParte = 0,
+    this.btTraducaoPendente,
+    this.btTrechoTraduzidoDeNovo,
+    this.btContaEscolhida,
     this.btFindings = const [],
     this.btPass = 1,
     this.fimClosed = false,
@@ -334,6 +355,77 @@ class SalaSessionState {
   bool get canFinishBackTranslation =>
       stage == SalaStage.retro && btPhase == BtPhase.playing && btClipEnded;
 
+  bool get _btNaVez =>
+      stage == SalaStage.retro &&
+      btPhase == BtPhase.playing &&
+      !needsPerson &&
+      !offline;
+
+  bool get btCortado => btCorte > btCursor;
+
+  int? get _btInicioDaParteMs {
+    if (btParte == 0) return 0;
+    if (btParte > btFimDasPartesMs.length) return null;
+    return btFimDasPartesMs[btParte - 1];
+  }
+
+  int? get _btParteMs {
+    final inicio = _btInicioDaParteMs;
+    if (inicio == null || btParte >= btFimDasPartesMs.length) return null;
+    return btFimDasPartesMs[btParte] - inicio;
+  }
+
+  bool get _btParteContada {
+    final parte = _btParteMs;
+    if (parte == null) return btClipEnded;
+    return (btCursor + folgaDoFimDaParte).inMilliseconds >= parte;
+  }
+
+  bool get btContadaInteira =>
+      btClipEnded && _btParteContada && btTraducaoPendente == null;
+
+  bool get canAdvanceToTheVerdict =>
+      canFinishBackTranslation && btContadaInteira && btContaEscolhida == null;
+
+  bool get btRestoDepoisDoCorte {
+    if (!btCortado) return false;
+    final parte = _btParteMs;
+    return btParte < partes.length - 1 ||
+        parte == null ||
+        (btCorte + folgaDoFimDaParte).inMilliseconds < parte;
+  }
+
+  bool get canCut {
+    if (!_btNaVez || btTraducaoPendente != null) return false;
+    if (btTrechoTraduzidoDeNovo != null || btContaEscolhida != null) {
+      return false;
+    }
+    if (btTrechoTocando || btTrechoPausada) {
+      return btCortado && !btClipEnded && !btParteFronteira;
+    }
+    if (btClipRodando) return true;
+    if (btClipEnded || btParteFronteira) return false;
+    final inicio = _btInicioDaParteMs;
+    if (inicio == null) return false;
+    final cabeca = btOuvidoMs - inicio;
+    final limite = btCortado ? btCorte.inMilliseconds : _btParteMs;
+    return cabeca > btCursor.inMilliseconds &&
+        (limite == null || cabeca < limite);
+  }
+
+  bool get canConfirmTranslation =>
+      _btNaVez && btTraducaoPendente != null && btContaEscolhida == null;
+
+  bool get canListenToThePendingStretch =>
+      _btNaVez &&
+      (btClipRodando ||
+          btContaEscolhida != null ||
+          btTrechoTocando ||
+          btTrechoPausada ||
+          btCortado ||
+          btParteFronteira ||
+          !btClipEnded);
+
   /// The stretch the finding points at, when the pointer names one the room told back.
   ///
   /// The server does not check the pointer against the stretches this tablet knows, so a
@@ -358,7 +450,7 @@ class SalaSessionState {
     return null;
   }
 
-  /// The stretch the cord draws drained, or null while no stretch is waiting.
+  /// The stretch the bead row draws drained, or null while no stretch is waiting.
   ///
   /// An empty band means *this is the one waiting to be mended*, and the team stops it
   /// waiting by starting the mend — not by finishing it. Reading the pointer straight left
@@ -435,6 +527,15 @@ class SalaSessionState {
     List<int>? btFimDasPartesMs,
     int? btParteNoArMs,
     int? btOuvidoMs,
+    Duration? btCursor,
+    Duration? btCorte,
+    int? btParte,
+    String? btTraducaoPendente,
+    bool clearTraducaoPendente = false,
+    Trecho? btTrechoTraduzidoDeNovo,
+    bool clearTrechoTraduzidoDeNovo = false,
+    int? btContaEscolhida,
+    bool clearContaEscolhida = false,
     List<BtFindingKind>? btFindings,
     int? btPass,
     bool? fimClosed,
@@ -489,6 +590,18 @@ class SalaSessionState {
       btFimDasPartesMs: btFimDasPartesMs ?? this.btFimDasPartesMs,
       btParteNoArMs: btParteNoArMs ?? this.btParteNoArMs,
       btOuvidoMs: btOuvidoMs ?? this.btOuvidoMs,
+      btCursor: btCursor ?? this.btCursor,
+      btCorte: btCorte ?? this.btCorte,
+      btParte: btParte ?? this.btParte,
+      btTraducaoPendente: clearTraducaoPendente
+          ? null
+          : (btTraducaoPendente ?? this.btTraducaoPendente),
+      btTrechoTraduzidoDeNovo: clearTrechoTraduzidoDeNovo
+          ? null
+          : (btTrechoTraduzidoDeNovo ?? this.btTrechoTraduzidoDeNovo),
+      btContaEscolhida: clearContaEscolhida
+          ? null
+          : (btContaEscolhida ?? this.btContaEscolhida),
       btFindings: btFindings ?? this.btFindings,
       btPass: btPass ?? this.btPass,
       fimClosed: fimClosed ?? this.fimClosed,

@@ -15,11 +15,11 @@ import 'package:internalization_room/features/sala/data/mic_permission.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/conversa_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/retro_cord.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/passage_ruler.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
@@ -604,39 +604,39 @@ void main() {
     expect(bySemanticsLabelWidget('Levantar a mão'), findsNothing);
   });
 
-  testWidgets('the retro hangs one cord and the conversa necklace stays away', (
-    tester,
-  ) async {
-    final harness = SalaHarness();
-    final container = await pumpSala(tester, harness);
-    final notifier = container.read(salaSessionProvider.notifier);
+  testWidgets(
+    'the retro hangs one bead row and the conversa necklace stays away',
+    (tester) async {
+      final harness = SalaHarness();
+      final container = await pumpSala(tester, harness);
+      final notifier = container.read(salaSessionProvider.notifier);
 
-    notifier.goConversa();
-    await tester.pump(const Duration(milliseconds: 200));
-    expect(find.byType(ColarOverlay), findsOneWidget);
-    expect(find.byType(RetroCord), findsNothing);
+      notifier.goConversa();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(find.byType(ColarOverlay), findsOneWidget);
+      expect(find.byType(BeadRow), findsNothing);
 
-    notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
-    await tester.pump(const Duration(milliseconds: 200));
-    notifier.takeKeep();
-    notifier.startRetro();
-    await tester.pump(const Duration(milliseconds: 200));
+      notifier.goEnsaio();
+      notifier.ensaioTap();
+      notifier.ensaioTap();
+      await tester.pump(const Duration(milliseconds: 200));
+      notifier.takeKeep();
+      notifier.startRetro();
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 1400));
 
-    expect(find.byType(RetroCord), findsOneWidget);
-    expect(
-      find.byType(ColarOverlay),
-      findsNothing,
-      reason:
-          'duas fileiras no alto da retro liam como a mesma coisa duas vezes, que '
-          'é a razão de o colar da conversa ficar de fora daqui',
-    );
-  });
+      expect(find.byType(BeadRow), findsOneWidget);
+      expect(
+        find.byType(ColarOverlay),
+        findsNothing,
+        reason:
+            'duas fileiras no alto da retro liam como a mesma coisa duas vezes, que '
+            'é a razão de o colar da conversa ficar de fora daqui',
+      );
+    },
+  );
 
-  testWidgets('the rehearsal shows neither the necklace nor the cord', (
-    tester,
-  ) async {
+  testWidgets('the rehearsal does not show the necklace', (tester) async {
     final harness = SalaHarness();
     final container = await pumpSala(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -657,35 +657,6 @@ void main() {
           'o progresso do ensaio é a fileira de contas dos pedaços; a '
           'cobertura da conversa não desenha ali',
     );
-    expect(
-      find.byType(RetroCord),
-      findsNothing,
-      reason: 'o cord é o traço da retro; o ensaio não é a retro',
-    );
-  });
-
-  testWidgets('the back-translation offers terminei once the clip ends', (
-    tester,
-  ) async {
-    final harness = SalaHarness();
-    final container = await pumpSala(tester, harness);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    notifier.goEnsaio();
-    await tester.pump(const Duration(milliseconds: 100));
-    notifier.ensaioTap();
-    notifier.ensaioTap();
-    await tester.pump(const Duration(milliseconds: 100));
-    notifier.takeKeep();
-    notifier.startRetro();
-    await tester.pump(const Duration(milliseconds: 200));
-
-    expect(bySemanticsLabelWidget('Terminei de traduzir'), findsNothing);
-
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(milliseconds: 200));
-
-    expect(bySemanticsLabelWidget('Terminei de traduzir'), findsOneWidget);
   });
 
   testWidgets('a finding on a stretch asks the team which voice must speak', (
@@ -711,8 +682,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     harness.playback.at = const Duration(seconds: 10);
     notifier.cortarTrecho();
-    await tester.pump(const Duration(milliseconds: 200));
     notifier.retroTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    await confirmarATraducaoNaTela(tester, container);
     await tester.pump(const Duration(milliseconds: 600));
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 200));
@@ -831,8 +803,9 @@ void main() {
     harness.room.failWith = const RoomRefused();
     harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
-    await tester.pump(const Duration(milliseconds: 100));
     notifier.retroTap();
+    await tester.pump(const Duration(milliseconds: 100));
+    await confirmarATraducaoNaTela(tester, container);
     await tester.pump(const Duration(milliseconds: 300));
     expect(container.read(salaSessionProvider).needsPerson, isTrue);
 

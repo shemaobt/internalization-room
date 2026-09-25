@@ -504,8 +504,9 @@ void main() {
     await settle();
     harness.playback.at = const Duration(seconds: 12);
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await waitFor(
       'a retro começar a tocar',
       () => container.read(salaSessionProvider).btPhase == BtPhase.playing,
@@ -563,8 +564,9 @@ void main() {
     harness.room.chunkCaptured = false;
     harness.playback.at = const Duration(seconds: 12);
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await waitFor(
       'um trecho da retro falhar',
       () => container.read(salaSessionProvider).btChunkFailures.isNotEmpty,
@@ -573,8 +575,9 @@ void main() {
     harness.room.chunkCaptured = true;
     harness.playback.at = const Duration(seconds: 30);
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await waitFor(
       'um trecho da retro passar',
       () => container.read(salaSessionProvider).btTrechos.isNotEmpty,
@@ -1337,8 +1340,9 @@ void main() {
     await settle();
     harness.playback.at = const Duration(seconds: 12);
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await settle();
     harness.playback.finishPlayback();
     await settle();
@@ -1364,8 +1368,9 @@ void main() {
     await settle();
     harness.playback.at = const Duration(seconds: 9);
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await settle();
 
     expect(

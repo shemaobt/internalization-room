@@ -46,13 +46,16 @@ Future<ProviderContainer> _inRetro(SalaHarness harness) async {
 
 Future<void> _traduzTrecho(
   SalaHarness harness,
-  SalaSessionNotifier notifier, {
+  ProviderContainer container, {
   required Duration em,
 }) async {
+  final notifier = container.read(salaSessionProvider.notifier);
   harness.playback.at = em;
   notifier.cortarTrecho();
-  await settle();
   notifier.retroTap();
+  await settle();
+  await fecharACaptura(container);
+  await notifier.confirmarTraducao();
   await settle();
 }
 
@@ -68,12 +71,12 @@ Future<ProviderContainer> achadoComAvisoAtivo(SalaHarness harness) async {
   final container = await _inRetro(harness);
   final notifier = container.read(salaSessionProvider.notifier);
 
-  await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
+  await _traduzTrecho(harness, container, em: const Duration(seconds: 10));
   await waitFor(
     'o primeiro trecho chegar à sala',
     () => harness.room.chunksSent == 1,
   );
-  await _traduzTrecho(harness, notifier, em: const Duration(seconds: 20));
+  await _traduzTrecho(harness, container, em: const Duration(seconds: 20));
   await waitFor(
     'o segundo trecho chegar à sala',
     () => harness.room.chunksSent == 2,
@@ -117,16 +120,15 @@ Future<ProviderContainer> achadoComAvisoAtivo(SalaHarness harness) async {
 /// não trouxe áudio nenhum do seguinte, que é a parada bloqueante desta estação.
 Future<ProviderContainer> _paradaBloqueante(SalaHarness harness) async {
   final container = await _inRetro(harness);
-  final notifier = container.read(salaSessionProvider.notifier);
 
-  await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
+  await _traduzTrecho(harness, container, em: const Duration(seconds: 10));
   await waitFor(
     'o primeiro trecho chegar à sala',
     () => harness.room.chunksSent == 1,
   );
 
   harness.recorder.returnsEmpty = true;
-  await _traduzTrecho(harness, notifier, em: const Duration(seconds: 20));
+  await _traduzTrecho(harness, container, em: const Duration(seconds: 20));
   await waitFor(
     'a sala parar de vez',
     () => container.read(salaSessionProvider).needsPerson,
@@ -250,7 +252,7 @@ void main() {
     final container = await _inRetro(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
+    await _traduzTrecho(harness, container, em: const Duration(seconds: 10));
     await waitFor(
       'o primeiro trecho chegar à sala',
       () => harness.room.chunksSent == 1,
@@ -258,7 +260,7 @@ void main() {
 
     harness.network.reachable = false;
     harness.room.reachable = false;
-    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 20));
+    await _traduzTrecho(harness, container, em: const Duration(seconds: 20));
     await waitFor(
       'a sala ficar offline',
       () => container.read(salaSessionProvider).offline,

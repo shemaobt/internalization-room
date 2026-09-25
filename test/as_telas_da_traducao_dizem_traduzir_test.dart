@@ -13,14 +13,16 @@ const _conversaLine =
     "'Conversem entre vocês — tocar quando quiserem me contar'";
 
 const _rotulosDeTraduzir = {
-  'Cortar aqui e traduzir esta parte',
-  'Traduzir esta parte na língua ponte',
+  'Tocar para gravar a tradução deste trecho',
+  'Tocar para gravar a tradução de novo',
+  'Ouvir a tradução',
+  'Confirmar a tradução e seguir',
+  'Conferir a tradução',
   'Ouvir e traduzir a gravação de novo',
-  'Terminei de traduzir',
-  'Tocar para traduzir este pedaço em português',
   'Traduzida',
   'Ouvir a tradução em português',
   'Traduzir de novo só em português',
+  'Ir para a tradução',
 };
 
 final _literalPattern = RegExp(r"'([^'\\]|\\.)*'");
@@ -64,6 +66,7 @@ void main() {
     final literais = {
       ..._literaisEm(_retroViewPath),
       ..._literaisEm(_ondeMoraGradePath),
+      ..._literaisEm(_conversaViewPath),
     };
     final comTradu = literais.where(
       (literal) => literal.toLowerCase().contains('tradu'),

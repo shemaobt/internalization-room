@@ -9,7 +9,6 @@ import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/retro_cord.dart';
 
 import 'fakes.dart';
 
@@ -192,21 +191,6 @@ void main() {
         it.harness.room.calls.where((chamada) => chamada == 'takesOf').length,
         1,
         reason: 'a retomada pergunta a lista das gravações uma vez só',
-      );
-
-      expect(
-        [
-          for (final nome in ['trecho-2', 'trecho-3'])
-            cordSpanMs(
-              trecho: _trecho(it, nome),
-              fimDasPartes: it.estado.btFimDasPartesMs,
-            ),
-        ],
-        [(10000, 16000), (16000, 20000)],
-        reason:
-            'as bandas caem inteiras dentro da parte 2, que começa aos dez '
-            'segundos: desenhadas sobre a parte 1 elas cobririam falas que '
-            'ninguém tocou, e sem banda nenhuma o trecho cai do cordão',
       );
 
       expect(

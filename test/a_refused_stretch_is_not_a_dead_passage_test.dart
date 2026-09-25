@@ -109,13 +109,24 @@ Future<void> _contarUmTrechoRecusado(_Retomada it) async {
   final recusadosAntes = it.estado.btChunkFailures.length;
   it.harness.playback.at = const Duration(seconds: 7);
   it.sala.cortarTrecho();
+  it.sala.retroTap();
   await waitFor(
     'o microfone abrir',
     () => it.estado.btPhase == BtPhase.capturing,
   );
-  it.sala.retroTap();
+  await confirmarATraducao(it.container);
   await waitFor(
     'a sala recusar o trecho',
+    () => it.estado.btChunkFailures.length > recusadosAntes,
+  );
+  await settle();
+}
+
+Future<void> _confirmarDeNovoARecusada(_Retomada it) async {
+  final recusadosAntes = it.estado.btChunkFailures.length;
+  await it.sala.confirmarTraducao();
+  await waitFor(
+    'a sala recusar o trecho de novo',
     () => it.estado.btChunkFailures.length > recusadosAntes,
   );
   await settle();
@@ -164,15 +175,19 @@ void main() {
       final it = await _retomadaNaRetro(harness);
       harness.room.failChunkWith = const RoomBroke('HTTP 404');
 
-      for (var recusa = 1; recusa <= 2; recusa++) {
-        await _contarUmTrechoRecusado(it);
-        expect(
-          it.estado.needsPerson,
-          isFalse,
-          reason: 'a recusa $recusa ainda está abaixo das três da escada',
-        );
-      }
       await _contarUmTrechoRecusado(it);
+      expect(
+        it.estado.needsPerson,
+        isFalse,
+        reason: 'a recusa 1 ainda está abaixo das três da escada',
+      );
+      await _confirmarDeNovoARecusada(it);
+      expect(
+        it.estado.needsPerson,
+        isFalse,
+        reason: 'a recusa 2 ainda está abaixo das três da escada',
+      );
+      await _confirmarDeNovoARecusada(it);
 
       expect(
         it.estado.needsPerson,
@@ -227,6 +242,7 @@ void main() {
       );
 
       it.sala.cortarTrecho();
+      it.sala.retroTap();
       await settle();
       expect(
         harness.playback.sounding,
@@ -238,10 +254,6 @@ void main() {
         isNot(BtPhase.capturing),
         reason: 'um trecho que termina onde começa não tem nada a contar',
       );
-
-      it.sala.retroTap();
-      await settle();
-
       expect(harness.room.chunksSent, 0);
       expect(
         harness.room.chunkSpans,
@@ -269,10 +281,9 @@ void main() {
 
       harness.playback.at = _inicioDoTrecho - const Duration(milliseconds: 1);
       it.sala.cortarTrecho();
-      await settle();
-      expect(it.estado.btPhase, isNot(BtPhase.capturing));
       it.sala.retroTap();
       await settle();
+      expect(it.estado.btPhase, isNot(BtPhase.capturing));
       expect(harness.room.chunkSpans, isEmpty);
       it.sala.ouvirGravacao();
       await settle();
@@ -281,11 +292,12 @@ void main() {
       await _ateAParteTresNoAr(it);
       harness.playback.at = _inicioDoTrecho + const Duration(milliseconds: 1);
       it.sala.cortarTrecho();
+      it.sala.retroTap();
       await waitFor(
         'o microfone abrir',
         () => it.estado.btPhase == BtPhase.capturing,
       );
-      it.sala.retroTap();
+      await confirmarATraducao(it.container);
       await waitFor(
         'o trecho chegar à sala',
         () => harness.room.chunkSpans.isNotEmpty,

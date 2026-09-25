@@ -43,8 +43,9 @@ void main() {
     harness.room.chunkCaptured = false;
     harness.playback.at = umaParteInteira;
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await waitFor('o trecho chegar à sala', () => harness.room.chunksSent == 1);
     // Waited on the outbox, not on time, for the reason the case below gives: the guard's
     // write to disk can land after the chunk reached the room, and on a loaded runner a
@@ -92,8 +93,9 @@ void main() {
 
     harness.playback.at = const Duration(seconds: 20);
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await waitFor(
       'o primeiro trecho chegar à sala',
       () => harness.room.chunksSent == 1,

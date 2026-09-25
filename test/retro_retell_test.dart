@@ -47,13 +47,15 @@ Future<ProviderContainer> _inRetro(SalaHarness harness) async {
 
 Future<void> _traduzTrecho(
   SalaHarness harness,
-  SalaSessionNotifier notifier, {
+  ProviderContainer container, {
   required Duration em,
 }) async {
+  final notifier = container.read(salaSessionProvider.notifier);
   harness.playback.at = em;
   notifier.cortarTrecho();
-  await settle();
   notifier.retroTap();
+  await settle();
+  await confirmarATraducao(container);
   await settle();
 }
 
@@ -82,7 +84,7 @@ Future<void> _traduzDeNovo(
 Future<ProviderContainer> _levadaAoTrechoApontado(SalaHarness harness) async {
   final container = await _inRetro(harness);
   final notifier = container.read(salaSessionProvider.notifier);
-  await _traduzTrecho(harness, notifier, em: const Duration(seconds: 20));
+  await _traduzTrecho(harness, container, em: const Duration(seconds: 20));
   await waitFor(
     'o primeiro trecho chegar à sala',
     () => harness.room.chunksSent == 1,
@@ -118,7 +120,7 @@ Future<ProviderContainer> _levadaAoTrechoApontado(SalaHarness harness) async {
 Future<ProviderContainer> _comDuasMetadesEsperando(SalaHarness harness) async {
   final container = await _inRetro(harness);
   final notifier = container.read(salaSessionProvider.notifier);
-  await _traduzTrecho(harness, notifier, em: const Duration(seconds: 20));
+  await _traduzTrecho(harness, container, em: const Duration(seconds: 20));
   await waitFor(
     'o primeiro trecho chegar à sala',
     () => harness.room.chunksSent == 1,
@@ -155,16 +157,18 @@ Future<ProviderContainer> _comDuasMetadesEsperando(SalaHarness harness) async {
 
 void main() {
   test('a retelling that came back empty does not follow the next stretch', () async {
-    final harness = SalaHarness()..room.verdictChecked = false;
+    final harness = SalaHarness()
+      ..room.verdictChecked = false
+      ..playback.length = const Duration(seconds: 60);
     final container = await _inRetro(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 20));
+    await _traduzTrecho(harness, container, em: const Duration(seconds: 20));
     await waitFor(
       'o primeiro trecho chegar à sala',
       () => harness.room.chunksSent == 1,
     );
-    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 40));
+    await _traduzTrecho(harness, container, em: const Duration(seconds: 40));
     await waitFor(
       'o segundo trecho chegar à sala',
       () => harness.room.chunksSent == 2,
@@ -212,8 +216,9 @@ void main() {
     harness.recorder.returnsEmpty = false;
     harness.playback.at = const Duration(seconds: 60);
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await waitFor(
       'o terceiro trecho chegar à sala',
       () => harness.room.chunksSent == 3,
@@ -357,14 +362,13 @@ void main() {
   test('telling a new stretch still creates a new stretch', () async {
     final harness = SalaHarness();
     final container = await _inRetro(harness);
-    final notifier = container.read(salaSessionProvider.notifier);
 
-    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
+    await _traduzTrecho(harness, container, em: const Duration(seconds: 10));
     await waitFor(
       'o primeiro trecho chegar à sala',
       () => harness.room.chunksSent == 1,
     );
-    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 20));
+    await _traduzTrecho(harness, container, em: const Duration(seconds: 20));
     await waitFor(
       'o segundo trecho chegar à sala',
       () => harness.room.chunksSent == 2,
@@ -398,7 +402,7 @@ void main() {
     await settle();
     final pedidosAntes = harness.room.replacesAsked.length;
     final contadosAntes = harness.room.chunksSent;
-    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
+    await _traduzTrecho(harness, container, em: const Duration(seconds: 10));
     await waitFor(
       'o corte chegar à sala',
       () => harness.room.chunksSent == contadosAntes + 1,
@@ -416,7 +420,9 @@ void main() {
   });
 
   test('telling a stretch again does not leave the room retelling', () async {
-    final harness = SalaHarness()..room.verdictChecked = false;
+    final harness = SalaHarness()
+      ..room.verdictChecked = false
+      ..playback.length = const Duration(seconds: 40);
     final container = await _levadaAoTrechoApontado(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
@@ -432,7 +438,7 @@ void main() {
     );
     harness.room.replaceCaptured = true;
 
-    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 40));
+    await _traduzTrecho(harness, container, em: const Duration(seconds: 40));
 
     expect(
       harness.room.chunkSpans.last,
@@ -471,11 +477,12 @@ void main() {
       harness.recorder.startThrows = false;
       harness.playback.at = const Duration(seconds: 5);
       notifier.cortarTrecho();
+      notifier.retroTap();
       await waitFor(
         'o microfone abrir no trecho',
         () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
       );
-      notifier.retroTap();
+      await confirmarATraducao(container);
       await waitFor(
         'a sala sair do pensando',
         () => container.read(salaSessionProvider).btPhase != BtPhase.thinking,
@@ -503,7 +510,9 @@ void main() {
   );
 
   test('a correction the room takes leaves the next cut on untold ground', () async {
-    final harness = SalaHarness()..room.verdictChecked = false;
+    final harness = SalaHarness()
+      ..room.verdictChecked = false
+      ..playback.length = const Duration(seconds: 40);
     final container = await _levadaAoTrechoApontado(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
@@ -519,7 +528,7 @@ void main() {
     );
     harness.room.failFinishWith = null;
 
-    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 40));
+    await _traduzTrecho(harness, container, em: const Duration(seconds: 40));
 
     expect(
       harness.room.chunkSpans.last,
@@ -535,7 +544,9 @@ void main() {
     'the cursor lands in the same place whether the correction was taken or not',
     () async {
       Future<String> corteDepoisDaCorrecao({required bool aceita}) async {
-        final harness = SalaHarness()..room.verdictChecked = false;
+        final harness = SalaHarness()
+          ..room.verdictChecked = false
+          ..playback.length = const Duration(seconds: 40);
         final container = await _levadaAoTrechoApontado(harness);
         final notifier = container.read(salaSessionProvider.notifier);
         harness.room.replaceCaptured = aceita;
@@ -547,7 +558,11 @@ void main() {
         );
         harness.room.replaceCaptured = true;
         harness.room.failFinishWith = null;
-        await _traduzTrecho(harness, notifier, em: const Duration(seconds: 40));
+        await _traduzTrecho(
+          harness,
+          container,
+          em: const Duration(seconds: 40),
+        );
         return harness.room.chunkSpans.last;
       }
 
