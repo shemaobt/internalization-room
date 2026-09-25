@@ -210,11 +210,13 @@ class SalaSessionState {
   /// says.
   final bool warning;
 
-  /// Whether every non-panorama passage on the wheel was refused at creation this visit,
-  /// rather than the server itself having nothing left. [livroInteiroFeito] must not read
-  /// as a finished book while this holds: the passages are only off the wheel until the
-  /// Choice is opened afresh, not worked.
-  final bool refusedEverything;
+  /// Whether the standing halt, if any, is the wheel itself having nothing unrefused
+  /// left to offer — the server's own list is empty, or every real passage on it was
+  /// refused at creation this visit — as opposed to a stall reaching some other door
+  /// (the panorama's, a resume's) that happens to leave the stage at the Choice too.
+  /// [EscolhaView] reads this, not [livroInteiroFeito], for its halted label: the book
+  /// is not finished merely because this visit's refusals emptied it.
+  final bool wheelHalted;
 
   /// Which part of the rehearsal the team came back to record again, 0-based, or null when
   /// the next recording is a part of its own.
@@ -277,13 +279,14 @@ class SalaSessionState {
     this.unsentChunks = 0,
     this.unsentTakeScopes = const {},
     this.warning = false,
-    this.refusedEverything = false,
+    this.wheelHalted = false,
     this.parteARegravar,
   });
 
   bool get colarOn => stage == SalaStage.conversa || stage == SalaStage.fim;
 
   Passagem? get oferecida {
+    if (wheelHalted) return null;
     final roda = naRoda;
     if (roda == null || aOferecer < 0 || aOferecer >= roda.length) return null;
     return roda[aOferecer];
@@ -297,8 +300,7 @@ class SalaSessionState {
   bool get livroInteiroFeito =>
       stage == SalaStage.escolha &&
       naRoda != null &&
-      naRoda!.every((passagem) => passagem.isPanorama) &&
-      !refusedEverything;
+      naRoda!.every((passagem) => passagem.isPanorama);
 
   bool get onFim => stage == SalaStage.fim;
 
@@ -535,7 +537,7 @@ class SalaSessionState {
     int? unsentChunks,
     Set<String>? unsentTakeScopes,
     bool? warning,
-    bool? refusedEverything,
+    bool? wheelHalted,
     int? parteARegravar,
     bool clearParteARegravar = false,
   }) {
@@ -603,7 +605,7 @@ class SalaSessionState {
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentTakeScopes: unsentTakeScopes ?? this.unsentTakeScopes,
       warning: warning ?? this.warning,
-      refusedEverything: refusedEverything ?? this.refusedEverything,
+      wheelHalted: wheelHalted ?? this.wheelHalted,
       parteARegravar: clearParteARegravar
           ? null
           : (parteARegravar ?? this.parteARegravar),

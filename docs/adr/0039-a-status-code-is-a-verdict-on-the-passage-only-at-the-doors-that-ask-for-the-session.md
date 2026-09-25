@@ -57,3 +57,14 @@ Henok decided on 2026-09-25: **a 400 at session creation, and only there, is the
 cannot open.** The team goes back to the wheel, no strike is counted and no person is called.
 Every other 400 stays a refused call on the three-strike ladder. The code lands in a follow-up
 PR of ENG-1108.
+
+## Note of 2026-09-25 (ENG-1134)
+
+The note above reads as if a 400 at session creation never calls a person. ENG-1134 adds the
+one case it does: the Choice keeps, for the visit it is on, every pericope the room has
+refused this way; a refused passage leaves the wheel until the Choice is opened afresh, not
+offered again in the same visit. When every non-panorama passage the wheel holds has been
+refused in this visit, the room calls a person through the same halt a book with nothing left
+to offer already takes — same halt, same fixed line, no new one. A single refusal still costs
+no strike and still sends the team back to the wheel; only the wheel running out of anything
+unrefused to offer reaches the halt.

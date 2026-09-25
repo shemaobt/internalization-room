@@ -30,7 +30,7 @@ class EscolhaView extends ConsumerWidget {
           voice: session.voice,
           reach: session.reach,
           semanticLabel: switch (session) {
-            _ when session.livroInteiroFeito =>
+            _ when session.livroInteiroFeito || session.wheelHalted =>
               'Todas as passagens foram trabalhadas',
             _ when session.rodaPorLer => 'Tocar para procurar as passagens',
             _ => 'Ouvir esta passagem de novo',
