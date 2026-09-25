@@ -42,13 +42,9 @@ List<int> _faixasVazias(WidgetTester tester, ProviderContainer container) => [
 
 /// A team standing at the question, with a finding on the first of two stretches.
 ///
-/// The kind is scenery, not subject: nothing here reads it, and what every case needs is
-/// only a finding that names a stretch and a correction route out of it. It is named
-/// rather than left to a default because one kind is no longer interchangeable — a finding
-/// of *falta* with no stretch offers no voice at all, since asking which voice the error lives in
-/// has no answer when the team told truly and told too little. Proven by experiment before
-/// it was written down: a copy of this file with the kind swapped and nothing else changed
-/// passes, and still fails without the fix.
+/// The kind is scenery, not subject: nothing here reads it, and swapping it for any other
+/// leaves every case as it is. What every case needs is only a finding that names a
+/// stretch, and a correction route out of it.
 Future<ProviderContainer> _pumpToPergunta(WidgetTester tester) async {
   final harness = SalaHarness(filaEmMemoria: true)
     ..room.verdictChecked = false

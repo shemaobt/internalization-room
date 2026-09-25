@@ -13,9 +13,6 @@ import 'fakes.dart';
 
 const _contado = 'gravacao-1@0-30000';
 
-/// A tablet opened again on a passage told back whole the day before: the part is on the
-/// tablet, the stretch the room holds is not, so it carries no told file here. The
-/// analyst then points at that stretch.
 Future<ProviderContainer> _retomadaNoAchado(SalaHarness harness) async {
   final casa = Directory.systemTemp.createTempSync('sala-achado-retomado');
   addTearDown(() => casa.deleteSync(recursive: true));
