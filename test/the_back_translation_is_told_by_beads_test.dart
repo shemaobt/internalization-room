@@ -439,10 +439,12 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await ateOTrechoNomeado(tester, harness);
 
+    final vereditos = harness.room.playedByTakeSent.length;
     harness.room.failFinishWith = const SocketException('sem rede');
     await tocar(tester, confirmar);
     await tester.pump(const Duration(milliseconds: 600));
     expect(harness.room.replacesAsked, hasLength(1));
+    expect(harness.room.playedByTakeSent, hasLength(vereditos));
 
     harness.room.failFinishWith = null;
     container.read(salaSessionProvider.notifier).retryNow();
@@ -461,6 +463,15 @@ void main() {
       reason: 'o trecho 1 já foi contado de novo',
     );
     expect(harness.room.replacesAsked, hasLength(1));
+
+    expect(aceso(tester, conferir), isTrue);
+    await tocar(tester, conferir);
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(
+      harness.room.playedByTakeSent,
+      hasLength(vereditos + 1),
+      reason: 'o veredito perdido é pedido de novo e chega',
+    );
     closeTheRoom(container);
   });
 
@@ -483,6 +494,27 @@ void main() {
     expect(contas(tester), ['solid com anel', 'solid']);
 
     harness.recorder.returnsEmpty = false;
+    await gravarATraducao(tester);
+    await tocar(tester, confirmar);
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(harness.room.replacesAsked, ['trecho-1@$gravacao:0-4000']);
+    expect(harness.room.chunksSent, 2);
+    closeTheRoom(container);
+  });
+
+  testWidgets('B7g — uma captura sem arquivo sobre o trecho nomeado não o '
+      'desarma', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await ateOTrechoNomeado(tester, harness, gravando: false);
+    final gravacao = harness.room.takeIds.first;
+
+    harness.recorder.returnsNothing = true;
+    await tocar(tester, gravar);
+    await tocar(tester, terminar);
+    expect(contas(tester), ['solid com anel', 'solid']);
+
+    harness.recorder.returnsNothing = false;
     await gravarATraducao(tester);
     await tocar(tester, confirmar);
     await tester.pump(const Duration(milliseconds: 600));
