@@ -16,7 +16,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(
-      bySemanticsLabelWidget('Record your rehearsal'),
+      bySemanticsLabelWidget('Finish the conversation and go to the rehearsal'),
       findsOneWidget,
       reason:
           'a equipe inglesa precisa ouvir o próprio idioma no botão que abre o '

@@ -159,7 +159,6 @@ void main() {
         isTrue,
         reason: 'a parte entra no ar sozinha, sem mais um toque',
       );
-      expect(it.estado.btConsertando, isFalse);
       expect(
         it.estado.canFinishBackTranslation,
         isFalse,
@@ -214,11 +213,12 @@ void main() {
     final trechosAntes = it.estado.btTrechos.length;
     it.harness.playback.at = const Duration(seconds: 4);
     it.sala.cortarTrecho();
+    it.sala.retroTap();
     await waitFor(
       'o microfone abrir',
       () => it.estado.btPhase == BtPhase.capturing,
     );
-    it.sala.retroTap();
+    await confirmarATraducao(it.container);
     await waitFor(
       'o trecho traduzido entrar no colar',
       () => it.estado.btTrechos.length > trechosAntes,
@@ -252,6 +252,7 @@ void main() {
     final trechosAntes = it.estado.btTrechos.length;
     it.harness.playback.at = const Duration(seconds: 4);
     it.sala.cortarTrecho();
+    it.sala.retroTap();
     expect(
       it.estado.btPhase,
       BtPhase.capturing,
@@ -261,7 +262,7 @@ void main() {
           'ignorado em silêncio — o microfone nunca abre',
     );
 
-    it.sala.retroTap();
+    await confirmarATraducao(it.container);
     await waitFor(
       'o trecho traduzido entrar no colar',
       () => it.estado.btTrechos.length > trechosAntes,

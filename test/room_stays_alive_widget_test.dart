@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
-import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/eq_bars.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
 
-Widget _circleIn(VoiceState voice) => MaterialApp(
+Widget _circleIn(VoiceState voice, {bool turning = true}) => MaterialApp(
   theme: AppTheme.light,
   home: Scaffold(
     body: Center(
       child: FacilitatorCircle(
         size: 196,
         voice: voice,
+        turning: turning,
         semanticLabel: 'circulo',
         onTap: () {},
       ),
@@ -44,9 +43,12 @@ Future<Set<double>> _scalesOver(WidgetTester tester, Widget app) async {
   for (var frame = 0; frame < 44; frame++) {
     await tester.pump(const Duration(milliseconds: 120));
     for (final transform in tester.widgetList<Transform>(
-      find.byType(Transform),
+      find.descendant(
+        of: find.byType(FacilitatorCircle),
+        matching: find.byType(Transform),
+      ),
     )) {
-      seen.add(transform.transform.getMaxScaleOnAxis());
+      seen.add(transform.transform.entry(0, 0));
     }
   }
   return seen;
@@ -72,6 +74,27 @@ void main() {
           'a afirmação não é que respira, é que respira igual a todo invite',
     );
   });
+
+  testWidgets(
+    'a room breathing below one is not mistaken for a room standing still',
+    (tester) async {
+      // turning: false freezes the arcs. Without it their own spin also reads
+      // below 1, and this would pass even with a disc that never shrank.
+      final seen = await _scalesOver(
+        tester,
+        _circleIn(VoiceState.thinking, turning: false),
+      );
+
+      expect(
+        seen.any((scale) => scale < 1.0),
+        isTrue,
+        reason:
+            'a espera desce a 0,97 a cada volta, e getMaxScaleOnAxis conta o '
+            'eixo z parado em 1 como se fosse o maior — o encolhimento nunca '
+            'aparecia',
+      );
+    },
+  );
 
   testWidgets('a button that just appeared accepts the first touch', (
     tester,
@@ -134,10 +157,13 @@ void main() {
           )
           .toSet();
       for (final transform in tester.widgetList<Transform>(
-        find.byType(Transform),
+        find.descendant(
+          of: find.byType(FacilitatorCircle),
+          matching: find.byType(Transform),
+        ),
       )) {
         if (!rings.contains(transform)) {
-          body.add(transform.transform.getMaxScaleOnAxis());
+          body.add(transform.transform.entry(0, 0));
         }
       }
     }
@@ -273,63 +299,6 @@ void main() {
             'e a conta que ainda não foi enfiada continua escondida: este é '
             'o único dos quatro que desenha coisa diferente de acordo com o '
             'estado, e parar a animação não pode acender o cordão inteiro',
-      );
-    },
-  );
-
-  testWidgets(
-    'the microphone meter stops dancing when the tablet asks for less motion',
-    (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: const MediaQuery(
-            data: MediaQueryData(disableAnimations: true),
-            child: Scaffold(body: Center(child: EqBars(active: true))),
-          ),
-        ),
-      );
-
-      EqBarsPainter pintor() =>
-          tester
-                  .widget<CustomPaint>(
-                    find.descendant(
-                      of: find.byType(EqBars),
-                      matching: find.byType(CustomPaint),
-                    ),
-                  )
-                  .painter
-              as EqBarsPainter;
-
-      Set<double> alturas() => pintor().heights.toSet();
-
-      final primeiras = alturas();
-      expect(
-        primeiras,
-        isNotEmpty,
-        reason: 'sem barras desenhadas não há o que medir',
-      );
-
-      for (var frame = 0; frame < 30; frame++) {
-        await tester.pump(const Duration(milliseconds: 100));
-        expect(
-          alturas(),
-          primeiras,
-          reason:
-              'o medidor tem o seu próprio controlador e nunca passou pelo '
-              'portão de motion.dart: vinte e quatro barras dançando num laço '
-              'de 1200 ms, vivas exatamente enquanto o microfone está aberto, '
-              'que é o momento mais longo que a equipe passa olhando a tela',
-        );
-      }
-
-      expect(
-        {pintor().barColor},
-        {SalaColors.light.telha},
-        reason:
-            'e o medidor continua dizendo que o microfone está aberto — '
-            'parar o movimento não pode apagar o aviso, que é a razão de ele '
-            'existir',
       );
     },
   );

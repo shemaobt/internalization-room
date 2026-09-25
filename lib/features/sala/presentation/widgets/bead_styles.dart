@@ -53,38 +53,52 @@ abstract class BeadStyles {
   ];
 }
 
+enum ButtonMood { lit, dimmed, beckoning }
+
 class RoundActionButton extends StatelessWidget {
+  static const dropShadow = [
+    BoxShadow(color: Color(0x330A0703), offset: Offset(0, 4), blurRadius: 12),
+  ];
+
   final double size;
   final VoidCallback onTap;
-  final Widget child;
+  final Widget? child;
   final Gradient? gradient;
   final Color? background;
-  final Border? border;
+  final BoxBorder? border;
   final List<BoxShadow>? shadows;
   final String semanticLabel;
   final VoidCallback? onLongPress;
+  final ButtonMood mood;
+  final Color halo;
 
   const RoundActionButton({
     super.key,
     required this.size,
     required this.onTap,
-    required this.child,
     required this.semanticLabel,
+    this.child,
     this.gradient,
     this.background,
     this.border,
     this.shadows,
     this.onLongPress,
+    this.mood = ButtonMood.lit,
+    this.halo = ShemaBrand.verdeClaro,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: semanticLabel,
+  bool get _live => mood != ButtonMood.dimmed;
+
+  Widget _button(double t) => Semantics(
+    button: true,
+    enabled: _live,
+    label: semanticLabel,
+    child: AnimatedOpacity(
+      opacity: _live ? 1 : 0.35,
+      duration: const Duration(milliseconds: 300),
       child: GestureDetector(
-        onTap: onTap,
-        onLongPress: onLongPress,
+        onTap: _live ? onTap : null,
+        onLongPress: _live ? onLongPress : null,
         child: Container(
           width: size,
           height: size,
@@ -93,83 +107,28 @@ class RoundActionButton extends StatelessWidget {
             gradient: gradient,
             color: background,
             border: border,
-            boxShadow: shadows,
-          ),
-          child: Center(child: child),
-        ),
-      ),
-    );
-  }
-}
-
-class AdvanceButton extends StatelessWidget {
-  final double size;
-  final VoidCallback onTap;
-  final Gradient gradient;
-  final Widget? child;
-  final String semanticLabel;
-  final Color halo;
-  final BoxBorder? border;
-
-  /// Whether the touch is live yet.
-  ///
-  /// A button that leaves the tree while the room speaks takes its own hit box with it,
-  /// so a finger already on the way lands on nothing at all. It stays, dimmed and deaf,
-  /// and comes back without moving.
-  final bool ready;
-
-  const AdvanceButton({
-    super.key,
-    required this.onTap,
-    required this.gradient,
-    required this.semanticLabel,
-    this.size = 64,
-    this.child,
-    this.halo = ShemaBrand.verdeClaro,
-    this.border,
-    this.ready = true,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return FadeUp(
-      child: Loop(
-        period: const Duration(milliseconds: 2400),
-        animate: ready,
-        builder: (context, t) => Semantics(
-          button: true,
-          enabled: ready,
-          label: semanticLabel,
-          child: AnimatedOpacity(
-            opacity: ready ? 1 : 0.35,
-            duration: const Duration(milliseconds: 300),
-            child: GestureDetector(
-              onTap: ready ? onTap : null,
-              child: Container(
-                width: size,
-                height: size,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: gradient,
-                  border: border,
-                  boxShadow: [
-                    const BoxShadow(
-                      color: Color(0x330A0703),
-                      offset: Offset(0, 4),
-                      blurRadius: 12,
-                    ),
+            boxShadow: mood == ButtonMood.beckoning
+                ? [
+                    ...?shadows,
                     BoxShadow(
                       color: halo.withValues(alpha: 0.35 * (1 - t)),
                       spreadRadius: 12 * t,
                     ),
-                  ],
-                ),
-                child: Center(child: child),
-              ),
-            ),
+                  ]
+                : shadows,
           ),
+          child: child == null ? null : Center(child: child),
         ),
       ),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return Loop(
+      period: const Duration(milliseconds: 2400),
+      animate: mood == ButtonMood.beckoning,
+      builder: (context, t) => _button(t),
     );
   }
 }

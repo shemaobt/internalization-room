@@ -48,50 +48,104 @@ const circleLabels = {
 String circleLabelFor(String state, String language) =>
     circleLabels[state]![language] ?? circleLabels[state]![floorLanguage]!;
 
+const recordEntryLabel = {
+  'pt': 'Terminar a conversa e ir para o ensaio',
+  'en': 'Finish the conversation and go to the rehearsal',
+};
+
+String recordEntryLabelFor(String language) =>
+    recordEntryLabel[language] ?? recordEntryLabel[floorLanguage]!;
+
+const retroLabels = {
+  'record': {
+    'pt': 'Tocar para gravar a tradução deste trecho',
+    'en': 'Tap to record this stretch\'s translation',
+  },
+  'recordAgain': {
+    'pt': 'Tocar para gravar a tradução de novo',
+    'en': 'Tap to record the translation again',
+  },
+  'recording': {'pt': 'Tocar ao terminar', 'en': 'Tap when you finish'},
+  'listen': {'pt': 'Ouvir', 'en': 'Listen'},
+  'listenToTheTranslation': {
+    'pt': 'Ouvir a tradução',
+    'en': 'Listen to the translation',
+  },
+  'pause': {'pt': 'Pausar', 'en': 'Pause'},
+  'cut': {'pt': 'Cortar aqui', 'en': 'Cut here'},
+  'confirm': {
+    'pt': 'Confirmar a tradução e seguir',
+    'en': 'Confirm the translation and go on',
+  },
+  'advance': {'pt': 'Conferir a tradução', 'en': 'Check the translation'},
+  'stretch': {'pt': 'Trecho', 'en': 'Stretch'},
+  'listenToTheRecording': {
+    'pt': 'Ouvir a gravação',
+    'en': 'Listen to the recording',
+  },
+  'approve': {
+    'pt': 'Aprovar como rascunho final',
+    'en': 'Approve as the final draft',
+  },
+};
+
+String retroLabelFor(String control, String language) =>
+    retroLabels[control]![language] ?? retroLabels[control]![floorLanguage]!;
+
+const rehearsalLabels = {
+  'firstPart': {
+    'pt': 'Tocar para gravar o ensaio',
+    'en': 'Tap to record the rehearsal',
+  },
+  'nextPart': {
+    'pt': 'Tocar para gravar a próxima parte',
+    'en': 'Tap to record the next part',
+  },
+  'recording': {'pt': 'Tocar ao terminar', 'en': 'Tap when you finish'},
+  'pending': {
+    'pt': 'Tocar para gravar esta parte de novo',
+    'en': 'Tap to record this part again',
+  },
+  'partAgain': {
+    'pt': 'Gravar a parte {n} de novo',
+    'en': 'Record part {n} again',
+  },
+  'play': {'pt': 'Ouvir o ensaio até aqui', 'en': 'Hear the rehearsal so far'},
+  'pause': {'pt': 'Pausar o ensaio', 'en': 'Pause the rehearsal'},
+  'check': {'pt': 'Confirmar esta parte', 'en': 'Confirm this part'},
+  'advance': {'pt': 'Ir para a tradução', 'en': 'Go to the translation'},
+  'part': {'pt': 'Parte {n}', 'en': 'Part {n}'},
+};
+
+String rehearsalLabelFor(String state, String language, {int? part}) =>
+    (rehearsalLabels[state]![language] ??
+            rehearsalLabels[state]![floorLanguage]!)
+        .replaceAll('{n}', '$part');
+
+const findingLabels = {
+  'circle': {'pt': 'Ouvir o achado de novo', 'en': 'Hear the finding again'},
+  'play': {
+    'pt': 'Ouvir o trecho e a tradução',
+    'en': 'Hear the stretch and its translation',
+  },
+  'recordThePart': {
+    'pt': 'Gravar a parte de novo na língua materna',
+    'en': 'Record the part again in the mother tongue',
+  },
+  'translateTheStretch': {
+    'pt': 'Traduzir este trecho de novo',
+    'en': 'Translate this stretch again',
+  },
+  'continue': {'pt': 'Continuar o ensaio', 'en': 'Continue the rehearsal'},
+};
+
+String findingLabelFor(String control, String language) =>
+    findingLabels[control]![language] ??
+    findingLabels[control]![floorLanguage]!;
+
 const panoramaEntryLabel = {'pt': 'Panorama do Livro', 'en': 'Book Panorama'};
 
 String entrarLabelFor({required bool isPanorama, required String language}) =>
     isPanorama
     ? (panoramaEntryLabel[language] ?? panoramaEntryLabel[floorLanguage]!)
     : 'Entrar nesta passagem';
-
-const recordEntryLabel = {
-  'pt': 'Gravar o ensaio de vocês',
-  'en': 'Record your rehearsal',
-};
-
-String recordEntryLabelFor(String language) =>
-    recordEntryLabel[language] ?? recordEntryLabel[floorLanguage]!;
-
-const ensaioLabels = {
-  'ouvir': {'pt': 'Ouvir a gravação', 'en': 'Listen to the recording'},
-  'gravarDeNovo': {'pt': 'Gravar de novo', 'en': 'Record again'},
-  'guardar': {'pt': 'Guardar esta gravação', 'en': 'Keep this recording'},
-  'irParaTraducao': {'pt': 'Ir para a tradução', 'en': 'Go to the translation'},
-  'ghostParar': {
-    'pt': 'Parar de ouvir o ensaio guardado',
-    'en': 'Stop listening to the saved rehearsal',
-  },
-  'ghostOuvir': {
-    'pt': 'Ouvir o ensaio guardado antes de gravar',
-    'en': 'Listen to the saved rehearsal before recording',
-  },
-  'tocando': {
-    'pt': 'O ensaio guardado está tocando',
-    'en': 'The saved rehearsal is playing',
-  },
-  'tocarParaGravar': {
-    'pt': 'Tocar para gravar o ensaio',
-    'en': 'Tap to record the rehearsal',
-  },
-  'pausar': {'pt': 'Pausar a gravação', 'en': 'Pause the recording'},
-};
-
-String ensaioLabelFor(String key, String language) =>
-    ensaioLabels[key]![language] ?? ensaioLabels[key]![floorLanguage]!;
-
-String gravarParteDeNovoLabelFor(int partNumber, String language) =>
-    switch (language) {
-      'pt' => 'Gravar a parte $partNumber de novo',
-      _ => 'Record part $partNumber again',
-    };

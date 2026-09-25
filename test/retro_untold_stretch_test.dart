@@ -9,39 +9,30 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 
-const blueMic = 'Continuar o ensaio';
+const continuarOEnsaio = 'Continuar o ensaio';
 
 Finder byLabel(String label) => find.byWidgetPredicate(
   (widget) => widget is Semantics && widget.properties.label == label,
 );
 
-/// A team that rehearsed, told one stretch back, and had that stretch cut in two.
+/// A team that rehearsed and told one stretch back, whose stretch the room holds cut in
+/// two.
 ///
 /// The two halves are born with nothing told about them, which is the situation the
 /// room's gate stops on: the passage cannot be read while a stretch is still waiting.
-/// Every step here is a verb the team has on the screen — nothing is written into the
-/// session by hand.
+/// The team's steps are verbs it has on the screen; the cut is the room's own, through the
+/// divide route the server keeps.
 Future<ProviderContainer> upToTwoUntoldHalves(
   WidgetTester tester,
   SalaHarness harness,
 ) async {
-  harness.room
-    ..verdictChecked = false
-    ..verdictFinding = BtFindingKind.missing
-    ..verdictFindingSegmentId = 'trecho-1';
-
-  final container = await pumpUpToAVerdict(tester, harness);
-  final notifier = container.read(salaSessionProvider.notifier);
-
-  notifier.ouvirVozMaterna();
-  await tester.pump(const Duration(milliseconds: 200));
-  harness.playback.at = const Duration(seconds: 5);
-  await notifier.dividirTrecho();
-  await tester.pump(const Duration(milliseconds: 300));
-
-  harness.room
-    ..verdictFinding = null
-    ..verdictFindingSegmentId = null;
+  harness.room.verdictChecked = false;
+  final container = await pumpUpToTheEndOfTheTelling(tester, harness);
+  await harness.room.divideSegment(
+    container.read(salaSessionProvider).sessionId!,
+    'trecho-1',
+    at: const Duration(seconds: 5),
+  );
   return container;
 }
 
@@ -79,7 +70,7 @@ void main() {
     // saída para a frente que a tela oferecia depois dela: o microfone azul, que
     // recomeça o ensaio. Ela não pode estar ao alcance desta resposta.
     expect(
-      byLabel(blueMic),
+      byLabel(continuarOEnsaio),
       findsNothing,
       reason:
           'a saída que zera as gravações não cabe num trecho que só falta '
@@ -90,8 +81,9 @@ void main() {
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 200));
     notifier.cortarTrecho();
-    await tester.pump(const Duration(milliseconds: 200));
     notifier.retroTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    await confirmarATraducaoNaTela(tester, container);
     await tester.pump(const Duration(milliseconds: 600));
 
     depois = container.read(salaSessionProvider);
@@ -130,8 +122,9 @@ void main() {
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 200));
     notifier.cortarTrecho();
-    await tester.pump(const Duration(milliseconds: 200));
     notifier.retroTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    await confirmarATraducaoNaTela(tester, container);
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(
@@ -163,6 +156,7 @@ void main() {
     // deixa ao ouvir a metade anterior antes de contar esta.
     harness.playback.at = const Duration(seconds: 1);
     notifier.cortarTrecho();
+    notifier.retroTap();
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(
@@ -174,7 +168,7 @@ void main() {
           'silêncio e o círculo fica morto sobre o único trecho que falta',
     );
 
-    notifier.retroTap();
+    await confirmarATraducaoNaTela(tester, container);
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(
@@ -195,11 +189,11 @@ void main() {
 
     final antes = container.read(salaSessionProvider);
     expect(antes.btPhase, BtPhase.findings);
-    expect(byLabel(blueMic), findsOneWidget);
+    expect(byLabel(continuarOEnsaio), findsOneWidget);
     final gravacoes = [for (final take in antes.keptTakes) take.takeId];
     expect(gravacoes, isNotEmpty);
 
-    await tester.tap(byLabel(blueMic));
+    await tester.tap(byLabel(continuarOEnsaio));
     await tester.pump(const Duration(milliseconds: 400));
 
     // "Como hoje" mudou de sentido. Este caso esperava takes 0 e keptTakes vazio:
@@ -330,6 +324,16 @@ Future<ProviderContainer> pumpUpToAVerdict(
   WidgetTester tester,
   SalaHarness harness,
 ) async {
+  final container = await pumpUpToTheEndOfTheTelling(tester, harness);
+  await container.read(salaSessionProvider.notifier).finishBackTranslation();
+  await tester.pump(const Duration(milliseconds: 300));
+  return container;
+}
+
+Future<ProviderContainer> pumpUpToTheEndOfTheTelling(
+  WidgetTester tester,
+  SalaHarness harness,
+) async {
   final container = harness.container();
   addTearDown(container.dispose);
   await tester.pumpWidget(const SizedBox.shrink());
@@ -353,12 +357,11 @@ Future<ProviderContainer> pumpUpToAVerdict(
 
   harness.playback.at = const Duration(seconds: 10);
   notifier.cortarTrecho();
-  await tester.pump(const Duration(milliseconds: 200));
   notifier.retroTap();
+  await tester.pump(const Duration(milliseconds: 200));
+  await confirmarATraducaoNaTela(tester, container);
   await tester.pump(const Duration(milliseconds: 600));
   harness.playback.finishPlayback();
   await tester.pump(const Duration(milliseconds: 200));
-  await notifier.finishBackTranslation();
-  await tester.pump(const Duration(milliseconds: 300));
   return container;
 }

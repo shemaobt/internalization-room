@@ -34,6 +34,7 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
 /// Throwing here instead of returning keeps the failure at the wait: a deadline that
@@ -384,9 +385,8 @@ class FakePlayback implements PlaybackRepository {
   /// Hold the source load, the way an old tablet with a long take does.
   ///
   /// One open, not the player: a second clip asked for while this one is still loading
-  /// opens freely, the way a real player's second source does. Held globally, the double
-  /// queued every later clip behind the same window and no test could tell a clip the
-  /// team superseded from a clip that never opened.
+  /// waits for this load to settle, as the repository makes it (ADR 0041), and then this
+  /// one returns without announcing itself and the second opens.
   ///
   /// One window at a time: [finishHeldOpening] releases the one an open took, or the one
   /// still armed, so a second hold armed before the first open has landed is orphaned.
@@ -492,6 +492,7 @@ class FakePlayback implements PlaybackRepository {
     if (_abrindo) return;
     // Nothing was ever opened, so there is nothing to bring back.
     if (_opens == 0) return;
+    if (stops != _paradasDaAbertura) return;
     // Sound coming back out, not a new clip: the future `play` handed out is long since
     // completed by the pause, so it cannot be what says whether anything is sounding.
     _sounding = true;
@@ -500,6 +501,7 @@ class FakePlayback implements PlaybackRepository {
 
   /// How many times the room told this player to stop, whatever it was playing.
   int stops = 0;
+  int _paradasDaAbertura = 0;
 
   @override
   Future<void> stop() async {
@@ -536,13 +538,16 @@ class FakePlayback implements PlaybackRepository {
     _wanted = true;
     final geracao = ++_opens;
     final paradas = stops;
+    _paradasDaAbertura = paradas;
     // A clip is not open the instant it is asked for: the source loads first, and only
     // then does the player know where it starts and how long it is.
+    final anterior = _segurada;
     final held = _opening;
     _opening = null;
     if (held != null) _segurada = held;
     _abrindo = true;
     scheduleMicrotask(() async {
+      if (anterior != null) await anterior.future;
       await held?.future;
       // A later clip of ours took this one's place while it was still loading. What the
       // clip owed the room dies with the clip: it announces nothing, so no ceiling and
@@ -745,6 +750,8 @@ class FakeRoom implements RoomRepository {
   /// Which recording each told-back stretch named, in order.
   final List<String> chunkTakes = [];
 
+  final List<String> chunkFiles = [];
+
   /// The names this room gave the recordings it stored, in the order it stored them.
   final List<String> takeIds = [];
 
@@ -788,15 +795,16 @@ class FakeRoom implements RoomRepository {
   String? refuseTake;
   Exception? failDivideWith;
   Exception? failReplaceWith;
+  Exception? failChunkWith;
 
   /// What the next call to `fetchState` throws, independent of `failWith` — a case needs
   /// the settle poll to fail exactly once, so the read after it can succeed instead of
   /// failing the same way forever.
   Exception? failStateOnceWith;
 
-  /// What the next call to `createSession` throws, independent of `failWith` and of
-  /// `shutsThePassage` — a case needs a retry that opens a session for the same passage
-  /// to fail exactly once too, so the attempt after it can land.
+  /// What the next call to `createSession` throws, independent of `failWith` — a case
+  /// needs a retry that opens a session for the same passage to fail exactly once too, so
+  /// the attempt after it can land.
   Exception? failCreateOnceWith;
 
   /// What the ask for a verdict throws, when it is set. The one knob that lets a test put
@@ -917,7 +925,7 @@ class FakeRoom implements RoomRepository {
 
   Exception? failWith;
 
-  String? shutsThePassage;
+  String? passageThatCannotOpen;
 
   Completer<void>? _holdingTurn;
   Completer<void>? _holdingCode;
@@ -1031,8 +1039,8 @@ class FakeRoom implements RoomRepository {
     required String language,
   }) async {
     _guard('createSession');
-    if (pericope != null && pericope == shutsThePassage) {
-      throw const PassageShut();
+    if (pericope != null && pericope == passageThatCannotOpen) {
+      throw const PassageCannotOpen();
     }
     final failure = failCreateOnceWith;
     if (failure != null) {
@@ -1101,6 +1109,15 @@ class FakeRoom implements RoomRepository {
     return _turn(sessionId);
   }
 
+  Completer<void>? _substituicaoSegura;
+
+  void holdNextReplace() => _substituicaoSegura = Completer<void>();
+
+  void finishHeldReplace() {
+    _substituicaoSegura?.complete();
+    _substituicaoSegura = null;
+  }
+
   @override
   Future<TellingAgain> replaceSegment(
     String sessionId,
@@ -1111,6 +1128,8 @@ class FakeRoom implements RoomRepository {
     required Duration to,
   }) async {
     _guard('replaceSegment');
+    final segura = _substituicaoSegura;
+    if (segura != null) await segura.future;
     final refusal = failReplaceWith;
     if (refusal != null) throw refusal;
     replacesAsked.add(
@@ -1355,9 +1374,12 @@ class FakeRoom implements RoomRepository {
     required Duration to,
   }) async {
     _guard('sendChunk');
+    final refusal = failChunkWith;
+    if (refusal != null) throw refusal;
     chunksSent++;
     chunkSpans.add('${from.inMilliseconds}-${to.inMilliseconds}');
     chunkTakes.add(takeId);
+    chunkFiles.add(audio.path);
     if (chunkCaptured) {
       segments.add(
         SegmentView(
@@ -1788,6 +1810,39 @@ Future<void> letTheRehearsalReachTheRoom(WidgetTester tester) async {
     () => Future<void>.delayed(const Duration(milliseconds: 150)),
   );
   await tester.pump(const Duration(milliseconds: 100));
+}
+
+Future<void> confirmarATraducao(ProviderContainer container) async {
+  final sala = container.read(salaSessionProvider.notifier);
+  sala.retroTap();
+  await waitFor(
+    'a tradução ficar pendente',
+    () => container.read(salaSessionProvider).btTraducaoPendente != null,
+  );
+  await sala.confirmarTraducao();
+}
+
+Future<void> fecharACaptura(ProviderContainer container) async {
+  container.read(salaSessionProvider.notifier).retroTap();
+  await waitFor('a captura fechar', () {
+    final fase = container.read(salaSessionProvider).btPhase;
+    return fase != BtPhase.capturing && fase != BtPhase.thinking;
+  });
+}
+
+Future<void> confirmarATraducaoNaTela(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  final sala = container.read(salaSessionProvider.notifier);
+  sala.retroTap();
+  await tester.pump(const Duration(milliseconds: 300));
+  expect(
+    container.read(salaSessionProvider).btTraducaoPendente,
+    isNotNull,
+    reason: 'o segundo toque deixa a tradução pendente',
+  );
+  await sala.confirmarTraducao();
 }
 
 class SalaHarness {

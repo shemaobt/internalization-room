@@ -47,11 +47,12 @@ Future<void> _traduzirUmTrecho(_Sala it, Duration em) async {
   final antes = it.estado.btTrechos.length;
   it.harness.playback.at = em;
   it.sala.cortarTrecho();
+  it.sala.retroTap();
   await waitFor(
     'o microfone abrir no trecho',
     () => it.estado.btPhase == BtPhase.capturing,
   );
-  it.sala.retroTap();
+  await confirmarATraducao(it.container);
   await waitFor(
     'o trecho contado entrar no colar',
     () => it.estado.btTrechos.length == antes + 1,
@@ -111,7 +112,8 @@ Future<_Sala> _aSalaNaPergunta({int lugar = 1}) async {
 /// finding whenever the room's verdict still points at the same place.
 Future<void> _entregarAPonte(_Sala it) async {
   final antes = it.harness.room.replacesAsked.length;
-  it.sala.retroTap();
+  await fecharACaptura(it.container);
+  await it.sala.confirmarTraducao();
   await waitFor(
     'a ponte nova substituir o trecho',
     () => it.harness.room.replacesAsked.length == antes + 1,
@@ -131,7 +133,7 @@ void main() {
         final trecho = it.estado.btFindingTrecho!;
         final caminhoDaParte = it.estado.partes[trecho.parte].path;
 
-        it.sala.ouvirVozMaterna();
+        it.sala.ouvirOTrechoEATraducao();
         await waitFor(
           'o trecho apontado estar tocando',
           () => it.estado.btTrechoTocando,
@@ -160,6 +162,7 @@ void main() {
       final parteAntes = it.estado.partes[antes.parte].path;
 
       it.sala.traduzirDeNovoEmPortugues();
+      it.sala.retroTap();
       await waitFor(
         'o microfone abrir para traduzir de novo',
         () => it.estado.btPhase == BtPhase.capturing,
@@ -171,7 +174,7 @@ void main() {
       expect(depois.to, antes.to);
 
       it.harness.playback.played.clear();
-      it.sala.ouvirVozMaterna();
+      it.sala.ouvirOTrechoEATraducao();
       await waitFor(
         'o trecho apontado estar tocando',
         () => it.estado.btTrechoTocando,

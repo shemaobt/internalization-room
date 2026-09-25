@@ -11,7 +11,6 @@ import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/retro_cord.dart';
 
 import 'fakes.dart';
 
@@ -274,19 +273,6 @@ void main() {
         [for (final trecho in it.estado.btTrechos) trecho.parte],
         [0, 1],
         reason: 'cada trecho mora na parte que a equipe gravou (ADR 0022)',
-      );
-      expect(
-        [
-          for (final trecho in it.estado.btTrechos)
-            cordSpanMs(
-              trecho: trecho,
-              fimDasPartes: it.estado.btFimDasPartesMs,
-            ),
-        ],
-        [(0, 10000), (10000, 20000)],
-        reason:
-            'e o colar desenha a faixa por cima da parte em que ele mora: é '
-            'o único lugar em que uma equipe que não lê vê onde o trabalho está',
       );
     },
   );

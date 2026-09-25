@@ -7,6 +7,7 @@ import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
+import 'motion.dart';
 import 'passage_ruler.dart';
 
 class EscolhaView extends ConsumerWidget {
@@ -25,7 +26,7 @@ class EscolhaView extends ConsumerWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         FacilitatorCircle(
-          size: 196,
+          size: facilitatorCircleSize,
           voice: session.voice,
           reach: session.reach,
           semanticLabel: switch (session) {
@@ -44,17 +45,20 @@ class EscolhaView extends ConsumerWidget {
           height: 78,
           child: session.oferecida == null
               ? null
-              : AdvanceButton(
-                  size: 78,
-                  gradient: BeadStyles.wood,
-                  halo: ShemaBrand.wood,
-                  border: Border.all(color: colors.cord, width: 2),
-                  semanticLabel: entrarLabelFor(
-                    isPanorama: session.oferecida!.isPanorama,
-                    language: ref.watch(roomLanguageProvider),
+              : FadeUp(
+                  child: RoundActionButton(
+                    size: 78,
+                    mood: podeEntrar ? ButtonMood.beckoning : ButtonMood.dimmed,
+                    gradient: BeadStyles.wood,
+                    shadows: RoundActionButton.dropShadow,
+                    halo: ShemaBrand.wood,
+                    border: Border.all(color: colors.cord, width: 2),
+                    semanticLabel: entrarLabelFor(
+                      isPanorama: session.oferecida!.isPanorama,
+                      language: ref.watch(roomLanguageProvider),
+                    ),
+                    onTap: notifier.entrarNaOferecida,
                   ),
-                  ready: podeEntrar,
-                  onTap: notifier.entrarNaOferecida,
                 ),
         ),
         const SizedBox(height: 20),

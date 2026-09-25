@@ -204,9 +204,12 @@ void main() {
       await settle();
 
       harness.recorder.startThrows = true;
+      harness.playback.at = const Duration(seconds: 2);
       notifier.cortarTrecho();
+      notifier.retroTap();
       await settle();
       notifier.cortarTrecho();
+      notifier.retroTap();
       await settle();
 
       expect(read().needsPerson, isTrue);

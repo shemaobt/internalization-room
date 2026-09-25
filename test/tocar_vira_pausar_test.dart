@@ -20,8 +20,9 @@ Future<ProviderContainer> pumpAoApontado(SalaHarness harness) async {
 
   harness.playback.at = const Duration(milliseconds: 40);
   notifier.cortarTrecho();
-  await settle();
   notifier.retroTap();
+  await settle();
+  await confirmarATraducao(container);
   await waitFor(
     'o primeiro trecho chegar à sala',
     () => harness.room.chunksSent == 1,
@@ -56,13 +57,13 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      notifier.ouvirVozMaterna();
+      notifier.ouvirOTrechoEATraducao();
       await waitFor(
         'o trecho apontado estar tocando',
         () => container.read(salaSessionProvider).btTrechoTocando,
       );
 
-      notifier.ouvirVozMaterna();
+      notifier.ouvirOTrechoEATraducao();
       await settle();
 
       expect(
@@ -87,14 +88,14 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      notifier.ouvirVozMaterna();
+      notifier.ouvirOTrechoEATraducao();
       await waitFor(
         'o trecho apontado estar tocando',
         () => container.read(salaSessionProvider).btTrechoTocando,
       );
-      notifier.ouvirVozMaterna();
+      notifier.ouvirOTrechoEATraducao();
       await settle();
-      notifier.ouvirVozMaterna();
+      notifier.ouvirOTrechoEATraducao();
       await settle();
 
       expect(
@@ -119,18 +120,23 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      notifier.ouvirVozMaterna();
+      notifier.ouvirOTrechoEATraducao();
       await waitFor(
         'o trecho apontado estar tocando',
         () => container.read(salaSessionProvider).btTrechoTocando,
       );
       harness.playback.finishPlayback();
       await waitFor(
-        'o trecho parar de tocar sozinho',
-        () => !container.read(salaSessionProvider).btTrechoTocando,
+        'a tradução entrar depois do trecho',
+        () => container.read(salaSessionProvider).btRetroTocando,
+      );
+      harness.playback.finishPlayback();
+      await waitFor(
+        'a tradução parar de tocar sozinha',
+        () => !container.read(salaSessionProvider).btRetroTocando,
       );
 
-      notifier.ouvirVozMaterna();
+      notifier.ouvirOTrechoEATraducao();
       await settle();
 
       expect(
@@ -149,14 +155,19 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      notifier.ouvirTraducaoEmPortugues();
+      notifier.ouvirOTrechoEATraducao();
+      await waitFor(
+        'o trecho apontado estar tocando',
+        () => container.read(salaSessionProvider).btTrechoTocando,
+      );
+      harness.playback.finishPlayback();
       await waitFor(
         'a ponte estar tocando',
         () => container.read(salaSessionProvider).btRetroTocando,
       );
       final tocadosAntes = harness.playback.played.length;
 
-      notifier.ouvirTraducaoEmPortugues();
+      notifier.ouvirOTrechoEATraducao();
       await settle();
 
       expect(harness.playback.paused, isTrue);
@@ -177,16 +188,21 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      notifier.ouvirTraducaoEmPortugues();
+      notifier.ouvirOTrechoEATraducao();
+      await waitFor(
+        'o trecho apontado estar tocando',
+        () => container.read(salaSessionProvider).btTrechoTocando,
+      );
+      harness.playback.finishPlayback();
       await waitFor(
         'a ponte estar tocando',
         () => container.read(salaSessionProvider).btRetroTocando,
       );
       final tocadosAntes = harness.playback.played.length;
 
-      notifier.ouvirTraducaoEmPortugues();
+      notifier.ouvirOTrechoEATraducao();
       await settle();
-      notifier.ouvirTraducaoEmPortugues();
+      notifier.ouvirOTrechoEATraducao();
       await settle();
 
       expect(harness.playback.paused, isFalse);
@@ -205,32 +221,6 @@ void main() {
   // line instead, and `a_esfera_repete_a_pergunta_test.dart` covers it (cases 6 and 8 of
   // the R16 testing plan).
 
-  test(
-    'os players não se atropelam: tocando a materna, a ponte não entra',
-    () async {
-      final harness = harnessApontando();
-      final container = await pumpAoApontado(harness);
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      notifier.ouvirVozMaterna();
-      await waitFor(
-        'o trecho apontado estar tocando',
-        () => container.read(salaSessionProvider).btTrechoTocando,
-      );
-
-      notifier.ouvirTraducaoEmPortugues();
-      await settle();
-
-      expect(
-        container.read(salaSessionProvider).btRetroTocando,
-        isFalse,
-        reason: 'a ponte continua fora enquanto a materna toca — como hoje',
-      );
-      expect(container.read(salaSessionProvider).btTrechoTocando, isTrue);
-    },
-  );
-
   test('um teto que vence antes do dublê nunca deixa o player real soando com '
       'o estado dizendo parado', () async {
     final harness = SalaHarness(clipGrace: const Duration(milliseconds: 20))
@@ -241,7 +231,7 @@ void main() {
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    notifier.ouvirVozMaterna();
+    notifier.ouvirOTrechoEATraducao();
     await waitFor(
       'o trecho apontado estar tocando',
       () => container.read(salaSessionProvider).btTrechoTocando,
@@ -251,7 +241,8 @@ void main() {
     // dublê nunca é avisado de que o clipe terminou.
     await settle(const Duration(milliseconds: 300));
 
-    final tocando = container.read(salaSessionProvider).btTrechoTocando;
+    final estado = container.read(salaSessionProvider);
+    final tocando = estado.btTrechoTocando || estado.btRetroTocando;
     final soando = harness.playback.sounding;
     expect(
       tocando || !soando,

@@ -48,8 +48,14 @@ void main() {
   test(
     'the part-redo label carries the same number in portuguese and in english',
     () {
-      expect(gravarParteDeNovoLabelFor(2, 'pt'), 'Gravar a parte 2 de novo');
-      expect(gravarParteDeNovoLabelFor(2, 'en'), 'Record part 2 again');
+      expect(
+        rehearsalLabelFor('partAgain', 'pt', part: 2),
+        'Gravar a parte 2 de novo',
+      );
+      expect(
+        rehearsalLabelFor('partAgain', 'en', part: 2),
+        'Record part 2 again',
+      );
     },
   );
 

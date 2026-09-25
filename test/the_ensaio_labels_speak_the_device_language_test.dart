@@ -6,8 +6,11 @@ import 'package:internalization_room/main.dart';
 import 'fakes.dart';
 import 'sala_screen_test.dart' show bySemanticsLabelWidget;
 
-Future<ProviderContainer> _pumpAoGravadoEmIngles(WidgetTester tester) async {
-  final harness = SalaHarness(lingua: 'en');
+Future<ProviderContainer> _pumpNoEnsaio(
+  WidgetTester tester, {
+  String lingua = testLanguage,
+}) async {
+  final harness = SalaHarness(filaEmMemoria: true, lingua: lingua);
   final container = harness.container();
   await tester.pumpWidget(
     UncontrolledProviderScope(container: container, child: const SalaApp()),
@@ -18,139 +21,96 @@ Future<ProviderContainer> _pumpAoGravadoEmIngles(WidgetTester tester) async {
   await notifier.goConversa();
   await tester.pump(const Duration(milliseconds: 200));
   notifier.goEnsaio();
-  notifier.ensaioTap();
-  notifier.ensaioTap();
   await tester.pump(const Duration(milliseconds: 100));
 
   return container;
 }
 
+Future<ProviderContainer> _pumpAoGravado(
+  WidgetTester tester, {
+  String lingua = testLanguage,
+}) async {
+  final container = await _pumpNoEnsaio(tester, lingua: lingua);
+  final notifier = container.read(salaSessionProvider.notifier);
+  notifier.ensaioTap();
+  notifier.ensaioTap();
+  await tester.pump(const Duration(milliseconds: 100));
+  return container;
+}
+
 void main() {
-  testWidgets('the recorded-take row speaks english to an english room', (
+  testWidgets('the pending-part row speaks english to an english room', (
     tester,
   ) async {
-    final container = await _pumpAoGravadoEmIngles(tester);
+    final container = await _pumpAoGravado(tester, lingua: 'en');
     addTearDown(container.dispose);
 
     expect(
-      bySemanticsLabelWidget('Listen to the recording'),
+      bySemanticsLabelWidget('Hear the rehearsal so far'),
       findsOneWidget,
-      reason: 'quem gravou em inglês ouve o próprio idioma no play do take',
+      reason: 'quem gravou em inglês ouve o próprio idioma no play do ensaio',
     );
-    expect(bySemanticsLabelWidget('Record again'), findsOneWidget);
-    expect(bySemanticsLabelWidget('Keep this recording'), findsOneWidget);
-
-    container.read(salaSessionProvider.notifier).takeKeep();
-    await tester.pump(const Duration(milliseconds: 100));
-
+    expect(bySemanticsLabelWidget('Confirm this part'), findsOneWidget);
     expect(
       bySemanticsLabelWidget('Go to the translation'),
       findsOneWidget,
       reason: 'o botão que leva à tradução também não fica preso ao português',
     );
+
+    container.read(salaSessionProvider.notifier).takeKeep();
+    await letTheRehearsalReachTheRoom(tester);
+
+    expect(
+      bySemanticsLabelWidget('Tap to record the next part'),
+      findsOneWidget,
+      reason: 'confirmada a parte, o círculo convida a próxima em inglês',
+    );
   });
 
   testWidgets(
-    'the take-play button names the tap it is about to receive, in english',
+    'the rehearsal-play button names the tap it is about to receive, in english',
     (tester) async {
-      final container = await _pumpAoGravadoEmIngles(tester);
+      final container = await _pumpAoGravado(tester, lingua: 'en');
       addTearDown(container.dispose);
 
-      await tester.tap(bySemanticsLabelWidget('Listen to the recording'));
+      await tester.tap(bySemanticsLabelWidget('Hear the rehearsal so far'));
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(
-        bySemanticsLabelWidget('Pause the recording'),
+        bySemanticsLabelWidget('Pause the rehearsal'),
         findsOneWidget,
         reason:
             'o ícone já vira pausa; o rótulo em inglês precisa dizer a '
-            'mesma coisa, não repetir "listen" sobre um toque que pausa',
+            'mesma coisa, não repetir "hear" sobre um toque que pausa',
       );
-      expect(bySemanticsLabelWidget('Listen to the recording'), findsNothing);
+      expect(bySemanticsLabelWidget('Hear the rehearsal so far'), findsNothing);
     },
   );
 
   testWidgets(
-    'the take-play button names the tap it is about to receive, in portuguese',
+    'the rehearsal-play button names the tap it is about to receive, in portuguese',
     (tester) async {
-      final harness = SalaHarness();
-      final container = harness.container();
+      final container = await _pumpAoGravado(tester);
       addTearDown(container.dispose);
-      await tester.pumpWidget(
-        UncontrolledProviderScope(container: container, child: const SalaApp()),
-      );
-      await tester.pump(const Duration(milliseconds: 100));
-      final notifier = container.read(salaSessionProvider.notifier);
-      await notifier.goConversa();
-      await tester.pump(const Duration(milliseconds: 200));
-      notifier.goEnsaio();
-      notifier.ensaioTap();
-      notifier.ensaioTap();
-      await tester.pump(const Duration(milliseconds: 100));
 
-      await tester.tap(bySemanticsLabelWidget('Ouvir a gravação'));
+      await tester.tap(bySemanticsLabelWidget('Ouvir o ensaio até aqui'));
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(
-        bySemanticsLabelWidget('Pausar a gravação'),
+        bySemanticsLabelWidget('Pausar o ensaio'),
         findsOneWidget,
         reason: 'a mesma palavra que retro_view.dart já usa para o mesmo gesto',
       );
-      expect(bySemanticsLabelWidget('Ouvir a gravação'), findsNothing);
+      expect(bySemanticsLabelWidget('Ouvir o ensaio até aqui'), findsNothing);
     },
   );
-
-  testWidgets('the ghost-play button speaks english to an english room', (
-    tester,
-  ) async {
-    final container = await _pumpAoGravadoEmIngles(tester);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    notifier.takeKeep();
-    await tester.pump(const Duration(milliseconds: 100));
-
-    expect(
-      bySemanticsLabelWidget('Listen to the saved rehearsal before recording'),
-      findsOneWidget,
-      reason:
-          'antes de gravar de novo, a equipe inglesa também precisa saber '
-          'que pode ouvir o que já guardou',
-    );
-
-    notifier.ghostPlay();
-    await tester.pump(const Duration(milliseconds: 100));
-
-    expect(
-      bySemanticsLabelWidget('Stop listening to the saved rehearsal'),
-      findsOneWidget,
-      reason: 'e parar de ouvir precisa do mesmo rótulo no próprio idioma',
-    );
-    expect(
-      bySemanticsLabelWidget('The saved rehearsal is playing'),
-      findsOneWidget,
-      reason:
-          'o círculo apagado durante o ghost play também precisa dizer '
-          'isso em inglês, não só o botão ao lado',
-    );
-  });
 
   testWidgets('the record circle speaks english to an english room', (
     tester,
   ) async {
-    final harness = SalaHarness(lingua: 'en');
-    final container = harness.container();
+    final container = await _pumpNoEnsaio(tester, lingua: 'en');
     addTearDown(container.dispose);
-    await tester.pumpWidget(
-      UncontrolledProviderScope(container: container, child: const SalaApp()),
-    );
-    await tester.pump(const Duration(milliseconds: 100));
-
     final notifier = container.read(salaSessionProvider.notifier);
-    await notifier.goConversa();
-    await tester.pump(const Duration(milliseconds: 200));
-    notifier.goEnsaio();
-    await tester.pump(const Duration(milliseconds: 100));
 
     expect(
       bySemanticsLabelWidget('Tap to record the rehearsal'),
@@ -162,11 +122,18 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(
-      bySemanticsLabelWidget('Tap when you are done'),
+      bySemanticsLabelWidget('Tap when you finish'),
       findsOneWidget,
-      reason:
-          'gravando, o círculo reaproveita o mesmo par que o convite da '
-          'conversa já usa para "ouvindo"',
+      reason: 'gravando, o círculo diz em inglês que o toque encerra',
+    );
+
+    notifier.ensaioTap();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(
+      bySemanticsLabelWidget('Tap to record this part again'),
+      findsOneWidget,
+      reason: 'com a parte pendente, o círculo oferece regravá-la em inglês',
     );
   });
 }

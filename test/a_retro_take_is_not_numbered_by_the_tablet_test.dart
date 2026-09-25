@@ -43,8 +43,9 @@ void main() {
     harness.room.chunkCaptured = false;
     harness.playback.at = umaParteInteira;
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await waitFor('o trecho chegar à sala', () => harness.room.chunksSent == 1);
     // Waited on the outbox, not on time, for the reason the case below gives: the guard's
     // write to disk can land after the chunk reached the room, and on a loaded runner a
@@ -92,8 +93,9 @@ void main() {
 
     harness.playback.at = const Duration(seconds: 20);
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await waitFor(
       'o primeiro trecho chegar à sala',
       () => harness.room.chunksSent == 1,
@@ -110,13 +112,15 @@ void main() {
       () => container.read(salaSessionProvider).btPhase == BtPhase.findings,
     );
     notifier.traduzirDeNovoEmPortugues();
+    notifier.retroTap();
     await waitFor(
       'o microfone abrir no trecho',
       () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
     );
 
     harness.room.replaceCaptured = false;
-    notifier.retroTap();
+    await fecharACaptura(container);
+    await notifier.confirmarTraducao();
     // Waited on the outbox, not on the phase. What this case reads is the row the guard
     // writes to disk, and that write can land after the phase has settled: on a loaded
     // runner it did, and the case read an empty outbox and called it a missing guard.

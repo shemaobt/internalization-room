@@ -6,6 +6,10 @@ The oral translation team's tablet app: it walks the team through a Bible passag
 
 ### Stations
 
+**Station**:
+One of the stops a session passes through, from the Invitation to the Closing; the server names the one the team is in for the Desk, reading it off what the session holds.
+_Avoid_: stage (`SalaStage` is the enum, not the term), phase, screen, step
+
 **Invitation** (`convite`):
 The session's first station, where the room's voice presents the book (panorama) and the passage (scene) before opening the conversation.
 _Avoid_: convite in prose (`convite` is the enum value), introduction, opening, welcome
@@ -19,8 +23,8 @@ The station where the team records the whole passage in the mother tongue, liste
 _Avoid_: ensaio in prose (`ensaio` is the enum value), passage recording (the recording itself is the take)
 
 **Record entry**:
-The affordance on the Conversation that opens the Rehearsal, reachable from the first turn of a passage until the session ends; a blocking halt is the one thing that hides it.
-_Avoid_: botão de gravar, record button (it is where the team goes, not the shape it wears), handoff, rehearsal gate (it gates nothing)
+The green check on the Conversation that closes it and opens the Rehearsal, reachable from the first turn of a passage until the session ends; a blocking halt is the one thing that hides it.
+_Avoid_: botão de gravar, record button, green microphone (the glyph it wore until 2026-09-25), handoff, rehearsal gate (it gates nothing)
 
 **Back-translation** (`retro`):
 The station where the rehearsal recording plays back and the team tells, stretch by stretch and in the bridge language, what each piece says, until `terminei` fires the check.
@@ -78,8 +82,12 @@ The person the room calls when it cannot carry on alone, and who answers through
 _Avoid_: facilitador, guide, consultant (the `Facilitator` prefix in code names the Guide's voice, not this person)
 
 **Desk**:
-The facilitator's web app, where they see the teams, the questions and the halted rooms, and mark a halt as answered.
+The facilitator's web app, where they see the teams, the questions and the halted rooms, mark a halt as answered, and open a session's page to read its stations.
 _Avoid_: mesa, panel, dashboard
+
+**Session page**:
+The Desk's page for one session, with a tab for the Conversation, one for the passage (the Rehearsal and the Back-translation, part by part) and one for the Approval; it opens on the station the team is in and marks that station on its tab.
+_Avoid_: session detail, session view, página da sessão in English prose
 
 ### What is recorded and told
 
@@ -152,28 +160,28 @@ One of the pieces the rehearsal recording is divided into, and the unit a stretc
 _Avoid_: parte, chunk (a position in one reading), take (what holds a part), stretch, composed passage (retired: the take the server assembled around a mend)
 
 **Necklace**:
-The cord of beads that is the room's progress indicator for the conversation: lit beads show the conversation's coverage, and during the back-translation each stretch is drawn as a band. Drawn over the Conversation and the Closing only; the Rehearsal shows the row of part beads instead, and the Back-translation shows the Cord.
+The cord of beads that is the room's progress indicator for the conversation: lit beads show the conversation's coverage. Drawn over the Conversation and the Closing only; the Rehearsal, the Back-translation and the findings show the Bead row instead.
 _Avoid_: colar, progress bar, ghost bead
-
-**Cord**:
-The line of the necklace that draws the whole rehearsal during the back-translation, one part after another under the ruler, on which the stretches are drawn as bands and the reading head moves.
-_Avoid_: cordão, string, track, progress bar
-
-**Reading head**:
-The dot the cord draws where the team is listening: along the part in the air, along a stretch played from *Where the error lives*, and resting on the told ground when nothing plays.
-_Avoid_: cabeça de leitura, playhead, cursor (the point inside a part's file where the telling-back stopped)
 
 **Bead**:
 A Meaning Map element represented on the necklace, moving through not encountered, surfaced (the Guide said it) and engaged (the team said it).
-_Avoid_: conta, pearl, item
+_Avoid_: conta, pearl, item, part bead or stretch bead (those sit on the Bead row)
+
+**Bead row**:
+The row at the top of the Rehearsal, the Back-translation and the findings, one bead per Part or Stretch: translucent while its recording is open or pending, solid once confirmed, drained while a finding points at it, ringed while it is the current one; a tap selects it and plays it.
+_Avoid_: cord, band, reading head (the cord, its strokes and its dot, retired on 2026-09-25), contas, bits, progress bar
+
+**Circle**:
+The room's one control, the same size in every station: its colour is the voice (telha the Guide, wood the Mother tongue, azul the Bridge language) and its motion the direction (ring and ripples in while the room listens, ripples out while it sounds); the first tap opens the microphone and the second closes it.
+_Avoid_: círculo, facilitator circle, record circle, button, esfera
+
+**Advance disc**:
+The wood disc with no glyph that leads from one station to the next: to the Back-translation from the Rehearsal, to the verdict from the Back-translation; it lights only when nothing is pending and pulses while the room beckons.
+_Avoid_: next button, continue, seguir, microphone (it never wears one)
 
 **Knot**:
 A question the team raised, recorded by a tap on the hand and drawn on the necklace's cord so an unanswered question is visible without a word.
 _Avoid_: nó, question, bead (a knot is not one)
-
-**Band**:
-A stretch's stroke along the cord during the back-translation: full while the stretch stands, drained while it waits to be mended.
-_Avoid_: faixa, bar, segment (the wire name for a stretch)
 
 **Panorama**:
 The opening line about the whole book, played once before the scene.
@@ -214,8 +222,8 @@ A missing finding whose place (before, inside or after) fits a stretch already t
 _Avoid_: falta com endereço, internal missing, missing with a chunk
 
 **Where the error lives** (*Onde mora o erro* on screen):
-The screen where the team says whether a finding's error is in the recording or only in the telling, by choosing one of the two microphones: record the part again, or translate the phrase again.
-_Avoid_: error grid, finding screen, Onde mora o erro in English prose (it is the on-screen label, as with every station)
+The choice the team makes on a finding between the two voices, by tapping the wood microphone (record the Part again, on the Rehearsal) or the azul microphone (translate the Stretch again, on the Back-translation); the mend itself happens on those stations.
+_Avoid_: error grid, finding screen, grid (the two-column shape retired on 2026-09-25), Onde mora o erro in English prose
 
 **Missing without an address**:
 A missing finding pointing past the last stretch told. It does not become a correction screen: the team goes back to the Rehearsal to record the rest, keeping takes, stretches and necklace.
@@ -232,6 +240,10 @@ _Avoid_: the long way round, caminho longo, re-recording the stretch (retired: t
 **Short way**:
 The mend that only tells the stretch again in the bridge language, over the mother tongue recording already there.
 _Avoid_: the short path, caminho curto, retell only, simple correction
+
+**Borrowed translation**:
+The telling a stretch already has on the server, left as the pending translation when a finding sends the team to translate that stretch again. It can be heard and recorded over, is never deleted by this tablet, and the check waits for a telling recorded in this visit.
+_Avoid_: old file, lent file, emprestada in English prose
 
 **Resumed back-translation**:
 A back-translation carrying on from where it stopped in a reopened session: playback restarts at the cursor and the stretches already told come back from the server.

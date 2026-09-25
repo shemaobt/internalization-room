@@ -39,11 +39,12 @@ void main() {
     final cena = await _ensaioDeDuasPartes();
     cena.harness.playback.holdNextOpening();
 
-    cena.sala.ghostPlay();
+    cena.sala.playTheRehearsal();
     await waitFor(
       'a segunda parte ser pedida por cima do load da primeira',
       () => cena.harness.playback.played.length >= 2,
     );
+    cena.harness.playback.finishHeldOpening();
 
     await waitFor('a segunda parte soar', () => cena.harness.playback.sounding);
 
@@ -57,27 +58,38 @@ void main() {
           'fixa que a sala não chama ninguém por um som que a equipe pediu',
     );
     expect(
-      estado.ensaio,
-      EnsaioStatus.ghostPlaying,
+      estado.playPing,
+      isTrue,
       reason: 'e o ensaio segue correndo na parte que ficou de pé',
     );
   });
 
   test(
-    'a abertura atropelada não se anuncia nem deixa teto para trás',
+    'a parte seguinte espera o load da anterior e soa sem deixar teto para trás',
     () async {
       final cena = await _ensaioDeDuasPartes();
       final anunciadas = <void>[];
       cena.harness.playback.openings.listen(anunciadas.add);
       cena.harness.playback.holdNextOpening();
 
-      cena.sala.ghostPlay();
+      cena.sala.playTheRehearsal();
       await waitFor(
-        'a segunda parte soar por cima do load da primeira',
-        () => cena.harness.playback.sounding,
+        'a segunda parte ser pedida enquanto a primeira ainda abre',
+        () => cena.harness.playback.played.length >= 2,
+      );
+      expect(
+        cena.harness.playback.sounding,
+        isFalse,
+        reason:
+            'a segunda abertura espera o load da primeira assentar: aberta '
+            'por cima dele, o player nativo responde que já existe',
       );
 
       cena.harness.playback.finishHeldOpening();
+      await waitFor(
+        'a segunda parte soar',
+        () => cena.harness.playback.sounding,
+      );
       await settle();
 
       expect(
@@ -88,17 +100,9 @@ void main() {
             'a seguinte atropelou não tem medida nem teto a dar a ninguém, e '
             'anunciada armaria o relógio de um clipe que nunca tocou',
       );
-      expect(
-        cena.harness.playback.sounding,
-        isTrue,
-        reason:
-            'e a parte que está no ar não é interrompida pelo load que '
-            'chegou tarde',
-      );
-      expect(
-        cena.container.read(salaSessionProvider).ensaio,
-        EnsaioStatus.ghostPlaying,
-      );
+      final estado = cena.container.read(salaSessionProvider);
+      expect(estado.voice, isNot(VoiceState.needsPerson));
+      expect(estado.playPing, isTrue);
     },
   );
 
@@ -111,17 +115,17 @@ void main() {
       final sala = container.read(salaSessionProvider.notifier);
       harness.playback.holdNextOpening();
 
-      sala.ouvirVozMaterna();
+      sala.ouvirOTrechoEATraducao();
       await waitFor(
         'a sala pedir o trecho',
         () => container.read(salaSessionProvider).btTrechoTocando,
       );
-      sala.ouvirVozMaterna();
+      sala.ouvirOTrechoEATraducao();
       await waitFor(
         'a equipe segurar o trecho',
         () => container.read(salaSessionProvider).btTrechoPausada,
       );
-      sala.ouvirVozMaterna();
+      sala.ouvirOTrechoEATraducao();
       await waitFor(
         'a equipe soltar o trecho',
         () => container.read(salaSessionProvider).btTrechoTocando,
@@ -139,6 +143,27 @@ void main() {
       await waitFor(
         'o trecho soar quando a fonte fica pronta',
         () => harness.playback.sounding,
+      );
+    },
+  );
+
+  test(
+    'no dublê, um resume depois do stop de um clipe aberto não soa',
+    () async {
+      final playback = FakePlayback();
+      addTearDown(playback.dispose);
+
+      unawaited(playback.play('/parte-1.m4a'));
+      await settle();
+      await playback.stop();
+      await playback.resume();
+
+      expect(
+        playback.sounding,
+        isFalse,
+        reason:
+            'o repositório não toca a plataforma num resume depois de um stop: '
+            'o clipe que a sala parou não é o clipe a que ela volta',
       );
     },
   );

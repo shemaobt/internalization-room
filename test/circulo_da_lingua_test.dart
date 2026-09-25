@@ -8,8 +8,6 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 
-import 'package:internalization_room/features/sala/presentation/widgets/onde_mora_grade.dart';
-
 import 'a_pergunta_da_grade.dart' show byLabel, pumpToPergunta;
 
 /// The gradient the disc at the centre of the circle is painted with.
@@ -87,7 +85,9 @@ void main() {
   testWidgets('gravando a tradução, o círculo é azul', (tester) async {
     final (container, _) = await pumpToPergunta(tester);
 
-    await tester.tap(byLabel(micRetroLabel));
+    await tester.tap(byLabel('Traduzir este trecho de novo'));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(byLabel('Tocar para gravar a tradução de novo'));
     await tester.pump(const Duration(milliseconds: 300));
 
     final estado = container.read(salaSessionProvider);
@@ -123,10 +123,10 @@ void main() {
       };
 
       for (final entrada in deAntes.entries) {
-        // Sem quadro nenhum depois de montar: pensando respira, e o barro é
-        // clareado pela respiração. O gradiente exato só existe em t = 0, que é
-        // o quadro que `pumpWidget` desenha. Um `pump` a mais aqui e a linha do
-        // pensando falha por causa da respiração, não por causa de cor.
+        // Sem quadro nenhum depois de montar: o barro do pensando usava a respiração
+        // para clarear, e um `pump` a mais mudava a cor que `_disco()` lê. O disco
+        // virou um widget fixo — só a opacidade, a escala e o brilho ao redor
+        // respiram —, então o quadro que `pumpWidget` desenha já é qualquer outro.
         await _pumpCirculo(tester, entrada.key, theme);
         expect(
           _disco(tester),

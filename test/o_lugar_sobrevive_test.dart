@@ -52,11 +52,12 @@ Future<void> _traduzirUmTrecho(_Sala it, Duration em) async {
   final antes = it.estado.btTrechos.length;
   it.harness.playback.at = em;
   it.sala.cortarTrecho();
+  it.sala.retroTap();
   await waitFor(
     'o microfone abrir no trecho',
     () => it.estado.btPhase == BtPhase.capturing,
   );
-  it.sala.retroTap();
+  await confirmarATraducao(it.container);
   await waitFor(
     'o trecho contado entrar no colar',
     () => it.estado.btTrechos.length == antes + 1,
@@ -127,9 +128,11 @@ Future<_Sala> _aSalaNaPergunta({required int apontado}) async {
   return it;
 }
 
-/// The short way, whole: choosing it opens the microphone on the stretch.
+/// The short way, whole: choosing it lands on the stretch, and the circle opens the
+/// microphone there.
 Future<void> _escolherTraduzirDeNovo(_Sala it) async {
   it.sala.traduzirDeNovoEmPortugues();
+  it.sala.retroTap();
   await waitFor(
     'o microfone abrir para traduzir de novo',
     () => it.estado.btPhase == BtPhase.capturing,
@@ -139,7 +142,8 @@ Future<void> _escolherTraduzirDeNovo(_Sala it) async {
 /// Hand the telling over and let the room say what it was worth.
 Future<void> _entregarAPonte(_Sala it) async {
   final antes = it.harness.room.replacesAsked.length;
-  it.sala.retroTap();
+  await fecharACaptura(it.container);
+  await it.sala.confirmarTraducao();
   await waitFor(
     'a ponte nova substituir o trecho',
     () => it.harness.room.replacesAsked.length == antes + 1,

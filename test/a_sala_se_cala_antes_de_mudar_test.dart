@@ -122,7 +122,7 @@ Future<_Cena> _noRetro({int partes = 1}) async {
 }
 
 /// A rehearsal recorded and offered, with the take still pending: the one state the
-/// listen/redo/keep gestures live in.
+/// check and the circle's record-over live in.
 Future<_Cena> _comATomadaNaMao() async {
   final harness = SalaHarness();
   final container = await inConversa(harness);
@@ -147,10 +147,10 @@ Future<_Cena> _nosAchados() async {
 }
 
 /// The same screen with the pointed stretch actually sounding, which is the state every
-/// gesture of the grid is really made in.
+/// gesture of the findings is really made in.
 Future<_Cena> _nosAchadosComOTrechoNoAr() async {
   final cena = await _nosAchados();
-  cena.sala.ouvirVozMaterna();
+  cena.sala.ouvirOTrechoEATraducao();
   await waitFor(
     'o trecho apontado tocar',
     () => _estado(cena).btTrechoTocando && cena.harness.playback.sounding,
@@ -175,11 +175,12 @@ Future<_Cena> _prontoParaTerminei() async {
   final cena = await _noRetro();
   cena.harness.playback.at = const Duration(milliseconds: 40);
   cena.sala.cortarTrecho();
+  cena.sala.retroTap();
   await waitFor(
     'o microfone abrir no trecho',
     () => _estado(cena).btPhase == BtPhase.capturing,
   );
-  cena.sala.retroTap();
+  await confirmarATraducao(cena.container);
   await waitFor(
     'o trecho chegar à sala',
     () =>
@@ -251,19 +252,16 @@ void _rodaATabela(String estacao, List<_Linha> tabela, List<String> daMatriz) {
 }
 
 /// The back-translation's gestures, copied from the ticket's matrix, minus the two rows
-/// ENG-951 retired with `proximaParte` and `retellChunk` (ADR 0024's Consequences).
+/// ENG-951 retired with `proximaParte` and `retellChunk` (ADR 0024's Consequences) and the
+/// grid's players, scissors and in-place capture ADR 0040 retired.
 const _matrizDaRetro = [
   'a aprovação',
   'terminei',
   'o círculo, capturando',
   'o círculo, nos achados',
   'atravessar para a próxima parte',
-  'ouvir a voz materna',
-  'ouvir a tradução em português',
-  'traduzir de novo, na grade',
-  'traduzir de novo, do cordão',
-  'dividir o trecho',
-  'dividir sem nada que dividir',
+  'ouvir o trecho e a tradução',
+  'traduzir de novo, no achado',
   'cortar o trecho',
   'cortar com a cabeça atrás do cursor',
   'a parte não ouvida',
@@ -334,6 +332,7 @@ void main() {
         final cena = await _noRetro();
         cena.harness.playback.at = const Duration(milliseconds: 40);
         cena.sala.cortarTrecho();
+        cena.sala.retroTap();
         await waitFor(
           'o microfone abrir',
           () => _estado(cena).btPhase == BtPhase.capturing,
@@ -341,7 +340,7 @@ void main() {
         return cena;
       },
       (cena) async {
-        cena.sala.retroTap();
+        await confirmarATraducao(cena.container);
         await waitFor(
           'o pedaço chegar à sala',
           () =>
@@ -374,7 +373,7 @@ void main() {
       somProprio: 'playback:play',
     ),
     _linha(
-      'ouvir a voz materna',
+      'ouvir o trecho e a tradução',
       () async {
         final cena = await _nosAchados();
         // A Guia no meio de uma linha: é por cima dela que o trecho começava.
@@ -387,7 +386,7 @@ void main() {
         return cena;
       },
       (cena) async {
-        cena.sala.ouvirVozMaterna();
+        cena.sala.ouvirOTrechoEATraducao();
         await waitFor(
           'o trecho apontado tocar',
           () => _estado(cena).btTrechoTocando,
@@ -396,92 +395,15 @@ void main() {
       },
       somProprio: 'playback:play',
     ),
-    _linha(
-      'ouvir a tradução em português',
-      () async {
-        final cena = await _nosAchadosComOTrechoNoAr();
-        // A voz materna segurada no meio: a bandeira da pausa ficava de pé e o
-        // próximo toque nela retomava por cima da tradução.
-        cena.sala.ouvirVozMaterna();
-        await waitFor(
-          'a voz materna ficar pausada',
-          () => _estado(cena).btTrechoPausada,
-        );
-        return cena;
-      },
-      (cena) async {
-        cena.sala.ouvirTraducaoEmPortugues();
-        await waitFor(
-          'a tradução entrar no ar',
-          () => _estado(cena).btRetroTocando,
-        );
-        expect(
-          _estado(cena).btTrechoPausada,
-          isFalse,
-          reason:
-              'a materna pausada não pode continuar de pé por baixo da '
-              'tradução: o toque seguinte nela retomaria as duas juntas',
-        );
-      },
-      somProprio: 'playback:play',
-    ),
-    _linha(
-      'traduzir de novo, na grade',
-      _nosAchadosComOTrechoNoAr,
-      (cena) async {
-        cena.sala.traduzirDeNovoEmPortugues();
-        await waitFor(
-          'o microfone abrir',
-          () => _estado(cena).btPhase == BtPhase.capturing,
-        );
-      },
-      segurando: true,
-      somProprio: 'recorder:start',
-    ),
-    _linha(
-      'traduzir de novo, do cordão',
-      () async {
-        final cena = await _nosAchados();
-        // Com a tradução no ar. A voz materna não serve aqui: a porta do cordão
-        // recusa enquanto o trecho toca, e é justamente essa guarda que a grade
-        // contorna limpando a bandeira antes de delegar.
-        cena.sala.ouvirTraducaoEmPortugues();
-        await waitFor(
-          'a tradução entrar no ar',
-          () => _estado(cena).btRetroTocando && cena.harness.playback.sounding,
-        );
-        return cena;
-      },
-      (cena) async {
-        await cena.sala.traduzirDeNovo(_estado(cena).btFindingTrecho!);
-        await waitFor(
-          'o microfone abrir',
-          () => _estado(cena).btPhase == BtPhase.capturing,
-        );
-      },
-      segurando: true,
-      somProprio: 'recorder:start',
-    ),
-    _linha('dividir o trecho', _nosAchadosComOTrechoNoAr, (cena) async {
-      await cena.sala.dividirTrecho();
+    _linha('traduzir de novo, no achado', _nosAchadosComOTrechoNoAr, (
+      cena,
+    ) async {
+      cena.sala.traduzirDeNovoEmPortugues();
       await waitFor(
-        'os dois meios chegarem',
-        () => _estado(cena).btTrechos.length == 2,
+        'a tradução abrir no trecho apontado',
+        () => _estado(cena).btPhase == BtPhase.playing,
       );
     }),
-    _linha(
-      'dividir sem nada que dividir',
-      () async {
-        final cena = await _nosAchadosComOTrechoNoAr();
-        // A sala volta sem trecho nenhum: a divisão caiu em lugar nenhum e o gesto
-        // retorna acima de tudo o que mudaria.
-        cena.harness.room.segments.clear();
-        return cena;
-      },
-      (cena) async {
-        await cena.sala.dividirTrecho();
-      },
-    ),
     _linha(
       'cortar o trecho',
       () async {
@@ -491,6 +413,7 @@ void main() {
       },
       (cena) async {
         cena.sala.cortarTrecho();
+        cena.sala.retroTap();
         await waitFor(
           'o microfone abrir',
           () => _estado(cena).btPhase == BtPhase.capturing,
@@ -505,19 +428,17 @@ void main() {
         final cena = await _noRetro();
         cena.harness.playback.at = const Duration(milliseconds: 400);
         cena.sala.cortarTrecho();
+        cena.sala.retroTap();
         await waitFor(
           'o microfone abrir',
           () => _estado(cena).btPhase == BtPhase.capturing,
         );
-        cena.sala.retroTap();
+        await confirmarATraducao(cena.container);
         await waitFor(
-          'o trecho chegar à sala',
-          () => _estado(cena).btPhase == BtPhase.playing,
-        );
-        cena.sala.ouvirGravacao();
-        await waitFor(
-          'a gravação voltar ao ar',
-          () => cena.harness.playback.sounding,
+          'o trecho chegar à sala e a gravação seguir no ar',
+          () =>
+              _estado(cena).btPhase == BtPhase.playing &&
+              cena.harness.playback.sounding,
         );
         // O cursor está no último corte; a cabeça volta atrás dele, que é a única
         // leitura que a sala recusa em vez de mandar um trecho que acaba antes de
@@ -527,6 +448,7 @@ void main() {
       },
       (cena) async {
         cena.sala.cortarTrecho();
+        cena.sala.retroTap();
         expect(
           _estado(cena).btPhase,
           BtPhase.playing,
@@ -618,7 +540,7 @@ void main() {
           );
         await cena.sala.finishBackTranslation();
         await waitFor(
-          'a grade abrir',
+          'o achado abrir',
           () => _estado(cena).btPhase == BtPhase.findings,
         );
         expect(
@@ -645,9 +567,9 @@ void main() {
       'abrir o microfone',
       () async {
         final cena = await _comATomadaNaMao();
-        cena.sala.takeRedo();
+        cena.sala.takeKeep();
         await waitFor(
-          'a tomada ser descartada',
+          'a tomada ser confirmada',
           () => _estado(cena).ensaio == EnsaioStatus.idle,
         );
         return cena;
@@ -665,20 +587,23 @@ void main() {
       'gravar a tomada de novo',
       () async {
         final cena = await _comATomadaNaMao();
-        cena.sala.takePlay();
+        cena.sala.playTheRehearsal();
         await waitFor(
           'a tomada tocar',
           () => _estado(cena).playPing && cena.harness.playback.sounding,
         );
+        cena.sala.playTheRehearsal();
+        await waitFor('a tomada pausar', () => _estado(cena).takePaused);
         return cena;
       },
       (cena) async {
-        cena.sala.takeRedo();
+        cena.sala.ensaioTap();
         await waitFor(
-          'a tomada ser descartada',
-          () => _estado(cena).ensaio == EnsaioStatus.idle,
+          'o microfone abrir por cima da tomada',
+          () => _estado(cena).ensaio == EnsaioStatus.recording,
         );
       },
+      somProprio: 'recorder:start',
     ),
     _linha('ir para o ensaio', _noRetro, (cena) async {
       cena.sala.goEnsaio();
@@ -796,9 +721,9 @@ void main() {
     final cena = await _nosAchados();
     cena.harness.playback.holdNextOpening();
 
-    cena.sala.ouvirVozMaterna();
+    cena.sala.ouvirOTrechoEATraducao();
     await waitFor('a sala pedir o trecho', () => _estado(cena).btTrechoTocando);
-    cena.sala.ouvirVozMaterna();
+    cena.sala.ouvirOTrechoEATraducao();
     await waitFor(
       'a equipe segurar o trecho',
       () => _estado(cena).btTrechoPausada,
@@ -819,7 +744,7 @@ void main() {
     );
     expect(_estado(cena).btTrechoTocando, isFalse);
 
-    cena.sala.ouvirVozMaterna();
+    cena.sala.ouvirOTrechoEATraducao();
     await waitFor(
       'o próximo toque começar o trecho',
       () => cena.harness.playback.sounding,
@@ -853,11 +778,11 @@ void main() {
     final cena = await _comATomadaNaMao();
     final paradasAntes = cena.harness.playback.stops;
 
-    cena.sala.takePlay();
+    cena.sala.playTheRehearsal();
     await waitFor('a tomada tocar', () => _estado(cena).playPing);
-    cena.sala.takePlay();
+    cena.sala.playTheRehearsal();
     await waitFor('a tomada pausar', () => _estado(cena).takePaused);
-    cena.sala.takePlay();
+    cena.sala.playTheRehearsal();
     await waitFor('a tomada retomar', () => _estado(cena).playPing);
 
     expect(

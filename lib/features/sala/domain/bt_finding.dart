@@ -8,10 +8,6 @@ const _wireNames = {
 
 BtFindingKind? btFindingKindFrom(String? raw) => _wireNames[raw];
 
-extension BtFindingExit on BtFindingKind {
-  bool get exitsByReRecording => this == BtFindingKind.addition;
-}
-
 class BackTranslationChunk {
   final bool captured;
 

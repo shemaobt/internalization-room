@@ -65,8 +65,9 @@ Future<_Conferida> _ateAConferida(
 
   harness.playback.at = const Duration(seconds: 10);
   sala.cortarTrecho();
-  await tester.pump(const Duration(milliseconds: 200));
   sala.retroTap();
+  await tester.pump(const Duration(milliseconds: 200));
+  await confirmarATraducaoNaTela(tester, container);
   await tester.pump(const Duration(milliseconds: 600));
   harness.playback.finishPlayback();
   await tester.pump(const Duration(milliseconds: 200));
@@ -136,7 +137,6 @@ void main() {
             'aprovação, e 700ms depois da conferida a equipe era levada embora '
             'de uma tela que ela nunca chegou a tocar',
       );
-      expect(_estado(it.container).fimClosed, isFalse);
       expect(
         it.harness.finished.done,
         isNot(contains('Ruth/P01')),
@@ -208,9 +208,6 @@ void main() {
         reason: 'dita a linha, o colar fecha como sempre fechou',
       );
 
-      await tester.pump(const Duration(seconds: 1));
-
-      expect(_estado(it.container).fimClosed, isTrue);
       expect(
         it.harness.finished.done,
         contains('Ruth/P01'),
@@ -511,6 +508,7 @@ void main() {
 
     harness.playback.at = const Duration(seconds: 10);
     sala.cortarTrecho();
+    sala.retroTap();
     await tester.pump(const Duration(milliseconds: 200));
     await semAprovar(BtPhase.capturing);
 
@@ -520,6 +518,8 @@ void main() {
     await semAprovar(BtPhase.thinking);
     harness.recorder.finishStop();
     await letTheRehearsalReachTheRoom(tester);
+    await tester.pump(const Duration(milliseconds: 400));
+    await sala.confirmarTraducao();
     await tester.pump(const Duration(milliseconds: 400));
 
     harness.playback.finishPlayback();

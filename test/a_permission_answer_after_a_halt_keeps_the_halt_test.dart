@@ -58,35 +58,9 @@ _capturingWithAWarningArmed(SalaHarness harness) async {
   SalaSessionState read() => container.read(salaSessionProvider);
 
   await waitFor('o aviso chegar', () => read().warning);
+  harness.playback.at = const Duration(seconds: 2);
   notifier.cortarTrecho();
-  await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
-
-  return (container, notifier, read);
-}
-
-/// The same ground, but the capture is opened by `traduzirDeNovo` over a stretch already
-/// told, arming a mend in the same gesture.
-Future<(ProviderContainer, SalaSessionNotifier, SalaSessionState Function())>
-_mendCapturingWithAWarningArmed(SalaHarness harness) async {
-  harness.room.serverStatus = 'needs_person';
-  harness.room.serverHalt = HaltKind.warning;
-  harness.room.retroSoFar = const BackTranslationProgress(
-    segments: [
-      SegmentView(
-        segmentId: 'trecho-1',
-        takeId: 'gravacao-1',
-        startsMs: 0,
-        endsMs: 12000,
-      ),
-    ],
-  );
-  final container = await _reopensInto(harness, SalaStage.retro);
-  final notifier = container.read(salaSessionProvider.notifier);
-  SalaSessionState read() => container.read(salaSessionProvider);
-
-  await waitFor('o aviso chegar', () => read().warning);
-  final trecho = read().btTrechos.first;
-  notifier.traduzirDeNovo(trecho);
+  notifier.retroTap();
   await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
 
   return (container, notifier, read);
@@ -225,7 +199,9 @@ void main() {
     harness.recorder.returnsEmpty = true;
     harness.recorder.permitted = false;
     harness.recorder.holdNextStart();
+    harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
+    notifier.retroTap();
     await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
     notifier.retroTap();
     await waitFor('a sala decidir sozinha', () => read().needsPerson);
@@ -274,7 +250,9 @@ void main() {
     harness.recorder.returnsEmpty = true;
     harness.recorder.permitted = false;
     harness.recorder.holdNextStart();
+    harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
+    notifier.retroTap();
     await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
     notifier.retroTap();
     await waitFor('a sala decidir sozinha', () => read().needsPerson);
@@ -315,24 +293,6 @@ void main() {
       'o círculo voltar ao convite',
       () => read().voice == VoiceState.invite,
     );
-  });
-
-  test('the phase, the mend and the halo are still restored after a denied '
-      'answer lands late (criterion 4, mend capture)', () async {
-    final harness = SalaHarness(settleDelay: const Duration(seconds: 3));
-    harness.recorder.permitted = false;
-    harness.recorder.holdNextStart();
-    final (_, _, read) = await _mendCapturingWithAWarningArmed(harness);
-    await _haltLandsBlocking(harness, read);
-
-    harness.recorder.finishStart();
-    await settle();
-
-    expect(read().needsPerson, isTrue);
-    expect(read().btPhase, BtPhase.playing);
-    expect(read().btClipRodando, isFalse);
-    expect(read().btConsertando, isFalse);
-    expect(read().ensaio, EnsaioStatus.idle);
   });
 
   test(

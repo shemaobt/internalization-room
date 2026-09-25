@@ -44,14 +44,19 @@ class ConversaView extends ConsumerWidget {
               SizedBox(
                 height: 64,
                 child: !session.needsPerson
-                    ? AdvanceButton(
-                        gradient: BeadStyles.verde,
-                        semanticLabel: recordEntryLabelFor(language),
-                        onTap: notifier.goEnsaio,
-                        child: const Icon(
-                          LucideIcons.mic,
-                          size: 26,
-                          color: ShemaBrand.branco,
+                    ? FadeUp(
+                        child: RoundActionButton(
+                          size: 64,
+                          mood: ButtonMood.beckoning,
+                          gradient: BeadStyles.verde,
+                          shadows: RoundActionButton.dropShadow,
+                          semanticLabel: recordEntryLabelFor(language),
+                          onTap: notifier.goEnsaio,
+                          child: const Icon(
+                            LucideIcons.check,
+                            size: 26,
+                            color: ShemaBrand.branco,
+                          ),
                         ),
                       )
                     : null,

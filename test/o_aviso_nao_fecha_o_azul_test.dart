@@ -1,11 +1,9 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/onde_mora_grade.dart';
 
 import 'fakes.dart';
 
@@ -46,34 +44,54 @@ Future<ProviderContainer> _inRetro(SalaHarness harness) async {
 
 Future<void> _traduzTrecho(
   SalaHarness harness,
-  SalaSessionNotifier notifier, {
+  ProviderContainer container, {
   required Duration em,
 }) async {
+  final notifier = container.read(salaSessionProvider.notifier);
   harness.playback.at = em;
   notifier.cortarTrecho();
-  await settle();
   notifier.retroTap();
+  await settle();
+  await fecharACaptura(container);
+  await notifier.confirmarTraducao();
   await settle();
 }
 
+/// Tell the stretch the finding points at again, the way the team does it: the azul
+/// microphone lands on the translation, the circle records over, the check sends it.
+Future<void> traduzirDeNovoOApontado(
+  ProviderContainer container,
+  SalaSessionNotifier notifier,
+) async {
+  notifier.traduzirDeNovoEmPortugues();
+  notifier.retroTap();
+  await waitFor(
+    'o microfone abrir no trecho apontado',
+    () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
+  );
+  await fecharACaptura(container);
+  await notifier.confirmarTraducao();
+}
+
 /// A sala parada num achado no segundo trecho, com o aviso de "chame uma
-/// pessoa" já ativo — erguido pelo caminho curto sobre o *primeiro* trecho, que
-/// não é o que os casos que a chamam consertam: cada conserto renomeia o trecho
-/// que toca, e levantar o aviso sobre o apontado mudaria o nome debaixo deles.
+/// pessoa" já ativo — erguido pelo conserto de um achado anterior sobre o
+/// *primeiro* trecho, que não é o que os casos que a chamam consertam: cada
+/// conserto renomeia o trecho que toca, e levantar o aviso sobre o apontado
+/// mudaria o nome debaixo deles.
 Future<ProviderContainer> achadoComAvisoAtivo(SalaHarness harness) async {
   harness.room.verdictChecked = false;
   harness.room.verdictFinding = BtFindingKind.addition;
-  harness.room.verdictFindingPlace = 1;
+  harness.room.verdictFindingPlace = 0;
 
   final container = await _inRetro(harness);
   final notifier = container.read(salaSessionProvider.notifier);
 
-  await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
+  await _traduzTrecho(harness, container, em: const Duration(seconds: 10));
   await waitFor(
     'o primeiro trecho chegar à sala',
     () => harness.room.chunksSent == 1,
   );
-  await _traduzTrecho(harness, notifier, em: const Duration(seconds: 20));
+  await _traduzTrecho(harness, container, em: const Duration(seconds: 20));
   await waitFor(
     'o segundo trecho chegar à sala',
     () => harness.room.chunksSent == 2,
@@ -86,21 +104,16 @@ Future<ProviderContainer> achadoComAvisoAtivo(SalaHarness harness) async {
   );
   await notifier.finishBackTranslation();
   await waitFor(
-    'o achado apontar o segundo trecho',
+    'o achado apontar o primeiro trecho',
     () =>
         container.read(salaSessionProvider).btPhase == BtPhase.findings &&
         container.read(salaSessionProvider).btFindingTrecho != null,
   );
 
-  harness.room.replaceNeedsPerson = true;
-  await notifier.traduzirDeNovo(
-    container.read(salaSessionProvider).btTrechos.first,
-  );
-  await waitFor(
-    'o microfone abrir para o contar',
-    () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
-  );
-  notifier.retroTap();
+  harness.room
+    ..replaceNeedsPerson = true
+    ..verdictFindingPlace = 1;
+  await traduzirDeNovoOApontado(container, notifier);
   // O aviso é escrito antes de o veredito ser pedido, e o pedido leva a sala ao
   // pensando: devolvê-la aí faria o gesto seguinte ser engolido por uma guarda de
   // fase e o caso passar pela razão errada.
@@ -117,16 +130,15 @@ Future<ProviderContainer> achadoComAvisoAtivo(SalaHarness harness) async {
 /// não trouxe áudio nenhum do seguinte, que é a parada bloqueante desta estação.
 Future<ProviderContainer> _paradaBloqueante(SalaHarness harness) async {
   final container = await _inRetro(harness);
-  final notifier = container.read(salaSessionProvider.notifier);
 
-  await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
+  await _traduzTrecho(harness, container, em: const Duration(seconds: 10));
   await waitFor(
     'o primeiro trecho chegar à sala',
     () => harness.room.chunksSent == 1,
   );
 
   harness.recorder.returnsEmpty = true;
-  await _traduzTrecho(harness, notifier, em: const Duration(seconds: 20));
+  await _traduzTrecho(harness, container, em: const Duration(seconds: 20));
   await waitFor(
     'a sala parar de vez',
     () => container.read(salaSessionProvider).needsPerson,
@@ -134,29 +146,23 @@ Future<ProviderContainer> _paradaBloqueante(SalaHarness harness) async {
   return container;
 }
 
-Finder byLabel(String label) => find.byWidgetPredicate(
-  (widget) => widget is Semantics && widget.properties.label == label,
-);
-
-bool aceso(WidgetTester tester, String label) =>
-    tester.widget<Semantics>(byLabel(label)).properties.enabled ?? false;
-
 void main() {
-  test('com o aviso ativo, o microfone azul abre a captura', () async {
+  test('com o aviso ativo, o microfone azul leva à tradução e o círculo abre '
+      'a captura', () async {
     final harness = SalaHarness();
     final container = await achadoComAvisoAtivo(harness);
     final notifier = container.read(salaSessionProvider.notifier);
-    final trecho2 = container.read(salaSessionProvider).btFindingTrecho!;
 
-    await notifier.traduzirDeNovo(trecho2);
+    notifier.traduzirDeNovoEmPortugues();
+    notifier.retroTap();
 
     expect(
       container.read(salaSessionProvider).btPhase,
       BtPhase.capturing,
       reason:
           'o aviso pede uma pessoa; ele não fecha o caminho curto — só o '
-          'toque longo resolve, e até lá os dois microfones continuam abrindo '
-          'a captura como sempre',
+          'toque longo resolve, e até lá os dois microfones continuam levando '
+          'ao conserto como sempre',
     );
     expect(
       container.read(salaSessionProvider).needsPerson,
@@ -172,11 +178,9 @@ void main() {
     final harness = SalaHarness();
     final container = await achadoComAvisoAtivo(harness);
     final notifier = container.read(salaSessionProvider.notifier);
-    final trecho2 = container.read(salaSessionProvider).btFindingTrecho!;
     final pedidosAntes = harness.room.replacesAsked.length;
 
-    await notifier.traduzirDeNovo(trecho2);
-    notifier.retroTap();
+    await traduzirDeNovoOApontado(container, notifier);
     await waitFor(
       'a sala sair do pensando',
       () => container.read(salaSessionProvider).btPhase != BtPhase.thinking,
@@ -245,70 +249,58 @@ void main() {
     );
   });
 
-  test('offline continua recusando o caminho curto', () async {
-    final harness = SalaHarness();
-    final container = await _inRetro(harness);
-    final notifier = container.read(salaSessionProvider.notifier);
+  test(
+    'uma parada no meio da gravação por cima não solta o trecho armado',
+    () async {
+      final harness = SalaHarness();
+      final container = await achadoComAvisoAtivo(harness);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+      final apontado = read().btFindingTrecho!;
+      final pedidosAntes = harness.room.replacesAsked.length;
+      final pedacosAntes = harness.room.chunksSent;
 
-    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 10));
-    await waitFor(
-      'o primeiro trecho chegar à sala',
-      () => harness.room.chunksSent == 1,
-    );
+      notifier.traduzirDeNovoEmPortugues();
+      notifier.retroTap();
+      await waitFor(
+        'o microfone abrir sobre a tradução emprestada',
+        () => read().btPhase == BtPhase.capturing,
+      );
+      harness.room.serverHalt = HaltKind.blocking;
+      await waitFor('a sala parar', () => read().needsPerson);
+      harness.room.theDeskAttended();
+      await waitFor(
+        'o círculo voltar ao convite',
+        () => read().voice == VoiceState.invite,
+      );
 
-    harness.network.reachable = false;
-    harness.room.reachable = false;
-    await _traduzTrecho(harness, notifier, em: const Duration(seconds: 20));
-    await waitFor(
-      'a sala ficar offline',
-      () => container.read(salaSessionProvider).offline,
-    );
+      expect(
+        read().btTrechoTraduzidoDeNovo?.segmentId,
+        apontado.segmentId,
+        reason:
+            'o trecho armado só é solto por uma tradução que aterra: a parada '
+            'descartou a gravação, não o conserto',
+      );
 
-    final trecho = container.read(salaSessionProvider).btTrechos.first;
-    await notifier.traduzirDeNovo(trecho);
+      notifier.retroTap();
+      await waitFor(
+        'o microfone abrir de novo no mesmo trecho',
+        () => read().btPhase == BtPhase.capturing,
+      );
+      await fecharACaptura(container);
+      await notifier.confirmarTraducao();
+      await waitFor(
+        'a sala sair do pensando',
+        () => read().btPhase != BtPhase.thinking,
+      );
 
-    expect(
-      container.read(salaSessionProvider).btPhase,
-      isNot(BtPhase.capturing),
-      reason:
-          'offline continua recusando o caminho curto — guarda que já '
-          'existia',
-    );
-  });
-
-  testWidgets('offline desliga o microfone azul na grade', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light,
-        home: Scaffold(
-          body: Center(
-            child: OndeMoraGrade(
-              onOuvirMaterna: () {},
-              onOuvirRetro: () {},
-              onGravarAParteDeNovo: () {},
-              onTraduzirDeNovo: () {},
-              offline: true,
-            ),
-          ),
-        ),
-      ),
-    );
-
-    expect(
-      aceso(tester, micRetroLabel),
-      isFalse,
-      reason:
-          'offline recusa em silêncio se o botão continuar aceso; a '
-          'equipe precisa ver que o toque não vai adiantar',
-    );
-    expect(
-      aceso(tester, micParteLabel),
-      isTrue,
-      reason:
-          'só o microfone azul é a captura curta que offline não pode '
-          'enviar; a coluna de madeira não faz parte deste conserto',
-    );
-  });
+      expect(harness.room.replacesAsked.sublist(pedidosAntes), [
+        '${apontado.segmentId}@${apontado.takeId}:'
+            '${apontado.from.inMilliseconds}-${apontado.to.inMilliseconds}',
+      ]);
+      expect(harness.room.chunksSent, pedacosAntes);
+    },
+  );
 
   test('gravar a parte de novo também não é fechado pelo aviso', () async {
     final harness = SalaHarness();

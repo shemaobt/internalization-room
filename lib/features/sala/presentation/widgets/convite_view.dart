@@ -5,6 +5,7 @@ import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
+import 'motion.dart';
 
 class ConviteView extends ConsumerWidget {
   const ConviteView({super.key});
@@ -18,7 +19,7 @@ class ConviteView extends ConsumerWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         FacilitatorCircle(
-          size: 196,
+          size: facilitatorCircleSize,
           voice: session.voice,
           reach: session.reach,
           beckon: session.awaitingFirstTouch,
@@ -88,13 +89,18 @@ class _EntradaState extends ConsumerState<_Entrada>
   }
 
   @override
-  Widget build(BuildContext context) => AdvanceButton(
-    ready: widget.live && _settle.isCompleted,
-    size: 78,
-    gradient: BeadStyles.wood,
-    halo: ShemaBrand.wood,
-    border: Border.all(color: SalaColors.of(context).cord, width: 2),
-    semanticLabel: 'Entrar na passagem',
-    onTap: widget.onTap,
+  Widget build(BuildContext context) => FadeUp(
+    child: RoundActionButton(
+      mood: widget.live && _settle.isCompleted
+          ? ButtonMood.beckoning
+          : ButtonMood.dimmed,
+      size: 78,
+      gradient: BeadStyles.wood,
+      shadows: RoundActionButton.dropShadow,
+      halo: ShemaBrand.wood,
+      border: Border.all(color: SalaColors.of(context).cord, width: 2),
+      semanticLabel: 'Entrar na passagem',
+      onTap: widget.onTap,
+    ),
   );
 }

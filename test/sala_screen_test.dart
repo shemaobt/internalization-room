@@ -15,11 +15,11 @@ import 'package:internalization_room/features/sala/data/mic_permission.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/conversa_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/retro_cord.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/passage_ruler.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
@@ -239,7 +239,11 @@ void main() {
     );
 
     await tester.pump(const Duration(milliseconds: 800));
-    await tester.tap(find.byType(AdvanceButton));
+    await tester.tap(
+      find.byWidgetPredicate(
+        (w) => w is RoundActionButton && w.mood != ButtonMood.lit,
+      ),
+    );
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(harness.room.pericopesAsked, contains('P02'));
@@ -600,39 +604,39 @@ void main() {
     expect(bySemanticsLabelWidget('Levantar a mão'), findsNothing);
   });
 
-  testWidgets('the retro hangs one cord and the conversa necklace stays away', (
-    tester,
-  ) async {
-    final harness = SalaHarness();
-    final container = await pumpSala(tester, harness);
-    final notifier = container.read(salaSessionProvider.notifier);
+  testWidgets(
+    'the retro hangs one bead row and the conversa necklace stays away',
+    (tester) async {
+      final harness = SalaHarness();
+      final container = await pumpSala(tester, harness);
+      final notifier = container.read(salaSessionProvider.notifier);
 
-    notifier.goConversa();
-    await tester.pump(const Duration(milliseconds: 200));
-    expect(find.byType(ColarOverlay), findsOneWidget);
-    expect(find.byType(RetroCord), findsNothing);
+      notifier.goConversa();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(find.byType(ColarOverlay), findsOneWidget);
+      expect(find.byType(BeadRow), findsNothing);
 
-    notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
-    await tester.pump(const Duration(milliseconds: 200));
-    notifier.takeKeep();
-    notifier.startRetro();
-    await tester.pump(const Duration(milliseconds: 200));
+      notifier.goEnsaio();
+      notifier.ensaioTap();
+      notifier.ensaioTap();
+      await tester.pump(const Duration(milliseconds: 200));
+      notifier.takeKeep();
+      notifier.startRetro();
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 1400));
 
-    expect(find.byType(RetroCord), findsOneWidget);
-    expect(
-      find.byType(ColarOverlay),
-      findsNothing,
-      reason:
-          'duas fileiras no alto da retro liam como a mesma coisa duas vezes, que '
-          'é a razão de o colar da conversa ficar de fora daqui',
-    );
-  });
+      expect(find.byType(BeadRow), findsOneWidget);
+      expect(
+        find.byType(ColarOverlay),
+        findsNothing,
+        reason:
+            'duas fileiras no alto da retro liam como a mesma coisa duas vezes, que '
+            'é a razão de o colar da conversa ficar de fora daqui',
+      );
+    },
+  );
 
-  testWidgets('the rehearsal shows neither the necklace nor the cord', (
-    tester,
-  ) async {
+  testWidgets('the rehearsal does not show the necklace', (tester) async {
     final harness = SalaHarness();
     final container = await pumpSala(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -653,35 +657,6 @@ void main() {
           'o progresso do ensaio é a fileira de contas dos pedaços; a '
           'cobertura da conversa não desenha ali',
     );
-    expect(
-      find.byType(RetroCord),
-      findsNothing,
-      reason: 'o cord é o traço da retro; o ensaio não é a retro',
-    );
-  });
-
-  testWidgets('the back-translation offers terminei once the clip ends', (
-    tester,
-  ) async {
-    final harness = SalaHarness();
-    final container = await pumpSala(tester, harness);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    notifier.goEnsaio();
-    await tester.pump(const Duration(milliseconds: 100));
-    notifier.ensaioTap();
-    notifier.ensaioTap();
-    await tester.pump(const Duration(milliseconds: 100));
-    notifier.takeKeep();
-    notifier.startRetro();
-    await tester.pump(const Duration(milliseconds: 200));
-
-    expect(bySemanticsLabelWidget('Terminei de traduzir'), findsNothing);
-
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(milliseconds: 200));
-
-    expect(bySemanticsLabelWidget('Terminei de traduzir'), findsOneWidget);
   });
 
   testWidgets('a finding on a stretch asks the team which voice must speak', (
@@ -707,8 +682,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     harness.playback.at = const Duration(seconds: 10);
     notifier.cortarTrecho();
-    await tester.pump(const Duration(milliseconds: 200));
     notifier.retroTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    await confirmarATraducaoNaTela(tester, container);
     await tester.pump(const Duration(milliseconds: 600));
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 200));
@@ -717,14 +693,14 @@ void main() {
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
     expect(
-      bySemanticsLabelWidget('Gravar esta parte de novo na língua materna'),
+      bySemanticsLabelWidget('Gravar a parte de novo na língua materna'),
       findsOneWidget,
       reason:
-          'as duas saídas continuam ali, mas agora como as duas vozes da '
-          'grade, e é a equipe que diz qual precisa falar de novo',
+          'as duas saídas continuam ali, mas agora como os dois microfones '
+          'do achado, e é a equipe que diz qual voz precisa falar de novo',
     );
     expect(
-      bySemanticsLabelWidget('Traduzir de novo só em português'),
+      bySemanticsLabelWidget('Traduzir este trecho de novo'),
       findsOneWidget,
     );
     expect(
@@ -757,11 +733,13 @@ void main() {
   });
 
   for (final kind in [BtFindingKind.missing, BtFindingKind.unclear]) {
-    testWidgets('a ${kind.name} finding offers both exits', (tester) async {
+    testWidgets('a ${kind.name} finding with no stretch offers the way on', (
+      tester,
+    ) async {
       final container = await pumpToFindings(tester, kind);
 
       expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
-      expect(bySemanticsLabelWidget(wholeClipExit), findsOneWidget);
+      expect(bySemanticsLabelWidget(wholeClipExit), findsNothing);
       expect(bySemanticsLabelWidget(continuarOEnsaio), findsOneWidget);
     });
   }
@@ -783,16 +761,19 @@ void main() {
     );
   }
 
-  testWidgets('the ensaio offers ghost play before recording', (tester) async {
+  testWidgets('the ensaio lights its play once there is a part to hear', (
+    tester,
+  ) async {
     final container = await pumpSala(tester, SalaHarness());
     final notifier = container.read(salaSessionProvider.notifier);
+    bool? tocavel() => tester
+        .widget<Semantics>(bySemanticsLabelWidget('Ouvir o ensaio até aqui'))
+        .properties
+        .enabled;
 
     notifier.goEnsaio();
     await tester.pump(const Duration(milliseconds: 100));
-    expect(
-      bySemanticsLabelWidget('Ouvir o ensaio guardado antes de gravar'),
-      findsNothing,
-    );
+    expect(tocavel(), isFalse);
 
     notifier.ensaioTap();
     notifier.ensaioTap();
@@ -800,10 +781,7 @@ void main() {
     notifier.takeKeep();
     await tester.pump(const Duration(milliseconds: 800));
 
-    expect(
-      bySemanticsLabelWidget('Ouvir o ensaio guardado antes de gravar'),
-      findsOneWidget,
-    );
+    expect(tocavel(), isTrue);
   });
 
   testWidgets('a long press unsticks a retro the room abandoned', (
@@ -825,9 +803,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     harness.room.failWith = const RoomRefused();
+    harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
-    await tester.pump(const Duration(milliseconds: 100));
     notifier.retroTap();
+    await tester.pump(const Duration(milliseconds: 100));
+    await confirmarATraducaoNaTela(tester, container);
     await tester.pump(const Duration(milliseconds: 300));
     expect(container.read(salaSessionProvider).needsPerson, isTrue);
 
@@ -851,7 +831,12 @@ void main() {
     await notifier.openConvite();
     await tester.pump(const Duration(milliseconds: 400));
     expect(container.read(salaSessionProvider).showEntrada, isTrue);
-    expect(find.byType(AdvanceButton), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is RoundActionButton && w.mood != ButtonMood.lit,
+      ),
+      findsOneWidget,
+    );
 
     harness.voice.holdNextLine();
     unawaited(notifier.hearAgain());
@@ -863,7 +848,9 @@ void main() {
       reason: 'a sala está falando, então o toque não vale agora',
     );
     expect(
-      find.byType(AdvanceButton),
+      find.byWidgetPredicate(
+        (w) => w is RoundActionButton && w.mood != ButtonMood.lit,
+      ),
       findsOneWidget,
       reason:
           'mas o alvo não pode sumir: ouvir o panorama de novo leva um a dois '
@@ -874,7 +861,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
   });
 
-  testWidgets('the way out of the rehearsal survives a ghost play', (
+  testWidgets('the way out of the rehearsal survives playing it', (
     tester,
   ) async {
     final harness = SalaHarness();
@@ -891,16 +878,32 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     notifier.takeKeep();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.byType(AdvanceButton), findsOneWidget);
+    expect(bySemanticsLabelWidget('Ir para a tradução'), findsOneWidget);
 
-    notifier.ghostPlay();
+    notifier.playTheRehearsal();
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(container.read(salaSessionProvider).ensaioDone, isFalse);
+    expect(container.read(salaSessionProvider).playPing, isTrue);
     expect(
-      find.byType(AdvanceButton),
-      findsOneWidget,
+      tester
+          .widget<Semantics>(bySemanticsLabelWidget('Ir para a tradução'))
+          .properties
+          .enabled,
+      isTrue,
       reason: 'ouvir o ensaio guardado apagava o caminho para a retro',
+    );
+    expect(
+      tester
+          .widget<AnimatedOpacity>(
+            find
+                .descendant(
+                  of: bySemanticsLabelWidget('Ir para a tradução'),
+                  matching: find.byType(AnimatedOpacity),
+                )
+                .first,
+          )
+          .opacity,
+      1,
     );
   });
 

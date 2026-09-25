@@ -8,7 +8,7 @@ class PlaybackRepository {
   final AudioPlayer Function() _newPlayer;
   final StreamController<bool> _endings = StreamController<bool>.broadcast();
   final StreamController<void> _openings = StreamController<void>.broadcast();
-  StreamSubscription<PlayerState>? _states;
+  StreamSubscription<ProcessingState>? _states;
   AudioPlayer? _opened;
   Duration? _openedLength;
 
@@ -61,8 +61,8 @@ class PlaybackRepository {
   Duration get position => _opened?.position ?? Duration.zero;
 
   void _watchCompletion() {
-    _states ??= _player.playerStateStream.listen((playerState) {
-      if (playerState.processingState == ProcessingState.completed) {
+    _states ??= _player.processingStateStream.listen((processingState) {
+      if (processingState == ProcessingState.completed) {
         if (!_disposed) _endings.add(true);
       }
     });
@@ -131,19 +131,26 @@ class PlaybackRepository {
     _wanted = true;
     final geracao = ++_opens;
     final parada = _stops;
-    await _player.stop();
+    _stopsAtOpen = parada;
     final Duration? length;
+    _pending++;
     try {
-      length = await load();
+      length = await _inTurn(() async {
+        if (geracao != _opens) return null;
+        await _player.stop();
+        return load();
+      });
     } on PlayerInterruptedException {
-      // Our own stop, or the one a later open of ours issued, deactivates the platform
-      // at once and the load in the air throws for it. That is the clip not playing,
-      // never this tablet failing to play the team's own voice — which calls a person
-      // and stops the room over a sound the team itself asked for. A stop counts even
-      // once a resume has asked for sound again: a resume undoes a hold, and the clip
-      // the room stopped is not the clip it comes back to.
+      // Our own gestures never cut a load any more: they wait their turn. What still
+      // interrupts one comes from outside the repository — the platform, the audio
+      // session, a dispose. With a hold or a stop of ours standing, that is the clip
+      // not playing, never this tablet failing to play the team's own voice, which calls
+      // a person. A stop counts even once a resume has asked for sound again: a resume
+      // undoes a hold, and the clip the room stopped is not the clip it comes back to.
       if (geracao != _opens || !_wanted || parada != _stops) return;
       rethrow;
+    } finally {
+      _pending--;
     }
     if (geracao != _opens) return;
     // A pause leaves the clip open, and the ceiling counts what is left of it, so the
@@ -162,8 +169,9 @@ class PlaybackRepository {
   /// is what says the clip itself is gone.
   bool _wanted = false;
 
-  /// Which open is the current one. A load interrupted by a later open of ours belongs
-  /// to a clip the room has already moved off, and returns silently.
+  /// Which open is the current one. An open a later open of ours superseded belongs to
+  /// a clip the room has already moved off: waiting its turn it never loads, and loading
+  /// it returns silently.
   int _opens = 0;
 
   /// How many stops the room has asked for, which is the half of a hold that also
@@ -177,8 +185,12 @@ class PlaybackRepository {
 
   Future<void> resume() {
     _wanted = true;
+    if (_pending > 0 || _stops != _stopsAtOpen) return Future.value();
     return _quietly(() => _player.play());
   }
+
+  int _pending = 0;
+  int _stopsAtOpen = 0;
 
   Future<void> stop() {
     _wanted = false;
@@ -187,9 +199,17 @@ class PlaybackRepository {
       // Cleared with the playback it described. The safety ceiling for the next clip
       // was computed from the length of the last one.
       _openedLength = null;
-      await _player.stop();
+      await _inTurn(_player.stop);
     });
   }
+
+  Future<T> _inTurn<T>(Future<T> Function() change) {
+    final turn = _changing.then((_) => change());
+    _changing = turn.then((_) {}, onError: (_) {});
+    return turn;
+  }
+
+  Future<void> _changing = Future.value();
 
   Future<void> _quietly(Future<void> Function() act) async {
     if (_opened == null) return;
