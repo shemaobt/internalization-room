@@ -50,8 +50,9 @@ Future<ProviderContainer> pumpToFindings(
 
   harness.playback.at = const Duration(seconds: 10);
   notifier.cortarTrecho();
-  await tester.pump(const Duration(milliseconds: 200));
   notifier.retroTap();
+  await tester.pump(const Duration(milliseconds: 200));
+  await confirmarATraducaoNaTela(tester, container);
   await tester.pump(const Duration(milliseconds: 600));
   harness.playback.finishPlayback();
   await tester.pump(const Duration(milliseconds: 200));
@@ -97,6 +98,7 @@ void main() {
     // the exit only takes a cut over ground nobody has told back yet.
     harness.playback.at = const Duration(seconds: 20);
     notifier.cortarTrecho();
+    notifier.retroTap();
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);

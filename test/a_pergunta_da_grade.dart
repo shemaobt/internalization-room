@@ -45,8 +45,9 @@ Future<(ProviderContainer, SalaHarness)> pumpToPergunta(
   for (final at in const [Duration(seconds: 10), Duration(seconds: 20)]) {
     harness.playback.at = at;
     sala.cortarTrecho();
-    await tester.pump(const Duration(milliseconds: 200));
     sala.retroTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    await confirmarATraducaoNaTela(tester, container);
     await tester.pump(const Duration(milliseconds: 600));
   }
   harness.playback.finishPlayback();

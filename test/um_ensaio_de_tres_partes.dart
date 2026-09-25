@@ -56,11 +56,12 @@ Future<void> ouvirETraduzirAParteInteira(Sala it, Duration quanto) async {
   it.harness.playback.length = quanto;
   it.harness.playback.at = quanto;
   it.sala.cortarTrecho();
+  it.sala.retroTap();
   await waitFor(
     'o microfone abrir no trecho',
     () => it.estado.btPhase == BtPhase.capturing,
   );
-  it.sala.retroTap();
+  await confirmarATraducao(it.container);
   await waitFor(
     'o trecho traduzido entrar no colar',
     () => it.estado.btTrechos.length == antes + 1,
@@ -94,7 +95,7 @@ Future<Sala> umEnsaioDeTresPartesGravado({Duration? tetoDaEspera}) async {
 }
 
 /// The rehearsal recorded in three parts, every one of them told back whole and played to
-/// its end, standing with *terminei* lit and nothing pressed yet.
+/// its end, standing with the advance disc beckoning and nothing pressed yet.
 Future<Sala> umEnsaioDeTresPartesContadoInteiro({
   Duration? tetoDaEspera,
 }) async {

@@ -34,6 +34,7 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
 /// Throwing here instead of returning keeps the failure at the wait: a deadline that
@@ -745,6 +746,8 @@ class FakeRoom implements RoomRepository {
   /// Which recording each told-back stretch named, in order.
   final List<String> chunkTakes = [];
 
+  final List<String> chunkFiles = [];
+
   /// The names this room gave the recordings it stored, in the order it stored them.
   final List<String> takeIds = [];
 
@@ -1102,6 +1105,15 @@ class FakeRoom implements RoomRepository {
     return _turn(sessionId);
   }
 
+  Completer<void>? _substituicaoSegura;
+
+  void holdNextReplace() => _substituicaoSegura = Completer<void>();
+
+  void finishHeldReplace() {
+    _substituicaoSegura?.complete();
+    _substituicaoSegura = null;
+  }
+
   @override
   Future<TellingAgain> replaceSegment(
     String sessionId,
@@ -1112,6 +1124,8 @@ class FakeRoom implements RoomRepository {
     required Duration to,
   }) async {
     _guard('replaceSegment');
+    final segura = _substituicaoSegura;
+    if (segura != null) await segura.future;
     final refusal = failReplaceWith;
     if (refusal != null) throw refusal;
     replacesAsked.add(
@@ -1361,6 +1375,7 @@ class FakeRoom implements RoomRepository {
     chunksSent++;
     chunkSpans.add('${from.inMilliseconds}-${to.inMilliseconds}');
     chunkTakes.add(takeId);
+    chunkFiles.add(audio.path);
     if (chunkCaptured) {
       segments.add(
         SegmentView(
@@ -1791,6 +1806,39 @@ Future<void> letTheRehearsalReachTheRoom(WidgetTester tester) async {
     () => Future<void>.delayed(const Duration(milliseconds: 150)),
   );
   await tester.pump(const Duration(milliseconds: 100));
+}
+
+Future<void> confirmarATraducao(ProviderContainer container) async {
+  final sala = container.read(salaSessionProvider.notifier);
+  sala.retroTap();
+  await waitFor(
+    'a tradução ficar pendente',
+    () => container.read(salaSessionProvider).btTraducaoPendente != null,
+  );
+  await sala.confirmarTraducao();
+}
+
+Future<void> fecharACaptura(ProviderContainer container) async {
+  container.read(salaSessionProvider.notifier).retroTap();
+  await waitFor('a captura fechar', () {
+    final fase = container.read(salaSessionProvider).btPhase;
+    return fase != BtPhase.capturing && fase != BtPhase.thinking;
+  });
+}
+
+Future<void> confirmarATraducaoNaTela(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  final sala = container.read(salaSessionProvider.notifier);
+  sala.retroTap();
+  await tester.pump(const Duration(milliseconds: 300));
+  expect(
+    container.read(salaSessionProvider).btTraducaoPendente,
+    isNotNull,
+    reason: 'o segundo toque deixa a tradução pendente',
+  );
+  await sala.confirmarTraducao();
 }
 
 class SalaHarness {

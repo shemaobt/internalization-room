@@ -188,8 +188,9 @@ void main() {
 
     harness.playback.at = const Duration(milliseconds: 40);
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await waitFor(
       'o primeiro trecho chegar à sala',
       () => harness.room.chunksSent == 1,

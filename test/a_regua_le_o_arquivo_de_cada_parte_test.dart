@@ -88,6 +88,7 @@ Future<void> _contarAParteNoAr(Sala it, Duration quanto) async {
     ..length = quanto
     ..at = quanto;
   it.sala.cortarTrecho();
+  it.sala.retroTap();
   await waitFor(
     'o microfone abrir no trecho',
     () =>
@@ -95,7 +96,7 @@ Future<void> _contarAParteNoAr(Sala it, Duration quanto) async {
         it.harness.recorder.captures > capturas,
   );
 
-  it.sala.retroTap();
+  await confirmarATraducao(it.container);
   await waitFor(
     'o trecho traduzido entrar no colar',
     () => it.estado.btTrechos.length == antes + 1,

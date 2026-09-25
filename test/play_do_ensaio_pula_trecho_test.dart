@@ -50,11 +50,12 @@ Future<void> _traduzirUmTrecho(_Sala it, Duration em) async {
   final antes = it.estado.btTrechos.length;
   it.harness.playback.at = em;
   it.sala.cortarTrecho();
+  it.sala.retroTap();
   await waitFor(
     'o microfone abrir no trecho',
     () => it.estado.btPhase == BtPhase.capturing,
   );
-  it.sala.retroTap();
+  await confirmarATraducao(it.container);
   await waitFor(
     'o trecho contado entrar no colar',
     () => it.estado.btTrechos.length == antes + 1,

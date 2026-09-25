@@ -58,6 +58,42 @@ const recordEntryLabel = {
 String recordEntryLabelFor(String language) =>
     recordEntryLabel[language] ?? recordEntryLabel[floorLanguage]!;
 
+const retroLabels = {
+  'record': {
+    'pt': 'Tocar para gravar a tradução deste trecho',
+    'en': 'Tap to record this stretch\'s translation',
+  },
+  'recordAgain': {
+    'pt': 'Tocar para gravar a tradução de novo',
+    'en': 'Tap to record the translation again',
+  },
+  'recording': {'pt': 'Tocar ao terminar', 'en': 'Tap when you finish'},
+  'listen': {'pt': 'Ouvir', 'en': 'Listen'},
+  'listenToTheTranslation': {
+    'pt': 'Ouvir a tradução',
+    'en': 'Listen to the translation',
+  },
+  'pause': {'pt': 'Pausar', 'en': 'Pause'},
+  'cut': {'pt': 'Cortar aqui', 'en': 'Cut here'},
+  'confirm': {
+    'pt': 'Confirmar a tradução e seguir',
+    'en': 'Confirm the translation and go on',
+  },
+  'advance': {'pt': 'Conferir a tradução', 'en': 'Check the translation'},
+  'stretch': {'pt': 'Trecho', 'en': 'Stretch'},
+  'listenToTheRecording': {
+    'pt': 'Ouvir a gravação',
+    'en': 'Listen to the recording',
+  },
+  'approve': {
+    'pt': 'Aprovar como rascunho final',
+    'en': 'Approve as the final draft',
+  },
+};
+
+String retroLabelFor(String control, String language) =>
+    retroLabels[control]![language] ?? retroLabels[control]![floorLanguage]!;
+
 const rehearsalLabels = {
   'firstPart': {
     'pt': 'Tocar para gravar o ensaio',

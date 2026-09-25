@@ -591,8 +591,9 @@ void main() {
 
       harness.playback.at = const Duration(seconds: 44);
       notifier.cortarTrecho();
-      await settle();
       notifier.retroTap();
+      await settle();
+      await confirmarATraducao(container);
       await settle();
 
       expect(
@@ -621,6 +622,7 @@ void main() {
 
     harness.playback.at = const Duration(seconds: 8);
     notifier.cortarTrecho();
+    notifier.retroTap();
     await settle();
     notifier.retroTap();
     await settle();
@@ -637,8 +639,9 @@ void main() {
 
     harness.playback.at = const Duration(seconds: 44);
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await settle();
 
     expect(

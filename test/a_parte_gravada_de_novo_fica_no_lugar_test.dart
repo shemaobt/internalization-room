@@ -11,8 +11,8 @@ import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/onde_mora_grade.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/retro_cord.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -94,11 +94,12 @@ Future<void> _contarUmTrecho(Sala it, Duration quanto) async {
   it.harness.playback.length = quanto;
   it.harness.playback.at = quanto;
   it.sala.cortarTrecho();
+  it.sala.retroTap();
   await waitFor(
     'o microfone abrir no trecho',
     () => it.estado.btPhase == BtPhase.capturing,
   );
-  it.sala.retroTap();
+  await confirmarATraducao(it.container);
   await waitFor(
     'a sala responder pelo trecho',
     () =>
@@ -158,8 +159,14 @@ Future<List<String>> _ouvirOEnsaioAteAqui(Sala it) async {
   return List.of(it.harness.playback.played);
 }
 
-List<BeadRowEntry> _contasDoEnsaio(WidgetTester tester) =>
-    tester.widget<BeadRow>(find.byType(BeadRow)).entries;
+List<BeadRowEntry> _contasDoEnsaio(WidgetTester tester) => tester
+    .widget<BeadRow>(
+      find.descendant(
+        of: find.byType(EnsaioView),
+        matching: find.byType(BeadRow),
+      ),
+    )
+    .entries;
 
 Future<void> _tocar(WidgetTester tester, String label) async {
   await tester.tap(byLabel(label));
@@ -386,7 +393,13 @@ void main() {
             'retro sem nome que subiu no mesmo flush',
       );
 
-      await _contarUmTrecho(it, partesDoEnsaio[1]);
+      await it.sala.confirmarTraducao();
+      await waitFor(
+        'o trecho pendente subir com o nome da parte',
+        () =>
+            it.harness.room.chunkTakes.isNotEmpty &&
+            it.harness.room.chunkTakes.last == it.partes[1].takeId,
+      );
 
       expect(
         it.harness.room.chunkTakes.last,
@@ -1102,8 +1115,12 @@ void main() {
       reason: 'o disco de madeira leva de volta à tradução',
     );
 
-    final cord = tester.widget<RetroCord>(find.byType(RetroCord));
-    expect(cord.partes, 3, reason: 'o ensaio continua tendo três partes');
+    final estado = container.read(salaSessionProvider);
+    expect(
+      estado.partes,
+      hasLength(3),
+      reason: 'o ensaio continua tendo três partes',
+    );
     expect(
       container.read(salaSessionProvider).btFimDasPartesMs,
       [30000, 42000, 72000],
@@ -1114,22 +1131,12 @@ void main() {
           'acabar de tocar',
     );
     expect(
-      [
-        for (final trecho in cord.trechos)
-          cordSpanMs(trecho: trecho, fimDasPartes: cord.fimDasPartes),
-      ],
-      everyElement(isNotNull),
-      reason:
-          'nenhuma faixa cai do cordão: uma banda sem lugar é uma parte que '
-          'a equipe contou e o colar não mostra',
-    );
-    expect(
-      {for (final trecho in cord.trechos) trecho.parte},
+      {for (final trecho in estado.btTrechos) trecho.parte},
       {0, 2},
       reason: 'nenhuma faixa sobre a parte 2: o chão dela está por contar',
     );
     expect(
-      cord.apontado,
+      estado.btEsperandoConserto,
       isNull,
       reason:
           'e nenhuma faixa vazia: vazia quer dizer à espera de conserto, '
@@ -1244,11 +1251,11 @@ void main() {
       reason: 'aprovar continua sendo o gesto da conferida',
     );
     expect(
-      byLabel(_ouvir),
-      findsNothing,
+      tester.widget<Semantics>(byLabel(_ouvir)).properties.enabled,
+      isFalse,
       reason:
-          'um botão de ouvir sem nada para tocar é um botão morto numa '
-          'sala onde ninguém pode ler por que ele não responde',
+          'sem nada para tocar o ouvir fica apagado: a fileira é fixa e um '
+          'botão que não se aplica se apaga, nunca some (ADR 0040)',
     );
   });
 
@@ -1356,8 +1363,9 @@ Future<_Conferida> _ateAConferida(
   await tester.pump(const Duration(milliseconds: 200));
   harness.playback.at = resto.umaParteInteira;
   notifier.cortarTrecho();
-  await tester.pump(const Duration(milliseconds: 200));
   notifier.retroTap();
+  await tester.pump(const Duration(milliseconds: 200));
+  await confirmarATraducaoNaTela(tester, container);
   await tester.pump(const Duration(milliseconds: 600));
   harness.playback.finishPlayback();
   await tester.pump(const Duration(milliseconds: 200));

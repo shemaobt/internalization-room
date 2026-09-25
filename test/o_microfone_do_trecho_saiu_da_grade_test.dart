@@ -45,12 +45,14 @@ Future<void> gravarUmaParte(
 Future<void> traduzirAParteInteira(
   WidgetTester tester,
   SalaHarness harness,
-  SalaSessionNotifier sala,
+  ProviderContainer container,
 ) async {
+  final sala = container.read(salaSessionProvider.notifier);
   harness.playback.at = umaParteInteira;
   sala.cortarTrecho();
-  await tester.pump(const Duration(milliseconds: 200));
   sala.retroTap();
+  await tester.pump(const Duration(milliseconds: 200));
+  await confirmarATraducaoNaTela(tester, container);
   await tester.pump(const Duration(milliseconds: 600));
   harness.playback.finishPlayback();
   await tester.pump(const Duration(milliseconds: 200));
@@ -89,7 +91,7 @@ Future<ProviderContainer> aPerguntaSobreAParteDois(
   sala.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
   for (var parte = 0; parte < 3; parte++) {
-    await traduzirAParteInteira(tester, harness, sala);
+    await traduzirAParteInteira(tester, harness, container);
     if (parte < 2) {
       sala.ouvirGravacao();
       await tester.pump(const Duration(milliseconds: 200));

@@ -71,8 +71,9 @@ void main() {
     // Conta o trecho da parte 3.
     harness.playback.at = umaParteInteira;
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await waitFor(
       'o trecho da parte 3 chegar à sala',
       () => harness.room.chunksSent == 1,
@@ -99,8 +100,9 @@ void main() {
     // Corta o trecho da parte 4 — a gravação que acabou de ser guardada.
     harness.playback.at = umaParteInteira;
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await waitFor(
       'o trecho da parte 4 chegar à sala',
       () => harness.room.chunksSent == 2,
@@ -166,8 +168,9 @@ void main() {
 
     harness.playback.at = umaParteInteira;
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await waitFor(
       'o trecho da parte 4 chegar à sala',
       () => harness.room.chunksSent == 1,
@@ -206,8 +209,9 @@ void main() {
     );
     harness.playback.at = umaParteInteira;
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await waitFor(
       'o trecho da parte 3 chegar à sala',
       () => harness.room.chunksSent == 1,
@@ -233,8 +237,9 @@ void main() {
     for (var i = 0; i < 3; i++) {
       harness.playback.at = umaParteInteira + Duration(seconds: i + 1);
       notifier.cortarTrecho();
-      await settle();
       notifier.retroTap();
+      await settle();
+      await confirmarATraducao(container);
       await settle();
     }
 
@@ -282,8 +287,9 @@ void main() {
 
     harness.playback.at = umaParteInteira;
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await waitFor(
       'o trecho chegar à sala',
       () => harness.room.chunksSent == 1,

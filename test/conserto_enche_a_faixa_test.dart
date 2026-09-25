@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/retro_cord.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -20,24 +19,23 @@ SalaHarness? _harnessDaVez;
 SalaSessionNotifier _notifier(ProviderContainer c) =>
     c.read(salaSessionProvider.notifier);
 
-/// Which places on the cord are drawn drained, by their order along it.
+/// Which stretches are drawn drained, by their order.
 ///
-/// This reads the painter's own rule from outside: a band is emptied — and wears the halo
-/// — exactly when the stretch it draws is the one the cord was told to point at. Stretches
-/// are named by their place and not by their name, because mending mints a new name and
-/// the band the team watches is the same band either way.
+/// A stretch is drained exactly when it is the one waiting to be mended. Stretches are
+/// named by their place and not by their name, because mending mints a new name and the
+/// bead the team watches is the same bead either way.
 ///
 /// The whole list rather than one place at a time. Asking "is the neighbour's band full?"
-/// reads like coverage and is not: the cord is told to point at one name, the neighbour
+/// reads like coverage and is not: the room points at one name, the neighbour
 /// never carries that name, and the answer is false however broken the room is. Answering
 /// with every drained place says the same thing and can be wrong.
 List<int> _faixasVazias(WidgetTester tester, ProviderContainer container) {
-  final cord = tester.widget<RetroCord>(find.byType(RetroCord));
-  final trechos = container.read(salaSessionProvider).btTrechos;
+  final estado = container.read(salaSessionProvider);
+  final apontado = estado.btEsperandoConserto;
+  final trechos = estado.btTrechos;
   return [
     for (var lugar = 0; lugar < trechos.length; lugar++)
-      if (cord.apontado != null && trechos[lugar].segmentId == cord.apontado)
-        lugar,
+      if (apontado != null && trechos[lugar].segmentId == apontado) lugar,
   ];
 }
 
@@ -73,8 +71,9 @@ Future<ProviderContainer> _pumpToPergunta(
   for (final at in const [Duration(seconds: 10), Duration(seconds: 20)]) {
     harness.playback.at = at;
     sala.cortarTrecho();
-    await tester.pump(const Duration(milliseconds: 200));
     sala.retroTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    await confirmarATraducaoNaTela(tester, container);
     await tester.pump(const Duration(milliseconds: 600));
   }
   harness.playback.finishPlayback();
