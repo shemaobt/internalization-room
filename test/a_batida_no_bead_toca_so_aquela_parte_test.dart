@@ -10,6 +10,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/ensaio_v
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
+import 'um_ensaio_de_tres_partes.dart';
 
 Finder byLabel(String label) => find.byWidgetPredicate(
   (widget) => widget is Semantics && widget.properties.label == label,
@@ -47,7 +48,7 @@ Future<void> _ateEnsaio(
   }
 }
 
-List<BeadRowEntry> _contas(WidgetTester tester) => tester
+List<BeadRowEntry> _beads(WidgetTester tester) => tester
     .widget<BeadRow>(
       find.descendant(
         of: find.byType(EnsaioView),
@@ -123,9 +124,38 @@ Future<(ProviderContainer, SalaHarness)> _achadoNaParteUm(
   return (container, harness);
 }
 
+/// A team standing on a finding addressed to part 2 of a three-part rehearsal, every part
+/// already told back whole, with the record-again for part 2 open and nothing recorded yet.
+Future<Sala> _achadoNaParteDois() async {
+  final it = await umEnsaioDeTresPartesContadoInteiro();
+  it.harness.room
+    ..verdictChecked = false
+    ..verdictFinding = BtFindingKind.missing
+    ..verdictFindingPlace = 1;
+  await pedirOVeredito(it);
+  it.sala.gravarAParteDeNovo();
+  return it;
+}
+
+/// Starts a re-record of the part a finding named and stops it, leaving the take pending —
+/// waiting for the green check, not yet in the part's place. The sibling of [regravarAParte],
+/// which confirms it instead.
+Future<void> _regravarAParteSemConfirmar(Sala it) async {
+  it.sala.ensaioTap();
+  await waitFor(
+    'a gravação da parte de novo começar',
+    () => it.estado.ensaio == EnsaioStatus.recording,
+  );
+  it.sala.ensaioTap();
+  await waitFor(
+    'a gravação da parte de novo terminar',
+    () => it.estado.ensaio == EnsaioStatus.recorded,
+  );
+}
+
 void main() {
   testWidgets(
-    'a batida na segunda conta acende o anel, toca só a parte 2 e para no '
+    'a batida no segundo bead acende o anel, toca só a parte 2 e para no '
     'fim dela',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
@@ -135,7 +165,7 @@ void main() {
       await _tocar(tester, 'Parte 2');
 
       expect(
-        [for (final conta in _contas(tester)) conta.current],
+        [for (final bead in _beads(tester)) bead.current],
         [false, true, false],
       );
       expect(harness.playback.played, [partes[1].path]);
@@ -150,7 +180,7 @@ void main() {
         reason: 'a parte 2 termina sem carregar para a parte 3',
       );
       expect(
-        [for (final conta in _contas(tester)) conta.current],
+        [for (final bead in _beads(tester)) bead.current],
         [false, false, false],
         reason: 'nada mais soa; o anel se apaga',
       );
@@ -167,14 +197,14 @@ void main() {
     notifier.playTheRehearsal();
     await tester.pump(const Duration(milliseconds: 200));
     expect(
-      [for (final conta in _contas(tester)) conta.current],
+      [for (final bead in _beads(tester)) bead.current],
       [true, false, false],
     );
 
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 200));
     expect(
-      [for (final conta in _contas(tester)) conta.current],
+      [for (final bead in _beads(tester)) bead.current],
       [false, true, false],
       reason: 'o anel atravessa a fronteira para a parte 2',
     );
@@ -182,22 +212,21 @@ void main() {
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 200));
     expect(
-      [for (final conta in _contas(tester)) conta.current],
+      [for (final bead in _beads(tester)) bead.current],
       [false, false, true],
     );
 
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 200));
     expect(
-      [for (final conta in _contas(tester)) conta.current],
+      [for (final bead in _beads(tester)) bead.current],
       [false, false, false],
-      reason: 'o ensaio acabou; nenhuma conta soa',
+      reason: 'o ensaio acabou; nenhum bead soa',
     );
   });
 
-  testWidgets('a conta de uma parte ainda não entregue mostra isso', (
-    tester,
-  ) async {
+  testWidgets('o bead de uma parte ainda não entregue mostra isso, e some '
+      'ao ser entregue', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     harness.room.refuseTake = 'ensaio/${KeptScope.parte(2)}';
     final container = await _ensaioDeTresPartes(tester, harness: harness);
@@ -207,17 +236,29 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(
-      [for (final conta in _contas(tester)) conta.delivered],
+      [for (final bead in _beads(tester)) bead.delivered],
       [true, false, true],
     );
     expect(
-      _contas(tester)[1].semanticLabel,
+      _beads(tester)[1].semanticLabel,
       'Parte 2, ainda não enviada',
       reason: 'a única coisa que uma sala sem texto tem para dizer isso',
     );
+
+    harness.room.refuseTake = null;
+    await harness.takes.flush();
+    await notifier.refreshUnsent();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      [for (final bead in _beads(tester)) bead.delivered],
+      [true, true, true],
+      reason: 'entregue, a marca sai',
+    );
+    expect(_beads(tester)[1].semanticLabel, 'Parte 2');
   });
 
-  testWidgets('tocar na conta que soa pausa; tocar em outra troca de parte', (
+  testWidgets('tocar no bead que soa pausa; tocar em outro troca de parte', (
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
@@ -229,19 +270,29 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     expect(harness.playback.sounding, isTrue);
     expect(harness.playback.played, [partes[0].path]);
+    expect(
+      _beads(tester)[0].semanticLabel,
+      'Parte 1, tocando',
+      reason: 'soando, o bead diz que soa',
+    );
 
     notifier.tocarAParte(0);
     await tester.pump(const Duration(milliseconds: 200));
     expect(
       harness.playback.sounding,
       isFalse,
-      reason: 'a mesma conta pausa; não para',
+      reason: 'o mesmo bead pausa; não para',
     );
     expect(harness.playback.paused, isTrue);
     expect(
-      container.read(salaSessionProvider).parteTocando,
+      container.read(salaSessionProvider).parteDoEnsaioTocando,
       0,
       reason: 'o anel continua na parte pausada',
+    );
+    expect(
+      _beads(tester)[0].semanticLabel,
+      'Parte 1',
+      reason: 'pausado, o bead não diz mais que soa, mesmo com o anel aceso',
     );
 
     notifier.tocarAParte(2);
@@ -249,11 +300,11 @@ void main() {
     expect(
       harness.playback.played,
       [partes[0].path, partes[2].path],
-      reason: 'a terceira conta toca a parte 3, não retoma a 1',
+      reason: 'o terceiro bead toca a parte 3, não retoma a 1',
     );
     expect(harness.playback.sounding, isTrue);
     expect(
-      [for (final conta in _contas(tester)) conta.current],
+      [for (final bead in _beads(tester)) bead.current],
       [false, false, true],
     );
   });
@@ -268,29 +319,147 @@ void main() {
   );
 
   testWidgets(
-    'o anel segue a parte pendente que ficou no lugar da regravação',
+    'o bead aberto de uma parte nova não acende sozinho enquanto o play '
+    'está numa parte anterior, mesmo com uma gravação pendente',
     (tester) async {
-      final (container, harness) = await _achadoNaParteUm(tester);
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _ensaioDeTresPartes(tester, harness: harness);
       final notifier = container.read(salaSessionProvider.notifier);
+
       notifier.ensaioTap();
       await _ateEnsaio(tester, container, EnsaioStatus.recording);
       notifier.ensaioTap();
       await _ateEnsaio(tester, container, EnsaioStatus.recorded);
 
       notifier.playTheRehearsal();
-      for (var vezes = 0; vezes < 40 && !harness.playback.sounding; vezes++) {
-        await tester.pump(const Duration(milliseconds: 50));
-      }
+      await tester.pump(const Duration(milliseconds: 200));
 
       expect(
-        [for (final conta in _contas(tester)) conta.current],
-        [true],
-        reason: 'o anel segue a gravação pendente que ficou no lugar da parte',
+        [for (final bead in _beads(tester)) bead.current],
+        [true, false, false, false],
+        reason:
+            'o play começa na parte 1; o quarto bead (a gravação pendente '
+            'da parte nova) não fica com o anel só porque está aberto',
       );
-      expect(harness.playback.sounding, isTrue);
-
-      harness.playback.finishPlayback();
-      await tester.pump(const Duration(milliseconds: 200));
     },
   );
+
+  test('o anel segue a parte pendente que ficou no lugar da regravação, só '
+      'quando o play chega nela', () async {
+    final it = await _achadoNaParteDois();
+
+    expect(
+      it.estado.parteARegravar,
+      1,
+      reason: 'o achado aponta a parte 2 (índice 1)',
+    );
+
+    await _regravarAParteSemConfirmar(it);
+    expect(
+      it.estado.ensaio,
+      EnsaioStatus.recorded,
+      reason: 'gravada, mas ainda não confirmada com o V',
+    );
+
+    it.sala.playTheRehearsal();
+    await waitFor(
+      'o ensaio começar a tocar',
+      () => it.harness.playback.sounding,
+    );
+
+    expect(
+      it.estado.parteDoEnsaioTocando,
+      0,
+      reason: 'o play começa na parte 1, não na 2 pendente',
+    );
+
+    it.harness.playback.finishPlayback();
+    await waitFor(
+      'o play chegar na parte pendente',
+      () => it.estado.parteDoEnsaioTocando == 1,
+    );
+    expect(
+      it.harness.playback.played.last,
+      it.harness.recorder.lastPath,
+      reason: 'a parte 2 toca a gravação pendente, não a antiga',
+    );
+
+    it.harness.playback.finishPlayback();
+    await waitFor(
+      'o play chegar na parte 3',
+      () => it.estado.parteDoEnsaioTocando == 2,
+    );
+    expect(
+      it.harness.playback.played.last,
+      it.partes[2].path,
+      reason: 'a parte 3 segue tocando a sua própria gravação',
+    );
+  });
+
+  test('um bead esmaecido não toca enquanto a regravação de um achado está '
+      'aberta e nada foi gravado ainda', () async {
+    final it = await _achadoNaParteDois();
+    final antes = it.harness.playback.played.length;
+
+    it.sala.tocarAParte(0);
+
+    expect(
+      it.harness.playback.played,
+      hasLength(antes),
+      reason: 'o bead da parte 1 está esmaecido; a batida não faz nada',
+    );
+    expect(it.estado.parteDoEnsaioTocando, isNull);
+  });
+
+  test('com uma gravação pendente, os beads tocam como de costume, mesmo os '
+      'esmaecidos', () async {
+    final it = await _achadoNaParteDois();
+    await _regravarAParteSemConfirmar(it);
+
+    it.sala.tocarAParte(0);
+    await waitFor('a parte 1 tocar', () => it.harness.playback.sounding);
+
+    expect(it.harness.playback.played.last, it.partes[0].path);
+    expect(
+      it.estado.parteDoEnsaioTocando,
+      0,
+      reason:
+          'pendente a confirmação, a equipe pode ouvir qualquer parte, '
+          'inclusive a esmaecida',
+    );
+  });
+
+  testWidgets('gravar de novo depois de pausar um bead apaga o anel', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _ensaioDeTresPartes(tester, harness: harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.tocarAParte(1);
+    await tester.pump(const Duration(milliseconds: 200));
+    notifier.tocarAParte(1);
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(
+      container.read(salaSessionProvider).parteDoEnsaioTocando,
+      1,
+      reason: 'pausado, o bead da parte 2 ainda guarda o anel',
+    );
+
+    notifier.ensaioTap();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      container.read(salaSessionProvider).parteDoEnsaioTocando,
+      isNull,
+      reason: 'gravar de novo interrompe e apaga o anel',
+    );
+    expect(
+      [for (final bead in _beads(tester)) bead.current],
+      [false, false, false, true],
+      reason:
+          'nenhuma das três partes guarda o anel; o quarto bead, aberto '
+          'para a gravação em curso, é o que fica com ele por padrão',
+    );
+  });
 }

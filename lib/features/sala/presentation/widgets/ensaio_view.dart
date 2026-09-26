@@ -124,7 +124,7 @@ class EnsaioView extends ConsumerWidget {
     final open = session.ensaio != EnsaioStatus.idle;
     final partes = session.partes;
     final again = session.parteARegravar;
-    final tocando = session.parteTocando;
+    final tocando = session.parteDoEnsaioTocando;
     final replacing = again != null && again < partes.length;
     return [
       for (var index = 0; index < partes.length; index++)
@@ -139,12 +139,12 @@ class EnsaioView extends ConsumerWidget {
               : BeadFill.drained,
           current: index == (tocando ?? again),
           dimmed: replacing && index != again,
-          sounding: tocando == index,
+          sounding: tocando == index && session.playPing,
         ),
       if (open && !replacing)
         BeadRowEntry(
           fill: BeadFill.translucent,
-          current: true,
+          current: tocando == null || tocando == partes.length,
           semanticLabel: rehearsalLabelFor(
             'part',
             language,
@@ -186,9 +186,12 @@ class EnsaioView extends ConsumerWidget {
     required bool sounding,
     required bool delivered,
   }) {
-    var label = rehearsalLabelFor('part', language, part: part);
-    if (sounding) label += rehearsalLabelFor('partPlaying', language);
-    if (!delivered) label += rehearsalLabelFor('partNotDelivered', language);
-    return label;
+    final key = switch ((sounding, delivered)) {
+      (true, true) => 'partPlaying',
+      (true, false) => 'partPlayingNotDelivered',
+      (false, true) => 'part',
+      (false, false) => 'partNotDelivered',
+    };
+    return rehearsalLabelFor(key, language, part: part);
   }
 }
