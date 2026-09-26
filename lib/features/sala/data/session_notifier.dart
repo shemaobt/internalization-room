@@ -2421,7 +2421,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _pullInbox() async {
     final fetched = await _inbox.fetchReplies();
     if (fetched == null) return;
-    if (fetched.isEmpty || _gone) return;
+    if (_gone) return;
     final known = {for (final reply in state.replies) reply.id: reply};
     // The desk does re-send audio_url for a question_id it already served: a reply the
     // facilitator records again supersedes the first under a new content-hashed key and
@@ -2436,7 +2436,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           reply,
     ];
     if (_sameReplies(merged, state.replies) && !state.questionPending) return;
-    state = state.copyWith(replies: merged, questionPending: false);
+    state = state.copyWith(
+      replies: merged,
+      questionPending: merged.isEmpty ? null : false,
+    );
   }
 
   bool _sameReplies(List<HandReply> a, List<HandReply> b) {

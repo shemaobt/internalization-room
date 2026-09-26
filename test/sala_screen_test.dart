@@ -305,6 +305,142 @@ void main() {
     );
   });
 
+  testWidgets('the choice circle speaks english to an english room', (
+    tester,
+  ) async {
+    final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
+    await container.read(salaSessionProvider.notifier).abrirEscolha();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(bySemanticsLabelWidget('Hear this passage again'), findsOneWidget);
+    expect(
+      bySemanticsLabelWidget('Ouvir esta passagem de novo'),
+      findsNothing,
+      reason:
+          'o círculo da roda dizia "Ouvir esta passagem de novo" a um '
+          'aparelho em inglês',
+    );
+  });
+
+  testWidgets('the way into a passage speaks english to an english room', (
+    tester,
+  ) async {
+    final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
+    await container.read(salaSessionProvider.notifier).abrirEscolha();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(bySemanticsLabelWidget('Enter this passage'), findsOneWidget);
+    expect(
+      bySemanticsLabelWidget('Entrar nesta passagem'),
+      findsNothing,
+      reason:
+          'só o panorama falava inglês; a conta de entrar numa passagem '
+          'dizia "Entrar nesta passagem" a um aparelho em inglês',
+    );
+  });
+
+  testWidgets('the passage ruler speaks english to an english room', (
+    tester,
+  ) async {
+    final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
+    await container.read(salaSessionProvider.notifier).abrirEscolha();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      bySemanticsLabelWidget(
+        'Choose the passage by running a finger along the row',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      bySemanticsLabelWidget(
+        'Escolher a passagem, correndo o dedo pela fileira',
+      ),
+      findsNothing,
+      reason:
+          'a régua da roda se apresentava em português a um aparelho em '
+          'inglês',
+    );
+  });
+
+  testWidgets(
+    'the ruler reads where the team stands in english, not "1 de 3"',
+    (tester) async {
+      final harness = SalaHarness(lingua: 'en')
+        ..room.passages = const [
+          Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+          Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
+          Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
+        ];
+      final container = await pumpSala(tester, harness);
+      await container.read(salaSessionProvider.notifier).abrirEscolha();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(container.read(salaSessionProvider).aOferecer, 0);
+      final ruler = tester
+          .widget<Semantics>(
+            bySemanticsLabelWidget(
+              'Choose the passage by running a finger along the row',
+            ),
+          )
+          .properties;
+      expect(
+        ruler.value,
+        '1 of 3',
+        reason:
+            'o leitor de tela dizia "1 de 3" no meio de uma frase em inglês',
+      );
+      expect(ruler.increasedValue, '2 of 3');
+      expect(ruler.decreasedValue, '1 of 3');
+    },
+  );
+
+  testWidgets('a finished book is announced in english to an english room', (
+    tester,
+  ) async {
+    final harness = SalaHarness(lingua: 'en')..room.passages = const [];
+    final container = await pumpSala(tester, harness);
+    await container.read(salaSessionProvider.notifier).abrirEscolha();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      bySemanticsLabelWidget('Every passage has been worked through'),
+      findsOneWidget,
+    );
+    expect(
+      bySemanticsLabelWidget('Todas as passagens foram trabalhadas'),
+      findsNothing,
+      reason:
+          'o livro terminado era anunciado em português a um aparelho em '
+          'inglês',
+    );
+  });
+
+  testWidgets(
+    'a wheel still to be read asks for it in english, not in portuguese',
+    (tester) async {
+      final harness = SalaHarness(lingua: 'en')
+        ..room.failWith = const RoomBroke('HTTP 500');
+      final container = await pumpSala(tester, harness);
+      await container.read(salaSessionProvider.notifier).abrirEscolha();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(container.read(salaSessionProvider).rodaPorLer, isTrue);
+      expect(
+        bySemanticsLabelWidget('Tap to look for the passages'),
+        findsOneWidget,
+      );
+      expect(
+        bySemanticsLabelWidget('Tocar para procurar as passagens'),
+        findsNothing,
+        reason:
+            'a roda que ainda não foi lida pedia o toque em português a um '
+            'aparelho em inglês',
+      );
+      closeTheRoom(container);
+    },
+  );
+
   testWidgets('a finished book offers nothing to enter', (tester) async {
     final harness = SalaHarness()..room.passages = const [];
     final container = await pumpSala(tester, harness);
@@ -578,6 +714,172 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('hearing a line again is offered in english to an english room', (
+    tester,
+  ) async {
+    final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
+    container.read(salaSessionProvider.notifier).conviteTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(container.read(salaSessionProvider).canHearAgain, isTrue);
+    expect(bySemanticsLabelWidget('Hear it again'), findsOneWidget);
+    expect(
+      bySemanticsLabelWidget('Ouvir de novo'),
+      findsNothing,
+      reason:
+          'o botão de ouvir de novo falava português a um aparelho em inglês',
+    );
+  });
+
+  testWidgets('the way out of a passage speaks english to an english room', (
+    tester,
+  ) async {
+    final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
+    container.read(salaSessionProvider.notifier).goConversa();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      bySemanticsLabelWidget('Leave this passage and choose another'),
+      findsOneWidget,
+    );
+    expect(
+      bySemanticsLabelWidget('Deixar esta passagem e escolher outra'),
+      findsNothing,
+      reason:
+          'a saída da passagem se anunciava em português a um aparelho em '
+          'inglês',
+    );
+  });
+
+  testWidgets('the hand speaks english to an english room', (tester) async {
+    final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
+    container.read(salaSessionProvider.notifier).goConversa();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(bySemanticsLabelWidget('Raise a hand'), findsOneWidget);
+    expect(
+      bySemanticsLabelWidget('Levantar a mão'),
+      findsNothing,
+      reason: 'a mão dizia "Levantar a mão" a um aparelho em inglês',
+    );
+  });
+
+  testWidgets('an unheard reply is offered in english to an english room', (
+    tester,
+  ) async {
+    final container = await pumpSala(
+      tester,
+      SalaHarness(
+        lingua: 'en',
+        replies: const [
+          HandReply(
+            id: 'r1',
+            audioUrl: '/api/internalization-room/voice/resposta',
+          ),
+        ],
+      ),
+    );
+    container.read(salaSessionProvider.notifier).goConversa();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      bySemanticsLabelWidget("Hear the facilitator's answer"),
+      findsOneWidget,
+    );
+    expect(
+      bySemanticsLabelWidget('Ouvir a resposta do facilitador'),
+      findsNothing,
+      reason:
+          'a resposta do facilitador era oferecida em português a um '
+          'aparelho em inglês',
+    );
+  });
+
+  testWidgets('an armed question is cancelled in english in an english room', (
+    tester,
+  ) async {
+    final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
+    final notifier = container.read(salaSessionProvider.notifier);
+    notifier.goConversa();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    notifier.handTap();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(container.read(salaSessionProvider).noteMode, isTrue);
+    expect(bySemanticsLabelWidget('Cancel the question'), findsOneWidget);
+    expect(
+      bySemanticsLabelWidget('Cancelar a pergunta'),
+      findsNothing,
+      reason:
+          'a mão armada dizia "Cancelar a pergunta" a um aparelho em inglês',
+    );
+  });
+
+  testWidgets('a question sent waits in english in an english room', (
+    tester,
+  ) async {
+    final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
+    final notifier = container.read(salaSessionProvider.notifier);
+    notifier.goConversa();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    notifier.handTap();
+    notifier.conversaTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    notifier.conversaTap();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).questionPending, isTrue);
+    expect(
+      bySemanticsLabelWidget('Question sent, waiting for an answer'),
+      findsOneWidget,
+    );
+    expect(
+      bySemanticsLabelWidget('Pergunta enviada, aguardando resposta'),
+      findsNothing,
+      reason: 'a pergunta enviada esperava em português num aparelho em inglês',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a reply playing is announced in english to an english room', (
+    tester,
+  ) async {
+    final harness = SalaHarness(
+      lingua: 'en',
+      replies: const [
+        HandReply(id: 'r1', audioUrl: '/api/internalization-room/voice/r1'),
+      ],
+    );
+    final container = await pumpSala(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    notifier.goConversa();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    harness.voice.holdNextLine();
+    notifier.handTap();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(container.read(salaSessionProvider).playingReplyId, 'r1');
+    expect(
+      bySemanticsLabelWidget('The facilitator is answering'),
+      findsOneWidget,
+    );
+    expect(
+      bySemanticsLabelWidget('O facilitador está respondendo'),
+      findsNothing,
+      reason:
+          'a resposta tocando era anunciada em português a um aparelho em '
+          'inglês',
+    );
+
+    harness.voice.finishHeldLine();
+    await tester.pump(const Duration(milliseconds: 200));
+    closeTheRoom(container);
   });
 
   testWidgets('an unheard reply turns the hand into a listening affordance', (

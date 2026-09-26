@@ -28,6 +28,7 @@ void main() {
                 finished: finished,
                 onAim: aimed.add,
                 onSettle: () => settled.add(at),
+                language: 'pt',
               ),
             ),
           ),

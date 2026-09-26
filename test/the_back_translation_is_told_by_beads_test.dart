@@ -765,6 +765,35 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets(
+    'the retro circle holding a translation it just heard waits in english, '
+    'not in portuguese',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
+      final container = await entrarNaTraducao(tester, harness);
+
+      harness.playback.at = cabeca;
+      await tester.tap(byLabel("Tap to record this stretch's translation"));
+      await tester.pump(const Duration(milliseconds: 300));
+      harness.recorder.holdNextStop();
+      await tester.tap(byLabel('Tap when you finish'));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(byLabel('One moment'), findsOneWidget);
+      expect(
+        byLabel('Um instante'),
+        findsNothing,
+        reason:
+            'o círculo do retro pensando dizia "Um instante" a uma sala em '
+            'inglês',
+      );
+
+      harness.recorder.finishStop();
+      await tester.pump(const Duration(milliseconds: 300));
+      closeTheRoom(container);
+    },
+  );
+
   testWidgets('B9 — depois do corte, ouvir toca o trecho do cursor ao corte', (
     tester,
   ) async {

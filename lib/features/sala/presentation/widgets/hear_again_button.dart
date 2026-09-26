@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
+import '../../domain/facilitator_script.dart';
 import 'bead_styles.dart';
 import 'motion.dart';
 
@@ -34,7 +35,10 @@ class HearAgainButton extends ConsumerWidget {
                 child: FadeUp(
                   child: RoundActionButton(
                     size: 44,
-                    semanticLabel: 'Ouvir de novo',
+                    semanticLabel: roomLabelFor(
+                      'hearAgain',
+                      ref.watch(roomLanguageProvider),
+                    ),
                     onTap: ref.read(salaSessionProvider.notifier).hearAgain,
                     onLongPress: twoMovements
                         ? ref
