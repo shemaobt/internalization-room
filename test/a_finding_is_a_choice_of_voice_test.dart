@@ -26,7 +26,7 @@ const confirmarATraducao = 'Confirmar a tradução e seguir';
 const tesoura = 'Cortar aqui';
 const conferir = 'Conferir a tradução';
 
-const gravarAParteDoisDeNovo = 'Tocar para gravar esta parte de novo';
+const gravarEstaParteDeNovo = 'Tocar para gravar esta parte de novo';
 const confirmarAParte = 'Confirmar esta parte';
 const irParaATraducao = 'Ir para a tradução';
 const sairDaPassagem = 'Deixar esta passagem e escolher outra';
@@ -202,7 +202,7 @@ void main() {
       'solid apagada',
     ]);
 
-    await tocar(tester, gravarAParteDoisDeNovo);
+    await tocar(tester, gravarEstaParteDeNovo);
     await tocar(tester, terminar);
     expect(contasEm(tester, EnsaioView), [
       'solid apagada',
