@@ -8,6 +8,7 @@ import '../data/mic_permission.dart';
 import '../data/screen_awake.dart';
 import '../data/session_notifier.dart';
 import '../data/take_upload_queue.dart';
+import '../domain/facilitator_script.dart';
 import '../domain/session_state.dart';
 import '../dev/dev_skip_bar.dart';
 import 'widgets/codigo_view.dart';
@@ -167,7 +168,7 @@ class _FimView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Semantics(
       button: true,
-      label: 'Começar de novo',
+      label: roomLabelFor('beginAgain', ref.watch(roomLanguageProvider)),
       child: GestureDetector(
         onTap: ref.read(salaSessionProvider.notifier).beginAgain,
         behavior: HitTestBehavior.opaque,
@@ -208,6 +209,7 @@ class _HandLayer extends ConsumerWidget {
         questionPending: session.questionPending,
         hasUnheardReply: session.hasUnheardReply,
         playingReply: session.playingReplyId != null,
+        language: ref.watch(roomLanguageProvider),
         onTap: notifier.handTap,
       ),
     );

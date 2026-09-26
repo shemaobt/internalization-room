@@ -18,6 +18,7 @@ class EscolhaView extends ConsumerWidget {
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);
     final colors = SalaColors.of(context);
+    final language = ref.watch(roomLanguageProvider);
     final roda = session.naRoda ?? const [];
     final podeEntrar =
         session.oferecida != null && session.voice == VoiceState.invite;
@@ -31,9 +32,12 @@ class EscolhaView extends ConsumerWidget {
           reach: session.reach,
           semanticLabel: switch (session) {
             _ when session.livroInteiroFeito || session.wheelHalted =>
-              'Todas as passagens foram trabalhadas',
-            _ when session.rodaPorLer => 'Tocar para procurar as passagens',
-            _ => 'Ouvir esta passagem de novo',
+              escolhaLabelFor('allDone', language),
+            _ when session.rodaPorLer => escolhaLabelFor(
+              'readTheWheel',
+              language,
+            ),
+            _ => escolhaLabelFor('hearAgain', language),
           },
           onTap: notifier.escolhaTap,
           onLongPress: session.canResolveWithPerson
@@ -55,7 +59,7 @@ class EscolhaView extends ConsumerWidget {
                     border: Border.all(color: colors.cord, width: 2),
                     semanticLabel: entrarLabelFor(
                       isPanorama: session.oferecida!.isPanorama,
-                      language: ref.watch(roomLanguageProvider),
+                      language: language,
                     ),
                     onTap: notifier.entrarNaOferecida,
                   ),
@@ -81,6 +85,7 @@ class EscolhaView extends ConsumerWidget {
           hint: podeEntrar,
           onAim: notifier.apontarPassagem,
           onSettle: notifier.dizerAPassagem,
+          language: language,
         ),
       ],
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/sala_colors.dart';
+import '../../domain/facilitator_script.dart';
 import 'motion.dart';
 
 /// Where the team is in the book, and the way they move through it.
@@ -37,12 +38,15 @@ class PassageRuler extends StatefulWidget {
   /// Nothing has been touched yet, so the mark shows what it can do.
   final bool hint;
 
+  final String language;
+
   const PassageRuler({
     super.key,
     required this.total,
     required this.at,
     required this.onAim,
     required this.onSettle,
+    required this.language,
     this.started = const {},
     this.finished = const {},
     this.refused = const {},
@@ -92,10 +96,18 @@ class _PassageRulerState extends State<PassageRuler> {
 
         return Semantics(
           slider: true,
-          label: 'Escolher a passagem, correndo o dedo pela fileira',
-          value: '${widget.at + 1} de $total',
-          increasedValue: '${(widget.at + 2).clamp(1, total)} de $total',
-          decreasedValue: '${widget.at.clamp(1, total)} de $total',
+          label: escolhaLabelFor('ruler', widget.language),
+          value: rulerPlaceFor(widget.at + 1, total, widget.language),
+          increasedValue: rulerPlaceFor(
+            (widget.at + 2).clamp(1, total),
+            total,
+            widget.language,
+          ),
+          decreasedValue: rulerPlaceFor(
+            widget.at.clamp(1, total),
+            total,
+            widget.language,
+          ),
           onIncrease: () {
             aimAt(PassageRuler._placeOf(widget.at + 1, total, box.maxWidth));
             widget.onSettle();

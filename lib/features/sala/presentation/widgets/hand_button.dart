@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
+import '../../domain/facilitator_script.dart';
 import 'motion.dart';
 
 class HandButton extends StatelessWidget {
@@ -9,6 +10,7 @@ class HandButton extends StatelessWidget {
   final bool questionPending;
   final bool hasUnheardReply;
   final bool playingReply;
+  final String language;
   final VoidCallback onTap;
 
   const HandButton({
@@ -17,6 +19,7 @@ class HandButton extends StatelessWidget {
     required this.questionPending,
     required this.hasUnheardReply,
     required this.playingReply,
+    required this.language,
     required this.onTap,
   });
 
@@ -33,11 +36,11 @@ class HandButton extends StatelessWidget {
         noteMode,
         questionPending,
       )) {
-        (true, _, _, _) => 'O facilitador está respondendo',
-        (_, true, _, _) => 'Ouvir a resposta do facilitador',
-        (_, _, true, _) => 'Cancelar a pergunta',
-        (_, _, _, true) => 'Pergunta enviada, aguardando resposta',
-        _ => 'Levantar a mão',
+        (true, _, _, _) => handLabelFor('answering', language),
+        (_, true, _, _) => handLabelFor('hearTheAnswer', language),
+        (_, _, true, _) => handLabelFor('cancel', language),
+        (_, _, _, true) => handLabelFor('sent', language),
+        _ => handLabelFor('raise', language),
       },
       child: GestureDetector(
         onTap: onTap,
