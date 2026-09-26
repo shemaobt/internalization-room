@@ -231,6 +231,20 @@ class SalaSessionState {
   /// air): the two sit in different stations and would otherwise read as the same fact.
   final int? parteDoEnsaioTocando;
 
+  /// Whether the bead at [index] does not apply right now (ADR 0040: dimmed means it does
+  /// not apply). True for every part but the one a finding sent the team back to record,
+  /// while that record-again stands open and nothing has been recorded for it yet. Once
+  /// that recording is pending — waiting for the green check — every bead applies again,
+  /// so this reads false throughout: the one rule the row and the tap both read, instead
+  /// of the row drawing dim on a bead the tap would still play.
+  bool beadIsDimmed(int index) {
+    final again = parteARegravar;
+    return ensaio == EnsaioStatus.idle &&
+        again != null &&
+        again < partes.length &&
+        index != again;
+  }
+
   const SalaSessionState({
     this.stage = SalaStage.convite,
     this.voice = VoiceState.invite,

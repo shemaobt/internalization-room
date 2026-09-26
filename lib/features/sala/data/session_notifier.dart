@@ -2776,7 +2776,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.needsPerson) return;
     if (state.ensaio == EnsaioStatus.recording) return;
     if (indice < 0 || indice >= state.partes.length) return;
-    if (state.ensaio == EnsaioStatus.idle && _beadIsDimmed(indice)) return;
+    if (state.beadIsDimmed(indice)) return;
     if (indice == state.parteDoEnsaioTocando) {
       playTheRehearsal();
       return;
@@ -2791,11 +2791,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       parteDoEnsaioTocando: indice,
     );
     _tocarDoEnsaio(0);
-  }
-
-  bool _beadIsDimmed(int indice) {
-    final again = state.parteARegravar;
-    return again != null && again < state.partes.length && indice != again;
   }
 
   List<(String, (Duration, Duration)?, int)> _oEnsaioAteAqui() {

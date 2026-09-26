@@ -138,7 +138,7 @@ class EnsaioView extends ConsumerWidget {
               ? BeadFill.translucent
               : BeadFill.drained,
           current: index == (tocando ?? again),
-          dimmed: replacing && index != again,
+          dimmed: session.beadIsDimmed(index),
           sounding: tocando == index && session.playPing,
         ),
       if (open && !replacing)

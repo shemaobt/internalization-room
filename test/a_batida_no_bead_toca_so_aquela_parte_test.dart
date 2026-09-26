@@ -7,10 +7,13 @@ import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
+import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+import 'resto_da_historia_test.dart'
+    show gravarUmaParte, traduzirAParteInteira, umaParteInteira;
 import 'sala_screen_test.dart' show pumpSala;
-import 'um_ensaio_de_tres_partes.dart';
+import 'um_ensaio_de_tres_partes.dart' hide gravarUmaParte;
 
 Finder byLabel(String label) => find.byWidgetPredicate(
   (widget) => widget is Semantics && widget.properties.label == label,
@@ -153,6 +156,61 @@ Future<void> _regravarAParteSemConfirmar(Sala it) async {
   );
 }
 
+/// The same re-record, driven by fixed pumps instead of [waitFor]: `testWidgets` fakes time
+/// for the whole test body, so a real `Future.delayed` never fires without one.
+Future<void> _regravarAParteSemConfirmarNaTela(
+  WidgetTester tester,
+  SalaSessionNotifier notifier,
+) async {
+  notifier.ensaioTap();
+  await tester.pump(const Duration(milliseconds: 100));
+  notifier.ensaioTap();
+  await tester.pump(const Duration(milliseconds: 100));
+}
+
+/// The widget-tree sibling of [_achadoNaParteDois]: the same three-part rehearsal, told
+/// back whole and addressed by a finding at part 2, reached entirely through gestures the
+/// team has on screen (no [waitFor]), so it can be pumped inside a `testWidgets` body.
+Future<ProviderContainer> _achadoNaParteDoisNaTela(
+  WidgetTester tester,
+  SalaHarness harness,
+) async {
+  harness.room
+    ..verdictChecked = false
+    ..verdictFinding = BtFindingKind.missing
+    ..verdictFindingPlace = 1;
+  harness.playback.length = umaParteInteira;
+  final container = harness.container();
+  addTearDown(container.dispose);
+  await tester.pumpWidget(
+    UncontrolledProviderScope(container: container, child: const SalaApp()),
+  );
+  await tester.pump(const Duration(milliseconds: 100));
+
+  final notifier = container.read(salaSessionProvider.notifier);
+  await notifier.goConversa();
+  await tester.pump(const Duration(milliseconds: 200));
+  notifier.goEnsaio();
+  await tester.pump(const Duration(milliseconds: 100));
+  for (var parte = 0; parte < 3; parte++) {
+    await gravarUmaParte(tester, notifier);
+  }
+  notifier.startRetro();
+  await tester.pump(const Duration(milliseconds: 200));
+  for (var parte = 0; parte < 3; parte++) {
+    await traduzirAParteInteira(tester, harness, container);
+    if (parte < 2) {
+      notifier.ouvirGravacao();
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+  }
+  await notifier.finishBackTranslation();
+  await tester.pump(const Duration(milliseconds: 300));
+  notifier.gravarAParteDeNovo();
+  await tester.pump(const Duration(milliseconds: 200));
+  return container;
+}
+
 void main() {
   testWidgets(
     'a batida no segundo bead acende o anel, toca só a parte 2 e para no '
@@ -244,6 +302,16 @@ void main() {
       'Parte 2, ainda não enviada',
       reason: 'a única coisa que uma sala sem texto tem para dizer isso',
     );
+
+    notifier.tocarAParte(1);
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(
+      _beads(tester)[1].semanticLabel,
+      'Parte 2, tocando, ainda não enviada',
+      reason: 'soando e ainda não entregue, o bead diz as duas coisas',
+    );
+    notifier.tocarAParte(1);
+    await tester.pump(const Duration(milliseconds: 200));
 
     harness.room.refuseTake = null;
     await harness.takes.flush();
@@ -395,6 +463,80 @@ void main() {
       reason: 'a parte 3 segue tocando a sua própria gravação',
     );
   });
+
+  testWidgets(
+    'na tela, o anel não dobra numa regravação pendente: acende na parte 1 '
+    'e só troca para a parte 2 quando o play chega nela',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _achadoNaParteDoisNaTela(tester, harness);
+      final notifier = container.read(salaSessionProvider.notifier);
+      await _regravarAParteSemConfirmarNaTela(tester, notifier);
+
+      notifier.playTheRehearsal();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(
+        [for (final bead in _beads(tester)) bead.current],
+        [true, false, false],
+        reason:
+            'o play começa na parte 1; a tela não acende a parte 2 '
+            'pendente ao mesmo tempo',
+      );
+
+      harness.playback.finishPlayback();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(
+        [for (final bead in _beads(tester)) bead.current],
+        [false, true, false],
+        reason: 'o play alcança a parte pendente; só ela fica com o anel',
+      );
+
+      notifier.playTheRehearsal();
+      await tester.pump(const Duration(milliseconds: 200));
+    },
+  );
+
+  testWidgets(
+    'o esmaecido é uma regra só: escurece e bloqueia antes da gravação, '
+    'some das duas coisas quando o take fica pendente',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _achadoNaParteDoisNaTela(tester, harness);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      expect(
+        _beads(tester)[0].dimmed,
+        isTrue,
+        reason: 'nada gravado ainda; a parte 1 não é a que a equipe regrava',
+      );
+      notifier.tocarAParte(0);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(
+        harness.playback.sounding,
+        isFalse,
+        reason: 'esmaecida na tela, a batida também não toca',
+      );
+
+      await _regravarAParteSemConfirmarNaTela(tester, notifier);
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(
+        _beads(tester)[0].dimmed,
+        isFalse,
+        reason: 'pendente a confirmação, a mesma conta não fica esmaecida',
+      );
+      notifier.tocarAParte(0);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(
+        harness.playback.sounding,
+        isTrue,
+        reason: 'e a mesma batida agora toca',
+      );
+
+      harness.playback.finishPlayback();
+      await tester.pump(const Duration(milliseconds: 200));
+    },
+  );
 
   test('um bead esmaecido não toca enquanto a regravação de um achado está '
       'aberta e nada foi gravado ainda', () async {
