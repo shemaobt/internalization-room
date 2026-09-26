@@ -182,4 +182,23 @@ void main() {
           'ficava numa tela sem sessão nenhuma por trás dela',
     );
   });
+
+  testWidgets('the mic gate speaks english to an english room', (tester) async {
+    final harness = SalaHarness(lingua: 'en')..recorder.permitted = false;
+    final container = await pumpSala(tester, harness);
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(container.read(micPermissionProvider), MicAccess.denied);
+    expect(
+      bySemanticsLabelWidget('The room needs the microphone to work'),
+      findsOneWidget,
+    );
+    expect(
+      bySemanticsLabelWidget('A sala precisa do microfone para funcionar'),
+      findsNothing,
+      reason:
+          'a tela do microfone, a única saída de uma equipe bloqueada, '
+          'falava português a um aparelho em inglês',
+    );
+  });
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -376,4 +377,75 @@ void main() {
     harness.voice.finishHeldLine();
     await tester.pump(const Duration(milliseconds: 200));
   });
+
+  testWidgets(
+    'the invitation circle speaks english to an english room, not portuguese',
+    (tester) async {
+      final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
+
+      await container.read(salaSessionProvider.notifier).openConvite();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(container.read(salaSessionProvider).stage, SalaStage.convite);
+      expect(bySemanticsLabelWidget('Talk to the facilitator'), findsOneWidget);
+      expect(
+        bySemanticsLabelWidget('Falar com o facilitador'),
+        findsNothing,
+        reason:
+            'o círculo do convite dizia "Falar com o facilitador" a um '
+            'aparelho em inglês',
+      );
+    },
+  );
+
+  testWidgets('the way into the passage speaks english to an english room, not '
+      'portuguese', (tester) async {
+    final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
+
+    await container.read(salaSessionProvider.notifier).openConvite();
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(container.read(salaSessionProvider).entradaOffered, isTrue);
+    expect(bySemanticsLabelWidget('Enter the passage'), findsOneWidget);
+    expect(
+      bySemanticsLabelWidget('Entrar na passagem'),
+      findsNothing,
+      reason:
+          'a conta da entrada dizia "Entrar na passagem" a um aparelho em '
+          'inglês',
+    );
+  });
+
+  testWidgets(
+    'the invitation calling a person says so in english to an english room',
+    (tester) async {
+      final harness = SalaHarness(lingua: 'en');
+      final container = await pumpSala(tester, harness);
+      final notifier = container.read(salaSessionProvider.notifier);
+      await notifier.openConvite();
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(seconds: 1));
+
+      harness.room.failWith = const RoomRefused();
+      notifier.conviteTap();
+      await tester.pump(const Duration(milliseconds: 200));
+      notifier.conviteTap();
+      for (var frame = 0; frame < 30; frame++) {
+        await tester.pump(const Duration(milliseconds: 200));
+        if (container.read(salaSessionProvider).needsPerson) break;
+      }
+
+      expect(container.read(salaSessionProvider).stage, SalaStage.convite);
+      expect(container.read(salaSessionProvider).needsPerson, isTrue);
+      expect(bySemanticsLabelWidget('A moment for someone'), findsOneWidget);
+      expect(
+        bySemanticsLabelWidget('Um momento para uma pessoa'),
+        findsNothing,
+        reason:
+            'o convite chamando uma pessoa dizia "Um momento para uma '
+            'pessoa" a um aparelho em inglês',
+      );
+    },
+  );
 }
