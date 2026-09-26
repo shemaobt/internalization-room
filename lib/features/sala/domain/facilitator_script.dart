@@ -241,3 +241,17 @@ String entrarLabelFor({required bool isPanorama, required String language}) =>
     isPanorama
     ? (panoramaEntryLabel[language] ?? panoramaEntryLabel[floorLanguage]!)
     : escolhaLabelFor('enter', language);
+
+const codigoLabels = {
+  'preparing': {
+    'pt': 'A sala está preparando o código deste aparelho',
+    'en': 'The room is getting a code for this tablet',
+  },
+  'showIt': {
+    'pt': 'Mostre este código ao facilitador',
+    'en': 'Show this code to the facilitator',
+  },
+};
+
+String codigoLabelFor(String control, String language) =>
+    codigoLabels[control]![language] ?? codigoLabels[control]![floorLanguage]!;
