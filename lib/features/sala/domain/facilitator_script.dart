@@ -48,6 +48,51 @@ const circleLabels = {
 String circleLabelFor(String state, String language) =>
     circleLabels[state]![language] ?? circleLabels[state]![floorLanguage]!;
 
+const conviteLabels = {
+  'circle': {'pt': 'Falar com o facilitador', 'en': 'Talk to the facilitator'},
+  'enter': {'pt': 'Entrar na passagem', 'en': 'Enter the passage'},
+};
+
+String conviteLabelFor(String control, String language) =>
+    conviteLabels[control]![language] ??
+    conviteLabels[control]![floorLanguage]!;
+
+const handLabels = {
+  'answering': {
+    'pt': 'O facilitador está respondendo',
+    'en': 'The facilitator is answering',
+  },
+  'hearTheAnswer': {
+    'pt': 'Ouvir a resposta do facilitador',
+    'en': 'Hear the facilitator\'s answer',
+  },
+  'cancel': {'pt': 'Cancelar a pergunta', 'en': 'Cancel the question'},
+  'sent': {
+    'pt': 'Pergunta enviada, aguardando resposta',
+    'en': 'Question sent, waiting for an answer',
+  },
+  'raise': {'pt': 'Levantar a mão', 'en': 'Raise a hand'},
+};
+
+String handLabelFor(String state, String language) =>
+    handLabels[state]![language] ?? handLabels[state]![floorLanguage]!;
+
+const roomLabels = {
+  'hearAgain': {'pt': 'Ouvir de novo', 'en': 'Hear it again'},
+  'leavePassage': {
+    'pt': 'Deixar esta passagem e escolher outra',
+    'en': 'Leave this passage and choose another',
+  },
+  'micBlocked': {
+    'pt': 'A sala precisa do microfone para funcionar',
+    'en': 'The room needs the microphone to work',
+  },
+  'beginAgain': {'pt': 'Começar de novo', 'en': 'Begin again'},
+};
+
+String roomLabelFor(String control, String language) =>
+    roomLabels[control]![language] ?? roomLabels[control]![floorLanguage]!;
+
 const recordEntryLabel = {
   'pt': 'Terminar a conversa e ir para o ensaio',
   'en': 'Finish the conversation and go to the rehearsal',
@@ -88,6 +133,9 @@ const retroLabels = {
     'en': 'Approve as the final draft',
   },
   'listenFirst': {'pt': 'Ouvir primeiro', 'en': 'Listen first'},
+  'tryAgain': {'pt': 'Tocar para tentar de novo', 'en': 'Tap to try again'},
+  'aMoment': {'pt': 'Um instante', 'en': 'One moment'},
+  'translated': {'pt': 'Traduzida', 'en': 'Translated'},
 };
 
 String retroLabelFor(String control, String language) =>
@@ -144,9 +192,39 @@ String findingLabelFor(String control, String language) =>
     findingLabels[control]![language] ??
     findingLabels[control]![floorLanguage]!;
 
+const escolhaLabels = {
+  'allDone': {
+    'pt': 'Todas as passagens foram trabalhadas',
+    'en': 'Every passage has been worked through',
+  },
+  'readTheWheel': {
+    'pt': 'Tocar para procurar as passagens',
+    'en': 'Tap to look for the passages',
+  },
+  'hearAgain': {
+    'pt': 'Ouvir esta passagem de novo',
+    'en': 'Hear this passage again',
+  },
+  'enter': {'pt': 'Entrar nesta passagem', 'en': 'Enter this passage'},
+  'ruler': {
+    'pt': 'Escolher a passagem, correndo o dedo pela fileira',
+    'en': 'Choose the passage by running a finger along the row',
+  },
+  'place': {'pt': '{n} de {total}', 'en': '{n} of {total}'},
+};
+
+String escolhaLabelFor(String control, String language) =>
+    escolhaLabels[control]![language] ??
+    escolhaLabels[control]![floorLanguage]!;
+
+String rulerPlaceFor(int place, int total, String language) => escolhaLabelFor(
+  'place',
+  language,
+).replaceAll('{n}', '$place').replaceAll('{total}', '$total');
+
 const panoramaEntryLabel = {'pt': 'Panorama do Livro', 'en': 'Book Panorama'};
 
 String entrarLabelFor({required bool isPanorama, required String language}) =>
     isPanorama
     ? (panoramaEntryLabel[language] ?? panoramaEntryLabel[floorLanguage]!)
-    : 'Entrar nesta passagem';
+    : escolhaLabelFor('enter', language);
