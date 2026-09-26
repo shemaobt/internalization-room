@@ -20,6 +20,7 @@ void main() {
       'escolhaLabels': escolhaLabels,
       'handLabels': handLabels,
       'roomLabels': roomLabels,
+      'warningNoticeLabel': {'notice': warningNoticeLabel},
       'recordEntryLabel': {'entry': recordEntryLabel},
       'panoramaEntryLabel': {'entry': panoramaEntryLabel},
     };

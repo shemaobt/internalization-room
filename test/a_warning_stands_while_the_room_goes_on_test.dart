@@ -36,8 +36,8 @@ void main() {
       isTrue,
       reason:
           'o aviso chega numa leitura de estado comum, sem parar a sala — '
-          'e é isso que tem de acender o círculo, não uma parada que nunca chegou '
-          'a existir',
+          'e é isso que tem de acender a marca ao lado do círculo, não uma '
+          'parada que nunca chegou a existir',
     );
     expect(
       read().voice,
@@ -56,9 +56,9 @@ void main() {
       harness.room.turnsSent,
       turns + 1,
       reason:
-          'a sala segue de pé sob o aviso — um círculo verde sobre uma sala '
-          'que na verdade tivesse parado seria a mesma mentira de antes, só que '
-          'na cor oposta',
+          'a sala segue de pé sob o aviso — a marca ao lado do círculo numa '
+          'sala que na verdade tivesse parado seria a mesma mentira de '
+          'antes, só que na cor oposta',
     );
   });
 
