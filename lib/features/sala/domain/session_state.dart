@@ -226,7 +226,10 @@ class SalaSessionState {
   /// on one bead sets it to that part alone. A pending take standing in [parteARegravar]'s
   /// place still carries its own part number here, so the ring lands on the right bead
   /// while it sounds.
-  final int? parteTocando;
+  ///
+  /// Named apart from the notifier's own `_parteTocando` (the back-translation part in the
+  /// air): the two sit in different stations and would otherwise read as the same fact.
+  final int? parteDoEnsaioTocando;
 
   const SalaSessionState({
     this.stage = SalaStage.convite,
@@ -281,7 +284,7 @@ class SalaSessionState {
     this.unsentTakeScopes = const {},
     this.warning = false,
     this.parteARegravar,
-    this.parteTocando,
+    this.parteDoEnsaioTocando,
   });
 
   bool get colarOn => stage == SalaStage.conversa || stage == SalaStage.fim;
@@ -539,8 +542,8 @@ class SalaSessionState {
     bool? warning,
     int? parteARegravar,
     bool clearParteARegravar = false,
-    int? parteTocando,
-    bool clearParteTocando = false,
+    int? parteDoEnsaioTocando,
+    bool clearParteDoEnsaioTocando = false,
   }) {
     return SalaSessionState(
       stage: stage ?? this.stage,
@@ -609,9 +612,9 @@ class SalaSessionState {
       parteARegravar: clearParteARegravar
           ? null
           : (parteARegravar ?? this.parteARegravar),
-      parteTocando: clearParteTocando
+      parteDoEnsaioTocando: clearParteDoEnsaioTocando
           ? null
-          : (parteTocando ?? this.parteTocando),
+          : (parteDoEnsaioTocando ?? this.parteDoEnsaioTocando),
     );
   }
 }

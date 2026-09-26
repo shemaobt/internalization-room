@@ -436,7 +436,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       clearContaEscolhida: true,
       playPing: false,
       takePaused: false,
-      clearParteTocando: true,
+      clearParteDoEnsaioTocando: true,
     );
   }
 
@@ -2729,7 +2729,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(
         playPing: false,
         takePaused: false,
-        clearParteTocando: true,
+        clearParteDoEnsaioTocando: true,
       );
     }
 
@@ -2747,7 +2747,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     final (path, trecho, parte) = _ensaioATocar[onde];
-    state = state.copyWith(parteTocando: parte);
+    state = state.copyWith(parteDoEnsaioTocando: parte);
     if (trecho == null) {
       _play(path, onComplete: aProxima, onFailed: acabou);
       return;
@@ -2766,12 +2766,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// does — [playTheRehearsal] already carries that logic, and duplicating it here would
   /// drift from it the first time either one changed. Tapping a different part stops
   /// whatever is in the air and starts this one instead of resuming it.
+  ///
+  /// A dimmed bead — one of the others while a record-again sent by a finding stands open,
+  /// not yet recorded — does not apply, so a tap on it does nothing (ADR 0040). Once that
+  /// recording is pending (waiting for the green check), every bead plays as usual: the
+  /// team can hear what they recorded before deciding to keep it.
   void tocarAParte(int indice) {
     if (state.stage != SalaStage.ensaio) return;
     if (state.needsPerson) return;
-    if (state.ensaio != EnsaioStatus.idle) return;
+    if (state.ensaio == EnsaioStatus.recording) return;
     if (indice < 0 || indice >= state.partes.length) return;
-    if (indice == state.parteTocando) {
+    if (state.ensaio == EnsaioStatus.idle && _beadIsDimmed(indice)) return;
+    if (indice == state.parteDoEnsaioTocando) {
       playTheRehearsal();
       return;
     }
@@ -2782,9 +2788,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       playPing: true,
       takePaused: false,
-      parteTocando: indice,
+      parteDoEnsaioTocando: indice,
     );
     _tocarDoEnsaio(0);
+  }
+
+  bool _beadIsDimmed(int indice) {
+    final again = state.parteARegravar;
+    return again != null && again < state.partes.length && indice != again;
   }
 
   List<(String, (Duration, Duration)?, int)> _oEnsaioAteAqui() {
