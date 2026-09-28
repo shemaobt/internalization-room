@@ -5137,7 +5137,7 @@ void main() {
   });
 
   test(
-    'a reply the room cannot serve gives the hand and the circle back, with nobody called',
+    'a reply the room cannot serve calls nobody and is offered again on the next touch',
     () async {
       final harness = SalaHarness(
         replies: const [HandReply(id: 'r1', audioUrl: '/voice/r1')],
@@ -5167,23 +5167,24 @@ void main() {
             'ninguém, e a equipe fica com os gestos que tinha',
       );
 
+      expect(
+        state.hasUnheardReply,
+        isTrue,
+        reason: 'a resposta que a sala não conseguiu servir segue por ouvir',
+      );
+      expect(harness.inbox.heard, isEmpty);
+
       harness.voice.roomFailsWith = null;
       notifier.handTap();
-      expect(
-        container.read(salaSessionProvider).noteMode,
-        isTrue,
-        reason:
-            'uma resposta quebrada nunca toma o gesto — é largada como a que '
-            'o player não abre, e o próximo toque na mão arma uma pergunta',
-      );
-      notifier.conversaTap();
       await settle();
 
       expect(
-        harness.recorder.captures,
-        1,
-        reason: 'o círculo abre o microfone de novo',
+        harness.voice.played.where((url) => url == '/voice/r1'),
+        hasLength(2),
+        reason: 'o toque seguinte oferece de novo a resposta que não chegou',
       );
+      expect(harness.inbox.heard, ['r1']);
+      expect(container.read(salaSessionProvider).hasUnheardReply, isFalse);
     },
   );
 
