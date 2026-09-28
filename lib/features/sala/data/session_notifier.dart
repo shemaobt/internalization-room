@@ -2648,14 +2648,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// Play the facilitator's answer, and let it go only once it has been heard.
   ///
   /// A reply is marked heard when the player reported the whole clip. A clip that cannot
-  /// be decoded, is cut short, or never arrives ends the play without a sound, and the
-  /// tablet used to mark it heard all the same: the desk showed the facilitator an answer
-  /// as delivered that the team never heard, and it never came back.
+  /// be decoded, is cut short, or never arrives stays unheard.
   ///
-  /// A reply that did not sound stays unheard and is offered again on the next touch of
-  /// the hand, with no count of failures. The cost is real: while it stays unheard the
-  /// hand plays it before it lets the team ask anything, so a clip that never decodes
-  /// holds the gesture until the facilitator records it again or it plays.
+  /// It is offered again on the next touch of the hand, with no count of failures. While
+  /// it stays unheard the hand plays it before it lets the team ask anything, so a clip
+  /// that never decodes holds the gesture until the facilitator records it again or it
+  /// plays. The inbox is read again on the failure, as it is after a refused mark, so a
+  /// reply recorded again reaches the hand at its new address.
   ///
   /// A room that cannot serve the clip is one more way for an answer not to play, and it is
   /// treated the same way — never through `_handleRoomFailure`. The hand is a side
@@ -2672,15 +2671,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     } on Exception {
       sounded = false;
     }
-    if (sounded &&
+    final current =
         epoch == _epoch &&
         !state.replies.any(
           (kept) => kept.id == reply.id && kept.audioUrl != reply.audioUrl,
-        )) {
+        );
+    if (sounded && current) {
       unawaited(_markHeard(reply.id, audioUrl: reply.audioUrl));
-    } else if (!_gone && state.playingReplyId == reply.id) {
+      return;
+    }
+    if (!_gone && state.playingReplyId == reply.id) {
       state = state.copyWith(clearPlayingReply: true);
     }
+    if (current) unawaited(_pullInbox());
   }
 
   /// A reply is heard when the desk agrees, and not before.
