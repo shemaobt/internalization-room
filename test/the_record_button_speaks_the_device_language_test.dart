@@ -2,7 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 
 import 'fakes.dart';
-import 'sala_screen_test.dart' show bySemanticsLabelWidget, pumpSala;
+import 'sala_screen_test.dart' show pumpSala;
+import 'scenario_helpers.dart' show byLabel;
 
 void main() {
   testWidgets('the record entry speaks english to an english room', (
@@ -16,7 +17,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(
-      bySemanticsLabelWidget('Finish the conversation and go to the rehearsal'),
+      byLabel('Finish the conversation and go to the rehearsal'),
       findsOneWidget,
       reason:
           'a equipe inglesa precisa ouvir o próprio idioma no botão que abre o '

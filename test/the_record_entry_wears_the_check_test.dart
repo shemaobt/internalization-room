@@ -6,7 +6,8 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 
 import 'fakes.dart';
-import 'sala_screen_test.dart' show bySemanticsLabelWidget, pumpSala;
+import 'sala_screen_test.dart' show pumpSala;
+import 'scenario_helpers.dart' show byLabel;
 
 const _entryPt = 'Terminar a conversa e ir para o ensaio';
 const _entryEn = 'Finish the conversation and go to the rehearsal';
@@ -31,7 +32,7 @@ void main() {
       final harness = SalaHarness(filaEmMemoria: true);
       await _pumpInConversa(tester, harness);
 
-      final entry = bySemanticsLabelWidget(_entryPt);
+      final entry = byLabel(_entryPt);
       expect(entry, findsOneWidget);
 
       final icons = tester.widgetList<Icon>(
@@ -55,8 +56,8 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
     await _pumpInConversa(tester, harness);
 
-    expect(bySemanticsLabelWidget(_entryEn), findsOneWidget);
-    expect(bySemanticsLabelWidget(_entryPt), findsNothing);
+    expect(byLabel(_entryEn), findsOneWidget);
+    expect(byLabel(_entryPt), findsNothing);
   });
 
   testWidgets(
@@ -65,8 +66,8 @@ void main() {
       final harness = SalaHarness(filaEmMemoria: true, lingua: 'xx');
       await _pumpInConversa(tester, harness);
 
-      expect(bySemanticsLabelWidget(_entryEn), findsOneWidget);
-      expect(bySemanticsLabelWidget(_entryPt), findsNothing);
+      expect(byLabel(_entryEn), findsOneWidget);
+      expect(byLabel(_entryPt), findsNothing);
     },
   );
 }

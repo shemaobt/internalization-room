@@ -5,8 +5,8 @@ import 'package:internalization_room/features/sala/presentation/widgets/ensaio_v
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 
 import 'fakes.dart';
-import 'sala_screen_test.dart' show bySemanticsLabelWidget, pumpSala;
-import 'scenario_helpers.dart' show settle;
+import 'sala_screen_test.dart' show pumpSala;
+import 'scenario_helpers.dart' show byLabel, settle;
 
 Future<void> _openTheMicrophone(
   WidgetTester tester,
@@ -118,14 +118,14 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(
-      bySemanticsLabelWidget('Tocar ao terminar'),
+      byLabel('Tocar ao terminar'),
       findsOneWidget,
       reason:
           'a tomada continua aberta durante a ligação — o toque ainda é o '
           'que a encerra',
     );
     expect(
-      bySemanticsLabelWidget('Tocar para gravar o ensaio'),
+      byLabel('Tocar para gravar o ensaio'),
       findsNothing,
       reason:
           'apagar o halo pelo mesmo sinalizador que escolhe o rótulo '

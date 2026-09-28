@@ -5,7 +5,8 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'sala_screen_test.dart' show bySemanticsLabelWidget, pumpSala;
+import 'sala_screen_test.dart' show pumpSala;
+import 'scenario_helpers.dart' show byLabel;
 
 void main() {
   testWidgets(
@@ -26,13 +27,13 @@ void main() {
             'chegasse lá',
       );
       expect(
-        bySemanticsLabelWidget('O facilitador já contou do livro'),
+        byLabel('O facilitador já contou do livro'),
         findsNothing,
         reason:
             'o panorama não tem fim previsto — dizer que o facilitador já '
             'terminou é o próprio convite fingindo que não há mais turno',
       );
-      expect(bySemanticsLabelWidget('Falar com o facilitador'), findsOneWidget);
+      expect(byLabel('Falar com o facilitador'), findsOneWidget);
     },
   );
 
@@ -49,7 +50,7 @@ void main() {
 
     expect(
       tester
-          .widget<Semantics>(bySemanticsLabelWidget('Entrar na passagem'))
+          .widget<Semantics>(byLabel('Entrar na passagem'))
           .properties
           .enabled,
       isTrue,
@@ -57,7 +58,7 @@ void main() {
           'a conta precisa estar atendendo antes da gravação, senão o surdo '
           'abaixo é só o segundo depois da abertura',
     );
-    await tester.tap(bySemanticsLabelWidget('Falar com o facilitador'));
+    await tester.tap(byLabel('Falar com o facilitador'));
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(
@@ -67,10 +68,10 @@ void main() {
           'a asserção abaixo só prova algo enquanto a equipe está gravando '
           'a resposta, não parada no convite',
     );
-    expect(bySemanticsLabelWidget('Entrar na passagem'), findsOneWidget);
+    expect(byLabel('Entrar na passagem'), findsOneWidget);
     expect(
       tester
-          .widget<Semantics>(bySemanticsLabelWidget('Entrar na passagem'))
+          .widget<Semantics>(byLabel('Entrar na passagem'))
           .properties
           .enabled,
       isFalse,
@@ -79,10 +80,7 @@ void main() {
           'fora — a dela só atende fora de turno e de fala',
     );
 
-    await tester.tap(
-      bySemanticsLabelWidget('Entrar na passagem'),
-      warnIfMissed: false,
-    );
+    await tester.tap(byLabel('Entrar na passagem'), warnIfMissed: false);
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(
@@ -92,7 +90,7 @@ void main() {
     );
 
     harness.voice.holdNextLine();
-    await tester.tap(bySemanticsLabelWidget('Falar com o facilitador'));
+    await tester.tap(byLabel('Falar com o facilitador'));
     await tester.pump(const Duration(milliseconds: 200));
     await tester.pump(const Duration(seconds: 1));
     await tester.pump(const Duration(milliseconds: 100));
@@ -105,7 +103,7 @@ void main() {
     );
     expect(
       tester
-          .widget<Semantics>(bySemanticsLabelWidget('Entrar na passagem'))
+          .widget<Semantics>(byLabel('Entrar na passagem'))
           .properties
           .enabled,
       isFalse,
@@ -122,7 +120,7 @@ void main() {
       VoiceState.invite,
       reason: 'a troca precisa ter acabado para a conta voltar a atender',
     );
-    await tester.tap(bySemanticsLabelWidget('Entrar na passagem'));
+    await tester.tap(byLabel('Entrar na passagem'));
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(
@@ -140,7 +138,7 @@ void main() {
     harness.voice
       ..holdNextFetch()
       ..holdNextLine();
-    await tester.tap(bySemanticsLabelWidget('Falar com o facilitador'));
+    await tester.tap(byLabel('Falar com o facilitador'));
     await tester.pump(const Duration(milliseconds: 200));
 
     for (final voice in [VoiceState.thinking, VoiceState.speaking]) {
@@ -153,7 +151,7 @@ void main() {
             'o que vem abaixo só vale com o Guia preparando ou dizendo a abertura',
       );
       expect(
-        bySemanticsLabelWidget('Entrar na passagem'),
+        byLabel('Entrar na passagem'),
         findsOneWidget,
         reason:
             'a conta só nascia no fim da abertura, já acesa, debaixo do dedo '
@@ -161,17 +159,14 @@ void main() {
       );
       expect(
         tester
-            .widget<Semantics>(bySemanticsLabelWidget('Entrar na passagem'))
+            .widget<Semantics>(byLabel('Entrar na passagem'))
             .properties
             .enabled,
         isFalse,
         reason: 'com o Guia ocupado, a conta está na mesa mas não atende',
       );
 
-      await tester.tap(
-        bySemanticsLabelWidget('Entrar na passagem'),
-        warnIfMissed: false,
-      );
+      await tester.tap(byLabel('Entrar na passagem'), warnIfMissed: false);
       await tester.pump(const Duration(milliseconds: 200));
 
       expect(
@@ -191,7 +186,7 @@ void main() {
     final harness = SalaHarness();
     final container = await pumpSala(tester, harness);
 
-    await tester.tap(bySemanticsLabelWidget('Falar com o facilitador'));
+    await tester.tap(byLabel('Falar com o facilitador'));
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(
@@ -201,7 +196,7 @@ void main() {
     );
     expect(
       tester
-          .widget<Semantics>(bySemanticsLabelWidget('Entrar na passagem'))
+          .widget<Semantics>(byLabel('Entrar na passagem'))
           .properties
           .enabled,
       isFalse,
@@ -210,14 +205,11 @@ void main() {
           'toque que ia ao círculo abriu a roda no portão',
     );
 
-    await tester.tap(
-      bySemanticsLabelWidget('Entrar na passagem'),
-      warnIfMissed: false,
-    );
+    await tester.tap(byLabel('Entrar na passagem'), warnIfMissed: false);
     await tester.pump(const Duration(milliseconds: 200));
     expect(container.read(salaSessionProvider).stage, SalaStage.convite);
 
-    await tester.tap(bySemanticsLabelWidget('Falar com o facilitador'));
+    await tester.tap(byLabel('Falar com o facilitador'));
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(
@@ -233,20 +225,20 @@ void main() {
     final harness = SalaHarness();
     final container = await pumpSala(tester, harness);
 
-    await tester.tap(bySemanticsLabelWidget('Falar com o facilitador'));
+    await tester.tap(byLabel('Falar com o facilitador'));
     await tester.pump(const Duration(milliseconds: 200));
     await tester.pump(const Duration(seconds: 1));
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(
       tester
-          .widget<Semantics>(bySemanticsLabelWidget('Entrar na passagem'))
+          .widget<Semantics>(byLabel('Entrar na passagem'))
           .properties
           .enabled,
       isTrue,
       reason: 'passado o segundo, a saída dela volta a estar à mão',
     );
-    await tester.tap(bySemanticsLabelWidget('Entrar na passagem'));
+    await tester.tap(byLabel('Entrar na passagem'));
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).stage, SalaStage.escolha);
@@ -259,11 +251,11 @@ void main() {
       final container = await pumpSala(tester, harness);
 
       harness.network.holdNextCheck();
-      await tester.tap(bySemanticsLabelWidget('Falar com o facilitador'));
+      await tester.tap(byLabel('Falar com o facilitador'));
       await tester.pump(const Duration(milliseconds: 200));
 
       expect(
-        bySemanticsLabelWidget('Entrar na passagem'),
+        byLabel('Entrar na passagem'),
         findsOneWidget,
         reason: 'a conta precisa estar na mesa, surda, para o teste valer',
       );
@@ -274,7 +266,7 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
 
       expect(container.read(salaSessionProvider).offline, isTrue);
-      expect(bySemanticsLabelWidget('Entrar na passagem'), findsNothing);
+      expect(byLabel('Entrar na passagem'), findsNothing);
       expect(
         tester.takeException(),
         isNull,
@@ -297,7 +289,7 @@ void main() {
     final harness = SalaHarness();
     final container = await pumpSala(tester, harness);
 
-    await tester.tap(bySemanticsLabelWidget('Falar com o facilitador'));
+    await tester.tap(byLabel('Falar com o facilitador'));
     await tester.pump(const Duration(milliseconds: 200));
     await tester.pump(const Duration(milliseconds: 100));
 
@@ -308,7 +300,7 @@ void main() {
     );
     expect(
       tester
-          .widget<Semantics>(bySemanticsLabelWidget('Entrar na passagem'))
+          .widget<Semantics>(byLabel('Entrar na passagem'))
           .properties
           .enabled,
       isFalse,
@@ -322,7 +314,7 @@ void main() {
 
     expect(
       tester
-          .widget<Semantics>(bySemanticsLabelWidget('Entrar na passagem'))
+          .widget<Semantics>(byLabel('Entrar na passagem'))
           .properties
           .enabled,
       isTrue,
@@ -337,7 +329,7 @@ void main() {
 
     double shown() {
       final above = find.ancestor(
-        of: bySemanticsLabelWidget('Entrar na passagem'),
+        of: byLabel('Entrar na passagem'),
         matching: find.byWidgetPredicate(
           (widget) => widget is Opacity || widget is FadeTransition,
         ),
@@ -355,10 +347,10 @@ void main() {
     }
 
     harness.voice.holdNextLine();
-    await tester.tap(bySemanticsLabelWidget('Falar com o facilitador'));
+    await tester.tap(byLabel('Falar com o facilitador'));
     await tester.pump();
 
-    expect(bySemanticsLabelWidget('Entrar na passagem'), findsOneWidget);
+    expect(byLabel('Entrar na passagem'), findsOneWidget);
     expect(
       shown(),
       lessThan(0.5),
@@ -387,9 +379,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
 
       expect(container.read(salaSessionProvider).stage, SalaStage.convite);
-      expect(bySemanticsLabelWidget('Talk to the facilitator'), findsOneWidget);
+      expect(byLabel('Talk to the facilitator'), findsOneWidget);
       expect(
-        bySemanticsLabelWidget('Falar com o facilitador'),
+        byLabel('Falar com o facilitador'),
         findsNothing,
         reason:
             'o círculo do convite dizia "Falar com o facilitador" a um '
@@ -407,9 +399,9 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     expect(container.read(salaSessionProvider).entradaOffered, isTrue);
-    expect(bySemanticsLabelWidget('Enter the passage'), findsOneWidget);
+    expect(byLabel('Enter the passage'), findsOneWidget);
     expect(
-      bySemanticsLabelWidget('Entrar na passagem'),
+      byLabel('Entrar na passagem'),
       findsNothing,
       reason:
           'a conta da entrada dizia "Entrar na passagem" a um aparelho em '
@@ -438,9 +430,9 @@ void main() {
 
       expect(container.read(salaSessionProvider).stage, SalaStage.convite);
       expect(container.read(salaSessionProvider).needsPerson, isTrue);
-      expect(bySemanticsLabelWidget('A moment for someone'), findsOneWidget);
+      expect(byLabel('A moment for someone'), findsOneWidget);
       expect(
-        bySemanticsLabelWidget('Um momento para uma pessoa'),
+        byLabel('Um momento para uma pessoa'),
         findsNothing,
         reason:
             'o convite chamando uma pessoa dizia "Um momento para uma '

@@ -4,7 +4,8 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'sala_screen_test.dart' show bySemanticsLabelWidget, pumpSala;
+import 'sala_screen_test.dart' show pumpSala;
+import 'scenario_helpers.dart' show byLabel;
 
 void main() {
   // Red until `languages` stops listing es, which #138 does.
@@ -45,9 +46,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
 
       expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
-      expect(bySemanticsLabelWidget('Tap to speak'), findsOneWidget);
+      expect(byLabel('Tap to speak'), findsOneWidget);
       expect(
-        bySemanticsLabelWidget('Tocar para falar'),
+        byLabel('Tocar para falar'),
         findsNothing,
         reason:
             'o rótulo do círculo era sempre em português, mesmo com o '

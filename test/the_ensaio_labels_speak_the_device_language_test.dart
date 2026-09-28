@@ -4,7 +4,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
-import 'sala_screen_test.dart' show bySemanticsLabelWidget;
+import 'scenario_helpers.dart' show byLabel;
 
 Future<ProviderContainer> _pumpNoEnsaio(
   WidgetTester tester, {
@@ -46,13 +46,13 @@ void main() {
     addTearDown(container.dispose);
 
     expect(
-      bySemanticsLabelWidget('Hear the rehearsal so far'),
+      byLabel('Hear the rehearsal so far'),
       findsOneWidget,
       reason: 'quem gravou em inglês ouve o próprio idioma no play do ensaio',
     );
-    expect(bySemanticsLabelWidget('Confirm this part'), findsOneWidget);
+    expect(byLabel('Confirm this part'), findsOneWidget);
     expect(
-      bySemanticsLabelWidget('Go to the translation'),
+      byLabel('Go to the translation'),
       findsOneWidget,
       reason: 'o botão que leva à tradução também não fica preso ao português',
     );
@@ -61,7 +61,7 @@ void main() {
     await letTheRehearsalReachTheRoom(tester);
 
     expect(
-      bySemanticsLabelWidget('Tap to record the next part'),
+      byLabel('Tap to record the next part'),
       findsOneWidget,
       reason: 'confirmada a parte, o círculo convida a próxima em inglês',
     );
@@ -73,17 +73,17 @@ void main() {
       final container = await _pumpAoGravado(tester, lingua: 'en');
       addTearDown(container.dispose);
 
-      await tester.tap(bySemanticsLabelWidget('Hear the rehearsal so far'));
+      await tester.tap(byLabel('Hear the rehearsal so far'));
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(
-        bySemanticsLabelWidget('Pause the rehearsal'),
+        byLabel('Pause the rehearsal'),
         findsOneWidget,
         reason:
             'o ícone já vira pausa; o rótulo em inglês precisa dizer a '
             'mesma coisa, não repetir "hear" sobre um toque que pausa',
       );
-      expect(bySemanticsLabelWidget('Hear the rehearsal so far'), findsNothing);
+      expect(byLabel('Hear the rehearsal so far'), findsNothing);
     },
   );
 
@@ -93,15 +93,15 @@ void main() {
       final container = await _pumpAoGravado(tester);
       addTearDown(container.dispose);
 
-      await tester.tap(bySemanticsLabelWidget('Ouvir o ensaio até aqui'));
+      await tester.tap(byLabel('Ouvir o ensaio até aqui'));
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(
-        bySemanticsLabelWidget('Pausar o ensaio'),
+        byLabel('Pausar o ensaio'),
         findsOneWidget,
         reason: 'a mesma palavra que retro_view.dart já usa para o mesmo gesto',
       );
-      expect(bySemanticsLabelWidget('Ouvir o ensaio até aqui'), findsNothing);
+      expect(byLabel('Ouvir o ensaio até aqui'), findsNothing);
     },
   );
 
@@ -113,7 +113,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     expect(
-      bySemanticsLabelWidget('Tap to record the rehearsal'),
+      byLabel('Tap to record the rehearsal'),
       findsOneWidget,
       reason: 'a tela recém-aberta convida a gravar, no idioma da equipe',
     );
@@ -122,7 +122,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(
-      bySemanticsLabelWidget('Tap when you finish'),
+      byLabel('Tap when you finish'),
       findsOneWidget,
       reason: 'gravando, o círculo diz em inglês que o toque encerra',
     );
@@ -131,7 +131,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(
-      bySemanticsLabelWidget('Tap to record this part again'),
+      byLabel('Tap to record this part again'),
       findsOneWidget,
       reason: 'com a parte pendente, o círculo oferece regravá-la em inglês',
     );

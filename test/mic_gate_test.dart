@@ -6,9 +6,9 @@ import 'fakes.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
-import 'sala_screen_test.dart' show bySemanticsLabelWidget, pumpSala;
+import 'sala_screen_test.dart' show pumpSala;
 import 'session_notifier_test.dart' show inConversa;
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart' show byLabel, settle;
 
 void main() {
   test('a refused microphone is noticed before anything is recorded', () async {
@@ -170,9 +170,7 @@ void main() {
     expect(container.read(micPermissionProvider), MicAccess.denied);
 
     harness.recorder.permitted = true;
-    await tester.tap(
-      bySemanticsLabelWidget('A sala precisa do microfone para funcionar'),
-    );
+    await tester.tap(byLabel('A sala precisa do microfone para funcionar'));
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(
@@ -190,12 +188,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(micPermissionProvider), MicAccess.denied);
+    expect(byLabel('The room needs the microphone to work'), findsOneWidget);
     expect(
-      bySemanticsLabelWidget('The room needs the microphone to work'),
-      findsOneWidget,
-    );
-    expect(
-      bySemanticsLabelWidget('A sala precisa do microfone para funcionar'),
+      byLabel('A sala precisa do microfone para funcionar'),
       findsNothing,
       reason:
           'a tela do microfone, a única saída de uma equipe bloqueada, '

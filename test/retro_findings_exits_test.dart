@@ -7,14 +7,11 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart' show byLabel;
 
 const retellStretchExit = 'Ouvir e traduzir esta parte de novo';
 const wholeClipExit = 'Ouvir e traduzir a gravação de novo';
 const continuarOEnsaio = 'Continuar o ensaio';
-
-Finder bySemanticsLabelWidget(String label) => find.byWidgetPredicate(
-  (widget) => widget is Semantics && widget.properties.label == label,
-);
 
 Future<ProviderContainer> pumpToFindings(
   WidgetTester tester,
@@ -69,7 +66,7 @@ void main() {
     final rehearsed = container.read(salaSessionProvider).partes.length;
     expect(rehearsed, greaterThan(0));
 
-    await tester.tap(bySemanticsLabelWidget(continuarOEnsaio));
+    await tester.tap(byLabel(continuarOEnsaio));
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).partes.length, rehearsed);
@@ -84,7 +81,7 @@ void main() {
       trecho: 'trecho-1',
     );
 
-    await tester.tap(bySemanticsLabelWidget('Traduzir este trecho de novo'));
+    await tester.tap(byLabel('Traduzir este trecho de novo'));
     await tester.pump(const Duration(milliseconds: 300));
 
     final estado = container.read(salaSessionProvider);
@@ -103,7 +100,7 @@ void main() {
   ) async {
     final container = await pumpToFindings(tester, BtFindingKind.unclear);
 
-    await tester.tap(bySemanticsLabelWidget(continuarOEnsaio));
+    await tester.tap(byLabel(continuarOEnsaio));
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
@@ -114,9 +111,11 @@ void main() {
     final container = await pumpToFindings(tester, BtFindingKind.addition);
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
-    final offered = [retellStretchExit, wholeClipExit, continuarOEnsaio]
-        .where((label) => bySemanticsLabelWidget(label).evaluate().isNotEmpty)
-        .toList();
+    final offered = [
+      retellStretchExit,
+      wholeClipExit,
+      continuarOEnsaio,
+    ].where((label) => byLabel(label).evaluate().isNotEmpty).toList();
     expect(
       offered,
       [continuarOEnsaio],
@@ -132,7 +131,7 @@ void main() {
     for (final label in offered) {
       final room = await pumpToFindings(tester, BtFindingKind.addition);
       final before = room.read(salaSessionProvider);
-      await tester.tap(bySemanticsLabelWidget(label));
+      await tester.tap(byLabel(label));
       await tester.pump(const Duration(milliseconds: 300));
       final after = room.read(salaSessionProvider);
       expect(
