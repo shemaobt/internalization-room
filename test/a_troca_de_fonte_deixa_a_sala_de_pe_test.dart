@@ -4,7 +4,7 @@ import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'session_notifier_test.dart' show settle;
+import 'scenario_helpers.dart' show settle;
 import 'tocar_vira_pausar_test.dart' show harnessApontando, pumpAoApontado;
 import 'um_ensaio_de_tres_partes.dart';
 

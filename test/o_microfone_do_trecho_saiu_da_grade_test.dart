@@ -14,7 +14,6 @@ import 'a_pergunta_da_grade.dart' show pumpToPergunta;
 import 'fakes.dart';
 import 'scenario_helpers.dart';
 
-const umaParteInteira = Duration(seconds: 30);
 const continuarOEnsaioLabel = 'Continuar o ensaio';
 const ouvirOTrechoLabel = 'Ouvir o trecho e a tradução';
 const micParteLabel = 'Gravar a parte de novo na língua materna';
@@ -36,33 +35,6 @@ List<String> botoesDoAchado(WidgetTester tester) => [
   ))
     botao.semanticLabel,
 ];
-
-Future<void> gravarUmaParte(
-  WidgetTester tester,
-  SalaSessionNotifier sala,
-) async {
-  sala.ensaioTap();
-  sala.ensaioTap();
-  await tester.pump(const Duration(milliseconds: 100));
-  sala.takeKeep();
-  await letTheRehearsalReachTheRoom(tester);
-}
-
-Future<void> traduzirAParteInteira(
-  WidgetTester tester,
-  SalaHarness harness,
-  ProviderContainer container,
-) async {
-  final sala = container.read(salaSessionProvider.notifier);
-  harness.playback.at = umaParteInteira;
-  sala.cortarTrecho();
-  sala.retroTap();
-  await tester.pump(const Duration(milliseconds: 200));
-  await confirmarATraducaoNaTela(tester, container);
-  await tester.pump(const Duration(milliseconds: 600));
-  harness.playback.finishPlayback();
-  await tester.pump(const Duration(milliseconds: 200));
-}
 
 /// A team that recorded the rehearsal in three parts and told every one of them back
 /// whole, standing on the verdict's answer.

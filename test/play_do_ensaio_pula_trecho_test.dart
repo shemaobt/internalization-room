@@ -8,7 +8,6 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart';
 import 'um_ensaio_de_tres_partes.dart';
 
 /// ENG-824: six rehearsal parts, each told back as exactly one stretch, the

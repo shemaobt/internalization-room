@@ -5,7 +5,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart';
-import 'session_notifier_test.dart' show inConversa, settle;
+import 'session_notifier_test.dart' show inConversa;
 
 /// How many times the tablet has asked the room what it is doing.
 /// A whole turn, from the team touching the circle to the room hearing it.

@@ -9,8 +9,6 @@ import 'package:internalization_room/features/sala/presentation/widgets/ensaio_v
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
-import 'resto_da_historia_test.dart'
-    show gravarUmaParte, traduzirAParteInteira, umaParteInteira;
 import 'sala_screen_test.dart' show pumpSala;
 import 'um_ensaio_de_tres_partes.dart' hide gravarUmaParte;
 import 'scenario_helpers.dart';

@@ -7,7 +7,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
-import 'session_notifier_test.dart' show inConversa, settle;
+import 'session_notifier_test.dart' show inConversa;
 import 'scenario_helpers.dart';
 
 /// A team standing at the pending part, with the play and the check lit.

@@ -4,7 +4,8 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'session_notifier_test.dart' show inConversa, settle;
+import 'session_notifier_test.dart' show inConversa;
+import 'scenario_helpers.dart' show settle;
 
 const _oneStepOfTheLadder = Duration(milliseconds: 20);
 const _severalStepsOfTheLadder = Duration(milliseconds: 300);

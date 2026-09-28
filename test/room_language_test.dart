@@ -15,7 +15,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/codigo_v
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show bySemanticsLabelWidget, pumpSala;
-import 'session_notifier_test.dart' show settle;
+import 'scenario_helpers.dart' show settle;
 
 void main() {
   test(

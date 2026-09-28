@@ -7,7 +7,8 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'playback_ceiling_test.dart' show gravaParte;
-import 'session_notifier_test.dart' show inConversa, settle;
+import 'session_notifier_test.dart' show inConversa;
+import 'scenario_helpers.dart' show settle;
 import 'tocar_vira_pausar_test.dart' show harnessApontando, pumpAoApontado;
 
 /// Two parts recorded and kept, with the rehearsal at rest: the state the button that

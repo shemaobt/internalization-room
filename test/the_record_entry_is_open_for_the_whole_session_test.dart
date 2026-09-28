@@ -7,7 +7,8 @@ import 'package:internalization_room/features/sala/presentation/widgets/facilita
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show bySemanticsLabelWidget, pumpSala;
-import 'session_notifier_test.dart' show inConversa, settle;
+import 'session_notifier_test.dart' show inConversa;
+import 'scenario_helpers.dart' show settle;
 
 Future<void> _pumpWhile(
   WidgetTester tester,

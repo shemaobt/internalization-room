@@ -5,7 +5,7 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'resto_da_historia_test.dart' show settle, umaParteInteira;
+import 'scenario_helpers.dart' show settle, umaParteInteira;
 
 void main() {
   test('a guarded back-translation take carries no number, a rehearsal part '

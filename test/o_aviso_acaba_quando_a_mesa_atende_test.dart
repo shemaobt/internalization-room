@@ -7,7 +7,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart';
 import 'o_aviso_nao_fecha_o_azul_test.dart' show achadoComAvisoAtivo;
-import 'session_notifier_test.dart' show inConversa, settle;
+import 'session_notifier_test.dart' show inConversa;
 
 /// How many times the tablet has asked the room what it is doing.
 /// Beats enough for a read the room owes to have landed, at whatever cadence this

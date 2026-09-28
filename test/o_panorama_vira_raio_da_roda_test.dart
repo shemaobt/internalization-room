@@ -6,9 +6,7 @@ import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-
-Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) =>
-    Future<void>.delayed(delay);
+import 'scenario_helpers.dart' show settle;
 
 const _panorama = Passagem(
   pericope: 'panorama',

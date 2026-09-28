@@ -17,8 +17,11 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'resto_da_historia_test.dart' as resto;
+import 'scenario_helpers.dart'
+    as resto
+    show gravarUmaParte, umaParteInteira, settle;
 import 'um_ensaio_de_tres_partes.dart';
-import 'scenario_helpers.dart';
+import 'scenario_helpers.dart' hide gravarUmaParte;
 
 const _aprovar = 'Aprovar como rascunho final';
 const _ouvir = 'Ouvir a gravação';

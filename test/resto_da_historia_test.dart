@@ -19,7 +19,6 @@ import 'scenario_helpers.dart';
 
 const continuarOEnsaio = 'Continuar o ensaio';
 const irParaARetro = 'Ir para a tradução';
-const umaParteInteira = Duration(seconds: 30);
 
 List<String?> gravacoesDe(SalaSessionState state) => [
   for (final take in state.keptTakes) take.takeId,
@@ -39,9 +38,6 @@ int ouvidoAteMs(List<List<int>> ranges) {
   }
   return ate;
 }
-
-Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) =>
-    Future<void>.delayed(delay);
 
 /// Ask, rather than guess, when the disk or the room has done its part.
 /// A tablet closed on the rehearsal of a passage told back in three parts, and opened
@@ -118,36 +114,6 @@ Future<KeptTake> gravarMaisUmaParte(ProviderContainer container) async {
     return takes.length == antes + 1 && takes.last.takeId != null;
   });
   return container.read(salaSessionProvider).keptTakes.last;
-}
-
-/// Record one part and keep it: the two taps are start and stop, the way the team taps
-/// the circle, and the keep waits for the room to name the recording.
-Future<void> gravarUmaParte(
-  WidgetTester tester,
-  SalaSessionNotifier notifier,
-) async {
-  notifier.ensaioTap();
-  notifier.ensaioTap();
-  await tester.pump(const Duration(milliseconds: 100));
-  notifier.takeKeep();
-  await letTheRehearsalReachTheRoom(tester);
-}
-
-/// Tell the part in the air back whole, from its beginning to its end, then let it finish.
-Future<void> traduzirAParteInteira(
-  WidgetTester tester,
-  SalaHarness harness,
-  ProviderContainer container,
-) async {
-  final notifier = container.read(salaSessionProvider.notifier);
-  harness.playback.at = umaParteInteira;
-  notifier.cortarTrecho();
-  notifier.retroTap();
-  await tester.pump(const Duration(milliseconds: 200));
-  await confirmarATraducaoNaTela(tester, container);
-  await tester.pump(const Duration(milliseconds: 600));
-  harness.playback.finishPlayback();
-  await tester.pump(const Duration(milliseconds: 200));
 }
 
 /// A team that recorded the passage in three parts, told every part back whole and got

@@ -4,7 +4,8 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'session_notifier_test.dart' show inConversa, settle;
+import 'session_notifier_test.dart' show inConversa;
+import 'scenario_helpers.dart' show settle;
 import 'playback_ceiling_test.dart' show gravaParte;
 
 /// A team standing at the findings screen, with one stretch told and the analyst's

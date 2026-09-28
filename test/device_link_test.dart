@@ -14,7 +14,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/convite_
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'session_notifier_test.dart' show settle;
+import 'scenario_helpers.dart' show settle;
 
 const _unclaimed = RememberedLink();
 

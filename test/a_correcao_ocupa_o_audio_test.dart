@@ -5,7 +5,6 @@ import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart';
 import 'um_ensaio_de_tres_partes.dart';
 
 const _umaParte = Duration(seconds: 30);

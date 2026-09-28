@@ -10,7 +10,8 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'session_notifier_test.dart' show inConversa, settle;
+import 'session_notifier_test.dart' show inConversa;
+import 'scenario_helpers.dart' show settle;
 
 /// A tablet reopening straight into a kept part, with one take already on disk.
 /// Copied from `a_halt_in_the_middle_of_a_capture_closes_the_microphone_test.dart`:

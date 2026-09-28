@@ -13,12 +13,10 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart' show settle;
 
 const _sessao = 'sessao-antiga';
 const _parte = Duration(seconds: 10);
-
-Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) =>
-    Future<void>.delayed(delay);
 
 /// The room's own recordings of a rehearsal of [partes] parts, as the listing answers.
 List<TakeView> _naSala(int partes) => [

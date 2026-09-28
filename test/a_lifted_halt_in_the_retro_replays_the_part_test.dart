@@ -15,12 +15,6 @@ import 'fakes.dart';
 import 'session_notifier_test.dart' show inConversa;
 import 'scenario_helpers.dart';
 
-Future<void> settle([
-  Duration delay = const Duration(milliseconds: 120),
-]) async {
-  await Future<void>.delayed(delay);
-}
-
 /// A tablet reopening straight into an unchecked telling-back, with one part already
 /// named. Copied from `the_desk_lifts_the_halt_test.dart` and
 /// `a_halt_in_the_middle_of_a_capture_closes_the_microphone_test.dart`: fixtures never
