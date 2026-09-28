@@ -692,29 +692,26 @@ void main() {
           bySemanticsLabelWidget(expected[language]!),
           findsOneWidget,
           reason:
-              'antes do código chegar a tela não dizia nada — um aparelho preso '
-              'nesse estado numa língua que não é a padrão não sabia nem que a sala '
-              'ainda estava trabalhando',
+              'esta tela falava as duas línguas por um switch próprio, que o guard '
+              'de completude não via; este teste é a cobertura que faltava, não '
+              'o conserto de uma tela muda',
         );
       }
     },
   );
 
-  test(
-    'the código screen reads its labels from the table, not a switch of its own',
-    () {
-      final source = File(
-        'lib/features/sala/presentation/widgets/codigo_view.dart',
-      ).readAsStringSync();
+  test('the código screen names no language of its own, in any spelling', () {
+    final source = File(
+      'lib/features/sala/presentation/widgets/codigo_view.dart',
+    ).readAsStringSync();
 
-      expect(
-        source.contains('switch'),
-        isFalse,
-        reason:
-            'um switch local escondia esta tela do guard que anda por cada tabela — '
-            'uma terceira língua aprovada silenciosamente caía em inglês aqui, sem o '
-            'guard perceber',
-      );
-    },
-  );
+    expect(
+      RegExp(r"'pt'|'en'|language ==|switch \(language\)").hasMatch(source),
+      isFalse,
+      reason:
+          'um switch, um ternário ou um mapa local com o literal da língua '
+          'escondem esta tela do guard que anda por cada tabela — uma terceira '
+          'língua aprovada cairia em inglês aqui com o guard verde',
+    );
+  });
 }
