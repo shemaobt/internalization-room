@@ -7,15 +7,12 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart';
 
 const ouvirOTrecho = 'Ouvir o trecho e a tradução';
 const micParteLabel = 'Gravar a parte de novo na língua materna';
 const micRetroLabel = 'Traduzir este trecho de novo';
 const continuarOEnsaio = 'Continuar o ensaio';
-
-Finder byLabel(String label) => find.byWidgetPredicate(
-  (widget) => widget is Semantics && widget.properties.label == label,
-);
 
 SalaSessionNotifier notifier(ProviderContainer c) =>
     c.read(salaSessionProvider.notifier);

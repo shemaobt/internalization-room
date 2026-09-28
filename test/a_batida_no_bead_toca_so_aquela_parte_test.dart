@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -14,10 +13,7 @@ import 'resto_da_historia_test.dart'
     show gravarUmaParte, traduzirAParteInteira, umaParteInteira;
 import 'sala_screen_test.dart' show pumpSala;
 import 'um_ensaio_de_tres_partes.dart' hide gravarUmaParte;
-
-Finder byLabel(String label) => find.byWidgetPredicate(
-  (widget) => widget is Semantics && widget.properties.label == label,
-);
+import 'scenario_helpers.dart';
 
 const _gravarOEnsaio = 'Tocar para gravar o ensaio';
 const _gravarAProxima = 'Tocar para gravar a próxima parte';

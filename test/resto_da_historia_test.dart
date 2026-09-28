@@ -15,14 +15,11 @@ import 'package:internalization_room/features/sala/presentation/widgets/ensaio_v
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart';
 
 const continuarOEnsaio = 'Continuar o ensaio';
 const irParaARetro = 'Ir para a tradução';
 const umaParteInteira = Duration(seconds: 30);
-
-Finder byLabel(String label) => find.byWidgetPredicate(
-  (widget) => widget is Semantics && widget.properties.label == label,
-);
 
 List<String?> gravacoesDe(SalaSessionState state) => [
   for (final take in state.keptTakes) take.takeId,

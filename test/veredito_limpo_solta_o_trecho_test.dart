@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -9,12 +8,9 @@ import 'package:internalization_room/features/sala/presentation/widgets/retro_vi
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart';
 
 const _micRetro = 'Traduzir este trecho de novo';
-
-Finder _byLabel(String label) => find.byWidgetPredicate(
-  (widget) => widget is Semantics && widget.properties.label == label,
-);
 
 SalaHarness? _harnessDaVez;
 
@@ -96,7 +92,7 @@ Future<void> _consertoQueNaoPegou(
   ProviderContainer container,
 ) async {
   _harnessDaVez!.room.replaceCaptured = false;
-  await tester.tap(_byLabel(_micRetro));
+  await tester.tap(byLabel(_micRetro));
   await tester.pump(const Duration(milliseconds: 300));
   _notifier(container).retroTap();
   await tester.pump(const Duration(milliseconds: 300));

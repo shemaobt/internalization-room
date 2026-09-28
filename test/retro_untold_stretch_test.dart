@@ -8,12 +8,9 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart';
 
 const continuarOEnsaio = 'Continuar o ensaio';
-
-Finder byLabel(String label) => find.byWidgetPredicate(
-  (widget) => widget is Semantics && widget.properties.label == label,
-);
 
 /// A team that rehearsed and told one stretch back, whose stretch the room holds cut in
 /// two.

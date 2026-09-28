@@ -9,15 +9,12 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart';
 
 const ouvirOTrecho = 'Ouvir o trecho e a tradução';
 const micParteLabel = 'Gravar a parte de novo na língua materna';
 const micRetro = 'Traduzir este trecho de novo';
 const confirmar = 'Confirmar a tradução e seguir';
-
-Finder byLabel(String label) => find.byWidgetPredicate(
-  (widget) => widget is Semantics && widget.properties.label == label,
-);
 
 SalaHarness? harnessDaVez;
 

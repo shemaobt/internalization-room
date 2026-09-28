@@ -8,7 +8,8 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 
-import 'a_pergunta_da_grade.dart' show byLabel, pumpToPergunta;
+import 'a_pergunta_da_grade.dart' show pumpToPergunta;
+import 'scenario_helpers.dart';
 
 /// Whether [elemento] sits inside a [Positioned] child of its own
 /// [FacilitatorCircle] — the warning mark's own box, never the disc's.

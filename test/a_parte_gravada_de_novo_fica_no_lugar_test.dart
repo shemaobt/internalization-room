@@ -18,10 +18,7 @@ import 'package:internalization_room/main.dart';
 import 'fakes.dart';
 import 'resto_da_historia_test.dart' as resto;
 import 'um_ensaio_de_tres_partes.dart';
-
-Finder byLabel(String label) => find.byWidgetPredicate(
-  (widget) => widget is Semantics && widget.properties.label == label,
-);
+import 'scenario_helpers.dart';
 
 const _aprovar = 'Aprovar como rascunho final';
 const _ouvir = 'Ouvir a gravação';

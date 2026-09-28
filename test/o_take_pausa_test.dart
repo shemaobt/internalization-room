@@ -8,10 +8,7 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'session_notifier_test.dart' show inConversa, settle;
-
-Finder byLabel(String label) => find.byWidgetPredicate(
-  (widget) => widget is Semantics && widget.properties.label == label,
-);
+import 'scenario_helpers.dart';
 
 /// A team standing at the pending part, with the play and the check lit.
 Future<ProviderContainer> pumpAoGravado(SalaHarness harness) async {

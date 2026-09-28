@@ -12,10 +12,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'session_notifier_test.dart' show inConversa;
-
-Finder byLabel(String label) => find.byWidgetPredicate(
-  (widget) => widget is Semantics && widget.properties.label == label,
-);
+import 'scenario_helpers.dart';
 
 const _gravarOEnsaio = 'Tocar para gravar o ensaio';
 const _gravarAProxima = 'Tocar para gravar a próxima parte';

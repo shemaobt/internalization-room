@@ -10,8 +10,9 @@ import 'package:internalization_room/features/sala/presentation/widgets/facilita
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
 
-import 'a_pergunta_da_grade.dart' show byLabel, pumpToPergunta;
+import 'a_pergunta_da_grade.dart' show pumpToPergunta;
 import 'fakes.dart';
+import 'scenario_helpers.dart';
 
 const umaParteInteira = Duration(seconds: 30);
 const continuarOEnsaioLabel = 'Continuar o ensaio';
