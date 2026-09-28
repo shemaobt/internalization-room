@@ -1244,9 +1244,6 @@ void main() {
           kind: 'ensaio',
           scope: 'parte-1',
         ),
-      };
-
-      final stretchCalls = <String, Future<Object?> Function(RoomRepository)>{
         'sendChunk': (room) async => room.sendChunk(
           'sessao-1',
           await _tempRecording(),
@@ -1254,6 +1251,9 @@ void main() {
           from: const Duration(seconds: 4),
           to: const Duration(seconds: 7),
         ),
+      };
+
+      final stretchCalls = <String, Future<Object?> Function(RoomRepository)>{
         'divideSegment': (room) => room.divideSegment(
           'sessao-1',
           'trecho-1',
@@ -1307,6 +1307,38 @@ void main() {
                   'sessão viva',
             );
           }
+        },
+      );
+
+      test(
+        'ENG-1133: sendChunk reads a take of another session as a refused call, not the session gone',
+        () async {
+          // The 404 case is already covered above: sendChunk sits in sessionDoors, so
+          // "a door that asks for the session reads a 404 as the session gone" already
+          // proves it. This is the half that loop cannot: the wire shape UNKNOWN_REFERENCE
+          // actually answers with.
+          final repository = RoomRepository(
+            client: MockClient(
+              (_) async => http.Response(
+                jsonEncode({
+                  'detail':
+                      'Internalization room rehearsal take gravacao-1 not found',
+                  'code': 'UNKNOWN_REFERENCE',
+                }),
+                422,
+              ),
+            ),
+            deviceId: () async => 'aparelho-1',
+          );
+          addTearDown(repository.dispose);
+
+          await expectLater(
+            () => sessionDoors['sendChunk']!(repository),
+            throwsA(isA<RoomBroke>()),
+            reason:
+                'a gravação nomeada é de outra sessão, e não a sessão — o app '
+                'risca em vez de deixar a passagem',
+          );
         },
       );
 
@@ -1390,12 +1422,17 @@ void main() {
       test(
         'sendChunk and divideSegment each keep a 400 or a 422 as a refused call',
         () async {
-          for (final call in ['sendChunk', 'divideSegment']) {
+          final calls = {
+            'sendChunk': sessionDoors['sendChunk']!,
+            'divideSegment': stretchCalls['divideSegment']!,
+          };
+          for (final entry in calls.entries) {
             for (final status in [400, 422]) {
               await expectLater(
-                () => stretchCalls[call]!(refusingWith(status, superseded)),
+                () => entry.value(refusingWith(status, superseded)),
                 throwsA(isA<RoomBroke>()),
-                reason: '$call $status: só o replace conta de novo um trecho',
+                reason:
+                    '${entry.key} $status: só o replace conta de novo um trecho',
               );
             }
           }
