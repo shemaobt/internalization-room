@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/hand_inbox_repository.dart';
+import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 
 import 'fakes.dart';
@@ -148,6 +149,98 @@ void main() {
           'coisa; era aqui que ela mudava de ideia sozinha',
     );
   });
+
+  test('a reply the player cannot decode is never stamped heard', () async {
+    final desk = _Desk();
+    final harness = _tabletTalkingTo(desk)..voice.succeeds = false;
+    final container = await _opensTheRoom(desk, harness);
+
+    await _theTeamTapsTheHand(container);
+    expect(_timesPlayed(harness), 1, reason: 'a sala tentou tocar a resposta');
+
+    expect(
+      desk.marks,
+      0,
+      reason:
+          'o player falhou na hora e a sala não tocou nada, mas quinze '
+          'milissegundos depois o tablet marcava a resposta como ouvida',
+    );
+    expect(desk.heard['resposta-1'], isFalse);
+    final state = container.read(salaSessionProvider);
+    expect(
+      state.oldestUnheardReply?.id,
+      'resposta-1',
+      reason: 'uma resposta que ninguém ouviu continua oferecida à mão',
+    );
+    expect(
+      state.playingReplyId,
+      isNull,
+      reason: 'a mão e o círculo voltam à equipe quando o clipe não toca',
+    );
+  });
+
+  test('a reply the room could not serve is never stamped heard', () async {
+    final desk = _Desk();
+    final harness = _tabletTalkingTo(desk);
+    final container = await _opensTheRoom(desk, harness);
+    harness.voice.roomFailsWith = const RoomBroke('HTTP 503');
+
+    await _theTeamTapsTheHand(container);
+    expect(_timesPlayed(harness), 1, reason: 'a sala tentou tocar a resposta');
+
+    expect(
+      desk.marks,
+      0,
+      reason:
+          'a queda da sala no download do clipe era engolida como um play '
+          'qualquer, e a mesa recebia a marca de uma resposta que não soou',
+    );
+    final state = container.read(salaSessionProvider);
+    expect(state.oldestUnheardReply?.id, 'resposta-1');
+    expect(state.playingReplyId, isNull);
+    expect(
+      state.needsPerson,
+      isFalse,
+      reason:
+          'a mão é um canal lateral: a resposta que não chegou não chama ninguém',
+    );
+  });
+
+  test(
+    'a reply that did not sound is offered again at the address the facilitator recorded it to',
+    () async {
+      const recordedAgain = '/voz/resposta-1-regravada';
+      final desk = _Desk();
+      final harness = _tabletTalkingTo(desk)..voice.refuses.add(_replyUrl);
+      final container = await _opensTheRoom(desk, harness);
+      desk.current['resposta-1'] = recordedAgain;
+      final readsBefore = desk.reads;
+
+      await _theTeamTapsTheHand(container);
+      await waitFor(
+        'a sala reler a caixa de entrada depois da falha',
+        () => desk.reads > readsBefore,
+      );
+      await settle();
+
+      expect(
+        container.read(salaSessionProvider).oldestUnheardReply?.audioUrl,
+        recordedAgain,
+        reason:
+            'a facilitadora viu "não ouvida" na mesa e regravou, mas a mão '
+            'seguia oferecendo o endereço velho até a próxima leitura agendada, '
+            'que na convite não vem',
+      );
+
+      await _theTeamTapsTheHand(container);
+      await waitFor(
+        'a mesa registrar a escuta da regravação',
+        () => desk.heard['resposta-1'] == true,
+      );
+      expect(harness.voice.played.last, recordedAgain);
+      expect(desk.markedUrl, recordedAgain);
+    },
+  );
 
   test('a desk that refuses the mark is not taken as agreement', () async {
     final desk = _Desk()..answers = 500;

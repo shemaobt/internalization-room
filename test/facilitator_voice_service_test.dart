@@ -326,6 +326,26 @@ void main() {
     },
   );
 
+  test('a clip that opens with no length is not counted as heard', () async {
+    final player = SpeakingPlayer()..lineLength = Duration.zero;
+    final voice = service(player: player);
+    unawaited(
+      Future<void>.delayed(
+        const Duration(milliseconds: 50),
+        player.reachTheEnd,
+      ),
+    );
+
+    expect(
+      await voice.play(_clip),
+      isFalse,
+      reason:
+          'um clipe sem duração "terminava" na hora, o player dizia completo '
+          'e a sala contava como falada uma linha que não soou',
+    );
+    expect(player.sounding, isFalse);
+  });
+
   test('a line played to the end is still counted as heard', () async {
     final player = SpeakingPlayer();
     final voice = service(player: player);

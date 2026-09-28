@@ -2645,36 +2645,46 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  /// Play the facilitator's answer, and never let a broken one take the gesture away.
+  /// Play the facilitator's answer, and let it go only once it has been heard.
   ///
-  /// Marking a reply heard only when it played sounds careful and is a trap: the hand
-  /// offers the oldest unheard reply on every touch, so an answer that cannot be played
-  /// is offered again, and again, and the team loses the one gesture they have for
-  /// reaching a person. The answer is already lost — refusing to let go of it costs them
-  /// the ability to ask anything else.
+  /// A reply is marked heard when the player reported the whole clip. A clip that cannot
+  /// be decoded, is cut short, or never arrives stays unheard.
+  ///
+  /// It is offered again on the next touch of the hand, with no count of failures. While
+  /// it stays unheard the hand plays it before it lets the team ask anything. A clip cut
+  /// short or not served plays on a later touch, but one that never decodes is served
+  /// from the tablet's copy every time and holds the gesture until the facilitator
+  /// records it again. The inbox is read again on the failure, as it is after a refused
+  /// mark, so a reply recorded again reaches the hand at its new address.
   ///
   /// A room that cannot serve the clip is one more way for an answer not to play, and it is
-  /// let go of the same way — never through `_handleRoomFailure`. The hand is a side
+  /// treated the same way — never through `_handleRoomFailure`. The hand is a side
   /// channel: a halt raised over a reply would take the circle along with it.
   ///
-  /// The playing mark is given back on every way out. `_markHeard` is what clears it, and a
-  /// reply that outlived its epoch never reached it: the mark stayed, and the hand, the
-  /// circle and the convite all returned early on it for good.
+  /// The playing mark is given back on every way out. `_markHeard` is what clears it when
+  /// the reply sounded; a reply that did not, or that outlived its epoch, clears it here,
+  /// or the hand, the circle and the convite all return early on it for good.
   Future<void> _playReply(HandReply reply) async {
     final epoch = _epoch;
+    bool sounded;
     try {
-      await _voice.play(reply.audioUrl);
+      sounded = await _voice.play(reply.audioUrl);
     } on Exception {
-      // Nothing to do here: what follows is the same for a line that did not sound.
+      sounded = false;
     }
-    if (epoch == _epoch &&
+    final current =
+        epoch == _epoch &&
         !state.replies.any(
           (kept) => kept.id == reply.id && kept.audioUrl != reply.audioUrl,
-        )) {
+        );
+    if (sounded && current) {
       unawaited(_markHeard(reply.id, audioUrl: reply.audioUrl));
-    } else if (!_gone && state.playingReplyId == reply.id) {
+      return;
+    }
+    if (!_gone && state.playingReplyId == reply.id) {
       state = state.copyWith(clearPlayingReply: true);
     }
+    if (current) unawaited(_pullInbox());
   }
 
   /// A reply is heard when the desk agrees, and not before.

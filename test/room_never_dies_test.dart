@@ -1142,7 +1142,7 @@ void main() {
     );
   });
 
-  test('a reply that will not play does not take the hand with it', () async {
+  test('a reply that will not play stays unheard and calls nobody', () async {
     final harness = SalaHarness(
       replies: const [HandReply(id: 'r1', audioUrl: '/voice/r1')],
     );
@@ -1161,11 +1161,12 @@ void main() {
     final state = container.read(salaSessionProvider);
     expect(
       state.hasUnheardReply,
-      isFalse,
+      isTrue,
       reason:
-          'a mão oferece sempre a resposta mais antiga não ouvida, então uma que '
-          'não toca era oferecida para sempre e a equipe perdia o gesto de perguntar',
+          'uma resposta que ninguém ouviu era dada como ouvida só porque o '
+          'player falhou, e a facilitadora via "ouvida" na mesa',
     );
+    expect(state.playingReplyId, isNull);
     expect(
       state.needsPerson,
       isFalse,
@@ -1175,8 +1176,8 @@ void main() {
     );
     expect(
       harness.inbox.heard,
-      contains('r1'),
-      reason: 'e o servidor precisa saber, senão ela volta na próxima abertura',
+      isEmpty,
+      reason: 'o servidor não pode carimbar o que a equipe não ouviu',
     );
   });
 
