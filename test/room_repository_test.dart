@@ -1422,12 +1422,17 @@ void main() {
       test(
         'sendChunk and divideSegment each keep a 400 or a 422 as a refused call',
         () async {
-          for (final call in ['sendChunk', 'divideSegment']) {
+          final calls = {
+            'sendChunk': sessionDoors['sendChunk']!,
+            'divideSegment': stretchCalls['divideSegment']!,
+          };
+          for (final entry in calls.entries) {
             for (final status in [400, 422]) {
               await expectLater(
-                () => stretchCalls[call]!(refusingWith(status, superseded)),
+                () => entry.value(refusingWith(status, superseded)),
                 throwsA(isA<RoomBroke>()),
-                reason: '$call $status: só o replace conta de novo um trecho',
+                reason:
+                    '${entry.key} $status: só o replace conta de novo um trecho',
               );
             }
           }
