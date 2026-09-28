@@ -37,6 +37,7 @@ class EnsaioView extends ConsumerWidget {
           size: facilitatorCircleSize,
           voice: _voice(session),
           tongue: Tongue.motherTongue,
+          warning: session.warning ? warningNoticeLabelFor(language) : null,
           semanticLabel: _circleLabel(session, language),
           onTap: notifier.ensaioTap,
           onLongPress: session.canResolveWithPerson

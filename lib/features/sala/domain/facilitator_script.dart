@@ -42,11 +42,20 @@ const circleLabels = {
     'en': 'Talk among yourselves — tap when you want to tell me',
   },
   'listening': {'pt': 'Tocar ao terminar', 'en': 'Tap when you are done'},
+  'offline': {'pt': 'Tocar para tentar de novo', 'en': 'Tap to try again'},
   'default': {'pt': 'Tocar para falar', 'en': 'Tap to speak'},
 };
 
 String circleLabelFor(String state, String language) =>
     circleLabels[state]![language] ?? circleLabels[state]![floorLanguage]!;
+
+const warningNoticeLabel = {
+  'pt': 'Um aviso pede que alguém venha olhar',
+  'en': 'A warning is asking someone to come watch',
+};
+
+String warningNoticeLabelFor(String language) =>
+    warningNoticeLabel[language] ?? warningNoticeLabel[floorLanguage]!;
 
 const conviteLabels = {
   'circle': {'pt': 'Falar com o facilitador', 'en': 'Talk to the facilitator'},
@@ -132,8 +141,7 @@ const retroLabels = {
     'pt': 'Aprovar como rascunho final',
     'en': 'Approve as the final draft',
   },
-  'tryAgain': {'pt': 'Tocar para tentar de novo', 'en': 'Tap to try again'},
-  'aMoment': {'pt': 'Um instante', 'en': 'One moment'},
+  'thinking': {'pt': 'Um instante', 'en': 'One moment'},
   'translated': {'pt': 'Traduzida', 'en': 'Translated'},
 };
 

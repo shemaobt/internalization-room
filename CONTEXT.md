@@ -262,6 +262,11 @@ _Avoid_: sala parada, stuck room, pause
 The kind of halt that asks for someone to come and watch while refusing the team nothing. It is a warning, not a cap: the room takes turns as before, and it is what the retells budget raises — on every route a telling can take, whether the tablet hears it on a state read or in the answer to a stretch told again. The room raises it by marking the session itself, so the tablet never calls for a person over one, and it ends when the Desk attends the session, in whatever station the team is in.
 _Avoid_: aviso, cap, block, halt (the state, of which this is one kind)
 
+**Warning mark**:
+The small mark beside the Circle while a warning stands, said in words through its own
+VoiceOver label; the Circle's own colour stays the voice, in every state.
+_Avoid_: aviso, warning badge, the green disc (retired 2026-09-25)
+
 **Call for a person**:
 The room's action of signalling it needs someone, insisted on at intervals until it is answered. A long press on the circle asks the room to read its state again rather than lifting a blocking halt, which only the Desk lifts.
 _Avoid_: pedir uma pessoa, calling a human, SOS, `needsPerson` (the internal name)
