@@ -460,6 +460,49 @@ void main() {
     );
   });
 
+  testWidgets(
+    'the Choice halts and calls a person once every passage it offered is refused',
+    (tester) async {
+      final harness = SalaHarness()
+        ..room.passages = const [
+          Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+          Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
+        ]
+        ..room.passagesThatCannotOpen = {'P01', 'P02'};
+      final container = await pumpSala(tester, harness);
+      final notifier = container.read(salaSessionProvider.notifier);
+      await notifier.abrirEscolha();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      await tester.tap(bySemanticsLabelWidget('Entrar nesta passagem'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(
+        bySemanticsLabelWidget('Todas as passagens foram trabalhadas'),
+        findsNothing,
+        reason: 'uma passagem da roda ainda não foi tentada nesta visita',
+      );
+      expect(container.read(salaSessionProvider).needsPerson, isFalse);
+
+      await tester.tap(bySemanticsLabelWidget('Entrar nesta passagem'));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        bySemanticsLabelWidget('Entrar nesta passagem'),
+        findsNothing,
+        reason: 'nada sobrou para entrar nesta visita',
+      );
+      expect(
+        bySemanticsLabelWidget('Todas as passagens foram trabalhadas'),
+        findsOneWidget,
+        reason:
+            'a sala chama uma pessoa pelo mesmo caminho de um livro sem nada '
+            'a oferecer, com o mesmo rótulo',
+      );
+      expect(container.read(salaSessionProvider).needsPerson, isTrue);
+      expect(harness.room.personsAsked, 0);
+    },
+  );
+
   testWidgets('no stage ever shows a written word', (tester) async {
     final harness = SalaHarness()..room.done = true;
     final container = await pumpSala(tester, harness);

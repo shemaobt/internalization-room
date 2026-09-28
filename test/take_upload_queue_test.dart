@@ -1296,4 +1296,102 @@ void main() {
       );
     },
   );
+
+  test('withdraw removes a pending row and deletes its queued copy', () async {
+    final room = FakeRoom();
+    final queue = queueOn(room);
+    final pendente = await queue.enqueue(
+      aTake('pendente'),
+      sessionId: 'sessao-1',
+      kind: 'retro',
+      scope: 'inteira',
+    );
+    final copia = File(pendente.path);
+    expect(copia.existsSync(), isTrue);
+
+    await queue.withdraw(pendente);
+
+    expect(await queue.entries(), isEmpty);
+    expect(copia.existsSync(), isFalse);
+  });
+
+  test('withdraw of a delivered take is a no-op', () async {
+    final room = FakeRoom();
+    final queue = queueOn(room);
+    final entregue = await queue.enqueue(
+      aTake('entregue'),
+      sessionId: 'sessao-1',
+      kind: 'retro',
+      scope: 'inteira',
+    );
+    await queue.flush();
+    expect((await queue.entries()).single.stored, isTrue);
+
+    await queue.withdraw(entregue);
+
+    expect(
+      await queue.entries(),
+      hasLength(1),
+      reason: 'uma tomada já entregue não é retirada da fila',
+    );
+    expect((await queue.entries()).single.stored, isTrue);
+  });
+
+  test('withdraw of a row the queue no longer holds is a no-op', () async {
+    final room = FakeRoom();
+    final queue = queueOn(room);
+    await queue.enqueue(
+      aTake('outra'),
+      sessionId: 'sessao-1',
+      kind: 'retro',
+      scope: 'inteira',
+    );
+    const desconhecida = PendingTake(
+      id: 'nunca-existiu',
+      path: '/nao/existe.m4a',
+      sessionId: 'sessao-1',
+      kind: 'retro',
+      scope: 'inteira',
+    );
+
+    await queue.withdraw(desconhecida);
+
+    expect(
+      await queue.entries(),
+      hasLength(1),
+      reason:
+          'uma linha que a fila nunca guardou não dá erro nem mexe nas outras linhas',
+    );
+  });
+
+  test(
+    'a manifest written by the older app still loads after a withdraw',
+    () async {
+      aQueueWrittenByTheOlderApp('ensaio-antiga-1.m4a');
+      final room = FakeRoom();
+      final queue = queueOn(room);
+
+      final nova = await queue.enqueue(
+        aTake('nova'),
+        sessionId: 'sessao-2',
+        kind: 'retro',
+        scope: 'inteira',
+      );
+      await queue.withdraw(nova);
+
+      expect(
+        await queue.flush(),
+        1,
+        reason:
+            'a linha do app mais velho ainda é lida e entregue depois de um '
+            'withdraw mexer no manifesto',
+      );
+      expect(room.takesKept, ['ensaio/inteira']);
+      expect(
+        (await queue.entries()).any((e) => e.id == nova.id),
+        isFalse,
+        reason: 'a linha retirada não volta a aparecer',
+      );
+    },
+  );
 }

@@ -30,7 +30,6 @@ class CodigoView extends StatelessWidget {
         child: FacilitatorCircle(
           size: facilitatorCircleSize,
           voice: VoiceState.thinking,
-          turning: false,
           semanticLabel: _preparing(language),
         ),
       );

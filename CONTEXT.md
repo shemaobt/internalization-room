@@ -32,7 +32,10 @@ On screen and in the voice its Portuguese is *traduzir / tradução*; *contar* b
 _Avoid_: retrotradução, retro in prose (`retro` is the code prefix, not the term), contar de volta, contado de volta, reconto, recontar
 
 **Choice** (`escolha`):
-The station where the team picks the next passage among those on the wheel.
+The station where the team picks the next passage among those on the wheel. One visit to it
+lasts until the Choice is opened afresh — lifting a halt raised here, or a passage really
+opening, both end it from inside; a passage the room refused to open is not offered again
+within one visit, but is again on the next.
 _Avoid_: escolha in prose (`escolha` is the enum value), selection, wheel (the wheel is the list of passages, not the station)
 
 **Closing** (`fim`):
@@ -168,7 +171,7 @@ A Meaning Map element represented on the necklace, moving through not encountere
 _Avoid_: conta, pearl, item, part bead or stretch bead (those sit on the Bead row)
 
 **Bead row**:
-The row at the top of the Rehearsal, the Back-translation and the findings, one bead per Part or Stretch: translucent while its recording is open or pending, solid once confirmed, drained while a finding points at it, ringed while it is the current one; a tap selects it and plays it.
+The row at the top of the Rehearsal, the Back-translation and the findings, one bead per Part or Stretch: translucent while its recording is open or pending, solid once confirmed, drained while a finding points at it, ringed while it is the current one; a tap selects it and plays it. A dimmed bead is the exception: it does not apply right now, and a tap on it does nothing.
 _Avoid_: cord, band, reading head (the cord, its strokes and its dot, retired on 2026-09-25), contas, bits, progress bar
 
 **Circle**:
@@ -196,7 +199,7 @@ The queue of takes and stretches waiting to reach the server, with a manifest th
 _Avoid_: fila, caixa de saída, upload queue, buffer
 
 **Resume point**:
-The row kept per passage saying where the team left it — the session, the station and the kept takes — so a reopening lands there rather than at the start, on a tablet that still holds the recordings or on one that fetches them from the room again. It never expires by age: what drops it are facts about the room or the passage — the room no longer knowing the session, the approval closing the passage, the language changing — never the clock.
+The row kept per passage saying where the team left it — the session, the station, the kept takes and the part being recorded again, when one is marked (ADR 0045) — so a reopening lands there rather than at the start, on a tablet that still holds the recordings or on one that fetches them from the room again. It never expires by age: what drops it are facts about the room or the passage — the room no longer knowing the session, the approval closing the passage, the language changing — never the clock.
 _Avoid_: ponto de retomada, em curso, checkpoint, snapshot (the session's own lives on the server)
 
 ### Findings and mends
@@ -258,6 +261,11 @@ _Avoid_: sala parada, stuck room, pause
 **Warning**:
 The kind of halt that asks for someone to come and watch while refusing the team nothing. It is a warning, not a cap: the room takes turns as before, and it is what the retells budget raises — on every route a telling can take, whether the tablet hears it on a state read or in the answer to a stretch told again. The room raises it by marking the session itself, so the tablet never calls for a person over one, and it ends when the Desk attends the session, in whatever station the team is in.
 _Avoid_: aviso, cap, block, halt (the state, of which this is one kind)
+
+**Warning mark**:
+The small mark beside the Circle while a warning stands, said in words through its own
+VoiceOver label; the Circle's own colour stays the voice, in every state.
+_Avoid_: aviso, warning badge, the green disc (retired 2026-09-25)
 
 **Call for a person**:
 The room's action of signalling it needs someone, insisted on at intervals until it is answered. A long press on the circle asks the room to read its state again rather than lifting a blocking halt, which only the Desk lifts.

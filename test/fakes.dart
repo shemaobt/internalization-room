@@ -925,7 +925,7 @@ class FakeRoom implements RoomRepository {
 
   Exception? failWith;
 
-  String? passageThatCannotOpen;
+  Set<String> passagesThatCannotOpen = {};
 
   Completer<void>? _holdingTurn;
   Completer<void>? _holdingCode;
@@ -1039,7 +1039,7 @@ class FakeRoom implements RoomRepository {
     required String language,
   }) async {
     _guard('createSession');
-    if (pericope != null && pericope == passageThatCannotOpen) {
+    if (pericope != null && passagesThatCannotOpen.contains(pericope)) {
       throw const PassageCannotOpen();
     }
     final failure = failCreateOnceWith;
@@ -1365,15 +1365,6 @@ class FakeRoom implements RoomRepository {
         : const [],
   );
 
-  Completer<void>? _chunkSegura;
-
-  void holdNextChunk() => _chunkSegura = Completer<void>();
-
-  void finishHeldChunk() {
-    _chunkSegura?.complete();
-    _chunkSegura = null;
-  }
-
   @override
   Future<BackTranslationChunk> sendChunk(
     String sessionId,
@@ -1383,8 +1374,6 @@ class FakeRoom implements RoomRepository {
     required Duration to,
   }) async {
     _guard('sendChunk');
-    final segura = _chunkSegura;
-    if (segura != null) await segura.future;
     final refusal = failChunkWith;
     if (refusal != null) throw refusal;
     chunksSent++;
@@ -1401,7 +1390,19 @@ class FakeRoom implements RoomRepository {
         ),
       );
     }
+    final held = _holdingChunk;
+    if (held != null) await held.future;
     return BackTranslationChunk(captured: chunkCaptured);
+  }
+
+  Completer<void>? _holdingChunk;
+
+  /// Holds a stretch's delivery in flight, so a test can see the room still thinking.
+  void holdNextChunk() => _holdingChunk = Completer<void>();
+
+  void finishHeldChunk() {
+    _holdingChunk?.complete();
+    _holdingChunk = null;
   }
 
   String? _oQueOAnalistaAponta() {
@@ -1807,6 +1808,13 @@ class FakeTakeQueue implements TakeUploadQueue {
   }
 
   @override
+  Future<void> withdraw(PendingTake row) async {
+    rows.removeWhere(
+      (entry) => !entry.stored && entry.id == row.id && entry.kind == row.kind,
+    );
+  }
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
@@ -1916,6 +1924,7 @@ class SalaHarness {
     this.lingua = testLanguage,
     this.emAbertoNoDisco,
     this.inboxService,
+    this.takesOverride,
   }) : inbox = FakeInbox(replies: replies),
        vinculo = FakeLinkedTeam(remembered: linkedAs);
 
@@ -1931,9 +1940,15 @@ class SalaHarness {
   /// The real ledger, for the tests that need a disk that can refuse.
   final WorkInProgress? emAbertoNoDisco;
 
-  late final TakeUploadQueue takes = filaEmMemoria
-      ? FakeTakeQueue(room: room)
-      : TakeUploadQueue(room: room, home: () async => takesHome);
+  /// A queue built by the test itself, for a disk that needs to misbehave in a way
+  /// none of the ordinary knobs reach.
+  final TakeUploadQueue Function(FakeRoom room, Directory home)? takesOverride;
+
+  late final TakeUploadQueue takes =
+      takesOverride?.call(room, takesHome) ??
+      (filaEmMemoria
+          ? FakeTakeQueue(room: room)
+          : TakeUploadQueue(room: room, home: () async => takesHome));
 
   List<Override> get overrides => [
     facilitatorVoiceProvider.overrideWithValue(voiceService ?? voice),
@@ -2069,4 +2084,13 @@ class QueueHeldOnGiveUps extends TakeUploadQueue {
     await answer.future;
     return super.giveUps();
   }
+}
+
+/// A disk that refuses the withdraw's own write, the way a full one would.
+class QueueWithdrawThrows extends TakeUploadQueue {
+  QueueWithdrawThrows({required super.room, super.home});
+
+  @override
+  Future<void> withdraw(PendingTake row) async =>
+      throw const FileSystemException('disco cheio');
 }

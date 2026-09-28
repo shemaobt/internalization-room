@@ -51,7 +51,7 @@ class RetroView extends ConsumerWidget {
           size: facilitatorCircleSize,
           voice: voz,
           tongue: lingua,
-          warning: session.warning,
+          warning: session.warning ? warningNoticeLabelFor(language) : null,
           semanticLabel: _circleLabel(session, language),
           onTap: notifier.retroTap,
           onLongPress: session.canResolveWithPerson
@@ -376,7 +376,7 @@ class RetroView extends ConsumerWidget {
 
   String _circleLabel(SalaSessionState session, String language) {
     if (session.needsPerson) return circleLabelFor('needsPerson', language);
-    if (session.offline) return retroLabelFor('tryAgain', language);
+    if (session.offline) return circleLabelFor('offline', language);
     switch (session.btPhase) {
       case BtPhase.playing:
         if (session.btTrechoTraduzidoDeNovo == null &&
@@ -393,7 +393,7 @@ class RetroView extends ConsumerWidget {
       case BtPhase.findings:
         return findingLabelFor('circle', language);
       case BtPhase.thinking:
-        return retroLabelFor('aMoment', language);
+        return retroLabelFor('thinking', language);
       case BtPhase.conferida:
         return retroLabelFor('translated', language);
     }

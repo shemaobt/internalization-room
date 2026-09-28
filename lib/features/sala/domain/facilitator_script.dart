@@ -42,11 +42,20 @@ const circleLabels = {
     'en': 'Talk among yourselves — tap when you want to tell me',
   },
   'listening': {'pt': 'Tocar ao terminar', 'en': 'Tap when you are done'},
+  'offline': {'pt': 'Tocar para tentar de novo', 'en': 'Tap to try again'},
   'default': {'pt': 'Tocar para falar', 'en': 'Tap to speak'},
 };
 
 String circleLabelFor(String state, String language) =>
     circleLabels[state]![language] ?? circleLabels[state]![floorLanguage]!;
+
+const warningNoticeLabel = {
+  'pt': 'Um aviso pede que alguém venha olhar',
+  'en': 'A warning is asking someone to come watch',
+};
+
+String warningNoticeLabelFor(String language) =>
+    warningNoticeLabel[language] ?? warningNoticeLabel[floorLanguage]!;
 
 const conviteLabels = {
   'circle': {'pt': 'Falar com o facilitador', 'en': 'Talk to the facilitator'},
@@ -133,8 +142,7 @@ const retroLabels = {
     'en': 'Approve as the final draft',
   },
   'listenFirst': {'pt': 'Ouvir primeiro', 'en': 'Listen first'},
-  'tryAgain': {'pt': 'Tocar para tentar de novo', 'en': 'Tap to try again'},
-  'aMoment': {'pt': 'Um instante', 'en': 'One moment'},
+  'thinking': {'pt': 'Um instante', 'en': 'One moment'},
   'translated': {'pt': 'Traduzida', 'en': 'Translated'},
 };
 
@@ -155,15 +163,20 @@ const rehearsalLabels = {
     'pt': 'Tocar para gravar esta parte de novo',
     'en': 'Tap to record this part again',
   },
-  'partAgain': {
-    'pt': 'Gravar a parte {n} de novo',
-    'en': 'Record part {n} again',
-  },
   'play': {'pt': 'Ouvir o ensaio até aqui', 'en': 'Hear the rehearsal so far'},
   'pause': {'pt': 'Pausar o ensaio', 'en': 'Pause the rehearsal'},
   'check': {'pt': 'Confirmar esta parte', 'en': 'Confirm this part'},
   'advance': {'pt': 'Ir para a tradução', 'en': 'Go to the translation'},
   'part': {'pt': 'Parte {n}', 'en': 'Part {n}'},
+  'partPlaying': {'pt': 'Parte {n}, tocando', 'en': 'Part {n}, playing'},
+  'partNotDelivered': {
+    'pt': 'Parte {n}, ainda não enviada',
+    'en': 'Part {n}, not sent yet',
+  },
+  'partPlayingNotDelivered': {
+    'pt': 'Parte {n}, tocando, ainda não enviada',
+    'en': 'Part {n}, playing, not sent yet',
+  },
 };
 
 String rehearsalLabelFor(String state, String language, {int? part}) =>
