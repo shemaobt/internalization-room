@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -30,7 +29,7 @@ Future<Sala> _aSalaNaPergunta({required int apontado}) async {
     ..playback.length = _umaParte
     ..playback.measured = _oQueOPlayerMede
     ..room.verdictChecked = false
-    ..room.verdictFinding = BtFindingKind.addition
+    ..room.verdictHasFinding = true
     ..room.verdictFindingPlace = apontado;
   final container = harness.container();
   addTearDown(container.dispose);
@@ -39,8 +38,8 @@ Future<Sala> _aSalaNaPergunta({required int apontado}) async {
   await it.sala.goConversa(pericope: 'P01');
   await waitFor('a sala abrir', () => it.estado.sessionId != null);
   it.sala.goEnsaio();
-  await gravarUmaParte(it);
-  await gravarUmaParte(it);
+  await gravarUmaParteDoEnsaio(it);
+  await gravarUmaParteDoEnsaio(it);
   // Measured one by one, because the mend records a file of its own and it is longer
   // than the parts it corrects.
   for (final parte in it.estado.keptTakes) {

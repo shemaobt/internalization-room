@@ -941,7 +941,7 @@ void main() {
   );
 
   test(
-    'o terminei manda o que foi ouvido de cada parte, com o nome dela',
+    'a conferência manda o que foi ouvido de cada parte, com o nome dela',
     () async {
       late String seenBody;
       final repository = RoomRepository(
@@ -1000,7 +1000,7 @@ void main() {
   );
 
   test(
-    'sem nada ouvido o terminei vai sem corpo, e a sala ainda responde',
+    'sem nada ouvido a conferência vai sem corpo, e a sala ainda responde',
     () async {
       late http.BaseRequest seen;
       final repository = RoomRepository(

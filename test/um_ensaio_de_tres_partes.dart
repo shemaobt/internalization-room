@@ -31,7 +31,7 @@ class Sala {
   List<KeptTake> get partes => estado.partes;
 }
 
-Future<void> gravarUmaParte(Sala it) async {
+Future<void> gravarUmaParteDoEnsaio(Sala it) async {
   final antes = it.estado.keptTakes.length;
   it.sala.ensaioTap();
   await waitFor(
@@ -92,7 +92,7 @@ Future<Sala> umEnsaioDeTresPartesGravado({
   await waitFor('a sala abrir', () => it.estado.sessionId != null);
   it.sala.goEnsaio();
   for (var onde = 0; onde < partesDoEnsaio.length; onde++) {
-    await gravarUmaParte(it);
+    await gravarUmaParteDoEnsaio(it);
   }
   final partes = it.estado.keptTakes;
   for (var onde = 0; onde < partesDoEnsaio.length; onde++) {
@@ -196,7 +196,7 @@ Future<void> pedirOVeredito(Sala it) async {
 }
 
 /// Record the part at [onde] again, in its own place: the row keeps its length and only
-/// that entry changes. The sibling of [gravarUmaParte], which asserts the opposite.
+/// that entry changes. The sibling of [gravarUmaParteDoEnsaio], which asserts the opposite.
 ///
 /// The name is not waited for here: a test that holds the upload has to be able to look
 /// at a part the room has not answered for yet.

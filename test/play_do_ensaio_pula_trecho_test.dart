@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -44,7 +43,7 @@ Future<Sala> _seisPartesSeisTrechos() async {
     ..playback.length = _parteLen
     ..playback.measured = _parteLen
     ..room.verdictChecked = false
-    ..room.verdictFinding = BtFindingKind.addition
+    ..room.verdictHasFinding = true
     ..room.verdictFindingPlace = 2;
   final container = harness.container();
   addTearDown(container.dispose);
@@ -54,7 +53,7 @@ Future<Sala> _seisPartesSeisTrechos() async {
   await waitFor('a sala abrir', () => it.estado.sessionId != null);
   it.sala.goEnsaio();
   for (var i = 0; i < 6; i++) {
-    await gravarUmaParte(it);
+    await gravarUmaParteDoEnsaio(it);
   }
   for (final parte in it.estado.keptTakes) {
     harness.playback.lengths[parte.path] = _parteLen;

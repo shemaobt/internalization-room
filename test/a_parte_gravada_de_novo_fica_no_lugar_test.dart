@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -21,7 +20,7 @@ import 'scenario_helpers.dart'
     as resto
     show gravarUmaParte, umaParteInteira, settle;
 import 'um_ensaio_de_tres_partes.dart';
-import 'scenario_helpers.dart' hide gravarUmaParte;
+import 'scenario_helpers.dart';
 
 const _aprovar = 'Aprovar como rascunho final';
 const _ouvir = 'Ouvir a gravação';
@@ -36,7 +35,7 @@ Future<Sala> _oAchadoNaParteDois({WorkInProgress? emAbertoNoDisco}) async {
   );
   it.harness.room
     ..verdictChecked = false
-    ..verdictFinding = BtFindingKind.missing
+    ..verdictHasFinding = true
     ..verdictFindingPlace = 1;
   await pedirOVeredito(it);
   expect(
@@ -304,7 +303,7 @@ void main() {
         reason: 'a conta é da parte, e segue de onde a parte 2 parou',
       );
 
-      await gravarUmaParte(it);
+      await gravarUmaParteDoEnsaio(it);
 
       expect(it.harness.room.takesKept.last, 'ensaio/${KeptScope.parte(4)}');
       expect(
@@ -774,13 +773,13 @@ void main() {
     final it = await umEnsaioDeTresPartesContadoInteiro();
     it.harness.room
       ..verdictChecked = false
-      ..verdictFinding = BtFindingKind.missing
+      ..verdictHasFinding = true
       ..verdictFindingSegmentId = null;
     await pedirOVeredito(it);
     expect(it.estado.btFindingTrecho, isNull);
 
     it.sala.continuarOEnsaio();
-    await gravarUmaParte(it);
+    await gravarUmaParteDoEnsaio(it);
 
     expect(
       it.partes,
@@ -889,7 +888,7 @@ void main() {
 
     it.sala.gravarAParteDeNovo();
     await regravarAParte(it, 1);
-    await gravarUmaParte(it);
+    await gravarUmaParteDoEnsaio(it);
 
     expect(
       it.partes,
@@ -916,7 +915,7 @@ void main() {
       );
       it.harness.room
         ..verdictChecked = false
-        ..verdictFinding = BtFindingKind.missing
+        ..verdictHasFinding = true
         ..verdictFindingSegmentId = null
         ..verdictFindingPlace = null;
       await pedirOVeredito(it);
@@ -928,7 +927,7 @@ void main() {
             'a equipe mudou de ideia pelo caminho, e a sessão não pode '
             'continuar a dizer que veio refazer a parte 2',
       );
-      await gravarUmaParte(it);
+      await gravarUmaParteDoEnsaio(it);
 
       expect(
         it.partes,
@@ -982,7 +981,7 @@ void main() {
           ],
         )
         ..verdictChecked = false
-        ..verdictFinding = BtFindingKind.missing
+        ..verdictHasFinding = true
         ..verdictFindingSegmentId = 'trecho-fantasma';
       harness.playback.length = resto.umaParteInteira;
       final container = harness.container();

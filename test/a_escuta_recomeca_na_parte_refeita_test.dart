@@ -17,7 +17,7 @@ void main() {
       await it.sala.goConversa(pericope: 'P01');
       await waitFor('a sala abrir', () => it.estado.sessionId != null);
       it.sala.goEnsaio();
-      await gravarUmaParte(it);
+      await gravarUmaParteDoEnsaio(it);
       it.sala.startRetro();
       await waitFor(
         'a tradução começar a tocar',
