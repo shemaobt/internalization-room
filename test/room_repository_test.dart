@@ -1254,11 +1254,6 @@ void main() {
           from: const Duration(seconds: 4),
           to: const Duration(seconds: 7),
         ),
-        'divideSegment': (room) => room.divideSegment(
-          'sessao-1',
-          'trecho-1',
-          at: const Duration(seconds: 2),
-        ),
         'replaceSegment': (room) async => room.replaceSegment(
           'sessao-1',
           'trecho-1',
@@ -1387,20 +1382,15 @@ void main() {
         );
       });
 
-      test(
-        'sendChunk and divideSegment each keep a 400 or a 422 as a refused call',
-        () async {
-          for (final call in ['sendChunk', 'divideSegment']) {
-            for (final status in [400, 422]) {
-              await expectLater(
-                () => stretchCalls[call]!(refusingWith(status, superseded)),
-                throwsA(isA<RoomBroke>()),
-                reason: '$call $status: só o replace conta de novo um trecho',
-              );
-            }
-          }
-        },
-      );
+      test('sendChunk keeps a 400 or a 422 as a refused call', () async {
+        for (final status in [400, 422]) {
+          await expectLater(
+            () => stretchCalls['sendChunk']!(refusingWith(status, superseded)),
+            throwsA(isA<RoomBroke>()),
+            reason: 'sendChunk $status: só o replace conta de novo um trecho',
+          );
+        }
+      });
 
       test(
         'opening a session and listing the passages keep a 404 as the session gone',

@@ -7120,7 +7120,6 @@ void main() {
 
     final state = container.read(salaSessionProvider);
     expect(state.btPhase, BtPhase.findings);
-    expect(state.btFindings, [BtFindingKind.addition]);
     expect(harness.voice.played.last, contains('veredito'));
   });
 

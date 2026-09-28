@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
 
@@ -12,24 +13,49 @@ import 'scenario_helpers.dart';
 
 const continuarOEnsaio = 'Continuar o ensaio';
 
+/// Cuts a stretch the room is holding into two untold halves, in place.
+///
+/// Stands in for the room's own divide route (removed as dead code with no caller in
+/// `lib/`, ENG-1144): this scenario only needs the room to already be holding a stretch
+/// cut in two, not the route that cuts one live.
+void _splitInTwo(SalaHarness harness, String segmentId, Duration at) {
+  final segments = harness.room.segments;
+  final cut = segments.indexWhere((one) => one.segmentId == segmentId);
+  if (cut < 0) return;
+  final whole = segments[cut];
+  segments
+    ..removeAt(cut)
+    ..insertAll(cut, [
+      SegmentView(
+        segmentId: '${whole.segmentId}-a',
+        takeId: whole.takeId,
+        startsMs: whole.startsMs,
+        endsMs: at.inMilliseconds,
+        told: false,
+      ),
+      SegmentView(
+        segmentId: '${whole.segmentId}-b',
+        takeId: whole.takeId,
+        startsMs: at.inMilliseconds,
+        endsMs: whole.endsMs,
+        told: false,
+      ),
+    ]);
+}
+
 /// A team that rehearsed and told one stretch back, whose stretch the room holds cut in
 /// two.
 ///
 /// The two halves are born with nothing told about them, which is the situation the
 /// room's gate stops on: the passage cannot be read while a stretch is still waiting.
-/// The team's steps are verbs it has on the screen; the cut is the room's own, through the
-/// divide route the server keeps.
+/// The team's steps are verbs it has on the screen; the cut is the room's own.
 Future<ProviderContainer> upToTwoUntoldHalves(
   WidgetTester tester,
   SalaHarness harness,
 ) async {
   harness.room.verdictChecked = false;
   final container = await pumpUpToTheEndOfTheTelling(tester, harness);
-  await harness.room.divideSegment(
-    container.read(salaSessionProvider).sessionId!,
-    'trecho-1',
-    at: const Duration(seconds: 5),
-  );
+  _splitInTwo(harness, 'trecho-1', const Duration(seconds: 5));
   return container;
 }
 

@@ -138,11 +138,6 @@ void main() {
         reason: 'sair do pensando é o que devolve o toque à equipe',
       );
       expect(
-        it.estado.btFindings,
-        isEmpty,
-        reason: 'uma parte não contada não é um achado do analista',
-      );
-      expect(
         it.harness.playback.played.last,
         segunda.path,
         reason: 'a equipe cai na parte que o servidor nomeou',

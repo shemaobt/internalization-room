@@ -793,7 +793,6 @@ class FakeRoom implements RoomRepository {
   final List<String> takesKept = [];
   final List<int?> takePasses = [];
   String? refuseTake;
-  Exception? failDivideWith;
   Exception? failReplaceWith;
   Exception? loseTheNextReplaceAnswerWith;
   Exception? loseTheNextReplaceAnswerAndLandItLaterWith;
@@ -846,8 +845,6 @@ class FakeRoom implements RoomRepository {
   final List<String> replacesComArquivo = [];
   int _versoes = 0;
 
-  /// Which stretch each division named, and where it was cut, in order.
-  final List<String> dividesAsked = [];
   bool chunkCaptured = true;
   bool turnsAreCanned = false;
   bool turnsAreDegraded = false;
@@ -1216,40 +1213,6 @@ class FakeRoom implements RoomRepository {
       );
       _retired.add(antes.segmentId);
     }
-  }
-
-  @override
-  Future<List<SegmentView>> divideSegment(
-    String sessionId,
-    String segmentId, {
-    required Duration at,
-  }) async {
-    _guard('divideSegment');
-    final refusal = failDivideWith;
-    if (refusal != null) throw refusal;
-    dividesAsked.add('$segmentId@${at.inMilliseconds}');
-    final cut = segments.indexWhere((one) => one.segmentId == segmentId);
-    if (cut < 0) return List.of(segments);
-    final whole = segments[cut];
-    segments
-      ..removeAt(cut)
-      ..insertAll(cut, [
-        SegmentView(
-          segmentId: '${whole.segmentId}-a',
-          takeId: whole.takeId,
-          startsMs: whole.startsMs,
-          endsMs: at.inMilliseconds,
-          told: false,
-        ),
-        SegmentView(
-          segmentId: '${whole.segmentId}-b',
-          takeId: whole.takeId,
-          startsMs: at.inMilliseconds,
-          endsMs: whole.endsMs,
-          told: false,
-        ),
-      ]);
-    return List.of(segments);
   }
 
   /// What the next call to the session-scoped ask throws, independent of `failWith` —

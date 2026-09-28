@@ -3387,7 +3387,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btPhase: BtPhase.playing,
       btChunkFailures: const [],
       btClipEnded: false,
-      btFindings: const [],
       btPass: 1,
       peerCue: false,
     );
@@ -4048,11 +4047,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       needsPerson: told.needsPerson,
     );
     if (epoch != _epoch) return;
-    // The correction is finished, so the room goes and finds out what it was worth. The
-    // team used to be handed back to the screen for hearing the recording, with nothing
-    // said: the only way to learn whether the fix had taken was to press "terminei"
-    // again, and nobody tells them that. From where they stand they had corrected the
-    // stretch and nothing had happened.
+    // The correction is finished, so the room goes and finds out what it was worth.
     //
     // Only a correction arrives here — an ordinary telling during the back-translation
     // returns before this, and it should, because there is still passage left to hear and
@@ -4522,9 +4517,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(
         btPhase: BtPhase.findings,
         voice: VoiceState.invite,
-        btFindings: verdict.findingKind == null
-            ? const []
-            : [verdict.findingKind!],
         btFindingSegmentId: verdict.findingSegmentId,
         clearFindingSegment: verdict.findingSegmentId == null,
       );
@@ -4737,7 +4729,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       btPhase: BtPhase.playing,
       voice: VoiceState.invite,
-      btFindings: const [],
       clearFindingSegment: true,
     );
     _leadThemToTheTrecho(trecho);
@@ -5053,7 +5044,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       btPhase: BtPhase.playing,
       voice: VoiceState.invite,
-      btFindings: const [],
       btTraducaoPendente: trecho.retroPath,
       btTraducaoEmprestada: trecho.retroPath,
     );
@@ -5100,7 +5090,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: VoiceState.invite,
       ensaio: EnsaioStatus.idle,
       btPhase: BtPhase.playing,
-      btFindings: const [],
       clearFindingSegment: true,
       peerCue: false,
     );

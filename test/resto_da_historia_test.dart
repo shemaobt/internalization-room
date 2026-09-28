@@ -236,10 +236,6 @@ void main() {
       isNot(contains('replaceSegment')),
     );
     expect(
-      harness.room.calls.sublist(pedidos),
-      isNot(contains('divideSegment')),
-    );
-    expect(
       harness.room.segmentIds,
       naSala,
       reason: 'a sala segue guardando exatamente os mesmos trechos',
@@ -373,7 +369,6 @@ void main() {
     );
     expect(harness.room.chunkSpans.sublist(contadosAntes), ['0-12000']);
     expect(harness.room.replacesAsked, isEmpty);
-    expect(harness.room.dividesAsked, isEmpty);
     expect(trechosDe(agora).sublist(0, 3), antigas);
     expect(agora.btTrechos, hasLength(4));
 
