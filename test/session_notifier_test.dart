@@ -1693,7 +1693,15 @@ void main() {
       await settle();
       clock.start();
       notifier.conversaTap();
-      await settle(const Duration(milliseconds: 900));
+      // A fixed wait here guessed how long the retries plus the vigia's own ceiling
+      // would take, and under a loaded suite that guess sometimes fell short: `ended`
+      // was still null when the expectations below ran, not because the room was slow,
+      // but because the test stopped watching before the room finished answering.
+      await waitFor(
+        'a sala cair para offline ou chamar uma pessoa',
+        () => ended != null,
+        limit: const Duration(seconds: 5),
+      );
       final sent = harness.room.turnsSent;
       await settle(const Duration(milliseconds: 300));
 
