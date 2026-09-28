@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
+import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -714,6 +716,25 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('R2b — the warning mark speaks the rooms language', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
+    final container = await retomarComAviso(tester, harness);
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(
+      find.bySemanticsLabel('A warning is asking someone to come watch'),
+      findsOneWidget,
+      reason:
+          'a marca existe ao lado do círculo, mas o que ela diz a um leitor '
+          'de tela em inglês precisa vir do mapa, não do português fixo',
+    );
+    handle.dispose();
+    closeTheRoom(container);
+  });
+
   testWidgets('R4 — gravar, regravar e confirmar fica na tradução e conta o '
       'trecho uma vez', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
@@ -752,6 +773,116 @@ void main() {
 
     expect(byLabel('Tap to record the translation again'), findsOneWidget);
     expect(byLabel('Listen to the translation'), findsOneWidget);
+    closeTheRoom(container);
+  });
+
+  testWidgets('R6 — a halt in the back-translation speaks the rooms language', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
+    final container = await entrarNaTraducao(tester, harness);
+
+    harness.playback.at = cabeca;
+    await tocar(tester, retroLabelFor('cut', 'en'));
+    await tocar(tester, retroLabelFor('record', 'en'));
+    await tocar(tester, retroLabelFor('recording', 'en'));
+    harness.room.failChunkWith = const RoomRefused();
+    await tocar(tester, retroLabelFor('confirm', 'en'));
+
+    expect(
+      tester.widget<FacilitatorCircle>(_circulo()).semanticLabel,
+      circleLabelFor('needsPerson', 'en'),
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets(
+    'R7 — going offline in the back-translation speaks the rooms language',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
+      final container = await entrarNaTraducao(tester, harness);
+
+      harness.playback.at = cabeca;
+      await tocar(tester, retroLabelFor('cut', 'en'));
+      await tocar(tester, retroLabelFor('record', 'en'));
+      await tocar(tester, retroLabelFor('recording', 'en'));
+      harness.room.failChunkWith = Exception('sem rede');
+      harness.network.reachable = false;
+      await tocar(tester, retroLabelFor('confirm', 'en'));
+
+      expect(
+        tester.widget<FacilitatorCircle>(_circulo()).semanticLabel,
+        circleLabelFor('offline', 'en'),
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'R8 — the circle thinking in the back-translation speaks the rooms '
+    'language',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
+      final container = await entrarNaTraducao(tester, harness);
+
+      harness.playback.at = cabeca;
+      await tocar(tester, retroLabelFor('cut', 'en'));
+      await tocar(tester, retroLabelFor('record', 'en'));
+      await tocar(tester, retroLabelFor('recording', 'en'));
+      harness.room.holdNextChunk();
+      await tocar(tester, retroLabelFor('confirm', 'en'));
+
+      expect(
+        tester.widget<FacilitatorCircle>(_circulo()).semanticLabel,
+        retroLabelFor('thinking', 'en'),
+      );
+
+      harness.room.finishHeldChunk();
+      await tester.pump(const Duration(milliseconds: 300));
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets('R9 — a checked passage in the back-translation speaks the rooms '
+      'language', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
+    harness.room.verdictChecked = true;
+    harness.playback
+      ..measured = parte
+      ..length = parte;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const SalaApp()),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.goConversa(pericope: 'P01');
+    await tester.pump(const Duration(milliseconds: 200));
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await tester.pump(const Duration(milliseconds: 100));
+    notifier.takeKeep();
+    await letTheRehearsalReachTheRoom(tester);
+    notifier.startRetro();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    harness.playback.at = const Duration(seconds: 10);
+    notifier.cortarTrecho();
+    notifier.retroTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    await confirmarATraducaoNaTela(tester, container);
+    await tester.pump(const Duration(milliseconds: 600));
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 200));
+    await notifier.finishBackTranslation();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      tester.widget<FacilitatorCircle>(_circulo()).semanticLabel,
+      retroLabelFor('translated', 'en'),
+    );
     closeTheRoom(container);
   });
 }

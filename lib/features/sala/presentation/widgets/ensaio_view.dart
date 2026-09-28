@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
+import '../../domain/kept_take.dart';
 import '../../domain/session_state.dart';
 import 'bead_row.dart';
 import 'bead_styles.dart';
@@ -26,13 +27,17 @@ class EnsaioView extends ConsumerWidget {
         const Spacer(flex: 86),
         SizedBox(
           height: 40,
-          child: BeadRow(entries: _beads(session, language), onTap: (_) {}),
+          child: BeadRow(
+            entries: _beads(session, language),
+            onTap: notifier.tocarAParte,
+          ),
         ),
         const Spacer(flex: 270),
         FacilitatorCircle(
           size: facilitatorCircleSize,
           voice: _voice(session),
           tongue: Tongue.motherTongue,
+          warning: session.warning ? warningNoticeLabelFor(language) : null,
           semanticLabel: _circleLabel(session, language),
           onTap: notifier.ensaioTap,
           onLongPress: session.canResolveWithPerson
@@ -101,15 +106,14 @@ class EnsaioView extends ConsumerWidget {
   }
 
   String _circleLabel(SalaSessionState session, String language) {
-    final again = session.parteARegravar;
     if (session.ensaio == EnsaioStatus.recording) {
       return rehearsalLabelFor('recording', language);
     }
     if (session.ensaio == EnsaioStatus.recorded) {
       return rehearsalLabelFor('pending', language);
     }
-    if (again != null) {
-      return rehearsalLabelFor('partAgain', language, part: again + 1);
+    if (session.parteARegravar != null) {
+      return rehearsalLabelFor('pending', language);
     }
     if (session.partes.isNotEmpty) {
       return rehearsalLabelFor('nextPart', language);
@@ -121,23 +125,27 @@ class EnsaioView extends ConsumerWidget {
     final open = session.ensaio != EnsaioStatus.idle;
     final partes = session.partes;
     final again = session.parteARegravar;
+    final tocando = session.parteDoEnsaioTocando;
     final replacing = again != null && again < partes.length;
     return [
       for (var index = 0; index < partes.length; index++)
-        BeadRowEntry(
+        _beadEntry(
+          session,
+          language,
+          index: index,
           fill: index != again
               ? BeadFill.solid
               : open
               ? BeadFill.translucent
               : BeadFill.drained,
-          current: index == again,
-          dimmed: replacing && index != again,
-          semanticLabel: rehearsalLabelFor('part', language, part: index + 1),
+          current: index == (tocando ?? again),
+          dimmed: session.beadIsDimmed(index),
+          sounding: tocando == index && session.playPing,
         ),
       if (open && !replacing)
         BeadRowEntry(
           fill: BeadFill.translucent,
-          current: true,
+          current: tocando == null || tocando == partes.length,
           semanticLabel: rehearsalLabelFor(
             'part',
             language,
@@ -145,5 +153,46 @@ class EnsaioView extends ConsumerWidget {
           ),
         ),
     ];
+  }
+
+  BeadRowEntry _beadEntry(
+    SalaSessionState session,
+    String language, {
+    required int index,
+    required BeadFill fill,
+    required bool current,
+    required bool dimmed,
+    required bool sounding,
+  }) {
+    final delivered = !session.unsentTakeScopes.contains(
+      KeptScope.parte(index + 1),
+    );
+    return BeadRowEntry(
+      fill: fill,
+      current: current,
+      dimmed: dimmed,
+      delivered: delivered,
+      semanticLabel: _beadLabel(
+        language,
+        part: index + 1,
+        sounding: sounding,
+        delivered: delivered,
+      ),
+    );
+  }
+
+  String _beadLabel(
+    String language, {
+    required int part,
+    required bool sounding,
+    required bool delivered,
+  }) {
+    final key = switch ((sounding, delivered)) {
+      (true, true) => 'partPlaying',
+      (true, false) => 'partPlayingNotDelivered',
+      (false, true) => 'part',
+      (false, false) => 'partNotDelivered',
+    };
+    return rehearsalLabelFor(key, language, part: part);
   }
 }

@@ -26,7 +26,7 @@ const confirmarATraducao = 'Confirmar a tradução e seguir';
 const tesoura = 'Cortar aqui';
 const conferir = 'Conferir a tradução';
 
-const gravarAParteDoisDeNovo = 'Gravar a parte 2 de novo';
+const gravarEstaParteDeNovo = 'Tocar para gravar esta parte de novo';
 const confirmarAParte = 'Confirmar esta parte';
 const irParaATraducao = 'Ir para a tradução';
 const sairDaPassagem = 'Deixar esta passagem e escolher outra';
@@ -202,13 +202,15 @@ void main() {
       'solid apagada',
     ]);
 
-    await tocar(tester, gravarAParteDoisDeNovo);
+    await tocar(tester, gravarEstaParteDeNovo);
     await tocar(tester, terminar);
-    expect(contasEm(tester, EnsaioView), [
-      'solid apagada',
-      'translucent com anel',
-      'solid apagada',
-    ]);
+    expect(
+      contasEm(tester, EnsaioView),
+      ['solid', 'translucent com anel', 'solid'],
+      reason:
+          'pendente a confirmação, as outras partes não ficam mais '
+          'esmaecidas (ADR 0040: esmaecido é o que não se aplica agora)',
+    );
     await tocar(tester, confirmarAParte);
     await letTheRehearsalReachTheRoom(tester);
 

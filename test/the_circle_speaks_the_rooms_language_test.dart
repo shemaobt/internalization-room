@@ -8,17 +8,32 @@ import 'sala_screen_test.dart' show bySemanticsLabelWidget, pumpSala;
 
 void main() {
   // Red until `languages` stops listing es, which #138 does.
-  test('a circle state missing a language the room offers fails the guard, '
-      'not silently speaks portuguese', () {
+  test('a label in any table missing a language the room offers fails the '
+      'guard, not silently speaks portuguese', () {
     final offered = languages.toSet();
-    for (final state in circleLabels.keys) {
-      expect(
-        circleLabels[state]!.keys.toSet(),
-        offered,
-        reason:
-            'um estado sem rótulo numa língua que a sala oferece '
-            'vazaria essa língua em silêncio, sem teste nenhum pegando',
-      );
+    final tables = {
+      'circleLabels': circleLabels,
+      'retroLabels': retroLabels,
+      'rehearsalLabels': rehearsalLabels,
+      'findingLabels': findingLabels,
+      'conviteLabels': conviteLabels,
+      'escolhaLabels': escolhaLabels,
+      'handLabels': handLabels,
+      'roomLabels': roomLabels,
+      'warningNoticeLabel': {'notice': warningNoticeLabel},
+      'recordEntryLabel': {'entry': recordEntryLabel},
+      'panoramaEntryLabel': {'entry': panoramaEntryLabel},
+    };
+    for (final MapEntry(key: table, value: states) in tables.entries) {
+      for (final MapEntry(key: state, value: labels) in states.entries) {
+        expect(
+          labels.keys.toSet(),
+          offered,
+          reason:
+              '$table[$state] sem rótulo numa língua que a sala oferece '
+              'vazaria essa língua em silêncio; o guard só olhava o círculo',
+        );
+      }
     }
   });
 

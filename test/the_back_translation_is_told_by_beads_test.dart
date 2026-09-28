@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
@@ -594,6 +595,39 @@ void main() {
       reason:
           'duas falhas comuns depois do pouso são o primeiro e o segundo '
           'strike, não o segundo e o terceiro',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('B7h2 — a correção guardada com a resposta perdida sai da fila '
+      'quando pousa na recusa seguinte', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await ateOTrechoNomeado(tester, harness);
+    final fila = harness.takes as FakeTakeQueue;
+
+    harness.room.refuseTake = 'retro/${KeptScope.whole}';
+    harness.room.loseTheNextReplaceAnswerWith = const RoomSlow();
+    await confirmarEEsperar(tester);
+    await letTheRehearsalReachTheRoom(tester);
+    final contadaNoServidor = harness.room.replacesComArquivo.single;
+    expect(
+      [
+        for (final linha in fila.rows)
+          if (linha.path == contadaNoServidor && !linha.stored) linha.kind,
+      ],
+      ['retro'],
+      reason: 'a resposta perdida guarda a correção na fila',
+    );
+
+    await confirmarEEsperar(tester);
+    await letTheRehearsalReachTheRoom(tester);
+
+    expect(
+      fila.rows.where((linha) => linha.path == contadaNoServidor),
+      isEmpty,
+      reason:
+          'a correção já pousou no trecho; na fila ela subiria de novo como '
+          'uma tomada da passagem inteira',
     );
     closeTheRoom(container);
   });
@@ -1193,6 +1227,35 @@ void main() {
     expect(byLabel('Tap when you finish'), findsOneWidget);
     closeTheRoom(container);
   });
+
+  testWidgets(
+    'the retro circle holding a translation it just heard waits in english, '
+    'not in portuguese',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
+      final container = await entrarNaTraducao(tester, harness);
+
+      harness.playback.at = cabeca;
+      await tester.tap(byLabel("Tap to record this stretch's translation"));
+      await tester.pump(const Duration(milliseconds: 300));
+      harness.recorder.holdNextStop();
+      await tester.tap(byLabel('Tap when you finish'));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(byLabel('One moment'), findsOneWidget);
+      expect(
+        byLabel('Um instante'),
+        findsNothing,
+        reason:
+            'o círculo do retro pensando dizia "Um instante" a uma sala em '
+            'inglês',
+      );
+
+      harness.recorder.finishStop();
+      await tester.pump(const Duration(milliseconds: 300));
+      closeTheRoom(container);
+    },
+  );
 
   testWidgets('B9 — depois do corte, ouvir toca o trecho do cursor ao corte', (
     tester,
