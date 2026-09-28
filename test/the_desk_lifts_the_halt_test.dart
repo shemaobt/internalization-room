@@ -13,7 +13,6 @@ import 'fakes.dart';
 import 'scenario_helpers.dart';
 import 'session_notifier_test.dart' show inConversa;
 
-/// How many times the tablet has asked the room what it is doing.
 int _createdSessions(SalaHarness harness) =>
     harness.room.calls.where((call) => call == 'createSession').length;
 

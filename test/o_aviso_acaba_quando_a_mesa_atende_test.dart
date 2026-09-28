@@ -9,7 +9,6 @@ import 'scenario_helpers.dart';
 import 'o_aviso_nao_fecha_o_azul_test.dart' show achadoComAvisoAtivo;
 import 'session_notifier_test.dart' show inConversa;
 
-/// How many times the tablet has asked the room what it is doing.
 /// Beats enough for a read the room owes to have landed, at whatever cadence this
 /// harness was built with: a fixed number here would be zero beats under a wider one,
 /// and a "did not grow" assertion that measured nothing would read as green.

@@ -294,11 +294,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// as and never by where the part sits in the row.
   ///
   /// A mend hands a part a new file, and a length written down under the old one's place
-  /// outlived it: the cord drew every band after a mended part at the length of the
-  /// recording that mend replaced, while the rule that crosses into the next part read
-  /// the new file. Keyed by the file, a swapped part needs only its own measurement, and
-  /// the listening ledger — keyed by the file too — cannot disagree with the ruler about
-  /// which recording a length belongs to.
+  /// would outlive it. Keyed by the file, a swapped part needs only its own measurement,
+  /// and the listening ledger — keyed by the file too — cannot disagree with the ruler
+  /// about which recording a length belongs to.
   final Map<String, int> _tamanhoDaParteMs = {};
   final EscutaDasPartes _escuta = EscutaDasPartes();
   int _desdeMs = 0;
@@ -3455,7 +3453,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final partes = state.partes;
     if (partes.isEmpty) {
       // No rehearsal to tell back is not a rehearsal that finished playing. Calling it
-      // one opened `terminei` over an empty back translation.
+      // one would open the check over an empty back translation.
       _haltForAPerson();
       return;
     }
@@ -3487,8 +3485,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     // How long each part is was answered above, for every part at once: read one part at a
-    // time as this walked, the cord could not draw a band past the first part still to be
-    // told.
+    // time as this walked, nothing past the first part still to be told could be measured.
     var parte = 0;
     while (parte < medidas.length - 1) {
       final contadaAte = _chaoExplicadoDe(parte);
@@ -4485,11 +4482,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
       if (verdict.checked) {
         // The finding is over, and so is the stretch it named. This branch returns above
-        // the place the pointer is resolved, so a name outlived the objection that gave it
-        // — and the cord went on drawing that stretch drained under a passage the room had
-        // just called checked. It only showed after a correction the room made nothing of:
-        // one that lands retires the name it replaces, so the pointer goes stale on its
-        // own and matches nothing.
+        // the place the pointer is resolved, so a name outlived the objection that gave
+        // it. It only showed after a correction the room made nothing of: one that lands
+        // retires the name it replaces, so the pointer goes stale on its own and matches
+        // nothing.
         state = state.copyWith(
           btPhase: BtPhase.conferida,
           voice: VoiceState.done,

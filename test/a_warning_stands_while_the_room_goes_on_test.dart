@@ -7,7 +7,6 @@ import 'fakes.dart';
 import 'scenario_helpers.dart';
 import 'session_notifier_test.dart' show inConversa;
 
-/// How many times the tablet has asked the room what it is doing.
 /// A whole turn, from the team touching the circle to the room hearing it.
 Future<void> _aTurn(SalaSessionNotifier notifier) async {
   notifier.conversaTap();

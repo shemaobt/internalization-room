@@ -43,7 +43,6 @@ void main() {
         'findings_remaining': 1,
       });
 
-      expect(verdict.findingKind, isNull);
       expect(verdict.findingSegmentId, 'trecho-2');
     });
   }
@@ -57,7 +56,6 @@ void main() {
     });
 
     expect(verdict.checked, isFalse);
-    expect(verdict.findingKind, isNull);
     expect(verdict.findingSegmentId, 'trecho-2');
   });
 }

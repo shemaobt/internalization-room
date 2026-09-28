@@ -1441,7 +1441,6 @@ class FakeRoom implements RoomRepository {
       audioUrl: linha,
       fixedLine: '',
       checked: verdictChecked,
-      findingKind: verdictFinding,
       findingSegmentId: _oQueOAnalistaAponta(),
       untoldSegmentId: verdictUntoldSegmentId,
       unheardTakeIds: verdictUnheardTakeIds,
