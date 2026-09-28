@@ -1374,6 +1374,66 @@ void main() {
         },
       );
 
+      RoomRepository refusingWith(int status, String detail) {
+        final repository = RoomRepository(
+          client: MockClient(
+            (_) async => http.Response(
+              jsonEncode({'detail': detail, 'code': 'BAD_REQUEST'}),
+              status,
+            ),
+          ),
+          deviceId: () async => 'aparelho-1',
+        );
+        addTearDown(repository.dispose);
+        return repository;
+      }
+
+      const superseded =
+          'This stretch no longer counts: it was already replaced, or the part '
+          'of the rehearsal it is a slice of was recorded again';
+      const divided =
+          'A stretch that was divided is no longer a unit: replace one of the '
+          'stretches it was divided into, not the stretch itself';
+
+      test(
+        'a replace refused because the stretch no longer counts names that refusal',
+        () async {
+          await expectLater(
+            () =>
+                stretchCalls['replaceSegment']!(refusingWith(400, superseded)),
+            throwsA(isA<StretchNoLongerCounts>()),
+          );
+        },
+      );
+
+      test('every other refusal of a replace stays a refused call', () async {
+        await expectLater(
+          () => stretchCalls['replaceSegment']!(refusingWith(400, divided)),
+          throwsA(isA<RoomBroke>()),
+          reason: 'o trecho dividido não foi contado; é recusa de verdade',
+        );
+        await expectLater(
+          () => stretchCalls['replaceSegment']!(refusingWith(422, superseded)),
+          throwsA(isA<RoomBroke>()),
+          reason: 'a recusa nomeada é o 400 do servidor, e nada mais largo',
+        );
+      });
+
+      test(
+        'sendChunk and divideSegment each keep a 400 or a 422 as a refused call',
+        () async {
+          for (final call in ['sendChunk', 'divideSegment']) {
+            for (final status in [400, 422]) {
+              await expectLater(
+                () => stretchCalls[call]!(refusingWith(status, superseded)),
+                throwsA(isA<RoomBroke>()),
+                reason: '$call $status: só o replace conta de novo um trecho',
+              );
+            }
+          }
+        },
+      );
+
       test(
         'opening a session and listing the passages keep a 404 as the session gone',
         () async {

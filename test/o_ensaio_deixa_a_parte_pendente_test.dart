@@ -213,6 +213,7 @@ void main() {
       expect(_naFila(harness), hasLength(2));
       await _tocar(tester, _irParaATraducao);
       expect(container.read(salaSessionProvider).stage, SalaStage.retro);
+      closeTheRoom(container);
     },
   );
 

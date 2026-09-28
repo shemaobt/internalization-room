@@ -57,6 +57,10 @@ class RoomBroke implements Exception {
   String toString() => 'RoomBroke: $reason';
 }
 
+class StretchNoLongerCounts implements Exception {
+  const StretchNoLongerCounts();
+}
+
 class RoomRefused implements Exception {
   const RoomRefused();
 }
@@ -478,11 +482,29 @@ class RoomRepository {
           ..fields['starts_ms'] = '${from.inMilliseconds}'
           ..fields['ends_ms'] = '${to.inMilliseconds}';
     request.files.add(await http.MultipartFile.fromPath('file', audio.path));
+    final response = await _sendMultipart(request);
+    if (_saysTheStretchNoLongerCounts(response)) {
+      throw const StretchNoLongerCounts();
+    }
     return _read(
-      await _sendMultipart(request),
+      response,
       TellingAgain.fromJson,
       notFoundIsTheSessionGone: false,
     );
+  }
+
+  bool _saysTheStretchNoLongerCounts(http.Response response) {
+    if (response.statusCode != 400) return false;
+    try {
+      final body = jsonDecode(utf8.decode(response.bodyBytes));
+      return body is Map<String, dynamic> &&
+          body['detail'] is String &&
+          (body['detail'] as String).startsWith(
+            'This stretch no longer counts',
+          );
+    } on FormatException {
+      return false;
+    }
   }
 
   /// The team's approval of its own final draft.

@@ -379,6 +379,11 @@ class RetroView extends ConsumerWidget {
     if (session.offline) return circleLabelFor('offline', language);
     switch (session.btPhase) {
       case BtPhase.playing:
+        if (session.btTrechoTraduzidoDeNovo == null &&
+            !session.btCortado &&
+            session.nothingHeardSinceCursor) {
+          return retroLabelFor('listenFirst', language);
+        }
         return retroLabelFor(
           session.btTraducaoPendente != null ? 'recordAgain' : 'record',
           language,
