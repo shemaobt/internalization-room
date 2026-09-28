@@ -1667,11 +1667,6 @@ void main() {
     () {
       const window = Duration(milliseconds: 600);
       fakeAsync((async) {
-        // The race is between _sendTheTake's own retry budget and the vigia's watchdog
-        // Timer, both started within the same instant. Driving both on the fake clock —
-        // through turnElapsedSourceProvider for the former, and fake_async's own Timer
-        // interception for the latter — makes the outcome a function of fake time, not
-        // wall time, so the assertions below are deterministic under any real load.
         final harness = SalaHarness(
           busyCeiling: window,
           retryBackoff: const [Duration(milliseconds: 100)],
@@ -1730,6 +1725,84 @@ void main() {
           endedAt,
           lessThan(window),
           reason: 'o turno com reenvios passava da janela do vigia',
+        );
+      });
+    },
+  );
+
+  test(
+    'a clock that underestimates elapsed time lands offline past the window, '
+    'once the watchdog is out of the race',
+    () {
+      const window = Duration(milliseconds: 600);
+      fakeAsync((async) {
+        final harness = SalaHarness(
+          busyCeiling: window,
+          retryBackoff: const [Duration(milliseconds: 100)],
+          turnElapsedSource: () {
+            final start = async.elapsed;
+            return () =>
+                async.elapsed - start - const Duration(milliseconds: 300);
+          },
+        );
+        ProviderContainer? container;
+        SalaSessionState? ended;
+        Duration? endedAt;
+        Duration secondTapAt = Duration.zero;
+
+        unawaited(() async {
+          container = await inConversa(harness);
+          final notifier = container!.read(salaSessionProvider.notifier);
+          harness.room.failTurnsWith = const RoomUnavailable('a conexão caiu');
+          container!.listen(salaSessionProvider, (_, next) {
+            if (ended == null && (next.offline || next.needsPerson)) {
+              endedAt = async.elapsed - secondTapAt;
+              ended = next;
+            }
+          });
+
+          notifier.conversaTap();
+          await settle();
+          secondTapAt = async.elapsed;
+          notifier.conversaTap();
+          async.flushMicrotasks();
+
+          final watchdog = async.pendingTimers.where(
+            (timer) => timer.duration == window,
+          );
+          expect(
+            watchdog,
+            hasLength(1),
+            reason:
+                'exatamente um Timer do vigia deveria estar pendente logo '
+                'após o segundo toque',
+          );
+          watchdog.single.cancel();
+        }());
+        async.elapse(const Duration(seconds: 2));
+
+        addTearDown(() => container?.dispose());
+
+        expect(
+          ended,
+          isNotNull,
+          reason: 'com o vigia fora da corrida, só o pouso offline decide',
+        );
+        expect(
+          ended?.offline,
+          isTrue,
+          reason: 'sem o vigia, nada mais chama uma pessoa',
+        );
+        expect(
+          endedAt,
+          Duration(milliseconds: 800),
+          reason:
+              'um relógio que subestima o tempo decorrido em 300ms deixa o '
+              'orçamento de reenvio achar que ainda sobra folga: os reenvios '
+              'continuam até 800ms, bem depois da janela de 600ms que '
+              'deveria os ter cortado antes — a prova de que a janela do '
+              'assert anterior é real, não um acidente de quem nunca a '
+              'testou contra o próprio relógio',
         );
       });
     },
