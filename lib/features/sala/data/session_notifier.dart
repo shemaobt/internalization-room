@@ -2561,6 +2561,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// room is briefly optimistic, for as long as one request, and corrects itself. That is
   /// a different animal from the optimism this slice removes, which outlived the request
   /// and died only with the screen, leaving the desk to contradict it on the next start.
+  ///
+  /// A refusal also pulls the inbox. The one refusal the desk makes on purpose is that the
+  /// reply moved on: the facilitator recorded again while this one played, and the address
+  /// the tablet holds has stopped answering. The inbox is otherwise read thirty seconds
+  /// after a turn, and not at all while the room sits on the convite, so without this pull
+  /// the hand kept offering a clip that sounds nothing and marks nothing. The answer is a
+  /// bool that cannot tell that refusal from an outage, so every refusal pulls; a pull is
+  /// one GET, and after an outage it changes nothing.
   Future<void> _markHeard(String replyId, {required String audioUrl}) async {
     final epoch = _epoch;
     state = state.copyWith(
@@ -2570,6 +2578,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (await _inbox.markHeard(replyId, audioUrl: audioUrl)) return;
     if (_gone || epoch != _epoch) return;
     state = state.copyWith(replies: _replies(replyId, heard: false));
+    unawaited(_pullInbox());
   }
 
   List<HandReply> _replies(String replyId, {required bool heard}) => [

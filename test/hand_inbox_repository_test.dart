@@ -41,7 +41,7 @@ void main() {
     expect(seen.headers['content-type'], contains('application/json'));
   });
 
-  test('a mark with no clip is the bare mark it always was', () async {
+  test('a reply served with no address is marked bare, as before', () async {
     late http.Request seen;
     final inbox = HandInboxRepository(
       client: MockClient((request) async {
@@ -51,7 +51,7 @@ void main() {
       deviceId: () async => 'aparelho-1',
     );
 
-    await inbox.markHeard('resposta-1');
+    await inbox.markHeard('resposta-1', audioUrl: '');
 
     expect(seen.body, isEmpty);
     expect(seen.headers['content-type'] ?? '', isNot(contains('json')));

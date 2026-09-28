@@ -22,6 +22,9 @@ const _replyUrl = '/voz/resposta-1';
 class _Desk {
   final Map<String, bool> heard = {'resposta-1': false};
 
+  /// Where each reply is served from now. A facilitator who records again moves it.
+  final Map<String, String> current = {'resposta-1': _replyUrl};
+
   /// How many times this tablet has read the inbox. The case waits on this rather than
   /// on a reply arriving: after an agreed mark the desk rightly has nothing to offer,
   /// and waiting for a reply there would hang on the desk being correct.
@@ -58,7 +61,7 @@ class _Desk {
           'replies': [
             for (final row in heard.entries)
               if (!row.value)
-                {'question_id': row.key, 'audio_url': '/voz/${row.key}'},
+                {'question_id': row.key, 'audio_url': current[row.key]},
           ],
         }),
         200,
@@ -73,6 +76,9 @@ class _Desk {
       markedUrl = request.body.isEmpty
           ? null
           : (jsonDecode(request.body) as Map)['audio_url'] as String?;
+      if (markedUrl != null && markedUrl != current[id]) {
+        return http.Response('{"code":"REPLY_MOVED_ON"}', 409);
+      }
       if (answers >= 200 && answers < 300) heard[id] = true;
       return http.Response('', answers);
     }
@@ -169,29 +175,48 @@ void main() {
     );
   });
 
-  test('a reply that moved on while it played is still offered', () async {
-    final desk = _Desk()..answers = 409;
-    final harness = _tabletTalkingTo(desk);
-    final container = await _opensTheRoom(desk, harness);
+  test(
+    'a reply that moved on while it played is offered again at its new address',
+    () async {
+      const recordedAgain = '/voz/resposta-1-regravada';
+      final desk = _Desk()..holdsTheAnswer();
+      final harness = _tabletTalkingTo(desk);
+      final container = await _opensTheRoom(desk, harness);
 
-    await _theTeamTapsTheHand(container);
-    expect(_timesPlayed(harness), 1);
-    await waitFor('a mesa dizer que a resposta mudou', () => desk.marks == 1);
+      await _theTeamTapsTheHand(container);
+      expect(_timesPlayed(harness), 1);
+      await waitFor('a marca chegar à mesa', () => desk.marks == 1);
 
-    expect(
-      container.read(salaSessionProvider).oldestUnheardReply?.id,
-      'resposta-1',
-      reason:
-          'a facilitadora regravou enquanto a primeira tocava; a mesa recusou '
-          'a marca do clipe velho e a pergunta segue oferecida, com o clipe novo',
-    );
+      // While the tablet waits on its mark, the facilitator records again.
+      final readsBefore = desk.reads;
+      desk.current['resposta-1'] = recordedAgain;
+      desk.answersAtLast();
+      await waitFor(
+        'a sala reler a caixa de entrada depois da recusa',
+        () => desk.reads > readsBefore,
+      );
+      await settle();
 
-    final again = await _opensTheRoom(desk, harness);
-    expect(
-      again.read(salaSessionProvider).oldestUnheardReply?.id,
-      'resposta-1',
-    );
-  });
+      expect(desk.heard['resposta-1'], isFalse);
+      expect(
+        container.read(salaSessionProvider).oldestUnheardReply?.audioUrl,
+        recordedAgain,
+        reason:
+            'a mesa recusou a marca do clipe velho e a pergunta segue oferecida, '
+            'já no endereço novo — sem a releitura a mão oferecia um clipe que '
+            'não soa e cuja marca a mesa recusa de novo, até a próxima leitura '
+            'agendada, que na convite não vem',
+      );
+
+      await _theTeamTapsTheHand(container);
+      await waitFor(
+        'a mesa registrar a escuta da regravação',
+        () => desk.heard['resposta-1'] == true,
+      );
+      expect(harness.voice.played.last, recordedAgain);
+      expect(desk.markedUrl, recordedAgain);
+    },
+  );
 
   test('a reply the desk agrees was heard is never played again', () async {
     final desk = _Desk();

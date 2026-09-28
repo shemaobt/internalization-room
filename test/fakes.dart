@@ -674,7 +674,7 @@ class FakeInbox implements HandInboxRepository {
   bool refusesMarks = false;
 
   @override
-  Future<bool> markHeard(String replyId, {String? audioUrl}) async {
+  Future<bool> markHeard(String replyId, {required String audioUrl}) async {
     if (refusesMarks) return false;
     heard.add(replyId);
     return true;
