@@ -1886,7 +1886,7 @@ class SalaHarness {
   late final FakeRecorder recorder = FakeRecorder(sounds: sounds);
   late final FakePlayback playback = FakePlayback(sounds: sounds);
   final FakeInbox inbox;
-  final FakeRoom room = FakeRoom();
+  final FakeRoom room;
   final FakeNetwork network = FakeNetwork();
   final FakeScreenAwake awake = FakeScreenAwake();
   final FakeLinkedTeam vinculo;
@@ -1930,8 +1930,10 @@ class SalaHarness {
     this.lingua = testLanguage,
     this.emAbertoNoDisco,
     this.inboxService,
+    FakeRoom? room,
     this.takesOverride,
-  }) : inbox = FakeInbox(replies: replies),
+  }) : room = room ?? FakeRoom(),
+       inbox = FakeInbox(replies: replies),
        vinculo = FakeLinkedTeam(remembered: linkedAs);
 
   final Duration? linkPoll;
