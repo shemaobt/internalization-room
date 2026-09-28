@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/facilitator_voice_service.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
@@ -1664,60 +1664,74 @@ void main() {
 
   test(
     'a drop that never heals ends offline inside the wait, not with a person called',
-    () async {
+    () {
       const window = Duration(milliseconds: 600);
-      final harness = SalaHarness(
-        busyCeiling: window,
-        retryBackoff: const [Duration(milliseconds: 100)],
-      );
-      final container = await inConversa(harness);
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-      harness.room.failTurnsWith = const RoomUnavailable('a conexão caiu');
-      final clock = Stopwatch();
-      Duration? endedAt;
-      SalaSessionState? ended;
-      container.listen(salaSessionProvider, (_, next) {
-        if (ended == null && (next.offline || next.needsPerson)) {
-          endedAt = clock.elapsed;
-          ended = next;
-        }
+      fakeAsync((async) {
+        // The race is between _sendTheTake's own retry budget and the vigia's watchdog
+        // Timer, both started within the same instant. Driving both on the fake clock —
+        // through turnElapsedSourceProvider for the former, and fake_async's own Timer
+        // interception for the latter — makes the outcome a function of fake time, not
+        // wall time, so the assertions below are deterministic under any real load.
+        final harness = SalaHarness(
+          busyCeiling: window,
+          retryBackoff: const [Duration(milliseconds: 100)],
+          turnElapsedSource: () {
+            final start = async.elapsed;
+            return () => async.elapsed - start;
+          },
+        );
+        ProviderContainer? container;
+        SalaSessionState? ended;
+        Duration? endedAt;
+        int? sentAtEnd;
+        Duration secondTapAt = Duration.zero;
+        final calledForAPerson = <SalaSessionState>[];
+
+        unawaited(() async {
+          container = await inConversa(harness);
+          final notifier = container!.read(salaSessionProvider.notifier);
+          harness.room.failTurnsWith = const RoomUnavailable('a conexão caiu');
+          container!.listen(salaSessionProvider, (_, next) {
+            if (next.needsPerson) calledForAPerson.add(next);
+            if (ended == null && (next.offline || next.needsPerson)) {
+              endedAt = async.elapsed - secondTapAt;
+              ended = next;
+              sentAtEnd = harness.room.turnsSent;
+            }
+          });
+
+          notifier.conversaTap();
+          await settle();
+          secondTapAt = async.elapsed;
+          notifier.conversaTap();
+        }());
+        async.elapse(const Duration(seconds: 2));
+
+        addTearDown(() => container?.dispose());
+
+        expect(
+          ended,
+          isNotNull,
+          reason: 'a sala precisava cair para offline ou chamar uma pessoa',
+        );
+        expect(
+          calledForAPerson,
+          isEmpty,
+          reason:
+              'os reenvios iam até o vigia, e o vigia chamava uma pessoa para '
+              'uma rede que tinha caído — em qualquer ponto da espera, não só '
+              'na primeira transição',
+        );
+        expect(ended?.offline, isTrue);
+        expect(ended?.reach, RoomReach.noNetwork);
+        expect(sentAtEnd, greaterThan(1));
+        expect(harness.room.turnsSent, sentAtEnd);
+        expect(
+          endedAt,
+          lessThan(window),
+          reason: 'o turno com reenvios passava da janela do vigia',
+        );
       });
-
-      notifier.conversaTap();
-      await settle();
-      clock.start();
-      notifier.conversaTap();
-      // The real race is inside _sendTheTake: with the harness's 50ms margin, only
-      // ~100ms of headroom separates the offline landing from the vigia's own window,
-      // so one oversleeping delay under load can let the window win instead of the
-      // retry loop. That race lives in production's own wall-clock Stopwatch, which
-      // this test cannot make deterministic without a clock seam in
-      // session_notifier.dart — flagged as unresolved, see the PR body.
-      await waitFor(
-        'a sala cair para offline ou chamar uma pessoa',
-        () => ended != null,
-        limit: const Duration(seconds: 5),
-      );
-      final sent = harness.room.turnsSent;
-      await settle(const Duration(milliseconds: 300));
-
-      expect(
-        ended?.needsPerson,
-        isFalse,
-        reason:
-            'os reenvios iam até o vigia, e o vigia chamava uma pessoa para '
-            'uma rede que tinha caído',
-      );
-      expect(ended?.offline, isTrue);
-      expect(ended?.reach, RoomReach.noNetwork);
-      expect(sent, greaterThan(1));
-      expect(harness.room.turnsSent, sent);
-      expect(
-        endedAt,
-        lessThan(window),
-        reason: 'o turno com reenvios passava da janela do vigia',
-      );
     },
   );
 
@@ -5784,7 +5798,7 @@ void main() {
     );
   });
 
-  test('a retro clip that never ends still offers terminei', () async {
+  test('a retro clip that never ends still offers the check', () async {
     final harness = SalaHarness(
       playbackCeiling: const Duration(milliseconds: 400),
     );
@@ -5991,7 +6005,7 @@ void main() {
   test('the stretch is found by the number the room gave it', () async {
     final harness = SalaHarness()
       ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.missing
+      ..room.verdictHasFinding = true
       ..room.verdictFindingSegmentId = 'trecho-2';
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -6078,7 +6092,7 @@ void main() {
   test('retelling one stretch keeps every other explanation', () async {
     final harness = SalaHarness()
       ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.missing
+      ..room.verdictHasFinding = true
       ..room.verdictFindingSegmentId = 'trecho-1';
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -6112,7 +6126,7 @@ void main() {
     expect(
       after.btClipEnded,
       isTrue,
-      reason: 'e o terminei continua ali para reconferir',
+      reason: 'e a conferência continua ali para reconferir',
     );
   });
 
@@ -6120,7 +6134,7 @@ void main() {
       'the outbox', () async {
     final harness = SalaHarness()
       ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.missing
+      ..room.verdictHasFinding = true
       ..room.verdictFindingSegmentId = 'trecho-1';
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -6485,7 +6499,7 @@ void main() {
   test('the verdict takes the team to the part it points at', () async {
     final harness = SalaHarness()
       ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.missing
+      ..room.verdictHasFinding = true
       ..room.verdictFindingSegmentId = 'trecho-2';
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -7105,7 +7119,7 @@ void main() {
   test('a finding from the server opens the two honest exits', () async {
     final harness = SalaHarness()
       ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.addition;
+      ..room.verdictHasFinding = true;
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -7656,7 +7670,7 @@ void main() {
     );
   });
 
-  test('terminei carries how much of the clip was actually heard', () async {
+  test('the check carries how much of the clip was actually heard', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -7881,7 +7895,7 @@ void main() {
     expect(
       state.btClipEnded,
       isFalse,
-      reason: 'a fronteira não é o fim: terminei não pode aparecer aqui',
+      reason: 'a fronteira não é o fim: a conferência não pode aparecer aqui',
     );
     expect(harness.playback.played, hasLength(1));
 
@@ -7983,7 +7997,7 @@ void main() {
     () async {
       final harness = SalaHarness()
         ..room.verdictChecked = false
-        ..room.verdictFinding = BtFindingKind.missing
+        ..room.verdictHasFinding = true
         ..room.verdictFindingSegmentId = 'trecho-1';
       final container = await inConversa(harness);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -8011,7 +8025,7 @@ void main() {
     },
   );
 
-  test('terminei reports what was heard, not the length of the clip', () async {
+  test('the check reports what was heard, not the length of the clip', () async {
     final harness = SalaHarness()
       ..playback.length = const Duration(seconds: 10);
     final container = await inConversa(harness);
@@ -8167,7 +8181,7 @@ void main() {
     expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
   });
 
-  test('terminei names every part the team heard, one entry each', () async {
+  test('the check names every part the team heard, one entry each', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -8210,7 +8224,7 @@ void main() {
   test('a finding in the second part plays the right stretch of it', () async {
     final harness = SalaHarness()
       ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.missing;
+      ..room.verdictHasFinding = true;
     final container = await inConversa(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 

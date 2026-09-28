@@ -95,6 +95,16 @@ final resendMarginProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 5),
 );
 
+/// Starts the clock `_sendTheTake` reads its own wait from. A provider, not a bare
+/// `Stopwatch()`, so a test can drive the wait on a fake clock instead of the wall one —
+/// the only real clock left on the resend-versus-watchdog race.
+final turnElapsedSourceProvider = Provider<Duration Function() Function()>(
+  (ref) => () {
+    final stopwatch = Stopwatch()..start();
+    return () => stopwatch.elapsed;
+  },
+);
+
 /// How often an open microphone touches the room again. The shared client lets an idle
 /// connection go at 90 s and only the team's tap ends a take, so a take longer than that
 /// would otherwise hand its upload a connection that already lapsed. A provider, not a
@@ -2505,7 +2515,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final window = ref.read(busyStateCeilingProvider);
     final backoff = ref.read(roomRetryBackoffProvider);
     final margin = ref.read(resendMarginProvider);
-    final waited = Stopwatch()..start();
+    final waited = ref.read(turnElapsedSourceProvider)();
     var resends = 0;
     Duration? timeout;
     while (true) {
@@ -2533,11 +2543,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         }
         final step = resends < backoff.length ? resends : backoff.length - 1;
         final pause = backoff[step];
-        if (window - waited.elapsed - pause - margin < margin) rethrow;
+        if (window - waited() - pause - margin < margin) rethrow;
         resends++;
         await Future<void>.delayed(pause);
         if (epoch != _epoch) rethrow;
-        timeout = window - waited.elapsed - margin;
+        timeout = window - waited() - margin;
       }
     }
   }

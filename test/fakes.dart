@@ -883,7 +883,7 @@ class FakeRoom implements RoomRepository {
   /// stopped the reading. Its own field, as on the wire: read before [verdictUnheardTakeIds]
   /// the way the server's own errands are ordered.
   List<String> verdictUntoldTakeIds = const [];
-  BtFindingKind? verdictFinding;
+  bool verdictHasFinding = false;
   String? serverStatus;
 
   /// Which kind of halt the room reports beside `serverStatus`. A server older than
@@ -1445,7 +1445,7 @@ class FakeRoom implements RoomRepository {
       untoldSegmentId: verdictUntoldSegmentId,
       unheardTakeIds: verdictUnheardTakeIds,
       untoldTakeIds: verdictUntoldTakeIds,
-      findingsRemaining: verdictFinding == null ? 0 : 1,
+      findingsRemaining: verdictHasFinding ? 1 : 0,
       usedFailSafe: verdictUsedFailSafe,
     );
   }
@@ -1893,6 +1893,10 @@ class SalaHarness {
   final List<Duration> retryBackoff;
   final Duration? busyCeiling;
   final Duration resendMargin;
+
+  /// Replaces `_sendTheTake`'s clock, for the one test that must drive the
+  /// resend-versus-watchdog race on a fake clock instead of the wall one.
+  final Duration Function() Function()? turnElapsedSource;
   final Duration? rewarm;
   final Duration? playbackCeiling;
   final Duration clipGrace;
@@ -1917,6 +1921,7 @@ class SalaHarness {
     this.retryBackoff = const [Duration(milliseconds: 20)],
     this.busyCeiling,
     this.resendMargin = const Duration(milliseconds: 50),
+    this.turnElapsedSource,
     this.rewarm,
     this.playbackCeiling,
     this.clipGrace = const Duration(seconds: 10),
@@ -1975,6 +1980,8 @@ class SalaHarness {
     roomRetryBackoffProvider.overrideWithValue(retryBackoff),
     busyStateCeilingProvider.overrideWithValue(busyCeiling),
     resendMarginProvider.overrideWithValue(resendMargin),
+    if (turnElapsedSource != null)
+      turnElapsedSourceProvider.overrideWithValue(turnElapsedSource!),
     connectionRewarmIntervalProvider.overrideWithValue(rewarm),
     playbackCeilingProvider.overrideWithValue(playbackCeiling),
     clipGraceProvider.overrideWithValue(clipGrace),
