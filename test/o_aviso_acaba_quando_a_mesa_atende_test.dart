@@ -5,13 +5,11 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart';
 import 'o_aviso_nao_fecha_o_azul_test.dart' show achadoComAvisoAtivo;
 import 'session_notifier_test.dart' show inConversa, settle;
 
 /// How many times the tablet has asked the room what it is doing.
-int _stateReads(SalaHarness harness) =>
-    harness.room.calls.where((call) => call == 'fetchState').length;
-
 /// Beats enough for a read the room owes to have landed, at whatever cadence this
 /// harness was built with: a fixed number here would be zero beats under a wider one,
 /// and a "did not grow" assertion that measured nothing would read as green.
@@ -48,10 +46,10 @@ void main() {
           'primeiro',
     );
 
-    final lidas = _stateReads(harness);
+    final lidas = stateReads(harness);
     await _someBeats(harness);
     expect(
-      _stateReads(harness),
+      stateReads(harness),
       lidas,
       reason:
           'acabado o aviso não há mais o que vigiar: uma vigia que '
@@ -130,13 +128,13 @@ void main() {
       // leitura até a mesa atender.
       harness.room.serverStatus = 'needs_person';
       harness.room.serverHalt = HaltKind.warning;
-      final lidas = _stateReads(harness);
+      final lidas = stateReads(harness);
       final pedidos = harness.room.personsAsked;
 
       await _someBeats(harness);
 
       expect(
-        _stateReads(harness),
+        stateReads(harness),
         greaterThan(lidas),
         reason:
             'sem reler, a sala nunca saberia que a mesa atendeu: é a '
@@ -175,12 +173,12 @@ void main() {
 
     notifier.leaveThePassage();
     await settle();
-    final lidas = _stateReads(harness);
+    final lidas = stateReads(harness);
 
     await _someBeats(harness);
 
     expect(
-      _stateReads(harness),
+      stateReads(harness),
       lidas,
       reason:
           'a vigia pergunta por uma sessão que não é mais desta sala; '

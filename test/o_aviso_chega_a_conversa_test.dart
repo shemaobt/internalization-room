@@ -4,10 +4,8 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart';
 import 'sala_screen_test.dart' show pumpSala;
-
-int _stateReads(SalaHarness harness) =>
-    harness.room.calls.where((call) => call == 'fetchState').length;
 
 void main() {
   testWidgets(
@@ -24,7 +22,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
 
       var vez = 0;
-      while (_stateReads(harness) == 0 && vez < 30) {
+      while (stateReads(harness) == 0 && vez < 30) {
         await tester.pump(const Duration(seconds: 1));
         vez++;
       }

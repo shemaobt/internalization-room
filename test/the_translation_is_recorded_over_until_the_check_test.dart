@@ -11,7 +11,6 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
@@ -54,19 +53,6 @@ bool aceso(WidgetTester tester, String label) {
   );
   return enabled;
 }
-
-List<String> contas(WidgetTester tester) => [
-  for (final conta
-      in tester
-          .widget<BeadRow>(
-            find.descendant(
-              of: find.byType(RetroView),
-              matching: find.byType(BeadRow),
-            ),
-          )
-          .entries)
-    '${conta.fill.name}${conta.current ? ' com anel' : ''}',
-];
 
 Iterable<BoxDecoration> _pinturas(Finder dentro) => find
     .descendant(of: dentro, matching: find.byType(Container))

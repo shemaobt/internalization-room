@@ -10,15 +10,13 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart';
 
 Future<void> settle([
   Duration delay = const Duration(milliseconds: 120),
 ]) async {
   await Future<void>.delayed(delay);
 }
-
-int _stateReads(SalaHarness harness) =>
-    harness.room.calls.where((call) => call == 'fetchState').length;
 
 /// A tablet reopening straight into an unchecked telling-back, with one part already
 /// named. Copied from `the_desk_lifts_the_halt_test.dart`: fixtures never travel between
@@ -251,10 +249,10 @@ void main() {
     final (container, notifier, read) = await _capturingWithAWarningArmed(
       harness,
     );
-    final asked = _stateReads(harness);
+    final asked = stateReads(harness);
     await waitFor(
       'mais uma batida da vigia',
-      () => _stateReads(harness) > asked,
+      () => stateReads(harness) > asked,
     );
 
     expect(

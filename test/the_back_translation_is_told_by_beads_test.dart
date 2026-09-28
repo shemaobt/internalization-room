@@ -50,19 +50,6 @@ bool aceso(WidgetTester tester, String label) {
   return enabled;
 }
 
-List<String> contas(WidgetTester tester) => [
-  for (final conta
-      in tester
-          .widget<BeadRow>(
-            find.descendant(
-              of: find.byType(RetroView),
-              matching: find.byType(BeadRow),
-            ),
-          )
-          .entries)
-    '${conta.fill.name}${conta.current ? ' com anel' : ''}',
-];
-
 Finder corda() => find.byWidgetPredicate(
   (widget) => widget.runtimeType.toString() == 'RetroCord',
 );
