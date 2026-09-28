@@ -140,6 +140,7 @@ class FacilitatorVoiceService {
       await _giveUp();
       return false;
     }
+    if (length == Duration.zero) return false;
     StreamSubscription<PlayerState>? soundStart;
     if (onSoundStart != null) {
       soundStart = _player.playerStateStream
