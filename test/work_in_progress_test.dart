@@ -174,6 +174,32 @@ void main() {
     expect(back!.takes.single.path, '${gravacoes.path}/p1.m4a');
   });
 
+  test('a resume point with the part being recorded again keeps it through '
+      'toJson/fromJson', () {
+    const linha = ResumePoint(
+      sessionId: 'sessao-1',
+      stage: SalaStage.ensaio,
+      partBeingRecordedAgain: 1,
+    );
+
+    final volta = ResumePoint.fromJson(linha.toJson(), folder: '/gravacoes')!;
+
+    expect(volta.partBeingRecordedAgain, 1);
+  });
+
+  test('a row written before the part being recorded again existed reopens '
+      'with no part marked', () {
+    const semAMarca =
+        '{"session_id":"sessao-antiga","stage":"ensaio","takes":[]}';
+
+    final linha = ResumePoint.fromJson(
+      jsonDecode(semAMarca) as Map<String, Object?>,
+      folder: '/gravacoes',
+    )!;
+
+    expect(linha.partBeingRecordedAgain, isNull);
+  });
+
   test('uma linha escrita com lugares abre igual a uma sem', () async {
     const semLugares =
         '{"session_id":"sessao-antiga","stage":"retro","pass":2,'

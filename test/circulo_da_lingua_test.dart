@@ -10,23 +10,42 @@ import 'package:internalization_room/features/sala/presentation/widgets/facilita
 
 import 'a_pergunta_da_grade.dart' show byLabel, pumpToPergunta;
 
+/// Whether [elemento] sits inside a [Positioned] child of its own
+/// [FacilitatorCircle] — the warning mark's own box, never the disc's.
+bool _sobUmaMarca(Element elemento) {
+  var achou = false;
+  elemento.visitAncestorElements((ancestral) {
+    if (ancestral.widget is FacilitatorCircle) return false;
+    if (ancestral.widget is Positioned) {
+      achou = true;
+      return false;
+    }
+    return true;
+  });
+  return achou;
+}
+
 /// The gradient the disc at the centre of the circle is painted with.
 ///
 /// The rings around it carry borders and no gradient, so the disc is the only one, and
-/// asking for exactly one is what keeps this from reading a ripple by mistake.
+/// asking for exactly one is what keeps this from reading a ripple by mistake. The
+/// warning mark also paints a gradient, so it is excluded by sitting under its own
+/// [Positioned] box.
 Gradient? _disco(WidgetTester tester) {
-  final pintados = tester
-      .widgetList<Container>(
-        find.descendant(
-          of: find.byType(FacilitatorCircle),
-          matching: find.byType(Container),
-        ),
-      )
-      .map((caixa) => caixa.decoration)
-      .whereType<BoxDecoration>()
-      .map((decoracao) => decoracao.gradient)
-      .whereType<Gradient>()
-      .toList();
+  final pintados = <Gradient>[
+    for (final elemento
+        in find
+            .descendant(
+              of: find.byType(FacilitatorCircle),
+              matching: find.byType(Container),
+            )
+            .evaluate())
+      if (!_sobUmaMarca(elemento))
+        if ((elemento.widget as Container).decoration case BoxDecoration(
+          :final gradient?,
+        ))
+          gradient,
+  ];
   expect(
     pintados,
     hasLength(lessThan(2)),
@@ -54,7 +73,7 @@ Future<void> _pumpCirculo(
           size: 150,
           voice: voice,
           peerCue: peerCue,
-          warning: warning,
+          warning: warning ? 'aviso' : null,
           semanticLabel: 'circulo',
           onTap: () {},
         ),
@@ -176,48 +195,48 @@ void main() {
     );
   });
 
-  testWidgets('o disco só fica verde com o aviso ligado e a voz solta', (
-    tester,
-  ) async {
-    const halted = {VoiceState.needsPerson, VoiceState.offline};
-    const vozes = [
-      VoiceState.invite,
-      VoiceState.listening,
-      VoiceState.speaking,
-      VoiceState.done,
-      VoiceState.needsPerson,
-      VoiceState.offline,
-    ];
+  testWidgets(
+    'o disco só fica verde com o veredito limpo, o aviso nunca o acende',
+    (tester) async {
+      const halted = {VoiceState.needsPerson, VoiceState.offline};
+      const vozes = [
+        VoiceState.invite,
+        VoiceState.listening,
+        VoiceState.speaking,
+        VoiceState.done,
+        VoiceState.needsPerson,
+        VoiceState.offline,
+      ];
 
-    for (final voz in vozes) {
-      for (final aviso in [true, false]) {
-        await _pumpCirculo(tester, voz, AppTheme.light, warning: aviso);
-        final verde = aviso && !halted.contains(voz) || voz == VoiceState.done;
+      for (final voz in vozes) {
+        for (final aviso in [true, false]) {
+          await _pumpCirculo(tester, voz, AppTheme.light, warning: aviso);
+          final verde = voz == VoiceState.done;
 
-        expect(
-          _disco(tester) == BeadStyles.verde,
-          verde,
-          reason: verde
-              ? '${voz.name} com aviso=$aviso tinha de acender o disco de '
-                    '"pronto" — é o único sinal que o aviso tem, já que a sala '
-                    'não fala'
-              : '${voz.name} com aviso=$aviso não pode acender o disco de '
-                    '"pronto": ou o aviso está desligado, ou a voz já é uma '
-                    'parada que o aviso não supera',
-        );
-
-        if (halted.contains(voz)) {
           expect(
-            _haltedGlyph(tester),
-            isTrue,
-            reason:
-                '${voz.name} sempre desenha o seu ícone, com aviso ou '
-                'sem ele',
+            _disco(tester) == BeadStyles.verde,
+            verde,
+            reason: verde
+                ? '${voz.name} é o veredito limpo, e é a única voz que '
+                      'ainda acende o disco de "pronto"'
+                : '${voz.name} com aviso=$aviso não acende o disco: o aviso '
+                      'deixou de ser uma cor do disco (Henok, revertendo o '
+                      'PR #230)',
           );
+
+          if (halted.contains(voz)) {
+            expect(
+              _haltedGlyph(tester),
+              isTrue,
+              reason:
+                  '${voz.name} sempre desenha o seu ícone, com aviso ou '
+                  'sem ele',
+            );
+          }
         }
       }
-    }
-  });
+    },
+  );
 
   testWidgets(
     'o microfone bloqueado também vence o aviso — a terceira parada da lista',

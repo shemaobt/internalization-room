@@ -210,6 +210,19 @@ class SalaSessionState {
   /// says.
   final bool warning;
 
+  /// Whether the standing halt, if any, is the wheel itself having nothing unrefused
+  /// left to offer — the server's own list is empty, or every real passage on it was
+  /// refused at creation this visit — as opposed to a stall reaching some other door
+  /// (the panorama's, a resume's) that happens to leave the stage at the Choice too.
+  /// [EscolhaView] reads this, not [livroInteiroFeito], for its halted label: the book
+  /// is not finished merely because this visit's refusals emptied it.
+  final bool wheelHalted;
+
+  /// Pericopes the Choice has offered and the room refused to open, in this visit.
+  /// [EscolhaView] reads this to dim their spokes on the ruler; the notifier reads it
+  /// to keep [aOferecer] off them. Cleared when the Choice is opened afresh.
+  final Set<String> refusedThisVisit;
+
   /// Which part of the rehearsal the team came back to record again, 0-based, or null when
   /// the next recording is a part of its own.
   ///
@@ -218,6 +231,32 @@ class SalaSessionState {
   /// drifted, and the screen said a new part was being recorded over a gesture that was
   /// replacing one.
   final int? parteARegravar;
+
+  /// Which part of the rehearsal sounds right now, 0-based, or null when nothing plays.
+  ///
+  /// The Bead row's ring follows this rather than the play/pause flags alone: the whole
+  /// rehearsal's play walks it forward as the head crosses each part's boundary, and a tap
+  /// on one bead sets it to that part alone. A pending take standing in [parteARegravar]'s
+  /// place still carries its own part number here, so the ring lands on the right bead
+  /// while it sounds.
+  ///
+  /// Named apart from the notifier's own `_parteTocando` (the back-translation part in the
+  /// air): the two sit in different stations and would otherwise read as the same fact.
+  final int? parteDoEnsaioTocando;
+
+  /// Whether the bead at [index] does not apply right now (ADR 0040: dimmed means it does
+  /// not apply). True for every part but the one a finding sent the team back to record,
+  /// while that record-again stands open and nothing has been recorded for it yet. Once
+  /// that recording is pending — waiting for the green check — every bead applies again,
+  /// so this reads false throughout: the one rule the row and the tap both read, instead
+  /// of the row drawing dim on a bead the tap would still play.
+  bool beadIsDimmed(int index) {
+    final again = parteARegravar;
+    return ensaio == EnsaioStatus.idle &&
+        again != null &&
+        again < partes.length &&
+        index != again;
+  }
 
   const SalaSessionState({
     this.stage = SalaStage.convite,
@@ -271,12 +310,16 @@ class SalaSessionState {
     this.unsentChunks = 0,
     this.unsentTakeScopes = const {},
     this.warning = false,
+    this.wheelHalted = false,
+    this.refusedThisVisit = const {},
     this.parteARegravar,
+    this.parteDoEnsaioTocando,
   });
 
   bool get colarOn => stage == SalaStage.conversa || stage == SalaStage.fim;
 
   Passagem? get oferecida {
+    if (wheelHalted) return null;
     final roda = naRoda;
     if (roda == null || aOferecer < 0 || aOferecer >= roda.length) return null;
     return roda[aOferecer];
@@ -527,8 +570,12 @@ class SalaSessionState {
     int? unsentChunks,
     Set<String>? unsentTakeScopes,
     bool? warning,
+    bool? wheelHalted,
+    Set<String>? refusedThisVisit,
     int? parteARegravar,
     bool clearParteARegravar = false,
+    int? parteDoEnsaioTocando,
+    bool clearParteDoEnsaioTocando = false,
   }) {
     return SalaSessionState(
       stage: stage ?? this.stage,
@@ -594,9 +641,14 @@ class SalaSessionState {
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentTakeScopes: unsentTakeScopes ?? this.unsentTakeScopes,
       warning: warning ?? this.warning,
+      wheelHalted: wheelHalted ?? this.wheelHalted,
+      refusedThisVisit: refusedThisVisit ?? this.refusedThisVisit,
       parteARegravar: clearParteARegravar
           ? null
           : (parteARegravar ?? this.parteARegravar),
+      parteDoEnsaioTocando: clearParteDoEnsaioTocando
+          ? null
+          : (parteDoEnsaioTocando ?? this.parteDoEnsaioTocando),
     );
   }
 }

@@ -30,8 +30,10 @@ const micParteLabel = 'Gravar a parte de novo na língua materna';
 
 /// A team standing on a finding the analyst addressed to the stretch of part 2, with the
 /// three parts recorded, told back whole and nothing pressed yet.
-Future<Sala> _oAchadoNaParteDois() async {
-  final it = await umEnsaioDeTresPartesContadoInteiro();
+Future<Sala> _oAchadoNaParteDois({WorkInProgress? emAbertoNoDisco}) async {
+  final it = await umEnsaioDeTresPartesContadoInteiro(
+    emAbertoNoDisco: emAbertoNoDisco,
+  );
   it.harness.room
     ..verdictChecked = false
     ..verdictFinding = BtFindingKind.missing
@@ -177,7 +179,7 @@ Future<void> _tocar(WidgetTester tester, String label) async {
 /// The circle records the part, records it over, and the check confirms it: every
 /// gesture a gesture the team has on the rehearsal screen.
 Future<void> _gravarAParteDoisPorCimaEConfirmar(WidgetTester tester) async {
-  await _tocar(tester, 'Gravar a parte 2 de novo');
+  await _tocar(tester, 'Tocar para gravar esta parte de novo');
   await _tocar(tester, 'Tocar ao terminar');
   await _tocar(tester, 'Tocar para gravar esta parte de novo');
   await _tocar(tester, 'Tocar ao terminar');
@@ -642,6 +644,132 @@ void main() {
     );
   });
 
+  test('a marca da parte a regravar sobrevive à morte do app, e o guardar '
+      'seguinte troca a parte (ENG-1138)', () async {
+    final home = Directory.systemTemp.createTempSync('sala-eng-1138');
+    addTearDown(() => home.deleteSync(recursive: true));
+    final ledger = WorkInProgress(
+      home: () async => home,
+      recordings: () async =>
+          Directory('${home.path}/recordings')..createSync(recursive: true),
+    );
+    final it = await _oAchadoNaParteDois(emAbertoNoDisco: ledger);
+    final antes = it.partes;
+
+    it.sala.gravarAParteDeNovo();
+    await waitFor(
+      'o lugar da equipe guardar a marca da parte no disco',
+      () async => (await ledger.of('Ruth', 'P01'))?.partBeingRecordedAgain == 1,
+    );
+
+    // A morte do app é a queda do container: nada em memória sobrevive, e a
+    // retomada só pode vir do que o disco tem escrito.
+    it.container.dispose();
+    it.container = it.harness.container();
+    addTearDown(it.container.dispose);
+    await it.sala.abrirEscolha();
+    await waitFor(
+      'a roda dizer que esta passagem tem trabalho parado',
+      () => it.estado.comecadas.contains('P01'),
+    );
+    await it.sala.goConversa(pericope: 'P01');
+    await waitFor(
+      'a equipe voltar ao ensaio',
+      () => it.estado.stage == SalaStage.ensaio,
+    );
+
+    expect(
+      it.estado.parteARegravar,
+      1,
+      reason:
+          'a marca sobrevive à morte do app: a sala reabre sabendo qual '
+          'parte a equipe veio regravar',
+    );
+
+    await regravarAParte(it, 1);
+
+    final agora = it.partes;
+    expect(
+      agora,
+      hasLength(3),
+      reason:
+          'a gravação guardada depois da retomada substitui a parte 2, '
+          'e não acrescenta uma quarta',
+    );
+    expect(agora[1].scopeId, KeptScope.parte(2));
+    expect(agora[1].path, isNot(antes[1].path));
+    expect(
+      agora[1].pass,
+      antes[1].pass + 1,
+      reason:
+          'a mesma parte, a passada seguinte: é assim que a sala escolhe '
+          'entre as duas gravações se uma delas chegar atrasada',
+    );
+    // O guardar gasta a marca também na linha guardada, como já a gasta em
+    // memória. A escrita é disparada e não esperada pelo `regravarAParte`.
+    await waitFor(
+      'a marca sair da linha guardada',
+      () async =>
+          (await ledger.of('Ruth', 'P01'))?.partBeingRecordedAgain == null,
+    );
+  });
+
+  test('a barra de pular para a retro não deixa uma marca perdida na linha '
+      '(ENG-1138)', () async {
+    final home = Directory.systemTemp.createTempSync('sala-eng-1138-retro');
+    addTearDown(() => home.deleteSync(recursive: true));
+    final ledger = WorkInProgress(
+      home: () async => home,
+      recordings: () async =>
+          Directory('${home.path}/recordings')..createSync(recursive: true),
+    );
+    final it = await _oAchadoNaParteDois(emAbertoNoDisco: ledger);
+
+    it.sala.gravarAParteDeNovo();
+    await waitFor(
+      'o lugar guardar a marca da parte',
+      () async => (await ledger.of('Ruth', 'P01'))?.partBeingRecordedAgain == 1,
+    );
+
+    // A barra de pular da dev chama startRetro() mesmo com uma marca de
+    // pé, o que o disco de avanço nunca deixa a equipe fazer.
+    it.sala.startRetro();
+    await waitFor(
+      'a tradução voltar ao ar',
+      () => it.estado.stage == SalaStage.retro,
+    );
+    // A escrita da linha é disparada e não esperada: matar o app antes
+    // dela pousar mediria um disco que ainda não tem o que este caso
+    // testa. A marca em si é o que o assert abaixo mede, depois da
+    // retomada.
+    await waitFor(
+      'a linha pousar como retro',
+      () async => (await ledger.of('Ruth', 'P01'))?.stage == SalaStage.retro,
+    );
+
+    it.container.dispose();
+    it.container = it.harness.container();
+    addTearDown(it.container.dispose);
+    await it.sala.abrirEscolha();
+    await waitFor(
+      'a roda dizer que esta passagem tem trabalho parado',
+      () => it.estado.comecadas.contains('P01'),
+    );
+    await it.sala.goConversa(pericope: 'P01');
+    await waitFor(
+      'a tradução ser retomada',
+      () => it.estado.stage == SalaStage.retro,
+    );
+
+    expect(
+      it.estado.parteARegravar,
+      isNull,
+      reason:
+          'a marca é do ensaio; uma linha guardada para a retro nunca '
+          'pode trazê-la de volta',
+    );
+  });
+
   test('uma falta sem endereço continua acrescentando no fim', () async {
     final it = await umEnsaioDeTresPartesContadoInteiro();
     it.harness.room
@@ -988,11 +1116,11 @@ void main() {
       reason: 'nada foi consertado ainda: o disco não leva de volta à tradução',
     );
     expect(
-      byLabel('Gravar a parte 2 de novo'),
+      byLabel('Tocar para gravar esta parte de novo'),
       findsOneWidget,
       reason:
-          'e o círculo diz de que parte se trata, que é a única coisa '
-          'que uma sala sem texto tem para dizer isso',
+          'e o círculo convida a regravar com o texto da placa; a conta '
+          'esvaziada já diz de qual parte se trata',
     );
     expect(
       byLabel('Tocar para gravar a próxima parte'),
@@ -1002,7 +1130,7 @@ void main() {
           'de uma parte que já existe',
     );
 
-    await _tocar(tester, 'Gravar a parte 2 de novo');
+    await _tocar(tester, 'Tocar para gravar esta parte de novo');
     expect(
       [for (final conta in _contasDoEnsaio(tester)) conta.fill],
       [BeadFill.solid, BeadFill.translucent, BeadFill.solid],

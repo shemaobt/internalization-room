@@ -134,13 +134,7 @@ void main() {
         final rendered = (jsonDecode(manifest) as Map<String, dynamic>).keys
             .where(named.hasMatch)
             .toSet();
-        final spoken = {
-          ...rendered,
-          ...instantAckLines,
-          ...inaudibleLines,
-          'E0',
-          approvedLine,
-        };
+        final spoken = {...rendered, ...instantAckLines, 'E0', approvedLine};
 
         expect(
           spoken.length,
