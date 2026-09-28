@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -75,8 +76,14 @@ Future<void> ouvirETraduzirAParteInteira(Sala it, Duration quanto) async {
 
 /// The rehearsal recorded in three parts with nothing told back yet: the room as it stands
 /// the first time the team presses the advance button.
-Future<Sala> umEnsaioDeTresPartesGravado({Duration? tetoDaEspera}) async {
-  final harness = SalaHarness(busyCeiling: tetoDaEspera);
+Future<Sala> umEnsaioDeTresPartesGravado({
+  Duration? tetoDaEspera,
+  WorkInProgress? emAbertoNoDisco,
+}) async {
+  final harness = SalaHarness(
+    busyCeiling: tetoDaEspera,
+    emAbertoNoDisco: emAbertoNoDisco,
+  );
   final container = harness.container();
   addTearDown(container.dispose);
   final it = Sala(harness, container);
@@ -98,8 +105,12 @@ Future<Sala> umEnsaioDeTresPartesGravado({Duration? tetoDaEspera}) async {
 /// its end, standing with the advance disc beckoning and nothing pressed yet.
 Future<Sala> umEnsaioDeTresPartesContadoInteiro({
   Duration? tetoDaEspera,
+  WorkInProgress? emAbertoNoDisco,
 }) async {
-  final it = await umEnsaioDeTresPartesGravado(tetoDaEspera: tetoDaEspera);
+  final it = await umEnsaioDeTresPartesGravado(
+    tetoDaEspera: tetoDaEspera,
+    emAbertoNoDisco: emAbertoNoDisco,
+  );
 
   it.sala.startRetro();
   await waitFor(

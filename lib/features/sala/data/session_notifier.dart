@@ -2044,6 +2044,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             takes: state.keptTakes,
             savedAt: _sessionSavedAt,
             language: _sessionLanguage,
+            partBeingRecordedAgain: state.parteARegravar,
           ),
         ),
       ),
@@ -2091,6 +2092,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // Counted among the rehearsal's own parts — a row read off the tablet can also
       // carry a correction's own take, kept beside the parts but not one of them.
       takes: takes.where((take) => KeptScope.isParte(take.scopeId)).length,
+      parteARegravar: waiting.partBeingRecordedAgain,
     );
     if (faltavam) {
       state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
@@ -3173,8 +3175,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.stage == SalaStage.ensaio && state.ensaio != EnsaioStatus.idle) {
       return;
     }
-    _rememberWhereTheyAre(SalaStage.retro);
+    // Before the write, not after: the mark belongs to the Rehearsal alone, and a row
+    // saved for the retro must never carry one to restore.
     _clearAll();
+    _rememberWhereTheyAre(SalaStage.retro);
     state = state.copyWith(
       stage: SalaStage.retro,
       voice: VoiceState.invite,
@@ -4735,6 +4739,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     _voltarAoEnsaio();
     state = state.copyWith(parteARegravar: parte);
+    _rememberWhereTheyAre(SalaStage.ensaio);
   }
 
   void _voltarAoEnsaio() {

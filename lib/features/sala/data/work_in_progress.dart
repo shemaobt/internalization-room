@@ -32,12 +32,18 @@ class ResumePoint {
   /// existed, or before this stage carried the language forward on its own rewrites.
   final String? language;
 
+  /// The part the team came back to the Rehearsal to record again (ADR 0026), 0-based
+  /// like `parteARegravar` in the session it mirrors. Null when no part is marked, and
+  /// for a row written before this field existed.
+  final int? partBeingRecordedAgain;
+
   const ResumePoint({
     required this.sessionId,
     required this.stage,
     this.takes = const [],
     this.savedAt,
     this.language,
+    this.partBeingRecordedAgain,
   });
 
   Map<String, Object?> toJson() => {
@@ -45,6 +51,7 @@ class ResumePoint {
     'stage': stage.name,
     'saved_at': ?savedAt?.millisecondsSinceEpoch,
     'language': ?language,
+    'part_being_recorded_again': ?partBeingRecordedAgain,
     'takes': [
       for (final take in takes)
         {
@@ -72,6 +79,7 @@ class ResumePoint {
           ? DateTime.fromMillisecondsSinceEpoch(json['saved_at'] as int)
           : null,
       language: json['language'] as String?,
+      partBeingRecordedAgain: json['part_being_recorded_again'] as int?,
       takes: [
         for (final raw in (json['takes'] as List? ?? const []))
           if (raw is Map)
