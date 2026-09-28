@@ -1,10 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
+import 'um_ensaio_de_tres_partes.dart';
 
 const _umaParte = Duration(seconds: 30);
 
@@ -15,74 +15,27 @@ const _umaParte = Duration(seconds: 30);
 Trecho _no(ProviderContainer container, int lugar) =>
     container.read(salaSessionProvider).btTrechos[lugar];
 
-class _Sala {
-  final SalaHarness harness;
-  final ProviderContainer container;
-
-  _Sala(this.harness, this.container);
-
-  SalaSessionNotifier get sala => container.read(salaSessionProvider.notifier);
-
-  SalaSessionState get estado => container.read(salaSessionProvider);
-}
-
-Future<void> _gravarUmaParte(_Sala it) async {
-  final antes = it.estado.keptTakes.length;
-  it.sala.ensaioTap();
-  await waitFor(
-    'a gravação da parte começar',
-    () => it.estado.ensaio == EnsaioStatus.recording,
-  );
-  it.sala.ensaioTap();
-  await waitFor(
-    'a gravação da parte terminar',
-    () => it.estado.ensaio == EnsaioStatus.recorded,
-  );
-  it.sala.takeKeep();
-  await waitFor('a sala nomear a parte nova', () {
-    final takes = it.estado.keptTakes;
-    return takes.length == antes + 1 && takes.last.takeId != null;
-  });
-}
-
-/// Cut a stretch where the part is playing and tell it back.
-Future<void> _traduzirUmTrecho(_Sala it, Duration em) async {
-  final antes = it.estado.btTrechos.length;
-  it.harness.playback.at = em;
-  it.sala.cortarTrecho();
-  it.sala.retroTap();
-  await waitFor(
-    'o microfone abrir no trecho',
-    () => it.estado.btPhase == BtPhase.capturing,
-  );
-  await confirmarATraducao(it.container);
-  await waitFor(
-    'o trecho contado entrar no colar',
-    () => it.estado.btTrechos.length == antes + 1,
-  );
-}
-
 /// A rehearsal of two parts told back in three stretches — one out of the first part, two
 /// out of the second — standing at the analyst's finding on the second stretch.
 ///
 /// The pointed stretch is deliberately out of the *second* part: its place on the cord is
 /// part 1, so a mend that lands it on part 0 is as wrong as one that loses it altogether,
 /// and only reading the real part number can tell those apart.
-Future<_Sala> _aSalaNaPergunta() async {
+Future<Sala> _aSalaNaPergunta() async {
   final harness = SalaHarness()
     ..playback.length = _umaParte
     ..room.verdictChecked = false
-    ..room.verdictFinding = BtFindingKind.addition
+    ..room.verdictHasFinding = true
     ..room.verdictFindingPlace = 1;
   final container = harness.container();
   addTearDown(container.dispose);
-  final it = _Sala(harness, container);
+  final it = Sala(harness, container);
 
   await it.sala.goConversa();
   await waitFor('a sala abrir', () => it.estado.sessionId != null);
   it.sala.goEnsaio();
-  await _gravarUmaParte(it);
-  await _gravarUmaParte(it);
+  await gravarUmaParteDoEnsaio(it);
+  await gravarUmaParteDoEnsaio(it);
   it.sala.startRetro();
   await waitFor(
     'a tradução começar a tocar a primeira parte',
@@ -91,7 +44,7 @@ Future<_Sala> _aSalaNaPergunta() async {
         it.estado.btPhase == BtPhase.playing,
   );
 
-  await _traduzirUmTrecho(it, const Duration(seconds: 10));
+  await traduzirUmTrecho(it, const Duration(seconds: 10));
   harness.playback.finishPlayback();
   await waitFor('a primeira parte terminar', () => it.estado.btParteFronteira);
   it.sala.ouvirGravacao();
@@ -99,8 +52,8 @@ Future<_Sala> _aSalaNaPergunta() async {
     'a segunda parte entrar no ar',
     () => !it.estado.btParteFronteira,
   );
-  await _traduzirUmTrecho(it, const Duration(seconds: 5));
-  await _traduzirUmTrecho(it, const Duration(seconds: 12));
+  await traduzirUmTrecho(it, const Duration(seconds: 5));
+  await traduzirUmTrecho(it, const Duration(seconds: 12));
   harness.playback.finishPlayback();
   await waitFor('o ensaio inteiro terminar', () => it.estado.btClipEnded);
 
@@ -114,40 +67,14 @@ Future<_Sala> _aSalaNaPergunta() async {
   return it;
 }
 
-/// The short way, whole: choosing it lands on the stretch, and the circle opens the
-/// microphone there.
-Future<void> _escolherTraduzirDeNovo(_Sala it) async {
-  it.sala.traduzirDeNovoEmPortugues();
-  it.sala.retroTap();
-  await waitFor(
-    'o microfone abrir para traduzir de novo',
-    () => it.estado.btPhase == BtPhase.capturing,
-  );
-}
-
-/// Hand the telling over and let the room say what it was worth.
-Future<void> _entregarAPonte(_Sala it) async {
-  final antes = it.harness.room.replacesAsked.length;
-  await fecharACaptura(it.container);
-  await it.sala.confirmarTraducao();
-  await waitFor(
-    'a ponte nova substituir o trecho',
-    () => it.harness.room.replacesAsked.length == antes + 1,
-  );
-  await waitFor(
-    'a sala voltar do veredito',
-    () => it.estado.btPhase != BtPhase.thinking,
-  );
-}
-
 void main() {
   test('a ponte recém-gravada é a que se ouve, no caminho curto', () async {
     final it = await _aSalaNaPergunta();
     final aPonteAntiga = _no(it.container, 1).retroPath;
     expect(aPonteAntiga, isNotNull);
 
-    await _escolherTraduzirDeNovo(it);
-    await _entregarAPonte(it);
+    await escolherTraduzirDeNovo(it);
+    await entregarAPonte(it);
     final aPonteNova = it.harness.recorder.lastPath;
 
     expect(aPonteNova, isNot(aPonteAntiga));
@@ -188,10 +115,10 @@ void main() {
       final it = await _aSalaNaPergunta();
       final vizinhos = [_no(it.container, 0), _no(it.container, 2)];
 
-      await _escolherTraduzirDeNovo(it);
-      await _entregarAPonte(it);
-      await _escolherTraduzirDeNovo(it);
-      await _entregarAPonte(it);
+      await escolherTraduzirDeNovo(it);
+      await entregarAPonte(it);
+      await escolherTraduzirDeNovo(it);
+      await entregarAPonte(it);
 
       for (final (onde, antes) in [(0, vizinhos[0]), (2, vizinhos[1])]) {
         final depois = _no(it.container, onde);

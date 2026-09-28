@@ -40,11 +40,6 @@ void main() {
             'parado é um botão morto',
       );
       expect(
-        it.estado.btFindings,
-        isEmpty,
-        reason: 'uma parte que falta ouvir não é um achado do analista',
-      );
-      expect(
         it.harness.playback.played.last,
         terceira.path,
         reason: 'a equipe cai na parte que o servidor nomeou',

@@ -793,7 +793,6 @@ class FakeRoom implements RoomRepository {
   final List<String> takesKept = [];
   final List<int?> takePasses = [];
   String? refuseTake;
-  Exception? failDivideWith;
   Exception? failReplaceWith;
   Exception? loseTheNextReplaceAnswerWith;
   Exception? loseTheNextReplaceAnswerAndLandItLaterWith;
@@ -846,8 +845,6 @@ class FakeRoom implements RoomRepository {
   final List<String> replacesComArquivo = [];
   int _versoes = 0;
 
-  /// Which stretch each division named, and where it was cut, in order.
-  final List<String> dividesAsked = [];
   bool chunkCaptured = true;
   bool turnsAreCanned = false;
   bool turnsAreDegraded = false;
@@ -886,7 +883,7 @@ class FakeRoom implements RoomRepository {
   /// stopped the reading. Its own field, as on the wire: read before [verdictUnheardTakeIds]
   /// the way the server's own errands are ordered.
   List<String> verdictUntoldTakeIds = const [];
-  BtFindingKind? verdictFinding;
+  bool verdictHasFinding = false;
   String? serverStatus;
 
   /// Which kind of halt the room reports beside `serverStatus`. A server older than
@@ -1218,40 +1215,6 @@ class FakeRoom implements RoomRepository {
     }
   }
 
-  @override
-  Future<List<SegmentView>> divideSegment(
-    String sessionId,
-    String segmentId, {
-    required Duration at,
-  }) async {
-    _guard('divideSegment');
-    final refusal = failDivideWith;
-    if (refusal != null) throw refusal;
-    dividesAsked.add('$segmentId@${at.inMilliseconds}');
-    final cut = segments.indexWhere((one) => one.segmentId == segmentId);
-    if (cut < 0) return List.of(segments);
-    final whole = segments[cut];
-    segments
-      ..removeAt(cut)
-      ..insertAll(cut, [
-        SegmentView(
-          segmentId: '${whole.segmentId}-a',
-          takeId: whole.takeId,
-          startsMs: whole.startsMs,
-          endsMs: at.inMilliseconds,
-          told: false,
-        ),
-        SegmentView(
-          segmentId: '${whole.segmentId}-b',
-          takeId: whole.takeId,
-          startsMs: at.inMilliseconds,
-          endsMs: whole.endsMs,
-          told: false,
-        ),
-      ]);
-    return List.of(segments);
-  }
-
   /// What the next call to the session-scoped ask throws, independent of `failWith` —
   /// a case needs a turn to succeed (so the halt is reached with a live session) and
   /// only the ask itself to fail, and `failWith` is shared by every guarded call.
@@ -1478,12 +1441,11 @@ class FakeRoom implements RoomRepository {
       audioUrl: linha,
       fixedLine: '',
       checked: verdictChecked,
-      findingKind: verdictFinding,
       findingSegmentId: _oQueOAnalistaAponta(),
       untoldSegmentId: verdictUntoldSegmentId,
       unheardTakeIds: verdictUnheardTakeIds,
       untoldTakeIds: verdictUntoldTakeIds,
-      findingsRemaining: verdictFinding == null ? 0 : 1,
+      findingsRemaining: verdictHasFinding ? 1 : 0,
       usedFailSafe: verdictUsedFailSafe,
     );
   }
@@ -1931,6 +1893,10 @@ class SalaHarness {
   final List<Duration> retryBackoff;
   final Duration? busyCeiling;
   final Duration resendMargin;
+
+  /// Replaces `_sendTheTake`'s clock, for the one test that must drive the
+  /// resend-versus-watchdog race on a fake clock instead of the wall one.
+  final Duration Function() Function()? turnElapsedSource;
   final Duration? rewarm;
   final Duration? playbackCeiling;
   final Duration clipGrace;
@@ -1955,6 +1921,7 @@ class SalaHarness {
     this.retryBackoff = const [Duration(milliseconds: 20)],
     this.busyCeiling,
     this.resendMargin = const Duration(milliseconds: 50),
+    this.turnElapsedSource,
     this.rewarm,
     this.playbackCeiling,
     this.clipGrace = const Duration(seconds: 10),
@@ -2013,6 +1980,8 @@ class SalaHarness {
     roomRetryBackoffProvider.overrideWithValue(retryBackoff),
     busyStateCeilingProvider.overrideWithValue(busyCeiling),
     resendMarginProvider.overrideWithValue(resendMargin),
+    if (turnElapsedSource != null)
+      turnElapsedSourceProvider.overrideWithValue(turnElapsedSource!),
     connectionRewarmIntervalProvider.overrideWithValue(rewarm),
     playbackCeilingProvider.overrideWithValue(playbackCeiling),
     clipGraceProvider.overrideWithValue(clipGrace),

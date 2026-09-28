@@ -941,7 +941,7 @@ void main() {
   );
 
   test(
-    'o terminei manda o que foi ouvido de cada parte, com o nome dela',
+    'a conferência manda o que foi ouvido de cada parte, com o nome dela',
     () async {
       late String seenBody;
       final repository = RoomRepository(
@@ -1000,7 +1000,7 @@ void main() {
   );
 
   test(
-    'sem nada ouvido o terminei vai sem corpo, e a sala ainda responde',
+    'sem nada ouvido a conferência vai sem corpo, e a sala ainda responde',
     () async {
       late http.BaseRequest seen;
       final repository = RoomRepository(
@@ -1254,11 +1254,6 @@ void main() {
       };
 
       final stretchCalls = <String, Future<Object?> Function(RoomRepository)>{
-        'divideSegment': (room) => room.divideSegment(
-          'sessao-1',
-          'trecho-1',
-          at: const Duration(seconds: 2),
-        ),
         'replaceSegment': (room) async => room.replaceSegment(
           'sessao-1',
           'trecho-1',
@@ -1419,25 +1414,15 @@ void main() {
         );
       });
 
-      test(
-        'sendChunk and divideSegment each keep a 400 or a 422 as a refused call',
-        () async {
-          final calls = {
-            'sendChunk': sessionDoors['sendChunk']!,
-            'divideSegment': stretchCalls['divideSegment']!,
-          };
-          for (final entry in calls.entries) {
-            for (final status in [400, 422]) {
-              await expectLater(
-                () => entry.value(refusingWith(status, superseded)),
-                throwsA(isA<RoomBroke>()),
-                reason:
-                    '${entry.key} $status: só o replace conta de novo um trecho',
-              );
-            }
-          }
-        },
-      );
+      test('sendChunk keeps a 400 or a 422 as a refused call', () async {
+        for (final status in [400, 422]) {
+          await expectLater(
+            () => sessionDoors['sendChunk']!(refusingWith(status, superseded)),
+            throwsA(isA<RoomBroke>()),
+            reason: 'sendChunk $status: só o replace conta de novo um trecho',
+          );
+        }
+      });
 
       test(
         'opening a session and listing the passages keep a 404 as the session gone',

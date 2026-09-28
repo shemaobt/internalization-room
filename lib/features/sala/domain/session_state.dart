@@ -1,4 +1,3 @@
-import 'bt_finding.dart';
 import 'spoken_line.dart';
 import 'room_reach.dart';
 import 'coverage.dart';
@@ -196,7 +195,6 @@ class SalaSessionState {
   final String? btTraducaoEmprestada;
   final Trecho? btTrechoTraduzidoDeNovo;
   final int? btContaEscolhida;
-  final List<BtFindingKind> btFindings;
   final int btPass;
   final int unsentTakes;
   final int unsentChunks;
@@ -310,7 +308,6 @@ class SalaSessionState {
     this.btTraducaoEmprestada,
     this.btTrechoTraduzidoDeNovo,
     this.btContaEscolhida,
-    this.btFindings = const [],
     this.btPass = 1,
     this.unsentTakes = 0,
     this.unsentChunks = 0,
@@ -575,7 +572,6 @@ class SalaSessionState {
     bool clearTrechoTraduzidoDeNovo = false,
     int? btContaEscolhida,
     bool clearContaEscolhida = false,
-    List<BtFindingKind>? btFindings,
     int? btPass,
     int? unsentTakes,
     int? unsentChunks,
@@ -647,7 +643,6 @@ class SalaSessionState {
       btContaEscolhida: clearContaEscolhida
           ? null
           : (btContaEscolhida ?? this.btContaEscolhida),
-      btFindings: btFindings ?? this.btFindings,
       btPass: btPass ?? this.btPass,
       unsentTakes: unsentTakes ?? this.unsentTakes,
       unsentChunks: unsentChunks ?? this.unsentChunks,

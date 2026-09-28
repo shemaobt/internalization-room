@@ -16,7 +16,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 
 import 'fakes.dart';
-import 'session_notifier_test.dart' show settle;
+import 'scenario_helpers.dart' show settle;
 
 const _oneSecond = Duration(seconds: 1);
 const _quickPoll = Duration(milliseconds: 20);
@@ -59,8 +59,6 @@ final Map<String, _Request> _everyRequest = {
   'sendTake': (room, audio) =>
       room.sendTake('sessao-1', audio, kind: 'ensaio', scope: 'passagem'),
   'takesOf': (room, _) => room.takesOf('sessao-1'),
-  'divideSegment': (room, _) =>
-      room.divideSegment('sessao-1', 'trecho-1', at: _oneSecond),
   'replaceSegment': (room, audio) => room.replaceSegment(
     'sessao-1',
     'trecho-1',

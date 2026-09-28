@@ -1,10 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'session_notifier_test.dart' show settle;
+import 'scenario_helpers.dart' show settle;
 import 'tocar_vira_pausar_test.dart' show harnessApontando, pumpAoApontado;
 import 'um_ensaio_de_tres_partes.dart';
 
@@ -59,7 +58,7 @@ void main() {
       final it = await umEnsaioDeTresPartesContadoInteiro();
       it.harness.room
         ..verdictChecked = false
-        ..verdictFinding = BtFindingKind.missing
+        ..verdictHasFinding = true
         ..verdictFindingPlace = 1;
       await pedirOVeredito(it);
       expect(it.estado.btPhase, BtPhase.findings);

@@ -6,8 +6,9 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 
 import 'fakes.dart';
-import 'sala_screen_test.dart' show bySemanticsLabelWidget, pumpSala;
-import 'session_notifier_test.dart' show inConversa, settle;
+import 'sala_screen_test.dart' show pumpSala;
+import 'session_notifier_test.dart' show inConversa;
+import 'scenario_helpers.dart' show byLabel, settle;
 
 Future<void> _pumpWhile(
   WidgetTester tester,
@@ -49,7 +50,7 @@ void main() {
       );
       expect(harness.room.done, isFalse);
       expect(
-        bySemanticsLabelWidget(_entry),
+        byLabel(_entry),
         findsOneWidget,
         reason:
             'a entrada de gravação é alcançável desde o primeiro turno, '
@@ -69,19 +70,19 @@ void main() {
     notifier.conversaTap();
     await tester.pump();
     expect(read().voice, VoiceState.listening);
-    expect(bySemanticsLabelWidget(_entry), findsOneWidget, reason: 'listening');
+    expect(byLabel(_entry), findsOneWidget, reason: 'listening');
 
     harness.room.holdNextTurn();
     notifier.conversaTap();
     await _pumpWhile(tester, () => read().voice != VoiceState.thinking);
     expect(read().voice, VoiceState.thinking);
-    expect(bySemanticsLabelWidget(_entry), findsOneWidget, reason: 'thinking');
+    expect(byLabel(_entry), findsOneWidget, reason: 'thinking');
 
     harness.voice.holdNextLine();
     harness.room.finishHeldTurn();
     await _pumpWhile(tester, () => read().voice != VoiceState.speaking);
     expect(read().voice, VoiceState.speaking);
-    expect(bySemanticsLabelWidget(_entry), findsOneWidget, reason: 'speaking');
+    expect(byLabel(_entry), findsOneWidget, reason: 'speaking');
 
     harness.voice.finishHeldLine();
     await _pumpWhile(tester, () => read().voice != VoiceState.invite);
@@ -94,7 +95,7 @@ void main() {
     final container = await _pumpInConversa(tester, harness);
 
     expect(container.read(salaSessionProvider).voice, VoiceState.done);
-    expect(bySemanticsLabelWidget(_entry), findsOneWidget);
+    expect(byLabel(_entry), findsOneWidget);
   });
 
   testWidgets('a warning does not hide the entry', (tester) async {
@@ -108,7 +109,7 @@ void main() {
     expect(read().warning, isTrue);
 
     expect(
-      bySemanticsLabelWidget(_entry),
+      byLabel(_entry),
       findsOneWidget,
       reason: 'um aviso não recusa nada à equipe',
     );
@@ -128,7 +129,7 @@ void main() {
       expect(read().needsPerson, isTrue);
 
       expect(
-        bySemanticsLabelWidget(_entry),
+        byLabel(_entry),
         findsNothing,
         reason: 'só uma parada bloqueante esconde a entrada',
       );
@@ -137,7 +138,7 @@ void main() {
       await _pumpWhile(tester, () => read().voice != VoiceState.invite);
 
       expect(
-        bySemanticsLabelWidget(_entry),
+        byLabel(_entry),
         findsOneWidget,
         reason: 'a entrada volta assim que a mesa atende a parada',
       );
@@ -154,13 +155,13 @@ void main() {
 
     await _pumpWhile(tester, () => !read().needsPerson);
     expect(read().needsPerson, isTrue);
-    expect(bySemanticsLabelWidget(_entry), findsNothing);
+    expect(byLabel(_entry), findsNothing);
 
     final withHalt = tester.getRect(find.byType(FacilitatorCircle).first);
 
     harness.room.theDeskAttended();
     await _pumpWhile(tester, () => read().voice != VoiceState.invite);
-    expect(bySemanticsLabelWidget(_entry), findsOneWidget);
+    expect(byLabel(_entry), findsOneWidget);
 
     final withEntry = tester.getRect(find.byType(FacilitatorCircle).first);
 

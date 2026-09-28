@@ -4,11 +4,8 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'session_notifier_test.dart' show inConversa, settle;
-
-/// How many times the tablet has asked the room what it is doing.
-int _stateReads(SalaHarness harness) =>
-    harness.room.calls.where((call) => call == 'fetchState').length;
+import 'scenario_helpers.dart';
+import 'session_notifier_test.dart' show inConversa;
 
 /// A whole turn, from the team touching the circle to the room hearing it.
 Future<void> _aTurn(SalaSessionNotifier notifier) async {
@@ -28,7 +25,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
-    await waitFor('a sala reler o estado', () => _stateReads(harness) > 0);
+    await waitFor('a sala reler o estado', () => stateReads(harness) > 0);
     await settle(const Duration(milliseconds: 300));
 
     expect(

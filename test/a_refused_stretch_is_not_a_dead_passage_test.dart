@@ -16,6 +16,7 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart' show settle;
 
 /// Sends `sendChunk` through the real [RoomRepository] — the actual production decode, not
 /// a hand-picked exception — so a test using this room stays sensitive to a regression in
@@ -64,9 +65,6 @@ class _RealSendChunkRoom extends FakeRoom {
 const _sessao = 'sessao-antiga';
 const _parte = Duration(seconds: 10);
 const _inicioDoTrecho = Duration(seconds: 4);
-
-Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) =>
-    Future<void>.delayed(delay);
 
 class _Retomada {
   final SalaHarness harness;

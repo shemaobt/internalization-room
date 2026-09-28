@@ -5,21 +5,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart' show settle;
 
 const _parteLen = Duration(seconds: 10);
 
 /// The name the server holds for a recording this tablet has no part for: a session told
 /// back before the room stopped assembling passages still answers with one.
 const _deFora = 'gravacao-de-fora';
-
-Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) =>
-    Future<void>.delayed(delay);
 
 /// The room's reading of a telling-back of three parts, with the two stretches of part 2
 /// addressed to a recording this tablet does not hold.
@@ -221,7 +218,7 @@ void main() {
     () async {
       final harness = SalaHarness()
         ..room.verdictChecked = false
-        ..room.verdictFinding = BtFindingKind.unclear
+        ..room.verdictHasFinding = true
         ..room.verdictFindingSegmentId = 'trecho-2';
       final it = await _reabrir(
         harness,

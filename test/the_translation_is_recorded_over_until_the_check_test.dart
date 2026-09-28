@@ -11,7 +11,6 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
@@ -19,6 +18,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/retro_vi
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart';
 
 const parte = Duration(seconds: 10);
 const cabeca = Duration(seconds: 4);
@@ -32,10 +32,6 @@ const pausar = 'Pausar';
 const tesoura = 'Cortar aqui';
 const confirmar = 'Confirmar a tradução e seguir';
 const conferir = 'Conferir a tradução';
-
-Finder byLabel(String label) => find.byWidgetPredicate(
-  (widget) => widget is Semantics && widget.properties.label == label,
-);
 
 bool aceso(WidgetTester tester, String label) {
   final semantics = tester.widget<Semantics>(byLabel(label));
@@ -57,19 +53,6 @@ bool aceso(WidgetTester tester, String label) {
   );
   return enabled;
 }
-
-List<String> contas(WidgetTester tester) => [
-  for (final conta
-      in tester
-          .widget<BeadRow>(
-            find.descendant(
-              of: find.byType(RetroView),
-              matching: find.byType(BeadRow),
-            ),
-          )
-          .entries)
-    '${conta.fill.name}${conta.current ? ' com anel' : ''}',
-];
 
 Iterable<BoxDecoration> _pinturas(Finder dentro) => find
     .descendant(of: dentro, matching: find.byType(Container))

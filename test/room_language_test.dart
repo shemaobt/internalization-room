@@ -15,8 +15,8 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
 
 import 'fakes.dart';
-import 'sala_screen_test.dart' show bySemanticsLabelWidget, pumpSala;
-import 'session_notifier_test.dart' show settle;
+import 'sala_screen_test.dart' show pumpSala;
+import 'scenario_helpers.dart' show byLabel, settle;
 
 void main() {
   test(
@@ -654,7 +654,7 @@ void main() {
         await tester.pump(const Duration(milliseconds: 80));
 
         expect(
-          bySemanticsLabelWidget(expected[language]!),
+          byLabel(expected[language]!),
           findsOneWidget,
           reason:
               'o facilitador lê esta tela uma vez, na instalação — num aparelho que ele '
@@ -689,7 +689,7 @@ void main() {
         await tester.pump(const Duration(milliseconds: 80));
 
         expect(
-          bySemanticsLabelWidget(expected[language]!),
+          byLabel(expected[language]!),
           findsOneWidget,
           reason:
               'esta tela falava as duas línguas por um switch próprio, que o guard '

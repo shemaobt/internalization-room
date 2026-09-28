@@ -439,26 +439,6 @@ class RoomRepository {
   static String takeAudioUrl(String sessionId, String takeId) =>
       '$_basePath/sessions/$sessionId/takes/$takeId/audio';
 
-  Future<List<SegmentView>> divideSegment(
-    String sessionId,
-    String segmentId, {
-    required Duration at,
-  }) async {
-    final response = await _send(
-      () => _client.post(
-        _uri('/sessions/$sessionId/segments/$segmentId/divide'),
-        headers: _headers,
-        body: jsonEncode({'at_ms': at.inMilliseconds}),
-      ),
-      _stateTimeout,
-    );
-    return _read(
-      response,
-      SegmentView.listFrom,
-      notFoundIsTheSessionGone: false,
-    );
-  }
-
   /// A new version of one stretch: the explanation redone over the same slice.
   ///
   /// The audio is required. A replacement with none was the mother tongue of one stretch

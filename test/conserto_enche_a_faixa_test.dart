@@ -1,20 +1,15 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart';
 
 const _micRetro = 'Traduzir este trecho de novo';
-
-Finder _byLabel(String label) => find.byWidgetPredicate(
-  (widget) => widget is Semantics && widget.properties.label == label,
-);
 
 SalaHarness? _harnessDaVez;
 
@@ -52,7 +47,7 @@ Future<ProviderContainer> _pumpToPergunta(
 }) async {
   final harness = SalaHarness(filaEmMemoria: true, busyCeiling: teto)
     ..room.verdictChecked = false
-    ..room.verdictFinding = BtFindingKind.addition
+    ..room.verdictHasFinding = true
     ..room.verdictFindingSegmentId = 'trecho-1';
   _harnessDaVez = harness;
   final container = harness.container();
@@ -91,7 +86,7 @@ Future<ProviderContainer> _pumpToPergunta(
 
 /// The short way: the azul microphone lands on the translation, on that stretch.
 Future<void> _escolherTraduzirDeNovo(WidgetTester tester) async {
-  await tester.tap(_byLabel(_micRetro));
+  await tester.tap(byLabel(_micRetro));
   await tester.pump(const Duration(milliseconds: 300));
 }
 

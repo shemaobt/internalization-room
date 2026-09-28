@@ -9,7 +9,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/dev/dev_skip_bar.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/data/mic_permission.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
@@ -27,10 +26,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/hear_aga
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
-
-Finder bySemanticsLabelWidget(String label) => find.byWidgetPredicate(
-  (widget) => widget is Semantics && widget.properties.label == label,
-);
+import 'scenario_helpers.dart' show byLabel;
 
 Set<Color> paintedBy(WidgetTester tester, Finder corner) {
   final colours = <Color>{};
@@ -84,7 +80,7 @@ Color markAsSeen(WidgetTester tester, Finder corner, Color background) {
 bool leaveIsDeaf(WidgetTester tester) => tester
     .widgetList<IgnorePointer>(
       find.ancestor(
-        of: bySemanticsLabelWidget('Deixar esta passagem e escolher outra'),
+        of: byLabel('Deixar esta passagem e escolher outra'),
         matching: find.byType(IgnorePointer),
       ),
     )
@@ -109,11 +105,11 @@ const continuarOEnsaio = 'Continuar o ensaio';
 
 Future<ProviderContainer> pumpToFindings(
   WidgetTester tester,
-  BtFindingKind? finding,
+  bool hasFinding,
 ) async {
   final harness = SalaHarness()
     ..room.verdictChecked = false
-    ..room.verdictFinding = finding;
+    ..room.verdictHasFinding = hasFinding;
   final container = await pumpSala(tester, harness);
   final notifier = container.read(salaSessionProvider.notifier);
 
@@ -186,11 +182,8 @@ void main() {
     await container.read(salaSessionProvider.notifier).abrirEscolha();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(
-      bySemanticsLabelWidget('Ouvir esta passagem de novo'),
-      findsOneWidget,
-    );
-    expect(bySemanticsLabelWidget('Entrar nesta passagem'), findsOneWidget);
+    expect(byLabel('Ouvir esta passagem de novo'), findsOneWidget);
+    expect(byLabel('Entrar nesta passagem'), findsOneWidget);
     expect(
       find.byType(PassageRuler),
       findsOneWidget,
@@ -267,9 +260,9 @@ void main() {
       await container.read(salaSessionProvider.notifier).abrirEscolha();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(bySemanticsLabelWidget('Panorama do Livro'), findsOneWidget);
+      expect(byLabel('Panorama do Livro'), findsOneWidget);
       expect(
-        bySemanticsLabelWidget('Entrar nesta passagem'),
+        byLabel('Entrar nesta passagem'),
         findsNothing,
         reason:
             'o panorama é a porta de entrada da roda, mas o botão de '
@@ -295,9 +288,9 @@ void main() {
     await container.read(salaSessionProvider.notifier).abrirEscolha();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(bySemanticsLabelWidget('Book Panorama'), findsOneWidget);
+    expect(byLabel('Book Panorama'), findsOneWidget);
     expect(
-      bySemanticsLabelWidget('Panorama do Livro'),
+      byLabel('Panorama do Livro'),
       findsNothing,
       reason:
           'um aparelho em inglês não pode mostrar o nome do panorama '
@@ -312,9 +305,9 @@ void main() {
     await container.read(salaSessionProvider.notifier).abrirEscolha();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(bySemanticsLabelWidget('Hear this passage again'), findsOneWidget);
+    expect(byLabel('Hear this passage again'), findsOneWidget);
     expect(
-      bySemanticsLabelWidget('Ouvir esta passagem de novo'),
+      byLabel('Ouvir esta passagem de novo'),
       findsNothing,
       reason:
           'o círculo da roda dizia "Ouvir esta passagem de novo" a um '
@@ -329,9 +322,9 @@ void main() {
     await container.read(salaSessionProvider.notifier).abrirEscolha();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(bySemanticsLabelWidget('Enter this passage'), findsOneWidget);
+    expect(byLabel('Enter this passage'), findsOneWidget);
     expect(
-      bySemanticsLabelWidget('Entrar nesta passagem'),
+      byLabel('Entrar nesta passagem'),
       findsNothing,
       reason:
           'só o panorama falava inglês; a conta de entrar numa passagem '
@@ -347,15 +340,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(
-      bySemanticsLabelWidget(
-        'Choose the passage by running a finger along the row',
-      ),
+      byLabel('Choose the passage by running a finger along the row'),
       findsOneWidget,
     );
     expect(
-      bySemanticsLabelWidget(
-        'Escolher a passagem, correndo o dedo pela fileira',
-      ),
+      byLabel('Escolher a passagem, correndo o dedo pela fileira'),
       findsNothing,
       reason:
           'a régua da roda se apresentava em português a um aparelho em '
@@ -379,9 +368,7 @@ void main() {
       expect(container.read(salaSessionProvider).aOferecer, 0);
       final ruler = tester
           .widget<Semantics>(
-            bySemanticsLabelWidget(
-              'Choose the passage by running a finger along the row',
-            ),
+            byLabel('Choose the passage by running a finger along the row'),
           )
           .properties;
       expect(
@@ -403,12 +390,9 @@ void main() {
     await container.read(salaSessionProvider.notifier).abrirEscolha();
     await tester.pump(const Duration(milliseconds: 300));
 
+    expect(byLabel('Every passage has been worked through'), findsOneWidget);
     expect(
-      bySemanticsLabelWidget('Every passage has been worked through'),
-      findsOneWidget,
-    );
-    expect(
-      bySemanticsLabelWidget('Todas as passagens foram trabalhadas'),
+      byLabel('Todas as passagens foram trabalhadas'),
       findsNothing,
       reason:
           'o livro terminado era anunciado em português a um aparelho em '
@@ -426,12 +410,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(container.read(salaSessionProvider).rodaPorLer, isTrue);
+      expect(byLabel('Tap to look for the passages'), findsOneWidget);
       expect(
-        bySemanticsLabelWidget('Tap to look for the passages'),
-        findsOneWidget,
-      );
-      expect(
-        bySemanticsLabelWidget('Tocar para procurar as passagens'),
+        byLabel('Tocar para procurar as passagens'),
         findsNothing,
         reason:
             'a roda que ainda não foi lida pedia o toque em português a um '
@@ -448,16 +429,13 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(
-      bySemanticsLabelWidget('Entrar nesta passagem'),
+      byLabel('Entrar nesta passagem'),
       findsNothing,
       reason:
           'não há o que oferecer, e um botão que não leva a lugar nenhum '
           'é pior do que nenhum botão',
     );
-    expect(
-      bySemanticsLabelWidget('Todas as passagens foram trabalhadas'),
-      findsOneWidget,
-    );
+    expect(byLabel('Todas as passagens foram trabalhadas'), findsOneWidget);
   });
 
   testWidgets(
@@ -474,25 +452,25 @@ void main() {
       await notifier.abrirEscolha();
       await tester.pump(const Duration(milliseconds: 300));
 
-      await tester.tap(bySemanticsLabelWidget('Entrar nesta passagem'));
+      await tester.tap(byLabel('Entrar nesta passagem'));
       await tester.pump(const Duration(milliseconds: 300));
       expect(
-        bySemanticsLabelWidget('Todas as passagens foram trabalhadas'),
+        byLabel('Todas as passagens foram trabalhadas'),
         findsNothing,
         reason: 'uma passagem da roda ainda não foi tentada nesta visita',
       );
       expect(container.read(salaSessionProvider).needsPerson, isFalse);
 
-      await tester.tap(bySemanticsLabelWidget('Entrar nesta passagem'));
+      await tester.tap(byLabel('Entrar nesta passagem'));
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(
-        bySemanticsLabelWidget('Entrar nesta passagem'),
+        byLabel('Entrar nesta passagem'),
         findsNothing,
         reason: 'nada sobrou para entrar nesta visita',
       );
       expect(
-        bySemanticsLabelWidget('Todas as passagens foram trabalhadas'),
+        byLabel('Todas as passagens foram trabalhadas'),
         findsOneWidget,
         reason:
             'a sala chama uma pessoa pelo mesmo caminho de um livro sem nada '
@@ -595,8 +573,8 @@ void main() {
 
     expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
     expect(find.byType(ColarOverlay), findsOneWidget);
-    expect(bySemanticsLabelWidget('Levantar a mão'), findsOneWidget);
-    expect(bySemanticsLabelWidget('Tocar para falar'), findsOneWidget);
+    expect(byLabel('Levantar a mão'), findsOneWidget);
+    expect(byLabel('Tocar para falar'), findsOneWidget);
   });
 
   testWidgets('the dev seal shows from the invite on, before any skip exists', (
@@ -677,10 +655,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
-    expect(
-      bySemanticsLabelWidget('Tocar para gravar o ensaio'),
-      findsOneWidget,
-    );
+    expect(byLabel('Tocar para gravar o ensaio'), findsOneWidget);
     expect(
       find.text('DEV'),
       findsOneWidget,
@@ -752,9 +727,7 @@ void main() {
     expect(container.read(salaSessionProvider).peerCue, isTrue);
     expect(find.byIcon(LucideIcons.users), findsOneWidget);
     expect(
-      bySemanticsLabelWidget(
-        'Conversem entre vocês — tocar quando quiserem me contar',
-      ),
+      byLabel('Conversem entre vocês — tocar quando quiserem me contar'),
       findsOneWidget,
     );
   });
@@ -768,9 +741,9 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     expect(container.read(salaSessionProvider).canHearAgain, isTrue);
-    expect(bySemanticsLabelWidget('Hear it again'), findsOneWidget);
+    expect(byLabel('Hear it again'), findsOneWidget);
     expect(
-      bySemanticsLabelWidget('Ouvir de novo'),
+      byLabel('Ouvir de novo'),
       findsNothing,
       reason:
           'o botão de ouvir de novo falava português a um aparelho em inglês',
@@ -784,12 +757,9 @@ void main() {
     container.read(salaSessionProvider.notifier).goConversa();
     await tester.pump(const Duration(milliseconds: 200));
 
+    expect(byLabel('Leave this passage and choose another'), findsOneWidget);
     expect(
-      bySemanticsLabelWidget('Leave this passage and choose another'),
-      findsOneWidget,
-    );
-    expect(
-      bySemanticsLabelWidget('Deixar esta passagem e escolher outra'),
+      byLabel('Deixar esta passagem e escolher outra'),
       findsNothing,
       reason:
           'a saída da passagem se anunciava em português a um aparelho em '
@@ -802,9 +772,9 @@ void main() {
     container.read(salaSessionProvider.notifier).goConversa();
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(bySemanticsLabelWidget('Raise a hand'), findsOneWidget);
+    expect(byLabel('Raise a hand'), findsOneWidget);
     expect(
-      bySemanticsLabelWidget('Levantar a mão'),
+      byLabel('Levantar a mão'),
       findsNothing,
       reason: 'a mão dizia "Levantar a mão" a um aparelho em inglês',
     );
@@ -828,12 +798,9 @@ void main() {
     container.read(salaSessionProvider.notifier).goConversa();
     await tester.pump(const Duration(milliseconds: 200));
 
+    expect(byLabel("Hear the facilitator's answer"), findsOneWidget);
     expect(
-      bySemanticsLabelWidget("Hear the facilitator's answer"),
-      findsOneWidget,
-    );
-    expect(
-      bySemanticsLabelWidget('Ouvir a resposta do facilitador'),
+      byLabel('Ouvir a resposta do facilitador'),
       findsNothing,
       reason:
           'a resposta do facilitador era oferecida em português a um '
@@ -853,9 +820,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).noteMode, isTrue);
-    expect(bySemanticsLabelWidget('Cancel the question'), findsOneWidget);
+    expect(byLabel('Cancel the question'), findsOneWidget);
     expect(
-      bySemanticsLabelWidget('Cancelar a pergunta'),
+      byLabel('Cancelar a pergunta'),
       findsNothing,
       reason:
           'a mão armada dizia "Cancelar a pergunta" a um aparelho em inglês',
@@ -877,12 +844,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).questionPending, isTrue);
+    expect(byLabel('Question sent, waiting for an answer'), findsOneWidget);
     expect(
-      bySemanticsLabelWidget('Question sent, waiting for an answer'),
-      findsOneWidget,
-    );
-    expect(
-      bySemanticsLabelWidget('Pergunta enviada, aguardando resposta'),
+      byLabel('Pergunta enviada, aguardando resposta'),
       findsNothing,
       reason: 'a pergunta enviada esperava em português num aparelho em inglês',
     );
@@ -908,12 +872,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).playingReplyId, 'r1');
+    expect(byLabel('The facilitator is answering'), findsOneWidget);
     expect(
-      bySemanticsLabelWidget('The facilitator is answering'),
-      findsOneWidget,
-    );
-    expect(
-      bySemanticsLabelWidget('O facilitador está respondendo'),
+      byLabel('O facilitador está respondendo'),
       findsNothing,
       reason:
           'a resposta tocando era anunciada em português a um aparelho em '
@@ -942,11 +903,8 @@ void main() {
     container.read(salaSessionProvider.notifier).goConversa();
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(
-      bySemanticsLabelWidget('Ouvir a resposta do facilitador'),
-      findsOneWidget,
-    );
-    expect(bySemanticsLabelWidget('Levantar a mão'), findsNothing);
+    expect(byLabel('Ouvir a resposta do facilitador'), findsOneWidget);
+    expect(byLabel('Levantar a mão'), findsNothing);
   });
 
   testWidgets(
@@ -991,10 +949,7 @@ void main() {
     notifier.goEnsaio();
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(
-      bySemanticsLabelWidget('Tocar para gravar o ensaio'),
-      findsOneWidget,
-    );
+    expect(byLabel('Tocar para gravar o ensaio'), findsOneWidget);
     expect(
       find.byType(ColarOverlay),
       findsNothing,
@@ -1009,7 +964,7 @@ void main() {
   ) async {
     final harness = SalaHarness(filaEmMemoria: true)
       ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.addition
+      ..room.verdictHasFinding = true
       ..room.verdictFindingSegmentId = 'trecho-1';
     final container = await pumpSala(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -1038,35 +993,32 @@ void main() {
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
     expect(
-      bySemanticsLabelWidget('Gravar a parte de novo na língua materna'),
+      byLabel('Gravar a parte de novo na língua materna'),
       findsOneWidget,
       reason:
           'as duas saídas continuam ali, mas agora como os dois microfones '
           'do achado, e é a equipe que diz qual voz precisa falar de novo',
     );
+    expect(byLabel('Traduzir este trecho de novo'), findsOneWidget);
     expect(
-      bySemanticsLabelWidget('Traduzir este trecho de novo'),
-      findsOneWidget,
-    );
-    expect(
-      bySemanticsLabelWidget(retellExit),
+      byLabel(retellExit),
       findsNothing,
       reason:
           'o par antigo de saídas deixou de existir para um achado com '
           'trecho nomeado — quem decidia era o tipo, não a equipe',
     );
-    expect(bySemanticsLabelWidget(continuarOEnsaio), findsNothing);
+    expect(byLabel(continuarOEnsaio), findsNothing);
   });
 
   testWidgets('an addition finding offers the way on and nothing else', (
     tester,
   ) async {
-    final container = await pumpToFindings(tester, BtFindingKind.addition);
+    final container = await pumpToFindings(tester, true);
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
-    expect(bySemanticsLabelWidget(retellExit), findsNothing);
+    expect(byLabel(retellExit), findsNothing);
     expect(
-      bySemanticsLabelWidget(wholeClipExit),
+      byLabel(wholeClipExit),
       findsNothing,
       reason:
           'telling the whole recording again is the same offer as '
@@ -1074,37 +1026,29 @@ void main() {
           'recording what the kind says is in it, so the pointer being '
           'absent must not smuggle the offer back in',
     );
-    expect(bySemanticsLabelWidget(continuarOEnsaio), findsOneWidget);
+    expect(byLabel(continuarOEnsaio), findsOneWidget);
   });
 
-  for (final kind in [BtFindingKind.missing, BtFindingKind.unclear]) {
-    testWidgets('a ${kind.name} finding with no stretch offers the way on', (
-      tester,
-    ) async {
-      final container = await pumpToFindings(tester, kind);
+  testWidgets('a finding with no stretch offers the way on', (tester) async {
+    final container = await pumpToFindings(tester, true);
 
-      expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
-      expect(bySemanticsLabelWidget(wholeClipExit), findsNothing);
-      expect(bySemanticsLabelWidget(continuarOEnsaio), findsOneWidget);
-    });
-  }
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
+    expect(byLabel(wholeClipExit), findsNothing);
+    expect(byLabel(continuarOEnsaio), findsOneWidget);
+  });
 
-  for (final kind in <BtFindingKind?>[...BtFindingKind.values, null]) {
-    testWidgets(
-      'a ${kind?.name ?? 'kind this build does not know'} finding always '
-      'leaves the team a way out',
-      (tester) async {
-        final container = await pumpToFindings(tester, kind);
+  testWidgets('no finding at all still leaves the team a way out', (
+    tester,
+  ) async {
+    final container = await pumpToFindings(tester, false);
 
-        expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
-        final offered =
-            bySemanticsLabelWidget(retellExit).evaluate().length +
-            bySemanticsLabelWidget(wholeClipExit).evaluate().length +
-            bySemanticsLabelWidget(continuarOEnsaio).evaluate().length;
-        expect(offered, greaterThan(0));
-      },
-    );
-  }
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
+    final offered =
+        byLabel(retellExit).evaluate().length +
+        byLabel(wholeClipExit).evaluate().length +
+        byLabel(continuarOEnsaio).evaluate().length;
+    expect(offered, greaterThan(0));
+  });
 
   testWidgets('the ensaio lights its play once there is a part to hear', (
     tester,
@@ -1112,7 +1056,7 @@ void main() {
     final container = await pumpSala(tester, SalaHarness());
     final notifier = container.read(salaSessionProvider.notifier);
     bool? tocavel() => tester
-        .widget<Semantics>(bySemanticsLabelWidget('Ouvir o ensaio até aqui'))
+        .widget<Semantics>(byLabel('Ouvir o ensaio até aqui'))
         .properties
         .enabled;
 
@@ -1223,7 +1167,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     notifier.takeKeep();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(bySemanticsLabelWidget('Ir para a tradução'), findsOneWidget);
+    expect(byLabel('Ir para a tradução'), findsOneWidget);
 
     notifier.playTheRehearsal();
     await tester.pump(const Duration(milliseconds: 200));
@@ -1231,7 +1175,7 @@ void main() {
     expect(container.read(salaSessionProvider).playPing, isTrue);
     expect(
       tester
-          .widget<Semantics>(bySemanticsLabelWidget('Ir para a tradução'))
+          .widget<Semantics>(byLabel('Ir para a tradução'))
           .properties
           .enabled,
       isTrue,
@@ -1242,7 +1186,7 @@ void main() {
           .widget<AnimatedOpacity>(
             find
                 .descendant(
-                  of: bySemanticsLabelWidget('Ir para a tradução'),
+                  of: byLabel('Ir para a tradução'),
                   matching: find.byType(AnimatedOpacity),
                 )
                 .first,
@@ -1350,9 +1294,7 @@ void main() {
       await notifier.goConversa(pericope: 'P01');
       await tester.pump(const Duration(milliseconds: 300));
 
-      final sair = bySemanticsLabelWidget(
-        'Deixar esta passagem e escolher outra',
-      );
+      final sair = byLabel('Deixar esta passagem e escolher outra');
       expect(
         sair,
         findsOneWidget,
@@ -1406,7 +1348,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     await tester.tap(
-      bySemanticsLabelWidget('Deixar esta passagem e escolher outra'),
+      byLabel('Deixar esta passagem e escolher outra'),
       warnIfMissed: false,
     );
     await tester.pump(const Duration(milliseconds: 300));
@@ -1583,7 +1525,7 @@ void main() {
     final harness = SalaHarness();
     final container = await pumpSala(tester, harness);
 
-    await tester.tap(bySemanticsLabelWidget('Falar com o facilitador'));
+    await tester.tap(byLabel('Falar com o facilitador'));
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(
@@ -1602,7 +1544,7 @@ void main() {
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pump(const Duration(milliseconds: 200));
-    await tester.tap(bySemanticsLabelWidget('Falar com o facilitador'));
+    await tester.tap(byLabel('Falar com o facilitador'));
     await tester.pump(const Duration(milliseconds: 200));
 
     final state = container.read(salaSessionProvider);

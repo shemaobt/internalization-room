@@ -11,9 +11,7 @@ import 'package:internalization_room/features/sala/data/hand_inbox_repository.da
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 
 import 'fakes.dart';
-
-Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) =>
-    Future<void>.delayed(delay);
+import 'scenario_helpers.dart' show settle;
 
 const _replyUrl = '/voz/resposta-1';
 

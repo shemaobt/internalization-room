@@ -1,17 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-
-Future<void> settle([
-  Duration delay = const Duration(milliseconds: 120),
-]) async {
-  await Future<void>.delayed(delay);
-}
+import 'scenario_helpers.dart' show settle;
 
 /// Record one rehearsal part and wait for the room to have named it.
 Future<void> _gravaParte(
@@ -80,7 +74,7 @@ Future<void> traduzirDeNovoOApontado(
 /// mudaria o nome debaixo deles.
 Future<ProviderContainer> achadoComAvisoAtivo(SalaHarness harness) async {
   harness.room.verdictChecked = false;
-  harness.room.verdictFinding = BtFindingKind.addition;
+  harness.room.verdictHasFinding = true;
   harness.room.verdictFindingPlace = 0;
 
   final container = await _inRetro(harness);

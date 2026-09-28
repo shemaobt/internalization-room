@@ -4,12 +4,9 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'fakes.dart';
 import 'resto_da_historia_test.dart' show aHistoriaSemOFim;
+import 'scenario_helpers.dart';
 
 const ouvirOTrecho = 'Ouvir o trecho e a tradução';
-
-Finder byLabel(String label) => find.byWidgetPredicate(
-  (widget) => widget is Semantics && widget.properties.label == label,
-);
 
 IconData iconeDoPlay(WidgetTester tester) => tester
     .widget<Icon>(

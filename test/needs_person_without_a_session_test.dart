@@ -10,7 +10,7 @@ import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 
 import 'fakes.dart';
-import 'session_notifier_test.dart' show settle;
+import 'scenario_helpers.dart' show settle;
 
 /// A real ledger on a temp dir, the way `device_credential_test.dart` builds one — not
 /// the in-memory `FakeLinkedTeam` the harness wires by default, since the notifier reads

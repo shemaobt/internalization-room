@@ -9,12 +9,7 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-
-Future<void> settle([
-  Duration delay = const Duration(milliseconds: 120),
-]) async {
-  await Future<void>.delayed(delay);
-}
+import 'scenario_helpers.dart' show settle;
 
 /// A tablet opened again on a passage the team was part-way through telling back.
 ///
@@ -230,7 +225,7 @@ void main() {
             'o portão lê o relato como o que a equipe ouviu deste ensaio, '
             'não como a escuta de uma rodada: report_playback substitui os '
             'ranges a cada relato e a cobertura tem de ir de zero ao fim da '
-            'parte, então calar o chão contado antes recusa o terminei',
+            'parte, então calar o chão contado antes recusa a conferência',
       );
     },
   );
@@ -370,7 +365,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       await waitFor(
-        'a sala oferecer o terminei',
+        'a sala oferecer a conferência',
         () => container.read(salaSessionProvider).canFinishBackTranslation,
       );
       await notifier.finishBackTranslation();
@@ -444,7 +439,7 @@ void main() {
       );
       final notifier = container.read(salaSessionProvider.notifier);
       await waitFor(
-        'a sala oferecer o terminei',
+        'a sala oferecer a conferência',
         () => container.read(salaSessionProvider).canFinishBackTranslation,
       );
 

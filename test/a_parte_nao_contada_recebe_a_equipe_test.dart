@@ -12,7 +12,7 @@ Future<Sala> _parteDoisRegravadaENuncaContada() async {
   final it = await umEnsaioDeTresPartesContadoInteiro();
   it.harness.room
     ..verdictChecked = false
-    ..verdictFinding = BtFindingKind.missing
+    ..verdictHasFinding = true
     ..verdictFindingPlace = 1;
   await pedirOVeredito(it);
   expect(
@@ -30,7 +30,7 @@ Future<Sala> _parteDoisRegravadaENuncaContada() async {
   it.harness.playback.lengths[it.partes[1].path] = partesDoEnsaio[1];
 
   it.harness.room
-    ..verdictFinding = null
+    ..verdictHasFinding = false
     ..verdictFindingPlace = null;
   it.sala.startRetro();
   await waitFor(
@@ -136,11 +136,6 @@ void main() {
         it.estado.btPhase,
         BtPhase.playing,
         reason: 'sair do pensando é o que devolve o toque à equipe',
-      );
-      expect(
-        it.estado.btFindings,
-        isEmpty,
-        reason: 'uma parte não contada não é um achado do analista',
       );
       expect(
         it.harness.playback.played.last,

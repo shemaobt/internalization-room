@@ -95,6 +95,16 @@ final resendMarginProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 5),
 );
 
+/// Starts the clock `_sendTheTake` reads its own wait from. A provider, not a bare
+/// `Stopwatch()`, so a test can drive the wait on a fake clock instead of the wall one —
+/// the only real clock left on the resend-versus-watchdog race.
+final turnElapsedSourceProvider = Provider<Duration Function() Function()>(
+  (ref) => () {
+    final stopwatch = Stopwatch()..start();
+    return () => stopwatch.elapsed;
+  },
+);
+
 /// How often an open microphone touches the room again. The shared client lets an idle
 /// connection go at 90 s and only the team's tap ends a take, so a take longer than that
 /// would otherwise hand its upload a connection that already lapsed. A provider, not a
@@ -294,11 +304,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// as and never by where the part sits in the row.
   ///
   /// A mend hands a part a new file, and a length written down under the old one's place
-  /// outlived it: the cord drew every band after a mended part at the length of the
-  /// recording that mend replaced, while the rule that crosses into the next part read
-  /// the new file. Keyed by the file, a swapped part needs only its own measurement, and
-  /// the listening ledger — keyed by the file too — cannot disagree with the ruler about
-  /// which recording a length belongs to.
+  /// would outlive it. Keyed by the file, a swapped part needs only its own measurement,
+  /// and the listening ledger — keyed by the file too — cannot disagree with the ruler
+  /// about which recording a length belongs to.
   final Map<String, int> _tamanhoDaParteMs = {};
   final EscutaDasPartes _escuta = EscutaDasPartes();
   int _desdeMs = 0;
@@ -2507,7 +2515,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final window = ref.read(busyStateCeilingProvider);
     final backoff = ref.read(roomRetryBackoffProvider);
     final margin = ref.read(resendMarginProvider);
-    final waited = Stopwatch()..start();
+    final waited = ref.read(turnElapsedSourceProvider)();
     var resends = 0;
     Duration? timeout;
     while (true) {
@@ -2535,11 +2543,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         }
         final step = resends < backoff.length ? resends : backoff.length - 1;
         final pause = backoff[step];
-        if (window - waited.elapsed - pause - margin < margin) rethrow;
+        if (window - waited() - pause - margin < margin) rethrow;
         resends++;
         await Future<void>.delayed(pause);
         if (epoch != _epoch) rethrow;
-        timeout = window - waited.elapsed - margin;
+        timeout = window - waited() - margin;
       }
     }
   }
@@ -3396,7 +3404,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btPhase: BtPhase.playing,
       btChunkFailures: const [],
       btClipEnded: false,
-      btFindings: const [],
       btPass: 1,
       peerCue: false,
     );
@@ -3465,7 +3472,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final partes = state.partes;
     if (partes.isEmpty) {
       // No rehearsal to tell back is not a rehearsal that finished playing. Calling it
-      // one opened `terminei` over an empty back translation.
+      // one would open the check over an empty back translation.
       _haltForAPerson();
       return;
     }
@@ -3497,8 +3504,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     // How long each part is was answered above, for every part at once: read one part at a
-    // time as this walked, the cord could not draw a band past the first part still to be
-    // told.
+    // time as this walked, nothing past the first part still to be told could be measured.
     var parte = 0;
     while (parte < medidas.length - 1) {
       final contadaAte = _chaoExplicadoDe(parte);
@@ -4057,11 +4063,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       needsPerson: told.needsPerson,
     );
     if (epoch != _epoch) return;
-    // The correction is finished, so the room goes and finds out what it was worth. The
-    // team used to be handed back to the screen for hearing the recording, with nothing
-    // said: the only way to learn whether the fix had taken was to press "terminei"
-    // again, and nobody tells them that. From where they stand they had corrected the
-    // stretch and nothing had happened.
+    // The correction is finished, so the room goes and finds out what it was worth.
     //
     // Only a correction arrives here — an ordinary telling during the back-translation
     // returns before this, and it should, because there is still passage left to hear and
@@ -4499,11 +4501,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
       if (verdict.checked) {
         // The finding is over, and so is the stretch it named. This branch returns above
-        // the place the pointer is resolved, so a name outlived the objection that gave it
-        // — and the cord went on drawing that stretch drained under a passage the room had
-        // just called checked. It only showed after a correction the room made nothing of:
-        // one that lands retires the name it replaces, so the pointer goes stale on its
-        // own and matches nothing.
+        // the place the pointer is resolved, so a name outlived the objection that gave
+        // it. It only showed after a correction the room made nothing of: one that lands
+        // retires the name it replaces, so the pointer goes stale on its own and matches
+        // nothing.
         state = state.copyWith(
           btPhase: BtPhase.conferida,
           voice: VoiceState.done,
@@ -4531,9 +4532,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(
         btPhase: BtPhase.findings,
         voice: VoiceState.invite,
-        btFindings: verdict.findingKind == null
-            ? const []
-            : [verdict.findingKind!],
         btFindingSegmentId: verdict.findingSegmentId,
         clearFindingSegment: verdict.findingSegmentId == null,
       );
@@ -4746,7 +4744,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       btPhase: BtPhase.playing,
       voice: VoiceState.invite,
-      btFindings: const [],
       clearFindingSegment: true,
     );
     _leadThemToTheTrecho(trecho);
@@ -5062,7 +5059,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       btPhase: BtPhase.playing,
       voice: VoiceState.invite,
-      btFindings: const [],
       btTraducaoPendente: trecho.retroPath,
       btTraducaoEmprestada: trecho.retroPath,
     );
@@ -5109,7 +5105,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: VoiceState.invite,
       ensaio: EnsaioStatus.idle,
       btPhase: BtPhase.playing,
-      btFindings: const [],
       clearFindingSegment: true,
       peerCue: false,
     );

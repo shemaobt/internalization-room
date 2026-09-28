@@ -10,11 +10,8 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'session_notifier_test.dart' show inConversa, settle;
-
-/// How many times the tablet has asked the room what it is doing.
-int _stateReads(SalaHarness harness) =>
-    harness.room.calls.where((call) => call == 'fetchState').length;
+import 'scenario_helpers.dart';
+import 'session_notifier_test.dart' show inConversa;
 
 int _createdSessions(SalaHarness harness) =>
     harness.room.calls.where((call) => call == 'createSession').length;
@@ -77,7 +74,7 @@ void main() {
     SalaSessionState read() => container.read(salaSessionProvider);
 
     await waitFor('a sala parar', () => read().needsPerson);
-    final asked = _stateReads(harness);
+    final asked = stateReads(harness);
     final turns = harness.room.turnsSent;
 
     // The facilitator marked the session attended on the desk; nobody touched the tablet.
@@ -89,7 +86,7 @@ void main() {
     );
 
     expect(
-      _stateReads(harness),
+      stateReads(harness),
       greaterThan(asked),
       reason:
           'a parada bloqueante é vigiada: sem reler o estado a sala nunca '
@@ -126,12 +123,12 @@ void main() {
       SalaSessionState read() => container.read(salaSessionProvider);
 
       await waitFor('a sala parar', () => read().needsPerson);
-      final asked = _stateReads(harness);
+      final asked = stateReads(harness);
 
       notifier.resolveWithPerson();
       await waitFor(
         'a sala perguntar ao servidor na hora',
-        () => _stateReads(harness) > asked,
+        () => stateReads(harness) > asked,
         limit: const Duration(milliseconds: 2000),
       );
 
@@ -171,7 +168,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
-    await waitFor('a sala reler o estado', () => _stateReads(harness) > 0);
+    await waitFor('a sala reler o estado', () => stateReads(harness) > 0);
     await settle(const Duration(milliseconds: 300));
     final turns = harness.room.turnsSent;
 
@@ -205,8 +202,8 @@ void main() {
     // The desk sees the same halt the tablet raised, and has not attended it yet.
     harness.room.serverStatus = 'needs_person';
     harness.room.serverHalt = HaltKind.blocking;
-    final asked = _stateReads(harness);
-    await waitFor('a vigia reler o estado', () => _stateReads(harness) > asked);
+    final asked = stateReads(harness);
+    await waitFor('a vigia reler o estado', () => stateReads(harness) > asked);
 
     expect(
       read().needsPerson,
@@ -234,7 +231,7 @@ void main() {
     SalaSessionState read() => container.read(salaSessionProvider);
 
     expect(read().offline, isTrue);
-    final asked = _stateReads(harness);
+    final asked = stateReads(harness);
     final opened = _createdSessions(harness);
 
     notifier.resolveWithPerson();
@@ -244,7 +241,7 @@ void main() {
     );
 
     expect(
-      _stateReads(harness),
+      stateReads(harness),
       asked,
       reason:
           'a queda não é uma parada: perguntar o estado de uma sessão que '
@@ -274,11 +271,11 @@ void main() {
       () => read().voice == VoiceState.invite,
     );
 
-    final afterRelease = _stateReads(harness);
+    final afterRelease = stateReads(harness);
     await settle(const Duration(milliseconds: 400));
 
     expect(
-      _stateReads(harness),
+      stateReads(harness),
       afterRelease,
       reason:
           'a sala solta não é mais vigiada: uma vigia que sobrevive à '
@@ -290,14 +287,14 @@ void main() {
     await waitFor('a sala parar de novo', () => read().needsPerson);
     await waitFor(
       'a vigia reler o estado',
-      () => _stateReads(harness) > afterRelease + 1,
+      () => stateReads(harness) > afterRelease + 1,
     );
-    final beforeDispose = _stateReads(harness);
+    final beforeDispose = stateReads(harness);
     container.dispose();
     await settle(const Duration(milliseconds: 400));
 
     expect(
-      _stateReads(harness),
+      stateReads(harness),
       beforeDispose,
       reason:
           'e a sala fechada não vigia nada: o tablet guardado seguiria '
@@ -314,7 +311,7 @@ void main() {
     SalaSessionState read() => container.read(salaSessionProvider);
 
     await waitFor('a sala parar ao reabrir', () => read().needsPerson);
-    final asked = _stateReads(harness);
+    final asked = stateReads(harness);
 
     harness.room.theDeskAttended();
 
@@ -324,7 +321,7 @@ void main() {
     );
 
     expect(
-      _stateReads(harness),
+      stateReads(harness),
       greaterThan(asked),
       reason:
           'reabrir dentro de uma parada é a situação mais comum de todas: '
@@ -348,7 +345,7 @@ void main() {
       'a sala parar na primeira passagem',
       () => read().needsPerson,
     );
-    await waitFor('a sala vigiar a parada', () => _stateReads(harness) > 0);
+    await waitFor('a sala vigiar a parada', () => stateReads(harness) > 0);
 
     // The team walks out of the passage they were held in, which is what that gesture is
     // for, and the desk attends the session they left behind.
@@ -367,7 +364,7 @@ void main() {
     await waitFor('a sala parar na segunda passagem', () => read().needsPerson);
 
     harness.voice.succeeds = true;
-    final asked = _stateReads(harness);
+    final asked = stateReads(harness);
     notifier.resolveWithPerson();
     await waitFor(
       'o círculo voltar ao convite',
@@ -375,7 +372,7 @@ void main() {
     );
 
     expect(
-      _stateReads(harness),
+      stateReads(harness),
       asked,
       reason:
           'a vigia da passagem anterior tinha de sair com ela: mantida, o '
@@ -405,7 +402,7 @@ void main() {
       harness.room.serverHalt = HaltKind.blocking;
 
       await waitFor('a sala parar com o turno no ar', () => read().needsPerson);
-      await waitFor('a vigia reler o estado', () => _stateReads(harness) > 1);
+      await waitFor('a vigia reler o estado', () => stateReads(harness) > 1);
 
       harness.room.failHeldTurnWith = const RoomUnavailable('sem rede');
       harness.room.finishHeldTurn();
@@ -416,7 +413,7 @@ void main() {
       // stops the team once more — this time in a room that has been offline under it.
       await _aTurn(notifier);
       await waitFor('a sala parar de novo', () => read().needsPerson);
-      final asked = _stateReads(harness);
+      final asked = stateReads(harness);
       harness.room.theDeskAttended();
 
       await waitFor(
@@ -425,7 +422,7 @@ void main() {
       );
 
       expect(
-        _stateReads(harness),
+        stateReads(harness),
         greaterThan(asked),
         reason:
             'a queda levou o timer da vigia e deixou a marca dela de pé: a '
@@ -451,10 +448,10 @@ void main() {
       harness.room.failWith = null;
       expect(read().sessionId, isNull);
 
-      final asked = _stateReads(harness);
+      final asked = stateReads(harness);
       await settle(const Duration(milliseconds: 300));
       expect(
-        _stateReads(harness),
+        stateReads(harness),
         asked,
         reason:
             'sem sessão não há o que reler: uma vigia sobre um id que o '

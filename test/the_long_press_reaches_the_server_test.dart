@@ -5,7 +5,8 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'session_notifier_test.dart' show inConversa, settle;
+import 'session_notifier_test.dart' show inConversa;
+import 'scenario_helpers.dart' show settle;
 
 int _calls(SalaHarness harness, String name) =>
     harness.room.calls.where((call) => call == name).length;

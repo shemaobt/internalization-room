@@ -1,11 +1,9 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -14,16 +12,7 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'session_notifier_test.dart' show inConversa;
-
-Future<void> settle([
-  Duration delay = const Duration(milliseconds: 120),
-]) async {
-  await Future<void>.delayed(delay);
-}
-
-Finder _byLabel(String label) => find.byWidgetPredicate(
-  (widget) => widget is Semantics && widget.properties.label == label,
-);
+import 'scenario_helpers.dart';
 
 /// A tablet reopening straight into an unchecked telling-back, with one part already
 /// named. Copied from `the_desk_lifts_the_halt_test.dart` and
@@ -226,12 +215,12 @@ void main() {
       SalaSessionState read() => container.read(salaSessionProvider);
 
       expect(read().btPhase, BtPhase.playing);
-      expect(_byLabel('Ouvir primeiro'), findsOneWidget);
+      expect(byLabel('Ouvir primeiro'), findsOneWidget);
 
       final startsBefore = harness.sounds
           .where((s) => s == 'recorder:start')
           .length;
-      await tester.tap(_byLabel('Ouvir primeiro'));
+      await tester.tap(byLabel('Ouvir primeiro'));
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(
@@ -254,13 +243,13 @@ void main() {
     (tester) async {
       final harness = SalaHarness();
       final container = await _freshlyInRetro(tester, harness);
-      expect(_byLabel('Ouvir primeiro'), findsOneWidget);
+      expect(byLabel('Ouvir primeiro'), findsOneWidget);
 
       await tester.pump(const Duration(seconds: 1));
 
-      expect(_byLabel('Ouvir primeiro'), findsNothing);
+      expect(byLabel('Ouvir primeiro'), findsNothing);
       expect(
-        _byLabel('Tocar para gravar a tradução deste trecho'),
+        byLabel('Tocar para gravar a tradução deste trecho'),
         findsOneWidget,
       );
       closeTheRoom(container);
@@ -335,7 +324,7 @@ void main() {
     final harness = SalaHarness(lingua: 'en');
     final container = await _freshlyInRetro(tester, harness);
 
-    expect(_byLabel('Listen first'), findsOneWidget);
+    expect(byLabel('Listen first'), findsOneWidget);
     closeTheRoom(container);
   });
 
@@ -545,7 +534,7 @@ void main() {
     await waitFor('o trecho chegar à sala', () => harness.room.chunksSent == 1);
 
     harness.room.verdictChecked = false;
-    harness.room.verdictFinding = BtFindingKind.addition;
+    harness.room.verdictHasFinding = true;
     harness.room.verdictFindingSegmentId = harness.room.segments.last.segmentId;
     harness.playback.finishPlayback();
     await waitFor(

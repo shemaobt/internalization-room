@@ -1,78 +1,20 @@
 import 'dart:io';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
+import 'um_ensaio_de_tres_partes.dart';
 
 /// ENG-824: six rehearsal parts, each told back as exactly one stretch, the
 /// last one recounted by the short way. Reproduces the play skipping the one
 /// stretch nobody touched.
 const _parteLen = Duration(seconds: 10);
 
-class _Sala {
-  final SalaHarness harness;
-  ProviderContainer container;
-
-  _Sala(this.harness, this.container);
-
-  SalaSessionNotifier get sala => container.read(salaSessionProvider.notifier);
-
-  SalaSessionState get estado => container.read(salaSessionProvider);
-}
-
-Future<void> _gravarUmaParte(_Sala it) async {
-  final antes = it.estado.keptTakes.length;
-  it.sala.ensaioTap();
-  await waitFor(
-    'a gravação da parte começar',
-    () => it.estado.ensaio == EnsaioStatus.recording,
-  );
-  it.sala.ensaioTap();
-  await waitFor(
-    'a gravação da parte terminar',
-    () => it.estado.ensaio == EnsaioStatus.recorded,
-  );
-  it.sala.takeKeep();
-  await waitFor('a sala nomear a parte nova', () {
-    final takes = it.estado.keptTakes;
-    return takes.length == antes + 1 && takes.last.takeId != null;
-  });
-}
-
-Future<void> _traduzirUmTrecho(_Sala it, Duration em) async {
-  final antes = it.estado.btTrechos.length;
-  it.harness.playback.at = em;
-  it.sala.cortarTrecho();
-  it.sala.retroTap();
-  await waitFor(
-    'o microfone abrir no trecho',
-    () => it.estado.btPhase == BtPhase.capturing,
-  );
-  await confirmarATraducao(it.container);
-  await waitFor(
-    'o trecho contado entrar no colar',
-    () => it.estado.btTrechos.length == antes + 1,
-  );
-}
-
-Future<void> _atravessarAFronteira(_Sala it) async {
-  it.harness.playback.finishPlayback();
-  await waitFor('a parte terminar', () => it.estado.btParteFronteira);
-  it.sala.ouvirGravacao();
-  await waitFor(
-    'a parte seguinte entrar no ar',
-    () => !it.estado.btParteFronteira,
-  );
-}
-
-Future<void> _pedirOVeredito(_Sala it) async {
+Future<void> _pedirOVeredito(Sala it) async {
   while (!it.estado.btClipEnded) {
     it.harness.playback.finishPlayback();
     await waitFor(
@@ -96,22 +38,22 @@ Future<void> _pedirOVeredito(_Sala it) async {
 }
 
 /// Six parts recorded, one stretch cut per part, spanning it whole.
-Future<_Sala> _seisPartesSeisTrechos() async {
+Future<Sala> _seisPartesSeisTrechos() async {
   final harness = SalaHarness()
     ..playback.length = _parteLen
     ..playback.measured = _parteLen
     ..room.verdictChecked = false
-    ..room.verdictFinding = BtFindingKind.addition
+    ..room.verdictHasFinding = true
     ..room.verdictFindingPlace = 2;
   final container = harness.container();
   addTearDown(container.dispose);
-  final it = _Sala(harness, container);
+  final it = Sala(harness, container);
 
   await it.sala.goConversa(pericope: 'P01');
   await waitFor('a sala abrir', () => it.estado.sessionId != null);
   it.sala.goEnsaio();
   for (var i = 0; i < 6; i++) {
-    await _gravarUmaParte(it);
+    await gravarUmaParteDoEnsaio(it);
   }
   for (final parte in it.estado.keptTakes) {
     harness.playback.lengths[parte.path] = _parteLen;
@@ -126,8 +68,8 @@ Future<_Sala> _seisPartesSeisTrechos() async {
   );
 
   for (var i = 0; i < 6; i++) {
-    await _traduzirUmTrecho(it, _parteLen);
-    if (i < 5) await _atravessarAFronteira(it);
+    await traduzirUmTrecho(it, _parteLen);
+    if (i < 5) await atravessarAFronteira(it);
   }
   await _pedirOVeredito(it);
   return it;
@@ -135,7 +77,7 @@ Future<_Sala> _seisPartesSeisTrechos() async {
 
 /// Drive the fake player's clip to completion for every stretch the rehearsal's play opens,
 /// until it stops on its own or gives up waiting.
-Future<void> _tocarOEnsaioAteAcabar(_Sala it) async {
+Future<void> _tocarOEnsaioAteAcabar(Sala it) async {
   for (
     var tentativas = 0;
     tentativas < 12 && it.estado.playPing;
@@ -147,7 +89,7 @@ Future<void> _tocarOEnsaioAteAcabar(_Sala it) async {
 }
 
 /// The short way: the telling redone over the same mother tongue, no re-recording.
-Future<void> _traduzirDeNovoPeloCaminhoCurto(_Sala it) async {
+Future<void> _traduzirDeNovoPeloCaminhoCurto(Sala it) async {
   it.sala.traduzirDeNovoEmPortugues();
   it.sala.retroTap();
   await waitFor(
@@ -250,7 +192,7 @@ void main() {
       );
     final container = harness.container();
     addTearDown(container.dispose);
-    final it = _Sala(harness, container);
+    final it = Sala(harness, container);
 
     await it.sala.abrirEscolha();
     await waitFor(

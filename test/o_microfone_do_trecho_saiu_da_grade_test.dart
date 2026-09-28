@@ -3,17 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
 
-import 'a_pergunta_da_grade.dart' show byLabel, pumpToPergunta;
+import 'a_pergunta_da_grade.dart' show pumpToPergunta;
 import 'fakes.dart';
+import 'scenario_helpers.dart';
 
-const umaParteInteira = Duration(seconds: 30);
 const continuarOEnsaioLabel = 'Continuar o ensaio';
 const ouvirOTrechoLabel = 'Ouvir o trecho e a tradução';
 const micParteLabel = 'Gravar a parte de novo na língua materna';
@@ -36,33 +35,6 @@ List<String> botoesDoAchado(WidgetTester tester) => [
     botao.semanticLabel,
 ];
 
-Future<void> gravarUmaParte(
-  WidgetTester tester,
-  SalaSessionNotifier sala,
-) async {
-  sala.ensaioTap();
-  sala.ensaioTap();
-  await tester.pump(const Duration(milliseconds: 100));
-  sala.takeKeep();
-  await letTheRehearsalReachTheRoom(tester);
-}
-
-Future<void> traduzirAParteInteira(
-  WidgetTester tester,
-  SalaHarness harness,
-  ProviderContainer container,
-) async {
-  final sala = container.read(salaSessionProvider.notifier);
-  harness.playback.at = umaParteInteira;
-  sala.cortarTrecho();
-  sala.retroTap();
-  await tester.pump(const Duration(milliseconds: 200));
-  await confirmarATraducaoNaTela(tester, container);
-  await tester.pump(const Duration(milliseconds: 600));
-  harness.playback.finishPlayback();
-  await tester.pump(const Duration(milliseconds: 200));
-}
-
 /// A team that recorded the rehearsal in three parts and told every one of them back
 /// whole, standing on the verdict's answer.
 ///
@@ -75,7 +47,7 @@ Future<ProviderContainer> aPerguntaSobreAParteDois(
 }) async {
   harness.room
     ..verdictChecked = false
-    ..verdictFinding = BtFindingKind.missing
+    ..verdictHasFinding = true
     ..verdictFindingPlace = lugar;
   harness.playback.length = umaParteInteira;
   final container = harness.container();

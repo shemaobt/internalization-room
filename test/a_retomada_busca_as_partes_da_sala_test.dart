@@ -7,18 +7,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart' show settle;
 
 const _sessao = 'sessao-antiga';
 const _parte = Duration(seconds: 10);
-
-Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) =>
-    Future<void>.delayed(delay);
 
 /// The room's own recordings of a rehearsal of [partes] parts, as the listing answers.
 List<TakeView> _naSala(int partes) => [
@@ -150,7 +147,7 @@ Future<void> _regravarAParteDois(_Retomada it) async {
   await waitFor('a parte no ar acabar de tocar', () => it.estado.btClipEnded);
   it.harness.room
     ..verdictChecked = false
-    ..verdictFinding = BtFindingKind.missing
+    ..verdictHasFinding = true
     ..verdictFindingSegmentId = 'trecho-2';
   await it.sala.finishBackTranslation();
   await waitFor(

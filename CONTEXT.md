@@ -27,7 +27,7 @@ The green check on the Conversation that closes it and opens the Rehearsal, reac
 _Avoid_: botão de gravar, record button, green microphone (the glyph it wore until 2026-09-25), handoff, rehearsal gate (it gates nothing)
 
 **Back-translation** (`retro`):
-The station where the rehearsal recording plays back and the team tells, stretch by stretch and in the bridge language, what each piece says, until `terminei` fires the check.
+The station where the rehearsal recording plays back and the team tells, stretch by stretch and in the bridge language, what each piece says, until "Conferir a tradução" fires the check.
 On screen and in the voice its Portuguese is *traduzir / tradução*; *contar* belongs to the Conversation alone, and *recontar* to the External Check.
 _Avoid_: retrotradução, retro in prose (`retro` is the code prefix, not the term), contar de volta, contado de volta, reconto, recontar
 
@@ -147,7 +147,7 @@ The point inside a part's own file where the telling-back stopped, from which a 
 _Avoid_: cursor da retro, playhead, reading head (what the necklace draws above the cord)
 
 **Listening ledger** (`escuta das partes`):
-What the team heard of each part of its rehearsal, kept one part at a time, in that part's own milliseconds and keyed by the recording the part was kept as. A part recorded again starts its listening over while the others keep theirs, and a part the room has not named yet is left out of the report the tablet sends at *terminei*.
+What the team heard of each part of its rehearsal, kept one part at a time, in that part's own milliseconds and keyed by the recording the part was kept as. A part recorded again starts its listening over while the others keep theirs, and a part the room has not named yet is left out of the report the tablet sends when the team fires the check.
 _Avoid_: `_ouvido`, registro de escuta, played ranges, the concatenated passage, the rehearsal's whole length
 
 **Ruler**:

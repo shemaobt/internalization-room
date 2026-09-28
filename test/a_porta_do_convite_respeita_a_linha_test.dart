@@ -11,6 +11,7 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart' show settle;
 
 /// The passage the room answers with when this tablet asks for the panorama.
 const _passagem = 'P02';
@@ -26,9 +27,6 @@ const _panorama = Passagem(
   kind: PassagemKind.panorama,
 );
 const _p01 = Passagem(pericope: 'P01', audioUrl: '/voice/p01');
-
-Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) =>
-    Future<void>.delayed(delay);
 
 /// What the room hands back of the telling-back the team had already done.
 const _contado = BackTranslationProgress(

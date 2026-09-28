@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -15,14 +14,10 @@ import 'package:internalization_room/features/sala/presentation/widgets/ensaio_v
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart';
 
 const continuarOEnsaio = 'Continuar o ensaio';
 const irParaARetro = 'Ir para a tradução';
-const umaParteInteira = Duration(seconds: 30);
-
-Finder byLabel(String label) => find.byWidgetPredicate(
-  (widget) => widget is Semantics && widget.properties.label == label,
-);
 
 List<String?> gravacoesDe(SalaSessionState state) => [
   for (final take in state.keptTakes) take.takeId,
@@ -42,9 +37,6 @@ int ouvidoAteMs(List<List<int>> ranges) {
   }
   return ate;
 }
-
-Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) =>
-    Future<void>.delayed(delay);
 
 /// Ask, rather than guess, when the disk or the room has done its part.
 /// A tablet closed on the rehearsal of a passage told back in three parts, and opened
@@ -123,36 +115,6 @@ Future<KeptTake> gravarMaisUmaParte(ProviderContainer container) async {
   return container.read(salaSessionProvider).keptTakes.last;
 }
 
-/// Record one part and keep it: the two taps are start and stop, the way the team taps
-/// the circle, and the keep waits for the room to name the recording.
-Future<void> gravarUmaParte(
-  WidgetTester tester,
-  SalaSessionNotifier notifier,
-) async {
-  notifier.ensaioTap();
-  notifier.ensaioTap();
-  await tester.pump(const Duration(milliseconds: 100));
-  notifier.takeKeep();
-  await letTheRehearsalReachTheRoom(tester);
-}
-
-/// Tell the part in the air back whole, from its beginning to its end, then let it finish.
-Future<void> traduzirAParteInteira(
-  WidgetTester tester,
-  SalaHarness harness,
-  ProviderContainer container,
-) async {
-  final notifier = container.read(salaSessionProvider.notifier);
-  harness.playback.at = umaParteInteira;
-  notifier.cortarTrecho();
-  notifier.retroTap();
-  await tester.pump(const Duration(milliseconds: 200));
-  await confirmarATraducaoNaTela(tester, container);
-  await tester.pump(const Duration(milliseconds: 600));
-  harness.playback.finishPlayback();
-  await tester.pump(const Duration(milliseconds: 200));
-}
-
 /// A team that recorded the passage in three parts, told every part back whole and got
 /// everything right — and did not record the end of the story. The analyst says a part
 /// is missing and cannot place it in any stretch, so the finding carries no address.
@@ -166,7 +128,7 @@ Future<ProviderContainer> aHistoriaSemOFim(
 }) async {
   harness.room
     ..verdictChecked = false
-    ..verdictFinding = BtFindingKind.missing
+    ..verdictHasFinding = true
     ..verdictFindingSegmentId = ondeFalta;
   harness.playback.length = umaParteInteira;
   final container = harness.container();
@@ -237,10 +199,6 @@ void main() {
     expect(
       harness.room.calls.sublist(pedidos),
       isNot(contains('replaceSegment')),
-    );
-    expect(
-      harness.room.calls.sublist(pedidos),
-      isNot(contains('divideSegment')),
     );
     expect(
       harness.room.segmentIds,
@@ -376,7 +334,6 @@ void main() {
     );
     expect(harness.room.chunkSpans.sublist(contadosAntes), ['0-12000']);
     expect(harness.room.replacesAsked, isEmpty);
-    expect(harness.room.dividesAsked, isEmpty);
     expect(trechosDe(agora).sublist(0, 3), antigas);
     expect(agora.btTrechos, hasLength(4));
 

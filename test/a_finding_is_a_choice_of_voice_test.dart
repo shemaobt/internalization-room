@@ -10,8 +10,9 @@ import 'package:internalization_room/features/sala/presentation/widgets/retro_vi
 
 import 'fakes.dart';
 import 'resto_da_historia_test.dart' show aHistoriaSemOFim;
+import 'scenario_helpers.dart';
 import 'the_translation_is_recorded_over_until_the_check_test.dart'
-    show aceso, byLabel, olhar, tocar;
+    show aceso, olhar, tocar;
 
 const ouvirOAchado = 'Ouvir o achado de novo';
 const ouvirOTrechoEATraducao = 'Ouvir o trecho e a tradução';

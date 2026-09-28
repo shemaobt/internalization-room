@@ -10,11 +10,8 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'session_notifier_test.dart' show inConversa, settle;
-
-/// How many times the tablet has asked the room what it is doing.
-int _stateReads(SalaHarness harness) =>
-    harness.room.calls.where((call) => call == 'fetchState').length;
+import 'scenario_helpers.dart';
+import 'session_notifier_test.dart' show inConversa;
 
 /// A whole turn, from the team touching the circle to the room hearing it.
 Future<void> _aTurn(SalaSessionNotifier notifier) async {
@@ -92,10 +89,10 @@ void main() {
     );
     expect(harness.room.calls, isNot(contains('askForAPerson')));
 
-    final asked = _stateReads(harness);
+    final asked = stateReads(harness);
     await waitFor(
       'a vigia continuar batendo',
-      () => _stateReads(harness) > asked,
+      () => stateReads(harness) > asked,
     );
   });
 
@@ -119,10 +116,10 @@ void main() {
     );
     expect(harness.room.calls, isNot(contains('askForAPerson')));
 
-    final asked = _stateReads(harness);
+    final asked = stateReads(harness);
     await waitFor(
       'a vigia continuar batendo',
-      () => _stateReads(harness) > asked,
+      () => stateReads(harness) > asked,
     );
   });
 
@@ -147,10 +144,10 @@ void main() {
     );
     expect(harness.room.calls, isNot(contains('askForAPerson')));
 
-    final asked = _stateReads(harness);
+    final asked = stateReads(harness);
     await waitFor(
       'a vigia continuar batendo',
-      () => _stateReads(harness) > asked,
+      () => stateReads(harness) > asked,
     );
   });
 

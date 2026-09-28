@@ -12,6 +12,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/retro_vi
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart';
 
 const parte = Duration(seconds: 10);
 const cabeca = Duration(seconds: 4);
@@ -27,10 +28,6 @@ const tesoura = 'Cortar aqui';
 const confirmar = 'Confirmar a tradução e seguir';
 const conferir = 'Conferir a tradução';
 const aprovar = 'Aprovar como rascunho final';
-
-Finder byLabel(String label) => find.byWidgetPredicate(
-  (widget) => widget is Semantics && widget.properties.label == label,
-);
 
 bool aceso(WidgetTester tester, String label) {
   final semantics = tester.widget<Semantics>(byLabel(label));
@@ -52,19 +49,6 @@ bool aceso(WidgetTester tester, String label) {
   );
   return enabled;
 }
-
-List<String> contas(WidgetTester tester) => [
-  for (final conta
-      in tester
-          .widget<BeadRow>(
-            find.descendant(
-              of: find.byType(RetroView),
-              matching: find.byType(BeadRow),
-            ),
-          )
-          .entries)
-    '${conta.fill.name}${conta.current ? ' com anel' : ''}',
-];
 
 Finder corda() => find.byWidgetPredicate(
   (widget) => widget.runtimeType.toString() == 'RetroCord',
@@ -299,11 +283,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(harness.room.playedByTakeSent, hasLength(1));
-    expect(
-      byLabel('Terminei de traduzir'),
-      findsNothing,
-      reason: 'o disco de avanço é a única saída',
-    );
     closeTheRoom(container);
   });
 

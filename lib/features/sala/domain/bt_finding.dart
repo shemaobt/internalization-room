@@ -1,13 +1,3 @@
-enum BtFindingKind { missing, addition, unclear }
-
-const _wireNames = {
-  'missing': BtFindingKind.missing,
-  'addition': BtFindingKind.addition,
-  'unclear': BtFindingKind.unclear,
-};
-
-BtFindingKind? btFindingKindFrom(String? raw) => _wireNames[raw];
-
 class BackTranslationChunk {
   final bool captured;
 
@@ -21,7 +11,6 @@ class BackTranslationVerdict {
   final String audioUrl;
   final String fixedLine;
   final bool checked;
-  final BtFindingKind? findingKind;
   final String? findingSegmentId;
 
   /// The stretch the team recorded in the mother tongue and never told back, when that is
@@ -59,7 +48,6 @@ class BackTranslationVerdict {
     required this.audioUrl,
     required this.fixedLine,
     required this.checked,
-    required this.findingKind,
     required this.findingSegmentId,
     this.untoldSegmentId,
     this.unheardTakeIds = const [],
@@ -73,7 +61,6 @@ class BackTranslationVerdict {
         audioUrl: json['audio_url'] as String? ?? '',
         fixedLine: json['fixed_line'] as String? ?? '',
         checked: json['checked'] as bool? ?? false,
-        findingKind: btFindingKindFrom(json['finding_kind'] as String?),
         findingSegmentId: json['finding_segment_id'] as String?,
         untoldSegmentId: json['untold_segment_id'] as String?,
         unheardTakeIds: [

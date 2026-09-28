@@ -5,8 +5,8 @@ import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'resto_da_historia_test.dart'
-    show aRetomadaNoEnsaio, gravarMaisUmaParte, settle, umaParteInteira;
+import 'resto_da_historia_test.dart' show aRetomadaNoEnsaio, gravarMaisUmaParte;
+import 'scenario_helpers.dart' show settle, umaParteInteira;
 
 /// Record one part over the real outbox and keep it, without waiting for the room to
 /// name it. Two of these back to back are what a team recording two parts on the way
