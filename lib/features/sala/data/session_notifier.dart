@@ -2651,10 +2651,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// be decoded, is cut short, or never arrives stays unheard.
   ///
   /// It is offered again on the next touch of the hand, with no count of failures. While
-  /// it stays unheard the hand plays it before it lets the team ask anything, so a clip
-  /// that never decodes holds the gesture until the facilitator records it again or it
-  /// plays. The inbox is read again on the failure, as it is after a refused mark, so a
-  /// reply recorded again reaches the hand at its new address.
+  /// it stays unheard the hand plays it before it lets the team ask anything. A clip cut
+  /// short or not served plays on a later touch, but one that never decodes is served
+  /// from the tablet's copy every time and holds the gesture until the facilitator
+  /// records it again. The inbox is read again on the failure, as it is after a refused
+  /// mark, so a reply recorded again reaches the hand at its new address.
   ///
   /// A room that cannot serve the clip is one more way for an answer not to play, and it is
   /// treated the same way — never through `_handleRoomFailure`. The hand is a side
