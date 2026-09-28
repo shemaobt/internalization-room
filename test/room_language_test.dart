@@ -689,7 +689,7 @@ void main() {
         await tester.pump(const Duration(milliseconds: 80));
 
         expect(
-          bySemanticsLabelWidget(expected[language]!),
+          byLabel(expected[language]!),
           findsOneWidget,
           reason:
               'esta tela falava as duas línguas por um switch próprio, que o guard '
