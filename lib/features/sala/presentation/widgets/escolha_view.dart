@@ -31,10 +31,8 @@ class EscolhaView extends ConsumerWidget {
           voice: session.voice,
           reach: session.reach,
           semanticLabel: switch (session) {
-            _ when session.livroInteiroFeito => escolhaLabelFor(
-              'allDone',
-              language,
-            ),
+            _ when session.livroInteiroFeito || session.wheelHalted =>
+              escolhaLabelFor('allDone', language),
             _ when session.rodaPorLer => escolhaLabelFor(
               'readTheWheel',
               language,
@@ -78,6 +76,11 @@ class EscolhaView extends ConsumerWidget {
           finished: {
             for (var index = 0; index < roda.length; index++)
               if (session.feitas.contains(roda[index].pericope)) index,
+          },
+          refused: {
+            for (var index = 0; index < roda.length; index++)
+              if (session.refusedThisVisit.contains(roda[index].pericope))
+                index,
           },
           hint: podeEntrar,
           onAim: notifier.apontarPassagem,
