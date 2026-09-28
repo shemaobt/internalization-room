@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/approval_answer.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -463,7 +462,7 @@ void main() {
   testWidgets('o botão de aprovar só existe em conferida', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true)
       ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.addition
+      ..room.verdictHasFinding = true
       ..room.verdictFindingSegmentId = 'trecho-1';
     final container = harness.container();
     addTearDown(container.dispose);

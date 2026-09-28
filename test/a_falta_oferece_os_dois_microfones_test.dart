@@ -25,7 +25,7 @@ Future<ProviderContainer> pumpToPergunta(
 }) async {
   final harness = SalaHarness(filaEmMemoria: true)
     ..room.verdictChecked = false
-    ..room.verdictFinding = finding
+    ..room.verdictHasFinding = true
     ..room.verdictFindingSegmentId = trecho;
   final container = harness.container();
   addTearDown(container.dispose);

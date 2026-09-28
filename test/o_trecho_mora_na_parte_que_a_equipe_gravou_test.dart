@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -219,7 +218,7 @@ void main() {
     () async {
       final harness = SalaHarness()
         ..room.verdictChecked = false
-        ..room.verdictFinding = BtFindingKind.unclear
+        ..room.verdictHasFinding = true
         ..room.verdictFindingSegmentId = 'trecho-2';
       final it = await _reabrir(
         harness,

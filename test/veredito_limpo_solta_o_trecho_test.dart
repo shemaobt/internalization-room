@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
@@ -44,7 +43,7 @@ List<int> _faixasVazias(WidgetTester tester, ProviderContainer container) => [
 Future<ProviderContainer> _pumpToPergunta(WidgetTester tester) async {
   final harness = SalaHarness(filaEmMemoria: true)
     ..room.verdictChecked = false
-    ..room.verdictFinding = BtFindingKind.addition
+    ..room.verdictHasFinding = true
     ..room.verdictFindingSegmentId = 'trecho-1';
   _harnessDaVez = harness;
   final container = harness.container();
@@ -110,7 +109,7 @@ Future<void> _oVeredictoVoltaLimpo(
   ProviderContainer container,
 ) async {
   _harnessDaVez!.room.verdictChecked = true;
-  _harnessDaVez!.room.verdictFinding = null;
+  _harnessDaVez!.room.verdictHasFinding = false;
   _harnessDaVez!.room.verdictFindingSegmentId = null;
   _harnessDaVez!.playback.finishPlayback();
   await tester.pump(const Duration(milliseconds: 200));
@@ -205,7 +204,7 @@ void main() {
 
     // O analista continua insatisfeito com o mesmo trecho.
     harness.room.verdictChecked = false;
-    harness.room.verdictFinding = BtFindingKind.addition;
+    harness.room.verdictHasFinding = true;
     harness.room.verdictFindingSegmentId = 'trecho-1';
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 200));

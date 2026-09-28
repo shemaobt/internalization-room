@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
@@ -48,7 +47,7 @@ Future<ProviderContainer> _pumpToPergunta(
 }) async {
   final harness = SalaHarness(filaEmMemoria: true, busyCeiling: teto)
     ..room.verdictChecked = false
-    ..room.verdictFinding = BtFindingKind.addition
+    ..room.verdictHasFinding = true
     ..room.verdictFindingSegmentId = 'trecho-1';
   _harnessDaVez = harness;
   final container = harness.container();

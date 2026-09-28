@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -75,7 +74,7 @@ Future<void> traduzirDeNovoOApontado(
 /// mudaria o nome debaixo deles.
 Future<ProviderContainer> achadoComAvisoAtivo(SalaHarness harness) async {
   harness.room.verdictChecked = false;
-  harness.room.verdictFinding = BtFindingKind.addition;
+  harness.room.verdictHasFinding = true;
   harness.room.verdictFindingPlace = 0;
 
   final container = await _inRetro(harness);

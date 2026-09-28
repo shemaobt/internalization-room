@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -10,7 +9,7 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'um_ensaio_de_tres_partes.dart' hide gravarUmaParte;
+import 'um_ensaio_de_tres_partes.dart';
 import 'scenario_helpers.dart';
 
 const _gravarOEnsaio = 'Tocar para gravar o ensaio';
@@ -82,7 +81,7 @@ Future<(ProviderContainer, SalaHarness)> _achadoNaParteUm(
 ) async {
   final harness = SalaHarness()
     ..room.verdictChecked = false
-    ..room.verdictFinding = BtFindingKind.missing
+    ..room.verdictHasFinding = true
     ..room.verdictFindingPlace = 0;
   final container = await pumpSala(tester, harness);
   final notifier = container.read(salaSessionProvider.notifier);
@@ -127,7 +126,7 @@ Future<Sala> _achadoNaParteDois() async {
   final it = await umEnsaioDeTresPartesContadoInteiro();
   it.harness.room
     ..verdictChecked = false
-    ..verdictFinding = BtFindingKind.missing
+    ..verdictHasFinding = true
     ..verdictFindingPlace = 1;
   await pedirOVeredito(it);
   it.sala.gravarAParteDeNovo();
@@ -171,7 +170,7 @@ Future<ProviderContainer> _achadoNaParteDoisNaTela(
 ) async {
   harness.room
     ..verdictChecked = false
-    ..verdictFinding = BtFindingKind.missing
+    ..verdictHasFinding = true
     ..verdictFindingPlace = 1;
   harness.playback.length = umaParteInteira;
   final container = harness.container();

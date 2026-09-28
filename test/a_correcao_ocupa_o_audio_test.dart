@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -19,7 +18,7 @@ Future<Sala> _aSalaNaPergunta({int lugar = 1}) async {
   final harness = SalaHarness()
     ..playback.length = _umaParte
     ..room.verdictChecked = false
-    ..room.verdictFinding = BtFindingKind.addition
+    ..room.verdictHasFinding = true
     ..room.verdictFindingPlace = lugar;
   final container = harness.container();
   addTearDown(container.dispose);
@@ -28,8 +27,8 @@ Future<Sala> _aSalaNaPergunta({int lugar = 1}) async {
   await it.sala.goConversa();
   await waitFor('a sala abrir', () => it.estado.sessionId != null);
   it.sala.goEnsaio();
-  await gravarUmaParte(it);
-  await gravarUmaParte(it);
+  await gravarUmaParteDoEnsaio(it);
+  await gravarUmaParteDoEnsaio(it);
   it.sala.startRetro();
   await waitFor(
     'a tradução começar a tocar a primeira parte',

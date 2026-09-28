@@ -29,7 +29,7 @@ Future<ProviderContainer> pumpToPergunta(
 }) async {
   final harness = SalaHarness(filaEmMemoria: true)
     ..room.verdictChecked = false
-    ..room.verdictFinding = finding
+    ..room.verdictHasFinding = true
     ..room.verdictFindingSegmentId = trecho;
   harnessDaVez = harness;
   final container = harness.container();
@@ -688,7 +688,7 @@ void main() {
       final harness = harnessDaVez!;
       harness.room.replaceNeedsPerson = true;
       harness.room.verdictChecked = true;
-      harness.room.verdictFinding = null;
+      harness.room.verdictHasFinding = false;
 
       await traduzirDeNovo(tester, container);
       await tester.pump(const Duration(milliseconds: 900));
@@ -734,7 +734,7 @@ void main() {
     final container = await pumpToPergunta(tester);
     final harness = harnessDaVez!;
     harness.room.verdictChecked = true;
-    harness.room.verdictFinding = null;
+    harness.room.verdictHasFinding = false;
 
     await traduzirDeNovo(tester, container);
     await tester.pump(const Duration(milliseconds: 900));

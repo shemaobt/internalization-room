@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -535,7 +534,7 @@ void main() {
     await waitFor('o trecho chegar à sala', () => harness.room.chunksSent == 1);
 
     harness.room.verdictChecked = false;
-    harness.room.verdictFinding = BtFindingKind.addition;
+    harness.room.verdictHasFinding = true;
     harness.room.verdictFindingSegmentId = harness.room.segments.last.segmentId;
     harness.playback.finishPlayback();
     await waitFor(

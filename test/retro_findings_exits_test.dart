@@ -22,7 +22,7 @@ Future<ProviderContainer> pumpToFindings(
   harness ??= SalaHarness(filaEmMemoria: true);
   harness
     ..room.verdictChecked = false
-    ..room.verdictFinding = finding
+    ..room.verdictHasFinding = finding != null
     ..room.verdictFindingSegmentId = trecho;
   final container = harness.container();
   addTearDown(container.dispose);

@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -176,7 +175,7 @@ void main() {
     final harness = SalaHarness(clipGrace: const Duration(milliseconds: 60))
       ..playback.length = const Duration(milliseconds: 600)
       ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.missing
+      ..room.verdictHasFinding = true
       ..room.verdictFindingSegmentId = 'trecho-1';
     final container = await inConversa(harness);
     addTearDown(container.dispose);

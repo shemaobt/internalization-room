@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
@@ -48,7 +47,7 @@ Future<ProviderContainer> aPerguntaSobreAParteDois(
 }) async {
   harness.room
     ..verdictChecked = false
-    ..verdictFinding = BtFindingKind.missing
+    ..verdictHasFinding = true
     ..verdictFindingPlace = lugar;
   harness.playback.length = umaParteInteira;
   final container = harness.container();

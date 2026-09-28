@@ -207,7 +207,7 @@ void main() {
   ) async {
     final harness = SalaHarness(filaEmMemoria: true)
       ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.unclear;
+      ..room.verdictHasFinding = true;
     final container = await pumpUpToAVerdict(tester, harness);
 
     final antes = container.read(salaSessionProvider);
@@ -264,7 +264,7 @@ void main() {
   ) async {
     final harness = SalaHarness(filaEmMemoria: true)
       ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.missing
+      ..room.verdictHasFinding = true
       ..room.verdictFindingSegmentId = 'trecho-1';
     final container = await pumpUpToAVerdict(tester, harness);
 
@@ -279,7 +279,7 @@ void main() {
       'achados', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true)
       ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.missing
+      ..room.verdictHasFinding = true
       ..room.verdictFindingSegmentId = 'trecho-1';
     // Armada de dentro da própria pergunta do veredito: a leitura dos nomes é o pedido
     // logo a seguir a ela, e é essa que tem de falhar. Armada antes, qualquer leitura do

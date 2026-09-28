@@ -1,13 +1,5 @@
 enum BtFindingKind { missing, addition, unclear }
 
-const _wireNames = {
-  'missing': BtFindingKind.missing,
-  'addition': BtFindingKind.addition,
-  'unclear': BtFindingKind.unclear,
-};
-
-BtFindingKind? btFindingKindFrom(String? raw) => _wireNames[raw];
-
 class BackTranslationChunk {
   final bool captured;
 

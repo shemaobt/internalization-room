@@ -110,7 +110,7 @@ Future<ProviderContainer> pumpToFindings(
 ) async {
   final harness = SalaHarness()
     ..room.verdictChecked = false
-    ..room.verdictFinding = finding;
+    ..room.verdictHasFinding = finding != null;
   final container = await pumpSala(tester, harness);
   final notifier = container.read(salaSessionProvider.notifier);
 
@@ -965,7 +965,7 @@ void main() {
   ) async {
     final harness = SalaHarness(filaEmMemoria: true)
       ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.addition
+      ..room.verdictHasFinding = true
       ..room.verdictFindingSegmentId = 'trecho-1';
     final container = await pumpSala(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -1030,34 +1030,37 @@ void main() {
     expect(byLabel(continuarOEnsaio), findsOneWidget);
   });
 
-  for (final kind in [BtFindingKind.missing, BtFindingKind.unclear]) {
-    testWidgets('a ${kind.name} finding with no stretch offers the way on', (
-      tester,
-    ) async {
-      final container = await pumpToFindings(tester, kind);
+  testWidgets('a finding with no stretch offers the way on', (tester) async {
+    final container = await pumpToFindings(tester, BtFindingKind.missing);
 
-      expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
-      expect(byLabel(wholeClipExit), findsNothing);
-      expect(byLabel(continuarOEnsaio), findsOneWidget);
-    });
-  }
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
+    expect(byLabel(wholeClipExit), findsNothing);
+    expect(byLabel(continuarOEnsaio), findsOneWidget);
+  });
 
-  for (final kind in <BtFindingKind?>[...BtFindingKind.values, null]) {
-    testWidgets(
-      'a ${kind?.name ?? 'kind this build does not know'} finding always '
-      'leaves the team a way out',
-      (tester) async {
-        final container = await pumpToFindings(tester, kind);
+  testWidgets('a finding always leaves the team a way out', (tester) async {
+    final container = await pumpToFindings(tester, BtFindingKind.missing);
 
-        expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
-        final offered =
-            byLabel(retellExit).evaluate().length +
-            byLabel(wholeClipExit).evaluate().length +
-            byLabel(continuarOEnsaio).evaluate().length;
-        expect(offered, greaterThan(0));
-      },
-    );
-  }
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
+    final offered =
+        byLabel(retellExit).evaluate().length +
+        byLabel(wholeClipExit).evaluate().length +
+        byLabel(continuarOEnsaio).evaluate().length;
+    expect(offered, greaterThan(0));
+  });
+
+  testWidgets('no finding at all still leaves the team a way out', (
+    tester,
+  ) async {
+    final container = await pumpToFindings(tester, null);
+
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
+    final offered =
+        byLabel(retellExit).evaluate().length +
+        byLabel(wholeClipExit).evaluate().length +
+        byLabel(continuarOEnsaio).evaluate().length;
+    expect(offered, greaterThan(0));
+  });
 
   testWidgets('the ensaio lights its play once there is a part to hear', (
     tester,

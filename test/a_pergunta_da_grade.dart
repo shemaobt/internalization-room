@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -16,7 +15,7 @@ Future<(ProviderContainer, SalaHarness)> pumpToPergunta(
 ) async {
   final harness = SalaHarness(filaEmMemoria: true)
     ..room.verdictChecked = false
-    ..room.verdictFinding = BtFindingKind.addition
+    ..room.verdictHasFinding = true
     ..room.verdictFindingSegmentId = 'trecho-1';
   final container = harness.container();
   addTearDown(container.dispose);

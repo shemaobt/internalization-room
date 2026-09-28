@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -129,7 +128,7 @@ Future<ProviderContainer> aHistoriaSemOFim(
 }) async {
   harness.room
     ..verdictChecked = false
-    ..verdictFinding = BtFindingKind.missing
+    ..verdictHasFinding = true
     ..verdictFindingSegmentId = ondeFalta;
   harness.playback.length = umaParteInteira;
   final container = harness.container();

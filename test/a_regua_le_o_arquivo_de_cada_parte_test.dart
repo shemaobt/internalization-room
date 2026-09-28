@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -16,7 +15,7 @@ Future<Sala> _aSalaNoAchadoDaSegundaParte({Duration? tetoDaEspera}) async {
   );
   it.harness.room
     ..verdictChecked = false
-    ..verdictFinding = BtFindingKind.addition
+    ..verdictHasFinding = true
     ..verdictFindingPlace = 1;
   await pedirOVeredito(it);
   return it;
@@ -60,7 +59,7 @@ Future<void> _regravarASegundaParte(
 void _aSalaVaiRecusar(Sala it, String naoOuvida) {
   it.harness.room
     ..verdictChecked = false
-    ..verdictFinding = null
+    ..verdictHasFinding = false
     ..verdictFindingPlace = null
     ..verdictUnheardTakeIds = [naoOuvida];
 }
