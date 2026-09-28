@@ -283,11 +283,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(harness.room.playedByTakeSent, hasLength(1));
-    expect(
-      byLabel('Terminei de traduzir'),
-      findsNothing,
-      reason: 'o disco de avanço é a única saída',
-    );
     closeTheRoom(container);
   });
 

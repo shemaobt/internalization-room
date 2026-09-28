@@ -16,11 +16,8 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'resto_da_historia_test.dart' as resto;
-import 'scenario_helpers.dart'
-    as resto
-    show gravarUmaParte, umaParteInteira, settle;
-import 'um_ensaio_de_tres_partes.dart';
 import 'scenario_helpers.dart';
+import 'um_ensaio_de_tres_partes.dart';
 
 const _aprovar = 'Aprovar como rascunho final';
 const _ouvir = 'Ouvir a gravação';
@@ -983,7 +980,7 @@ void main() {
         ..verdictChecked = false
         ..verdictHasFinding = true
         ..verdictFindingSegmentId = 'trecho-fantasma';
-      harness.playback.length = resto.umaParteInteira;
+      harness.playback.length = umaParteInteira;
       final container = harness.container();
       addTearDown(container.dispose);
       final it = Sala(harness, container);
@@ -1010,7 +1007,7 @@ void main() {
       final enviadas = List.of(it.harness.room.takesKept);
 
       it.sala.gravarAParteDeNovo();
-      await resto.settle();
+      await settle();
 
       expect(
         it.estado.needsPerson,
@@ -1028,7 +1025,7 @@ void main() {
       );
 
       it.sala.ensaioTap();
-      await resto.settle();
+      await settle();
       expect(
         it.harness.room.takesKept,
         enviadas,
@@ -1218,7 +1215,7 @@ void main() {
       ondeFalta: 'trecho-2',
     );
     for (final parte in container.read(salaSessionProvider).partes) {
-      harness.playback.lengths[parte.path] = resto.umaParteInteira;
+      harness.playback.lengths[parte.path] = umaParteInteira;
     }
     harness.playback.measured = const Duration(seconds: 12);
 
@@ -1486,7 +1483,7 @@ Future<_Conferida> _ateAConferida(
 }) async {
   final harness = SalaHarness(filaEmMemoria: true, fimLinger: fimLinger)
     ..room.verdictChecked = true;
-  harness.playback.length = resto.umaParteInteira;
+  harness.playback.length = umaParteInteira;
   final container = harness.container();
   addTearDown(container.dispose);
   await tester.pumpWidget(
@@ -1499,10 +1496,10 @@ Future<_Conferida> _ateAConferida(
   await tester.pump(const Duration(milliseconds: 200));
   notifier.goEnsaio();
   await tester.pump(const Duration(milliseconds: 100));
-  await resto.gravarUmaParte(tester, notifier);
+  await gravarUmaParte(tester, notifier);
   notifier.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
-  harness.playback.at = resto.umaParteInteira;
+  harness.playback.at = umaParteInteira;
   notifier.cortarTrecho();
   notifier.retroTap();
   await tester.pump(const Duration(milliseconds: 200));
