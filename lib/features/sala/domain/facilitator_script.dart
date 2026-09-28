@@ -154,15 +154,20 @@ const rehearsalLabels = {
     'pt': 'Tocar para gravar esta parte de novo',
     'en': 'Tap to record this part again',
   },
-  'partAgain': {
-    'pt': 'Gravar a parte {n} de novo',
-    'en': 'Record part {n} again',
-  },
   'play': {'pt': 'Ouvir o ensaio até aqui', 'en': 'Hear the rehearsal so far'},
   'pause': {'pt': 'Pausar o ensaio', 'en': 'Pause the rehearsal'},
   'check': {'pt': 'Confirmar esta parte', 'en': 'Confirm this part'},
   'advance': {'pt': 'Ir para a tradução', 'en': 'Go to the translation'},
   'part': {'pt': 'Parte {n}', 'en': 'Part {n}'},
+  'partPlaying': {'pt': 'Parte {n}, tocando', 'en': 'Part {n}, playing'},
+  'partNotDelivered': {
+    'pt': 'Parte {n}, ainda não enviada',
+    'en': 'Part {n}, not sent yet',
+  },
+  'partPlayingNotDelivered': {
+    'pt': 'Parte {n}, tocando, ainda não enviada',
+    'en': 'Part {n}, playing, not sent yet',
+  },
 };
 
 String rehearsalLabelFor(String state, String language, {int? part}) =>

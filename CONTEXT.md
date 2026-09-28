@@ -171,7 +171,7 @@ A Meaning Map element represented on the necklace, moving through not encountere
 _Avoid_: conta, pearl, item, part bead or stretch bead (those sit on the Bead row)
 
 **Bead row**:
-The row at the top of the Rehearsal, the Back-translation and the findings, one bead per Part or Stretch: translucent while its recording is open or pending, solid once confirmed, drained while a finding points at it, ringed while it is the current one; a tap selects it and plays it.
+The row at the top of the Rehearsal, the Back-translation and the findings, one bead per Part or Stretch: translucent while its recording is open or pending, solid once confirmed, drained while a finding points at it, ringed while it is the current one; a tap selects it and plays it. A dimmed bead is the exception: it does not apply right now, and a tap on it does nothing.
 _Avoid_: cord, band, reading head (the cord, its strokes and its dot, retired on 2026-09-25), contas, bits, progress bar
 
 **Circle**:

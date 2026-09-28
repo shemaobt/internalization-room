@@ -232,6 +232,32 @@ class SalaSessionState {
   /// replacing one.
   final int? parteARegravar;
 
+  /// Which part of the rehearsal sounds right now, 0-based, or null when nothing plays.
+  ///
+  /// The Bead row's ring follows this rather than the play/pause flags alone: the whole
+  /// rehearsal's play walks it forward as the head crosses each part's boundary, and a tap
+  /// on one bead sets it to that part alone. A pending take standing in [parteARegravar]'s
+  /// place still carries its own part number here, so the ring lands on the right bead
+  /// while it sounds.
+  ///
+  /// Named apart from the notifier's own `_parteTocando` (the back-translation part in the
+  /// air): the two sit in different stations and would otherwise read as the same fact.
+  final int? parteDoEnsaioTocando;
+
+  /// Whether the bead at [index] does not apply right now (ADR 0040: dimmed means it does
+  /// not apply). True for every part but the one a finding sent the team back to record,
+  /// while that record-again stands open and nothing has been recorded for it yet. Once
+  /// that recording is pending — waiting for the green check — every bead applies again,
+  /// so this reads false throughout: the one rule the row and the tap both read, instead
+  /// of the row drawing dim on a bead the tap would still play.
+  bool beadIsDimmed(int index) {
+    final again = parteARegravar;
+    return ensaio == EnsaioStatus.idle &&
+        again != null &&
+        again < partes.length &&
+        index != again;
+  }
+
   const SalaSessionState({
     this.stage = SalaStage.convite,
     this.voice = VoiceState.invite,
@@ -287,6 +313,7 @@ class SalaSessionState {
     this.wheelHalted = false,
     this.refusedThisVisit = const {},
     this.parteARegravar,
+    this.parteDoEnsaioTocando,
   });
 
   bool get colarOn => stage == SalaStage.conversa || stage == SalaStage.fim;
@@ -547,6 +574,8 @@ class SalaSessionState {
     Set<String>? refusedThisVisit,
     int? parteARegravar,
     bool clearParteARegravar = false,
+    int? parteDoEnsaioTocando,
+    bool clearParteDoEnsaioTocando = false,
   }) {
     return SalaSessionState(
       stage: stage ?? this.stage,
@@ -617,6 +646,9 @@ class SalaSessionState {
       parteARegravar: clearParteARegravar
           ? null
           : (parteARegravar ?? this.parteARegravar),
+      parteDoEnsaioTocando: clearParteDoEnsaioTocando
+          ? null
+          : (parteDoEnsaioTocando ?? this.parteDoEnsaioTocando),
     );
   }
 }
