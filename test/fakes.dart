@@ -1796,6 +1796,13 @@ class FakeTakeQueue implements TakeUploadQueue {
   }
 
   @override
+  Future<void> withdraw(PendingTake row) async {
+    rows.removeWhere(
+      (entry) => !entry.stored && entry.id == row.id && entry.kind == row.kind,
+    );
+  }
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
@@ -1905,6 +1912,7 @@ class SalaHarness {
     this.lingua = testLanguage,
     this.emAbertoNoDisco,
     this.inboxService,
+    this.takesOverride,
   }) : inbox = FakeInbox(replies: replies),
        vinculo = FakeLinkedTeam(remembered: linkedAs);
 
@@ -1920,9 +1928,15 @@ class SalaHarness {
   /// The real ledger, for the tests that need a disk that can refuse.
   final WorkInProgress? emAbertoNoDisco;
 
-  late final TakeUploadQueue takes = filaEmMemoria
-      ? FakeTakeQueue(room: room)
-      : TakeUploadQueue(room: room, home: () async => takesHome);
+  /// A queue built by the test itself, for a disk that needs to misbehave in a way
+  /// none of the ordinary knobs reach.
+  final TakeUploadQueue Function(FakeRoom room, Directory home)? takesOverride;
+
+  late final TakeUploadQueue takes =
+      takesOverride?.call(room, takesHome) ??
+      (filaEmMemoria
+          ? FakeTakeQueue(room: room)
+          : TakeUploadQueue(room: room, home: () async => takesHome));
 
   List<Override> get overrides => [
     facilitatorVoiceProvider.overrideWithValue(voiceService ?? voice),
@@ -2058,4 +2072,13 @@ class QueueHeldOnGiveUps extends TakeUploadQueue {
     await answer.future;
     return super.giveUps();
   }
+}
+
+/// A disk that refuses the withdraw's own write, the way a full one would.
+class QueueWithdrawThrows extends TakeUploadQueue {
+  QueueWithdrawThrows({required super.room, super.home});
+
+  @override
+  Future<void> withdraw(PendingTake row) async =>
+      throw const FileSystemException('disco cheio');
 }

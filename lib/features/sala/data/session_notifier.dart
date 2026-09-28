@@ -225,6 +225,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   final Set<String> _traducoesGuardadas = {};
 
+  /// The outbox row a guarded translation landed on, by the path it was guarded for.
+  ///
+  /// Populated once `_guard` has actually enqueued the file, so a discard that races
+  /// ahead of that enqueue finds nothing to withdraw — the same window `_semNome`
+  /// already lives with for the rehearsal's own rows.
+  final Map<String, PendingTake> _traducaoNaFila = {};
+
   /// The clip is paused. `_onPlaybackComplete` deliberately survives a pause — the resume
   /// still has to be able to end the part — so it cannot be what tells a ceiling whether
   /// there is any sound left to measure.
@@ -1532,6 +1539,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final panorama = _panoramaSessionId!;
     if (path == null || !_hasAudio(path)) {
       state = state.copyWith(voice: VoiceState.invite);
+      if (path != null) unawaited(_recorder.delete(path));
       return;
     }
     _sayImThinking();
@@ -2410,6 +2418,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (sessionId == null) {
       state = state.copyWith(voice: VoiceState.invite);
       _haltForAPerson(sessionIsGone: true);
+      unawaited(_recorder.delete(path));
       return;
     }
     _sayImThinking();
@@ -2676,6 +2685,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // The team raised their hand, spoke a question, and nothing came back from the
       // recorder. Returning to the invite in silence is the room forgetting they asked.
       state = state.copyWith(voice: _voiceBeforeQuestion, noteMode: false);
+      if (path != null) unawaited(_recorder.delete(path));
       return;
     }
     try {
@@ -2933,6 +2943,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // rehearsal into nothing — no bead appeared, and the way to the retro never opened.
       state = state.copyWith(ensaio: _semGravacaoAberta);
       _haltForAPerson();
+      if (path != null) unawaited(_recorder.delete(path));
       return;
     }
     final substituida = _pendingTakePath;
@@ -3104,10 +3115,34 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (kind == 'ensaio') _semNome[linha.id] = path;
+    if (kind == 'retro') _traducaoNaFila[path] = linha;
     await _countUnsent();
     await queue.flush();
     await _countUnsent();
     await _adoptTheNames(queue);
+  }
+
+  /// Take a guarded translation off the outbox, for a path the room will never send
+  /// as a whole-passage take: one recorded over after a refusal, or one told again
+  /// that has since landed by its own door.
+  Future<void> _retirarDaFilaSeGuardada(String path) async {
+    final linha = _traducaoNaFila.remove(path);
+    if (linha == null) return;
+    try {
+      await _takes.withdraw(linha);
+    } on Object catch (error) {
+      // Nothing here is stuck: a manifest write that failed leaves the row pending
+      // and it still goes up, an upload the team never asked twice for but Henok
+      // accepted; a delete that failed after the write leaves only an orphaned copy
+      // behind. Neither is the silence `_sayARecordingIsStranded` speaks for, so this
+      // is logged and dropped the way `_porCadaTrechoNaSuaParte`'s own read failure
+      // already is.
+      debugPrint(
+        'Uma tradução guardada não pôde ser retirada da fila ($path): $error',
+      );
+      return;
+    }
+    await _countUnsent();
   }
 
   /// Take back the names the room gave the rehearsal recordings this tablet made.
@@ -3915,6 +3950,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     _walkTheCursorBack(trechos);
     _trechoTraduzidoDeNovo = null;
+    unawaited(_retirarDaFilaSeGuardada(path));
     state = state.copyWith(
       btPhase: BtPhase.playing,
       voice: VoiceState.invite,
@@ -4023,6 +4059,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _trechoStart = _ondeParouNesteArquivo(_parteTocando);
       state = state.copyWith(btPhase: BtPhase.playing);
       _haltForAPerson();
+      unawaited(_recorder.delete(path));
       return;
     }
 
@@ -4031,6 +4068,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         btPhase: BtPhase.playing,
         voice: VoiceState.invite,
       );
+      if (path != null) unawaited(_recorder.delete(path));
       return;
     }
 
@@ -4042,7 +4080,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: VoiceState.invite,
       btTraducaoPendente: path,
     );
-    if (substituida != null) unawaited(_recorder.delete(substituida));
+    if (substituida != null) {
+      unawaited(_retirarDaFilaSeGuardada(substituida));
+      unawaited(_recorder.delete(substituida));
+    }
   }
 
   Future<void> confirmarTraducao() async {
@@ -4131,6 +4172,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       lugarTo: _trechoEnd,
     );
     _trechoStart = _trechoEnd;
+    unawaited(_retirarDaFilaSeGuardada(path));
     state = state.copyWith(
       btPhase: BtPhase.playing,
       voice: VoiceState.invite,
@@ -4157,6 +4199,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (path == null) return;
     final emprestada = state.btTraducaoPendenteEmprestada;
     state = state.copyWith(clearTraducaoPendente: true);
+    unawaited(_retirarDaFilaSeGuardada(path));
     if (!emprestada) unawaited(_recorder.delete(path));
   }
 
@@ -4927,6 +4970,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _cabecaForaDoPlayer = null;
     _descartarATraducaoPendente();
     _traducoesGuardadas.clear();
+    _traducaoNaFila.clear();
     _entradaParouSemTocar = false;
     _tamanhoDaParteMs.clear();
     _pousadaNaParteApontadaPelaRecusa = false;
