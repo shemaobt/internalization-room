@@ -47,6 +47,10 @@ dev_dependencies:
   # Already pulled in transitively; named directly because `tool/sync_doctrine.dart` records
   # a sha256 per vendored artefact, and there is no digest in dart:convert.
   crypto: ^3.0.0
+  # Already pulled in transitively by flutter_test; named directly because the offline-drop
+  # test drives production's own turn clock through fake_async's Timer control, not just
+  # flutter_test's widget-pump scheduling.
+  fake_async: ^1.3.3
 
 flutter_launcher_icons:
   image_path: "assets/icon/app_icon.png"
