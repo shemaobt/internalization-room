@@ -1693,10 +1693,12 @@ void main() {
       await settle();
       clock.start();
       notifier.conversaTap();
-      // A fixed wait here guessed how long the retries plus the vigia's own ceiling
-      // would take, and under a loaded suite that guess sometimes fell short: `ended`
-      // was still null when the expectations below ran, not because the room was slow,
-      // but because the test stopped watching before the room finished answering.
+      // The real race is inside _sendTheTake: with the harness's 50ms margin, only
+      // ~100ms of headroom separates the offline landing from the vigia's own window,
+      // so one oversleeping delay under load can let the window win instead of the
+      // retry loop. That race lives in production's own wall-clock Stopwatch, which
+      // this test cannot make deterministic without a clock seam in
+      // session_notifier.dart — flagged as unresolved, see the PR body.
       await waitFor(
         'a sala cair para offline ou chamar uma pessoa',
         () => ended != null,
