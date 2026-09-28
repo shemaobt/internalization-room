@@ -9,7 +9,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/dev/dev_skip_bar.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/data/mic_permission.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
@@ -106,11 +105,11 @@ const continuarOEnsaio = 'Continuar o ensaio';
 
 Future<ProviderContainer> pumpToFindings(
   WidgetTester tester,
-  BtFindingKind? finding,
+  bool hasFinding,
 ) async {
   final harness = SalaHarness()
     ..room.verdictChecked = false
-    ..room.verdictHasFinding = finding != null;
+    ..room.verdictHasFinding = hasFinding;
   final container = await pumpSala(tester, harness);
   final notifier = container.read(salaSessionProvider.notifier);
 
@@ -1014,7 +1013,7 @@ void main() {
   testWidgets('an addition finding offers the way on and nothing else', (
     tester,
   ) async {
-    final container = await pumpToFindings(tester, BtFindingKind.addition);
+    final container = await pumpToFindings(tester, true);
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
     expect(byLabel(retellExit), findsNothing);
@@ -1031,28 +1030,17 @@ void main() {
   });
 
   testWidgets('a finding with no stretch offers the way on', (tester) async {
-    final container = await pumpToFindings(tester, BtFindingKind.missing);
+    final container = await pumpToFindings(tester, true);
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
     expect(byLabel(wholeClipExit), findsNothing);
     expect(byLabel(continuarOEnsaio), findsOneWidget);
   });
 
-  testWidgets('a finding always leaves the team a way out', (tester) async {
-    final container = await pumpToFindings(tester, BtFindingKind.missing);
-
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
-    final offered =
-        byLabel(retellExit).evaluate().length +
-        byLabel(wholeClipExit).evaluate().length +
-        byLabel(continuarOEnsaio).evaluate().length;
-    expect(offered, greaterThan(0));
-  });
-
   testWidgets('no finding at all still leaves the team a way out', (
     tester,
   ) async {
-    final container = await pumpToFindings(tester, null);
+    final container = await pumpToFindings(tester, false);
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
     final offered =

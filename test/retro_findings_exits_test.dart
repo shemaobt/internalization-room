@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
 
@@ -15,14 +14,14 @@ const continuarOEnsaio = 'Continuar o ensaio';
 
 Future<ProviderContainer> pumpToFindings(
   WidgetTester tester,
-  BtFindingKind? finding, {
+  bool hasFinding, {
   String? trecho,
   SalaHarness? harness,
 }) async {
   harness ??= SalaHarness(filaEmMemoria: true);
   harness
     ..room.verdictChecked = false
-    ..room.verdictHasFinding = finding != null
+    ..room.verdictHasFinding = hasFinding
     ..room.verdictFindingSegmentId = trecho;
   final container = harness.container();
   addTearDown(container.dispose);
@@ -62,7 +61,7 @@ void main() {
   testWidgets('a verdict that names no stretch leaves the rehearsal standing', (
     tester,
   ) async {
-    final container = await pumpToFindings(tester, BtFindingKind.unclear);
+    final container = await pumpToFindings(tester, true);
     final rehearsed = container.read(salaSessionProvider).partes.length;
     expect(rehearsed, greaterThan(0));
 
@@ -75,11 +74,7 @@ void main() {
   testWidgets('a verdict that names a stretch still tells that stretch again', (
     tester,
   ) async {
-    final container = await pumpToFindings(
-      tester,
-      BtFindingKind.addition,
-      trecho: 'trecho-1',
-    );
+    final container = await pumpToFindings(tester, true, trecho: 'trecho-1');
 
     await tester.tap(byLabel('Traduzir este trecho de novo'));
     await tester.pump(const Duration(milliseconds: 300));
@@ -98,7 +93,7 @@ void main() {
   testWidgets('re-recording stays on offer when no stretch was named', (
     tester,
   ) async {
-    final container = await pumpToFindings(tester, BtFindingKind.unclear);
+    final container = await pumpToFindings(tester, true);
 
     await tester.tap(byLabel(continuarOEnsaio));
     await tester.pump(const Duration(milliseconds: 300));
@@ -108,7 +103,7 @@ void main() {
 
   testWidgets('a finding only re-recording can settle, with no stretch named, '
       'still leaves a way out that works', (tester) async {
-    final container = await pumpToFindings(tester, BtFindingKind.addition);
+    final container = await pumpToFindings(tester, true);
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
     final offered = [
@@ -129,7 +124,7 @@ void main() {
     );
 
     for (final label in offered) {
-      final room = await pumpToFindings(tester, BtFindingKind.addition);
+      final room = await pumpToFindings(tester, true);
       final before = room.read(salaSessionProvider);
       await tester.tap(byLabel(label));
       await tester.pump(const Duration(milliseconds: 300));

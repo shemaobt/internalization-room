@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
@@ -24,7 +23,6 @@ SalaSessionNotifier notifier(ProviderContainer c) =>
 /// A team that told two stretches back and got a finding on the first.
 Future<ProviderContainer> pumpToPergunta(
   WidgetTester tester, {
-  BtFindingKind finding = BtFindingKind.addition,
   String? trecho = 'trecho-1',
 }) async {
   final harness = SalaHarness(filaEmMemoria: true)
@@ -133,26 +131,21 @@ Future<CorrecaoFeita> correcaoComResposta(
 }
 
 void main() {
-  // O invariante deste laço — o tipo do achado não escolhe pela equipe qual voz
-  // corrigir — vale para cada tipo, falta incluída desde 03/09: a materna
-  // pode já ter a parte que a ponte pulou, e só a equipe sabe se é o caso.
-  for (final kind in BtFindingKind.values) {
-    testWidgets('both voices are offered when the finding is ${kind.name}', (
-      tester,
-    ) async {
-      await pumpToPergunta(tester, finding: kind);
+  testWidgets('both voices are offered when there is a finding', (
+    tester,
+  ) async {
+    await pumpToPergunta(tester);
 
-      expect(
-        byLabel(micParteLabel),
-        findsOneWidget,
-        reason:
-            'o tipo do achado decidia sozinho pela equipe, e um tipo '
-            'escondia a saída de traduzir de novo',
-      );
-      expect(byLabel(micRetro), findsOneWidget);
-      expect(byLabel(ouvirOTrecho), findsOneWidget);
-    });
-  }
+    expect(
+      byLabel(micParteLabel),
+      findsOneWidget,
+      reason:
+          'o tipo do achado decidia sozinho pela equipe, e um tipo '
+          'escondia a saída de traduzir de novo',
+    );
+    expect(byLabel(micRetro), findsOneWidget);
+    expect(byLabel(ouvirOTrecho), findsOneWidget);
+  });
 
   testWidgets('choosing only the telling leaves the mother tongue untouched', (
     tester,
@@ -233,40 +226,30 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
   });
 
-  for (final kind in [BtFindingKind.missing, BtFindingKind.addition]) {
-    testWidgets(
-      'a ${kind.name} finding that names no stretch still falls to the whole '
-      'thing',
-      (tester) async {
-        final container = await pumpToPergunta(
-          tester,
-          finding: kind,
-          trecho: null,
-        );
+  testWidgets(
+    'a finding that names no stretch still falls to the whole thing',
+    (tester) async {
+      final container = await pumpToPergunta(tester, trecho: null);
 
-        expect(
-          tester.widget<Semantics>(byLabel(micParteLabel)).properties.enabled,
-          isFalse,
-          reason:
-              'sem trecho apontado não há o que substituir, e o achado '
-              'pergunta sobre um trecho: o microfone fica apagado, nunca '
-              'escondido (ADR 0040)',
-        );
-        expect(
-          tester.widget<Semantics>(byLabel(micRetro)).properties.enabled,
-          isFalse,
-        );
-        expect(
-          container.read(salaSessionProvider).btPhase,
-          BtPhase.findings,
-          reason:
-              'o caminho de hoje para achado sem ponteiro não muda — e '
-              'isso inclui o tipo continuar governando a queda, que é a '
-              'única coisa que ele ainda governa',
-        );
-      },
-    );
-  }
+      expect(
+        tester.widget<Semantics>(byLabel(micParteLabel)).properties.enabled,
+        isFalse,
+        reason:
+            'sem trecho apontado não há o que substituir, e o achado '
+            'pergunta sobre um trecho: o microfone fica apagado, nunca '
+            'escondido (ADR 0040)',
+      );
+      expect(
+        tester.widget<Semantics>(byLabel(micRetro)).properties.enabled,
+        isFalse,
+      );
+      expect(
+        container.read(salaSessionProvider).btPhase,
+        BtPhase.findings,
+        reason: 'o caminho de hoje para achado sem ponteiro não muda',
+      );
+    },
+  );
 
   testWidgets('a correction that runs the room out warns and stops nothing', (
     tester,

@@ -1,5 +1,3 @@
-enum BtFindingKind { missing, addition, unclear }
-
 class BackTranslationChunk {
   final bool captured;
 

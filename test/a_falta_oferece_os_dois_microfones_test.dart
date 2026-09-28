@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
 
@@ -20,7 +19,6 @@ SalaSessionNotifier notifier(ProviderContainer c) =>
 /// A team that told two stretches back and got a finding on the first.
 Future<ProviderContainer> pumpToPergunta(
   WidgetTester tester, {
-  required BtFindingKind finding,
   String? trecho = 'trecho-1',
 }) async {
   final harness = SalaHarness(filaEmMemoria: true)
@@ -63,7 +61,7 @@ Future<ProviderContainer> pumpToPergunta(
 
 void main() {
   testWidgets('falta com endereço mostra os dois microfones', (tester) async {
-    await pumpToPergunta(tester, finding: BtFindingKind.missing);
+    await pumpToPergunta(tester);
 
     expect(
       byLabel(micRetroLabel),
@@ -83,10 +81,7 @@ void main() {
   });
 
   testWidgets('só a ponte funciona', (tester) async {
-    final container = await pumpToPergunta(
-      tester,
-      finding: BtFindingKind.missing,
-    );
+    final container = await pumpToPergunta(tester);
 
     await tester.tap(byLabel(micRetroLabel));
     await tester.pump(const Duration(milliseconds: 300));
@@ -104,10 +99,7 @@ void main() {
   testWidgets('a madeira leva ao ensaio, a gravar a parte de novo', (
     tester,
   ) async {
-    final container = await pumpToPergunta(
-      tester,
-      finding: BtFindingKind.missing,
-    );
+    final container = await pumpToPergunta(tester);
 
     await tester.tap(byLabel(micParteLabel));
     await tester.pump(const Duration(milliseconds: 300));
@@ -122,11 +114,7 @@ void main() {
   });
 
   testWidgets('falta sem endereço continua indo ao ensaio', (tester) async {
-    final container = await pumpToPergunta(
-      tester,
-      finding: BtFindingKind.missing,
-      trecho: null,
-    );
+    final container = await pumpToPergunta(tester, trecho: null);
 
     expect(
       byLabel(continuarOEnsaio),
@@ -146,7 +134,7 @@ void main() {
   });
 
   testWidgets('os outros achados não mudam', (tester) async {
-    await pumpToPergunta(tester, finding: BtFindingKind.unclear);
+    await pumpToPergunta(tester);
 
     expect(byLabel(micParteLabel), findsOneWidget);
     expect(byLabel(micRetroLabel), findsOneWidget);
