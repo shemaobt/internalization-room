@@ -2531,7 +2531,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         !state.replies.any(
           (kept) => kept.id == reply.id && kept.audioUrl != reply.audioUrl,
         )) {
-      unawaited(_markHeard(reply.id));
+      unawaited(_markHeard(reply.id, audioUrl: reply.audioUrl));
     } else if (!_gone && state.playingReplyId == reply.id) {
       state = state.copyWith(clearPlayingReply: true);
     }
@@ -2561,13 +2561,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// room is briefly optimistic, for as long as one request, and corrects itself. That is
   /// a different animal from the optimism this slice removes, which outlived the request
   /// and died only with the screen, leaving the desk to contradict it on the next start.
-  Future<void> _markHeard(String replyId) async {
+  Future<void> _markHeard(String replyId, {required String audioUrl}) async {
     final epoch = _epoch;
     state = state.copyWith(
       replies: _replies(replyId, heard: true),
       clearPlayingReply: true,
     );
-    if (await _inbox.markHeard(replyId)) return;
+    if (await _inbox.markHeard(replyId, audioUrl: audioUrl)) return;
     if (_gone || epoch != _epoch) return;
     state = state.copyWith(replies: _replies(replyId, heard: false));
   }

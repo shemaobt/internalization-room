@@ -72,14 +72,24 @@ class HandInboxRepository {
   /// Whether the desk took it.
   ///
   /// Any 2xx is agreement, so a desk that answers "already heard" is not read as a
-  /// refusal.
-  Future<bool> markHeard(String replyId) async {
+  /// refusal. A desk that answers that the reply moved on is one more non-2xx: the mark
+  /// is taken back and the reply it now holds is offered, as any refusal already is.
+  ///
+  /// The mark names the clip that played, not only the question: a facilitator who
+  /// re-records while the first clip is still sounding writes a new one under the same
+  /// id, and a mark by id alone would stamp that second reply heard when nobody heard it.
+  /// Without a clip the mark is the bare one it always was.
+  Future<bool> markHeard(String replyId, {String? audioUrl}) async {
     final http.Response response;
     try {
       response = await _client
           .post(
             Uri.parse('${Env.backendUrl}$_basePath/questions/$replyId/heard'),
-            headers: await _headers,
+            headers: {
+              ...await _headers,
+              if (audioUrl != null) 'Content-Type': 'application/json',
+            },
+            body: audioUrl == null ? null : jsonEncode({'audio_url': audioUrl}),
           )
           .timeout(_timeout);
     } on Object {

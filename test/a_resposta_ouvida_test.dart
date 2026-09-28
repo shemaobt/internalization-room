@@ -36,6 +36,9 @@ class _Desk {
   /// How many marks have reached the desk.
   int marks = 0;
 
+  /// The clip the last mark said it played, as the desk read it off the wire.
+  String? markedUrl;
+
   Completer<void>? _holding;
 
   /// Keep the desk from answering, so the window between the tap and the answer can be
@@ -67,6 +70,9 @@ class _Desk {
       await _holding?.future;
       if (unreachable) throw const SocketException('sem rede');
       final id = request.url.pathSegments[request.url.pathSegments.length - 2];
+      markedUrl = request.body.isEmpty
+          ? null
+          : (jsonDecode(request.body) as Map)['audio_url'] as String?;
       if (answers >= 200 && answers < 300) heard[id] = true;
       return http.Response('', answers);
     }
@@ -163,6 +169,30 @@ void main() {
     );
   });
 
+  test('a reply that moved on while it played is still offered', () async {
+    final desk = _Desk()..answers = 409;
+    final harness = _tabletTalkingTo(desk);
+    final container = await _opensTheRoom(desk, harness);
+
+    await _theTeamTapsTheHand(container);
+    expect(_timesPlayed(harness), 1);
+    await waitFor('a mesa dizer que a resposta mudou', () => desk.marks == 1);
+
+    expect(
+      container.read(salaSessionProvider).oldestUnheardReply?.id,
+      'resposta-1',
+      reason:
+          'a facilitadora regravou enquanto a primeira tocava; a mesa recusou '
+          'a marca do clipe velho e a pergunta segue oferecida, com o clipe novo',
+    );
+
+    final again = await _opensTheRoom(desk, harness);
+    expect(
+      again.read(salaSessionProvider).oldestUnheardReply?.id,
+      'resposta-1',
+    );
+  });
+
   test('a reply the desk agrees was heard is never played again', () async {
     final desk = _Desk();
     final harness = _tabletTalkingTo(desk);
@@ -175,6 +205,13 @@ void main() {
       () => desk.heard['resposta-1'] == true,
     );
 
+    expect(
+      desk.markedUrl,
+      _replyUrl,
+      reason:
+          'a marca diz qual clipe tocou: só assim a mesa deixa de carimbar '
+          'como ouvida uma resposta regravada enquanto a primeira soava',
+    );
     expect(container.read(salaSessionProvider).oldestUnheardReply, isNull);
 
     final again = await _opensTheRoom(desk, harness);
