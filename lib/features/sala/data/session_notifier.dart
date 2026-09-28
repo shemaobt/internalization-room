@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -194,6 +195,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _epoch = 0;
   int _unplayableTurns = 0;
   int _roomFailures = 0;
+  List<String>? _fileiraDaUltimaRecusa;
+  final Set<String> _contadasSemResposta = {};
   int _resumeFailures = 0;
 
   /// When and in what language the session now open was created, so a row rewritten by
@@ -978,7 +981,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           );
         }
         unawaited(abrirEscolha(afterRefusal: true));
-      case RoomBroke():
+      case RoomBroke() || StretchNoLongerCounts():
         _registerRoomFailure();
       case RoomSlow():
         _registerSlowRoom();
@@ -3910,15 +3913,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         to: alvo.to,
       );
       if (epoch != _epoch) return;
+    } on StretchNoLongerCounts catch (refusal) {
+      if (epoch != _epoch) return;
+      await _readWhatTheRefusalSays(alvo, path, sessionId, epoch, refusal);
+      return;
     } on Exception catch (error) {
+      _fileiraDaUltimaRecusa = null;
+      _contadasSemResposta.add(path);
       _guardarATraducao(path);
       if (epoch != _epoch) return;
-      state = state.copyWith(
-        btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
-      );
-      _handleRoomFailure(error);
+      _theCorrectionFailed(error);
       return;
     }
+    _fileiraDaUltimaRecusa = null;
 
     if (!told.captured) {
       // The room made nothing out of it, which is also what a transcriber outage looks
@@ -3939,30 +3946,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
 
-    // The telling just recorded is this stretch's own. Only a first telling used to keep
-    // its file, so from the first correction on the blue voice played back the very
-    // explanation the analyst had refused.
-    final trechos = _trechosFrom(
+    _contadasSemResposta.clear();
+    _theTellingLandedOn(
       told.segments,
+      alvo: alvo,
       lugar: lugar,
-      noLugarDe: alvo,
-      contadoEm: path,
+      path: path,
+      needsPerson: told.needsPerson,
     );
-    _walkTheCursorBack(trechos);
-    _trechoTraduzidoDeNovo = null;
-    unawaited(_retirarDaFilaSeGuardada(path));
-    state = state.copyWith(
-      btPhase: BtPhase.playing,
-      voice: VoiceState.invite,
-      btTrechos: trechos.isEmpty ? state.btTrechos : trechos,
-      clearTraducaoPendente: true,
-      // The room asking for a person over a stretch told again is a warning: somebody is
-      // called to come and watch, and the team is refused nothing. Written before the
-      // verdict, because a warning is a field and the verdict only walks the voice.
-      warning: told.needsPerson ? true : null,
-    );
-    if (told.needsPerson) _watchTheHalt();
-    _rememberWhereTheyAre(SalaStage.retro);
     if (epoch != _epoch) return;
     // The correction is finished, so the room goes and finds out what it was worth. The
     // team used to be handed back to the screen for hearing the recording, with nothing
@@ -3977,6 +3968,116 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // Nothing had to be unlocked for this: the mark that the recording ended survives a
     // correction, so the ask is allowed the moment it is made.
     await finishBackTranslation();
+  }
+
+  void _theCorrectionFailed(Object error) {
+    state = state.copyWith(
+      btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
+    );
+    _handleRoomFailure(error);
+  }
+
+  Future<void> _readWhatTheRefusalSays(
+    Trecho alvo,
+    String path,
+    String sessionId,
+    int epoch,
+    StretchNoLongerCounts refusal,
+  ) async {
+    final SessionSnapshot snapshot;
+    try {
+      snapshot = await _room.fetchState(sessionId);
+    } on Exception catch (error) {
+      _guardarATraducao(path);
+      if (epoch != _epoch) return;
+      _theCorrectionFailed(error);
+      return;
+    }
+    if (epoch != _epoch) return;
+    final segments = snapshot.backTranslation.segments;
+    final fileira = [for (final segment in segments) segment.segmentId];
+    final repetida =
+        _fileiraDaUltimaRecusa != null &&
+        listEquals(_fileiraDaUltimaRecusa, fileira);
+    _fileiraDaUltimaRecusa = fileira;
+    if (repetida) {
+      _guardarATraducao(path);
+      _theCorrectionFailed(refusal);
+      return;
+    }
+    final sucessor = segments.indexWhere(
+      (segment) =>
+          segment.told &&
+          segment.segmentId != alvo.segmentId &&
+          segment.takeId == alvo.takeId &&
+          segment.startsMs == alvo.from.inMilliseconds &&
+          segment.endsMs == alvo.to.inMilliseconds,
+    );
+    final aContadaPousou =
+        _contadasSemResposta.length == 1 && _contadasSemResposta.contains(path);
+    _contadasSemResposta.clear();
+    if (sucessor < 0) {
+      _theStretchIsGone(segments);
+      return;
+    }
+    if (aContadaPousou) {
+      _theTellingLandedOn(segments, alvo: alvo, lugar: sucessor, path: path);
+      return;
+    }
+    final trechos = _trechosFrom(segments, lugar: sucessor, noLugarDe: alvo);
+    state = state.copyWith(
+      btPhase: BtPhase.playing,
+      voice: VoiceState.invite,
+      btTrechos: trechos,
+    );
+    _armarOTrecho(trechos[sucessor]);
+    _rememberWhereTheyAre(SalaStage.retro);
+  }
+
+  void _theStretchIsGone(List<SegmentView> segments) {
+    final trechos = _trechosFrom(segments);
+    _walkTheCursorBack(trechos);
+    _trechoTraduzidoDeNovo = null;
+    _descartarATraducaoPendente();
+    state = state.copyWith(
+      btPhase: BtPhase.playing,
+      voice: VoiceState.invite,
+      btTrechos: trechos,
+    );
+    _rememberWhereTheyAre(SalaStage.retro);
+  }
+
+  void _theTellingLandedOn(
+    List<SegmentView> segments, {
+    required Trecho alvo,
+    required int lugar,
+    required String path,
+    bool needsPerson = false,
+  }) {
+    // The telling just recorded is this stretch's own. Only a first telling used to keep
+    // its file, so from the first correction on the blue voice played back the very
+    // explanation the analyst had refused.
+    final trechos = _trechosFrom(
+      segments,
+      lugar: lugar,
+      noLugarDe: alvo,
+      contadoEm: path,
+    );
+    _walkTheCursorBack(trechos);
+    _trechoTraduzidoDeNovo = null;
+    unawaited(_retirarDaFilaSeGuardada(path));
+    state = state.copyWith(
+      btPhase: BtPhase.playing,
+      voice: VoiceState.invite,
+      btTrechos: trechos.isEmpty ? state.btTrechos : trechos,
+      clearTraducaoPendente: true,
+      // The room asking for a person over a stretch told again is a warning: somebody is
+      // called to come and watch, and the team is refused nothing. Written with the row,
+      // because a warning is a field and whatever follows the landing only walks the voice.
+      warning: needsPerson ? true : null,
+    );
+    if (needsPerson) _watchTheHalt();
+    _rememberWhereTheyAre(SalaStage.retro);
   }
 
   /// Put the cursor back on the furthest stretch already told.
@@ -4660,7 +4761,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             takeId: segment.takeId,
             retroPath: !segment.told
                 ? null
-                : onde == lugar && contadoEm != null
+                : onde == lugar
                 ? contadoEm
                 : (aqui.isNotEmpty ? aqui.first.retroPath : null),
             parte: parte,
@@ -4955,6 +5056,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _coverageSessionId = null;
     _unplayableTurns = 0;
     _roomFailures = 0;
+    _fileiraDaUltimaRecusa = null;
+    _contadasSemResposta.clear();
     _resumeFailures = 0;
     _slowAnswers = 0;
     _retryStep = 0;
