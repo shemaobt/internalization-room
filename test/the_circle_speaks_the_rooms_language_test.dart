@@ -22,6 +22,7 @@ void main() {
       'handLabels': handLabels,
       'roomLabels': roomLabels,
       'warningNoticeLabel': {'notice': warningNoticeLabel},
+      'codigoLabels': codigoLabels,
       'recordEntryLabel': {'entry': recordEntryLabel},
       'panoramaEntryLabel': {'entry': panoramaEntryLabel},
     };
