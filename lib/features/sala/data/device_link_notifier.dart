@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/env.dart';
@@ -193,7 +194,7 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
         return _collectTheCredential();
       }
       final showing = state.code;
-      if (showing == null || showing.ranOutBy(DateTime.now())) {
+      if (showing == null || showing.ranOutBy(clock.now())) {
         return _showACode();
       }
       _lookAgainLater();

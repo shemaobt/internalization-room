@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
@@ -14,7 +15,7 @@ import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart' show settle, withDiskThatAnswersAtOnce;
 
 void main() {
   test('a book with nothing left to offer reaches a person', () async {
@@ -1644,68 +1645,84 @@ void main() {
     },
   );
 
-  test('the next passage does not inherit the last one\'s retell', () async {
-    final harness = SalaHarness();
-    harness.room.verdictChecked = false;
-    final container = await inConversaHarness(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
+  test('the next passage does not inherit the last one\'s retell', () {
+    withDiskThatAnswersAtOnce(
+      () => fakeAsync((async) {
+        final harness = SalaHarness(filaEmMemoria: true);
+        harness.room.verdictChecked = false;
+        ProviderContainer? container;
+        var antes = 0;
+        addTearDown(() => container?.dispose());
 
-    notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
-    await settle();
-    notifier.takeKeep();
-    notifier.startRetro();
-    await settle();
-    harness.playback.at = const Duration(seconds: 12);
-    notifier.cortarTrecho();
-    notifier.retroTap();
-    await settle();
-    await confirmarATraducao(container);
-    await settle();
-    harness.playback.finishPlayback();
-    await settle();
-    // A aterragem no trecho não contado é a porta que arma um conserto: é o que a
-    // passagem seguinte não pode herdar.
-    harness.room.verdictUntoldSegmentId = harness.room.segments.last.segmentId;
-    await notifier.finishBackTranslation();
-    await settle();
+        unawaited(() async {
+          container = await inConversaHarness(harness);
+          final notifier = container!.read(salaSessionProvider.notifier);
+          Future<void> confirm() async {
+            notifier.retroTap();
+            await settle();
+            await notifier.confirmarTraducao();
+          }
 
-    notifier.leaveThePassage();
-    await settle();
-    harness.room.chunkSpans.clear();
-    final antes = harness.room.replacesAsked.length;
+          notifier.goEnsaio();
+          notifier.ensaioTap();
+          notifier.ensaioTap();
+          await settle();
+          notifier.takeKeep();
+          notifier.startRetro();
+          await settle();
+          harness.playback.at = const Duration(seconds: 12);
+          notifier.cortarTrecho();
+          notifier.retroTap();
+          await settle();
+          await confirm();
+          await settle();
+          harness.playback.finishPlayback();
+          await settle();
+          // A aterragem no trecho não contado é a porta que arma um conserto: é o que a
+          // passagem seguinte não pode herdar.
+          harness.room.verdictUntoldSegmentId =
+              harness.room.segments.last.segmentId;
+          await notifier.finishBackTranslation();
+          await settle();
 
-    notifier.entrarNaOferecida();
-    await settle();
-    notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
-    await settle();
-    notifier.takeKeep();
-    notifier.startRetro();
-    await settle();
-    harness.playback.at = const Duration(seconds: 9);
-    notifier.cortarTrecho();
-    notifier.retroTap();
-    await settle();
-    await confirmarATraducao(container);
-    await settle();
+          notifier.leaveThePassage();
+          await settle();
+          harness.room.chunkSpans.clear();
+          antes = harness.room.replacesAsked.length;
 
-    expect(
-      harness.room.chunkSpans,
-      ['0-9000'],
-      reason:
-          'o primeiro trecho de uma retro nova sobe com o vão do tocador, e não com os '
-          'limites que a aterragem da passagem anterior tinha deixado para trás',
-    );
-    expect(
-      harness.room.replacesAsked.length,
-      antes,
-      reason:
-          'e como pedaço novo, não como correção de um trecho da passagem que a equipe '
-          'já deixou',
+          notifier.entrarNaOferecida();
+          await settle();
+          notifier.goEnsaio();
+          notifier.ensaioTap();
+          notifier.ensaioTap();
+          await settle();
+          notifier.takeKeep();
+          notifier.startRetro();
+          await settle();
+          harness.playback.at = const Duration(seconds: 9);
+          notifier.cortarTrecho();
+          notifier.retroTap();
+          await settle();
+          await confirm();
+          await settle();
+        }());
+        async.elapse(const Duration(seconds: 10));
+
+        expect(
+          harness.room.chunkSpans,
+          ['0-9000'],
+          reason:
+              'o primeiro trecho de uma retro nova sobe com o vão do tocador, e não com os '
+              'limites que a aterragem da passagem anterior tinha deixado para trás',
+        );
+        expect(
+          harness.room.replacesAsked.length,
+          antes,
+          reason:
+              'e como pedaço novo, não como correção de um trecho da passagem que a equipe '
+              'já deixou',
+        );
+      }),
     );
   });
 

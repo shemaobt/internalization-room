@@ -1,6 +1,8 @@
+import 'package:clock/clock.dart';
+
 class TurnClock {
   TurnClock({Stopwatch? stopwatch})
-    : _stopwatch = stopwatch ?? (Stopwatch()..start());
+    : _stopwatch = stopwatch ?? (clock.stopwatch()..start());
 
   final Stopwatch _stopwatch;
   final Map<String, int> _marks = {};

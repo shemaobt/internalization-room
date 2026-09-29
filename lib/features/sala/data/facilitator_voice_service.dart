@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path/path.dart' as p;
@@ -206,7 +207,7 @@ class FacilitatorVoiceService {
 
   Future<void> _touch(File file) async {
     try {
-      await file.setLastModified(DateTime.now());
+      await file.setLastModified(clock.now());
     } on Exception {
       return;
     }
@@ -228,7 +229,7 @@ class FacilitatorVoiceService {
           .where((entry) => entry is File && entry.path.endsWith('.novo'))
           .cast<File>()
           .toList();
-      final cutoff = DateTime.now().subtract(_staleStagingAge);
+      final cutoff = clock.now().subtract(_staleStagingAge);
       for (final novo in novos) {
         if (protected.contains(novo.path)) continue;
         if ((await novo.stat()).modified.isBefore(cutoff)) {

@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -71,3 +75,51 @@ List<String> contas(WidgetTester tester) => [
           .entries)
     '${conta.fill.name}${conta.current ? ' com anel' : ''}',
 ];
+
+class _FileThatAnswersAtOnce implements File {
+  _FileThatAnswersAtOnce(String path) : _real = Zone.root.run(() => File(path));
+
+  final File _real;
+
+  @override
+  String get path => _real.path;
+
+  @override
+  Future<bool> exists() => Future.value(_real.existsSync());
+
+  @override
+  bool existsSync() => _real.existsSync();
+
+  @override
+  int lengthSync() => _real.lengthSync();
+
+  @override
+  void writeAsStringSync(
+    String contents, {
+    FileMode mode = FileMode.write,
+    Encoding encoding = utf8,
+    bool flush = false,
+  }) => _real.writeAsStringSync(
+    contents,
+    mode: mode,
+    encoding: encoding,
+    flush: flush,
+  );
+
+  @override
+  void writeAsBytesSync(
+    List<int> bytes, {
+    FileMode mode = FileMode.write,
+    bool flush = false,
+  }) => _real.writeAsBytesSync(bytes, mode: mode, flush: flush);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// Runs [body] with every `File` answering `exists()` at once instead of through the
+/// platform's own event loop, which a `fakeAsync` zone never lets finish.
+T withDiskThatAnswersAtOnce<T>(T Function() body) => IOOverrides.runZoned(
+  body,
+  createFile: (path) => _FileThatAnswersAtOnce(path),
+);

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -100,7 +101,7 @@ final resendMarginProvider = Provider<Duration>(
 /// the only real clock left on the resend-versus-watchdog race.
 final turnElapsedSourceProvider = Provider<Duration Function() Function()>(
   (ref) => () {
-    final stopwatch = Stopwatch()..start();
+    final stopwatch = clock.stopwatch()..start();
     return () => stopwatch.elapsed;
   },
 );
@@ -474,7 +475,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  String _stamp() => DateTime.now().millisecondsSinceEpoch.toString();
+  String _stamp() => clock.now().millisecondsSinceEpoch.toString();
 
   void _play(
     String path, {
@@ -2005,7 +2006,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         coverage: created?.coverage,
         refusedThisVisit: const {},
       );
-      _sessionSavedAt = resumed ? waiting.savedAt : DateTime.now();
+      _sessionSavedAt = resumed ? waiting.savedAt : clock.now();
       _sessionLanguage = resumed ? waiting.language : _lingua;
       if (pericope != null && !resumed) {
         unawaited(
@@ -2417,7 +2418,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final isRecording = state.voice == VoiceState.listening;
     final elapsed = _listeningSince == null
         ? Duration.zero
-        : DateTime.now().difference(_listeningSince!);
+        : clock.now().difference(_listeningSince!);
     switch (_captureGuard.decide(isRecording: isRecording, elapsed: elapsed)) {
       case TapDecision.start:
         _startListening('conversa_${_stamp()}');
@@ -2431,7 +2432,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _startListening(String fileName) {
     _silenceTheRoom();
     _recordingStarting = true;
-    _listeningSince = DateTime.now();
+    _listeningSince = clock.now();
     _keepTheConnectionWarm();
     // The line is kept, not dropped. `canHearAgain` already hides the button for every
     // voice but `invite`, so it is gone while the microphone is open either way — and
@@ -2455,14 +2456,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _finishListening() async {
     final epoch = _epoch;
-    final clock = TurnClock()..mark('stop');
+    final turnClock = TurnClock()..mark('stop');
     final path = await _recorder.stop();
-    clock.mark('recorder');
+    turnClock.mark('recorder');
     if (epoch != _epoch) return;
     final sessionId = state.sessionId;
     final elapsed = _listeningSince == null
         ? Duration.zero
-        : DateTime.now().difference(_listeningSince!);
+        : clock.now().difference(_listeningSince!);
     final bytes = path == null
         ? 0
         : (File(path).existsSync() ? File(path).lengthSync() : 0);
@@ -2486,7 +2487,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchBusyState();
     try {
       final clientTiming = _pendingClock?.clientTiming(_clockSegments);
-      _pendingClock = clock;
+      _pendingClock = turnClock;
       final turn = await _sendTheTake(
         sessionId,
         File(path),
@@ -2496,8 +2497,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       await _voiceTurn(
         turn,
         epoch,
-        clock: clock,
-        onSoundStart: () => clock.mark('sound'),
+        clock: turnClock,
+        onSoundStart: () => turnClock.mark('sound'),
       );
     } on Exception catch (error) {
       if (epoch != _epoch) return;
