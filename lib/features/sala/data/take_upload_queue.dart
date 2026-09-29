@@ -201,7 +201,7 @@ class TakeUploadQueue {
   Future<File> _manifestFile() async =>
       File(p.join((await _dir()).path, _manifest));
 
-  String _mintId() => '${_now().microsecondsSinceEpoch}-${_minted++}';
+  String _mintId() => '${clock.now().microsecondsSinceEpoch}-${_minted++}';
 
   /// The queue as written on disk, or null when it could not be read.
   ///

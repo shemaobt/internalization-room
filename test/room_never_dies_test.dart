@@ -1652,6 +1652,7 @@ void main() {
         harness.room.verdictChecked = false;
         ProviderContainer? container;
         var antes = 0;
+        var told = false;
         addTearDown(() => container?.dispose());
 
         unawaited(() async {
@@ -1705,8 +1706,10 @@ void main() {
           await settle();
           await confirm();
           await settle();
+          told = true;
         }());
         async.elapse(const Duration(seconds: 10));
+        expect(told, isTrue);
 
         expect(
           harness.room.chunkSpans,

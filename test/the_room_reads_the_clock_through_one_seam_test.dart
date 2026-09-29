@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 final _commentPattern = RegExp(r'//.*$', multiLine: true);
-final _wallClockPattern = RegExp(r'\bDateTime\.now\b|\bStopwatch\(\)');
+final _wallClockPattern = RegExp(
+  r'\bDateTime\.(now|timestamp)\b|\bStopwatch\s*\(\s*\)',
+);
 
 String _sourceWithoutComments(String path) =>
     File(path).readAsStringSync().replaceAll(_commentPattern, '');

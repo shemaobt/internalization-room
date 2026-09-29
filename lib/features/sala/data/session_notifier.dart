@@ -96,9 +96,9 @@ final resendMarginProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 5),
 );
 
-/// Starts the clock `_sendTheTake` reads its own wait from. A provider, not a bare
-/// `Stopwatch()`, so a test can drive the wait on a fake clock instead of the wall one —
-/// the only real clock left on the resend-versus-watchdog race.
+/// Starts the clock `_sendTheTake` reads its own wait from. A provider over
+/// `clock.stopwatch()`, so a test can drive the wait on a fake clock, or hand it a source
+/// of its own, on the resend-versus-watchdog race.
 final turnElapsedSourceProvider = Provider<Duration Function() Function()>(
   (ref) => () {
     final stopwatch = clock.stopwatch()..start();

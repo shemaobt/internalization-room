@@ -6004,6 +6004,7 @@ void main() {
           filaEmMemoria: true,
         )..playback.length = const Duration(milliseconds: 200);
         ProviderContainer? container;
+        var explained = false;
         addTearDown(() => container?.dispose());
 
         unawaited(() async {
@@ -6022,8 +6023,10 @@ void main() {
           notifier.cortarTrecho();
           notifier.retroTap();
           await settle(const Duration(milliseconds: 400));
+          explained = true;
         }());
-        async.elapse(const Duration(milliseconds: 600));
+        async.elapse(const Duration(seconds: 1));
+        expect(explained, isTrue);
 
         expect(
           container!.read(salaSessionProvider).btClipEnded,
@@ -6036,6 +6039,10 @@ void main() {
         final notifier = container!.read(salaSessionProvider.notifier);
         notifier.retroTap();
         async.elapse(const Duration(milliseconds: 50));
+        expect(
+          container!.read(salaSessionProvider).btTraducaoPendente,
+          isNotNull,
+        );
         unawaited(notifier.confirmarTraducao());
         async.elapse(const Duration(milliseconds: 120));
 
