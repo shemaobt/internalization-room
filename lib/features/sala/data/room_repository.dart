@@ -588,6 +588,32 @@ class RoomRepository {
     return response.bodyBytes;
   }
 
+  Future<http.StreamedResponse> openClip(
+    String url, {
+    int? from,
+    String? ifRange,
+  }) async {
+    final request = http.Request('GET', Uri.parse('${Env.backendUrl}$url'))
+      ..headers.addAll(_whoWeAre);
+    if (from != null) request.headers['Range'] = 'bytes=$from-';
+    if (ifRange != null) request.headers['If-Range'] = ifRange;
+    final http.StreamedResponse response;
+    try {
+      response = await _client.send(request).timeout(_turnTimeout);
+    } on TimeoutException {
+      throw const RoomSlow();
+    } on Exception catch (error) {
+      throw RoomUnavailable('$error');
+    }
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      throw const RoomRefused();
+    }
+    if (response.statusCode != 200 && response.statusCode != 206) {
+      throw RoomBroke('HTTP ${response.statusCode}');
+    }
+    return response;
+  }
+
   Future<http.Response> _sendMultipart(
     http.MultipartRequest request, [
     Duration timeout = _turnTimeout,

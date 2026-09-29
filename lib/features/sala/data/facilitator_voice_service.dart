@@ -1,8 +1,12 @@
+// ignore_for_file: experimental_member_use
+
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -14,19 +18,28 @@ const _clipsKept = 60;
 const _lineGrace = Duration(seconds: 8);
 const _unknownLineCeiling = Duration(seconds: 90);
 const _staleStagingAge = Duration(minutes: 10);
+const _slowestBytesPerSecond = 4000;
+const _restartsAllowed = 2;
 
 class FacilitatorVoiceService {
-  final Future<Uint8List> Function(String url) _fetch;
+  final Future<http.StreamedResponse> Function(
+    String url, {
+    int? from,
+    String? ifRange,
+  })
+  _open;
+  final bool _playsAsItArrives;
   final Future<Directory> Function() _libraryDir;
   Future<Directory>? _dir;
   AudioPlayer? _opened;
   final Duration _grace;
   final Duration _loadCeiling;
   Future<void> _speaking = Future<void>.value();
-  final Map<String, Future<File>> _arriving = {};
+  final Map<String, _ArrivingClip> _arriving = {};
 
   FacilitatorVoiceService({
-    required this._fetch,
+    required this._open,
+    this._playsAsItArrives = true,
     Future<Directory> Function()? libraryDir,
     AudioPlayer? player,
     Duration? lineGrace,
@@ -49,9 +62,16 @@ class FacilitatorVoiceService {
   Future<bool> play(String url, {void Function()? onSoundStart}) {
     if (url.isEmpty) return Future.value(false);
     return _afterTheCurrentLine(() async {
-      final file = await clipFor(url);
+      final clip = _clipArriving(url);
+      final kept =
+          await clip.opened ?? (_playsAsItArrives ? null : await clip.file);
       return _sayItWhole(
-        () => _player.setFilePath(file.path),
+        kept != null
+            ? () => _player.setFilePath(kept.path)
+            : () async {
+                clip._heard = null;
+                return await _player.setAudioSource(clip) ?? clip._length;
+              },
         onSoundStart: () {
           unawaited(_tidyLibrary());
           onSoundStart?.call();
@@ -64,6 +84,25 @@ class FacilitatorVoiceService {
     if (url.isEmpty) return false;
     try {
       await clipFor(url);
+      return true;
+    } on Exception {
+      return false;
+    }
+  }
+
+  /// Whether the line has sound to give: its first bytes, or the whole file with
+  /// streaming switched off.
+  ///
+  /// The room turns `speaking` on this. An answer that has opened says only that the
+  /// room answered — its body can still be seconds away on a field link — and the circle
+  /// rippled over that silence, which is exactly what `thinking` exists to cover.
+  Future<bool> ready(String url) async {
+    if (url.isEmpty) return false;
+    try {
+      final clip = _clipArriving(url);
+      if (await clip.opened == null) {
+        await (_playsAsItArrives ? clip.firstBytes : clip.file);
+      }
       return true;
     } on Exception {
       return false;
@@ -178,26 +217,39 @@ class FacilitatorVoiceService {
   /// two downloads of one line wrote the same staging file and renamed it out from under
   /// each other. The loser threw, the throw was swallowed as a line that would not play,
   /// and the room went quiet between two breaths of the same sentence.
-  Future<File> clipFor(String url) {
+  Future<File> clipFor(String url) => _clipArriving(url).file;
+
+  _ArrivingClip _clipArriving(String url) {
     final arriving = _arriving[url];
     if (arriving != null) return arriving;
-    final started = _bringItIn(url);
-    _arriving[url] = started;
-    return started.whenComplete(() => _arriving.remove(url));
+    final clip = _ArrivingClip(_open, url, _loadCeiling + _grace);
+    _arriving[url] = clip;
+    clip.file = _bringItIn(url, clip);
+    unawaited(
+      clip.file
+          .then<void>((_) {}, onError: clip._fail)
+          .whenComplete(() => _arriving.remove(url)),
+    );
+    return clip;
   }
 
-  Future<File> _bringItIn(String url) async {
+  Future<File> _fileFor(String url) async {
     final dir = await _resolvedDir;
-    final file = File(p.join(dir.path, '${_nameFor(url)}.mp3'));
+    return File(p.join(dir.path, '${_nameFor(url)}.mp3'));
+  }
+
+  Future<File> _bringItIn(String url, _ArrivingClip clip) async {
+    final file = await _fileFor(url);
     if (file.existsSync() && file.lengthSync() > 0) {
       unawaited(_touch(file));
+      clip._kept(file);
       return file;
     }
     // Staged and renamed, like the take queue two files away. `writeAsBytes` truncates
     // first, so a kill mid-write left a short file that passes `length > 0` and is served
     // from then on: the room goes mute on that one line, and stays mute across restarts.
     final staging = File('${file.path}.novo');
-    await staging.writeAsBytes(await _fetch(url), flush: true);
+    await staging.writeAsBytes(await clip._arrive(), flush: true);
     await staging.rename(file.path);
     return file;
   }
@@ -271,14 +323,187 @@ class FacilitatorVoiceService {
   Future<void> dispose() async => _opened?.dispose();
 }
 
+class _ArrivingClip extends StreamAudioSource {
+  final Future<http.StreamedResponse> Function(
+    String url, {
+    int? from,
+    String? ifRange,
+  })
+  _open;
+  final String _url;
+  final Duration _stall;
+  final _opened = Completer<File?>();
+  final _firstBytes = Completer<void>();
+  late final Future<File> file;
+  Object? _broke;
+  String? _etag;
+  int _rendering = 0;
+  int? _heard;
+  Uint8List _bytes = Uint8List(0);
+  int _received = 0;
+  Completer<void> _arrival = Completer<void>();
+
+  _ArrivingClip(this._open, this._url, this._stall) {
+    _opened.future.ignore();
+    _firstBytes.future.ignore();
+  }
+
+  Future<File?> get opened => _opened.future;
+
+  Future<void> get firstBytes => _firstBytes.future;
+
+  /// The longest the line can last, read off its size at the slowest bitrate a voice is
+  /// plausibly sent at.
+  ///
+  /// It is the play ceiling of a line the platform cannot time, so it errs long. The clips
+  /// are `mp3_44100_128` today, but the size says nothing of the rate: read at 128 kbps, a
+  /// 60 s line sent at 64 kbps was given up at 38 s and reported unheard mid-sentence. Read
+  /// at 32 kbps, a line that truly wedges is still bounded, only later; the grace is added
+  /// on top as before.
+  Duration get _length =>
+      Duration(milliseconds: _bytes.length * 1000 ~/ _slowestBytesPerSecond);
+
+  void _kept(File file) => _opened.complete(file);
+
+  void _fail(Object error) {
+    _broke = error;
+    if (!_opened.isCompleted) _opened.completeError(error);
+    if (!_firstBytes.isCompleted) _firstBytes.completeError(error);
+    _wake();
+  }
+
+  void _firstBytesIn() {
+    if (!_firstBytes.isCompleted) _firstBytes.complete();
+  }
+
+  /// The line, resumed across drops and started over when a resume cannot prove it is
+  /// the same rendering.
+  ///
+  /// Progress is what bounds a resume, and a restart throws the progress away: against a
+  /// room that answers every range with the whole clip, a link that keeps dropping pulled
+  /// the MP3 again and again, and the line never arrived nor failed. Restarts get a count
+  /// of their own, and past it the line gives up as a resume that brings nothing does.
+  Future<Uint8List> _arrive() async {
+    var response = await _open(_url);
+    _begin(response);
+    _opened.complete(null);
+    var restarts = 0;
+    while (true) {
+      final before = _received;
+      Object? drop;
+      try {
+        await for (final chunk in response.stream.timeout(_stall)) {
+          _bytes.setRange(_received, _received + chunk.length, chunk);
+          _received += chunk.length;
+          _firstBytesIn();
+          _wake();
+        }
+      } on TimeoutException {
+        drop = const RoomSlow();
+      } on Exception catch (error) {
+        drop = RoomUnavailable('$error');
+      }
+      if (_received == _bytes.length) {
+        _firstBytesIn();
+        return _bytes;
+      }
+      final cut = drop ?? const RoomBroke('fala cortada');
+      if (_received == before) throw cut;
+      final etag = _etag;
+      response = await _open(_url, from: _received, ifRange: etag);
+      if (_isTheRest(response, etag)) continue;
+      if (restarts == _restartsAllowed) {
+        unawaited(response.stream.listen(null).cancel());
+        throw cut;
+      }
+      restarts++;
+      if (response.statusCode == 206) {
+        unawaited(response.stream.listen(null).cancel());
+        response = await _open(_url);
+      }
+      _begin(response);
+    }
+  }
+
+  /// Whether a resume answered with the rest of this rendering, and only the rest.
+  ///
+  /// The ETag says which rendering; only the size and the range say which bytes. A range
+  /// implementation that ignored the offset answered 206 with the whole clip under the
+  /// right ETag, and writing it after what had arrived ran past the end of the buffer — a
+  /// `RangeError`, which no `on Exception` in the room catches. Anything else is started
+  /// over, like a resume from another rendering.
+  bool _isTheRest(http.StreamedResponse response, String? etag) {
+    if (response.statusCode != 206 ||
+        etag == null ||
+        response.headers['etag'] != etag) {
+      return false;
+    }
+    final range = response.headers['content-range'];
+    return response.contentLength == _bytes.length - _received &&
+        (range == null ||
+            range == 'bytes $_received-${_bytes.length - 1}/${_bytes.length}');
+  }
+
+  void _begin(http.StreamedResponse response) {
+    _bytes = Uint8List(
+      response.contentLength ?? (throw const RoomBroke('fala sem tamanho')),
+    );
+    _received = 0;
+    _etag = response.headers['etag'];
+    _rendering++;
+    _wake();
+  }
+
+  @override
+  Future<StreamAudioResponse> request([int? start, int? end]) async {
+    final from = start ?? 0;
+    final until = end ?? _bytes.length;
+    return StreamAudioResponse(
+      sourceLength: _bytes.length,
+      contentLength: until - from,
+      offset: start,
+      stream: _between(from, until),
+      contentType: 'audio/mpeg',
+    );
+  }
+
+  Stream<List<int>> _between(int from, int until) async* {
+    var at = from;
+    while (at < until) {
+      final broke = _broke;
+      if (broke != null) throw broke;
+      if (_heard != null && _heard != _rendering) {
+        throw const RoomBroke('a fala mudou no meio');
+      }
+      if (_received > at) {
+        _heard ??= _rendering;
+        final upto = min(_received, until);
+        yield Uint8List.sublistView(_bytes, at, upto);
+        at = upto;
+      } else {
+        await _arrival.future;
+      }
+    }
+  }
+
+  void _wake() {
+    final arrival = _arrival;
+    _arrival = Completer<void>();
+    arrival.complete();
+  }
+}
+
 Future<Directory> _defaultLibraryDir() async {
   final base = await getApplicationSupportDirectory();
   return Directory(p.join(base.path, _libraryFolder)).create(recursive: true);
 }
 
+final voicePlaysAsItArrivesProvider = Provider<bool>((ref) => true);
+
 final facilitatorVoiceProvider = Provider<FacilitatorVoiceService>((ref) {
   final service = FacilitatorVoiceService(
-    fetch: ref.read(roomRepositoryProvider).fetchClip,
+    open: ref.read(roomRepositoryProvider).openClip,
+    playsAsItArrives: ref.read(voicePlaysAsItArrivesProvider),
   );
   ref.onDispose(service.dispose);
   return service;

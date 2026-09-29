@@ -1,3 +1,5 @@
+// ignore_for_file: experimental_member_use
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -166,6 +168,9 @@ class FakeVoice implements FacilitatorVoiceService {
     await _fetching?.future;
     return succeeds;
   }
+
+  @override
+  Future<bool> ready(String url) => fetch(url);
 
   @override
   Future<bool> playAsset(String assetPath, {void Function()? onSoundStart}) {
@@ -1039,6 +1044,20 @@ class FakeRoom implements RoomRepository {
 
   /// What fetching audio throws, when it is set.
   Exception? failClipWith;
+
+  @override
+  Future<http.StreamedResponse> openClip(
+    String url, {
+    int? from,
+    String? ifRange,
+  }) async {
+    _guard('openClip');
+    return http.StreamedResponse(
+      Stream.value([1, 2, 3]),
+      200,
+      contentLength: 3,
+    );
+  }
 
   @override
   Future<List<TakeView>> takesOf(String sessionId) async {
@@ -2027,6 +2046,19 @@ class SpeakingPlayer extends Fake implements AudioPlayer {
     bool preload = true,
     dynamic tag,
   }) async => lineLength;
+
+  StreamAudioSource? arriving;
+
+  @override
+  Future<Duration?> setAudioSource(
+    AudioSource source, {
+    bool preload = true,
+    int? initialIndex,
+    Duration? initialPosition,
+  }) async {
+    arriving = source as StreamAudioSource;
+    return lineLength;
+  }
 
   bool _playing = false;
 

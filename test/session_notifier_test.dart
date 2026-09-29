@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/facilitator_voice_service.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -8666,13 +8666,118 @@ void main() {
     },
   );
 
+  test(
+    'the opening starts speaking on its first bytes, not once the whole clip is in',
+    () async {
+      final player = SpeakingPlayer();
+      final body = StreamController<List<int>>();
+      final library = Directory.systemTemp.createTempSync('sala-voz-chegando');
+      addTearDown(() => library.deleteSync(recursive: true));
+      final harness = SalaHarness(
+        voiceService: FacilitatorVoiceService(
+          open: (_, {from, ifRange}) async => http.StreamedResponse(
+            body.stream,
+            200,
+            contentLength: 6,
+            headers: {'etag': 'e1'},
+          ),
+          libraryDir: () async => library,
+          player: player,
+        ),
+      );
+      final container = harness.container();
+      addTearDown(container.dispose);
+      body.add([1, 2, 3]);
+
+      unawaited(container.read(salaSessionProvider.notifier).goConversa());
+      await waitFor(
+        'o tocador soar',
+        () => player.sounding,
+        limit: const Duration(seconds: 3),
+      );
+
+      expect(
+        player.sounding,
+        isTrue,
+        reason:
+            'a sala esperava o arquivo inteiro em "pensando" antes de chamar o '
+            'play, e o streaming do serviço de voz não ganhava nada',
+      );
+      expect(container.read(salaSessionProvider).voice, VoiceState.speaking);
+
+      body
+        ..add([4, 5, 6])
+        ..close();
+      player.reachTheEnd();
+      await settle();
+    },
+  );
+
+  test(
+    'the room stays thinking while a line has answered but sent no sound yet',
+    () async {
+      final player = SpeakingPlayer();
+      final body = StreamController<List<int>>();
+      final library = Directory.systemTemp.createTempSync('sala-voz-cabecalho');
+      addTearDown(() => library.deleteSync(recursive: true));
+      var answered = false;
+      final harness = SalaHarness(
+        voiceService: FacilitatorVoiceService(
+          open: (_, {from, ifRange}) async {
+            answered = true;
+            return http.StreamedResponse(
+              body.stream,
+              200,
+              contentLength: 6,
+              headers: {'etag': 'e1'},
+            );
+          },
+          libraryDir: () async => library,
+          player: player,
+        ),
+      );
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      unawaited(container.read(salaSessionProvider.notifier).goConversa());
+      await waitFor('a fala responder', () => answered);
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      expect(
+        container.read(salaSessionProvider).voice,
+        VoiceState.thinking,
+        reason:
+            'os cabeçalhos dizem só que a sala respondeu; "falando" sobre eles '
+            'fazia o círculo ondular enquanto nada saía, que é o que "pensando" '
+            'existe para não fazer',
+      );
+
+      body.add([1, 2, 3]);
+      await waitFor(
+        'a sala falar',
+        () => container.read(salaSessionProvider).voice == VoiceState.speaking,
+        limit: const Duration(seconds: 3),
+      );
+
+      body
+        ..add([4, 5, 6])
+        ..close();
+      player.reachTheEnd();
+      await settle();
+    },
+  );
+
   test('lines the team never hears halt the room for a person', () async {
     final player = SpeakingPlayer()..stopsBeforeTheEnd = true;
     final library = Directory.systemTemp.createTempSync('sala-voz-parada');
     addTearDown(() => library.deleteSync(recursive: true));
     final harness = SalaHarness(
       voiceService: FacilitatorVoiceService(
-        fetch: (_) async => Uint8List.fromList([1, 2, 3]),
+        open: (_, {from, ifRange}) async => http.StreamedResponse(
+          Stream.value([1, 2, 3]),
+          200,
+          contentLength: 3,
+        ),
         libraryDir: () async => library,
         player: player,
       ),
