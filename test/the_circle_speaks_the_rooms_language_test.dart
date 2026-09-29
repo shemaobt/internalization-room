@@ -4,21 +4,38 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'sala_screen_test.dart' show bySemanticsLabelWidget, pumpSala;
+import 'sala_screen_test.dart' show pumpSala;
+import 'scenario_helpers.dart' show byLabel;
 
 void main() {
   // Red until `languages` stops listing es, which #138 does.
-  test('a circle state missing a language the room offers fails the guard, '
-      'not silently speaks portuguese', () {
+  test('a label in any table missing a language the room offers fails the '
+      'guard, not silently speaks portuguese', () {
     final offered = languages.toSet();
-    for (final state in circleLabels.keys) {
-      expect(
-        circleLabels[state]!.keys.toSet(),
-        offered,
-        reason:
-            'um estado sem rótulo numa língua que a sala oferece '
-            'vazaria essa língua em silêncio, sem teste nenhum pegando',
-      );
+    final tables = {
+      'circleLabels': circleLabels,
+      'retroLabels': retroLabels,
+      'rehearsalLabels': rehearsalLabels,
+      'findingLabels': findingLabels,
+      'conviteLabels': conviteLabels,
+      'escolhaLabels': escolhaLabels,
+      'handLabels': handLabels,
+      'roomLabels': roomLabels,
+      'warningNoticeLabel': {'notice': warningNoticeLabel},
+      'codigoLabels': codigoLabels,
+      'recordEntryLabel': {'entry': recordEntryLabel},
+      'panoramaEntryLabel': {'entry': panoramaEntryLabel},
+    };
+    for (final MapEntry(key: table, value: states) in tables.entries) {
+      for (final MapEntry(key: state, value: labels) in states.entries) {
+        expect(
+          labels.keys.toSet(),
+          offered,
+          reason:
+              '$table[$state] sem rótulo numa língua que a sala oferece '
+              'vazaria essa língua em silêncio; o guard só olhava o círculo',
+        );
+      }
     }
   });
 
@@ -30,9 +47,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
 
       expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
-      expect(bySemanticsLabelWidget('Tap to speak'), findsOneWidget);
+      expect(byLabel('Tap to speak'), findsOneWidget);
       expect(
-        bySemanticsLabelWidget('Tocar para falar'),
+        byLabel('Tocar para falar'),
         findsNothing,
         reason:
             'o rótulo do círculo era sempre em português, mesmo com o '

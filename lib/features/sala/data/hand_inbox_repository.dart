@@ -72,14 +72,27 @@ class HandInboxRepository {
   /// Whether the desk took it.
   ///
   /// Any 2xx is agreement, so a desk that answers "already heard" is not read as a
-  /// refusal.
-  Future<bool> markHeard(String replyId) async {
+  /// refusal. A desk that answers that the reply moved on is one more non-2xx: the mark
+  /// is taken back, and the reply the desk now holds arrives with the pull a refusal
+  /// asks for (`_markHeard`).
+  ///
+  /// The mark names the clip that played, not only the question: a facilitator who
+  /// re-records while the first clip is still sounding writes a new one under the same
+  /// id, and a mark by id alone would stamp that second reply heard when nobody heard it.
+  /// A reply the desk served with no address is marked bare, by the question alone, as
+  /// every mark was before — the desk answers and addresses a reply in one write, so it
+  /// never serves one, and the bare form is a guard rather than a path.
+  Future<bool> markHeard(String replyId, {required String audioUrl}) async {
     final http.Response response;
     try {
       response = await _client
           .post(
             Uri.parse('${Env.backendUrl}$_basePath/questions/$replyId/heard'),
-            headers: await _headers,
+            headers: {
+              ...await _headers,
+              if (audioUrl.isNotEmpty) 'Content-Type': 'application/json',
+            },
+            body: audioUrl.isEmpty ? null : jsonEncode({'audio_url': audioUrl}),
           )
           .timeout(_timeout);
     } on Object {

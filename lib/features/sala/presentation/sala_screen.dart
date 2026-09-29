@@ -8,6 +8,7 @@ import '../data/mic_permission.dart';
 import '../data/screen_awake.dart';
 import '../data/session_notifier.dart';
 import '../data/take_upload_queue.dart';
+import '../domain/facilitator_script.dart';
 import '../domain/session_state.dart';
 import '../dev/dev_skip_bar.dart';
 import 'widgets/codigo_view.dart';
@@ -20,7 +21,6 @@ import 'widgets/hand_button.dart';
 import 'widgets/hear_again_button.dart';
 import 'widgets/leave_passage_button.dart';
 import 'widgets/mic_gate_view.dart';
-import 'widgets/retro_cord.dart';
 import 'widgets/retro_view.dart';
 
 class SalaScreen extends ConsumerStatefulWidget {
@@ -132,10 +132,6 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
             if (session.colarOn)
               const Positioned.fill(
                 child: SafeArea(bottom: false, child: _ColarLayer()),
-              )
-            else if (session.stage == SalaStage.retro)
-              const Positioned.fill(
-                child: SafeArea(bottom: false, child: _RetroCordLayer()),
               ),
             const _HandLayer(),
             const HearAgainButton(),
@@ -172,90 +168,12 @@ class _FimView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Semantics(
       button: true,
-      label: 'Começar de novo',
+      label: roomLabelFor('beginAgain', ref.watch(roomLanguageProvider)),
       child: GestureDetector(
         onTap: ref.read(salaSessionProvider.notifier).beginAgain,
         behavior: HitTestBehavior.opaque,
         child: const SizedBox.expand(),
       ),
-    );
-  }
-}
-
-/// How often the cord asks the player where the sound is.
-///
-/// Ten times a second is what a bead crossing a whole rehearsal needs: finer redraws the
-/// same pixel, coarser reads as a bead that jumps rather than one that walks.
-const _passoDaCabeca = Duration(milliseconds: 100);
-
-class _RetroCordLayer extends ConsumerStatefulWidget {
-  const _RetroCordLayer();
-
-  @override
-  ConsumerState<_RetroCordLayer> createState() => _RetroCordLayerState();
-}
-
-/// The cord's reading head, kept here rather than in [SalaSessionState].
-///
-/// The head moves ten times a second and only this layer draws it. Carried in the session
-/// it would rebuild every widget in the room at that rate — and the room watches the
-/// session from everywhere. The asking dies with the layer, so nothing walks after the
-/// team leaves the passage.
-///
-/// Out of a sound being played the head is where the room wrote it down: pausing, crossing
-/// a boundary and picking a part back up all say where the team stopped hearing, and none
-/// of them are guesses the player can be asked for.
-class _RetroCordLayerState extends ConsumerState<_RetroCordLayer> {
-  Timer? _asking;
-  int _ouvidoMs = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    final session = ref.read(salaSessionProvider);
-    _ouvidoMs = session.btOuvidoMs;
-    _followTheAudio(_soando(session));
-  }
-
-  static bool _soando(SalaSessionState session) =>
-      session.btClipRodando || session.btTrechoTocando;
-
-  @override
-  void dispose() {
-    _asking?.cancel();
-    super.dispose();
-  }
-
-  void _followTheAudio(bool rodando) {
-    _asking?.cancel();
-    _asking = null;
-    if (!rodando) return;
-    _asking = Timer.periodic(_passoDaCabeca, (_) {
-      final agora = ref.read(salaSessionProvider.notifier).ouvidoAgoraMs;
-      if (agora != _ouvidoMs) setState(() => _ouvidoMs = agora);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final session = ref.watch(salaSessionProvider);
-    // The watch above already rebuilds this layer on any session change; what the select
-    // adds is the edge — the one frame the clip starts or stops — which is when the
-    // asking has to be started or put down.
-    ref.listen<bool>(salaSessionProvider.select(_soando), (_, rodando) {
-      // The part that starts is not the one that stopped, and the player still answers
-      // for the old one until it has loaded the new. The room's own number is the one
-      // that is right on this frame.
-      if (rodando) _ouvidoMs = ref.read(salaSessionProvider).btOuvidoMs;
-      _followTheAudio(rodando);
-    });
-    return RetroCord(
-      partes: session.partes.length,
-      fimDasPartes: session.btFimDasPartesMs,
-      parteNoArMs: session.btParteNoArMs,
-      ouvidoMs: _soando(session) ? _ouvidoMs : session.btOuvidoMs,
-      trechos: session.btTrechos,
-      apontado: session.btEsperandoConserto,
     );
   }
 }
@@ -291,6 +209,7 @@ class _HandLayer extends ConsumerWidget {
         questionPending: session.questionPending,
         hasUnheardReply: session.hasUnheardReply,
         playingReply: session.playingReplyId != null,
+        language: ref.watch(roomLanguageProvider),
         onTap: notifier.handTap,
       ),
     );

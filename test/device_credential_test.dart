@@ -16,7 +16,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 
 import 'fakes.dart';
-import 'session_notifier_test.dart' show settle;
+import 'scenario_helpers.dart' show settle;
 
 const _oneSecond = Duration(seconds: 1);
 const _quickPoll = Duration(milliseconds: 20);
@@ -47,7 +47,8 @@ final Map<String, _Request> _everyRequest = {
   'passagesOf': (room, _) => room.passagesOf('rute', language: 'pt'),
   'fetchState': (room, _) => room.fetchState('sessao-1'),
   'openSession': (room, _) => room.openSession('sessao-1'),
-  'sendTurn': (room, audio) => room.sendTurn('sessao-1', audio),
+  'sendTurn': (room, audio) =>
+      room.sendTurn('sessao-1', audio, turnId: 'turno-1'),
   'sendChunk': (room, audio) => room.sendChunk(
     'sessao-1',
     audio,
@@ -58,8 +59,6 @@ final Map<String, _Request> _everyRequest = {
   'sendTake': (room, audio) =>
       room.sendTake('sessao-1', audio, kind: 'ensaio', scope: 'passagem'),
   'takesOf': (room, _) => room.takesOf('sessao-1'),
-  'divideSegment': (room, _) =>
-      room.divideSegment('sessao-1', 'trecho-1', at: _oneSecond),
   'replaceSegment': (room, audio) => room.replaceSegment(
     'sessao-1',
     'trecho-1',
@@ -89,7 +88,8 @@ typedef _InboxRequest =
 /// the tablet is a question the room stops accepting.
 final Map<String, _InboxRequest> _everyInboxRequest = {
   'fetchReplies': (inbox, _) => inbox.fetchReplies(),
-  'markHeard': (inbox, _) => inbox.markHeard('resposta-1'),
+  'markHeard': (inbox, _) =>
+      inbox.markHeard('resposta-1', audioUrl: '/voz/resposta-1'),
   'sendQuestion': (inbox, audio) => inbox.sendQuestion('sessao-1', audio),
 };
 

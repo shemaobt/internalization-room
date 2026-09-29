@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/approval_answer.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -14,16 +13,13 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'um_ensaio_de_tres_partes.dart';
+import 'scenario_helpers.dart';
 
 const _aprovar = 'Aprovar como rascunho final';
 const _ouvir = 'Ouvir a gravação';
 
 FacilitatorCircle _circulo(WidgetTester tester) =>
     tester.widget<FacilitatorCircle>(find.byType(FacilitatorCircle));
-
-Finder _byLabel(String label) => find.byWidgetPredicate(
-  (widget) => widget is Semantics && widget.properties.label == label,
-);
 
 SalaSessionNotifier _notifier(ProviderContainer c) =>
     c.read(salaSessionProvider.notifier);
@@ -65,8 +61,9 @@ Future<_Conferida> _ateAConferida(
 
   harness.playback.at = const Duration(seconds: 10);
   sala.cortarTrecho();
-  await tester.pump(const Duration(milliseconds: 200));
   sala.retroTap();
+  await tester.pump(const Duration(milliseconds: 200));
+  await confirmarATraducaoNaTela(tester, container);
   await tester.pump(const Duration(milliseconds: 600));
   harness.playback.finishPlayback();
   await tester.pump(const Duration(milliseconds: 200));
@@ -94,7 +91,7 @@ Future<Sala> _tresPartesAteAConferida() async {
 }
 
 Future<void> _aprovarEEsperar(WidgetTester tester) async {
-  await tester.tap(_byLabel(_aprovar));
+  await tester.tap(byLabel(_aprovar));
   await tester.pump(const Duration(milliseconds: 300));
 }
 
@@ -112,14 +109,14 @@ void main() {
             'não chega ao que mede',
       );
       expect(
-        _byLabel(_ouvir),
+        byLabel(_ouvir),
         findsOneWidget,
         reason:
             'a fala do veredito convida a equipe a ouvir a gravação mais '
             'uma vez, e o convite sem o gesto é uma tela sem saída',
       );
       expect(
-        _byLabel(_aprovar),
+        byLabel(_aprovar),
         findsOneWidget,
         reason:
             'e a aprovação é o gesto que faltava: a passagem terminava '
@@ -136,7 +133,6 @@ void main() {
             'aprovação, e 700ms depois da conferida a equipe era levada embora '
             'de uma tela que ela nunca chegou a tocar',
       );
-      expect(_estado(it.container).fimClosed, isFalse);
       expect(
         it.harness.finished.done,
         isNot(contains('Ruth/P01')),
@@ -170,7 +166,7 @@ void main() {
       final falasAntes = it.harness.voice.assets.length;
 
       it.harness.voice.holdNextLine();
-      await tester.tap(_byLabel(_aprovar));
+      await tester.tap(byLabel(_aprovar));
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(
@@ -208,9 +204,6 @@ void main() {
         reason: 'dita a linha, o colar fecha como sempre fechou',
       );
 
-      await tester.pump(const Duration(seconds: 1));
-
-      expect(_estado(it.container).fimClosed, isTrue);
       expect(
         it.harness.finished.done,
         contains('Ruth/P01'),
@@ -233,9 +226,9 @@ void main() {
     final falasAntes = it.harness.voice.assets.length;
 
     it.harness.room.holdNextRelease();
-    await tester.tap(_byLabel(_aprovar));
+    await tester.tap(byLabel(_aprovar));
     await tester.pump(const Duration(milliseconds: 100));
-    await tester.tap(_byLabel(_aprovar));
+    await tester.tap(byLabel(_aprovar));
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(
@@ -382,7 +375,7 @@ void main() {
     );
     expect(_estado(it.container).btPhase, BtPhase.conferida);
     expect(
-      _byLabel(_aprovar),
+      byLabel(_aprovar),
       findsOneWidget,
       reason: 'e o gesto continua na tela para a equipe apertar de novo',
     );
@@ -457,7 +450,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(
-        _byLabel(_aprovar),
+        byLabel(_aprovar),
         findsOneWidget,
         reason: 'e voltando a sala, o gesto está onde estava',
       );
@@ -469,7 +462,7 @@ void main() {
   testWidgets('o botão de aprovar só existe em conferida', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true)
       ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.addition
+      ..room.verdictHasFinding = true
       ..room.verdictFindingSegmentId = 'trecho-1';
     final container = harness.container();
     addTearDown(container.dispose);
@@ -499,7 +492,7 @@ void main() {
             'coisa sobre $esperada',
       );
       expect(
-        _byLabel(_aprovar),
+        byLabel(_aprovar),
         findsNothing,
         reason:
             'aprovar antes de a sala conferir é a equipe assinando um '
@@ -511,6 +504,7 @@ void main() {
 
     harness.playback.at = const Duration(seconds: 10);
     sala.cortarTrecho();
+    sala.retroTap();
     await tester.pump(const Duration(milliseconds: 200));
     await semAprovar(BtPhase.capturing);
 
@@ -520,6 +514,8 @@ void main() {
     await semAprovar(BtPhase.thinking);
     harness.recorder.finishStop();
     await letTheRehearsalReachTheRoom(tester);
+    await tester.pump(const Duration(milliseconds: 400));
+    await sala.confirmarTraducao();
     await tester.pump(const Duration(milliseconds: 400));
 
     harness.playback.finishPlayback();
@@ -532,7 +528,7 @@ void main() {
     final conferida = await _ateAConferida(tester);
 
     expect(
-      _byLabel(_aprovar),
+      byLabel(_aprovar),
       findsOneWidget,
       reason:
           'e em conferida, uma: é a única fase em que a passagem está '
@@ -546,7 +542,7 @@ void main() {
       'deixa a equipe onde ela está', (tester) async {
     final it = await _ateAConferida(tester);
 
-    await tester.tap(_byLabel(_ouvir));
+    await tester.tap(byLabel(_ouvir));
     await tester.pump(const Duration(milliseconds: 100));
     it.harness.playback.failPlayback();
     await tester.pump(const Duration(milliseconds: 300));
@@ -654,7 +650,7 @@ void main() {
     final parte = _estado(it.container).partes.first.path;
     final tocadas = it.harness.playback.played.length;
 
-    await tester.tap(_byLabel(_ouvir));
+    await tester.tap(byLabel(_ouvir));
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(
@@ -676,7 +672,7 @@ void main() {
       reason: 'ouvir não desfaz a conferência',
     );
     expect(
-      _byLabel(_aprovar),
+      byLabel(_aprovar),
       findsOneWidget,
       reason: 'e a aprovação segue ali, para quando a gravação acabar',
     );
@@ -842,7 +838,7 @@ void main() {
     testWidgets('a recusa por $codigo devolve a fase de tocar com '
         'o terminei de pé', (tester) async {
       final it = await _ateAConferida(tester);
-      await tester.tap(_byLabel(_ouvir));
+      await tester.tap(byLabel(_ouvir));
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(
@@ -900,7 +896,7 @@ void main() {
       ..holdNextState();
     final trechosNoAr = it.harness.playback.ranges.length;
 
-    await tester.tap(_byLabel(_aprovar));
+    await tester.tap(byLabel(_aprovar));
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(
@@ -912,7 +908,7 @@ void main() {
           'durar até a porta abrir',
     );
 
-    await tester.tap(_byLabel(_aprovar));
+    await tester.tap(byLabel(_aprovar));
     await tester.pump(const Duration(milliseconds: 200));
 
     it.harness.room.finishHeldState();
@@ -1035,7 +1031,7 @@ void main() {
         ..releaseUntoldSegmentId = caso.trecho
         ..holdNextRelease();
 
-      await tester.tap(_byLabel(_aprovar));
+      await tester.tap(byLabel(_aprovar));
       await tester.pump(const Duration(milliseconds: 100));
       _notifier(it.container).leaveThePassage();
       await tester.pump(const Duration(milliseconds: 300));
@@ -1260,7 +1256,7 @@ void main() {
       reason: 'a fase não se move, que é o que mantém o botão desenhado',
     );
     expect(
-      _byLabel(_aprovar),
+      byLabel(_aprovar),
       findsOneWidget,
       reason: 'e o gesto continua ali para ser repetido',
     );
@@ -1292,4 +1288,75 @@ void main() {
 
     closeTheRoom(it.container);
   });
+
+  testWidgets('a passage the room called checked is announced in english to an '
+      'english room', (tester) async {
+    final it = await _ateAConferida(
+      tester,
+      comEsta: SalaHarness(filaEmMemoria: true, lingua: 'en'),
+    );
+
+    expect(_estado(it.container).btPhase, BtPhase.conferida);
+    expect(
+      _circulo(tester).semanticLabel,
+      'Translated',
+      reason:
+          'a passagem conferida era anunciada "Traduzida" a uma sala em '
+          'inglês',
+    );
+
+    closeTheRoom(it.container);
+  });
+
+  testWidgets(
+    'a retro that lost the network asks an english room to try again in '
+    'english',
+    (tester) async {
+      final it = await _ateAConferida(
+        tester,
+        comEsta: SalaHarness(filaEmMemoria: true, lingua: 'en'),
+      );
+      it.harness.room.reachable = false;
+      it.harness.network.reachable = false;
+
+      await tester.tap(byLabel('Approve as the final draft'));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(_circulo(tester).voice, VoiceState.offline);
+      expect(
+        _circulo(tester).semanticLabel,
+        'Tap to try again',
+        reason:
+            'sem rede, o retro pedia "Tocar para tentar de novo" a uma sala '
+            'em inglês',
+      );
+
+      closeTheRoom(it.container);
+    },
+  );
+
+  testWidgets(
+    'a retro that calls a person says so in english to an english room',
+    (tester) async {
+      final it = await _ateAConferida(
+        tester,
+        comEsta: SalaHarness(filaEmMemoria: true, lingua: 'en'),
+      );
+      it.harness.room.releaseBlockers = ['no_project'];
+
+      await tester.tap(byLabel('Approve as the final draft'));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(_circulo(tester).voice, VoiceState.needsPerson);
+      expect(
+        _circulo(tester).semanticLabel,
+        'A moment for someone',
+        reason:
+            'o retro chamando uma pessoa dizia "Um momento para uma pessoa" '
+            'a uma sala em inglês',
+      );
+
+      closeTheRoom(it.container);
+    },
+  );
 }

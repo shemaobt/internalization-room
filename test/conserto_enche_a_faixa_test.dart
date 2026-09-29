@@ -1,45 +1,44 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/retro_cord.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart';
 
-const _micRetro = 'Traduzir de novo só em português';
-
-Finder _byLabel(String label) => find.byWidgetPredicate(
-  (widget) => widget is Semantics && widget.properties.label == label,
-);
+const _micRetro = 'Traduzir este trecho de novo';
 
 SalaHarness? _harnessDaVez;
 
 SalaSessionNotifier _notifier(ProviderContainer c) =>
     c.read(salaSessionProvider.notifier);
 
-/// Which places on the cord are drawn drained, by their order along it.
+/// Which stretches are drawn drained, by their order.
 ///
-/// This reads the painter's own rule from outside: a band is emptied — and wears the halo
-/// — exactly when the stretch it draws is the one the cord was told to point at. Stretches
-/// are named by their place and not by their name, because mending mints a new name and
-/// the band the team watches is the same band either way.
+/// A stretch is drained exactly when it is the one waiting to be mended. Stretches are
+/// named by their place and not by their name, because mending mints a new name and the
+/// bead the team watches is the same bead either way.
 ///
 /// The whole list rather than one place at a time. Asking "is the neighbour's band full?"
-/// reads like coverage and is not: the cord is told to point at one name, the neighbour
+/// reads like coverage and is not: the room points at one name, the neighbour
 /// never carries that name, and the answer is false however broken the room is. Answering
 /// with every drained place says the same thing and can be wrong.
-List<int> _faixasVazias(WidgetTester tester, ProviderContainer container) {
-  final cord = tester.widget<RetroCord>(find.byType(RetroCord));
-  final trechos = container.read(salaSessionProvider).btTrechos;
-  return [
-    for (var lugar = 0; lugar < trechos.length; lugar++)
-      if (cord.apontado != null && trechos[lugar].segmentId == cord.apontado)
-        lugar,
-  ];
-}
+List<int> _faixasVazias(WidgetTester tester, ProviderContainer container) => [
+  for (final (lugar, conta)
+      in tester
+          .widget<BeadRow>(
+            find.descendant(
+              of: find.byType(RetroView),
+              matching: find.byType(BeadRow),
+            ),
+          )
+          .entries
+          .indexed)
+    if (conta.fill == BeadFill.drained) lugar,
+];
 
 /// A session standing at the question, with a finding on the first of two stretches.
 Future<ProviderContainer> _pumpToPergunta(
@@ -48,7 +47,7 @@ Future<ProviderContainer> _pumpToPergunta(
 }) async {
   final harness = SalaHarness(filaEmMemoria: true, busyCeiling: teto)
     ..room.verdictChecked = false
-    ..room.verdictFinding = BtFindingKind.addition
+    ..room.verdictHasFinding = true
     ..room.verdictFindingSegmentId = 'trecho-1';
   _harnessDaVez = harness;
   final container = harness.container();
@@ -73,8 +72,9 @@ Future<ProviderContainer> _pumpToPergunta(
   for (final at in const [Duration(seconds: 10), Duration(seconds: 20)]) {
     harness.playback.at = at;
     sala.cortarTrecho();
-    await tester.pump(const Duration(milliseconds: 200));
     sala.retroTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    await confirmarATraducaoNaTela(tester, container);
     await tester.pump(const Duration(milliseconds: 600));
   }
   harness.playback.finishPlayback();
@@ -84,18 +84,30 @@ Future<ProviderContainer> _pumpToPergunta(
   return container;
 }
 
-/// The short way, which opens the microphone on the stretch straight away.
+/// The short way: the azul microphone lands on the translation, on that stretch.
 Future<void> _escolherTraduzirDeNovo(WidgetTester tester) async {
-  await tester.tap(_byLabel(_micRetro));
+  await tester.tap(byLabel(_micRetro));
   await tester.pump(const Duration(milliseconds: 300));
 }
 
-/// The microphone is open on the stretch; this is the team handing the telling over.
+/// The circle opens the microphone over the old telling.
+Future<void> _abrirOMicrofone(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  _notifier(container).retroTap();
+  await tester.pump(const Duration(milliseconds: 300));
+}
+
+/// The microphone is open on the stretch; this is the team closing it and handing the
+/// telling over with the check.
 Future<void> _entregarATraducao(
   WidgetTester tester,
   ProviderContainer container,
 ) async {
   _notifier(container).retroTap();
+  await tester.pump(const Duration(milliseconds: 300));
+  await _notifier(container).confirmarTraducao();
   await letTheRehearsalReachTheRoom(tester);
   await tester.pump(const Duration(milliseconds: 400));
 }
@@ -116,24 +128,34 @@ void main() {
     );
   });
 
-  testWidgets('a faixa enche ao escolher traduzir de novo só na língua-ponte', (
-    tester,
-  ) async {
-    final container = await _pumpToPergunta(tester);
-    final harness = _harnessDaVez!;
-    final pedidos = harness.room.calls.length;
+  testWidgets(
+    'a conta enche quando o círculo abre o conserto na língua-ponte',
+    (tester) async {
+      final container = await _pumpToPergunta(tester);
+      final harness = _harnessDaVez!;
+      final pedidos = harness.room.calls.length;
 
-    await _escolherTraduzirDeNovo(tester);
+      await _escolherTraduzirDeNovo(tester);
+      expect(
+        _faixasVazias(tester, container),
+        [0],
+        reason:
+            'escolher a voz leva à tradução; nada foi gravado ainda, e a '
+            'conta segue drenada à espera do conserto (quadro X2)',
+      );
 
-    expect(
-      _faixasVazias(tester, container),
-      isEmpty,
-      reason:
-          'a promessa é feita ao escolher, antes de qualquer coisa ir '
-          'para a sala: a faixa está de pé porque o conserto começou',
-    );
-    expect(harness.room.calls.length, pedidos);
-  });
+      await _abrirOMicrofone(tester, container);
+
+      expect(
+        _faixasVazias(tester, container),
+        isEmpty,
+        reason:
+            'a promessa é feita ao abrir o microfone, antes de qualquer coisa '
+            'ir para a sala: a conta está de pé porque o conserto começou',
+      );
+      expect(harness.room.calls.length, pedidos);
+    },
+  );
 
   testWidgets('uma gravação que não devolveu arquivo esvazia a faixa de novo', (
     tester,
@@ -142,6 +164,7 @@ void main() {
     final harness = _harnessDaVez!;
 
     await _escolherTraduzirDeNovo(tester);
+    await _abrirOMicrofone(tester, container);
     expect(_faixasVazias(tester, container), isEmpty);
     harness.recorder.returnsEmpty = true;
     await _entregarATraducao(tester, container);
@@ -170,14 +193,18 @@ void main() {
     final harness = _harnessDaVez!;
 
     await _escolherTraduzirDeNovo(tester);
+    await _abrirOMicrofone(tester, container);
     expect(_faixasVazias(tester, container), isEmpty);
     harness.room.failReplaceWith = const RoomRefused();
     await _entregarATraducao(tester, container);
 
     expect(
       _faixasVazias(tester, container),
-      [0],
-      reason: 'a sala recusou o conserto, então ele não aconteceu',
+      isEmpty,
+      reason:
+          'a sala recusou o conserto, e a tradução nova segue pendente: a '
+          'conta fica translúcida, como toda regravação pendente (ADR 0040), '
+          'até o check aterrar',
     );
     closeTheRoom(container);
   });
@@ -189,17 +216,23 @@ void main() {
     final harness = _harnessDaVez!;
 
     await _escolherTraduzirDeNovo(tester);
+    await _abrirOMicrofone(tester, container);
     expect(_faixasVazias(tester, container), isEmpty);
     harness.room.replaceCaptured = false;
     await _entregarATraducao(tester, container);
 
     expect(
       _faixasVazias(tester, container),
-      [0],
+      isEmpty,
       reason:
-          'a sala não fez nada com o que subiu — este ramo não recusa nem '
-          'estoura, volta calado, e é o que faria a faixa dizer "consertado" '
-          'sobre trabalho que não existe',
+          'a sala não fez nada com o que subiu, e a tradução nova segue '
+          'pendente, translúcida: o conserto não aterrou, mas também não se '
+          'perdeu',
+    );
+    expect(
+      container.read(salaSessionProvider).canConfirmTranslation,
+      isTrue,
+      reason: 'e o check continua aceso para mandá-la de novo',
     );
   });
 
@@ -210,6 +243,7 @@ void main() {
     final harness = _harnessDaVez!;
 
     await _escolherTraduzirDeNovo(tester);
+    await _abrirOMicrofone(tester, container);
     expect(_faixasVazias(tester, container), isEmpty);
     harness.recorder.returnsNothing = true;
     await _entregarATraducao(tester, container);
@@ -238,12 +272,8 @@ void main() {
 
     harness.recorder.startThrows = true;
     await _escolherTraduzirDeNovo(tester);
-    // The refused microphone put the team back on the rehearsal, so the second try
-    // comes through the other door the short way has: the stretch tapped on the cord.
-    await _notifier(
-      container,
-    ).traduzirDeNovo(container.read(salaSessionProvider).btTrechos.first);
-    await tester.pump(const Duration(milliseconds: 300));
+    await _abrirOMicrofone(tester, container);
+    await _abrirOMicrofone(tester, container);
 
     expect(
       container.read(salaSessionProvider).needsPerson,
@@ -271,6 +301,7 @@ void main() {
 
     harness.recorder.startThrows = true;
     await _escolherTraduzirDeNovo(tester);
+    await _abrirOMicrofone(tester, container);
     expect(_faixasVazias(tester, container), [0]);
 
     harness.recorder.startThrows = false;
@@ -280,12 +311,7 @@ void main() {
     _notifier(container).resolveWithPerson();
     await tester.pump(const Duration(milliseconds: 300));
     final capturasAntes = harness.recorder.captures;
-    // The refused microphone put the team back on the rehearsal, so the way back into the
-    // mend is the other door the short way has: the stretch tapped on the cord.
-    await _notifier(
-      container,
-    ).traduzirDeNovo(container.read(salaSessionProvider).btTrechos.first);
-    await tester.pump(const Duration(milliseconds: 300));
+    await _abrirOMicrofone(tester, container);
 
     expect(
       harness.recorder.captures,
@@ -314,6 +340,7 @@ void main() {
     final harness = _harnessDaVez!;
 
     await _escolherTraduzirDeNovo(tester);
+    await _abrirOMicrofone(tester, container);
     expect(_faixasVazias(tester, container), isEmpty);
     // The one hang the ladder never sees: the room's own watchdog gives up on a busy
     // state, and it is not a room failure — it is this tablet deciding the wait is over.
@@ -364,6 +391,7 @@ void main() {
     // that had already been asked, and the second one the room rightly refuses.
     harness.room.verdictFindingPlace = 0;
     await _escolherTraduzirDeNovo(tester);
+    await _abrirOMicrofone(tester, container);
     await _entregarATraducao(tester, container);
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 200));
@@ -397,6 +425,7 @@ void main() {
         .firstWhere((trecho) => trecho.segmentId == 'trecho-2');
 
     await _escolherTraduzirDeNovo(tester);
+    await _abrirOMicrofone(tester, container);
     await _entregarATraducao(tester, container);
 
     // Where the bands sit, which the drained-places reading cannot see: it answers which

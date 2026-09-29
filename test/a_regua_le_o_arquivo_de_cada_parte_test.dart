@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -16,7 +15,7 @@ Future<Sala> _aSalaNoAchadoDaSegundaParte({Duration? tetoDaEspera}) async {
   );
   it.harness.room
     ..verdictChecked = false
-    ..verdictFinding = BtFindingKind.addition
+    ..verdictHasFinding = true
     ..verdictFindingPlace = 1;
   await pedirOVeredito(it);
   return it;
@@ -60,7 +59,7 @@ Future<void> _regravarASegundaParte(
 void _aSalaVaiRecusar(Sala it, String naoOuvida) {
   it.harness.room
     ..verdictChecked = false
-    ..verdictFinding = null
+    ..verdictHasFinding = false
     ..verdictFindingPlace = null
     ..verdictUnheardTakeIds = [naoOuvida];
 }
@@ -88,6 +87,7 @@ Future<void> _contarAParteNoAr(Sala it, Duration quanto) async {
     ..length = quanto
     ..at = quanto;
   it.sala.cortarTrecho();
+  it.sala.retroTap();
   await waitFor(
     'o microfone abrir no trecho',
     () =>
@@ -95,7 +95,7 @@ Future<void> _contarAParteNoAr(Sala it, Duration quanto) async {
         it.harness.recorder.captures > capturas,
   );
 
-  it.sala.retroTap();
+  await confirmarATraducao(it.container);
   await waitFor(
     'o trecho traduzido entrar no colar',
     () => it.estado.btTrechos.length == antes + 1,

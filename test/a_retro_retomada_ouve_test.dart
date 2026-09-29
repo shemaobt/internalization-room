@@ -9,9 +9,7 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-
-Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) =>
-    Future<void>.delayed(delay);
+import 'scenario_helpers.dart' show settle;
 
 const _traduzidos = BackTranslationProgress(
   segments: [
@@ -84,6 +82,7 @@ void main() {
       final before = harness.playback.played.length;
       notifier.retroTap();
       notifier.cortarTrecho();
+      notifier.retroTap();
       await settle();
       expect(
         harness.playback.played.length,

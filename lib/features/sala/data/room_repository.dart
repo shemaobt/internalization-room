@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import '../../../core/config/env.dart';
 import '../domain/approval_answer.dart';
 import '../domain/bt_finding.dart';
+import '../domain/coverage.dart';
 import '../domain/coverage_event.dart';
 import '../domain/device_link.dart';
 import '../domain/escuta_das_partes.dart';
@@ -56,12 +57,20 @@ class RoomBroke implements Exception {
   String toString() => 'RoomBroke: $reason';
 }
 
+class StretchNoLongerCounts implements Exception {
+  const StretchNoLongerCounts();
+}
+
 class RoomRefused implements Exception {
   const RoomRefused();
 }
 
 class SessionGone implements Exception {
   const SessionGone();
+}
+
+class PassageCannotOpen implements Exception {
+  const PassageCannotOpen();
 }
 
 /// The row is not claimed yet, or was taken out of service. Temporary: the answer to it
@@ -80,10 +89,6 @@ class CredentialTaken implements Exception {
 
   @override
   String toString() => 'CredentialTaken';
-}
-
-class PassageShut implements Exception {
-  const PassageShut();
 }
 
 /// The device has no team to reach: nobody claimed it, it was taken out of service, or
@@ -142,7 +147,11 @@ class RoomRepository {
     );
     if (response.statusCode == 409) throw const CredentialNotYet();
     if (response.statusCode == 403) throw const CredentialTaken();
-    return _read(response, (json) => json['credential'] as String);
+    return _read(
+      response,
+      (json) => json['credential'] as String,
+      notFoundIsTheSessionGone: true,
+    );
   }
 
   Future<ClaimCode> askForACode(String? deviceId) async {
@@ -154,7 +163,7 @@ class RoomRepository {
       ),
       _stateTimeout,
     );
-    return _read(response, ClaimCode.fromJson);
+    return _read(response, ClaimCode.fromJson, notFoundIsTheSessionGone: true);
   }
 
   Future<TeamLink?> readTheLink(String deviceId) async {
@@ -163,7 +172,7 @@ class RoomRepository {
       _stateTimeout,
     );
     if (response.statusCode == 204) return null;
-    return _read(response, TeamLink.fromJson);
+    return _read(response, TeamLink.fromJson, notFoundIsTheSessionGone: true);
   }
 
   Future<SessionSnapshot> createSession({
@@ -183,7 +192,12 @@ class RoomRepository {
       ),
       _stateTimeout,
     );
-    return _read(response, SessionSnapshot.fromJson);
+    if (response.statusCode == 400) throw const PassageCannotOpen();
+    return _read(
+      response,
+      SessionSnapshot.fromJson,
+      notFoundIsTheSessionGone: true,
+    );
   }
 
   /// The passages of a book, each with the line that names it aloud.
@@ -203,7 +217,7 @@ class RoomRepository {
       ),
       _turnTimeout,
     );
-    return _read(response, passagensFromJson);
+    return _read(response, passagensFromJson, notFoundIsTheSessionGone: true);
   }
 
   Future<SessionSnapshot> fetchState(String sessionId) async {
@@ -211,7 +225,11 @@ class RoomRepository {
       () => _client.get(_uri('/sessions/$sessionId'), headers: _headers),
       _stateTimeout,
     );
-    return _read(response, SessionSnapshot.fromJson);
+    return _read(
+      response,
+      SessionSnapshot.fromJson,
+      notFoundIsTheSessionGone: true,
+    );
   }
 
   Stream<CoverageEvent> watchCoverage(String sessionId) {
@@ -231,6 +249,18 @@ class RoomRepository {
         );
         if (cancelled) {
           unawaited(response.stream.listen(null).cancel());
+          return;
+        }
+        if (response.statusCode != 200) {
+          unawaited(response.stream.listen(null).cancel());
+          if (response.statusCode == 401 || response.statusCode == 403) {
+            controller.addError(const RoomRefused());
+          } else if (response.statusCode == 404) {
+            controller.addError(const SessionGone());
+          } else {
+            controller.addError(RoomBroke('HTTP ${response.statusCode}'));
+          }
+          await controller.close();
           return;
         }
         String? eventName;
@@ -258,9 +288,13 @@ class RoomRepository {
                 }
               },
               onDone: controller.close,
-              onError: (Object _) => controller.close(),
+              onError: (Object error) {
+                if (!cancelled) controller.addError(RoomUnavailable('$error'));
+                controller.close();
+              },
             );
-      } on Exception {
+      } on Exception catch (error) {
+        if (!cancelled) controller.addError(RoomUnavailable('$error'));
         await controller.close();
       }
     }());
@@ -278,7 +312,15 @@ class RoomRepository {
         _ => null,
       };
       if (turnId == null || status == null) return null;
-      return CoverageEvent(turnId: turnId, status: status);
+      return CoverageEvent(
+        turnId: turnId,
+        status: status,
+        coverage: json['coverage'] == null
+            ? null
+            : Coverage.fromJson(
+                (json['coverage'] as Map).cast<String, dynamic>(),
+              ),
+      );
     } on FormatException {
       return null;
     }
@@ -293,20 +335,30 @@ class RoomRepository {
       ),
       _turnTimeout,
     );
-    return _read(response, TurnResult.fromJson);
+    return _read(response, TurnResult.fromJson, notFoundIsTheSessionGone: true);
   }
 
+  /// One voiced take, under the id it keeps across every resend. The id is not optional:
+  /// a take sent without one is a new turn to the room each time it goes, and a resend
+  /// of it is answered twice.
   Future<TurnResult> sendTurn(
     String sessionId,
     File audio, {
+    required String turnId,
     String? clientTiming,
+    Duration? timeout,
   }) async {
     final request =
         http.MultipartRequest('POST', _uri('/sessions/$sessionId/turns'))
           ..headers.addAll(_whoWeAre)
+          ..fields['turn_id'] = turnId
           ..files.add(await http.MultipartFile.fromPath('file', audio.path));
     if (clientTiming != null) request.fields['client_timing'] = clientTiming;
-    return _read(await _sendMultipart(request), TurnResult.fromJson);
+    return _read(
+      await _sendMultipart(request, timeout ?? _turnTimeout),
+      TurnResult.fromJson,
+      notFoundIsTheSessionGone: true,
+    );
   }
 
   /// One stretch told back: which rehearsal recording it explains, and the slice of
@@ -330,7 +382,11 @@ class RoomRepository {
           ..fields['starts_ms'] = '${from.inMilliseconds}'
           ..fields['ends_ms'] = '${to.inMilliseconds}'
           ..files.add(await http.MultipartFile.fromPath('file', audio.path));
-    return _read(await _sendMultipart(request), BackTranslationChunk.fromJson);
+    return _read(
+      await _sendMultipart(request),
+      BackTranslationChunk.fromJson,
+      notFoundIsTheSessionGone: true,
+    );
   }
 
   /// Store one take and answer with the name the room gave it.
@@ -357,6 +413,7 @@ class RoomRepository {
     return _read(
       await _sendMultipart(request),
       (json) => json['take_id'] as String,
+      notFoundIsTheSessionGone: true,
     );
   }
 
@@ -371,7 +428,7 @@ class RoomRepository {
       () => _client.get(_uri('/sessions/$sessionId/takes'), headers: _headers),
       _stateTimeout,
     );
-    return _read(response, TakeView.listFrom);
+    return _read(response, TakeView.listFrom, notFoundIsTheSessionGone: true);
   }
 
   /// Where the audio of one take is, for [fetchClip] to go and get.
@@ -381,22 +438,6 @@ class RoomRepository {
   /// redirect, which the client follows on its own.
   static String takeAudioUrl(String sessionId, String takeId) =>
       '$_basePath/sessions/$sessionId/takes/$takeId/audio';
-
-  Future<List<SegmentView>> divideSegment(
-    String sessionId,
-    String segmentId, {
-    required Duration at,
-  }) async {
-    final response = await _send(
-      () => _client.post(
-        _uri('/sessions/$sessionId/segments/$segmentId/divide'),
-        headers: _headers,
-        body: jsonEncode({'at_ms': at.inMilliseconds}),
-      ),
-      _stateTimeout,
-    );
-    return _read(response, SegmentView.listFrom);
-  }
 
   /// A new version of one stretch: the explanation redone over the same slice.
   ///
@@ -421,7 +462,29 @@ class RoomRepository {
           ..fields['starts_ms'] = '${from.inMilliseconds}'
           ..fields['ends_ms'] = '${to.inMilliseconds}';
     request.files.add(await http.MultipartFile.fromPath('file', audio.path));
-    return _read(await _sendMultipart(request), TellingAgain.fromJson);
+    final response = await _sendMultipart(request);
+    if (_saysTheStretchNoLongerCounts(response)) {
+      throw const StretchNoLongerCounts();
+    }
+    return _read(
+      response,
+      TellingAgain.fromJson,
+      notFoundIsTheSessionGone: false,
+    );
+  }
+
+  bool _saysTheStretchNoLongerCounts(http.Response response) {
+    if (response.statusCode != 400) return false;
+    try {
+      final body = jsonDecode(utf8.decode(response.bodyBytes));
+      return body is Map<String, dynamic> &&
+          body['detail'] is String &&
+          (body['detail'] as String).startsWith(
+            'This stretch no longer counts',
+          );
+    } on FormatException {
+      return false;
+    }
   }
 
   /// The team's approval of its own final draft.
@@ -437,7 +500,11 @@ class RoomRepository {
       ),
       _stateTimeout,
     );
-    return _read(response, ApprovalAnswer.fromJson);
+    return _read(
+      response,
+      ApprovalAnswer.fromJson,
+      notFoundIsTheSessionGone: true,
+    );
   }
 
   Future<void> askForAPerson(String sessionId) async {
@@ -448,7 +515,7 @@ class RoomRepository {
       ),
       _stateTimeout,
     );
-    _read(response, (json) => json);
+    _read(response, (json) => json, notFoundIsTheSessionGone: true);
   }
 
   Future<void> personArrived(String sessionId) async {
@@ -459,7 +526,7 @@ class RoomRepository {
       ),
       _stateTimeout,
     );
-    _read(response, (json) => json);
+    _read(response, (json) => json, notFoundIsTheSessionGone: true);
   }
 
   /// The device-scoped ask, for a halt that has no session to ask through: the server
@@ -475,7 +542,7 @@ class RoomRepository {
     if (response.statusCode == 404 || response.statusCode == 409) {
       throw const NobodyToReach();
     }
-    _read(response, (json) => json);
+    _read(response, (json) => json, notFoundIsTheSessionGone: true);
   }
 
   Future<BackTranslationVerdict> finishBackTranslation(
@@ -500,7 +567,11 @@ class RoomRepository {
       ),
       _turnTimeout,
     );
-    return _read(response, BackTranslationVerdict.fromJson);
+    return _read(
+      response,
+      BackTranslationVerdict.fromJson,
+      notFoundIsTheSessionGone: true,
+    );
   }
 
   Future<Uint8List> fetchClip(String url) async {
@@ -543,9 +614,12 @@ class RoomRepository {
     return response;
   }
 
-  Future<http.Response> _sendMultipart(http.MultipartRequest request) => _send(
+  Future<http.Response> _sendMultipart(
+    http.MultipartRequest request, [
+    Duration timeout = _turnTimeout,
+  ]) => _send(
     () async => http.Response.fromStream(await _client.send(request)),
-    _turnTimeout,
+    timeout,
   );
 
   Future<http.Response> _send(
@@ -561,8 +635,15 @@ class RoomRepository {
     }
   }
 
-  T _read<T>(http.Response response, T Function(Map<String, dynamic>) build) {
-    final body = _decode(response);
+  T _read<T>(
+    http.Response response,
+    T Function(Map<String, dynamic>) build, {
+    required bool notFoundIsTheSessionGone,
+  }) {
+    final body = _decode(
+      response,
+      notFoundIsTheSessionGone: notFoundIsTheSessionGone,
+    );
     try {
       return build(body);
     } on TypeError catch (error) {
@@ -572,15 +653,15 @@ class RoomRepository {
     }
   }
 
-  Map<String, dynamic> _decode(http.Response response) {
+  Map<String, dynamic> _decode(
+    http.Response response, {
+    required bool notFoundIsTheSessionGone,
+  }) {
     if (response.statusCode == 401 || response.statusCode == 403) {
       throw const RoomRefused();
     }
-    if (response.statusCode == 404) {
+    if (response.statusCode == 404 && notFoundIsTheSessionGone) {
       throw const SessionGone();
-    }
-    if (response.statusCode == 400) {
-      throw const PassageShut();
     }
     if (response.statusCode != 200) {
       throw RoomBroke('HTTP ${response.statusCode}');

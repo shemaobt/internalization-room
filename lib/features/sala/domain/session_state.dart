@@ -1,4 +1,3 @@
-import 'bt_finding.dart';
 import 'spoken_line.dart';
 import 'room_reach.dart';
 import 'coverage.dart';
@@ -21,7 +20,15 @@ enum VoiceState {
 
 enum ConviteStep { boasVindas, panorama, entrada }
 
-enum EnsaioStatus { idle, ghostPlaying, recording, recorded }
+enum EnsaioStatus { idle, recording, recorded }
+
+/// How far short of a part's end the told ground may stop and still count as its end.
+///
+/// The last cut of a part is made where the clip stopped, and a position read as a
+/// clip finishes can sit a little before the length measured without playing it. This
+/// end's choice: the number is the slack the room's gate was read to allow itself when
+/// it checks what was heard, not a contract the room promises.
+const folgaDoFimDaParte = Duration(milliseconds: 750);
 
 /// Where the telling-back is, step by step.
 enum BtPhase { playing, capturing, thinking, findings, conferida }
@@ -32,9 +39,9 @@ enum BtPhase { playing, capturing, thinking, findings, conferida }
 /// passage. It was the globalness, not the use of intervals, that made re-recording one
 /// stretch shift every stretch after it.
 ///
-/// [parte] is which recording that is, by its place in the rehearsal. The cord draws the
-/// whole rehearsal as one line — the listening ruler, which stays global — and it is the
-/// offset of the part that carries a local address onto it.
+/// [parte] is which recording that is, by its place in the rehearsal. The listening ruler
+/// reads the whole rehearsal as one line, and it is the offset of the part that carries a
+/// local address onto it.
 class Trecho {
   /// The room's own name for this stretch, or null while it has not said one.
   ///
@@ -83,15 +90,6 @@ class Trecho {
   });
 }
 
-class PingRange {
-  final int from;
-  final int to;
-
-  const PingRange(this.from, this.to);
-
-  bool contains(int index) => index >= from && index < to;
-}
-
 class SalaSessionState {
   final SalaStage stage;
   final VoiceState voice;
@@ -111,7 +109,6 @@ class SalaSessionState {
   /// first movement is being spoken; true everywhere else, so no other stage can be
   /// caught without it.
   final bool contasEnfiadas;
-  final PingRange? ping;
   final bool peerCue;
   final bool noteMode;
   final bool handAck;
@@ -125,9 +122,9 @@ class SalaSessionState {
   final int takes;
   final bool playPing;
 
-  /// Whether the take player is holding a position rather than sitting at rest.
+  /// Whether the rehearsal's play is holding a position rather than sitting at rest.
   ///
-  /// [playPing] already says whether the take is sounding; this is the second half
+  /// [playPing] already says whether the rehearsal is sounding; this is the second half
   /// [btTrechoPausada] gives for its own player — the next tap needs to tell a resume from
   /// a restart, and nothing else here carries that.
   final bool takePaused;
@@ -156,16 +153,8 @@ class SalaSessionState {
   final List<Trecho> btTrechos;
   final String? btFindingSegmentId;
 
-  /// Whether the team is mending the stretch the finding points at.
-  ///
-  /// Its own flag rather than a reading of the phase. The pointer is the room's working
-  /// name for that stretch and every station of the correction reads it, so it has to
-  /// stand through the whole mend; and the phase a failed mend lands on is `playing`, the
-  /// same one a delivered mend lands on. Neither answers the question the cord asks —
-  /// whether that stretch is still waiting for the team to do something about it.
-  final bool btConsertando;
-
-  /// Whether the mother-tongue slice of the pointed stretch is sounding.
+  /// Whether a mother-tongue slice is sounding: the pointed stretch, the stretch the
+  /// verdict named, the pending stretch played again after a cut, or a tapped bead.
   final bool btTrechoTocando;
 
   /// Whether the telling in Portuguese is sounding. Its own flag, because the two voices
@@ -194,9 +183,19 @@ class SalaSessionState {
   final List<int> btFimDasPartesMs;
   final int btParteNoArMs;
   final int btOuvidoMs;
-  final List<BtFindingKind> btFindings;
+  final Duration btCursor;
+  final Duration btCorte;
+
+  /// Whether the head has passed [btCursor] since it was last set — the one fact the
+  /// capture, the scissors and the circle's label all read to ask whether anything has
+  /// been heard since the cursor.
+  final bool btOuvidoAlemDoCursor;
+  final int btParte;
+  final String? btTraducaoPendente;
+  final String? btTraducaoEmprestada;
+  final Trecho? btTrechoTraduzidoDeNovo;
+  final int? btContaEscolhida;
   final int btPass;
-  final bool fimClosed;
   final int unsentTakes;
   final int unsentChunks;
   final Set<String> unsentTakeScopes;
@@ -214,6 +213,19 @@ class SalaSessionState {
   /// says.
   final bool warning;
 
+  /// Whether the standing halt, if any, is the wheel itself having nothing unrefused
+  /// left to offer — the server's own list is empty, or every real passage on it was
+  /// refused at creation this visit — as opposed to a stall reaching some other door
+  /// (the panorama's, a resume's) that happens to leave the stage at the Choice too.
+  /// [EscolhaView] reads this, not [livroInteiroFeito], for its halted label: the book
+  /// is not finished merely because this visit's refusals emptied it.
+  final bool wheelHalted;
+
+  /// Pericopes the Choice has offered and the room refused to open, in this visit.
+  /// [EscolhaView] reads this to dim their spokes on the ruler; the notifier reads it
+  /// to keep [aOferecer] off them. Cleared when the Choice is opened afresh.
+  final Set<String> refusedThisVisit;
+
   /// Which part of the rehearsal the team came back to record again, 0-based, or null when
   /// the next recording is a part of its own.
   ///
@@ -223,6 +235,32 @@ class SalaSessionState {
   /// replacing one.
   final int? parteARegravar;
 
+  /// Which part of the rehearsal sounds right now, 0-based, or null when nothing plays.
+  ///
+  /// The Bead row's ring follows this rather than the play/pause flags alone: the whole
+  /// rehearsal's play walks it forward as the head crosses each part's boundary, and a tap
+  /// on one bead sets it to that part alone. A pending take standing in [parteARegravar]'s
+  /// place still carries its own part number here, so the ring lands on the right bead
+  /// while it sounds.
+  ///
+  /// Named apart from the notifier's own `_parteTocando` (the back-translation part in the
+  /// air): the two sit in different stations and would otherwise read as the same fact.
+  final int? parteDoEnsaioTocando;
+
+  /// Whether the bead at [index] does not apply right now (ADR 0040: dimmed means it does
+  /// not apply). True for every part but the one a finding sent the team back to record,
+  /// while that record-again stands open and nothing has been recorded for it yet. Once
+  /// that recording is pending — waiting for the green check — every bead applies again,
+  /// so this reads false throughout: the one rule the row and the tap both read, instead
+  /// of the row drawing dim on a bead the tap would still play.
+  bool beadIsDimmed(int index) {
+    final again = parteARegravar;
+    return ensaio == EnsaioStatus.idle &&
+        again != null &&
+        again < partes.length &&
+        index != again;
+  }
+
   const SalaSessionState({
     this.stage = SalaStage.convite,
     this.voice = VoiceState.invite,
@@ -231,7 +269,6 @@ class SalaSessionState {
     this.sessionId,
     this.coverage = Coverage.empty,
     this.contasEnfiadas = true,
-    this.ping,
     this.peerCue = false,
     this.noteMode = false,
     this.handAck = false,
@@ -253,7 +290,6 @@ class SalaSessionState {
     this.aOferecer = 0,
     this.btTrechos = const [],
     this.btFindingSegmentId,
-    this.btConsertando = false,
     this.btTrechoTocando = false,
     this.btRetroTocando = false,
     this.btTrechoPausada = false,
@@ -264,19 +300,29 @@ class SalaSessionState {
     this.btFimDasPartesMs = const [],
     this.btParteNoArMs = 0,
     this.btOuvidoMs = 0,
-    this.btFindings = const [],
+    this.btCursor = Duration.zero,
+    this.btCorte = Duration.zero,
+    this.btOuvidoAlemDoCursor = false,
+    this.btParte = 0,
+    this.btTraducaoPendente,
+    this.btTraducaoEmprestada,
+    this.btTrechoTraduzidoDeNovo,
+    this.btContaEscolhida,
     this.btPass = 1,
-    this.fimClosed = false,
     this.unsentTakes = 0,
     this.unsentChunks = 0,
     this.unsentTakeScopes = const {},
     this.warning = false,
+    this.wheelHalted = false,
+    this.refusedThisVisit = const {},
     this.parteARegravar,
+    this.parteDoEnsaioTocando,
   });
 
   bool get colarOn => stage == SalaStage.conversa || stage == SalaStage.fim;
 
   Passagem? get oferecida {
+    if (wheelHalted) return null;
     final roda = naRoda;
     if (roda == null || aOferecer < 0 || aOferecer >= roda.length) return null;
     return roda[aOferecer];
@@ -294,12 +340,8 @@ class SalaSessionState {
 
   bool get onFim => stage == SalaStage.fim;
 
-  bool get conversaDone =>
-      stage == SalaStage.conversa && voice == VoiceState.done;
-
-  bool get ensaioDone => takes >= 1 && ensaio == EnsaioStatus.idle;
-
-  bool get ensaioHasATake => takes >= 1;
+  bool get ensaioDone =>
+      takes >= 1 && ensaio == EnsaioStatus.idle && parteARegravar == null;
 
   bool get awaitingFirstTouch =>
       stage == SalaStage.convite &&
@@ -318,13 +360,22 @@ class SalaSessionState {
       voice == VoiceState.invite;
 
   bool get entradaOffered =>
-      stage == SalaStage.convite && conviteStep == ConviteStep.entrada;
+      stage == SalaStage.convite &&
+      (conviteStep == ConviteStep.entrada ||
+          voice == VoiceState.thinking ||
+          voice == VoiceState.speaking);
 
-  bool get hasUnheardReply => replies.any((reply) => !reply.heard);
+  bool get entradaLive =>
+      entradaOffered &&
+      voice != VoiceState.listening &&
+      voice != VoiceState.thinking &&
+      voice != VoiceState.speaking;
+
+  bool get hasUnheardReply => replies.any((reply) => reply.offered);
 
   HandReply? get oldestUnheardReply {
     for (final reply in replies) {
-      if (!reply.heard) return reply;
+      if (reply.offered) return reply;
     }
     return null;
   }
@@ -335,8 +386,91 @@ class SalaSessionState {
 
   bool get offline => voice == VoiceState.offline;
 
+  bool get unreachable => reach != RoomReach.fine;
+
   bool get canFinishBackTranslation =>
       stage == SalaStage.retro && btPhase == BtPhase.playing && btClipEnded;
+
+  bool get _btNaVez =>
+      stage == SalaStage.retro &&
+      btPhase == BtPhase.playing &&
+      !needsPerson &&
+      !offline;
+
+  bool get btCortado => btCorte > btCursor;
+
+  /// Whether nothing has been heard since the cursor: the guard the capture, the
+  /// scissors and the circle's label all share.
+  bool get nothingHeardSinceCursor => !btOuvidoAlemDoCursor;
+
+  int? get _btInicioDaParteMs {
+    if (btParte == 0) return 0;
+    if (btParte > btFimDasPartesMs.length) return null;
+    return btFimDasPartesMs[btParte - 1];
+  }
+
+  int? get _btParteMs {
+    final inicio = _btInicioDaParteMs;
+    if (inicio == null || btParte >= btFimDasPartesMs.length) return null;
+    return btFimDasPartesMs[btParte] - inicio;
+  }
+
+  bool get _btParteContada {
+    final parte = _btParteMs;
+    if (parte == null) return btClipEnded;
+    return (btCursor + folgaDoFimDaParte).inMilliseconds >= parte;
+  }
+
+  bool get btContadaInteira =>
+      btClipEnded && _btParteContada && btTraducaoPendente == null;
+
+  bool get canAdvanceToTheVerdict =>
+      canFinishBackTranslation && btContadaInteira && btContaEscolhida == null;
+
+  bool get btRestoDepoisDoCorte {
+    if (!btCortado) return false;
+    final parte = _btParteMs;
+    return btParte < partes.length - 1 ||
+        parte == null ||
+        (btCorte + folgaDoFimDaParte).inMilliseconds < parte;
+  }
+
+  bool get canCut {
+    if (!_btNaVez || btTraducaoPendente != null) return false;
+    if (btTrechoTraduzidoDeNovo != null || btContaEscolhida != null) {
+      return false;
+    }
+    if (btTrechoTocando || btTrechoPausada) {
+      return btCortado && !btClipEnded && !btParteFronteira;
+    }
+    if (btClipRodando) return true;
+    if (btClipEnded || btParteFronteira) return false;
+    final inicio = _btInicioDaParteMs;
+    if (inicio == null) return false;
+    final cabeca = btOuvidoMs - inicio;
+    final limite = btCortado ? btCorte.inMilliseconds : _btParteMs;
+    return cabeca > btCursor.inMilliseconds &&
+        (limite == null || cabeca < limite);
+  }
+
+  bool get btTraducaoPendenteEmprestada =>
+      btTraducaoPendente != null && btTraducaoPendente == btTraducaoEmprestada;
+
+  bool get canConfirmTranslation =>
+      _btNaVez &&
+      btTraducaoPendente != null &&
+      !btTraducaoPendenteEmprestada &&
+      btContaEscolhida == null;
+
+  bool get canListenToThePendingStretch =>
+      _btNaVez &&
+      (btClipRodando ||
+          btContaEscolhida != null ||
+          btTrechoTocando ||
+          btTrechoPausada ||
+          btCortado ||
+          btParteFronteira ||
+          !btClipEnded);
 
   /// The stretch the finding points at, when the pointer names one the room told back.
   ///
@@ -362,28 +496,6 @@ class SalaSessionState {
     return null;
   }
 
-  /// The stretch the cord draws drained, or null while no stretch is waiting.
-  ///
-  /// An empty band means *this is the one waiting to be mended*, and the team stops it
-  /// waiting by starting the mend — not by finishing it. Reading the pointer straight left
-  /// the band empty through the choosing, the recording and the upload, so the cord said
-  /// nothing had been done while the team was doing it.
-  ///
-  /// The rule lives here and not on the screen, which is the same reason [btFindingTrecho]
-  /// gives for itself.
-  String? get btEsperandoConserto => btConsertando ? null : btFindingSegmentId;
-
-  /// Which take the rehearsal screen marks, when the team came back to record a part
-  /// again.
-  ///
-  /// Scope and number are the same fact said twice, so they are counted from the same
-  /// place here rather than at each screen that needs one of them — the reason
-  /// `_aParteVoltaAoSeuLugar` gives for counting them together on the way out.
-  String? get escopoDaParteARegravar {
-    final parte = parteARegravar;
-    return parte == null ? null : KeptScope.parte(parte + 1);
-  }
-
   /// The rehearsal's own recordings, in order — never a correction's own take, which is a
   /// slice of one of these and not a part of the rehearsal in its own right.
   List<KeptTake> get partes => [
@@ -391,7 +503,9 @@ class SalaSessionState {
       if (KeptScope.isParte(take.scopeId)) take,
   ];
 
-  bool get canGhostPlay => partes.isNotEmpty && ensaio == EnsaioStatus.idle;
+  bool get canPlayTheRehearsal =>
+      (partes.isNotEmpty || ensaio == EnsaioStatus.recorded) &&
+      ensaio != EnsaioStatus.recording;
 
   /// Whether the last listening the clean verdict invites has anything to play.
   ///
@@ -412,8 +526,6 @@ class SalaSessionState {
     bool clearSession = false,
     Coverage? coverage,
     bool? contasEnfiadas,
-    PingRange? ping,
-    bool clearPing = false,
     bool? peerCue,
     bool? noteMode,
     bool? handAck,
@@ -439,7 +551,6 @@ class SalaSessionState {
     List<Trecho>? btTrechos,
     String? btFindingSegmentId,
     bool clearFindingSegment = false,
-    bool? btConsertando,
     bool? btTrechoTocando,
     bool? btRetroTocando,
     bool? btTrechoPausada,
@@ -450,15 +561,28 @@ class SalaSessionState {
     List<int>? btFimDasPartesMs,
     int? btParteNoArMs,
     int? btOuvidoMs,
-    List<BtFindingKind>? btFindings,
+    Duration? btCursor,
+    Duration? btCorte,
+    bool? btOuvidoAlemDoCursor,
+    int? btParte,
+    String? btTraducaoPendente,
+    bool clearTraducaoPendente = false,
+    String? btTraducaoEmprestada,
+    Trecho? btTrechoTraduzidoDeNovo,
+    bool clearTrechoTraduzidoDeNovo = false,
+    int? btContaEscolhida,
+    bool clearContaEscolhida = false,
     int? btPass,
-    bool? fimClosed,
     int? unsentTakes,
     int? unsentChunks,
     Set<String>? unsentTakeScopes,
     bool? warning,
+    bool? wheelHalted,
+    Set<String>? refusedThisVisit,
     int? parteARegravar,
     bool clearParteARegravar = false,
+    int? parteDoEnsaioTocando,
+    bool clearParteDoEnsaioTocando = false,
   }) {
     return SalaSessionState(
       stage: stage ?? this.stage,
@@ -468,7 +592,6 @@ class SalaSessionState {
       sessionId: clearSession ? null : (sessionId ?? this.sessionId),
       coverage: coverage ?? this.coverage,
       contasEnfiadas: contasEnfiadas ?? this.contasEnfiadas,
-      ping: clearPing ? null : (ping ?? this.ping),
       peerCue: peerCue ?? this.peerCue,
       noteMode: noteMode ?? this.noteMode,
       handAck: handAck ?? this.handAck,
@@ -494,7 +617,6 @@ class SalaSessionState {
       btFindingSegmentId: clearFindingSegment
           ? null
           : (btFindingSegmentId ?? this.btFindingSegmentId),
-      btConsertando: btConsertando ?? this.btConsertando,
       btTrechoTocando: btTrechoTocando ?? this.btTrechoTocando,
       btRetroTocando: btRetroTocando ?? this.btRetroTocando,
       btTrechoPausada: btTrechoPausada ?? this.btTrechoPausada,
@@ -505,16 +627,35 @@ class SalaSessionState {
       btFimDasPartesMs: btFimDasPartesMs ?? this.btFimDasPartesMs,
       btParteNoArMs: btParteNoArMs ?? this.btParteNoArMs,
       btOuvidoMs: btOuvidoMs ?? this.btOuvidoMs,
-      btFindings: btFindings ?? this.btFindings,
+      btCursor: btCursor ?? this.btCursor,
+      btCorte: btCorte ?? this.btCorte,
+      btOuvidoAlemDoCursor: btOuvidoAlemDoCursor ?? this.btOuvidoAlemDoCursor,
+      btParte: btParte ?? this.btParte,
+      btTraducaoPendente: clearTraducaoPendente
+          ? null
+          : (btTraducaoPendente ?? this.btTraducaoPendente),
+      btTraducaoEmprestada: clearTraducaoPendente
+          ? null
+          : (btTraducaoEmprestada ?? this.btTraducaoEmprestada),
+      btTrechoTraduzidoDeNovo: clearTrechoTraduzidoDeNovo
+          ? null
+          : (btTrechoTraduzidoDeNovo ?? this.btTrechoTraduzidoDeNovo),
+      btContaEscolhida: clearContaEscolhida
+          ? null
+          : (btContaEscolhida ?? this.btContaEscolhida),
       btPass: btPass ?? this.btPass,
-      fimClosed: fimClosed ?? this.fimClosed,
       unsentTakes: unsentTakes ?? this.unsentTakes,
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentTakeScopes: unsentTakeScopes ?? this.unsentTakeScopes,
       warning: warning ?? this.warning,
+      wheelHalted: wheelHalted ?? this.wheelHalted,
+      refusedThisVisit: refusedThisVisit ?? this.refusedThisVisit,
       parteARegravar: clearParteARegravar
           ? null
           : (parteARegravar ?? this.parteARegravar),
+      parteDoEnsaioTocando: clearParteDoEnsaioTocando
+          ? null
+          : (parteDoEnsaioTocando ?? this.parteDoEnsaioTocando),
     );
   }
 }

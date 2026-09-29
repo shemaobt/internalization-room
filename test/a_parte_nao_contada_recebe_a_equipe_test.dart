@@ -12,7 +12,7 @@ Future<Sala> _parteDoisRegravadaENuncaContada() async {
   final it = await umEnsaioDeTresPartesContadoInteiro();
   it.harness.room
     ..verdictChecked = false
-    ..verdictFinding = BtFindingKind.missing
+    ..verdictHasFinding = true
     ..verdictFindingPlace = 1;
   await pedirOVeredito(it);
   expect(
@@ -30,7 +30,7 @@ Future<Sala> _parteDoisRegravadaENuncaContada() async {
   it.harness.playback.lengths[it.partes[1].path] = partesDoEnsaio[1];
 
   it.harness.room
-    ..verdictFinding = null
+    ..verdictHasFinding = false
     ..verdictFindingPlace = null;
   it.sala.startRetro();
   await waitFor(
@@ -138,11 +138,6 @@ void main() {
         reason: 'sair do pensando é o que devolve o toque à equipe',
       );
       expect(
-        it.estado.btFindings,
-        isEmpty,
-        reason: 'uma parte não contada não é um achado do analista',
-      );
-      expect(
         it.harness.playback.played.last,
         segunda.path,
         reason: 'a equipe cai na parte que o servidor nomeou',
@@ -159,7 +154,6 @@ void main() {
         isTrue,
         reason: 'a parte entra no ar sozinha, sem mais um toque',
       );
-      expect(it.estado.btConsertando, isFalse);
       expect(
         it.estado.canFinishBackTranslation,
         isFalse,
@@ -214,11 +208,12 @@ void main() {
     final trechosAntes = it.estado.btTrechos.length;
     it.harness.playback.at = const Duration(seconds: 4);
     it.sala.cortarTrecho();
+    it.sala.retroTap();
     await waitFor(
       'o microfone abrir',
       () => it.estado.btPhase == BtPhase.capturing,
     );
-    it.sala.retroTap();
+    await confirmarATraducao(it.container);
     await waitFor(
       'o trecho traduzido entrar no colar',
       () => it.estado.btTrechos.length > trechosAntes,
@@ -252,6 +247,7 @@ void main() {
     final trechosAntes = it.estado.btTrechos.length;
     it.harness.playback.at = const Duration(seconds: 4);
     it.sala.cortarTrecho();
+    it.sala.retroTap();
     expect(
       it.estado.btPhase,
       BtPhase.capturing,
@@ -261,7 +257,7 @@ void main() {
           'ignorado em silêncio — o microfone nunca abre',
     );
 
-    it.sala.retroTap();
+    await confirmarATraducao(it.container);
     await waitFor(
       'o trecho traduzido entrar no colar',
       () => it.estado.btTrechos.length > trechosAntes,

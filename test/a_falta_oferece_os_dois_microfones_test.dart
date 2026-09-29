@@ -2,20 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/onde_mora_grade.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart';
 
-const ouvirMaterna = 'Ouvir a voz de vocês, na língua materna';
-const ouvirRetro = 'Ouvir a tradução em português';
-const microfoneAzul = 'Continuar o ensaio';
-
-Finder byLabel(String label) => find.byWidgetPredicate(
-  (widget) => widget is Semantics && widget.properties.label == label,
-);
+const ouvirOTrecho = 'Ouvir o trecho e a tradução';
+const micParteLabel = 'Gravar a parte de novo na língua materna';
+const micRetroLabel = 'Traduzir este trecho de novo';
+const continuarOEnsaio = 'Continuar o ensaio';
 
 SalaSessionNotifier notifier(ProviderContainer c) =>
     c.read(salaSessionProvider.notifier);
@@ -23,12 +19,11 @@ SalaSessionNotifier notifier(ProviderContainer c) =>
 /// A team that told two stretches back and got a finding on the first.
 Future<ProviderContainer> pumpToPergunta(
   WidgetTester tester, {
-  required BtFindingKind finding,
   String? trecho = 'trecho-1',
 }) async {
   final harness = SalaHarness(filaEmMemoria: true)
     ..room.verdictChecked = false
-    ..room.verdictFinding = finding
+    ..room.verdictHasFinding = true
     ..room.verdictFindingSegmentId = trecho;
   final container = harness.container();
   addTearDown(container.dispose);
@@ -52,8 +47,9 @@ Future<ProviderContainer> pumpToPergunta(
   for (final at in const [Duration(seconds: 10), Duration(seconds: 20)]) {
     harness.playback.at = at;
     n.cortarTrecho();
-    await tester.pump(const Duration(milliseconds: 200));
     n.retroTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    await confirmarATraducaoNaTela(tester, container);
     await tester.pump(const Duration(milliseconds: 600));
   }
   harness.playback.finishPlayback();
@@ -65,7 +61,7 @@ Future<ProviderContainer> pumpToPergunta(
 
 void main() {
   testWidgets('falta com endereço mostra os dois microfones', (tester) async {
-    await pumpToPergunta(tester, finding: BtFindingKind.missing);
+    await pumpToPergunta(tester);
 
     expect(
       byLabel(micRetroLabel),
@@ -85,19 +81,17 @@ void main() {
   });
 
   testWidgets('só a ponte funciona', (tester) async {
-    final container = await pumpToPergunta(
-      tester,
-      finding: BtFindingKind.missing,
-    );
+    final container = await pumpToPergunta(tester);
 
     await tester.tap(byLabel(micRetroLabel));
     await tester.pump(const Duration(milliseconds: 300));
 
+    final estado = container.read(salaSessionProvider);
     expect(
-      container.read(salaSessionProvider).btPhase,
-      BtPhase.capturing,
+      (estado.stage, estado.btPhase, estado.btTrechoTocando),
+      (SalaStage.retro, BtPhase.playing, false),
       reason:
-          'tocar o microfone só-ponte abre a captura do traduzir de novo, sem '
+          'tocar o microfone só-ponte leva à tradução daquele trecho, sem '
           'tocar a voz materna',
     );
   });
@@ -105,10 +99,7 @@ void main() {
   testWidgets('a madeira leva ao ensaio, a gravar a parte de novo', (
     tester,
   ) async {
-    final container = await pumpToPergunta(
-      tester,
-      finding: BtFindingKind.missing,
-    );
+    final container = await pumpToPergunta(tester);
 
     await tester.tap(byLabel(micParteLabel));
     await tester.pump(const Duration(milliseconds: 300));
@@ -123,30 +114,30 @@ void main() {
   });
 
   testWidgets('falta sem endereço continua indo ao ensaio', (tester) async {
-    final container = await pumpToPergunta(
-      tester,
-      finding: BtFindingKind.missing,
-      trecho: null,
-    );
+    final container = await pumpToPergunta(tester, trecho: null);
 
     expect(
-      byLabel(microfoneAzul),
+      byLabel(continuarOEnsaio),
       findsOneWidget,
       reason:
           'sem trecho apontado não há o que regravar — a saída continua '
           'sendo o ensaio inteiro, como hoje',
     );
-    expect(byLabel(micRetroLabel), findsNothing);
-    expect(byLabel(micParteLabel), findsNothing);
+    for (final microfone in [micRetroLabel, micParteLabel]) {
+      expect(
+        tester.widget<Semantics>(byLabel(microfone)).properties.enabled,
+        isFalse,
+        reason: 'sem trecho, os microfones ficam apagados, nunca escondidos',
+      );
+    }
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
   });
 
   testWidgets('os outros achados não mudam', (tester) async {
-    await pumpToPergunta(tester, finding: BtFindingKind.unclear);
+    await pumpToPergunta(tester);
 
     expect(byLabel(micParteLabel), findsOneWidget);
     expect(byLabel(micRetroLabel), findsOneWidget);
-    expect(byLabel(ouvirMaterna), findsOneWidget);
-    expect(byLabel(ouvirRetro), findsOneWidget);
+    expect(byLabel(ouvirOTrecho), findsOneWidget);
   });
 }

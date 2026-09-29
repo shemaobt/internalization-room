@@ -7,21 +7,27 @@ import '../../domain/session_state.dart';
 import 'bead_styles.dart';
 import 'motion.dart';
 
+enum Tongue { guide, motherTongue, bridge }
+
+const facilitatorCircleSize = 160.0;
+
 class FacilitatorCircle extends StatelessWidget {
   final double size;
   final VoiceState voice;
+  final Tongue? tongue;
   final RoomReach reach;
   final bool noteMode;
   final bool peerCue;
   final bool beckon;
 
-  /// Whether the server's last word was a warning rather than silence.
+  /// What the warning mark says to VoiceOver, or null while the server's last word
+  /// was silence rather than a warning.
   ///
-  /// The room has no text on screen, so the only way to show a warning is the colour
-  /// it already wears when a passage is done: green asks nobody to stop, only to
-  /// notice. Read only while [voice] is not one of the halted states — a room the
-  /// team cannot use yet is still a stop, whatever the last warning said.
-  final bool warning;
+  /// The room has no text on screen, so a warning is a small mark beside the disc,
+  /// never a colour drawn over it: the disc keeps saying the voice. Read only while
+  /// [voice] is not one of the halted states — a room the team cannot use yet is
+  /// still a stop, whatever the last warning said.
+  final String? warning;
   final double opacity;
   final String semanticLabel;
   final VoidCallback? onTap;
@@ -31,12 +37,13 @@ class FacilitatorCircle extends StatelessWidget {
     super.key,
     required this.size,
     required this.voice,
+    this.tongue,
     this.reach = RoomReach.fine,
     required this.semanticLabel,
     this.noteMode = false,
     this.peerCue = false,
     this.beckon = false,
-    this.warning = false,
+    this.warning,
     this.opacity = 1,
     this.onTap,
     this.onLongPress,
@@ -70,6 +77,7 @@ class FacilitatorCircle extends StatelessWidget {
                 if (voice == VoiceState.speaking) ..._ripples(colors),
                 if (voice == VoiceState.listening) _listenRing(colors),
                 if (voice == VoiceState.listening) ..._gatheringIn(),
+                if (warning != null && !_halted) _warningMark(warning!),
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 1000),
                   child: _modeGlyph == null
@@ -89,7 +97,20 @@ class FacilitatorCircle extends StatelessWidget {
     );
   }
 
+  Color _soundColor(SalaColors colors) {
+    switch (tongue) {
+      case Tongue.motherTongue:
+        return ShemaBrand.woodLo;
+      case Tongue.bridge:
+        return ShemaBrand.azulInk;
+      case Tongue.guide:
+      case null:
+        return colors.telha;
+    }
+  }
+
   List<Widget> _ripples(SalaColors colors) {
+    final color = _soundColor(colors);
     Widget ring(double phase) => Ripple(
       period: const Duration(milliseconds: 3400),
       phase: phase,
@@ -101,7 +122,7 @@ class FacilitatorCircle extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-              color: colors.telha.withValues(alpha: 0.55 * (1 - t)),
+              color: color.withValues(alpha: 0.55 * (1 - t)),
               width: 3,
             ),
           ),
@@ -166,21 +187,23 @@ class FacilitatorCircle extends StatelessWidget {
       return _haltedBody(colors, LucideIcons.userCheck);
     }
     if (voice == VoiceState.offline) return _haltedBody(colors, _offlineGlyph);
-    // The cue is a live turn signal — it is the team's own turn to speak — and a
-    // warning is only a background notice; it wins over the green the same way a
-    // halted voice does.
     if (_teamTalk) return _liveBreath(colors);
-    if (warning && !_halted) return _doneDisc();
 
     switch (voice) {
       case VoiceState.invite:
         return _liveBreath(colors);
       case VoiceState.listening:
         return _disc(
-          gradient: BeadStyles.azul,
+          gradient: tongue == Tongue.motherTongue
+              ? BeadStyles.wood
+              : BeadStyles.azul,
           shadows: [
             BoxShadow(
-              color: ShemaBrand.azulLo.withValues(alpha: 0.3),
+              color:
+                  (tongue == Tongue.motherTongue
+                          ? ShemaBrand.woodLo
+                          : ShemaBrand.azulLo)
+                      .withValues(alpha: 0.3),
               offset: const Offset(0, 10),
               blurRadius: 30,
             ),
@@ -216,13 +239,41 @@ class FacilitatorCircle extends StatelessWidget {
     ],
   );
 
+  Gradient _liveGradient(SalaColors colors) {
+    if (voice != VoiceState.speaking) {
+      return noteMode ? BeadStyles.azul : BeadStyles.telha(colors);
+    }
+    switch (tongue) {
+      case Tongue.motherTongue:
+        return BeadStyles.wood;
+      case Tongue.bridge:
+        return BeadStyles.azul;
+      case Tongue.guide:
+      case null:
+        return noteMode ? BeadStyles.azul : BeadStyles.telha(colors);
+    }
+  }
+
+  Color _liveShadow(SalaColors colors) {
+    if (voice != VoiceState.speaking) {
+      return noteMode ? ShemaBrand.azulLo : colors.telha;
+    }
+    switch (tongue) {
+      case Tongue.motherTongue:
+        return ShemaBrand.woodLo;
+      case Tongue.bridge:
+        return ShemaBrand.azulLo;
+      case Tongue.guide:
+      case null:
+        return noteMode ? ShemaBrand.azulLo : colors.telha;
+    }
+  }
+
   Widget _liveDisc(SalaColors colors) => _disc(
-    gradient: noteMode ? BeadStyles.azul : BeadStyles.telha(colors),
+    gradient: _liveGradient(colors),
     shadows: [
       BoxShadow(
-        color: (noteMode ? ShemaBrand.azulLo : colors.telha).withValues(
-          alpha: 0.32,
-        ),
+        color: _liveShadow(colors).withValues(alpha: 0.32),
         offset: const Offset(0, 10),
         blurRadius: 34,
       ),
@@ -230,35 +281,64 @@ class FacilitatorCircle extends StatelessWidget {
   );
 
   Widget _waiting(SalaColors colors, bool still) {
-    Widget clay(double t) => _disc(
-      gradient: BeadStyles.clay(colors, t),
-      shadows: [
-        const BoxShadow(
+    final body = _disc(
+      gradient: BeadStyles.clay(colors),
+      shadows: const [
+        BoxShadow(
           color: Color(0x260A0703),
           offset: Offset(0, 6),
           blurRadius: 20,
         ),
-        BoxShadow(
-          color: colors.clayHi.withValues(alpha: 0.30 * t),
-          spreadRadius: 2 + 10 * t,
-          blurRadius: 18,
-        ),
       ],
+    );
+    final glow = RepaintBoundary(
+      child: CustomPaint(
+        size: Size.square(size),
+        painter: GlowPainter(color: colors.telha.withValues(alpha: 0.16)),
+      ),
+    );
+    Widget over(Widget light) => Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [body, light],
     );
     if (still) {
       return Loop(
-        period: const Duration(milliseconds: 3600),
+        period: const Duration(milliseconds: 2400),
         reducible: false,
         builder: (context, t) =>
-            Opacity(opacity: 0.72 + 0.24 * t, child: clay(0)),
+            Opacity(opacity: 0.72 + 0.24 * t, child: over(glow)),
       );
     }
     return Loop(
-      period: const Duration(milliseconds: 4600),
-      builder: (context, t) =>
-          Transform.scale(scale: 1 + 0.06 * t, child: clay(t)),
+      period: const Duration(milliseconds: 2400),
+      builder: (context, t) => Transform.scale(
+        scale: 0.97 + 0.06 * t,
+        child: Opacity(
+          opacity: 0.82 + 0.18 * t,
+          child: over(Opacity(opacity: 0.45 + 0.55 * t, child: glow)),
+        ),
+      ),
     );
   }
+
+  Widget _warningMark(String label) => Positioned(
+    right: 0,
+    bottom: 0,
+    child: Semantics(
+      container: true,
+      label: label,
+      child: Container(
+        width: size * 0.22,
+        height: size * 0.22,
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: BeadStyles.verde,
+          boxShadow: BeadStyles.matte,
+        ),
+      ),
+    ),
+  );
 
   Widget _liveBreath(SalaColors colors) => Loop(
     period: Duration(milliseconds: beckon ? 1800 : 4600),
@@ -289,7 +369,7 @@ class FacilitatorCircle extends StatelessWidget {
           height: size,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: BeadStyles.clay(colors, 0),
+            gradient: BeadStyles.clay(colors),
             border: Border.all(color: colors.cord, width: 2),
           ),
           child: glyph == null
@@ -317,7 +397,14 @@ class FacilitatorCircle extends StatelessWidget {
     );
   }
 
+  Color get _listenColor =>
+      tongue == Tongue.motherTongue ? ShemaBrand.woodLo : ShemaBrand.azulInk;
+
   Widget _listenRing(SalaColors colors) {
+    final ring = _listenColor;
+    final glow = tongue == Tongue.motherTongue
+        ? ShemaBrand.wood
+        : ShemaBrand.azul;
     return Loop(
       period: const Duration(milliseconds: 3200),
       builder: (context, t) => Container(
@@ -325,10 +412,10 @@ class FacilitatorCircle extends StatelessWidget {
         height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(color: ShemaBrand.azulInk, width: 3),
+          border: Border.all(color: ring, width: 3),
           boxShadow: [
             BoxShadow(
-              color: ShemaBrand.azul.withValues(alpha: 0.5 * (1 - t)),
+              color: glow.withValues(alpha: 0.5 * (1 - t)),
               spreadRadius: 4 + 12 * t,
             ),
           ],
@@ -338,6 +425,7 @@ class FacilitatorCircle extends StatelessWidget {
   }
 
   List<Widget> _gatheringIn() {
+    final color = _listenColor;
     Widget ring(double phase) => Ripple(
       period: const Duration(milliseconds: 3200),
       phase: phase,
@@ -349,7 +437,7 @@ class FacilitatorCircle extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-              color: ShemaBrand.azulInk.withValues(alpha: 0.55 * t),
+              color: color.withValues(alpha: 0.55 * t),
               width: 2.5,
             ),
           ),
@@ -358,4 +446,28 @@ class FacilitatorCircle extends StatelessWidget {
     );
     return [ring(0), ring(0.5)];
   }
+}
+
+class GlowPainter extends CustomPainter {
+  final Color color;
+
+  const GlowPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final disc = Rect.fromCircle(
+      center: size.center(Offset.zero),
+      radius: size.shortestSide / 2,
+    );
+    canvas.drawOval(
+      disc,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [color, color.withValues(alpha: 0)],
+        ).createShader(disc),
+    );
+  }
+
+  @override
+  bool shouldRepaint(GlowPainter old) => old.color != color;
 }

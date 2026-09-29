@@ -6,8 +6,12 @@ The oral translation team's tablet app: it walks the team through a Bible passag
 
 ### Stations
 
+**Station**:
+One of the stops a session passes through, from the Invitation to the Closing; the server names the one the team is in for the Desk, reading it off what the session holds.
+_Avoid_: stage (`SalaStage` is the enum, not the term), phase, screen, step
+
 **Invitation** (`convite`):
-The session's first station, where the room's voice presents the book (panorama) and the passage (scene) before opening the conversation.
+The session's first station, where the room's voice welcomes the team and presents the book (panorama). The passage's scene is said when the Conversation opens, not here.
 _Avoid_: convite in prose (`convite` is the enum value), introduction, opening, welcome
 
 **Conversation** (`conversa`):
@@ -18,18 +22,29 @@ _Avoid_: conversa in prose (`conversa` is the enum value), telling, narration
 The station where the team records the whole passage in the mother tongue, listens, re-records or keeps it.
 _Avoid_: ensaio in prose (`ensaio` is the enum value), passage recording (the recording itself is the take)
 
+**Record entry**:
+The green check on the Conversation that closes it and opens the Rehearsal, reachable from the first turn of a passage until the session ends; a blocking halt is the one thing that hides it.
+_Avoid_: botão de gravar, record button, green microphone (the glyph it wore until 2026-09-25), handoff, rehearsal gate (it gates nothing)
+
 **Back-translation** (`retro`):
-The station where the rehearsal recording plays back and the team tells, stretch by stretch and in the bridge language, what each piece says, until `terminei` fires the check.
+The station where the rehearsal recording plays back and the team tells, stretch by stretch and in the bridge language, what each piece says, until "Conferir a tradução" fires the check.
 On screen and in the voice its Portuguese is *traduzir / tradução*; *contar* belongs to the Conversation alone, and *recontar* to the External Check.
 _Avoid_: retrotradução, retro in prose (`retro` is the code prefix, not the term), contar de volta, contado de volta, reconto, recontar
 
 **Choice** (`escolha`):
-The station where the team picks the next passage among those on the wheel.
+The station where the team picks the next passage among those on the wheel. One visit to it
+lasts until the Choice is opened afresh — lifting a halt raised here, or a passage really
+opening, both end it from inside; a passage the room refused to open is not offered again
+within one visit, but is again on the next.
 _Avoid_: escolha in prose (`escolha` is the enum value), selection, wheel (the wheel is the list of passages, not the station)
 
 **Closing** (`fim`):
 The last station, where the necklace's cord closes into a circle and the session ends.
 _Avoid_: fecho, ending, fim in prose (`SalaStage.fim` is the enum, not the term)
+
+**Step**:
+The point the team's work has reached inside a Station, such as telling, awaiting the verdict or checked; it belongs to its Station and ends with it (ADR 0046).
+_Avoid_: phase, `BtPhase`, status, stage
 
 ### Who speaks and who listens
 
@@ -74,8 +89,20 @@ The person the room calls when it cannot carry on alone, and who answers through
 _Avoid_: facilitador, guide, consultant (the `Facilitator` prefix in code names the Guide's voice, not this person)
 
 **Desk**:
-The facilitator's web app, where they see the teams, the questions and the halted rooms, and mark a halt as answered.
+The facilitator's web app, where they see the teams, the questions and the halted rooms, mark a halt as answered, and open a session's page to read its stations.
 _Avoid_: mesa, panel, dashboard
+
+**Session page**:
+The Desk's page for one session, with a tab for the Conversation, one for the passage (the Rehearsal and the Back-translation, part by part) and one for the Approval; it opens on the station the team is in and marks that station on its tab.
+_Avoid_: session detail, session view, página da sessão in English prose
+
+**Channel**:
+What the room hears or sounds at one moment: silence, an open microphone and whose it is, the Guide speaking, a part or a stretch playing, or a pause. One thing at a time (ADR 0046).
+_Avoid_: audio state, voice (the Circle's colour), player
+
+**Queued line**:
+A line that arrived with no gesture while the microphone was open or a halt stood, played once the Channel is free; one of each kind waits.
+_Avoid_: pending line, interrupted line
 
 ### What is recorded and told
 
@@ -131,8 +158,16 @@ _Avoid_: parte não contada, unheard part (heard by nobody; this one was heard a
 The point inside a part's own file where the telling-back stopped, from which a resumed back-translation starts playing and from which it counts what it reports as heard.
 _Avoid_: cursor da retro, playhead, reading head (what the necklace draws above the cord)
 
+**Head**:
+The position inside the open part or stretch that the scissors, the Capture and the Listening ledger read: the Cursor until the player confirms the opening.
+_Avoid_: playhead, reading head (retired), position
+
+**Wordless recording**:
+A recording whose transcription holds no words. The server answers it with the inaudible line; the tablet never judges it.
+_Avoid_: empty capture, silence, inaudible take
+
 **Listening ledger** (`escuta das partes`):
-What the team heard of each part of its rehearsal, kept one part at a time, in that part's own milliseconds and keyed by the recording the part was kept as. A part recorded again starts its listening over while the others keep theirs, and a part the room has not named yet is left out of the report the tablet sends at *terminei*.
+What the team heard of each part of its rehearsal, kept one part at a time, in that part's own milliseconds and keyed by the recording the part was kept as. A part recorded again starts its listening over while the others keep theirs, and a part the room has not named yet is left out of the report the tablet sends when the team fires the check.
 _Avoid_: `_ouvido`, registro de escuta, played ranges, the concatenated passage, the rehearsal's whole length
 
 **Ruler**:
@@ -148,28 +183,28 @@ One of the pieces the rehearsal recording is divided into, and the unit a stretc
 _Avoid_: parte, chunk (a position in one reading), take (what holds a part), stretch, composed passage (retired: the take the server assembled around a mend)
 
 **Necklace**:
-The cord of beads that is the room's progress indicator for the conversation: lit beads show the conversation's coverage, and during the back-translation each stretch is drawn as a band. Drawn over the Conversation and the Closing only; the Rehearsal shows the row of part beads instead, and the Back-translation shows the Cord.
+The cord of beads that is the room's progress indicator for the conversation: lit beads show the conversation's coverage. Drawn over the Conversation and the Closing only; the Rehearsal, the Back-translation and the findings show the Bead row instead.
 _Avoid_: colar, progress bar, ghost bead
-
-**Cord**:
-The line of the necklace that draws the whole rehearsal during the back-translation, one part after another under the ruler, on which the stretches are drawn as bands and the reading head moves.
-_Avoid_: cordão, string, track, progress bar
-
-**Reading head**:
-The dot the cord draws where the team is listening: along the part in the air, along a stretch played from *Where the error lives*, and resting on the told ground when nothing plays.
-_Avoid_: cabeça de leitura, playhead, cursor (the point inside a part's file where the telling-back stopped)
 
 **Bead**:
 A Meaning Map element represented on the necklace, moving through not encountered, surfaced (the Guide said it) and engaged (the team said it).
-_Avoid_: conta, pearl, item
+_Avoid_: conta, pearl, item, part bead or stretch bead (those sit on the Bead row)
+
+**Bead row**:
+The row at the top of the Rehearsal, the Back-translation and the findings, one bead per Part or Stretch: translucent while its recording is open or pending, solid once confirmed, drained while a finding points at it, ringed while it is the current one; a tap selects it and plays it. A dimmed bead is the exception: it does not apply right now, and a tap on it does nothing.
+_Avoid_: cord, band, reading head (the cord, its strokes and its dot, retired on 2026-09-25), contas, bits, progress bar
+
+**Circle**:
+The room's one control, the same size in every station: its colour is the voice (telha the Guide, wood the Mother tongue, azul the Bridge language) and its motion the direction (ring and ripples in while the room listens, ripples out while it sounds); the first tap opens the microphone and the second closes it.
+_Avoid_: círculo, facilitator circle, record circle, button, esfera
+
+**Advance disc**:
+The wood disc with no glyph that leads from one station to the next: to the Back-translation from the Rehearsal, to the verdict from the Back-translation; it lights only when nothing is pending and pulses while the room beckons.
+_Avoid_: next button, continue, seguir, microphone (it never wears one)
 
 **Knot**:
 A question the team raised, recorded by a tap on the hand and drawn on the necklace's cord so an unanswered question is visible without a word.
 _Avoid_: nó, question, bead (a knot is not one)
-
-**Band**:
-A stretch's stroke along the cord during the back-translation: full while the stretch stands, drained while it waits to be mended.
-_Avoid_: faixa, bar, segment (the wire name for a stretch)
 
 **Panorama**:
 The opening line about the whole book, played once before the scene.
@@ -184,7 +219,7 @@ The queue of takes and stretches waiting to reach the server, with a manifest th
 _Avoid_: fila, caixa de saída, upload queue, buffer
 
 **Resume point**:
-The row kept per passage saying where the team left it — the session, the station and the kept takes — so a reopening lands there rather than at the start, on a tablet that still holds the recordings or on one that fetches them from the room again. It never expires by age: what drops it are facts about the room or the passage — the room no longer knowing the session, the approval closing the passage, the language changing — never the clock.
+The durable slice of the room's state for one passage, written whole at every transition — the session, the Station and its Step, the kept takes, the part being recorded again (ADR 0045), the Cursor, the pending translation and the Listening ledger — so a reopening lands where the team stopped, on a tablet that still holds the recordings or on one that fetches them from the room again. The server rules over what it knows, the slice over the rest (ADR 0046). It never expires by age: what drops it are facts about the room or the passage — the room no longer knowing the session, the approval closing the passage, the language changing — never the clock.
 _Avoid_: ponto de retomada, em curso, checkpoint, snapshot (the session's own lives on the server)
 
 ### Findings and mends
@@ -210,8 +245,8 @@ A missing finding whose place (before, inside or after) fits a stretch already t
 _Avoid_: falta com endereço, internal missing, missing with a chunk
 
 **Where the error lives** (*Onde mora o erro* on screen):
-The screen where the team says whether a finding's error is in the recording or only in the telling, by choosing one of the two microphones: record the part again, or translate the phrase again.
-_Avoid_: error grid, finding screen, Onde mora o erro in English prose (it is the on-screen label, as with every station)
+The choice the team makes on a finding between the two voices, by tapping the wood microphone (record the Part again, on the Rehearsal) or the azul microphone (translate the Stretch again, on the Back-translation); the mend itself happens on those stations.
+_Avoid_: error grid, finding screen, grid (the two-column shape retired on 2026-09-25), Onde mora o erro in English prose
 
 **Missing without an address**:
 A missing finding pointing past the last stretch told. It does not become a correction screen: the team goes back to the Rehearsal to record the rest, keeping takes, stretches and necklace.
@@ -229,6 +264,10 @@ _Avoid_: the long way round, caminho longo, re-recording the stretch (retired: t
 The mend that only tells the stretch again in the bridge language, over the mother tongue recording already there.
 _Avoid_: the short path, caminho curto, retell only, simple correction
 
+**Borrowed translation**:
+The telling a stretch already has on the server, left as the pending translation when a finding sends the team to translate that stretch again. It can be heard and recorded over, is never deleted by this tablet, and the check waits for a telling recorded in this visit.
+_Avoid_: old file, lent file, emprestada in English prose
+
 **Resumed back-translation**:
 A back-translation carrying on from where it stopped in a reopened session: playback restarts at the cursor and the stretches already told come back from the server.
 _Avoid_: retro retomada, resuming from scratch
@@ -236,20 +275,41 @@ _Avoid_: retro retomada, resuming from scratch
 ### The room and the people
 
 **Halt**:
-The state in which the room cannot carry on alone and calls for a person, insisting at intervals until it is answered. A halt either blocks, and then only the Desk lifts it, or is a warning.
+The state in which the room cannot carry on alone and calls for a person, insisting at intervals until it is answered. A halt either blocks, and then only the Desk lifts it, or is a warning. A halt never changes the Station or its Step; a blocking one silences the Channel and keeps what was sounding.
 _Avoid_: sala parada, stuck room, pause
 
 **Warning**:
 The kind of halt that asks for someone to come and watch while refusing the team nothing. It is a warning, not a cap: the room takes turns as before, and it is what the retells budget raises — on every route a telling can take, whether the tablet hears it on a state read or in the answer to a stretch told again. The room raises it by marking the session itself, so the tablet never calls for a person over one, and it ends when the Desk attends the session, in whatever station the team is in.
 _Avoid_: aviso, cap, block, halt (the state, of which this is one kind)
 
+**Warning mark**:
+The small mark beside the Circle while a warning stands, said in words through its own
+VoiceOver label; the Circle's own colour stays the voice, in every state.
+_Avoid_: aviso, warning badge, the green disc (retired 2026-09-25)
+
 **Call for a person**:
 The room's action of signalling it needs someone, insisted on at intervals until it is answered. A long press on the circle asks the room to read its state again rather than lifting a blocking halt, which only the Desk lifts.
 _Avoid_: pedir uma pessoa, calling a human, SOS, `needsPerson` (the internal name)
 
+**Reach**:
+Whether the room can get to the server, kept as a fact of its own beside the voice: it is what the way back — the retry ladder, the network watch and the flush of the outbox — lives on, so a voice written over it ends nothing. The circle says the room has fallen; the reach is what knows it. A network failure at any door, the Outbox's included, takes the room out of reach.
+_Avoid_: offline (the voice the circle draws while the reach is down, not the fact), connectivity, online/offline flag, Alcance
+
 **Watch**:
-The room's periodic read of the session's halt while a halt or a warning stands. Armed by every writer of a warning, by every halt the room merely read, and, for a halt the room decided on its own, once its call for a person lands; a halt with nobody to tell — no session, or the build unreachable — is never watched. It ends when neither a halt nor a warning stands any more, or with the passage.
+The room's periodic read of the session's halt, armed whenever a halt or a warning stands, whoever raised it (ADR 0046). A halt with no session has nothing to read, and the long press releases it locally. It ends when neither a halt nor a warning stands any more, or with the passage.
 _Avoid_: poll, timer, vigia (the code's name is not the term)
+
+**Session read**:
+The room's reading of the session on the server, applied whole whichever door it came through: its halt, its warning, its stretches and its verdict.
+_Avoid_: snapshot (the wire's name), poll, re-read
+
+**Session gone**:
+The server no longer knows the session. Wherever the room learns it, whatever was the session's is discarded and the team is taken to the Choice.
+_Avoid_: 404, dead session, lost session
+
+**Refusal**:
+The server's answer that it will not do what was asked, naming why with a code; the room tells refusals apart by the code, never by the words.
+_Avoid_: error, failure, detail
 
 **Meaning Map**:
 The passage's canonical content, against which the analyst compares what was told back, including what is deliberately left unrevealed.

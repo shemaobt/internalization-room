@@ -16,7 +16,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 
 import 'fakes.dart';
-import 'session_notifier_test.dart' show settle;
+import 'scenario_helpers.dart' show settle;
 
 const _quickPoll = Duration(milliseconds: 20);
 

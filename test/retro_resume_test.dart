@@ -9,12 +9,7 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-
-Future<void> settle([
-  Duration delay = const Duration(milliseconds: 120),
-]) async {
-  await Future<void>.delayed(delay);
-}
+import 'scenario_helpers.dart' show settle;
 
 const _gravacao = 'gravacao-1';
 
@@ -591,8 +586,9 @@ void main() {
 
       harness.playback.at = const Duration(seconds: 44);
       notifier.cortarTrecho();
-      await settle();
       notifier.retroTap();
+      await settle();
+      await confirmarATraducao(container);
       await settle();
 
       expect(
@@ -621,6 +617,7 @@ void main() {
 
     harness.playback.at = const Duration(seconds: 8);
     notifier.cortarTrecho();
+    notifier.retroTap();
     await settle();
     notifier.retroTap();
     await settle();
@@ -637,8 +634,9 @@ void main() {
 
     harness.playback.at = const Duration(seconds: 44);
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await settle();
 
     expect(

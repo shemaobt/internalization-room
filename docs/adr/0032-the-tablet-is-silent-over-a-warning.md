@@ -60,3 +60,6 @@ tablet ever read it.
 
 ADR 0035 generalises this rule to every read of a blocking halt, not only a warning: the
 tablet calls for what it decided, never for what it merely read.
+
+ADR 0043 replaces the green this ADR assumed with a mark beside the circle; the Decision
+here — the tablet calls nobody over a warning — is unchanged.

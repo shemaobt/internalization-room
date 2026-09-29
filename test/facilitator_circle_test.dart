@@ -100,7 +100,7 @@ Future<({Set<double> scales, Set<double> veils})> _overAMinuteOfFrames(
         matching: find.byType(Transform),
       ),
     )) {
-      scales.add(moved.transform.getMaxScaleOnAxis());
+      scales.add(moved.transform.entry(0, 0));
     }
     for (final veil in tester.widgetList<Opacity>(
       find.descendant(
@@ -180,12 +180,29 @@ void main() {
     },
   );
 
+  testWidgets(
+    'a breath that dips below one is not mistaken for a breath that never moved',
+    (tester) async {
+      await _pumpCircle(tester, VoiceState.thinking);
+      final drawn = await _overAMinuteOfFrames(tester);
+
+      expect(
+        drawn.scales.any((scale) => scale < 1.0),
+        isTrue,
+        reason:
+            'a espera desce a 0,97 a cada volta, e getMaxScaleOnAxis conta o '
+            'eixo z parado em 1 como se fosse o maior — o encolhimento nunca '
+            'aparecia',
+      );
+    },
+  );
+
   testWidgets('the room moves at her tempos, not at twice her speed', (
     tester,
   ) async {
     const tempos = {
       VoiceState.listening: Duration(milliseconds: 3200),
-      VoiceState.thinking: Duration(milliseconds: 4600),
+      VoiceState.thinking: Duration(milliseconds: 2400),
       VoiceState.speaking: Duration(milliseconds: 3400),
     };
 
@@ -210,6 +227,52 @@ void main() {
       );
     }
   });
+
+  testWidgets(
+    'a breath lands back where it started after her period, at its peak halfway there',
+    (tester) async {
+      const halves = {
+        VoiceState.thinking: Duration(milliseconds: 1200),
+        VoiceState.speaking: Duration(milliseconds: 1700),
+      };
+      const peaks = {VoiceState.thinking: 1.03, VoiceState.speaking: 1.02};
+      const rests = {VoiceState.thinking: 0.97, VoiceState.speaking: 1.0};
+
+      double scale() => tester
+          .widgetList<Transform>(
+            find.descendant(
+              of: find.byType(Loop),
+              matching: find.byType(Transform),
+            ),
+          )
+          .first
+          .transform
+          .entry(0, 0);
+
+      for (final half in halves.entries) {
+        await _pumpCircle(tester, half.key);
+        await tester.pump(half.value);
+        expect(
+          scale(),
+          closeTo(peaks[half.key]!, 1e-6),
+          reason:
+              '${half.key.name} respirava a meio caminho do pico na metade '
+              'do período dela, não no pico — o ciclo inteiro só fecha no '
+              'dobro do tempo que ela desenhou',
+        );
+
+        await tester.pump(half.value);
+        expect(
+          scale(),
+          closeTo(rests[half.key]!, 1e-6),
+          reason:
+              'um período inteiro depois ${half.key.name} ainda estava '
+              'subindo para o pico, em vez de já ter voltado ao ponto de '
+              'partida — o dobro do tempo dela outra vez',
+        );
+      }
+    },
+  );
 
   testWidgets(
     'only a stop says itself with a mark; the room\'s own voices draw none',

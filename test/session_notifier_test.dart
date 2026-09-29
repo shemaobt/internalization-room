@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -7,23 +8,18 @@ import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/facilitator_voice_service.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-
-Future<void> settle([
-  Duration delay = const Duration(milliseconds: 120),
-]) async {
-  await Future<void>.delayed(delay);
-}
+import 'scenario_helpers.dart' show settle;
 
 Future<void> _intoFindings(
   SalaHarness harness,
@@ -48,8 +44,9 @@ Future<void> _intoFindings(
   for (final at in const [Duration(seconds: 12), Duration(seconds: 30)]) {
     harness.playback.at = at;
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     contados++;
     await waitFor(
       'o trecho chegar à sala',
@@ -796,6 +793,29 @@ void main() {
     expect(harness.voice.played, [sceneUrl]);
   });
 
+  test(
+    'a repeat that fails on the GET calls a person, instead of a dead replay',
+    () async {
+      final harness = SalaHarness()..room.opensInTwoMovements = true;
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.voice.roomFailsWith = const RoomRefused();
+      await notifier.hearAgain();
+      await settle();
+
+      expect(
+        container.read(salaSessionProvider).needsPerson,
+        isTrue,
+        reason:
+            'ouvir de novo não passava por nenhum catch — a mesma recusa '
+            'que o turno original já chamava uma pessoa por, aqui caía '
+            'muda como um replay comum que não tocou',
+      );
+    },
+  );
+
   test('a held press gives the whole opening back, necklace and all', () async {
     final harness = SalaHarness()..room.opensInTwoMovements = true;
     final container = await inConversa(harness);
@@ -830,6 +850,81 @@ void main() {
     expect(harness.voice.played, [panoramaUrl, sceneUrl]);
     expect(container.read(salaSessionProvider).contasEnfiadas, isTrue);
   });
+
+  test(
+    'the whole opening replayed calls a person when its GET fails, instead of a dead necklace',
+    () async {
+      final harness = SalaHarness()..room.opensInTwoMovements = true;
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.voice.roomFailsWith = const RoomRefused();
+      await notifier.hearTheWholeOpening();
+      await settle();
+
+      expect(
+        container.read(salaSessionProvider).needsPerson,
+        isTrue,
+        reason:
+            'a abertura pedida de novo não passava por nenhum catch — a '
+            'mesma recusa que o turno original já chamava uma pessoa por, '
+            'aqui caía muda como um gesto que não tocou',
+      );
+    },
+  );
+
+  test(
+    'the whole opening replayed hands the necklace back when the room fails its first clip',
+    () async {
+      final harness = SalaHarness()..room.opensInTwoMovements = true;
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.voice.roomFailsWith = const RoomBroke('HTTP 503');
+      await notifier.hearTheWholeOpening();
+      await settle();
+
+      final state = container.read(salaSessionProvider);
+      expect(
+        state.needsPerson,
+        isFalse,
+        reason:
+            'uma queda abaixo do limite volta ao convite, sem chamar ninguém',
+      );
+      expect(
+        state.contasEnfiadas,
+        isTrue,
+        reason:
+            'o gesto tira as contas do fio e o panorama as devolve, tocado ou '
+            'não — a queda lançada pulava a devolução e o colar ficava fora até '
+            'a equipe sair da passagem',
+      );
+    },
+  );
+
+  test(
+    'an opening whose first clip the room fails still hands the necklace over',
+    () async {
+      final harness = SalaHarness()..room.opensInTwoMovements = true;
+      harness.voice.roomFailsWith = const RoomBroke('HTTP 503');
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      await notifier.goConversa(pericope: 'P01');
+      await settle();
+
+      expect(
+        container.read(salaSessionProvider).contasEnfiadas,
+        isTrue,
+        reason:
+            'a abertura tira as contas antes do panorama e as entrega depois, '
+            'aconteça o que acontecer — a queda lançada pulava a entrega',
+      );
+    },
+  );
 
   test('an opening told in one breath shows the necklace at once', () async {
     final harness = SalaHarness();
@@ -944,15 +1039,6 @@ void main() {
     expect(const SalaSessionState(stage: SalaStage.fim).colarOn, isTrue);
   });
 
-  test('ping range covers newly engaged beads only', () {
-    const ping = PingRange(4, 6);
-
-    expect(ping.contains(3), isFalse);
-    expect(ping.contains(4), isTrue);
-    expect(ping.contains(5), isTrue);
-    expect(ping.contains(6), isFalse);
-  });
-
   test('entering the passage opens a session on the backend', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
@@ -1004,6 +1090,37 @@ void main() {
     expect(harness.voice.played, hasLength(2));
     expect(container.read(salaSessionProvider).voice, VoiceState.invite);
   });
+
+  test(
+    'a clip that fails on the GET calls a person, the same as the turn that sent it',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      notifier.conversaTap();
+      await settle();
+      harness.voice.roomFailsWith = const RoomBroke('HTTP 503');
+      notifier.conversaTap();
+      await settle();
+
+      final state = container.read(salaSessionProvider);
+      expect(
+        state.needsPerson,
+        isTrue,
+        reason:
+            'o GET do áudio falhava calado dentro do play() e virava strike '
+            'de "não toca" — a mesma falha vinda do POST do turno já chama '
+            'uma pessoa na hora, sem esperar três',
+      );
+      expect(
+        state.sessionId,
+        isNotNull,
+        reason: 'uma queda de rede não é a sessão que sumiu',
+      );
+    },
+  );
 
   test(
     'the microphone opening warms the connection to the room, not just the invite',
@@ -1168,6 +1285,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       harness.room.turnIdInResponse = 'turno-2';
+      harness.room.settledCoverage = coverage(engaged: 3, surfaced: 4);
       notifier.conversaTap();
       await settle();
       notifier.conversaTap();
@@ -1188,6 +1306,142 @@ void main() {
 
       expect(harness.room.clientTimingsSent, hasLength(2));
       expect(harness.room.clientTimingsSent[1], contains('sound_to_beads='));
+    },
+  );
+
+  test(
+    'a frame carrying coverage stamps the beads clock itself, without waiting for the pull that follows',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60));
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.room.turnIdInResponse = 'turno-2';
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      harness.room.pushCoverage(
+        CoverageEvent(
+          turnId: 'turno-2',
+          status: CoverageStatus.settled,
+          coverage: coverage(engaged: 3, surfaced: 4),
+        ),
+      );
+      await waitFor(
+        'o colar assentar pelo aviso',
+        () => container.read(salaSessionProvider).coverage.engaged == 3,
+      );
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      expect(harness.room.clientTimingsSent, hasLength(2));
+      expect(harness.room.clientTimingsSent[1], contains('sound_to_beads='));
+    },
+  );
+
+  test(
+    'a pull that lands long after the frame does not move the beads clock mark to itself',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60));
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.room.turnIdInResponse = 'turno-2';
+      harness.room.settledCoverage = coverage(engaged: 3, surfaced: 4);
+      harness.room.holdNextState();
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      harness.room.pushCoverage(
+        CoverageEvent(
+          turnId: 'turno-2',
+          status: CoverageStatus.settled,
+          coverage: coverage(engaged: 3, surfaced: 4),
+        ),
+      );
+      await waitFor(
+        'o colar assentar pelo aviso',
+        () => container.read(salaSessionProvider).coverage.engaged == 3,
+      );
+
+      await settle(const Duration(milliseconds: 400));
+      harness.room.finishHeldState();
+      await settle();
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      expect(harness.room.clientTimingsSent, hasLength(2));
+      final timing = harness.room.clientTimingsSent[1]!;
+      final match = RegExp(r'sound_to_beads=(\d+)').firstMatch(timing);
+      expect(
+        match,
+        isNotNull,
+        reason: 'o aviso pousou as contas — a marca tinha que existir',
+      );
+      expect(
+        int.parse(match!.group(1)!),
+        lessThan(300),
+        reason:
+            'o pull tardio (soltado 400ms depois do aviso) só confirmou o '
+            'mesmo número — se ele tivesse recarimbado o relógio em vez do '
+            'aviso, a marca seria >= 400ms, não perto de zero',
+      );
+    },
+  );
+
+  test(
+    'a settle that lands no new beads does not stamp the clock beads never actually reached',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60));
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.room.turnIdInResponse = 'turno-2';
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-2', status: CoverageStatus.settled),
+      );
+      await waitFor(
+        'o colar assentar pelo canal',
+        () => harness.room.calls.where((c) => c == 'fetchState').isNotEmpty,
+      );
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      expect(harness.room.clientTimingsSent, hasLength(2));
+      expect(
+        harness.room.clientTimingsSent[1],
+        isNot(contains('sound_to_beads=')),
+        reason:
+            'a leitura de recuperação não trouxe nenhuma conta nova — '
+            'carimbar o relógio mesmo assim media um pouso que nunca '
+            'aconteceu',
+      );
+      expect(
+        harness.room.clientTimingsSent[1],
+        contains('stop_to_answer='),
+        reason: 'os outros trechos do relógio seguem carimbados normalmente',
+      );
     },
   );
 
@@ -1228,7 +1482,7 @@ void main() {
   );
 
   test(
-    'the conversation keeps the words and throws the recording away',
+    'a spoken turn that reaches the room keeps its recording, not just the words',
     () async {
       final harness = SalaHarness();
       final container = await inConversa(harness);
@@ -1243,15 +1497,15 @@ void main() {
       expect(harness.room.turnsSent, 1);
       expect(
         harness.recorder.deleted,
-        [endsWith('captura-1.m4a')],
+        isEmpty,
         reason:
-            'o registro da conversa é o texto no servidor — o áudio da equipe '
-            'não é o produto e não pode ficar enchendo o tablet',
+            'a equipe gravou a fala, e a doc é clara: nada aqui apaga áudio '
+            'que a equipe fez — nem quando o texto já chegou ao servidor',
       );
     },
   );
 
-  test('a turn the room refused still throws the recording away', () async {
+  test('a turn the room refused still keeps the recording', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -1263,13 +1517,493 @@ void main() {
     notifier.conversaTap();
     await settle();
 
+    final path = harness.recorder.lastPath;
+    expect(
+      harness.room.calls,
+      contains('sendTurn'),
+      reason: 'a recusa só prova a regra se o envio de fato foi tentado',
+    );
+    expect(path, isNotNull);
     expect(
       harness.recorder.deleted,
-      [endsWith('captura-1.m4a')],
+      isEmpty,
       reason:
-          'nenhum caminho de erro reenvia o arquivo, então guardá-lo só ocupa espaço',
+          'o servidor não guardou nada — apagar aqui perderia a fala da '
+          'equipe de vez, o caso mais grave que a regra existe para evitar',
     );
   });
+
+  test(
+    'a take the connection dropped is sent again as the same take, and its answer is heard once',
+    () async {
+      final harness = SalaHarness(busyCeiling: const Duration(seconds: 5));
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      harness.voice.played.clear();
+      harness.room.failHeldTurnWith = const RoomUnavailable('a conexão caiu');
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle(const Duration(milliseconds: 400));
+
+      expect(harness.room.turnIdsSent, hasLength(2));
+      expect(harness.room.turnIdsSent.first, isNotNull);
+      expect(
+        harness.room.turnIdsSent.last,
+        harness.room.turnIdsSent.first,
+        reason:
+            'sem o mesmo id o servidor não reconhecia o reenvio e respondia '
+            'a mesma fala duas vezes',
+      );
+      expect(harness.room.recordingsSent, [
+        endsWith('captura-1.m4a'),
+        endsWith('captura-1.m4a'),
+      ]);
+      expect(
+        harness.voice.played,
+        [turnoUrl],
+        reason:
+            'a queda virava offline e a equipe perdia a resposta que o '
+            'servidor já tinha dado',
+      );
+      expect(container.read(salaSessionProvider).offline, isFalse);
+    },
+  );
+
+  test(
+    'a take lost with the network gone ends offline at once, never waiting to be resent',
+    () async {
+      final harness = SalaHarness(
+        busyCeiling: const Duration(seconds: 30),
+        retryBackoff: const [Duration(seconds: 5)],
+      );
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      harness.network.radioSeesNothing = true;
+      harness.room.failTurnsWith = const RoomUnavailable('sem rede');
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle(const Duration(milliseconds: 200));
+
+      final state = container.read(salaSessionProvider);
+      expect(
+        state.offline,
+        isTrue,
+        reason:
+            'sem rede nenhuma o tablet passava cinco minutos pausando e '
+            'reenviando com a equipe olhando o pensando, onde antes o '
+            'offline vinha em menos de um segundo',
+      );
+      expect(state.reach, RoomReach.noNetwork);
+      expect(harness.voice.assets, contains(offlineNoticeAsset(testLanguage)));
+      expect(harness.room.turnsSent, 1);
+    },
+  );
+
+  test(
+    'a take dropped on a live network is resent once, after the network is asked, and heard once',
+    () async {
+      final harness = SalaHarness(busyCeiling: const Duration(seconds: 5));
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      harness.voice.played.clear();
+      harness.room.failHeldTurnWith = const RoomUnavailable('a conexão caiu');
+
+      notifier.conversaTap();
+      await settle();
+      final asked = harness.network.checks;
+      notifier.conversaTap();
+      await settle(const Duration(milliseconds: 400));
+
+      expect(
+        harness.network.checks,
+        asked + 1,
+        reason:
+            'sem perguntar à rede o tablet não sabia se a queda era um '
+            'soluço ou a rede inteira fora',
+      );
+      expect(harness.room.turnIdsSent, hasLength(2));
+      expect(harness.room.turnIdsSent.last, harness.room.turnIdsSent.first);
+      expect(harness.voice.played, [turnoUrl]);
+      expect(container.read(salaSessionProvider).offline, isFalse);
+    },
+  );
+
+  test(
+    'a room that stays out of reach is asked again at the retry pace, not in a burst',
+    () async {
+      final harness = SalaHarness(
+        busyCeiling: const Duration(milliseconds: 600),
+        retryBackoff: const [Duration(milliseconds: 150)],
+      );
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      harness.room.failTurnsWith = const RoomUnavailable('a conexão caiu');
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle(const Duration(milliseconds: 900));
+
+      expect(
+        harness.room.turnsSent,
+        inInclusiveRange(3, 5),
+        reason:
+            'sem pausa entre as tentativas o tablet martelava o servidor '
+            'centenas de vezes por segundo enquanto a rede estava fora',
+      );
+    },
+  );
+
+  test(
+    'a drop that never heals ends offline inside the wait, not with a person called',
+    () {
+      const window = Duration(milliseconds: 600);
+      fakeAsync((async) {
+        final harness = SalaHarness(
+          busyCeiling: window,
+          retryBackoff: const [Duration(milliseconds: 100)],
+          turnElapsedSource: () {
+            final start = async.elapsed;
+            return () => async.elapsed - start;
+          },
+        );
+        ProviderContainer? container;
+        SalaSessionState? ended;
+        Duration? endedAt;
+        int? sentAtEnd;
+        Duration secondTapAt = Duration.zero;
+        final calledForAPerson = <SalaSessionState>[];
+
+        unawaited(() async {
+          container = await inConversa(harness);
+          final notifier = container!.read(salaSessionProvider.notifier);
+          harness.room.failTurnsWith = const RoomUnavailable('a conexão caiu');
+          container!.listen(salaSessionProvider, (_, next) {
+            if (next.needsPerson) calledForAPerson.add(next);
+            if (ended == null && (next.offline || next.needsPerson)) {
+              endedAt = async.elapsed - secondTapAt;
+              ended = next;
+              sentAtEnd = harness.room.turnsSent;
+            }
+          });
+
+          notifier.conversaTap();
+          await settle();
+          secondTapAt = async.elapsed;
+          notifier.conversaTap();
+        }());
+        async.elapse(const Duration(seconds: 2));
+
+        addTearDown(() => container?.dispose());
+
+        expect(
+          ended,
+          isNotNull,
+          reason: 'a sala precisava cair para offline ou chamar uma pessoa',
+        );
+        expect(
+          calledForAPerson,
+          isEmpty,
+          reason:
+              'os reenvios iam até o vigia, e o vigia chamava uma pessoa para '
+              'uma rede que tinha caído — em qualquer ponto da espera, não só '
+              'na primeira transição',
+        );
+        expect(ended?.offline, isTrue);
+        expect(ended?.reach, RoomReach.noNetwork);
+        expect(sentAtEnd, greaterThan(1));
+        expect(harness.room.turnsSent, sentAtEnd);
+        expect(
+          endedAt,
+          lessThan(window),
+          reason: 'o turno com reenvios passava da janela do vigia',
+        );
+      });
+    },
+  );
+
+  test(
+    'a clock that underestimates elapsed time lands offline past the window, '
+    'once the watchdog is out of the race',
+    () {
+      const window = Duration(milliseconds: 600);
+      fakeAsync((async) {
+        final harness = SalaHarness(
+          busyCeiling: window,
+          retryBackoff: const [Duration(milliseconds: 100)],
+          turnElapsedSource: () {
+            final start = async.elapsed;
+            return () =>
+                async.elapsed - start - const Duration(milliseconds: 300);
+          },
+        );
+        ProviderContainer? container;
+        SalaSessionState? ended;
+        Duration? endedAt;
+        Duration secondTapAt = Duration.zero;
+
+        unawaited(() async {
+          container = await inConversa(harness);
+          final notifier = container!.read(salaSessionProvider.notifier);
+          harness.room.failTurnsWith = const RoomUnavailable('a conexão caiu');
+          container!.listen(salaSessionProvider, (_, next) {
+            if (ended == null && (next.offline || next.needsPerson)) {
+              endedAt = async.elapsed - secondTapAt;
+              ended = next;
+            }
+          });
+
+          notifier.conversaTap();
+          await settle();
+          secondTapAt = async.elapsed;
+          notifier.conversaTap();
+          async.flushMicrotasks();
+
+          final watchdog = async.pendingTimers.where(
+            (timer) => timer.duration == window,
+          );
+          expect(
+            watchdog,
+            hasLength(1),
+            reason:
+                'exatamente um Timer do vigia deveria estar pendente logo '
+                'após o segundo toque',
+          );
+          watchdog.single.cancel();
+        }());
+        async.elapse(const Duration(seconds: 2));
+
+        addTearDown(() => container?.dispose());
+
+        expect(
+          ended,
+          isNotNull,
+          reason: 'com o vigia fora da corrida, só o pouso offline decide',
+        );
+        expect(
+          ended?.offline,
+          isTrue,
+          reason: 'sem o vigia, nada mais chama uma pessoa',
+        );
+        expect(
+          endedAt,
+          Duration(milliseconds: 800),
+          reason:
+              'um relógio que subestima o tempo decorrido em 300ms deixa o '
+              'orçamento de reenvio achar que ainda sobra folga: os reenvios '
+              'continuam até 800ms, bem depois da janela de 600ms que '
+              'deveria os ter cortado antes — a prova de que a janela do '
+              'assert anterior é real, não um acidente de quem nunca a '
+              'testou contra o próprio relógio',
+        );
+      });
+    },
+  );
+
+  test(
+    'a room that holds every send ends the take as a slow turn before the wait runs out, never with a person called',
+    () async {
+      const window = Duration(milliseconds: 600);
+      final harness = SalaHarness(
+        busyCeiling: window,
+        retryBackoff: const [Duration(milliseconds: 100)],
+      );
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      harness.room.failHeldTurnWith = const RoomSlow();
+      final clock = Stopwatch();
+      Duration? endedAt;
+      SalaSessionState? ended;
+      container.listen(salaSessionProvider, (previous, next) {
+        if (ended == null &&
+            previous?.voice == VoiceState.thinking &&
+            next.voice != VoiceState.thinking) {
+          endedAt = clock.elapsed;
+          ended = next;
+        }
+      });
+
+      notifier.conversaTap();
+      await settle();
+      clock.start();
+      notifier.conversaTap();
+      await settle(const Duration(milliseconds: 50));
+      harness.room.holdNextTurn();
+      await settle(const Duration(milliseconds: 900));
+
+      expect(harness.room.turnsSent, 2);
+      expect(
+        ended?.needsPerson,
+        isFalse,
+        reason:
+            'o reenvio esperava os 310 s cheios, o vigia vencia e chamava '
+            'uma pessoa à mesa por uma rede lenta',
+      );
+      expect(ended?.voice, VoiceState.invite);
+      expect(ended?.offline, isFalse);
+      expect(
+        endedAt,
+        lessThan(window),
+        reason: 'o turno com reenvios passava da janela do vigia',
+      );
+    },
+  );
+
+  test(
+    'a take the room keeps answering slowly is resent as itself, and still ends as a slow turn',
+    () async {
+      final harness = SalaHarness(
+        busyCeiling: const Duration(milliseconds: 600),
+        retryBackoff: const [Duration(milliseconds: 100)],
+      );
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      harness.room.failTurnsWith = const RoomSlow();
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle(const Duration(milliseconds: 900));
+
+      expect(
+        harness.room.turnIdsSent.length,
+        greaterThan(1),
+        reason:
+            'um turno lento voltava ao convite, e a equipe falava de novo o '
+            'que o servidor talvez já tivesse respondido',
+      );
+      expect(harness.room.turnIdsSent.toSet(), hasLength(1));
+      final state = container.read(salaSessionProvider);
+      expect(state.voice, VoiceState.invite);
+      expect(state.needsPerson, isFalse);
+      expect(state.offline, isFalse);
+    },
+  );
+
+  test(
+    'a take the room broke, refused or forgot is never sent again',
+    () async {
+      for (final failure in <Exception>[
+        const RoomBroke('HTTP 500'),
+        const RoomRefused(),
+        const SessionGone(),
+      ]) {
+        final harness = SalaHarness(busyCeiling: const Duration(seconds: 5));
+        final container = await inConversa(harness);
+        addTearDown(container.dispose);
+        final notifier = container.read(salaSessionProvider.notifier);
+        harness.room.failHeldTurnWith = failure;
+
+        notifier.conversaTap();
+        await settle();
+        notifier.conversaTap();
+        await settle(const Duration(milliseconds: 300));
+
+        expect(
+          harness.room.turnsSent,
+          1,
+          reason:
+              '$failure é resposta do servidor, não queda do caminho — '
+              'reenviar escondia a falha atrás de um pensando',
+        );
+      }
+    },
+  );
+
+  test(
+    'a panorama question the connection dropped is sent again as the same take',
+    () async {
+      final harness = SalaHarness(busyCeiling: const Duration(seconds: 5));
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      await notifier.openConvite();
+      harness.room.failHeldTurnWith = const RoomUnavailable('a conexão caiu');
+
+      notifier.conviteTap();
+      await settle();
+      notifier.conviteTap();
+      await settle(const Duration(milliseconds: 400));
+
+      expect(harness.room.turnIdsSent, hasLength(2));
+      expect(harness.room.turnIdsSent.first, isNotNull);
+      expect(
+        harness.room.turnIdsSent.last,
+        harness.room.turnIdsSent.first,
+        reason:
+            'a pergunta do panorama também é um turno falado, e a queda a '
+            'perdia do mesmo jeito',
+      );
+      expect(harness.room.recordingsSent.toSet(), hasLength(1));
+      expect(container.read(salaSessionProvider).offline, isFalse);
+    },
+  );
+
+  test(
+    'a take waiting to be resent is let go when the team leaves the passage',
+    () async {
+      final harness = SalaHarness(
+        busyCeiling: const Duration(seconds: 5),
+        retryBackoff: const [Duration(milliseconds: 300)],
+      );
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      harness.room.failHeldTurnWith = const RoomUnavailable('a conexão caiu');
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle(const Duration(milliseconds: 100));
+      notifier.leaveThePassage();
+      await settle(const Duration(milliseconds: 400));
+
+      expect(
+        harness.room.turnsSent,
+        1,
+        reason:
+            'a tomada da passagem que a equipe deixou ainda ia para o '
+            'servidor depois da pausa',
+      );
+    },
+  );
+
+  test(
+    'the next take is a new turn to the room, with an id of its own',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      for (var take = 0; take < 2; take++) {
+        notifier.conversaTap();
+        await settle();
+        notifier.conversaTap();
+        await settle();
+      }
+
+      expect(harness.room.turnIdsSent, hasLength(2));
+      expect(harness.room.turnIdsSent, everyElement(isNotNull));
+      expect(
+        harness.room.turnIdsSent.last,
+        isNot(harness.room.turnIdsSent.first),
+        reason:
+            'com o id da tomada anterior o servidor devolvia a resposta velha '
+            'no lugar de ouvir a nova',
+      );
+    },
+  );
 
   test('the app never decides coverage — it mirrors the server', () async {
     final harness = SalaHarness()
@@ -1635,6 +2369,627 @@ void main() {
   );
 
   test(
+    'a frame carrying coverage paints the necklace before fetchState answers',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1'
+        ..room.holdNextState();
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+      expect(container.read(salaSessionProvider).coverage.engaged, 0);
+
+      harness.room.pushCoverage(
+        CoverageEvent(
+          turnId: 'turno-1',
+          status: CoverageStatus.settled,
+          coverage: coverage(engaged: 3, surfaced: 4),
+        ),
+      );
+      await waitFor(
+        'o colar assentar direto do aviso',
+        () => container.read(salaSessionProvider).coverage.engaged == 3,
+      );
+
+      expect(
+        harness.room.calls.where((call) => call == 'fetchState').length,
+        1,
+        reason:
+            'o fetchState que o próprio aviso settled dispara ainda está no '
+            'ar — o colar já assentou sem esperar por ele',
+      );
+
+      harness.room.finishHeldState();
+    },
+  );
+
+  test(
+    'a frame that advances the beads updates the screen once, not twice for a ping nothing draws',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1'
+        ..room.holdNextState();
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+
+      var emits = 0;
+      container.listen(salaSessionProvider, (_, _) => emits++);
+
+      harness.room.pushCoverage(
+        CoverageEvent(
+          turnId: 'turno-1',
+          status: CoverageStatus.settled,
+          coverage: coverage(engaged: 3, surfaced: 4),
+        ),
+      );
+      await waitFor(
+        'o colar assentar pelo aviso',
+        () => container.read(salaSessionProvider).coverage.engaged == 3,
+      );
+      await settle(const Duration(milliseconds: 750));
+
+      expect(
+        emits,
+        1,
+        reason:
+            'o aviso pintava o colar e, 700ms depois, apagava um papel que '
+            'nenhum widget desenha — dois toques na tela por um só evento',
+      );
+
+      harness.room.finishHeldState();
+    },
+  );
+
+  test(
+    'the closed necklace stays still on the fim screen, not touched again for a flag nothing draws',
+    () async {
+      final harness = SalaHarness(fimLinger: const Duration(seconds: 30));
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      notifier.goEnsaio();
+      notifier.ensaioTap();
+      notifier.ensaioTap();
+      await settle();
+      notifier.takeKeep();
+      notifier.startRetro();
+      await settle();
+      harness.playback.at = const Duration(seconds: 2);
+      notifier.cortarTrecho();
+      notifier.retroTap();
+      await settle();
+      await confirmarATraducao(container);
+      await settle();
+      harness.playback.finishPlayback();
+      await settle();
+      await notifier.finishBackTranslation();
+      await settle();
+      await notifier.aprovarRascunhoFinal();
+      await waitFor(
+        'o colar fechar',
+        () => container.read(salaSessionProvider).stage == SalaStage.fim,
+      );
+
+      var emits = 0;
+      container.listen(salaSessionProvider, (_, _) => emits++);
+      await settle(const Duration(milliseconds: 1300));
+
+      expect(
+        emits,
+        0,
+        reason:
+            'um segundo depois do fim a sala ligava um fimClosed que nenhum '
+            'widget lê — a tela inteira se refazia para nada',
+      );
+      expect(container.read(salaSessionProvider).stage, SalaStage.fim);
+    },
+  );
+
+  test(
+    'a pull that finds the same replies already on the hand does not touch the screen',
+    () async {
+      final harness =
+          SalaHarness(
+              settleDelay: const Duration(seconds: 60),
+              replies: const [HandReply(id: 'r1', audioUrl: '/voice/r1')],
+            )
+            ..room.turnIdInResponse = 'turno-1'
+            ..room.holdNextState();
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+      await waitFor(
+        'a primeira leitura da caixa trazer r1',
+        () => container.read(salaSessionProvider).replies.length == 1,
+      );
+
+      var emits = 0;
+      container.listen(salaSessionProvider, (_, _) => emits++);
+
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+      );
+      await settle(const Duration(milliseconds: 100));
+
+      expect(
+        emits,
+        0,
+        reason:
+            'a caixa segue devolvendo só r1 — nada novo chegou, e o pull '
+            'não tinha porque reconstruir a tela por uma lista igual',
+      );
+
+      harness.room.finishHeldState();
+    },
+  );
+
+  test(
+    'a pull that finds a reply new to the hand does touch the screen',
+    () async {
+      final harness =
+          SalaHarness(
+              settleDelay: const Duration(seconds: 60),
+              replies: const [HandReply(id: 'r1', audioUrl: '/voice/r1')],
+            )
+            ..room.turnIdInResponse = 'turno-1'
+            ..room.holdNextState();
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+      await waitFor(
+        'a primeira leitura da caixa trazer r1',
+        () => container.read(salaSessionProvider).replies.length == 1,
+      );
+
+      harness.inbox.replies = const [
+        HandReply(id: 'r1', audioUrl: '/voice/r1'),
+        HandReply(id: 'r2', audioUrl: '/voice/r2'),
+      ];
+      var emits = 0;
+      container.listen(salaSessionProvider, (_, _) => emits++);
+
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+      );
+      await waitFor(
+        'r2 chegar à mão',
+        () => container.read(salaSessionProvider).replies.length == 2,
+      );
+
+      expect(
+        emits,
+        greaterThan(0),
+        reason:
+            'r2 é nova — a mão só sabe de uma resposta que chegou se a '
+            'tela for reconstruída',
+      );
+
+      harness.room.finishHeldState();
+    },
+  );
+
+  test(
+    'a pull that finds a different id in the same slot does touch the screen',
+    () async {
+      final harness =
+          SalaHarness(
+              settleDelay: const Duration(seconds: 60),
+              replies: const [HandReply(id: 'r1', audioUrl: '/voice/r1')],
+            )
+            ..room.turnIdInResponse = 'turno-1'
+            ..room.holdNextState();
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+      await waitFor(
+        'a primeira leitura da caixa trazer r1',
+        () => container.read(salaSessionProvider).replies.length == 1,
+      );
+
+      harness.inbox.replies = const [
+        HandReply(id: 'r2', audioUrl: '/voice/r2'),
+      ];
+      var emits = 0;
+      container.listen(salaSessionProvider, (_, _) => emits++);
+
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+      );
+      await waitFor(
+        'r2 tomar o lugar de r1',
+        () =>
+            container.read(salaSessionProvider).replies.length == 1 &&
+            container.read(salaSessionProvider).replies.first.id == 'r2',
+      );
+
+      expect(
+        emits,
+        greaterThan(0),
+        reason:
+            'mesmo tamanho, id diferente na mesma posição — não é a '
+            'mesma lista, e a tela precisa saber',
+      );
+
+      harness.room.finishHeldState();
+    },
+  );
+
+  test(
+    'a heard reply leaves the hand when the desk empties, quiet on the next check',
+    () async {
+      final harness = SalaHarness(
+        replies: const [
+          HandReply(id: 'r1', audioUrl: '/voice/r1', heard: true),
+        ],
+      )..room.holdNextState();
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+      await waitFor(
+        'a primeira leitura da caixa trazer r1',
+        () => container.read(salaSessionProvider).replies.length == 1,
+      );
+
+      harness.inbox.replies = const [];
+      var emits = 0;
+      container.listen(salaSessionProvider, (_, _) => emits++);
+
+      await waitFor(
+        'a resposta já ouvida sair do estado quando a mesa esvazia a lista',
+        () => container.read(salaSessionProvider).replies.isEmpty,
+      );
+
+      expect(
+        container.read(salaSessionProvider).replies,
+        isEmpty,
+        reason:
+            'a mesa não lista mais r1 — mesmo já ouvida, ela não podia continuar '
+            'no estado local só porque a última lista chegou vazia',
+      );
+
+      await settle(const Duration(milliseconds: 300));
+
+      expect(
+        emits,
+        1,
+        reason:
+            'o poll da caixa e o retorno do prazo de cobertura chegam os dois com '
+            'a mesma lista vazia — o segundo não tem réplica nenhuma a menos e não '
+            'devia refazer a tela que o primeiro já esvaziou',
+      );
+
+      harness.room.finishHeldState();
+    },
+  );
+
+  test(
+    'a reply the facilitator recorded again is played from its new address, not the old one',
+    () async {
+      final harness =
+          SalaHarness(
+              settleDelay: const Duration(seconds: 60),
+              replies: const [HandReply(id: 'r1', audioUrl: '/voice/r1-a')],
+            )
+            ..room.turnIdInResponse = 'turno-1'
+            ..room.holdNextState();
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      await notifier.goConversa();
+      await waitFor(
+        'a primeira leitura da caixa trazer r1',
+        () => container.read(salaSessionProvider).replies.length == 1,
+      );
+
+      harness.inbox.replies = const [
+        HandReply(id: 'r1', audioUrl: '/voice/r1-b'),
+      ];
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+      );
+      await settle();
+
+      notifier.handTap();
+      await settle();
+
+      expect(
+        harness.voice.played,
+        contains('/voice/r1-b'),
+        reason:
+            'a facilitadora regravou a resposta e a mesa passou a servir '
+            'outro endereço, mas a mão guardava o primeiro que viu',
+      );
+      expect(
+        harness.voice.played,
+        isNot(contains('/voice/r1-a')),
+        reason:
+            'o endereço antigo já não é da pergunta — a mesa responde 404 '
+            'e a resposta nova era marcada ouvida sem soar',
+      );
+
+      harness.room.finishHeldState();
+    },
+  );
+
+  test(
+    'a reply heard once and then recorded again is offered to the hand again',
+    () async {
+      final harness =
+          SalaHarness(
+              settleDelay: const Duration(seconds: 60),
+              replies: const [HandReply(id: 'r1', audioUrl: '/voice/r1-a')],
+            )
+            ..room.turnIdInResponse = 'turno-1'
+            ..room.holdNextState();
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      await notifier.goConversa();
+      await waitFor(
+        'a primeira leitura da caixa trazer r1',
+        () => container.read(salaSessionProvider).replies.length == 1,
+      );
+      notifier.handTap();
+      await settle();
+      expect(harness.inbox.heard, ['r1']);
+      expect(container.read(salaSessionProvider).hasUnheardReply, isFalse);
+
+      harness.inbox.replies = const [
+        HandReply(id: 'r1', audioUrl: '/voice/r1-b'),
+      ];
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+      );
+      await settle();
+
+      expect(
+        container.read(salaSessionProvider).hasUnheardReply,
+        isTrue,
+        reason:
+            'a mesa voltou a listar r1 como não ouvida, com a resposta '
+            'regravada, e a mão seguia apagada pela primeira escuta',
+      );
+
+      notifier.handTap();
+      await settle();
+
+      expect(
+        harness.voice.played.where((url) => url.startsWith('/voice/r1')),
+        ['/voice/r1-a', '/voice/r1-b'],
+        reason: 'a segunda resposta nunca chegava a tocar',
+      );
+
+      harness.room.finishHeldState();
+    },
+  );
+
+  test(
+    'a reply recorded again while the first one plays is not marked heard by the one that played',
+    () async {
+      final harness =
+          SalaHarness(
+              settleDelay: const Duration(seconds: 60),
+              replies: const [HandReply(id: 'r1', audioUrl: '/voice/r1-a')],
+            )
+            ..room.turnIdInResponse = 'turno-1'
+            ..room.holdNextState();
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      await notifier.goConversa();
+      await waitFor(
+        'a primeira leitura da caixa trazer r1',
+        () => container.read(salaSessionProvider).replies.length == 1,
+      );
+      harness.voice.holdNextLine();
+      notifier.handTap();
+      await settle();
+      expect(harness.voice.played.last, '/voice/r1-a');
+
+      harness.inbox.replies = const [
+        HandReply(id: 'r1', audioUrl: '/voice/r1-b'),
+      ];
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+      );
+      await waitFor(
+        'a leitura trazer r1 no endereço novo',
+        () =>
+            container.read(salaSessionProvider).replies.first.audioUrl ==
+            '/voice/r1-b',
+      );
+      expect(
+        container.read(salaSessionProvider).replies.first.audioUrl,
+        '/voice/r1-b',
+      );
+
+      harness.voice.finishHeldLine();
+      await settle();
+
+      expect(
+        harness.inbox.heard,
+        isEmpty,
+        reason:
+            'a marca do fim da r1-a saía pela pergunta e a mesa carimbava '
+            'como ouvida a resposta regravada, que ninguém tinha ouvido',
+      );
+      expect(
+        container.read(salaSessionProvider).hasUnheardReply,
+        isTrue,
+        reason: 'a mão ficava apagada com a segunda resposta por ouvir',
+      );
+
+      notifier.handTap();
+      await settle();
+
+      expect(
+        harness.voice.played.where((url) => url.startsWith('/voice/r1')),
+        ['/voice/r1-a', '/voice/r1-b'],
+        reason: 'a resposta regravada durante a escuta nunca tocava',
+      );
+
+      harness.room.finishHeldState();
+    },
+  );
+
+  test(
+    'a reply already heard that the desk still lists at the same address is not offered again',
+    () async {
+      final harness =
+          SalaHarness(
+              settleDelay: const Duration(seconds: 60),
+              replies: const [HandReply(id: 'r1', audioUrl: '/voice/r1-a')],
+            )
+            ..room.turnIdInResponse = 'turno-1'
+            ..room.holdNextState();
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      await notifier.goConversa();
+      await waitFor(
+        'a primeira leitura da caixa trazer r1',
+        () => container.read(salaSessionProvider).replies.length == 1,
+      );
+      notifier.handTap();
+      await settle();
+      expect(harness.inbox.heard, ['r1']);
+
+      harness.inbox.replies = const [
+        HandReply(id: 'r1', audioUrl: '/voice/r1-a'),
+        HandReply(id: 'r2', audioUrl: '/voice/r2'),
+      ];
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+      );
+      await waitFor(
+        'r2 chegar à mão',
+        () => container.read(salaSessionProvider).replies.length == 2,
+      );
+
+      notifier.handTap();
+      await settle();
+
+      expect(
+        harness.voice.played.where((url) => url.startsWith('/voice/')),
+        ['/voice/r1-a', '/voice/r2'],
+        reason:
+            'a mesa ainda listava r1 no mesmo endereço antes de gravar a '
+            'escuta, e a leitura nova desfazia o ouvida — a equipe ouvia '
+            'r1 de novo em vez de r2',
+      );
+
+      harness.room.finishHeldState();
+    },
+  );
+
+  test(
+    'a pull that finds the same replies again still lowers a question asked after they arrived',
+    () async {
+      final harness =
+          SalaHarness(
+              settleDelay: const Duration(seconds: 60),
+              replies: const [
+                HandReply(id: 'r1', audioUrl: '/voice/r1', heard: true),
+              ],
+            )
+            ..room.turnIdInResponse = 'turno-1'
+            ..room.holdNextState();
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      await notifier.goConversa();
+      await waitFor(
+        'a primeira leitura da caixa trazer r1',
+        () => container.read(salaSessionProvider).replies.length == 1,
+      );
+
+      notifier.handTap();
+      notifier.conversaTap();
+      notifier.conversaTap();
+      await settle();
+      expect(container.read(salaSessionProvider).questionPending, isTrue);
+
+      var emits = 0;
+      container.listen(salaSessionProvider, (_, _) => emits++);
+
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+      );
+      await settle(const Duration(milliseconds: 100));
+
+      expect(
+        emits,
+        greaterThan(0),
+        reason:
+            'a caixa segue devolvendo só r1, mas a mão pendia por uma '
+            'pergunta nova — o pull idêntico não pode deixar o ponto aceso',
+      );
+      expect(
+        container.read(salaSessionProvider).questionPending,
+        isFalse,
+        reason:
+            'todo pull não vazio sempre baixou o pedido pendente, mesmo '
+            'sem resposta nova — a lista igual não pode ser a exceção',
+      );
+
+      harness.room.finishHeldState();
+    },
+  );
+
+  test(
+    'a frame that reports fewer beads than the necklace already shows changes nothing',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1'
+        ..room.nextCoverage = coverage(engaged: 5, surfaced: 5)
+        ..room.holdNextState();
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+      expect(container.read(salaSessionProvider).coverage.engaged, 5);
+
+      harness.room.pushCoverage(
+        CoverageEvent(
+          turnId: 'turno-1',
+          status: CoverageStatus.settled,
+          coverage: coverage(engaged: 2, surfaced: 2),
+        ),
+      );
+      await waitFor(
+        'o aviso ser tratado, com o fetchState que ele dispara ainda no ar',
+        () =>
+            harness.room.calls.where((call) => call == 'fetchState').length ==
+            1,
+      );
+
+      expect(
+        container.read(salaSessionProvider).coverage.engaged,
+        5,
+        reason:
+            'um aviso que chega atrás não pode devolver o colar para trás '
+            'do que a equipe já viu encher, mesmo antes do fetchState '
+            'seguinte confirmar qualquer coisa',
+      );
+
+      harness.room.finishHeldState();
+    },
+  );
+
+  test(
     'a settled frame that reports fewer beads than the necklace already shows changes nothing',
     () async {
       final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
@@ -1712,6 +3067,314 @@ void main() {
         reason:
             'a escada de tentativas saiu junto com o timer — uma leitura sem '
             'resposta nova não pede outra depois dela',
+      );
+    },
+  );
+
+  test(
+    'a coverage channel that dies while a turn is waiting reopens once, and a frame on the new one still resolves it',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1'
+        ..room.settledCoverage = coverage(engaged: 3, surfaced: 4);
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+      expect(harness.room.watchCoverageCalls, 1);
+
+      harness.room.dropCoverageStream();
+      await waitFor(
+        'o canal reabrir depois da queda',
+        () => harness.room.watchCoverageCalls == 2,
+      );
+
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+      );
+      await waitFor(
+        'o colar assentar pelo canal reaberto, não pelo fallback de 60s',
+        () => container.read(salaSessionProvider).coverage.engaged == 3,
+      );
+    },
+  );
+
+  test(
+    'a coverage channel that dies, whose recovery pull already lands an advance, closes the wait so the fallback never fetches again',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(milliseconds: 40))
+        ..room.turnIdInResponse = 'turno-1'
+        ..room.settledCoverage = coverage(engaged: 3, surfaced: 4);
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+      expect(harness.room.watchCoverageCalls, 1);
+
+      harness.room.dropCoverageStream();
+      await waitFor(
+        'o colar assentar pelo pull de recuperação',
+        () => container.read(salaSessionProvider).coverage.engaged == 3,
+      );
+
+      await settle(const Duration(milliseconds: 400));
+
+      expect(
+        harness.room.calls.where((call) => call == 'fetchState').length,
+        1,
+        reason:
+            'o pull de recuperação já mostrou que as contas pousaram, mas a '
+            'espera continuava armada — o fallback ainda pedia um segundo '
+            'fetchState e recarimbava beads bem depois de as contas já '
+            'terem pousado',
+      );
+    },
+  );
+
+  test(
+    'a coverage channel that dies twice while the same turn still waits reopens only once',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1';
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+      expect(harness.room.watchCoverageCalls, 1);
+
+      harness.room.dropCoverageStream();
+      await waitFor(
+        'o canal reabrir depois da primeira queda',
+        () => harness.room.watchCoverageCalls == 2,
+      );
+
+      harness.room.dropCoverageStream();
+      await settle(const Duration(milliseconds: 200));
+
+      expect(
+        harness.room.watchCoverageCalls,
+        2,
+        reason:
+            'uma sala inalcançável reabria a cada queda dentro da mesma '
+            'espera — um turno nunca resolvido virava um laço de '
+            'reaberturas e fetchStates até o fallback de 30s',
+      );
+    },
+  );
+
+  test(
+    'a coverage channel that dies once before the turn speaks and once again after still reopens only once',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1';
+      harness.voice.holdNextLine();
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      final opening = container.read(salaSessionProvider.notifier).goConversa();
+      await waitFor(
+        'o canal abrir antes da fala',
+        () => harness.room.watchCoverageCalls == 1,
+      );
+
+      harness.room.dropCoverageStream();
+      await waitFor(
+        'o canal reabrir depois da queda entre as duas armadas',
+        () => harness.room.watchCoverageCalls == 2,
+      );
+
+      harness.voice.finishHeldLine();
+      await opening;
+
+      harness.room.dropCoverageStream();
+      await settle(const Duration(milliseconds: 200));
+
+      expect(
+        harness.room.watchCoverageCalls,
+        2,
+        reason:
+            '_awaitCoverageSettle arma o mesmo turno duas vezes — antes e '
+            'depois de falar — e uma queda entre essas duas armadas não '
+            'pode comprar uma segunda reabertura para o mesmo turno',
+      );
+    },
+  );
+
+  test(
+    'a coverage channel that dies with nothing pending stays closed until the next turn arms it',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.settledCoverage = coverage(engaged: 3, surfaced: 4);
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      expect(harness.room.watchCoverageCalls, 1);
+      harness.room.pushCoverage(
+        const CoverageEvent(
+          turnId: 'turno-fake-1',
+          status: CoverageStatus.settled,
+        ),
+      );
+      await waitFor(
+        'o primeiro turno assentar e não sobrar espera',
+        () => container.read(salaSessionProvider).coverage.engaged == 3,
+      );
+
+      harness.room.dropCoverageStream();
+      await settle(const Duration(milliseconds: 200));
+      expect(
+        harness.room.watchCoverageCalls,
+        1,
+        reason:
+            'sem turno esperando, reabrir na hora só ligaria um canal para '
+            'ninguém ouvir',
+      );
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      expect(
+        harness.room.watchCoverageCalls,
+        2,
+        reason:
+            'o próximo turno é quem reabre — se a queda sem espera não tivesse '
+            'zerado o canal e a sessão, este turno acharia o canal ainda vivo '
+            'e nunca voltaria a escutar as contas',
+      );
+    },
+  );
+
+  test(
+    'a coverage channel whose body breaks mid-stream reopens once, the way an ordinary end does',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1'
+        ..room.settledCoverage = coverage(engaged: 3, surfaced: 4);
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+      expect(harness.room.watchCoverageCalls, 1);
+
+      harness.room.dropCoverageStream(
+        error: const RoomUnavailable('Connection closed while receiving data'),
+      );
+      await waitFor(
+        'o canal reabrir depois de uma queda de transporte',
+        () => harness.room.watchCoverageCalls == 2,
+      );
+
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+      );
+      await waitFor(
+        'o colar assentar pelo canal reaberto, não pelo fallback de 60s',
+        () => container.read(salaSessionProvider).coverage.engaged == 3,
+      );
+    },
+  );
+
+  test(
+    'a coverage channel the room answers with a status it cannot serve reopens once, and no more',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1';
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+      expect(harness.room.watchCoverageCalls, 1);
+
+      harness.room.dropCoverageStream(error: const RoomBroke('HTTP 503'));
+      await waitFor(
+        'o canal reabrir depois de um 503',
+        () => harness.room.watchCoverageCalls == 2,
+      );
+      harness.room.dropCoverageStream(error: const RoomBroke('HTTP 503'));
+      await settle(const Duration(milliseconds: 200));
+      expect(
+        harness.room.watchCoverageCalls,
+        2,
+        reason:
+            'uma sala fora do ar fecha o canal que acabou de reabrir — '
+            'reabrir a cada queda vira um laço durante os 60s do fallback',
+      );
+    },
+  );
+
+  test(
+    'a coverage channel that closes because the session is gone never reopens on its own',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60));
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+
+      expect(harness.room.watchCoverageCalls, 1);
+
+      harness.room.dropCoverageStream(error: const SessionGone());
+      await settle(const Duration(milliseconds: 200));
+      expect(harness.room.watchCoverageCalls, 1);
+    },
+  );
+
+  test(
+    'a coverage channel that closes with a refusal never reopens on its own, even with a turn waiting',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60));
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      expect(harness.room.watchCoverageCalls, 1);
+
+      harness.room.dropCoverageStream(error: const RoomRefused());
+      await settle(const Duration(milliseconds: 200));
+      expect(
+        harness.room.watchCoverageCalls,
+        1,
+        reason:
+            'a sala recusou a sessão — reabrir na hora é pedir de novo algo '
+            'que ela já disse que não responde',
+      );
+
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      expect(
+        harness.room.watchCoverageCalls,
+        2,
+        reason:
+            'a recusa não pode travar o canal para sempre — o próximo turno '
+            'ainda precisa poder tentar de novo',
+      );
+    },
+  );
+
+  test(
+    'leaving the passage closes the coverage channel, not just the wait for it',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60));
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      expect(harness.room.coverageHasListener, isTrue);
+
+      notifier.leaveThePassage();
+      await settle();
+
+      expect(
+        harness.room.coverageHasListener,
+        isFalse,
+        reason:
+            'o canal ficava escutando depois que a equipe saiu da passagem, '
+            'mandando um keep-alive a cada 15s e mantendo o rádio acordado na '
+            'roda, no ensaio e no retro',
       );
     },
   );
@@ -1914,7 +3577,6 @@ void main() {
       addTearDown(container.dispose);
 
       expect(container.read(salaSessionProvider).voice, VoiceState.done);
-      expect(container.read(salaSessionProvider).conversaDone, isTrue);
     },
   );
 
@@ -1953,13 +3615,6 @@ void main() {
       reason:
           'done muda o que a tela oferece, nunca fecha ou reinicia a '
           'conversa sozinha',
-    );
-    expect(
-      container.read(salaSessionProvider).conversaDone,
-      isTrue,
-      reason:
-          'a sala continua reportando done, então a entrada de gravação '
-          'segue oferecida ao mesmo tempo que o círculo volta a ouvir',
     );
   });
 
@@ -3272,13 +4927,6 @@ void main() {
           '_deliverQuestion fixava voice: invite no sucesso — a mão foi '
           'levantada com a sala em done e a pergunta silenciosa devolveu a voz errada',
     );
-    expect(
-      container.read(salaSessionProvider).conversaDone,
-      isTrue,
-      reason:
-          'conversaDone é voice == done — perder a voz done também derruba o '
-          'AdvanceButton do ensaio que a sala continua reportando',
-    );
   });
 
   test('canceling a note raised at done returns to done, not invite', () async {
@@ -3323,6 +4971,26 @@ void main() {
       reason:
           'nada reenvia essa pergunta, mas apagá-la seria destruir '
           'a única cópia de algo que a equipe pediu',
+    );
+  });
+
+  test('a question recorded with no audio deletes its file', () async {
+    final harness = SalaHarness()..recorder.returnsEmpty = true;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.handTap();
+    notifier.conversaTap();
+    notifier.conversaTap();
+    await settle();
+
+    final path = harness.recorder.lastPath;
+    expect(path, isNotNull);
+    expect(
+      harness.recorder.deleted,
+      contains(path),
+      reason: 'uma pergunta sem áudio não fica esquecida no disco',
     );
   });
 
@@ -3386,6 +5054,64 @@ void main() {
     },
   );
 
+  test(
+    'a pending question survives an empty pull, and clears once a reply lands',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1';
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      notifier.handTap();
+      notifier.conversaTap();
+      notifier.conversaTap();
+      await settle();
+
+      expect(harness.inbox.questionsSent, ['sessao-1']);
+      expect(container.read(salaSessionProvider).questionPending, isTrue);
+
+      harness.inbox.replies = const [];
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+      );
+      await settle();
+
+      expect(
+        container.read(salaSessionProvider).questionPending,
+        isTrue,
+        reason:
+            'a mesa ainda não lista nada — a facilitadora não respondeu, e o '
+            'ponto de espera é o único sinal, numa sala sem letra, de que a '
+            'pergunta ainda está no ar',
+      );
+
+      harness.room.turnIdInResponse = 'turno-2';
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await settle();
+
+      harness.inbox.replies = const [
+        HandReply(id: 'r1', audioUrl: '/voice/r1'),
+      ];
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-2', status: CoverageStatus.settled),
+      );
+      await waitFor(
+        'a resposta chegar à mão',
+        () => container.read(salaSessionProvider).hasUnheardReply,
+      );
+
+      expect(
+        container.read(salaSessionProvider).questionPending,
+        isFalse,
+        reason:
+            'a resposta chegou — o ponto agora é o de ouvir, não o de esperar',
+      );
+    },
+  );
+
   test('an unheard reply waits on the hand and is played on tap', () async {
     final harness = SalaHarness(
       replies: const [
@@ -3409,6 +5135,89 @@ void main() {
     expect(container.read(salaSessionProvider).hasUnheardReply, isFalse);
     expect(harness.inbox.heard, ['r1']);
   });
+
+  test(
+    'a reply the room cannot serve calls nobody and is offered again on the next touch',
+    () async {
+      final harness = SalaHarness(
+        replies: const [HandReply(id: 'r1', audioUrl: '/voice/r1')],
+      );
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.voice.roomFailsWith = const RoomBroke('HTTP 503');
+      notifier.handTap();
+      await settle();
+
+      final state = container.read(salaSessionProvider);
+      expect(
+        state.playingReplyId,
+        isNull,
+        reason:
+            'o play() agora lança a queda da sala, e ela pulava o _markHeard — '
+            'o único que limpa a resposta tocando, em que a mão, o círculo e o '
+            'convite todos voltam cedo',
+      );
+      expect(
+        state.needsPerson,
+        isFalse,
+        reason:
+            'a mão é um canal lateral — uma resposta que não chegou não chama '
+            'ninguém, e a equipe fica com os gestos que tinha',
+      );
+
+      expect(
+        state.hasUnheardReply,
+        isTrue,
+        reason: 'a resposta que a sala não conseguiu servir segue por ouvir',
+      );
+      expect(harness.inbox.heard, isEmpty);
+
+      harness.voice.roomFailsWith = null;
+      notifier.handTap();
+      await settle();
+
+      expect(
+        harness.voice.played.where((url) => url == '/voice/r1'),
+        hasLength(2),
+        reason: 'o toque seguinte oferece de novo a resposta que não chegou',
+      );
+      expect(harness.inbox.heard, ['r1']);
+      expect(container.read(salaSessionProvider).hasUnheardReply, isFalse);
+    },
+  );
+
+  test(
+    'a reply outlived by its stage still gives the hand back when it ends',
+    () async {
+      final harness = SalaHarness(
+        replies: const [HandReply(id: 'r1', audioUrl: '/voice/r1')],
+      );
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.voice.holdNextLine();
+      notifier.handTap();
+      await waitFor(
+        'a resposta começar a tocar',
+        () => harness.voice.played.contains('/voice/r1'),
+      );
+      notifier.goEnsaio();
+      harness.voice.finishHeldLine();
+      await settle();
+
+      expect(
+        container.read(salaSessionProvider).playingReplyId,
+        isNull,
+        reason:
+            'a troca de etapa muda a época e o _playReply voltava antes do '
+            '_markHeard — a resposta seguia "tocando" para sempre, e a conversa '
+            'reaberta não atendia mais nenhum toque no círculo',
+      );
+    },
+  );
 
   test('a kept take leaves the tablet', () async {
     final harness = SalaHarness();
@@ -3650,6 +5459,32 @@ void main() {
   });
 
   test(
+    'a passage name that fails on the GET calls a person, instead of a dead wheel',
+    () async {
+      final harness = SalaHarness();
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      await notifier.abrirEscolha();
+      await settle();
+
+      harness.voice.roomFailsWith = const RoomRefused();
+      notifier.dizerAPassagem();
+      await settle();
+
+      expect(
+        container.read(salaSessionProvider).needsPerson,
+        isTrue,
+        reason:
+            'a queda caía no mesmo catch do player e a roda ficava muda '
+            'por até três nomes antes de chamar alguém — a mesma recusa '
+            'vinda do turno já chama na hora',
+      );
+    },
+  );
+
+  test(
     'the wheel quietly downloads the names it lacks, one at a time, skipping the one it already holds',
     () async {
       final harness = SalaHarness();
@@ -3752,6 +5587,69 @@ void main() {
         reason:
             'a equipe entrou em P01 enquanto a fila ainda esperava por p02; '
             'a fila viu o estágio sair da escolha e nunca pediu p03',
+      );
+    },
+  );
+
+  test(
+    'dragging the ruler mid-download moves the next fetch to where the finger landed, not where the wheel opened',
+    () async {
+      final harness = SalaHarness();
+      harness.room.passages = const [
+        Passagem(pericope: 'P00', audioUrl: '/voice/p00'),
+        Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+        Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
+        Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
+        Passagem(pericope: 'P04', audioUrl: '/voice/p04'),
+      ];
+      harness.voice.missing.addAll({
+        '/voice/p01',
+        '/voice/p02',
+        '/voice/p03',
+        '/voice/p04',
+      });
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.voice.holdNextFetch();
+      unawaited(notifier.abrirEscolha());
+      await settle();
+      harness.voice.finishHeldFetch();
+      harness.voice.holdNextFetch();
+      await settle();
+
+      expect(
+        harness.voice.fetched,
+        ['/voice/p00', '/voice/p01'],
+        reason:
+            'p00 chega pela própria fala oferecida; a fila achou p01 '
+            'faltando e estava presa nele quando a régua se moveu',
+      );
+
+      notifier.apontarPassagem(4);
+      harness.voice.finishHeldFetch();
+      harness.voice.holdNextFetch();
+      await settle();
+
+      expect(
+        harness.voice.fetched,
+        ['/voice/p00', '/voice/p01', '/voice/p04'],
+        reason:
+            'p01 já estava em voo e terminou normalmente; a régua pousou '
+            'em p04, e é ele que a fila busca a seguir, não p02, que '
+            'seria o próximo na ordem antiga',
+      );
+
+      harness.voice.finishHeldFetch();
+      await settle();
+
+      expect(
+        harness.voice.fetched,
+        ['/voice/p00', '/voice/p01', '/voice/p04', '/voice/p02', '/voice/p03'],
+        reason:
+            'com a régua parada em p04, o resto da fila termina pela '
+            'distância até ela: p02 antes de p03',
       );
     },
   );
@@ -3921,9 +5819,11 @@ void main() {
     notifier.takeKeep();
     notifier.startRetro();
     await settle();
+    harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await settle();
     harness.playback.finishPlayback();
     await settle();
@@ -3944,7 +5844,7 @@ void main() {
     expect(after.takes, 0);
   });
 
-  test('the ensaio does not freeze on a ghost play that never ends', () async {
+  test('the ensaio does not freeze on a play that never ends', () async {
     final harness = SalaHarness(
       playbackCeiling: const Duration(milliseconds: 40),
     );
@@ -3957,25 +5857,22 @@ void main() {
     notifier.ensaioTap();
     await settle();
     notifier.takeKeep();
-    notifier.ghostPlay();
+    notifier.playTheRehearsal();
 
-    expect(
-      container.read(salaSessionProvider).ensaio,
-      EnsaioStatus.ghostPlaying,
-    );
+    expect(container.read(salaSessionProvider).playPing, isTrue);
 
     await settle(const Duration(milliseconds: 140));
 
     expect(
-      container.read(salaSessionProvider).ensaio,
-      EnsaioStatus.idle,
+      container.read(salaSessionProvider).playPing,
+      isFalse,
       reason:
           'sem teto, uma reprodução interrompida deixava a tela do ensaio '
           'sem nenhum gesto vivo — nada para tocar, e nada escrito para explicar',
     );
   });
 
-  test('a retro clip that never ends still offers terminei', () async {
+  test('a retro clip that never ends still offers the check', () async {
     final harness = SalaHarness(
       playbackCeiling: const Duration(milliseconds: 400),
     );
@@ -4020,9 +5917,11 @@ void main() {
     notifier.takeKeep();
     notifier.startRetro();
     await settle();
+    harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await settle();
     harness.playback.finishPlayback();
     await settle();
@@ -4061,9 +5960,11 @@ void main() {
       notifier.takeKeep();
       notifier.startRetro();
       await settle();
+      harness.playback.at = const Duration(seconds: 2);
       notifier.cortarTrecho();
-      await settle();
       notifier.retroTap();
+      await settle();
+      await confirmarATraducao(container);
       await settle();
       harness.playback.finishPlayback();
       await settle();
@@ -4112,6 +6013,7 @@ void main() {
 
     harness.playback.at = const Duration(milliseconds: 40);
     notifier.cortarTrecho();
+    notifier.retroTap();
     await settle(const Duration(milliseconds: 400));
 
     expect(
@@ -4122,7 +6024,7 @@ void main() {
           'estava pausado, então terminava a gravação no meio da explicação',
     );
 
-    notifier.retroTap();
+    await confirmarATraducao(container);
     await settle();
 
     expect(container.read(salaSessionProvider).btClipEnded, isFalse);
@@ -4132,10 +6034,6 @@ void main() {
       reason:
           'e a escuta volta de onde parou, em vez de ficar muda para sempre',
     );
-
-    notifier.ouvirGravacao();
-    await settle();
-
     expect(
       container.read(salaSessionProvider).btClipRodando,
       isTrue,
@@ -4163,8 +6061,9 @@ void main() {
     // so the refusal this test is about only happens over ground nobody has told yet.
     harness.playback.at = const Duration(seconds: 40);
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await settle();
 
     expect(container.read(salaSessionProvider).needsPerson, isTrue);
@@ -4180,7 +6079,7 @@ void main() {
   test('the stretch is found by the number the room gave it', () async {
     final harness = SalaHarness()
       ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.missing
+      ..room.verdictHasFinding = true
       ..room.verdictFindingSegmentId = 'trecho-2';
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -4195,7 +6094,7 @@ void main() {
           'o nome vem do servidor; derivá-lo da posição na lista '
           'desalinha assim que uma resposta se perde depois de persistir',
     );
-    notifier.ouvirVozMaterna();
+    notifier.ouvirOTrechoEATraducao();
     await waitFor(
       'o trecho apontado estar tocando',
       () => container.read(salaSessionProvider).btTrechoTocando,
@@ -4237,12 +6136,14 @@ void main() {
     );
     harness.room.failWith = const RoomRefused();
     final capturasAntes = harness.recorder.captures;
+    harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
+    notifier.retroTap();
     await waitFor(
       'o microfone abrir para o trecho',
       () => harness.recorder.captures == capturasAntes + 1,
     );
-    notifier.retroTap();
+    await confirmarATraducao(container);
     await waitFor(
       'a sala sair do pensando',
       () => container.read(salaSessionProvider).btPhase != BtPhase.thinking,
@@ -4265,7 +6166,7 @@ void main() {
   test('retelling one stretch keeps every other explanation', () async {
     final harness = SalaHarness()
       ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.missing
+      ..room.verdictHasFinding = true
       ..room.verdictFindingSegmentId = 'trecho-1';
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -4274,11 +6175,13 @@ void main() {
     final before = container.read(salaSessionProvider);
 
     notifier.traduzirDeNovoEmPortugues();
+    notifier.retroTap();
     await waitFor(
       'o microfone abrir',
       () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
     );
-    notifier.retroTap();
+    await fecharACaptura(container);
+    await notifier.confirmarTraducao();
     await settle();
 
     final after = container.read(salaSessionProvider);
@@ -4297,7 +6200,64 @@ void main() {
     expect(
       after.btClipEnded,
       isTrue,
-      reason: 'e o terminei continua ali para reconferir',
+      reason: 'e a conferência continua ali para reconferir',
+    );
+  });
+
+  test('a stretch told again withdraws the fallback a first refusal parked in '
+      'the outbox', () async {
+    final harness = SalaHarness()
+      ..room.verdictChecked = false
+      ..room.verdictHasFinding = true
+      ..room.verdictFindingSegmentId = 'trecho-1';
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await _intoFindings(harness, notifier, container);
+
+    notifier.traduzirDeNovoEmPortugues();
+    notifier.retroTap();
+    await waitFor(
+      'o microfone abrir',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
+    );
+    await fecharACaptura(container);
+
+    // A cópia de reserva que o guard enfileira fica pendente, do jeito que fica
+    // no aparelho de verdade enquanto o envio ainda não aconteceu — em vez de já
+    // sair como uma tomada entregue antes que a correção seja contada de novo.
+    harness.room.refuseTake = 'retro/${KeptScope.whole}';
+    harness.room.failReplaceWith = const RoomSlow();
+    await notifier.confirmarTraducao();
+    await waitFor(
+      'a correção ficar por enviar',
+      () async => (await harness.takes.entries()).any((e) => e.kind == 'retro'),
+    );
+    expect(
+      (await harness.takes.entries()).where((e) => e.kind == 'retro'),
+      hasLength(1),
+    );
+
+    harness.room.failReplaceWith = null;
+    await notifier.confirmarTraducao();
+    await settle();
+    await waitFor(
+      'a correção de reserva sair da fila',
+      () async =>
+          (await harness.takes.entries()).every((e) => e.kind != 'retro'),
+    );
+
+    expect(
+      harness.room.replacesAsked,
+      hasLength(1),
+      reason: 'a segunda tentativa é que chega a ser contada',
+    );
+    expect(
+      (await harness.takes.entries()).where((e) => e.kind == 'retro'),
+      isEmpty,
+      reason:
+          'a correção foi contada com sucesso; a cópia de reserva não pode '
+          'chegar ao servidor como uma tomada da passagem inteira',
     );
   });
 
@@ -4486,6 +6446,88 @@ void main() {
     );
   });
 
+  test('an ensaio take asks the recorder for the deliverable config', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    await settle();
+
+    expect(
+      harness.recorder.lastDraft,
+      isTrue,
+      reason:
+          'a tomada do ensaio vai para o Refine, e o que decide o config é '
+          'o estágio da sala, não uma bandeira separada que alguém '
+          'esqueceria de levantar',
+    );
+  });
+
+  test(
+    'a retro chunk capture asks the recorder for the deliverable config too',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      notifier.goEnsaio();
+      notifier.ensaioTap();
+      notifier.ensaioTap();
+      await settle();
+      notifier.takeKeep();
+      await waitFor(
+        'a sala nomear a parte',
+        () => container.read(salaSessionProvider).partes.last.takeId != null,
+      );
+      notifier.startRetro();
+      await settle();
+      final capturesBefore = harness.recorder.captures;
+      harness.playback.at = const Duration(seconds: 2);
+      notifier.cortarTrecho();
+      notifier.retroTap();
+      await settle();
+
+      expect(
+        harness.recorder.captures,
+        greaterThan(capturesBefore),
+        reason:
+            'sem essa checagem o teste passava com o microfone do pedaço '
+            'nunca aberto, só com o lastDraft que sobrava do ensaio de cima',
+      );
+      expect(
+        harness.recorder.lastDraft,
+        isTrue,
+        reason:
+            'o pedaço da retro também vai para o Refine — o mesmo config do '
+            'ensaio, decidido pelo mesmo estágio que já distingue a captura '
+            'de um pedaço',
+      );
+    },
+  );
+
+  test('a conversa turn asks the recorder for the room\'s own config, not the '
+      'deliverable one', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.conversaTap();
+    await settle();
+
+    expect(
+      harness.recorder.lastDraft,
+      isFalse,
+      reason:
+          'a fala com a sala nunca perde o filtro dela — só a tomada '
+          'entregável perde',
+    );
+  });
+
   test(
     'each pause closes a stretch, and the stretches follow the recording',
     () async {
@@ -4504,14 +6546,16 @@ void main() {
 
       harness.playback.at = const Duration(seconds: 12);
       notifier.cortarTrecho();
-      await settle();
       notifier.retroTap();
+      await settle();
+      await confirmarATraducao(container);
       await settle();
 
       harness.playback.at = const Duration(seconds: 30);
       notifier.cortarTrecho();
-      await settle();
       notifier.retroTap();
+      await settle();
+      await confirmarATraducao(container);
       await settle();
 
       expect(
@@ -4529,7 +6573,7 @@ void main() {
   test('the verdict takes the team to the part it points at', () async {
     final harness = SalaHarness()
       ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.missing
+      ..room.verdictHasFinding = true
       ..room.verdictFindingSegmentId = 'trecho-2';
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -4545,14 +6589,16 @@ void main() {
 
     harness.playback.at = const Duration(seconds: 12);
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await settle();
 
     harness.playback.at = const Duration(seconds: 30);
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await settle();
 
     harness.playback.finishPlayback();
@@ -4570,7 +6616,7 @@ void main() {
           'precisa falar de novo, e ouvir é um gesto da equipe',
     );
 
-    notifier.ouvirVozMaterna();
+    notifier.ouvirOTrechoEATraducao();
     await settle();
 
     expect(
@@ -4644,12 +6690,14 @@ void main() {
 
     harness.room.failWith = const RoomUnavailable('sem rede');
     final capturasAntes = harness.recorder.captures;
+    harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
+    notifier.retroTap();
     await waitFor(
       'o microfone abrir para o trecho',
       () => harness.recorder.captures == capturasAntes + 1,
     );
-    notifier.retroTap();
+    await confirmarATraducao(container);
     // The refusal parks the stretch in the outbox on disk, after the room has already
     // let go of the thinking: the count is written when that copy lands, not before.
     await waitFor(
@@ -4694,12 +6742,14 @@ void main() {
 
     final spokenBefore = harness.voice.played.length;
     final capturasAntes = harness.recorder.captures;
+    harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
+    notifier.retroTap();
     await waitFor(
       'o microfone abrir para o trecho',
       () => harness.recorder.captures == capturasAntes + 1,
     );
-    notifier.retroTap();
+    await confirmarATraducao(container);
     await waitFor(
       'a sala sair do pensando',
       () => container.read(salaSessionProvider).btPhase != BtPhase.thinking,
@@ -4741,12 +6791,14 @@ void main() {
     );
 
     final capturasAntes = harness.recorder.captures;
+    harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
+    notifier.retroTap();
     await waitFor(
       'o microfone abrir para o trecho',
       () => harness.recorder.captures == capturasAntes + 1,
     );
-    notifier.retroTap();
+    await confirmarATraducao(container);
     await waitFor(
       'a sala sair do pensando',
       () => container.read(salaSessionProvider).btPhase != BtPhase.thinking,
@@ -4756,10 +6808,392 @@ void main() {
     expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
   });
 
+  test('a translation the room refused is withdrawn from the outbox when the '
+      'part is recorded over', () async {
+    final harness = SalaHarness()..room.chunkCaptured = false;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await waitFor(
+      'a gravação da parte terminar',
+      () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+    );
+    notifier.takeKeep();
+    await waitFor(
+      'a sala nomear a parte',
+      () => container.read(salaSessionProvider).partes.last.takeId != null,
+    );
+    notifier.startRetro();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
+
+    final capturasDoTrecho = harness.recorder.captures;
+    harness.playback.at = const Duration(seconds: 2);
+    notifier.cortarTrecho();
+    notifier.retroTap();
+    await waitFor(
+      'o microfone abrir para o trecho',
+      () => harness.recorder.captures == capturasDoTrecho + 1,
+    );
+    // A cópia de reserva que o guard enfileira fica pendente, do jeito que fica
+    // no aparelho de verdade enquanto o envio ainda não aconteceu — em vez de já
+    // sair como uma tomada entregue antes que a equipe regrave a parte.
+    harness.room.refuseTake = 'retro/${KeptScope.whole}';
+    await confirmarATraducao(container);
+    await waitFor(
+      'a sala sair do pensando',
+      () => container.read(salaSessionProvider).btPhase != BtPhase.thinking,
+    );
+
+    final recusada = container.read(salaSessionProvider).btTraducaoPendente;
+    expect(recusada, isNotNull);
+    await waitFor(
+      'a tradução recusada entrar na fila',
+      () async => (await harness.takes.entries()).any((e) => e.kind == 'retro'),
+    );
+    final naFila = (await harness.takes.entries()).firstWhere(
+      (e) => e.kind == 'retro',
+    );
+    final copiaNaFila = File(naFila.path);
+    expect(copiaNaFila.existsSync(), isTrue);
+    await notifier.refreshUnsent();
+    expect(
+      container.read(salaSessionProvider).unsentChunks,
+      1,
+      reason: 'a cópia de reserva conta como um trecho por enviar',
+    );
+
+    final capturasAntes = harness.recorder.captures;
+    notifier.retroTap();
+    await waitFor(
+      'o microfone abrir de novo',
+      () => harness.recorder.captures == capturasAntes + 1,
+    );
+    notifier.retroTap();
+    await waitFor('a captura fechar', () {
+      final fase = container.read(salaSessionProvider).btPhase;
+      return fase != BtPhase.capturing && fase != BtPhase.thinking;
+    });
+
+    await waitFor(
+      'a tradução recusada sair da fila',
+      () async =>
+          (await harness.takes.entries()).every((e) => e.kind != 'retro'),
+    );
+    expect(
+      (await harness.takes.entries()).where((e) => e.kind == 'retro'),
+      isEmpty,
+      reason:
+          'a tradução recusada não pode chegar ao servidor como uma tomada '
+          'da passagem inteira depois que a parte foi regravada',
+    );
+    expect(
+      copiaNaFila.existsSync(),
+      isFalse,
+      reason: 'a cópia guardada na fila some do disco junto com a linha',
+    );
+    expect(
+      harness.recorder.deleted,
+      contains(recusada),
+      reason:
+          'o arquivo do gravador para a tradução recusada também é descartado',
+    );
+    expect(
+      container.read(salaSessionProvider).unsentChunks,
+      0,
+      reason:
+          'o withdraw já atualiza a conta sozinho — sem isso a sala '
+          'continuaria dizendo que um trecho está por enviar depois que ele '
+          'foi retirado da fila',
+    );
+  });
+
+  test('leaving the passage withdraws a refused translation still parked in '
+      'the outbox', () async {
+    final harness = SalaHarness()..room.chunkCaptured = false;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await waitFor(
+      'a gravação da parte terminar',
+      () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+    );
+    notifier.takeKeep();
+    await waitFor(
+      'a sala nomear a parte',
+      () => container.read(salaSessionProvider).partes.last.takeId != null,
+    );
+    notifier.startRetro();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
+
+    harness.playback.at = const Duration(seconds: 2);
+    notifier.cortarTrecho();
+    notifier.retroTap();
+    await waitFor(
+      'o microfone abrir para o trecho',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
+    );
+    harness.room.refuseTake = 'retro/${KeptScope.whole}';
+    await confirmarATraducao(container);
+    await waitFor(
+      'a tradução recusada entrar na fila',
+      () async => (await harness.takes.entries()).any((e) => e.kind == 'retro'),
+    );
+
+    await notifier.abrirEscolha();
+    await waitFor(
+      'a tradução recusada sair da fila',
+      () async =>
+          (await harness.takes.entries()).every((e) => e.kind != 'retro'),
+    );
+
+    expect(
+      (await harness.takes.entries()).where((e) => e.kind == 'retro'),
+      isEmpty,
+      reason:
+          'sair da passagem sem nunca ter regravado a parte também não pode '
+          'deixar a tradução recusada rumo ao servidor',
+    );
+  });
+
+  test('a back-translation capture that closes after the session is lost '
+      'deletes its file', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await waitFor(
+      'a gravação da parte terminar',
+      () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+    );
+    notifier.takeKeep();
+    await waitFor(
+      'a sala nomear a parte',
+      () => container.read(salaSessionProvider).partes.last.takeId != null,
+    );
+    notifier.startRetro();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
+
+    harness.playback.at = const Duration(seconds: 2);
+    notifier.cortarTrecho();
+    notifier.retroTap();
+    await waitFor(
+      'o microfone abrir para o trecho',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
+    );
+    harness.room.failWith = const SessionGone();
+    await confirmarATraducao(container);
+    await waitFor(
+      'a sessão sumir',
+      () => container.read(salaSessionProvider).sessionId == null,
+    );
+
+    harness.room.failWith = null;
+    notifier.resolveWithPerson();
+    await waitFor(
+      'a sala deixar de pedir uma pessoa',
+      () => !container.read(salaSessionProvider).needsPerson,
+    );
+    expect(
+      container.read(salaSessionProvider).sessionId,
+      isNull,
+      reason: 'fora da conversa, sair do halt não reabre uma sessão sozinho',
+    );
+
+    notifier.retroTap();
+    await waitFor(
+      'o microfone abrir de novo',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
+    );
+    notifier.retroTap();
+    await waitFor('a captura fechar', () {
+      final fase = container.read(salaSessionProvider).btPhase;
+      return fase != BtPhase.capturing && fase != BtPhase.thinking;
+    });
+
+    final path = harness.recorder.lastPath;
+    expect(path, isNotNull);
+    expect(
+      harness.recorder.deleted,
+      contains(path),
+      reason: 'uma captura fechada sem sessão não fica esquecida no disco',
+    );
+  });
+
+  test('a chunk that lands after an earlier guard withdraws the fallback that '
+      'guard parked in the outbox', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await waitFor(
+      'a gravação da parte terminar',
+      () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+    );
+    notifier.takeKeep();
+    await waitFor(
+      'a sala nomear a parte',
+      () => container.read(salaSessionProvider).partes.last.takeId != null,
+    );
+    notifier.startRetro();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
+
+    harness.playback.at = const Duration(seconds: 2);
+    notifier.cortarTrecho();
+    notifier.retroTap();
+    await waitFor(
+      'o microfone abrir para o trecho',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
+    );
+
+    // A cópia de reserva que o guard enfileira fica pendente, do jeito que
+    // fica no aparelho de verdade enquanto o envio ainda não aconteceu — em
+    // vez de já sair como uma tomada entregue antes que o trecho seja
+    // contado de novo.
+    harness.room.refuseTake = 'retro/${KeptScope.whole}';
+    harness.room.failChunkWith = const RoomSlow();
+    await confirmarATraducao(container);
+    await waitFor(
+      'o trecho ficar por enviar',
+      () async => (await harness.takes.entries()).any((e) => e.kind == 'retro'),
+    );
+    expect(
+      (await harness.takes.entries()).where((e) => e.kind == 'retro'),
+      hasLength(1),
+    );
+
+    harness.room.failChunkWith = null;
+    await notifier.confirmarTraducao();
+    await settle();
+    await waitFor(
+      'a cópia de reserva sair da fila',
+      () async =>
+          (await harness.takes.entries()).every((e) => e.kind != 'retro'),
+    );
+
+    expect(
+      harness.room.chunksSent,
+      1,
+      reason: 'a segunda tentativa é que chega a ser contada',
+    );
+    expect(
+      (await harness.takes.entries()).where((e) => e.kind == 'retro'),
+      isEmpty,
+      reason:
+          'o trecho chegou por sendChunk; a cópia de reserva não pode '
+          'chegar ao servidor como uma tomada da passagem inteira',
+    );
+  });
+
+  test('a withdraw the disk refuses is logged and dropped, no unhandled '
+      'error and no false stranded line', () async {
+    final harness = SalaHarness(
+      takesOverride: (room, home) =>
+          QueueWithdrawThrows(room: room, home: () async => home),
+    )..room.chunkCaptured = false;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await waitFor(
+      'a gravação da parte terminar',
+      () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+    );
+    notifier.takeKeep();
+    await waitFor(
+      'a sala nomear a parte',
+      () => container.read(salaSessionProvider).partes.last.takeId != null,
+    );
+    notifier.startRetro();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
+
+    final capturasDoTrecho = harness.recorder.captures;
+    harness.playback.at = const Duration(seconds: 2);
+    notifier.cortarTrecho();
+    notifier.retroTap();
+    await waitFor(
+      'o microfone abrir para o trecho',
+      () => harness.recorder.captures == capturasDoTrecho + 1,
+    );
+    await confirmarATraducao(container);
+    await waitFor(
+      'a sala sair do pensando',
+      () => container.read(salaSessionProvider).btPhase != BtPhase.thinking,
+    );
+    await waitFor(
+      'a tradução recusada entrar na fila',
+      () async => (await harness.takes.entries()).any((e) => e.kind == 'retro'),
+    );
+
+    final capturasAntes = harness.recorder.captures;
+    notifier.retroTap();
+    await waitFor(
+      'o microfone abrir de novo',
+      () => harness.recorder.captures == capturasAntes + 1,
+    );
+    notifier.retroTap();
+    await waitFor('a captura fechar', () {
+      final fase = container.read(salaSessionProvider).btPhase;
+      return fase != BtPhase.capturing && fase != BtPhase.thinking;
+    });
+
+    await settle(const Duration(milliseconds: 300));
+
+    expect(
+      harness.voice.assets,
+      isNot(contains(strandedTakeAsset(testLanguage))),
+      reason:
+          'nada aqui ficou preso: a linha ainda pendente sobe normalmente, ou '
+          'sobrou só uma cópia órfã — nenhum dos dois é o que essa fala diz',
+    );
+
+    // A captura seguinte prova que a sala segue funcionando: um erro sem
+    // dono no withdraw a teria travado antes de chegar aqui.
+    final capturasDepois = harness.recorder.captures;
+    notifier.retroTap();
+    await waitFor(
+      'o microfone abrir mais uma vez',
+      () => harness.recorder.captures == capturasDepois + 1,
+    );
+  });
+
   test('a finding from the server opens the two honest exits', () async {
     final harness = SalaHarness()
       ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.addition;
+      ..room.verdictHasFinding = true;
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -4779,8 +7213,6 @@ void main() {
 
     final state = container.read(salaSessionProvider);
     expect(state.btPhase, BtPhase.findings);
-    expect(state.btFindings, [BtFindingKind.addition]);
-    expect(state.btFindings.single.exitsByReRecording, isTrue);
     expect(harness.voice.played.last, contains('veredito'));
   });
 
@@ -4867,12 +7299,14 @@ void main() {
 
       harness.room.reachable = false;
       final capturasAntes = harness.recorder.captures;
+      harness.playback.at = const Duration(seconds: 2);
       notifier.cortarTrecho();
+      notifier.retroTap();
       await waitFor(
         'o microfone abrir para o trecho',
         () => harness.recorder.captures == capturasAntes + 1,
       );
-      notifier.retroTap();
+      await confirmarATraducao(container);
       await waitFor(
         'a sala sair do pensando',
         () => container.read(salaSessionProvider).btPhase != BtPhase.thinking,
@@ -5004,6 +7438,78 @@ void main() {
     );
   });
 
+  test('a rehearsal take that came back empty deletes its file', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.goEnsaio();
+    harness.recorder.returnsEmpty = true;
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await settle();
+
+    final path = harness.recorder.lastPath;
+    expect(path, isNotNull);
+    expect(
+      harness.recorder.deleted,
+      contains(path),
+      reason: 'uma tomada sem áudio não fica esquecida no disco',
+    );
+  });
+
+  test(
+    'a back-translation capture that ends with no audio deletes its file',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      notifier.goEnsaio();
+      notifier.ensaioTap();
+      notifier.ensaioTap();
+      await waitFor(
+        'a gravação da parte terminar',
+        () =>
+            container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+      );
+      notifier.takeKeep();
+      await waitFor(
+        'a sala nomear a parte',
+        () => container.read(salaSessionProvider).partes.last.takeId != null,
+      );
+      notifier.startRetro();
+      await waitFor(
+        'o clipe estar rodando',
+        () => container.read(salaSessionProvider).btClipRodando,
+      );
+
+      harness.playback.at = const Duration(seconds: 2);
+      notifier.cortarTrecho();
+      notifier.retroTap();
+      await waitFor(
+        'o microfone abrir para o trecho',
+        () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
+      );
+      harness.recorder.returnsEmpty = true;
+      notifier.retroTap();
+      await waitFor(
+        'a sala pedir uma pessoa',
+        () => container.read(salaSessionProvider).needsPerson,
+      );
+
+      final path = harness.recorder.lastPath;
+      expect(path, isNotNull);
+      expect(
+        harness.recorder.deleted,
+        contains(path),
+        reason: 'uma captura sem áudio não fica esquecida no disco',
+      );
+    },
+  );
+
   test(
     'the back-translation reaches conferida and closes the necklace',
     () async {
@@ -5020,9 +7526,11 @@ void main() {
       notifier.startRetro();
       await settle();
 
+      harness.playback.at = const Duration(seconds: 2);
       notifier.cortarTrecho();
-      await settle();
       notifier.retroTap();
+      await settle();
+      await confirmarATraducao(container);
       await settle();
 
       harness.playback.finishPlayback();
@@ -5215,7 +7723,28 @@ void main() {
     expect(harness.room.turnsSent, 0);
   });
 
-  test('terminei carries how much of the clip was actually heard', () async {
+  test('a panorama turn recorded with no audio deletes its file', () async {
+    final harness = SalaHarness()..recorder.returnsEmpty = true;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await notifier.openConvite();
+    notifier.conviteTap();
+    await settle();
+    notifier.conviteTap();
+    await settle();
+
+    final path = harness.recorder.lastPath;
+    expect(path, isNotNull);
+    expect(
+      harness.recorder.deleted,
+      contains(path),
+      reason: 'um panorama sem áudio não fica esquecido no disco',
+    );
+  });
+
+  test('the check carries how much of the clip was actually heard', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -5338,31 +7867,39 @@ void main() {
     expect(state.ensaioDone, isTrue);
   });
 
-  test('a part still waiting for its check rides into the retro', () async {
-    final harness = SalaHarness();
-    final container = await inConversa(harness);
-    final notifier = container.read(salaSessionProvider.notifier);
+  test(
+    'a part still waiting for its check holds the door to the retro',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      final notifier = container.read(salaSessionProvider.notifier);
 
-    notifier.goEnsaio();
-    await gravaParte(notifier);
-    notifier.ensaioTap();
-    notifier.ensaioTap();
-    await settle();
+      notifier.goEnsaio();
+      await gravaParte(notifier);
+      notifier.ensaioTap();
+      notifier.ensaioTap();
+      await settle();
 
-    expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.recorded);
-    notifier.startRetro();
-    await settle();
+      expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.recorded);
+      notifier.startRetro();
+      await settle();
 
-    final state = container.read(salaSessionProvider);
-    expect(state.stage, SalaStage.retro);
-    expect(
-      [for (final t in state.partes) t.scopeId],
-      ['parte-1', 'parte-2'],
-      reason:
-          'um pedaço gravado e ainda sem o check sumia calado no pulo '
-          'para a retro',
-    );
-  });
+      final state = container.read(salaSessionProvider);
+      expect(
+        state.stage,
+        SalaStage.ensaio,
+        reason: 'com uma parte pendente o disco não leva à tradução',
+      );
+      expect(
+        state.ensaio,
+        EnsaioStatus.recorded,
+        reason:
+            'e a parte continua pendente: só o check a confirma, nunca o '
+            'caminho para a retro',
+      );
+      expect([for (final t in state.partes) t.scopeId], ['parte-1']);
+    },
+  );
 
   test('a recording still running holds the door to the retro', () async {
     final harness = SalaHarness();
@@ -5388,7 +7925,7 @@ void main() {
     );
   });
 
-  test('the ghost play walks every part in order', () async {
+  test('the rehearsal play walks every part in order', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -5397,7 +7934,7 @@ void main() {
     await gravaParte(notifier);
     await gravaParte(notifier);
 
-    notifier.ghostPlay();
+    notifier.playTheRehearsal();
     await settle();
     expect(harness.playback.played, hasLength(1));
     harness.playback.finishPlayback();
@@ -5432,7 +7969,7 @@ void main() {
     expect(
       state.btClipEnded,
       isFalse,
-      reason: 'a fronteira não é o fim: terminei não pode aparecer aqui',
+      reason: 'a fronteira não é o fim: a conferência não pode aparecer aqui',
     );
     expect(harness.playback.played, hasLength(1));
 
@@ -5534,7 +8071,7 @@ void main() {
     () async {
       final harness = SalaHarness()
         ..room.verdictChecked = false
-        ..room.verdictFinding = BtFindingKind.missing
+        ..room.verdictHasFinding = true
         ..room.verdictFindingSegmentId = 'trecho-1';
       final container = await inConversa(harness);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -5549,7 +8086,7 @@ void main() {
       );
 
       harness.playback.length = const Duration(seconds: 12);
-      notifier.ouvirVozMaterna();
+      notifier.ouvirOTrechoEATraducao();
       await settle();
 
       expect(
@@ -5562,7 +8099,7 @@ void main() {
     },
   );
 
-  test('terminei reports what was heard, not the length of the clip', () async {
+  test('the check reports what was heard, not the length of the clip', () async {
     final harness = SalaHarness()
       ..playback.length = const Duration(seconds: 10);
     final container = await inConversa(harness);
@@ -5633,8 +8170,9 @@ void main() {
     await settle();
     harness.playback.at = const Duration(seconds: 3);
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await settle();
 
     expect(
@@ -5649,7 +8187,12 @@ void main() {
       harness.room.takeIds[1],
       reason: 'e é a segunda gravação que ele fatia, não a primeira',
     );
-    expect(container.read(salaSessionProvider).btClipRodando, isFalse);
+    expect(
+      harness.playback.playedFrom.last,
+      const Duration(seconds: 3),
+      reason:
+          'o resto da segunda parte, ainda não ouvido, toca a partir do corte',
+    );
   });
 
   test('a part measures itself, not the position it stopped at', () async {
@@ -5712,7 +8255,7 @@ void main() {
     expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
   });
 
-  test('terminei names every part the team heard, one entry each', () async {
+  test('the check names every part the team heard, one entry each', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -5755,7 +8298,7 @@ void main() {
   test('a finding in the second part plays the right stretch of it', () async {
     final harness = SalaHarness()
       ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.missing;
+      ..room.verdictHasFinding = true;
     final container = await inConversa(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
@@ -5768,8 +8311,9 @@ void main() {
     harness.playback.finishPlayback();
     await settle();
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await waitFor(
       'o primeiro trecho chegar à sala',
       () => harness.room.chunksSent == 1,
@@ -5779,8 +8323,9 @@ void main() {
     await settle();
     harness.playback.at = const Duration(seconds: 3);
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await waitFor(
       'o segundo trecho chegar à sala',
       () => harness.room.chunksSent == 2,
@@ -5794,7 +8339,7 @@ void main() {
     await notifier.finishBackTranslation();
     await settle();
 
-    notifier.ouvirVozMaterna();
+    notifier.ouvirOTrechoEATraducao();
     await settle();
 
     expect(harness.playback.ranges, isNotEmpty);
@@ -5830,6 +8375,159 @@ void main() {
     },
     timeout: const Timeout(Duration(seconds: 20)),
   );
+
+  test('a voiced turn whose room disposes before the fake turn answers '
+      'leaves quietly, and the recording is still kept', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.conversaTap();
+    await settle();
+    harness.room.holdNextTurn();
+    notifier.conversaTap();
+    await settle();
+    final path = harness.recorder.lastPath;
+
+    container.dispose();
+    harness.room.finishHeldTurn();
+    await settle(const Duration(milliseconds: 400));
+
+    expect(
+      harness.room.turnsSent,
+      1,
+      reason: 'o turno tem de ter chegado de verdade para a garantia valer',
+    );
+    expect(path, isNotNull);
+    expect(
+      harness.recorder.deleted,
+      isNot(contains(path)),
+      reason:
+          'a sala fechou com o turno em voo, mas o turno chegou — a equipe '
+          'já não está lá para ouvir a resposta, e isso não apaga a fala dela',
+    );
+  }, timeout: const Timeout(Duration(seconds: 20)));
+
+  test(
+    'a panorama turn that reaches the room keeps its recording too',
+    () async {
+      final harness = SalaHarness();
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      await notifier.openConvite();
+
+      notifier.conviteTap();
+      await settle();
+      notifier.conviteTap();
+      await settle();
+
+      expect(harness.room.turnsSent, 1);
+      expect(
+        harness.recorder.deleted,
+        isEmpty,
+        reason:
+            'o panorama é a mesma regra da conversa: nada aqui apaga áudio '
+            'que a equipe fez, nem quando o texto já chegou ao servidor',
+      );
+    },
+  );
+
+  test('a panorama turn the room refused still keeps the recording', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.openConvite();
+    harness.room.failWith = const RoomUnavailable('sem rede');
+
+    notifier.conviteTap();
+    await settle();
+    notifier.conviteTap();
+    await settle();
+
+    final path = harness.recorder.lastPath;
+    expect(
+      harness.room.calls,
+      contains('sendTurn'),
+      reason: 'a recusa só prova a regra se o envio de fato foi tentado',
+    );
+    expect(path, isNotNull);
+    expect(
+      harness.recorder.deleted,
+      isEmpty,
+      reason:
+          'o mesmo caso mais grave vale para o panorama: o servidor não '
+          'guardou nada, e apagar aqui perderia a fala da equipe de vez',
+    );
+  });
+
+  test('a panorama turn whose room disposes before the fake turn answers '
+      'leaves quietly, and the recording is still kept', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.openConvite();
+
+    notifier.conviteTap();
+    await settle();
+    harness.room.holdNextTurn();
+    notifier.conviteTap();
+    await settle();
+    final path = harness.recorder.lastPath;
+
+    container.dispose();
+    harness.room.finishHeldTurn();
+    await settle(const Duration(milliseconds: 400));
+
+    expect(
+      harness.room.turnsSent,
+      1,
+      reason: 'o turno tem de ter chegado de verdade para a garantia valer',
+    );
+    expect(path, isNotNull);
+    expect(
+      harness.recorder.deleted,
+      isNot(contains(path)),
+      reason:
+          'o panorama também fecha com o turno em voo, mas o turno chegou — '
+          'a mesma sala que some não apaga a fala que a equipe fez',
+    );
+  }, timeout: const Timeout(Duration(seconds: 20)));
+
+  test('a voiced turn whose room disposes while a dropped send asks the '
+      'network leaves quietly too, and the recording is still kept', () async {
+    final harness = SalaHarness(busyCeiling: const Duration(seconds: 5));
+    final container = await inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.conversaTap();
+    await settle();
+    harness.room.holdNextTurn();
+    harness.room.failHeldTurnWith = const RoomUnavailable('a conexão caiu');
+    notifier.conversaTap();
+    await settle();
+    final path = harness.recorder.lastPath;
+
+    container.dispose();
+    harness.room.finishHeldTurn();
+    await settle(const Duration(milliseconds: 400));
+
+    expect(
+      harness.room.calls,
+      contains('sendTurn'),
+      reason: 'a queda só prova a regra se o envio de fato foi tentado',
+    );
+    expect(path, isNotNull);
+    expect(
+      harness.recorder.deleted,
+      isNot(contains(path)),
+      reason:
+          'a queda também fecha o turno em voo, e o pedido de rede que a '
+          'reenviar faz não pode travar no mesmo lugar — nem apagar a fala '
+          'que o servidor nunca chegou a guardar',
+    );
+  }, timeout: const Timeout(Duration(seconds: 20)));
 
   test(
     'a room that goes while the count is in flight touches no provider',

@@ -2,18 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../domain/device_link.dart';
+import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
 import 'facilitator_circle.dart';
-
-String _preparing(String language) => switch (language) {
-  'pt' => 'A sala está preparando o código deste aparelho',
-  _ => 'The room is getting a code for this tablet',
-};
-
-String _showIt(String language) => switch (language) {
-  'pt' => 'Mostre este código ao facilitador',
-  _ => 'Show this code to the facilitator',
-};
 
 class CodigoView extends StatelessWidget {
   final ClaimCode? code;
@@ -28,14 +19,14 @@ class CodigoView extends StatelessWidget {
     if (showing == null) {
       return Center(
         child: FacilitatorCircle(
-          size: 196,
+          size: facilitatorCircleSize,
           voice: VoiceState.thinking,
-          semanticLabel: _preparing(language),
+          semanticLabel: codigoLabelFor('preparing', language),
         ),
       );
     }
     return Semantics(
-      label: _showIt(language),
+      label: codigoLabelFor('showIt', language),
       child: Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),

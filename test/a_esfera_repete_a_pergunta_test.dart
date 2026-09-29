@@ -3,7 +3,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'session_notifier_test.dart' show settle;
+import 'scenario_helpers.dart' show settle;
 import 'tocar_vira_pausar_test.dart' show pumpAoApontado, harnessApontando;
 
 void main() {
@@ -34,7 +34,7 @@ void main() {
       expect(
         harness.playback.ranges,
         isEmpty,
-        reason: 'a esfera não toca o trecho — os players da grade fazem isso',
+        reason: 'a esfera não toca o trecho — o play do achado faz isso',
       );
     });
 
@@ -84,22 +84,19 @@ void main() {
       expect(harness.playback.ranges, isEmpty);
     });
 
-    test(
-      'os players da grade continuam tocando o trecho diretamente',
-      () async {
-        final harness = harnessApontando();
-        final container = await pumpAoApontado(harness);
-        addTearDown(container.dispose);
-        final notifier = container.read(salaSessionProvider.notifier);
+    test('o play do achado continua tocando o trecho diretamente', () async {
+      final harness = harnessApontando();
+      final container = await pumpAoApontado(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
 
-        notifier.ouvirVozMaterna();
-        await waitFor(
-          'o trecho apontado estar tocando',
-          () => container.read(salaSessionProvider).btTrechoTocando,
-        );
+      notifier.ouvirOTrechoEATraducao();
+      await waitFor(
+        'o trecho apontado estar tocando',
+        () => container.read(salaSessionProvider).btTrechoTocando,
+      );
 
-        expect(harness.playback.ranges, isNotEmpty);
-      },
-    );
+      expect(harness.playback.ranges, isNotEmpty);
+    });
   });
 }

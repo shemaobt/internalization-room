@@ -5,25 +5,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/onde_mora_grade.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart';
 
-const microfoneAzul = 'Continuar o ensaio';
+const continuarOEnsaio = 'Continuar o ensaio';
 const irParaARetro = 'Ir para a tradução';
-const umaParteInteira = Duration(seconds: 30);
-
-Finder byLabel(String label) => find.byWidgetPredicate(
-  (widget) => widget is Semantics && widget.properties.label == label,
-);
 
 List<String?> gravacoesDe(SalaSessionState state) => [
   for (final take in state.keptTakes) take.takeId,
@@ -43,9 +37,6 @@ int ouvidoAteMs(List<List<int>> ranges) {
   }
   return ate;
 }
-
-Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) =>
-    Future<void>.delayed(delay);
 
 /// Ask, rather than guess, when the disk or the room has done its part.
 /// A tablet closed on the rehearsal of a passage told back in three parts, and opened
@@ -124,34 +115,6 @@ Future<KeptTake> gravarMaisUmaParte(ProviderContainer container) async {
   return container.read(salaSessionProvider).keptTakes.last;
 }
 
-/// Record one part and keep it: the two taps are start and stop, the way the team taps
-/// the circle, and the keep waits for the room to name the recording.
-Future<void> gravarUmaParte(
-  WidgetTester tester,
-  SalaSessionNotifier notifier,
-) async {
-  notifier.ensaioTap();
-  notifier.ensaioTap();
-  await tester.pump(const Duration(milliseconds: 100));
-  notifier.takeKeep();
-  await letTheRehearsalReachTheRoom(tester);
-}
-
-/// Tell the part in the air back whole, from its beginning to its end, then let it finish.
-Future<void> traduzirAParteInteira(
-  WidgetTester tester,
-  SalaHarness harness,
-  SalaSessionNotifier notifier,
-) async {
-  harness.playback.at = umaParteInteira;
-  notifier.cortarTrecho();
-  await tester.pump(const Duration(milliseconds: 200));
-  notifier.retroTap();
-  await tester.pump(const Duration(milliseconds: 600));
-  harness.playback.finishPlayback();
-  await tester.pump(const Duration(milliseconds: 200));
-}
-
 /// A team that recorded the passage in three parts, told every part back whole and got
 /// everything right — and did not record the end of the story. The analyst says a part
 /// is missing and cannot place it in any stretch, so the finding carries no address.
@@ -165,7 +128,7 @@ Future<ProviderContainer> aHistoriaSemOFim(
 }) async {
   harness.room
     ..verdictChecked = false
-    ..verdictFinding = BtFindingKind.missing
+    ..verdictHasFinding = true
     ..verdictFindingSegmentId = ondeFalta;
   harness.playback.length = umaParteInteira;
   final container = harness.container();
@@ -187,7 +150,7 @@ Future<ProviderContainer> aHistoriaSemOFim(
   notifier.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
   for (var parte = 0; parte < 3; parte++) {
-    await traduzirAParteInteira(tester, harness, notifier);
+    await traduzirAParteInteira(tester, harness, container);
     if (parte < 2) {
       notifier.ouvirGravacao();
       await tester.pump(const Duration(milliseconds: 200));
@@ -217,7 +180,7 @@ void main() {
     final naSala = List.of(harness.room.segmentIds);
     final pedidos = harness.room.calls.length;
 
-    await tester.tap(byLabel(microfoneAzul));
+    await tester.tap(byLabel(continuarOEnsaio));
     await tester.pump(const Duration(milliseconds: 400));
 
     final depois = container.read(salaSessionProvider);
@@ -238,10 +201,6 @@ void main() {
       isNot(contains('replaceSegment')),
     );
     expect(
-      harness.room.calls.sublist(pedidos),
-      isNot(contains('divideSegment')),
-    );
-    expect(
       harness.room.segmentIds,
       naSala,
       reason: 'a sala segue guardando exatamente os mesmos trechos',
@@ -256,7 +215,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       final antigas = gravacoesDe(container.read(salaSessionProvider));
 
-      await tester.tap(byLabel(microfoneAzul));
+      await tester.tap(byLabel(continuarOEnsaio));
       await tester.pump(const Duration(milliseconds: 400));
 
       var agora = container.read(salaSessionProvider);
@@ -299,12 +258,19 @@ void main() {
     final antes = container.read(salaSessionProvider);
     expect(antes.coverage.engaged, 5);
 
-    await tester.tap(byLabel(microfoneAzul));
+    await tester.tap(byLabel(continuarOEnsaio));
     await tester.pump(const Duration(milliseconds: 700));
 
     expect(
-      find.descendant(of: find.byType(EnsaioView), matching: find.byType(Bead)),
-      findsNWidgets(3),
+      tester
+          .widget<BeadRow>(
+            find.descendant(
+              of: find.byType(EnsaioView),
+              matching: find.byType(BeadRow),
+            ),
+          )
+          .entries,
+      hasLength(3),
       reason: 'uma conta por tomada guardada, no ensaio, como antes de contar',
     );
     expect(
@@ -330,7 +296,7 @@ void main() {
     final antigas = trechosDe(container.read(salaSessionProvider));
     final contadosAntes = harness.room.chunkTakes.length;
 
-    await tester.tap(byLabel(microfoneAzul));
+    await tester.tap(byLabel(continuarOEnsaio));
     await tester.pump(const Duration(milliseconds: 400));
     await gravarUmaParte(tester, notifier);
     final nova = container.read(salaSessionProvider).keptTakes.last;
@@ -354,8 +320,9 @@ void main() {
 
     harness.playback.at = const Duration(seconds: 12);
     notifier.cortarTrecho();
-    await tester.pump(const Duration(milliseconds: 200));
     notifier.retroTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    await confirmarATraducaoNaTela(tester, container);
     await tester.pump(const Duration(milliseconds: 600));
 
     agora = container.read(salaSessionProvider);
@@ -367,7 +334,6 @@ void main() {
     );
     expect(harness.room.chunkSpans.sublist(contadosAntes), ['0-12000']);
     expect(harness.room.replacesAsked, isEmpty);
-    expect(harness.room.dividesAsked, isEmpty);
     expect(trechosDe(agora).sublist(0, 3), antigas);
     expect(agora.btTrechos, hasLength(4));
 
@@ -375,8 +341,6 @@ void main() {
     // end. The three parts the team stepped over were heard in the round before, when
     // they were told back; a report of this round's listening alone would have the room
     // send the team back to hear the whole story again.
-    notifier.ouvirGravacao();
-    await tester.pump(const Duration(milliseconds: 200));
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 200));
     await notifier.finishBackTranslation();
@@ -436,8 +400,9 @@ void main() {
 
       harness.playback.at = const Duration(seconds: 12);
       notifier.cortarTrecho();
-      await settle();
       notifier.retroTap();
+      await settle();
+      await confirmarATraducao(container);
       await waitFor(
         'o trecho chegar à sala',
         () => harness.room.chunksSent == 1,
@@ -499,6 +464,7 @@ void main() {
 
     harness.playback.at = const Duration(seconds: 12);
     notifier.cortarTrecho();
+    notifier.retroTap();
     await settle();
     expect(
       harness.room.chunksSent,
@@ -508,8 +474,9 @@ void main() {
 
     harness.playback.at = const Duration(seconds: 28);
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await waitFor('o trecho chegar à sala', () => harness.room.chunksSent == 1);
     expect(harness.room.chunkSpans, ['25000-28000']);
     expect(harness.room.chunkTakes, [partes[1].takeId]);
@@ -572,7 +539,7 @@ void main() {
     final container = await aHistoriaSemOFim(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await tester.tap(byLabel(microfoneAzul));
+    await tester.tap(byLabel(continuarOEnsaio));
     await tester.pump(const Duration(milliseconds: 400));
     await gravarUmaParte(tester, notifier);
     final nova = container.read(salaSessionProvider).keptTakes.last;
@@ -590,6 +557,7 @@ void main() {
           'medir espera pelo tocador, e a sala está ocupada enquanto espera',
     );
     notifier.cortarTrecho();
+    notifier.retroTap();
     notifier.ouvirGravacao();
     await tester.pump(const Duration(milliseconds: 200));
     expect(
@@ -613,7 +581,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
   });
 
-  testWidgets('uma falta com endereço vai para a grade, não para o ensaio', (
+  testWidgets('uma falta com endereço pergunta pela voz, não vai ao ensaio', (
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
@@ -627,18 +595,23 @@ void main() {
     expect(agora.stage, SalaStage.retro);
     expect(agora.btPhase, BtPhase.findings);
     expect(agora.btFindingTrecho?.segmentId, 'trecho-2');
+    for (final microfone in [
+      'Gravar a parte de novo na língua materna',
+      'Traduzir este trecho de novo',
+    ]) {
+      expect(
+        byLabel(microfone),
+        findsOneWidget,
+        reason:
+            'a falta cabe num trecho: a equipe sabe se a materna já tem o '
+            'que faltou, então o achado oferece os dois microfones como para '
+            'qualquer outro achado',
+      );
+    }
     expect(
-      find.byType(OndeMoraGrade),
-      findsOneWidget,
-      reason:
-          'a falta cabe num trecho: a equipe sabe se a materna já tem o '
-          'que faltou, então a grade oferece os dois microfones como para '
-          'qualquer outro achado',
-    );
-    expect(
-      byLabel(microfoneAzul),
+      byLabel(continuarOEnsaio),
       findsNothing,
-      reason: 'o botão que devolve ao ensaio é só para a falta sem endereço',
+      reason: 'o disco que devolve ao ensaio é só para a falta sem endereço',
     );
   });
 }

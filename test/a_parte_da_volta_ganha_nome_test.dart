@@ -5,8 +5,8 @@ import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'resto_da_historia_test.dart'
-    show aRetomadaNoEnsaio, gravarMaisUmaParte, settle, umaParteInteira;
+import 'resto_da_historia_test.dart' show aRetomadaNoEnsaio, gravarMaisUmaParte;
+import 'scenario_helpers.dart' show settle, umaParteInteira;
 
 /// Record one part over the real outbox and keep it, without waiting for the room to
 /// name it. Two of these back to back are what a team recording two parts on the way
@@ -71,8 +71,9 @@ void main() {
     // Conta o trecho da parte 3.
     harness.playback.at = umaParteInteira;
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await waitFor(
       'o trecho da parte 3 chegar à sala',
       () => harness.room.chunksSent == 1,
@@ -99,8 +100,9 @@ void main() {
     // Corta o trecho da parte 4 — a gravação que acabou de ser guardada.
     harness.playback.at = umaParteInteira;
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await waitFor(
       'o trecho da parte 4 chegar à sala',
       () => harness.room.chunksSent == 2,
@@ -166,8 +168,9 @@ void main() {
 
     harness.playback.at = umaParteInteira;
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await waitFor(
       'o trecho da parte 4 chegar à sala',
       () => harness.room.chunksSent == 1,
@@ -206,8 +209,9 @@ void main() {
     );
     harness.playback.at = umaParteInteira;
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await waitFor(
       'o trecho da parte 3 chegar à sala',
       () => harness.room.chunksSent == 1,
@@ -233,8 +237,9 @@ void main() {
     for (var i = 0; i < 3; i++) {
       harness.playback.at = umaParteInteira + Duration(seconds: i + 1);
       notifier.cortarTrecho();
-      await settle();
       notifier.retroTap();
+      await settle();
+      await confirmarATraducao(container);
       await settle();
     }
 
@@ -282,8 +287,9 @@ void main() {
 
     harness.playback.at = umaParteInteira;
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await waitFor(
       'o trecho chegar à sala',
       () => harness.room.chunksSent == 1,

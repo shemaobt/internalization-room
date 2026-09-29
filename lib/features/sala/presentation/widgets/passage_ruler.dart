@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/sala_colors.dart';
+import '../../domain/facilitator_script.dart';
 import 'motion.dart';
 
 /// Where the team is in the book, and the way they move through it.
@@ -23,6 +24,11 @@ class PassageRuler extends StatefulWidget {
 
   final Set<int> finished;
 
+  /// Passages the room refused to open, this visit to the Choice. Still a notch on the
+  /// row — a control that does not apply is dimmed, never hidden (ADR 0040) — but not a
+  /// stop the finger or VoiceOver's step can land on.
+  final Set<int> refused;
+
   /// While the finger is down: move, and stay quiet.
   final ValueChanged<int> onAim;
 
@@ -32,14 +38,18 @@ class PassageRuler extends StatefulWidget {
   /// Nothing has been touched yet, so the mark shows what it can do.
   final bool hint;
 
+  final String language;
+
   const PassageRuler({
     super.key,
     required this.total,
     required this.at,
     required this.onAim,
     required this.onSettle,
+    required this.language,
     this.started = const {},
     this.finished = const {},
+    this.refused = const {},
     this.hint = false,
   });
 
@@ -86,10 +96,18 @@ class _PassageRulerState extends State<PassageRuler> {
 
         return Semantics(
           slider: true,
-          label: 'Escolher a passagem, correndo o dedo pela fileira',
-          value: '${widget.at + 1} de $total',
-          increasedValue: '${(widget.at + 2).clamp(1, total)} de $total',
-          decreasedValue: '${widget.at.clamp(1, total)} de $total',
+          label: escolhaLabelFor('ruler', widget.language),
+          value: rulerPlaceFor(widget.at + 1, total, widget.language),
+          increasedValue: rulerPlaceFor(
+            (widget.at + 2).clamp(1, total),
+            total,
+            widget.language,
+          ),
+          decreasedValue: rulerPlaceFor(
+            widget.at.clamp(1, total),
+            total,
+            widget.language,
+          ),
           onIncrease: () {
             aimAt(PassageRuler._placeOf(widget.at + 1, total, box.maxWidth));
             widget.onSettle();
@@ -118,6 +136,7 @@ class _PassageRulerState extends State<PassageRuler> {
                     at: widget.at,
                     started: widget.started,
                     finished: widget.finished,
+                    refused: widget.refused,
                     // Toward the end that has room, so the mark never drifts off the row.
                     nudge: hinting
                         ? 7 * t * (widget.at < total - 1 ? 1 : -1)
@@ -136,10 +155,13 @@ class _PassageRulerState extends State<PassageRuler> {
 }
 
 class _RulerPainter extends CustomPainter {
+  static const _dimmed = 0.35;
+
   final int total;
   final int at;
   final Set<int> started;
   final Set<int> finished;
+  final Set<int> refused;
   final double nudge;
   final Color cord;
   final Color mark;
@@ -149,6 +171,7 @@ class _RulerPainter extends CustomPainter {
     required this.at,
     required this.started,
     required this.finished,
+    required this.refused,
     required this.nudge,
     required this.cord,
     required this.mark,
@@ -175,15 +198,18 @@ class _RulerPainter extends CustomPainter {
       final waiting = started.contains(index);
       final carried = finished.contains(index);
       final reach = waiting ? 9.0 : 5.0;
+      final tone = waiting
+          ? mark
+          : carried
+          ? ShemaBrand.wood
+          : cord;
       canvas.drawLine(
         Offset(x, y - reach),
         Offset(x, y + reach),
         Paint()
-          ..color = waiting
-              ? mark
-              : carried
-              ? ShemaBrand.wood
-              : cord
+          ..color = refused.contains(index)
+              ? tone.withValues(alpha: _dimmed)
+              : tone
           ..strokeWidth = waiting
               ? 2.5
               : carried
@@ -207,5 +233,7 @@ class _RulerPainter extends CustomPainter {
       old.started.length != started.length ||
       !old.started.containsAll(started) ||
       old.finished.length != finished.length ||
-      !old.finished.containsAll(finished);
+      !old.finished.containsAll(finished) ||
+      old.refused.length != refused.length ||
+      !old.refused.containsAll(refused);
 }

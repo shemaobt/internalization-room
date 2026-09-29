@@ -1,25 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/onde_mora_grade.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart';
 
-const ouvirMaterna = 'Ouvir a voz de vocês, na língua materna';
-const ouvirRetro = 'Ouvir a tradução em português';
-const micRetro = 'Traduzir de novo só em português';
-const contaApontada = 'Trecho apontado pelo analista';
-
-Finder byLabel(String label) => find.byWidgetPredicate(
-  (widget) => widget is Semantics && widget.properties.label == label,
-);
+const ouvirOTrecho = 'Ouvir o trecho e a tradução';
+const micParteLabel = 'Gravar a parte de novo na língua materna';
+const micRetro = 'Traduzir este trecho de novo';
+const confirmar = 'Confirmar a tradução e seguir';
 
 SalaHarness? harnessDaVez;
 
@@ -29,12 +23,11 @@ SalaSessionNotifier notifier(ProviderContainer c) =>
 /// A team that told two stretches back and got a finding on the first.
 Future<ProviderContainer> pumpToPergunta(
   WidgetTester tester, {
-  BtFindingKind finding = BtFindingKind.addition,
   String? trecho = 'trecho-1',
 }) async {
   final harness = SalaHarness(filaEmMemoria: true)
     ..room.verdictChecked = false
-    ..room.verdictFinding = finding
+    ..room.verdictHasFinding = true
     ..room.verdictFindingSegmentId = trecho;
   harnessDaVez = harness;
   final container = harness.container();
@@ -59,8 +52,9 @@ Future<ProviderContainer> pumpToPergunta(
   for (final at in const [Duration(seconds: 10), Duration(seconds: 20)]) {
     harness.playback.at = at;
     notifier.cortarTrecho();
-    await tester.pump(const Duration(milliseconds: 200));
     notifier.retroTap();
+    await tester.pump(const Duration(milliseconds: 200));
+    await confirmarATraducaoNaTela(tester, container);
     await tester.pump(const Duration(milliseconds: 600));
   }
   harness.playback.finishPlayback();
@@ -69,24 +63,6 @@ Future<ProviderContainer> pumpToPergunta(
   await tester.pump(const Duration(milliseconds: 300));
   return container;
 }
-
-Future<void> _pumpGrade(WidgetTester tester, {required bool podeOuvirRetro}) =>
-    tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light,
-        home: Scaffold(
-          body: Center(
-            child: OndeMoraGrade(
-              onOuvirMaterna: () {},
-              onOuvirRetro: () {},
-              onGravarAParteDeNovo: () {},
-              onTraduzirDeNovo: () {},
-              podeOuvirRetro: podeOuvirRetro,
-            ),
-          ),
-        ),
-      ),
-    );
 
 /// How many times the room was asked for a verdict. Each entry is one such ask reaching
 /// the room, which is the whole point: the team gets an answer only because somebody
@@ -103,14 +79,19 @@ Future<void> terminarACaptura(
   await tester.pump(const Duration(milliseconds: 800));
 }
 
-/// The error was in the telling, so only the telling is redone — one step.
+/// The error was in the telling, so only the telling is redone: the azul microphone lands
+/// on the translation, the circle records over the old telling, the check sends it.
 Future<void> traduzirDeNovo(
   WidgetTester tester,
   ProviderContainer container,
 ) async {
   await tester.tap(byLabel(micRetro));
   await tester.pump(const Duration(milliseconds: 300));
+  notifier(container).retroTap();
+  await tester.pump(const Duration(milliseconds: 300));
   await terminarACaptura(tester, container);
+  await tester.tap(byLabel(confirmar));
+  await tester.pump(const Duration(milliseconds: 800));
 }
 
 /// What one correction leaves behind, read the way the team meets it.
@@ -150,65 +131,21 @@ Future<CorrecaoFeita> correcaoComResposta(
 }
 
 void main() {
-  testWidgets('the blue player is dark when the tablet holds no telling', (
+  testWidgets('both voices are offered when there is a finding', (
     tester,
   ) async {
-    await _pumpGrade(tester, podeOuvirRetro: false);
+    await pumpToPergunta(tester);
 
     expect(
-      tester.widget<Semantics>(byLabel(ouvirRetro)).properties.enabled,
-      isFalse,
+      byLabel(micParteLabel),
+      findsOneWidget,
       reason:
-          'numa sessão retomada o contar existe no servidor e o arquivo '
-          'não está aqui; um player aceso que responde com silêncio não tem '
-          'como se explicar numa sala sem palavra escrita',
+          'o tipo do achado decidia sozinho pela equipe, e um tipo '
+          'escondia a saída de traduzir de novo',
     );
-    expect(
-      tester.widget<Semantics>(byLabel(micRetro)).properties.enabled,
-      isTrue,
-      reason:
-          'escolher não precisa do arquivo: a equipe sabe qual voz errou '
-          'sem reouvi-la, e o contar novo é gravado do zero',
-    );
-    expect(
-      tester.widget<Semantics>(byLabel(ouvirMaterna)).properties.enabled,
-      isTrue,
-      reason: 'a voz de madeira é fatia do ensaio, que está no tablet',
-    );
+    expect(byLabel(micRetro), findsOneWidget);
+    expect(byLabel(ouvirOTrecho), findsOneWidget);
   });
-
-  testWidgets('both players are live when the tablet holds the telling', (
-    tester,
-  ) async {
-    await _pumpGrade(tester, podeOuvirRetro: true);
-
-    expect(
-      tester.widget<Semantics>(byLabel(ouvirRetro)).properties.enabled,
-      isTrue,
-    );
-  });
-
-  // O invariante deste laço — o tipo do achado não escolhe pela equipe qual voz
-  // corrigir — vale para cada tipo, falta incluída desde 03/09: a materna
-  // pode já ter a parte que a ponte pulou, e só a equipe sabe se é o caso.
-  for (final kind in BtFindingKind.values) {
-    testWidgets('both voices are offered when the finding is ${kind.name}', (
-      tester,
-    ) async {
-      await pumpToPergunta(tester, finding: kind);
-
-      expect(
-        byLabel(micParteLabel),
-        findsOneWidget,
-        reason:
-            'o tipo do achado decidia sozinho pela equipe, e um tipo '
-            'escondia a saída de traduzir de novo',
-      );
-      expect(byLabel(micRetro), findsOneWidget);
-      expect(byLabel(ouvirMaterna), findsOneWidget);
-      expect(byLabel(ouvirRetro), findsOneWidget);
-    });
-  }
 
   testWidgets('choosing only the telling leaves the mother tongue untouched', (
     tester,
@@ -222,13 +159,16 @@ void main() {
 
     expect(
       container.read(salaSessionProvider).btPhase,
-      BtPhase.capturing,
+      BtPhase.playing,
       reason:
-          'só o contar escorregou, então o microfone abre para a equipe '
-          'contar aquele trecho de novo',
+          'só o contar escorregou, então a equipe cai na tradução daquele '
+          'trecho para contá-lo de novo',
     );
 
     notifier(container).retroTap();
+    await tester.pump(const Duration(milliseconds: 300));
+    await terminarACaptura(tester, container);
+    await tester.tap(byLabel(confirmar));
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(
@@ -246,65 +186,13 @@ void main() {
     );
   });
 
-  testWidgets('a stretch back from the room keeps both halves of itself', (
-    tester,
-  ) async {
-    final container = await pumpToPergunta(tester);
-    final harness = harnessDaVez!;
-
-    // Hearing the pointed stretch is what lets the team divide it where they are
-    // listening, and dividing is what makes the room answer with stretches nobody has
-    // explained yet — the case where the two halves of this construction disagree.
-    await tester.tap(byLabel(ouvirMaterna));
-    await tester.pump(const Duration(milliseconds: 300));
-    harness.playback.at = const Duration(seconds: 4);
-    await notifier(container).dividirTrecho();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    final trechos = container.read(salaSessionProvider).btTrechos;
-    expect(
-      trechos,
-      hasLength(3),
-      reason: 'a leitura da sala é quem manda em quantos trechos existem',
-    );
-
-    // The room's half: whether anyone has explained this stretch. It is what the first
-    // round's gate consumes, and the app used to throw it away. The two new halves are
-    // units the room counts and nobody has told back.
-    expect(
-      trechos.map((t) => t.contado).toList(),
-      [false, false, true],
-      reason:
-          'sem isto um trecho à espera é indistinguível de um já '
-          'explicado, e o portão da primeira rodada não tem o que ler',
-    );
-
-    // The tablet's half: the copy of the telling, which only this tablet holds. It was
-    // thrown away on every reading, and the blue voice had nothing to play.
-    expect(
-      trechos.last.retroPath,
-      isNotNull,
-      reason: 'o trecho que ninguém tocou continua com a sua explicação aqui',
-    );
-    expect(
-      trechos.take(2).map((t) => t.retroPath).toList(),
-      [null, null],
-      reason:
-          'e uma metade que ninguém contou não guarda arquivo de uma '
-          'explicação que não existe',
-    );
-
-    // Both halves live in one construction: resolving that conflict by picking a side
-    // would have lost the other in silence, and each branch was green on its own.
-  });
-
   testWidgets('listening is free and decides nothing', (tester) async {
     final container = await pumpToPergunta(tester);
 
     final harness = harnessDaVez!;
     harness.playback.played.clear();
 
-    await tester.tap(byLabel(ouvirMaterna));
+    await tester.tap(byLabel(ouvirOTrecho));
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(
@@ -322,11 +210,8 @@ void main() {
           'gravação em língua materna',
     );
 
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(milliseconds: 300));
     harness.playback.played.clear();
-
-    await tester.tap(byLabel(ouvirRetro));
+    harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
@@ -334,41 +219,37 @@ void main() {
       harness.playback.played,
       isNotEmpty,
       reason:
-          'o player azul toca o contar em português daquele trecho — '
-          'sem isso a equipe compara uma voz com o silêncio',
+          'depois da materna o play toca o contar em português daquele '
+          'trecho — sem isso a equipe compara uma voz com o silêncio',
     );
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
   });
 
-  for (final kind in [BtFindingKind.missing, BtFindingKind.addition]) {
-    testWidgets(
-      'a ${kind.name} finding that names no stretch still falls to the whole '
-      'thing',
-      (tester) async {
-        final container = await pumpToPergunta(
-          tester,
-          finding: kind,
-          trecho: null,
-        );
+  testWidgets(
+    'a finding that names no stretch still falls to the whole thing',
+    (tester) async {
+      final container = await pumpToPergunta(tester, trecho: null);
 
-        expect(
-          byLabel(micParteLabel),
-          findsNothing,
-          reason:
-              'sem trecho apontado não há o que substituir, e a grade '
-              'pergunta sobre um trecho',
-        );
-        expect(byLabel(micRetro), findsNothing);
-        expect(
-          container.read(salaSessionProvider).btPhase,
-          BtPhase.findings,
-          reason:
-              'o caminho de hoje para achado sem ponteiro não muda — e '
-              'isso inclui o tipo continuar governando a queda, que é a '
-              'única coisa que ele ainda governa',
-        );
-      },
-    );
-  }
+      expect(
+        tester.widget<Semantics>(byLabel(micParteLabel)).properties.enabled,
+        isFalse,
+        reason:
+            'sem trecho apontado não há o que substituir, e o achado '
+            'pergunta sobre um trecho: o microfone fica apagado, nunca '
+            'escondido (ADR 0040)',
+      );
+      expect(
+        tester.widget<Semantics>(byLabel(micRetro)).properties.enabled,
+        isFalse,
+      );
+      expect(
+        container.read(salaSessionProvider).btPhase,
+        BtPhase.findings,
+        reason: 'o caminho de hoje para achado sem ponteiro não muda',
+      );
+    },
+  );
 
   testWidgets('a correction that runs the room out warns and stops nothing', (
     tester,
@@ -790,7 +671,7 @@ void main() {
       final harness = harnessDaVez!;
       harness.room.replaceNeedsPerson = true;
       harness.room.verdictChecked = true;
-      harness.room.verdictFinding = null;
+      harness.room.verdictHasFinding = false;
 
       await traduzirDeNovo(tester, container);
       await tester.pump(const Duration(milliseconds: 900));
@@ -836,7 +717,7 @@ void main() {
     final container = await pumpToPergunta(tester);
     final harness = harnessDaVez!;
     harness.room.verdictChecked = true;
-    harness.room.verdictFinding = null;
+    harness.room.verdictHasFinding = false;
 
     await traduzirDeNovo(tester, container);
     await tester.pump(const Duration(milliseconds: 900));
@@ -856,19 +737,5 @@ void main() {
 
     notifier(container).leaveThePassage();
     await tester.pump(const Duration(milliseconds: 200));
-  });
-
-  testWidgets('the pointed stretch is told apart from the others', (
-    tester,
-  ) async {
-    await pumpToPergunta(tester);
-
-    expect(
-      byLabel(contaApontada),
-      findsOneWidget,
-      reason:
-          'a sala não tem texto na tela, então a equipe só descobre onde '
-          'está o problema se a conta daquele trecho se distinguir',
-    );
   });
 }

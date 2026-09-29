@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/mic_permission.dart';
 import '../../data/session_notifier.dart';
+import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
 import 'facilitator_circle.dart';
 
@@ -15,9 +16,12 @@ class MicGateView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Center(
       child: FacilitatorCircle(
-        size: 196,
+        size: facilitatorCircleSize,
         voice: VoiceState.blocked,
-        semanticLabel: 'A sala precisa do microfone para funcionar',
+        semanticLabel: roomLabelFor(
+          'micBlocked',
+          ref.watch(roomLanguageProvider),
+        ),
         onTap: () => unawaited(_askAgain(ref)),
       ),
     );

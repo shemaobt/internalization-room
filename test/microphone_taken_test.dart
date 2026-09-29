@@ -1,11 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/eq_bars.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 
 import 'fakes.dart';
-import 'sala_screen_test.dart' show bySemanticsLabelWidget, pumpSala;
-import 'session_notifier_test.dart' show settle;
+import 'sala_screen_test.dart' show pumpSala;
+import 'scenario_helpers.dart' show byLabel, settle;
 
 Future<void> _openTheMicrophone(
   WidgetTester tester,
@@ -59,40 +60,50 @@ void main() {
     },
   );
 
-  testWidgets('the eq bars go still while another app holds the microphone', (
-    tester,
-  ) async {
-    final harness = SalaHarness();
-    final container = await pumpSala(tester, harness);
-    await _openTheMicrophone(
-      tester,
-      container.read(salaSessionProvider.notifier),
-    );
+  testWidgets(
+    'the circle stops listening while another app holds the microphone',
+    (tester) async {
+      final harness = SalaHarness();
+      final container = await pumpSala(tester, harness);
+      await _openTheMicrophone(
+        tester,
+        container.read(salaSessionProvider.notifier),
+      );
+      VoiceState voz() => tester
+          .widget<FacilitatorCircle>(
+            find.descendant(
+              of: find.byType(EnsaioView),
+              matching: find.byType(FacilitatorCircle),
+            ),
+          )
+          .voice;
 
-    expect(tester.widget<EqBars>(find.byType(EqBars)).active, isTrue);
+      expect(voz(), VoiceState.listening);
 
-    harness.recorder.takeTheMicrophone();
-    await tester.pump(const Duration(milliseconds: 200));
+      harness.recorder.takeTheMicrophone();
+      await tester.pump(const Duration(milliseconds: 200));
 
-    expect(
-      tester.widget<EqBars>(find.byType(EqBars)).active,
-      isFalse,
-      reason:
-          'as barras são o sinal mais forte de "o microfone está ligado" '
-          'na tela do ensaio, e seguiam dançando sobre um gravador parado',
-    );
+      expect(
+        voz(),
+        isNot(VoiceState.listening),
+        reason:
+            'o anel e as ondas para dentro são o sinal mais forte de "o '
+            'microfone está ligado" na tela do ensaio, e seguiriam sobre um '
+            'gravador parado',
+      );
 
-    harness.recorder.giveTheMicrophoneBack();
-    await tester.pump(const Duration(milliseconds: 200));
+      harness.recorder.giveTheMicrophoneBack();
+      await tester.pump(const Duration(milliseconds: 200));
 
-    expect(
-      tester.widget<EqBars>(find.byType(EqBars)).active,
-      isTrue,
-      reason:
-          'a captura volta quando a ligação acaba, e a tela tem de voltar '
-          'com ela',
-    );
-  });
+      expect(
+        voz(),
+        VoiceState.listening,
+        reason:
+            'a captura volta quando a ligação acaba, e a tela tem de voltar '
+            'com ela',
+      );
+    },
+  );
 
   testWidgets('the record circle does not invite a recording that is already '
       'open', (tester) async {
@@ -107,14 +118,14 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(
-      bySemanticsLabelWidget('Tocar ao terminar'),
+      byLabel('Tocar ao terminar'),
       findsOneWidget,
       reason:
           'a tomada continua aberta durante a ligação — o toque ainda é o '
           'que a encerra',
     );
     expect(
-      bySemanticsLabelWidget('Tocar para gravar o ensaio'),
+      byLabel('Tocar para gravar o ensaio'),
       findsNothing,
       reason:
           'apagar o halo pelo mesmo sinalizador que escolhe o rótulo '

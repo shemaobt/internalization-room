@@ -114,7 +114,6 @@ void main() {
         total: 1,
         absenceIndex: -1,
       ),
-      ping: const PingRange(0, 1),
     );
     await pumpColar(tester, filled);
 
@@ -144,7 +143,6 @@ void main() {
   testWidgets('the necklace closes in stillness, not a loop', (tester) async {
     const session = SalaSessionState(
       stage: SalaStage.fim,
-      fimClosed: true,
       coverage: Coverage(engaged: 5, surfaced: 5, total: 5, absenceIndex: -1),
     );
     await pumpColar(tester, session);
@@ -197,19 +195,13 @@ void main() {
       );
       await pumpReducedColar(tester, arriving);
 
-      await pumpReducedColar(
-        tester,
-        arriving.copyWith(stage: SalaStage.fim, fimClosed: true),
-      );
+      await pumpReducedColar(tester, arriving.copyWith(stage: SalaStage.fim));
       final landedTopLeft = tester.getTopLeft(
         find.byType(AnimatedPositioned).first,
       );
 
       await tester.pumpWidget(Container());
-      await pumpReducedColar(
-        tester,
-        arriving.copyWith(stage: SalaStage.fim, fimClosed: true),
-      );
+      await pumpReducedColar(tester, arriving.copyWith(stage: SalaStage.fim));
       final steadyTopLeft = tester.getTopLeft(
         find.byType(AnimatedPositioned).first,
       );
@@ -220,6 +212,54 @@ void main() {
         reason:
             'com o movimento reduzido a conta ainda esperava os 900ms do slide — o primeiro frame '
             'a mostrava no lugar antigo, entre o arco e o novo lugar no círculo',
+      );
+    },
+  );
+
+  testWidgets(
+    'a bead growing at the close lands at full size on the first frame, reduced',
+    (tester) async {
+      const arriving = SalaSessionState(
+        coverage: Coverage(engaged: 0, surfaced: 0, total: 1, absenceIndex: -1),
+      );
+      await pumpReducedColar(tester, arriving);
+
+      await pumpReducedColar(tester, arriving.copyWith(stage: SalaStage.fim));
+
+      expect(
+        tester.getSize(find.byType(ThreadIn).first),
+        const Size(26, 26),
+        reason:
+            'com o movimento reduzido a conta ainda crescia 18 para 26px em 700ms — '
+            'o primeiro frame a mostrava num tamanho intermediário',
+      );
+    },
+  );
+
+  testWidgets(
+    'a bead just spoken into lands filled on the first frame, reduced',
+    (tester) async {
+      const waiting = SalaSessionState(
+        coverage: Coverage(engaged: 0, surfaced: 0, total: 1, absenceIndex: -1),
+      );
+      await pumpReducedColar(tester, waiting);
+
+      final filled = waiting.copyWith(
+        coverage: const Coverage(
+          engaged: 1,
+          surfaced: 0,
+          total: 1,
+          absenceIndex: -1,
+        ),
+      );
+      await pumpReducedColar(tester, filled);
+
+      expect(
+        renderedDecorationAt(tester, 0).gradient,
+        BeadStyles.wood,
+        reason:
+            'com o movimento reduzido o preenchimento ainda levava 1,3s para assentar — '
+            'o primeiro frame mostrava a conta a meio caminho do cheio',
       );
     },
   );

@@ -5,22 +5,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/retro_cord.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart' show settle;
 
 const _parteLen = Duration(seconds: 10);
 
 /// The name the server holds for a recording this tablet has no part for: a session told
 /// back before the room stopped assembling passages still answers with one.
 const _deFora = 'gravacao-de-fora';
-
-Future<void> settle([Duration delay = const Duration(milliseconds: 120)]) =>
-    Future<void>.delayed(delay);
 
 /// The room's reading of a telling-back of three parts, with the two stretches of part 2
 /// addressed to a recording this tablet does not hold.
@@ -195,21 +191,6 @@ void main() {
       );
 
       expect(
-        [
-          for (final nome in ['trecho-2', 'trecho-3'])
-            cordSpanMs(
-              trecho: _trecho(it, nome),
-              fimDasPartes: it.estado.btFimDasPartesMs,
-            ),
-        ],
-        [(10000, 16000), (16000, 20000)],
-        reason:
-            'as bandas caem inteiras dentro da parte 2, que começa aos dez '
-            'segundos: desenhadas sobre a parte 1 elas cobririam falas que '
-            'ninguém tocou, e sem banda nenhuma o trecho cai do cordão',
-      );
-
-      expect(
         it.harness.room.clipsFetched,
         isEmpty,
         reason:
@@ -237,7 +218,7 @@ void main() {
     () async {
       final harness = SalaHarness()
         ..room.verdictChecked = false
-        ..room.verdictFinding = BtFindingKind.unclear
+        ..room.verdictHasFinding = true
         ..room.verdictFindingSegmentId = 'trecho-2';
       final it = await _reabrir(
         harness,
@@ -259,7 +240,7 @@ void main() {
         () => it.estado.btPhase == BtPhase.findings,
       );
 
-      it.sala.ouvirVozMaterna();
+      it.sala.ouvirOTrechoEATraducao();
       await waitFor('o trecho apontado tocar', () => it.estado.btTrechoTocando);
 
       expect(

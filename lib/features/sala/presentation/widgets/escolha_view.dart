@@ -7,6 +7,7 @@ import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
+import 'motion.dart';
 import 'passage_ruler.dart';
 
 class EscolhaView extends ConsumerWidget {
@@ -17,6 +18,7 @@ class EscolhaView extends ConsumerWidget {
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);
     final colors = SalaColors.of(context);
+    final language = ref.watch(roomLanguageProvider);
     final roda = session.naRoda ?? const [];
     final podeEntrar =
         session.oferecida != null && session.voice == VoiceState.invite;
@@ -25,14 +27,17 @@ class EscolhaView extends ConsumerWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         FacilitatorCircle(
-          size: 196,
+          size: facilitatorCircleSize,
           voice: session.voice,
           reach: session.reach,
           semanticLabel: switch (session) {
-            _ when session.livroInteiroFeito =>
-              'Todas as passagens foram trabalhadas',
-            _ when session.rodaPorLer => 'Tocar para procurar as passagens',
-            _ => 'Ouvir esta passagem de novo',
+            _ when session.livroInteiroFeito || session.wheelHalted =>
+              escolhaLabelFor('allDone', language),
+            _ when session.rodaPorLer => escolhaLabelFor(
+              'readTheWheel',
+              language,
+            ),
+            _ => escolhaLabelFor('hearAgain', language),
           },
           onTap: notifier.escolhaTap,
           onLongPress: session.canResolveWithPerson
@@ -44,17 +49,20 @@ class EscolhaView extends ConsumerWidget {
           height: 78,
           child: session.oferecida == null
               ? null
-              : AdvanceButton(
-                  size: 78,
-                  gradient: BeadStyles.wood,
-                  halo: ShemaBrand.wood,
-                  border: Border.all(color: colors.cord, width: 2),
-                  semanticLabel: entrarLabelFor(
-                    isPanorama: session.oferecida!.isPanorama,
-                    language: ref.watch(roomLanguageProvider),
+              : FadeUp(
+                  child: RoundActionButton(
+                    size: 78,
+                    mood: podeEntrar ? ButtonMood.beckoning : ButtonMood.dimmed,
+                    gradient: BeadStyles.wood,
+                    shadows: RoundActionButton.dropShadow,
+                    halo: ShemaBrand.wood,
+                    border: Border.all(color: colors.cord, width: 2),
+                    semanticLabel: entrarLabelFor(
+                      isPanorama: session.oferecida!.isPanorama,
+                      language: language,
+                    ),
+                    onTap: notifier.entrarNaOferecida,
                   ),
-                  ready: podeEntrar,
-                  onTap: notifier.entrarNaOferecida,
                 ),
         ),
         const SizedBox(height: 20),
@@ -69,9 +77,15 @@ class EscolhaView extends ConsumerWidget {
             for (var index = 0; index < roda.length; index++)
               if (session.feitas.contains(roda[index].pericope)) index,
           },
+          refused: {
+            for (var index = 0; index < roda.length; index++)
+              if (session.refusedThisVisit.contains(roda[index].pericope))
+                index,
+          },
           hint: podeEntrar,
           onAim: notifier.apontarPassagem,
           onSettle: notifier.dizerAPassagem,
+          language: language,
         ),
       ],
     );

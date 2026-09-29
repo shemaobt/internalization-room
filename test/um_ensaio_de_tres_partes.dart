@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -30,7 +31,7 @@ class Sala {
   List<KeptTake> get partes => estado.partes;
 }
 
-Future<void> gravarUmaParte(Sala it) async {
+Future<void> gravarUmaParteDoEnsaio(Sala it) async {
   final antes = it.estado.keptTakes.length;
   it.sala.ensaioTap();
   await waitFor(
@@ -56,11 +57,12 @@ Future<void> ouvirETraduzirAParteInteira(Sala it, Duration quanto) async {
   it.harness.playback.length = quanto;
   it.harness.playback.at = quanto;
   it.sala.cortarTrecho();
+  it.sala.retroTap();
   await waitFor(
     'o microfone abrir no trecho',
     () => it.estado.btPhase == BtPhase.capturing,
   );
-  it.sala.retroTap();
+  await confirmarATraducao(it.container);
   await waitFor(
     'o trecho traduzido entrar no colar',
     () => it.estado.btTrechos.length == antes + 1,
@@ -74,8 +76,14 @@ Future<void> ouvirETraduzirAParteInteira(Sala it, Duration quanto) async {
 
 /// The rehearsal recorded in three parts with nothing told back yet: the room as it stands
 /// the first time the team presses the advance button.
-Future<Sala> umEnsaioDeTresPartesGravado({Duration? tetoDaEspera}) async {
-  final harness = SalaHarness(busyCeiling: tetoDaEspera);
+Future<Sala> umEnsaioDeTresPartesGravado({
+  Duration? tetoDaEspera,
+  WorkInProgress? emAbertoNoDisco,
+}) async {
+  final harness = SalaHarness(
+    busyCeiling: tetoDaEspera,
+    emAbertoNoDisco: emAbertoNoDisco,
+  );
   final container = harness.container();
   addTearDown(container.dispose);
   final it = Sala(harness, container);
@@ -84,7 +92,7 @@ Future<Sala> umEnsaioDeTresPartesGravado({Duration? tetoDaEspera}) async {
   await waitFor('a sala abrir', () => it.estado.sessionId != null);
   it.sala.goEnsaio();
   for (var onde = 0; onde < partesDoEnsaio.length; onde++) {
-    await gravarUmaParte(it);
+    await gravarUmaParteDoEnsaio(it);
   }
   final partes = it.estado.keptTakes;
   for (var onde = 0; onde < partesDoEnsaio.length; onde++) {
@@ -94,11 +102,15 @@ Future<Sala> umEnsaioDeTresPartesGravado({Duration? tetoDaEspera}) async {
 }
 
 /// The rehearsal recorded in three parts, every one of them told back whole and played to
-/// its end, standing with *terminei* lit and nothing pressed yet.
+/// its end, standing with the advance disc beckoning and nothing pressed yet.
 Future<Sala> umEnsaioDeTresPartesContadoInteiro({
   Duration? tetoDaEspera,
+  WorkInProgress? emAbertoNoDisco,
 }) async {
-  final it = await umEnsaioDeTresPartesGravado(tetoDaEspera: tetoDaEspera);
+  final it = await umEnsaioDeTresPartesGravado(
+    tetoDaEspera: tetoDaEspera,
+    emAbertoNoDisco: emAbertoNoDisco,
+  );
 
   it.sala.startRetro();
   await waitFor(
@@ -121,6 +133,60 @@ Future<Sala> umEnsaioDeTresPartesContadoInteiro({
   return it;
 }
 
+/// Cut the stretch in the air at [em], wherever in the part that falls, and tell that
+/// stretch back — the caller decides whether that lands mid-part or at its end.
+Future<void> traduzirUmTrecho(Sala it, Duration em) async {
+  final antes = it.estado.btTrechos.length;
+  it.harness.playback.at = em;
+  it.sala.cortarTrecho();
+  it.sala.retroTap();
+  await waitFor(
+    'o microfone abrir no trecho',
+    () => it.estado.btPhase == BtPhase.capturing,
+  );
+  await confirmarATraducao(it.container);
+  await waitFor(
+    'o trecho contado entrar no colar',
+    () => it.estado.btTrechos.length == antes + 1,
+  );
+}
+
+/// Hand a mended stretch up and wait for it to take the retired one's place.
+Future<void> entregarAPonte(Sala it) async {
+  final antes = it.harness.room.replacesAsked.length;
+  await fecharACaptura(it.container);
+  await it.sala.confirmarTraducao();
+  await waitFor(
+    'a ponte nova substituir o trecho',
+    () => it.harness.room.replacesAsked.length == antes + 1,
+  );
+  await waitFor(
+    'a sala voltar do veredito',
+    () => it.estado.btPhase != BtPhase.thinking,
+  );
+}
+
+/// Cross from the part in the air into the one after it.
+Future<void> atravessarAFronteira(Sala it) async {
+  it.harness.playback.finishPlayback();
+  await waitFor('a parte terminar', () => it.estado.btParteFronteira);
+  it.sala.ouvirGravacao();
+  await waitFor(
+    'a parte seguinte entrar no ar',
+    () => !it.estado.btParteFronteira,
+  );
+}
+
+/// Open the microphone to translate the stretch in the air a second time.
+Future<void> escolherTraduzirDeNovo(Sala it) async {
+  it.sala.traduzirDeNovoEmPortugues();
+  it.sala.retroTap();
+  await waitFor(
+    'o microfone abrir para traduzir de novo',
+    () => it.estado.btPhase == BtPhase.capturing,
+  );
+}
+
 Future<void> pedirOVeredito(Sala it) async {
   await it.sala.finishBackTranslation();
   await waitFor(
@@ -130,7 +196,7 @@ Future<void> pedirOVeredito(Sala it) async {
 }
 
 /// Record the part at [onde] again, in its own place: the row keeps its length and only
-/// that entry changes. The sibling of [gravarUmaParte], which asserts the opposite.
+/// that entry changes. The sibling of [gravarUmaParteDoEnsaio], which asserts the opposite.
 ///
 /// The name is not waited for here: a test that holds the upload has to be able to look
 /// at a part the room has not answered for yet.

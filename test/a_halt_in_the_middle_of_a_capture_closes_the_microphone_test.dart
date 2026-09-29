@@ -10,15 +10,7 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-
-Future<void> settle([
-  Duration delay = const Duration(milliseconds: 120),
-]) async {
-  await Future<void>.delayed(delay);
-}
-
-int _stateReads(SalaHarness harness) =>
-    harness.room.calls.where((call) => call == 'fetchState').length;
+import 'scenario_helpers.dart';
 
 /// A tablet reopening straight into an unchecked telling-back, with one part already
 /// named. Copied from `the_desk_lifts_the_halt_test.dart`: fixtures never travel between
@@ -60,35 +52,9 @@ _capturingWithAWarningArmed(SalaHarness harness) async {
   SalaSessionState read() => container.read(salaSessionProvider);
 
   await waitFor('o aviso chegar', () => read().warning);
+  harness.playback.at = const Duration(seconds: 2);
   notifier.cortarTrecho();
-  await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
-
-  return (container, notifier, read);
-}
-
-/// The same ground, but the capture is opened by `traduzirDeNovo` over a stretch already
-/// told, arming a mend in the same gesture — the case point 1 of the review measures.
-Future<(ProviderContainer, SalaSessionNotifier, SalaSessionState Function())>
-_mendCapturingWithAWarningArmed(SalaHarness harness) async {
-  harness.room.serverStatus = 'needs_person';
-  harness.room.serverHalt = HaltKind.warning;
-  harness.room.retroSoFar = const BackTranslationProgress(
-    segments: [
-      SegmentView(
-        segmentId: 'trecho-1',
-        takeId: 'gravacao-1',
-        startsMs: 0,
-        endsMs: 12000,
-      ),
-    ],
-  );
-  final container = await _reopensIntoRetro(harness);
-  final notifier = container.read(salaSessionProvider.notifier);
-  SalaSessionState read() => container.read(salaSessionProvider);
-
-  await waitFor('o aviso chegar', () => read().warning);
-  final trecho = read().btTrechos.first;
-  notifier.traduzirDeNovo(trecho);
+  notifier.retroTap();
   await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
 
   return (container, notifier, read);
@@ -175,7 +141,7 @@ void main() {
     );
   });
 
-  test('after the attend, a tap on the circle sends nothing', () async {
+  test('after the attend, the check sends nothing', () async {
     final harness = SalaHarness();
     final (container, notifier, read) = await _capturingWithAWarningArmed(
       harness,
@@ -189,22 +155,21 @@ void main() {
       () => read().voice == VoiceState.invite,
     );
 
-    notifier.retroTap();
+    await notifier.confirmarTraducao();
     await settle();
 
     expect(
       harness.room.calls,
       isNot(contains('sendChunk')),
       reason:
-          'a captura já estava fechada quando a parada pousou; o toque '
-          'depois do atendimento não pode reabri-la como se fosse um '
-          'trecho novo',
+          'a captura já estava fechada quando a parada pousou; o V depois '
+          'do atendimento não pode mandá-la como se fosse uma tradução '
+          'pendente',
     );
     expect(harness.room.chunksSent, chunksBefore);
-    expect(read().btPhase, BtPhase.playing);
   });
 
-  test('after the attend, the scissors open a fresh capture', () async {
+  test('after the attend, the circle opens a fresh capture', () async {
     final harness = SalaHarness();
     final (container, notifier, read) = await _capturingWithAWarningArmed(
       harness,
@@ -216,7 +181,9 @@ void main() {
       () => read().voice == VoiceState.invite,
     );
 
+    harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
+    notifier.retroTap();
     await waitFor(
       'uma nova captura abrir',
       () => read().btPhase == BtPhase.capturing,
@@ -225,7 +192,7 @@ void main() {
     expect(
       harness.sounds.where((s) => s == 'recorder:start').length,
       2,
-      reason: 'a tesoura abre um microfone novo, do zero, como sempre abriu',
+      reason: 'o círculo abre um microfone novo, do zero',
     );
   });
 
@@ -276,10 +243,10 @@ void main() {
     final (container, notifier, read) = await _capturingWithAWarningArmed(
       harness,
     );
-    final asked = _stateReads(harness);
+    final asked = stateReads(harness);
     await waitFor(
       'mais uma batida da vigia',
-      () => _stateReads(harness) > asked,
+      () => stateReads(harness) > asked,
     );
 
     expect(
@@ -308,7 +275,9 @@ void main() {
     final discardsBefore = harness.sounds
         .where((s) => s == 'recorder:discard')
         .length;
+    harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
+    notifier.retroTap();
     await waitFor('a captura abrir', () => read().btPhase == BtPhase.capturing);
     notifier.retroTap();
     await waitFor('a sala decidir sozinha', () => read().needsPerson);
@@ -349,53 +318,4 @@ void main() {
     );
     expect(read().btPhase, BtPhase.playing);
   });
-
-  test(
-    'a halt landing over a mend traduzirDeNovo armed together with the '
-    'capture forgets that mend, so the next capture is an ordinary one',
-    () async {
-      final harness = SalaHarness();
-      final (container, notifier, read) = await _mendCapturingWithAWarningArmed(
-        harness,
-      );
-      await _haltLandsBlocking(harness, read);
-      harness.room.theDeskAttended();
-      await waitFor(
-        'o círculo voltar ao convite',
-        () => read().voice == VoiceState.invite,
-      );
-
-      harness.playback.at = const Duration(seconds: 15);
-      notifier.cortarTrecho();
-      await waitFor(
-        'uma nova captura abrir',
-        () => read().btPhase == BtPhase.capturing,
-      );
-      notifier.retroTap();
-      await waitFor(
-        'a sala decidir',
-        () => read().btPhase != BtPhase.capturing,
-      );
-
-      expect(
-        harness.room.calls,
-        contains('sendChunk'),
-        reason: 'a tesoura nova é um trecho comum, não a correção esquecida',
-      );
-      expect(
-        harness.room.calls,
-        isNot(contains('replaceSegment')),
-        reason:
-            'o achado antigo não pode ser reescrito por uma gravação que a '
-            'equipe nunca associou a ele',
-      );
-      expect(
-        harness.room.chunkSpans.last,
-        '12000-15000',
-        reason:
-            'o cursor foi lido a partir do chão já contado; os limites não '
-            'são os do achado antigo',
-      );
-    },
-  );
 }

@@ -2,30 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart' show byLabel;
 
 const retellStretchExit = 'Ouvir e traduzir esta parte de novo';
 const wholeClipExit = 'Ouvir e traduzir a gravação de novo';
 const continuarOEnsaio = 'Continuar o ensaio';
 
-Finder bySemanticsLabelWidget(String label) => find.byWidgetPredicate(
-  (widget) => widget is Semantics && widget.properties.label == label,
-);
-
 Future<ProviderContainer> pumpToFindings(
   WidgetTester tester,
-  BtFindingKind? finding, {
+  bool hasFinding, {
   String? trecho,
   SalaHarness? harness,
 }) async {
   harness ??= SalaHarness(filaEmMemoria: true);
   harness
     ..room.verdictChecked = false
-    ..room.verdictFinding = finding
+    ..room.verdictHasFinding = hasFinding
     ..room.verdictFindingSegmentId = trecho;
   final container = harness.container();
   addTearDown(container.dispose);
@@ -50,8 +46,9 @@ Future<ProviderContainer> pumpToFindings(
 
   harness.playback.at = const Duration(seconds: 10);
   notifier.cortarTrecho();
-  await tester.pump(const Duration(milliseconds: 200));
   notifier.retroTap();
+  await tester.pump(const Duration(milliseconds: 200));
+  await confirmarATraducaoNaTela(tester, container);
   await tester.pump(const Duration(milliseconds: 600));
   harness.playback.finishPlayback();
   await tester.pump(const Duration(milliseconds: 200));
@@ -64,75 +61,41 @@ void main() {
   testWidgets('a verdict that names no stretch leaves the rehearsal standing', (
     tester,
   ) async {
-    final container = await pumpToFindings(tester, BtFindingKind.unclear);
+    final container = await pumpToFindings(tester, true);
     final rehearsed = container.read(salaSessionProvider).partes.length;
     expect(rehearsed, greaterThan(0));
 
-    await tester.tap(bySemanticsLabelWidget(wholeClipExit));
+    await tester.tap(byLabel(continuarOEnsaio));
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).partes.length, rehearsed);
   });
 
-  testWidgets('a verdict that names no stretch offers a path that works', (
-    tester,
-  ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await pumpToFindings(
-      tester,
-      BtFindingKind.unclear,
-      harness: harness,
-    );
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    await tester.tap(bySemanticsLabelWidget(wholeClipExit));
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
-
-    // The cut is made past the ten seconds already told back, not at nought. Cutting at
-    // nought used to work because this exit forgot every stretch and started the clip
-    // over — and the room had not forgotten them, so the analyst received the passage
-    // twice, the old stretches concatenated with the new. The stretches stay now, and
-    // the exit only takes a cut over ground nobody has told back yet.
-    harness.playback.at = const Duration(seconds: 20);
-    notifier.cortarTrecho();
-    await tester.pump(const Duration(milliseconds: 200));
-
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);
-  });
-
   testWidgets('a verdict that names a stretch still tells that stretch again', (
     tester,
   ) async {
-    final container = await pumpToFindings(
-      tester,
-      BtFindingKind.addition,
-      trecho: 'trecho-1',
-    );
+    final container = await pumpToFindings(tester, true, trecho: 'trecho-1');
 
-    await tester.tap(
-      bySemanticsLabelWidget('Traduzir de novo só em português'),
-    );
+    await tester.tap(byLabel('Traduzir este trecho de novo'));
     await tester.pump(const Duration(milliseconds: 300));
 
+    final estado = container.read(salaSessionProvider);
     expect(
-      container.read(salaSessionProvider).btPhase,
-      BtPhase.capturing,
+      (estado.btPhase, estado.btTrechoTraduzidoDeNovo?.segmentId),
+      (BtPhase.playing, 'trecho-1'),
       reason:
           'contar o trecho de novo continua sendo uma saída da tela de '
-          'achados; deixou de ser a sala escolhendo-a pela equipe e passou a '
-          'ser a voz azul da grade, que a equipe toca — e ela abre o '
-          'microfone direto, sem passo intermediário',
+          'achados; a equipe a escolhe pelo microfone azul, que leva à '
+          'tradução com aquele trecho armado (ADR 0040)',
     );
   });
 
   testWidgets('re-recording stays on offer when no stretch was named', (
     tester,
   ) async {
-    final container = await pumpToFindings(tester, BtFindingKind.unclear);
+    final container = await pumpToFindings(tester, true);
 
-    await tester.tap(bySemanticsLabelWidget(continuarOEnsaio));
+    await tester.tap(byLabel(continuarOEnsaio));
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
@@ -140,12 +103,14 @@ void main() {
 
   testWidgets('a finding only re-recording can settle, with no stretch named, '
       'still leaves a way out that works', (tester) async {
-    final container = await pumpToFindings(tester, BtFindingKind.addition);
+    final container = await pumpToFindings(tester, true);
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.findings);
-    final offered = [retellStretchExit, wholeClipExit, continuarOEnsaio]
-        .where((label) => bySemanticsLabelWidget(label).evaluate().isNotEmpty)
-        .toList();
+    final offered = [
+      retellStretchExit,
+      wholeClipExit,
+      continuarOEnsaio,
+    ].where((label) => byLabel(label).evaluate().isNotEmpty).toList();
     expect(
       offered,
       [continuarOEnsaio],
@@ -159,9 +124,9 @@ void main() {
     );
 
     for (final label in offered) {
-      final room = await pumpToFindings(tester, BtFindingKind.addition);
+      final room = await pumpToFindings(tester, true);
       final before = room.read(salaSessionProvider);
-      await tester.tap(bySemanticsLabelWidget(label));
+      await tester.tap(byLabel(label));
       await tester.pump(const Duration(milliseconds: 300));
       final after = room.read(salaSessionProvider);
       expect(

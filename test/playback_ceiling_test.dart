@@ -1,11 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'session_notifier_test.dart' show inConversa, settle;
+import 'session_notifier_test.dart' show inConversa;
+import 'scenario_helpers.dart' show settle;
 
 /// Record one part and wait for the room to have named it.
 ///
@@ -175,7 +175,7 @@ void main() {
     final harness = SalaHarness(clipGrace: const Duration(milliseconds: 60))
       ..playback.length = const Duration(milliseconds: 600)
       ..room.verdictChecked = false
-      ..room.verdictFinding = BtFindingKind.missing
+      ..room.verdictHasFinding = true
       ..room.verdictFindingSegmentId = 'trecho-1';
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -188,8 +188,9 @@ void main() {
 
     harness.playback.at = const Duration(milliseconds: 40);
     notifier.cortarTrecho();
-    await settle();
     notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
     await waitFor(
       'o primeiro trecho chegar à sala',
       () => harness.room.chunksSent == 1,
@@ -198,7 +199,7 @@ void main() {
 
     harness.playback.at = const Duration(milliseconds: 600);
     harness.playback.finishPlayback();
-    // finishBackTranslation is a no-op while the clip has not ended, and ouvirVozMaterna
+    // finishBackTranslation is a no-op while the clip has not ended, and ouvirOTrechoEATraducao
     // is one until the verdict is in: both taps are dropped in silence when they arrive
     // early, so each waits for the door it goes through.
     await waitFor(
@@ -211,7 +212,7 @@ void main() {
       () => container.read(salaSessionProvider).btPhase == BtPhase.findings,
     );
 
-    notifier.ouvirVozMaterna();
+    notifier.ouvirOTrechoEATraducao();
     await waitFor(
       'o trecho apontado estar tocando',
       () => container.read(salaSessionProvider).btTrechoTocando,
@@ -219,15 +220,15 @@ void main() {
 
     expect(container.read(salaSessionProvider).btTrechoTocando, isTrue);
 
-    // The materna player pauses the stretch rather than restarting it: a second tap while
+    // The findings' play pauses the stretch rather than restarting it: a second tap while
     // it is sounding no longer sends a fresh playRange. (The circle no longer plays the
     // trecho at all in findings — it repeats the verdict's own line instead — so this
-    // exercises the player through the grid's own gesture, `ouvirVozMaterna`.)
-    notifier.ouvirVozMaterna();
+    // exercises the player through the findings' own play, `ouvirOTrechoEATraducao`.)
+    notifier.ouvirOTrechoEATraducao();
     await settle();
     expect(container.read(salaSessionProvider).btTrechoTocando, isFalse);
 
-    notifier.ouvirVozMaterna();
+    notifier.ouvirOTrechoEATraducao();
     await settle(const Duration(milliseconds: 250));
 
     expect(

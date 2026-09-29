@@ -2,7 +2,7 @@ enum TapDecision { start, stop, ignore }
 
 class CaptureGuard {
   const CaptureGuard({
-    this.minDuration = const Duration(milliseconds: 1200),
+    this.minDuration = const Duration(milliseconds: 700),
     this.minBytes = 800,
   });
 

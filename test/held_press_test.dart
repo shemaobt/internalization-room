@@ -3,10 +3,11 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'sala_screen_test.dart' show bySemanticsLabelWidget, pumpSala;
+import 'sala_screen_test.dart' show pumpSala;
+import 'scenario_helpers.dart' show byLabel;
 
 Future<void> _holdTheCircle(WidgetTester tester) async {
-  final circle = bySemanticsLabelWidget('Tocar para gravar o ensaio');
+  final circle = byLabel('Tocar para gravar o ensaio');
   final finger = await tester.startGesture(tester.getCenter(circle));
   await tester.pump(const Duration(milliseconds: 900));
   await finger.up();

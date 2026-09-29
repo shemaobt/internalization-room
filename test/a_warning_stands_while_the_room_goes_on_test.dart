@@ -4,11 +4,8 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'session_notifier_test.dart' show inConversa, settle;
-
-/// How many times the tablet has asked the room what it is doing.
-int _stateReads(SalaHarness harness) =>
-    harness.room.calls.where((call) => call == 'fetchState').length;
+import 'scenario_helpers.dart';
+import 'session_notifier_test.dart' show inConversa;
 
 /// A whole turn, from the team touching the circle to the room hearing it.
 Future<void> _aTurn(SalaSessionNotifier notifier) async {
@@ -19,7 +16,7 @@ Future<void> _aTurn(SalaSessionNotifier notifier) async {
 }
 
 void main() {
-  test('a warning turns the circle green while the room goes on', () async {
+  test('a warning stands while the room goes on', () async {
     final harness = SalaHarness()
       ..room.serverStatus = 'needs_person'
       ..room.serverHalt = HaltKind.warning;
@@ -28,7 +25,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
-    await waitFor('a sala reler o estado', () => _stateReads(harness) > 0);
+    await waitFor('a sala reler o estado', () => stateReads(harness) > 0);
     await settle(const Duration(milliseconds: 300));
 
     expect(
@@ -36,8 +33,8 @@ void main() {
       isTrue,
       reason:
           'o aviso chega numa leitura de estado comum, sem parar a sala — '
-          'e é isso que tem de acender o círculo, não uma parada que nunca chegou '
-          'a existir',
+          'e é isso que tem de acender a marca ao lado do círculo, não uma '
+          'parada que nunca chegou a existir',
     );
     expect(
       read().voice,
@@ -56,9 +53,9 @@ void main() {
       harness.room.turnsSent,
       turns + 1,
       reason:
-          'a sala segue de pé sob o aviso — um círculo verde sobre uma sala '
-          'que na verdade tivesse parado seria a mesma mentira de antes, só que '
-          'na cor oposta',
+          'a sala segue de pé sob o aviso — a marca ao lado do círculo numa '
+          'sala que na verdade tivesse parado seria a mesma mentira de '
+          'antes, só que na cor oposta',
     );
   });
 

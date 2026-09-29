@@ -486,8 +486,12 @@ void main() {
   });
 
   test('a fetch that fails is a failure to play, never a crash', () async {
+    // A raw exception, not one of the room's: through the repository a dead socket is
+    // already `RoomUnavailable`, and that one is the room's failure and is let through
+    // (the test after this one).
     final voice = FacilitatorVoiceService(
-      open: roomAnswering((_) => throw const SocketException('sem rede')),
+      open: (_, {from, ifRange}) async =>
+          throw const SocketException('sem rede'),
       libraryDir: () async => library,
     );
 
@@ -932,6 +936,32 @@ void main() {
     },
   );
 
+  test(
+    'a fetch that fails because the room is down is not a failure to play',
+    () async {
+      Future<void> expectSurfaced(Exception error) async {
+        final voice = FacilitatorVoiceService(
+          open: (_, {from, ifRange}) async => throw error,
+          libraryDir: () async => library,
+        );
+
+        await expectLater(
+          voice.play(_clip),
+          throwsA(same(error)),
+          reason:
+              'o GET do clipe caía no mesmo catch do player e virava "não '
+              'toca" — uma queda de rede ou um 5xx da sala precisam chegar '
+              'ao mesmo tratamento que o POST do turno já recebe',
+        );
+      }
+
+      await expectSurfaced(const RoomBroke('HTTP 503'));
+      await expectSurfaced(const RoomUnavailable('sem rede'));
+      await expectSurfaced(const RoomSlow());
+      await expectSurfaced(const RoomRefused());
+    },
+  );
+
   test('a truncated file on disk is fetched again, not played', () async {
     File('${library.path}/aaa.mp3').writeAsBytesSync([]);
     final voice = service();
@@ -1102,6 +1132,26 @@ void main() {
       expect(await speaking, isTrue);
     },
   );
+
+  test('a clip that opens with no length is not counted as heard', () async {
+    final player = SpeakingPlayer()..lineLength = Duration.zero;
+    final voice = service(player: player);
+    unawaited(
+      Future<void>.delayed(
+        const Duration(milliseconds: 50),
+        player.reachTheEnd,
+      ),
+    );
+
+    expect(
+      await voice.play(_clip),
+      isFalse,
+      reason:
+          'um clipe sem duração "terminava" na hora, o player dizia completo '
+          'e a sala contava como falada uma linha que não soou',
+    );
+    expect(player.sounding, isFalse);
+  });
 
   test('a line played to the end is still counted as heard', () async {
     final player = SpeakingPlayer();

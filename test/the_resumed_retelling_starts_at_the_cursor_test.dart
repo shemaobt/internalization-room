@@ -9,12 +9,7 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-
-Future<void> settle([
-  Duration delay = const Duration(milliseconds: 120),
-]) async {
-  await Future<void>.delayed(delay);
-}
+import 'scenario_helpers.dart' show settle;
 
 /// A tablet opened again on a passage the team was part-way through telling back.
 ///
@@ -145,13 +140,15 @@ void _cobreOClipe(List<List<int>> faixas, int clipeMs) {
 /// asks this once, at its end.
 Future<Duration> _cursorPeloCorte(
   SalaHarness harness,
-  SalaSessionNotifier notifier,
+  ProviderContainer container,
 ) async {
+  final notifier = container.read(salaSessionProvider.notifier);
   final antes = harness.room.chunkSpans.length;
   harness.playback.at = const Duration(minutes: 5);
   notifier.cortarTrecho();
-  await settle();
   notifier.retroTap();
+  await settle();
+  await confirmarATraducao(container);
   await waitFor(
     'o corte chegar à sala',
     () => harness.room.chunkSpans.length > antes,
@@ -182,8 +179,9 @@ void main() {
       );
       harness.playback.stopWalking();
       notifier.cortarTrecho();
-      await settle();
       notifier.retroTap();
+      await settle();
+      await confirmarATraducao(container);
       await settle();
 
       expect(
@@ -227,7 +225,7 @@ void main() {
             'o portão lê o relato como o que a equipe ouviu deste ensaio, '
             'não como a escuta de uma rodada: report_playback substitui os '
             'ranges a cada relato e a cobertura tem de ir de zero ao fim da '
-            'parte, então calar o chão contado antes recusa o terminei',
+            'parte, então calar o chão contado antes recusa a conferência',
       );
     },
   );
@@ -367,7 +365,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       await waitFor(
-        'a sala oferecer o terminei',
+        'a sala oferecer a conferência',
         () => container.read(salaSessionProvider).canFinishBackTranslation,
       );
       await notifier.finishBackTranslation();
@@ -441,7 +439,7 @@ void main() {
       );
       final notifier = container.read(salaSessionProvider.notifier);
       await waitFor(
-        'a sala oferecer o terminei',
+        'a sala oferecer a conferência',
         () => container.read(salaSessionProvider).canFinishBackTranslation,
       );
 
@@ -459,10 +457,9 @@ void main() {
         harness,
         traduzido: [_traduzido('gravacao-1', 0, 30000)],
       );
-      final notifier = container.read(salaSessionProvider.notifier);
 
       final comecou = harness.playback.at;
-      final cursor = await _cursorPeloCorte(harness, notifier);
+      final cursor = await _cursorPeloCorte(harness, container);
 
       expect(comecou, greaterThanOrEqualTo(cursor));
     });
@@ -474,14 +471,13 @@ void main() {
         partes: 2,
         traduzido: [_traduzido('gravacao-1', 0, 30000)],
       );
-      final notifier = container.read(salaSessionProvider.notifier);
       await waitFor(
         'a segunda parte entrar no ar',
         () => harness.playback.played.isNotEmpty,
       );
 
       final comecou = harness.playback.at;
-      final cursor = await _cursorPeloCorte(harness, notifier);
+      final cursor = await _cursorPeloCorte(harness, container);
 
       expect(comecou, greaterThanOrEqualTo(cursor));
     });
@@ -504,7 +500,7 @@ void main() {
       await settle();
 
       final comecou = harness.playback.at;
-      final cursor = await _cursorPeloCorte(harness, notifier);
+      final cursor = await _cursorPeloCorte(harness, container);
 
       expect(comecou, greaterThanOrEqualTo(cursor));
     });
@@ -522,7 +518,7 @@ void main() {
       await settle();
 
       final comecou = harness.playback.at;
-      final cursor = await _cursorPeloCorte(harness, notifier);
+      final cursor = await _cursorPeloCorte(harness, container);
 
       expect(comecou, greaterThanOrEqualTo(cursor));
     });
@@ -536,8 +532,9 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       harness.playback.at = const Duration(seconds: 44);
       notifier.cortarTrecho();
-      await settle();
       notifier.retroTap();
+      await settle();
+      await confirmarATraducao(container);
       await waitFor(
         'o trecho chegar à sala',
         () => harness.room.chunksSent == 1,
@@ -546,7 +543,7 @@ void main() {
       await settle();
 
       final comecou = harness.playback.at;
-      final cursor = await _cursorPeloCorte(harness, notifier);
+      final cursor = await _cursorPeloCorte(harness, container);
 
       expect(comecou, greaterThanOrEqualTo(cursor));
     });

@@ -101,7 +101,7 @@ void main() {
       addTearDown(repository.dispose);
 
       final file = await _tempRecording();
-      await repository.sendTurn('sessao-1', file);
+      await repository.sendTurn('sessao-1', file, turnId: 'turno-1');
 
       expect(seen.headers['content-type'], contains('multipart/form-data'));
       expect(
@@ -112,6 +112,101 @@ void main() {
             'corpo prova que a gravação foi junto',
       );
       expect(seenBody, contains('filename='));
+    },
+  );
+
+  test(
+    'a resent recording carries the id of its first send, so the room can answer it once',
+    () async {
+      final seenBodies = <String>[];
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seenBodies.add(request.body);
+          return http.Response(_turnBody(), 200);
+        }),
+      );
+      addTearDown(repository.dispose);
+
+      final take = await _tempRecording();
+      await repository.sendTurn('sessao-1', take, turnId: 'turno-7');
+      await repository.sendTurn('sessao-1', take, turnId: 'turno-7');
+
+      expect(seenBodies, hasLength(2));
+      for (final body in seenBodies) {
+        expect(
+          body,
+          contains('name="turn_id"\r\n\r\nturno-7\r\n'),
+          reason:
+              'o turno falado ia sem id, e o servidor não tinha como '
+              'reconhecer o reenvio de uma resposta que ele já tinha dado',
+        );
+      }
+    },
+  );
+
+  test(
+    'a voiced turn names itself on every send, with or without marks from the last one',
+    () async {
+      final seenBodies = <String>[];
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seenBodies.add(request.body);
+          return http.Response(_turnBody(), 200);
+        }),
+      );
+      addTearDown(repository.dispose);
+
+      await repository.sendTurn(
+        'sessao-1',
+        await _tempRecording(),
+        turnId: 'turno-3',
+        clientTiming: 'stop_to_answer=120',
+      );
+      await repository.sendTurn(
+        'sessao-1',
+        await _tempRecording(),
+        turnId: 'turno-4',
+      );
+
+      expect(
+        seenBodies,
+        [
+          contains('name="turn_id"\r\n\r\nturno-3\r\n'),
+          contains('name="turn_id"\r\n\r\nturno-4\r\n'),
+        ],
+        reason: 'um turno falado sem id não pode ser reenviado como ele mesmo',
+      );
+    },
+  );
+
+  test(
+    'a resend given only the seconds left gives up at them as a slow room',
+    () async {
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          await Future<void>.delayed(const Duration(seconds: 2));
+          return http.Response(_turnBody(), 200);
+        }),
+      );
+      addTearDown(repository.dispose);
+      final clock = Stopwatch()..start();
+
+      await expectLater(
+        repository.sendTurn(
+          'sessao-1',
+          await _tempRecording(),
+          turnId: 'turno-7',
+          timeout: const Duration(milliseconds: 100),
+        ),
+        throwsA(isA<RoomSlow>()),
+      );
+      expect(
+        clock.elapsed,
+        lessThan(const Duration(seconds: 1)),
+        reason:
+            'o reenvio esperava os 310 s cheios e passava do vigia, que '
+            'chamava uma pessoa por uma rede lenta',
+      );
     },
   );
 
@@ -136,9 +231,14 @@ void main() {
       await repository.sendTurn(
         'sessao-1',
         await _tempRecording(),
+        turnId: 'turno-1',
         clientTiming: 'stop_to_answer=120',
       );
-      await repository.sendTurn('sessao-1', await _tempRecording());
+      await repository.sendTurn(
+        'sessao-1',
+        await _tempRecording(),
+        turnId: 'turno-2',
+      );
 
       expect(seenBodyWithTiming, contains('name="client_timing"'));
       expect(seenBodyWithTiming, contains('stop_to_answer=120'));
@@ -169,11 +269,13 @@ void main() {
       final broken = await repository.sendTurn(
         'sessao-1',
         await _tempRecording(),
+        turnId: 'turno-1',
       );
       inTrouble = false;
       final ensaiando = await repository.sendTurn(
         'sessao-1',
         await _tempRecording(),
+        turnId: 'turno-2',
       );
 
       expect(broken.degraded, isTrue);
@@ -470,7 +572,7 @@ void main() {
     await expectStatus(401, isA<RoomRefused>());
     await expectStatus(403, isA<RoomRefused>());
     await expectStatus(404, isA<SessionGone>());
-    await expectStatus(400, isA<PassageShut>());
+    await expectStatus(400, isA<RoomBroke>());
     await expectStatus(422, isA<RoomBroke>());
     await expectStatus(500, isA<RoomBroke>());
   });
@@ -640,6 +742,50 @@ void main() {
   );
 
   test(
+    'a settled frame carries the same beads the state endpoint would answer with',
+    () async {
+      final controller = StreamController<List<int>>();
+      final repository = RoomRepository(
+        client: MockClient.streaming(
+          (request, bodyStream) async =>
+              http.StreamedResponse(controller.stream, 200),
+        ),
+      );
+      addTearDown(repository.dispose);
+
+      final frames = <CoverageEvent>[];
+      final done = Completer<void>();
+      final subscription = repository
+          .watchCoverage('sessao-1')
+          .listen(frames.add, onDone: done.complete);
+      addTearDown(subscription.cancel);
+
+      controller.add(
+        utf8.encode(
+          'event: coverage\n'
+          'data: {"turn_id": "turno-1", "status": "settled", '
+          '"coverage": {"engaged": 3, "surfaced": 4, "total": 29, "absence_index": 13}}\n\n',
+        ),
+      );
+      await controller.close();
+      await done.future;
+
+      final coverage = frames.single.coverage;
+      expect(
+        coverage,
+        isNotNull,
+        reason:
+            'o aviso já carrega as contas — esperar o fetchState pedia de '
+            'novo o que o próprio evento acabou de responder',
+      );
+      expect(coverage!.engaged, 3);
+      expect(coverage.surfaced, 4);
+      expect(coverage.total, 29);
+      expect(coverage.absenceIndex, 13);
+    },
+  );
+
+  test(
     'a keep-alive on the coverage channel produces nothing, and the channel keeps talking',
     () async {
       final controller = StreamController<List<int>>();
@@ -680,8 +826,122 @@ void main() {
     },
   );
 
+  test('each refusal on the coverage channel keeps its own meaning', () async {
+    Future<void> expectStatus(int status, Matcher matcher) async {
+      final repository = RoomRepository(
+        client: MockClient.streaming(
+          (request, bodyStream) async =>
+              http.StreamedResponse(const Stream<List<int>>.empty(), status),
+        ),
+      );
+      addTearDown(repository.dispose);
+
+      final frames = <CoverageEvent>[];
+      Object? error;
+      final done = Completer<void>();
+      final subscription = repository
+          .watchCoverage('sessao-1')
+          .listen(
+            frames.add,
+            onError: (Object e) => error = e,
+            onDone: done.complete,
+          );
+      addTearDown(subscription.cancel);
+
+      await done.future;
+      expect(frames, isEmpty);
+      expect(
+        error,
+        matcher,
+        reason:
+            'um corpo de erro sem eventos de coverage lia como um stream '
+            'vazio comum, e o canal fechava quieto em vez de dizer o que '
+            'a sala respondeu',
+      );
+    }
+
+    await expectStatus(401, isA<RoomRefused>());
+    await expectStatus(403, isA<RoomRefused>());
+    await expectStatus(404, isA<SessionGone>());
+    await expectStatus(500, isA<RoomBroke>());
+  });
+
   test(
-    'o terminei manda o que foi ouvido de cada parte, com o nome dela',
+    'a coverage channel that never manages to connect says so, instead of reading the drop as an empty stream',
+    () async {
+      final repository = RoomRepository(
+        client: MockClient.streaming(
+          (request, bodyStream) async =>
+              throw const SocketException('sem rota'),
+        ),
+      );
+      addTearDown(repository.dispose);
+
+      final frames = <CoverageEvent>[];
+      Object? error;
+      final done = Completer<void>();
+      final subscription = repository
+          .watchCoverage('sessao-1')
+          .listen(
+            frames.add,
+            onError: (Object e) => error = e,
+            onDone: done.complete,
+          );
+      addTearDown(subscription.cancel);
+
+      await done.future;
+      expect(frames, isEmpty);
+      expect(
+        error,
+        isA<RoomUnavailable>(),
+        reason:
+            'uma sala inalcançável fechava o canal quieto, e o lado que '
+            'escuta não tinha como distinguir isso de um fim comum e parar '
+            'de reabrir a cada queda',
+      );
+    },
+  );
+
+  test(
+    'a coverage channel whose body drops mid-stream says so, instead of reading the drop as an empty stream',
+    () async {
+      final controller = StreamController<List<int>>();
+      final repository = RoomRepository(
+        client: MockClient.streaming(
+          (request, bodyStream) async =>
+              http.StreamedResponse(controller.stream, 200),
+        ),
+      );
+      addTearDown(repository.dispose);
+
+      final frames = <CoverageEvent>[];
+      Object? error;
+      final done = Completer<void>();
+      final subscription = repository
+          .watchCoverage('sessao-1')
+          .listen(
+            frames.add,
+            onError: (Object e) => error = e,
+            onDone: done.complete,
+          );
+      addTearDown(subscription.cancel);
+
+      controller.addError(const SocketException('conexão caiu'));
+
+      await done.future;
+      expect(frames, isEmpty);
+      expect(
+        error,
+        isA<RoomUnavailable>(),
+        reason:
+            'o corpo caindo no meio da leitura fechava o canal quieto, do '
+            'mesmo jeito que uma sala nunca alcançada',
+      );
+    },
+  );
+
+  test(
+    'a conferência manda o que foi ouvido de cada parte, com o nome dela',
     () async {
       late String seenBody;
       final repository = RoomRepository(
@@ -740,7 +1000,7 @@ void main() {
   );
 
   test(
-    'sem nada ouvido o terminei vai sem corpo, e a sala ainda responde',
+    'sem nada ouvido a conferência vai sem corpo, e a sala ainda responde',
     () async {
       late http.BaseRequest seen;
       final repository = RoomRepository(
@@ -934,7 +1194,7 @@ void main() {
     test('as outras recusas seguem as de sempre', () async {
       for (final caso in [
         (status: 404, erro: isA<SessionGone>()),
-        (status: 400, erro: isA<PassageShut>()),
+        (status: 400, erro: isA<RoomBroke>()),
         (status: 403, erro: isA<RoomRefused>()),
       ]) {
         final repository = umaSala(
@@ -951,6 +1211,266 @@ void main() {
       }
     });
   });
+
+  group(
+    'a status code is a verdict on the passage only at the doors that ask for the session',
+    () {
+      RoomRepository answering(int status) {
+        final repository = RoomRepository(
+          client: MockClient((_) async => http.Response('{}', status)),
+          deviceId: () async => 'aparelho-1',
+        );
+        addTearDown(repository.dispose);
+        return repository;
+      }
+
+      final sessionDoors = <String, Future<Object?> Function(RoomRepository)>{
+        'fetchState': (room) => room.fetchState('sessao-1'),
+        'openSession': (room) => room.openSession('sessao-1'),
+        'sendTurn': (room) async => room.sendTurn(
+          'sessao-1',
+          await _tempRecording(),
+          turnId: 'turno-1',
+        ),
+        'takesOf': (room) => room.takesOf('sessao-1'),
+        'askForAPerson': (room) => room.askForAPerson('sessao-1'),
+        'personArrived': (room) => room.personArrived('sessao-1'),
+        'approveRelease': (room) => room.approveRelease('sessao-1'),
+        'finishBackTranslation': (room) =>
+            room.finishBackTranslation('sessao-1', playedByTake: const []),
+        'sendTake': (room) async => room.sendTake(
+          'sessao-1',
+          await _tempRecording(),
+          kind: 'ensaio',
+          scope: 'parte-1',
+        ),
+        'sendChunk': (room) async => room.sendChunk(
+          'sessao-1',
+          await _tempRecording(),
+          takeId: 'gravacao-1',
+          from: const Duration(seconds: 4),
+          to: const Duration(seconds: 7),
+        ),
+      };
+
+      final stretchCalls = <String, Future<Object?> Function(RoomRepository)>{
+        'replaceSegment': (room) async => room.replaceSegment(
+          'sessao-1',
+          'trecho-1',
+          await _tempRecording(),
+          takeId: 'gravacao-1',
+          from: Duration.zero,
+          to: const Duration(seconds: 4),
+        ),
+      };
+
+      final notAboutASession =
+          <String, Future<Object?> Function(RoomRepository)>{
+            'passagesOf': (room) => room.passagesOf('Ruth', language: 'pt'),
+            'collectTheCredential': (room) =>
+                room.collectTheCredential('aparelho-1'),
+            'askForACode': (room) => room.askForACode('aparelho-1'),
+            'readTheLink': (room) => room.readTheLink('aparelho-1'),
+            'askForAPersonWithoutASession': (room) =>
+                room.askForAPersonWithoutASession('aparelho-1'),
+          };
+
+      test(
+        'a door that asks for the session reads a 404 as the session gone',
+        () async {
+          for (final door in sessionDoors.entries) {
+            await expectLater(
+              () => door.value(answering(404)),
+              throwsA(isA<SessionGone>()),
+              reason:
+                  '${door.key} pergunta pela sessão; o 404 dele é ela sumida',
+            );
+          }
+        },
+      );
+
+      test(
+        'a call that names a take or a stretch reads a 404 as a refused call',
+        () async {
+          for (final call in stretchCalls.entries) {
+            await expectLater(
+              () => call.value(answering(404)),
+              throwsA(isA<RoomBroke>()),
+              reason:
+                  '${call.key}: o 404 é a gravação ou o trecho que não são desta '
+                  'sessão, e lido como sessão sumida esquecia a linha de uma '
+                  'sessão viva',
+            );
+          }
+        },
+      );
+
+      test(
+        'ENG-1133: sendChunk reads a take of another session as a refused call, not the session gone',
+        () async {
+          // The 404 case is already covered above: sendChunk sits in sessionDoors, so
+          // "a door that asks for the session reads a 404 as the session gone" already
+          // proves it. This is the half that loop cannot: the wire shape UNKNOWN_REFERENCE
+          // actually answers with.
+          final repository = RoomRepository(
+            client: MockClient(
+              (_) async => http.Response(
+                jsonEncode({
+                  'detail':
+                      'Internalization room rehearsal take gravacao-1 not found',
+                  'code': 'UNKNOWN_REFERENCE',
+                }),
+                422,
+              ),
+            ),
+            deviceId: () async => 'aparelho-1',
+          );
+          addTearDown(repository.dispose);
+
+          await expectLater(
+            () => sessionDoors['sendChunk']!(repository),
+            throwsA(isA<RoomBroke>()),
+            reason:
+                'a gravação nomeada é de outra sessão, e não a sessão — o app '
+                'risca em vez de deixar a passagem',
+          );
+        },
+      );
+
+      test(
+        'a 400 on opening a session is the passage that cannot open',
+        () async {
+          await expectLater(
+            () => answering(400).createSession(pericope: 'P01', language: 'pt'),
+            throwsA(isA<PassageCannotOpen>()),
+            reason:
+                'o /sessions responde 400 para uma passagem que não abre, e lido '
+                'como chamada recusada chamava uma pessoa na hora',
+          );
+        },
+      );
+
+      test(
+        'a 400 is a refused call on every other call, never a verdict on the passage',
+        () async {
+          for (final call in {
+            ...sessionDoors,
+            ...stretchCalls,
+            ...notAboutASession,
+          }.entries) {
+            await expectLater(
+              () => call.value(answering(400)),
+              throwsA(isA<RoomBroke>()),
+              reason:
+                  '${call.key}: fora da criação da sessão, o 400 não fala da '
+                  'passagem; um trecho vazio recusado levava a sessão junto',
+            );
+          }
+        },
+      );
+
+      RoomRepository refusingWith(int status, String detail) {
+        final repository = RoomRepository(
+          client: MockClient(
+            (_) async => http.Response(
+              jsonEncode({'detail': detail, 'code': 'BAD_REQUEST'}),
+              status,
+            ),
+          ),
+          deviceId: () async => 'aparelho-1',
+        );
+        addTearDown(repository.dispose);
+        return repository;
+      }
+
+      const superseded =
+          'This stretch no longer counts: it was already replaced, or the part '
+          'of the rehearsal it is a slice of was recorded again';
+      const divided =
+          'A stretch that was divided is no longer a unit: replace one of the '
+          'stretches it was divided into, not the stretch itself';
+
+      test(
+        'a replace refused because the stretch no longer counts names that refusal',
+        () async {
+          await expectLater(
+            () =>
+                stretchCalls['replaceSegment']!(refusingWith(400, superseded)),
+            throwsA(isA<StretchNoLongerCounts>()),
+          );
+        },
+      );
+
+      test('every other refusal of a replace stays a refused call', () async {
+        await expectLater(
+          () => stretchCalls['replaceSegment']!(refusingWith(400, divided)),
+          throwsA(isA<RoomBroke>()),
+          reason: 'o trecho dividido não foi contado; é recusa de verdade',
+        );
+        await expectLater(
+          () => stretchCalls['replaceSegment']!(refusingWith(422, superseded)),
+          throwsA(isA<RoomBroke>()),
+          reason: 'a recusa nomeada é o 400 do servidor, e nada mais largo',
+        );
+      });
+
+      test('sendChunk keeps a 400 or a 422 as a refused call', () async {
+        for (final status in [400, 422]) {
+          await expectLater(
+            () => sessionDoors['sendChunk']!(refusingWith(status, superseded)),
+            throwsA(isA<RoomBroke>()),
+            reason: 'sendChunk $status: só o replace conta de novo um trecho',
+          );
+        }
+      });
+
+      test(
+        'opening a session and listing the passages keep a 404 as the session gone',
+        () async {
+          await expectLater(
+            () =>
+                answering(404).createSession(language: 'pt', afterSession: 's'),
+            throwsA(isA<SessionGone>()),
+            reason:
+                'o 404 de /sessions é a sessão anterior que a sala não conhece '
+                'mais, um veredito sobre uma sessão',
+          );
+          await expectLater(
+            () => answering(404).passagesOf('Ruth', language: 'pt'),
+            throwsA(isA<SessionGone>()),
+          );
+        },
+      );
+
+      test('the device routes keep their own answers', () async {
+        await expectLater(
+          () => answering(404).collectTheCredential('aparelho-1'),
+          throwsA(isA<SessionGone>()),
+        );
+        await expectLater(
+          () => answering(409).collectTheCredential('aparelho-1'),
+          throwsA(isA<CredentialNotYet>()),
+        );
+        await expectLater(
+          () => answering(403).collectTheCredential('aparelho-1'),
+          throwsA(isA<CredentialTaken>()),
+        );
+        await expectLater(
+          () => answering(404).readTheLink('aparelho-1'),
+          throwsA(isA<SessionGone>()),
+        );
+        expect(await answering(204).readTheLink('aparelho-1'), isNull);
+        await expectLater(
+          () => answering(404).askForAPersonWithoutASession('aparelho-1'),
+          throwsA(isA<NobodyToReach>()),
+        );
+        await expectLater(
+          () => answering(409).askForAPersonWithoutASession('aparelho-1'),
+          throwsA(isA<NobodyToReach>()),
+        );
+      });
+    },
+  );
 
   test(
     'the client turn wait and the busy watchdog sit above the server bound, in order',

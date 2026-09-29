@@ -9,7 +9,8 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'session_notifier_test.dart' show inConversa, settle;
+import 'session_notifier_test.dart' show inConversa;
+import 'scenario_helpers.dart' show settle;
 
 /// The app's storage, which a restore, a reinstall or a new tablet moves wholesale.
 class _Storage {

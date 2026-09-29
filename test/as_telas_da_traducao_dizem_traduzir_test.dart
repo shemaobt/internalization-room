@@ -3,8 +3,6 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 const _retroViewPath = 'lib/features/sala/presentation/widgets/retro_view.dart';
-const _ondeMoraGradePath =
-    'lib/features/sala/presentation/widgets/onde_mora_grade.dart';
 // The Conversation's line moved out of the view and into the script the circle reads by
 // the room's language (ENG-823); the guard follows the line to where it lives now.
 const _conversaViewPath = 'lib/features/sala/domain/facilitator_script.dart';
@@ -13,14 +11,15 @@ const _conversaLine =
     "'Conversem entre vocês — tocar quando quiserem me contar'";
 
 const _rotulosDeTraduzir = {
-  'Cortar aqui e traduzir esta parte',
-  'Traduzir esta parte na língua ponte',
-  'Ouvir e traduzir a gravação de novo',
-  'Terminei de traduzir',
-  'Tocar para traduzir este pedaço em português',
+  'Tocar para gravar a tradução deste trecho',
+  'Tocar para gravar a tradução de novo',
+  'Ouvir a tradução',
+  'Confirmar a tradução e seguir',
+  'Conferir a tradução',
   'Traduzida',
-  'Ouvir a tradução em português',
-  'Traduzir de novo só em português',
+  'Ir para a tradução',
+  'Ouvir o trecho e a tradução',
+  'Traduzir este trecho de novo',
 };
 
 final _literalPattern = RegExp(r"'([^'\\]|\\.)*'");
@@ -42,9 +41,9 @@ Set<String> _literaisEm(String path) => _literalPattern
     .toSet();
 
 void main() {
-  test('RetroView e OndeMoraGrade não carregam mais a palavra retirada '
+  test('RetroView não carrega mais a palavra retirada '
       'da retroverificação', () {
-    for (final path in [_retroViewPath, _ondeMoraGradePath]) {
+    for (final path in [_retroViewPath]) {
       final offensores = _literaisEm(
         path,
       ).where((literal) => _retiradaPattern.hasMatch(literal)).toList();
@@ -63,7 +62,7 @@ void main() {
       'tabela da regra', () {
     final literais = {
       ..._literaisEm(_retroViewPath),
-      ..._literaisEm(_ondeMoraGradePath),
+      ..._literaisEm(_conversaViewPath),
     };
     final comTradu = literais.where(
       (literal) => literal.toLowerCase().contains('tradu'),
@@ -80,7 +79,7 @@ void main() {
 
   test('nenhum literal escapa da extração por aspa simples: nem aspa dupla, '
       'nem literal partido em dois', () {
-    for (final path in [_retroViewPath, _ondeMoraGradePath]) {
+    for (final path in [_retroViewPath]) {
       final fonte = _fonteSemComentarios(path);
 
       expect(

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -14,8 +15,8 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
 
 import 'fakes.dart';
-import 'sala_screen_test.dart' show bySemanticsLabelWidget, pumpSala;
-import 'session_notifier_test.dart' show settle;
+import 'sala_screen_test.dart' show pumpSala;
+import 'scenario_helpers.dart' show byLabel, settle;
 
 void main() {
   test(
@@ -134,13 +135,7 @@ void main() {
         final rendered = (jsonDecode(manifest) as Map<String, dynamic>).keys
             .where(named.hasMatch)
             .toSet();
-        final spoken = {
-          ...rendered,
-          ...instantAckLines,
-          ...inaudibleLines,
-          'E0',
-          approvedLine,
-        };
+        final spoken = {...rendered, ...instantAckLines, 'E0', approvedLine};
 
         expect(
           spoken.length,
@@ -659,7 +654,7 @@ void main() {
         await tester.pump(const Duration(milliseconds: 80));
 
         expect(
-          bySemanticsLabelWidget(expected[language]!),
+          byLabel(expected[language]!),
           findsOneWidget,
           reason:
               'o facilitador lê esta tela uma vez, na instalação — num aparelho que ele '
@@ -674,4 +669,49 @@ void main() {
       }
     },
   );
+
+  testWidgets(
+    'the screen waiting for a code is in the language they set the tablet to',
+    (tester) async {
+      const expected = {
+        'pt': 'A sala está preparando o código deste aparelho',
+        'en': 'The room is getting a code for this tablet',
+      };
+
+      for (final language in languages) {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light,
+            home: Scaffold(body: CodigoView(language: language)),
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 80));
+
+        expect(
+          byLabel(expected[language]!),
+          findsOneWidget,
+          reason:
+              'esta tela falava as duas línguas por um switch próprio, que o guard '
+              'de completude não via; este teste é a cobertura que faltava, não '
+              'o conserto de uma tela muda',
+        );
+      }
+    },
+  );
+
+  test('the código screen names no language of its own, in any spelling', () {
+    final source = File(
+      'lib/features/sala/presentation/widgets/codigo_view.dart',
+    ).readAsStringSync();
+
+    expect(
+      RegExp(r"'pt'|'en'|language ==|switch \(language\)").hasMatch(source),
+      isFalse,
+      reason:
+          'um switch, um ternário ou um mapa local com o literal da língua '
+          'escondem esta tela do guard que anda por cada tabela — uma terceira '
+          'língua aprovada cairia em inglês aqui com o guard verde',
+    );
+  });
 }

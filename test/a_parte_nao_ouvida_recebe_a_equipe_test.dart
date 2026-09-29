@@ -40,11 +40,6 @@ void main() {
             'parado é um botão morto',
       );
       expect(
-        it.estado.btFindings,
-        isEmpty,
-        reason: 'uma parte que falta ouvir não é um achado do analista',
-      );
-      expect(
         it.harness.playback.played.last,
         terceira.path,
         reason: 'a equipe cai na parte que o servidor nomeou',
@@ -86,6 +81,7 @@ void main() {
       final pedacos = it.harness.room.chunksSent;
       it.harness.playback.at = const Duration(seconds: 3);
       it.sala.cortarTrecho();
+      it.sala.retroTap();
 
       expect(
         it.estado.btPhase,
@@ -268,71 +264,6 @@ void main() {
       );
     },
   );
-
-  test('o desvio para a parte não ouvida deixa btConsertando falso', () async {
-    final it = await umEnsaioDeTresPartesContadoInteiro();
-
-    // A equipe assume um conserto e o entrega: pedir o resultado é o último passo que a
-    // própria sala dá num conserto que pega, então a bandeira está acesa quando o
-    // veredito chega.
-    it.harness.room
-      ..verdictChecked = false
-      ..verdictFinding = BtFindingKind.addition
-      ..verdictFindingPlace = 0;
-    await pedirOVeredito(it);
-    expect(
-      it.estado.btPhase,
-      BtPhase.findings,
-      reason:
-          'o achado abre a pergunta — se não abrir, este cenário não '
-          'chega ao que mede',
-    );
-
-    it.sala.traduzirDeNovoEmPortugues();
-    await waitFor(
-      'o microfone abrir no trecho apontado',
-      () => it.estado.btPhase == BtPhase.capturing,
-    );
-    expect(
-      it.estado.btConsertando,
-      isTrue,
-      reason: 'a bandeira acende quando a equipe assume o conserto',
-    );
-
-    final terceira = it.partes[2];
-    final tocadas = it.harness.playback.played.length;
-    it.harness.room
-      ..verdictFinding = null
-      ..verdictFindingPlace = null
-      ..verdictFindingSegmentId = null
-      ..verdictUnheardTakeIds = [terceira.takeId!];
-    it.sala.retroTap();
-    // Contada, e não lida no fim da lista: a terceira parte já era a última que tocou
-    // quando o ensaio foi contado inteiro, então "a última é a terceira" é verdade antes
-    // do gesto e mede um caminho que ninguém percorreu.
-    await waitFor(
-      'a equipe cair na parte que o servidor nomeou',
-      () =>
-          it.harness.playback.played.length > tocadas &&
-          it.harness.playback.played.last == terceira.path,
-    );
-
-    expect(
-      it.estado.btConsertando,
-      isFalse,
-      reason:
-          'o desvio devolve antes dos dois ramos que apagam a bandeira, '
-          'então ela atravessava a recusa acesa',
-    );
-    expect(
-      it.estado.btEsperandoConserto,
-      it.estado.btFindingSegmentId,
-      reason:
-          'e as duas metades voltam a concordar: com a bandeira de pé a '
-          'faixa vazia sumia, e ela é a única coisa que a equipe tem para '
-          'ler dizendo qual trecho ainda espera conserto',
-    );
-  });
 
   test('a última audição atravessa as partes do começo de cada uma', () async {
     final it = await umEnsaioDeTresPartesContadoInteiro();
