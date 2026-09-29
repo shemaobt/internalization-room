@@ -371,11 +371,11 @@ class SalaSessionState {
       voice != VoiceState.thinking &&
       voice != VoiceState.speaking;
 
-  bool get hasUnheardReply => replies.any((reply) => !reply.heard);
+  bool get hasUnheardReply => replies.any((reply) => reply.offered);
 
   HandReply? get oldestUnheardReply {
     for (final reply in replies) {
-      if (!reply.heard) return reply;
+      if (reply.offered) return reply;
     }
     return null;
   }
