@@ -2650,12 +2650,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// A reply is marked heard when the player reported the whole clip. A clip that cannot
   /// be decoded, is cut short, or never arrives stays unheard.
   ///
-  /// It is offered again on the next touch of the hand, with no count of failures. While
-  /// it stays unheard the hand plays it before it lets the team ask anything. A clip cut
-  /// short or not served plays on a later touch, but one that never decodes is served
-  /// from the tablet's copy every time and holds the gesture until the facilitator
-  /// records it again. The inbox is read again on the failure, as it is after a refused
-  /// mark, so a reply recorded again reaches the hand at its new address.
+  /// It is offered again on the next touch of the hand, and the second failure at the
+  /// same address sets it aside on the tablet: it stops counting as unheard, so the hand
+  /// plays the next reply or arms a question. A clip that never decodes is served from
+  /// the tablet's copy every time and would otherwise hold the gesture until the
+  /// facilitator records it again. Nothing is marked, and the desk keeps showing the
+  /// reply as not heard. The inbox is read again on the failure, as it is after a
+  /// refused mark, and a reply recorded again arrives at its new address with no
+  /// failures, which is what lifts the set-aside.
   ///
   /// A room that cannot serve the clip is one more way for an answer not to play, and it is
   /// treated the same way — never through `_handleRoomFailure`. The hand is a side
@@ -2684,8 +2686,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!_gone && state.playingReplyId == reply.id) {
       state = state.copyWith(clearPlayingReply: true);
     }
-    if (current) unawaited(_pullInbox());
+    if (current) {
+      state = state.copyWith(replies: _unsounded(reply));
+      unawaited(_pullInbox());
+    }
   }
+
+  List<HandReply> _unsounded(HandReply reply) => [
+    for (final kept in state.replies)
+      if (kept.id == reply.id && kept.audioUrl == reply.audioUrl)
+        kept.asUnsounded()
+      else
+        kept,
+  ];
 
   /// A reply is heard when the desk agrees, and not before.
   ///
