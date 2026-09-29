@@ -117,8 +117,6 @@ class _FileThatAnswersAtOnce implements File {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-/// Runs [body] with every `File` answering `exists()` at once instead of through the
-/// platform's own event loop, which a `fakeAsync` zone never lets finish.
 T withDiskThatAnswersAtOnce<T>(T Function() body) => IOOverrides.runZoned(
   body,
   createFile: (path) => _FileThatAnswersAtOnce(path),
