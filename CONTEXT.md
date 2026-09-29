@@ -11,7 +11,7 @@ One of the stops a session passes through, from the Invitation to the Closing; t
 _Avoid_: stage (`SalaStage` is the enum, not the term), phase, screen, step
 
 **Invitation** (`convite`):
-The session's first station, where the room's voice presents the book (panorama) and the passage (scene) before opening the conversation.
+The session's first station, where the room's voice welcomes the team and presents the book (panorama). The passage's scene is said when the Conversation opens, not here.
 _Avoid_: convite in prose (`convite` is the enum value), introduction, opening, welcome
 
 **Conversation** (`conversa`):
@@ -41,6 +41,10 @@ _Avoid_: escolha in prose (`escolha` is the enum value), selection, wheel (the w
 **Closing** (`fim`):
 The last station, where the necklace's cord closes into a circle and the session ends.
 _Avoid_: fecho, ending, fim in prose (`SalaStage.fim` is the enum, not the term)
+
+**Step**:
+The point the team's work has reached inside a Station, such as telling, awaiting the verdict or checked; it belongs to its Station and ends with it (ADR 0046).
+_Avoid_: phase, `BtPhase`, status, stage
 
 ### Who speaks and who listens
 
@@ -91,6 +95,14 @@ _Avoid_: mesa, panel, dashboard
 **Session page**:
 The Desk's page for one session, with a tab for the Conversation, one for the passage (the Rehearsal and the Back-translation, part by part) and one for the Approval; it opens on the station the team is in and marks that station on its tab.
 _Avoid_: session detail, session view, página da sessão in English prose
+
+**Channel**:
+What the room hears or sounds at one moment: silence, an open microphone and whose it is, the Guide speaking, a part or a stretch playing, or a pause. One thing at a time (ADR 0046).
+_Avoid_: audio state, voice (the Circle's colour), player
+
+**Queued line**:
+A line that arrived with no gesture while the microphone was open or a halt stood, played once the Channel is free; one of each kind waits.
+_Avoid_: pending line, interrupted line
 
 ### What is recorded and told
 
@@ -146,6 +158,14 @@ _Avoid_: parte não contada, unheard part (heard by nobody; this one was heard a
 The point inside a part's own file where the telling-back stopped, from which a resumed back-translation starts playing and from which it counts what it reports as heard.
 _Avoid_: cursor da retro, playhead, reading head (what the necklace draws above the cord)
 
+**Head**:
+The position inside the open part or stretch that the scissors, the Capture and the Listening ledger read: the Cursor until the player confirms the opening.
+_Avoid_: playhead, reading head (retired), position
+
+**Wordless recording**:
+A recording whose transcription holds no words. The server answers it with the inaudible line; the tablet never judges it.
+_Avoid_: empty capture, silence, inaudible take
+
 **Listening ledger** (`escuta das partes`):
 What the team heard of each part of its rehearsal, kept one part at a time, in that part's own milliseconds and keyed by the recording the part was kept as. A part recorded again starts its listening over while the others keep theirs, and a part the room has not named yet is left out of the report the tablet sends when the team fires the check.
 _Avoid_: `_ouvido`, registro de escuta, played ranges, the concatenated passage, the rehearsal's whole length
@@ -199,7 +219,7 @@ The queue of takes and stretches waiting to reach the server, with a manifest th
 _Avoid_: fila, caixa de saída, upload queue, buffer
 
 **Resume point**:
-The row kept per passage saying where the team left it — the session, the station, the kept takes and the part being recorded again, when one is marked (ADR 0045) — so a reopening lands there rather than at the start, on a tablet that still holds the recordings or on one that fetches them from the room again. It never expires by age: what drops it are facts about the room or the passage — the room no longer knowing the session, the approval closing the passage, the language changing — never the clock.
+The durable slice of the room's state for one passage, written whole at every transition — the session, the Station and its Step, the kept takes, the part being recorded again (ADR 0045), the Cursor, the pending translation and the Listening ledger — so a reopening lands where the team stopped, on a tablet that still holds the recordings or on one that fetches them from the room again. The server rules over what it knows, the slice over the rest (ADR 0046). It never expires by age: what drops it are facts about the room or the passage — the room no longer knowing the session, the approval closing the passage, the language changing — never the clock.
 _Avoid_: ponto de retomada, em curso, checkpoint, snapshot (the session's own lives on the server)
 
 ### Findings and mends
@@ -255,7 +275,7 @@ _Avoid_: retro retomada, resuming from scratch
 ### The room and the people
 
 **Halt**:
-The state in which the room cannot carry on alone and calls for a person, insisting at intervals until it is answered. A halt either blocks, and then only the Desk lifts it, or is a warning.
+The state in which the room cannot carry on alone and calls for a person, insisting at intervals until it is answered. A halt either blocks, and then only the Desk lifts it, or is a warning. A halt never changes the Station or its Step; a blocking one silences the Channel and keeps what was sounding.
 _Avoid_: sala parada, stuck room, pause
 
 **Warning**:
@@ -272,12 +292,24 @@ The room's action of signalling it needs someone, insisted on at intervals until
 _Avoid_: pedir uma pessoa, calling a human, SOS, `needsPerson` (the internal name)
 
 **Reach**:
-Whether the room can get to the server, kept as a fact of its own beside the voice: it is what the way back — the retry ladder, the network watch and the flush of the outbox — lives on, so a voice written over it ends nothing. The circle says the room has fallen; the reach is what knows it.
+Whether the room can get to the server, kept as a fact of its own beside the voice: it is what the way back — the retry ladder, the network watch and the flush of the outbox — lives on, so a voice written over it ends nothing. The circle says the room has fallen; the reach is what knows it. A network failure at any door, the Outbox's included, takes the room out of reach.
 _Avoid_: offline (the voice the circle draws while the reach is down, not the fact), connectivity, online/offline flag, Alcance
 
 **Watch**:
-The room's periodic read of the session's halt while a halt or a warning stands. Armed by every writer of a warning, by every halt the room merely read, and, for a halt the room decided on its own, once its call for a person lands; a halt with nobody to tell — no session, or the build unreachable — is never watched. It ends when neither a halt nor a warning stands any more, or with the passage.
+The room's periodic read of the session's halt, armed whenever a halt or a warning stands, whoever raised it (ADR 0046). A halt with no session has nothing to read, and the long press releases it locally. It ends when neither a halt nor a warning stands any more, or with the passage.
 _Avoid_: poll, timer, vigia (the code's name is not the term)
+
+**Session read**:
+The room's reading of the session on the server, applied whole whichever door it came through: its halt, its warning, its stretches and its verdict.
+_Avoid_: snapshot (the wire's name), poll, re-read
+
+**Session gone**:
+The server no longer knows the session. Wherever the room learns it, whatever was the session's is discarded and the team is taken to the Choice.
+_Avoid_: 404, dead session, lost session
+
+**Refusal**:
+The server's answer that it will not do what was asked, naming why with a code; the room tells refusals apart by the code, never by the words.
+_Avoid_: error, failure, detail
 
 **Meaning Map**:
 The passage's canonical content, against which the analyst compares what was told back, including what is deliberately left unrevealed.
