@@ -42,14 +42,16 @@ Three decisions Henok made on 2026-09-29 come with the client:
 - **The network is the network.** A 5xx, a 429, a timeout and no answer take the room out
   of reach, at every door. The slow path that told a timeout apart from a lost network, and
   the opening's thinking loop, are gone; the turn is resent under the same id while the
-  room is reachable, and the room goes out of reach when it is not.
+  room is reachable and the busy wait has time left, and the room goes out of reach when
+  either runs out.
 - **A refused recording leaves the Outbox at once.** It gets no second attempt, its file
   stays on the tablet and the room says the stranded line. A network failure still waits.
   A Session gone on an upload keeps spending an attempt until the Session gone slice
   (ENG-1175) discards the session's rows.
 - **A stretch that no longer counts is never a strike.** A correction refused with
-  `STRETCH_NO_LONGER_COUNTS` drops the pending translation and reads the stretches back,
-  however many times in a row it comes. This amends ADR 0039's "a 400 or 404 on a call that
+  `STRETCH_NO_LONGER_COUNTS` reads the stretches back and takes the ENG-1139 path, however
+  many times in a row it comes: with no successor stretch the pending translation is
+  dropped, and with one the telling is adopted or the stretch armed again. This amends ADR 0039's "a 400 or 404 on a call that
   names a Take or a Stretch is a refused call on the three-strike ladder" for that code;
   every other refusal of such a call stays on the ladder.
 

@@ -27,7 +27,7 @@ int _closingBrace(String source, int opening) {
 List<String> _catchAllsOverAServerCall(String source) {
   final found = <String>[];
   for (final handler in RegExp(
-    r'\.(catchError|onError)\(',
+    r'\.(catchError|onError)\s*(<[^>]*>)?\(',
   ).allMatches(source)) {
     final start = source.lastIndexOf(RegExp(r'[;{}]'), handler.start) + 1;
     if (_serverCall.hasMatch(source.substring(start, handler.start))) {
