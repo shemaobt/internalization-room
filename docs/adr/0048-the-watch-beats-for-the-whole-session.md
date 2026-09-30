@@ -32,13 +32,15 @@ press stays the local way out (ADR 0009).
 **A Session read older than one already applied never applies its halt or its
 stretches.** Beats do not wait for each other and every door reads the session, so reads
 can land out of order; the newest one sent is the one that counts. A read also never takes
-back stretches the row gained or changed after it went out. What only grows, the coverage
-and the end of the passage, applies from any read, however late.
+back stretches the row gained or changed after it went out. What only grows applies from
+any read, however late: coverage that has grown, never lowering any part of what the room
+already shows, and the end of the passage, painted only where the room can show it (in the
+Conversation, with no blocking halt and the circle free).
 
-**A lift never re-sends the request that caused the halt under the same key.** A halt over
-an opening that could not be fetched is lifted by asking the opening again under a turn id
-of its own; the server would otherwise answer the remembered turn with the same missing
-clip, and every release would halt again.
+**A lift never re-sends the request that caused the halt under the same key.** Any halt
+over an opening is lifted by asking the opening again under a turn id of its own; after a
+clip that could not be fetched, the server would otherwise answer the remembered turn with
+the same missing clip, and every release would halt again.
 
 ## Considered Options
 
