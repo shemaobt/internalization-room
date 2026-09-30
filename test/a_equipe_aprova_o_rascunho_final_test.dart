@@ -370,8 +370,7 @@ void main() {
         _estado(it.container).needsPerson,
         isFalse,
         reason:
-            'uma sala lenta é uma sala que está lá: a escada trata disso e '
-            'não chama ninguém na primeira',
+            'uma demora é a rede: a sala sai do alcance e não chama ninguém',
       );
       expect(_estado(it.container).btPhase, BtPhase.conferida);
       expect(

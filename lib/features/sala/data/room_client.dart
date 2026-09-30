@@ -48,12 +48,12 @@ class RoomClient {
   }
 
   Future<RoomAnswer<T>> askStreamed<T>(
-    Future<http.BaseRequest> Function() request, {
+    http.BaseRequest request, {
     required Duration timeout,
     required T Function(http.Response) read,
     bool asksForTheSession = true,
   }) => ask(
-    () async => http.Response.fromStream(await _http.send(await request())),
+    () async => http.Response.fromStream(await _http.send(request)),
     timeout: timeout,
     read: read,
     asksForTheSession: asksForTheSession,

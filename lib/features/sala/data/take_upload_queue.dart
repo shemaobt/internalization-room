@@ -537,14 +537,23 @@ class TakeUploadQueue {
     // `lost` is what the room speaks from, and a recording being sent right now is
     // not one that was given up on. Every outcome below writes this back.
     final row = entry.lost ? entry.copyWith(lost: false) : entry;
-    final answer = await _room.sendTake(
-      entry.sessionId,
-      file,
-      kind: entry.kind,
-      scope: entry.scope,
-      passNumber: entry.passNumber,
-      chunkIndex: entry.chunkIndex,
-    );
+    final RoomAnswer<String> answer;
+    try {
+      answer = await _room.sendTake(
+        entry.sessionId,
+        file,
+        kind: entry.kind,
+        scope: entry.scope,
+        passNumber: entry.passNumber,
+        chunkIndex: entry.chunkIndex,
+      );
+    } on FileSystemException {
+      await _replace(
+        entry,
+        row.copyWith(attempts: row.attempts + 1, lastTry: _now()),
+      );
+      return false;
+    }
     await _replace(entry, switch (answer) {
       Answered(value: final landed) => row.copyWith(
         takeId: landed,

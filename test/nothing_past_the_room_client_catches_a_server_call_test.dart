@@ -9,7 +9,7 @@ const _callersOfTheRoom = [
 ];
 
 final _commentPattern = RegExp(r'//.*$', multiLine: true);
-final _serverCall = RegExp(r'\b_(room|inbox)\.');
+final _serverCall = RegExp(r'\b_(room|inbox)\s*\.');
 final _catchAll = RegExp(r'^\s*(on\s+(Exception|Object)\b|catch\s*\()');
 
 String _withoutComments(String path) =>
@@ -26,6 +26,16 @@ int _closingBrace(String source, int opening) {
 
 List<String> _catchAllsOverAServerCall(String source) {
   final found = <String>[];
+  for (final handler in RegExp(
+    r'\.(catchError|onError)\(',
+  ).allMatches(source)) {
+    final start = source.lastIndexOf(RegExp(r'[;{}]'), handler.start) + 1;
+    if (_serverCall.hasMatch(source.substring(start, handler.start))) {
+      final line =
+          '\n'.allMatches(source.substring(0, handler.start)).length + 1;
+      found.add('line $line: ${handler.group(0)}');
+    }
+  }
   for (final tryBlock in RegExp(r'\btry\s*\{').allMatches(source)) {
     final bodyEnd = _closingBrace(source, tryBlock.end - 1);
     final body = source.substring(tryBlock.end, bodyEnd);
@@ -93,7 +103,20 @@ void main() {
       }
     ''';
 
+      const aHandlerOverTheRoom = '''
+      Future<void> d() async {
+        unawaited(_room.fetchState('s').catchError((_) => false));
+      }
+    ''';
+      const aHandlerOverTheDisk = '''
+      Future<void> e() async {
+        unawaited(_feitas.markBookOpened(_book).catchError((_) {}));
+      }
+    ''';
+
       expect(_catchAllsOverAServerCall(overTheRoom), hasLength(1));
+      expect(_catchAllsOverAServerCall(aHandlerOverTheRoom), hasLength(1));
+      expect(_catchAllsOverAServerCall(aHandlerOverTheDisk), isEmpty);
       expect(_catchAllsOverAServerCall(overTheDisk), isEmpty);
       expect(_catchAllsOverAServerCall(bareOverTheInbox), hasLength(1));
     },

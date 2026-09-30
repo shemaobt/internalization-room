@@ -243,19 +243,19 @@ class RoomRepository {
     required String turnId,
     String? clientTiming,
     Duration? timeout,
-  }) => _room.askStreamed(
-    () async {
-      final request =
-          http.MultipartRequest('POST', _uri('/sessions/$sessionId/turns'))
-            ..headers.addAll(_whoWeAre)
-            ..fields['turn_id'] = turnId
-            ..files.add(await http.MultipartFile.fromPath('file', audio.path));
-      if (clientTiming != null) request.fields['client_timing'] = clientTiming;
-      return request;
-    },
-    timeout: timeout ?? _turnTimeout,
-    read: readJson(TurnResult.fromJson),
-  );
+  }) async {
+    final request =
+        http.MultipartRequest('POST', _uri('/sessions/$sessionId/turns'))
+          ..headers.addAll(_whoWeAre)
+          ..fields['turn_id'] = turnId
+          ..files.add(await http.MultipartFile.fromPath('file', audio.path));
+    if (clientTiming != null) request.fields['client_timing'] = clientTiming;
+    return _room.askStreamed(
+      request,
+      timeout: timeout ?? _turnTimeout,
+      read: readJson(TurnResult.fromJson),
+    );
+  }
 
   /// One stretch told back: which rehearsal recording it explains, and the slice of
   /// **that file** it covers. The three travel together — a slice with no file to be a
@@ -266,18 +266,17 @@ class RoomRepository {
     required String takeId,
     required Duration from,
     required Duration to,
-  }) => _room.askStreamed(
-    () async =>
-        http.MultipartRequest(
-            'POST',
-            _uri('/sessions/$sessionId/back-translation/chunks'),
-          )
-          ..headers.addAll(_whoWeAre)
-          ..headers['X-Room-Device'] = await _deviceId()
-          ..fields['take_id'] = takeId
-          ..fields['starts_ms'] = '${from.inMilliseconds}'
-          ..fields['ends_ms'] = '${to.inMilliseconds}'
-          ..files.add(await http.MultipartFile.fromPath('file', audio.path)),
+  }) async => _room.askStreamed(
+    http.MultipartRequest(
+        'POST',
+        _uri('/sessions/$sessionId/back-translation/chunks'),
+      )
+      ..headers.addAll(_whoWeAre)
+      ..headers['X-Room-Device'] = await _deviceId()
+      ..fields['take_id'] = takeId
+      ..fields['starts_ms'] = '${from.inMilliseconds}'
+      ..fields['ends_ms'] = '${to.inMilliseconds}'
+      ..files.add(await http.MultipartFile.fromPath('file', audio.path)),
     timeout: _turnTimeout,
     read: readJson(BackTranslationChunk.fromJson),
   );
@@ -293,22 +292,22 @@ class RoomRepository {
     required String scope,
     int? passNumber,
     int? chunkIndex,
-  }) => _room.askStreamed(
-    () async {
-      final request =
-          http.MultipartRequest('POST', _uri('/sessions/$sessionId/takes'))
-            ..headers.addAll(_whoWeAre)
-            ..headers['X-Room-Device'] = await _deviceId()
-            ..fields['kind'] = kind
-            ..fields['scope'] = scope
-            ..files.add(await http.MultipartFile.fromPath('file', audio.path));
-      if (passNumber != null) request.fields['pass_number'] = '$passNumber';
-      if (chunkIndex != null) request.fields['chunk_index'] = '$chunkIndex';
-      return request;
-    },
-    timeout: _turnTimeout,
-    read: readJson((json) => json['take_id'] as String),
-  );
+  }) async {
+    final request =
+        http.MultipartRequest('POST', _uri('/sessions/$sessionId/takes'))
+          ..headers.addAll(_whoWeAre)
+          ..headers['X-Room-Device'] = await _deviceId()
+          ..fields['kind'] = kind
+          ..fields['scope'] = scope
+          ..files.add(await http.MultipartFile.fromPath('file', audio.path));
+    if (passNumber != null) request.fields['pass_number'] = '$passNumber';
+    if (chunkIndex != null) request.fields['chunk_index'] = '$chunkIndex';
+    return _room.askStreamed(
+      request,
+      timeout: _turnTimeout,
+      read: readJson((json) => json['take_id'] as String),
+    );
+  }
 
   /// Every recording the room is holding for this session.
   ///
@@ -341,18 +340,17 @@ class RoomRepository {
     required String takeId,
     required Duration from,
     required Duration to,
-  }) => _room.askStreamed(
-    () async =>
-        http.MultipartRequest(
-            'POST',
-            _uri('/sessions/$sessionId/segments/$segmentId/replace'),
-          )
-          ..headers.addAll(_whoWeAre)
-          ..headers['X-Room-Device'] = await _deviceId()
-          ..fields['take_id'] = takeId
-          ..fields['starts_ms'] = '${from.inMilliseconds}'
-          ..fields['ends_ms'] = '${to.inMilliseconds}'
-          ..files.add(await http.MultipartFile.fromPath('file', audio.path)),
+  }) async => _room.askStreamed(
+    http.MultipartRequest(
+        'POST',
+        _uri('/sessions/$sessionId/segments/$segmentId/replace'),
+      )
+      ..headers.addAll(_whoWeAre)
+      ..headers['X-Room-Device'] = await _deviceId()
+      ..fields['take_id'] = takeId
+      ..fields['starts_ms'] = '${from.inMilliseconds}'
+      ..fields['ends_ms'] = '${to.inMilliseconds}'
+      ..files.add(await http.MultipartFile.fromPath('file', audio.path)),
     timeout: _turnTimeout,
     read: readJson(TellingAgain.fromJson),
     asksForTheSession: false,

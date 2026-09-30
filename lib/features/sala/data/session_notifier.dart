@@ -1607,7 +1607,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _handleRoomFailure(failure, turnCall: true);
     }
 
-    switch (await _sendTheTake(panorama, File(path), epoch)) {
+    final RoomAnswer<TurnResult> answer;
+    try {
+      answer = await _sendTheTake(panorama, File(path), epoch);
+    } on FileSystemException {
+      if (epoch != _epoch) return;
+      return _goOffline(RoomReach.noNetwork);
+    }
+    switch (answer) {
       case Answered(value: final turn):
         if (epoch != _epoch) return;
         try {
@@ -2542,12 +2549,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
     final clientTiming = _pendingClock?.clientTiming(_clockSegments);
     _pendingClock = turnClock;
-    switch (await _sendTheTake(
-      sessionId,
-      File(path),
-      epoch,
-      clientTiming: clientTiming,
-    )) {
+    final RoomAnswer<TurnResult> answer;
+    try {
+      answer = await _sendTheTake(
+        sessionId,
+        File(path),
+        epoch,
+        clientTiming: clientTiming,
+      );
+    } on FileSystemException {
+      if (epoch != _epoch) return;
+      return _goOffline(RoomReach.noNetwork);
+    }
+    switch (answer) {
       case Answered(value: final turn):
         try {
           await _voiceTurn(
@@ -2833,7 +2847,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (path != null) unawaited(_recorder.delete(path));
       return;
     }
-    final sent = await _inbox.sendQuestion(sessionId, File(path));
+    final RoomAnswer<void> sent;
+    try {
+      sent = await _inbox.sendQuestion(sessionId, File(path));
+    } on FileSystemException {
+      if (epoch != _epoch) return;
+      return _goOffline(RoomReach.noNetwork);
+    }
     if (epoch != _epoch) return;
     if (sent is RoomFailure) {
       _goOffline(RoomReach.noNetwork);
@@ -4083,15 +4103,27 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final lugar = state.btTrechos.indexWhere(
       (trecho) => trecho.segmentId == alvo.segmentId,
     );
+    final RoomAnswer<TellingAgain> replaced;
+    try {
+      replaced = await _room.replaceSegment(
+        sessionId,
+        alvo.segmentId!,
+        File(path),
+        takeId: alvo.takeId,
+        from: alvo.from,
+        to: alvo.to,
+      );
+    } on FileSystemException {
+      _contadasSemResposta.add(path);
+      _guardarATraducao(path);
+      if (epoch != _epoch) return;
+      state = state.copyWith(
+        btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
+      );
+      return _goOffline(RoomReach.noNetwork);
+    }
     final TellingAgain told;
-    switch (await _room.replaceSegment(
-      sessionId,
-      alvo.segmentId!,
-      File(path),
-      takeId: alvo.takeId,
-      from: alvo.from,
-      to: alvo.to,
-    )) {
+    switch (replaced) {
       case Answered(value: final answer):
         if (epoch != _epoch) return;
         told = answer;
@@ -4392,13 +4424,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
 
-    switch (await _room.sendChunk(
-      sessionId,
-      File(path),
-      takeId: gravacao,
-      from: _trechoStart,
-      to: _trechoEnd,
-    )) {
+    final RoomAnswer<BackTranslationChunk> sent;
+    try {
+      sent = await _room.sendChunk(
+        sessionId,
+        File(path),
+        takeId: gravacao,
+        from: _trechoStart,
+        to: _trechoEnd,
+      );
+    } on FileSystemException {
+      _guardarATraducao(path);
+      if (epoch != _epoch) return;
+      state = state.copyWith(
+        btPhase: BtPhase.playing,
+        btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
+      );
+      return _goOffline(RoomReach.noNetwork);
+    }
+    switch (sent) {
       case Answered(value: final captured):
         if (epoch != _epoch) return;
         if (!captured.captured) {

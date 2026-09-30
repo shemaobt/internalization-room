@@ -385,7 +385,7 @@ void main() {
   );
 
   test(
-    'a session held through one 500 is dropped after the second, not kept forever',
+    'a session held through one refusal is dropped after the second, not kept forever',
     () async {
       final harness = SalaHarness();
       harness.emAberto.rows['Ruth/P01'] = ResumePoint(
@@ -399,14 +399,15 @@ void main() {
       await notifier.abrirEscolha();
       await settle();
 
-      harness.room.failWith = const Refused('BAD_REQUEST', 'sem resposta');
+      harness.room.failWith = const Refused('BAD_REQUEST');
       await notifier.goConversa(pericope: 'P01');
       await settle();
 
       expect(
         harness.emAberto.rows['Ruth/P01']?.sessionId,
         'sessao-velha',
-        reason: 'um único 500 é passageiro — não é motivo para abandonar o id',
+        reason:
+            'uma única recusa é passageira — não é motivo para abandonar o id',
       );
 
       await notifier.goConversa(pericope: 'P01');
@@ -416,7 +417,7 @@ void main() {
         harness.emAberto.rows.containsKey('Ruth/P01'),
         isFalse,
         reason:
-            'dois 500 seguidos numa sessão retomada prendiam o aparelho a '
+            'duas recusas seguidas numa sessão retomada prendiam o aparelho a '
             'um id que o servidor não consegue servir',
       );
     },
@@ -3203,7 +3204,7 @@ void main() {
 
       harness.room.dropCoverageStream(error: const Refused('BAD_REQUEST'));
       await waitFor(
-        'o canal reabrir depois de um 503',
+        'o canal reabrir depois de uma recusa',
         () => harness.room.watchCoverageCalls == 2,
       );
       harness.room.dropCoverageStream(error: const Refused('BAD_REQUEST'));
@@ -3857,7 +3858,7 @@ void main() {
         state.needsPerson,
         isTrue,
         reason:
-            'abrir o convite é uma chamada de turno: o 500 chama alguém na hora, '
+            'abrir o convite é uma chamada de turno: a recusa chama alguém na hora, '
             'em vez de devolver a equipe ao aceno para tentar de novo sozinha',
       );
       expect(
@@ -4329,7 +4330,7 @@ void main() {
 
       // The resume's own check for a telling-back keeps the three-strike ladder; a turn's
       // refusal — including the opening turn a resume with nothing to restore falls
-      // through to — now calls a person on the spot, so the two visible 503s below are
+      // through to — now calls a person on the spot, so the two visible refusals below are
       // read via that check instead.
       harness.room.failWith = const Refused('BAD_REQUEST');
       await notifier.goConversa(pericope: 'P01');
@@ -4350,7 +4351,7 @@ void main() {
         isFalse,
         reason:
             'a queda de rede não é erro do servidor e não deve contar para '
-            'o mesmo contador — dois 503 visíveis, com um turno bom entre eles, '
+            'o mesmo contador — duas recusas visíveis, com um turno bom entre elas, '
             'não somam três seguidas',
       );
     },
@@ -5187,7 +5188,7 @@ void main() {
       state.needsPerson,
       isTrue,
       reason:
-          'carregar a roda é uma chamada de turno: o 500 já para a sala, '
+          'carregar a roda é uma chamada de turno: a recusa já para a sala, '
           'a mesma parada de qualquer outro turno',
     );
   });

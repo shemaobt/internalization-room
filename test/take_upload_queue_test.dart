@@ -1475,6 +1475,37 @@ void main() {
       },
     );
 
+    test('a take whose request the tablet cannot build spends one try, and '
+        'is never taken for the network', () async {
+      final room = RoomRepository(
+        client: MockClient((_) async {
+          asked++;
+          return http.Response(jsonEncode({'take_id': 'gravacao-1'}), 200);
+        }),
+        deviceId: () async => throw const FileSystemException('disco'),
+      );
+      addTearDown(room.dispose);
+      asked = 0;
+      final queue = TakeUploadQueue(
+        room: room,
+        home: () async => home,
+        now: () => clock,
+      );
+      await queue.enqueue(
+        aTake('sem-aparelho'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'inteira',
+      );
+
+      await queue.flush();
+
+      expect(asked, 0);
+      final row = (await queue.pending()).single;
+      expect(row.attempts, 1);
+      expect(row.waits, 0);
+    });
+
     test('a take whose session is gone spends one try, as before', () async {
       final queue = queueAnswering(404, {
         'detail': 'Internalization room session not found',

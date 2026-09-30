@@ -484,10 +484,7 @@ void main() {
 
       await notifier.openConvite();
       expect(harness.room.sessionIds, hasLength(1));
-      harness.room.failCreateOnceWith = const Refused(
-        'BAD_REQUEST',
-        'HTTP 500',
-      );
+      harness.room.failCreateOnceWith = const Refused('BAD_REQUEST');
 
       notifier.devTrocarIdioma();
       await settle();
@@ -498,7 +495,7 @@ void main() {
         reason:
             'a cópia do pedido do panorama não tinha try/catch e rodava solta: um '
             '500 estourava sem ninguém para pegar e a sala ficava pensando; hoje o '
-            'try/catch existe e um 500 numa chamada de turno para a sala na hora',
+            'try/catch existe e uma recusa numa chamada de turno para a sala na hora',
       );
 
       harness.room.theDeskAttended();

@@ -91,19 +91,16 @@ class HandInboxRepository {
     asksForTheSession: false,
   );
 
-  Future<RoomAnswer<void>> sendQuestion(String sessionId, File audio) =>
+  Future<RoomAnswer<void>> sendQuestion(String sessionId, File audio) async =>
       _room.askStreamed(
-        () async =>
-            http.MultipartRequest(
-                'POST',
-                Uri.parse(
-                  '${Env.backendUrl}$_basePath/questions?session_id=$sessionId',
-                ),
-              )
-              ..headers.addAll(await _headers)
-              ..files.add(
-                await http.MultipartFile.fromPath('file', audio.path),
-              ),
+        http.MultipartRequest(
+            'POST',
+            Uri.parse(
+              '${Env.backendUrl}$_basePath/questions?session_id=$sessionId',
+            ),
+          )
+          ..headers.addAll(await _headers)
+          ..files.add(await http.MultipartFile.fromPath('file', audio.path)),
         timeout: _uploadTimeout,
         read: (_) {},
       );
