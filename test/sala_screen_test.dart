@@ -404,7 +404,7 @@ void main() {
     'a wheel still to be read asks for it in english, not in portuguese',
     (tester) async {
       final harness = SalaHarness(lingua: 'en')
-        ..room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
+        ..room.failWith = const Refused('BAD_REQUEST');
       final container = await pumpSala(tester, harness);
       await container.read(salaSessionProvider.notifier).abrirEscolha();
       await tester.pump(const Duration(milliseconds: 300));

@@ -882,7 +882,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      harness.voice.roomFailsWith = const Refused('BAD_REQUEST', 'HTTP 503');
+      harness.voice.roomFailsWith = const Refused('BAD_REQUEST');
       await notifier.hearTheWholeOpening();
       await settle();
 
@@ -908,7 +908,7 @@ void main() {
     'an opening whose first clip the room fails still hands the necklace over',
     () async {
       final harness = SalaHarness()..room.opensInTwoMovements = true;
-      harness.voice.roomFailsWith = const Refused('BAD_REQUEST', 'HTTP 503');
+      harness.voice.roomFailsWith = const Refused('BAD_REQUEST');
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -1101,7 +1101,7 @@ void main() {
 
       notifier.conversaTap();
       await settle();
-      harness.voice.roomFailsWith = const Refused('BAD_REQUEST', 'HTTP 503');
+      harness.voice.roomFailsWith = const Refused('BAD_REQUEST');
       notifier.conversaTap();
       await settle();
 
@@ -1896,7 +1896,7 @@ void main() {
     'a take the room broke, refused or forgot is never sent again',
     () async {
       for (final failure in <RoomFailure>[
-        const Refused('BAD_REQUEST', 'HTTP 500'),
+        const Refused('BAD_REQUEST'),
         const Refused('UNAUTHORIZED'),
         const SessionGone(),
       ]) {
@@ -2043,7 +2043,7 @@ void main() {
     'a passage opening retried after the room stalls asks again with the same turn id',
     () async {
       final harness = SalaHarness()
-        ..room.failHeldTurnWith = const Refused('BAD_REQUEST', 'HTTP 500');
+        ..room.failHeldTurnWith = const Refused('BAD_REQUEST');
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -2156,7 +2156,7 @@ void main() {
     'a passage left with its opening unheard does not hand its id to the next one',
     () async {
       final harness = SalaHarness()
-        ..room.failHeldTurnWith = const Refused('BAD_REQUEST', 'HTTP 500');
+        ..room.failHeldTurnWith = const Refused('BAD_REQUEST');
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -3201,16 +3201,12 @@ void main() {
       await container.read(salaSessionProvider.notifier).goConversa();
       expect(harness.room.watchCoverageCalls, 1);
 
-      harness.room.dropCoverageStream(
-        error: const Refused('BAD_REQUEST', 'HTTP 503'),
-      );
+      harness.room.dropCoverageStream(error: const Refused('BAD_REQUEST'));
       await waitFor(
         'o canal reabrir depois de um 503',
         () => harness.room.watchCoverageCalls == 2,
       );
-      harness.room.dropCoverageStream(
-        error: const Refused('BAD_REQUEST', 'HTTP 503'),
-      );
+      harness.room.dropCoverageStream(error: const Refused('BAD_REQUEST'));
       await settle(const Duration(milliseconds: 200));
       expect(
         harness.room.watchCoverageCalls,
@@ -3842,7 +3838,7 @@ void main() {
     'a room that answers badly does not disguise itself as a dead network',
     () async {
       final harness = SalaHarness()
-        ..room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
+        ..room.failWith = const Refused('BAD_REQUEST');
       final container = harness.container();
       addTearDown(container.dispose);
 
@@ -3875,7 +3871,7 @@ void main() {
     'a convite retried after the room stalls asks again with the same turn id',
     () async {
       final harness = SalaHarness()
-        ..room.failHeldTurnWith = const Refused('BAD_REQUEST', 'HTTP 500');
+        ..room.failHeldTurnWith = const Refused('BAD_REQUEST');
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -3907,7 +3903,7 @@ void main() {
     'a single bad answer asks for a person, not for another touch',
     () async {
       final harness = SalaHarness()
-        ..room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
+        ..room.failWith = const Refused('BAD_REQUEST');
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -3941,7 +3937,7 @@ void main() {
       final sessionId = read().sessionId;
       expect(sessionId, isNotNull);
 
-      harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
+      harness.room.failWith = const Refused('BAD_REQUEST');
       notifier.conversaTap();
       await settle();
       notifier.conversaTap();
@@ -3984,7 +3980,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
+      harness.room.failWith = const Refused('BAD_REQUEST');
       notifier.conversaTap();
       await settle();
       notifier.conversaTap();
@@ -3996,7 +3992,7 @@ void main() {
       notifier.conversaTap();
       await settle();
 
-      harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
+      harness.room.failWith = const Refused('BAD_REQUEST');
       notifier.conversaTap();
       await settle();
       notifier.conversaTap();
@@ -4008,7 +4004,7 @@ void main() {
       notifier.conversaTap();
       await settle();
 
-      harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
+      harness.room.failWith = const Refused('BAD_REQUEST');
       notifier.conversaTap();
       await settle();
       notifier.conversaTap();
@@ -4041,8 +4037,8 @@ void main() {
     // A resume with nothing to restore still checks the room for a telling-back before
     // it falls through to the opening turn — that check keeps the three-strike ladder
     // (it asks the room to hand back work it already holds, not to open a fresh turn),
-    // unlike the opening turn itself, whose own RoomBroke now calls a person on the spot.
-    harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
+    // unlike the opening turn itself, whose own refusal now calls a person on the spot.
+    harness.room.failWith = const Refused('BAD_REQUEST');
     await notifier.goConversa(pericope: 'P01');
     await settle();
 
@@ -4056,7 +4052,7 @@ void main() {
     notifier.conversaTap();
     await settle();
 
-    harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
+    harness.room.failWith = const Refused('BAD_REQUEST');
     await notifier.goConversa(pericope: 'P01');
     await settle();
     await notifier.goConversa(pericope: 'P01');
@@ -4085,7 +4081,7 @@ void main() {
     await notifier.abrirEscolha();
     await settle();
 
-    harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
+    harness.room.failWith = const Refused('BAD_REQUEST');
     await notifier.goConversa(pericope: 'P01');
     await settle();
 
@@ -4094,7 +4090,7 @@ void main() {
       isTrue,
       reason:
           'nothing to restore falls through to _askForTheOpening — the same '
-          'openSession a person would have been shown E0 in — so one RoomBroke '
+          'openSession a person would have been shown E0 in — so one refusal '
           'there is a turn call too, not the first rung of a ladder that never '
           'gets a second one: two more taps just sent the team back to the '
           'invite',
@@ -4119,7 +4115,7 @@ void main() {
       notifier.conversaTap();
       await settle();
 
-      harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
+      harness.room.failWith = const Refused('BAD_REQUEST');
       for (var i = 0; i < 3; i++) {
         notifier.conversaTap();
         await settle();
@@ -4156,7 +4152,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
+      harness.room.failWith = const Refused('BAD_REQUEST');
       notifier.conversaTap();
       await settle();
       notifier.conversaTap();
@@ -4174,7 +4170,7 @@ void main() {
       await settle();
 
       harness.room.turnsAreDegraded = false;
-      harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
+      harness.room.failWith = const Refused('BAD_REQUEST');
       notifier.conversaTap();
       await settle();
       notifier.conversaTap();
@@ -4203,7 +4199,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
+      harness.room.failWith = const Refused('BAD_REQUEST');
       notifier.conversaTap();
       await settle();
       notifier.conversaTap();
@@ -4227,7 +4223,7 @@ void main() {
       notifier.conversaTap();
       await settle();
 
-      harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
+      harness.room.failWith = const Refused('BAD_REQUEST');
       notifier.conversaTap();
       await settle();
       notifier.conversaTap();
@@ -4255,7 +4251,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
+      harness.room.failWith = const Refused('BAD_REQUEST');
       notifier.conversaTap();
       await settle();
       notifier.conversaTap();
@@ -4274,7 +4270,7 @@ void main() {
       await settle();
       harness.room.turnsAreDegraded = false;
 
-      harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
+      harness.room.failWith = const Refused('BAD_REQUEST');
       notifier.conversaTap();
       await settle();
       notifier.conversaTap();
@@ -4332,10 +4328,10 @@ void main() {
       );
 
       // The resume's own check for a telling-back keeps the three-strike ladder; a turn's
-      // RoomBroke — including the opening turn a resume with nothing to restore falls
+      // refusal — including the opening turn a resume with nothing to restore falls
       // through to — now calls a person on the spot, so the two visible 503s below are
       // read via that check instead.
-      harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 503');
+      harness.room.failWith = const Refused('BAD_REQUEST');
       await notifier.goConversa(pericope: 'P01');
       await settle();
 
@@ -4345,7 +4341,7 @@ void main() {
       notifier.conversaTap();
       await settle();
 
-      harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 503');
+      harness.room.failWith = const Refused('BAD_REQUEST');
       await notifier.goConversa(pericope: 'P01');
       await settle();
 
@@ -4996,7 +4992,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      harness.voice.roomFailsWith = const Refused('BAD_REQUEST', 'HTTP 503');
+      harness.voice.roomFailsWith = const Refused('BAD_REQUEST');
       notifier.handTap();
       await settle();
 
@@ -5170,8 +5166,7 @@ void main() {
   });
 
   test('a wheel that failed to load is not a finished book', () async {
-    final harness = SalaHarness()
-      ..room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
+    final harness = SalaHarness()..room.failWith = const Refused('BAD_REQUEST');
     final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);

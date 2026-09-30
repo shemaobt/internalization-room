@@ -212,7 +212,7 @@ void main() {
     () async {
       final harness = SalaHarness();
       final it = await _retomadaNaRetro(harness);
-      harness.room.failChunkWith = const Refused('BAD_REQUEST', 'HTTP 400');
+      harness.room.failChunkWith = const Refused('BAD_REQUEST');
 
       await _contarUmTrechoRecusado(it);
 
@@ -297,7 +297,7 @@ void main() {
     () async {
       final harness = SalaHarness();
       final it = await _retomadaNaRetro(harness);
-      harness.room.failChunkWith = const Refused('BAD_REQUEST', 'HTTP 422');
+      harness.room.failChunkWith = const Refused('BAD_REQUEST');
 
       await _contarUmTrechoRecusado(it);
       expect(
@@ -328,7 +328,7 @@ void main() {
     () async {
       final harness = SalaHarness();
       final it = await _retomadaNaRetro(harness);
-      harness.room.failChunkWith = const Refused('BAD_REQUEST', 'HTTP 400');
+      harness.room.failChunkWith = const Refused('BAD_REQUEST');
       await _contarUmTrechoRecusado(it);
 
       it.sala.leaveThePassage();

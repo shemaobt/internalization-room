@@ -180,7 +180,7 @@ void main() {
     () async {
       final harness = SalaHarness()
         ..room.passages = const [_panorama, _p01]
-        ..room.failHeldTurnWith = const Refused('BAD_REQUEST', 'HTTP 500');
+        ..room.failHeldTurnWith = const Refused('BAD_REQUEST');
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);

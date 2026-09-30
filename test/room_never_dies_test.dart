@@ -1245,7 +1245,7 @@ void main() {
     'a wheel that keeps failing to load still climbs its own ladder, retry after retry',
     () async {
       final harness = SalaHarness()
-        ..room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
+        ..room.failWith = const Refused('BAD_REQUEST');
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);

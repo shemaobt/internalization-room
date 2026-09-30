@@ -110,6 +110,13 @@ void main() {
       }).fetchState('sessao-1'),
       refusedWith('UNAUTHORIZED'),
     );
+    expect(
+      await answering(401, {
+        'detail': 'no',
+        'code': 'BAD_REQUEST',
+      }).fetchState('sessao-1'),
+      refusedWith('UNAUTHORIZED'),
+    );
   });
 
   test('a 500 or a 429 is the network, not a refusal', () async {

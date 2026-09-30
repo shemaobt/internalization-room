@@ -211,7 +211,7 @@ void main() {
     final gravada = harness.recorder.lastPath;
     final capturas = harness.recorder.captures;
 
-    harness.room.failChunkWith = const Refused('BAD_REQUEST', 'HTTP 500');
+    harness.room.failChunkWith = const Refused('BAD_REQUEST');
     await tocar(tester, confirmar);
 
     final depois = container.read(salaSessionProvider);
@@ -522,7 +522,7 @@ void main() {
     WidgetTester tester,
     SalaHarness harness,
   ) async {
-    harness.room.failFinishWith = const Refused('BAD_REQUEST', 'HTTP 500');
+    harness.room.failFinishWith = const Refused('BAD_REQUEST');
     await tocar(tester, conferir);
     await tester.pump(const Duration(milliseconds: 600));
   }
@@ -789,7 +789,7 @@ void main() {
     expect(aceso(tester, confirmar), isFalse);
     expect(harness.recorder.deleted, contains(pendente));
 
-    harness.room.failChunkWith = const Refused('BAD_REQUEST', 'HTTP 500');
+    harness.room.failChunkWith = const Refused('BAD_REQUEST');
     for (var falha = 0; falha < 2; falha++) {
       sala.retroTap();
       await tester.pump(const Duration(milliseconds: 300));
@@ -825,7 +825,7 @@ void main() {
     harness.room.verdictUntoldSegmentId = null;
     await gravarATraducao(tester);
 
-    harness.room.failReplaceWith = const Refused('BAD_REQUEST', 'HTTP 500');
+    harness.room.failReplaceWith = const Refused('BAD_REQUEST');
     await confirmarEEsperar(tester);
     harness.room.failReplaceWith = const Refused(
       RefusalCode.stretchNoLongerCounts,
@@ -1024,7 +1024,7 @@ void main() {
     await gravarATraducao(tester);
     final capturas = harness.recorder.captures;
 
-    harness.room.failReplaceWith = const Refused('BAD_REQUEST', 'HTTP 500');
+    harness.room.failReplaceWith = const Refused('BAD_REQUEST');
     await tocar(tester, confirmar);
     await tester.pump(const Duration(milliseconds: 600));
 
@@ -1096,7 +1096,7 @@ void main() {
     await gravarATraducao(tester);
     final gravada = harness.recorder.lastPath;
 
-    harness.room.failChunkWith = const Refused('BAD_REQUEST', 'HTTP 500');
+    harness.room.failChunkWith = const Refused('BAD_REQUEST');
     await tocar(tester, confirmar);
     await letTheRehearsalReachTheRoom(tester);
     await tocar(tester, confirmar);

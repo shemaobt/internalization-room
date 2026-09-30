@@ -93,11 +93,11 @@ class RoomClient {
     if (status >= 200 && status < 300) return null;
     if (status == 429 || status >= 500) return NetworkFailed('HTTP $status');
     if (status == 404 && asksForTheSession) return const SessionGone();
+    if (status == 401) return const Refused(RefusalCode.unauthorized);
     final (:code, :detail) = _named(body);
     return Refused(
       code ??
           switch (status) {
-            401 => RefusalCode.unauthorized,
             403 => RefusalCode.forbidden,
             404 => RefusalCode.notFound,
             _ => 'HTTP_$status',

@@ -488,7 +488,7 @@ void main() {
 
   test('a fetch that fails is a failure to play, never a crash', () async {
     // A raw exception, not one of the room's: through the repository a dead socket is
-    // already `RoomUnavailable`, and that one is the room's failure and is let through
+    // already `NetworkFailed`, and that one is the room's failure and is let through
     // (the test after this one).
     final voice = FacilitatorVoiceService(
       open: (_, {from, ifRange}) async =>
@@ -956,7 +956,7 @@ void main() {
         );
       }
 
-      await expectSurfaced(const Refused('BAD_REQUEST', 'HTTP 503'));
+      await expectSurfaced(const Refused('BAD_REQUEST'));
       await expectSurfaced(const NetworkFailed('sem rede'));
       await expectSurfaced(const NetworkFailed('timeout'));
       await expectSurfaced(const Refused('UNAUTHORIZED'));
