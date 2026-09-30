@@ -2836,7 +2836,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sent = await _inbox.sendQuestion(sessionId, File(path));
     if (epoch != _epoch) return;
     if (sent is RoomFailure) {
-      _handleRoomFailure(NetworkFailed('$sent'));
+      _goOffline(RoomReach.noNetwork);
       return;
     }
     unawaited(_recorder.delete(path));

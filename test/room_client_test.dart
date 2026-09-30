@@ -119,6 +119,23 @@ void main() {
     );
   });
 
+  test('a 403 is refused as forbidden unless the device was revoked', () async {
+    expect(
+      await answering(403, {
+        'detail': 'no',
+        'code': 'ROOM_KEY_INVALID',
+      }).fetchState('sessao-1'),
+      refusedWith('FORBIDDEN'),
+    );
+    expect(
+      await answering(403, {
+        'detail': 'revoked',
+        'code': 'DEVICE_REVOKED',
+      }).fetchState('sessao-1'),
+      refusedWith('DEVICE_REVOKED'),
+    );
+  });
+
   test('a 500 or a 429 is the network, not a refusal', () async {
     expect(
       await answering(500, {

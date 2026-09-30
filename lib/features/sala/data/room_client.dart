@@ -95,10 +95,17 @@ class RoomClient {
     if (status == 404 && asksForTheSession) return const SessionGone();
     if (status == 401) return const Refused(RefusalCode.unauthorized);
     final (:code, :detail) = _named(body);
+    if (status == 403) {
+      return Refused(
+        code == RefusalCode.deviceRevoked
+            ? RefusalCode.deviceRevoked
+            : RefusalCode.forbidden,
+        detail,
+      );
+    }
     return Refused(
       code ??
           switch (status) {
-            403 => RefusalCode.forbidden,
             404 => RefusalCode.notFound,
             _ => 'HTTP_$status',
           },
