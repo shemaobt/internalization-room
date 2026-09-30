@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
@@ -355,7 +355,7 @@ void main() {
 
     // In the new passage the call for a person never lands, so nobody was told and there
     // is nothing to watch.
-    harness.room.askForAPersonFailsWith = const RoomRefused();
+    harness.room.askForAPersonFailsWith = const Refused('UNAUTHORIZED');
     await notifier.goConversa(pericope: 'P02');
     await settle();
     for (var i = 0; i < 3; i++) {
@@ -404,7 +404,7 @@ void main() {
       await waitFor('a sala parar com o turno no ar', () => read().needsPerson);
       await waitFor('a vigia reler o estado', () => stateReads(harness) > 1);
 
-      harness.room.failHeldTurnWith = const RoomUnavailable('sem rede');
+      harness.room.failHeldTurnWith = const NetworkFailed('sem rede');
       harness.room.finishHeldTurn();
       await waitFor('a sala cair', () => read().offline);
       await waitFor('a sala voltar', () => !read().offline);

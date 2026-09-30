@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/hand_inbox_repository.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 
 void main() {
   setUpAll(() {
@@ -28,7 +29,7 @@ void main() {
       audioUrl: '/voz/resposta-1',
     );
 
-    expect(agreed, isTrue);
+    expect(agreed, isA<Answered<void>>());
     expect(seen.url.path, endsWith('/questions/resposta-1/heard'));
     expect(
       jsonDecode(seen.body),
@@ -71,7 +72,7 @@ void main() {
 
     expect(
       await inbox.markHeard('resposta-1', audioUrl: '/voz/resposta-1'),
-      isFalse,
+      isA<Refused>(),
     );
   });
 }

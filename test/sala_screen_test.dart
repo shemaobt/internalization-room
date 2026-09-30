@@ -6,7 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/dev/dev_skip_bar.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
@@ -404,7 +404,7 @@ void main() {
     'a wheel still to be read asks for it in english, not in portuguese',
     (tester) async {
       final harness = SalaHarness(lingua: 'en')
-        ..room.failWith = const RoomBroke('HTTP 500');
+        ..room.failWith = const Refused('BAD_REQUEST');
       final container = await pumpSala(tester, harness);
       await container.read(salaSessionProvider.notifier).abrirEscolha();
       await tester.pump(const Duration(milliseconds: 300));
@@ -1091,7 +1091,7 @@ void main() {
     notifier.startRetro();
     await tester.pump(const Duration(milliseconds: 300));
 
-    harness.room.failWith = const RoomRefused();
+    harness.room.failWith = const Refused('UNAUTHORIZED');
     harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
     notifier.retroTap();
@@ -1488,7 +1488,8 @@ void main() {
   testWidgets(
     'the way out stays out of reach while the room waits for a person',
     (tester) async {
-      final harness = SalaHarness()..room.failWith = const RoomRefused();
+      final harness = SalaHarness()
+        ..room.failWith = const Refused('UNAUTHORIZED');
       final container = await pumpSala(tester, harness);
       final notifier = container.read(salaSessionProvider.notifier);
       await notifier.goConversa(pericope: 'P01');

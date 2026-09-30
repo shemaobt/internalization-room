@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -46,7 +46,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
-    harness.room.failWith = const RoomRefused();
+    harness.room.failWith = const Refused('UNAUTHORIZED');
     await _stopForAPerson(notifier, read);
     await settle(_severalStepsOfTheLadder);
 
@@ -92,7 +92,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
-    harness.room.failWith = const RoomRefused();
+    harness.room.failWith = const Refused('UNAUTHORIZED');
     await _stopForAPerson(notifier, read);
     await waitFor(
       'a sala chamar uma pessoa',

@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/linked_team.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 
@@ -161,8 +162,8 @@ void main() {
       addTearDown(container.dispose);
 
       harness.room.deviceAskFailures.addAll([
-        const RoomUnavailable('sem rede'),
-        const RoomUnavailable('sem rede'),
+        const NetworkFailed('sem rede'),
+        const NetworkFailed('sem rede'),
       ]);
       harness.room.failWith = const SessionGone();
       final notifier = container.read(salaSessionProvider.notifier);
@@ -195,7 +196,9 @@ void main() {
       final container = await _inConversa(harness, ledger);
       addTearDown(container.dispose);
 
-      harness.room.deviceAskFailures.add(const NobodyToReach());
+      harness.room.deviceAskFailures.add(
+        const Refused(RefusalCode.nobodyToReach),
+      );
       harness.room.failWith = const SessionGone();
       final notifier = container.read(salaSessionProvider.notifier);
       notifier.conversaTap();
@@ -222,7 +225,9 @@ void main() {
     final container = await _inConversa(harness, ledger);
     addTearDown(container.dispose);
 
-    harness.room.deviceAskFailures.add(const NobodyToReach());
+    harness.room.deviceAskFailures.add(
+      const Refused(RefusalCode.nobodyToReach),
+    );
     harness.room.failWith = const SessionGone();
     final notifier = container.read(salaSessionProvider.notifier);
     notifier.conversaTap();
@@ -437,9 +442,13 @@ void main() {
             client: MockClient((_) async => http.Response('{}', status)),
           );
           addTearDown(repository.dispose);
-          await expectLater(
-            () => repository.askForAPersonWithoutASession('aparelho-D'),
-            throwsA(isA<NobodyToReach>()),
+          expect(
+            await repository.askForAPersonWithoutASession('aparelho-D'),
+            isA<Refused>().having(
+              (refusal) => refusal.code,
+              'code',
+              RefusalCode.nobodyToReach,
+            ),
           );
         }
 
@@ -456,9 +465,9 @@ void main() {
         );
         addTearDown(repository.dispose);
 
-        await expectLater(
-          () => repository.askForAPersonWithoutASession('aparelho-D'),
-          throwsA(isA<RoomBroke>()),
+        expect(
+          await repository.askForAPersonWithoutASession('aparelho-D'),
+          isA<NetworkFailed>(),
         );
       },
     );

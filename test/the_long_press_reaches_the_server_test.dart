@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -77,7 +77,7 @@ void main() {
     final harness = SalaHarness(settleDelay: const Duration(seconds: 5))
       ..room.serverStatus = 'needs_person'
       ..room.serverHalt = HaltKind.blocking
-      ..room.personArrivedFailsWith = const RoomRefused();
+      ..room.personArrivedFailsWith = const Refused('UNAUTHORIZED');
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);

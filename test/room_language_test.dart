@@ -7,7 +7,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
-import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
@@ -484,7 +484,7 @@ void main() {
 
       await notifier.openConvite();
       expect(harness.room.sessionIds, hasLength(1));
-      harness.room.failCreateOnceWith = const RoomBroke('HTTP 500');
+      harness.room.failCreateOnceWith = const Refused('BAD_REQUEST');
 
       notifier.devTrocarIdioma();
       await settle();
@@ -495,7 +495,7 @@ void main() {
         reason:
             'a cópia do pedido do panorama não tinha try/catch e rodava solta: um '
             '500 estourava sem ninguém para pegar e a sala ficava pensando; hoje o '
-            'try/catch existe e um 500 numa chamada de turno para a sala na hora',
+            'try/catch existe e uma recusa numa chamada de turno para a sala na hora',
       );
 
       harness.room.theDeskAttended();

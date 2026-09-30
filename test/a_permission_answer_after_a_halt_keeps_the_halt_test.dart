@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
@@ -242,7 +242,7 @@ void main() {
   test('the retry ladder still insists after a late denied answer erases '
       'the call that was in flight (criterion 3, the retry ladder)', () async {
     final harness = SalaHarness();
-    harness.room.askForAPersonFailsWith = const RoomUnavailable('sem rede');
+    harness.room.askForAPersonFailsWith = const NetworkFailed('sem rede');
     harness.room.holdNextAskForAPerson();
     final container = await _inRetro(harness);
     final notifier = container.read(salaSessionProvider.notifier);

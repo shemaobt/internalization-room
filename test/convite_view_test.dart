@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -419,7 +419,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
       await tester.pump(const Duration(seconds: 1));
 
-      harness.room.failWith = const RoomRefused();
+      harness.room.failWith = const Refused('UNAUTHORIZED');
       notifier.conviteTap();
       await tester.pump(const Duration(milliseconds: 200));
       notifier.conviteTap();

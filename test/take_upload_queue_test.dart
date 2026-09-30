@@ -1,7 +1,12 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:path/path.dart' as p;
+import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 
 import 'fakes.dart';
@@ -661,7 +666,7 @@ void main() {
   test(
     'inside the window nothing of that part leaves, and past it both land in order',
     () async {
-      final room = FakeRoom()..refuseTake = 'ensaio/parte-2';
+      final room = FakeRoom()..reachable = false;
       final queue = queueOn(room, backoff: const [Duration(seconds: 5)]);
       final primeira = await queue.enqueue(
         aTake('primeira'),
@@ -670,7 +675,7 @@ void main() {
         scope: 'parte-2',
       );
       await queue.flush();
-      room.refuseTake = null;
+      room.reachable = true;
       final segunda = await queue.enqueue(
         aTake('segunda'),
         sessionId: 'sessao-1',
@@ -795,10 +800,7 @@ void main() {
       scope: 'parte-2',
     );
 
-    for (var attempt = 0; attempt < takeUploadAttempts; attempt++) {
-      clock = clock.add(const Duration(minutes: 20));
-      await queue.flush();
-    }
+    await queue.flush();
     room.refuseTake = null;
 
     expect(await queue.flush(), 1);
@@ -1394,4 +1396,132 @@ void main() {
       );
     },
   );
+
+  group('a take the room answers over the wire', () {
+    setUpAll(() {
+      dotenv.testLoad(
+        fileInput: 'BACKEND_URL=http://sala.local\nINTERNALIZATION_ROOM_KEY=k',
+      );
+    });
+
+    var asked = 0;
+
+    TakeUploadQueue queueAnswering(int status, Map<String, String> body) {
+      asked = 0;
+      final room = RoomRepository(
+        client: MockClient((_) async {
+          asked++;
+          return http.Response(jsonEncode(body), status);
+        }),
+        deviceId: () async => 'aparelho-1',
+      );
+      addTearDown(room.dispose);
+      return TakeUploadQueue(
+        room: room,
+        home: () async => home,
+        backoff: const [Duration(seconds: 5)],
+        now: () => clock,
+      );
+    }
+
+    Future<void> flushTwelveTimes(TakeUploadQueue queue) async {
+      for (var round = 0; round < 12; round++) {
+        clock = clock.add(const Duration(minutes: 20));
+        await queue.flush();
+      }
+    }
+
+    test(
+      'a take the room refuses leaves the queue at once, its audio kept',
+      () async {
+        final queue = queueAnswering(422, {
+          'detail': 'Internalization room session sessao-1 has no part parte-9',
+          'code': 'UNKNOWN_REFERENCE',
+        });
+        final entry = await queue.enqueue(
+          aTake('recusada'),
+          sessionId: 'sessao-1',
+          kind: 'ensaio',
+          scope: 'parte-9',
+        );
+
+        await flushTwelveTimes(queue);
+
+        expect(asked, 1, reason: 'uma recusa não tem segunda tentativa');
+        expect((await queue.tally(sessionId: 'sessao-1')).stranded, isTrue);
+        expect(File(entry.path).existsSync(), isTrue);
+      },
+    );
+
+    test(
+      'a take the room fails on with a 500 waits and never gives up',
+      () async {
+        final queue = queueAnswering(500, {
+          'detail': 'boom',
+          'code': 'INTERNAL_ERROR',
+        });
+        await queue.enqueue(
+          aTake('esperando'),
+          sessionId: 'sessao-1',
+          kind: 'ensaio',
+          scope: 'inteira',
+        );
+
+        await flushTwelveTimes(queue);
+
+        expect(asked, greaterThan(1));
+        expect(await queue.waiting(), hasLength(1));
+        expect((await queue.pending()).single.attempts, 0);
+      },
+    );
+
+    test('a take whose request the tablet cannot build spends one try, and '
+        'is never taken for the network', () async {
+      final room = RoomRepository(
+        client: MockClient((_) async {
+          asked++;
+          return http.Response(jsonEncode({'take_id': 'gravacao-1'}), 200);
+        }),
+        deviceId: () async => throw const FileSystemException('disco'),
+      );
+      addTearDown(room.dispose);
+      asked = 0;
+      final queue = TakeUploadQueue(
+        room: room,
+        home: () async => home,
+        now: () => clock,
+      );
+      await queue.enqueue(
+        aTake('sem-aparelho'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'inteira',
+      );
+
+      await queue.flush();
+
+      expect(asked, 0);
+      final row = (await queue.pending()).single;
+      expect(row.attempts, 1);
+      expect(row.waits, 0);
+    });
+
+    test('a take whose session is gone spends one try, as before', () async {
+      final queue = queueAnswering(404, {
+        'detail': 'Internalization room session not found',
+        'code': 'NOT_FOUND',
+      });
+      await queue.enqueue(
+        aTake('sem-sessao'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'inteira',
+      );
+
+      await queue.flush();
+
+      expect((await queue.pending()).single.attempts, 1);
+      expect(await queue.waiting(), hasLength(1));
+    });
+  });
 }

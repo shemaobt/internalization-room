@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -191,7 +191,7 @@ void main() {
     final container = await achadoComAvisoAtivo(harness);
     SalaSessionState read() => container.read(salaSessionProvider);
 
-    harness.room.failStateOnceWith = const RoomUnavailable('sem rede');
+    harness.room.failStateOnceWith = const NetworkFailed('sem rede');
     await _someBeats(harness);
 
     expect(
@@ -290,7 +290,7 @@ void main() {
     await settle();
     notifier.conversaTap();
     await settle();
-    harness.room.failHeldTurnWith = const RoomUnavailable('sem rede');
+    harness.room.failHeldTurnWith = const NetworkFailed('sem rede');
     harness.room.finishHeldTurn();
     await waitFor('a sala cair', () => read().offline);
     await waitFor('a sala voltar', () => !read().offline);

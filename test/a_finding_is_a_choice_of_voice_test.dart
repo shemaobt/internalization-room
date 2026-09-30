@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
@@ -424,7 +424,7 @@ void main() {
     await tocar(tester, gravarATraducaoDeNovo);
     await tocar(tester, terminar);
     await tester.pump(const Duration(milliseconds: 300));
-    harness.room.failFinishWith = const RoomSlow();
+    harness.room.failFinishWith = const NetworkFailed('timeout');
     await tocar(tester, confirmarATraducao);
     await tester.pump(const Duration(milliseconds: 600));
 

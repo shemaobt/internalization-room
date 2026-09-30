@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -12,7 +12,7 @@ Future<void> _haltWith(
   SalaHarness harness,
   SalaSessionNotifier notifier,
   SalaSessionState Function() read,
-  Exception failure,
+  RoomFailure failure,
 ) async {
   harness.room.failWith = failure;
   notifier.conversaTap();
@@ -75,7 +75,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
 
-      await _haltWith(harness, notifier, read, const RoomRefused());
+      await _haltWith(harness, notifier, read, const Refused('UNAUTHORIZED'));
       final turns = harness.room.turnsSent;
 
       notifier.resolveWithPerson();
@@ -116,7 +116,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
-    await _haltWith(harness, notifier, read, const RoomRefused());
+    await _haltWith(harness, notifier, read, const Refused('UNAUTHORIZED'));
     final opened = _sessionsOpened(harness);
 
     notifier.resolveWithPerson();
@@ -138,7 +138,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
-    await _haltWith(harness, notifier, read, const RoomRefused());
+    await _haltWith(harness, notifier, read, const Refused('UNAUTHORIZED'));
 
     notifier.resolveWithPerson();
     await waitFor(
@@ -227,7 +227,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
 
-      await _haltWith(harness, notifier, read, const RoomRefused());
+      await _haltWith(harness, notifier, read, const Refused('UNAUTHORIZED'));
       final turns = harness.room.turnsSent;
 
       notifier.resolveWithPerson();
@@ -259,7 +259,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
 
-      await _haltWith(harness, notifier, read, const RoomRefused());
+      await _haltWith(harness, notifier, read, const Refused('UNAUTHORIZED'));
 
       notifier.resolveWithPerson();
       await waitFor(
@@ -298,7 +298,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
-    await _haltWith(harness, notifier, read, const RoomRefused());
+    await _haltWith(harness, notifier, read, const Refused('UNAUTHORIZED'));
 
     notifier.resolveWithPerson();
     await waitFor(

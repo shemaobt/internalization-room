@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
@@ -88,7 +89,7 @@ Future<_Retomada> _reabrir(
   required BackTranslationProgress contado,
   int partes = 3,
   List<TakeView> naSala = const [],
-  Exception? semLista,
+  RoomFailure? semLista,
 }) async {
   final casa = Directory.systemTemp.createTempSync('sala-trecho-na-parte');
   addTearDown(() => casa.deleteSync(recursive: true));
@@ -266,7 +267,7 @@ void main() {
     final it = await _reabrir(
       harness,
       contado: _contadoDeFora,
-      semLista: const RoomUnavailable('sem rede'),
+      semLista: const NetworkFailed('sem rede'),
     );
     await settle();
 
