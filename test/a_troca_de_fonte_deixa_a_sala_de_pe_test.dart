@@ -39,7 +39,7 @@ void main() {
       expect(harness.playback.sounding, isFalse);
       expect(estado().btTrechoTocando, isFalse);
       expect(estado().btRetroTocando, isFalse);
-      expect(estado().voice, isNot(VoiceState.needsPerson));
+      expect(estado().needsPerson, isFalse);
 
       final faladas = harness.voice.played.length;
       sala.retroTap();
@@ -87,7 +87,7 @@ void main() {
         'o microfone abrir',
         () => it.estado.btPhase == BtPhase.capturing,
       );
-      expect(it.estado.voice, isNot(VoiceState.needsPerson));
+      expect(it.estado.needsPerson, isFalse);
     },
   );
 }

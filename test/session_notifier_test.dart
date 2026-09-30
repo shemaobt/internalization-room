@@ -2041,7 +2041,7 @@ void main() {
   });
 
   test(
-    'a passage opening retried after the room stalls asks again with the same turn id',
+    'a passage opening refused and lifted is asked again under a fresh turn id',
     () async {
       final harness = SalaHarness()
         ..room.failHeldTurnWith = const Refused('BAD_REQUEST');
@@ -2058,27 +2058,17 @@ void main() {
       harness.room.theDeskAttended();
       notifier.resolveWithPerson();
       await waitFor(
-        'o círculo voltar ao convite',
-        () => container.read(salaSessionProvider).voice == VoiceState.invite,
+        'a abertura ser pedida de novo',
+        () => harness.room.turnIdsAsked.length == 2,
       );
-      notifier.conversaTap();
-      await settle();
 
-      expect(
-        harness.room.turnIdsAsked,
-        hasLength(2),
-        reason:
-            'a primeira falha ao abrir já é a chamada de turno que para a sala; '
-            'o toque que segue o atendimento precisa dos dois pedidos de turno '
-            'para haver o que comparar',
-      );
       expect(harness.room.turnIdsAsked[0], isNotNull);
       expect(
         harness.room.turnIdsAsked[1],
-        harness.room.turnIdsAsked[0],
+        isNot(harness.room.turnIdsAsked[0]),
         reason:
-            'um id novo a cada tentativa e o servidor nunca reconhece '
-            'a segunda como a mesma abertura que a primeira já começou a escrever',
+            'a soltura nunca reenvia com a mesma chave o pedido que parou a '
+            'sala: o servidor devolveria a mesma resposta lembrada',
       );
     },
   );

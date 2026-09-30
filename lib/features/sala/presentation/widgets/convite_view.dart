@@ -22,6 +22,7 @@ class ConviteView extends ConsumerWidget {
       children: [
         FacilitatorCircle(
           size: facilitatorCircleSize,
+          halt: session.halt,
           voice: session.voice,
           reach: session.reach,
           beckon: session.awaitingFirstTouch,

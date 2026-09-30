@@ -37,8 +37,8 @@ void main() {
           'este aviso jamais tocou',
     );
     expect(
-      read().voice,
-      isNot(VoiceState.needsPerson),
+      read().needsPerson,
+      isFalse,
       reason:
           'a equipe estava no meio da retro e nada lhe foi recusado: um '
           'aviso que acabasse pela porta da parada teria de parar a sala '
@@ -109,10 +109,7 @@ void main() {
 
       harness.room.theDeskAttended();
 
-      await waitFor(
-        'o círculo voltar ao convite',
-        () => read().voice == VoiceState.invite,
-      );
+      await waitFor('o círculo voltar ao convite', () => !read().needsPerson);
       expect(read().warning, isFalse);
     },
   );
@@ -254,10 +251,7 @@ void main() {
       // mas a sessão continua pedindo alguém.
       harness.room.serverHalt = HaltKind.warning;
 
-      await waitFor(
-        'o círculo voltar ao convite',
-        () => read().voice == VoiceState.invite,
-      );
+      await waitFor('o círculo voltar ao convite', () => !read().needsPerson);
 
       expect(
         read().warning,
@@ -323,10 +317,7 @@ void main() {
     // Fora, o toque longo é a tentativa de voltar e continua a ser a saída
     // local que sempre foi — mas a sessão continua marcada com o aviso.
     notifier.resolveWithPerson();
-    await waitFor(
-      'o círculo voltar ao convite',
-      () => read().voice == VoiceState.invite,
-    );
+    await waitFor('o círculo voltar ao convite', () => !read().needsPerson);
 
     expect(
       read().warning,

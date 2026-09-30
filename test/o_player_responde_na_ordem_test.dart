@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'playback_ceiling_test.dart' show gravaParte;
@@ -51,8 +50,8 @@ void main() {
 
     final estado = cena.container.read(salaSessionProvider);
     expect(
-      estado.voice,
-      isNot(VoiceState.needsPerson),
+      estado.needsPerson,
+      isFalse,
       reason:
           'pino de regressão na sala: quem prova que a abertura '
           'atropelada não vira falha é o teste do repositório, e aqui se '
@@ -102,7 +101,7 @@ void main() {
             'anunciada armaria o relógio de um clipe que nunca tocou',
       );
       final estado = cena.container.read(salaSessionProvider);
-      expect(estado.voice, isNot(VoiceState.needsPerson));
+      expect(estado.needsPerson, isFalse);
       expect(estado.playPing, isTrue);
     },
   );

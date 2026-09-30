@@ -210,7 +210,7 @@ void main() {
       await settle();
 
       expect(read().needsPerson, isTrue);
-      expect(read().voice, VoiceState.needsPerson);
+      expect(read().needsPerson, isTrue);
 
       harness.room.theDeskAttended();
       await waitFor(
@@ -235,7 +235,7 @@ void main() {
 
     await _haltOnTheRecorder(harness, notifier, read);
     await _theLadderClimbs(harness, 'com o tablet parado');
-    expect(read().voice, VoiceState.needsPerson);
+    expect(read().needsPerson, isTrue);
   });
 
   test('T6: the offline notice is spoken once for the whole fall', () async {
@@ -381,11 +381,11 @@ void main() {
       harness.room.failHeldTurnWith = const NetworkFailed('sem rede');
       harness.room.finishHeldTurn();
       await settle();
-      expect(read().voice, VoiceState.needsPerson);
+      expect(read().needsPerson, isTrue);
 
       harness.network.networkComesBack();
       await waitFor('a sala voltar', () => read().reach == RoomReach.fine);
-      expect(read().voice, VoiceState.needsPerson);
+      expect(read().needsPerson, isTrue);
     },
   );
 

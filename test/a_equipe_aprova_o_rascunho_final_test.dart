@@ -6,6 +6,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/approval_answer.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
+import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
@@ -307,8 +308,8 @@ void main() {
       await _aprovarEEsperar(tester);
 
       expect(
-        _circulo(tester).voice,
-        VoiceState.needsPerson,
+        _circulo(tester).halt,
+        isA<Blocking>(),
         reason:
             'o círculo era a única coisa da tela que ainda podia dizer o '
             'que houve, e desenhá-lo verde por cima do halt dizia à equipe que '
@@ -818,6 +819,30 @@ void main() {
     closeTheRoom(it.container);
   });
 
+  testWidgets('the read after a refused approval applies the halt it '
+      'carries, as one the room only read', (tester) async {
+    final it = await _ateAConferida(tester);
+    it.harness.room
+      ..releaseBlockers = const ['untold_stretch']
+      ..releaseUntoldSegmentId = 'trecho-1'
+      ..serverStatus = 'needs_person'
+      ..serverHalt = HaltKind.blocking;
+
+    await _aprovarEEsperar(tester);
+
+    expect(
+      _estado(it.container).needsPerson,
+      isTrue,
+      reason: 'a leitura de volta trouxe a parada, e ela vale inteira',
+    );
+    expect(
+      it.harness.room.personsAsked,
+      0,
+      reason: 'uma parada lida não é um novo pedido de pessoa',
+    );
+    closeTheRoom(it.container);
+  });
+
   for (final codigo in const [
     'telling_back_not_checked',
     'telling_back_never_analysed',
@@ -1317,7 +1342,7 @@ void main() {
       await tester.tap(byLabel('Approve as the final draft'));
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(_circulo(tester).voice, VoiceState.needsPerson);
+      expect(_circulo(tester).halt, isA<Blocking>());
       expect(
         _circulo(tester).semanticLabel,
         'A moment for someone',

@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
+import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
 
-Widget _circleIn(VoiceState voice) => MaterialApp(
+Widget _circleIn(VoiceState voice, {Halt halt = const NoHalt()}) => MaterialApp(
   theme: AppTheme.light,
   home: Scaffold(
     body: Center(
       child: FacilitatorCircle(
+        halt: halt,
         size: 196,
         voice: voice,
         semanticLabel: 'circulo',
@@ -175,12 +177,12 @@ void main() {
   });
 
   testWidgets('a halted room is still visibly running', (tester) async {
-    for (final voice in [
-      VoiceState.needsPerson,
-      VoiceState.offline,
-      VoiceState.blocked,
+    for (final (name, voice, halt) in [
+      ('needsPerson', VoiceState.invite, const Blocking(NothingKept())),
+      ('offline', VoiceState.offline, const NoHalt()),
+      ('blocked', VoiceState.blocked, const NoHalt()),
     ]) {
-      final seen = await _scalesOver(tester, _circleIn(voice));
+      final seen = await _scalesOver(tester, _circleIn(voice, halt: halt));
       final swing =
           seen.reduce((a, b) => a > b ? a : b) -
           seen.reduce((a, b) => a < b ? a : b);
@@ -189,7 +191,7 @@ void main() {
         swing,
         greaterThan(0.015),
         reason:
-            '$voice fala sua linha uma vez e depois nunca mais; sem movimento, '
+            '$name fala sua linha uma vez e depois nunca mais; sem movimento, '
             'olhar para essa tela não distingue uma sala esperando de um app morto',
       );
     }

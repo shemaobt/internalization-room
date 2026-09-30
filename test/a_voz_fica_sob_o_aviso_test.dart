@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
+import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
@@ -12,13 +13,15 @@ Future<void> _pumpCircle(
   VoiceState voice, {
   Tongue? tongue,
   String? warning,
+  Halt halt = const NoHalt(),
 }) => tester.pumpWidget(
   MaterialApp(
-    key: ValueKey('$voice-$tongue-$warning'),
+    key: ValueKey('$voice-$halt-$tongue-$warning'),
     theme: AppTheme.light,
     home: Scaffold(
       body: Center(
         child: FacilitatorCircle(
+          halt: halt,
           size: 158,
           voice: voice,
           tongue: tongue,
@@ -116,17 +119,17 @@ void main() {
   ) async {
     final handle = tester.ensureSemantics();
 
-    for (final voice in [
-      VoiceState.needsPerson,
-      VoiceState.offline,
-      VoiceState.blocked,
+    for (final (name, voice, halt) in [
+      ('needsPerson', VoiceState.invite, const Blocking(NothingKept())),
+      ('offline', VoiceState.offline, const NoHalt()),
+      ('blocked', VoiceState.blocked, const NoHalt()),
     ]) {
-      await _pumpCircle(tester, voice, warning: _aviso);
+      await _pumpCircle(tester, voice, halt: halt, warning: _aviso);
       expect(
         find.bySemanticsLabel(_aviso),
         findsNothing,
         reason:
-            'um aviso é menor que qualquer parada; ${voice.name} já diz que '
+            'um aviso é menor que qualquer parada; $name já diz que '
             'a equipe deve esperar, e o aviso não soma nada a isso',
       );
     }

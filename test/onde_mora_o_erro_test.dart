@@ -272,8 +272,8 @@ void main() {
           'a mesa não é chamada por um aviso',
     );
     expect(
-      avisada.voice,
-      isNot(VoiceState.needsPerson),
+      avisada.needsPerson,
+      isFalse,
       reason: 'o círculo tem de ficar na cor do aviso, não na da parada',
     );
     expect(

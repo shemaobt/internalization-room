@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
+import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
@@ -14,15 +15,17 @@ Future<void> _pumpCircle(
   bool peerCue = false,
   bool noteMode = false,
   bool inPlace = false,
+  Halt halt = const NoHalt(),
 }) => tester.pumpWidget(
   MaterialApp(
     key: inPlace
         ? const ValueKey('o mesmo círculo')
-        : ValueKey('$voice-$peerCue-$noteMode'),
+        : ValueKey('$voice-$halt-$peerCue-$noteMode'),
     theme: AppTheme.light,
     home: Scaffold(
       body: Center(
         child: FacilitatorCircle(
+          halt: halt,
           size: 158,
           voice: voice,
           peerCue: peerCue,
@@ -65,17 +68,19 @@ Future<void> _pumpStillCircle(
   WidgetTester tester,
   VoiceState voice, {
   bool inPlace = false,
+  Halt halt = const NoHalt(),
 }) => tester.pumpWidget(
   MaterialApp(
     key: inPlace
         ? const ValueKey('o mesmo círculo parado')
-        : ValueKey('parado-$voice'),
+        : ValueKey('parado-$voice-$halt'),
     theme: AppTheme.light,
     home: MediaQuery(
       data: const MediaQueryData(disableAnimations: true),
       child: Scaffold(
         body: Center(
           child: FacilitatorCircle(
+            halt: halt,
             size: 158,
             voice: voice,
             semanticLabel: 'circulo',
@@ -135,13 +140,13 @@ void main() {
   testWidgets(
     'a tablet that asks for less motion gets a circle that holds still',
     (tester) async {
-      for (final voice in [
-        VoiceState.invite,
-        VoiceState.listening,
-        VoiceState.speaking,
-        VoiceState.needsPerson,
+      for (final (name, voice, halt) in [
+        ('invite', VoiceState.invite, const NoHalt()),
+        ('listening', VoiceState.listening, const NoHalt()),
+        ('speaking', VoiceState.speaking, const NoHalt()),
+        ('needsPerson', VoiceState.invite, const Blocking(NothingKept())),
       ]) {
-        await _pumpStillCircle(tester, voice);
+        await _pumpStillCircle(tester, voice, halt: halt);
         final drawn = await _overAMinuteOfFrames(tester);
 
         expect(
@@ -149,7 +154,7 @@ void main() {
           lessThan(2),
           reason:
               'nada na sala lia a preferência de movimento reduzido, e '
-              '${voice.name} respirava, pulsava e jogava anéis para fora do '
+              '$name respirava, pulsava e jogava anéis para fora do '
               'mesmo jeito para quem desliga animações justamente porque esse '
               'movimento the faz mal',
         );
@@ -277,19 +282,21 @@ void main() {
   testWidgets(
     'only a stop says itself with a mark; the room\'s own voices draw none',
     (tester) async {
-      const marks = {
-        VoiceState.needsPerson: LucideIcons.userCheck,
-        VoiceState.offline: LucideIcons.cloudOff,
-        VoiceState.blocked: LucideIcons.micOff,
+      final marks = {
+        ('needsPerson', VoiceState.invite, const Blocking(NothingKept())):
+            LucideIcons.userCheck,
+        ('offline', VoiceState.offline, const NoHalt()): LucideIcons.cloudOff,
+        ('blocked', VoiceState.blocked, const NoHalt()): LucideIcons.micOff,
       };
 
       for (final voice in marks.entries) {
-        await _pumpCircle(tester, voice.key);
+        final (name, state, halt) = voice.key;
+        await _pumpCircle(tester, state, halt: halt);
         expect(
           _glyphs(tester),
           [voice.value],
           reason:
-              'uma parada pede algo de alguém, e ${voice.key.name} só se '
+              'uma parada pede algo de alguém, e $name só se '
               'distinguia dos vizinhos pela cor — que é o que uma tela lida de '
               'longe perde primeiro',
         );

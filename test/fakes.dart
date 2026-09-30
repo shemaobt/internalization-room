@@ -1949,6 +1949,8 @@ class SalaHarness {
   final FakeScreenAwake awake = FakeScreenAwake();
   final FakeLinkedTeam vinculo;
   final Duration settleDelay;
+
+  final Duration? idleWatch;
   final List<Duration> retryBackoff;
   final Duration? busyCeiling;
   final Duration resendMargin;
@@ -1977,6 +1979,7 @@ class SalaHarness {
     ),
     this.linkPoll,
     this.settleDelay = const Duration(milliseconds: 60),
+    this.idleWatch,
     this.retryBackoff = const [Duration(milliseconds: 20)],
     this.busyCeiling,
     this.resendMargin = const Duration(milliseconds: 50),
@@ -2035,6 +2038,7 @@ class SalaHarness {
     linkPollIntervalProvider.overrideWithValue(linkPoll),
     screenAwakeProvider.overrideWithValue(awake),
     roomPollDelayProvider.overrideWithValue(settleDelay),
+    idleWatchDelayProvider.overrideWithValue(idleWatch),
     coverageFallbackDelayProvider.overrideWithValue(settleDelay),
     roomRetryBackoffProvider.overrideWithValue(retryBackoff),
     busyStateCeilingProvider.overrideWithValue(busyCeiling),

@@ -123,10 +123,7 @@ Future<void> _liftsTheHalt(
   SalaSessionState Function() read,
 ) async {
   harness.room.theDeskAttended();
-  await waitFor(
-    'o círculo voltar ao convite',
-    () => read().voice == VoiceState.invite,
-  );
+  await waitFor('o círculo voltar ao convite', () => !read().needsPerson);
 }
 
 /// A team standing on a freshly recorded part, nothing heard yet since the cursor.
