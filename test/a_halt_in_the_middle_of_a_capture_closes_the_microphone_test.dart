@@ -110,8 +110,8 @@ void main() {
 
     await _haltLandsBlocking(harness, read);
 
-    expect(read().voice, VoiceState.needsPerson);
     expect(read().needsPerson, isTrue);
+    expect(read().voice, isNot(VoiceState.listening));
     expect(
       harness.sounds.sublist(captureIndex + 1),
       contains('recorder:discard'),
@@ -150,10 +150,7 @@ void main() {
     final chunksBefore = harness.room.chunksSent;
 
     harness.room.theDeskAttended();
-    await waitFor(
-      'o círculo voltar ao convite',
-      () => read().voice == VoiceState.invite,
-    );
+    await waitFor('o círculo voltar ao convite', () => !read().needsPerson);
 
     await notifier.confirmarTraducao();
     await settle();
@@ -176,10 +173,7 @@ void main() {
     );
     await _haltLandsBlocking(harness, read);
     harness.room.theDeskAttended();
-    await waitFor(
-      'o círculo voltar ao convite',
-      () => read().voice == VoiceState.invite,
-    );
+    await waitFor('o círculo voltar ao convite', () => !read().needsPerson);
 
     harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();

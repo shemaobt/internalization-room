@@ -176,7 +176,7 @@ void main() {
   );
 
   test(
-    'a panorama spoke retried after the room stalls asks again with the same turn id',
+    'a panorama spoke refused and lifted is asked again under a fresh turn id',
     () async {
       final harness = SalaHarness()
         ..room.passages = const [_panorama, _p01]
@@ -197,7 +197,9 @@ void main() {
       notifier.resolveWithPerson();
       await waitFor(
         'o círculo voltar ao convite',
-        () => container.read(salaSessionProvider).voice == VoiceState.invite,
+        () =>
+            !container.read(salaSessionProvider).needsPerson &&
+            container.read(salaSessionProvider).voice == VoiceState.invite,
       );
       notifier.entrarNaOferecida();
       await settle();
@@ -213,10 +215,10 @@ void main() {
       expect(harness.room.turnIdsAsked[0], isNotNull);
       expect(
         harness.room.turnIdsAsked[1],
-        harness.room.turnIdsAsked[0],
+        isNot(harness.room.turnIdsAsked[0]),
         reason:
-            'um id novo a cada tentativa e o servidor nunca reconhece '
-            'a segunda como a mesma abertura que a primeira já começou a escrever',
+            'a soltura nunca reenvia com a mesma chave o pedido que parou a '
+            'sala: o servidor devolveria a mesma resposta lembrada',
       );
     },
   );

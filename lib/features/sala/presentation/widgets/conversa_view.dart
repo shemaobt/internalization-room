@@ -29,6 +29,7 @@ class ConversaView extends ConsumerWidget {
               const SizedBox(height: 26),
               FacilitatorCircle(
                 size: 158,
+                halt: session.halt,
                 voice: session.voice,
                 reach: session.reach,
                 noteMode: session.noteMode,

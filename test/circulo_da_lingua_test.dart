@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
@@ -64,13 +65,15 @@ Future<void> _pumpCirculo(
   ThemeData theme, {
   bool peerCue = false,
   bool warning = false,
+  Halt halt = const NoHalt(),
 }) => tester.pumpWidget(
   MaterialApp(
-    key: ValueKey('$voice-$peerCue-$warning-${theme.brightness}'),
+    key: ValueKey('$voice-$halt-$peerCue-$warning-${theme.brightness}'),
     theme: theme,
     home: Scaffold(
       body: Center(
         child: FacilitatorCircle(
+          halt: halt,
           size: 150,
           voice: voice,
           peerCue: peerCue,
@@ -132,28 +135,38 @@ void main() {
     ]) {
       final (theme, colors) = tema;
       final deAntes = {
-        VoiceState.invite: BeadStyles.telha(colors),
-        VoiceState.speaking: BeadStyles.telha(colors),
-        VoiceState.listening: BeadStyles.azul,
-        VoiceState.thinking: BeadStyles.clay(colors),
-        VoiceState.done: BeadStyles.verde,
-        VoiceState.needsPerson: BeadStyles.clay(colors),
-        VoiceState.offline: BeadStyles.clay(colors),
-        VoiceState.blocked: BeadStyles.clay(colors),
+        ('invite', VoiceState.invite, const NoHalt()): BeadStyles.telha(colors),
+        ('speaking', VoiceState.speaking, const NoHalt()): BeadStyles.telha(
+          colors,
+        ),
+        ('listening', VoiceState.listening, const NoHalt()): BeadStyles.azul,
+        ('thinking', VoiceState.thinking, const NoHalt()): BeadStyles.clay(
+          colors,
+        ),
+        ('done', VoiceState.done, const NoHalt()): BeadStyles.verde,
+        ('needsPerson', VoiceState.invite, const Blocking(NothingKept())):
+            BeadStyles.clay(colors),
+        ('offline', VoiceState.offline, const NoHalt()): BeadStyles.clay(
+          colors,
+        ),
+        ('blocked', VoiceState.blocked, const NoHalt()): BeadStyles.clay(
+          colors,
+        ),
       };
 
       for (final entrada in deAntes.entries) {
+        final (nome, voz, parada) = entrada.key;
         // Sem quadro nenhum depois de montar: o barro do pensando usava a respiração
         // para clarear, e um `pump` a mais mudava a cor que `_disco()` lê. O disco
         // virou um widget fixo — só a opacidade, a escala e o brilho ao redor
         // respiram —, então o quadro que `pumpWidget` desenha já é qualquer outro.
-        await _pumpCirculo(tester, entrada.key, theme);
+        await _pumpCirculo(tester, voz, theme, halt: parada);
         expect(
           _disco(tester),
           entrada.value,
           reason:
               'um switch mexido vaza pelos ramos vizinhos, e '
-              '${entrada.key.name} não tem nada a ver com a língua materna',
+              '$nome não tem nada a ver com a língua materna',
         );
       }
 
@@ -174,8 +187,9 @@ void main() {
   ) async {
     await _pumpCirculo(
       tester,
-      VoiceState.needsPerson,
+      VoiceState.invite,
       AppTheme.light,
+      halt: const Blocking(NothingKept()),
       warning: true,
     );
 
@@ -199,38 +213,43 @@ void main() {
   testWidgets(
     'o disco só fica verde com o veredito limpo, o aviso nunca o acende',
     (tester) async {
-      const halted = {VoiceState.needsPerson, VoiceState.offline};
       const vozes = [
-        VoiceState.invite,
-        VoiceState.listening,
-        VoiceState.speaking,
-        VoiceState.done,
-        VoiceState.needsPerson,
-        VoiceState.offline,
+        ('invite', VoiceState.invite, NoHalt()),
+        ('listening', VoiceState.listening, NoHalt()),
+        ('speaking', VoiceState.speaking, NoHalt()),
+        ('done', VoiceState.done, NoHalt()),
+        ('needsPerson', VoiceState.invite, Blocking(NothingKept())),
+        ('offline', VoiceState.offline, NoHalt()),
       ];
 
-      for (final voz in vozes) {
+      for (final (nome, voz, parada) in vozes) {
         for (final aviso in [true, false]) {
-          await _pumpCirculo(tester, voz, AppTheme.light, warning: aviso);
-          final verde = voz == VoiceState.done;
+          await _pumpCirculo(
+            tester,
+            voz,
+            AppTheme.light,
+            halt: parada,
+            warning: aviso,
+          );
+          final verde = voz == VoiceState.done && parada is NoHalt;
 
           expect(
             _disco(tester) == BeadStyles.verde,
             verde,
             reason: verde
-                ? '${voz.name} é o veredito limpo, e é a única voz que '
+                ? '$nome é o veredito limpo, e é a única voz que '
                       'ainda acende o disco de "pronto"'
-                : '${voz.name} com aviso=$aviso não acende o disco: o aviso '
+                : '$nome com aviso=$aviso não acende o disco: o aviso '
                       'deixou de ser uma cor do disco (Henok, revertendo o '
                       'PR #230)',
           );
 
-          if (halted.contains(voz)) {
+          if (parada is Blocking || voz == VoiceState.offline) {
             expect(
               _haltedGlyph(tester),
               isTrue,
               reason:
-                  '${voz.name} sempre desenha o seu ícone, com aviso ou '
+                  '$nome sempre desenha o seu ícone, com aviso ou '
                   'sem ele',
             );
           }

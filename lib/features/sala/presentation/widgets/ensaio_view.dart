@@ -35,6 +35,7 @@ class EnsaioView extends ConsumerWidget {
         const Spacer(flex: 270),
         FacilitatorCircle(
           size: facilitatorCircleSize,
+          halt: session.halt,
           voice: _voice(session),
           tongue: Tongue.motherTongue,
           warning: session.warning ? warningNoticeLabelFor(language) : null,

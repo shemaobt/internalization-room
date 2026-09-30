@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
@@ -803,6 +804,80 @@ void main() {
       reason:
           'duas falhas comuns depois da recusa são o primeiro e o segundo '
           'strike',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('the read after a correction refused because the stretch no '
+      'longer counts applies the halt and the warning it carries', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await ateOTrechoNomeado(tester, harness);
+    final sala = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    harness.room.recordThePartAgain(harness.room.takeIds.first);
+    harness.room
+      ..serverStatus = 'needs_person'
+      ..serverHalt = HaltKind.blocking;
+    await confirmarEEsperar(tester);
+
+    expect(read().needsPerson, isTrue, reason: 'a releitura trouxe a parada');
+    expect(
+      harness.room.personsAsked,
+      0,
+      reason: 'uma parada lida não é um novo pedido de pessoa',
+    );
+    final capturas = harness.recorder.captures;
+    sala.retroTap();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      harness.recorder.captures,
+      capturas,
+      reason: 'todo gesto fecha sob a parada',
+    );
+
+    harness.room.serverHalt = HaltKind.warning;
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(read().needsPerson, isFalse);
+    expect(read().warning, isTrue, reason: 'a segunda leitura trouxe o aviso');
+    final lidas = stateReads(harness);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      stateReads(harness),
+      greaterThan(lidas),
+      reason: 'a vigia segue armada sob o aviso',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('the read after a verdict applies the halt it carries, as one '
+      'the room only read', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness, partes: 1);
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    await tocar(tester, confirmar);
+    await contarAteOFimDaParte(tester, harness);
+    harness.room
+      ..verdictChecked = false
+      ..verdictUntoldSegmentId = 'trecho-1'
+      ..serverStatus = 'needs_person'
+      ..serverHalt = HaltKind.blocking;
+    await tocar(tester, conferir);
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(
+      container.read(salaSessionProvider).needsPerson,
+      isTrue,
+      reason: 'a releitura dos trechos trouxe a parada, e ela vale inteira',
+    );
+    expect(
+      harness.room.personsAsked,
+      0,
+      reason: 'uma parada lida não é um novo pedido de pessoa',
     );
     closeTheRoom(container);
   });

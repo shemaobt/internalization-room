@@ -19,6 +19,8 @@ import '../domain/coverage.dart';
 import '../domain/coverage_event.dart';
 import '../domain/room_reach.dart';
 import '../domain/session_snapshot.dart';
+import '../domain/halt.dart';
+import '../domain/machine.dart';
 import '../domain/session_state.dart';
 import '../domain/spoken_line.dart';
 import '../domain/turn_clock.dart';
@@ -39,6 +41,8 @@ import 'work_in_progress.dart';
 final roomPollDelayProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 30),
 );
+
+final watchesWithoutAHaltProvider = Provider<bool>((ref) => true);
 
 final coverageFallbackDelayProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 30),
@@ -205,7 +209,10 @@ _PortaDaRecusa? _portaDaRecusa(String blocker) => switch (blocker) {
 
 class SalaSessionNotifier extends Notifier<SalaSessionState> {
   final Map<String, Timer> _timers = {};
-  String? _haltWatched;
+  Timer? _watch;
+  int _readsSent = 0;
+  int _readsApplied = 0;
+  int _readsSentBeforeTheCall = 0;
   int _epoch = 0;
   int _unplayableTurns = 0;
   int _roomFailures = 0;
@@ -261,9 +268,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// partway through.
   bool _parteJaTocou = false;
 
-  /// What a halt found the room doing, read before `_silenceTheRoom` clears every flag
-  /// that would answer the question afterwards.
-  bool _soavaQuandoParou = false;
   Duration get _trechoStart => state.btCursor;
 
   /// Moving the cursor always asks the head-since-cursor question again: whatever the
@@ -363,20 +367,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// where nobody was looking.
   bool _gone = false;
 
-  /// Whether the halt the room is standing in is a resume that could not fetch the
-  /// rehearsal.
-  ///
-  /// Letting the team out of it has to try the resume again. Handed the conversa of the
-  /// session they were resuming — which is where they stand while it runs — the next
-  /// rehearsal they record goes up over the one the room is already holding, which is the
-  /// very thing the fetch exists to prevent.
-  bool _haltedResuming = false;
-
   @override
   SalaSessionState build() {
     ref.onDispose(() {
       _gone = true;
       _cancelTimers();
+      _endTheWatch();
       _ladder?.cancel();
       unawaited(_playbackDone?.cancel());
       unawaited(_playbackFailed?.cancel());
@@ -405,11 +401,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       timer.cancel();
     }
     _timers.clear();
-    // The mark says the room is being watched out of a halt, and the beat it names has
-    // just been cancelled with the rest. Left standing, it told the next halt in the same
-    // session that a watch was already running — a room that lost the network under a
-    // halt came back stopped, unwatched, and the desk's mark never reached it again.
-    _haltWatched = null;
   }
 
   void _clearAll() {
@@ -510,7 +501,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final undo = _onPlaybackFailed;
     _onPlaybackFailed = null;
     undo?.call();
-    _haltForAPerson();
+    _raiseAHalt();
   }
 
   void _releasePlayback() {
@@ -627,7 +618,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// the circle answers a tap on it with nothing rather than falling back to the trecho.
   Future<void> _repeatTheFinding() async {
     final line = state.lastSpoken;
-    if (line == null || state.voice != VoiceState.invite) return;
+    if (line == null || state.voice != VoiceState.invite || state.needsPerson) {
+      return;
+    }
     await _repeatLastSpoken(line);
   }
 
@@ -800,7 +793,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _unplayableTurns++;
     _calmTurns = 0;
     if (_unplayableTurns >= _unplayableTurnsBeforeNeedsPerson) {
-      _haltForAPerson();
+      _raiseAHalt();
       return;
     }
     state = state.copyWith(
@@ -816,110 +809,203 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// catches all miss. That is why this halt never asks: touching `Env` for a device-scoped
   /// ask would throw that same uncatchable `Error`, and this method is itself the only
   /// signal that there is no server to reach.
-  void haltForABrokenBuild() => _haltForAPerson(reachable: false);
+  void haltForABrokenBuild() => _raiseAHalt(callsForAPerson: false);
 
-  void _haltForAPerson({
-    bool sessionIsGone = false,
-    bool reachable = true,
-    bool read = false,
-    bool wheelExhausted = false,
-  }) {
-    // A lift only replays what this halt actually caught sounding — a part, a bead
-    // replay, or a part chosen but never landed yet. A held part, or one already at its
-    // end with nothing else sounding over it, answers false on its own: an ended part
-    // clears `btClipRodando` and, having played once, `_parteJaTocou` is already true.
-    // Read before the silence, because that is what clears the very flags this asks
-    // about.
-    _soavaQuandoParou =
-        state.stage == SalaStage.retro &&
+  void _raiseAHalt({Kept? kept, bool callsForAPerson = true}) => _dispatch(
+    RoomRaisedAHalt(
+      sounding: kept ?? _whatIsSounding(),
+      callsForAPerson: callsForAPerson,
+    ),
+  );
+
+  void _raiseAHaltWithNoSession() {
+    state = state.copyWith(clearSession: true);
+    _endTheWatch();
+    _raiseAHalt();
+  }
+
+  Kept _whatIsSounding() {
+    if (state.stage == SalaStage.retro &&
         (state.btClipRodando ||
             state.btTrechoTocando ||
             state.btRetroTocando ||
-            !_parteJaTocou);
-    _silenceTheRoom();
-    if (state.btPhase == BtPhase.capturing) {
-      unawaited(_recorder.discard());
-      _undoTheListening();
+            !_parteJaTocou)) {
+      return const ThePart();
     }
+    final opening = _openTurnId;
+    if (_openingOwed && opening != null) return TheOpening(opening);
+    return const NothingKept();
+  }
+
+  void _dispatch(MachineEvent event) {
+    final (halt, effects) = reduce(state.halt, event);
+    state = state.copyWith(halt: halt);
+    for (final effect in effects) {
+      switch (effect) {
+        case SilenceTheRoom():
+          _silenceTheHaltedRoom();
+        case CloseAndDiscardTheMic():
+          _closeAndDiscardTheMic();
+        case ArmTheWatch():
+          _armTheWatch();
+        case CallForAPerson():
+          _tellTheRoomAPersonIsNeeded();
+        case StopCallingForAPerson():
+          _stopCallingForAPerson();
+        case TellAPersonArrived():
+          _tellTheRoomAPersonArrived();
+        case ReadTheState():
+          unawaited(_readTheState());
+        case ReplayTheSound(:final kept):
+          _replay(kept);
+        case AskTheOpeningAgain(:final freshTurnId):
+          _openTurnId = freshTurnId;
+          unawaited(_askForTheOpeningAgain());
+      }
+    }
+  }
+
+  void _silenceTheHaltedRoom() {
+    _openTurnId = null;
+    _silenceTheRoom();
     _leaveThinking();
     state = state.copyWith(
-      voice: VoiceState.needsPerson,
+      voice: state.voice == VoiceState.listening ? null : VoiceState.invite,
       peerCue: false,
-      clearSession: sessionIsGone,
-      // Set on every call, never left standing from an earlier one: a stall entering
-      // the panorama spoke also halts without leaving the Choice's stage, and lifting
-      // that halt must retry with the same turn id, not reload the wheel out from
-      // under it.
-      wheelHalted: wheelExhausted,
     );
-    if (read) {
-      _watchTheHalt();
+  }
+
+  bool get _aMicrophoneIsOpen =>
+      _recordingStarting ||
+      state.voice == VoiceState.listening ||
+      state.btPhase == BtPhase.capturing ||
+      state.ensaio == EnsaioStatus.recording;
+
+  void _closeAndDiscardTheMic() {
+    if (!_aMicrophoneIsOpen) return;
+    _recordingStarting = false;
+    unawaited(_recorder.discard());
+    _undoTheListening();
+    state = state.copyWith(voice: VoiceState.invite);
+  }
+
+  void _armTheWatch() {
+    final period = ref.read(roomPollDelayProvider);
+    if ((state.halt is NoHalt && !ref.read(watchesWithoutAHaltProvider)) ||
+        state.sessionId == null) {
+      _endTheWatch();
       return;
     }
-    if (reachable) _tellTheRoomAPersonIsNeeded();
-    if (_personAsked) _watchTheHalt();
-  }
-
-  /// A blocking halt is lifted by a facilitator at the desk, not by this tablet.
-  ///
-  /// The only way out used to be a long press, which asked nobody: the team let
-  /// themselves out of a room no one had looked at, and a room already attended stayed
-  /// shut until somebody thought to hold the screen.
-  void _watchTheHalt() {
-    final sessionId = state.sessionId;
-    if (sessionId == null || _haltWatched == sessionId) return;
-    _haltWatched = sessionId;
-    _beatTheWatch();
-  }
-
-  /// Starting the watch again on a halt already being watched would push the next read
-  /// away by a whole beat, every time. A settle scheduled by an older turn still lands
-  /// inside a halt, finds `needs_person`, and halts a second time for the same reason —
-  /// so the answer that lets the team out would keep being deferred by the room noticing
-  /// again what it already knew.
-  void _beatTheWatch() {
-    _after('halt', ref.read(roomPollDelayProvider), () {
-      unawaited(_askIfTheHaltIsOver());
+    if (_watch?.isActive ?? false) return;
+    _watch = Timer(period, () {
+      _watch = null;
+      _dispatch(const WatchFired());
     });
   }
 
-  Future<void> _askIfTheHaltIsOver() async {
-    final sessionId = _haltWatched;
+  void _endTheWatch() {
+    _watch?.cancel();
+    _watch = null;
+  }
+
+  Future<void> _readTheState() async {
+    final sessionId = state.sessionId;
     if (sessionId == null) return;
-    final epoch = _epoch;
+    final sent = ++_readsSent;
+    final row = state.btTrechos;
     final answer = await _room.fetchState(sessionId);
-    if (epoch != _epoch || _haltWatched != sessionId) return;
+    if (_gone || state.sessionId != sessionId) return;
     switch (answer) {
       case Answered(value: final snapshot):
-        state = state.copyWith(warning: snapshot.halt == HaltKind.warning);
-        if (snapshot.needsPerson) {
-          if (!state.needsPerson) _haltForAPerson(read: true);
-        } else {
-          if (state.needsPerson) {
-            _comeBack();
-            _leaveTheHalt();
-          }
-          if (!state.warning) {
-            // A warning walks no voice, so there is nothing to hand back: the field going
-            // out is the whole of it, and the halt's way out would give the team an invite
-            // over a clip already playing.
-            _endTheWatch();
-            return;
-          }
-        }
+        final wasBlocking = state.needsPerson;
+        _applyTheSessionRead(snapshot, sent, rowWhenSent: row);
+        _applyWhatOnlyGrows(snapshot);
+        if (wasBlocking && !state.needsPerson) _comeBack();
+      case SessionGone() when state.halt is NoHalt:
+        _leaveTheDeadPassage();
       case SessionGone():
-        // There is no longer a session to be let out of, so there is nothing left to ask:
-        // the room keeps the halt and the long press is the way out of it, as it is for a
-        // build with no session at all.
         _endTheWatch();
         state = state.copyWith(clearSession: true);
-        return;
       case NetworkFailed() || Refused():
-        // A read that failed says nothing about the halt. Asking again on the same beat is
-        // the whole answer; counting it as a second halt would talk over the first.
         break;
     }
-    _beatTheWatch();
+  }
+
+  void _takeTheStretches(BackTranslationProgress told) {
+    if (state.stage != SalaStage.retro ||
+        state.btPhase == BtPhase.thinking ||
+        told.nothingTold) {
+      return;
+    }
+    state = state.copyWith(btTrechos: _trechosFrom(told.segments));
+  }
+
+  bool _applyWhatOnlyGrows(SessionSnapshot snapshot, {TurnClock? clock}) {
+    final advanced = _applyCoverage(snapshot.coverage, clock: clock);
+    if (!state.needsPerson &&
+        snapshot.done &&
+        state.stage == SalaStage.conversa) {
+      if (state.voice == VoiceState.invite) {
+        state = state.copyWith(voice: VoiceState.done, peerCue: false);
+      } else if (state.voice == VoiceState.speaking ||
+          state.voice == VoiceState.listening ||
+          state.voice == VoiceState.thinking) {
+        _doneSeenMidTurn = true;
+      }
+    }
+    return advanced;
+  }
+
+  void _applyTheSessionRead(
+    SessionSnapshot snapshot,
+    int sent, {
+    List<Trecho>? rowWhenSent,
+  }) {
+    if (sent <= _readsApplied) return;
+    _readsApplied = sent;
+    if (rowWhenSent != null && identical(state.btTrechos, rowWhenSent)) {
+      _takeTheStretches(snapshot.backTranslation);
+    }
+    _dispatch(
+      SessionRead(
+        snapshot,
+        at: clock.now(),
+        sounding: _whatIsSounding(),
+        sentBeforeTheCallLanded: sent <= _readsSentBeforeTheCall,
+      ),
+    );
+  }
+
+  void _stopCallingForAPerson() {
+    _timers.remove('person')?.cancel();
+    _personAsked = false;
+    _personAskStep = 0;
+    _settleNetworkHealth(resolved: true);
+    _resumeFailures = 0;
+  }
+
+  void _replay(Kept kept) {
+    switch (kept) {
+      case ThePart():
+        if (state.stage == SalaStage.retro &&
+            state.btPhase == BtPhase.playing &&
+            _parteNoAr != null &&
+            !state.btCortado) {
+          _tocarParteDaRetro(_parteTocando);
+        }
+      case TheResume():
+        unawaited(goConversa(pericope: _emCurso));
+        return;
+      case TheWheel():
+        state = state.copyWith(refusedThisVisit: {});
+        unawaited(abrirEscolha());
+        return;
+      case NothingKept() || TheOpening():
+        break;
+    }
+    if (state.sessionId == null && state.stage == SalaStage.conversa) {
+      unawaited(goConversa(pericope: _emCurso));
+    }
   }
 
   void _tellTheRoomAPersonIsNeeded() {
@@ -945,12 +1031,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _askingForAPerson = false;
     switch (answer) {
       case Answered():
-        // The watch begins here and not at the halt: releasing on a state read that went
-        // out before the call landed would let the team out of a room whose halt the desk
-        // has not heard of yet, and nobody would ever come.
         if (!_gone && state.needsPerson) {
           _personAsked = true;
-          _watchTheHalt();
+          _readsSentBeforeTheCall = _readsSent;
+          _dispatch(const TheCallLanded());
         }
       case SessionGone():
         // The server has already said this session is gone; insisting on the same route
@@ -958,7 +1042,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         // path does — is what gives the device-scoped ask its turn. A person may have
         // arrived and resolved the halt while this ask was still in flight, and a late
         // 404 must not reopen a halt nobody is in anymore.
-        if (!_gone && state.needsPerson) _haltForAPerson(sessionIsGone: true);
+        if (!_gone && state.needsPerson) _raiseAHaltWithNoSession();
       case NetworkFailed() || Refused():
         _keepAskingForAPerson(_askForAPerson);
     }
@@ -1020,7 +1104,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case SessionGone():
         _leaveTheDeadPassage();
       case Refused(:final code) when RefusalCode.stopsTheRoom.contains(code):
-        _haltForAPerson();
+        _raiseAHalt();
       case Refused(code: RefusalCode.passageCannotOpen):
         final refused = _emCurso;
         if (refused != null) {
@@ -1030,7 +1114,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         }
         unawaited(abrirEscolha(afterRefusal: true));
       case Refused() when turnCall:
-        _haltForAPerson();
+        _raiseAHalt();
       case Refused():
         _registerRoomFailure();
     }
@@ -1041,7 +1125,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _calmTurns = 0;
     _conviteOpened = false;
     if (_roomFailures >= _roomFailuresBeforeNeedsPerson) {
-      _haltForAPerson();
+      _raiseAHalt();
       return;
     }
     state = state.copyWith(voice: VoiceState.invite, peerCue: false);
@@ -1085,7 +1169,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _cancelTimers();
     _conviteOpened = false;
     _leaveThinking();
-    _haltForAPerson();
+    _raiseAHalt();
   }
 
   /// The room gave up on a call it was making, however it came to that.
@@ -1109,10 +1193,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _cancelTimers();
     _leaveThinking();
     state = state.copyWith(
-      voice: VoiceState.offline,
+      voice: state.needsPerson ? null : VoiceState.offline,
       reach: why,
       peerCue: false,
     );
+    _dispatch(const ReachChanged(reachable: false));
     if (!_noticeSpoken) {
       _noticeSpoken = true;
       unawaited(_voice.playAsset(offlineNoticeAsset(_lingua)));
@@ -1183,10 +1268,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }),
     );
     state = state.copyWith(reach: RoomReach.fine);
-    // The fall took the watch with the rest of the timers. A blocking halt gets its own
-    // back the next time the room stops, but nothing stops for a warning: left here, a
-    // room that lost the network under one came back green for good.
-    if (state.warning) _watchTheHalt();
+    _dispatch(const ReachChanged(reachable: true));
     if (!state.offline) return;
     state = state.copyWith(voice: VoiceState.invite);
     if (state.stage == SalaStage.fim) {
@@ -1203,82 +1285,35 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void beginAgain() => _startOver();
 
-  /// The press asks rather than answers: a facilitator who has just marked the session
-  /// attended hands the room back at once, instead of on the next beat of the watch.
-  /// Where there is nobody to ask it keeps the local release, the rule `offline` has.
   void resolveWithPerson() {
     if (!state.needsPerson && !state.offline) return;
-    if (state.needsPerson && _haltWatched != null) {
-      unawaited(_tellTheRoomAPersonArrived(_haltWatched!));
-      unawaited(_askIfTheHaltIsOver());
-      return;
-    }
-    _leaveTheHalt();
+    final wasOut = state.unreachable;
+    _dispatch(
+      LongPress(
+        somebodyToAsk: state.sessionId != null && !wasOut,
+        at: clock.now(),
+      ),
+    );
+    if (!state.needsPerson && wasOut) _releaseTheReach();
   }
 
-  /// One attempt per press. The re-read above is what actually lifts the halt, so a
-  /// failed ping here is not retried — it would just spend the backoff on a signal the
-  /// desk already has another way to get.
-  Future<void> _tellTheRoomAPersonArrived(String sessionId) async {
-    await _room.personArrived(sessionId);
-  }
-
-  void _endTheWatch() {
-    _haltWatched = null;
-    _timers.remove('halt')?.cancel();
-  }
-
-  void _leaveTheHalt() {
-    _endTheWatch();
+  void _releaseTheReach() {
     _ladder?.cancel();
-    _timers.remove('person')?.cancel();
-    _personAsked = false;
-    _personAskStep = 0;
-    _settleNetworkHealth(resolved: true);
-    _resumeFailures = 0;
     unawaited(_networkWatch?.cancel());
     _networkWatch = null;
-    state = state.copyWith(voice: VoiceState.invite, reach: RoomReach.fine);
-    // Every way out of a halt ends the watch, and a warning standing under it is a
-    // session still asking for somebody. Left ended, the halt's own exit — the beat that
-    // reads it away, or the long press on a room that is out — carried the warning off
-    // with it, and the desk's mark never reached the circle again.
-    if (state.warning) _watchTheHalt();
-    // A halt withholds the sound and nothing else: a lift replays only what it caught
-    // sounding, from the part's own cursor — a part, a bead replay, or a part chosen but
-    // never landed yet, the way `_soavaQuandoParou` reads it. A part a hold left silent,
-    // or one already at its end, comes back exactly as it stood.
-    //
-    // A cut is the team's own work in progress, never touched by this — not even when
-    // the halt caught the team listening to the very thing it named. A pending
-    // translation always stands on one, and a retell arms its own. `_tocarParteDaRetro`
-    // re-cursors and re-cuts unconditionally, which is right for the part this reading covers and wrong for one
-    // already telling something back: a confirm or a correction still in flight when the
-    // halt landed reads its own `_trechoStart`/`_trechoEnd` fresh once it resolves, and a
-    // lift that had touched them first would send what it reads as a stretch of no
-    // length.
-    if (state.stage == SalaStage.retro &&
-        state.btPhase == BtPhase.playing &&
-        _parteNoAr != null &&
-        _soavaQuandoParou &&
-        !state.btCortado) {
-      _tocarParteDaRetro(_parteTocando);
-    }
-    if (_haltedResuming ||
-        (state.sessionId == null && state.stage == SalaStage.conversa)) {
-      unawaited(goConversa(pericope: _emCurso));
-    }
-    // The wheel itself having nothing unrefused to offer has no session to resume into,
-    // and leaving that halt is a fresh visit: the server may have changed, the same way
-    // leaving the book and coming back is. Left un-reloaded, a wheel emptied by refusal
-    // stayed dead forever — every gesture on it guarded by `needsPerson` while it was
-    // true, and by the very memory this clears once it is not. A stall reaching some
-    // other door without leaving the Choice's stage (the panorama's) is not this: it
-    // retries that same door, not the wheel behind it.
-    if (state.wheelHalted) {
-      state = state.copyWith(wheelHalted: false, refusedThisVisit: {});
-      unawaited(abrirEscolha());
-    }
+    _settleNetworkHealth(resolved: true);
+    _resumeFailures = 0;
+    final wasOffline = state.offline;
+    state = state.copyWith(
+      voice: wasOffline ? VoiceState.invite : null,
+      reach: RoomReach.fine,
+    );
+    if (wasOffline) _replay(const NothingKept());
+  }
+
+  void _tellTheRoomAPersonArrived() {
+    final sessionId = state.sessionId;
+    if (sessionId != null) unawaited(_room.personArrived(sessionId));
   }
 
   /// Arms the wait for the coverage channel to say what this turn's classification
@@ -1392,10 +1427,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// follows it, so the pull confirming what the frame already painted never re-marks
   /// the clock a second time.
   bool _applyCoverage(Coverage? told, {TurnClock? clock}) {
-    final before = state.coverage.engaged;
-    final advanced = told != null && told.engaged > before;
+    final before = state.coverage;
+    final advanced = told != null && told.engaged > before.engaged;
     if (advanced) clock?.mark('beads');
-    if (told != null && told.engaged >= before) {
+    if (told != null &&
+        (advanced ||
+            (told.engaged == before.engaged &&
+                told.surfaced >= before.surfaced))) {
       state = state.copyWith(coverage: told);
     }
     return advanced;
@@ -1424,31 +1462,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// stamping it on a pull that changed nothing timed a turn that never actually landed.
   Future<bool> _pullState(String sessionId, {TurnClock? clock}) async {
     final epoch = _epoch;
+    final sent = ++_readsSent;
+    final row = state.btTrechos;
     switch (await _room.fetchState(sessionId)) {
       case Answered(value: final snapshot):
         if (epoch != _epoch || state.sessionId != sessionId) return false;
-        final advanced = _applyCoverage(snapshot.coverage, clock: clock);
-        state = state.copyWith(warning: snapshot.halt == HaltKind.warning);
-        if (state.warning) _watchTheHalt();
-        if (snapshot.needsPerson) {
-          _haltForAPerson(read: true);
-        } else if (snapshot.done && state.stage == SalaStage.conversa) {
-          if (state.voice == VoiceState.invite) {
-            state = state.copyWith(voice: VoiceState.done, peerCue: false);
-          } else if (state.voice == VoiceState.speaking ||
-              state.voice == VoiceState.listening ||
-              state.voice == VoiceState.thinking) {
-            _doneSeenMidTurn = true;
-          }
-        }
-        return advanced;
+        _applyTheSessionRead(snapshot, sent, rowWhenSent: row);
+        return _applyWhatOnlyGrows(snapshot, clock: clock);
       case SessionGone():
         if (epoch != _epoch) return false;
         _leaveTheDeadPassage();
         return false;
       case Refused(:final code) when RefusalCode.stopsTheRoom.contains(code):
         if (epoch != _epoch) return false;
-        _haltForAPerson();
+        _raiseAHalt();
         return false;
       case NetworkFailed() || Refused():
         return false;
@@ -1564,6 +1591,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       retryNow();
       return;
     }
+    if (state.needsPerson) return;
     if (state.playingReplyId != null) return;
     if (state.noteMode) {
       _noteTap();
@@ -1578,7 +1606,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         case VoiceState.thinking:
         case VoiceState.speaking:
         case VoiceState.done:
-        case VoiceState.needsPerson:
         case VoiceState.offline:
         case VoiceState.blocked:
           break;
@@ -1672,10 +1699,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       feitas: feitas,
       aOferecer: primeiraOfertavel < 0 ? 0 : primeiraOfertavel,
       voice: VoiceState.invite,
-      // A reload that finds something to offer must never leave `oferecida` stuck null
-      // under a halt this same reload is about to lift or that never applied to begin
-      // with.
-      wheelHalted: false,
     );
     if (todas.every(
       (passagem) =>
@@ -1688,7 +1711,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       //
       // The panorama's own spoke is not a passage, and neither is a real one this visit
       // already offered and the room refused to open.
-      _haltForAPerson(wheelExhausted: true);
+      _raiseAHalt(kept: const TheWheel());
       return;
     }
     unawaited(
@@ -1817,7 +1840,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void entrarNaOferecida() {
     final passagem = state.oferecida;
-    if (passagem == null || state.voice != VoiceState.invite) return;
+    if (passagem == null ||
+        state.voice != VoiceState.invite ||
+        state.needsPerson) {
+      return;
+    }
     _wheelPrefetch++;
     // Acima dos dois ramos: o panorama não passa pelo _clearAll do goConversa, e a
     // linha que a roda acabou de oferecer seguia soando por cima da espera dele.
@@ -1925,7 +1952,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // an earlier departure, or a calibration turn with no passage entered
       // yet. Leaving loops back into exactly this failure with nowhere new to
       // land, so this is where the old, bounded halt still belongs.
-      _haltForAPerson(sessionIsGone: true);
+      _raiseAHaltWithNoSession();
       return;
     }
     unawaited(_mindingThePlace(() => _emAberto.forget(_book, pericope)));
@@ -1974,7 +2001,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     SessionSnapshot? opened,
   }) async {
     _clearAll();
-    _haltedResuming = false;
     _emCurso = pericope;
     final epoch = _epoch;
     state = state.copyWith(
@@ -2076,6 +2102,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       coverage: created?.coverage,
       refusedThisVisit: const {},
     );
+    _armTheWatch();
     _sessionSavedAt = resumed ? waiting.savedAt : clock.now();
     _sessionLanguage = resumed ? waiting.language : _lingua;
     if (pericope != null && !resumed) {
@@ -2103,6 +2130,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (onde == _Resume.halted || onde == _Resume.abandoned) return;
       if (onde == _Resume.landed) {
         final SessionSnapshot snapshot;
+        final sent = ++_readsSent;
         switch (await _room.fetchState(sessionId)) {
           case Answered(value: final read):
             snapshot = read;
@@ -2110,11 +2138,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             return failed(failure);
         }
         if (epoch != _epoch) return;
-        state = state.copyWith(
-          coverage: snapshot.coverage,
-          warning: snapshot.halt == HaltKind.warning,
-        );
-        if (state.warning) _watchTheHalt();
+        state = state.copyWith(coverage: snapshot.coverage);
         if (waiting.stage == SalaStage.retro) {
           _pickTheTellingBackUp(snapshot.backTranslation);
         } else {
@@ -2126,17 +2150,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         // After the telling-back is picked up, not before, so that the passage the team
         // comes back to is the one they left: a person resolving the halt finds them in
         // their retro rather than dropped back into the rehearsal.
-        if (snapshot.needsPerson) _haltForAPerson(read: true);
+        _applyTheSessionRead(snapshot, sent);
         return;
       }
       if (waiting.stage == SalaStage.retro) {
-        final BackTranslationProgress told;
+        final SessionSnapshot read;
+        final sent = ++_readsSent;
         switch (await _room.fetchState(sessionId)) {
-          case Answered(value: final read):
-            told = read.backTranslation;
+          case Answered(value: final snapshot):
+            read = snapshot;
           case final RoomFailure failure:
             return failed(failure);
         }
+        final told = read.backTranslation;
         if (epoch != _epoch) return;
         // Only when there is a telling-back to land on. A checked answer carrying no
         // stretch contradicts itself — the check is about what was told — and there is
@@ -2150,6 +2176,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         // is the one way past this door now that a resume fetches the parts.
         if (told.checked && !told.nothingTold) {
           _pickTheTellingBackUp(told);
+          _applyTheSessionRead(read, sent);
           return;
         }
       }
@@ -2285,8 +2312,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (epoch != _epoch || _gone) return _Resume.abandoned;
     if (takes == null) {
-      _haltedResuming = true;
-      _haltForAPerson();
+      _raiseAHalt(kept: const TheResume());
       return _Resume.halted;
     }
     // A room holding no rehearsal is not a rehearsal to come back to, and it is not a
@@ -2447,6 +2473,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       retryNow();
       return;
     }
+    if (state.needsPerson) return;
     if (state.playingReplyId != null) return;
     if (state.noteMode) {
       _noteTap();
@@ -2459,7 +2486,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _actOnConversaTap();
       case VoiceState.thinking:
       case VoiceState.speaking:
-      case VoiceState.needsPerson:
       case VoiceState.offline:
       case VoiceState.blocked:
         break;
@@ -2535,7 +2561,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (sessionId == null) {
       state = state.copyWith(voice: VoiceState.invite);
-      _haltForAPerson(sessionIsGone: true);
+      _raiseAHaltWithNoSession();
       unawaited(_recorder.delete(path));
       return;
     }
@@ -2705,7 +2731,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _sendQuestion();
       case VoiceState.thinking:
       case VoiceState.speaking:
-      case VoiceState.needsPerson:
       case VoiceState.offline:
       case VoiceState.blocked:
         break;
@@ -3104,7 +3129,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // Nothing came back. A check over a take that does not exist let a team confirm a
       // rehearsal into nothing — no bead appeared, and the way to the retro never opened.
       state = state.copyWith(ensaio: _semGravacaoAberta);
-      _haltForAPerson();
+      _raiseAHalt();
       if (path != null) unawaited(_recorder.delete(path));
       return;
     }
@@ -3368,7 +3393,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         // `playing`. The recorder only just answered, and nothing else will ever
         // close it. `btPhase` only means anything for a chunk capture — checked here
         // too, or every ordinary start outside the retro would read as one discarded.
-        if (openedAsAChunkCapture && state.btPhase != BtPhase.capturing) {
+        if (state.needsPerson ||
+            (openedAsAChunkCapture && state.btPhase != BtPhase.capturing)) {
           unawaited(_recorder.discard());
         }
         return;
@@ -3408,7 +3434,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _theRecorderNeverStarted() {
     _undoTheListening();
     _captureFails++;
-    if (_captureFails >= _captureFailsBeforeAPerson) _haltForAPerson();
+    if (_captureFails >= _captureFailsBeforeAPerson) _raiseAHalt();
   }
 
   /// Which recount is the newest one asked for.
@@ -3566,7 +3592,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (partes.isEmpty) {
       // No rehearsal to tell back is not a rehearsal that finished playing. Calling it
       // one would open the check over an empty back translation.
-      _haltForAPerson();
+      _raiseAHalt();
       return;
     }
     // Measuring waits on the player, and the screen it waits under is the retro with its
@@ -3593,7 +3619,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // meanwhile is the same room as one that arrived empty, and gets the same answer.
     final medidas = state.partes;
     if (medidas.isEmpty) {
-      _haltForAPerson();
+      _raiseAHalt();
       return;
     }
     // How long each part is was answered above, for every part at once: read one part at a
@@ -4152,9 +4178,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         btPhase: BtPhase.playing,
         voice: VoiceState.invite,
         btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
-        warning: told.needsPerson ? true : null,
       );
-      if (told.needsPerson) _watchTheHalt();
+      if (told.needsPerson) _dispatch(const TheAnswerWarned());
       return;
     }
 
@@ -4192,6 +4217,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int epoch,
   ) async {
     final SessionSnapshot snapshot;
+    final sent = ++_readsSent;
     switch (await _room.fetchState(sessionId)) {
       case Answered(value: final read):
         snapshot = read;
@@ -4202,6 +4228,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return;
     }
     if (epoch != _epoch) return;
+    _theRefusalLandsOn(snapshot, alvo, path);
+    _applyTheSessionRead(snapshot, sent);
+  }
+
+  void _theRefusalLandsOn(SessionSnapshot snapshot, Trecho alvo, String path) {
     final segments = snapshot.backTranslation.segments;
     final sucessor = segments.indexWhere(
       (segment) =>
@@ -4269,12 +4300,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: VoiceState.invite,
       btTrechos: trechos.isEmpty ? state.btTrechos : trechos,
       clearTraducaoPendente: true,
-      // The room asking for a person over a stretch told again is a warning: somebody is
-      // called to come and watch, and the team is refused nothing. Written with the row,
-      // because a warning is a field and whatever follows the landing only walks the voice.
-      warning: needsPerson ? true : null,
     );
-    if (needsPerson) _watchTheHalt();
+    if (needsPerson) _dispatch(const TheAnswerWarned());
     _rememberWhereTheyAre(SalaStage.retro);
   }
 
@@ -4356,7 +4383,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (path != null && !_hasAudio(path)) {
       _trechoStart = _ondeParouNesteArquivo(_parteTocando);
       state = state.copyWith(btPhase: BtPhase.playing);
-      _haltForAPerson();
+      _raiseAHalt();
       unawaited(_recorder.delete(path));
       return;
     }
@@ -4485,10 +4512,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       btPhase: BtPhase.playing,
       voice: VoiceState.invite,
-      btTrechos: [...state.btTrechos, trecho],
+      btTrechos: [
+        for (final lido in state.btTrechos)
+          if (lido.takeId != trecho.takeId ||
+              lido.from != trecho.from ||
+              lido.to != trecho.to)
+            lido,
+        trecho,
+      ],
       clearTraducaoPendente: true,
     );
-    _tocarOProximoTrecho();
+    if (!state.needsPerson) _tocarOProximoTrecho();
   }
 
   void _guardarATraducao(String path) {
@@ -4541,7 +4575,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _silenceTheRoom();
     final sessionId = state.sessionId;
     if (sessionId == null) {
-      _haltForAPerson();
+      _raiseAHalt();
       return;
     }
 
@@ -4633,7 +4667,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // costs the pointer, not the verdict, so the findings screen still opens — on the
       // whole recording, which is where an unnamed stretch has always landed.
       await _readTheStretchesBack(sessionId, epoch);
-      if (epoch != _epoch) return;
+      if (epoch != _epoch || state.needsPerson) return;
 
       final naoTraduzido = verdict.untoldSegmentId;
       if (naoTraduzido != null) {
@@ -4669,7 +4703,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _silenceTheRoom();
     final sessionId = state.sessionId;
     if (sessionId == null) {
-      _haltForAPerson();
+      _raiseAHalt();
       return;
     }
     _aprovando = true;
@@ -4745,7 +4779,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case _PortaDaRecusa.trecho:
         final trecho = resposta.untoldSegmentId;
         if (trecho == null) {
-          _haltForAPerson();
+          _raiseAHalt();
           return null;
         }
         // A passage the check cleared on its first verdict never had the names read back,
@@ -4757,12 +4791,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         // and halting the room over a request the next press would repeat.
         final failure = await _readTheStretchesBack(sessionId, epoch);
         if (failure != null) return failure;
-        if (epoch != _epoch) return null;
+        if (epoch != _epoch || state.needsPerson) return null;
         _levarAoTrechoNaoTraduzido(trecho);
       case _PortaDaRecusa.parteNaoContada:
         final gravacoes = resposta.untoldTakeIds;
         if (gravacoes.isEmpty) {
-          _haltForAPerson();
+          _raiseAHalt();
           return null;
         }
         await _levarAParteApontadaPelaRecusa(
@@ -4773,7 +4807,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case _PortaDaRecusa.parteNaoOuvida:
         final gravacoes = resposta.unheardTakeIds;
         if (gravacoes.isEmpty) {
-          _haltForAPerson();
+          _raiseAHalt();
           return null;
         }
         await _levarAParteApontadaPelaRecusa(
@@ -4791,7 +4825,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           voice: VoiceState.invite,
         );
       case null:
-        _haltForAPerson();
+        _raiseAHalt();
     }
     return null;
   }
@@ -4814,7 +4848,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // way to say so without words. Asked before anything is measured: a name that leads
       // nowhere is a person, and measuring the whole rehearsal first only makes them wait
       // for it.
-      _haltForAPerson();
+      _raiseAHalt();
       return;
     }
     // Landing forward over a part nobody has measured leaves the ruler short by the whole
@@ -4841,7 +4875,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     final parte = state.partes.indexWhere((take) => take.takeId == gravacao);
     if (parte < 0) {
-      _haltForAPerson();
+      _raiseAHalt();
       return;
     }
     _pousadaNaParteApontadaPelaRecusa = true;
@@ -4894,7 +4928,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // A name this tablet cannot turn into a slice of a recording it is holding. There
       // is nothing to lead them to and no way to say so without words, and every quiet
       // way out of here ends on the exit that empties the rehearsal.
-      _haltForAPerson();
+      _raiseAHalt();
       return null;
     }
     _parteTocando = trecho.parte;
@@ -4919,12 +4953,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     String sessionId,
     int epoch,
   ) async {
+    final sent = ++_readsSent;
     switch (await _room.fetchState(sessionId)) {
       case Answered(value: final snapshot):
         if (epoch != _epoch) return null;
         final trechos = _trechosFrom(snapshot.backTranslation.segments);
-        if (trechos.isEmpty) return null;
-        state = state.copyWith(btTrechos: trechos);
+        if (trechos.isNotEmpty) state = state.copyWith(btTrechos: trechos);
+        _applyTheSessionRead(snapshot, sent);
         return null;
       case final RoomFailure failure:
         return failure;
@@ -5238,7 +5273,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // recording up under a part number the rehearsal does not have, and the team would
       // have recorded for nothing without the room ever saying a thing.
       _silenceTheRoom();
-      _haltForAPerson();
+      _raiseAHalt();
       return;
     }
     _voltarAoEnsaio();
@@ -5307,13 +5342,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _strandedSpoken = false;
     _personAsked = false;
     _personAskStep = 0;
-    _haltWatched = null;
+    _endTheWatch();
     _trechoTraduzidoDeNovo = null;
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
     _parteTocando = 0;
     _parteJaTocou = false;
-    _soavaQuandoParou = false;
     _cabecaForaDoPlayer = null;
     _descartarATraducaoPendente();
     _traducoesGuardadas.clear();

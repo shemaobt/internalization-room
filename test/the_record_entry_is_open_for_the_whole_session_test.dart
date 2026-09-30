@@ -135,7 +135,7 @@ void main() {
       );
 
       harness.room.theDeskAttended();
-      await _pumpWhile(tester, () => read().voice != VoiceState.invite);
+      await _pumpWhile(tester, () => read().needsPerson);
 
       expect(
         byLabel(_entry),
@@ -160,7 +160,7 @@ void main() {
     final withHalt = tester.getRect(find.byType(FacilitatorCircle).first);
 
     harness.room.theDeskAttended();
-    await _pumpWhile(tester, () => read().voice != VoiceState.invite);
+    await _pumpWhile(tester, () => read().needsPerson);
     expect(byLabel(_entry), findsOneWidget);
 
     final withEntry = tester.getRect(find.byType(FacilitatorCircle).first);

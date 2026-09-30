@@ -1,3 +1,4 @@
+import 'halt.dart';
 import 'spoken_line.dart';
 import 'room_reach.dart';
 import 'coverage.dart';
@@ -13,7 +14,6 @@ enum VoiceState {
   thinking,
   speaking,
   done,
-  needsPerson,
   offline,
   blocked,
 }
@@ -200,26 +200,7 @@ class SalaSessionState {
   final int unsentChunks;
   final Set<String> unsentTakeScopes;
 
-  /// Whether the server's last word about this session was a warning rather than
-  /// silence.
-  ///
-  /// The room has no text on screen, so a warning that asks nobody to stop still needs
-  /// a way to be seen — this follows the last state read (`halt: "warning"`) and the
-  /// answer to a stretch told again the same way: true the moment one of them says so,
-  /// false the moment a state read does not. Every route that raises one watches the
-  /// session's halt from there on, so the desk attending it turns the circle back in
-  /// whatever station the team is in. A blocking halt never sets it;
-  /// [FacilitatorCircle] draws its own halted body over this regardless of what it
-  /// says.
-  final bool warning;
-
-  /// Whether the standing halt, if any, is the wheel itself having nothing unrefused
-  /// left to offer — the server's own list is empty, or every real passage on it was
-  /// refused at creation this visit — as opposed to a stall reaching some other door
-  /// (the panorama's, a resume's) that happens to leave the stage at the Choice too.
-  /// [EscolhaView] reads this, not [livroInteiroFeito], for its halted label: the book
-  /// is not finished merely because this visit's refusals emptied it.
-  final bool wheelHalted;
+  final Halt halt;
 
   /// Pericopes the Choice has offered and the room refused to open, in this visit.
   /// [EscolhaView] reads this to dim their spokes on the ruler; the notifier reads it
@@ -312,8 +293,7 @@ class SalaSessionState {
     this.unsentTakes = 0,
     this.unsentChunks = 0,
     this.unsentTakeScopes = const {},
-    this.warning = false,
-    this.wheelHalted = false,
+    this.halt = const NoHalt(),
     this.refusedThisVisit = const {},
     this.parteARegravar,
     this.parteDoEnsaioTocando,
@@ -346,18 +326,21 @@ class SalaSessionState {
   bool get awaitingFirstTouch =>
       stage == SalaStage.convite &&
       conviteStep == ConviteStep.boasVindas &&
-      voice == VoiceState.invite;
+      voice == VoiceState.invite &&
+      !needsPerson;
 
   bool get canHearAgain =>
       lastSpoken != null &&
       voice == VoiceState.invite &&
+      !needsPerson &&
       stage != SalaStage.ensaio &&
       stage != SalaStage.retro;
 
   bool get showEntrada =>
       stage == SalaStage.convite &&
       conviteStep == ConviteStep.entrada &&
-      voice == VoiceState.invite;
+      voice == VoiceState.invite &&
+      !needsPerson;
 
   bool get entradaOffered =>
       stage == SalaStage.convite &&
@@ -380,7 +363,14 @@ class SalaSessionState {
     return null;
   }
 
-  bool get needsPerson => voice == VoiceState.needsPerson;
+  bool get needsPerson => halt is Blocking;
+
+  bool get warning => halt is Warning;
+
+  bool get wheelHalted => switch (halt) {
+    Blocking(kept: TheWheel()) => true,
+    _ => false,
+  };
 
   bool get canResolveWithPerson => needsPerson || offline;
 
@@ -576,8 +566,7 @@ class SalaSessionState {
     int? unsentTakes,
     int? unsentChunks,
     Set<String>? unsentTakeScopes,
-    bool? warning,
-    bool? wheelHalted,
+    Halt? halt,
     Set<String>? refusedThisVisit,
     int? parteARegravar,
     bool clearParteARegravar = false,
@@ -647,8 +636,7 @@ class SalaSessionState {
       unsentTakes: unsentTakes ?? this.unsentTakes,
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentTakeScopes: unsentTakeScopes ?? this.unsentTakeScopes,
-      warning: warning ?? this.warning,
-      wheelHalted: wheelHalted ?? this.wheelHalted,
+      halt: halt ?? this.halt,
       refusedThisVisit: refusedThisVisit ?? this.refusedThisVisit,
       parteARegravar: clearParteARegravar
           ? null

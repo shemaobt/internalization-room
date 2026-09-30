@@ -229,7 +229,7 @@ void main() {
     harness.room.theDeskAttended();
     await waitFor(
       'o círculo voltar ao convite',
-      () => read().voice == VoiceState.invite,
+      () => !read().needsPerson && read().voice == VoiceState.invite,
     );
 
     expect(
@@ -292,7 +292,7 @@ void main() {
     harness.room.theDeskAttended();
     await waitFor(
       'o círculo voltar ao convite',
-      () => read().voice == VoiceState.invite,
+      () => !read().needsPerson && read().voice == VoiceState.invite,
     );
   });
 

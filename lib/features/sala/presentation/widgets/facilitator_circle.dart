@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
+import '../../domain/halt.dart';
 import '../../domain/room_reach.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
@@ -25,9 +26,10 @@ class FacilitatorCircle extends StatelessWidget {
   ///
   /// The room has no text on screen, so a warning is a small mark beside the disc,
   /// never a colour drawn over it: the disc keeps saying the voice. Read only while
-  /// [voice] is not one of the halted states — a room the team cannot use yet is
+  /// neither [halt] blocks nor [voice] is a halted state — a room the team cannot use yet is
   /// still a stop, whatever the last warning said.
   final String? warning;
+  final Halt halt;
   final double opacity;
   final String semanticLabel;
   final VoidCallback? onTap;
@@ -44,6 +46,7 @@ class FacilitatorCircle extends StatelessWidget {
     this.peerCue = false,
     this.beckon = false,
     this.warning,
+    this.halt = const NoHalt(),
     this.opacity = 1,
     this.onTap,
     this.onLongPress,
@@ -74,9 +77,12 @@ class FacilitatorCircle extends StatelessWidget {
               children: [
                 if (beckon) ..._beckoning(colors),
                 _body(colors, still),
-                if (voice == VoiceState.speaking) ..._ripples(colors),
-                if (voice == VoiceState.listening) _listenRing(colors),
-                if (voice == VoiceState.listening) ..._gatheringIn(),
+                if (!_halted && voice == VoiceState.speaking)
+                  ..._ripples(colors),
+                if (!_halted && voice == VoiceState.listening)
+                  _listenRing(colors),
+                if (!_halted && voice == VoiceState.listening)
+                  ..._gatheringIn(),
                 if (warning != null && !_halted) _warningMark(warning!),
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 1000),
@@ -168,7 +174,7 @@ class FacilitatorCircle extends StatelessWidget {
   /// look, and refuses nothing — so it never draws over a state that has already
   /// told the team to stop.
   bool get _halted =>
-      voice == VoiceState.needsPerson ||
+      halt is Blocking ||
       voice == VoiceState.offline ||
       voice == VoiceState.blocked;
 
@@ -183,9 +189,7 @@ class FacilitatorCircle extends StatelessWidget {
   }
 
   Widget _body(SalaColors colors, bool still) {
-    if (voice == VoiceState.needsPerson) {
-      return _haltedBody(colors, LucideIcons.userCheck);
-    }
+    if (halt is Blocking) return _haltedBody(colors, LucideIcons.userCheck);
     if (voice == VoiceState.offline) return _haltedBody(colors, _offlineGlyph);
     if (_teamTalk) return _liveBreath(colors);
 
@@ -219,8 +223,6 @@ class FacilitatorCircle extends StatelessWidget {
         );
       case VoiceState.done:
         return _doneDisc();
-      case VoiceState.needsPerson:
-        return _haltedBody(colors, LucideIcons.userCheck);
       case VoiceState.offline:
         return _haltedBody(colors, _offlineGlyph);
       case VoiceState.blocked:
@@ -350,9 +352,9 @@ class FacilitatorCircle extends StatelessWidget {
 
   /// A room that has stopped, and is still running.
   ///
-  /// This served `needsPerson`, `offline` and `blocked` as a bare `Container` — the three
+  /// This served a blocking halt, `offline` and `blocked` as a bare `Container` — the three
   /// states that outlast every other, each of which speaks its line once and then never
-  /// again. Offline ends when the network returns, `needsPerson` when somebody who is not
+  /// again. Offline ends when the network returns, a blocking halt when somebody who is not
   /// the team walks over, and `blocked` is the first screen the app ever shows on that
   /// path. A team glancing up at any of them had nothing to tell a room that is waiting
   /// from one that has died.

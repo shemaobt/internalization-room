@@ -296,7 +296,7 @@ Whether the room can get to the server, kept as a fact of its own beside the voi
 _Avoid_: offline (the voice the circle draws while the reach is down, not the fact), connectivity, online/offline flag, Alcance
 
 **Watch**:
-The room's periodic read of the session's halt, armed whenever a halt or a warning stands, whoever raised it (ADR 0046). A halt with no session has nothing to read, and the long press releases it locally. It ends when neither a halt nor a warning stands any more, or with the passage.
+The room's periodic Session read, beating for as long as a session is open, with or without a halt, so a halt only the server wrote still stops the room within one beat (ADR 0048). A halt never stands without it (ADR 0046). A halt with no session has nothing to read, and the long press releases it locally. It ends with the session.
 _Avoid_: poll, timer, vigia (the code's name is not the term)
 
 **Session read**:

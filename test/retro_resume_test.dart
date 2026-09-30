@@ -296,7 +296,7 @@ void main() {
             'a parada não muda a estação: quem vier atender encontra a '
             'equipe onde ela parou',
       );
-      expect(state.voice, VoiceState.needsPerson);
+      expect(state.needsPerson, isTrue);
       expect(
         harness.playback.sounding,
         isFalse,

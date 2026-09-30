@@ -21,13 +21,16 @@ class EscolhaView extends ConsumerWidget {
     final language = ref.watch(roomLanguageProvider);
     final roda = session.naRoda ?? const [];
     final podeEntrar =
-        session.oferecida != null && session.voice == VoiceState.invite;
+        session.oferecida != null &&
+        session.voice == VoiceState.invite &&
+        !session.needsPerson;
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         FacilitatorCircle(
           size: facilitatorCircleSize,
+          halt: session.halt,
           voice: session.voice,
           reach: session.reach,
           semanticLabel: switch (session) {

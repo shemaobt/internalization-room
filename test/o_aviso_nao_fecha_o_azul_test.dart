@@ -201,7 +201,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
-    expect(read().voice, VoiceState.needsPerson);
+    expect(read().needsPerson, isTrue);
     expect(read().canResolveWithPerson, isTrue);
     final antes = harness.room.calls
         .where((call) => call == 'fetchState')
@@ -231,7 +231,7 @@ void main() {
     harness.room.theDeskAttended();
     await waitFor(
       'o círculo voltar ao convite sozinho',
-      () => read().voice == VoiceState.invite,
+      () => !read().needsPerson,
     );
 
     expect(
@@ -263,10 +263,7 @@ void main() {
       harness.room.serverHalt = HaltKind.blocking;
       await waitFor('a sala parar', () => read().needsPerson);
       harness.room.theDeskAttended();
-      await waitFor(
-        'o círculo voltar ao convite',
-        () => read().voice == VoiceState.invite,
-      );
+      await waitFor('o círculo voltar ao convite', () => !read().needsPerson);
 
       expect(
         read().btTrechoTraduzidoDeNovo?.segmentId,
