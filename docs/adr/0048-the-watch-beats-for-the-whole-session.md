@@ -29,10 +29,11 @@ landed, or a Session read carried it. A read that went out before the call lande
 nothing about that halt either, even if it lands after. Until the server has it, the long
 press stays the local way out (ADR 0009).
 
-**A Session read older than one already applied is never applied.** Beats do not wait for
-each other and every door reads the session, so reads can land out of order; the newest
-one sent is the one that counts. A read also never takes back stretches the row gained or
-changed after it went out.
+**A Session read older than one already applied never applies its halt or its
+stretches.** Beats do not wait for each other and every door reads the session, so reads
+can land out of order; the newest one sent is the one that counts. A read also never takes
+back stretches the row gained or changed after it went out. What only grows, the coverage
+and the end of the passage, applies from any read, however late.
 
 **A lift never re-sends the request that caused the halt under the same key.** A halt over
 an opening that could not be fetched is lifted by asking the opening again under a turn id
@@ -55,6 +56,8 @@ The beat has one period, with or without a halt. Only the test harness can switc
 beat with no halt: a beat that re-arms itself outlives every widget test that ends with a
 session open.
 
-After a halt over any opening whose clip could not be fetched (the invitation's, the
-panorama's or the conversation's), the next ask for that opening goes under a fresh turn
-id, whether the lift asks it or the next tap does.
+After any halt over an opening (the invitation's, the panorama's or the conversation's),
+the next ask for that opening goes under a fresh turn id, whether the lift asks it or the
+next tap does. When the halt was not the clip's failure the server may write the opening
+twice; a duplicate opening is cheap, and an opening that halts again on every release is
+not.
