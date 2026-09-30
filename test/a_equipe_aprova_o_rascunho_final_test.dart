@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/approval_answer.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
@@ -350,59 +350,47 @@ void main() {
     });
   }
 
-  testWidgets('uma falha de rede passa pela escada e deixa o botão de pé', (
-    tester,
-  ) async {
-    // A espera entre tentativas é longa de propósito: com a de sempre, a sala já teria
-    // voltado sozinha dentro do pump, e o degrau em que ela desistiu não seria legível.
-    final it = await _ateAConferida(
-      tester,
-      comEsta: SalaHarness(
-        filaEmMemoria: true,
-        retryBackoff: const [Duration(seconds: 30)],
-      ),
-    );
-    it.harness.room.failReleaseWith = const RoomSlow();
+  testWidgets(
+    'uma demora na aprovação tira a sala do alcance e deixa o botão de pé',
+    (tester) async {
+      // A espera entre tentativas é longa de propósito: com a de sempre, a sala já teria
+      // voltado sozinha dentro do pump, e o degrau em que ela desistiu não seria legível.
+      final it = await _ateAConferida(
+        tester,
+        comEsta: SalaHarness(
+          filaEmMemoria: true,
+          retryBackoff: const [Duration(seconds: 30)],
+        ),
+      );
+      it.harness.room.failReleaseWith = const NetworkFailed('timeout');
 
-    await _aprovarEEsperar(tester);
+      await _aprovarEEsperar(tester);
 
-    expect(
-      _estado(it.container).needsPerson,
-      isFalse,
-      reason:
-          'uma sala lenta é uma sala que está lá: a escada trata disso e '
-          'não chama ninguém na primeira',
-    );
-    expect(_estado(it.container).btPhase, BtPhase.conferida);
-    expect(
-      byLabel(_aprovar),
-      findsOneWidget,
-      reason: 'e o gesto continua na tela para a equipe apertar de novo',
-    );
+      expect(
+        _estado(it.container).needsPerson,
+        isFalse,
+        reason:
+            'uma sala lenta é uma sala que está lá: a escada trata disso e '
+            'não chama ninguém na primeira',
+      );
+      expect(_estado(it.container).btPhase, BtPhase.conferida);
+      expect(
+        byLabel(_aprovar),
+        findsOneWidget,
+        reason: 'e o gesto continua na tela para a equipe apertar de novo',
+      );
 
-    // Contadas, não engolidas. A escada desiste na terceira demora, e é por chegar lá que
-    // se sabe que a falha entrou nela: um erro que a aprovação simplesmente deixasse cair
-    // também deixaria a sala sem pessoa e o botão de pé.
-    await _aprovarEEsperar(tester);
-    await _aprovarEEsperar(tester);
+      expect(
+        _estado(it.container).offline,
+        isTrue,
+        reason:
+            'uma demora é a rede: a sala sai do alcance na primeira, sem escada',
+      );
+      expect(it.harness.room.releasesAsked, hasLength(1));
 
-    expect(
-      _estado(it.container).offline,
-      isTrue,
-      reason:
-          'três demoras seguidas são a sala calada, que é o degrau em que '
-          'a escada desiste e diz à equipe que não está conseguindo falar',
-    );
-    expect(
-      it.harness.room.releasesAsked,
-      hasLength(3),
-      reason:
-          'e cada pressão foi um pedido: a primeira falha não deixou '
-          'tranca nenhuma para trás',
-    );
-
-    closeTheRoom(it.container);
-  });
+      closeTheRoom(it.container);
+    },
+  );
 
   testWidgets('uma sessão que sumiu volta para a roda, sem chamar uma pessoa', (
     tester,
@@ -1236,7 +1224,7 @@ void main() {
     it.harness.room
       ..releaseBlockers = const ['untold_stretch']
       ..releaseUntoldSegmentId = 'trecho-1'
-      ..failStateOnceWith = const RoomSlow();
+      ..failStateOnceWith = const NetworkFailed('timeout');
 
     await _aprovarEEsperar(tester);
 
@@ -1261,30 +1249,13 @@ void main() {
       reason: 'e o gesto continua ali para ser repetido',
     );
 
-    // Contadas, não engolidas. A escada desiste na terceira demora, e é por chegar lá que
-    // se sabe que a falha entrou nela: uma leitura que simplesmente deixasse a falha cair
-    // também deixaria a sala sem pessoa e o botão de pé. A manivela é de um tiro só, então
-    // cada aperto rearma a sua.
-    it.harness.room.failStateOnceWith = const RoomSlow();
-    await _aprovarEEsperar(tester);
-    it.harness.room.failStateOnceWith = const RoomSlow();
-    await _aprovarEEsperar(tester);
-
     expect(
       _estado(it.container).offline,
       isTrue,
       reason:
-          'três demoras seguidas são a sala calada, que é o degrau em '
-          'que a escada desiste e diz à equipe que não está conseguindo '
-          'falar',
+          'uma demora é a rede: a sala sai do alcance na primeira, sem escada',
     );
-    expect(
-      it.harness.room.releasesAsked,
-      hasLength(3),
-      reason:
-          'e cada pressão foi um pedido: a primeira falha não deixou '
-          'tranca nenhuma para trás',
-    );
+    expect(it.harness.room.releasesAsked, hasLength(1));
 
     closeTheRoom(it.container);
   });

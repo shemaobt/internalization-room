@@ -11,6 +11,7 @@ import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/device_link_notifier.dart';
 import 'package:internalization_room/features/sala/data/hand_inbox_repository.dart';
 import 'package:internalization_room/features/sala/data/linked_team.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
@@ -309,7 +310,7 @@ void main() {
       final ledger = await _alreadyLinked();
       final room = FakeRoom()
         ..linkedTo = const TeamLink(projectId: 'equipe-terena')
-        ..refuseCredentialWith = const CredentialNotYet();
+        ..refuseCredentialWith = const Refused(RefusalCode.credentialNotYet);
       final container = _tablet(
         room: room,
         ledger: ledger,
@@ -346,7 +347,7 @@ void main() {
       final ledger = await _alreadyLinked();
       final room = FakeRoom()
         ..linkedTo = const TeamLink(projectId: 'equipe-terena')
-        ..refuseCredentialWith = const CredentialTaken();
+        ..refuseCredentialWith = const Refused(RefusalCode.credentialTaken);
       final container = _tablet(room: room, ledger: ledger);
       addTearDown(container.dispose);
 
@@ -477,7 +478,7 @@ void main() {
       final ledger = await _alreadyLinked();
       final room = FakeRoom()
         ..linkedTo = const TeamLink(projectId: 'equipe-terena')
-        ..refuseCredentialWith = const RoomUnavailable('sem rede');
+        ..refuseCredentialWith = const NetworkFailed('sem rede');
       final container = _tablet(
         room: room,
         ledger: ledger,

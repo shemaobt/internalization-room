@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
@@ -367,7 +368,7 @@ void main() {
     'sem a lista das gravacoes a sala chama uma pessoa e guarda o ponto',
     () async {
       final harness = SalaHarness()
-        ..room.failTakesWith = const RoomUnavailable('sem rede');
+        ..room.failTakesWith = const NetworkFailed('sem rede');
 
       final it = await _reabrir(
         harness,
@@ -651,7 +652,7 @@ void main() {
     // local — que é o caminho em que a equipe cairia na conversa desta sessão.
     final harness = SalaHarness()
       ..room.refuseClipOf.add('gravacao-2')
-      ..room.askForAPersonFailsWith = const RoomUnavailable('sem rede');
+      ..room.askForAPersonFailsWith = const NetworkFailed('sem rede');
 
     final it = await _reabrir(
       harness,
@@ -738,7 +739,7 @@ void main() {
         case _Falha.nenhuma:
           break;
         case _Falha.aLista:
-          harness.room.failTakesWith = const RoomUnavailable('sem rede');
+          harness.room.failTakesWith = const NetworkFailed('sem rede');
         case _Falha.umaParte:
           harness.room.refuseClipOf.add('gravacao-2');
       }

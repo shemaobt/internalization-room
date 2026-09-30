@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -285,7 +285,7 @@ void main() {
     // logo a seguir a ela, e é essa que tem de falhar. Armada antes, qualquer leitura do
     // caminho até aqui gastava a manivela, que é de um tiro só, e o caso não media nada.
     harness.room.duranteOVeredito = () {
-      harness.room.failStateOnceWith = const RoomSlow();
+      harness.room.failStateOnceWith = const NetworkFailed('timeout');
     };
     final container = await pumpUpToAVerdict(tester, harness);
 

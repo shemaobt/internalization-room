@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:clock/clock.dart';
-import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -31,6 +31,7 @@ import 'linked_team.dart';
 import 'mic_permission.dart';
 import 'playback_repository.dart';
 import 'recording_repository.dart';
+import 'room_answer.dart';
 import 'room_repository.dart';
 import 'take_upload_queue.dart';
 import 'work_in_progress.dart';
@@ -57,9 +58,6 @@ const _clockSegments = <(String, String, String)>[
 const _unplayableTurnsBeforeNeedsPerson = 3;
 const _roomFailuresBeforeNeedsPerson = 3;
 
-/// How many times the room may answer nothing before the app stops waiting for it.
-const _slowAnswersBeforeGivingUp = 3;
-
 /// How many times the recorder may fail to start in a row before the room calls a
 /// person — mirroring `micFails` in her client.
 const _captureFailsBeforeAPerson = 2;
@@ -81,6 +79,9 @@ enum _Resume {
   /// The room could not hand the rehearsal back. A person is called and the resume point
   /// is left exactly as it was, so the next opening tries again.
   halted,
+
+  /// The room no longer holds the session the row remembers.
+  gone,
 
   /// Nobody is waiting for this answer any more — the team left the passage, or the
   /// container went. It is not a reading of what the room holds and must not be read as
@@ -208,7 +209,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _epoch = 0;
   int _unplayableTurns = 0;
   int _roomFailures = 0;
-  List<String>? _fileiraDaUltimaRecusa;
   final Set<String> _contadasSemResposta = {};
   int _resumeFailures = 0;
 
@@ -218,7 +218,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// session was born, and nothing decides by it (ADR 0031).
   DateTime? _sessionSavedAt;
   String? _sessionLanguage;
-  int _slowAnswers = 0;
   int _calmTurns = 0;
   int _retryStep = 0;
   bool _noticeSpoken = false;
@@ -648,9 +647,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (!played) return _registerUnplayableTurn(leavesTeamTalk: false);
       _unplayableTurns = 0;
       state = state.copyWith(voice: VoiceState.invite);
-    } on Exception catch (error) {
+    } on RoomFailure catch (failure) {
       if (epoch != _epoch) return;
-      _handleRoomFailure(error);
+      _handleRoomFailure(failure);
     }
   }
 
@@ -684,9 +683,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (!scene) return _registerUnplayableTurn(leavesTeamTalk: false);
       _unplayableTurns = 0;
       state = state.copyWith(voice: VoiceState.invite);
-    } on Exception catch (error) {
+    } on RoomFailure catch (failure) {
       if (epoch != _epoch) return;
-      _handleRoomFailure(error);
+      _handleRoomFailure(failure);
     }
   }
 
@@ -888,37 +887,37 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = _haltWatched;
     if (sessionId == null) return;
     final epoch = _epoch;
-    try {
-      final snapshot = await _room.fetchState(sessionId);
-      if (epoch != _epoch || _haltWatched != sessionId) return;
-      state = state.copyWith(warning: snapshot.halt == HaltKind.warning);
-      if (snapshot.needsPerson) {
-        if (!state.needsPerson) _haltForAPerson(read: true);
-      } else {
-        if (state.needsPerson) {
-          _comeBack();
-          _leaveTheHalt();
+    final answer = await _room.fetchState(sessionId);
+    if (epoch != _epoch || _haltWatched != sessionId) return;
+    switch (answer) {
+      case Answered(value: final snapshot):
+        state = state.copyWith(warning: snapshot.halt == HaltKind.warning);
+        if (snapshot.needsPerson) {
+          if (!state.needsPerson) _haltForAPerson(read: true);
+        } else {
+          if (state.needsPerson) {
+            _comeBack();
+            _leaveTheHalt();
+          }
+          if (!state.warning) {
+            // A warning walks no voice, so there is nothing to hand back: the field going
+            // out is the whole of it, and the halt's way out would give the team an invite
+            // over a clip already playing.
+            _endTheWatch();
+            return;
+          }
         }
-        if (!state.warning) {
-          // A warning walks no voice, so there is nothing to hand back: the field going
-          // out is the whole of it, and the halt's way out would give the team an invite
-          // over a clip already playing.
-          _endTheWatch();
-          return;
-        }
-      }
-    } on SessionGone {
-      // There is no longer a session to be let out of, so there is nothing left to ask:
-      // the room keeps the halt and the long press is the way out of it, as it is for a
-      // build with no session at all.
-      if (epoch != _epoch || _haltWatched != sessionId) return;
-      _endTheWatch();
-      state = state.copyWith(clearSession: true);
-      return;
-    } on Exception {
-      // A read that failed says nothing about the halt. Asking again on the same beat is
-      // the whole answer; counting it as a second halt would talk over the first.
-      if (epoch != _epoch || _haltWatched != sessionId) return;
+      case SessionGone():
+        // There is no longer a session to be let out of, so there is nothing left to ask:
+        // the room keeps the halt and the long press is the way out of it, as it is for a
+        // build with no session at all.
+        _endTheWatch();
+        state = state.copyWith(clearSession: true);
+        return;
+      case NetworkFailed() || Refused():
+        // A read that failed says nothing about the halt. Asking again on the same beat is
+        // the whole answer; counting it as a second halt would talk over the first.
+        break;
     }
     _beatTheWatch();
   }
@@ -942,31 +941,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     if (sessionId == null || _personAsked || _askingForAPerson) return;
     _askingForAPerson = true;
-    var sessionGone = false;
-    try {
-      await _room.askForAPerson(sessionId);
-      // The watch begins here and not at the halt: releasing on a state read that went
-      // out before the call landed would let the team out of a room whose halt the desk
-      // has not heard of yet, and nobody would ever come.
-      if (!_gone && state.needsPerson) {
-        _personAsked = true;
-        _watchTheHalt();
-      }
-    } on SessionGone {
-      // The server has already said this session is gone; insisting on the same route
-      // just spends the backoff. Clearing it here — the way the state poll's SessionGone
-      // path does — is what gives the device-scoped ask its turn.
-      sessionGone = true;
-    } on Exception {
-      _keepAskingForAPerson(_askForAPerson);
-    } finally {
-      _askingForAPerson = false;
-    }
-    // A person may have arrived and resolved the halt while this ask was still in
-    // flight — `resolveWithPerson()` cannot cancel it. A late 404 must not reopen a
-    // halt nobody is in anymore, the same guard the two branches around this one lean on.
-    if (sessionGone && !_gone && state.needsPerson) {
-      _haltForAPerson(sessionIsGone: true);
+    final answer = await _room.askForAPerson(sessionId);
+    _askingForAPerson = false;
+    switch (answer) {
+      case Answered():
+        // The watch begins here and not at the halt: releasing on a state read that went
+        // out before the call landed would let the team out of a room whose halt the desk
+        // has not heard of yet, and nobody would ever come.
+        if (!_gone && state.needsPerson) {
+          _personAsked = true;
+          _watchTheHalt();
+        }
+      case SessionGone():
+        // The server has already said this session is gone; insisting on the same route
+        // just spends the backoff. Clearing it here — the way the state poll's SessionGone
+        // path does — is what gives the device-scoped ask its turn. A person may have
+        // arrived and resolved the halt while this ask was still in flight, and a late
+        // 404 must not reopen a halt nobody is in anymore.
+        if (!_gone && state.needsPerson) _haltForAPerson(sessionIsGone: true);
+      case NetworkFailed() || Refused():
+        _keepAskingForAPerson(_askForAPerson);
     }
   }
 
@@ -975,17 +969,27 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _askForAPersonWithoutASession() async {
     if (_personAsked || _askingForAPerson) return;
     _askingForAPerson = true;
+    final String? deviceId;
     try {
-      final deviceId = (await _ledger.read()).deviceId;
-      if (deviceId == null || _gone) return;
-      await _room.askForAPersonWithoutASession(deviceId);
-      if (!_gone && state.needsPerson) _personAsked = true;
-    } on NobodyToReach {
-      // No team can be reached for this device; asking again cannot change that.
+      deviceId = (await _ledger.read()).deviceId;
     } on Exception {
-      _keepAskingForAPerson(_askForAPersonWithoutASession);
-    } finally {
       _askingForAPerson = false;
+      return _keepAskingForAPerson(_askForAPersonWithoutASession);
+    }
+    if (deviceId == null || _gone) {
+      _askingForAPerson = false;
+      return;
+    }
+    final answer = await _room.askForAPersonWithoutASession(deviceId);
+    _askingForAPerson = false;
+    switch (answer) {
+      case Answered():
+        if (!_gone && state.needsPerson) _personAsked = true;
+      case Refused(code: RefusalCode.nobodyToReach):
+        // No team can be reached for this device; asking again cannot change that.
+        break;
+      case NetworkFailed() || Refused() || SessionGone():
+        _keepAskingForAPerson(_askForAPersonWithoutASession);
     }
   }
 
@@ -1004,22 +1008,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// [turnCall] marks the openSession/sendTurn/loadWheel family: every call to one of the
   /// three, through whichever door reaches it — including the opening turn a resume with
-  /// nothing to restore falls through to. A `RoomBroke` there raises the affordance on
+  /// nothing to restore falls through to. A refusal there raises the affordance on
   /// the spot, the same turn a person would have been shown E0 in. Every other caller —
   /// the resume itself, upload, a written question, a retro edit, an approval — keeps the
   /// three-strike ladder `_registerRoomFailure` runs underneath.
-  void _handleRoomFailure(Object error, {bool turnCall = false}) {
+  void _handleRoomFailure(RoomFailure failure, {bool turnCall = false}) {
     _leaveThinking();
-    if (turnCall && error is RoomBroke) {
-      _haltForAPerson();
-      return;
-    }
-    switch (error) {
-      case RoomRefused():
-        _haltForAPerson();
+    switch (failure) {
+      case NetworkFailed():
+        _goOffline(RoomReach.noNetwork);
       case SessionGone():
         _leaveTheDeadPassage();
-      case PassageCannotOpen():
+      case Refused(:final code) when RefusalCode.stopsTheRoom.contains(code):
+        _haltForAPerson();
+      case Refused(code: RefusalCode.passageCannotOpen):
         final refused = _emCurso;
         if (refused != null) {
           state = state.copyWith(
@@ -1027,29 +1029,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           );
         }
         unawaited(abrirEscolha(afterRefusal: true));
-      case RoomBroke() || StretchNoLongerCounts():
+      case Refused() when turnCall:
+        _haltForAPerson();
+      case Refused():
         _registerRoomFailure();
-      case RoomSlow():
-        _registerSlowRoom();
-      default:
-        _goOffline(RoomReach.noNetwork);
     }
-  }
-
-  /// The room answered nothing in time. It is still there.
-  ///
-  /// Every timeout used to be spent as a verdict — one slow turn and the room told a team
-  /// on a working network that the internet was gone. The upload queue has always paced
-  /// waits apart from refusals; this is the same distinction, arriving late.
-  void _registerSlowRoom() {
-    _slowAnswers++;
-    _calmTurns = 0;
-    _conviteOpened = false;
-    if (_slowAnswers >= _slowAnswersBeforeGivingUp) {
-      _goOffline(RoomReach.roomSilent);
-      return;
-    }
-    state = state.copyWith(voice: VoiceState.invite, peerCue: false);
   }
 
   void _registerRoomFailure() {
@@ -1063,7 +1047,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(voice: VoiceState.invite, peerCue: false);
   }
 
-  /// A played turn only earns `_roomFailures`/`_slowAnswers` back after two calm turns
+  /// A played turn only earns `_roomFailures` back after two calm turns
   /// in a row — a network failing every other turn traded one failure for one success
   /// every time, and the counter it gated never climbed. A resolve clears every counter
   /// outright: it is the room's own word the trouble is over, not one more turn to weigh.
@@ -1073,7 +1057,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _noticeSpoken = false;
     if (resolved) {
       _roomFailures = 0;
-      _slowAnswers = 0;
       _calmTurns = 0;
       return;
     }
@@ -1085,7 +1068,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_calmTurns < 2) return;
     _calmTurns = 0;
     if (_roomFailures > 0) _roomFailures--;
-    if (_slowAnswers > 0) _slowAnswers--;
   }
 
   void _watchBusyState() {
@@ -1238,11 +1220,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// failed ping here is not retried — it would just spend the backoff on a signal the
   /// desk already has another way to get.
   Future<void> _tellTheRoomAPersonArrived(String sessionId) async {
-    try {
-      await _room.personArrived(sessionId);
-    } on Exception {
-      // Silent: the re-read still happens and the halt still ends the normal way.
-    }
+    await _room.personArrived(sessionId);
   }
 
   void _endTheWatch() {
@@ -1350,7 +1328,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           _onCoverageFrame,
           onDone: () => _coverageChannelDied(sessionId, reopen: !refused),
           onError: (Object error) {
-            refused = error is RoomRefused || error is SessionGone;
+            refused =
+                error is SessionGone ||
+                error is Refused &&
+                    RefusalCode.stopsTheRoom.contains(error.code);
           },
         );
   }
@@ -1385,10 +1366,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// restamped the beads clock on a turn that had already landed.
   Future<void> _recoverCoverageWait(String sessionId) async {
     final turnId = _awaitingCoverageTurnId;
-    final advanced = await _pullState(
-      sessionId,
-      clock: _coverageClock,
-    ).catchError((_) => false);
+    final advanced = await _pullState(sessionId, clock: _coverageClock);
     if (turnId != null && advanced && _awaitingCoverageTurnId == turnId) {
       _resolveCoverageWait(sessionId, turnId, pullState: false);
     }
@@ -1434,7 +1412,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final clock = _coverageClock;
     _coverageClock = null;
     if (pullState) {
-      unawaited(_pullState(sessionId, clock: clock).catchError((_) => false));
+      unawaited(_pullState(sessionId, clock: clock));
     }
     unawaited(_pullInbox());
   }
@@ -1446,32 +1424,34 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// stamping it on a pull that changed nothing timed a turn that never actually landed.
   Future<bool> _pullState(String sessionId, {TurnClock? clock}) async {
     final epoch = _epoch;
-    try {
-      final snapshot = await _room.fetchState(sessionId);
-      if (epoch != _epoch || state.sessionId != sessionId) return false;
-      final advanced = _applyCoverage(snapshot.coverage, clock: clock);
-      state = state.copyWith(warning: snapshot.halt == HaltKind.warning);
-      if (state.warning) _watchTheHalt();
-      if (snapshot.needsPerson) {
-        _haltForAPerson(read: true);
-      } else if (snapshot.done && state.stage == SalaStage.conversa) {
-        if (state.voice == VoiceState.invite) {
-          state = state.copyWith(voice: VoiceState.done, peerCue: false);
-        } else if (state.voice == VoiceState.speaking ||
-            state.voice == VoiceState.listening ||
-            state.voice == VoiceState.thinking) {
-          _doneSeenMidTurn = true;
+    switch (await _room.fetchState(sessionId)) {
+      case Answered(value: final snapshot):
+        if (epoch != _epoch || state.sessionId != sessionId) return false;
+        final advanced = _applyCoverage(snapshot.coverage, clock: clock);
+        state = state.copyWith(warning: snapshot.halt == HaltKind.warning);
+        if (state.warning) _watchTheHalt();
+        if (snapshot.needsPerson) {
+          _haltForAPerson(read: true);
+        } else if (snapshot.done && state.stage == SalaStage.conversa) {
+          if (state.voice == VoiceState.invite) {
+            state = state.copyWith(voice: VoiceState.done, peerCue: false);
+          } else if (state.voice == VoiceState.speaking ||
+              state.voice == VoiceState.listening ||
+              state.voice == VoiceState.thinking) {
+            _doneSeenMidTurn = true;
+          }
         }
-      }
-      return advanced;
-    } on SessionGone {
-      if (epoch != _epoch) return false;
-      _leaveTheDeadPassage();
-      return false;
-    } on RoomRefused {
-      if (epoch != _epoch) return false;
-      _haltForAPerson();
-      return false;
+        return advanced;
+      case SessionGone():
+        if (epoch != _epoch) return false;
+        _leaveTheDeadPassage();
+        return false;
+      case Refused(:final code) when RefusalCode.stopsTheRoom.contains(code):
+        if (epoch != _epoch) return false;
+        _haltForAPerson();
+        return false;
+      case NetworkFailed() || Refused():
+        return false;
     }
   }
 
@@ -1500,42 +1480,58 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _watchBusyState();
-    try {
-      // A panorama that fails to play sends the team back to the invite, and every touch
-      // used to mint another session for the same book — the server collected one
-      // abandoned panorama per attempt. One launch asks for one panorama.
-      final created = _panoramaSessionId == null
-          ? await _room.createSession(
-              pericope: panoramaPericope,
-              language: _lingua,
-            )
-          : null;
-      if (epoch != _epoch) return;
-      // Asking for the panorama is a request and not an instruction: which passage a
-      // session is for is the room's to say, and the answer carries it. The answer is
-      // also the session to enter: opening another for the same passage left the one the
-      // room had just made abandoned, one ghost row per launch.
-      final given = created?.pericope;
-      if (given != null && !isThePanorama(given)) {
-        // The room answering a passage is its word that the panorama was heard. Left
-        // unwritten, a tablet without the mark asked for the panorama on every launch and
-        // adopted a new session each time, its coverage starting over from zero.
-        unawaited(_feitas.markBookOpened(_book).catchError((_) {}));
-        unawaited(goConversa(pericope: given, opened: created));
-        return;
-      }
-      final panorama = _panoramaSessionId ?? created!.sessionId;
-      _panoramaSessionId = panorama;
-      final turn = await _room.openSession(
-        panorama,
-        turnId: _openTurnId ??= _stamp(),
-      );
-      if (epoch != _epoch) return;
-      await _voicePanorama(turn);
-    } on Object catch (error) {
+    void failed(RoomFailure failure) {
       if (epoch != _epoch) return;
       _conviteOpened = false;
-      _handleRoomFailure(error, turnCall: true);
+      _handleRoomFailure(failure, turnCall: true);
+    }
+
+    // A panorama that fails to play sends the team back to the invite, and every touch
+    // used to mint another session for the same book — the server collected one
+    // abandoned panorama per attempt. One launch asks for one panorama.
+    SessionSnapshot? created;
+    if (_panoramaSessionId == null) {
+      switch (await _room.createSession(
+        pericope: panoramaPericope,
+        language: _lingua,
+      )) {
+        case Answered(value: final session):
+          created = session;
+        case final RoomFailure failure:
+          return failed(failure);
+      }
+    }
+    if (epoch != _epoch) return;
+    // Asking for the panorama is a request and not an instruction: which passage a
+    // session is for is the room's to say, and the answer carries it. The answer is
+    // also the session to enter: opening another for the same passage left the one the
+    // room had just made abandoned, one ghost row per launch.
+    final given = created?.pericope;
+    if (given != null && !isThePanorama(given)) {
+      // The room answering a passage is its word that the panorama was heard. Left
+      // unwritten, a tablet without the mark asked for the panorama on every launch and
+      // adopted a new session each time, its coverage starting over from zero.
+      unawaited(_feitas.markBookOpened(_book).catchError((_) {}));
+      unawaited(goConversa(pericope: given, opened: created));
+      return;
+    }
+    final panorama = _panoramaSessionId ?? created!.sessionId;
+    _panoramaSessionId = panorama;
+    final TurnResult turn;
+    switch (await _room.openSession(
+      panorama,
+      turnId: _openTurnId ??= _stamp(),
+    )) {
+      case Answered(value: final opened):
+        turn = opened;
+      case final RoomFailure failure:
+        return failed(failure);
+    }
+    if (epoch != _epoch) return;
+    try {
+      await _voicePanorama(turn);
+    } on RoomFailure catch (failure) {
+      failed(failure);
     }
   }
 
@@ -1606,13 +1602,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _sayImThinking();
     state = state.copyWith(voice: VoiceState.thinking);
     _watchBusyState();
-    try {
-      final turn = await _sendTheTake(panorama, File(path), epoch);
+    void failed(RoomFailure failure) {
       if (epoch != _epoch) return;
-      await _voicePanorama(turn);
-    } on Exception catch (error) {
-      if (epoch != _epoch) return;
-      _handleRoomFailure(error, turnCall: true);
+      _handleRoomFailure(failure, turnCall: true);
+    }
+
+    switch (await _sendTheTake(panorama, File(path), epoch)) {
+      case Answered(value: final turn):
+        if (epoch != _epoch) return;
+        try {
+          await _voicePanorama(turn);
+        } on RoomFailure catch (failure) {
+          failed(failure);
+        }
+      case final RoomFailure failure:
+        failed(failure);
     }
   }
 
@@ -1637,12 +1641,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     _watchBusyState();
     final List<Passagem> todas;
-    try {
-      todas = await _room.passagesOf(_book, language: _lingua);
-    } on Object catch (error) {
-      if (epoch != _epoch) return;
-      _handleRoomFailure(error, turnCall: true);
-      return;
+    switch (await _room.passagesOf(_book, language: _lingua)) {
+      case Answered(value: final passagens):
+        todas = passagens;
+      case final RoomFailure failure:
+        if (epoch != _epoch) return;
+        _handleRoomFailure(failure, turnCall: true);
+        return;
     }
     if (epoch != _epoch) return;
     // Held before the awaits: a provider read after the container is disposed throws,
@@ -1797,9 +1802,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (!spoke) return _registerUnplayableTurn();
       _unplayableTurns = 0;
       state = state.copyWith(voice: VoiceState.invite);
-    } on Exception catch (error) {
+    } on RoomFailure catch (failure) {
       if (moved()) return;
-      _handleRoomFailure(error);
+      _handleRoomFailure(failure);
     }
   }
 
@@ -1837,30 +1842,47 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _watchBusyState();
-    try {
-      final created = _panoramaSessionId == null
-          ? await _room.createSession(
-              pericope: panoramaPericope,
-              language: _lingua,
-            )
-          : null;
+    void failed(RoomFailure failure) {
       if (epoch != _epoch) return;
-      // Which passage a session is for is the room's to say, and the answer carries it —
-      // the same swap openConvite already honours. A team touching this spoke while the
-      // room decides otherwise lands where the room answered, rather than being left on
-      // the wheel mid an opening turn nothing here is set up to answer.
-      final given = created?.pericope;
-      if (given != null && !isThePanorama(given)) {
-        unawaited(goConversa(pericope: given, opened: created));
-        return;
+      _handleRoomFailure(failure, turnCall: true);
+    }
+
+    SessionSnapshot? created;
+    if (_panoramaSessionId == null) {
+      switch (await _room.createSession(
+        pericope: panoramaPericope,
+        language: _lingua,
+      )) {
+        case Answered(value: final session):
+          created = session;
+        case final RoomFailure failure:
+          return failed(failure);
       }
-      final panorama = _panoramaSessionId ?? created!.sessionId;
-      _panoramaSessionId = panorama;
-      final turn = await _room.openSession(
-        panorama,
-        turnId: _openTurnId ??= _stamp(),
-      );
-      if (epoch != _epoch) return;
+    }
+    if (epoch != _epoch) return;
+    // Which passage a session is for is the room's to say, and the answer carries it —
+    // the same swap openConvite already honours. A team touching this spoke while the
+    // room decides otherwise lands where the room answered, rather than being left on
+    // the wheel mid an opening turn nothing here is set up to answer.
+    final given = created?.pericope;
+    if (given != null && !isThePanorama(given)) {
+      unawaited(goConversa(pericope: given, opened: created));
+      return;
+    }
+    final panorama = _panoramaSessionId ?? created!.sessionId;
+    _panoramaSessionId = panorama;
+    final TurnResult turn;
+    switch (await _room.openSession(
+      panorama,
+      turnId: _openTurnId ??= _stamp(),
+    )) {
+      case Answered(value: final opened):
+        turn = opened;
+      case final RoomFailure failure:
+        return failed(failure);
+    }
+    if (epoch != _epoch) return;
+    try {
       await _readyToSpeak(turn.audioUrl, turn.fixedLine);
       if (epoch != _epoch) return;
       state = state.copyWith(voice: VoiceState.speaking);
@@ -1871,9 +1893,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _unplayableTurns = 0;
       _openTurnId = null;
       state = state.copyWith(voice: VoiceState.invite);
-    } on Object catch (error) {
-      if (epoch != _epoch) return;
-      _handleRoomFailure(error, turnCall: true);
+    } on RoomFailure catch (failure) {
+      failed(failure);
     }
   }
 
@@ -1983,120 +2004,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (epoch != _epoch) return;
     final waiting = _wrongLanguage(stored) ? null : stored;
     var reachedTheOpeningTurn = false;
-    try {
-      final resumed = waiting != null;
-      final created = resumed
-          ? null
-          : opened ??
-                await _room.createSession(
-                  pericope: pericope,
-                  afterSession: _panoramaSessionId,
-                  language: _lingua,
-                );
-      if (!resumed && opened == null) openingClock.mark('session');
-      final sessionId = waiting?.sessionId ?? created!.sessionId;
+    void failed(RoomFailure failure) {
       if (epoch != _epoch) return;
-      // The passage opened for real, whether created fresh or resumed: the team has left
-      // the Choice, and whatever visit was refusing passages there is over. A stumble
-      // past this point — a session gone mid-open, a fresh retry the room also refuses —
-      // is this passage's own new refusal, not the last visit's.
-      if (!resumed) _startTheSessionClean(pericope);
-      state = state.copyWith(
-        sessionId: sessionId,
-        coverage: created?.coverage,
-        refusedThisVisit: const {},
-      );
-      _sessionSavedAt = resumed ? waiting.savedAt : clock.now();
-      _sessionLanguage = resumed ? waiting.language : _lingua;
-      if (pericope != null && !resumed) {
-        unawaited(
-          _mindingThePlace(
-            () => _emAberto.remember(
-              _book,
-              pericope,
-              ResumePoint(
-                sessionId: sessionId,
-                stage: SalaStage.conversa,
-                savedAt: _sessionSavedAt,
-                language: _sessionLanguage,
-              ),
-            ),
-          ),
-        );
-      }
-      unawaited(_pullInbox());
-      _watchBusyState();
-      if (resumed) {
-        final onde = await _backToWhereTheyStopped(waiting, epoch);
-        if (epoch != _epoch) return;
-        if (onde == _Resume.halted || onde == _Resume.abandoned) return;
-        if (onde == _Resume.landed) {
-          final snapshot = await _room.fetchState(sessionId);
-          if (epoch != _epoch) return;
-          state = state.copyWith(
-            coverage: snapshot.coverage,
-            warning: snapshot.halt == HaltKind.warning,
-          );
-          if (state.warning) _watchTheHalt();
-          if (waiting.stage == SalaStage.retro) {
-            _pickTheTellingBackUp(snapshot.backTranslation);
-          } else {
-            _keepTheStretchesAlreadyTold(snapshot.backTranslation);
-          }
-          // The snapshot was fetched here and its halt never read, so a team reopening
-          // into a room the server had already stopped met every gesture wide open.
-          //
-          // After the telling-back is picked up, not before, so that the passage the team
-          // comes back to is the one they left: a person resolving the halt finds them in
-          // their retro rather than dropped back into the rehearsal.
-          if (snapshot.needsPerson) _haltForAPerson(read: true);
+      if (failure is SessionGone) {
+        if (pericope != null) {
+          unawaited(_mindingThePlace(() => _emAberto.forget(_book, pericope)));
+        }
+        if (fresh) {
+          // Already the clean attempt, and the room still does not know a session it was
+          // asked about: the panorama this one opened after, or the one it just opened.
+          // Retrying again is the loop this guard exists to stop.
+          leaveThePassage();
           return;
         }
-        if (waiting.stage == SalaStage.retro) {
-          final told = (await _room.fetchState(sessionId)).backTranslation;
-          if (epoch != _epoch) return;
-          // Only when there is a telling-back to land on. A checked answer carrying no
-          // stretch contradicts itself — the check is about what was told — and there is
-          // no rehearsal here to land it on either, so this door declines it: landing it
-          // left the room standing in the conversa until the watchdog called a person two
-          // minutes later. It falls through to the turn instead, which is the door every
-          // other empty answer takes: closing would call a passage the team never
-          // approved its final draft.
-          //
-          // Reached only when the room holds no rehearsal of its own to hand back, which
-          // is the one way past this door now that a resume fetches the parts.
-          if (told.checked && !told.nothingTold) {
-            _pickTheTellingBackUp(told);
-            return;
-          }
-        }
-      }
-      // Re-opening carries the coverage back with it, so the necklace fills itself.
-      reachedTheOpeningTurn = true;
-      final opening = await _askForTheOpening(sessionId, epoch);
-      openingClock.mark('open');
-      await _voiceTurn(
-        opening,
-        epoch,
-        onSoundStart: () => openingClock.mark('sound'),
-      );
-    } on SessionGone {
-      if (epoch != _epoch) return;
-      if (pericope != null) {
-        unawaited(_mindingThePlace(() => _emAberto.forget(_book, pericope)));
-      }
-      if (fresh) {
-        // Already the clean attempt, and the room still does not know a session it was asked
-        // about: the panorama this one opened after, or the one it just opened. Retrying
-        // again is the loop this guard exists to stop.
-        leaveThePassage();
+        // The tablet remembered a session the server has forgotten. Start clean, once.
+        unawaited(goConversa(pericope: pericope, fresh: true));
         return;
       }
-      // The tablet remembered a session the server has forgotten. Start clean, once.
-      unawaited(goConversa(pericope: pericope, fresh: true));
-    } on Exception catch (error) {
-      if (epoch != _epoch) return;
-      if (waiting != null && error is RoomBroke) {
+      if (waiting != null &&
+          failure is Refused &&
+          !RefusalCode.stopsTheRoom.contains(failure.code)) {
         _resumeFailures++;
         if (_resumeFailures >= _resumeFailuresBeforeForgetting) {
           _resumeFailures = 0;
@@ -2110,27 +2037,140 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // gets there: the door is `_askForTheOpening`, the same one every other empty
       // resume takes.
       _handleRoomFailure(
-        error,
+        failure,
         turnCall: reachedTheOpeningTurn || waiting == null,
       );
     }
-  }
 
-  Future<TurnResult> _askForTheOpening(String sessionId, int epoch) async {
-    _openingOwed = true;
-    final turnId = _openTurnId ??= _stamp();
-    while (true) {
-      try {
-        return await _room.openSession(sessionId, turnId: turnId);
-      } on RoomSlow {
-        if (epoch != _epoch) rethrow;
-        if (_slowAnswers + 1 >= _slowAnswersBeforeGivingUp) rethrow;
-        _slowAnswers++;
-        _calmTurns = 0;
-        _sayImThinking();
-        _watchBusyState();
+    final resumed = waiting != null;
+    var created = resumed ? null : opened;
+    if (!resumed && opened == null) {
+      switch (await _room.createSession(
+        pericope: pericope,
+        afterSession: _panoramaSessionId,
+        language: _lingua,
+      )) {
+        case Answered(value: final session):
+          created = session;
+        case final RoomFailure failure:
+          return failed(failure);
+      }
+      openingClock.mark('session');
+    }
+    final sessionId = waiting?.sessionId ?? created!.sessionId;
+    if (epoch != _epoch) return;
+    // The passage opened for real, whether created fresh or resumed: the team has left
+    // the Choice, and whatever visit was refusing passages there is over. A stumble
+    // past this point — a session gone mid-open, a fresh retry the room also refuses —
+    // is this passage's own new refusal, not the last visit's.
+    if (!resumed) _startTheSessionClean(pericope);
+    state = state.copyWith(
+      sessionId: sessionId,
+      coverage: created?.coverage,
+      refusedThisVisit: const {},
+    );
+    _sessionSavedAt = resumed ? waiting.savedAt : clock.now();
+    _sessionLanguage = resumed ? waiting.language : _lingua;
+    if (pericope != null && !resumed) {
+      unawaited(
+        _mindingThePlace(
+          () => _emAberto.remember(
+            _book,
+            pericope,
+            ResumePoint(
+              sessionId: sessionId,
+              stage: SalaStage.conversa,
+              savedAt: _sessionSavedAt,
+              language: _sessionLanguage,
+            ),
+          ),
+        ),
+      );
+    }
+    unawaited(_pullInbox());
+    _watchBusyState();
+    if (resumed) {
+      final onde = await _backToWhereTheyStopped(waiting, epoch);
+      if (epoch != _epoch) return;
+      if (onde == _Resume.gone) return failed(const SessionGone());
+      if (onde == _Resume.halted || onde == _Resume.abandoned) return;
+      if (onde == _Resume.landed) {
+        final SessionSnapshot snapshot;
+        switch (await _room.fetchState(sessionId)) {
+          case Answered(value: final read):
+            snapshot = read;
+          case final RoomFailure failure:
+            return failed(failure);
+        }
+        if (epoch != _epoch) return;
+        state = state.copyWith(
+          coverage: snapshot.coverage,
+          warning: snapshot.halt == HaltKind.warning,
+        );
+        if (state.warning) _watchTheHalt();
+        if (waiting.stage == SalaStage.retro) {
+          _pickTheTellingBackUp(snapshot.backTranslation);
+        } else {
+          _keepTheStretchesAlreadyTold(snapshot.backTranslation);
+        }
+        // The snapshot was fetched here and its halt never read, so a team reopening
+        // into a room the server had already stopped met every gesture wide open.
+        //
+        // After the telling-back is picked up, not before, so that the passage the team
+        // comes back to is the one they left: a person resolving the halt finds them in
+        // their retro rather than dropped back into the rehearsal.
+        if (snapshot.needsPerson) _haltForAPerson(read: true);
+        return;
+      }
+      if (waiting.stage == SalaStage.retro) {
+        final BackTranslationProgress told;
+        switch (await _room.fetchState(sessionId)) {
+          case Answered(value: final read):
+            told = read.backTranslation;
+          case final RoomFailure failure:
+            return failed(failure);
+        }
+        if (epoch != _epoch) return;
+        // Only when there is a telling-back to land on. A checked answer carrying no
+        // stretch contradicts itself — the check is about what was told — and there is
+        // no rehearsal here to land it on either, so this door declines it: landing it
+        // left the room standing in the conversa until the watchdog called a person two
+        // minutes later. It falls through to the turn instead, which is the door every
+        // other empty answer takes: closing would call a passage the team never
+        // approved its final draft.
+        //
+        // Reached only when the room holds no rehearsal of its own to hand back, which
+        // is the one way past this door now that a resume fetches the parts.
+        if (told.checked && !told.nothingTold) {
+          _pickTheTellingBackUp(told);
+          return;
+        }
       }
     }
+    // Re-opening carries the coverage back with it, so the necklace fills itself.
+    reachedTheOpeningTurn = true;
+    final TurnResult opening;
+    switch (await _askForTheOpening(sessionId)) {
+      case Answered(value: final turn):
+        opening = turn;
+      case final RoomFailure failure:
+        return failed(failure);
+    }
+    openingClock.mark('open');
+    try {
+      await _voiceTurn(
+        opening,
+        epoch,
+        onSoundStart: () => openingClock.mark('sound'),
+      );
+    } on RoomFailure catch (failure) {
+      failed(failure);
+    }
+  }
+
+  Future<RoomAnswer<TurnResult>> _askForTheOpening(String sessionId) {
+    _openingOwed = true;
+    return _room.openSession(sessionId, turnId: _openTurnId ??= _stamp());
   }
 
   Future<void> _askForTheOpeningAgain() async {
@@ -2140,11 +2180,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _sayImThinking();
     state = state.copyWith(voice: VoiceState.thinking);
     _watchBusyState();
-    try {
-      await _voiceTurn(await _askForTheOpening(sessionId, epoch), epoch);
-    } on Exception catch (error) {
+    void failed(RoomFailure failure) {
       if (epoch != _epoch) return;
-      _handleRoomFailure(error, turnCall: true);
+      _handleRoomFailure(failure, turnCall: true);
+    }
+
+    switch (await _askForTheOpening(sessionId)) {
+      case Answered(value: final opening):
+        try {
+          await _voiceTurn(opening, epoch);
+        } on RoomFailure catch (failure) {
+          failed(failure);
+        }
+      case final RoomFailure failure:
+        failed(failure);
     }
   }
 
@@ -2207,7 +2256,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     ];
     if (epoch != _epoch || _gone) return _Resume.abandoned;
     final faltavam = here.length != waiting.takes.length;
-    final takes = faltavam ? await _asPartesDaSala(waiting, here, epoch) : here;
+    List<KeptTake>? takes = here;
+    if (faltavam) {
+      // Armed per step, not once around the whole fetch: the ceiling is what a single
+      // wait is allowed, and a listing plus a part plus a measurement counted as one wait
+      // calls a person on a link that is slow but working.
+      _watchBusyState();
+      switch (await _room.takesOf(waiting.sessionId)) {
+        case Answered(value: final guardadas):
+          if (epoch != _epoch || _gone) return _Resume.abandoned;
+          takes = await _asPartesDaSala(waiting, guardadas, here, epoch);
+        case SessionGone():
+          // This is the first call that names the remembered session on a resume, so the
+          // answer that retires a session arrives here, and swallowed it would make every
+          // opening ask a dead session for a rehearsal and call a person who has nothing
+          // to resolve. It goes to the handler that already starts the passage clean.
+          return _Resume.gone;
+        case NetworkFailed() || Refused():
+          takes = null;
+      }
+    }
     if (epoch != _epoch || _gone) return _Resume.abandoned;
     if (takes == null) {
       _haltedResuming = true;
@@ -2260,33 +2328,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// team's own recording, and fetching a copy over the room's link would spend their
   /// network on what they already have.
   ///
-  /// Null when the room could not hand the rehearsal over — the listing, one part's audio
-  /// or the disk. Nothing is written for it: the resume point stays exactly as it was and
-  /// the next opening tries again.
-  ///
-  /// Except for a room that has no such session any more. This is the first call that
-  /// names the remembered session on a resume, so the answer that retires a session
-  /// arrives here now, and swallowed it would make every opening ask a dead session for a
-  /// rehearsal and call a person who has nothing to resolve. It goes to the handler that
-  /// already starts the passage clean.
+  /// Null when the room could not hand the rehearsal over — one part's audio or the
+  /// disk. Nothing is written for it: the resume point stays exactly as it was and the
+  /// next opening tries again.
   Future<List<KeptTake>?> _asPartesDaSala(
     ResumePoint waiting,
+    List<TakeView> guardadas,
     List<KeptTake> aqui,
     int epoch,
   ) async {
-    final List<TakeView> guardadas;
-    try {
-      // Armed per step, not once around the whole fetch: the ceiling is what a single
-      // wait is allowed, and a listing plus a part plus a measurement counted as one wait
-      // calls a person on a link that is slow but working.
-      _watchBusyState();
-      guardadas = await _room.takesOf(waiting.sessionId);
-    } on SessionGone {
-      rethrow;
-    } on Exception {
-      return null;
-    }
-    if (epoch != _epoch || _gone) return const [];
     // Keyed by the room's number, which keeps the first place each number appears in and
     // the last recording made under it.
     final correntes = <int?, TakeView>{};
@@ -2310,15 +2360,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         );
         continue;
       }
+      _watchBusyState();
+      final clip = await _room.fetchClip(
+        RoomRepository.takeAudioUrl(waiting.sessionId, corrente.takeId),
+      );
+      if (clip is! Answered<Uint8List> || clip.value.isEmpty) return null;
       final String arquivo;
       try {
-        _watchBusyState();
-        final bytes = await _room.fetchClip(
-          RoomRepository.takeAudioUrl(waiting.sessionId, corrente.takeId),
-        );
-        if (bytes.isEmpty) return null;
         arquivo = await _recorder.keepBytes(
-          bytes,
+          clip.value,
           '$escopo-${corrente.takeId}',
         );
       } on Exception {
@@ -2485,28 +2535,36 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _sayImThinking();
     state = state.copyWith(voice: VoiceState.thinking);
     _watchBusyState();
-    try {
-      final clientTiming = _pendingClock?.clientTiming(_clockSegments);
-      _pendingClock = turnClock;
-      final turn = await _sendTheTake(
-        sessionId,
-        File(path),
-        epoch,
-        clientTiming: clientTiming,
-      );
-      await _voiceTurn(
-        turn,
-        epoch,
-        clock: turnClock,
-        onSoundStart: () => turnClock.mark('sound'),
-      );
-    } on Exception catch (error) {
+    void failed(RoomFailure failure) {
       if (epoch != _epoch) return;
-      _handleRoomFailure(error, turnCall: true);
+      _handleRoomFailure(failure, turnCall: true);
+    }
+
+    final clientTiming = _pendingClock?.clientTiming(_clockSegments);
+    _pendingClock = turnClock;
+    switch (await _sendTheTake(
+      sessionId,
+      File(path),
+      epoch,
+      clientTiming: clientTiming,
+    )) {
+      case Answered(value: final turn):
+        try {
+          await _voiceTurn(
+            turn,
+            epoch,
+            clock: turnClock,
+            onSoundStart: () => turnClock.mark('sound'),
+          );
+        } on RoomFailure catch (failure) {
+          failed(failure);
+        }
+      case final RoomFailure failure:
+        failed(failure);
     }
   }
 
-  Future<TurnResult> _sendTheTake(
+  Future<RoomAnswer<TurnResult>> _sendTheTake(
     String sessionId,
     File take,
     int epoch, {
@@ -2520,36 +2578,29 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     var resends = 0;
     Duration? timeout;
     while (true) {
-      try {
-        return await _room.sendTurn(
-          sessionId,
-          take,
-          turnId: turnId,
-          clientTiming: clientTiming,
-          timeout: timeout,
-        );
-      } on Exception catch (error) {
-        if (error is! RoomUnavailable && error is! RoomSlow) rethrow;
-        if (window == null) rethrow;
-        if (epoch != _epoch) rethrow;
-        // A slow room answered, so it is there. A send that never reached it may have
-        // lost a moment of the network or all of it, and only the network can say which:
-        // with none at all this failed in milliseconds and was paused and resent for the
-        // whole wait while the team watched thinking, where it had always gone offline
-        // at once. Asked before the window is read, so the question's own seconds are
-        // spent like any other.
-        if (error is RoomUnavailable &&
-            await _network.reachRoom() != RoomReach.fine) {
-          rethrow;
-        }
-        final step = resends < backoff.length ? resends : backoff.length - 1;
-        final pause = backoff[step];
-        if (window - waited() - pause - margin < margin) rethrow;
-        resends++;
-        await Future<void>.delayed(pause);
-        if (epoch != _epoch) rethrow;
-        timeout = window - waited() - margin;
+      final answer = await _room.sendTurn(
+        sessionId,
+        take,
+        turnId: turnId,
+        clientTiming: clientTiming,
+        timeout: timeout,
+      );
+      if (answer is! NetworkFailed || window == null || epoch != _epoch) {
+        return answer;
       }
+      // A send that got no answer may have lost a moment of the network or all of it,
+      // and only the network can say which: with none at all this failed in milliseconds
+      // and was paused and resent for the whole wait while the team watched thinking,
+      // where it had always gone out of reach at once. Asked before the window is read,
+      // so the question's own seconds are spent like any other.
+      if (await _network.reachRoom() != RoomReach.fine) return answer;
+      final step = resends < backoff.length ? resends : backoff.length - 1;
+      final pause = backoff[step];
+      if (window - waited() - pause - margin < margin) return answer;
+      resends++;
+      await Future<void>.delayed(pause);
+      if (epoch != _epoch) return answer;
+      timeout = window - waited() - margin;
     }
   }
 
@@ -2559,8 +2610,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> _pullInbox() async {
-    final fetched = await _inbox.fetchReplies();
-    if (fetched == null) return;
+    final answer = await _inbox.fetchReplies();
+    if (answer is! Answered<List<HandReply>>) return;
+    final fetched = answer.value;
     if (_gone) return;
     final known = {for (final reply in state.replies) reply.id: reply};
     // The desk does re-send audio_url for a question_id it already served: a reply the
@@ -2739,7 +2791,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       replies: _replies(replyId, heard: true),
       clearPlayingReply: true,
     );
-    if (await _inbox.markHeard(replyId, audioUrl: audioUrl)) return;
+    if (await _inbox.markHeard(replyId, audioUrl: audioUrl) is Answered) return;
     if (_gone || epoch != _epoch) return;
     state = state.copyWith(replies: _replies(replyId, heard: false));
     unawaited(_pullInbox());
@@ -2781,12 +2833,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (path != null) unawaited(_recorder.delete(path));
       return;
     }
-    try {
-      await _inbox.sendQuestion(sessionId, File(path));
-      if (epoch != _epoch) return;
-    } on Exception catch (error) {
-      if (epoch != _epoch) return;
-      _handleRoomFailure(error);
+    final sent = await _inbox.sendQuestion(sessionId, File(path));
+    if (epoch != _epoch) return;
+    if (sent is RoomFailure) {
+      _handleRoomFailure(NetworkFailed('$sent'));
       return;
     }
     unawaited(_recorder.delete(path));
@@ -2842,23 +2892,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _watchBusyState();
-    try {
-      final created = await _room.createSession(
-        pericope: panoramaPericope,
-        language: _lingua,
-      );
-      if (epoch != _epoch) return;
-      _conviteOpened = false;
-      if (!isThePanorama(created.pericope)) {
-        state = state.copyWith(voice: VoiceState.invite);
-        return;
-      }
-      _panoramaSessionId = created.sessionId;
-      unawaited(openConvite());
-    } on Object catch (error) {
-      if (epoch != _epoch) return;
-      _conviteOpened = false;
-      _handleRoomFailure(error, turnCall: true);
+    final answer = await _room.createSession(
+      pericope: panoramaPericope,
+      language: _lingua,
+    );
+    if (epoch != _epoch) return;
+    _conviteOpened = false;
+    switch (answer) {
+      case Answered(value: final created):
+        if (!isThePanorama(created.pericope)) {
+          state = state.copyWith(voice: VoiceState.invite);
+          return;
+        }
+        _panoramaSessionId = created.sessionId;
+        unawaited(openConvite());
+      case final RoomFailure failure:
+        _handleRoomFailure(failure, turnCall: true);
     }
   }
 
@@ -4035,29 +4084,28 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       (trecho) => trecho.segmentId == alvo.segmentId,
     );
     final TellingAgain told;
-    try {
-      told = await _room.replaceSegment(
-        sessionId,
-        alvo.segmentId!,
-        File(path),
-        takeId: alvo.takeId,
-        from: alvo.from,
-        to: alvo.to,
-      );
-      if (epoch != _epoch) return;
-    } on StretchNoLongerCounts catch (refusal) {
-      if (epoch != _epoch) return;
-      await _readWhatTheRefusalSays(alvo, path, sessionId, epoch, refusal);
-      return;
-    } on Exception catch (error) {
-      _fileiraDaUltimaRecusa = null;
-      _contadasSemResposta.add(path);
-      _guardarATraducao(path);
-      if (epoch != _epoch) return;
-      _theCorrectionFailed(error);
-      return;
+    switch (await _room.replaceSegment(
+      sessionId,
+      alvo.segmentId!,
+      File(path),
+      takeId: alvo.takeId,
+      from: alvo.from,
+      to: alvo.to,
+    )) {
+      case Answered(value: final answer):
+        if (epoch != _epoch) return;
+        told = answer;
+      case Refused(code: RefusalCode.stretchNoLongerCounts):
+        if (epoch != _epoch) return;
+        await _readWhatTheRefusalSays(alvo, path, sessionId, epoch);
+        return;
+      case final RoomFailure failure:
+        _contadasSemResposta.add(path);
+        _guardarATraducao(path);
+        if (epoch != _epoch) return;
+        _theCorrectionFailed(failure);
+        return;
     }
-    _fileiraDaUltimaRecusa = null;
 
     if (!told.captured) {
       // The room made nothing out of it, which is also what a transcriber outage looks
@@ -4098,11 +4146,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     await finishBackTranslation();
   }
 
-  void _theCorrectionFailed(Object error) {
+  void _theCorrectionFailed(RoomFailure failure) {
     state = state.copyWith(
       btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
     );
-    _handleRoomFailure(error);
+    _handleRoomFailure(failure);
   }
 
   Future<void> _readWhatTheRefusalSays(
@@ -4110,29 +4158,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     String path,
     String sessionId,
     int epoch,
-    StretchNoLongerCounts refusal,
   ) async {
     final SessionSnapshot snapshot;
-    try {
-      snapshot = await _room.fetchState(sessionId);
-    } on Exception catch (error) {
-      _guardarATraducao(path);
-      if (epoch != _epoch) return;
-      _theCorrectionFailed(error);
-      return;
+    switch (await _room.fetchState(sessionId)) {
+      case Answered(value: final read):
+        snapshot = read;
+      case final RoomFailure failure:
+        _guardarATraducao(path);
+        if (epoch != _epoch) return;
+        _theCorrectionFailed(failure);
+        return;
     }
     if (epoch != _epoch) return;
     final segments = snapshot.backTranslation.segments;
-    final fileira = [for (final segment in segments) segment.segmentId];
-    final repetida =
-        _fileiraDaUltimaRecusa != null &&
-        listEquals(_fileiraDaUltimaRecusa, fileira);
-    _fileiraDaUltimaRecusa = fileira;
-    if (repetida) {
-      _guardarATraducao(path);
-      _theCorrectionFailed(refusal);
-      return;
-    }
     final sucessor = segments.indexWhere(
       (segment) =>
           segment.told &&
@@ -4354,38 +4392,37 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
 
-    final BackTranslationChunk captured;
-    try {
-      captured = await _room.sendChunk(
-        sessionId,
-        File(path),
-        takeId: gravacao,
-        from: _trechoStart,
-        to: _trechoEnd,
-      );
-      if (epoch != _epoch) return;
-      if (!captured.captured) {
-        // The room heard nothing in it — which is also what a transcription outage looks
-        // like from here. Either way the stretch they just told is audio, and it used to
-        // be dropped on both sides: the server returns before it stores anything, and
-        // this branch kept no copy.
+    switch (await _room.sendChunk(
+      sessionId,
+      File(path),
+      takeId: gravacao,
+      from: _trechoStart,
+      to: _trechoEnd,
+    )) {
+      case Answered(value: final captured):
+        if (epoch != _epoch) return;
+        if (!captured.captured) {
+          // The room heard nothing in it — which is also what a transcription outage
+          // looks like from here. Either way the stretch they just told is audio, and it
+          // used to be dropped on both sides: the server returns before it stores
+          // anything, and this branch kept no copy.
+          _guardarATraducao(path);
+          state = state.copyWith(
+            btPhase: BtPhase.playing,
+            voice: VoiceState.invite,
+            btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
+          );
+          return;
+        }
+      case final RoomFailure failure:
         _guardarATraducao(path);
+        if (epoch != _epoch) return;
         state = state.copyWith(
           btPhase: BtPhase.playing,
-          voice: VoiceState.invite,
           btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
         );
+        _handleRoomFailure(failure);
         return;
-      }
-    } on Exception catch (error) {
-      _guardarATraducao(path);
-      if (epoch != _epoch) return;
-      state = state.copyWith(
-        btPhase: BtPhase.playing,
-        btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
-      );
-      _handleRoomFailure(error);
-      return;
     }
 
     final trecho = Trecho(
@@ -4470,12 +4507,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       voice: VoiceState.thinking,
     );
     _watchBusyState();
+    final BackTranslationVerdict verdict;
+    switch (await _room.finishBackTranslation(
+      sessionId,
+      playedByTake: _escuta.relato(state.partes),
+    )) {
+      case Answered(value: final answer):
+        verdict = answer;
+      case final RoomFailure failure:
+        if (epoch != _epoch) return;
+        _handleRoomFailure(failure);
+        return;
+    }
+    if (epoch != _epoch) return;
     try {
-      final verdict = await _room.finishBackTranslation(
-        sessionId,
-        playedByTake: _escuta.relato(state.partes),
-      );
-      if (epoch != _epoch) return;
       await _readyToSpeak(verdict.audioUrl, verdict.fixedLine);
       if (epoch != _epoch) return;
       state = state.copyWith(voice: VoiceState.speaking);
@@ -4539,13 +4584,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // The room names the stretch the finding lands on, and the name is the room's to
       // give: nothing in the chunk it answered ever said it. The stretches are read back
       // before the pointer is resolved, so it is resolved against names that exist.
-      try {
-        await _readTheStretchesBack(sessionId, epoch);
-      } on Exception {
-        // The verdict is already in hand and already spoken. Failing to re-read the names
-        // costs the pointer, not the verdict, so the findings screen still opens — on the
-        // whole recording, which is where an unnamed stretch has always landed.
-      }
+      //
+      // The verdict is already in hand and already spoken. Failing to re-read the names
+      // costs the pointer, not the verdict, so the findings screen still opens — on the
+      // whole recording, which is where an unnamed stretch has always landed.
+      await _readTheStretchesBack(sessionId, epoch);
       if (epoch != _epoch) return;
 
       final naoTraduzido = verdict.untoldSegmentId;
@@ -4562,9 +4605,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // The stretch is no longer played at the team. Which voice needs to speak again is
       // theirs to say, and they say it by comparing the two — so hearing either one is a
       // tap they choose to make, on the screen that asks the question.
-    } on Exception catch (error) {
+    } on RoomFailure catch (failure) {
       if (epoch != _epoch) return;
-      _handleRoomFailure(error);
+      _handleRoomFailure(failure);
     }
   }
 
@@ -4587,21 +4630,40 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     _aprovando = true;
     final epoch = _epoch;
+    void failed(RoomFailure failure) {
+      if (epoch != _epoch) return;
+      _handleRoomFailure(failure);
+    }
+
     try {
       // The release is the room's already once it has been given: a press that follows a
       // line nobody heard is asking for the line again, not for a second release.
       if (!_aprovada) {
-        final resposta = await _room.approveRelease(sessionId);
+        final ApprovalAnswer resposta;
+        switch (await _room.approveRelease(sessionId)) {
+          case Answered(value: final answer):
+            resposta = answer;
+          case final RoomFailure failure:
+            return failed(failure);
+        }
         if (epoch != _epoch) return;
         if (!resposta.minted) {
-          await _levarAoBuracoQueARecusaNomeia(resposta, sessionId, epoch);
+          final failure = await _levarAoBuracoQueARecusaNomeia(
+            resposta,
+            sessionId,
+            epoch,
+          );
+          if (failure != null) failed(failure);
           return;
         }
         _aprovada = true;
       }
-      final disse = await _voice.playAsset(
-        fixedLineAsset(approvedLine, _lingua),
-      );
+      final bool disse;
+      try {
+        disse = await _voice.playAsset(fixedLineAsset(approvedLine, _lingua));
+      } on RoomFailure catch (failure) {
+        return failed(failure);
+      }
       if (epoch != _epoch) return;
       // As all five of its siblings do. Closing over a line the team never heard ends the
       // passage on a gesture nobody was answered for, and the press is the whole of what
@@ -4609,9 +4671,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (!disse) return _registerUnplayableTurn();
       _unplayableTurns = 0;
       _closeTheNecklace();
-    } on Exception catch (error) {
-      if (epoch != _epoch) return;
-      _handleRoomFailure(error);
     } finally {
       _aprovando = false;
     }
@@ -4626,7 +4685,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// came, and an answer that is neither a version nor a refusal are the same thing from
   /// here — nothing the team can do from this screen — and they end where a refused
   /// approval has always ended.
-  Future<void> _levarAoBuracoQueARecusaNomeia(
+  Future<RoomFailure?> _levarAoBuracoQueARecusaNomeia(
     ApprovalAnswer resposta,
     String sessionId,
     int epoch,
@@ -4641,7 +4700,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (aberta) {
       case _PortaDaRecusa.trecho:
         final trecho = resposta.untoldSegmentId;
-        if (trecho == null) return _haltForAPerson();
+        if (trecho == null) {
+          _haltForAPerson();
+          return null;
+        }
         // A passage the check cleared on its first verdict never had the names read back,
         // so the stretches it holds are the ones this tablet cut, and the name the refusal
         // gives matches none of them. Asked for after the ground, which a round trip
@@ -4649,12 +4711,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         // person anyway. A read that fails is not a hole with no ground, and it is left to
         // reach the approval's own ladder rather than resolving the name against nothing
         // and halting the room over a request the next press would repeat.
-        await _readTheStretchesBack(sessionId, epoch);
-        if (epoch != _epoch) return;
+        final failure = await _readTheStretchesBack(sessionId, epoch);
+        if (failure != null) return failure;
+        if (epoch != _epoch) return null;
         _levarAoTrechoNaoTraduzido(trecho);
       case _PortaDaRecusa.parteNaoContada:
         final gravacoes = resposta.untoldTakeIds;
-        if (gravacoes.isEmpty) return _haltForAPerson();
+        if (gravacoes.isEmpty) {
+          _haltForAPerson();
+          return null;
+        }
         await _levarAParteApontadaPelaRecusa(
           gravacoes.first,
           epoch,
@@ -4662,7 +4728,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         );
       case _PortaDaRecusa.parteNaoOuvida:
         final gravacoes = resposta.unheardTakeIds;
-        if (gravacoes.isEmpty) return _haltForAPerson();
+        if (gravacoes.isEmpty) {
+          _haltForAPerson();
+          return null;
+        }
         await _levarAParteApontadaPelaRecusa(
           gravacoes.first,
           epoch,
@@ -4680,6 +4749,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case null:
         _haltForAPerson();
     }
+    return null;
   }
 
   /// Straight to the part the verdict names, with the telling-back left standing.
@@ -4797,15 +4867,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// a finding matched nothing this tablet held, and a team that had told six stretches
   /// back was offered the whole recording every time.
   ///
-  /// It throws. Whether a read that did not happen is survivable is the caller's to say:
-  /// the verdict swallows it, because it already holds its answer and only the pointer is
-  /// lost; the approval's refusal does not, because the name is the whole of what it has.
-  Future<void> _readTheStretchesBack(String sessionId, int epoch) async {
-    final snapshot = await _room.fetchState(sessionId);
-    if (epoch != _epoch) return;
-    final trechos = _trechosFrom(snapshot.backTranslation.segments);
-    if (trechos.isEmpty) return;
-    state = state.copyWith(btTrechos: trechos);
+  /// It answers the failure of a read that did not happen, and whether that is survivable
+  /// is the caller's to say: the verdict ignores it, because it already holds its answer
+  /// and only the pointer is lost; the approval's refusal does not, because the name is
+  /// the whole of what it has.
+  Future<RoomFailure?> _readTheStretchesBack(
+    String sessionId,
+    int epoch,
+  ) async {
+    switch (await _room.fetchState(sessionId)) {
+      case Answered(value: final snapshot):
+        if (epoch != _epoch) return null;
+        final trechos = _trechosFrom(snapshot.backTranslation.segments);
+        if (trechos.isEmpty) return null;
+        state = state.copyWith(btTrechos: trechos);
+        return null;
+      case final RoomFailure failure:
+        return failure;
+    }
   }
 
   /// The room's stretches as this tablet's own, each tied back to the recording it slices.
@@ -4931,14 +5010,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // list and nowhere else yet.
     final eram = state.btTrechos;
     final List<TakeView> guardadas;
-    try {
-      guardadas = await _room.takesOf(sessionId);
-    } on Exception catch (error) {
-      debugPrint(
-        'A sessão $sessionId tem trechos numa gravação que este tablet não '
-        'tem, e as gravações dela não puderam ser lidas: $error',
-      );
-      return;
+    switch (await _room.takesOf(sessionId)) {
+      case Answered(value: final listadas):
+        guardadas = listadas;
+      case final RoomFailure failure:
+        debugPrint(
+          'A sessão $sessionId tem trechos numa gravação que este tablet não '
+          'tem, e as gravações dela não puderam ser lidas: $failure',
+        );
+        return;
     }
     if (epoch != _epoch) return;
     final naParte = <String, int>{};
@@ -5176,10 +5256,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _coverageSessionId = null;
     _unplayableTurns = 0;
     _roomFailures = 0;
-    _fileiraDaUltimaRecusa = null;
     _contadasSemResposta.clear();
     _resumeFailures = 0;
-    _slowAnswers = 0;
     _retryStep = 0;
     _noticeSpoken = false;
     _strandedSpoken = false;

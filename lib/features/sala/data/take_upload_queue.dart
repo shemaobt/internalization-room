@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'room_answer.dart';
 import 'room_repository.dart';
 
 const _folder = 'guardadas';
@@ -536,37 +537,27 @@ class TakeUploadQueue {
     // `lost` is what the room speaks from, and a recording being sent right now is
     // not one that was given up on. Every outcome below writes this back.
     final row = entry.lost ? entry.copyWith(lost: false) : entry;
-    final String landed;
-    try {
-      landed = await _room.sendTake(
-        entry.sessionId,
-        file,
-        kind: entry.kind,
-        scope: entry.scope,
-        passNumber: entry.passNumber,
-        chunkIndex: entry.chunkIndex,
-      );
-    } on RoomUnavailable {
-      await _replace(
-        entry,
-        row.copyWith(waits: row.waits + 1, lastTry: _now()),
-      );
-      return false;
-    } on RoomSlow {
-      await _replace(
-        entry,
-        row.copyWith(waits: row.waits + 1, lastTry: _now()),
-      );
-      return false;
-    } on Exception {
-      await _replace(
-        entry,
-        row.copyWith(attempts: row.attempts + 1, lastTry: _now()),
-      );
-      return false;
-    }
-    await _replace(entry, row.copyWith(takeId: landed, stored: true));
-    return true;
+    final answer = await _room.sendTake(
+      entry.sessionId,
+      file,
+      kind: entry.kind,
+      scope: entry.scope,
+      passNumber: entry.passNumber,
+      chunkIndex: entry.chunkIndex,
+    );
+    await _replace(entry, switch (answer) {
+      Answered(value: final landed) => row.copyWith(
+        takeId: landed,
+        stored: true,
+      ),
+      NetworkFailed() => row.copyWith(waits: row.waits + 1, lastTry: _now()),
+      Refused() => row.copyWith(attempts: takeUploadAttempts, lastTry: _now()),
+      SessionGone() => row.copyWith(
+        attempts: row.attempts + 1,
+        lastTry: _now(),
+      ),
+    });
+    return answer is Answered;
   }
 
   Future<void> _replace(PendingTake target, PendingTake updated) => _mutate(

@@ -12,6 +12,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'room_answer.dart';
 import 'room_repository.dart';
 
 const _libraryFolder = 'voz';
@@ -139,13 +140,7 @@ class FacilitatorVoiceService {
     final spoken = _speaking.then((_) async {
       try {
         return await speak();
-      } on RoomUnavailable {
-        rethrow;
-      } on RoomSlow {
-        rethrow;
-      } on RoomBroke {
-        rethrow;
-      } on RoomRefused {
+      } on RoomFailure {
         rethrow;
       } on Exception {
         return false;
@@ -400,15 +395,15 @@ class _ArrivingClip extends StreamAudioSource {
           _wake();
         }
       } on TimeoutException {
-        drop = const RoomSlow();
+        drop = const NetworkFailed('timeout');
       } on Exception catch (error) {
-        drop = RoomUnavailable('$error');
+        drop = NetworkFailed('$error');
       }
       if (_received == _bytes.length) {
         _firstBytesIn();
         return _bytes;
       }
-      final cut = drop ?? const RoomBroke('fala cortada');
+      final cut = drop ?? const Refused(RefusalCode.unreadable, 'fala cortada');
       if (_received == before) throw cut;
       final etag = _etag;
       response = await _open(_url, from: _received, ifRange: etag);
@@ -447,7 +442,8 @@ class _ArrivingClip extends StreamAudioSource {
 
   void _begin(http.StreamedResponse response) {
     _bytes = Uint8List(
-      response.contentLength ?? (throw const RoomBroke('fala sem tamanho')),
+      response.contentLength ??
+          (throw const Refused(RefusalCode.unreadable, 'fala sem tamanho')),
     );
     _received = 0;
     _etag = response.headers['etag'];
@@ -474,7 +470,7 @@ class _ArrivingClip extends StreamAudioSource {
       final broke = _broke;
       if (broke != null) throw broke;
       if (_heard != null && _heard != _rendering) {
-        throw const RoomBroke('a fala mudou no meio');
+        throw const Refused(RefusalCode.unreadable, 'a fala mudou no meio');
       }
       if (_received > at) {
         _heard ??= _rendering;

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
-import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
@@ -769,7 +769,7 @@ void main() {
     await tocar(tester, retroLabelFor('cut', 'en'));
     await tocar(tester, retroLabelFor('record', 'en'));
     await tocar(tester, retroLabelFor('recording', 'en'));
-    harness.room.failChunkWith = const RoomRefused();
+    harness.room.failChunkWith = const Refused('UNAUTHORIZED');
     await tocar(tester, retroLabelFor('confirm', 'en'));
 
     expect(
@@ -789,7 +789,7 @@ void main() {
       await tocar(tester, retroLabelFor('cut', 'en'));
       await tocar(tester, retroLabelFor('record', 'en'));
       await tocar(tester, retroLabelFor('recording', 'en'));
-      harness.room.failChunkWith = Exception('sem rede');
+      harness.room.failChunkWith = const NetworkFailed('sem rede');
       harness.network.reachable = false;
       await tocar(tester, retroLabelFor('confirm', 'en'));
 

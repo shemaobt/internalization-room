@@ -19,6 +19,7 @@ import 'package:internalization_room/features/sala/data/finished_passages.dart';
 import 'package:internalization_room/features/sala/data/hand_inbox_repository.dart';
 import 'package:internalization_room/features/sala/data/playback_repository.dart';
 import 'package:internalization_room/features/sala/data/recording_repository.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/screen_awake.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
@@ -112,7 +113,7 @@ class FakeVoice implements FacilitatorVoiceService {
   /// What the next `play()` throws, when the room — not the player — is why the line
   /// does not sound. Distinct from [refuses]: that is the player failing with the file
   /// already in hand.
-  Exception? roomFailsWith;
+  RoomFailure? roomFailsWith;
   Completer<bool>? _holding;
 
   void holdNextLine() => _holding = Completer<bool>();
@@ -671,24 +672,28 @@ class FakeInbox implements HandInboxRepository {
   FakeInbox({this.replies = const []});
 
   @override
-  Future<List<HandReply>?> fetchReplies() async =>
-      cannotBeAsked ? null : replies;
+  Future<RoomAnswer<List<HandReply>>> fetchReplies() async =>
+      cannotBeAsked ? const NetworkFailed('sem rede') : Answered(replies);
 
   /// Whether the desk turns the mark down — the real one answers for itself now, so the
   /// double has to be able to say no as well as yes.
   bool refusesMarks = false;
 
   @override
-  Future<bool> markHeard(String replyId, {required String audioUrl}) async {
-    if (refusesMarks) return false;
+  Future<RoomAnswer<void>> markHeard(
+    String replyId, {
+    required String audioUrl,
+  }) async {
+    if (refusesMarks) return const Refused('REPLY_MOVED_ON');
     heard.add(replyId);
-    return true;
+    return const Answered(null);
   }
 
   @override
-  Future<void> sendQuestion(String sessionId, File audio) async {
-    if (refuses) throw const RoomUnavailable('sem rede');
+  Future<RoomAnswer<void>> sendQuestion(String sessionId, File audio) async {
+    if (refuses) return const NetworkFailed('sem rede');
     questionsSent.add(sessionId);
+    return const Answered(null);
   }
 
   @override
@@ -767,7 +772,7 @@ class FakeRoom implements RoomRepository {
   final Map<String, Uint8List> takeAudio = {};
 
   /// What listing the takes throws, when it is set.
-  Exception? failTakesWith;
+  RoomFailure? failTakesWith;
 
   /// The recordings whose audio this room will not hand over, by take id.
   final Set<String> refuseClipOf = {};
@@ -798,9 +803,12 @@ class FakeRoom implements RoomRepository {
   final List<String> takesKept = [];
   final List<int?> takePasses = [];
   String? refuseTake;
-  Exception? failReplaceWith;
-  Exception? loseTheNextReplaceAnswerWith;
-  Exception? loseTheNextReplaceAnswerAndLandItLaterWith;
+
+  /// The one kind/scope whose upload finds no network, while every other call gets through.
+  String? unreachableTake;
+  RoomFailure? failReplaceWith;
+  RoomFailure? loseTheNextReplaceAnswerWith;
+  RoomFailure? loseTheNextReplaceAnswerAndLandItLaterWith;
   void Function()? _landingLater;
 
   void landTheLostReplace() {
@@ -818,21 +826,21 @@ class FakeRoom implements RoomRepository {
     segments.removeWhere((one) => one.takeId == takeId);
   }
 
-  Exception? failChunkWith;
+  RoomFailure? failChunkWith;
 
   /// What the next call to `fetchState` throws, independent of `failWith` — a case needs
   /// the settle poll to fail exactly once, so the read after it can succeed instead of
   /// failing the same way forever.
-  Exception? failStateOnceWith;
+  RoomFailure? failStateOnceWith;
 
   /// What the next call to `createSession` throws, independent of `failWith` — a case
   /// needs a retry that opens a session for the same passage to fail exactly once too, so
   /// the attempt after it can land.
-  Exception? failCreateOnceWith;
+  RoomFailure? failCreateOnceWith;
 
   /// What the ask for a verdict throws, when it is set. The one knob that lets a test put
   /// a failure between a correction the room answered and the answer reaching the team.
-  Exception? failFinishWith;
+  RoomFailure? failFinishWith;
 
   /// Run while the ask for a verdict is still in the air. The seam for a test that needs
   /// the team to do something — leave the passage, say — during that wait.
@@ -938,13 +946,13 @@ class FakeRoom implements RoomRepository {
   /// carries is measured against real HTTP, not here.
   String? presented;
   String credential = 'credencial-1';
-  Exception? refuseCredentialWith;
+  RoomFailure? refuseCredentialWith;
   int linksRead = 0;
   List<String> claimCodes = const ['QHF-3M7K'];
   Duration claimCodeLife = const Duration(minutes: 15);
   TeamLink? linkedTo;
 
-  Exception? failWith;
+  RoomFailure? failWith;
 
   Set<String> passagesThatCannotOpen = {};
 
@@ -968,82 +976,84 @@ class FakeRoom implements RoomRepository {
   /// What a held call throws when it is let go. A room that always succeeded once the
   /// wait was over could not be asked what the app does when a call already in the air
   /// fails — which is the only way the room reaches some of its own states.
-  Exception? failHeldTurnWith;
+  RoomFailure? failHeldTurnWith;
 
-  Exception? failTurnsWith;
+  RoomFailure? failTurnsWith;
 
-  Future<void> _turnArrives() async {
+  Future<RoomFailure?> _turnArrives() async {
     final held = _holdingTurn;
     if (held != null) await held.future;
     final never = failTurnsWith;
-    if (never != null) throw never;
+    if (never != null) return never;
     final failure = failHeldTurnWith;
-    if (failure != null) {
-      failHeldTurnWith = null;
-      throw failure;
-    }
+    failHeldTurnWith = null;
+    return failure;
   }
 
-  void _guard(String call) {
+  RoomFailure? _guard(String call) {
     calls.add(call);
-    final failure = failWith;
-    if (failure != null) throw failure;
-    if (!reachable) throw const RoomUnavailable('sem rede');
+    return failWith ?? (reachable ? null : const NetworkFailed('sem rede'));
   }
 
   @override
-  Future<ClaimCode> askForACode(String? deviceId) async {
-    _guard('askForACode');
+  Future<RoomAnswer<ClaimCode>> askForACode(String? deviceId) async {
+    if (_guard('askForACode') case final failure?) return failure;
     codesAskedFor.add(deviceId);
     final held = _holdingCode;
     if (held != null) await held.future;
-    return ClaimCode(
-      deviceId: 'aparelho-1',
-      code: claimCodes[min(codesAskedFor.length - 1, claimCodes.length - 1)],
-      expiresAt: DateTime.now().toUtc().add(claimCodeLife),
+    return Answered(
+      ClaimCode(
+        deviceId: 'aparelho-1',
+        code: claimCodes[min(codesAskedFor.length - 1, claimCodes.length - 1)],
+        expiresAt: DateTime.now().toUtc().add(claimCodeLife),
+      ),
     );
   }
 
   @override
-  Future<TeamLink?> readTheLink(String deviceId) async {
-    _guard('readTheLink');
+  Future<RoomAnswer<TeamLink?>> readTheLink(String deviceId) async {
+    if (_guard('readTheLink') case final failure?) return failure;
     linksRead++;
-    return linkedTo;
+    return Answered(linkedTo);
   }
 
   @override
-  Future<String> collectTheCredential(String deviceId) async {
-    _guard('collectTheCredential');
+  Future<RoomAnswer<String>> collectTheCredential(String deviceId) async {
+    if (_guard('collectTheCredential') case final failure?) return failure;
     credentialsCollected.add(deviceId);
     final refusal = refuseCredentialWith;
-    if (refusal != null) throw refusal;
-    return credential;
+    if (refusal != null) return refusal;
+    return Answered(credential);
   }
 
   @override
   void presents(String? credential) => presented = credential;
 
   @override
-  Future<Uint8List> fetchClip(String url) async {
-    _guard('fetchClip');
+  Future<RoomAnswer<Uint8List>> fetchClip(String url) async {
+    if (_guard('fetchClip') case final failure?) return failure;
     clipsFetched.add(url);
     final held = _holdingClip;
     if (held != null) await held.future;
     final devagar = clipDelay;
     if (devagar != null) await Future<void>.delayed(devagar);
     final refusal = failClipWith;
-    if (refusal != null) throw refusal;
+    if (refusal != null) return refusal;
     for (final take in refuseClipOf) {
-      if (url.endsWith('/takes/$take/audio')) throw const RoomBroke('HTTP 500');
+      if (url.endsWith('/takes/$take/audio')) {
+        return const Refused(RefusalCode.notFound);
+      }
     }
     for (final entry in takeAudio.entries) {
-      if (url.endsWith('/takes/${entry.key}/audio')) return entry.value;
+      if (url.endsWith('/takes/${entry.key}/audio')) {
+        return Answered(entry.value);
+      }
     }
-    return Uint8List.fromList([1, 2, 3]);
+    return Answered(Uint8List.fromList([1, 2, 3]));
   }
 
   /// What fetching audio throws, when it is set.
-  Exception? failClipWith;
+  RoomFailure? failClipWith;
 
   @override
   Future<http.StreamedResponse> openClip(
@@ -1051,7 +1061,7 @@ class FakeRoom implements RoomRepository {
     int? from,
     String? ifRange,
   }) async {
-    _guard('openClip');
+    if (_guard('openClip') case final failure?) throw failure;
     return http.StreamedResponse(
       Stream.value([1, 2, 3]),
       200,
@@ -1060,27 +1070,27 @@ class FakeRoom implements RoomRepository {
   }
 
   @override
-  Future<List<TakeView>> takesOf(String sessionId) async {
-    _guard('takesOf');
+  Future<RoomAnswer<List<TakeView>>> takesOf(String sessionId) async {
+    if (_guard('takesOf') case final failure?) return failure;
     final refusal = failTakesWith;
-    if (refusal != null) throw refusal;
-    return List.of(takes);
+    if (refusal != null) return refusal;
+    return Answered(List.of(takes));
   }
 
   @override
-  Future<SessionSnapshot> createSession({
+  Future<RoomAnswer<SessionSnapshot>> createSession({
     String? pericope,
     String? afterSession,
     required String language,
   }) async {
-    _guard('createSession');
+    if (_guard('createSession') case final failure?) return failure;
     if (pericope != null && passagesThatCannotOpen.contains(pericope)) {
-      throw const PassageCannotOpen();
+      return const Refused(RefusalCode.passageCannotOpen);
     }
     final failure = failCreateOnceWith;
     if (failure != null) {
       failCreateOnceWith = null;
-      throw failure;
+      return failure;
     }
     pericopesAsked.add(pericope);
     metBefore.add(afterSession != null);
@@ -1093,55 +1103,64 @@ class FakeRoom implements RoomRepository {
         : pericope;
     final sessionId = 'sessao-${sessionIds.length + 1}';
     sessionIds.add(sessionId);
-    return SessionSnapshot(
-      sessionId: sessionId,
-      pericope: answered ?? 'rute-1',
-      status: 'in_progress',
-      coverage: nextCoverage,
-      done: false,
+    return Answered(
+      SessionSnapshot(
+        sessionId: sessionId,
+        pericope: answered ?? 'rute-1',
+        status: 'in_progress',
+        coverage: nextCoverage,
+        done: false,
+      ),
     );
   }
 
   @override
-  Future<List<Passagem>> passagesOf(
+  Future<RoomAnswer<List<Passagem>>> passagesOf(
     String book, {
     required String language,
   }) async {
-    _guard('passagesOf');
+    if (_guard('passagesOf') case final failure?) return failure;
     booksAsked.add(book);
     languagesAsked.add(language);
-    return passages;
+    return Answered(passages);
   }
 
   @override
-  Future<SessionSnapshot> fetchState(String sessionId) async {
-    _guard('fetchState');
+  Future<RoomAnswer<SessionSnapshot>> fetchState(String sessionId) async {
+    if (_guard('fetchState') case final failure?) return failure;
     final failure = failStateOnceWith;
     if (failure != null) {
       failStateOnceWith = null;
-      throw failure;
+      return failure;
     }
     final held = _holdingState;
     if (held != null) await held.future;
-    return SessionSnapshot(
-      sessionId: sessionId,
-      pericope: 'rute-1',
-      status: serverStatus ?? (done ? 'done' : 'in_progress'),
-      coverage: silentAboutCoverage ? null : (settledCoverage ?? nextCoverage),
-      done: done,
-      halt: serverHalt,
-      backTranslation:
-          retroSoFar ?? BackTranslationProgress(segments: List.of(segments)),
+    return Answered(
+      SessionSnapshot(
+        sessionId: sessionId,
+        pericope: 'rute-1',
+        status: serverStatus ?? (done ? 'done' : 'in_progress'),
+        coverage: silentAboutCoverage
+            ? null
+            : (settledCoverage ?? nextCoverage),
+        done: done,
+        halt: serverHalt,
+        backTranslation:
+            retroSoFar ?? BackTranslationProgress(segments: List.of(segments)),
+      ),
     );
   }
 
   @override
-  Future<TurnResult> openSession(String sessionId, {String? turnId}) async {
-    _guard('openSession');
+  Future<RoomAnswer<TurnResult>> openSession(
+    String sessionId, {
+    String? turnId,
+  }) async {
+    if (_guard('openSession') case final failure?) return failure;
     sessionsSpokenTo.add(sessionId);
     turnIdsAsked.add(turnId);
-    await _turnArrives();
-    return _turn(sessionId);
+    if (await _turnArrives() case final failure?) return failure;
+    return Answered(_turn(sessionId));
   }
 
   Completer<void>? _substituicaoSegura;
@@ -1154,7 +1173,7 @@ class FakeRoom implements RoomRepository {
   }
 
   @override
-  Future<TellingAgain> replaceSegment(
+  Future<RoomAnswer<TellingAgain>> replaceSegment(
     String sessionId,
     String segmentId,
     File audio, {
@@ -1162,12 +1181,17 @@ class FakeRoom implements RoomRepository {
     required Duration from,
     required Duration to,
   }) async {
-    _guard('replaceSegment');
+    if (_guard('replaceSegment') case final failure?) return failure;
     final segura = _substituicaoSegura;
     if (segura != null) await segura.future;
     final refusal = failReplaceWith;
-    if (refusal != null) throw refusal;
-    if (_retired.contains(segmentId)) throw const StretchNoLongerCounts();
+    if (refusal != null) return refusal;
+    if (_retired.contains(segmentId)) {
+      return const Refused(
+        RefusalCode.stretchNoLongerCounts,
+        'This stretch no longer counts',
+      );
+    }
     final later = loseTheNextReplaceAnswerAndLandItLaterWith;
     if (later != null) {
       loseTheNextReplaceAnswerAndLandItLaterWith = null;
@@ -1179,7 +1203,7 @@ class FakeRoom implements RoomRepository {
         replacesComArquivo.add(audio.path);
         _tellAgain(segmentId);
       };
-      throw later;
+      return later;
     }
     replacesAsked.add(
       '$segmentId@$takeId:${from.inMilliseconds}-${to.inMilliseconds}',
@@ -1195,22 +1219,26 @@ class FakeRoom implements RoomRepository {
       serverHalt = HaltKind.warning;
     }
     if (!replaceCaptured) {
-      return TellingAgain(
-        segments: List.of(segments),
-        captured: false,
-        needsPerson: needsPerson,
+      return Answered(
+        TellingAgain(
+          segments: List.of(segments),
+          captured: false,
+          needsPerson: needsPerson,
+        ),
       );
     }
     _tellAgain(segmentId);
     final lost = loseTheNextReplaceAnswerWith;
     if (lost != null) {
       loseTheNextReplaceAnswerWith = null;
-      throw lost;
+      return lost;
     }
-    return TellingAgain(
-      segments: List.of(segments),
-      captured: true,
-      needsPerson: needsPerson,
+    return Answered(
+      TellingAgain(
+        segments: List.of(segments),
+        captured: true,
+        needsPerson: needsPerson,
+      ),
     );
   }
 
@@ -1237,7 +1265,7 @@ class FakeRoom implements RoomRepository {
   /// What the next call to the session-scoped ask throws, independent of `failWith` —
   /// a case needs a turn to succeed (so the halt is reached with a live session) and
   /// only the ask itself to fail, and `failWith` is shared by every guarded call.
-  Exception? askForAPersonFailsWith;
+  RoomFailure? askForAPersonFailsWith;
 
   Completer<void>? _holdingAskForAPerson;
 
@@ -1251,32 +1279,32 @@ class FakeRoom implements RoomRepository {
   }
 
   @override
-  Future<void> askForAPerson(String sessionId) async {
-    _guard('askForAPerson');
+  Future<RoomAnswer<void>> askForAPerson(String sessionId) async {
+    if (_guard('askForAPerson') case final failure?) return failure;
     final held = _holdingAskForAPerson;
     if (held != null) await held.future;
     final failure = askForAPersonFailsWith;
-    if (failure != null) throw failure;
+    if (failure != null) return failure;
     personsAsked++;
     // The route is what raises the blocking halt on the server: a double that only
     // counted the call answered the next state read as if nobody had asked.
     serverStatus = 'needs_person';
     serverHalt = HaltKind.blocking;
+    return const Answered(null);
   }
 
   /// What the next call to `personArrived` throws, independent of `failWith` — a case
   /// needs the halt to stay reachable and only the arrival ping itself to fail.
-  Exception? personArrivedFailsWith;
+  RoomFailure? personArrivedFailsWith;
 
   /// Every session id `personArrived` was called for, one entry per attempt.
   final List<String> personArrivedSessions = [];
 
   @override
-  Future<void> personArrived(String sessionId) async {
-    _guard('personArrived');
+  Future<RoomAnswer<void>> personArrived(String sessionId) async {
+    if (_guard('personArrived') case final failure?) return failure;
     personArrivedSessions.add(sessionId);
-    final failure = personArrivedFailsWith;
-    if (failure != null) throw failure;
+    return personArrivedFailsWith ?? const Answered(null);
   }
 
   /// Every device id the device-scoped ask was made for, one entry per attempt —
@@ -1286,12 +1314,13 @@ class FakeRoom implements RoomRepository {
   /// What the next calls to the device-scoped ask throw, consumed in order. Separate
   /// from `failWith` because a case has to fail this route without touching the
   /// session-scoped one, and has to fail it a fixed number of times and then stop.
-  final List<Object> deviceAskFailures = [];
+  final List<RoomFailure> deviceAskFailures = [];
 
   @override
-  Future<void> askForAPersonWithoutASession(String deviceId) async {
+  Future<RoomAnswer<void>> askForAPersonWithoutASession(String deviceId) async {
     deviceAsksReceived.add(deviceId);
-    if (deviceAskFailures.isNotEmpty) throw deviceAskFailures.removeAt(0);
+    if (deviceAskFailures.isNotEmpty) return deviceAskFailures.removeAt(0);
+    return const Answered(null);
   }
 
   /// Which scope's upload to hold, and until when. Lets a test put a real gap between
@@ -1317,7 +1346,7 @@ class FakeRoom implements RoomRepository {
   }
 
   @override
-  Future<String> sendTake(
+  Future<RoomAnswer<String>> sendTake(
     String sessionId,
     File audio, {
     required String kind,
@@ -1325,12 +1354,17 @@ class FakeRoom implements RoomRepository {
     int? passNumber,
     int? chunkIndex,
   }) async {
-    _guard('sendTake');
+    if (_guard('sendTake') case final failure?) return failure;
     if (scope == holdTakeScope) {
       _reachedTakeHold?.complete();
       await _holdingTake?.future;
     }
-    if (refuseTake == '$kind/$scope') throw const RoomRefused();
+    if (refuseTake == '$kind/$scope') {
+      return const Refused('UNKNOWN_REFERENCE');
+    }
+    if (unreachableTake == '$kind/$scope') {
+      return const NetworkFailed('sem rede');
+    }
     takesKept.add('$kind/$scope');
     takePasses.add(passNumber);
     final id = 'gravacao-${takeIds.length + 1}';
@@ -1345,28 +1379,32 @@ class FakeRoom implements RoomRepository {
       ),
     );
     takeAudio[id] = Uint8List.fromList(utf8.encode('áudio de $id'));
-    return id;
+    return Answered(id);
   }
 
   @override
-  Future<TurnResult> sendTurn(
+  Future<RoomAnswer<TurnResult>> sendTurn(
     String sessionId,
     File audio, {
     required String turnId,
     String? clientTiming,
     Duration? timeout,
   }) async {
-    _guard('sendTurn');
+    if (_guard('sendTurn') case final failure?) return failure;
     sessionsSpokenTo.add(sessionId);
     clientTimingsSent.add(clientTiming);
     turnIdsSent.add(turnId);
     recordingsSent.add(audio.path);
     turnsSent++;
     final arrives = _turnArrives();
-    await (timeout == null
+    final failure = await (timeout == null
         ? arrives
-        : arrives.timeout(timeout, onTimeout: () => throw const RoomSlow()));
-    return _turn(sessionId);
+        : arrives.timeout(
+            timeout,
+            onTimeout: () => const NetworkFailed('timeout'),
+          ));
+    if (failure != null) return failure;
+    return Answered(_turn(sessionId));
   }
 
   TurnResult _turn(String sessionId) => TurnResult(
@@ -1391,16 +1429,16 @@ class FakeRoom implements RoomRepository {
   );
 
   @override
-  Future<BackTranslationChunk> sendChunk(
+  Future<RoomAnswer<BackTranslationChunk>> sendChunk(
     String sessionId,
     File audio, {
     required String takeId,
     required Duration from,
     required Duration to,
   }) async {
-    _guard('sendChunk');
+    if (_guard('sendChunk') case final failure?) return failure;
     final refusal = failChunkWith;
-    if (refusal != null) throw refusal;
+    if (refusal != null) return refusal;
     chunksSent++;
     chunkSpans.add('${from.inMilliseconds}-${to.inMilliseconds}');
     chunkTakes.add(takeId);
@@ -1417,7 +1455,7 @@ class FakeRoom implements RoomRepository {
     }
     final held = _holdingChunk;
     if (held != null) await held.future;
-    return BackTranslationChunk(captured: chunkCaptured);
+    return Answered(BackTranslationChunk(captured: chunkCaptured));
   }
 
   Completer<void>? _holdingChunk;
@@ -1439,15 +1477,15 @@ class FakeRoom implements RoomRepository {
   }
 
   @override
-  Future<BackTranslationVerdict> finishBackTranslation(
+  Future<RoomAnswer<BackTranslationVerdict>> finishBackTranslation(
     String sessionId, {
     required List<PlayedTake> playedByTake,
   }) async {
     duranteOVeredito?.call();
     final refusal = failFinishWith;
-    if (refusal != null) throw refusal;
+    if (refusal != null) return refusal;
     playedByTakeSent.add([for (final parte in playedByTake) parte.toJson()]);
-    _guard('finishBackTranslation');
+    if (_guard('finishBackTranslation') case final failure?) return failure;
     final String linha;
     if (verdictUntoldTakeIds.isNotEmpty) {
       linha = falaDaParteNaoContada;
@@ -1456,16 +1494,18 @@ class FakeRoom implements RoomRepository {
     } else {
       linha = falaDoVeredito;
     }
-    return BackTranslationVerdict(
-      audioUrl: linha,
-      fixedLine: '',
-      checked: verdictChecked,
-      findingSegmentId: _oQueOAnalistaAponta(),
-      untoldSegmentId: verdictUntoldSegmentId,
-      unheardTakeIds: verdictUnheardTakeIds,
-      untoldTakeIds: verdictUntoldTakeIds,
-      findingsRemaining: verdictHasFinding ? 1 : 0,
-      usedFailSafe: verdictUsedFailSafe,
+    return Answered(
+      BackTranslationVerdict(
+        audioUrl: linha,
+        fixedLine: '',
+        checked: verdictChecked,
+        findingSegmentId: _oQueOAnalistaAponta(),
+        untoldSegmentId: verdictUntoldSegmentId,
+        unheardTakeIds: verdictUnheardTakeIds,
+        untoldTakeIds: verdictUntoldTakeIds,
+        findingsRemaining: verdictHasFinding ? 1 : 0,
+        usedFailSafe: verdictUsedFailSafe,
+      ),
     );
   }
 
@@ -1519,22 +1559,24 @@ class FakeRoom implements RoomRepository {
   /// What the approval throws, independent of `failWith`, which every guarded call
   /// shares: a refused release has to reach a room whose call for a person still works,
   /// and that call is the whole of what the case measures.
-  Exception? failReleaseWith;
+  RoomFailure? failReleaseWith;
 
   @override
-  Future<ApprovalAnswer> approveRelease(String sessionId) async {
-    _guard('approveRelease');
+  Future<RoomAnswer<ApprovalAnswer>> approveRelease(String sessionId) async {
+    if (_guard('approveRelease') case final failure?) return failure;
     releasesAsked.add(sessionId);
     final refusal = failReleaseWith;
-    if (refusal != null) throw refusal;
+    if (refusal != null) return refusal;
     final held = _holdingRelease;
     if (held != null) await held.future;
-    if (releaseBlockers.isEmpty) return release;
-    return ApprovalAnswer(
-      blockers: releaseBlockers,
-      untoldTakeIds: releaseUntoldTakeIds,
-      unheardTakeIds: releaseUnheardTakeIds,
-      untoldSegmentId: releaseUntoldSegmentId,
+    if (releaseBlockers.isEmpty) return Answered(release);
+    return Answered(
+      ApprovalAnswer(
+        blockers: releaseBlockers,
+        untoldTakeIds: releaseUntoldTakeIds,
+        unheardTakeIds: releaseUnheardTakeIds,
+        untoldSegmentId: releaseUntoldSegmentId,
+      ),
     );
   }
 
@@ -1704,22 +1746,20 @@ class FakeTakeQueue implements TakeUploadQueue {
     for (var at = 0; at < rows.length; at++) {
       final entry = rows[at];
       if (entry.stored) continue;
-      final String landed;
-      try {
-        landed = await room.sendTake(
-          entry.sessionId,
-          File(entry.path),
-          kind: entry.kind,
-          scope: entry.scope,
-          passNumber: entry.passNumber,
-          chunkIndex: entry.chunkIndex,
-        );
-      } on Exception {
-        rows[at] = entry.copyWith(attempts: entry.attempts + 1);
-        continue;
+      switch (await room.sendTake(
+        entry.sessionId,
+        File(entry.path),
+        kind: entry.kind,
+        scope: entry.scope,
+        passNumber: entry.passNumber,
+        chunkIndex: entry.chunkIndex,
+      )) {
+        case Answered(value: final landed):
+          rows[at] = entry.copyWith(takeId: landed, stored: true);
+          sent++;
+        case RoomFailure():
+          rows[at] = entry.copyWith(attempts: entry.attempts + 1);
       }
-      rows[at] = entry.copyWith(takeId: landed, stored: true);
-      sent++;
     }
     return sent;
   }

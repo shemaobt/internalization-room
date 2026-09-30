@@ -10,6 +10,7 @@ import '../domain/device_link.dart';
 import 'credential_vault.dart';
 import 'hand_inbox_repository.dart';
 import 'linked_team.dart';
+import 'room_answer.dart';
 import 'room_repository.dart';
 import 'session_notifier.dart';
 
@@ -99,23 +100,24 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     // outlives both.
     final ledger = _ledger;
     final String credential;
-    try {
-      credential = await _room.collectTheCredential(deviceId);
-    } on CredentialNotYet {
-      _lookAgainLater();
-      return;
-    } on CredentialTaken {
-      await _startOver(ledger);
-      return;
-    } on SessionGone {
-      // The server does not know this device at all. Keeping the team beside an id
-      // nobody claimed is a lie the next opening believes: it walks into the room as
-      // linked, and the code the facilitator would have to write down never shows.
-      await _startOver(ledger);
-      return;
-    } on Exception {
-      _tryAgainLater(_collectTheCredential);
-      return;
+    switch (await _room.collectTheCredential(deviceId)) {
+      case Answered(value: final collected):
+        credential = collected;
+      case Refused(code: RefusalCode.credentialNotYet):
+        _lookAgainLater();
+        return;
+      case Refused(code: RefusalCode.credentialTaken):
+        await _startOver(ledger);
+        return;
+      case SessionGone():
+        // The server does not know this device at all. Keeping the team beside an id
+        // nobody claimed is a lie the next opening believes: it walks into the room as
+        // linked, and the code the facilitator would have to write down never shows.
+        await _startOver(ledger);
+        return;
+      case NetworkFailed() || Refused():
+        _tryAgainLater(_collectTheCredential);
+        return;
     }
     // The one copy was spent on the server the moment it was handed over: kept down
     // regardless of whether the tablet is still up (a credential dropped because nobody
@@ -166,43 +168,49 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
 
   Future<void> _showACode() async {
     if (_closed) return;
+    final answer = await _room.askForACode(_deviceId);
+    if (answer is! Answered<ClaimCode>) return _tryAgainLater(_showACode);
+    if (_closed) return;
+    final code = answer.value;
+    _deviceId = code.deviceId;
+    _failures = 0;
     try {
-      final code = await _room.askForACode(_deviceId);
-      if (_closed) return;
-      _deviceId = code.deviceId;
-      _failures = 0;
       await _ledger.rememberDevice(code.deviceId);
-      state = DeviceLink(code: code);
-      _lookAgainLater();
     } on Exception {
-      _tryAgainLater(_showACode);
+      return _tryAgainLater(_showACode);
     }
+    state = DeviceLink(code: code);
+    _lookAgainLater();
   }
 
   Future<void> _lookForTheTeam() async {
     if (_closed) return;
     final deviceId = _deviceId;
     if (deviceId == null) return _showACode();
-    try {
-      final team = await _room.readTheLink(deviceId);
-      if (_closed) return;
-      _failures = 0;
-      if (team != null) {
-        await _ledger.rememberTeam(team);
+    switch (await _room.readTheLink(deviceId)) {
+      case Answered(value: final team):
         if (_closed) return;
-        state = DeviceLink(team: team);
-        return _collectTheCredential();
-      }
-      final showing = state.code;
-      if (showing == null || showing.ranOutBy(clock.now())) {
-        return _showACode();
-      }
-      _lookAgainLater();
-    } on SessionGone {
-      _deviceId = null;
-      await _showACode();
-    } on Exception {
-      _tryAgainLater(_lookForTheTeam);
+        _failures = 0;
+        if (team != null) {
+          try {
+            await _ledger.rememberTeam(team);
+          } on Exception {
+            return _tryAgainLater(_lookForTheTeam);
+          }
+          if (_closed) return;
+          state = DeviceLink(team: team);
+          return _collectTheCredential();
+        }
+        final showing = state.code;
+        if (showing == null || showing.ranOutBy(clock.now())) {
+          return _showACode();
+        }
+        _lookAgainLater();
+      case SessionGone():
+        _deviceId = null;
+        await _showACode();
+      case NetworkFailed() || Refused():
+        _tryAgainLater(_lookForTheTeam);
     }
   }
 

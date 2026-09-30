@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -459,7 +459,7 @@ void main() {
       if (quebra == 'a sala recusa') {
         harness.room.replaceCaptured = false;
       } else {
-        harness.room.failReplaceWith = const RoomUnavailable('sem rede');
+        harness.room.failReplaceWith = const NetworkFailed('sem rede');
       }
 
       await traduzirDeNovo(tester, container);
@@ -607,7 +607,7 @@ void main() {
     final container = await pumpToPergunta(tester);
     final harness = harnessDaVez!;
     harness.room.replaceNeedsPerson = true;
-    harness.room.failFinishWith = const RoomUnavailable('sem rede');
+    harness.room.failFinishWith = const NetworkFailed('sem rede');
 
     await traduzirDeNovo(tester, container);
 

@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
@@ -639,7 +639,8 @@ void main() {
   test(
     'a refusal anywhere else stops for a person, never for a network that is fine',
     () async {
-      final harness = SalaHarness()..room.failWith = const RoomRefused();
+      final harness = SalaHarness()
+        ..room.failWith = const Refused('UNAUTHORIZED');
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -1240,61 +1241,11 @@ void main() {
     );
   });
 
-  test('a room that answers nothing is not a network that is gone', () async {
-    final harness = SalaHarness();
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    harness.room.failWith = const RoomSlow();
-    await notifier.abrirEscolha();
-    await settle();
-
-    final state = container.read(salaSessionProvider);
-    expect(
-      state.offline,
-      isFalse,
-      reason:
-          'um turno lento apagava a tela e dizia que a internet tinha caído',
-    );
-    expect(
-      state.voice,
-      VoiceState.invite,
-      reason: 'a sala continua lá — o toque tenta de novo em vez de desistir',
-    );
-  });
-
-  test(
-    'a room that answers nothing three times is finally given up on',
-    () async {
-      final harness = SalaHarness();
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      harness.room.failWith = const RoomSlow();
-      for (var tentativa = 0; tentativa < 3; tentativa++) {
-        await notifier.abrirEscolha();
-        await settle();
-      }
-
-      final state = container.read(salaSessionProvider);
-      expect(state.offline, isTrue);
-      expect(
-        state.reach,
-        RoomReach.roomSilent,
-        reason:
-            'e o rosto disso não é a nuvem cortada: a rede está boa, quem não '
-            'responde é a sala',
-      );
-    },
-  );
-
   test(
     'a wheel that keeps failing to load still climbs its own ladder, retry after retry',
     () async {
       final harness = SalaHarness()
-        ..room.failWith = const RoomBroke('HTTP 500');
+        ..room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);

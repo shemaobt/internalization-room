@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
@@ -180,7 +180,7 @@ void main() {
     () async {
       final harness = SalaHarness()
         ..room.passages = const [_panorama, _p01]
-        ..room.failHeldTurnWith = const RoomBroke('HTTP 500');
+        ..room.failHeldTurnWith = const Refused('BAD_REQUEST', 'HTTP 500');
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);

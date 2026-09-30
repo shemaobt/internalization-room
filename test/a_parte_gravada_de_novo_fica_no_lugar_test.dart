@@ -343,21 +343,21 @@ void main() {
     'nomeado',
     () async {
       final it = await _oAchadoNaParteDois();
-      it.harness.room.refuseTake = 'ensaio/${KeptScope.parte(2)}';
+      it.harness.room.unreachableTake = 'ensaio/${KeptScope.parte(2)}';
 
       it.sala.gravarAParteDeNovo();
       await regravarAParte(it, 1);
       await waitFor(
-        'a sala recusar a gravação nova',
+        'a gravação nova não subir',
         () => it.harness.room.calls.where((c) => c == 'sendTake').length > 3,
       );
       expect(
         it.partes[1].takeId,
         isNull,
-        reason: 'a sala recusou, e a tomada não tem nome nenhum para adotar',
+        reason: 'a tomada não subiu, e não tem nome nenhum para adotar',
       );
 
-      it.harness.room.refuseTake = null;
+      it.harness.room.unreachableTake = null;
       it.harness.playback.lengths[it.partes[1].path] = partesDoEnsaio[1];
       it.sala.startRetro();
       await waitFor(

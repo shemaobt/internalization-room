@@ -7,7 +7,8 @@ import 'package:http/http.dart' as http;
 import '../../../core/config/env.dart';
 import '../domain/hand_reply.dart';
 import 'device_identity.dart';
-import 'room_repository.dart';
+import 'room_answer.dart';
+import 'room_client.dart';
 import 'shared_http_client.dart';
 
 const _basePath = '/api/internalization-room';
@@ -22,6 +23,7 @@ class HandInboxRepository {
   final http.Client _client;
   final bool _ownsClient;
   final Future<String> Function() _deviceId;
+  late final RoomClient _room = RoomClient(_client);
 
   HandInboxRepository({
     http.Client? client,
@@ -44,30 +46,20 @@ class HandInboxRepository {
     'X-Device-Credential': ?_credential,
   };
 
-  Future<List<HandReply>?> fetchReplies() async {
-    final http.Response response;
-    try {
-      response = await _client
-          .get(
-            Uri.parse('${Env.backendUrl}$_basePath/questions/replies'),
-            headers: await _headers,
-          )
-          .timeout(_timeout);
-    } on Object {
-      return null;
-    }
-    if (response.statusCode != 200) return null;
-    try {
-      final body =
-          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      return [
+  Future<RoomAnswer<List<HandReply>>> fetchReplies() => _room.ask(
+    () async => _client.get(
+      Uri.parse('${Env.backendUrl}$_basePath/questions/replies'),
+      headers: await _headers,
+    ),
+    timeout: _timeout,
+    read: readJson(
+      (body) => [
         for (final reply in (body['replies'] as List? ?? const []))
           HandReply.fromJson((reply as Map).cast<String, dynamic>()),
-      ];
-    } on Object {
-      return null;
-    }
-  }
+      ],
+    ),
+    asksForTheSession: false,
+  );
 
   /// Whether the desk took it.
   ///
@@ -82,50 +74,39 @@ class HandInboxRepository {
   /// A reply the desk served with no address is marked bare, by the question alone, as
   /// every mark was before — the desk answers and addresses a reply in one write, so it
   /// never serves one, and the bare form is a guard rather than a path.
-  Future<bool> markHeard(String replyId, {required String audioUrl}) async {
-    final http.Response response;
-    try {
-      response = await _client
-          .post(
-            Uri.parse('${Env.backendUrl}$_basePath/questions/$replyId/heard'),
-            headers: {
-              ...await _headers,
-              if (audioUrl.isNotEmpty) 'Content-Type': 'application/json',
-            },
-            body: audioUrl.isEmpty ? null : jsonEncode({'audio_url': audioUrl}),
-          )
-          .timeout(_timeout);
-    } on Object {
-      return false;
-    }
-    return response.statusCode >= 200 && response.statusCode < 300;
-  }
+  Future<RoomAnswer<void>> markHeard(
+    String replyId, {
+    required String audioUrl,
+  }) => _room.ask(
+    () async => _client.post(
+      Uri.parse('${Env.backendUrl}$_basePath/questions/$replyId/heard'),
+      headers: {
+        ...await _headers,
+        if (audioUrl.isNotEmpty) 'Content-Type': 'application/json',
+      },
+      body: audioUrl.isEmpty ? null : jsonEncode({'audio_url': audioUrl}),
+    ),
+    timeout: _timeout,
+    read: (_) {},
+    asksForTheSession: false,
+  );
 
-  Future<void> sendQuestion(String sessionId, File audio) async {
-    final request =
-        http.MultipartRequest(
-            'POST',
-            Uri.parse(
-              '${Env.backendUrl}$_basePath/questions?session_id=$sessionId',
-            ),
-          )
-          ..headers.addAll(await _headers)
-          ..files.add(await http.MultipartFile.fromPath('file', audio.path));
-    final http.Response response;
-    try {
-      // The deadline has to cover draining the body too: wrapping only `send` left the
-      // read with no limit at all, so a half-answered request hung here for good. And a
-      // raw TimeoutException escaping made the caller treat a slow link as a crash.
-      response = await Future(() async {
-        return http.Response.fromStream(await _client.send(request));
-      }).timeout(_uploadTimeout);
-    } on Exception catch (error) {
-      throw RoomUnavailable('$error');
-    }
-    if (response.statusCode != 200) {
-      throw RoomUnavailable('HTTP ${response.statusCode}');
-    }
-  }
+  Future<RoomAnswer<void>> sendQuestion(String sessionId, File audio) =>
+      _room.askStreamed(
+        () async =>
+            http.MultipartRequest(
+                'POST',
+                Uri.parse(
+                  '${Env.backendUrl}$_basePath/questions?session_id=$sessionId',
+                ),
+              )
+              ..headers.addAll(await _headers)
+              ..files.add(
+                await http.MultipartFile.fromPath('file', audio.path),
+              ),
+        timeout: _uploadTimeout,
+        read: (_) {},
+      );
 
   void dispose() {
     if (_ownsClient) _client.close();

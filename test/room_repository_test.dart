@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
@@ -191,14 +192,14 @@ void main() {
       addTearDown(repository.dispose);
       final clock = Stopwatch()..start();
 
-      await expectLater(
-        repository.sendTurn(
+      expect(
+        await repository.sendTurn(
           'sessao-1',
           await _tempRecording(),
           turnId: 'turno-7',
           timeout: const Duration(milliseconds: 100),
         ),
-        throwsA(isA<RoomSlow>()),
+        isA<NetworkFailed>(),
       );
       expect(
         clock.elapsed,
@@ -266,16 +267,20 @@ void main() {
       );
       addTearDown(repository.dispose);
 
-      final broken = await repository.sendTurn(
-        'sessao-1',
-        await _tempRecording(),
-        turnId: 'turno-1',
+      final broken = _value(
+        await repository.sendTurn(
+          'sessao-1',
+          await _tempRecording(),
+          turnId: 'turno-1',
+        ),
       );
       inTrouble = false;
-      final ensaiando = await repository.sendTurn(
-        'sessao-1',
-        await _tempRecording(),
-        turnId: 'turno-2',
+      final ensaiando = _value(
+        await repository.sendTurn(
+          'sessao-1',
+          await _tempRecording(),
+          turnId: 'turno-2',
+        ),
       );
 
       expect(broken.degraded, isTrue);
@@ -308,7 +313,7 @@ void main() {
       );
       addTearDown(repository.dispose);
 
-      final turn = await repository.openSession('sessao-1');
+      final turn = _value(await repository.openSession('sessao-1'));
 
       expect(turn.turnId, 'turno-9');
       expect(turn.classificationPending, isTrue);
@@ -386,7 +391,7 @@ void main() {
       );
       addTearDown(repository.dispose);
 
-      final asked = await repository.askForACode(null);
+      final asked = _value(await repository.askForACode(null));
 
       expect(seen.url.path, '/api/internalization-room/devices/code');
       expect(
@@ -450,7 +455,7 @@ void main() {
       );
       addTearDown(repository.dispose);
 
-      final asked = await repository.askForACode(null);
+      final asked = _value(await repository.askForACode(null));
 
       expect(
         asked.expiresAt,
@@ -474,7 +479,7 @@ void main() {
       );
       addTearDown(repository.dispose);
 
-      final link = await repository.readTheLink('aparelho-1');
+      final link = _value(await repository.readTheLink('aparelho-1'));
 
       expect(
         seen.url.path,
@@ -501,7 +506,7 @@ void main() {
     );
     addTearDown(repository.dispose);
 
-    final link = await repository.readTheLink('aparelho-1');
+    final link = _value(await repository.readTheLink('aparelho-1'));
 
     expect(link?.projectId, 'equipe-terena');
   });
@@ -517,8 +522,8 @@ void main() {
       addTearDown(repository.dispose);
 
       expect(
-        () => repository.readTheLink('aparelho-1'),
-        throwsA(isA<RoomBroke>()),
+        await repository.readTheLink('aparelho-1'),
+        isA<Refused>(),
         reason:
             'um project_id ausente virava equipe "" — o aparelho gravava isso em disco, '
             'dava-se por vinculado, e a tela de instalação nunca mais voltava',
@@ -538,8 +543,8 @@ void main() {
       addTearDown(repository.dispose);
 
       expect(
-        () => repository.askForACode(null),
-        throwsA(isA<RoomBroke>()),
+        await repository.askForACode(null),
+        isA<Refused>(),
         reason: 'a mesa não pode digitar um código que a tela não mostrou',
       );
     },
@@ -552,8 +557,8 @@ void main() {
     addTearDown(repository.dispose);
 
     expect(
-      () => repository.createSession(language: 'pt'),
-      throwsA(isA<RoomBroke>()),
+      await repository.createSession(language: 'pt'),
+      isA<Refused>(),
       reason:
           'um TypeError escapa de todo `on Exception` e trava a sala em '
           'pensando, sem gesto e sem voz',
@@ -566,15 +571,15 @@ void main() {
         client: MockClient((_) async => http.Response('{}', status)),
       );
       addTearDown(repository.dispose);
-      await expectLater(() => repository.fetchState('s'), throwsA(matcher));
+      expect(await repository.fetchState('s'), matcher);
     }
 
-    await expectStatus(401, isA<RoomRefused>());
-    await expectStatus(403, isA<RoomRefused>());
+    await expectStatus(401, _refusedWith(RefusalCode.unauthorized));
+    await expectStatus(403, _refusedWith(RefusalCode.forbidden));
     await expectStatus(404, isA<SessionGone>());
-    await expectStatus(400, isA<RoomBroke>());
-    await expectStatus(422, isA<RoomBroke>());
-    await expectStatus(500, isA<RoomBroke>());
+    await expectStatus(400, isA<Refused>());
+    await expectStatus(422, isA<Refused>());
+    await expectStatus(500, isA<NetworkFailed>());
   });
 
   test(
@@ -587,9 +592,9 @@ void main() {
       );
       addTearDown(repository.dispose);
 
-      await expectLater(
-        () => repository.fetchState('s'),
-        throwsA(isA<RoomUnavailable>()),
+      expect(
+        await repository.fetchState('s'),
+        isA<NetworkFailed>(),
         reason: 'só transporte é queda de rede; resposta ruim é sala quebrada',
       );
     },
@@ -606,9 +611,9 @@ void main() {
       );
       addTearDown(repository.dispose);
 
-      await expectLater(
-        () => repository.fetchState('s'),
-        throwsA(isA<RoomSlow>()),
+      expect(
+        await repository.fetchState('s'),
+        isA<NetworkFailed>(),
         reason:
             'esperar demais e não achar a sala eram a mesma exceção, e a equipe ouvia '
             'que a internet tinha caído por causa de um servidor pensando',
@@ -860,10 +865,10 @@ void main() {
       );
     }
 
-    await expectStatus(401, isA<RoomRefused>());
-    await expectStatus(403, isA<RoomRefused>());
+    await expectStatus(401, _refusedWith(RefusalCode.unauthorized));
+    await expectStatus(403, _refusedWith(RefusalCode.forbidden));
     await expectStatus(404, isA<SessionGone>());
-    await expectStatus(500, isA<RoomBroke>());
+    await expectStatus(500, isA<NetworkFailed>());
   });
 
   test(
@@ -893,7 +898,7 @@ void main() {
       expect(frames, isEmpty);
       expect(
         error,
-        isA<RoomUnavailable>(),
+        isA<NetworkFailed>(),
         reason:
             'uma sala inalcançável fechava o canal quieto, e o lado que '
             'escuta não tinha como distinguir isso de um fim comum e parar '
@@ -932,7 +937,7 @@ void main() {
       expect(frames, isEmpty);
       expect(
         error,
-        isA<RoomUnavailable>(),
+        isA<NetworkFailed>(),
         reason:
             'o corpo caindo no meio da leitura fechava o canal quieto, do '
             'mesmo jeito que uma sala nunca alcançada',
@@ -1011,9 +1016,11 @@ void main() {
       );
       addTearDown(repository.dispose);
 
-      final verdict = await repository.finishBackTranslation(
-        'sessao-1',
-        playedByTake: const [],
+      final verdict = _value(
+        await repository.finishBackTranslation(
+          'sessao-1',
+          playedByTake: const [],
+        ),
       );
 
       expect(
@@ -1058,7 +1065,7 @@ void main() {
       );
       repository.presents('credencial-1');
 
-      final solta = await repository.approveRelease('sessao-1');
+      final solta = _value(await repository.approveRelease('sessao-1'));
 
       expect(seen.method, 'POST');
       expect(
@@ -1117,7 +1124,7 @@ void main() {
         }),
       );
 
-      final resposta = await repository.approveRelease('sessao-1');
+      final resposta = _value(await repository.approveRelease('sessao-1'));
 
       expect(
         resposta.minted,
@@ -1150,7 +1157,7 @@ void main() {
         ),
       );
 
-      final resposta = await repository.approveRelease('sessao-1');
+      final resposta = _value(await repository.approveRelease('sessao-1'));
 
       expect(
         resposta.minted,
@@ -1179,9 +1186,9 @@ void main() {
           ),
         );
 
-        await expectLater(
-          () => repository.approveRelease('sessao-1'),
-          throwsA(isA<RoomBroke>()),
+        expect(
+          await repository.approveRelease('sessao-1'),
+          isA<Refused>(),
           reason:
               'um 409 deixou de ser a recusa e é só a versão que correu: a '
               'escada comum o repete, e a recusa de verdade chega em 200 com os '
@@ -1194,16 +1201,16 @@ void main() {
     test('as outras recusas seguem as de sempre', () async {
       for (final caso in [
         (status: 404, erro: isA<SessionGone>()),
-        (status: 400, erro: isA<RoomBroke>()),
-        (status: 403, erro: isA<RoomRefused>()),
+        (status: 400, erro: isA<Refused>()),
+        (status: 403, erro: isA<Refused>()),
       ]) {
         final repository = umaSala(
           MockClient((request) async => http.Response('', caso.status)),
         );
 
         expect(
-          () => repository.approveRelease('sessao-1'),
-          throwsA(caso.erro),
+          await repository.approveRelease('sessao-1'),
+          caso.erro,
           reason:
               'a release não inventa escada nenhuma para os estados que a '
               'sala inteira já trata',
@@ -1279,9 +1286,9 @@ void main() {
         'a door that asks for the session reads a 404 as the session gone',
         () async {
           for (final door in sessionDoors.entries) {
-            await expectLater(
-              () => door.value(answering(404)),
-              throwsA(isA<SessionGone>()),
+            expect(
+              await door.value(answering(404)),
+              isA<SessionGone>(),
               reason:
                   '${door.key} pergunta pela sessão; o 404 dele é ela sumida',
             );
@@ -1293,9 +1300,9 @@ void main() {
         'a call that names a take or a stretch reads a 404 as a refused call',
         () async {
           for (final call in stretchCalls.entries) {
-            await expectLater(
-              () => call.value(answering(404)),
-              throwsA(isA<RoomBroke>()),
+            expect(
+              await call.value(answering(404)),
+              isA<Refused>(),
               reason:
                   '${call.key}: o 404 é a gravação ou o trecho que não são desta '
                   'sessão, e lido como sessão sumida esquecia a linha de uma '
@@ -1327,9 +1334,9 @@ void main() {
           );
           addTearDown(repository.dispose);
 
-          await expectLater(
-            () => sessionDoors['sendChunk']!(repository),
-            throwsA(isA<RoomBroke>()),
+          expect(
+            await sessionDoors['sendChunk']!(repository),
+            isA<Refused>(),
             reason:
                 'a gravação nomeada é de outra sessão, e não a sessão — o app '
                 'risca em vez de deixar a passagem',
@@ -1340,9 +1347,9 @@ void main() {
       test(
         'a 400 on opening a session is the passage that cannot open',
         () async {
-          await expectLater(
-            () => answering(400).createSession(pericope: 'P01', language: 'pt'),
-            throwsA(isA<PassageCannotOpen>()),
+          expect(
+            await answering(400).createSession(pericope: 'P01', language: 'pt'),
+            _refusedWith(RefusalCode.passageCannotOpen),
             reason:
                 'o /sessions responde 400 para uma passagem que não abre, e lido '
                 'como chamada recusada chamava uma pessoa na hora',
@@ -1358,9 +1365,9 @@ void main() {
             ...stretchCalls,
             ...notAboutASession,
           }.entries) {
-            await expectLater(
-              () => call.value(answering(400)),
-              throwsA(isA<RoomBroke>()),
+            expect(
+              await call.value(answering(400)),
+              isA<Refused>(),
               reason:
                   '${call.key}: fora da criação da sessão, o 400 não fala da '
                   'passagem; um trecho vazio recusado levava a sessão junto',
@@ -1391,34 +1398,35 @@ void main() {
           'stretches it was divided into, not the stretch itself';
 
       test(
-        'a replace refused because the stretch no longer counts names that refusal',
+        'the words of a refusal never name it: the stretch-no-longer-counts prose under another code is that code',
         () async {
-          await expectLater(
-            () =>
-                stretchCalls['replaceSegment']!(refusingWith(400, superseded)),
-            throwsA(isA<StretchNoLongerCounts>()),
+          expect(
+            await stretchCalls['replaceSegment']!(
+              refusingWith(400, superseded),
+            ),
+            _refusedWith('BAD_REQUEST'),
           );
         },
       );
 
       test('every other refusal of a replace stays a refused call', () async {
-        await expectLater(
-          () => stretchCalls['replaceSegment']!(refusingWith(400, divided)),
-          throwsA(isA<RoomBroke>()),
+        expect(
+          await stretchCalls['replaceSegment']!(refusingWith(400, divided)),
+          _refusedWith('BAD_REQUEST'),
           reason: 'o trecho dividido não foi contado; é recusa de verdade',
         );
-        await expectLater(
-          () => stretchCalls['replaceSegment']!(refusingWith(422, superseded)),
-          throwsA(isA<RoomBroke>()),
+        expect(
+          await stretchCalls['replaceSegment']!(refusingWith(422, superseded)),
+          _refusedWith('BAD_REQUEST'),
           reason: 'a recusa nomeada é o 400 do servidor, e nada mais largo',
         );
       });
 
       test('sendChunk keeps a 400 or a 422 as a refused call', () async {
         for (final status in [400, 422]) {
-          await expectLater(
-            () => sessionDoors['sendChunk']!(refusingWith(status, superseded)),
-            throwsA(isA<RoomBroke>()),
+          expect(
+            await sessionDoors['sendChunk']!(refusingWith(status, superseded)),
+            _refusedWith('BAD_REQUEST'),
             reason: 'sendChunk $status: só o replace conta de novo um trecho',
           );
         }
@@ -1427,46 +1435,47 @@ void main() {
       test(
         'opening a session and listing the passages keep a 404 as the session gone',
         () async {
-          await expectLater(
-            () =>
-                answering(404).createSession(language: 'pt', afterSession: 's'),
-            throwsA(isA<SessionGone>()),
+          expect(
+            await answering(
+              404,
+            ).createSession(language: 'pt', afterSession: 's'),
+            isA<SessionGone>(),
             reason:
                 'o 404 de /sessions é a sessão anterior que a sala não conhece '
                 'mais, um veredito sobre uma sessão',
           );
-          await expectLater(
-            () => answering(404).passagesOf('Ruth', language: 'pt'),
-            throwsA(isA<SessionGone>()),
+          expect(
+            await answering(404).passagesOf('Ruth', language: 'pt'),
+            isA<SessionGone>(),
           );
         },
       );
 
       test('the device routes keep their own answers', () async {
-        await expectLater(
-          () => answering(404).collectTheCredential('aparelho-1'),
-          throwsA(isA<SessionGone>()),
+        expect(
+          await answering(404).collectTheCredential('aparelho-1'),
+          isA<SessionGone>(),
         );
-        await expectLater(
-          () => answering(409).collectTheCredential('aparelho-1'),
-          throwsA(isA<CredentialNotYet>()),
+        expect(
+          await answering(409).collectTheCredential('aparelho-1'),
+          _refusedWith(RefusalCode.credentialNotYet),
         );
-        await expectLater(
-          () => answering(403).collectTheCredential('aparelho-1'),
-          throwsA(isA<CredentialTaken>()),
+        expect(
+          await answering(403).collectTheCredential('aparelho-1'),
+          _refusedWith(RefusalCode.credentialTaken),
         );
-        await expectLater(
-          () => answering(404).readTheLink('aparelho-1'),
-          throwsA(isA<SessionGone>()),
+        expect(
+          await answering(404).readTheLink('aparelho-1'),
+          isA<SessionGone>(),
         );
-        expect(await answering(204).readTheLink('aparelho-1'), isNull);
-        await expectLater(
-          () => answering(404).askForAPersonWithoutASession('aparelho-1'),
-          throwsA(isA<NobodyToReach>()),
+        expect(_value(await answering(204).readTheLink('aparelho-1')), isNull);
+        expect(
+          await answering(404).askForAPersonWithoutASession('aparelho-1'),
+          _refusedWith(RefusalCode.nobodyToReach),
         );
-        await expectLater(
-          () => answering(409).askForAPersonWithoutASession('aparelho-1'),
-          throwsA(isA<NobodyToReach>()),
+        expect(
+          await answering(409).askForAPersonWithoutASession('aparelho-1'),
+          _refusedWith(RefusalCode.nobodyToReach),
         );
       });
     },
@@ -1521,3 +1530,8 @@ Future<File> _tempRecording() async {
   });
   return file;
 }
+
+T _value<T>(RoomAnswer<T> answer) => (answer as Answered<T>).value;
+
+Matcher _refusedWith(String code) =>
+    isA<Refused>().having((refusal) => refusal.code, 'code', code);

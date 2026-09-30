@@ -7,7 +7,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
-import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
@@ -484,7 +484,10 @@ void main() {
 
       await notifier.openConvite();
       expect(harness.room.sessionIds, hasLength(1));
-      harness.room.failCreateOnceWith = const RoomBroke('HTTP 500');
+      harness.room.failCreateOnceWith = const Refused(
+        'BAD_REQUEST',
+        'HTTP 500',
+      );
 
       notifier.devTrocarIdioma();
       await settle();

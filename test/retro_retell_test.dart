@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -246,9 +246,13 @@ void main() {
     // is left standing on the recording instead of being carried to a result. That is the
     // one place from which the cursor a correction moved can be read at all: every other
     // way out of a correction the room took ends the telling-back.
-    harness.room.failFinishWith = const RoomSlow();
+    harness.room.failFinishWith = const NetworkFailed('timeout');
     await _traduzDeNovo(container, notifier);
     harness.room.failFinishWith = null;
+    await waitFor(
+      'a sala voltar ao alcance',
+      () => !container.read(salaSessionProvider).offline,
+    );
 
     await _traduzTrecho(harness, container, em: const Duration(seconds: 40));
 

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
@@ -19,14 +20,14 @@ import 'fakes.dart';
 import 'scenario_helpers.dart' show settle;
 
 /// Sends `sendChunk` through the real [RoomRepository] — the actual production decode, not
-/// a hand-picked exception — so a test using this room stays sensitive to a regression in
-/// `sendChunk`'s own `notFoundIsTheSessionGone` argument. Everything else this room is asked
+/// a hand-picked failure — so a test using this room stays sensitive to a regression in
+/// whether `sendChunk`'s own 404 is the session gone. Everything else this room is asked
 /// for still comes from [FakeRoom].
 class _RealSendChunkRoom extends FakeRoom {
   int? sendChunkStatus;
 
   @override
-  Future<BackTranslationChunk> sendChunk(
+  Future<RoomAnswer<BackTranslationChunk>> sendChunk(
     String sessionId,
     File audio, {
     required String takeId,
@@ -211,7 +212,7 @@ void main() {
     () async {
       final harness = SalaHarness();
       final it = await _retomadaNaRetro(harness);
-      harness.room.failChunkWith = const RoomBroke('HTTP 400');
+      harness.room.failChunkWith = const Refused('BAD_REQUEST', 'HTTP 400');
 
       await _contarUmTrechoRecusado(it);
 
@@ -296,7 +297,7 @@ void main() {
     () async {
       final harness = SalaHarness();
       final it = await _retomadaNaRetro(harness);
-      harness.room.failChunkWith = const RoomBroke('HTTP 422');
+      harness.room.failChunkWith = const Refused('BAD_REQUEST', 'HTTP 422');
 
       await _contarUmTrechoRecusado(it);
       expect(
@@ -327,7 +328,7 @@ void main() {
     () async {
       final harness = SalaHarness();
       final it = await _retomadaNaRetro(harness);
-      harness.room.failChunkWith = const RoomBroke('HTTP 400');
+      harness.room.failChunkWith = const Refused('BAD_REQUEST', 'HTTP 400');
       await _contarUmTrechoRecusado(it);
 
       it.sala.leaveThePassage();

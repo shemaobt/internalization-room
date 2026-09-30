@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/hand_inbox_repository.dart';
-import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 
 import 'fakes.dart';
@@ -183,7 +183,7 @@ void main() {
     final desk = _Desk();
     final harness = _tabletTalkingTo(desk);
     final container = await _opensTheRoom(desk, harness);
-    harness.voice.roomFailsWith = const RoomBroke('HTTP 503');
+    harness.voice.roomFailsWith = const Refused('BAD_REQUEST', 'HTTP 503');
 
     await _theTeamTapsTheHand(container);
     expect(_timesPlayed(harness), 1, reason: 'a sala tentou tocar a resposta');
@@ -257,7 +257,7 @@ void main() {
       final desk = _Desk();
       final harness = _tabletTalkingTo(desk);
       final container = await _opensTheRoom(desk, harness);
-      harness.voice.roomFailsWith = const RoomBroke('HTTP 503');
+      harness.voice.roomFailsWith = const Refused('BAD_REQUEST', 'HTTP 503');
 
       await _theTeamTapsTheHand(container);
       await _theTeamTapsTheHand(container);

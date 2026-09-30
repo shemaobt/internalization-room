@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/facilitator_voice_service.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:just_audio/just_audio.dart';
 
@@ -502,9 +503,9 @@ void main() {
     'a clip the room will not serve fails as the room, not as a line that will not play',
     () async {
       for (final (status, failure) in [
-        (403, isA<RoomRefused>()),
-        (401, isA<RoomRefused>()),
-        (503, isA<RoomBroke>()),
+        (403, isA<Refused>()),
+        (401, isA<Refused>()),
+        (503, isA<NetworkFailed>()),
       ]) {
         final voice = FacilitatorVoiceService(
           open: roomAnswering(
@@ -541,7 +542,7 @@ void main() {
 
       await expectLater(
         voice.clipFor(_clip),
-        throwsA(isA<RoomUnavailable>()),
+        throwsA(isA<NetworkFailed>()),
         reason:
             'a queda no meio do corpo subia como ClientException cru, que a '
             'sala não reconhece como a rede indo embora',
@@ -574,7 +575,7 @@ void main() {
 
       await expectLater(
         tail.stream.toList().timeout(const Duration(seconds: 2)),
-        throwsA(isA<RoomUnavailable>()),
+        throwsA(isA<NetworkFailed>()),
         reason:
             'o pedido do tocador esperava para sempre por bytes de um download '
             'que já tinha morrido',
@@ -658,7 +659,7 @@ void main() {
 
       await expectLater(
         voice.clipFor(_clip).timeout(const Duration(seconds: 2)),
-        throwsA(isA<RoomBroke>()),
+        throwsA(isA<Refused>()),
         reason:
             'uma retomada que não traz byte novo pedia de novo sem fim, e a '
             'fala nunca terminava nem falhava',
@@ -671,8 +672,8 @@ void main() {
     'a clip whose resumes keep starting over gives up, instead of pulling forever',
     () async {
       for (final (drop, failure) in [
-        (null, isA<RoomBroke>()),
-        (http.ClientException('a conexão caiu'), isA<RoomUnavailable>()),
+        (null, isA<Refused>()),
+        (http.ClientException('a conexão caiu'), isA<NetworkFailed>()),
       ]) {
         fetched.clear();
         Stream<List<int>> cutMidway() async* {
@@ -876,7 +877,7 @@ void main() {
         ..add([7, 8, 9, 10, 11, 12])
         ..close();
 
-      await expectLater(served, throwsA(isA<RoomBroke>()));
+      await expectLater(served, throwsA(isA<Refused>()));
       expect(
         got,
         [1, 2, 3],
@@ -908,7 +909,7 @@ void main() {
 
       await expectLater(
         voice.clipFor(_clip).timeout(const Duration(seconds: 2)),
-        throwsA(isA<RoomSlow>()),
+        throwsA(isA<NetworkFailed>()),
         reason:
             'o fetchClip inteiro tinha teto; o corpo em stream não, e uma '
             'conexão muda prendia a fala e todo play dela até reabrir o app',
@@ -928,7 +929,7 @@ void main() {
 
       await expectLater(
         voice.clipFor(_clip),
-        throwsA(isA<RoomBroke>()),
+        throwsA(isA<Refused>()),
         reason:
             'sem Content-Length o buffer não tem tamanho, e o ! virava um '
             'TypeError que nenhum on Exception da sala pega',
@@ -955,10 +956,10 @@ void main() {
         );
       }
 
-      await expectSurfaced(const RoomBroke('HTTP 503'));
-      await expectSurfaced(const RoomUnavailable('sem rede'));
-      await expectSurfaced(const RoomSlow());
-      await expectSurfaced(const RoomRefused());
+      await expectSurfaced(const Refused('BAD_REQUEST', 'HTTP 503'));
+      await expectSurfaced(const NetworkFailed('sem rede'));
+      await expectSurfaced(const NetworkFailed('timeout'));
+      await expectSurfaced(const Refused('UNAUTHORIZED'));
     },
   );
 

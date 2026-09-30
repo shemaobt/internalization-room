@@ -4,7 +4,7 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/facilitator_voice_service.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
@@ -399,7 +399,7 @@ void main() {
       await notifier.abrirEscolha();
       await settle();
 
-      harness.room.failWith = const RoomBroke('sem resposta');
+      harness.room.failWith = const Refused('BAD_REQUEST', 'sem resposta');
       await notifier.goConversa(pericope: 'P01');
       await settle();
 
@@ -801,7 +801,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      harness.voice.roomFailsWith = const RoomRefused();
+      harness.voice.roomFailsWith = const Refused('UNAUTHORIZED');
       await notifier.hearAgain();
       await settle();
 
@@ -859,7 +859,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      harness.voice.roomFailsWith = const RoomRefused();
+      harness.voice.roomFailsWith = const Refused('UNAUTHORIZED');
       await notifier.hearTheWholeOpening();
       await settle();
 
@@ -882,7 +882,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      harness.voice.roomFailsWith = const RoomBroke('HTTP 503');
+      harness.voice.roomFailsWith = const Refused('BAD_REQUEST', 'HTTP 503');
       await notifier.hearTheWholeOpening();
       await settle();
 
@@ -908,7 +908,7 @@ void main() {
     'an opening whose first clip the room fails still hands the necklace over',
     () async {
       final harness = SalaHarness()..room.opensInTwoMovements = true;
-      harness.voice.roomFailsWith = const RoomBroke('HTTP 503');
+      harness.voice.roomFailsWith = const Refused('BAD_REQUEST', 'HTTP 503');
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -1101,7 +1101,7 @@ void main() {
 
       notifier.conversaTap();
       await settle();
-      harness.voice.roomFailsWith = const RoomBroke('HTTP 503');
+      harness.voice.roomFailsWith = const Refused('BAD_REQUEST', 'HTTP 503');
       notifier.conversaTap();
       await settle();
 
@@ -1510,7 +1510,7 @@ void main() {
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
-    harness.room.failWith = const RoomUnavailable('sem rede');
+    harness.room.failWith = const NetworkFailed('sem rede');
 
     notifier.conversaTap();
     await settle();
@@ -1541,7 +1541,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
       harness.voice.played.clear();
-      harness.room.failHeldTurnWith = const RoomUnavailable('a conexão caiu');
+      harness.room.failHeldTurnWith = const NetworkFailed('a conexão caiu');
 
       notifier.conversaTap();
       await settle();
@@ -1583,7 +1583,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
       harness.network.radioSeesNothing = true;
-      harness.room.failTurnsWith = const RoomUnavailable('sem rede');
+      harness.room.failTurnsWith = const NetworkFailed('sem rede');
 
       notifier.conversaTap();
       await settle();
@@ -1613,7 +1613,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
       harness.voice.played.clear();
-      harness.room.failHeldTurnWith = const RoomUnavailable('a conexão caiu');
+      harness.room.failHeldTurnWith = const NetworkFailed('a conexão caiu');
 
       notifier.conversaTap();
       await settle();
@@ -1645,7 +1645,7 @@ void main() {
       final container = await inConversa(harness);
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
-      harness.room.failTurnsWith = const RoomUnavailable('a conexão caiu');
+      harness.room.failTurnsWith = const NetworkFailed('a conexão caiu');
 
       notifier.conversaTap();
       await settle();
@@ -1685,7 +1685,7 @@ void main() {
         unawaited(() async {
           container = await inConversa(harness);
           final notifier = container!.read(salaSessionProvider.notifier);
-          harness.room.failTurnsWith = const RoomUnavailable('a conexão caiu');
+          harness.room.failTurnsWith = const NetworkFailed('a conexão caiu');
           container!.listen(salaSessionProvider, (_, next) {
             if (next.needsPerson) calledForAPerson.add(next);
             if (ended == null && (next.offline || next.needsPerson)) {
@@ -1753,7 +1753,7 @@ void main() {
         unawaited(() async {
           container = await inConversa(harness);
           final notifier = container!.read(salaSessionProvider.notifier);
-          harness.room.failTurnsWith = const RoomUnavailable('a conexão caiu');
+          harness.room.failTurnsWith = const NetworkFailed('a conexão caiu');
           container!.listen(salaSessionProvider, (_, next) {
             if (ended == null && (next.offline || next.needsPerson)) {
               endedAt = async.elapsed - secondTapAt;
@@ -1809,7 +1809,7 @@ void main() {
   );
 
   test(
-    'a room that holds every send ends the take as a slow turn before the wait runs out, never with a person called',
+    'a room that holds every send ends the take out of reach before the wait runs out, never with a person called',
     () async {
       const window = Duration(milliseconds: 600);
       final harness = SalaHarness(
@@ -1819,7 +1819,7 @@ void main() {
       final container = await inConversa(harness);
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
-      harness.room.failHeldTurnWith = const RoomSlow();
+      harness.room.failHeldTurnWith = const NetworkFailed('timeout');
       final clock = Stopwatch();
       Duration? endedAt;
       SalaSessionState? ended;
@@ -1848,8 +1848,8 @@ void main() {
             'o reenvio esperava os 310 s cheios, o vigia vencia e chamava '
             'uma pessoa à mesa por uma rede lenta',
       );
-      expect(ended?.voice, VoiceState.invite);
-      expect(ended?.offline, isFalse);
+      expect(ended?.voice, VoiceState.offline);
+      expect(ended?.offline, isTrue);
       expect(
         endedAt,
         lessThan(window),
@@ -1859,7 +1859,7 @@ void main() {
   );
 
   test(
-    'a take the room keeps answering slowly is resent as itself, and still ends as a slow turn',
+    'a take the room keeps answering slowly is resent as itself, and ends out of reach',
     () async {
       final harness = SalaHarness(
         busyCeiling: const Duration(milliseconds: 600),
@@ -1868,7 +1868,11 @@ void main() {
       final container = await inConversa(harness);
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
-      harness.room.failTurnsWith = const RoomSlow();
+      harness.room.failTurnsWith = const NetworkFailed('timeout');
+      var outOfReach = false;
+      container.listen(salaSessionProvider, (_, next) {
+        if (next.offline) outOfReach = true;
+      });
 
       notifier.conversaTap();
       await settle();
@@ -1883,19 +1887,17 @@ void main() {
             'que o servidor talvez já tivesse respondido',
       );
       expect(harness.room.turnIdsSent.toSet(), hasLength(1));
-      final state = container.read(salaSessionProvider);
-      expect(state.voice, VoiceState.invite);
-      expect(state.needsPerson, isFalse);
-      expect(state.offline, isFalse);
+      expect(outOfReach, isTrue);
+      expect(container.read(salaSessionProvider).needsPerson, isFalse);
     },
   );
 
   test(
     'a take the room broke, refused or forgot is never sent again',
     () async {
-      for (final failure in <Exception>[
-        const RoomBroke('HTTP 500'),
-        const RoomRefused(),
+      for (final failure in <RoomFailure>[
+        const Refused('BAD_REQUEST', 'HTTP 500'),
+        const Refused('UNAUTHORIZED'),
         const SessionGone(),
       ]) {
         final harness = SalaHarness(busyCeiling: const Duration(seconds: 5));
@@ -1928,7 +1930,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
       await notifier.openConvite();
-      harness.room.failHeldTurnWith = const RoomUnavailable('a conexão caiu');
+      harness.room.failHeldTurnWith = const NetworkFailed('a conexão caiu');
 
       notifier.conviteTap();
       await settle();
@@ -1959,7 +1961,7 @@ void main() {
       final container = await inConversa(harness);
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
-      harness.room.failHeldTurnWith = const RoomUnavailable('a conexão caiu');
+      harness.room.failHeldTurnWith = const NetworkFailed('a conexão caiu');
 
       notifier.conversaTap();
       await settle();
@@ -2041,7 +2043,7 @@ void main() {
     'a passage opening retried after the room stalls asks again with the same turn id',
     () async {
       final harness = SalaHarness()
-        ..room.failHeldTurnWith = const RoomBroke('HTTP 500');
+        ..room.failHeldTurnWith = const Refused('BAD_REQUEST', 'HTTP 500');
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -2081,99 +2083,10 @@ void main() {
   );
 
   test(
-    'a passage opening that outlives the wait is asked for again under the same id',
-    () async {
-      final harness = SalaHarness()..room.failHeldTurnWith = const RoomSlow();
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      await notifier.goConversa(pericope: 'P01');
-      await settle();
-
-      expect(
-        harness.room.turnIdsAsked,
-        hasLength(2),
-        reason:
-            'a abertura estourava a espera do tablet, o círculo voltava ao '
-            'aceno em silêncio e ninguém pedia a abertura de novo',
-      );
-      expect(
-        harness.room.turnIdsAsked[1],
-        harness.room.turnIdsAsked[0],
-        reason:
-            'um id novo faz o servidor rodar a abertura inteira outra vez '
-            'em vez de devolver a que a primeira chamada já produziu',
-      );
-      expect(
-        harness.voice.assets,
-        contains(fixedLineAsset('F0', testLanguage)),
-        reason:
-            'a espera pelo segundo pedido é coberta pelo aceno instantâneo, '
-            'não por mais silêncio',
-      );
-    },
-  );
-
-  test(
-    'the opening that arrives on the second ask is the one the room speaks',
-    () async {
-      final harness = SalaHarness()..room.failHeldTurnWith = const RoomSlow();
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      await notifier.goConversa(pericope: 'P01');
-      await settle();
-
-      expect(
-        harness.voice.played,
-        [turnoUrl],
-        reason:
-            'a abertura atrasada chegava e ninguém a tocava — a sala já '
-            'tinha voltado ao aceno como se a sessão nem tivesse começado',
-      );
-      expect(
-        container.read(salaSessionProvider).voice,
-        VoiceState.invite,
-        reason: 'só depois de o Guia falar o aceno fica vivo',
-      );
-    },
-  );
-
-  test(
-    'a passage opening the room never answers is given up on at the third ask',
-    () async {
-      final harness = SalaHarness()..room.failTurnsWith = const RoomSlow();
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      await notifier.goConversa(pericope: 'P01');
-      await settle();
-
-      expect(
-        harness.room.turnIdsAsked,
-        hasLength(3),
-        reason:
-            'a sala pode ficar muda três vezes antes de o aparelho parar '
-            'de esperar por ela — a abertura gasta o mesmo orçamento que um turno',
-      );
-      expect(harness.room.turnIdsAsked.toSet(), hasLength(1));
-      expect(
-        harness.voice.assets,
-        contains(offlineNoticeAsset(testLanguage)),
-        reason:
-            'passado o limite a sala diz que não responde, do jeito que um '
-            'turno lento diz, em vez de voltar ao aceno em silêncio',
-      );
-    },
-  );
-
-  test(
     'a tap before the Guide has spoken asks for the opening, it never records a turn',
     () async {
-      final harness = SalaHarness()..room.failTurnsWith = const RoomSlow();
+      final harness = SalaHarness()
+        ..room.failTurnsWith = const NetworkFailed('timeout');
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -2196,7 +2109,7 @@ void main() {
       expect(harness.room.turnsSent, 0);
       expect(
         harness.room.turnIdsAsked,
-        hasLength(4),
+        hasLength(2),
         reason: 'o toque pede a abertura que ainda é devida, com o mesmo id',
       );
       expect(harness.room.turnIdsAsked.toSet(), hasLength(1));
@@ -2243,7 +2156,7 @@ void main() {
     'a passage left with its opening unheard does not hand its id to the next one',
     () async {
       final harness = SalaHarness()
-        ..room.failHeldTurnWith = const RoomBroke('HTTP 500');
+        ..room.failHeldTurnWith = const Refused('BAD_REQUEST', 'HTTP 500');
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -3260,7 +3173,7 @@ void main() {
       expect(harness.room.watchCoverageCalls, 1);
 
       harness.room.dropCoverageStream(
-        error: const RoomUnavailable('Connection closed while receiving data'),
+        error: const NetworkFailed('Connection closed while receiving data'),
       );
       await waitFor(
         'o canal reabrir depois de uma queda de transporte',
@@ -3288,12 +3201,16 @@ void main() {
       await container.read(salaSessionProvider.notifier).goConversa();
       expect(harness.room.watchCoverageCalls, 1);
 
-      harness.room.dropCoverageStream(error: const RoomBroke('HTTP 503'));
+      harness.room.dropCoverageStream(
+        error: const Refused('BAD_REQUEST', 'HTTP 503'),
+      );
       await waitFor(
         'o canal reabrir depois de um 503',
         () => harness.room.watchCoverageCalls == 2,
       );
-      harness.room.dropCoverageStream(error: const RoomBroke('HTTP 503'));
+      harness.room.dropCoverageStream(
+        error: const Refused('BAD_REQUEST', 'HTTP 503'),
+      );
       await settle(const Duration(milliseconds: 200));
       expect(
         harness.room.watchCoverageCalls,
@@ -3330,7 +3247,7 @@ void main() {
 
       expect(harness.room.watchCoverageCalls, 1);
 
-      harness.room.dropCoverageStream(error: const RoomRefused());
+      harness.room.dropCoverageStream(error: const Refused('UNAUTHORIZED'));
       await settle(const Duration(milliseconds: 200));
       expect(
         harness.room.watchCoverageCalls,
@@ -3925,7 +3842,7 @@ void main() {
     'a room that answers badly does not disguise itself as a dead network',
     () async {
       final harness = SalaHarness()
-        ..room.failWith = const RoomBroke('HTTP 500');
+        ..room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
       final container = harness.container();
       addTearDown(container.dispose);
 
@@ -3958,7 +3875,7 @@ void main() {
     'a convite retried after the room stalls asks again with the same turn id',
     () async {
       final harness = SalaHarness()
-        ..room.failHeldTurnWith = const RoomBroke('HTTP 500');
+        ..room.failHeldTurnWith = const Refused('BAD_REQUEST', 'HTTP 500');
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -3990,7 +3907,7 @@ void main() {
     'a single bad answer asks for a person, not for another touch',
     () async {
       final harness = SalaHarness()
-        ..room.failWith = const RoomBroke('HTTP 500');
+        ..room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -4024,7 +3941,7 @@ void main() {
       final sessionId = read().sessionId;
       expect(sessionId, isNotNull);
 
-      harness.room.failWith = const RoomBroke('HTTP 500');
+      harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
       notifier.conversaTap();
       await settle();
       notifier.conversaTap();
@@ -4067,7 +3984,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      harness.room.failWith = const RoomBroke('HTTP 500');
+      harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
       notifier.conversaTap();
       await settle();
       notifier.conversaTap();
@@ -4079,7 +3996,7 @@ void main() {
       notifier.conversaTap();
       await settle();
 
-      harness.room.failWith = const RoomBroke('HTTP 500');
+      harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
       notifier.conversaTap();
       await settle();
       notifier.conversaTap();
@@ -4091,7 +4008,7 @@ void main() {
       notifier.conversaTap();
       await settle();
 
-      harness.room.failWith = const RoomBroke('HTTP 500');
+      harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
       notifier.conversaTap();
       await settle();
       notifier.conversaTap();
@@ -4125,7 +4042,7 @@ void main() {
     // it falls through to the opening turn — that check keeps the three-strike ladder
     // (it asks the room to hand back work it already holds, not to open a fresh turn),
     // unlike the opening turn itself, whose own RoomBroke now calls a person on the spot.
-    harness.room.failWith = const RoomBroke('HTTP 500');
+    harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
     await notifier.goConversa(pericope: 'P01');
     await settle();
 
@@ -4139,7 +4056,7 @@ void main() {
     notifier.conversaTap();
     await settle();
 
-    harness.room.failWith = const RoomBroke('HTTP 500');
+    harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
     await notifier.goConversa(pericope: 'P01');
     await settle();
     await notifier.goConversa(pericope: 'P01');
@@ -4168,7 +4085,7 @@ void main() {
     await notifier.abrirEscolha();
     await settle();
 
-    harness.room.failWith = const RoomBroke('HTTP 500');
+    harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
     await notifier.goConversa(pericope: 'P01');
     await settle();
 
@@ -4183,40 +4100,6 @@ void main() {
           'invite',
     );
   });
-
-  test(
-    'a resolve clears the slow-answer count too, not just the room-failure one',
-    () async {
-      final harness = SalaHarness()..room.failWith = const RoomSlow();
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      await notifier.openConvite();
-      await notifier.openConvite();
-      await settle();
-
-      harness.room.failWith = const RoomRefused();
-      await notifier.openConvite();
-      await settle();
-      expect(container.read(salaSessionProvider).needsPerson, isTrue);
-
-      notifier.resolveWithPerson();
-
-      harness.room.failWith = const RoomSlow();
-      await notifier.openConvite();
-
-      expect(
-        container.read(salaSessionProvider).offline,
-        isFalse,
-        reason:
-            'o resolve zerava _roomFailures e esquecia _slowAnswers — '
-            'duas lentidões de antes do halt mais uma depois do resolve já '
-            'batiam o limiar, e a sala caía offline de novo assim que a rede '
-            'gaguejasse pela primeira vez',
-      );
-    },
-  );
 
   test(
     'a resolve clears the inbox-silence count too, not just the room-failure one',
@@ -4236,7 +4119,7 @@ void main() {
       notifier.conversaTap();
       await settle();
 
-      harness.room.failWith = const RoomBroke('HTTP 500');
+      harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
       for (var i = 0; i < 3; i++) {
         notifier.conversaTap();
         await settle();
@@ -4266,39 +4149,6 @@ void main() {
   );
 
   test(
-    'a passage reached straight through the wheel starts clean, not carrying the last one\'s strikes',
-    () async {
-      final harness = SalaHarness()..room.failWith = const RoomSlow();
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      await notifier.openConvite();
-      await settle();
-      await notifier.openConvite();
-      await settle();
-
-      harness.room.failWith = null;
-      await notifier.abrirEscolha();
-      await settle();
-
-      harness.room.failWith = const RoomSlow();
-      await notifier.goConversa(pericope: 'P01');
-      await settle();
-
-      expect(
-        container.read(salaSessionProvider).offline,
-        isFalse,
-        reason:
-            'abrirEscolha não esquecia _slowAnswers — duas lentidões '
-            'ainda no convite mais a primeira da passagem seguinte já '
-            'batiam o limiar de três, e a sala caía offline no primeiro '
-            'turno de uma passagem que ainda não tinha falhado nenhuma vez',
-      );
-    },
-  );
-
-  test(
     'a degraded turn does not count toward the calm streak that forgives a failure',
     () async {
       final harness = SalaHarness();
@@ -4306,7 +4156,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      harness.room.failWith = const RoomBroke('HTTP 500');
+      harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
       notifier.conversaTap();
       await settle();
       notifier.conversaTap();
@@ -4324,7 +4174,7 @@ void main() {
       await settle();
 
       harness.room.turnsAreDegraded = false;
-      harness.room.failWith = const RoomBroke('HTTP 500');
+      harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
       notifier.conversaTap();
       await settle();
       notifier.conversaTap();
@@ -4353,7 +4203,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      harness.room.failWith = const RoomBroke('HTTP 500');
+      harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
       notifier.conversaTap();
       await settle();
       notifier.conversaTap();
@@ -4377,7 +4227,7 @@ void main() {
       notifier.conversaTap();
       await settle();
 
-      harness.room.failWith = const RoomBroke('HTTP 500');
+      harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
       notifier.conversaTap();
       await settle();
       notifier.conversaTap();
@@ -4405,7 +4255,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      harness.room.failWith = const RoomBroke('HTTP 500');
+      harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
       notifier.conversaTap();
       await settle();
       notifier.conversaTap();
@@ -4424,7 +4274,7 @@ void main() {
       await settle();
       harness.room.turnsAreDegraded = false;
 
-      harness.room.failWith = const RoomBroke('HTTP 500');
+      harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
       notifier.conversaTap();
       await settle();
       notifier.conversaTap();
@@ -4485,7 +4335,7 @@ void main() {
       // RoomBroke — including the opening turn a resume with nothing to restore falls
       // through to — now calls a person on the spot, so the two visible 503s below are
       // read via that check instead.
-      harness.room.failWith = const RoomBroke('HTTP 503');
+      harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 503');
       await notifier.goConversa(pericope: 'P01');
       await settle();
 
@@ -4495,7 +4345,7 @@ void main() {
       notifier.conversaTap();
       await settle();
 
-      harness.room.failWith = const RoomBroke('HTTP 503');
+      harness.room.failWith = const Refused('BAD_REQUEST', 'HTTP 503');
       await notifier.goConversa(pericope: 'P01');
       await settle();
 
@@ -5146,7 +4996,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      harness.voice.roomFailsWith = const RoomBroke('HTTP 503');
+      harness.voice.roomFailsWith = const Refused('BAD_REQUEST', 'HTTP 503');
       notifier.handTap();
       await settle();
 
@@ -5320,7 +5170,8 @@ void main() {
   });
 
   test('a wheel that failed to load is not a finished book', () async {
-    final harness = SalaHarness()..room.failWith = const RoomBroke('HTTP 500');
+    final harness = SalaHarness()
+      ..room.failWith = const Refused('BAD_REQUEST', 'HTTP 500');
     final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -5347,7 +5198,8 @@ void main() {
   });
 
   test('the touch is the retry when the wheel never loaded', () async {
-    final harness = SalaHarness()..room.failWith = const RoomSlow();
+    final harness = SalaHarness()
+      ..room.failWith = const NetworkFailed('timeout');
     final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -5469,7 +5321,7 @@ void main() {
       await notifier.abrirEscolha();
       await settle();
 
-      harness.voice.roomFailsWith = const RoomRefused();
+      harness.voice.roomFailsWith = const Refused('UNAUTHORIZED');
       notifier.dizerAPassagem();
       await settle();
 
@@ -6074,7 +5926,7 @@ void main() {
     notifier.goEnsaio();
     notifier.startRetro();
     await settle();
-    harness.room.failWith = const RoomRefused();
+    harness.room.failWith = const Refused('UNAUTHORIZED');
     // Past the thirty seconds already told back, not at nought. Entering the retro used
     // to forget every stretch and start the clip over, so a cut at nought reached the
     // room — and the room, which had forgotten nothing, ended up holding the passage
@@ -6155,7 +6007,7 @@ void main() {
       'o clipe estar rodando',
       () => container.read(salaSessionProvider).btClipRodando,
     );
-    harness.room.failWith = const RoomRefused();
+    harness.room.failWith = const Refused('UNAUTHORIZED');
     final capturasAntes = harness.recorder.captures;
     harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
@@ -6248,7 +6100,7 @@ void main() {
     // no aparelho de verdade enquanto o envio ainda não aconteceu — em vez de já
     // sair como uma tomada entregue antes que a correção seja contada de novo.
     harness.room.refuseTake = 'retro/${KeptScope.whole}';
-    harness.room.failReplaceWith = const RoomSlow();
+    harness.room.failReplaceWith = const NetworkFailed('timeout');
     await notifier.confirmarTraducao();
     await waitFor(
       'a correção ficar por enviar',
@@ -6259,6 +6111,10 @@ void main() {
       hasLength(1),
     );
 
+    await waitFor(
+      'a sala voltar ao alcance',
+      () => !container.read(salaSessionProvider).offline,
+    );
     harness.room.failReplaceWith = null;
     await notifier.confirmarTraducao();
     await settle();
@@ -6709,7 +6565,7 @@ void main() {
       () => container.read(salaSessionProvider).btClipRodando,
     );
 
-    harness.room.failWith = const RoomUnavailable('sem rede');
+    harness.room.failWith = const NetworkFailed('sem rede');
     final capturasAntes = harness.recorder.captures;
     harness.playback.at = const Duration(seconds: 2);
     notifier.cortarTrecho();
@@ -7097,7 +6953,7 @@ void main() {
     // vez de já sair como uma tomada entregue antes que o trecho seja
     // contado de novo.
     harness.room.refuseTake = 'retro/${KeptScope.whole}';
-    harness.room.failChunkWith = const RoomSlow();
+    harness.room.failChunkWith = const NetworkFailed('timeout');
     await confirmarATraducao(container);
     await waitFor(
       'o trecho ficar por enviar',
@@ -7108,6 +6964,10 @@ void main() {
       hasLength(1),
     );
 
+    await waitFor(
+      'a sala voltar ao alcance',
+      () => !container.read(salaSessionProvider).offline,
+    );
     harness.room.failChunkWith = null;
     await notifier.confirmarTraducao();
     await settle();
@@ -7236,7 +7096,8 @@ void main() {
   });
 
   test('a bad device key asks for a person, not for patience', () async {
-    final harness = SalaHarness()..room.failWith = const RoomRefused();
+    final harness = SalaHarness()
+      ..room.failWith = const Refused('UNAUTHORIZED');
     final container = await inConversa(harness);
     addTearDown(container.dispose);
 
@@ -8458,7 +8319,7 @@ void main() {
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
     await notifier.openConvite();
-    harness.room.failWith = const RoomUnavailable('sem rede');
+    harness.room.failWith = const NetworkFailed('sem rede');
 
     notifier.conviteTap();
     await settle();
@@ -8523,7 +8384,7 @@ void main() {
     notifier.conversaTap();
     await settle();
     harness.room.holdNextTurn();
-    harness.room.failHeldTurnWith = const RoomUnavailable('a conexão caiu');
+    harness.room.failHeldTurnWith = const NetworkFailed('a conexão caiu');
     notifier.conversaTap();
     await settle();
     final path = harness.recorder.lastPath;

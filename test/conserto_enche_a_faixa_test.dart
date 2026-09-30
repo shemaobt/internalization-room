@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
@@ -195,7 +195,7 @@ void main() {
     await _escolherTraduzirDeNovo(tester);
     await _abrirOMicrofone(tester, container);
     expect(_faixasVazias(tester, container), isEmpty);
-    harness.room.failReplaceWith = const RoomRefused();
+    harness.room.failReplaceWith = const Refused('UNAUTHORIZED');
     await _entregarATraducao(tester, container);
 
     expect(
