@@ -213,10 +213,7 @@ void main() {
       expect(read().needsPerson, isTrue);
 
       harness.room.theDeskAttended();
-      await waitFor(
-        'a mesa levantar a parada',
-        () => read().voice == VoiceState.invite,
-      );
+      await waitFor('a mesa levantar a parada', () => !read().needsPerson);
     },
   );
 
@@ -329,10 +326,7 @@ void main() {
       await _haltOnTheRecorder(harness, notifier, read);
 
       harness.room.theDeskAttended();
-      await waitFor(
-        'a mesa levantar a parada',
-        () => read().voice == VoiceState.invite,
-      );
+      await waitFor('a mesa levantar a parada', () => !read().needsPerson);
       await _theOutboxEmpties(harness);
       expect(read().reach, RoomReach.fine);
     },

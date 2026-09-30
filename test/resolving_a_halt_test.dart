@@ -81,7 +81,7 @@ void main() {
       notifier.resolveWithPerson();
       await waitFor(
         'o círculo voltar ao convite',
-        () => read().voice == VoiceState.invite,
+        () => !read().needsPerson && read().voice == VoiceState.invite,
       );
       await settle();
 
@@ -143,7 +143,7 @@ void main() {
     notifier.resolveWithPerson();
     await waitFor(
       'o círculo voltar ao convite',
-      () => read().voice == VoiceState.invite,
+      () => !read().needsPerson && read().voice == VoiceState.invite,
     );
     await settle();
 
@@ -196,7 +196,7 @@ void main() {
       harness.room.reachable = true;
       await waitFor(
         'o círculo voltar ao convite',
-        () => read().voice == VoiceState.invite,
+        () => !read().needsPerson && read().voice == VoiceState.invite,
       );
       await settle();
 
@@ -264,7 +264,7 @@ void main() {
       notifier.resolveWithPerson();
       await waitFor(
         'o círculo voltar ao convite',
-        () => read().voice == VoiceState.invite,
+        () => !read().needsPerson && read().voice == VoiceState.invite,
       );
       await settle();
 
@@ -303,7 +303,7 @@ void main() {
     notifier.resolveWithPerson();
     await waitFor(
       'o círculo voltar ao convite',
-      () => read().voice == VoiceState.invite,
+      () => !read().needsPerson && read().voice == VoiceState.invite,
     );
     await settle();
 
@@ -347,7 +347,7 @@ void main() {
       harness.network.reachable = true;
       await waitFor(
         'o círculo voltar ao convite',
-        () => read().voice == VoiceState.invite,
+        () => !read().needsPerson && read().voice == VoiceState.invite,
       );
       await settle();
 

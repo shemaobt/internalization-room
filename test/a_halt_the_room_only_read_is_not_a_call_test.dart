@@ -266,7 +266,7 @@ void main() {
 
     await waitFor(
       'o círculo voltar ao convite',
-      () => read().voice == VoiceState.invite,
+      () => !read().needsPerson && read().voice == VoiceState.invite,
     );
 
     expect(
