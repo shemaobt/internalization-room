@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -196,5 +197,45 @@ void main() {
       everyElement(isTrue),
       reason: 'a leitura saiu antes de o servidor ouvir o pedido',
     );
+  });
+
+  test('a pull older than a read already applied still brings the passage\'s '
+      'end and its coverage', () async {
+    final harness = _beating();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    harness.room.turnIdInResponse = 'turno-2';
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    await settle();
+
+    harness.room
+      ..done = true
+      ..settledCoverage = coverage(engaged: 5, surfaced: 5);
+    final held = harness.room.heldReads.length;
+    harness.room.holdTheNextRead();
+    harness.room.pushCoverage(
+      const CoverageEvent(turnId: 'turno-2', status: CoverageStatus.settled),
+    );
+    await waitFor(
+      'a leitura do fim do turno ficar presa',
+      () => harness.room.heldReads.length > held,
+    );
+    final reads = stateReads(harness);
+    await waitFor(
+      'uma batida mais nova ser aplicada',
+      () => stateReads(harness) > reads + 1,
+    );
+
+    harness.room.answerHeldRead(harness.room.heldReads.length - 1);
+    await waitFor(
+      'o círculo dizer que a passagem acabou',
+      () => read().voice == VoiceState.done,
+    );
+    expect(read().coverage.engaged, 5);
   });
 }

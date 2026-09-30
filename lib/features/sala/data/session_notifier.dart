@@ -918,8 +918,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (answer) {
       case Answered(value: final snapshot):
         final wasBlocking = state.needsPerson;
-        if (!_applyTheSessionRead(snapshot, sent, rowWhenSent: row)) return;
-        _applyCoverage(snapshot.coverage);
+        _applyTheSessionRead(snapshot, sent, rowWhenSent: row);
+        _applyWhatOnlyGrows(snapshot);
         if (wasBlocking && !state.needsPerson) _comeBack();
       case SessionGone() when state.halt is NoHalt:
         _leaveTheDeadPassage();
@@ -940,12 +940,28 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(btTrechos: _trechosFrom(told.segments));
   }
 
-  bool _applyTheSessionRead(
+  bool _applyWhatOnlyGrows(SessionSnapshot snapshot, {TurnClock? clock}) {
+    final advanced = _applyCoverage(snapshot.coverage, clock: clock);
+    if (!state.needsPerson &&
+        snapshot.done &&
+        state.stage == SalaStage.conversa) {
+      if (state.voice == VoiceState.invite) {
+        state = state.copyWith(voice: VoiceState.done, peerCue: false);
+      } else if (state.voice == VoiceState.speaking ||
+          state.voice == VoiceState.listening ||
+          state.voice == VoiceState.thinking) {
+        _doneSeenMidTurn = true;
+      }
+    }
+    return advanced;
+  }
+
+  void _applyTheSessionRead(
     SessionSnapshot snapshot,
     int sent, {
     List<Trecho>? rowWhenSent,
   }) {
-    if (sent <= _readsApplied) return false;
+    if (sent <= _readsApplied) return;
     _readsApplied = sent;
     if (rowWhenSent != null && identical(state.btTrechos, rowWhenSent)) {
       _takeTheStretches(snapshot.backTranslation);
@@ -958,7 +974,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         sentBeforeTheCallLanded: sent <= _readsSentBeforeTheCall,
       ),
     );
-    return true;
   }
 
   void _stopCallingForAPerson() {
@@ -1449,22 +1464,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (await _room.fetchState(sessionId)) {
       case Answered(value: final snapshot):
         if (epoch != _epoch || state.sessionId != sessionId) return false;
-        if (!_applyTheSessionRead(snapshot, sent, rowWhenSent: row)) {
-          return false;
-        }
-        final advanced = _applyCoverage(snapshot.coverage, clock: clock);
-        if (!state.needsPerson &&
-            snapshot.done &&
-            state.stage == SalaStage.conversa) {
-          if (state.voice == VoiceState.invite) {
-            state = state.copyWith(voice: VoiceState.done, peerCue: false);
-          } else if (state.voice == VoiceState.speaking ||
-              state.voice == VoiceState.listening ||
-              state.voice == VoiceState.thinking) {
-            _doneSeenMidTurn = true;
-          }
-        }
-        return advanced;
+        _applyTheSessionRead(snapshot, sent, rowWhenSent: row);
+        return _applyWhatOnlyGrows(snapshot, clock: clock);
       case SessionGone():
         if (epoch != _epoch) return false;
         _leaveTheDeadPassage();
