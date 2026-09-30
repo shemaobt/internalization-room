@@ -9,11 +9,13 @@ final class SessionRead extends MachineEvent {
   final SessionSnapshot snapshot;
   final Kept sounding;
   final DateTime at;
+  final bool sentBeforeTheCallLanded;
 
   const SessionRead(
     this.snapshot, {
     required this.at,
     this.sounding = const NothingKept(),
+    this.sentBeforeTheCallLanded = false,
   });
 }
 
@@ -171,10 +173,16 @@ const _watch = ArmTheWatch();
       Blocking(kept, warningBeneath: warningBeneath, serverKnows: true),
       const [_watch],
     ),
-    (Blocking(serverKnows: false, :final kept), _) => (
-      Blocking(kept, warningBeneath: told is Warning),
-      const [_watch],
-    ),
+    (Blocking(:final kept, :final serverKnows), _)
+        when !serverKnows || read.sentBeforeTheCallLanded =>
+      (
+        Blocking(
+          kept,
+          warningBeneath: told is Warning,
+          serverKnows: serverKnows,
+        ),
+        const [_watch],
+      ),
     (final Blocking blocking, _) => _lift(blocking, told, read.at),
     (_, Blocking()) => (
       Blocking(

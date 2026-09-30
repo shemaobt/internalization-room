@@ -1135,7 +1135,7 @@ class FakeRoom implements RoomRepository {
     }
     final held = _holdingState;
     if (held != null) await held.future;
-    return Answered(
+    final answer = Answered(
       SessionSnapshot(
         sessionId: sessionId,
         pericope: 'rute-1',
@@ -1149,6 +1149,13 @@ class FakeRoom implements RoomRepository {
             retroSoFar ?? BackTranslationProgress(segments: List.of(segments)),
       ),
     );
+    if (_readsToHold > 0) {
+      _readsToHold--;
+      final reply = Completer<void>();
+      heldReads.add(reply);
+      await reply.future;
+    }
+    return answer;
   }
 
   @override
@@ -1540,6 +1547,13 @@ class FakeRoom implements RoomRepository {
   /// Holds a read of the room's state in flight, so a test can press again while the room
   /// is still reading the stretches' names back.
   void holdNextState() => _holdingState = Completer<void>();
+
+  int _readsToHold = 0;
+  final List<Completer<void>> heldReads = [];
+
+  void holdTheNextRead() => _readsToHold++;
+
+  void answerHeldRead(int which) => heldReads[which].complete();
 
   void finishHeldState() {
     _holdingState?.complete();
@@ -1949,7 +1963,7 @@ class SalaHarness {
   final FakeScreenAwake awake = FakeScreenAwake();
   final FakeLinkedTeam vinculo;
   final Duration settleDelay;
-  final Duration? idleWatch;
+  final bool watchesWithoutAHalt;
   final List<Duration> retryBackoff;
   final Duration? busyCeiling;
   final Duration resendMargin;
@@ -1978,7 +1992,7 @@ class SalaHarness {
     ),
     this.linkPoll,
     this.settleDelay = const Duration(milliseconds: 60),
-    this.idleWatch,
+    this.watchesWithoutAHalt = false,
     this.retryBackoff = const [Duration(milliseconds: 20)],
     this.busyCeiling,
     this.resendMargin = const Duration(milliseconds: 50),
@@ -2037,7 +2051,7 @@ class SalaHarness {
     linkPollIntervalProvider.overrideWithValue(linkPoll),
     screenAwakeProvider.overrideWithValue(awake),
     roomPollDelayProvider.overrideWithValue(settleDelay),
-    idleWatchDelayProvider.overrideWithValue(idleWatch),
+    watchesWithoutAHaltProvider.overrideWithValue(watchesWithoutAHalt),
     coverageFallbackDelayProvider.overrideWithValue(settleDelay),
     roomRetryBackoffProvider.overrideWithValue(retryBackoff),
     busyStateCeilingProvider.overrideWithValue(busyCeiling),

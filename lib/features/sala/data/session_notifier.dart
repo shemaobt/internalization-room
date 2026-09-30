@@ -42,9 +42,7 @@ final roomPollDelayProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 30),
 );
 
-final idleWatchDelayProvider = Provider<Duration?>(
-  (ref) => const Duration(seconds: 30),
-);
+final watchesWithoutAHaltProvider = Provider<bool>((ref) => true);
 
 final coverageFallbackDelayProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 30),
@@ -212,7 +210,9 @@ _PortaDaRecusa? _portaDaRecusa(String blocker) => switch (blocker) {
 class SalaSessionNotifier extends Notifier<SalaSessionState> {
   final Map<String, Timer> _timers = {};
   Timer? _watch;
-  Duration? _watchPeriod;
+  int _readsSent = 0;
+  int _readsApplied = 0;
+  int _readsSentBeforeTheCall = 0;
   int _epoch = 0;
   int _unplayableTurns = 0;
   int _roomFailures = 0;
@@ -866,6 +866,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _silenceTheHaltedRoom() {
+    _openTurnId = null;
     _silenceTheRoom();
     _leaveThinking();
     state = state.copyWith(
@@ -889,16 +890,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _armTheWatch() {
-    final period = state.halt is NoHalt
-        ? ref.read(idleWatchDelayProvider)
-        : ref.read(roomPollDelayProvider);
-    if (period == null || state.sessionId == null) {
+    final period = ref.read(roomPollDelayProvider);
+    if ((state.halt is NoHalt && !ref.read(watchesWithoutAHaltProvider)) ||
+        state.sessionId == null) {
       _endTheWatch();
       return;
     }
-    if ((_watch?.isActive ?? false) && _watchPeriod == period) return;
-    _watch?.cancel();
-    _watchPeriod = period;
+    if (_watch?.isActive ?? false) return;
     _watch = Timer(period, () {
       _watch = null;
       _dispatch(const WatchFired());
@@ -913,14 +911,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _readTheState() async {
     final sessionId = state.sessionId;
     if (sessionId == null) return;
+    final sent = ++_readsSent;
+    final row = state.btTrechos;
     final answer = await _room.fetchState(sessionId);
     if (_gone || state.sessionId != sessionId) return;
     switch (answer) {
       case Answered(value: final snapshot):
         final wasBlocking = state.needsPerson;
+        if (!_applyTheSessionRead(snapshot, sent, rowWhenSent: row)) return;
         _applyCoverage(snapshot.coverage);
-        _takeTheStretches(snapshot.backTranslation);
-        _applyTheSessionRead(snapshot);
         if (wasBlocking && !state.needsPerson) _comeBack();
       case SessionGone() when state.halt is NoHalt:
         _leaveTheDeadPassage();
@@ -941,9 +940,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(btTrechos: _trechosFrom(told.segments));
   }
 
-  void _applyTheSessionRead(SessionSnapshot snapshot) => _dispatch(
-    SessionRead(snapshot, at: clock.now(), sounding: _whatIsSounding()),
-  );
+  bool _applyTheSessionRead(
+    SessionSnapshot snapshot,
+    int sent, {
+    List<Trecho>? rowWhenSent,
+  }) {
+    if (sent <= _readsApplied) return false;
+    _readsApplied = sent;
+    if (rowWhenSent != null && identical(state.btTrechos, rowWhenSent)) {
+      _takeTheStretches(snapshot.backTranslation);
+    }
+    _dispatch(
+      SessionRead(
+        snapshot,
+        at: clock.now(),
+        sounding: _whatIsSounding(),
+        sentBeforeTheCallLanded: sent <= _readsSentBeforeTheCall,
+      ),
+    );
+    return true;
+  }
 
   void _stopCallingForAPerson() {
     _timers.remove('person')?.cancel();
@@ -1002,6 +1018,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Answered():
         if (!_gone && state.needsPerson) {
           _personAsked = true;
+          _readsSentBeforeTheCall = _readsSent;
           _dispatch(const TheCallLanded());
         }
       case SessionGone():
@@ -1427,12 +1444,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// stamping it on a pull that changed nothing timed a turn that never actually landed.
   Future<bool> _pullState(String sessionId, {TurnClock? clock}) async {
     final epoch = _epoch;
+    final sent = ++_readsSent;
+    final row = state.btTrechos;
     switch (await _room.fetchState(sessionId)) {
       case Answered(value: final snapshot):
         if (epoch != _epoch || state.sessionId != sessionId) return false;
+        if (!_applyTheSessionRead(snapshot, sent, rowWhenSent: row)) {
+          return false;
+        }
         final advanced = _applyCoverage(snapshot.coverage, clock: clock);
-        _takeTheStretches(snapshot.backTranslation);
-        _applyTheSessionRead(snapshot);
         if (!state.needsPerson &&
             snapshot.done &&
             state.stage == SalaStage.conversa) {
@@ -2106,6 +2126,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (onde == _Resume.halted || onde == _Resume.abandoned) return;
       if (onde == _Resume.landed) {
         final SessionSnapshot snapshot;
+        final sent = ++_readsSent;
         switch (await _room.fetchState(sessionId)) {
           case Answered(value: final read):
             snapshot = read;
@@ -2125,11 +2146,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         // After the telling-back is picked up, not before, so that the passage the team
         // comes back to is the one they left: a person resolving the halt finds them in
         // their retro rather than dropped back into the rehearsal.
-        _applyTheSessionRead(snapshot);
+        _applyTheSessionRead(snapshot, sent);
         return;
       }
       if (waiting.stage == SalaStage.retro) {
         final SessionSnapshot read;
+        final sent = ++_readsSent;
         switch (await _room.fetchState(sessionId)) {
           case Answered(value: final snapshot):
             read = snapshot;
@@ -2150,7 +2172,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         // is the one way past this door now that a resume fetches the parts.
         if (told.checked && !told.nothingTold) {
           _pickTheTellingBackUp(told);
-          _applyTheSessionRead(read);
+          _applyTheSessionRead(read, sent);
           return;
         }
       }
@@ -4191,6 +4213,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int epoch,
   ) async {
     final SessionSnapshot snapshot;
+    final sent = ++_readsSent;
     switch (await _room.fetchState(sessionId)) {
       case Answered(value: final read):
         snapshot = read;
@@ -4202,7 +4225,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (epoch != _epoch) return;
     _theRefusalLandsOn(snapshot, alvo, path);
-    _applyTheSessionRead(snapshot);
+    _applyTheSessionRead(snapshot, sent);
   }
 
   void _theRefusalLandsOn(SessionSnapshot snapshot, Trecho alvo, String path) {
@@ -4926,12 +4949,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     String sessionId,
     int epoch,
   ) async {
+    final sent = ++_readsSent;
     switch (await _room.fetchState(sessionId)) {
       case Answered(value: final snapshot):
         if (epoch != _epoch) return null;
         final trechos = _trechosFrom(snapshot.backTranslation.segments);
         if (trechos.isNotEmpty) state = state.copyWith(btTrechos: trechos);
-        _applyTheSessionRead(snapshot);
+        _applyTheSessionRead(snapshot, sent);
         return null;
       case final RoomFailure failure:
         return failure;

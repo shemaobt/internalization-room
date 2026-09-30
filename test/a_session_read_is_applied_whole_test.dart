@@ -10,6 +10,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart';
+import 'session_notifier_test.dart' show inConversa;
 
 const _gravacao = 'gravacao-1';
 
@@ -101,6 +102,33 @@ void main() {
       isTrue,
       reason: 'a leitura que devolveu a conferida trazia a parada',
     );
+    expect(
+      harness.room.personsAsked,
+      0,
+      reason: 'uma parada lida não é um novo pedido de pessoa',
+    );
+  });
+
+  test('the read after a turn applies the halt and the warning it carries, '
+      'without a call', () async {
+    final harness = SalaHarness()
+      ..room.serverStatus = 'needs_person'
+      ..room.serverHalt = HaltKind.warning;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await waitFor('o aviso chegar', () => read().warning);
+
+    harness.room.serverHalt = HaltKind.blocking;
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    await waitFor(
+      'a leitura depois do turno parar a sala',
+      () => read().needsPerson,
+    );
+
     expect(
       harness.room.personsAsked,
       0,

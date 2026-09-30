@@ -3859,7 +3859,7 @@ void main() {
   );
 
   test(
-    'a convite retried after the room stalls asks again with the same turn id',
+    'a convite asked again after the room stalls goes under a fresh turn id',
     () async {
       final harness = SalaHarness()
         ..room.failHeldTurnWith = const Refused('BAD_REQUEST');
@@ -3882,10 +3882,10 @@ void main() {
       expect(harness.room.turnIdsAsked[0], isNotNull);
       expect(
         harness.room.turnIdsAsked[1],
-        harness.room.turnIdsAsked[0],
+        isNot(harness.room.turnIdsAsked[0]),
         reason:
-            'um id novo a cada tentativa e o servidor nunca reconhece '
-            'a segunda como a mesma abertura que a primeira já começou a escrever',
+            'o pedido que parou a sala nunca volta com a mesma chave: o '
+            'servidor devolveria a mesma resposta lembrada',
       );
     },
   );

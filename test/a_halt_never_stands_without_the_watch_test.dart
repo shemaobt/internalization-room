@@ -49,24 +49,6 @@ void main() {
     });
   });
 
-  test('a halt raised while the Watch beats slowly over a quiet session is '
-      'read at the halt\'s own period', () {
-    fakeAsync((async) {
-      final harness = SalaHarness(
-        settleDelay: _period,
-        idleWatch: _period * 20,
-        filaEmMemoria: true,
-      );
-      final container = _inConversa(async, harness);
-
-      container.read(salaSessionProvider.notifier).haltForABrokenBuild();
-      async.elapse(Duration.zero);
-
-      _expectTheWatchBeats(async, harness);
-      container.dispose();
-    });
-  });
-
   test('a halt the room only read is watched', () {
     fakeAsync((async) {
       final harness = SalaHarness(settleDelay: _period, filaEmMemoria: true)
@@ -150,7 +132,7 @@ void main() {
     fakeAsync((async) {
       final harness = SalaHarness(
         settleDelay: _period,
-        idleWatch: _period,
+        watchesWithoutAHalt: true,
         filaEmMemoria: true,
       );
       final container = _inConversa(async, harness);

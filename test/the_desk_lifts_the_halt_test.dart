@@ -250,36 +250,31 @@ void main() {
     );
   });
 
-  test('the watch ends with the halt and with the room', () async {
-    final harness = SalaHarness()
+  test('the watch outlives the lift and ends with the room', () async {
+    final harness = SalaHarness(watchesWithoutAHalt: true)
       ..room.serverStatus = 'needs_person'
       ..room.serverHalt = HaltKind.blocking;
     final container = await inConversa(harness);
-    final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
     await waitFor('a sala parar', () => read().needsPerson);
     harness.room.theDeskAttended();
-    await waitFor('o círculo voltar ao convite', () => !read().needsPerson);
+    await waitFor('a sala soltar', () => !read().needsPerson);
 
     final afterRelease = stateReads(harness);
-    await settle(const Duration(milliseconds: 400));
-
-    expect(
-      stateReads(harness),
-      afterRelease,
-      reason:
-          'a sala solta não é mais vigiada: uma vigia que sobrevive à '
-          'soltura bate na rota de estado para sempre, em toda sala aberta',
-    );
-
-    harness.room.serverStatus = 'needs_person';
-    await _aTurn(notifier);
-    await waitFor('a sala parar de novo', () => read().needsPerson);
     await waitFor(
-      'a vigia reler o estado',
+      'a vigia seguir lendo a sessão solta',
       () => stateReads(harness) > afterRelease + 1,
     );
+
+    harness.room
+      ..serverStatus = 'needs_person'
+      ..serverHalt = HaltKind.blocking;
+    await waitFor(
+      'a parada que só o servidor escreveu parar a sala, sem gesto',
+      () => read().needsPerson,
+    );
+
     final beforeDispose = stateReads(harness);
     container.dispose();
     await settle(const Duration(milliseconds: 400));
@@ -288,7 +283,7 @@ void main() {
       stateReads(harness),
       beforeDispose,
       reason:
-          'e a sala fechada não vigia nada: o tablet guardado seguiria '
+          'a sala fechada não vigia nada: o tablet guardado seguiria '
           'perguntando por uma sessão que ninguém está olhando',
     );
   });

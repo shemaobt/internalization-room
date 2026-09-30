@@ -111,7 +111,7 @@ void main() {
     await _haltLandsBlocking(harness, read);
 
     expect(read().needsPerson, isTrue);
-    expect(read().needsPerson, isTrue);
+    expect(read().voice, isNot(VoiceState.listening));
     expect(
       harness.sounds.sublist(captureIndex + 1),
       contains('recorder:discard'),

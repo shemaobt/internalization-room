@@ -23,6 +23,11 @@ SessionRead _read({
 );
 
 SessionRead get _nothingStands => _read();
+SessionRead get _nothingStoodBeforeTheCall => SessionRead(
+  _nothingStands.snapshot,
+  at: _at,
+  sentBeforeTheCallLanded: true,
+);
 SessionRead get _aWarningStands =>
     _read(status: 'needs_person', halt: HaltKind.warning);
 SessionRead _aBlockingHalt({Kept sounding = const NothingKept()}) =>
@@ -178,6 +183,23 @@ void main() {
       );
     });
 
+    test('a raised halt that cannot call wins over it without a call', () {
+      expect(
+        reduce(warning, const RoomRaisedAHalt(callsForAPerson: false)),
+        _to(const Blocking(NothingKept(), warningBeneath: true), const [
+          ..._entering,
+          ArmTheWatch(),
+        ]),
+      );
+    });
+
+    test('a landed call changes nothing', () {
+      expect(
+        reduce(warning, const TheCallLanded()),
+        _to(warning, const <Effect>[]),
+      );
+    });
+
     test('the Watch firing reads the state and beats again', () {
       expect(
         reduce(warning, const WatchFired()),
@@ -283,6 +305,27 @@ void main() {
       expect(
         reduce(known, const RoomRaisedAHalt(sounding: NothingKept())),
         _to(known, const [CallForAPerson(), ArmTheWatch()]),
+      );
+    });
+
+    test('another raised halt that cannot call only keeps the Watch', () {
+      expect(
+        reduce(known, const RoomRaisedAHalt(callsForAPerson: false)),
+        _to(known, const [ArmTheWatch()]),
+      );
+    });
+
+    test('going offline keeps a halt the server has not heard of', () {
+      expect(
+        reduce(unknown, const ReachChanged(reachable: false)),
+        _to(unknown, const <Effect>[]),
+      );
+    });
+
+    test('a read that went out before the call landed never lifts it', () {
+      expect(
+        reduce(known, _nothingStoodBeforeTheCall),
+        _to(known, const [ArmTheWatch()]),
       );
     });
 
