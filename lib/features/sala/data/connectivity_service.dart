@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -65,7 +66,7 @@ class ConnectivityService {
       .map((_) {});
 
   bool _settled() {
-    final now = DateTime.now();
+    final now = clock.now();
     final previous = _lastSignal;
     if (previous != null && now.difference(previous) < _quietBetweenSignals) {
       return false;

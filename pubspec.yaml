@@ -29,6 +29,9 @@ dependencies:
   # resolve it at all; 3.44.9 is the only toolchain CI verifies (see AGENTS.md).
   wakelock_plus: ^1.7.0
   flutter_secure_storage: ^11.0.0
+  # Already pulled in transitively; named directly because the room reads time through
+  # `clock.now()` and `clock.stopwatch()`, which `fakeAsync` drives in a test.
+  clock: ^1.1.2
 
 # path_provider_foundation 2.6.0 pulls objective_c as a native asset, and that
 # framework ships ad-hoc signed — iOS rejects the install with

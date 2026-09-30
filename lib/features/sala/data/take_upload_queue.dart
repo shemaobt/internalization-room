@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -189,7 +190,7 @@ class TakeUploadQueue {
     this._backoff = const [],
     DateTime Function()? now,
   }) : _home = home ?? getApplicationSupportDirectory,
-       _now = now ?? DateTime.now;
+       _now = now ?? clock.now;
 
   Future<Directory> _dir() async {
     final dir = Directory(p.join((await _home()).path, _folder));
@@ -200,7 +201,7 @@ class TakeUploadQueue {
   Future<File> _manifestFile() async =>
       File(p.join((await _dir()).path, _manifest));
 
-  String _mintId() => '${DateTime.now().microsecondsSinceEpoch}-${_minted++}';
+  String _mintId() => '${clock.now().microsecondsSinceEpoch}-${_minted++}';
 
   /// The queue as written on disk, or null when it could not be read.
   ///

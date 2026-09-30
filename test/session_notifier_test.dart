@@ -19,7 +19,7 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart' show settle, withDiskThatAnswersAtOnce;
 
 Future<void> _intoFindings(
   SalaHarness harness,
@@ -5996,50 +5996,71 @@ void main() {
     },
   );
 
-  test('explaining for longer than the clip does not end the clip', () async {
-    final harness = SalaHarness(clipGrace: const Duration(milliseconds: 60))
-      ..playback.length = const Duration(milliseconds: 200);
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
+  test('explaining for longer than the clip does not end the clip', () {
+    withDiskThatAnswersAtOnce(
+      () => fakeAsync((async) {
+        final harness = SalaHarness(
+          clipGrace: const Duration(milliseconds: 60),
+          filaEmMemoria: true,
+        )..playback.length = const Duration(milliseconds: 200);
+        ProviderContainer? container;
+        var explained = false;
+        addTearDown(() => container?.dispose());
 
-    notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
-    await settle();
-    notifier.takeKeep();
-    notifier.startRetro();
-    await settle(const Duration(milliseconds: 50));
+        unawaited(() async {
+          container = await inConversa(harness);
+          final notifier = container!.read(salaSessionProvider.notifier);
 
-    harness.playback.at = const Duration(milliseconds: 40);
-    notifier.cortarTrecho();
-    notifier.retroTap();
-    await settle(const Duration(milliseconds: 400));
+          notifier.goEnsaio();
+          notifier.ensaioTap();
+          notifier.ensaioTap();
+          await settle();
+          notifier.takeKeep();
+          notifier.startRetro();
+          await settle(const Duration(milliseconds: 50));
 
-    expect(
-      container.read(salaSessionProvider).btClipEnded,
-      isFalse,
-      reason:
-          'o teto contava no relógio de parede e não sabia que o clipe '
-          'estava pausado, então terminava a gravação no meio da explicação',
-    );
+          harness.playback.at = const Duration(milliseconds: 40);
+          notifier.cortarTrecho();
+          notifier.retroTap();
+          await settle(const Duration(milliseconds: 400));
+          explained = true;
+        }());
+        async.elapse(const Duration(seconds: 1));
+        expect(explained, isTrue);
 
-    await confirmarATraducao(container);
-    await settle();
+        expect(
+          container!.read(salaSessionProvider).btClipEnded,
+          isFalse,
+          reason:
+              'o teto contava no relógio de parede e não sabia que o clipe '
+              'estava pausado, então terminava a gravação no meio da explicação',
+        );
 
-    expect(container.read(salaSessionProvider).btClipEnded, isFalse);
-    expect(
-      container.read(salaSessionProvider).btPhase,
-      BtPhase.playing,
-      reason:
-          'e a escuta volta de onde parou, em vez de ficar muda para sempre',
-    );
-    expect(
-      container.read(salaSessionProvider).btClipRodando,
-      isTrue,
-      reason:
-          'o que sobrou do clipe continua alcançável: dado por terminado, '
-          'o áudio que ninguém ouviu não tinha mais como ser tocado',
+        final notifier = container!.read(salaSessionProvider.notifier);
+        notifier.retroTap();
+        async.elapse(const Duration(milliseconds: 50));
+        expect(
+          container!.read(salaSessionProvider).btTraducaoPendente,
+          isNotNull,
+        );
+        unawaited(notifier.confirmarTraducao());
+        async.elapse(const Duration(milliseconds: 120));
+
+        expect(container!.read(salaSessionProvider).btClipEnded, isFalse);
+        expect(
+          container!.read(salaSessionProvider).btPhase,
+          BtPhase.playing,
+          reason:
+              'e a escuta volta de onde parou, em vez de ficar muda para sempre',
+        );
+        expect(
+          container!.read(salaSessionProvider).btClipRodando,
+          isTrue,
+          reason:
+              'o que sobrou do clipe continua alcançável: dado por terminado, '
+              'o áudio que ninguém ouviu não tinha mais como ser tocado',
+        );
+      }),
     );
   });
 
@@ -6904,13 +6925,11 @@ void main() {
       reason:
           'o arquivo do gravador para a tradução recusada também é descartado',
     );
-    expect(
-      container.read(salaSessionProvider).unsentChunks,
-      0,
-      reason:
-          'o withdraw já atualiza a conta sozinho — sem isso a sala '
-          'continuaria dizendo que um trecho está por enviar depois que ele '
-          'foi retirado da fila',
+    await waitFor(
+      'a conta cair a zero sem ninguém pedir — o withdraw atualiza a conta '
+      'sozinho, e sem isso a sala continuaria dizendo que um trecho está por '
+      'enviar depois que ele foi retirado da fila',
+      () => container.read(salaSessionProvider).unsentChunks == 0,
     );
   });
 
