@@ -1427,10 +1427,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// follows it, so the pull confirming what the frame already painted never re-marks
   /// the clock a second time.
   bool _applyCoverage(Coverage? told, {TurnClock? clock}) {
-    final before = state.coverage.engaged;
-    final advanced = told != null && told.engaged > before;
+    final before = state.coverage;
+    final advanced = told != null && told.engaged > before.engaged;
     if (advanced) clock?.mark('beads');
-    if (told != null && told.engaged >= before) {
+    if (told != null &&
+        (advanced ||
+            (told.engaged == before.engaged &&
+                told.surfaced >= before.surfaced))) {
       state = state.copyWith(coverage: told);
     }
     return advanced;

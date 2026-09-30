@@ -225,11 +225,15 @@ void main() {
       'a leitura do fim do turno ficar presa',
       () => harness.room.heldReads.length > held,
     );
+    harness.room
+      ..done = false
+      ..settledCoverage = coverage(engaged: 2, surfaced: 2);
     final reads = stateReads(harness);
     await waitFor(
       'uma batida mais nova ser aplicada',
       () => stateReads(harness) > reads + 1,
     );
+    expect(read().voice, VoiceState.invite);
 
     harness.room.answerHeldRead(harness.room.heldReads.length - 1);
     await waitFor(
@@ -237,5 +241,30 @@ void main() {
       () => read().voice == VoiceState.done,
     );
     expect(read().coverage.engaged, 5);
+  });
+
+  test('a read older than one already applied never lowers the coverage the '
+      'room shows', () async {
+    final harness = _beating()
+      ..room.settledCoverage = coverage(engaged: 5, surfaced: 1);
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    await _aReadIsHeld(harness);
+    harness.room.settledCoverage = coverage(engaged: 5, surfaced: 5);
+    await waitFor(
+      'uma batida mais nova trazer o que veio à tona',
+      () => read().coverage.surfaced == 5,
+    );
+
+    harness.room.answerHeldRead(harness.room.heldReads.length - 1);
+    await settle(const Duration(milliseconds: 60));
+
+    expect(
+      read().coverage.surfaced,
+      5,
+      reason: 'a leitura velha não desfaz o que a sala já mostra',
+    );
   });
 }
