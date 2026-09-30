@@ -1949,7 +1949,6 @@ class SalaHarness {
   final FakeScreenAwake awake = FakeScreenAwake();
   final FakeLinkedTeam vinculo;
   final Duration settleDelay;
-
   final Duration? idleWatch;
   final List<Duration> retryBackoff;
   final Duration? busyCeiling;

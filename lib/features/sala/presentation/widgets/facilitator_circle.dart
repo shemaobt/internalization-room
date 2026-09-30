@@ -26,7 +26,7 @@ class FacilitatorCircle extends StatelessWidget {
   ///
   /// The room has no text on screen, so a warning is a small mark beside the disc,
   /// never a colour drawn over it: the disc keeps saying the voice. Read only while
-  /// [voice] is not one of the halted states — a room the team cannot use yet is
+  /// neither [halt] blocks nor [voice] is a halted state — a room the team cannot use yet is
   /// still a stop, whatever the last warning said.
   final String? warning;
   final Halt halt;
@@ -352,9 +352,9 @@ class FacilitatorCircle extends StatelessWidget {
 
   /// A room that has stopped, and is still running.
   ///
-  /// This served `needsPerson`, `offline` and `blocked` as a bare `Container` — the three
+  /// This served a blocking halt, `offline` and `blocked` as a bare `Container` — the three
   /// states that outlast every other, each of which speaks its line once and then never
-  /// again. Offline ends when the network returns, `needsPerson` when somebody who is not
+  /// again. Offline ends when the network returns, a blocking halt when somebody who is not
   /// the team walks over, and `blocked` is the first screen the app ever shows on that
   /// path. A team glancing up at any of them had nothing to tell a room that is waiting
   /// from one that has died.

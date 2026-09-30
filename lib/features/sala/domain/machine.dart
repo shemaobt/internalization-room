@@ -149,7 +149,14 @@ const _watch = ArmTheWatch();
     _ => (halt, const []),
   },
   WatchFired() => (halt, const [ReadTheState(), _watch]),
-  ReachChanged(:final reachable) => (halt, [if (reachable) _watch]),
+  ReachChanged(:final reachable) => (
+    halt,
+    [
+      if (reachable && halt is Blocking && !halt.serverKnows)
+        const CallForAPerson(),
+      if (reachable) _watch,
+    ],
+  ),
 };
 
 (Halt, List<Effect>) _read(Halt halt, SessionRead read) {

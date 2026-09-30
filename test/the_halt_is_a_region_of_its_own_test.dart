@@ -346,6 +346,14 @@ void main() {
       );
     });
 
+    test('coming back within reach calls again for a halt the server has not '
+        'heard of', () {
+      expect(
+        reduce(unknown, const ReachChanged(reachable: true)),
+        _to(unknown, const [CallForAPerson(), ArmTheWatch()]),
+      );
+    });
+
     test('a halt over an opening that could not be fetched is lifted by asking '
         'the opening again with a fresh turn id', () {
       const failed = '1727700000000';

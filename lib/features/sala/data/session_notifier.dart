@@ -212,6 +212,7 @@ _PortaDaRecusa? _portaDaRecusa(String blocker) => switch (blocker) {
 class SalaSessionNotifier extends Notifier<SalaSessionState> {
   final Map<String, Timer> _timers = {};
   Timer? _watch;
+  Duration? _watchPeriod;
   int _epoch = 0;
   int _unplayableTurns = 0;
   int _roomFailures = 0;
@@ -895,7 +896,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _endTheWatch();
       return;
     }
-    if (_watch?.isActive ?? false) return;
+    if ((_watch?.isActive ?? false) && _watchPeriod == period) return;
+    _watch?.cancel();
+    _watchPeriod = period;
     _watch = Timer(period, () {
       _watch = null;
       _dispatch(const WatchFired());
@@ -914,8 +917,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_gone || state.sessionId != sessionId) return;
     switch (answer) {
       case Answered(value: final snapshot):
+        final wasBlocking = state.needsPerson;
+        _applyCoverage(snapshot.coverage);
         _takeTheStretches(snapshot.backTranslation);
         _applyTheSessionRead(snapshot);
+        if (wasBlocking && !state.needsPerson) _comeBack();
       case SessionGone() when state.halt is NoHalt:
         _leaveTheDeadPassage();
       case SessionGone():
@@ -945,7 +951,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _personAskStep = 0;
     _settleNetworkHealth(resolved: true);
     _resumeFailures = 0;
-    _comeBack();
   }
 
   void _replay(Kept kept) {
@@ -4490,7 +4495,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ],
       clearTraducaoPendente: true,
     );
-    _tocarOProximoTrecho();
+    if (!state.needsPerson) _tocarOProximoTrecho();
   }
 
   void _guardarATraducao(String path) {

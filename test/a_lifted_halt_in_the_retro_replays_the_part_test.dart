@@ -453,6 +453,40 @@ void main() {
     expect(read().btTrechos.single.to, const Duration(seconds: 4));
   });
 
+  test(
+    'a confirm answered while a blocking halt stands advances in silence',
+    () async {
+      final harness = SalaHarness();
+      final (_, notifier, read, _) = await _playingWithAWarningArmed(harness);
+      await _cutsAndRecordsATranslation(
+        harness,
+        notifier,
+        read,
+        const Duration(seconds: 4),
+      );
+
+      harness.room.holdNextChunk();
+      final confirming = notifier.confirmarTraducao();
+      await waitFor(
+        'a sala pensar enquanto o V viaja',
+        () => read().btPhase == BtPhase.thinking,
+      );
+      await _haltLandsBlocking(harness, read);
+      final tocadas = harness.playback.played.length;
+
+      harness.room.finishHeldChunk();
+      await confirming;
+      await settle();
+
+      expect(read().needsPerson, isTrue);
+      expect(
+        harness.playback.played,
+        hasLength(tocadas),
+        reason: 'a resposta que pousa sob a parada avança em silêncio',
+      );
+    },
+  );
+
   test('P2: the scissors never cut behind the cursor', () async {
     final harness = SalaHarness();
     final (_, notifier, read, _) =
