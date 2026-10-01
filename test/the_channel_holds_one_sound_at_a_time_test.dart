@@ -466,6 +466,65 @@ void main() {
     );
   });
 
+  test('a waiting line is never started and then cut while a gesture hands '
+      'off to the passage it opens', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final sala = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    final bloqueado = micBlockedAsset(testLanguage);
+    await sala.abrirEscolha();
+    await waitFor('a roda carregar', () => read().naRoda != null);
+    await settle();
+    harness.voice.holdNextLine();
+    sala.sayTheMicIsBlocked();
+    await waitFor('a Guia falar', () => read().channel is GuideSpeaking);
+    sala.sayTheMicIsBlocked();
+    expect(read().machine.queue, hasLength(1));
+    harness.network.holdNextCheck();
+
+    sala.entrarNaOferecida();
+    await settle();
+    harness.network.finishHeldCheck();
+    await waitFor(
+      'a passagem abrir',
+      () => read().stage == SalaStage.conversa && read().sessionId != null,
+    );
+    harness.voice.finishHeldLine();
+    await settle();
+
+    expect(
+      harness.voice.assets.where((asset) => asset == bloqueado),
+      hasLength(1),
+      reason: 'a linha que esperava nunca começa para ser cortada logo depois',
+    );
+  });
+
+  test('a reply silenced by a gesture is not counted against it when the room '
+      'then fails', () async {
+    final harness = SalaHarness(
+      replies: const [HandReply(id: 'r1', audioUrl: '/resposta-1')],
+    );
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final sala = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await waitFor('a resposta chegar à mão', () => read().hasUnheardReply);
+    harness.voice.holdNextLine();
+    sala.handTap();
+    await waitFor(
+      'a resposta começar',
+      () => harness.voice.played.contains('/resposta-1'),
+    );
+
+    sala.goEnsaio();
+    harness.voice.failHeldLine(const NetworkFailed('sem rede'));
+    await settle();
+
+    expect(read().replies.single.failedPlays, 0);
+  });
+
   group('the spontaneous lines wait for the Channel', () {
     test('the facilitator\'s reply asked for under an open microphone plays '
         'only after it closes', () async {

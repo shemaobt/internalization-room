@@ -123,6 +123,11 @@ class FakeVoice implements FacilitatorVoiceService {
     _holding = null;
   }
 
+  void failHeldLine(RoomFailure failure) {
+    _holding?.completeError(failure);
+    _holding = null;
+  }
+
   Future<bool> _answer() {
     final held = _holding;
     return held == null ? Future.value(succeeds) : held.future;
