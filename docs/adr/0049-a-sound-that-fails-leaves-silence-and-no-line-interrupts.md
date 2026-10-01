@@ -66,7 +66,11 @@ the service one at a time from the Channel, and the service chains them.
 ## Consequences
 
 Two Step facts stand in for the Steps until ENG-1176 and ENG-1178 bring them: the room is
-awaiting the Guide, and the end of the passage. Leaving a Station ends both.
+awaiting the Guide, and the end of the passage. Until then the Station stands for the Step:
+leaving a Station ends both facts and drops the lines that answer it, and re-entering the
+Station the room is already in (the same conversation opened again, the wheel read again
+in the same visit) leaves them as they are. A gesture says at its end whether it started a
+sound, and a waiting line plays only if it did not.
 
 The offline notice has no path under an open microphone until ENG-1174 takes the room out
 of reach from every door; today it is spoken only from doors the room calls while it is
