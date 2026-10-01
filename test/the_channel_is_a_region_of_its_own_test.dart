@@ -327,20 +327,64 @@ void main() {
       expect(machine.channel, const GuideSpeaking(_guide1));
     });
 
-    test(
-      "the gesture's own part enters, and a waiting line plays after it",
-      () {
-        final (playing, effects) = _run(const Machine(), const [
-          GestureStarted(1),
-          LineArrived(_notice),
-          BeadTapped([_part2], by: [1]),
-        ]);
-        final (_, afterThePart) = reduce(playing, const PlayerEnded());
+    test("the gesture's own part enters, and a waiting line waits until the "
+        'gesture ends', () {
+      final (playing, effects) = _run(const Machine(), const [
+        GestureStarted(1),
+        LineArrived(_notice),
+        BeadTapped([_part2]),
+      ]);
+      final (ended, afterThePart) = reduce(playing, const PlayerEnded());
+      final (_, afterTheGesture) = reduce(ended, const GestureEnded(1));
 
-        expect(effects, [const PlayPart(_part2)]);
-        expect(afterThePart, [const PlayLine(_notice)]);
+      expect(effects, [const PlayPart(_part2)]);
+      expect(afterThePart, isEmpty);
+      expect(afterTheGesture, [const PlayLine(_notice)]);
+    });
+
+    test("every sound of a gesture on its way passes, and the background line "
+        'waits between them', () {
+      final (speaking, first) = _run(const Machine(), const [
+        GestureStarted(1),
+        LineArrived(_guide1, by: [1]),
+      ]);
+      final (waiting, _) = reduce(speaking, const LineArrived(_notice));
+      final (between, ended) = reduce(waiting, const PlayerEnded());
+      final (_, second) = reduce(between, const LineArrived(_guide2, by: [1]));
+
+      expect(first, [const PlayLine(_guide1)]);
+      expect(ended, isEmpty);
+      expect(second, [const PlayLine(_guide2)]);
+    });
+
+    test(
+      "a gesture's own line queued behind its own sound plays when that sound "
+      'ends',
+      () {
+        final (speaking, _) = _run(const Machine(), const [
+          GestureStarted(1),
+          LineArrived(_guide1, by: [1]),
+          LineArrived(_notice),
+          LineArrived(_reply, by: [1]),
+        ]);
+        final (_, ended) = reduce(speaking, const PlayerEnded());
+
+        expect(ended, [const PlayLine(_reply)]);
       },
     );
+
+    test("a gesture's own line is never dropped for a background line of its "
+        'kind already waiting', () {
+      const background = Line(LineKind.guide, 7, source: Source.aside('x'));
+      final (machine, effects) = _run(_part1Playing, const [
+        GestureStarted(1),
+        LineArrived(background),
+        LineArrived(_guide1, by: [1]),
+      ]);
+
+      expect(effects, isNot(contains(const DropTheLine(_guide1))));
+      expect(machine.queue, contains(_guide1));
+    });
 
     test(
       'a gesture that goes on to open the microphone keeps the line waiting',
@@ -349,7 +393,7 @@ void main() {
           GestureStarted(1),
           LineArrived(_notice),
           GestureSilenced(),
-          MicOpened(MicOwner.conversation, by: [1]),
+          MicOpened(MicOwner.conversation),
           GestureEnded(1),
         ]);
 

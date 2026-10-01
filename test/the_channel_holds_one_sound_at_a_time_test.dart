@@ -694,6 +694,82 @@ void main() {
     harness.room.finishHeldTurn();
   });
 
+  test(
+    'no background line plays between the two movements of an opening',
+    () async {
+      final ledger = _LedgerThatCannotWrite();
+      final harness = SalaHarness(emAbertoNoDisco: ledger)
+        ..room.opensInTwoMovements = true;
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final sala = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+      await sala.abrirEscolha();
+      await waitFor('a roda carregar', () => read().naRoda != null);
+      await settle();
+      ledger.refuses = true;
+      final antes = harness.voice.played.length;
+      int? linhasAntesDaPresa;
+      var vistas = harness.voice.assets.length;
+      harness.voice.aoFalar = () {
+        if (harness.voice.assets.length == vistas) return;
+        vistas = harness.voice.assets.length;
+        if (harness.voice.assets.last == _stranded) {
+          linhasAntesDaPresa ??= harness.voice.played.length - antes;
+        }
+      };
+
+      sala.entrarNaOferecida();
+      await waitFor(
+        'a linha da gravação presa tocar',
+        () => harness.voice.assets.contains(_stranded),
+      );
+
+      expect(linhasAntesDaPresa, 2, reason: 'o panorama e a cena, juntos');
+    },
+  );
+
+  test('no background line plays between the acknowledgement and the reply of '
+      'a turn', () async {
+    _OutboxThatGaveUp? outbox;
+    final harness = SalaHarness(
+      takesOverride: (room, home) =>
+          outbox = _OutboxThatGaveUp(room: room, home: () async => home),
+    );
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final sala = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    final antes = harness.voice.played.length;
+    bool? respostaAntes;
+    var vistas = harness.voice.assets.length;
+    harness.voice.aoFalar = () {
+      if (harness.voice.assets.length == vistas) return;
+      vistas = harness.voice.assets.length;
+      if (harness.voice.assets.last == _stranded) {
+        respostaAntes ??= harness.voice.played.length > antes;
+      }
+    };
+    harness.voice.holdNextLine();
+    harness.room.holdNextTurn();
+    sala.conversaTap();
+    await waitFor('o microfone abrir', () => read().channel is Microphone);
+    sala.conversaTap();
+    await waitFor('a Guia falar', () => read().channel is GuideSpeaking);
+    outbox!.gaveUp = true;
+    await sala.refreshUnsent();
+    await settle();
+    harness.voice.finishHeldLine();
+    await settle();
+    harness.room.finishHeldTurn();
+
+    await waitFor(
+      'a linha da gravação presa tocar',
+      () => harness.voice.assets.contains(_stranded),
+    );
+    expect(respostaAntes, isTrue, reason: 'a resposta do turno vem antes');
+  });
+
   group('the spontaneous lines wait for the Channel', () {
     test('the facilitator\'s reply asked for under an open microphone plays '
         'only after it closes', () async {

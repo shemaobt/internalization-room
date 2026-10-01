@@ -80,9 +80,8 @@ final class PlayerFailed extends MachineEvent {
 final class MicOpened extends MachineEvent {
   final MicOwner owner;
   final String take;
-  final List<int> by;
 
-  const MicOpened(this.owner, {this.take = '', this.by = const []});
+  const MicOpened(this.owner, {this.take = ''});
 }
 
 final class MicClosed extends MachineEvent {
@@ -92,9 +91,8 @@ final class MicClosed extends MachineEvent {
 final class BeadTapped extends MachineEvent {
   final List<Sound> sounds;
   final Paused? beneath;
-  final List<int> by;
 
-  const BeadTapped(this.sounds, {this.beneath, this.by = const []});
+  const BeadTapped(this.sounds, {this.beneath});
 }
 
 final class PauseTapped extends MachineEvent {
@@ -289,6 +287,7 @@ final class Machine {
   final Source? failing;
   final int failures;
   final Set<int> onTheirWay;
+  final Map<Line, Set<int>> owners;
 
   const Machine({
     this.halt = const NoHalt(),
@@ -297,6 +296,7 @@ final class Machine {
     this.failing,
     this.failures = 0,
     this.onTheirWay = const {},
+    this.owners = const {},
   });
 
   Machine copyWith({
@@ -307,6 +307,7 @@ final class Machine {
     int? failures,
     bool forgetTheFailures = false,
     Set<int>? onTheirWay,
+    Map<Line, Set<int>>? owners,
   }) => Machine(
     halt: halt ?? this.halt,
     channel: channel ?? this.channel,
@@ -314,6 +315,7 @@ final class Machine {
     failing: forgetTheFailures ? null : (failing ?? this.failing),
     failures: forgetTheFailures ? 0 : (failures ?? this.failures),
     onTheirWay: onTheirWay ?? this.onTheirWay,
+    owners: owners ?? this.owners,
   );
 }
 
@@ -322,11 +324,7 @@ const _watch = ArmTheWatch();
 
 (Machine, List<Effect>) reduce(Machine machine, MachineEvent event) =>
     switch (event) {
-      LineArrived(:final line, :final by) => _arrive(
-        _arrived(machine, by),
-        line,
-        own: by.any(machine.onTheirWay.contains),
-      ),
+      LineArrived(:final line, :final by) => _arrive(machine, line, by),
       PlayerOpened() => (_opened(machine), const []),
       PlayerEnded() => _ended(machine),
       PlayerFailed(:final source, :final sounding) => _failed(
@@ -334,14 +332,10 @@ const _watch = ArmTheWatch();
         source,
         sounding,
       ),
-      MicOpened(:final owner, :final take, :final by) => _openTheMic(
-        _arrived(machine, by),
-        owner,
-        take,
-      ),
+      MicOpened(:final owner, :final take) => _openTheMic(machine, owner, take),
       MicClosed() => _closeTheMic(machine),
-      BeadTapped(:final sounds, :final beneath, :final by) => _tapped(
-        _arrived(machine, by),
+      BeadTapped(:final sounds, :final beneath) => _tapped(
+        machine,
         sounds,
         beneath,
       ),
@@ -354,7 +348,9 @@ const _watch = ArmTheWatch();
         machine.copyWith(onTheirWay: {...machine.onTheirWay, gesture}),
         const [],
       ),
-      GestureEnded(:final gesture) => _drain(_arrived(machine, [gesture])),
+      GestureEnded(:final gesture) => _drain(
+        machine.copyWith(onTheirWay: {...machine.onTheirWay}..remove(gesture)),
+      ),
       NothingReplayed() => _drain(machine),
       LineNotSaid(:final line) => _notSaid(machine, line),
       StepLeft() => _leaveTheQueue(machine, _answersItsStep),
@@ -363,6 +359,7 @@ const _watch = ArmTheWatch();
           channel: const Silence(),
           queue: const [],
           forgetTheFailures: true,
+          owners: const {},
         ),
         [
           const StopTheSound(),
@@ -382,13 +379,17 @@ bool _silent(Machine machine) =>
     machine.halt is! Blocking &&
     (machine.channel is Silence || machine.channel is Paused);
 
-bool _free(Machine machine) => _silent(machine) && machine.onTheirWay.isEmpty;
+bool _own(Machine machine, Line line) =>
+    (machine.owners[line] ?? const <int>{}).any(machine.onTheirWay.contains);
 
-Machine _arrived(Machine machine, List<int> gestures) => gestures.isEmpty
-    ? machine
-    : machine.copyWith(
-        onTheirWay: machine.onTheirWay.difference(gestures.toSet()),
-      );
+Line? _nextLine(Machine machine) {
+  if (!_silent(machine)) return null;
+  for (final line in machine.queue) {
+    if (_own(machine, line)) return line;
+  }
+  if (machine.onTheirWay.isNotEmpty || machine.queue.isEmpty) return null;
+  return machine.queue.first;
+}
 
 Paused? _heldBy(Channel channel) => switch (channel) {
   final Paused paused => paused,
@@ -396,10 +397,11 @@ Paused? _heldBy(Channel channel) => switch (channel) {
   _ => null,
 };
 
-(Machine, List<Effect>) _say(Machine machine, Line line, List<Line> queue) => (
+(Machine, List<Effect>) _say(Machine machine, Line line) => (
   machine.copyWith(
     channel: GuideSpeaking(line, held: _heldBy(machine.channel)),
-    queue: queue,
+    queue: [...machine.queue.where((waiting) => waiting != line)],
+    owners: {...machine.owners}..remove(line),
   ),
   [PlayLine(line)],
 );
@@ -408,32 +410,26 @@ Paused? _heldBy(Channel channel) => switch (channel) {
   Machine machine, [
   List<Effect> before = const [],
 ]) {
-  if (!_free(machine) || machine.queue.isEmpty) return (machine, before);
-  final (next, effects) = _say(
-    machine,
-    machine.queue.first,
-    machine.queue.skip(1).toList(),
-  );
-  return (next, [...before, ...effects]);
+  final next = _nextLine(machine);
+  if (next == null) return (machine, before);
+  final (said, effects) = _say(machine, next);
+  return (said, [...before, ...effects]);
 }
 
-(Machine, List<Effect>) _arrive(
-  Machine machine,
-  Line line, {
-  bool own = false,
-}) {
-  if (machine.queue.any((waiting) => waiting.kind == line.kind)) {
+(Machine, List<Effect>) _arrive(Machine machine, Line line, List<int> by) {
+  final own = by.any(machine.onTheirWay.contains);
+  if (!own &&
+      machine.queue.any(
+        (waiting) => waiting.kind == line.kind && !_own(machine, waiting),
+      )) {
     return (machine, [DropTheLine(line)]);
   }
-  if (own) {
-    if (_silent(machine) && machine.onTheirWay.isEmpty) {
-      return _say(machine, line, machine.queue);
-    }
-    return (machine.copyWith(queue: [line, ...machine.queue]), const []);
-  }
-  final queue = [...machine.queue, line];
-  if (!_free(machine)) return (machine.copyWith(queue: queue), const []);
-  return _say(machine, queue.first, queue.skip(1).toList());
+  return _drain(
+    machine.copyWith(
+      queue: [...machine.queue, line],
+      owners: own ? {...machine.owners, line: by.toSet()} : null,
+    ),
+  );
 }
 
 bool _answersItsStep(Line line) => line.kind.answersAStep;

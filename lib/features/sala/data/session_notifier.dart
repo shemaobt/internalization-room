@@ -494,24 +494,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _dispatch(const MicClosed());
   }
 
-  /// What every gesture that moves the room to another action does first: it silences
-  /// the rehearsal player and the Guide's voice, writes down what the team heard, and
-  /// clears every flag that says something is sounding, so the next tap finds nothing
-  /// playing. Only a play/pause toggle on the sound itself is exempt.
-  ///
-  /// One place, because the room has two independent players and thirty gestures that
-  /// move it: silencing inside each gesture is what left the last sound playing under
-  /// the next one.
-  ///
-  /// [holdTheClip] for the gestures that come back to the very part they leave — the
-  /// scissors, the circle that opens and closes a capture, telling a stretch again, and
-  /// the check. A hold silences the rehearsal just as well and is what keeps the clip
-  /// open: stopped, the room loses the length that the listening ceiling and the end of
-  /// the part are both measured against.
-  ///
-  /// It never cancels the room's timers, never bumps the epoch and never touches the
-  /// recorder: those belong to [_clearAll], which leaves a passage rather than moving
-  /// inside one.
   void _gesture(void Function() act) {
     final gesture = _startAGesture();
     try {
@@ -582,6 +564,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   List<int> get _chain => Zone.current[_gestureChain] as List<int>? ?? const [];
 
+  /// What every gesture that moves the room to another action does first: it silences
+  /// the rehearsal player and the Guide's voice, writes down what the team heard, and
+  /// clears every flag that says something is sounding, so the next tap finds nothing
+  /// playing. Only a play/pause toggle on the sound itself is exempt.
+  ///
+  /// One place, because the room has two independent players and thirty gestures that
+  /// move it: silencing inside each gesture is what left the last sound playing under
+  /// the next one.
+  ///
+  /// [holdTheClip] for the gestures that come back to the very part they leave — the
+  /// scissors, the circle that opens and closes a capture, telling a stretch again, and
+  /// the check. A hold silences the rehearsal just as well and is what keeps the clip
+  /// open: stopped, the room loses the length that the listening ceiling and the end of
+  /// the part are both measured against.
+  ///
+  /// It never cancels the room's timers, never bumps the epoch and never touches the
+  /// recorder: those belong to [_clearAll], which leaves a passage rather than moving
+  /// inside one.
   void _silenceTheRoom({bool holdTheClip = false}) {
     _anotarOQueFoiOuvido();
     if (holdTheClip) {
@@ -621,7 +621,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _onPlaybackComplete = onComplete;
     _onPlaybackFailed = onFailed;
     _listenForTheEnd();
-    _dispatch(BeadTapped(sounds, beneath: beneath, by: _chain));
+    _dispatch(BeadTapped(sounds, beneath: beneath));
   }
 
   void _putInTheAir(Sound sound) {
@@ -2735,7 +2735,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _recordingStarting = true;
     _listeningSince = clock.now();
     state = state.copyWith(peerCue: false);
-    _dispatch(MicOpened(owner, take: fileName, by: _chain));
+    _dispatch(MicOpened(owner, take: fileName));
     if (state.channel is! Microphone) {
       _recordingStarting = false;
       return;
@@ -3297,11 +3297,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _silenceTheRoom();
         state = state.copyWith(ensaio: EnsaioStatus.recording);
         _dispatch(
-          MicOpened(
-            MicOwner.rehearsal,
-            take: 'ensaio_tomada_${_stamp()}',
-            by: _chain,
-          ),
+          MicOpened(MicOwner.rehearsal, take: 'ensaio_tomada_${_stamp()}'),
         );
       case EnsaioStatus.recording:
         _handOff(_finishTake());
@@ -4548,7 +4544,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       MicOpened(
         MicOwner.capture,
         take: 'retro_passada${state.btPass}_pedaco${_stamp()}',
-        by: _chain,
       ),
     );
   }
