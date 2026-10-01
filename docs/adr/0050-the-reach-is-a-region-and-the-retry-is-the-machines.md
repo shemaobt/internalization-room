@@ -9,7 +9,8 @@ amends: 0046, 0049
 This amends ADRs 0046 and 0049. It edits one sentence of 0049, in its Consequences: the
 one that said the offline notice had no path under an open microphone until ENG-1174. That
 sentence named this work as pending and would have been false the day it merged, so it now
-says the notice waits there like any courtesy line. Nothing else in 0046 or 0049 is edited.
+says the notice waits there like any courtesy line. It also adds "amended by 0050" to the
+status line of 0046 and of 0049. Nothing else in either is edited.
 
 ## Context
 
@@ -47,10 +48,12 @@ turn under its turn id, a stretch told back or told again under its `Idempotency
 verdict, the approval, or the Station's own way in (the wheel, the opening, the start
 over). It lives in memory. The key is minted when the Step first sends the request and
 kept until the room settles it: an answer, a refusal with its code, or the session gone.
-A 409, a 429, a 5xx, a network failure or an abandoned wait keeps the key for the next send,
-and a settled refusal lets it go, so the team's next confirmation is a new request.
-A 409 `IDEMPOTENCY_KEY_IN_FLIGHT` waits the ladder and sends again under
-the same key. A turn re-sent on the return goes once, without its own wait for resends.
+A 409 `IDEMPOTENCY_KEY_IN_FLIGHT`, a 429, a 5xx, a network failure or an abandoned wait
+keeps the key for the next send; a 409 `IDEMPOTENCY_KEY_IN_FLIGHT` waits the ladder and
+sends again under the same key. Any other 409, with another code or with none, is a
+refusal and lets the key go, like every refusal: the server keeps no answer under a key
+for a 409 (ENG-1170), so the next send finds nothing kept under either key, and the
+team's next confirmation is a new request. A turn re-sent on the return goes once, without its own wait for resends.
 
 **An open microphone outranks the fall.** The circle reads a blocking halt, then an open
 microphone, then out of reach. Out of reach, a tap closes the microphone and keeps the
