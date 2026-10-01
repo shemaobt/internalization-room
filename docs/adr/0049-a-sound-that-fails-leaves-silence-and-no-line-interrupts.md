@@ -71,7 +71,9 @@ leaving a Station ends both facts and drops the lines that answer it, and re-ent
 Station the room is already in (the same conversation opened again, the wheel read again
 in the same visit) leaves them as they are. A gesture says at its end whether it started a
 sound, and a waiting line plays only if it did not. A gesture ends when everything it
-started has ended, the gesture it hands off to included. A line a gesture silenced was
+started has ended, the gesture it hands off to included: a flow it handed off to holds the
+wait until it puts its own sound into the Channel or ends, and a later gesture never ends
+an earlier one's wait. A line a gesture silenced was
 never said, whatever happens to the room afterwards.
 
 The offline notice has no path under an open microphone until ENG-1174 takes the room out
