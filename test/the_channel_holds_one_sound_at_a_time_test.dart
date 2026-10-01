@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -37,7 +38,60 @@ class _DiskThatRefusesTheTake extends TakeUploadQueue {
   }
 }
 
+class _OutboxThatGaveUp extends TakeUploadQueue {
+  _OutboxThatGaveUp({required super.room, super.home});
+
+  bool gaveUp = false;
+
+  @override
+  Future<
+    ({
+      bool stranded,
+      int unsentTakes,
+      int unsentChunks,
+      Set<String> unsentTakeScopes,
+    })
+  >
+  tally({required String? sessionId}) async {
+    final counted = await super.tally(sessionId: sessionId);
+    return (
+      stranded: gaveUp || counted.stranded,
+      unsentTakes: counted.unsentTakes,
+      unsentChunks: counted.unsentChunks,
+      unsentTakeScopes: counted.unsentTakeScopes,
+    );
+  }
+}
+
 String get _stranded => strandedTakeAsset(testLanguage);
+
+Future<(SalaHarness, ProviderContainer, SalaSessionState Function())>
+_aReplyWaitsThroughAFall() async {
+  final harness = SalaHarness(
+    replies: const [HandReply(id: 'r1', audioUrl: '/resposta-1')],
+  );
+  final container = await inConversa(harness);
+  addTearDown(container.dispose);
+  final sala = container.read(salaSessionProvider.notifier);
+  SalaSessionState read() => container.read(salaSessionProvider);
+  await waitFor('a resposta chegar à mão', () => read().hasUnheardReply);
+
+  harness.voice.holdNextLine();
+  harness.room.holdNextTurn();
+  sala.conversaTap();
+  await waitFor('o microfone abrir', () => read().channel is Microphone);
+  sala.conversaTap();
+  await waitFor('a Guia falar', () => read().channel is GuideSpeaking);
+  sala.handTap();
+  await settle();
+  harness.room.failHeldTurnWith = const NetworkFailed('sem rede');
+  harness.room.finishHeldTurn();
+  await waitFor('a sala cair', () => read().unreachable);
+  await waitFor('a sala voltar', () => !read().unreachable);
+  expect(read().stage, SalaStage.conversa);
+  harness.voice.finishHeldLine();
+  return (harness, container, read);
+}
 
 Future<(SalaHarness, ProviderContainer, _DiskThatRefusesTheTake Function())>
 _inTheRehearsalOverAFullDisk() async {
@@ -234,33 +288,181 @@ void main() {
 
   test('a reply waiting while the room falls out of reach and comes back in '
       'the same Step still plays', () async {
-    final harness = SalaHarness(
-      replies: const [HandReply(id: 'r1', audioUrl: '/resposta-1')],
-    );
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final sala = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-    await waitFor('a resposta chegar à mão', () => read().hasUnheardReply);
+    final (harness, _, _) = await _aReplyWaitsThroughAFall();
 
-    harness.voice.holdNextLine();
-    harness.room.holdNextTurn();
-    sala.conversaTap();
-    await waitFor('o microfone abrir', () => read().channel is Microphone);
-    sala.conversaTap();
-    await waitFor('a Guia falar', () => read().channel is GuideSpeaking);
-    sala.handTap();
-    await settle();
-    harness.room.failHeldTurnWith = const NetworkFailed('sem rede');
-    harness.room.finishHeldTurn();
-    await waitFor('a sala cair', () => read().unreachable);
-    await waitFor('a sala voltar', () => !read().unreachable);
-    expect(read().stage, SalaStage.conversa);
-
-    harness.voice.finishHeldLine();
     await waitFor(
       'a resposta tocar',
       () => harness.voice.played.contains('/resposta-1'),
+    );
+  });
+
+  test(
+    'a reply that waited through a fall and played is marked heard',
+    () async {
+      final (harness, _, read) = await _aReplyWaitsThroughAFall();
+      await waitFor(
+        'a resposta tocar',
+        () => harness.voice.played.contains('/resposta-1'),
+      );
+
+      await waitFor('a resposta ficar ouvida', () => !read().hasUnheardReply);
+      expect(harness.inbox.heard, contains('r1'));
+    },
+  );
+
+  test('a line waiting in the conversation survives re-entering the same '
+      'conversation', () async {
+    final harness = SalaHarness(
+      replies: const [HandReply(id: 'r1', audioUrl: '/resposta-1')],
+    );
+    harness.emAberto.rows['Ruth/P01'] = const ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.conversa,
+    );
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final sala = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await sala.abrirEscolha();
+    await settle();
+    await sala.goConversa(pericope: 'P01');
+    await waitFor('a resposta chegar à mão', () => read().hasUnheardReply);
+    harness.voice.holdNextLine();
+    sala.sayTheMicIsBlocked();
+    await waitFor('a Guia falar', () => read().channel is GuideSpeaking);
+    sala.handTap();
+    await settle();
+    expect(harness.voice.played, isNot(contains('/resposta-1')));
+
+    unawaited(sala.goConversa(pericope: 'P01'));
+    await waitFor(
+      'a resposta tocar depois de reentrar na mesma conversa',
+      () => harness.voice.played.contains('/resposta-1'),
+    );
+  });
+
+  test('a line waiting on the wheel survives the wheel read again in the same '
+      'visit', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final sala = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await sala.abrirEscolha();
+    final oferecida = read().oferecida!.audioUrl;
+    await waitFor(
+      'a roda dizer a passagem',
+      () => harness.voice.played.where((url) => url == oferecida).length == 1,
+    );
+    await settle();
+    harness.voice.holdNextLine();
+    sala.sayTheMicIsBlocked();
+    await waitFor('a Guia falar', () => read().channel is GuideSpeaking);
+    sala.escolhaTap();
+    await settle();
+
+    unawaited(sala.abrirEscolha());
+    await waitFor(
+      'a passagem que esperava tocar',
+      () => harness.voice.played.where((url) => url == oferecida).length == 2,
+    );
+    harness.voice.finishHeldLine();
+    await waitFor(
+      'a passagem que esperava e a da roda relida tocarem',
+      () => harness.voice.played.where((url) => url == oferecida).length == 3,
+    );
+  });
+
+  test('a line waiting while the room silences and then plays a stretch '
+      'waits for that stretch', () async {
+    final it = await umEnsaioDeTresPartesContadoInteiro();
+    it.harness.room.verdictChecked = true;
+    await pedirOVeredito(it);
+    expect(it.estado.btPhase, BtPhase.conferida);
+    final bloqueado = micBlockedAsset(testLanguage);
+    it.harness.room
+      ..releaseBlockers = const ['untold_stretch']
+      ..releaseUntoldSegmentId = 'trecho-1';
+    final lidas = it.harness.room.heldReads.length;
+    it.harness.room.holdTheNextRead();
+    unawaited(it.sala.aprovarRascunhoFinal());
+    await waitFor(
+      'a sala reler os trechos',
+      () => it.harness.room.heldReads.length > lidas,
+    );
+    it.sala.ouvirGravacao();
+    await waitFor('a parte tocar', () => it.estado.channel is PartPlaying);
+    it.sala.sayTheMicIsBlocked();
+    await settle();
+    expect(it.harness.voice.assets, isNot(contains(bloqueado)));
+
+    it.harness.room.answerHeldRead(it.harness.room.heldReads.length - 1);
+    await waitFor('o trecho tocar', () => it.estado.btTrechoTocando);
+
+    expect(
+      it.harness.voice.assets,
+      isNot(contains(bloqueado)),
+      reason:
+          'a linha esperava, e nenhum silêncio entre o gesto e o trecho a solta',
+    );
+    it.harness.playback.finishPlayback();
+    await waitFor(
+      'a linha tocar depois do trecho',
+      () => it.harness.voice.assets.contains(bloqueado),
+    );
+  });
+
+  test('a line waiting while a gesture silences the room and then finds '
+      'nothing to play is played', () async {
+    _OutboxThatGaveUp? outbox;
+    final harness = SalaHarness(
+      takesOverride: (room, home) =>
+          outbox = _OutboxThatGaveUp(room: room, home: () async => home),
+    );
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final it = Sala(harness, container);
+    await it.sala.goConversa(pericope: 'P01');
+    await waitFor('a sala abrir', () => it.estado.sessionId != null);
+    it.sala.goEnsaio();
+    await gravarUmaParteDoEnsaio(it);
+    it.sala.startRetro();
+    await waitFor(
+      'a parte tocar',
+      () => it.estado.stage == SalaStage.retro && it.estado.btClipRodando,
+    );
+    await ouvirETraduzirAParteInteira(it, const Duration(seconds: 10));
+    harness.room.segments.add(
+      const SegmentView(
+        segmentId: 'trecho-9',
+        takeId: 'gravacao-9',
+        startsMs: 0,
+        endsMs: 4000,
+      ),
+    );
+    harness.room
+      ..verdictChecked = false
+      ..verdictHasFinding = true
+      ..verdictFindingSegmentId = 'trecho-9';
+    await pedirOVeredito(it);
+    await waitFor(
+      'o achado apontar o trecho sem áudio no tablet',
+      () =>
+          it.estado.btPhase == BtPhase.findings &&
+          it.estado.btFindingTrecho?.segmentId == 'trecho-9',
+    );
+
+    harness.voice.holdNextLine();
+    it.sala.sayTheMicIsBlocked();
+    await waitFor('a Guia falar', () => it.estado.channel is GuideSpeaking);
+    outbox!.gaveUp = true;
+    await it.sala.refreshUnsent();
+    expect(harness.voice.assets, isNot(contains(_stranded)));
+
+    it.sala.ouvirOTrechoEATraducao();
+    await waitFor(
+      'a linha que esperava tocar quando o gesto não tocou nada',
+      () => harness.voice.assets.contains(_stranded),
     );
   });
 
