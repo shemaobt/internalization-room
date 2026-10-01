@@ -6,7 +6,10 @@ amends: 0046, 0049
 
 # The Reach is a region, and the retry is the machine's
 
-This amends ADRs 0046 and 0049 without editing them.
+This amends ADRs 0046 and 0049. It edits one sentence of 0049, in its Consequences: the
+one that said the offline notice had no path under an open microphone until ENG-1174. That
+sentence named this work as pending and would have been false the day it merged, so it now
+says the notice waits there like any courtesy line. Nothing else in 0046 or 0049 is edited.
 
 ## Context
 
@@ -37,12 +40,16 @@ and the retry drains the Outbox; a part pending is never left without a retry ar
 drain in flight (invariant 12).
 
 **Coming back drains the Outbox, reads the session at once, and re-sends the pending
-request once.** The pending request is the one a Step was waiting on when its door fell: a
+request once.** What needs the server waits while a blocking halt stands: the pending
+request stays pending until it is actually sent, and goes when the halt lifts with the room
+reachable. The pending request is the one a Step was waiting on when its door fell: a
 turn under its turn id, a stretch told back or told again under its `Idempotency-Key`, the
 verdict, the approval, or the Station's own way in (the wheel, the opening, the start
 over). It lives in memory. The key is minted when the Step first sends the request and
-kept until the room settles it; a refusal settles it, so the team's next confirmation is
-a new request. A 409 `IDEMPOTENCY_KEY_IN_FLIGHT` waits the ladder and sends again under
+kept until the room settles it: an answer, a refusal with its code, or the session gone.
+A 409, a 429, a 5xx, a network failure or an abandoned wait keeps the key for the next send,
+and a settled refusal lets it go, so the team's next confirmation is a new request.
+A 409 `IDEMPOTENCY_KEY_IN_FLIGHT` waits the ladder and sends again under
 the same key. A turn re-sent on the return goes once, without its own wait for resends.
 
 **An open microphone outranks the fall.** The circle reads a blocking halt, then an open
