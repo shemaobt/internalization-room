@@ -70,6 +70,8 @@ const _captureFailsBeforeAPerson = 2;
 /// before the id is dropped, the way a 404 drops it.
 const _resumeFailuresBeforeForgetting = 2;
 
+const _gestureChain = #gestureChain;
+
 const _umInstanteOuvido = Duration(milliseconds: 400);
 
 enum _Said { said, failed, unsaid }
@@ -332,8 +334,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   String? _coverageReopenedForTurnId;
   StreamSubscription<bool>? _micWatch;
   int _lines = 0;
-  int _inAGesture = 0;
-  final Set<Object> _handoffs = {};
+  int _gestures = 0;
+  final Map<int, int> _handedOff = {};
   final Map<Line, ({Future<bool> Function() say, Completer<_Said> ended})>
   _sayings = {};
   VoidCallback? _onPlaybackComplete;
@@ -412,17 +414,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     final ended = Completer<_Said>();
     _sayings[line] = (say: say, ended: ended);
-    _dispatch(LineArrived(line));
+    _dispatch(LineArrived(line, by: _chain));
     return ended.future;
   }
 
   Future<void> _speakTheLine(Line line) async {
     final saying = _sayings[line];
     if (saying == null) return _dispatch(LineNotSaid(line));
-    if (!_isSpeaking(line)) {
-      _sayings.remove(line);
-      return saying.ended.complete(_Said.unsaid);
-    }
     final bool played;
     try {
       played = await saying.say();
@@ -513,37 +511,67 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// recorder: those belong to [_clearAll], which leaves a passage rather than moving
   /// inside one.
   void _gesture(void Function() act) {
-    _inAGesture++;
-    act();
-    _inAGesture--;
-    _letAWaitingLinePlay();
+    final gesture = _startAGesture();
+    try {
+      runZoned(
+        act,
+        zoneValues: {
+          _gestureChain: [..._chain, gesture],
+        },
+      );
+    } finally {
+      _theSyncPartEnded(gesture);
+    }
   }
 
   void _handOff(Future<void> next) {
-    if (_inAGesture == 0) return unawaited(next);
-    _waitFor(next);
-  }
-
-  Future<void> _gestureThen(Future<void> Function() act) {
-    final next = act();
-    _waitFor(next);
-    return next;
-  }
-
-  void _waitFor(Future<void> next) {
-    final handoff = Object();
-    _handoffs.add(handoff);
+    final gesture = _chain.lastOrNull;
+    if (gesture == null) return unawaited(next);
+    _handedOff.update(gesture, (pending) => pending + 1, ifAbsent: () => 1);
     unawaited(
       next.then<void>((_) {}, onError: (Object _) {}).whenComplete(() {
-        if (_handoffs.remove(handoff)) _letAWaitingLinePlay();
+        final pending = (_handedOff[gesture] ?? 1) - 1;
+        if (pending > 0) {
+          _handedOff[gesture] = pending;
+          return;
+        }
+        _handedOff.remove(gesture);
+        _endTheGesture(gesture);
       }),
     );
   }
 
-  void _letAWaitingLinePlay() {
-    if (_gone || _inAGesture > 0 || _handoffs.isNotEmpty) return;
-    _dispatch(const GestureDone());
+  Future<void> _gestureThen(Future<void> Function() act) {
+    final gesture = _startAGesture();
+    final next = runZoned(
+      act,
+      zoneValues: {
+        _gestureChain: [..._chain, gesture],
+      },
+    );
+    unawaited(
+      next
+          .then<void>((_) {}, onError: (Object _) {})
+          .whenComplete(() => _endTheGesture(gesture)),
+    );
+    return next;
   }
+
+  int _startAGesture() {
+    final gesture = ++_gestures;
+    _dispatch(GestureStarted(gesture));
+    return gesture;
+  }
+
+  void _theSyncPartEnded(int gesture) {
+    if (!_handedOff.containsKey(gesture)) _endTheGesture(gesture);
+  }
+
+  void _endTheGesture(int gesture) {
+    if (!_gone) _dispatch(GestureEnded(gesture));
+  }
+
+  List<int> get _chain => Zone.current[_gestureChain] as List<int>? ?? const [];
 
   void _silenceTheRoom({bool holdTheClip = false}) {
     _anotarOQueFoiOuvido();
@@ -584,7 +612,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _onPlaybackComplete = onComplete;
     _onPlaybackFailed = onFailed;
     _listenForTheEnd();
-    _dispatch(BeadTapped(sounds, beneath: beneath));
+    _dispatch(BeadTapped(sounds, beneath: beneath, by: _chain));
   }
 
   void _putInTheAir(Sound sound) {
@@ -970,9 +998,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _dispatch(MachineEvent event) {
-    if (event is LineArrived || event is BeadTapped || event is MicOpened) {
-      _handoffs.clear();
-    }
     final micWasOpen = state.channel is Microphone;
     final (machine, effects) = reduce(state.machine, event);
     state = state.copyWith(machine: machine);
@@ -1135,7 +1160,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             !state.btCortado) {
           _tocarParteDaRetro(_parteTocando);
         } else {
-          _letAWaitingLinePlay();
+          _dispatch(const NothingReplayed());
         }
       case TheResume():
         _handOff(goConversa(pericope: _emCurso));
@@ -2690,7 +2715,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _recordingStarting = true;
     _listeningSince = clock.now();
     state = state.copyWith(peerCue: false);
-    _dispatch(MicOpened(owner, take: fileName));
+    _dispatch(MicOpened(owner, take: fileName, by: _chain));
     if (state.channel is! Microphone) {
       _recordingStarting = false;
       return;
@@ -3252,7 +3277,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _silenceTheRoom();
         state = state.copyWith(ensaio: EnsaioStatus.recording);
         _dispatch(
-          MicOpened(MicOwner.rehearsal, take: 'ensaio_tomada_${_stamp()}'),
+          MicOpened(
+            MicOwner.rehearsal,
+            take: 'ensaio_tomada_${_stamp()}',
+            by: _chain,
+          ),
         );
       case EnsaioStatus.recording:
         _handOff(_finishTake());
@@ -4496,6 +4525,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       MicOpened(
         MicOwner.capture,
         take: 'retro_passada${state.btPass}_pedaco${_stamp()}',
+        by: _chain,
       ),
     );
   }

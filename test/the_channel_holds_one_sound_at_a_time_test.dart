@@ -585,6 +585,50 @@ void main() {
     expect(read().replies.single.failedPlays, 0);
   });
 
+  test('a background line arriving while a gesture is on its way never lets a '
+      'waiting line start and be cut', () async {
+    _OutboxThatGaveUp? outbox;
+    final harness = SalaHarness(
+      takesOverride: (room, home) =>
+          outbox = _OutboxThatGaveUp(room: room, home: () async => home),
+    );
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final sala = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    final bloqueado = micBlockedAsset(testLanguage);
+    await sala.abrirEscolha();
+    await waitFor('a roda carregar', () => read().naRoda != null);
+    await settle();
+    harness.voice.holdNextLine();
+    sala.sayTheMicIsBlocked();
+    await waitFor('a Guia falar', () => read().channel is GuideSpeaking);
+    sala.sayTheMicIsBlocked();
+    harness.network.holdNextCheck();
+
+    sala.entrarNaOferecida();
+    await settle();
+    outbox!.gaveUp = true;
+    await sala.refreshUnsent();
+    await settle();
+    final marca = harness.sounds.length;
+    harness.network.finishHeldCheck();
+    await waitFor(
+      'a passagem abrir',
+      () => read().stage == SalaStage.conversa && read().sessionId != null,
+    );
+    harness.voice.finishHeldLine();
+    await settle();
+
+    expect(
+      harness.voice.assets.where((asset) => asset == bloqueado),
+      hasLength(1),
+      reason:
+          'a linha que esperava nunca começa para ser cortada: '
+          '${harness.sounds.skip(marca).toList()}',
+    );
+  });
+
   group('the spontaneous lines wait for the Channel', () {
     test('the facilitator\'s reply asked for under an open microphone plays '
         'only after it closes', () async {

@@ -214,7 +214,9 @@ String describeEvent(MachineEvent event) => switch (event) {
   PauseTapped() => 'PauseTapped',
   GestureSilenced(:final keepingTheHold) =>
     'GestureSilenced(keepingTheHold: $keepingTheHold)',
-  GestureDone() => 'GestureDone',
+  GestureStarted(:final gesture) => 'GestureStarted($gesture)',
+  GestureEnded(:final gesture) => 'GestureEnded($gesture)',
+  NothingReplayed() => 'NothingReplayed',
   LineNotSaid(:final line) => 'LineNotSaid(${describeLine(line)})',
   StepLeft() => 'StepLeft',
   LeftThePassage() => 'LeftThePassage',
@@ -293,7 +295,9 @@ enum EventKind {
   beadTapped,
   pauseTapped,
   gestureSilenced,
-  gestureDone,
+  gestureStarted,
+  gestureEnded,
+  nothingReplayed,
   lineNotSaid,
   stepLeft,
   leftThePassage,
@@ -316,7 +320,9 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   BeadTapped() => EventKind.beadTapped,
   PauseTapped() => EventKind.pauseTapped,
   GestureSilenced() => EventKind.gestureSilenced,
-  GestureDone() => EventKind.gestureDone,
+  GestureStarted() => EventKind.gestureStarted,
+  GestureEnded() => EventKind.gestureEnded,
+  NothingReplayed() => EventKind.nothingReplayed,
   LineNotSaid() => EventKind.lineNotSaid,
   StepLeft() => EventKind.stepLeft,
   LeftThePassage() => EventKind.leftThePassage,
@@ -339,7 +345,9 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.beadTapped ||
   EventKind.pauseTapped ||
   EventKind.gestureSilenced ||
-  EventKind.gestureDone ||
+  EventKind.gestureStarted ||
+  EventKind.gestureEnded ||
+  EventKind.nothingReplayed ||
   EventKind.lineNotSaid ||
   EventKind.stepLeft ||
   EventKind.leftThePassage => true,
@@ -405,7 +413,9 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
       EventKind.gestureSilenced => GestureSilenced(
         keepingTheHold: random.nextBool(),
       ),
-      EventKind.gestureDone => const GestureDone(),
+      EventKind.gestureStarted => GestureStarted(random.nextInt(3)),
+      EventKind.gestureEnded => GestureEnded(random.nextInt(3)),
+      EventKind.nothingReplayed => const NothingReplayed(),
       EventKind.lineNotSaid => LineNotSaid(
         Line(
           LineKind.values[random.nextInt(LineKind.values.length)],

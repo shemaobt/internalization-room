@@ -290,33 +290,88 @@ void main() {
     },
   );
 
-  test('a line waiting behind a sound a gesture stopped plays once the '
-      'gesture is done', () {
-    final (machine, effects) = _run(_part1Playing, const [
-      LineArrived(_notice),
-      GestureSilenced(),
-      GestureDone(),
-    ]);
-
-    expect(effects, [const PlayLine(_notice)]);
-    expect(machine.channel, const GuideSpeaking(_notice));
-  });
-
-  test(
-    'a gesture that goes on to open the microphone keeps the line waiting',
-    () {
+  group('a waiting line never plays while a gesture is on its way', () {
+    test('a line waiting behind a sound a gesture stopped plays once the '
+        'gesture ends', () {
       final (machine, effects) = _run(_part1Playing, const [
+        GestureStarted(1),
         LineArrived(_notice),
         GestureSilenced(),
-        MicOpened(MicOwner.conversation),
-        GestureDone(),
+        GestureEnded(1),
       ]);
 
-      expect(effects, isEmpty);
-      expect(machine.channel, const Microphone(MicOwner.conversation));
-      expect(machine.queue, [_notice]);
-    },
-  );
+      expect(effects, [const PlayLine(_notice)]);
+      expect(machine.channel, const GuideSpeaking(_notice));
+    });
+
+    test(
+      'a background line that arrives while a gesture is on its way waits',
+      () {
+        final (machine, effects) = _run(const Machine(), const [
+          GestureStarted(1),
+          LineArrived(_notice),
+        ]);
+
+        expect(effects, isEmpty);
+        expect(machine.queue, [_notice]);
+      },
+    );
+
+    test("the gesture's own line enters", () {
+      final (machine, effects) = _run(const Machine(), const [
+        GestureStarted(1),
+        LineArrived(_guide1, by: [1]),
+      ]);
+
+      expect(effects, [const PlayLine(_guide1)]);
+      expect(machine.channel, const GuideSpeaking(_guide1));
+    });
+
+    test(
+      "the gesture's own part enters, and a waiting line plays after it",
+      () {
+        final (playing, effects) = _run(const Machine(), const [
+          GestureStarted(1),
+          LineArrived(_notice),
+          BeadTapped([_part2], by: [1]),
+        ]);
+        final (_, afterThePart) = reduce(playing, const PlayerEnded());
+
+        expect(effects, [const PlayPart(_part2)]);
+        expect(afterThePart, [const PlayLine(_notice)]);
+      },
+    );
+
+    test(
+      'a gesture that goes on to open the microphone keeps the line waiting',
+      () {
+        final (machine, effects) = _run(_part1Playing, const [
+          GestureStarted(1),
+          LineArrived(_notice),
+          GestureSilenced(),
+          MicOpened(MicOwner.conversation, by: [1]),
+          GestureEnded(1),
+        ]);
+
+        expect(effects, isEmpty);
+        expect(machine.channel, const Microphone(MicOwner.conversation));
+        expect(machine.queue, [_notice]);
+      },
+    );
+
+    test('a waiting line plays only after every gesture on its way ended', () {
+      final (stillWaiting, first) = _run(const Machine(), const [
+        GestureStarted(1),
+        GestureStarted(2),
+        LineArrived(_notice),
+        GestureEnded(2),
+      ]);
+      final (_, last) = reduce(stillWaiting, const GestureEnded(1));
+
+      expect(first, isEmpty);
+      expect(last, [const PlayLine(_notice)]);
+    });
+  });
 
   test('leaving the passage forgets the failures', () {
     final (machine, effects) = _run(const Machine(), const [

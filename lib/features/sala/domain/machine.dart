@@ -57,8 +57,9 @@ final class ReachChanged extends MachineEvent {
 
 final class LineArrived extends MachineEvent {
   final Line line;
+  final List<int> by;
 
-  const LineArrived(this.line);
+  const LineArrived(this.line, {this.by = const []});
 }
 
 final class PlayerOpened extends MachineEvent {
@@ -79,8 +80,9 @@ final class PlayerFailed extends MachineEvent {
 final class MicOpened extends MachineEvent {
   final MicOwner owner;
   final String take;
+  final List<int> by;
 
-  const MicOpened(this.owner, {this.take = ''});
+  const MicOpened(this.owner, {this.take = '', this.by = const []});
 }
 
 final class MicClosed extends MachineEvent {
@@ -90,8 +92,9 @@ final class MicClosed extends MachineEvent {
 final class BeadTapped extends MachineEvent {
   final List<Sound> sounds;
   final Paused? beneath;
+  final List<int> by;
 
-  const BeadTapped(this.sounds, {this.beneath});
+  const BeadTapped(this.sounds, {this.beneath, this.by = const []});
 }
 
 final class PauseTapped extends MachineEvent {
@@ -104,8 +107,20 @@ final class GestureSilenced extends MachineEvent {
   const GestureSilenced({this.keepingTheHold = false});
 }
 
-final class GestureDone extends MachineEvent {
-  const GestureDone();
+final class GestureStarted extends MachineEvent {
+  final int gesture;
+
+  const GestureStarted(this.gesture);
+}
+
+final class GestureEnded extends MachineEvent {
+  final int gesture;
+
+  const GestureEnded(this.gesture);
+}
+
+final class NothingReplayed extends MachineEvent {
+  const NothingReplayed();
 }
 
 final class LineNotSaid extends MachineEvent {
@@ -273,6 +288,7 @@ final class Machine {
   final List<Line> queue;
   final Source? failing;
   final int failures;
+  final Set<int> onTheirWay;
 
   const Machine({
     this.halt = const NoHalt(),
@@ -280,6 +296,7 @@ final class Machine {
     this.queue = const [],
     this.failing,
     this.failures = 0,
+    this.onTheirWay = const {},
   });
 
   Machine copyWith({
@@ -289,66 +306,84 @@ final class Machine {
     Source? failing,
     int? failures,
     bool forgetTheFailures = false,
+    Set<int>? onTheirWay,
   }) => Machine(
     halt: halt ?? this.halt,
     channel: channel ?? this.channel,
     queue: queue ?? this.queue,
     failing: forgetTheFailures ? null : (failing ?? this.failing),
     failures: forgetTheFailures ? 0 : (failures ?? this.failures),
+    onTheirWay: onTheirWay ?? this.onTheirWay,
   );
 }
 
 const _enter = [SilenceTheRoom(), CloseAndDiscardTheMic()];
 const _watch = ArmTheWatch();
 
-(Machine, List<Effect>) reduce(Machine machine, MachineEvent event) =>
-    switch (event) {
-      LineArrived(:final line) => _arrive(machine, line),
-      PlayerOpened() => (_opened(machine), const []),
-      PlayerEnded() => _ended(machine),
-      PlayerFailed(:final source, :final sounding) => _failed(
-        machine,
-        source,
-        sounding,
-      ),
-      MicOpened(:final owner, :final take) => _openTheMic(machine, owner, take),
-      MicClosed() => _closeTheMic(machine),
-      BeadTapped(:final sounds, :final beneath) => _tapped(
-        machine,
-        sounds,
-        beneath,
-      ),
-      PauseTapped() => _pause(machine),
-      GestureSilenced(:final keepingTheHold) => (
-        _silenced(machine, keepingTheHold),
-        const [],
-      ),
-      GestureDone() => _drain(machine),
-      LineNotSaid(:final line) => _notSaid(machine, line),
-      StepLeft() => _leaveTheQueue(machine, _answersItsStep),
-      LeftThePassage() => (
-        machine.copyWith(
-          channel: const Silence(),
-          queue: const [],
-          forgetTheFailures: true,
-        ),
-        [
-          const StopTheSound(),
-          for (final line in machine.queue) DropTheLine(line),
-        ],
-      ),
-      SessionRead() ||
-      RoomRaisedAHalt() ||
-      TheCallLanded() ||
-      TheAnswerWarned() ||
-      LongPress() ||
-      WatchFired() ||
-      ReachChanged() => _theHalt(machine, event),
-    };
+(Machine, List<Effect>) reduce(
+  Machine machine,
+  MachineEvent event,
+) => switch (event) {
+  LineArrived(:final line, :final by) => _arrive(_arrived(machine, by), line),
+  PlayerOpened() => (_opened(machine), const []),
+  PlayerEnded() => _ended(machine),
+  PlayerFailed(:final source, :final sounding) => _failed(
+    machine,
+    source,
+    sounding,
+  ),
+  MicOpened(:final owner, :final take, :final by) => _openTheMic(
+    _arrived(machine, by),
+    owner,
+    take,
+  ),
+  MicClosed() => _closeTheMic(machine),
+  BeadTapped(:final sounds, :final beneath, :final by) => _tapped(
+    _arrived(machine, by),
+    sounds,
+    beneath,
+  ),
+  PauseTapped() => _pause(machine),
+  GestureSilenced(:final keepingTheHold) => (
+    _silenced(machine, keepingTheHold),
+    const [],
+  ),
+  GestureStarted(:final gesture) => (
+    machine.copyWith(onTheirWay: {...machine.onTheirWay, gesture}),
+    const [],
+  ),
+  GestureEnded(:final gesture) => _drain(_arrived(machine, [gesture])),
+  NothingReplayed() => _drain(machine),
+  LineNotSaid(:final line) => _notSaid(machine, line),
+  StepLeft() => _leaveTheQueue(machine, _answersItsStep),
+  LeftThePassage() => (
+    machine.copyWith(
+      channel: const Silence(),
+      queue: const [],
+      forgetTheFailures: true,
+    ),
+    [const StopTheSound(), for (final line in machine.queue) DropTheLine(line)],
+  ),
+  SessionRead() ||
+  RoomRaisedAHalt() ||
+  TheCallLanded() ||
+  TheAnswerWarned() ||
+  LongPress() ||
+  WatchFired() ||
+  ReachChanged() => _theHalt(machine, event),
+};
 
-bool _free(Machine machine) =>
+bool _silent(Machine machine) =>
     machine.halt is! Blocking &&
     (machine.channel is Silence || machine.channel is Paused);
+
+bool _free(Machine machine) => _silent(machine) && machine.onTheirWay.isEmpty;
+
+Machine _arrived(Machine machine, List<int> gestures) => gestures.isEmpty
+    ? machine
+    : machine.copyWith(
+        onTheirWay: machine.onTheirWay.difference(gestures.toSet()),
+      );
 
 Paused? _heldBy(Channel channel) => switch (channel) {
   final Paused paused => paused,
@@ -511,7 +546,7 @@ Machine _silenced(Machine machine, bool keepingTheHold) =>
   MicOwner owner,
   String take,
 ) {
-  if (!_free(machine)) return (machine, const []);
+  if (!_silent(machine)) return (machine, const []);
   final held = machine.channel;
   return (
     machine.copyWith(
@@ -708,7 +743,9 @@ List<Effect> _stopTheLineIn(Channel channel) => switch (channel) {
   BeadTapped() ||
   PauseTapped() ||
   GestureSilenced() ||
-  GestureDone() ||
+  GestureStarted() ||
+  GestureEnded() ||
+  NothingReplayed() ||
   LineNotSaid() ||
   StepLeft() ||
   LeftThePassage() => (halt, const []),
