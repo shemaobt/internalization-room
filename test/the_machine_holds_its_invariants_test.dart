@@ -84,12 +84,8 @@ Invariant<S> aSessionReadIsAppliedWholeOrNotAtAll<S>(Halt Function(S) haltOf) =>
       },
     );
 
-bool _aPersonSeesOrHears(Effect effect) => switch (effect) {
-  TellAPersonArrived() ||
-  ReplayTheSound() ||
-  AskTheOpeningAgain() ||
-  SilenceTheRoom() ||
-  CloseAndDiscardTheMic() => true,
+bool _tellsThePersonOrBringsTheSoundBack(Effect effect) => switch (effect) {
+  TellAPersonArrived() || ReplayTheSound() || AskTheOpeningAgain() => true,
   _ => false,
 };
 
@@ -99,11 +95,12 @@ Invariant<S> aLongPressOnABlockingHaltNeverVanishesInSilence<S>(
   'ADR invariant 11, a long press on a blocking halt is answered',
   (before, event, after, effects, world) {
     if (event is! LongPress || haltOf(before) is! Blocking) return null;
-    if (haltOf(after) != haltOf(before) || effects.any(_aPersonSeesOrHears)) {
+    if (_kind(haltOf(after)) != _kind(haltOf(before)) ||
+        effects.any(_tellsThePersonOrBringsTheSoundBack)) {
       return null;
     }
     return 'a long press under ${describeHalt(haltOf(before))} answered '
-        'with nothing a person sees or hears: '
+        'with neither a lift nor a person told nor the sound back: '
         '${effects.map(describeEffect).join(', ')}';
   },
 );
