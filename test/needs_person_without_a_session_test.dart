@@ -9,6 +9,7 @@ import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show settle;
@@ -41,40 +42,32 @@ Future<ProviderContainer> _inConversa(
   return container;
 }
 
+Future<ProviderContainer> _haltedWithNoSession(
+  SalaHarness harness,
+  LinkedTeam ledger,
+) async {
+  final container = _tablet(harness, ledger);
+  harness.room.failWith = const Refused(RefusalCode.notFound);
+  await container.read(salaSessionProvider.notifier).abrirEscolha();
+  await settle();
+  return container;
+}
+
 void main() {
   test(
-    'case 1: a sessão some e a sala ainda pede uma pessoa, pelo aparelho',
+    'case 1: a halt with no session to name asks for a person by the device',
     () async {
       final ledger = _ledgerOnDisk();
       await ledger.rememberDevice('aparelho-D');
       final harness = SalaHarness();
-      final container = await _inConversa(harness, ledger);
+      final container = await _haltedWithNoSession(harness, ledger);
       addTearDown(container.dispose);
-      expect(container.read(salaSessionProvider).sessionId, isNotNull);
-
-      harness.room.failWith = const SessionGone();
-      final notifier = container.read(salaSessionProvider.notifier);
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
-      await settle();
 
       final state = container.read(salaSessionProvider);
-      expect(
-        state.sessionId,
-        isNull,
-        reason: 'a arquitetura conta com a sessão já limpa antes do pedido',
-      );
+      expect(state.sessionId, isNull);
       expect(state.needsPerson, isTrue);
       expect(harness.room.deviceAsksReceived, ['aparelho-D']);
-      expect(
-        harness.room.calls,
-        isNot(contains('askForAPerson')),
-        reason:
-            'a sessão sumiu; pedir pela sessão de novo é pedir por um id que a '
-            'sala já disse não ter mais',
-      );
+      expect(harness.room.calls, isNot(contains('askForAPerson')));
     },
   );
 
@@ -151,25 +144,17 @@ void main() {
   test(
     'case 4a: falhas de rede insistem com o backoff, e param assim que uma chega',
     () async {
-      // Emenda 1 tirou haltForABrokenBuild() como gatilho do pedido por aparelho;
-      // a sessão perdida (SessionGone) é quem aciona esse caminho agora.
       final ledger = _ledgerOnDisk();
       await ledger.rememberDevice('aparelho-D');
       final harness = SalaHarness(
         retryBackoff: const [Duration(milliseconds: 20)],
       );
-      final container = await _inConversa(harness, ledger);
-      addTearDown(container.dispose);
-
       harness.room.deviceAskFailures.addAll([
         const NetworkFailed('sem rede'),
         const NetworkFailed('sem rede'),
       ]);
-      harness.room.failWith = const SessionGone();
-      final notifier = container.read(salaSessionProvider.notifier);
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
+      final container = await _haltedWithNoSession(harness, ledger);
+      addTearDown(container.dispose);
       await waitFor(
         'as três tentativas do pedido pelo aparelho',
         () => harness.room.deviceAsksReceived.length == 3,
@@ -193,18 +178,11 @@ void main() {
       final harness = SalaHarness(
         retryBackoff: const [Duration(milliseconds: 20)],
       );
-      final container = await _inConversa(harness, ledger);
-      addTearDown(container.dispose);
-
       harness.room.deviceAskFailures.add(
         const Refused(RefusalCode.nobodyToReach),
       );
-      harness.room.failWith = const SessionGone();
-      final notifier = container.read(salaSessionProvider.notifier);
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
+      final container = await _haltedWithNoSession(harness, ledger);
+      addTearDown(container.dispose);
       await settle(const Duration(milliseconds: 200));
 
       expect(
@@ -222,18 +200,12 @@ void main() {
     final harness = SalaHarness(
       retryBackoff: const [Duration(milliseconds: 20)],
     );
-    final container = await _inConversa(harness, ledger);
-    addTearDown(container.dispose);
-
     harness.room.deviceAskFailures.add(
       const Refused(RefusalCode.nobodyToReach),
     );
-    harness.room.failWith = const SessionGone();
+    final container = await _haltedWithNoSession(harness, ledger);
+    addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
-    notifier.conversaTap();
-    await settle();
-    notifier.conversaTap();
-    await settle();
     await settle(const Duration(milliseconds: 200));
     expect(
       container.read(salaSessionProvider).needsPerson,
@@ -256,20 +228,10 @@ void main() {
   });
 
   test('case 5: sem id de aparelho no vínculo, nenhum pedido sai', () async {
-    // haltForABrokenBuild() nunca pede ninguém desde a Emenda 1 (caso 2); o
-    // caminho que ainda cai no aparelho sem id é a sessão que se perde.
     final ledger = _ledgerOnDisk();
     final harness = SalaHarness();
-    final container = await _inConversa(harness, ledger);
+    final container = await _haltedWithNoSession(harness, ledger);
     addTearDown(container.dispose);
-
-    harness.room.failWith = const SessionGone();
-    final notifier = container.read(salaSessionProvider.notifier);
-    notifier.conversaTap();
-    await settle();
-    notifier.conversaTap();
-    await settle();
-    await settle();
 
     final state = container.read(salaSessionProvider);
     expect(
@@ -282,62 +244,8 @@ void main() {
     expect(harness.room.personsAsked, 0);
   });
 
-  test('case 7 (Emenda 2): um 404 no pedido pela sessão limpa a sessão e vira '
-      'um pedido pelo aparelho', () async {
-    // Emenda 2: SessionGone é uma Exception como outra qualquer para o catch
-    // genérico de _askForAPerson, então o backoff insistia pela mesma sessão
-    // que a sala já disse não ter mais — nada limpava state.sessionId, e o
-    // pedido pelo aparelho nunca tinha vez.
-    final ledger = _ledgerOnDisk();
-    await ledger.rememberDevice('aparelho-D');
-    final harness = SalaHarness(
-      retryBackoff: const [Duration(milliseconds: 20)],
-    )..voice.succeeds = false;
-    final container = await _inConversa(harness, ledger);
-    addTearDown(container.dispose);
-    expect(container.read(salaSessionProvider).sessionId, isNotNull);
-
-    harness.room.askForAPersonFailsWith = const SessionGone();
-    final notifier = container.read(salaSessionProvider.notifier);
-    notifier.conversaTap();
-    await settle();
-    for (var attempt = 0; attempt < 3; attempt++) {
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
-    }
-
-    final state = container.read(salaSessionProvider);
-    expect(state.needsPerson, isTrue);
-    expect(
-      state.sessionId,
-      isNull,
-      reason: 'a sala respondeu que não tem mais essa sessão',
-    );
-    expect(harness.room.deviceAsksReceived, ['aparelho-D']);
-    expect(
-      harness.room.calls.where((call) => call == 'askForAPerson').length,
-      1,
-      reason:
-          'reinsistir pela mesma sessão é pedir por um id que a sala já '
-          'disse não ter mais',
-    );
-
-    await settle(const Duration(milliseconds: 200));
-    expect(
-      harness.room.calls.where((call) => call == 'askForAPerson').length,
-      1,
-      reason: 'nenhuma nova tentativa pela sessão depois do backoff',
-    );
-  });
-
   test('case 8 (Emenda 3): um 404 tardio na sessão não repara a sala depois '
-      'que a pessoa já chegou', () async {
-    // Emenda 3: o ramo SessionGone do caso 7 re-parava a sala mesmo quando
-    // resolveWithPerson() já tinha voltado o estado para invite — o pedido
-    // pela sessão seguia em voo, sem como ser cancelado, e a resposta tardia
-    // reabria a parada e replicava a linha de precisa-de-pessoa.
+      'que a pessoa já chegou, e leva à Escolha', () async {
     final ledger = _ledgerOnDisk();
     await ledger.rememberDevice('aparelho-D');
     final harness = SalaHarness(
@@ -385,9 +293,9 @@ void main() {
           'a resposta tardia não pode reabrir uma parada que já foi resolvida',
     );
     expect(
-      state.sessionId,
-      isNotNull,
-      reason: 'nada limpa uma sessão depois que a pessoa já chegou por ela',
+      state.stage,
+      SalaStage.escolha,
+      reason: 'a sessão sumiu; o destino é um só, a Escolha',
     );
     expect(
       harness.room.deviceAsksReceived,

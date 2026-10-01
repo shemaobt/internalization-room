@@ -522,6 +522,13 @@ class TakeUploadQueue {
 
   void _fellOnTheNetwork() => _falls.add(null);
 
+  final StreamController<String> _sessionsGone =
+      StreamController<String>.broadcast(sync: true);
+
+  Stream<String> get sessionsGone => _sessionsGone.stream;
+
+  PendingTake? _inTheAir;
+
   /// Send every row a caller that only asked while this call was already running would
   /// otherwise miss.
   ///
@@ -599,6 +606,7 @@ class TakeUploadQueue {
     // not one that was given up on. Every outcome below writes this back.
     final row = entry.lost ? entry.copyWith(lost: false) : entry;
     final RoomAnswer<String> answer;
+    _inTheAir = entry;
     try {
       answer = await _room.sendTake(
         entry.sessionId,
@@ -609,24 +617,26 @@ class TakeUploadQueue {
         chunkIndex: entry.chunkIndex,
       );
     } on FileSystemException {
-      await _replace(
+      _inTheAir = null;
+      await _settle(
         entry,
         row.copyWith(attempts: row.attempts + 1, lastTry: _now()),
       );
       return false;
     }
+    _inTheAir = null;
     switch (answer) {
       case Answered(value: final landed):
-        await _replace(entry, row.copyWith(takeId: landed, stored: true));
+        await _settle(entry, row.copyWith(takeId: landed, stored: true));
         return true;
       case NetworkFailed():
         _fellOnTheNetwork();
-        await _replace(
+        await _settle(
           entry,
           row.copyWith(waits: row.waits + 1, lastTry: _now()),
         );
       case Refused(:final code):
-        await _replace(
+        await _settle(
           entry,
           row.copyWith(
             attempts: takeUploadAttempts,
@@ -635,23 +645,54 @@ class TakeUploadQueue {
           ),
         );
       case SessionGone():
-        await _replace(
-          entry,
-          row.copyWith(attempts: row.attempts + 1, lastTry: _now()),
-        );
+        await discardTheSession(entry.sessionId);
+        await _deleteTheCopy(entry);
+        _sessionsGone.add(entry.sessionId);
     }
     return false;
   }
 
-  Future<void> _replace(PendingTake target, PendingTake updated) => _mutate(
-    (written) => [
-      for (final entry in written)
-        if (entry.id == target.id && entry.kind == target.kind)
-          updated
-        else
-          entry,
-    ],
-  );
+  static bool _sameRow(PendingTake a, PendingTake b) =>
+      a.id == b.id && a.kind == b.kind;
+
+  bool _isInTheAir(PendingTake entry) {
+    final inTheAir = _inTheAir;
+    return inTheAir != null && _sameRow(entry, inTheAir);
+  }
+
+  Future<bool> _replace(PendingTake target, PendingTake updated) async {
+    var found = false;
+    await _mutate((written) {
+      found = written.any((entry) => _sameRow(entry, target));
+      return [
+        for (final entry in written) _sameRow(entry, target) ? updated : entry,
+      ];
+    });
+    return found;
+  }
+
+  Future<void> _settle(PendingTake target, PendingTake updated) async {
+    if (!await _replace(target, updated)) await _deleteTheCopy(target);
+  }
+
+  Future<void> _deleteTheCopy(PendingTake entry) async {
+    final file = File(entry.path);
+    if (await file.exists()) await file.delete();
+  }
+
+  Future<void> discardTheSession(String sessionId) async {
+    final discarded = <PendingTake>[];
+    await _mutate((written) {
+      discarded.addAll(written.where((entry) => entry.sessionId == sessionId));
+      return [
+        for (final entry in written)
+          if (entry.sessionId != sessionId) entry,
+      ];
+    });
+    for (final entry in discarded) {
+      if (!_isInTheAir(entry)) await _deleteTheCopy(entry);
+    }
+  }
 
   /// Take a pending row off the manifest before it can ever be delivered, and delete
   /// the copy `enqueue` made of it.
@@ -674,9 +715,7 @@ class TakeUploadQueue {
       return kept;
     });
     final entry = removed;
-    if (entry == null) return;
-    final file = File(entry.path);
-    if (await file.exists()) await file.delete();
+    if (entry != null) await _deleteTheCopy(entry);
   }
 }
 

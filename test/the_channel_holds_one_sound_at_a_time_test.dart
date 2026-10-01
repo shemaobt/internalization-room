@@ -527,19 +527,37 @@ void main() {
         takesOverride: (room, home) =>
             outbox = _OutboxThatGaveUp(room: room, home: () async => home),
       );
-      final container = await inConversa(harness);
+      harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+        sessionId: 'sessao-guardada',
+        stage: SalaStage.ensaio,
+        takes: [
+          KeptTake(
+            scopeId: KeptScope.parte(1),
+            path: '${harness.recorder.home.path}/longe.m4a',
+            takeId: 'gravacao-1',
+          ),
+        ],
+      );
+      harness.room
+        ..takes.add(
+          TakeView(
+            takeId: 'gravacao-1',
+            kind: 'ensaio',
+            scope: KeptScope.parte(1),
+            ordinal: 1,
+          ),
+        )
+        ..refuseClipOf.add('gravacao-1')
+        ..askForAPersonFailsWith = const Refused('HTTP_418');
+      final container = harness.container();
       addTearDown(container.dispose);
       final sala = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
       final bloqueado = micBlockedAsset(testLanguage);
-      harness.room.failWith = const Refused('UNAUTHORIZED');
-      sala.conversaTap();
+      await sala.abrirEscolha();
       await settle();
-      sala.conversaTap();
+      unawaited(sala.goConversa(pericope: 'P01'));
       await waitFor('a sala parar', () => read().needsPerson);
-      harness.room.failWith = null;
-      harness.room.failStateOnceWith = const SessionGone();
-      await waitFor('a sala perder a sessão', () => read().sessionId == null);
       sala.sayTheMicIsBlocked();
       outbox!.gaveUp = true;
       await sala.refreshUnsent();
@@ -547,6 +565,7 @@ void main() {
       expect(read().machine.queue, hasLength(2));
       expect(harness.voice.assets, isNot(contains(bloqueado)));
 
+      harness.room.refuseClipOf.clear();
       final marca = harness.sounds.length;
       sala.resolveWithPerson();
       await waitFor(

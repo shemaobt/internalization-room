@@ -166,9 +166,9 @@ void main() {
   test('2 (b): reachable with a part pending after a failed try, the part is '
       'tried again once its backoff passes, with no gesture', () async {
     const backoff = Duration(milliseconds: 400);
-    final forgetful = _RoomThatForgetsTheSessionOnce();
+    final stumbling = _RoomThatCannotReadTheTakeOnce();
     final harness = SalaHarness(
-      room: forgetful,
+      room: stumbling,
       takesOverride: (room, home) => TakeUploadQueue(
         room: room,
         home: () async => home,
@@ -178,7 +178,7 @@ void main() {
     final room = await _conversa(harness);
 
     await _keepARehearsalPart(room);
-    await waitFor('a primeira tentativa falhar', () => forgetful.forgotten);
+    await waitFor('a primeira tentativa falhar', () => stumbling.stumbled);
     final failedAt = DateTime.now();
 
     await waitFor(
@@ -925,8 +925,8 @@ void main() {
   });
 }
 
-class _RoomThatForgetsTheSessionOnce extends FakeRoom {
-  bool forgotten = false;
+class _RoomThatCannotReadTheTakeOnce extends FakeRoom {
+  bool stumbled = false;
 
   @override
   Future<RoomAnswer<String>> sendTake(
@@ -937,9 +937,9 @@ class _RoomThatForgetsTheSessionOnce extends FakeRoom {
     int? passNumber,
     int? chunkIndex,
   }) {
-    if (!forgotten) {
-      forgotten = true;
-      return Future.value(const SessionGone());
+    if (!stumbled) {
+      stumbled = true;
+      throw const FileSystemException('o disco piscou');
     }
     return super.sendTake(
       sessionId,

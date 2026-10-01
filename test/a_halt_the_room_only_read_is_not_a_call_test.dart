@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
@@ -226,33 +225,6 @@ void main() {
       );
     },
   );
-
-  test('a passage the room lost track of still calls, by the device', () async {
-    final harness = SalaHarness();
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-
-    harness.room.failWith = const SessionGone();
-    await _aTurn(notifier);
-    await waitFor('a sala parar sem sessão', () => read().needsPerson);
-
-    expect(
-      harness.room.deviceAsksReceived,
-      ['aparelho-1'],
-      reason:
-          'pin: a sala decidindo que a passagem sumiu (nenhum '
-          'pedido ainda pendia sobre ela, ao contrário da reentrada do '
-          '404 dentro de um pedido em voo) continua chamando pelo '
-          'aparelho, sem sessão para nomear',
-    );
-    expect(
-      harness.room.calls,
-      isNot(contains('askForAPerson')),
-      reason: 'sem sessão não há o que pedir por ela',
-    );
-  });
 
   test('an attend that lands in the window a read-door halt used to spend '
       'on its own call is not wiped', () async {

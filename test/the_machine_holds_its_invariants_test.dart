@@ -208,6 +208,53 @@ final theOutboxNeverIdlesReachableWithAPartPending = Invariant<Machine>(
   },
 );
 
+bool _callsOrStopsCallingAPerson(Effect effect) => switch (effect) {
+  CallForAPerson() || TellAPersonArrived() => true,
+  _ => false,
+};
+
+final nothingOfAGoneSessionSurvives = Invariant<Machine>(
+  'ADR invariant 6, nothing of a gone session survives',
+  (before, event, after, effects, world) {
+    if (event is! TheSessionIsGone) return null;
+    if (!effects.contains(const DiscardTheSession())) {
+      return 'the session gone did not discard the session';
+    }
+    if (!effects.contains(const OpenTheChoice())) {
+      return 'the session gone did not open the Choice';
+    }
+    if (!effects.contains(const CloseAndDiscardTheMic())) {
+      return 'the session gone did not close and discard the microphone';
+    }
+    if (effects.contains(const CancelTheRetry())) {
+      return 'the session gone cancelled the retry';
+    }
+    if (effects.any(_callsOrStopsCallingAPerson)) {
+      return 'the session gone called or stopped calling a person: '
+          '${effects.map(describeEffect).join(', ')}';
+    }
+    if (after.halt is! NoHalt) {
+      return 'a ${describeHalt(after.halt)} stands after the session gone';
+    }
+    if (after.channel is! Silence) {
+      return '${describeChannel(after.channel)} after the session gone';
+    }
+    final undropped = [
+      for (final line in before.queue)
+        if (!effects.contains(DropTheLine(line))) line,
+    ];
+    if (after.queue.isNotEmpty || undropped.isNotEmpty) {
+      return 'lines of the session outlived it: '
+          '${[...after.queue, ...undropped].map(describeLine).join(', ')}';
+    }
+    if (after.reach != before.reach) {
+      return 'the session gone moved the Reach from ${before.reach.name} to '
+          '${after.reach.name}';
+    }
+    return null;
+  },
+);
+
 void _holds(Invariant<Machine> invariant) =>
     expectEverySeedHolds(_machine, [invariant], seeds: _seeds);
 
@@ -254,9 +301,14 @@ void main() {
       _holds(theOutboxNeverIdlesReachableWithAPartPending);
     });
 
-    test('ADR invariants 1, 2, 3, 5, 8, 11, 12, 13 and 15 hold over the '
+    test('ADR invariant 6: nothing of a gone session survives', () {
+      _holds(nothingOfAGoneSessionSurvives);
+    });
+
+    test('ADR invariants 1, 2, 3, 5, 6, 8, 11, 12, 13 and 15 hold over the '
         'default run', () {
       expectEverySeedHolds(_machine, [
+        nothingOfAGoneSessionSurvives,
         ...theAdrInvariants<Machine>(_haltOf),
         theMicrophoneNeverOpensUnderASound,
         theHeadNeverReadsAnotherSound,

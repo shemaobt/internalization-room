@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -1506,12 +1507,46 @@ void main() {
       expect(row.waits, 0);
     });
 
-    test('a take whose session is gone spends one try, as before', () async {
+    test('Q2: a take in the air whose own answer is gone, after its session '
+        'was already discarded, still leaves no copy behind', () async {
+      final answer = Completer<void>();
+      final reached = Completer<void>();
+      final room = RoomRepository(
+        client: MockClient((_) async {
+          reached.complete();
+          await answer.future;
+          return http.Response(jsonEncode({'code': 'NOT_FOUND'}), 404);
+        }),
+        deviceId: () async => 'aparelho-1',
+      );
+      addTearDown(room.dispose);
+      final queue = TakeUploadQueue(room: room, home: () async => home);
+      final row = await queue.enqueue(
+        aTake('no-ar'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'inteira',
+      );
+      final flushing = queue.flush();
+      await reached.future;
+
+      await queue.discardTheSession('sessao-1');
+      answer.complete();
+      await flushing;
+
+      expect(await queue.entries(), isEmpty);
+      expect(File(row.path).existsSync(), isFalse);
+    });
+
+    test('a take whose session is gone leaves the Outbox with its copy, and '
+        'the Outbox says which session went', () async {
       final queue = queueAnswering(404, {
         'detail': 'Internalization room session not found',
         'code': 'NOT_FOUND',
       });
-      await queue.enqueue(
+      final gone = <String>[];
+      queue.sessionsGone.listen(gone.add);
+      final row = await queue.enqueue(
         aTake('sem-sessao'),
         sessionId: 'sessao-1',
         kind: 'ensaio',
@@ -1520,8 +1555,9 @@ void main() {
 
       await queue.flush();
 
-      expect((await queue.pending()).single.attempts, 1);
-      expect(await queue.waiting(), hasLength(1));
+      expect(await queue.entries(), isEmpty);
+      expect(File(row.path).existsSync(), isFalse);
+      expect(gone, ['sessao-1']);
     });
   });
 }
