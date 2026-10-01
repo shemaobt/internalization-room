@@ -1269,9 +1269,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     if (sessionId == null || _personAsked || _askingForAPerson) return;
     _askingForAPerson = true;
+    final pericope = _emCurso;
     final answer = await _room.askForAPerson(sessionId);
     if (answer case Refused(code: RefusalCode.passageClosed)) {
-      await _thePassageClosed(sessionId);
+      await _thePassageClosed(sessionId, pericope);
       _askingForAPerson = false;
       return;
     }
@@ -1292,14 +1293,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  Future<void> _thePassageClosed(String sessionId) async {
-    if (_gone || sessionId != _theSession) return;
-    final closed = _emCurso;
-    if (closed != null) {
-      await _feitas.add(_book, closed).catchError((_) {});
+  Future<void> _thePassageClosed(String sessionId, String? pericope) async {
+    if (_gone) return;
+    if (pericope != null) {
+      await _feitas.add(_book, pericope).catchError((_) {});
     }
-    if (_gone || sessionId != _theSession) return;
-    _dispatch(const ThePassageClosed());
+    if (_gone) return;
+    if (sessionId == _theSession) return _dispatch(const ThePassageClosed());
+    if (pericope != null && state.stage == SalaStage.escolha) {
+      state = state.copyWith(feitas: {...state.feitas, pericope});
+    }
+    _goneSessions.add(sessionId);
+    unawaited(
+      _mindingThePlace(
+        () => _forgetTheSessionOnDisk(sessionId, pericope, const []),
+      ).whenComplete(_countUnsent),
+    );
   }
 
   /// The same ask, for a halt with no session to name. Asks by the tablet's own device

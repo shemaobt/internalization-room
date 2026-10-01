@@ -320,7 +320,7 @@ The server no longer knows the session. Wherever the room learns it, whatever wa
 _Avoid_: 404, dead session, lost session
 
 **Passage closed**:
-The server's refusal of the call for a person because the passage is already finished. The room asks once, leaves the passage as for a Session gone, and the Wheel shows the passage closed (ADR 0052).
+The server's refusal of the call for a person because the passage is already finished (ADR 0052).
 _Avoid_: finished session, PASSAGE_CLOSED (the wire's code)
 
 **Refusal**:

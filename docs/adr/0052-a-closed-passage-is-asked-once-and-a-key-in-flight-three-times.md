@@ -18,7 +18,10 @@ the microphone closes and is discarded, everything of the session goes from the 
 any standing halt is cleared with no call and no stop-call, and the Choice opens. Unlike a
 Session gone, the server still knows the passage and says it is finished, so the room adds
 it to the finished passages before the Choice reads them, and the Wheel shows it closed.
-Every other refusal of the call keeps the ladder; a network failure keeps the Reach.
+A passage the server says is closed is closed on the tablet wherever the room stands when
+the answer lands: if the team has already left it, its session's files and rows still go
+and the Wheel still shows it closed, and only the leaving is skipped. Every other refusal
+of the call keeps the ladder; a network failure keeps the Reach.
 
 **A key in flight is sent three times.** ADR 0050 sends a request again under the same key
 when the server answers `IDEMPOTENCY_KEY_IN_FLIGHT`, and only the busy watchdog bounded it.
@@ -32,8 +35,10 @@ answers a 404 as a Refusal, never as a Session gone (ADR 0051).
 
 ## Considered Options
 
-**A closed passage as a Session gone.** Rejected: the Wheel would still offer, as open, a
-passage the server holds finished.
+**A closed passage dispatched as a Session gone**, after the notifier marks it finished.
+It would behave the same. Rejected for the record only: the machine's history and the
+invariant tests name the event the server sent, so a reader of either can tell a passage
+the server finished from a session it forgot.
 
 **No ceiling on a key in flight, leaving it to the watchdog.** Rejected: the watchdog
 raises a halt and calls a person over what is the server still working.
