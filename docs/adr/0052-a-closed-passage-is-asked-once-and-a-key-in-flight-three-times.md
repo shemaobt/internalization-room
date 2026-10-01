@@ -1,13 +1,13 @@
 ---
 status: accepted
 date: 2026-10-01
-amends: 0047, 0050
+amends: 0047, 0050, 0051
 ---
 
 # A closed passage is asked once, and a key in flight three times
 
-This amends ADRs 0047 and 0050 without editing their text; it adds "amended by 0052" to
-their status lines. Henok's decisions of 29 and 30 September, settled by the Definer on
+This amends ADRs 0047, 0050 and 0051 without editing their text; it adds "amended by
+0052" to their status lines. Henok's decisions of 29 and 30 September, settled by the Definer on
 1 October (ENG-1185), close two refusals that the room re-sent without end.
 
 **A passage closed is its own event, with the Session gone's destination.** The server
@@ -27,8 +27,15 @@ wherever the room stands.** Whether the room learns it from the call, a door, th
 a resume, it lets go of that session the same way: its Resume point, wherever in the book
 it is, its Outbox rows and their files, and its kept takes, and the session is never
 opened again. Only that session's: a newer session in the same passage keeps its place,
-and the passage opens afresh from the Wheel. Only when it is the session the room stands
-in does the room also leave it for the Choice. An answer about an earlier session never
+and the passage opens afresh from the Wheel. The Outbox rows and the files go whatever
+the Resume points answer, even when they cannot be read. Only when it is the session the
+room stands in does the room also leave it for the Choice.
+
+This widens ADR 0051, which let an older session's gone discard only its Outbox rows and
+copies: the Resume point goes too, and the passage then opens afresh. It squares with the
+option 0051 rejected, a reopening that silently starts a fresh session: a reopening that
+meets the gone session still opens the Choice, so the team is told; only the next tap,
+with nothing of the session left, starts fresh. An answer about an earlier session never
 swallows the call the room owes the session it stands in now. Every other refusal
 of the call keeps the ladder; a network failure keeps the Reach.
 

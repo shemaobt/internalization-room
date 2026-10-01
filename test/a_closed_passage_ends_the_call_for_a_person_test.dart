@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
+import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -301,8 +302,6 @@ void main() {
     _sala(container).leaveThePassage();
     await _naEscolha(container);
     await settle();
-    harness.emAberto.holdNextRead();
-
     harness.room.finishHeldAskForAPerson();
     await waitFor(
       'a passagem ser marcada fechada',
@@ -317,7 +316,6 @@ void main() {
       () => harness.emAberto.written.length > 1,
     );
     final nova = _estado(container).sessionId!;
-    harness.emAberto.finishHeldRead();
     await settle(_severalStepsOfTheLadder);
 
     expect((await harness.emAberto.of('Ruth', 'P01'))?.sessionId, nova);
@@ -476,5 +474,40 @@ void main() {
 
       await voltaParaAPrimeira(harness, container, primeira);
     });
+  });
+
+  test('a passage closed leaves no Outbox row or file of the session even when '
+      'the Resume points cannot be read', () async {
+    final casa = Directory.systemTemp.createTempSync('sala-lugar-ilegivel');
+    addTearDown(() => casa.deleteSync(recursive: true));
+    Directory('${casa.path}/guardadas').createSync(recursive: true);
+    File(
+      '${casa.path}/guardadas/em_curso.json',
+    ).writeAsStringSync('{"Ruth/P01": isto nao e json');
+    final harness = SalaHarness(
+      emAbertoNoDisco: WorkInProgress(
+        home: () async => casa,
+        recordings: () async =>
+            Directory('${casa.path}/recordings')..createSync(recursive: true),
+      ),
+    );
+    final container = await _naPassagem(harness);
+    final sessao = _estado(container).sessionId!;
+    final linha = await harness.takes.enqueue(
+      harness.recorder.aFile('parte-guardada'),
+      sessionId: sessao,
+      kind: 'ensaio',
+      scope: 'parte-1',
+      passNumber: 1,
+      chunkIndex: 1,
+    );
+
+    await _aPassagemFechaNoPedidoDePessoa(harness, container);
+    await _naEscolha(container);
+    await settle(_severalStepsOfTheLadder);
+
+    expect(await _daSessao(harness, sessao), isEmpty);
+    expect(File(linha.path).existsSync(), isFalse);
+    expect(harness.room.calls, isNot(contains('sendTake')));
   });
 }

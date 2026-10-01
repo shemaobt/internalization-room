@@ -2362,16 +2362,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final open = _emAberto;
     final queue = _takes;
     final recorder = _recorder;
-    final forgotten = sessionId == null
-        ? const <ResumePoint>[]
-        : await open.forgetTheSession(sessionId);
-    for (final path in {
-      ...kept,
-      for (final row in forgotten) ...row.takes.map((take) => take.path),
-    }) {
+    if (sessionId != null) await queue.discardTheSession(sessionId);
+    for (final path in kept) {
       await recorder.delete(path);
     }
-    if (sessionId != null) await queue.discardTheSession(sessionId);
+    if (sessionId == null) return;
+    for (final row in await open.forgetTheSession(sessionId)) {
+      for (final take in row.takes) {
+        if (!kept.contains(take.path)) await recorder.delete(take.path);
+      }
+    }
   }
 
   void _openTheChoice() {
