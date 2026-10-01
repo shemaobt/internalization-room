@@ -233,6 +233,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   bool _conviteOpened = false;
   Future<void>? _probing;
   Future<RoomReach>? _asking;
+  bool _aStepAsks = false;
   Future<void> Function()? _pending;
   final Map<String, String> _stretchKeys = {};
   bool _strandedSpoken = false;
@@ -1422,12 +1423,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _dispatch(NetworkFailedAt(door));
   }
 
-  void _theStepFell([
-    RoomReach why = RoomReach.noNetwork,
-    Door door = Door.step,
-  ]) {
+  void _theStepFell([RoomReach why = RoomReach.noNetwork]) {
     _pending ??= _theStationAgain();
-    _outOfReach(door, why);
+    _outOfReach(Door.step, why);
+    _theStepWaits();
+  }
+
+  void _theStepWaits() {
+    _pending ??= _theStationAgain();
     _leaveThinking();
     state = state.copyWith(awaitingTheGuide: false, peerCue: false);
   }
@@ -1476,8 +1479,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _networkWatch = null;
   }
 
-  Future<RoomReach> _askTheRoom() =>
-      _asking ??= _network.reachRoom().whenComplete(() => _asking = null);
+  Future<RoomReach> _askTheRoom({bool forAStep = false}) {
+    _aStepAsks = _aStepAsks || forAStep;
+    return _asking ??= _network
+        .reachRoom()
+        .then((reach) {
+          final falls = _aStepAsks || !state.machine.reachable;
+          _aStepAsks = false;
+          if (!_gone && falls && reach != RoomReach.fine) {
+            _outOfReach(Door.probe, reach);
+          }
+          return reach;
+        })
+        .whenComplete(() => _asking = null);
+  }
 
   Future<void> _probeTheRoom() {
     final running = _probing;
@@ -1485,8 +1500,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final probe = () async {
       final reach = await _askTheRoom();
       if (_gone || state.machine.reachable) return;
-      if (reach == RoomReach.fine) return _theRoomIsBack();
-      _outOfReach(Door.probe, reach);
+      if (reach == RoomReach.fine) _theRoomIsBack();
     }();
     _probing = probe.whenComplete(() => _probing = null);
     return probe;
@@ -1751,11 +1765,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final epoch = _waitOnTheEpoch;
     state = state.copyWith(awaitingTheGuide: true);
     _watchBusyState();
-    final reach = await _askTheRoom();
+    final reach = await _askTheRoom(forAStep: true);
     if (epoch != _epoch) return;
     if (reach != RoomReach.fine) {
       _conviteOpened = false;
-      _theStepFell(reach, Door.probe);
+      _theStepWaits();
       return;
     }
     _watchBusyState();
@@ -2162,10 +2176,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final epoch = _waitOnTheEpoch;
     state = state.copyWith(awaitingTheGuide: true);
     _watchBusyState();
-    final reach = await _askTheRoom();
+    final reach = await _askTheRoom(forAStep: true);
     if (epoch != _epoch) return;
     if (reach != RoomReach.fine) {
-      _theStepFell(reach, Door.probe);
+      _theStepWaits();
       return;
     }
     _watchBusyState();
@@ -2316,11 +2330,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchBusyState();
     final openingClock = TurnClock();
     _pendingClock = openingClock;
-    final reach = await _askTheRoom();
+    final reach = await _askTheRoom(forAStep: true);
     if (epoch != _epoch) return;
     openingClock.mark('health');
     if (reach != RoomReach.fine) {
-      _theStepFell(reach, Door.probe);
+      _theStepWaits();
       return;
     }
     // Re-armed, not armed once: the ceiling is meant to say "nothing has happened for two
@@ -3331,11 +3345,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     _watchBusyState();
     final epoch = _waitOnTheEpoch;
-    final reach = await _askTheRoom();
+    final reach = await _askTheRoom(forAStep: true);
     if (epoch != _epoch) return;
     if (reach != RoomReach.fine) {
       _conviteOpened = false;
-      _theStepFell(reach, Door.probe);
+      _theStepWaits();
       return;
     }
     _watchBusyState();
@@ -5726,6 +5740,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _coverageSessionId = null;
     _roomFailures = 0;
     _contadasSemResposta.clear();
+    _stretchKeys.clear();
     _resumeFailures = 0;
     _strandedSpoken = false;
     _personAsked = false;

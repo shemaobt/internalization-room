@@ -733,6 +733,39 @@ void main() {
     );
   });
 
+  test('5: a probe answer that two callers wait on is one fall, one rung of '
+      'the ladder', () async {
+    final harness = SalaHarness(
+      retryBackoff: const [
+        Duration(hours: 1),
+        Duration(milliseconds: 100),
+        Duration(hours: 1),
+      ],
+    );
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final room = _Room(harness, container);
+    harness.room.reachable = false;
+    await room.sala.abrirEscolha();
+    await room.outOfReach('pela roda');
+    harness.room.reachable = true;
+    harness.network.reachable = false;
+    harness.network.holdNextCheck();
+    room.sala.retryNow();
+    await settle();
+    unawaited(room.sala.goConversa(pericope: 'P01'));
+    await settle();
+    final checks = harness.network.checks;
+
+    harness.network.finishHeldCheck();
+
+    await waitFor(
+      'a escada tentar de novo no degrau seguinte',
+      () => harness.network.checks > checks,
+      limit: const Duration(seconds: 1),
+    );
+  });
+
   test('5: the reads after a resumed telling-back name a recording the tablet '
       'does not hold', () async {
     final harness = SalaHarness(retryBackoff: _aLadderThatWaits)
