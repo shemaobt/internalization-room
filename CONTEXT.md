@@ -105,7 +105,7 @@ Whose open microphone the Channel holds: the conversation, the rehearsal, the ca
 _Avoid_: listening (the circle's voice, not the fact), recording flag
 
 **Queued line**:
-A line that arrived with no gesture while the microphone was open or a halt stood, played once the Channel is free; one of each kind waits.
+A line, spontaneous or the answer to a gesture, that arrived while the Channel was not free (a sound playing, the microphone open or a blocking halt standing), played once it is free; one of each kind waits, in arrival order (ADR 0049).
 _Avoid_: pending line, interrupted line
 
 ### What is recorded and told

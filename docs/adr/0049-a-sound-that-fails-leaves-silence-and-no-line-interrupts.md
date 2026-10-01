@@ -27,7 +27,8 @@ is one source and a stretch is one source; a success on that source resets the c
 so does a failure on another one. Guide lines move from the third failure to the second.
 The Guide's fixed courtesy lines (the instant acknowledgement, the offline notice, the
 stranded line, the blocked microphone) and the facilitator's reply are not counted: the
-reply keeps its own set-aside rule. Henok, 30-09.
+reply keeps its own set-aside rule. The second failure raises a blocking halt, which is how
+the room calls a person. Leaving the passage forgets the count. Henok, 30-09.
 
 **No line interrupts.** Every line, spontaneous or the answer to a gesture, waits in the
 queue until the Channel is free: one line of each kind, in arrival order, while a sound
@@ -35,7 +36,15 @@ plays, a microphone is open or a blocking halt stands. Only a halt and leaving t
 silence what is sounding. A team gesture that changes what sounds (a bead, the pause, the
 scissors, opening a microphone, moving the wheel) still stops or holds the sound first, as
 ADR 0024 says; the rule governs lines, not gestures. When the gesture is over, a free
-Channel plays the line that waited. Henok, 30-09.
+Channel plays the line that waited. A sound paused beneath a line stays paused and
+resumable, and the gesture that resumes it stops the line first. Henok, 30-09.
+
+**A waiting line lives as long as what it is about.** A line that answers a Step (the
+turn's reply, the verdict's line, the acknowledgement, the approved line, the
+facilitator's reply) leaves the queue unsaid only when the room leaves that Step; a fall
+out of reach or a halt keeps it waiting. A waiting offline notice leaves the queue when the
+Reach comes back: a fall that is over is never announced. The Orchestrator, 01-10, to be
+confirmed by Henok.
 
 **The voice is a reading, never a fact.** The circle's voice is derived from the Halt, the
 Reach, the Channel and the Step: a blocking halt, then the Reach down, then an open
