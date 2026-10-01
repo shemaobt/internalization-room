@@ -2281,6 +2281,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<RoomAnswer<SessionSnapshot>> _createThePassage(
     String? pericope,
+    int epoch,
   ) async {
     final after = _panoramaSessionId;
     final answer = await _room.createSession(
@@ -2290,6 +2291,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     if (answer case SessionGone() when after != null) {
       _letGoOf(after);
+      if (epoch != _epoch) return answer;
       return _room.createSession(pericope: pericope, language: _lingua);
     }
     return answer;
@@ -2453,7 +2455,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final resumed = waiting != null;
     var created = resumed ? null : opened;
     if (!resumed && opened == null) {
-      switch (await _createThePassage(pericope)) {
+      switch (await _createThePassage(pericope, epoch)) {
         case Answered(value: final session):
           created = session;
         case final RoomFailure failure:

@@ -994,6 +994,18 @@ class FakeRoom implements RoomRepository {
 
   void holdNextCode() => _holdingCode = Completer<void>();
 
+  Completer<void>? _holdingCreate;
+  Completer<void>? _heldCreate;
+
+  void holdNextCreate() => _holdingCreate = Completer<void>();
+
+  bool get createHeld => _heldCreate != null;
+
+  void finishHeldCreate() {
+    _heldCreate?.complete();
+    _heldCreate = null;
+  }
+
   void finishHeldCode() {
     _holdingCode?.complete();
     _holdingCode = null;
@@ -1147,6 +1159,12 @@ class FakeRoom implements RoomRepository {
     required String language,
   }) async {
     if (_guard('createSession') case final failure?) return failure;
+    final held = _holdingCreate;
+    _holdingCreate = null;
+    if (held != null) {
+      _heldCreate = held;
+      await held.future;
+    }
     if (pericope != null && passagesThatCannotOpen.contains(pericope)) {
       return const Refused(RefusalCode.passageCannotOpen);
     }

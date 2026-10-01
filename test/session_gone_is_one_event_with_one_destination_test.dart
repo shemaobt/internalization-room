@@ -552,6 +552,38 @@ void main() {
     expect(harness.room.metBefore.last, isFalse);
   });
 
+  test('a team that leaves while the creation after a gone panorama is in the '
+      'air sends no second creation', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final sala = container.read(salaSessionProvider.notifier);
+    await sala.openConvite();
+    await settle();
+    await sala.abrirEscolha();
+    await settle();
+    harness.room
+      ..forgetTheSession(harness.room.sessionIds.first)
+      ..holdNextCreate();
+    sala.entrarNaOferecida();
+    await waitFor('a criação sair', () => harness.room.createHeld);
+    final criacoes = harness.room.calls
+        .where((call) => call == 'createSession')
+        .length;
+
+    sala.leaveThePassage();
+    await _naEscolha(container);
+    harness.room.finishHeldCreate();
+    await settle(const Duration(milliseconds: 300));
+
+    expect(
+      harness.room.calls.where((call) => call == 'createSession').length,
+      criacoes,
+      reason:
+          'a equipe já saiu; uma segunda criação deixaria uma sessão fantasma',
+    );
+  });
+
   test('leaving a passage by the way out keeps the room out of reach, with '
       'its retry armed', () async {
     final harness = SalaHarness(
