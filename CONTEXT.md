@@ -105,7 +105,7 @@ Whose open microphone the Channel holds: the conversation, the rehearsal, the ca
 _Avoid_: listening (the circle's voice, not the fact), recording flag
 
 **Gesture on its way**:
-A gesture of the team from the moment it starts until everything it started has ended, the gesture it hands off to included, or until the room gives up on what it was waiting for. Its own sounds pass, the instant acknowledgement of a turn among them; every other line, the courtesy lines (offline, stranded recording, microphone blocked) included, waits until it ends (ADR 0049).
+A gesture of the team from the moment it starts until everything it started has ended, the gesture it hands off to included, or until the room gives up on what that gesture was waiting for. Its own sounds pass, the instant acknowledgement of a turn among them; every other line, the courtesy lines (offline, stranded recording, microphone blocked) included, waits until it ends (ADR 0049).
 _Avoid_: busy, pending gesture
 
 **Queued line**:

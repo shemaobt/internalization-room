@@ -48,10 +48,12 @@ to none (the Outbox, the place kept on the tablet, the Watch, the room's listene
 speaks for one, and the courtesy lines never do. The instant acknowledgement is not a
 courtesy line: it is the first line of the turn's answer, the gesture's own, and passes
 like the reply. A gesture ends when everything it started has ended, the gesture it hands
-off to included, or when the room gives up on what it was waiting for: leaving a passage,
-the watchdog giving up on a wait, and every other path that abandons the room's waits end
-the gestures that were on their way, all but the one doing the abandoning. The
-Orchestrator, 01-10, to be confirmed by Henok.
+off to included, or when the room gives up on what that gesture was waiting for. Leaving a
+passage, the watchdog giving up on a wait, and every other path that abandons the room's
+waits end the gestures that were waiting on what they abandon; a gesture whose flow does
+not wait on it, such as the hand's reply, stays on its way. The gesture doing the
+abandoning, and the gestures it was started from, are never ended by it. The Orchestrator,
+01-10, to be confirmed by Henok.
 
 **A waiting line lives as long as what it is about.** A line that answers a Step (the
 turn's reply, the verdict's line, the acknowledgement, the approved line, the
