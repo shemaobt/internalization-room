@@ -669,6 +669,31 @@ void main() {
     );
   });
 
+  test("leaving a passage ends its gestures, so the wheel's line never waits "
+      'for an opening the team walked away from', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final sala = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await sala.abrirEscolha();
+    await waitFor('a roda carregar', () => read().naRoda != null);
+    await settle();
+    final oferecida = read().oferecida!.audioUrl;
+    final ditas = harness.voice.played.where((url) => url == oferecida).length;
+    harness.room.holdNextTurn();
+
+    sala.entrarNaOferecida();
+    await waitFor('a passagem abrir', () => read().sessionId != null);
+    sala.leaveThePassage();
+    await waitFor(
+      'a roda dizer a passagem sem esperar a abertura abandonada',
+      () =>
+          harness.voice.played.where((url) => url == oferecida).length > ditas,
+    );
+    harness.room.finishHeldTurn();
+  });
+
   group('the spontaneous lines wait for the Channel', () {
     test('the facilitator\'s reply asked for under an open microphone plays '
         'only after it closes', () async {

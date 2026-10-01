@@ -576,8 +576,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   T _apart<T>(T Function() flow) =>
       runZoned(flow, zoneValues: {_gestureChain: const <int>[]});
 
-  Machine get _gesturesOnTheirWay =>
-      Machine(onTheirWay: state.machine.onTheirWay);
+  Machine get _gesturesOnTheirWay => Machine(
+    onTheirWay: state.machine.onTheirWay.intersection(_chain.toSet()),
+  );
 
   List<int> get _chain => Zone.current[_gestureChain] as List<int>? ?? const [];
 
@@ -1541,18 +1542,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // how Cloud Run's 300 s cut reaches the tablet — read as a refusal, it left the beads
     // waiting on the fallback again, the very bug the reopen exists to fix.
     var refused = false;
-    _coverageWatch = _room
-        .watchCoverage(sessionId)
-        .listen(
-          _onCoverageFrame,
-          onDone: () => _coverageChannelDied(sessionId, reopen: !refused),
-          onError: (Object error) {
-            refused =
-                error is SessionGone ||
-                error is Refused &&
-                    RefusalCode.stopsTheRoom.contains(error.code);
-          },
-        );
+    _coverageWatch = _apart(
+      () => _room
+          .watchCoverage(sessionId)
+          .listen(
+            _onCoverageFrame,
+            onDone: () => _coverageChannelDied(sessionId, reopen: !refused),
+            onError: (Object error) {
+              refused =
+                  error is SessionGone ||
+                  error is Refused &&
+                      RefusalCode.stopsTheRoom.contains(error.code);
+            },
+          ),
+    );
   }
 
   /// A dead channel is always forgotten, so the next turn that needs one does not find a
