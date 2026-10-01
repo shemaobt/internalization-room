@@ -414,7 +414,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     final ended = Completer<_Said>();
     _sayings[line] = (say: say, ended: ended);
-    _dispatch(LineArrived(line, by: _chain));
+    _dispatch(LineArrived(line, by: kind.answersAStep ? _chain : const []));
     return ended.future;
   }
 
@@ -463,9 +463,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _after(String key, Duration delay, VoidCallback fn) {
     _timers[key]?.cancel();
     final epoch = _epoch;
-    _timers[key] = Timer(delay, () {
-      if (epoch == _epoch) fn();
-    });
+    _timers[key] = _apart(
+      () => Timer(delay, () {
+        if (epoch == _epoch) fn();
+      }),
+    );
   }
 
   void _cancelTimers() {
@@ -571,6 +573,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!_gone) _dispatch(GestureEnded(gesture));
   }
 
+  T _apart<T>(T Function() flow) =>
+      runZoned(flow, zoneValues: {_gestureChain: const <int>[]});
+
+  Machine get _gesturesOnTheirWay =>
+      Machine(onTheirWay: state.machine.onTheirWay);
+
   List<int> get _chain => Zone.current[_gestureChain] as List<int>? ?? const [];
 
   void _silenceTheRoom({bool holdTheClip = false}) {
@@ -626,15 +634,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _listenForTheEnd() {
-    _playbackDone ??= _playback.completions.listen((_) => _releasePlayback());
-    _playbackFailed ??= _playback.failures.listen(
-      (_) => _cannotPlayTheirOwnAudio(),
-    );
-    _playbackOpened ??= _playback.openings.listen((_) {
-      _dispatch(const PlayerOpened());
-      _watchPlayback();
-      _medirAParteNoAr();
-      if (state.btClipRodando) _armCursorDeadline();
+    _apart(() {
+      _playbackDone ??= _playback.completions.listen((_) => _releasePlayback());
+      _playbackFailed ??= _playback.failures.listen(
+        (_) => _cannotPlayTheirOwnAudio(),
+      );
+      _playbackOpened ??= _playback.openings.listen((_) {
+        _dispatch(const PlayerOpened());
+        _watchPlayback();
+        _medirAParteNoAr();
+        if (state.btClipRodando) _armCursorDeadline();
+      });
     });
   }
 
@@ -1067,10 +1077,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (_watch?.isActive ?? false) return;
-    _watch = Timer(period, () {
-      _watch = null;
-      _dispatch(const WatchFired());
-    });
+    _watch = _apart(
+      () => Timer(period, () {
+        _watch = null;
+        _dispatch(const WatchFired());
+      }),
+    );
   }
 
   void _endTheWatch() {
@@ -1382,9 +1394,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _watchForNetwork() {
-    _networkWatch ??= _network.onNetworkReturned.listen((_) {
-      unawaited(_attemptReturn());
-    });
+    _networkWatch ??= _apart(
+      () => _network.onNetworkReturned.listen((_) {
+        unawaited(_attemptReturn());
+      }),
+    );
   }
 
   void _scheduleRetry() {
@@ -1392,7 +1406,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final step = _retryStep < backoff.length ? _retryStep : backoff.length - 1;
     _retryStep++;
     _ladder?.cancel();
-    _ladder = Timer(backoff[step], () => unawaited(_attemptReturn()));
+    _ladder = _apart(
+      () => Timer(backoff[step], () => unawaited(_attemptReturn())),
+    );
   }
 
   Future<void> _attemptReturn() async {
@@ -2121,7 +2137,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _clearAll();
     _dropThePendingTake();
     _forgetThePassage();
-    state = const SalaSessionState();
+    state = SalaSessionState(machine: _gesturesOnTheirWay);
     _handOff(abrirEscolha());
   }
 
@@ -2158,6 +2174,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _forgetThePassage();
     _emCurso = pericope;
     state = SalaSessionState(
+      machine: _gesturesOnTheirWay,
       stage: SalaStage.conversa,
       awaitingTheGuide: true,
       naRoda: livro.naRoda,
@@ -3445,7 +3462,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     required String scope,
     int? passNumber,
     int? chunkIndex,
-  }) async {
+  }) => _apart(() async {
     if (_gone) return;
     final queue = _takes;
     final sessionId = state.sessionId;
@@ -3481,7 +3498,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     await queue.flush();
     await _countUnsent();
     await _adoptTheNames(queue);
-  }
+  });
 
   /// Take a guarded translation off the outbox, for a path the room will never send
   /// as a whole-passage take: one recorded over after a refusal, or one told again
@@ -3543,7 +3560,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final openedAsAChunkCapture = state.btPhase == BtPhase.capturing;
     final draft =
         state.ensaio == EnsaioStatus.recording || openedAsAChunkCapture;
-    _micWatch ??= _recorder.interrupted.listen(_theMicrophoneChangedHands);
+    _micWatch ??= _apart(
+      () => _recorder.interrupted.listen(_theMicrophoneChangedHands),
+    );
     final capture = await _recorder.start(fileName, draft: draft);
     if (_gone) return;
     // The answer can arrive a minute late — `hasPermission` waits up to sixty seconds for
@@ -3632,7 +3651,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// question, and still asked.
   int _newestCount = 0;
 
-  Future<void> _countUnsent() async {
+  Future<void> _countUnsent() => _apart(() async {
     if (_gone) return;
     final epoch = _epoch;
     final counting = ++_newestCount;
@@ -3652,7 +3671,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       unsentChunks: tally.unsentChunks,
       unsentTakeScopes: tally.unsentTakeScopes,
     );
-  }
+  });
 
   /// Mind the team's place on disk, and say so when the disk will not take it.
   ///
@@ -3667,13 +3686,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// passage the team already closed, and walking back into it resumes a session the
   /// server has forgotten. Nothing else in the room ever notices that entry, so if this
   /// does not say it, no one does.
-  Future<void> _mindingThePlace(Future<void> Function() write) async {
-    try {
-      await write();
-    } on Object {
-      _sayARecordingIsStranded();
-    }
-  }
+  Future<void> _mindingThePlace(Future<void> Function() write) =>
+      _apart(() async {
+        try {
+          await write();
+        } on Object {
+          _sayARecordingIsStranded();
+        }
+      });
 
   void _sayARecordingIsStranded() {
     if (_strandedSpoken || _gone) return;
@@ -5464,7 +5484,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _clearAll();
     _forgetThePassage();
     _panoramaSessionId = null;
-    state = const SalaSessionState();
+    state = SalaSessionState(machine: _gesturesOnTheirWay);
     return abrirEscolha();
   }
 

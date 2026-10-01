@@ -63,6 +63,16 @@ class _OutboxThatGaveUp extends TakeUploadQueue {
   }
 }
 
+class _LedgerThatCannotWrite extends FakeWorkInProgress {
+  bool refuses = false;
+
+  @override
+  Future<void> remember(String book, String pericope, ResumePoint point) async {
+    if (refuses) throw const FileSystemException('disco cheio');
+    return super.remember(book, pericope, point);
+  }
+}
+
 String get _stranded => strandedTakeAsset(testLanguage);
 
 Future<(SalaHarness, ProviderContainer, SalaSessionState Function())>
@@ -335,6 +345,8 @@ void main() {
     expect(harness.voice.played, isNot(contains('/resposta-1')));
 
     unawaited(sala.goConversa(pericope: 'P01'));
+    await settle();
+    harness.voice.finishHeldLine();
     await waitFor(
       'a resposta tocar depois de reentrar na mesma conversa',
       () => harness.voice.played.contains('/resposta-1'),
@@ -626,6 +638,34 @@ void main() {
       reason:
           'a linha que esperava nunca começa para ser cortada: '
           '${harness.sounds.skip(marca).toList()}',
+    );
+  });
+
+  test("a background line a gesture's own flow happens to start waits for that "
+      'gesture, whose own opening plays first', () async {
+    final ledger = _LedgerThatCannotWrite();
+    final harness = SalaHarness(emAbertoNoDisco: ledger);
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final sala = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await sala.abrirEscolha();
+    await waitFor('a roda carregar', () => read().naRoda != null);
+    await settle();
+    ledger.refuses = true;
+    final marca = harness.sounds.length;
+
+    sala.entrarNaOferecida();
+    await waitFor(
+      'a linha da gravação presa tocar',
+      () => harness.voice.assets.contains(_stranded),
+    );
+
+    final depois = harness.sounds.skip(marca).toList();
+    expect(
+      depois.indexOf('voice:line'),
+      allOf(isNonNegative, lessThan(depois.indexOf('voice:asset'))),
+      reason: 'a abertura do gesto toca antes da linha de fundo: $depois',
     );
   });
 

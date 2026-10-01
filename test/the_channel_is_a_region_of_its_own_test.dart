@@ -359,6 +359,33 @@ void main() {
       },
     );
 
+    test(
+      "the gesture's own line enters ahead of the background lines waiting",
+      () {
+        final (machine, effects) = _run(const Machine(), const [
+          GestureStarted(1),
+          LineArrived(_notice),
+          LineArrived(_guide1, by: [1]),
+        ]);
+
+        expect(effects, [const PlayLine(_guide1)]);
+        expect(machine.queue, [_notice]);
+      },
+    );
+
+    test('a line tagged by a gesture that already ended never ends a later '
+        "gesture's wait", () {
+      final (machine, effects) = _run(const Machine(), const [
+        GestureStarted(1),
+        GestureEnded(1),
+        GestureStarted(2),
+        LineArrived(_notice, by: [1]),
+      ]);
+
+      expect(effects, isEmpty);
+      expect(machine.queue, [_notice]);
+    });
+
     test('a waiting line plays only after every gesture on its way ended', () {
       final (stillWaiting, first) = _run(const Machine(), const [
         GestureStarted(1),
