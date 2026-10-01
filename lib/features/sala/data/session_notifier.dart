@@ -336,6 +336,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _lines = 0;
   int _gestures = 0;
   final Map<int, int> _handedOff = {};
+  final Set<int> _waitingOnTheEpoch = {};
   final Map<Line, ({Future<bool> Function() say, Completer<_Said> ended})>
   _sayings = {};
   VoidCallback? _onPlaybackComplete;
@@ -462,7 +463,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _after(String key, Duration delay, VoidCallback fn) {
     _timers[key]?.cancel();
-    final epoch = _epoch;
+    final epoch = _waitOnTheEpoch;
     _timers[key] = _apart(
       () => Timer(delay, () {
         if (epoch == _epoch) fn();
@@ -479,8 +480,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _endTheGesturesAbandoned();
   }
 
+  int get _waitOnTheEpoch {
+    _waitingOnTheEpoch.addAll(_chain);
+    return _epoch;
+  }
+
   void _endTheGesturesAbandoned() {
-    for (final gesture in state.machine.onTheirWay.difference(_chain.toSet())) {
+    final abandoned = _waitingOnTheEpoch.difference(_chain.toSet());
+    _waitingOnTheEpoch.clear();
+    for (final gesture in abandoned.intersection(state.machine.onTheirWay)) {
       _endTheGesture(gesture);
     }
   }
@@ -767,7 +775,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     bool remember = true,
     void Function()? onSoundStart,
   }) async {
-    final epoch = _epoch;
+    final epoch = _waitOnTheEpoch;
     final played = await _sayALine(
       LineKind.guide,
       () => fixedLine.isEmpty
@@ -810,7 +818,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> _repeatLastSpoken(SpokenLine line) async {
-    final epoch = _epoch;
+    final epoch = _waitOnTheEpoch;
     await _readyToRepeat(line.url, line.fixedLine);
     if (epoch != _epoch) return;
     _watchBusyState();
@@ -843,7 +851,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       await hearAgain();
       return;
     }
-    final epoch = _epoch;
+    final epoch = _waitOnTheEpoch;
     state = state.copyWith(contasEnfiadas: false);
     await _readyToRepeat(line.panoramaUrl, '');
     if (epoch != _epoch) return;
@@ -1452,7 +1460,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _ladder?.cancel();
     unawaited(_networkWatch?.cancel());
     _networkWatch = null;
-    final epoch = _epoch;
+    final epoch = _waitOnTheEpoch;
     final queue = _takes;
     unawaited(
       queue.flush().then((_) async {
@@ -1655,7 +1663,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// something, and the clock that measures the trip only marks a beat that happened:
   /// stamping it on a pull that changed nothing timed a turn that never actually landed.
   Future<bool> _pullState(String sessionId, {TurnClock? clock}) async {
-    final epoch = _epoch;
+    final epoch = _waitOnTheEpoch;
     final sent = ++_readsSent;
     final row = state.btTrechos;
     switch (await _room.fetchState(sessionId)) {
@@ -1690,7 +1698,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> openConvite() async {
     if (state.stage != SalaStage.convite || _conviteOpened) return;
     _conviteOpened = true;
-    final epoch = _epoch;
+    final epoch = _waitOnTheEpoch;
     state = state.copyWith(awaitingTheGuide: true);
     _watchBusyState();
     final reach = await _network.reachRoom();
@@ -1757,7 +1765,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> _voicePanorama(TurnResult turn) async {
-    final epoch = _epoch;
+    final epoch = _waitOnTheEpoch;
     await _readyToSpeak(turn.audioUrl, turn.fixedLine);
     if (epoch != _epoch) return;
     _watchBusyState();
@@ -1814,7 +1822,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> _finishPanoramaListening() async {
-    final epoch = _epoch;
+    final epoch = _waitOnTheEpoch;
     final path = await _recorder.stop();
     _dispatch(const MicClosed());
     if (epoch != _epoch) return;
@@ -1865,7 +1873,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     _leaveTheStepFor(SalaStage.escolha);
     _clearAll();
-    final epoch = _epoch;
+    final epoch = _waitOnTheEpoch;
     state = state.copyWith(
       stage: SalaStage.escolha,
       awaitingTheGuide: true,
@@ -2023,7 +2031,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _dizerAOferecida() async {
     final passagem = state.oferecida;
     if (passagem == null) return;
-    final epoch = _epoch;
+    final epoch = _waitOnTheEpoch;
     final aimed = state.aOferecer;
     bool moved() => epoch != _epoch || state.aOferecer != aimed;
     await _readyToSpeak(passagem.audioUrl, '');
@@ -2072,7 +2080,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// own guard gives: a retried touch would otherwise mint one abandoned panorama session
   /// per attempt.
   Future<void> _entrarNoPanorama() async {
-    final epoch = _epoch;
+    final epoch = _waitOnTheEpoch;
     state = state.copyWith(awaitingTheGuide: true);
     _watchBusyState();
     final reach = await _network.reachRoom();
@@ -2218,7 +2226,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _leaveTheStepFor(SalaStage.conversa);
     _clearAll();
     _emCurso = pericope;
-    final epoch = _epoch;
+    final epoch = _waitOnTheEpoch;
     state = state.copyWith(
       stage: SalaStage.conversa,
       awaitingTheGuide: true,
@@ -2426,7 +2434,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _askForTheOpeningAgain() async {
     final sessionId = state.sessionId;
     if (sessionId == null) return;
-    final epoch = _epoch;
+    final epoch = _waitOnTheEpoch;
     _sayImThinking();
     state = state.copyWith(awaitingTheGuide: true);
     _watchBusyState();
@@ -2763,7 +2771,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> _finishListening() async {
-    final epoch = _epoch;
+    final epoch = _waitOnTheEpoch;
     final turnClock = TurnClock()..mark('stop');
     final path = await _recorder.stop();
     _dispatch(const MicClosed());
@@ -3056,7 +3064,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// bool that cannot tell that refusal from an outage, so every refusal pulls; a pull is
   /// one GET, and after an outage it changes nothing.
   Future<void> _markHeard(String replyId, {required String audioUrl}) async {
-    final epoch = _epoch;
+    final epoch = _waitOnTheEpoch;
     state = state.copyWith(
       replies: _replies(replyId, heard: true),
       clearPlayingReply: true,
@@ -3091,7 +3099,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> _deliverQuestion() async {
-    final epoch = _epoch;
+    final epoch = _waitOnTheEpoch;
     final path = await _recorder.stop();
     _dispatch(const MicClosed());
     if (epoch != _epoch) return;
@@ -3165,7 +3173,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       noteMode: false,
     );
     _watchBusyState();
-    final epoch = _epoch;
+    final epoch = _waitOnTheEpoch;
     final reach = await _network.reachRoom();
     if (epoch != _epoch) return;
     if (reach != RoomReach.fine) {
@@ -3320,7 +3328,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// quick check found no path and dropped the take without a word. Staying in
   /// `recording` for those few frames is also the truer thing to show.
   Future<void> _finishTake() async {
-    final epoch = _epoch;
+    final epoch = _waitOnTheEpoch;
     final path = await _recorder.stop();
     _dispatch(const MicClosed());
     if (epoch != _epoch) return;
@@ -3561,7 +3569,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> refreshUnsent() => _countUnsent();
 
   Future<void> _recordOrBlock(String fileName) async {
-    final epoch = _epoch;
+    final epoch = _waitOnTheEpoch;
     final start = ++_starts;
     final openedAsAChunkCapture = state.btPhase == BtPhase.capturing;
     final draft =
@@ -3659,7 +3667,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _countUnsent() => _apart(() async {
     if (_gone) return;
-    final epoch = _epoch;
+    final epoch = _waitOnTheEpoch;
     final counting = ++_newestCount;
     final queue = _takes;
     final sessionId = state.sessionId;
@@ -4556,7 +4564,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> _finishChunkCapture() async {
-    final epoch = _epoch;
+    final epoch = _waitOnTheEpoch;
     state = state.copyWith(btPhase: BtPhase.thinking, awaitingTheGuide: true);
     _watchBusyState();
     final path = await _recorder.stop();
@@ -4599,7 +4607,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final path = state.btTraducaoPendente!;
     final sessionId = state.sessionId;
     if (sessionId == null) return;
-    final epoch = _epoch;
+    final epoch = _waitOnTheEpoch;
     _silenceTheRoom(holdTheClip: true);
     state = state.copyWith(btPhase: BtPhase.thinking, awaitingTheGuide: true);
     _watchBusyState();
@@ -4762,7 +4770,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
 
-    final epoch = _epoch;
+    final epoch = _waitOnTheEpoch;
     state = state.copyWith(btPhase: BtPhase.thinking, awaitingTheGuide: true);
     _watchBusyState();
     final BackTranslationVerdict verdict;
@@ -4888,7 +4896,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _aprovando = true;
-    final epoch = _epoch;
+    final epoch = _waitOnTheEpoch;
     void failed(RoomFailure failure) {
       if (epoch != _epoch) return;
       _handleRoomFailure(failure);

@@ -770,6 +770,58 @@ void main() {
     expect(respostaAntes, isTrue, reason: 'a resposta do turno vem antes');
   });
 
+  test("a turn that falls offline does not end the hand's reply, which still "
+      'plays ahead of a waiting courtesy line', () async {
+    _OutboxThatGaveUp? outbox;
+    final harness = SalaHarness(
+      replies: const [HandReply(id: 'r1', audioUrl: '/resposta-1')],
+      takesOverride: (room, home) =>
+          outbox = _OutboxThatGaveUp(room: room, home: () async => home),
+    );
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final sala = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await waitFor('a resposta chegar à mão', () => read().hasUnheardReply);
+    final ditas = <String>[];
+    var urls = harness.voice.played.length;
+    var assets = harness.voice.assets.length;
+    harness.voice.aoFalar = () {
+      if (harness.voice.played.length > urls) {
+        urls = harness.voice.played.length;
+        ditas.add(harness.voice.played.last);
+      }
+      if (harness.voice.assets.length > assets) {
+        assets = harness.voice.assets.length;
+        ditas.add(harness.voice.assets.last);
+      }
+    };
+    harness.voice.holdNextLine();
+    harness.room.holdNextTurn();
+    sala.conversaTap();
+    await waitFor('o microfone abrir', () => read().channel is Microphone);
+    sala.conversaTap();
+    await waitFor('a Guia falar', () => read().channel is GuideSpeaking);
+    outbox!.gaveUp = true;
+    await sala.refreshUnsent();
+    sala.handTap();
+    await settle();
+    harness.room.failHeldTurnWith = const NetworkFailed('a conexão caiu');
+    harness.room.finishHeldTurn();
+    await settle();
+    harness.voice.finishHeldLine();
+
+    await waitFor(
+      'a linha da gravação presa tocar',
+      () => ditas.contains(_stranded),
+    );
+    expect(
+      ditas.indexOf('/resposta-1'),
+      allOf(isNonNegative, lessThan(ditas.indexOf(_stranded))),
+      reason: 'ninguém desistiu da resposta da mão: ela vem antes',
+    );
+  });
+
   test('a turn the room gave up on no longer holds a waiting line once the '
       'halt is lifted', () async {
     _OutboxThatGaveUp? outbox;
