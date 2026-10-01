@@ -31,8 +31,9 @@ reply keeps its own set-aside rule. The second failure raises a blocking halt, w
 the room calls a person. Leaving the passage forgets the count. Henok, 30-09.
 
 **No line interrupts.** Every line, spontaneous or the answer to a gesture, waits in the
-queue until the Channel is free: one line of each kind, in arrival order, while a sound
-plays, a microphone is open or a blocking halt stands. Only a halt and leaving the passage
+queue until the Channel is free: one line of each kind, while a sound plays, a microphone
+is open, a blocking halt stands or a gesture is on its way. Lines that wait play in arrival
+order, except a gesture's own line, which enters ahead of them. Only a halt and leaving the passage
 silence what is sounding. A team gesture that changes what sounds (a bead, the pause, the
 scissors, opening a microphone, moving the wheel) still stops or holds the sound first, as
 ADR 0024 says; the rule governs lines, not gestures. When the gesture is over, a free
@@ -77,7 +78,8 @@ an earlier one's wait. The machine holds the fact that a gesture is on its way, 
 stands no waiting line plays; a sound is a gesture's own only when the gesture says it, and
 its own line enters ahead of the lines waiting. A flow that outlives a gesture or belongs to
 none (the Outbox, the place kept on the tablet, the Watch, the room's listeners) never
-speaks for a gesture, and the courtesy lines never do; a line that arrives in the background never ends it, so a
+speaks for a gesture, and the courtesy lines never do. Leaving a passage ends the gestures
+that belonged to it; only the gesture opening the next one stays on its way; a line that arrives in the background never ends it, so a
 courtesy line can wait behind a turn for as long as the turn's own ceiling, 310 s. A line a
 gesture silenced was never said, whatever happens to the room afterwards.
 
