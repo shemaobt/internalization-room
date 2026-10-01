@@ -31,14 +31,23 @@ reply keeps its own set-aside rule. The second failure raises a blocking halt, w
 the room calls a person. Leaving the passage forgets the count. Henok, 30-09.
 
 **No line interrupts.** Every line, spontaneous or the answer to a gesture, waits in the
-queue until the Channel is free: one line of each kind, while a sound plays, a microphone
-is open, a blocking halt stands or a gesture is on its way. Lines that wait play in arrival
-order, except a gesture's own line, which enters ahead of them. Only a halt and leaving the passage
-silence what is sounding. A team gesture that changes what sounds (a bead, the pause, the
-scissors, opening a microphone, moving the wheel) still stops or holds the sound first, as
-ADR 0024 says; the rule governs lines, not gestures. When the gesture is over, a free
-Channel plays the line that waited. A sound paused beneath a line stays paused and
+queue until the Channel is free: while a sound plays, a microphone is open, a blocking halt
+stands or a gesture is on its way. Only a halt and leaving the passage silence what is
+sounding. A team gesture that changes what sounds (a bead, the pause, the scissors, opening
+a microphone, moving the wheel) still stops or holds the sound first, as ADR 0024 says; the
+rule governs lines, not gestures. A sound paused beneath a line stays paused and
 resumable, and the gesture that resumes it stops the line first. Henok, 30-09.
+
+**A gesture is on its way until it ends.** The machine holds which gestures are on their
+way. Every sound a gesture says is its own and passes: its lines, its parts, its
+microphone. Its own line enters ahead of the lines waiting, and is never dropped because a
+background line of its kind already waits. A background line waits until no gesture is on
+its way, and among the background lines one of each kind waits, in arrival order. A sound
+is a gesture's own only when the gesture says it: a flow that outlives a gesture or belongs
+to none (the Outbox, the place kept on the tablet, the Watch, the room's listeners) never
+speaks for one, and the courtesy lines never do. A gesture ends when everything it started
+has ended, the gesture it hands off to included; leaving a passage ends the gestures that
+belonged to it. The Orchestrator, 01-10, to be confirmed by Henok.
 
 **A waiting line lives as long as what it is about.** A line that answers a Step (the
 turn's reply, the verdict's line, the acknowledgement, the approved line, the
@@ -70,18 +79,15 @@ Two Step facts stand in for the Steps until ENG-1176 and ENG-1178 bring them: th
 awaiting the Guide, and the end of the passage. Until then the Station stands for the Step:
 leaving a Station ends both facts and drops the lines that answer it, and re-entering the
 Station the room is already in (the same conversation opened again, the wheel read again
-in the same visit) leaves them as they are. A gesture says at its end whether it started a
-sound, and a waiting line plays only if it did not. A gesture ends when everything it
-started has ended, the gesture it hands off to included: a flow it handed off to holds the
-wait until it puts its own sound into the Channel or ends, and a later gesture never ends
-an earlier one's wait. The machine holds the fact that a gesture is on its way, and while it
-stands no waiting line plays; a sound is a gesture's own only when the gesture says it, and
-its own line enters ahead of the lines waiting. A flow that outlives a gesture or belongs to
-none (the Outbox, the place kept on the tablet, the Watch, the room's listeners) never
-speaks for a gesture, and the courtesy lines never do. Leaving a passage ends the gestures
-that belonged to it; only the gesture opening the next one stays on its way; a line that arrives in the background never ends it, so a
-courtesy line can wait behind a turn for as long as the turn's own ceiling, 310 s. A line a
-gesture silenced was never said, whatever happens to the room afterwards.
+in the same visit) leaves them as they are.
+
+A background line can wait behind a gesture for as long as that gesture's own ceilings
+allow, the longest being a turn's 310 s. A line a gesture silenced was never said,
+whatever happens to the room afterwards.
+
+The ticket's `MicClosed(kept | discarded)` and `CloseTheMic` were left out: the gesture that
+closes a microphone stops or discards the recorder itself, and the Channel treats a kept
+and a discarded close the same, so neither the outcome nor the effect had a reader.
 
 The offline notice has no path under an open microphone until ENG-1174 takes the room out
 of reach from every door; today it is spoken only from doors the room calls while it is

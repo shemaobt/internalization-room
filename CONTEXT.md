@@ -104,8 +104,12 @@ _Avoid_: audio state, voice (the Circle's colour), player
 Whose open microphone the Channel holds: the conversation, the rehearsal, the capture or the question. The circle's words follow it.
 _Avoid_: listening (the circle's voice, not the fact), recording flag
 
+**Gesture on its way**:
+A gesture of the team from the moment it starts until everything it started has ended, the gesture it hands off to included. Its own sounds pass; every other line waits until it ends (ADR 0049).
+_Avoid_: busy, pending gesture
+
 **Queued line**:
-A line, spontaneous or the answer to a gesture, that arrived while the Channel was not free (a sound playing, the microphone open or a blocking halt standing), played once it is free; one of each kind waits, in arrival order (ADR 0049).
+A line, spontaneous or the answer to a gesture, that arrived while the Channel was not free (a sound playing, the microphone open, a blocking halt standing or a gesture on its way), played once it is free; one of each kind waits, in arrival order, except a gesture's own line, which enters ahead and is never dropped (ADR 0049).
 _Avoid_: pending line, interrupted line
 
 ### What is recorded and told
