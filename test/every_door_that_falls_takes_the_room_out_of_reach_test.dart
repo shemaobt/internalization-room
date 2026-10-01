@@ -646,30 +646,50 @@ void main() {
     },
   );
 
-  test('9: a key that met IDEMPOTENCY_KEY_IN_FLIGHT until the watchdog gave up '
-      'is the key the confirmation after the lift sends', () async {
-    final harness = SalaHarness(
-      busyCeiling: const Duration(milliseconds: 300),
-      retryBackoff: const [Duration(milliseconds: 40)],
-    );
+  test(
+    '9: a key still in flight is sent three times and then the room goes out '
+    'of reach with the request kept',
+    () async {
+      final harness = SalaHarness();
+      final room = await _aResumedBackTranslation(harness);
+      await _tellAStretchUpTo(room, const Duration(seconds: 12));
+      final sessao = room.estado.sessionId!;
+      Future<List<PendingTake>> traducoesNaFila() async => [
+        for (final row in await harness.takes.entries())
+          if (row.sessionId == sessao && row.kind == 'retro') row,
+      ];
+      expect(await traducoesNaFila(), isEmpty);
+      harness.network.reachable = false;
+      harness.room.chunkAnswersFirst.addAll(
+        List.filled(10, _theKeyStillInFlight),
+      );
+
+      await room.sala.confirmarTraducao();
+      await room.outOfReach('pela chave ainda em voo');
+      await settle(const Duration(milliseconds: 300));
+
+      expect(harness.room.chunkKeys, hasLength(3));
+      expect(harness.room.chunkKeys.toSet(), hasLength(1));
+      expect(room.estado.unreachable, isTrue);
+      expect(room.estado.btTraducaoPendente, isNotNull);
+      expect(await traducoesNaFila(), hasLength(1));
+    },
+  );
+
+  test('9: a key that met the ceiling is the key the request is sent again '
+      'under when the room comes back', () async {
+    final harness = SalaHarness();
     final room = await _aResumedBackTranslation(harness);
     await _tellAStretchUpTo(room, const Duration(seconds: 12));
-    harness.room.chunkAnswersFirst.addAll(
-      List.filled(40, _theKeyStillInFlight),
-    );
+    harness.network.reachable = false;
+    harness.room.chunkAnswersFirst.addAll(List.filled(3, _theKeyStillInFlight));
 
-    unawaited(room.sala.confirmarTraducao());
-    await waitFor('o vigia desistir', () => room.estado.needsPerson);
-    harness.room.chunkAnswersFirst.clear();
-    await waitFor(
-      'o pedido de pessoa pousar',
-      () => harness.room.personsAsked > 0,
-    );
-    harness.room.theDeskAttended();
-    await waitFor('a mesa levantar a parada', () => !room.estado.needsPerson);
     await room.sala.confirmarTraducao();
+    await room.outOfReach('pela chave ainda em voo');
+    room.theNetworkReturns();
     await waitFor('o trecho pousar', () => harness.room.segments.isNotEmpty);
 
+    expect(harness.room.chunkKeys, hasLength(4));
     expect(harness.room.chunkKeys.toSet(), hasLength(1));
   });
 

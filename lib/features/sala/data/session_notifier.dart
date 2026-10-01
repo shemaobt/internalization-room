@@ -62,6 +62,7 @@ const _clockSegments = <(String, String, String)>[
 ];
 
 const _roomFailuresBeforeNeedsPerson = 3;
+const _sendsWhileInFlight = 3;
 
 /// How many times the recorder may fail to start in a row before the room calls a
 /// person — mirroring `micFails` in her client.
@@ -4976,6 +4977,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (answer case Refused(
         code: RefusalCode.idempotencyKeyInFlight,
       ) when epoch == _epoch) {
+        if (step == _sendsWhileInFlight - 1) {
+          return const NetworkFailed(RefusalCode.idempotencyKeyInFlight);
+        }
         await Future<void>.delayed(_onTheLadder(step++));
         if (epoch == _epoch) continue;
       }
