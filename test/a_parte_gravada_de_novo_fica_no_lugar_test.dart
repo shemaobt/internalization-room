@@ -1406,10 +1406,10 @@ void main() {
 
     expect(
       _estado(it.container).voice,
-      VoiceState.invite,
+      VoiceState.done,
       reason:
           'uma fala que não sai devolve o gesto à equipe, como nas outras '
-          'cinco vezes em que a sala fala',
+          'cinco vezes em que a sala fala: na conferida o círculo diz acabado',
     );
     expect(
       _estado(it.container).btPhase,
@@ -1418,26 +1418,24 @@ void main() {
     );
     expect(it.harness.room.releasesAsked, hasLength(1));
 
-    await tester.tap(byLabel(_aprovar));
-    await tester.pump(const Duration(milliseconds: 400));
     expect(
       _estado(it.container).needsPerson,
       isFalse,
-      reason: 'duas são aviso, não parada',
+      reason: 'uma é silêncio, não parada',
     );
+
+    await tester.tap(byLabel(_aprovar));
+    await tester.pump(const Duration(milliseconds: 400));
     expect(
       it.harness.room.releasesAsked,
       hasLength(1),
       reason:
           'a soltura já é da sala; apertar de novo repete a fala, não o pedido',
     );
-
-    await tester.tap(byLabel(_aprovar));
-    await tester.pump(const Duration(milliseconds: 400));
     expect(
       _estado(it.container).needsPerson,
       isTrue,
-      reason: 'na terceira a sala para por uma pessoa, como em toda outra fala',
+      reason: 'na segunda a sala para por uma pessoa, como em toda outra fala',
     );
 
     closeTheRoom(it.container);

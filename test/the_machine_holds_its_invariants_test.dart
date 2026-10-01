@@ -1,19 +1,21 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'machine_generator.dart';
 
-Halt _haltOf(Halt halt) => halt;
+Halt _haltOf(Machine machine) => machine.halt;
 
-final _machine = Machine<Halt>(
-  start: const NoHalt(),
+final _machine = MachineUnderTest<Machine>(
+  start: const Machine(),
   step: reduce,
   draw: (_, world, random) => drawAnEvent(world, random),
-  show: describeHalt,
+  show: describeMachine,
 );
 
 final _oneSeed = int.tryParse(Platform.environment['MACHINE_SEED'] ?? '');
@@ -130,7 +132,73 @@ List<Invariant<S>> theAdrInvariants<S>(Halt Function(S) haltOf) => [
   theWarningIsTheOneTheServerTold(haltOf),
 ];
 
-void _holds(Invariant<Halt> invariant) =>
+bool _sounds(Channel channel) => channel is Playing || channel is GuideSpeaking;
+
+final theMicrophoneNeverOpensUnderASound = Invariant<Machine>(
+  'ADR invariant 1, the microphone never opens under a sound',
+  (before, event, after, effects, world) {
+    if (effects.any((effect) => effect is OpenTheMic) &&
+        _sounds(before.channel)) {
+      return 'the microphone opened over ${describeChannel(before.channel)}';
+    }
+    final starts = effects.any(
+      (effect) =>
+          effect is PlayLine || effect is PlayPart || effect is PlayStretch,
+    );
+    if (starts && after.channel is Microphone) {
+      return 'a sound started under ${describeChannel(after.channel)}';
+    }
+    return null;
+  },
+);
+
+final theHeadNeverReadsAnotherSound = Invariant<Machine>(
+  'ADR invariant 8, the Head never reads another part\'s or stretch\'s position',
+  (before, event, after, effects, world) {
+    final now = after.channel;
+    if (now is! Playing || event is PlayerOpened) return null;
+    final was = before.channel;
+    final sameSound = switch (was) {
+      final Playing playing => identical(playing.sound, now.sound),
+      Paused(:final what) => identical(what, now.sound),
+      _ => false,
+    };
+    if (sameSound || now.head != null) return null;
+    return 'the Head of ${describeSound(now.sound)} reads the player before '
+        'its opening, after ${describeChannel(was)}';
+  },
+);
+
+final theScreenNeverShowsASoundTheChannelDoesNotHold = Invariant<Machine>(
+  'ADR invariant 13, the screen never shows a sound the Channel does not hold',
+  (before, event, after, effects, world) {
+    for (final stage in SalaStage.values) {
+      final screen = SalaSessionState(stage: stage, machine: after);
+      final playing =
+          screen.btClipRodando ||
+          screen.btTrechoTocando ||
+          screen.btRetroTocando ||
+          screen.playPing;
+      if (playing && after.channel is! Playing) {
+        return '${stage.name} shows a sound over '
+            '${describeChannel(after.channel)}';
+      }
+      if (screen.voice == VoiceState.speaking &&
+          after.channel is! GuideSpeaking) {
+        return '${stage.name} shows the Guide speaking over '
+            '${describeChannel(after.channel)}';
+      }
+      if (screen.voice == VoiceState.listening &&
+          after.channel is! Microphone) {
+        return '${stage.name} shows an open microphone over '
+            '${describeChannel(after.channel)}';
+      }
+    }
+    return null;
+  },
+);
+
+void _holds(Invariant<Machine> invariant) =>
     expectEverySeedHolds(_machine, [invariant], seeds: _seeds);
 
 void main() {
@@ -157,19 +225,35 @@ void main() {
       _holds(theWarningIsTheOneTheServerTold(_haltOf));
     });
 
-    test('ADR invariants 2, 3, 5, 11 and 15 hold over the default run', () {
-      expectEverySeedHolds(
-        _machine,
-        theAdrInvariants<Halt>(_haltOf),
-        seeds: _seeds,
-      );
+    test('ADR invariant 1: the microphone never opens under a sound', () {
+      _holds(theMicrophoneNeverOpensUnderASound);
+    });
+
+    test('ADR invariant 8: the Head never reads another part\'s or '
+        'stretch\'s position', () {
+      _holds(theHeadNeverReadsAnotherSound);
+    });
+
+    test('ADR invariant 13: the screen never shows a sound the Channel does '
+        'not hold', () {
+      _holds(theScreenNeverShowsASoundTheChannelDoesNotHold);
+    });
+
+    test('ADR invariants 1, 2, 3, 5, 8, 11, 13 and 15 hold over the default '
+        'run', () {
+      expectEverySeedHolds(_machine, [
+        ...theAdrInvariants<Machine>(_haltOf),
+        theMicrophoneNeverOpensUnderASound,
+        theHeadNeverReadsAnotherSound,
+        theScreenNeverShowsASoundTheChannelDoesNotHold,
+      ], seeds: _seeds);
     });
   });
 
   group('the generator', () {
     test('generator invariant 1: every drawn event is valid for its world', () {
       for (final seed in _seeds) {
-        final trace = runSequence(_machine, const <Invariant<Halt>>[], seed);
+        final trace = runSequence(_machine, const <Invariant<Machine>>[], seed);
         for (final entry in trace.entries) {
           if (entry.event is WatchFired) {
             expect(
@@ -203,7 +287,7 @@ void main() {
       List<String> eventsOf(int seed) => [
         for (final entry in runSequence(
           _machine,
-          const <Invariant<Halt>>[],
+          const <Invariant<Machine>>[],
           seed,
         ).entries)
           describeEvent(entry.event),
@@ -215,10 +299,11 @@ void main() {
 
     test('generator invariant 3: a failing sequence names its seed and '
         'its trace', () {
-      final aHaltNeverStands = Invariant<Halt>(
+      final aHaltNeverStands = Invariant<Machine>(
         'a halt never stands',
-        (before, event, after, effects, world) =>
-            after is NoHalt ? null : 'a halt stands: ${describeHalt(after)}',
+        (before, event, after, effects, world) => after.halt is NoHalt
+            ? null
+            : 'a halt stands: ${describeHalt(after.halt)}',
       );
       final events = [
         for (final entry in runSequence(_machine, [

@@ -526,7 +526,7 @@ void main() {
     closeTheRoom(conferida.container);
   });
 
-  testWidgets('uma gravação que não abre na última audição chama uma pessoa e '
+  testWidgets('uma gravação que não abre na última audição não chama ninguém e '
       'deixa a equipe onde ela está', (tester) async {
     final it = await _ateAConferida(tester);
 
@@ -537,8 +537,8 @@ void main() {
 
     expect(
       _estado(it.container).needsPerson,
-      isTrue,
-      reason: 'um arquivo que não abre é uma pessoa, como em toda outra tela',
+      isFalse,
+      reason: 'a primeira falha deixa o Canal em silêncio e não chama ninguém',
     );
     expect(
       _estado(it.container).stage,
@@ -551,7 +551,7 @@ void main() {
     expect(
       _estado(it.container).btPhase,
       BtPhase.conferida,
-      reason: 'e resolvido o halt a aprovação ainda é o que falta fazer',
+      reason: 'e a aprovação ainda é o que falta fazer',
     );
     expect(
       _estado(it.container).btClipRodando,

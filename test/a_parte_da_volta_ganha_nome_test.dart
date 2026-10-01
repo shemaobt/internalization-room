@@ -69,6 +69,7 @@ void main() {
     );
 
     // Conta o trecho da parte 3.
+    await theClipOpens(harness);
     harness.playback.at = umaParteInteira;
     notifier.cortarTrecho();
     notifier.retroTap();
@@ -98,6 +99,7 @@ void main() {
     );
 
     // Corta o trecho da parte 4 — a gravação que acabou de ser guardada.
+    await theClipOpens(harness);
     harness.playback.at = umaParteInteira;
     notifier.cortarTrecho();
     notifier.retroTap();
@@ -166,6 +168,7 @@ void main() {
       () => harness.playback.played.last == partes[3].path,
     );
 
+    await theClipOpens(harness);
     harness.playback.at = umaParteInteira;
     notifier.cortarTrecho();
     notifier.retroTap();
@@ -207,6 +210,7 @@ void main() {
           harness.playback.played.isNotEmpty &&
           harness.playback.played.last == t3take.path,
     );
+    await theClipOpens(harness);
     harness.playback.at = umaParteInteira;
     notifier.cortarTrecho();
     notifier.retroTap();
@@ -235,6 +239,7 @@ void main() {
     // (três falhas), para uma falha de sala de verdade parar por uma pessoa. Um nome
     // apenas atrasado não pode contar como essa mesma falha.
     for (var i = 0; i < 3; i++) {
+      await theClipOpens(harness);
       harness.playback.at = umaParteInteira + Duration(seconds: i + 1);
       notifier.cortarTrecho();
       notifier.retroTap();
@@ -285,6 +290,7 @@ void main() {
     notifier.startRetro();
     await waitFor('a retro tocar', () => harness.playback.played.isNotEmpty);
 
+    await theClipOpens(harness);
     harness.playback.at = umaParteInteira;
     notifier.cortarTrecho();
     notifier.retroTap();

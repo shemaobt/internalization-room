@@ -123,6 +123,11 @@ class FakeVoice implements FacilitatorVoiceService {
     _holding = null;
   }
 
+  void failHeldLine(RoomFailure failure) {
+    _holding?.completeError(failure);
+    _holding = null;
+  }
+
   Future<bool> _answer() {
     final held = _holding;
     return held == null ? Future.value(succeeds) : held.future;
@@ -459,6 +464,8 @@ class FakePlayback implements PlaybackRepository {
 
   @override
   Duration? get playingLength => _aberto ? length : null;
+
+  bool get open => _aberto && !_abrindo;
 
   @override
   Duration get position => at;
@@ -1908,6 +1915,9 @@ Future<void> letTheRehearsalReachTheRoom(WidgetTester tester) async {
   );
   await tester.pump(const Duration(milliseconds: 100));
 }
+
+Future<void> theClipOpens(SalaHarness harness) =>
+    waitFor('o clipe abrir', () => harness.playback.open);
 
 Future<void> confirmarATraducao(ProviderContainer container) async {
   final sala = container.read(salaSessionProvider.notifier);

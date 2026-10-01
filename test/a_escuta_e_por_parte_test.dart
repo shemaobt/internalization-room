@@ -37,8 +37,7 @@ const _posicoesLocais = {
 
 /// The one name in [_posicoesLocais] that is not itself a reading of the player, pinned to
 /// its definition so the allowlist cannot be satisfied by a global under the same name.
-const _fimEOQueOPlayerDiz =
-    'final fim = ate ?? _playback.position.inMilliseconds;';
+const _fimEOQueOPlayerDiz = 'final fim = ate ?? _aCabecaMs;';
 
 final _commentPattern = RegExp(r'//.*$', multiLine: true);
 

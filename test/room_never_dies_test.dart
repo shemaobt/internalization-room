@@ -1070,12 +1070,6 @@ void main() {
           'uma falha chegava como conclusão, e é a conclusão que abre o terminei',
     );
     expect(state.canFinishBackTranslation, isFalse);
-    expect(
-      state.needsPerson,
-      isTrue,
-      reason:
-          'o áudio da própria equipe não abrir é coisa para uma pessoa olhar',
-    );
   });
 
   test(
@@ -1100,49 +1094,42 @@ void main() {
     },
   );
 
-  test('a rehearsal play that fails gives the ensaio back its gestures', () async {
-    final harness = SalaHarness();
-    final container = await inConversaHarness(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
+  test(
+    'a rehearsal play that fails gives the ensaio back its gestures',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversaHarness(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
 
-    notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
-    await settle();
-    notifier.takeKeep();
-    await settle();
-    notifier.playTheRehearsal();
-    await settle();
-    expect(container.read(salaSessionProvider).playPing, isTrue);
+      notifier.goEnsaio();
+      notifier.ensaioTap();
+      notifier.ensaioTap();
+      await settle();
+      notifier.takeKeep();
+      await settle();
+      notifier.playTheRehearsal();
+      await settle();
+      expect(container.read(salaSessionProvider).playPing, isTrue);
 
-    harness.playback.failPlayback();
-    await settle();
+      harness.playback.failPlayback();
+      await settle();
 
-    expect(
-      container.read(salaSessionProvider).playPing,
-      isFalse,
-      reason:
-          'preso tocando, o toque no círculo não faz nada e o play não '
-          'desenha o glifo de tocar — a tela move e não responde',
-    );
-    expect(container.read(salaSessionProvider).needsPerson, isTrue);
-
-    // A person comes, marks the session attended on the desk, and holds the screen: the
-    // touch asks the room now and brings back the answer the facilitator just wrote.
-    harness.room.theDeskAttended();
-    notifier.resolveWithPerson();
-    await waitFor(
-      'a sala sair da parada',
-      () => !container.read(salaSessionProvider).needsPerson,
-    );
-    notifier.ensaioTap();
-    expect(
-      container.read(salaSessionProvider).ensaio,
-      EnsaioStatus.recording,
-      reason: 'e depois que a pessoa resolve, gravar volta a funcionar',
-    );
-  });
+      expect(
+        container.read(salaSessionProvider).playPing,
+        isFalse,
+        reason:
+            'preso tocando, o toque no círculo não faz nada e o play não '
+            'desenha o glifo de tocar — a tela move e não responde',
+      );
+      notifier.ensaioTap();
+      expect(
+        container.read(salaSessionProvider).ensaio,
+        EnsaioStatus.recording,
+        reason: 'a falha deixa a sala em silêncio, e gravar volta a funcionar',
+      );
+    },
+  );
 
   test('a reply that will not play stays unheard and calls nobody', () async {
     final harness = SalaHarness(
@@ -1317,36 +1304,6 @@ void main() {
       );
     },
   );
-
-  test('a rehearsal that will not open leaves a way to make another', () async {
-    final harness = SalaHarness();
-    final container = await inConversaHarness(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
-    await settle();
-    notifier.takeKeep();
-    notifier.startRetro();
-    await settle();
-
-    harness.playback.failPlayback();
-    await settle();
-
-    final state = container.read(salaSessionProvider);
-    expect(
-      state.stage,
-      SalaStage.ensaio,
-      reason:
-          'o retro não tem gesto que se recupere de um clipe que não abre: '
-          'btClipEnded nunca chega, o terminei nunca aparece e todo gesto da '
-          'tela dos achados exige findings',
-    );
-    expect(state.ensaio, EnsaioStatus.idle);
-    expect(state.needsPerson, isTrue);
-  });
 
   test('the hand does not bury the way back from an outage', () async {
     // No pending reply on purpose: with one, the hand plays it and never reaches the
@@ -1691,14 +1648,10 @@ void main() {
     await settle();
     notifier.conversaTap();
     await settle();
-    notifier.conversaTap();
-    await settle();
-    notifier.conversaTap();
-    await settle();
     expect(
       container.read(salaSessionProvider).needsPerson,
       isFalse,
-      reason: 'duas falhas ainda não chamam ninguém',
+      reason: 'uma falha ainda não chama ninguém',
     );
 
     // Entered with the room still failing, because a turn that lands resets the counters

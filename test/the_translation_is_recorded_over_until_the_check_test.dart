@@ -684,6 +684,7 @@ void main() {
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await retomarComAviso(tester, harness);
+    await tester.runAsync(() => theClipOpens(harness));
     harness.playback.at = const Duration(seconds: 7);
     await tocar(tester, tesoura);
     await gravarATraducao(tester, harness);

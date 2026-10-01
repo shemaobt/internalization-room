@@ -266,7 +266,6 @@ const _matrizDaRetro = [
   'cortar com a cabeça atrás do cursor',
   'a parte não ouvida',
   'o trecho não contado',
-  'a parte que não tocou volta ao ensaio',
   'deixar a passagem',
   'continuar o ensaio',
   'gravar a parte de novo',
@@ -348,7 +347,6 @@ void main() {
               _estado(cena).btPhase == BtPhase.playing,
         );
       },
-      segurando: true,
     ),
     _linha('o círculo, nos achados', _nosAchadosComOTrechoNoAr, (cena) async {
       final ditas = cena.harness.voice.played.length;
@@ -492,13 +490,6 @@ void main() {
       },
       somProprio: 'playback:play',
     ),
-    _linha('a parte que não tocou volta ao ensaio', _noRetro, (cena) async {
-      cena.harness.playback.failPlayback();
-      await waitFor(
-        'a equipe voltar ao ensaio',
-        () => _estado(cena).stage == SalaStage.ensaio,
-      );
-    }),
     _linha('deixar a passagem', _noRetro, (cena) async {
       cena.sala.leaveThePassage();
       await waitFor(

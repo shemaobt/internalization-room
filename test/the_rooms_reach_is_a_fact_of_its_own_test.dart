@@ -7,6 +7,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -160,7 +161,7 @@ void main() {
       notifier.ensaioTap();
       await settle();
       expect(read().stage, SalaStage.ensaio);
-      expect(read().voice, VoiceState.invite);
+      expect(read().voice, VoiceState.offline);
       expect(read().ensaio, EnsaioStatus.recording);
       expect(read().reach, isNot(RoomReach.fine));
 
@@ -228,7 +229,7 @@ void main() {
 
     notifier.goEnsaio();
     await _recordATake(harness, notifier);
-    expect(read().voice, VoiceState.invite);
+    expect(read().voice, VoiceState.offline);
 
     await _haltOnTheRecorder(harness, notifier, read);
     await _theLadderClimbs(harness, 'com o tablet parado');
@@ -358,16 +359,21 @@ void main() {
       notifier.goEnsaio();
       await notifier.goConversa(pericope: 'P01');
       await waitFor(
-        'a conversa reabrir',
-        () => read().voice == VoiceState.invite,
+        'a conversa reabrir com a sala ainda fora do alcance',
+        () =>
+            read().stage == SalaStage.conversa &&
+            read().sessionId != null &&
+            !read().awaitingTheGuide,
       );
       expect(read().reach, isNot(RoomReach.fine));
 
       harness.room.holdNextTurn();
       notifier.conversaTap();
-      await settle();
+      await waitFor('a sala voltar ao toque', () => !read().unreachable);
       notifier.conversaTap();
-      await settle();
+      await waitFor('o microfone abrir', () => read().channel is Microphone);
+      notifier.conversaTap();
+      await waitFor('o turno sair', () => harness.room.turnsSent == 1);
       harness.room.serverStatus = 'needs_person';
       harness.room.serverHalt = HaltKind.blocking;
       await waitFor('a sala parar com o turno no ar', () => read().needsPerson);

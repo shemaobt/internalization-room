@@ -144,6 +144,7 @@ Future<Duration> _cursorPeloCorte(
 ) async {
   final notifier = container.read(salaSessionProvider.notifier);
   final antes = harness.room.chunkSpans.length;
+  await theClipOpens(harness);
   harness.playback.at = const Duration(minutes: 5);
   notifier.cortarTrecho();
   notifier.retroTap();
@@ -530,6 +531,7 @@ void main() {
         traduzido: [_traduzido('gravacao-1', 0, 30000)],
       );
       final notifier = container.read(salaSessionProvider.notifier);
+      await theClipOpens(harness);
       harness.playback.at = const Duration(seconds: 44);
       notifier.cortarTrecho();
       notifier.retroTap();

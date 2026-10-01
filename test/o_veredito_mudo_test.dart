@@ -17,12 +17,11 @@ Future<ProviderContainer> _inConversa(SalaHarness harness) async {
 }
 
 /// Two lines the room tried to say and could not — the ladder, two rungs up.
-Future<void> _twoThatWouldNotPlay(
+Future<void> _oneThatWouldNotPlay(
   SalaHarness harness,
   SalaSessionNotifier notifier,
 ) async {
   harness.voice.succeeds = false;
-  await notifier.hearAgain();
   await notifier.hearAgain();
   harness.voice.succeeds = true;
 }
@@ -106,14 +105,14 @@ void main() {
     },
   );
 
-  test('three that could not be spoken, the last of them the verdict, call a '
+  test('two that could not be spoken, the second of them the verdict, call a '
       'person', () async {
     final harness = SalaHarness()..voice.refuses.add(_verdictUrl);
     final container = await _inConversa(harness);
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
-    await _twoThatWouldNotPlay(harness, notifier);
+    await _oneThatWouldNotPlay(harness, notifier);
     expect(read().needsPerson, isFalse);
 
     await _toTheVerdict(harness, notifier);

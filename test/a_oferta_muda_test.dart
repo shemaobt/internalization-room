@@ -28,7 +28,7 @@ int _timesOffered(SalaHarness harness) =>
     harness.voice.played.where((url) => url == _oferecidaUrl).length;
 
 void main() {
-  test('three offers the room could not say call a person', () async {
+  test('two offers the room could not say call a person', () async {
     final harness = SalaHarness()..voice.refuses.add(_oferecidaUrl);
     final container = await _atTheWheel(harness);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -37,11 +37,6 @@ void main() {
     // Abrir a roda já é a primeira tentativa.
     expect(_timesOffered(harness), 1);
     expect(read().needsPerson, isFalse, reason: 'um degrau não é a escada');
-
-    notifier.escolhaTap();
-    await settle();
-    expect(_timesOffered(harness), 2);
-    expect(read().needsPerson, isFalse);
 
     notifier.escolhaTap();
     await settle();
@@ -54,35 +49,7 @@ void main() {
           'roda que parece parada, e uma roda parada que não chama ninguém '
           'deixa a equipe sozinha com ela',
     );
-    expect(_timesOffered(harness), 3);
-  });
-
-  test('two turns and then the offer, all unsaid, call a person', () async {
-    final harness = SalaHarness()..voice.refuses.add(_oferecidaUrl);
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-
-    await notifier.goConversa();
-    await settle();
-    harness.voice.succeeds = false;
-    await notifier.hearAgain();
-    await notifier.hearAgain();
-    harness.voice.succeeds = true;
-    expect(read().needsPerson, isFalse, reason: 'dois degraus, não três');
-
-    await notifier.abrirEscolha();
-    await waitFor('a roda carregar', () => read().naRoda != null);
-    await settle();
-
-    expect(
-      read().needsPerson,
-      isTrue,
-      reason:
-          'a oferta muda tem de subir a mesma escada dos turnos, não uma '
-          'contagem paralela sua',
-    );
+    expect(_timesOffered(harness), 2);
   });
 
   test('an offer the room says changes nothing', () async {
