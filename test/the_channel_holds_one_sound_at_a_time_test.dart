@@ -770,6 +770,37 @@ void main() {
     expect(respostaAntes, isTrue, reason: 'a resposta do turno vem antes');
   });
 
+  test('a turn the room gave up on no longer holds a waiting line once the '
+      'halt is lifted', () async {
+    _OutboxThatGaveUp? outbox;
+    final harness = SalaHarness(
+      busyCeiling: const Duration(milliseconds: 300),
+      takesOverride: (room, home) =>
+          outbox = _OutboxThatGaveUp(room: room, home: () async => home),
+    );
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    addTearDown(harness.room.finishHeldTurn);
+    final sala = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    harness.room.holdNextTurn();
+    sala.conversaTap();
+    await waitFor('o microfone abrir', () => read().channel is Microphone);
+    sala.conversaTap();
+    await waitFor('o vigia chamar uma pessoa', () => read().needsPerson);
+    outbox!.gaveUp = true;
+    await sala.refreshUnsent();
+    await settle();
+
+    harness.room.theDeskAttended();
+    sala.resolveWithPerson();
+
+    await waitFor(
+      'a linha da gravação presa tocar com o turno ainda preso',
+      () => harness.voice.assets.contains(_stranded),
+    );
+  });
+
   group('the spontaneous lines wait for the Channel', () {
     test('the facilitator\'s reply asked for under an open microphone plays '
         'only after it closes', () async {

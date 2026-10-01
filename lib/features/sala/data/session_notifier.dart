@@ -476,6 +476,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       timer.cancel();
     }
     _timers.clear();
+    _endTheGesturesAbandoned();
+  }
+
+  void _endTheGesturesAbandoned() {
+    for (final gesture in state.machine.onTheirWay.difference(_chain.toSet())) {
+      _endTheGesture(gesture);
+    }
   }
 
   void _leaveTheStepFor(SalaStage next) {
