@@ -1033,9 +1033,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Kept _whatIsSounding({bool theOpening = true}) {
-    if (state.stage == SalaStage.escolha && state.naRoda == null) {
-      return const TheWheel();
-    }
     if (state.stage == SalaStage.retro &&
         (state.channel is Playing || !_parteJaTocou)) {
       return const ThePart();
@@ -1249,6 +1246,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.sessionId == null && state.stage == SalaStage.conversa) {
       _handOff(goConversa(pericope: _emCurso));
     }
+    if (state.rodaPorLer) _handOff(abrirEscolha());
   }
 
   void _tellTheRoomAPersonIsNeeded() {
@@ -2290,9 +2288,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       afterSession: after,
       language: _lingua,
     );
-    if (answer is! SessionGone || after == null) return answer;
-    _letGoOf(after);
-    return _room.createSession(pericope: pericope, language: _lingua);
+    if (answer case SessionGone() when after != null) {
+      _letGoOf(after);
+      return _room.createSession(pericope: pericope, language: _lingua);
+    }
+    return answer;
   }
 
   void _discardTheSession() {
