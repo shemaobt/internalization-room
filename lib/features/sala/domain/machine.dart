@@ -396,6 +396,15 @@ final class Machine {
 
   bool get somethingPending => parts.values.contains(PartFact.pending);
 
+  Machine withNoPassage(Set<int> onTheirWay) => Machine(
+    onTheirWay: onTheirWay,
+    reach: reach,
+    parts: parts,
+    draining: draining,
+    fallen: fallen,
+    noticeSaid: noticeSaid,
+  );
+
   Machine copyWith({
     Halt? halt,
     Channel? channel,

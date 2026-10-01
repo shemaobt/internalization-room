@@ -222,6 +222,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _roomFailures = 0;
   final Set<String> _contadasSemResposta = {};
   int _resumeFailures = 0;
+  final Set<String> _goneSessions = {};
 
   /// When and in what language the session now open was created, so a row rewritten by
   /// a later stage advance carries them instead of going blank the moment the team leaves
@@ -2257,14 +2258,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _openTheChoice();
   }
 
+  String? get _theSession => state.sessionId ?? _panoramaSessionId;
+
   void _theSessionIsGone([String? sessionId]) {
     if (_gone) return;
-    if (sessionId == null &&
-        state.sessionId == null &&
-        _panoramaSessionId == null) {
-      return;
-    }
-    if (sessionId != null && sessionId != state.sessionId) {
+    if (sessionId != null && sessionId != _theSession) {
       _goneSessions.add(sessionId);
       unawaited(
         _mindingThePlace(
@@ -2276,10 +2274,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _dispatch(const TheSessionIsGone());
   }
 
-  final Set<String> _goneSessions = {};
-
   void _discardTheSession() {
-    final sessionId = state.sessionId;
+    final sessionId = _theSession;
     final pericope = _emCurso;
     final kept = [for (final take in state.keptTakes) take.path];
     if (sessionId != null) _goneSessions.add(sessionId);
@@ -2316,17 +2312,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _openTheChoice() {
-    final machine = state.machine;
     state = SalaSessionState(
       reach: state.reach,
-      machine: Machine(
-        onTheirWay: _gesturesOnTheirWay.onTheirWay,
-        reach: machine.reach,
-        parts: machine.parts,
-        draining: machine.draining,
-        fallen: machine.fallen,
-        noticeSaid: machine.noticeSaid,
-      ),
+      machine: state.machine.withNoPassage(_gesturesOnTheirWay.onTheirWay),
     );
     _handOff(abrirEscolha());
   }

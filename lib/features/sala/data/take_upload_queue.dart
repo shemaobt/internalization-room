@@ -646,6 +646,7 @@ class TakeUploadQueue {
         );
       case SessionGone():
         await discardTheSession(entry.sessionId);
+        await _deleteTheCopy(entry);
         _sessionsGone.add(entry.sessionId);
     }
     return false;

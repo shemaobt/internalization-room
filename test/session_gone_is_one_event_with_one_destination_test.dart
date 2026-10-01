@@ -483,6 +483,33 @@ void main() {
     );
   });
 
+  test('the panorama\'s session gone opens the Choice, and the next passage '
+      'is not opened after it', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final sala = container.read(salaSessionProvider.notifier);
+    harness.room.forgetTheSession('sessao-1');
+
+    await sala.openConvite();
+    await _naEscolha(container);
+    await settle();
+    sala.entrarNaOferecida();
+    await waitFor(
+      'a passagem abrir',
+      () => _estado(container).sessionId != null,
+    );
+
+    expect(harness.room.askedOfTheForgotten, contains('openSession'));
+    expect(
+      harness.room.metBefore.last,
+      isFalse,
+      reason: 'a passagem não nomeia como anterior um panorama que sumiu',
+    );
+    expect(_estado(container).needsPerson, isFalse);
+    expect(harness.room.personsAsked, 0);
+  });
+
   test('ENG-1155: a gone at the chunk door leaves no translation copy in the '
       'Outbox and no file on disk, even with the enqueue in flight', () async {
     final harness = SalaHarness();
