@@ -100,6 +100,10 @@ _Avoid_: session detail, session view, página da sessão in English prose
 What the room hears or sounds at one moment: silence, an open microphone and whose it is, the Guide speaking, a part or a stretch playing, or a pause. One thing at a time (ADR 0046).
 _Avoid_: audio state, voice (the Circle's colour), player
 
+**Microphone owner**:
+Whose open microphone the Channel holds: the conversation, the rehearsal, the capture or the question. The circle's words follow it.
+_Avoid_: listening (the circle's voice, not the fact), recording flag
+
 **Queued line**:
 A line that arrived with no gesture while the microphone was open or a halt stood, played once the Channel is free; one of each kind waits.
 _Avoid_: pending line, interrupted line
