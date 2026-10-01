@@ -517,7 +517,7 @@ void main() {
       final ledger = await _alreadyLinked();
       final firstRoom = FakeRoom()
         ..linkedTo = const TeamLink(projectId: 'equipe-terena')
-        ..refuseCredentialWith = const SessionGone();
+        ..refuseCredentialWith = const Refused(RefusalCode.notFound);
       final firstRun = _tablet(room: firstRoom, ledger: ledger);
       await firstRun.read(deviceLinkProvider.notifier).findTheTeam();
       await waitFor(

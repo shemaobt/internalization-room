@@ -172,6 +172,10 @@ final class LeftThePassage extends MachineEvent {
   const LeftThePassage();
 }
 
+final class TheSessionIsGone extends MachineEvent {
+  const TheSessionIsGone();
+}
+
 sealed class Effect {
   const Effect();
 }
@@ -351,6 +355,14 @@ final class SayTheOfflineNotice extends Effect {
   const SayTheOfflineNotice();
 }
 
+final class DiscardTheSession extends Effect {
+  const DiscardTheSession();
+}
+
+final class OpenTheChoice extends Effect {
+  const OpenTheChoice();
+}
+
 final class Machine {
   final Halt halt;
   final Channel channel;
@@ -461,6 +473,7 @@ const _watch = ArmTheWatch();
           for (final line in machine.queue) DropTheLine(line),
         ],
       ),
+      TheSessionIsGone() => _theSessionGone(machine),
       NetworkFailedAt(:final door) => _fall(machine, door),
       NetworkReturned() => _return(machine),
       RetryFired() => _retry(machine),
@@ -787,6 +800,23 @@ List<Effect> _stopTheLineIn(Channel channel) => switch (channel) {
   return (next, effects);
 }
 
+(Machine, List<Effect>) _theSessionGone(Machine machine) => (
+  machine.copyWith(
+    halt: const NoHalt(),
+    channel: const Silence(),
+    queue: const [],
+    owners: const {},
+    forgetTheFailures: true,
+  ),
+  [
+    const StopTheSound(),
+    const CloseAndDiscardTheMic(),
+    for (final line in machine.queue) DropTheLine(line),
+    const DiscardTheSession(),
+    const OpenTheChoice(),
+  ],
+);
+
 (Machine, List<Effect>) _fall(Machine machine, Door door) {
   if (machine.reachable) {
     final fallen = machine.noticeSaid ? machine.fallen + 1 : 0;
@@ -913,7 +943,8 @@ Machine _answered(Machine machine) =>
   NothingReplayed() ||
   LineNotSaid() ||
   StepLeft() ||
-  LeftThePassage() => (halt, const []),
+  LeftThePassage() ||
+  TheSessionIsGone() => (halt, const []),
 };
 
 (Halt, List<Effect>) _read(Halt halt, SessionRead read) {

@@ -1,0 +1,509 @@
+import 'dart:io';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
+import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
+import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
+
+import 'fakes.dart';
+import 'scenario_helpers.dart' show settle;
+
+Future<ProviderContainer> _semPassagemNaMemoria(SalaHarness harness) async {
+  final container = harness.container();
+  addTearDown(container.dispose);
+  await container.read(salaSessionProvider.notifier).goConversa();
+  await settle();
+  return container;
+}
+
+Future<ProviderContainer> _naPassagem(SalaHarness harness) async {
+  final container = harness.container();
+  addTearDown(container.dispose);
+  final sala = container.read(salaSessionProvider.notifier);
+  await sala.abrirEscolha();
+  await settle();
+  sala.entrarNaOferecida();
+  await waitFor(
+    'a passagem abrir',
+    () => container.read(salaSessionProvider).sessionId != null,
+  );
+  await settle();
+  return container;
+}
+
+SalaSessionState _estado(ProviderContainer container) =>
+    container.read(salaSessionProvider);
+
+String _sessao(ProviderContainer container) => _estado(container).sessionId!;
+
+Future<void> _naEscolha(ProviderContainer container) => waitFor(
+  'a sala abrir a Escolha',
+  () =>
+      _estado(container).stage == SalaStage.escolha &&
+      _estado(container).naRoda != null,
+);
+
+Future<void> _gravarEGuardarUmaParte(ProviderContainer container) async {
+  final sala = container.read(salaSessionProvider.notifier);
+  sala.goEnsaio();
+  sala.ensaioTap();
+  sala.ensaioTap();
+  await waitFor(
+    'a gravação da parte terminar',
+    () => _estado(container).ensaio == EnsaioStatus.recorded,
+  );
+  sala.takeKeep();
+  await waitFor(
+    'a sala nomear a parte',
+    () => _estado(container).partes.last.takeId != null,
+  );
+}
+
+Future<void> _abrirACapturaDeUmTrecho(
+  SalaHarness harness,
+  ProviderContainer container,
+) async {
+  final sala = container.read(salaSessionProvider.notifier);
+  await _gravarEGuardarUmaParte(container);
+  sala.startRetro();
+  await waitFor(
+    'o clipe estar rodando',
+    () => _estado(container).btClipRodando,
+  );
+  harness.playback.at = const Duration(seconds: 2);
+  sala.cortarTrecho();
+  sala.retroTap();
+  await waitFor(
+    'o microfone abrir para o trecho',
+    () => _estado(container).btPhase == BtPhase.capturing,
+  );
+}
+
+Future<PendingTake> _naFila(
+  SalaHarness harness,
+  String sessionId, {
+  required String nome,
+  String scope = 'parte-1',
+}) => harness.takes.enqueue(
+  harness.recorder.aFile(nome),
+  sessionId: sessionId,
+  kind: 'ensaio',
+  scope: scope,
+  passNumber: 1,
+  chunkIndex: 1,
+);
+
+Future<List<PendingTake>> _daSessao(
+  SalaHarness harness,
+  String sessionId,
+) async => [
+  for (final row in await harness.takes.entries())
+    if (row.sessionId == sessionId) row,
+];
+
+void _abrirOMicrofoneDaConversa(ProviderContainer container) {
+  container.read(salaSessionProvider.notifier).conversaTap();
+}
+
+Future<void> _oMicrofoneAberto(ProviderContainer container) => waitFor(
+  'o microfone abrir na conversa',
+  () => _estado(container).voice == VoiceState.listening,
+);
+
+void main() {
+  test(
+    'case (a): the chunk door answers gone with no passage in progress in '
+    'memory, and the room opens the Choice without calling a person',
+    () async {
+      final harness = SalaHarness();
+      final container = await _semPassagemNaMemoria(harness);
+      await _abrirACapturaDeUmTrecho(harness, container);
+
+      harness.room.chunkAnswersFirst.add(const SessionGone());
+      await confirmarATraducao(container);
+      await _naEscolha(container);
+      await settle();
+
+      expect(_estado(container).stage, SalaStage.escolha);
+      expect(_estado(container).needsPerson, isFalse);
+      expect(harness.room.personsAsked, 0);
+      expect(
+        harness.room.deviceAsksReceived,
+        isEmpty,
+        reason:
+            'nenhuma pessoa é chamada por uma sessão que o servidor esqueceu',
+      );
+    },
+  );
+
+  test(
+    'case (b): gone with two Outbox rows of the session pending removes the '
+    'rows and their files, and the Outbox tally shows nothing pending',
+    () async {
+      final harness = SalaHarness();
+      final container = await _naPassagem(harness);
+      final sessao = _sessao(container);
+      final primeira = await _naFila(harness, sessao, nome: 'parte-um');
+      final segunda = await _naFila(
+        harness,
+        sessao,
+        nome: 'parte-dois',
+        scope: 'parte-2',
+      );
+
+      harness.room.forgetTheSession(sessao);
+      _abrirOMicrofoneDaConversa(container);
+      await _oMicrofoneAberto(container);
+      container.read(salaSessionProvider.notifier).conversaTap();
+      await _naEscolha(container);
+      await settle();
+
+      expect(await _daSessao(harness, sessao), isEmpty);
+      expect(File(primeira.path).existsSync(), isFalse);
+      expect(File(segunda.path).existsSync(), isFalse);
+      expect(await harness.takes.pending(), isEmpty);
+      expect(
+        (await harness.takes.tally(sessionId: sessao)).parts.values,
+        isNot(contains(PartFact.pending)),
+        reason: 'a contagem da Outbox não mostra nada pendente',
+      );
+    },
+  );
+
+  test('case (c): a Resume point of a session the server deleted forgets the '
+      'row and the session\'s files at takesOf, and opens the Choice with no '
+      'fresh session', () async {
+    final harness = SalaHarness();
+    final aqui = harness.recorder.aFile('parte-1-guardada').path;
+    final naoMaisAqui = '${harness.recorder.home.path}/parte-2-sumida.m4a';
+    harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+      sessionId: 'sessao-apagada',
+      stage: SalaStage.ensaio,
+      takes: [
+        KeptTake(scopeId: KeptScope.parte(1), path: aqui, takeId: 'g-1'),
+        KeptTake(scopeId: KeptScope.parte(2), path: naoMaisAqui, takeId: 'g-2'),
+      ],
+    );
+    harness.room.forgetTheSession('sessao-apagada');
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final sala = container.read(salaSessionProvider.notifier);
+    await sala.abrirEscolha();
+    await settle();
+
+    await sala.goConversa(pericope: 'P01');
+    await _naEscolha(container);
+    await settle();
+
+    expect(harness.room.askedOfTheForgotten, contains('takesOf'));
+    expect(await harness.emAberto.of('Ruth', 'P01'), isNull);
+    expect(harness.recorder.deleted, contains(aqui));
+    expect(
+      harness.room.calls,
+      isNot(contains('createSession')),
+      reason: 'a retomada de uma sessão apagada não abre uma sessão nova',
+    );
+    expect(_estado(container).stage, SalaStage.escolha);
+    expect(_estado(container).needsPerson, isFalse);
+  });
+
+  test('case (c): a Resume point of a session the server deleted, reopened in '
+      'the conversation, meets gone at openSession and opens the Choice with '
+      'no fresh session', () async {
+    final harness = SalaHarness();
+    harness.emAberto.rows['Ruth/P01'] = const ResumePoint(
+      sessionId: 'sessao-apagada',
+      stage: SalaStage.conversa,
+    );
+    harness.room.forgetTheSession('sessao-apagada');
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final sala = container.read(salaSessionProvider.notifier);
+    await sala.abrirEscolha();
+    await settle();
+
+    await sala.goConversa(pericope: 'P01');
+    await _naEscolha(container);
+    await settle();
+
+    expect(harness.room.askedOfTheForgotten, contains('openSession'));
+    expect(await harness.emAberto.of('Ruth', 'P01'), isNull);
+    expect(harness.room.calls, isNot(contains('createSession')));
+    expect(_estado(container).stage, SalaStage.escolha);
+  });
+
+  test('case (d): gone while the microphone is open in the conversation closes '
+      'the microphone, discards the recording and opens the Choice', () async {
+    final harness = SalaHarness(watchesWithoutAHalt: true);
+    final container = await _semPassagemNaMemoria(harness);
+    _abrirOMicrofoneDaConversa(container);
+    await _oMicrofoneAberto(container);
+
+    final apagadasAntes = harness.recorder.deleted.length;
+    harness.room.forgetTheSession(_sessao(container));
+    await _naEscolha(container);
+    await settle();
+
+    expect(_estado(container).voice, isNot(VoiceState.listening));
+    expect(
+      harness.recorder.deleted.skip(apagadasAntes),
+      [harness.recorder.lastPath],
+      reason: 'a gravação aberta é descartada',
+    );
+    expect(harness.room.turnsSent, 0);
+    expect(_estado(container).needsPerson, isFalse);
+  });
+
+  test('case (d): gone while the microphone is open out of reach closes the '
+      'microphone, discards the recording and opens the Choice', () async {
+    final harness = SalaHarness(
+      watchesWithoutAHalt: true,
+      retryBackoff: const [Duration(seconds: 5)],
+    );
+    final container = await _semPassagemNaMemoria(harness);
+    _abrirOMicrofoneDaConversa(container);
+    await _oMicrofoneAberto(container);
+    harness.room.reachable = false;
+    await waitFor('a sala cair', () => _estado(container).unreachable);
+
+    final apagadasAntes = harness.recorder.deleted.length;
+    harness.room
+      ..reachable = true
+      ..forgetTheSession(_sessao(container));
+    await _naEscolha(container);
+    await settle();
+
+    expect(_estado(container).voice, isNot(VoiceState.listening));
+    expect(
+      harness.recorder.deleted.skip(apagadasAntes),
+      [harness.recorder.lastPath],
+      reason: 'a gravação aberta é descartada, também fora de alcance',
+    );
+    expect(harness.room.turnsSent, 0);
+    expect(_estado(container).needsPerson, isFalse);
+  });
+
+  test('invariant 1: after gone nothing of the session remains, and nothing '
+      'asks the room about it again', () async {
+    final harness = SalaHarness(
+      retryBackoff: const [Duration(milliseconds: 40)],
+    );
+    final container = await _naPassagem(harness);
+    final sessao = _sessao(container);
+    await _abrirACapturaDeUmTrecho(harness, container);
+    final parte = _estado(container).partes.single.path;
+
+    harness.room.chunkAnswersFirst.add(const NetworkFailed('sem rede'));
+    harness.network.reachable = false;
+    await confirmarATraducao(container);
+    await waitFor('a sala cair', () => _estado(container).unreachable);
+    final traducao = _estado(container).btTraducaoPendente!;
+    final linhas = await _daSessao(harness, sessao);
+    expect(linhas, isNotEmpty);
+    expect(await harness.emAberto.of('Ruth', 'P01'), isNotNull);
+
+    harness.room.forgetTheSession(sessao);
+    harness.network.reachable = true;
+    await _naEscolha(container);
+    await settle();
+    final perguntasNaHora = harness.room.askedOfTheForgotten.length;
+    await settle(const Duration(milliseconds: 400));
+
+    expect(await harness.emAberto.of('Ruth', 'P01'), isNull);
+    expect(await _daSessao(harness, sessao), isEmpty);
+    for (final linha in linhas) {
+      expect(File(linha.path).existsSync(), isFalse, reason: linha.kind);
+    }
+    expect(harness.recorder.deleted, containsAll([parte, traducao]));
+    expect(_estado(container).btTraducaoPendente, isNull);
+    expect(_estado(container).partes, isEmpty);
+    expect(
+      harness.room.askedOfTheForgotten.length,
+      perguntasNaHora,
+      reason:
+          'nenhum relógio do passo, nenhum pedido pendente e nenhuma chave '
+          'sobrevivem: nada volta a perguntar pela sessão esquecida',
+    );
+  });
+
+  test('invariant 3: a halt standing when the Watch reads gone is cleared, '
+      'and no call or stop-call is made', () async {
+    final harness = SalaHarness(watchesWithoutAHalt: true);
+    final container = await _naPassagem(harness);
+    harness.room
+      ..serverStatus = 'needs_person'
+      ..serverHalt = HaltKind.blocking;
+    await waitFor('a parada chegar', () => _estado(container).needsPerson);
+
+    harness.room.forgetTheSession(_sessao(container));
+    await _naEscolha(container);
+    await settle();
+
+    expect(_estado(container).needsPerson, isFalse);
+    expect(harness.room.personsAsked, 0);
+    expect(harness.room.deviceAsksReceived, isEmpty);
+    expect(harness.room.personArrivedSessions, isEmpty);
+  });
+
+  test('invariant 3: a halt standing when the call for a person answers gone '
+      'is cleared, and no other call or stop-call is made', () async {
+    final harness = SalaHarness()..voice.succeeds = false;
+    final container = await _naPassagem(harness);
+    final sala = container.read(salaSessionProvider.notifier);
+    harness.room.askForAPersonFailsWith = const SessionGone();
+
+    for (var vez = 0; vez < 3 && !_estado(container).needsPerson; vez++) {
+      sala.conversaTap();
+      await settle();
+      sala.conversaTap();
+      await settle();
+    }
+    await _naEscolha(container);
+    await settle();
+
+    expect(harness.room.calls, contains('askForAPerson'));
+    expect(_estado(container).needsPerson, isFalse);
+    expect(harness.room.deviceAsksReceived, isEmpty);
+    expect(harness.room.personArrivedSessions, isEmpty);
+  });
+
+  test('invariant 3: a halt standing when a door answers gone is cleared, and '
+      'no call or stop-call is made', () async {
+    final harness = SalaHarness();
+    final container = await _semPassagemNaMemoria(harness);
+    final sala = container.read(salaSessionProvider.notifier);
+    harness.room.holdNextTurn();
+    sala.conversaTap();
+    await _oMicrofoneAberto(container);
+    sala.conversaTap();
+    await waitFor('o turno sair', () => harness.room.turnsSent > 0);
+    sala.haltForABrokenBuild();
+    expect(_estado(container).needsPerson, isTrue);
+
+    harness.room.failHeldTurnWith = const SessionGone();
+    harness.room.finishHeldTurn();
+    await _naEscolha(container);
+    await settle();
+
+    expect(_estado(container).needsPerson, isFalse);
+    expect(harness.room.personsAsked, 0);
+    expect(harness.room.deviceAsksReceived, isEmpty);
+    expect(harness.room.personArrivedSessions, isEmpty);
+  });
+
+  test('Q1: gone from an older session\'s Outbox row removes that session\'s '
+      'rows and files only, and the room stays where it is', () async {
+    final harness = SalaHarness();
+    final container = await _naPassagem(harness);
+    final sessao = _sessao(container);
+    final velha = await _naFila(harness, 'sessao-velha', nome: 'parte-velha');
+    final atual = await _naFila(harness, sessao, nome: 'parte-atual');
+    harness.room.forgetTheSession('sessao-velha');
+
+    await container.read(salaSessionProvider.notifier).refreshUnsent();
+    await settle(const Duration(milliseconds: 300));
+
+    expect(await _daSessao(harness, 'sessao-velha'), isEmpty);
+    expect(File(velha.path).existsSync(), isFalse);
+    expect((await _daSessao(harness, sessao)).map((row) => row.id), [atual.id]);
+    expect(File(atual.path).existsSync(), isTrue);
+    expect(_estado(container).stage, SalaStage.conversa);
+    expect(_estado(container).sessionId, sessao);
+  });
+
+  test('Q2: a row mid-upload when gone lands is never re-added, and its file '
+      'is deleted after the call ends', () async {
+    final harness = SalaHarness();
+    final container = await _naPassagem(harness);
+    final sessao = _sessao(container);
+    final linha = await _naFila(harness, sessao, nome: 'parte-no-ar');
+    harness.room.holdNextTake('parte-1');
+    await container.read(salaSessionProvider.notifier).refreshUnsent();
+    await harness.room.untilTakeHeld();
+
+    harness.room.forgetTheSession(sessao);
+    _abrirOMicrofoneDaConversa(container);
+    await _oMicrofoneAberto(container);
+    container.read(salaSessionProvider.notifier).conversaTap();
+    await _naEscolha(container);
+    await settle();
+    expect(
+      File(linha.path).existsSync(),
+      isTrue,
+      reason: 'a chamada ainda está no ar; o arquivo só sai quando ela acabar',
+    );
+
+    harness.room.finishHeldTake();
+    await settle(const Duration(milliseconds: 300));
+
+    expect(await _daSessao(harness, sessao), isEmpty);
+    expect(File(linha.path).existsSync(), isFalse);
+  });
+
+  test('Q5: out of reach, gone leaves the room out of reach at the Choice with '
+      'its retry armed, and drops the queued notice', () async {
+    final harness = SalaHarness(
+      watchesWithoutAHalt: true,
+      retryBackoff: const [Duration(milliseconds: 250)],
+    );
+    final container = await _naPassagem(harness);
+    _abrirOMicrofoneDaConversa(container);
+    await _oMicrofoneAberto(container);
+    harness.network.reachable = false;
+    harness.room.reachable = false;
+    await waitFor('a sala cair', () => _estado(container).unreachable);
+
+    harness.room
+      ..reachable = true
+      ..forgetTheSession(_sessao(container));
+    await _naEscolha(container);
+    final sondasNaHora = harness.network.checks;
+
+    expect(
+      _estado(container).unreachable,
+      isTrue,
+      reason: 'a Outbox é da sala inteira; a sessão sumida não diz que voltou',
+    );
+    await waitFor(
+      'a volta da sala ser tentada de novo',
+      () => harness.network.checks > sondasNaHora,
+    );
+    await settle(const Duration(milliseconds: 500));
+    expect(
+      harness.voice.assets,
+      isNot(contains(offlineNoticeAsset(testLanguage))),
+      reason: 'o aviso esperava sob o microfone e sai da fila com a sessão',
+    );
+  });
+
+  test('ENG-1155: a gone at the chunk door leaves no translation copy in the '
+      'Outbox and no file on disk, even with the enqueue in flight', () async {
+    final harness = SalaHarness();
+    final container = await _naPassagem(harness);
+    await _abrirACapturaDeUmTrecho(harness, container);
+
+    harness.room.chunkAnswersFirst.add(const SessionGone());
+    await confirmarATraducao(container);
+    final traducao = harness.recorder.lastPath!;
+    await _naEscolha(container);
+    await settle(const Duration(milliseconds: 300));
+
+    final retro = [
+      for (final row in await harness.takes.entries())
+        if (row.kind == 'retro') row,
+    ];
+    expect(retro, isEmpty);
+    final naPasta = Directory(
+      '${harness.takesHome.path}/guardadas',
+    ).listSync().map((entry) => entry.uri.pathSegments.last);
+    expect(naPasta, ['fila.json']);
+    expect(harness.recorder.deleted, contains(traducao));
+  });
+}

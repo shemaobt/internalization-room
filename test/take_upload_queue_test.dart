@@ -1506,12 +1506,15 @@ void main() {
       expect(row.waits, 0);
     });
 
-    test('a take whose session is gone spends one try, as before', () async {
+    test('a take whose session is gone leaves the Outbox with its copy, and '
+        'the Outbox says which session went', () async {
       final queue = queueAnswering(404, {
         'detail': 'Internalization room session not found',
         'code': 'NOT_FOUND',
       });
-      await queue.enqueue(
+      final gone = <String>[];
+      queue.sessionsGone.listen(gone.add);
+      final row = await queue.enqueue(
         aTake('sem-sessao'),
         sessionId: 'sessao-1',
         kind: 'ensaio',
@@ -1520,8 +1523,9 @@ void main() {
 
       await queue.flush();
 
-      expect((await queue.pending()).single.attempts, 1);
-      expect(await queue.waiting(), hasLength(1));
+      expect(await queue.entries(), isEmpty);
+      expect(File(row.path).existsSync(), isFalse);
+      expect(gone, ['sessao-1']);
     });
   });
 }

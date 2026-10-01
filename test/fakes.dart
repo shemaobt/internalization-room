@@ -737,6 +737,9 @@ class FakeRoom implements RoomRepository {
   @override
   Stream<CoverageEvent> watchCoverage(String sessionId) {
     watchCoverageCalls++;
+    if (_forgot('watchCoverage', sessionId) case final gone?) {
+      return Stream.error(gone);
+    }
     return _coverage.stream;
   }
 
@@ -976,6 +979,7 @@ class FakeRoom implements RoomRepository {
   String? presented;
   String credential = 'credencial-1';
   RoomFailure? refuseCredentialWith;
+  RoomFailure? refuseLinkWith;
   int linksRead = 0;
   List<String> claimCodes = const ['QHF-3M7K'];
   Duration claimCodeLife = const Duration(minutes: 15);
@@ -1019,9 +1023,34 @@ class FakeRoom implements RoomRepository {
     return failure;
   }
 
+  final Set<String> forgottenSessions = {};
+  final List<String> askedOfTheForgotten = [];
+
+  void forgetTheSession(String sessionId) => forgottenSessions.add(sessionId);
+
+  RoomFailure? _forgot(String call, String sessionId) {
+    if (!forgottenSessions.contains(sessionId)) return null;
+    askedOfTheForgotten.add(call);
+    return const SessionGone();
+  }
+
+  static const _sessionless = {
+    'askForACode',
+    'readTheLink',
+    'collectTheCredential',
+    'createSession',
+    'passagesOf',
+    'fetchClip',
+    'openClip',
+  };
+
   RoomFailure? _guard(String call) {
     calls.add(call);
-    return failWith ?? (reachable ? null : const NetworkFailed('sem rede'));
+    final failure = failWith;
+    if (failure is SessionGone && _sessionless.contains(call)) {
+      return const Refused(RefusalCode.notFound);
+    }
+    return failure ?? (reachable ? null : const NetworkFailed('sem rede'));
   }
 
   @override
@@ -1043,6 +1072,8 @@ class FakeRoom implements RoomRepository {
   Future<RoomAnswer<TeamLink?>> readTheLink(String deviceId) async {
     if (_guard('readTheLink') case final failure?) return failure;
     linksRead++;
+    final refusal = refuseLinkWith;
+    if (refusal != null) return refusal;
     return Answered(linkedTo);
   }
 
@@ -1101,6 +1132,9 @@ class FakeRoom implements RoomRepository {
   @override
   Future<RoomAnswer<List<TakeView>>> takesOf(String sessionId) async {
     if (_guard('takesOf') case final failure?) return failure;
+    if (_forgot('takesOf', sessionId) case final gone?) {
+      return gone;
+    }
     final refusal = failTakesWith;
     if (refusal != null) return refusal;
     return Answered(List.of(takes));
@@ -1157,6 +1191,9 @@ class FakeRoom implements RoomRepository {
   @override
   Future<RoomAnswer<SessionSnapshot>> fetchState(String sessionId) async {
     if (_guard('fetchState') case final failure?) return failure;
+    if (_forgot('fetchState', sessionId) case final gone?) {
+      return gone;
+    }
     final failure = failStateOnceWith;
     if (failure != null) {
       failStateOnceWith = null;
@@ -1193,6 +1230,9 @@ class FakeRoom implements RoomRepository {
     String? turnId,
   }) async {
     if (_guard('openSession') case final failure?) return failure;
+    if (_forgot('openSession', sessionId) case final gone?) {
+      return gone;
+    }
     sessionsSpokenTo.add(sessionId);
     turnIdsAsked.add(turnId);
     if (await _turnArrives() case final failure?) return failure;
@@ -1220,6 +1260,9 @@ class FakeRoom implements RoomRepository {
   }) async {
     replaceKeys.add(idempotencyKey);
     if (_guard('replaceSegment') case final failure?) return failure;
+    if (_forgot('replaceSegment', sessionId) case final gone?) {
+      return gone;
+    }
     final kept = forgetsTheKeys ? null : _replacesKept[idempotencyKey];
     if (kept != null) return kept;
     final answer = await _replaceSegment(
@@ -1356,6 +1399,9 @@ class FakeRoom implements RoomRepository {
   @override
   Future<RoomAnswer<void>> askForAPerson(String sessionId) async {
     if (_guard('askForAPerson') case final failure?) return failure;
+    if (_forgot('askForAPerson', sessionId) case final gone?) {
+      return gone;
+    }
     final held = _holdingAskForAPerson;
     if (held != null) await held.future;
     final failure = askForAPersonFailsWith;
@@ -1378,6 +1424,9 @@ class FakeRoom implements RoomRepository {
   @override
   Future<RoomAnswer<void>> personArrived(String sessionId) async {
     if (_guard('personArrived') case final failure?) return failure;
+    if (_forgot('personArrived', sessionId) case final gone?) {
+      return gone;
+    }
     personArrivedSessions.add(sessionId);
     return personArrivedFailsWith ?? const Answered(null);
   }
@@ -1430,6 +1479,9 @@ class FakeRoom implements RoomRepository {
     int? chunkIndex,
   }) async {
     if (_guard('sendTake') case final failure?) return failure;
+    if (_forgot('sendTake', sessionId) case final gone?) {
+      return gone;
+    }
     if (scope == holdTakeScope) {
       _reachedTakeHold?.complete();
       await _holdingTake?.future;
@@ -1464,6 +1516,9 @@ class FakeRoom implements RoomRepository {
     Duration? timeout,
   }) async {
     if (_guard('sendTurn') case final failure?) return failure;
+    if (_forgot('sendTurn', sessionId) case final gone?) {
+      return gone;
+    }
     sessionsSpokenTo.add(sessionId);
     clientTimingsSent.add(clientTiming);
     turnIdsSent.add(turnId);
@@ -1512,6 +1567,9 @@ class FakeRoom implements RoomRepository {
   }) async {
     chunkKeys.add(idempotencyKey);
     if (_guard('sendChunk') case final failure?) return failure;
+    if (_forgot('sendChunk', sessionId) case final gone?) {
+      return gone;
+    }
     if (chunkAnswersFirst.isNotEmpty) return chunkAnswersFirst.removeAt(0);
     final kept = forgetsTheKeys ? null : _chunksKept[idempotencyKey];
     if (kept != null) return kept;
@@ -1577,6 +1635,9 @@ class FakeRoom implements RoomRepository {
     if (refusal != null) return refusal;
     playedByTakeSent.add([for (final parte in playedByTake) parte.toJson()]);
     if (_guard('finishBackTranslation') case final failure?) return failure;
+    if (_forgot('finishBackTranslation', sessionId) case final gone?) {
+      return gone;
+    }
     final String linha;
     if (verdictUntoldTakeIds.isNotEmpty) {
       linha = falaDaParteNaoContada;
@@ -1662,6 +1723,9 @@ class FakeRoom implements RoomRepository {
   @override
   Future<RoomAnswer<ApprovalAnswer>> approveRelease(String sessionId) async {
     if (_guard('approveRelease') case final failure?) return failure;
+    if (_forgot('approveRelease', sessionId) case final gone?) {
+      return gone;
+    }
     releasesAsked.add(sessionId);
     final refusal = failReleaseWith;
     if (refusal != null) return refusal;
@@ -1841,10 +1905,22 @@ class FakeTakeQueue implements TakeUploadQueue {
   @override
   Stream<void> get fallsOnTheNetwork => const Stream.empty();
 
+  final StreamController<String> _sessionsGone =
+      StreamController<String>.broadcast(sync: true);
+
+  @override
+  Stream<String> get sessionsGone => _sessionsGone.stream;
+
+  @override
+  Future<void> discardTheSession(String sessionId) async =>
+      rows.removeWhere((entry) => entry.sessionId == sessionId);
+
   @override
   Future<int> flush({bool withTheCodeless = false}) async {
     var sent = 0;
-    for (var at = 0; at < rows.length; at++) {
+    for (final id in [for (final entry in rows) entry.id]) {
+      final at = rows.indexWhere((entry) => entry.id == id);
+      if (at < 0) continue;
       final entry = rows[at];
       if (entry.stored) continue;
       switch (await room.sendTake(
@@ -1858,6 +1934,9 @@ class FakeTakeQueue implements TakeUploadQueue {
         case Answered(value: final landed):
           rows[at] = entry.copyWith(takeId: landed, stored: true);
           sent++;
+        case SessionGone():
+          await discardTheSession(entry.sessionId);
+          _sessionsGone.add(entry.sessionId);
         case RoomFailure():
           rows[at] = entry.copyWith(attempts: entry.attempts + 1);
       }

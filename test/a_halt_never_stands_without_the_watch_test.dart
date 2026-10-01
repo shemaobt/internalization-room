@@ -66,13 +66,11 @@ void main() {
       'releases it', () {
     fakeAsync((async) {
       final harness = SalaHarness(settleDelay: _period, filaEmMemoria: true);
-      final container = _inConversa(async, harness);
+      final container = harness.container();
       final notifier = container.read(salaSessionProvider.notifier);
 
-      harness.room.failWith = const SessionGone();
-      notifier.conversaTap();
-      async.elapse(const Duration(milliseconds: 200));
-      notifier.conversaTap();
+      harness.room.failWith = const Refused(RefusalCode.notFound);
+      unawaited(notifier.abrirEscolha());
       async.elapse(const Duration(milliseconds: 200));
       harness.room.failWith = null;
       expect(_read(container).needsPerson, isTrue);

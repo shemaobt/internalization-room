@@ -593,34 +593,6 @@ void main() {
   );
 
   test(
-    'uma sessao que a sala esqueceu recomeca limpa, nao para para sempre',
-    () async {
-      final harness = SalaHarness()..room.failTakesWith = const SessionGone();
-
-      final it = await _reabrir(harness, parouEm: SalaStage.ensaio);
-      await waitFor(
-        'a sala abrir a passagem de novo',
-        () => it.harness.room.calls.contains('createSession'),
-      );
-
-      expect(
-        it.estado.needsPerson,
-        isFalse,
-        reason:
-            'a sessão que a linha nomeia não existe mais no servidor, e '
-            'guardar o ponto seria pedir a mesma sessão morta em toda '
-            'abertura: a passagem ficaria parada para sempre, chamando uma '
-            'pessoa que não tem o que resolver (ADR 0019)',
-      );
-      expect(
-        it.linha!.sessionId,
-        isNot(_sessao),
-        reason: 'a linha passa a nomear a sessão nova',
-      );
-    },
-  );
-
-  test(
     'o toque longo depois de uma busca parada tenta a retomada de novo',
     () async {
       final harness = SalaHarness()..room.refuseClipOf.add('gravacao-2');

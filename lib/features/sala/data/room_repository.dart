@@ -73,6 +73,7 @@ class RoomRepository {
         _client.post(_uri('/devices/$deviceId/credential'), headers: _headers),
     timeout: _stateTimeout,
     read: readJson((json) => json['credential'] as String),
+    asksForTheSession: false,
     atThisDoor: const {
       409: Refused(RefusalCode.credentialNotYet),
       403: Refused(RefusalCode.credentialTaken),
@@ -87,12 +88,14 @@ class RoomRepository {
     ),
     timeout: _stateTimeout,
     read: readJson(ClaimCode.fromJson),
+    asksForTheSession: false,
   );
 
   Future<RoomAnswer<TeamLink?>> readTheLink(String deviceId) => _room.ask(
     () => _client.get(_uri('/devices/$deviceId/link'), headers: _headers),
     timeout: _stateTimeout,
     read: readJson(TeamLink.fromJson),
+    asksForTheSession: false,
     atThisDoor: const {204: Answered(null)},
   );
 
@@ -112,6 +115,7 @@ class RoomRepository {
     ),
     timeout: _stateTimeout,
     read: readJson(SessionSnapshot.fromJson),
+    asksForTheSession: false,
     atThisDoor: const {400: Refused(RefusalCode.passageCannotOpen)},
   );
 
@@ -131,6 +135,7 @@ class RoomRepository {
     ),
     timeout: _turnTimeout,
     read: readJson(passagensFromJson),
+    asksForTheSession: false,
   );
 
   Future<RoomAnswer<SessionSnapshot>> fetchState(String sessionId) => _room.ask(

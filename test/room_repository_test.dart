@@ -1435,29 +1435,29 @@ void main() {
       });
 
       test(
-        'opening a session and listing the passages keep a 404 as the session gone',
+        'invariant 5: a 404 on a door that names no session is refused as NOT_FOUND',
         () async {
-          expect(
-            await answering(
-              404,
-            ).createSession(language: 'pt', afterSession: 's'),
-            isA<SessionGone>(),
-            reason:
-                'o 404 de /sessions é a sessão anterior que a sala não conhece '
-                'mais, um veredito sobre uma sessão',
-          );
-          expect(
-            await answering(404).passagesOf('Ruth', language: 'pt'),
-            isA<SessionGone>(),
-          );
+          final sessionless = <String, Future<RoomAnswer<Object?>> Function()>{
+            'passagesOf': () =>
+                answering(404).passagesOf('Ruth', language: 'pt'),
+            'collectTheCredential': () =>
+                answering(404).collectTheCredential('aparelho-1'),
+            'askForACode': () => answering(404).askForACode('aparelho-1'),
+            'readTheLink': () => answering(404).readTheLink('aparelho-1'),
+            'createSession': () =>
+                answering(404).createSession(language: 'pt', afterSession: 's'),
+          };
+          for (final door in sessionless.entries) {
+            expect(
+              await door.value(),
+              _refusedWith(RefusalCode.notFound),
+              reason: '${door.key} não nomeia sessão; o 404 dele é uma recusa',
+            );
+          }
         },
       );
 
       test('the device routes keep their own answers', () async {
-        expect(
-          await answering(404).collectTheCredential('aparelho-1'),
-          isA<SessionGone>(),
-        );
         expect(
           await answering(409).collectTheCredential('aparelho-1'),
           _refusedWith(RefusalCode.credentialNotYet),
@@ -1465,10 +1465,6 @@ void main() {
         expect(
           await answering(403).collectTheCredential('aparelho-1'),
           _refusedWith(RefusalCode.credentialTaken),
-        );
-        expect(
-          await answering(404).readTheLink('aparelho-1'),
-          isA<SessionGone>(),
         );
         expect(_value(await answering(204).readTheLink('aparelho-1')), isNull);
         expect(

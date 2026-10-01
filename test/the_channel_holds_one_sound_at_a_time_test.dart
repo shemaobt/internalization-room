@@ -518,55 +518,6 @@ void main() {
     });
   }
 
-  test(
-    'a line waiting under a halt is never started and then cut when the long '
-    'press releases it into the conversation opening again',
-    () async {
-      _OutboxThatGaveUp? outbox;
-      final harness = SalaHarness(
-        takesOverride: (room, home) =>
-            outbox = _OutboxThatGaveUp(room: room, home: () async => home),
-      );
-      final container = await inConversa(harness);
-      addTearDown(container.dispose);
-      final sala = container.read(salaSessionProvider.notifier);
-      SalaSessionState read() => container.read(salaSessionProvider);
-      final bloqueado = micBlockedAsset(testLanguage);
-      harness.room.failWith = const Refused('UNAUTHORIZED');
-      sala.conversaTap();
-      await settle();
-      sala.conversaTap();
-      await waitFor('a sala parar', () => read().needsPerson);
-      harness.room.failWith = null;
-      harness.room.failStateOnceWith = const SessionGone();
-      await waitFor('a sala perder a sessão', () => read().sessionId == null);
-      sala.sayTheMicIsBlocked();
-      outbox!.gaveUp = true;
-      await sala.refreshUnsent();
-      await settle();
-      expect(read().machine.queue, hasLength(2));
-      expect(harness.voice.assets, isNot(contains(bloqueado)));
-
-      final marca = harness.sounds.length;
-      sala.resolveWithPerson();
-      await waitFor(
-        'a conversa reabrir',
-        () => !read().needsPerson && read().sessionId != null,
-      );
-      await settle();
-
-      final depois = harness.sounds.skip(marca).toList();
-      final dita = depois.indexOf('voice:asset');
-      expect(
-        dita < 0 || !depois.skip(dita).contains('voice:stop'),
-        isTrue,
-        reason:
-            'a linha que esperava a parada nunca começa para ser cortada: '
-            '$depois',
-      );
-    },
-  );
-
   test('a reply silenced by a gesture is not counted against it when the room '
       'then fails', () async {
     final harness = SalaHarness(

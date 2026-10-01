@@ -109,13 +109,13 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
       case Refused(code: RefusalCode.credentialTaken):
         await _startOver(ledger);
         return;
-      case SessionGone():
+      case Refused(code: RefusalCode.notFound):
         // The server does not know this device at all. Keeping the team beside an id
         // nobody claimed is a lie the next opening believes: it walks into the room as
         // linked, and the code the facilitator would have to write down never shows.
         await _startOver(ledger);
         return;
-      case NetworkFailed() || Refused():
+      case NetworkFailed() || Refused() || SessionGone():
         _tryAgainLater(_collectTheCredential);
         return;
     }
@@ -206,10 +206,10 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
           return _showACode();
         }
         _lookAgainLater();
-      case SessionGone():
+      case Refused(code: RefusalCode.notFound):
         _deviceId = null;
         await _showACode();
-      case NetworkFailed() || Refused():
+      case NetworkFailed() || Refused() || SessionGone():
         _tryAgainLater(_lookForTheTeam);
     }
   }

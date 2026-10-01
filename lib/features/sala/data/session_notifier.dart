@@ -330,6 +330,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   StreamSubscription<void>? _playbackOpened;
   StreamSubscription<void>? _networkWatch;
   StreamSubscription<void>? _outboxFalls;
+  StreamSubscription<String>? _outboxGone;
   Timer? _retry;
   StreamSubscription<CoverageEvent>? _coverageWatch;
   String? _coverageSessionId;
@@ -383,6 +384,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       unawaited(_playbackOpened?.cancel());
       unawaited(_networkWatch?.cancel());
       unawaited(_outboxFalls?.cancel());
+      unawaited(_outboxGone?.cancel());
       unawaited(_micWatch?.cancel());
       unawaited(_coverageWatch?.cancel());
     });
@@ -391,6 +393,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           .read(takeUploadQueueProvider)
           .fallsOnTheNetwork
           .listen((_) => _outOfReach(Door.outbox)),
+    );
+    _outboxGone = _apart(
+      () => ref
+          .read(takeUploadQueueProvider)
+          .sessionsGone
+          .listen(_theSessionIsGone),
     );
     return const SalaSessionState();
   }
@@ -1089,6 +1097,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           _resendPending();
         case ProbeTheRoom():
           unawaited(_probeTheRoom());
+        case DiscardTheSession():
+          _discardTheSession();
+        case OpenTheChoice():
+          _openTheChoice();
         case SayTheOfflineNotice():
           unawaited(
             _sayALine(
@@ -1150,11 +1162,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (wasBlocking && !state.needsPerson && state.unreachable) {
           _theRoomIsBack();
         }
-      case SessionGone() when state.halt is NoHalt:
-        _leaveTheDeadPassage();
       case SessionGone():
-        _endTheWatch();
-        state = state.copyWith(clearSession: true);
+        _theSessionIsGone(sessionId);
       case NetworkFailed():
         _outOfReach(Door.watch);
       case Refused():
@@ -1267,12 +1276,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           _dispatch(const TheCallLanded());
         }
       case SessionGone():
-        // The server has already said this session is gone; insisting on the same route
-        // just spends the backoff. Clearing it here — the way the state poll's SessionGone
-        // path does — is what gives the device-scoped ask its turn. A person may have
-        // arrived and resolved the halt while this ask was still in flight, and a late
-        // 404 must not reopen a halt nobody is in anymore.
-        if (!_gone && state.needsPerson) _raiseAHaltWithNoSession();
+        _theSessionIsGone(sessionId);
       case NetworkFailed():
         _outOfReach(Door.person);
       case Refused():
@@ -1336,7 +1340,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case NetworkFailed():
         _theStepFell();
       case SessionGone():
-        _leaveTheDeadPassage();
+        _theSessionIsGone();
       case Refused(:final code) when RefusalCode.stopsTheRoom.contains(code):
         _raiseAHalt();
       case Refused(code: RefusalCode.passageCannotOpen):
@@ -1565,7 +1569,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (await _room.personArrived(sessionId)) {
       case NetworkFailed():
         _outOfReach(Door.person);
-      case Answered() || Refused() || SessionGone():
+      case SessionGone():
+        _theSessionIsGone(sessionId);
+      case Answered() || Refused():
         break;
     }
   }
@@ -1624,6 +1630,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
                   _outOfReach(Door.coverage);
                 case SessionGone():
                   refused = true;
+                  _theSessionIsGone(sessionId);
                 case Refused(:final code):
                   refused = RefusalCode.stopsTheRoom.contains(code);
                 default:
@@ -1733,8 +1740,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _applyTheSessionRead(snapshot, sent, rowWhenSent: row);
         return _applyWhatOnlyGrows(snapshot, clock: clock);
       case SessionGone():
-        if (epoch != _epoch) return false;
-        _leaveTheDeadPassage();
+        _theSessionIsGone(sessionId);
         return false;
       case Refused(:final code) when RefusalCode.stopsTheRoom.contains(code):
         if (epoch != _epoch) return false;
@@ -2248,22 +2254,81 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _clearAll();
     _dropThePendingTake();
     _forgetThePassage();
-    state = SalaSessionState(machine: _gesturesOnTheirWay);
-    _handOff(abrirEscolha());
+    _openTheChoice();
   }
 
-  void _leaveTheDeadPassage() {
-    final pericope = _emCurso;
-    if (pericope == null) {
-      // Nothing here is a passage — the wheel itself failing to reload after
-      // an earlier departure, or a calibration turn with no passage entered
-      // yet. Leaving loops back into exactly this failure with nowhere new to
-      // land, so this is where the old, bounded halt still belongs.
-      _raiseAHaltWithNoSession();
+  void _theSessionIsGone([String? sessionId]) {
+    if (_gone) return;
+    if (sessionId == null &&
+        state.sessionId == null &&
+        _panoramaSessionId == null) {
       return;
     }
-    unawaited(_mindingThePlace(() => _emAberto.forget(_book, pericope)));
-    leaveThePassage();
+    if (sessionId != null && sessionId != state.sessionId) {
+      _goneSessions.add(sessionId);
+      unawaited(
+        _mindingThePlace(
+          () => _takes.discardTheSession(sessionId),
+        ).whenComplete(_countUnsent),
+      );
+      return;
+    }
+    _dispatch(const TheSessionIsGone());
+  }
+
+  final Set<String> _goneSessions = {};
+
+  void _discardTheSession() {
+    final sessionId = state.sessionId;
+    final pericope = _emCurso;
+    final kept = [for (final take in state.keptTakes) take.path];
+    if (sessionId != null) _goneSessions.add(sessionId);
+    if (sessionId == _panoramaSessionId) _panoramaSessionId = null;
+    _clearAll();
+    _dropThePendingTake();
+    _forgetThePassage();
+    unawaited(
+      _mindingThePlace(
+        () => _forgetTheSessionOnDisk(sessionId, pericope, kept),
+      ).whenComplete(_countUnsent),
+    );
+  }
+
+  Future<void> _forgetTheSessionOnDisk(
+    String? sessionId,
+    String? pericope,
+    List<String> kept,
+  ) async {
+    final book = _book;
+    final open = _emAberto;
+    final queue = _takes;
+    final recorder = _recorder;
+    final row = pericope == null ? null : await open.of(book, pericope);
+    final itsRow = row != null && row.sessionId == sessionId;
+    for (final path in {
+      ...kept,
+      if (itsRow) ...row.takes.map((take) => take.path),
+    }) {
+      await recorder.delete(path);
+    }
+    if (itsRow) await open.forget(book, pericope!);
+    if (sessionId != null) await queue.discardTheSession(sessionId);
+  }
+
+  void _openTheChoice() {
+    final machine = state.machine;
+    state = SalaSessionState(
+      reach: state.reach,
+      machine: Machine(
+        onTheirWay: _gesturesOnTheirWay.onTheirWay,
+        reach: machine.reach,
+        parts: machine.parts,
+        draining: machine.draining,
+        fallen: machine.fallen,
+        noticeSaid: machine.noticeSaid,
+      ),
+    );
+    _handOff(abrirEscolha());
   }
 
   bool _wrongLanguage(ResumePoint? point) {
@@ -2298,8 +2363,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// Enter a passage, resuming the session this tablet left in it when there is one.
   ///
-  /// `fresh` skips the resume, which is how the 404 path starts over: retrying without it
-  /// looked the session up again and recursed forever.
+  /// `fresh` skips the resume.
   ///
   /// `opened` is a session the room already made for this passage, entered as it came
   /// back rather than asked for again.
@@ -2356,21 +2420,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     var reachedTheOpeningTurn = false;
     void failed(RoomFailure failure) {
       if (epoch != _epoch) return;
-      if (failure case SessionGone()) {
-        if (pericope != null) {
-          unawaited(_mindingThePlace(() => _emAberto.forget(_book, pericope)));
-        }
-        if (fresh) {
-          // Already the clean attempt, and the room still does not know a session it was
-          // asked about: the panorama this one opened after, or the one it just opened.
-          // Retrying again is the loop this guard exists to stop.
-          leaveThePassage();
-          return;
-        }
-        // The tablet remembered a session the server has forgotten. Start clean, once.
-        unawaited(goConversa(pericope: pericope, fresh: true));
-        return;
-      }
       if (failure case Refused(
         :final code,
       ) when waiting != null && !RefusalCode.stopsTheRoom.contains(code)) {
@@ -2636,7 +2685,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           // This is the first call that names the remembered session on a resume, so the
           // answer that retires a session arrives here, and swallowed it would make every
           // opening ask a dead session for a rehearsal and call a person who has nothing
-          // to resolve. It goes to the handler that already starts the passage clean.
+          // to resolve.
           return _Resume.gone;
         case NetworkFailed():
           if (epoch != _epoch || _gone) return _Resume.abandoned;
@@ -3651,6 +3700,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_gone) return;
     final queue = _takes;
     final sessionId = state.sessionId;
+    if (_goneSessions.contains(sessionId)) return;
     final audio = File(path);
     if (!await audio.exists()) return;
     if (sessionId == null) {
@@ -3674,8 +3724,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // A full disk throws here, on the copy or on the manifest write. It used to be an
       // unhandled async error behind an `unawaited`: the screen kept its beads and the
       // room went on as if the recording were queued.
-      _sayARecordingIsStranded();
+      if (!_goneSessions.contains(sessionId)) _sayARecordingIsStranded();
       return;
+    }
+    if (_goneSessions.contains(sessionId)) {
+      return queue.discardTheSession(sessionId);
     }
     if (kind == 'ensaio') _semNome[linha.id] = path;
     if (kind == 'retro') _traducaoNaFila[path] = linha;
@@ -5506,7 +5559,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         guardadas = listadas;
       case NetworkFailed():
         return _outOfReach(Door.stretches);
-      case Refused() || SessionGone():
+      case SessionGone():
+        return _theSessionIsGone(sessionId);
+      case Refused():
         debugPrint(
           'A sessão $sessionId tem trechos numa gravação que este tablet não '
           'tem, e as gravações dela não puderam ser lidas',

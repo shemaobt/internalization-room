@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/device_link_notifier.dart';
 import 'package:internalization_room/features/sala/data/linked_team.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/dev/dev_skip_bar.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
@@ -169,6 +170,31 @@ void main() {
             'o aparelho pedia código antes de ler o vínculo, o servidor respondia um '
             'aparelho novo para um id já vinculado, e a equipe que o facilitador acabara '
             'de escolher ficava numa linha que ninguém mais lê',
+      );
+    },
+  );
+
+  test(
+    'invariant 5: a link the room does not know is refused as NOT_FOUND, and a new code shows',
+    () async {
+      final harness = SalaHarness(
+        linkedAs: const RememberedLink(deviceId: 'aparelho-esquecido'),
+      )..room.refuseLinkWith = const Refused(RefusalCode.notFound);
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(deviceLinkProvider.notifier).findTheTeam();
+      await waitFor(
+        'um código novo aparecer',
+        () => container.read(deviceLinkProvider).code != null,
+      );
+
+      expect(
+        harness.room.codesAskedFor,
+        [null],
+        reason:
+            'a sala não conhece este aparelho; o código novo é pedido sem o id '
+            'que ela esqueceu',
       );
     },
   );
