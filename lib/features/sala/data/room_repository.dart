@@ -266,12 +266,14 @@ class RoomRepository {
     required String takeId,
     required Duration from,
     required Duration to,
+    required String idempotencyKey,
   }) async => _room.askStreamed(
     http.MultipartRequest(
         'POST',
         _uri('/sessions/$sessionId/back-translation/chunks'),
       )
       ..headers.addAll(_whoWeAre)
+      ..headers['Idempotency-Key'] = idempotencyKey
       ..headers['X-Room-Device'] = await _deviceId()
       ..fields['take_id'] = takeId
       ..fields['starts_ms'] = '${from.inMilliseconds}'
@@ -340,12 +342,14 @@ class RoomRepository {
     required String takeId,
     required Duration from,
     required Duration to,
+    required String idempotencyKey,
   }) async => _room.askStreamed(
     http.MultipartRequest(
         'POST',
         _uri('/sessions/$sessionId/segments/$segmentId/replace'),
       )
       ..headers.addAll(_whoWeAre)
+      ..headers['Idempotency-Key'] = idempotencyKey
       ..headers['X-Room-Device'] = await _deviceId()
       ..fields['take_id'] = takeId
       ..fields['starts_ms'] = '${from.inMilliseconds}'

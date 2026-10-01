@@ -13,6 +13,9 @@ class World {
   final bool serverHoldsAWarning;
   final bool playerBusy;
   final bool micOpen;
+  final bool retryArmed;
+  final bool draining;
+  final bool probing;
 
   const World({
     this.watchArmed = true,
@@ -21,6 +24,9 @@ class World {
     this.serverHoldsAWarning = false,
     this.playerBusy = false,
     this.micOpen = false,
+    this.retryArmed = false,
+    this.draining = false,
+    this.probing = false,
   });
 
   World after(MachineEvent event, List<Effect> effects) {
@@ -32,6 +38,17 @@ class World {
         event is! PlayerFailed &&
         event is! GestureSilenced;
     var mic = micOpen && event is! MicClosed;
+    var retry = retryArmed && event is! RetryFired;
+    var drains = draining && event is! OutboxChanged;
+    var probes =
+        probing &&
+        event is! NetworkReturned &&
+        !(event is NetworkFailedAt && event.door == Door.probe);
+    var reach = switch (event) {
+      NetworkFailedAt() => false,
+      NetworkReturned() => true,
+      _ => reachable,
+    };
     for (final effect in effects) {
       switch (effect) {
         case ArmTheWatch():
@@ -48,6 +65,14 @@ class World {
           mic = true;
         case CloseAndDiscardTheMic():
           mic = false;
+        case ArmTheRetry():
+          retry = true;
+        case CancelTheRetry():
+          retry = false;
+        case DrainTheOutbox():
+          drains = true;
+        case ProbeTheRoom():
+          probes = true;
         default:
           break;
       }
@@ -55,9 +80,12 @@ class World {
     return World(
       watchArmed: armed,
       callOutstanding: calling,
-      reachable: event is ReachChanged ? event.reachable : reachable,
+      reachable: reach,
       playerBusy: busy,
       micOpen: mic,
+      retryArmed: retry,
+      draining: drains,
+      probing: probes,
       serverHoldsAWarning: switch (event) {
         TheAnswerWarned() => true,
         SessionRead(:final snapshot) when !snapshot.needsPerson =>
@@ -200,7 +228,13 @@ String describeEvent(MachineEvent event) => switch (event) {
   LongPress(:final somebodyToAsk, :final at) =>
     'LongPress(somebodyToAsk: $somebodyToAsk, at: $at)',
   WatchFired() => 'WatchFired',
-  ReachChanged(:final reachable) => 'ReachChanged(reachable: $reachable)',
+  NetworkFailedAt(:final door) => 'NetworkFailedAt(${door.name})',
+  NetworkReturned() => 'NetworkReturned',
+  RetryFired() => 'RetryFired',
+  TheRoomAnswered() => 'TheRoomAnswered',
+  OutboxChanged(:final parts, :final due) =>
+    'OutboxChanged(${parts.entries.map((part) => '${part.key}: ${part.value.name}').join(', ')}, '
+        'due: ${due.inSeconds}s)',
   LineArrived(:final line) => 'LineArrived(${describeLine(line)})',
   PlayerOpened() => 'PlayerOpened',
   PlayerEnded() => 'PlayerEnded',
@@ -242,7 +276,9 @@ String describeChannel(Channel channel) => switch (channel) {
 
 String describeMachine(Machine machine) =>
     '${describeHalt(machine.halt)} / ${describeChannel(machine.channel)} / '
-    'queue [${machine.queue.map(describeLine).join(', ')}]';
+    'queue [${machine.queue.map(describeLine).join(', ')}] / '
+    '${machine.reach.name}${machine.somethingPending ? ', a part pending' : ''}'
+    '${machine.draining ? ', draining' : ''}';
 
 String describeEffect(Effect effect) => switch (effect) {
   ReplayTheSound(:final kept) => 'ReplayTheSound(${describeKept(kept)})',
@@ -251,6 +287,8 @@ String describeEffect(Effect effect) => switch (effect) {
   PlayStretch(:final stretch) => 'PlayStretch(${describeSound(stretch)})',
   OpenTheMic(:final owner) => 'OpenTheMic(${owner.name})',
   AskTheOpeningAgain(:final freshTurnId) => 'AskTheOpeningAgain($freshTurnId)',
+  ArmTheRetry(:final step, :final due) =>
+    'ArmTheRetry(${due == null ? 'step $step' : 'due ${due.inSeconds}s'})',
   _ => effect.runtimeType.toString(),
 };
 
@@ -285,7 +323,11 @@ enum EventKind {
   theAnswerWarned,
   longPress,
   watchFired,
-  reachChanged,
+  networkFailedAt,
+  networkReturned,
+  retryFired,
+  theRoomAnswered,
+  outboxChanged,
   lineArrived,
   playerOpened,
   playerEnded,
@@ -310,7 +352,11 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TheAnswerWarned() => EventKind.theAnswerWarned,
   LongPress() => EventKind.longPress,
   WatchFired() => EventKind.watchFired,
-  ReachChanged() => EventKind.reachChanged,
+  NetworkFailedAt() => EventKind.networkFailedAt,
+  NetworkReturned() => EventKind.networkReturned,
+  RetryFired() => EventKind.retryFired,
+  TheRoomAnswered() => EventKind.theRoomAnswered,
+  OutboxChanged() => EventKind.outboxChanged,
   LineArrived() => EventKind.lineArrived,
   PlayerOpened() => EventKind.playerOpened,
   PlayerEnded() => EventKind.playerEnded,
@@ -330,6 +376,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
 
 bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.watchFired => world.watchArmed,
+  EventKind.retryFired => world.retryArmed,
   EventKind.theCallLanded => world.callOutstanding,
   EventKind.playerOpened ||
   EventKind.playerEnded ||
@@ -339,7 +386,10 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.roomRaisedAHalt ||
   EventKind.theAnswerWarned ||
   EventKind.longPress ||
-  EventKind.reachChanged ||
+  EventKind.networkFailedAt ||
+  EventKind.networkReturned ||
+  EventKind.theRoomAnswered ||
+  EventKind.outboxChanged ||
   EventKind.lineArrived ||
   EventKind.micOpened ||
   EventKind.beadTapped ||
@@ -388,7 +438,19 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
         at: _at.add(Duration(milliseconds: random.nextInt(3))),
       ),
       EventKind.watchFired => const WatchFired(),
-      EventKind.reachChanged => ReachChanged(reachable: !world.reachable),
+      EventKind.networkFailedAt => NetworkFailedAt(
+        world.probing && random.nextBool()
+            ? Door.probe
+            : Door.values[random.nextInt(Door.values.length)],
+      ),
+      EventKind.networkReturned => const NetworkReturned(),
+      EventKind.retryFired => const RetryFired(),
+      EventKind.theRoomAnswered => const TheRoomAnswered(),
+      EventKind.outboxChanged => OutboxChanged({
+        for (var part = 0, parts = random.nextInt(3); part < parts; part++)
+          'parte-$part':
+              PartFact.values[random.nextInt(PartFact.values.length)],
+      }, due: Duration(seconds: random.nextInt(3) * 30)),
       EventKind.lineArrived => LineArrived(
         Line(
           LineKind.values[random.nextInt(LineKind.values.length)],

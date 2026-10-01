@@ -300,8 +300,12 @@ The room's action of signalling it needs someone, insisted on at intervals until
 _Avoid_: pedir uma pessoa, calling a human, SOS, `needsPerson` (the internal name)
 
 **Reach**:
-Whether the room can get to the server, kept as a fact of its own beside the voice: it is what the way back — the retry ladder, the network watch and the flush of the outbox — lives on, so a voice written over it ends nothing. The circle says the room has fallen; the reach is what knows it. A network failure at any door, the Outbox's included, takes the room out of reach.
+Whether the room can get to the server: reachable or out of reach, a region of the machine. A network failure at any door, the Outbox's included, takes the room out of reach; coming back drains the Outbox and re-sends the Pending request once. The circle says the room has fallen, except over an open microphone; the reach is what knows it (ADR 0050).
 _Avoid_: offline (the voice the circle draws while the reach is down, not the fact), connectivity, online/offline flag, Alcance
+
+**Pending request**:
+The one request a Step was waiting on when its door fell on the network, kept in memory with its key and re-sent once when the room comes back (ADR 0050).
+_Avoid_: retry queue, outbox (which holds recordings only)
 
 **Watch**:
 The room's periodic Session read, beating for as long as a session is open, with or without a halt, so a halt only the server wrote still stops the room within one beat (ADR 0048). A halt never stands without it (ADR 0046). A halt with no session has nothing to read, and the long press releases it locally. It ends with the session.

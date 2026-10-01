@@ -56,6 +56,7 @@ final Map<String, _Request> _everyRequest = {
     takeId: 'tomada-1',
     from: Duration.zero,
     to: _oneSecond,
+    idempotencyKey: 'chave-1',
   ),
   'sendTake': (room, audio) =>
       room.sendTake('sessao-1', audio, kind: 'ensaio', scope: 'passagem'),
@@ -67,6 +68,7 @@ final Map<String, _Request> _everyRequest = {
     takeId: 'tomada-1',
     from: Duration.zero,
     to: _oneSecond,
+    idempotencyKey: 'chave-1',
   ),
   'askForAPerson': (room, _) => room.askForAPerson('sessao-1'),
   'askForAPersonWithoutASession': (room, _) =>

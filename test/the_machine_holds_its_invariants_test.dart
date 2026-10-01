@@ -198,6 +198,16 @@ final theScreenNeverShowsASoundTheChannelDoesNotHold = Invariant<Machine>(
   },
 );
 
+final theOutboxNeverIdlesReachableWithAPartPending = Invariant<Machine>(
+  'ADR invariant 12, the Outbox never idles reachable with a part pending',
+  (before, event, after, effects, world) {
+    if (!after.reachable || !after.somethingPending) return null;
+    if (world.retryArmed || world.draining) return null;
+    return 'reachable with a part pending, no retry armed and no drain in '
+        'flight';
+  },
+);
+
 void _holds(Invariant<Machine> invariant) =>
     expectEverySeedHolds(_machine, [invariant], seeds: _seeds);
 
@@ -239,12 +249,18 @@ void main() {
       _holds(theScreenNeverShowsASoundTheChannelDoesNotHold);
     });
 
-    test('ADR invariants 1, 2, 3, 5, 8, 11, 13 and 15 hold over the default '
-        'run', () {
+    test('ADR invariant 12: the Outbox never idles reachable with a part '
+        'pending', () {
+      _holds(theOutboxNeverIdlesReachableWithAPartPending);
+    });
+
+    test('ADR invariants 1, 2, 3, 5, 8, 11, 12, 13 and 15 hold over the '
+        'default run', () {
       expectEverySeedHolds(_machine, [
         ...theAdrInvariants<Machine>(_haltOf),
         theMicrophoneNeverOpensUnderASound,
         theHeadNeverReadsAnotherSound,
+        theOutboxNeverIdlesReachableWithAPartPending,
         theScreenNeverShowsASoundTheChannelDoesNotHold,
       ], seeds: _seeds);
     });
@@ -281,6 +297,21 @@ void main() {
           }
         }
       }
+    });
+
+    test('generator invariant 4: the run reaches the room reachable with a '
+        'part pending', () {
+      final reached = [
+        for (final seed in _seeds)
+          for (final entry in runSequence(
+            _machine,
+            const <Invariant<Machine>>[],
+            seed,
+          ).entries)
+            if (entry.after.reachable && entry.after.somethingPending) seed,
+      ];
+
+      expect(reached, isNotEmpty);
     });
 
     test('generator invariant 2: the same seed yields the same sequence', () {

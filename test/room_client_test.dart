@@ -42,6 +42,7 @@ void main() {
         takeId: 'gravacao-1',
         from: Duration.zero,
         to: const Duration(seconds: 4),
+        idempotencyKey: 'chave-1',
       );
 
   test('a refusal comes back with the code the server named', () async {

@@ -44,21 +44,15 @@ class _OutboxThatGaveUp extends TakeUploadQueue {
   bool gaveUp = false;
 
   @override
-  Future<
-    ({
-      bool stranded,
-      int unsentTakes,
-      int unsentChunks,
-      Set<String> unsentTakeScopes,
-    })
-  >
-  tally({required String? sessionId}) async {
+  Future<OutboxTally> tally({required String? sessionId}) async {
     final counted = await super.tally(sessionId: sessionId);
     return (
       stranded: gaveUp || counted.stranded,
       unsentTakes: counted.unsentTakes,
       unsentChunks: counted.unsentChunks,
       unsentTakeScopes: counted.unsentTakeScopes,
+      parts: counted.parts,
+      due: counted.due,
     );
   }
 }

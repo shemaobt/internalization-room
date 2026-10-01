@@ -49,10 +49,47 @@ final class WatchFired extends MachineEvent {
   const WatchFired();
 }
 
-final class ReachChanged extends MachineEvent {
-  final bool reachable;
+enum Reach { reachable, outOfReach }
 
-  const ReachChanged({required this.reachable});
+enum Door {
+  probe,
+  outbox,
+  watch,
+  inbox,
+  coverage,
+  person,
+  resume,
+  reply,
+  stretches,
+  question,
+  step,
+}
+
+enum PartFact { sent, pending, stranded }
+
+final class NetworkFailedAt extends MachineEvent {
+  final Door door;
+
+  const NetworkFailedAt(this.door);
+}
+
+final class NetworkReturned extends MachineEvent {
+  const NetworkReturned();
+}
+
+final class RetryFired extends MachineEvent {
+  const RetryFired();
+}
+
+final class TheRoomAnswered extends MachineEvent {
+  const TheRoomAnswered();
+}
+
+final class OutboxChanged extends MachineEvent {
+  final Map<String, PartFact> parts;
+  final Duration due;
+
+  const OutboxChanged(this.parts, {this.due = Duration.zero});
 }
 
 final class LineArrived extends MachineEvent {
@@ -280,6 +317,40 @@ final class LetTheSoundRun extends Effect {
   const LetTheSoundRun();
 }
 
+final class ArmTheRetry extends Effect {
+  final int step;
+  final Duration? due;
+
+  const ArmTheRetry({this.step = 0, this.due});
+
+  @override
+  bool operator ==(Object other) =>
+      other is ArmTheRetry && other.step == step && other.due == due;
+
+  @override
+  int get hashCode => Object.hash(step, due);
+}
+
+final class CancelTheRetry extends Effect {
+  const CancelTheRetry();
+}
+
+final class DrainTheOutbox extends Effect {
+  const DrainTheOutbox();
+}
+
+final class ResendPending extends Effect {
+  const ResendPending();
+}
+
+final class ProbeTheRoom extends Effect {
+  const ProbeTheRoom();
+}
+
+final class SayTheOfflineNotice extends Effect {
+  const SayTheOfflineNotice();
+}
+
 final class Machine {
   final Halt halt;
   final Channel channel;
@@ -288,6 +359,11 @@ final class Machine {
   final int failures;
   final Set<int> onTheirWay;
   final Map<Line, Set<int>> owners;
+  final Reach reach;
+  final Map<String, PartFact> parts;
+  final bool draining;
+  final int fallen;
+  final bool noticeSaid;
 
   const Machine({
     this.halt = const NoHalt(),
@@ -297,7 +373,16 @@ final class Machine {
     this.failures = 0,
     this.onTheirWay = const {},
     this.owners = const {},
+    this.reach = Reach.reachable,
+    this.parts = const {},
+    this.draining = false,
+    this.fallen = 0,
+    this.noticeSaid = false,
   });
+
+  bool get reachable => reach == Reach.reachable;
+
+  bool get somethingPending => parts.values.contains(PartFact.pending);
 
   Machine copyWith({
     Halt? halt,
@@ -308,6 +393,11 @@ final class Machine {
     bool forgetTheFailures = false,
     Set<int>? onTheirWay,
     Map<Line, Set<int>>? owners,
+    Reach? reach,
+    Map<String, PartFact>? parts,
+    bool? draining,
+    int? fallen,
+    bool? noticeSaid,
   }) => Machine(
     halt: halt ?? this.halt,
     channel: channel ?? this.channel,
@@ -316,6 +406,11 @@ final class Machine {
     failures: forgetTheFailures ? 0 : (failures ?? this.failures),
     onTheirWay: onTheirWay ?? this.onTheirWay,
     owners: owners ?? this.owners,
+    reach: reach ?? this.reach,
+    parts: parts ?? this.parts,
+    draining: draining ?? this.draining,
+    fallen: fallen ?? this.fallen,
+    noticeSaid: noticeSaid ?? this.noticeSaid,
   );
 }
 
@@ -366,13 +461,17 @@ const _watch = ArmTheWatch();
           for (final line in machine.queue) DropTheLine(line),
         ],
       ),
-      SessionRead() ||
+      NetworkFailedAt(:final door) => _fall(machine, door),
+      NetworkReturned() => _return(machine),
+      RetryFired() => _retry(machine),
+      TheRoomAnswered() => (_answered(machine), const []),
+      OutboxChanged(:final parts, :final due) => _tally(machine, parts, due),
+      SessionRead() => _theHalt(_answered(machine), event),
       RoomRaisedAHalt() ||
       TheCallLanded() ||
       TheAnswerWarned() ||
       LongPress() ||
-      WatchFired() ||
-      ReachChanged() => _theHalt(machine, event),
+      WatchFired() => _theHalt(machine, event),
     };
 
 bool _silent(Machine machine) =>
@@ -672,11 +771,6 @@ List<Effect> _stopTheLineIn(Channel channel) => switch (channel) {
 };
 
 (Machine, List<Effect>) _theHalt(Machine machine, MachineEvent event) {
-  if (event is ReachChanged && event.reachable) {
-    final (kept, dropped) = _leaveTheQueue(machine, _aboutTheFall);
-    final (halt, effects) = _reduceTheHalt(machine.halt, event);
-    return (kept.copyWith(halt: halt), [...dropped, ...effects]);
-  }
   final (halt, effects) = _reduceTheHalt(machine.halt, event);
   final next = machine.copyWith(halt: halt);
   if (halt is Blocking && machine.halt is! Blocking) {
@@ -684,12 +778,81 @@ List<Effect> _stopTheLineIn(Channel channel) => switch (channel) {
   }
   if (halt is! Blocking && machine.halt is Blocking) {
     final lifted = next.copyWith(forgetTheFailures: true);
+    final resent = [...effects, if (machine.reachable) const ResendPending()];
     if (effects.contains(const ReplayTheSound(ThePart()))) {
-      return (lifted, effects);
+      return (lifted, resent);
     }
-    return _drain(lifted, effects);
+    return _drain(lifted, resent);
   }
   return (next, effects);
+}
+
+(Machine, List<Effect>) _fall(Machine machine, Door door) {
+  if (machine.reachable) {
+    final fallen = machine.noticeSaid ? machine.fallen + 1 : 0;
+    return (
+      machine.copyWith(
+        reach: Reach.outOfReach,
+        fallen: fallen,
+        noticeSaid: true,
+      ),
+      [
+        ArmTheRetry(step: fallen),
+        if (!machine.noticeSaid) const SayTheOfflineNotice(),
+      ],
+    );
+  }
+  if (door != Door.probe) return (machine, const []);
+  final fallen = machine.fallen + 1;
+  return (machine.copyWith(fallen: fallen), [ArmTheRetry(step: fallen)]);
+}
+
+(Machine, List<Effect>) _return(Machine machine) {
+  if (machine.reachable) return (machine, const []);
+  final (kept, dropped) = _leaveTheQueue(machine, _aboutTheFall);
+  final halt = machine.halt;
+  return (
+    kept.copyWith(reach: Reach.reachable, draining: true),
+    [
+      ...dropped,
+      const CancelTheRetry(),
+      const DrainTheOutbox(),
+      if (halt is! Blocking) const ResendPending(),
+      const ReadTheState(),
+      if (halt is Blocking && !halt.serverKnows) const CallForAPerson(),
+      _watch,
+    ],
+  );
+}
+
+Machine _answered(Machine machine) =>
+    machine.reachable ? machine.copyWith(noticeSaid: false) : machine;
+
+(Machine, List<Effect>) _retry(Machine machine) {
+  if (!machine.reachable) return (machine, const [ProbeTheRoom()]);
+  if (!machine.somethingPending || machine.draining) {
+    return (machine, const []);
+  }
+  return (machine.copyWith(draining: true), const [DrainTheOutbox()]);
+}
+
+(Machine, List<Effect>) _tally(
+  Machine machine,
+  Map<String, PartFact> parts,
+  Duration due,
+) {
+  final landed = parts.entries.any(
+    (part) =>
+        part.value == PartFact.sent &&
+        machine.parts[part.key] == PartFact.pending,
+  );
+  final told = (landed ? _answered(machine) : machine).copyWith(
+    parts: parts,
+    draining: false,
+  );
+  if (!told.reachable) return (told, const []);
+  if (!told.somethingPending) return (told, const [CancelTheRetry()]);
+  return (told, [ArmTheRetry(due: due)]);
 }
 
 (Halt, List<Effect>) _reduceTheHalt(
@@ -731,14 +894,11 @@ List<Effect> _stopTheLineIn(Channel channel) => switch (channel) {
     _ => (halt, const []),
   },
   WatchFired() => (halt, const [ReadTheState(), _watch]),
-  ReachChanged(:final reachable) => (
-    halt,
-    [
-      if (reachable && halt is Blocking && !halt.serverKnows)
-        const CallForAPerson(),
-      if (reachable) _watch,
-    ],
-  ),
+  NetworkFailedAt() ||
+  NetworkReturned() ||
+  RetryFired() ||
+  TheRoomAnswered() ||
+  OutboxChanged() ||
   LineArrived() ||
   PlayerOpened() ||
   PlayerEnded() ||

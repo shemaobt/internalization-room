@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by 0050
 date: 2026-09-30
 amends: 0046
 ---
@@ -98,8 +98,7 @@ The ticket's `MicClosed(kept | discarded)` and `CloseTheMic` were left out: the 
 closes a microphone stops or discards the recorder itself, and the Channel treats a kept
 and a discarded close the same, so neither the outcome nor the effect had a reader.
 
-The offline notice has no path under an open microphone until ENG-1174 takes the room out
-of reach from every door; today it is spoken only from doors the room calls while it is
-thinking.
+Since ENG-1174 (ADR 0050) every door takes the room out of reach, so the offline notice
+can arrive under an open microphone; it waits there like any courtesy line.
 
 A part that fails in the Back-translation no longer sends the team back to the Rehearsal.

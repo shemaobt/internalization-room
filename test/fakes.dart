@@ -28,6 +28,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/approval_answer.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/capture_guard.dart';
+import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/coverage.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
@@ -676,6 +677,9 @@ class FakeInbox implements HandInboxRepository {
   bool refuses = false;
   bool cannotBeAsked = false;
 
+  /// What the desk answers a question with instead of taking it.
+  Refused? refusesTheQuestionWith;
+
   FakeInbox({this.replies = const []});
 
   @override
@@ -699,6 +703,8 @@ class FakeInbox implements HandInboxRepository {
   @override
   Future<RoomAnswer<void>> sendQuestion(String sessionId, File audio) async {
     if (refuses) return const NetworkFailed('sem rede');
+    final refusal = refusesTheQuestionWith;
+    if (refusal != null) return refusal;
     questionsSent.add(sessionId);
     return const Answered(null);
   }
@@ -811,6 +817,10 @@ class FakeRoom implements RoomRepository {
   final List<int?> takePasses = [];
   String? refuseTake;
 
+  /// The code the refusal of [refuseTake] names: a bare `HTTP_<status>` is a server that
+  /// named none.
+  String refuseTakeCode = 'UNKNOWN_REFERENCE';
+
   /// The one kind/scope whose upload finds no network, while every other call gets through.
   String? unreachableTake;
   RoomFailure? failReplaceWith;
@@ -834,6 +844,18 @@ class FakeRoom implements RoomRepository {
   }
 
   RoomFailure? failChunkWith;
+
+  /// What the next stretches told back are answered with, in order, before the room
+  /// hears them: the one knob that lets a resend meet a key still in flight.
+  final List<RoomFailure> chunkAnswersFirst = [];
+
+  /// The `Idempotency-Key` every stretch told back carried, in order, the ones that
+  /// never reached the room included.
+  final List<String> chunkKeys = [];
+
+  /// The `Idempotency-Key` every retelling carried, in order, the ones that never
+  /// reached the room included.
+  final List<String> replaceKeys = [];
 
   /// What the next call to `fetchState` throws, independent of `failWith` — a case needs
   /// the settle poll to fail exactly once, so the read after it can succeed instead of
@@ -1194,8 +1216,43 @@ class FakeRoom implements RoomRepository {
     required String takeId,
     required Duration from,
     required Duration to,
+    required String idempotencyKey,
   }) async {
+    replaceKeys.add(idempotencyKey);
     if (_guard('replaceSegment') case final failure?) return failure;
+    final kept = forgetsTheKeys ? null : _replacesKept[idempotencyKey];
+    if (kept != null) return kept;
+    final answer = await _replaceSegment(
+      segmentId,
+      audio,
+      takeId: takeId,
+      from: from,
+      to: to,
+    );
+    final settled = _answerLost ?? answer;
+    _answerLost = null;
+    if (settled case Answered() || Refused()) {
+      _replacesKept[idempotencyKey] = settled;
+    }
+    return answer;
+  }
+
+  /// What this room answered under each `Idempotency-Key`, the way ENG-1170 keeps it:
+  /// only a settled answer is kept, and a key sent again gets it back untouched.
+  final Map<String, RoomAnswer<TellingAgain>> _replacesKept = {};
+
+  /// A room that keeps no answer under a key: a server before #599, or a key past its
+  /// 24 h. Every request it gets is new to it.
+  bool forgetsTheKeys = false;
+  final Map<String, RoomAnswer<BackTranslationChunk>> _chunksKept = {};
+
+  Future<RoomAnswer<TellingAgain>> _replaceSegment(
+    String segmentId,
+    File audio, {
+    required String takeId,
+    required Duration from,
+    required Duration to,
+  }) async {
     final segura = _substituicaoSegura;
     if (segura != null) await segura.future;
     final refusal = failReplaceWith;
@@ -1242,19 +1299,23 @@ class FakeRoom implements RoomRepository {
       );
     }
     _tellAgain(segmentId);
-    final lost = loseTheNextReplaceAnswerWith;
-    if (lost != null) {
-      loseTheNextReplaceAnswerWith = null;
-      return lost;
-    }
-    return Answered(
+    final told = Answered(
       TellingAgain(
         segments: List.of(segments),
         captured: true,
         needsPerson: needsPerson,
       ),
     );
+    final lost = loseTheNextReplaceAnswerWith;
+    if (lost != null) {
+      loseTheNextReplaceAnswerWith = null;
+      _answerLost = told;
+      return lost;
+    }
+    return told;
   }
+
+  Answered<TellingAgain>? _answerLost;
 
   void _tellAgain(String segmentId) {
     final at = segments.indexWhere((one) => one.segmentId == segmentId);
@@ -1373,9 +1434,7 @@ class FakeRoom implements RoomRepository {
       _reachedTakeHold?.complete();
       await _holdingTake?.future;
     }
-    if (refuseTake == '$kind/$scope') {
-      return const Refused('UNKNOWN_REFERENCE');
-    }
+    if (refuseTake == '$kind/$scope') return Refused(refuseTakeCode);
     if (unreachableTake == '$kind/$scope') {
       return const NetworkFailed('sem rede');
     }
@@ -1449,8 +1508,26 @@ class FakeRoom implements RoomRepository {
     required String takeId,
     required Duration from,
     required Duration to,
+    required String idempotencyKey,
   }) async {
+    chunkKeys.add(idempotencyKey);
     if (_guard('sendChunk') case final failure?) return failure;
+    if (chunkAnswersFirst.isNotEmpty) return chunkAnswersFirst.removeAt(0);
+    final kept = forgetsTheKeys ? null : _chunksKept[idempotencyKey];
+    if (kept != null) return kept;
+    final answer = await _sendChunk(audio, takeId: takeId, from: from, to: to);
+    if (answer case Answered() || Refused()) {
+      _chunksKept[idempotencyKey] = answer;
+    }
+    return answer;
+  }
+
+  Future<RoomAnswer<BackTranslationChunk>> _sendChunk(
+    File audio, {
+    required String takeId,
+    required Duration from,
+    required Duration to,
+  }) async {
     final refusal = failChunkWith;
     if (refusal != null) return refusal;
     chunksSent++;
@@ -1762,7 +1839,10 @@ class FakeTakeQueue implements TakeUploadQueue {
   }
 
   @override
-  Future<int> flush() async {
+  Stream<void> get fallsOnTheNetwork => const Stream.empty();
+
+  @override
+  Future<int> flush({bool withTheCodeless = false}) async {
     var sent = 0;
     for (var at = 0; at < rows.length; at++) {
       final entry = rows[at];
@@ -1848,15 +1928,7 @@ class FakeTakeQueue implements TakeUploadQueue {
   };
 
   @override
-  Future<
-    ({
-      bool stranded,
-      int unsentTakes,
-      int unsentChunks,
-      Set<String> unsentTakeScopes,
-    })
-  >
-  tally({required String? sessionId}) async {
+  Future<OutboxTally> tally({required String? sessionId}) async {
     final held = _armed;
     _armed = null;
     if (held != null) _holding = held;
@@ -1865,6 +1937,8 @@ class FakeTakeQueue implements TakeUploadQueue {
     // um await entre as duas coisas muda quando a leitura vê a fila, não só
     // quando ela responde.
     final result = (
+      parts: const <String, PartFact>{},
+      due: Duration.zero,
       stranded: false,
       unsentTakes: [
         for (final entry in rows)

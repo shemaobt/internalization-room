@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
+
+import 'package:clock/clock.dart';
 
 import 'package:http/http.dart' as http;
 
@@ -14,6 +17,11 @@ class RoomClient {
   final http.Client _http;
 
   const RoomClient(this._http);
+
+  static int _minted = 0;
+
+  static String mintAKey() =>
+      '${clock.now().microsecondsSinceEpoch}-${_minted++}-${Random().nextInt(1 << 32)}';
 
   Future<RoomAnswer<T>> ask<T>(
     Future<http.Response> Function() send, {
@@ -107,7 +115,7 @@ class RoomClient {
       code ??
           switch (status) {
             404 => RefusalCode.notFound,
-            _ => 'HTTP_$status',
+            _ => RefusalCode.unnamed(status),
           },
       detail,
     );

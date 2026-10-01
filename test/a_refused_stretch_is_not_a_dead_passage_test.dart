@@ -33,6 +33,7 @@ class _RealSendChunkRoom extends FakeRoom {
     required String takeId,
     required Duration from,
     required Duration to,
+    required String idempotencyKey,
   }) {
     final status = sendChunkStatus;
     if (status == null) {
@@ -42,6 +43,7 @@ class _RealSendChunkRoom extends FakeRoom {
         takeId: takeId,
         from: from,
         to: to,
+        idempotencyKey: idempotencyKey,
       );
     }
     final real = RoomRepository(
@@ -59,7 +61,14 @@ class _RealSendChunkRoom extends FakeRoom {
       ),
       deviceId: () async => 'aparelho-1',
     );
-    return real.sendChunk(sessionId, audio, takeId: takeId, from: from, to: to);
+    return real.sendChunk(
+      sessionId,
+      audio,
+      takeId: takeId,
+      from: from,
+      to: to,
+      idempotencyKey: idempotencyKey,
+    );
   }
 }
 

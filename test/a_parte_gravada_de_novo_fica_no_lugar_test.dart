@@ -343,21 +343,17 @@ void main() {
     'nomeado',
     () async {
       final it = await _oAchadoNaParteDois();
-      it.harness.room.unreachableTake = 'ensaio/${KeptScope.parte(2)}';
+      it.harness.room.holdNextTake(KeptScope.parte(2));
 
       it.sala.gravarAParteDeNovo();
       await regravarAParte(it, 1);
-      await waitFor(
-        'a gravação nova não subir',
-        () => it.harness.room.calls.where((c) => c == 'sendTake').length > 3,
-      );
+      await it.harness.room.untilTakeHeld();
       expect(
         it.partes[1].takeId,
         isNull,
         reason: 'a tomada não subiu, e não tem nome nenhum para adotar',
       );
 
-      it.harness.room.unreachableTake = null;
       it.harness.playback.lengths[it.partes[1].path] = partesDoEnsaio[1];
       it.sala.startRetro();
       await waitFor(
@@ -375,6 +371,7 @@ void main() {
             'ainda não nomeou, que é o caminho sem nome',
       );
 
+      it.harness.room.finishHeldTake();
       await waitFor(
         'a parte aprender o nome quando a linha dela pousa',
         () => it.partes[1].takeId != null,

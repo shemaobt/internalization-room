@@ -1257,6 +1257,7 @@ void main() {
           takeId: 'gravacao-1',
           from: const Duration(seconds: 4),
           to: const Duration(seconds: 7),
+          idempotencyKey: 'chave-1',
         ),
       };
 
@@ -1268,6 +1269,7 @@ void main() {
           takeId: 'gravacao-1',
           from: Duration.zero,
           to: const Duration(seconds: 4),
+          idempotencyKey: 'chave-1',
         ),
       };
 
