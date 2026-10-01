@@ -73,8 +73,10 @@ in the same visit) leaves them as they are. A gesture says at its end whether it
 sound, and a waiting line plays only if it did not. A gesture ends when everything it
 started has ended, the gesture it hands off to included: a flow it handed off to holds the
 wait until it puts its own sound into the Channel or ends, and a later gesture never ends
-an earlier one's wait. A line a gesture silenced was
-never said, whatever happens to the room afterwards.
+an earlier one's wait. The machine holds the fact that a gesture is on its way, and while it
+stands no waiting line plays; a line that arrives in the background never ends it, so a
+courtesy line can wait behind a turn for as long as the turn's own ceiling, 310 s. A line a
+gesture silenced was never said, whatever happens to the room afterwards.
 
 The offline notice has no path under an open microphone until ENG-1174 takes the room out
 of reach from every door; today it is spoken only from doors the room calls while it is
