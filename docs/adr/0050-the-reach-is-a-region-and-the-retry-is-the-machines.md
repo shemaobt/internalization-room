@@ -30,7 +30,8 @@ event, and the room goes out of reach. The device-link doors stay outside.
 stops its own flow; a turn in flight while the Watch falls still lands.
 
 **The machine owns the retry.** Out of reach, it arms the retry on the room's ladder, and
-the retry or the radio coming back asks for a probe; a probe that fails climbs the ladder.
+the retry or the radio coming back asks for a probe; a probe that fails climbs the ladder,
+and so does a fall after a return the room never answered.
 Reachable with a part pending, it arms the retry for when the Outbox says the part is due,
 and the retry drains the Outbox; a part pending is never left without a retry armed or a
 drain in flight (invariant 12).
