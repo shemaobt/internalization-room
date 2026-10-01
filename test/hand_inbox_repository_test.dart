@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -73,6 +74,34 @@ void main() {
     expect(
       await inbox.markHeard('resposta-1', audioUrl: '/voz/resposta-1'),
       isA<Refused>(),
+    );
+  });
+
+  HandInboxRepository answering(int status) => HandInboxRepository(
+    client: MockClient((_) async => http.Response('{}', status)),
+    deviceId: () async => 'aparelho-1',
+  );
+
+  test(
+    'a 404 at the heard mark is a refusal, never the session gone',
+    () async {
+      expect(
+        await answering(
+          404,
+        ).markHeard('resposta-1', audioUrl: '/voz/resposta-1'),
+        isA<Refused>().having((refusal) => refusal.code, 'code', 'NOT_FOUND'),
+      );
+    },
+  );
+
+  test('a 404 at a question names the session gone', () async {
+    final casa = Directory.systemTemp.createTempSync('sala-pergunta');
+    addTearDown(() => casa.deleteSync(recursive: true));
+    final audio = File('${casa.path}/p.m4a')..writeAsBytesSync([0, 1, 2]);
+
+    expect(
+      await answering(404).sendQuestion('sessao-1', audio),
+      isA<SessionGone>(),
     );
   });
 }

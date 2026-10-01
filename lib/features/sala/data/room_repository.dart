@@ -142,6 +142,7 @@ class RoomRepository {
     () => _client.get(_uri('/sessions/$sessionId'), headers: _headers),
     timeout: _stateTimeout,
     read: readJson(SessionSnapshot.fromJson),
+    asksForTheSession: true,
   );
 
   Stream<CoverageEvent> watchCoverage(String sessionId) {
@@ -237,6 +238,7 @@ class RoomRepository {
     ),
     timeout: _turnTimeout,
     read: readJson(TurnResult.fromJson),
+    asksForTheSession: true,
   );
 
   /// One voiced take, under the id it keeps across every resend. The id is not optional:
@@ -259,6 +261,7 @@ class RoomRepository {
       request,
       timeout: timeout ?? _turnTimeout,
       read: readJson(TurnResult.fromJson),
+      asksForTheSession: true,
     );
   }
 
@@ -286,6 +289,7 @@ class RoomRepository {
       ..files.add(await http.MultipartFile.fromPath('file', audio.path)),
     timeout: _turnTimeout,
     read: readJson(BackTranslationChunk.fromJson),
+    asksForTheSession: true,
   );
 
   /// Store one take and answer with the name the room gave it.
@@ -313,6 +317,7 @@ class RoomRepository {
       request,
       timeout: _turnTimeout,
       read: readJson((json) => json['take_id'] as String),
+      asksForTheSession: true,
     );
   }
 
@@ -326,6 +331,7 @@ class RoomRepository {
     () => _client.get(_uri('/sessions/$sessionId/takes'), headers: _headers),
     timeout: _stateTimeout,
     read: readJson(TakeView.listFrom),
+    asksForTheSession: true,
   );
 
   /// Where the audio of one take is, for [fetchClip] to go and get.
@@ -378,6 +384,7 @@ class RoomRepository {
         ),
         timeout: _stateTimeout,
         read: readJson(ApprovalAnswer.fromJson),
+        asksForTheSession: true,
       );
 
   Future<RoomAnswer<void>> askForAPerson(String sessionId) => _room.ask(
@@ -387,6 +394,7 @@ class RoomRepository {
     ),
     timeout: _stateTimeout,
     read: readJson((_) {}),
+    asksForTheSession: true,
   );
 
   Future<RoomAnswer<void>> personArrived(String sessionId) => _room.ask(
@@ -396,6 +404,7 @@ class RoomRepository {
     ),
     timeout: _stateTimeout,
     read: readJson((_) {}),
+    asksForTheSession: true,
   );
 
   /// The device-scoped ask, for a halt that has no session to ask through.
@@ -435,6 +444,7 @@ class RoomRepository {
     ),
     timeout: _turnTimeout,
     read: readJson(BackTranslationVerdict.fromJson),
+    asksForTheSession: true,
   );
 
   Future<RoomAnswer<Uint8List>> fetchClip(String url) => _room.ask(

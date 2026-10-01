@@ -103,6 +103,7 @@ class HandInboxRepository {
           ..files.add(await http.MultipartFile.fromPath('file', audio.path)),
         timeout: _uploadTimeout,
         read: (_) {},
+        asksForTheSession: true,
       );
 
   void dispose() {
