@@ -20,7 +20,10 @@ Session gone, the server still knows the passage and says it is finished, so the
 it to the finished passages before the Choice reads them, and the Wheel shows it closed.
 A passage the server says is closed is closed on the tablet wherever the room stands when
 the answer lands: if the team has already left it, its session's files and rows still go
-and the Wheel still shows it closed, and only the leaving is skipped. Every other refusal
+and the Wheel still shows it closed, and only the leaving is skipped. What goes is only
+that session's: a newer session in the same passage keeps its place, a resume never opens
+the closed session (it opens the Choice), and an answer about an earlier session never
+swallows the call the room owes the session it stands in now. Every other refusal
 of the call keeps the ladder; a network failure keeps the Reach.
 
 **A key in flight is sent three times.** ADR 0050 sends a request again under the same key

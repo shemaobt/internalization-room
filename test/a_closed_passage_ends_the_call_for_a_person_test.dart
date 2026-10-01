@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -253,5 +254,128 @@ void main() {
     await _naEscolha(container);
 
     expect(pedidos(), 1);
+  });
+
+  test('a passage closed after the team moved on to another passage still '
+      'calls a person for the halt of the passage they are in', () async {
+    final harness = SalaHarness();
+    final container = await _naPassagem(harness);
+    final primeira = _estado(container).sessionId!;
+    harness.room.holdNextAskForAPerson();
+    await _aPassagemFechaNoPedidoDePessoa(harness, container);
+    _sala(container).leaveThePassage();
+    await _naEscolha(container);
+    await _sala(container).goConversa(pericope: 'P02');
+    await waitFor(
+      'a outra passagem abrir',
+      () =>
+          _estado(container).sessionId != null &&
+          _estado(container).sessionId != primeira,
+    );
+    final segunda = _estado(container).sessionId!;
+    _sala(container).conversaTap();
+    await settle();
+    _sala(container).conversaTap();
+    await waitFor('a parada chegar', () => _estado(container).needsPerson);
+    harness.finished.holdNextAdd();
+
+    harness.room.finishHeldAskForAPerson();
+    await settle();
+    harness.room.askForAPersonFailsWith = null;
+    harness.finished.finishHeldAdd();
+    await waitFor(
+      'a sala chamar alguém para a outra passagem',
+      () => harness.room.personsAsked == 1,
+    );
+
+    expect(harness.room.personAsksFor, [primeira, segunda]);
+    expect(_estado(container).needsPerson, isTrue);
+  });
+
+  test('a passage closed after the team left it never erases the Resume point '
+      'of a session opened afresh in that passage', () async {
+    final harness = SalaHarness();
+    final container = await _naPassagem(harness);
+    harness.room.holdNextAskForAPerson();
+    await _aPassagemFechaNoPedidoDePessoa(harness, container);
+    _sala(container).leaveThePassage();
+    await _naEscolha(container);
+    await settle();
+    harness.emAberto.holdNextRead();
+
+    harness.room.finishHeldAskForAPerson();
+    await waitFor(
+      'a passagem ser marcada fechada',
+      () => harness.finished.done.contains('Ruth/P01'),
+    );
+    harness.room
+      ..failTurnsWith = null
+      ..askForAPersonFailsWith = null;
+    await _sala(container).goConversa(pericope: 'P01', fresh: true);
+    await waitFor(
+      'a passagem reaberta guardar o seu lugar',
+      () => harness.emAberto.written.length > 1,
+    );
+    final nova = _estado(container).sessionId!;
+    harness.emAberto.finishHeldRead();
+    await settle(_severalStepsOfTheLadder);
+
+    expect((await harness.emAberto.of('Ruth', 'P01'))?.sessionId, nova);
+  });
+
+  test('a passage closed while the team resumes it opens the Choice, never '
+      'the closed session', () async {
+    final harness = SalaHarness();
+    final container = await _naPassagem(harness);
+    harness.room.holdNextAskForAPerson();
+    await _aPassagemFechaNoPedidoDePessoa(harness, container);
+    _sala(container).leaveThePassage();
+    await _naEscolha(container);
+    await settle();
+    harness.emAberto.holdNextRead();
+    unawaited(_sala(container).goConversa(pericope: 'P01'));
+    await settle();
+
+    harness.room.finishHeldAskForAPerson();
+    await waitFor(
+      'o lugar da sessão fechada sair do tablet',
+      () => harness.emAberto.rows['Ruth/P01'] == null,
+    );
+    harness.room
+      ..failTurnsWith = null
+      ..askForAPersonFailsWith = null;
+    harness.emAberto.finishHeldRead();
+    await settle();
+    await _naEscolha(container);
+    await settle(_severalStepsOfTheLadder);
+
+    expect(_estado(container).stage, SalaStage.escolha);
+    expect(_estado(container).sessionId, isNull);
+    expect(_estado(container).feitas, contains('P01'));
+  });
+
+  test('a passage closed while the Choice is reading the finished passages '
+      'shows closed on the Wheel', () async {
+    final harness = SalaHarness();
+    final container = await _naPassagem(harness);
+    harness.room.holdNextAskForAPerson();
+    await _aPassagemFechaNoPedidoDePessoa(harness, container);
+    _sala(container).leaveThePassage();
+    await _naEscolha(container);
+    await settle();
+    harness.finished.holdNextAll();
+    final escolha = _sala(container).abrirEscolha();
+    await settle();
+    harness.finished.holdNextAdd();
+
+    harness.room.finishHeldAskForAPerson();
+    await settle();
+    harness.finished.finishHeldAdd();
+    await settle();
+    harness.finished.finishHeldAll();
+    await escolha;
+    await settle(_severalStepsOfTheLadder);
+
+    expect(_estado(container).feitas, contains('P01'));
   });
 }

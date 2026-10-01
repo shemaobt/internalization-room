@@ -224,6 +224,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   final Set<String> _contadasSemResposta = {};
   int _resumeFailures = 0;
   final Set<String> _goneSessions = {};
+  final Set<(String, String)> _toldClosed = {};
 
   /// When and in what language the session now open was created, so a row rewritten by
   /// a later stage advance carries them instead of going blank the moment the team leaves
@@ -1271,6 +1272,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _askingForAPerson = true;
     final pericope = _emCurso;
     final answer = await _room.askForAPerson(sessionId);
+    if (sessionId != state.sessionId) {
+      return _anEarlierSessionAnswered(sessionId, pericope, answer);
+    }
     if (answer case Refused(code: RefusalCode.passageClosed)) {
       await _thePassageClosed(sessionId, pericope);
       _askingForAPerson = false;
@@ -1293,10 +1297,31 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
+  Future<void> _anEarlierSessionAnswered(
+    String sessionId,
+    String? pericope,
+    RoomAnswer<void> answer,
+  ) async {
+    switch (answer) {
+      case Refused(code: RefusalCode.passageClosed):
+        await _thePassageClosed(sessionId, pericope);
+      case SessionGone():
+        _theSessionIsGone(sessionId);
+      case NetworkFailed():
+        _outOfReach(Door.person);
+      case Answered() || Refused():
+        break;
+    }
+    _askingForAPerson = false;
+    if (!_gone && state.needsPerson) _tellTheRoomAPersonIsNeeded();
+  }
+
   Future<void> _thePassageClosed(String sessionId, String? pericope) async {
     if (_gone) return;
+    final book = _book;
     if (pericope != null) {
-      await _feitas.add(_book, pericope).catchError((_) {});
+      _toldClosed.add((book, pericope));
+      await _feitas.add(book, pericope).catchError((_) {});
     }
     if (_gone) return;
     if (sessionId == _theSession) return _dispatch(const ThePassageClosed());
@@ -2023,7 +2048,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final ledger = _feitas;
     final open = _emAberto;
     final book = _book;
-    final feitas = await ledger.all(book);
+    final feitas = {
+      ...await ledger.all(book),
+      for (final (livro, pericope) in _toldClosed)
+        if (livro == book) pericope,
+    };
     final comecadas = await open.startedIn(book);
     if (epoch != _epoch || _gone) return;
     final primeiraOfertavel = todas.indexWhere(_isOfertavel);
@@ -2355,7 +2384,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }) {
       await recorder.delete(path);
     }
-    if (itsRow) await open.forget(book, pericope!);
+    if (itsRow) await open.forgetTheSession(book, pericope!, sessionId!);
     if (sessionId != null) await queue.discardTheSession(sessionId);
   }
 
@@ -2490,6 +2519,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     final sessionId = waiting?.sessionId ?? created!.sessionId;
     if (epoch != _epoch) return;
+    if (_goneSessions.contains(sessionId)) return _openTheChoice();
     // The passage opened for real, whether created fresh or resumed: the team has left
     // the Choice, and whatever visit was refusing passages there is over. A stumble
     // past this point — a session gone mid-open, a fresh retry the room also refuses —
