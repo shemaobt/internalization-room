@@ -9,11 +9,13 @@ class World {
   final bool watchArmed;
   final bool callOutstanding;
   final bool reachable;
+  final bool serverHoldsAWarning;
 
   const World({
     this.watchArmed = true,
     this.callOutstanding = false,
     this.reachable = true,
+    this.serverHoldsAWarning = false,
   });
 
   World after(MachineEvent event, List<Effect> effects) {
@@ -35,6 +37,12 @@ class World {
       watchArmed: armed,
       callOutstanding: calling,
       reachable: event is ReachChanged ? event.reachable : reachable,
+      serverHoldsAWarning: switch (event) {
+        TheAnswerWarned() => true,
+        SessionRead(:final snapshot) when !snapshot.needsPerson =>
+          snapshot.halt == HaltKind.warning,
+        _ => serverHoldsAWarning,
+      },
     );
   }
 }
@@ -190,7 +198,7 @@ Kept _drawKept(Random random) => switch (random.nextInt(5)) {
   _ => const TheWheel(),
 };
 
-SessionRead _drawARead(Random random) => SessionRead(
+SessionRead _drawARead(World world, Random random) => SessionRead(
   SessionSnapshot(
     sessionId: 'sessao-1',
     pericope: 'rute-1',
@@ -201,24 +209,63 @@ SessionRead _drawARead(Random random) => SessionRead(
   ),
   at: _at.add(Duration(milliseconds: random.nextInt(3))),
   sounding: _drawKept(random),
-  sentBeforeTheCallLanded: random.nextBool(),
+  sentBeforeTheCallLanded: world.callOutstanding && random.nextBool(),
 );
 
+enum EventKind {
+  sessionRead,
+  roomRaisedAHalt,
+  theCallLanded,
+  theAnswerWarned,
+  longPress,
+  watchFired,
+  reachChanged,
+}
+
+EventKind kindOf(MachineEvent event) => switch (event) {
+  SessionRead() => EventKind.sessionRead,
+  RoomRaisedAHalt() => EventKind.roomRaisedAHalt,
+  TheCallLanded() => EventKind.theCallLanded,
+  TheAnswerWarned() => EventKind.theAnswerWarned,
+  LongPress() => EventKind.longPress,
+  WatchFired() => EventKind.watchFired,
+  ReachChanged() => EventKind.reachChanged,
+};
+
+bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
+  EventKind.watchFired => world.watchArmed,
+  EventKind.theCallLanded => world.callOutstanding,
+  EventKind.sessionRead ||
+  EventKind.roomRaisedAHalt ||
+  EventKind.theAnswerWarned ||
+  EventKind.longPress ||
+  EventKind.reachChanged => true,
+};
+
+MachineEvent _draw(EventKind kind, World world, Random random) =>
+    switch (kind) {
+      EventKind.sessionRead => _drawARead(world, random),
+      EventKind.roomRaisedAHalt => RoomRaisedAHalt(
+        sounding: _drawKept(random),
+        callsForAPerson: random.nextBool(),
+      ),
+      EventKind.theCallLanded => const TheCallLanded(),
+      EventKind.theAnswerWarned => const TheAnswerWarned(),
+      EventKind.longPress => LongPress(
+        somebodyToAsk: random.nextBool(),
+        at: _at.add(Duration(milliseconds: random.nextInt(3))),
+      ),
+      EventKind.watchFired => const WatchFired(),
+      EventKind.reachChanged => ReachChanged(reachable: !world.reachable),
+    };
+
 MachineEvent drawAnEvent(World world, Random random) {
-  final allowed = <MachineEvent Function()>[
-    () => _drawARead(random),
-    () => RoomRaisedAHalt(
-      sounding: _drawKept(random),
-      callsForAPerson: random.nextBool(),
-    ),
-    () => const TheAnswerWarned(),
-    () => LongPress(
-      somebodyToAsk: random.nextBool(),
-      at: _at.add(Duration(milliseconds: random.nextInt(3))),
-    ),
-    () => ReachChanged(reachable: !world.reachable),
-    if (world.watchArmed) () => const WatchFired(),
-    if (world.callOutstanding) () => const TheCallLanded(),
+  final allowed = [
+    for (final kind in EventKind.values)
+      if (_theWorldAllows(kind, world)) kind,
   ];
-  return allowed[random.nextInt(allowed.length)]();
+  final kind = allowed[random.nextInt(allowed.length)];
+  final event = _draw(kind, world, random);
+  assert(kindOf(event) == kind);
+  return event;
 }

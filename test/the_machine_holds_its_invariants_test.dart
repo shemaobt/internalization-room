@@ -28,26 +28,26 @@ String _kind(Halt halt) => switch (halt) {
   Blocking() => 'blocking',
 };
 
-Halt _whatTheSnapshotTells(SessionSnapshot snapshot) => snapshot.needsPerson
+Halt _whatTheSessionReadTells(SessionSnapshot snapshot) => snapshot.needsPerson
     ? const Blocking(NothingKept())
     : snapshot.halt == HaltKind.warning
     ? const Warning()
     : const NoHalt();
 
-Invariant<S> enteringABlockingHaltClosesTheMic<S>(Halt Function(S) haltOf) =>
-    Invariant('ADR invariant 2, entering a blocking halt closes the mic', (
-      before,
-      event,
-      after,
-      effects,
-      world,
-    ) {
-      if (haltOf(before) is Blocking || haltOf(after) is! Blocking) return null;
-      final closes =
-          effects.contains(const CloseAndDiscardTheMic()) &&
-          effects.contains(const SilenceTheRoom());
-      return closes ? null : 'entered a blocking halt without closing the mic';
-    });
+Invariant<S> enteringABlockingHaltClosesTheMicrophone<S>(
+  Halt Function(S) haltOf,
+) => Invariant(
+  'ADR invariant 2, entering a blocking halt closes the microphone',
+  (before, event, after, effects, world) {
+    if (haltOf(before) is Blocking || haltOf(after) is! Blocking) return null;
+    final closes =
+        effects.contains(const CloseAndDiscardTheMic()) &&
+        effects.contains(const SilenceTheRoom());
+    return closes
+        ? null
+        : 'entered a blocking halt without closing the microphone';
+  },
+);
 
 Invariant<S> aHaltNeverStandsWithoutTheWatch<S>(Halt Function(S) haltOf) =>
     Invariant('ADR invariant 3, a halt never stands without the Watch', (
@@ -69,7 +69,7 @@ Invariant<S> aSessionReadIsAppliedWholeOrNotAtAll<S>(Halt Function(S) haltOf) =>
         if (event is! SessionRead) return null;
         final was = haltOf(before);
         final now = haltOf(after);
-        final told = _whatTheSnapshotTells(event.snapshot);
+        final told = _whatTheSessionReadTells(event.snapshot);
         final applied =
             _kind(now) == _kind(told) && (now is! Blocking || now.serverKnows);
         final refusedWhole =
@@ -79,10 +79,19 @@ Invariant<S> aSessionReadIsAppliedWholeOrNotAtAll<S>(Halt Function(S) haltOf) =>
             now.serverKnows == was.serverKnows &&
             (!was.serverKnows || event.sentBeforeTheCallLanded);
         if (applied || refusedWhole) return null;
-        return 'the snapshot told ${_kind(told)} over ${_kind(was)}, '
+        return 'the Session read told ${_kind(told)} over ${_kind(was)}, '
             'the halt became ${describeHalt(now)}';
       },
     );
+
+bool _aPersonSeesOrHears(Effect effect) => switch (effect) {
+  TellAPersonArrived() ||
+  ReplayTheSound() ||
+  AskTheOpeningAgain() ||
+  SilenceTheRoom() ||
+  CloseAndDiscardTheMic() => true,
+  _ => false,
+};
 
 Invariant<S> aLongPressOnABlockingHaltNeverVanishesInSilence<S>(
   Halt Function(S) haltOf,
@@ -90,36 +99,34 @@ Invariant<S> aLongPressOnABlockingHaltNeverVanishesInSilence<S>(
   'ADR invariant 11, a long press on a blocking halt is answered',
   (before, event, after, effects, world) {
     if (event is! LongPress || haltOf(before) is! Blocking) return null;
-    if (effects.isNotEmpty || haltOf(after) != haltOf(before)) return null;
-    return 'a long press under ${describeHalt(haltOf(before))} did nothing';
+    if (haltOf(after) != haltOf(before) || effects.any(_aPersonSeesOrHears)) {
+      return null;
+    }
+    return 'a long press under ${describeHalt(haltOf(before))} answered '
+        'with nothing a person sees or hears: '
+        '${effects.map(describeEffect).join(', ')}';
   },
 );
 
 Invariant<S> theWarningIsTheOneTheServerTold<S>(
   Halt Function(S) haltOf,
-) => Invariant('ADR invariant 15, the warning is the one the server told', (
-  before,
-  event,
-  after,
-  effects,
-  world,
-) {
-  if (event is! SessionRead) return null;
-  final now = haltOf(after);
-  final told = _whatTheSnapshotTells(event.snapshot);
-  if (told is Blocking) return null;
-  final warns = told is Warning;
-  final holds = switch (now) {
-    Blocking(:final warningBeneath) => warningBeneath == warns,
-    _ => (now is Warning) == warns,
-  };
-  return holds
-      ? null
-      : 'the snapshot told ${_kind(told)}, the halt is ${describeHalt(now)}';
-});
+) => Invariant(
+  'ADR invariant 15, the warning the tablet holds is the one the server told',
+  (before, event, after, effects, world) {
+    final now = haltOf(after);
+    final tabletHolds = switch (now) {
+      Warning() => true,
+      Blocking(:final warningBeneath) => warningBeneath,
+      NoHalt() => false,
+    };
+    if (tabletHolds == world.serverHoldsAWarning) return null;
+    return 'the server holds a warning: ${world.serverHoldsAWarning}, '
+        'the halt is ${describeHalt(now)}';
+  },
+);
 
 List<Invariant<S>> theAdrInvariants<S>(Halt Function(S) haltOf) => [
-  enteringABlockingHaltClosesTheMic(haltOf),
+  enteringABlockingHaltClosesTheMicrophone(haltOf),
   aHaltNeverStandsWithoutTheWatch(haltOf),
   aSessionReadIsAppliedWholeOrNotAtAll(haltOf),
   aLongPressOnABlockingHaltNeverVanishesInSilence(haltOf),
@@ -131,8 +138,8 @@ void _holds(Invariant<Halt> invariant) =>
 
 void main() {
   group('the machine holds, on every seeded sequence', () {
-    test('ADR invariant 2: entering a blocking halt closes the mic', () {
-      _holds(enteringABlockingHaltClosesTheMic(_haltOf));
+    test('ADR invariant 2: entering a blocking halt closes the microphone', () {
+      _holds(enteringABlockingHaltClosesTheMicrophone(_haltOf));
     });
 
     test('ADR invariant 3: a halt never stands without the Watch', () {
@@ -149,7 +156,7 @@ void main() {
     });
 
     test('ADR invariant 15: the warning the tablet holds is the one the '
-        'server told', () {
+        'server told, after every event', () {
       _holds(theWarningIsTheOneTheServerTold(_haltOf));
     });
 
@@ -172,6 +179,16 @@ void main() {
               entry.worldBefore.watchArmed,
               isTrue,
               reason: 'seed $seed drew WatchFired with the Watch unarmed',
+            );
+          }
+          final event = entry.event;
+          if (event is SessionRead && event.sentBeforeTheCallLanded) {
+            expect(
+              entry.worldBefore.callOutstanding,
+              isTrue,
+              reason:
+                  'seed $seed drew a Session read sent before the call '
+                  'landed with no call outstanding',
             );
           }
           if (entry.event is TheCallLanded) {
