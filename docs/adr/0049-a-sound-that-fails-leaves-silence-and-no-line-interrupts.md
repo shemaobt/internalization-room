@@ -25,9 +25,9 @@ still answers a tap and nobody is called. **The second failure in a row on the s
 calls a person**, the rule ENG-1159 gave the hand's reply. The Guide is one source, a take
 is one source and a stretch is one source; a success on that source resets the count, and
 so does a failure on another one. Guide lines move from the third failure to the second.
-The Guide's fixed courtesy lines (the instant acknowledgement, the offline notice, the
-stranded line, the blocked microphone) and the facilitator's reply are not counted: the
-reply keeps its own set-aside rule. The second failure raises a blocking halt, which is how
+The instant acknowledgement, the Guide's courtesy lines (the offline notice, the stranded
+line, the blocked microphone) and the facilitator's reply are not counted: the reply keeps
+its own set-aside rule. The second failure raises a blocking halt, which is how
 the room calls a person. Leaving the passage forgets the count. Henok, 30-09.
 
 **No line interrupts.** Every line, spontaneous or the answer to a gesture, waits in the
@@ -45,9 +45,13 @@ background line of its kind already waits. A background line waits until no gest
 its way, and among the background lines one of each kind waits, in arrival order. A sound
 is a gesture's own only when the gesture says it: a flow that outlives a gesture or belongs
 to none (the Outbox, the place kept on the tablet, the Watch, the room's listeners) never
-speaks for one, and the courtesy lines never do. A gesture ends when everything it started
-has ended, the gesture it hands off to included; leaving a passage ends the gestures that
-belonged to it. The Orchestrator, 01-10, to be confirmed by Henok.
+speaks for one, and the courtesy lines never do. The instant acknowledgement is not a
+courtesy line: it is the first line of the turn's answer, the gesture's own, and passes
+like the reply. A gesture ends when everything it started has ended, the gesture it hands
+off to included, or when the room gives up on what it was waiting for: leaving a passage,
+the watchdog giving up on a wait, and every other path that abandons the room's waits end
+the gestures that were on their way, all but the one doing the abandoning. The
+Orchestrator, 01-10, to be confirmed by Henok.
 
 **A waiting line lives as long as what it is about.** A line that answers a Step (the
 turn's reply, the verdict's line, the acknowledgement, the approved line, the
@@ -81,8 +85,11 @@ leaving a Station ends both facts and drops the lines that answer it, and re-ent
 Station the room is already in (the same conversation opened again, the wheel read again
 in the same visit) leaves them as they are.
 
-A background line can wait behind a gesture for as long as that gesture's own ceilings
-allow, the longest being a turn's 310 s. A line a gesture silenced was never said,
+A background line can wait behind a gesture for as long as that gesture's waits last. The
+watchdog bounds each wait by the busy ceiling, 330 s, and gives up on it there, but a
+gesture can chain waits: the measured worst path is a turn whose take is sent just under
+the ceiling, then the turn's own 310 s, then the reply's 98 s first-bytes stall and the
+clip itself. A line a gesture silenced was never said,
 whatever happens to the room afterwards.
 
 The ticket's `MicClosed(kept | discarded)` and `CloseTheMic` were left out: the gesture that
