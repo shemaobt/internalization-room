@@ -603,6 +603,14 @@ class FakePlayback implements PlaybackRepository {
 
 class FakeFinished implements FinishedPassages {
   final Set<String> done = {};
+  Completer<void>? _holdingAdd;
+
+  void holdNextAdd() => _holdingAdd = Completer<void>();
+
+  void finishHeldAdd() {
+    _holdingAdd?.complete();
+    _holdingAdd = null;
+  }
 
   @override
   Future<Set<String>> all(String book) async => {
@@ -611,8 +619,10 @@ class FakeFinished implements FinishedPassages {
   };
 
   @override
-  Future<void> add(String book, String pericope) async =>
-      done.add('$book/$pericope');
+  Future<void> add(String book, String pericope) async {
+    await _holdingAdd?.future;
+    done.add('$book/$pericope');
+  }
 
   @override
   Future<bool> bookOpened(String book) async => done.contains('livro:$book');

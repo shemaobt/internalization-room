@@ -150,4 +150,47 @@ void main() {
     expect(harness.room.deviceAsksReceived, isEmpty);
     expect(harness.room.personArrivedSessions, isEmpty);
   });
+
+  test('a passage closed is asked once even when the room comes back while '
+      'it is being marked closed', () async {
+    final harness = SalaHarness();
+    final container = await _naPassagem(harness);
+    int pedidos() =>
+        harness.room.calls.where((call) => call == 'askForAPerson').length;
+    void aRedeCai() {
+      harness.network.reachable = false;
+      harness.room.reachable = false;
+    }
+
+    void aRedeVolta() {
+      harness.network.reachable = true;
+      harness.room.reachable = true;
+      harness.network.networkComesBack();
+    }
+
+    _sala(container).haltForABrokenBuild();
+    aRedeCai();
+    await waitFor(
+      'a sala ficar fora de alcance',
+      () => _estado(container).unreachable,
+    );
+    harness.room.askForAPersonFailsWith = _thePassageClosed;
+    harness.finished.holdNextAdd();
+    aRedeVolta();
+    await waitFor('o pedido de pessoa sair', () => pedidos() == 1);
+    await waitFor('a sala voltar', () => !_estado(container).unreachable);
+
+    aRedeCai();
+    await waitFor('a sala cair de novo', () => _estado(container).unreachable);
+    aRedeVolta();
+    await waitFor(
+      'a sala voltar de novo',
+      () => !_estado(container).unreachable,
+    );
+    await settle(_severalStepsOfTheLadder);
+    harness.finished.finishHeldAdd();
+    await _naEscolha(container);
+
+    expect(pedidos(), 1);
+  });
 }

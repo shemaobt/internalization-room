@@ -1270,6 +1270,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (sessionId == null || _personAsked || _askingForAPerson) return;
     _askingForAPerson = true;
     final answer = await _room.askForAPerson(sessionId);
+    if (answer case Refused(code: RefusalCode.passageClosed)) {
+      await _thePassageClosed(sessionId);
+      _askingForAPerson = false;
+      return;
+    }
     _askingForAPerson = false;
     switch (answer) {
       case Answered():
@@ -1282,8 +1287,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _theSessionIsGone(sessionId);
       case NetworkFailed():
         _outOfReach(Door.person);
-      case Refused(code: RefusalCode.passageClosed):
-        await _thePassageClosed(sessionId);
       case Refused():
         _keepAskingForAPerson(_askForAPerson);
     }
