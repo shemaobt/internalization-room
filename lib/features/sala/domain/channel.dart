@@ -2,8 +2,6 @@ import 'package:flutter/foundation.dart';
 
 enum MicOwner { conversation, rehearsal, capture, question }
 
-enum MicOutcome { kept, discarded }
-
 enum LineKind {
   guide,
   acknowledgement,
@@ -24,7 +22,7 @@ final class Source {
 
   const Source.take(String path) : this._('take:$path');
 
-  const Source.segment(String id) : this._('segment:$id');
+  const Source.stretch(String key) : this._('stretch:$key');
 
   const Source.reply(String id) : this._('reply:$id', counts: false);
 
@@ -92,31 +90,34 @@ final class PartSound extends Sound {
 }
 
 final class StretchSound extends Sound {
-  final String segment;
+  final String? named;
   final bool telling;
 
   const StretchSound(
-    this.segment,
     String path, {
+    this.named,
     Duration from = Duration.zero,
     Duration? to,
     this.telling = false,
   }) : super(path, from, to);
 
+  String get key =>
+      named ?? '$path@${from.inMilliseconds}-${to?.inMilliseconds ?? 'end'}';
+
   @override
-  Source get source => Source.segment(segment);
+  Source get source => Source.stretch(key);
 
   @override
   bool operator ==(Object other) =>
       other is StretchSound &&
-      other.segment == segment &&
+      other.named == named &&
       other.path == path &&
       other.from == from &&
       other.to == to &&
       other.telling == telling;
 
   @override
-  int get hashCode => Object.hash(segment, path, from, to, telling);
+  int get hashCode => Object.hash(named, path, from, to, telling);
 }
 
 sealed class Channel {
@@ -200,9 +201,6 @@ final class StretchPlaying extends Playing {
 
   @override
   Sound get sound => stretch;
-
-  @override
-  Duration? get head => opened ? null : Duration.zero;
 
   @override
   bool operator ==(Object other) =>

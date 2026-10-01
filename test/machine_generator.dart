@@ -207,7 +207,7 @@ String describeEvent(MachineEvent event) => switch (event) {
   PlayerFailed(:final source, :final sounding) =>
     'PlayerFailed(${source.key}, ${describeKept(sounding)})',
   MicOpened(:final owner) => 'MicOpened(${owner.name})',
-  MicClosed(:final outcome) => 'MicClosed(${outcome.name})',
+  MicClosed() => 'MicClosed',
   BeadTapped(:final sounds, :final beneath) =>
     'BeadTapped(${sounds.map(describeSound).join(', ')}'
         '${beneath == null ? '' : ', beneath: ${describeChannel(beneath)}'})',
@@ -215,6 +215,8 @@ String describeEvent(MachineEvent event) => switch (event) {
   GestureSilenced(:final keepingTheHold) =>
     'GestureSilenced(keepingTheHold: $keepingTheHold)',
   GestureDone() => 'GestureDone',
+  LineNotSaid(:final line) => 'LineNotSaid(${describeLine(line)})',
+  StepLeft() => 'StepLeft',
   LeftThePassage() => 'LeftThePassage',
 };
 
@@ -222,8 +224,8 @@ String describeLine(Line line) => '${line.kind.name}#${line.id}';
 
 String describeSound(Sound sound) => switch (sound) {
   PartSound(:final part, :final from) => 'part $part from ${from.inSeconds}s',
-  StretchSound(:final segment, :final telling) =>
-    'stretch $segment${telling ? ' told' : ''}',
+  final StretchSound stretch =>
+    'stretch ${stretch.key}${stretch.telling ? ' told' : ''}',
 };
 
 String describeChannel(Channel channel) => switch (channel) {
@@ -292,6 +294,8 @@ enum EventKind {
   pauseTapped,
   gestureSilenced,
   gestureDone,
+  lineNotSaid,
+  stepLeft,
   leftThePassage,
 }
 
@@ -313,6 +317,8 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   PauseTapped() => EventKind.pauseTapped,
   GestureSilenced() => EventKind.gestureSilenced,
   GestureDone() => EventKind.gestureDone,
+  LineNotSaid() => EventKind.lineNotSaid,
+  StepLeft() => EventKind.stepLeft,
   LeftThePassage() => EventKind.leftThePassage,
 };
 
@@ -334,13 +340,15 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.pauseTapped ||
   EventKind.gestureSilenced ||
   EventKind.gestureDone ||
+  EventKind.lineNotSaid ||
+  EventKind.stepLeft ||
   EventKind.leftThePassage => true,
 };
 
 Source _drawASource(Random random) => switch (random.nextInt(4)) {
   0 => Source.guide,
   1 => Source.take('parte-${random.nextInt(2)}.m4a'),
-  2 => Source.segment('trecho-${random.nextInt(2)}'),
+  2 => Source.stretch('trecho-${random.nextInt(2)}'),
   _ => Source.reply('resposta-${random.nextInt(2)}'),
 };
 
@@ -351,8 +359,8 @@ Sound _drawASound(Random random) => random.nextBool()
         from: Duration(seconds: random.nextInt(20)),
       )
     : StretchSound(
-        'trecho-${random.nextInt(2)}',
         'parte-${random.nextInt(2)}.m4a',
+        named: 'trecho-${random.nextInt(2)}',
         from: Duration(seconds: random.nextInt(10)),
         to: Duration(seconds: 10 + random.nextInt(10)),
         telling: random.nextBool(),
@@ -389,9 +397,7 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
       EventKind.micOpened => MicOpened(
         MicOwner.values[random.nextInt(MicOwner.values.length)],
       ),
-      EventKind.micClosed => MicClosed(
-        MicOutcome.values[random.nextInt(MicOutcome.values.length)],
-      ),
+      EventKind.micClosed => const MicClosed(),
       EventKind.beadTapped => BeadTapped([
         for (var i = 0; i <= random.nextInt(3); i++) _drawASound(random),
       ]),
@@ -400,6 +406,14 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
         keepingTheHold: random.nextBool(),
       ),
       EventKind.gestureDone => const GestureDone(),
+      EventKind.lineNotSaid => LineNotSaid(
+        Line(
+          LineKind.values[random.nextInt(LineKind.values.length)],
+          random.nextInt(1 << 20),
+          source: _drawASource(random),
+        ),
+      ),
+      EventKind.stepLeft => const StepLeft(),
       EventKind.leftThePassage => const LeftThePassage(),
     };
 

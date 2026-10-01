@@ -3,6 +3,7 @@ import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 final _at = DateTime.utc(2026, 9, 30, 12);
 
@@ -56,7 +57,7 @@ void main() {
       ]);
 
       expect(machine.queue, [_guide1]);
-      expect(effects, isEmpty);
+      expect(effects, [const DropTheLine(_guide2)]);
     });
 
     test('two kinds play in the order they arrived', () {
@@ -103,10 +104,7 @@ void main() {
           const MicOpened(MicOwner.question),
         );
         final (waiting, arriving) = reduce(open, const LineArrived(_reply));
-        final (closed, closing) = reduce(
-          waiting,
-          const MicClosed(MicOutcome.kept),
-        );
+        final (closed, closing) = reduce(waiting, const MicClosed());
 
         expect(opening, [const OpenTheMic(MicOwner.question)]);
         expect(open.channel, const Microphone(MicOwner.question));
@@ -276,7 +274,7 @@ void main() {
         ('a line arriving', const LineArrived(_guide1)),
         ('the player opening', const PlayerOpened()),
         ('a microphone asked for', const MicOpened(MicOwner.capture)),
-        ('a microphone closing', const MicClosed(MicOutcome.discarded)),
+        ('a microphone closing', const MicClosed()),
         ('a pause', const PauseTapped()),
         ('a warning', const TheAnswerWarned()),
         ('a beat of the Watch', const WatchFired()),
@@ -319,6 +317,73 @@ void main() {
       expect(machine.queue, [_notice]);
     },
   );
+
+  test('leaving the passage forgets the failures', () {
+    final (machine, effects) = _run(const Machine(), const [
+      LineArrived(_guide1),
+      PlayerFailed(Source.guide),
+      LeftThePassage(),
+      LineArrived(_guide2),
+      PlayerFailed(Source.guide),
+    ]);
+
+    expect(effects, isNot(contains(const CallForAPerson())));
+    expect(machine.halt, const NoHalt());
+  });
+
+  test('an offline notice waiting under a halt leaves the queue when the Reach '
+      'comes back', () {
+    final (machine, effects) = _run(const Machine(), [
+      const RoomRaisedAHalt(),
+      const LineArrived(_notice),
+      const ReachChanged(reachable: true),
+      LongPress(somebodyToAsk: false, at: _at),
+    ]);
+
+    expect(effects, isNot(contains(const PlayLine(_notice))));
+    expect(machine.queue, isEmpty);
+  });
+
+  group('a paused sound held beneath a line stays paused and resumable', () {
+    const part = PartSound(0, 'parte-1.m4a', from: Duration(seconds: 5));
+    const next = PartSound(1, 'parte-2.m4a');
+    const courtesy = Line(
+      LineKind.stranded,
+      9,
+      source: Source.aside('stranded'),
+    );
+    Machine underTheLine() => _run(const Machine(), const [
+      BeadTapped([part, next]),
+      PlayerOpened(),
+      PauseTapped(),
+      LineArrived(courtesy),
+    ]).$1;
+
+    test('the rehearsal reads paused while the line speaks', () {
+      final screen = SalaSessionState(
+        stage: SalaStage.ensaio,
+        machine: underTheLine(),
+      );
+
+      expect(screen.takePaused, isTrue);
+    });
+
+    test('the play tap stops the line and resumes the part where it was', () {
+      final (machine, effects) = reduce(underTheLine(), const PauseTapped());
+
+      expect(effects, [const StopTheLine(courtesy), const LetTheSoundRun()]);
+      expect(
+        machine.channel,
+        const PartPlaying(part, opened: true, next: [next]),
+      );
+    });
+
+    test('a bead tapped over the line stops the line before it plays', () {
+      final (_, effects) = reduce(underTheLine(), const BeadTapped([next]));
+
+      expect(effects, [const StopTheLine(courtesy), const PlayPart(next)]);
+    });
+  });
 
   test('a line that arrives under a blocking halt waits for the lift', () {
     final (halted, _) = reduce(const Machine(), const RoomRaisedAHalt());

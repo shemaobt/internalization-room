@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
@@ -229,6 +230,38 @@ void main() {
     sala.conversaTap();
     await settle();
     expect(harness.room.turnsSent, turns);
+  });
+
+  test('a reply waiting while the room falls out of reach and comes back in '
+      'the same Step still plays', () async {
+    final harness = SalaHarness(
+      replies: const [HandReply(id: 'r1', audioUrl: '/resposta-1')],
+    );
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final sala = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await waitFor('a resposta chegar à mão', () => read().hasUnheardReply);
+
+    harness.voice.holdNextLine();
+    harness.room.holdNextTurn();
+    sala.conversaTap();
+    await waitFor('o microfone abrir', () => read().channel is Microphone);
+    sala.conversaTap();
+    await waitFor('a Guia falar', () => read().channel is GuideSpeaking);
+    sala.handTap();
+    await settle();
+    harness.room.failHeldTurnWith = const NetworkFailed('sem rede');
+    harness.room.finishHeldTurn();
+    await waitFor('a sala cair', () => read().unreachable);
+    await waitFor('a sala voltar', () => !read().unreachable);
+    expect(read().stage, SalaStage.conversa);
+
+    harness.voice.finishHeldLine();
+    await waitFor(
+      'a resposta tocar',
+      () => harness.voice.played.contains('/resposta-1'),
+    );
   });
 
   group('the spontaneous lines wait for the Channel', () {

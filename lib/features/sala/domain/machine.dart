@@ -84,9 +84,7 @@ final class MicOpened extends MachineEvent {
 }
 
 final class MicClosed extends MachineEvent {
-  final MicOutcome outcome;
-
-  const MicClosed(this.outcome);
+  const MicClosed();
 }
 
 final class BeadTapped extends MachineEvent {
@@ -108,6 +106,16 @@ final class GestureSilenced extends MachineEvent {
 
 final class GestureDone extends MachineEvent {
   const GestureDone();
+}
+
+final class LineNotSaid extends MachineEvent {
+  final Line line;
+
+  const LineNotSaid(this.line);
+}
+
+final class StepLeft extends MachineEvent {
+  const StepLeft();
 }
 
 final class LeftThePassage extends MachineEvent {
@@ -223,6 +231,30 @@ final class OpenTheMic extends Effect {
   int get hashCode => Object.hash(owner, take);
 }
 
+final class StopTheLine extends Effect {
+  final Line line;
+
+  const StopTheLine(this.line);
+
+  @override
+  bool operator ==(Object other) => other is StopTheLine && other.line == line;
+
+  @override
+  int get hashCode => line.hashCode;
+}
+
+final class DropTheLine extends Effect {
+  final Line line;
+
+  const DropTheLine(this.line);
+
+  @override
+  bool operator ==(Object other) => other is DropTheLine && other.line == line;
+
+  @override
+  int get hashCode => line.hashCode;
+}
+
 final class StopTheSound extends Effect {
   const StopTheSound();
 }
@@ -292,9 +324,18 @@ const _watch = ArmTheWatch();
         const [],
       ),
       GestureDone() => _drain(machine),
+      LineNotSaid(:final line) => _notSaid(machine, line),
+      StepLeft() => _leaveTheQueue(machine, _answersItsStep),
       LeftThePassage() => (
-        machine.copyWith(channel: const Silence(), queue: const []),
-        const [StopTheSound()],
+        machine.copyWith(
+          channel: const Silence(),
+          queue: const [],
+          forgetTheFailures: true,
+        ),
+        [
+          const StopTheSound(),
+          for (final line in machine.queue) DropTheLine(line),
+        ],
       ),
       SessionRead() ||
       RoomRaisedAHalt() ||
@@ -338,12 +379,40 @@ Paused? _heldBy(Channel channel) => switch (channel) {
 
 (Machine, List<Effect>) _arrive(Machine machine, Line line) {
   if (machine.queue.any((waiting) => waiting.kind == line.kind)) {
-    return (machine, const []);
+    return (machine, [DropTheLine(line)]);
   }
   final queue = [...machine.queue, line];
   if (!_free(machine)) return (machine.copyWith(queue: queue), const []);
   return _say(machine, queue.first, queue.skip(1).toList());
 }
+
+bool _answersItsStep(Line line) => switch (line.kind) {
+  LineKind.guide ||
+  LineKind.acknowledgement ||
+  LineKind.approved ||
+  LineKind.reply => true,
+  LineKind.offlineNotice || LineKind.stranded || LineKind.micBlocked => false,
+};
+
+bool _aboutTheFall(Line line) => line.kind == LineKind.offlineNotice;
+
+(Machine, List<Effect>) _leaveTheQueue(
+  Machine machine,
+  bool Function(Line) leaves,
+) => (
+  machine.copyWith(queue: [...machine.queue.where((line) => !leaves(line))]),
+  [
+    for (final line in machine.queue)
+      if (leaves(line)) DropTheLine(line),
+  ],
+);
+
+(Machine, List<Effect>) _notSaid(Machine machine, Line line) =>
+    switch (machine.channel) {
+      GuideSpeaking(line: final speaking, :final held) when speaking == line =>
+        _drain(machine.copyWith(channel: held ?? const Silence())),
+      _ => _leaveTheQueue(machine, (waiting) => waiting == line),
+    };
 
 Machine _opened(Machine machine) => switch (machine.channel) {
   final Playing playing => machine.copyWith(
@@ -477,7 +546,8 @@ Machine _silenced(Machine machine, bool keepingTheHold) =>
       sounds.isEmpty) {
     return (machine, const []);
   }
-  return _start(machine, sounds, beneath);
+  final (started, effects) = _start(machine, sounds, beneath);
+  return (started, [..._stopTheLineIn(machine.channel), ...effects]);
 }
 
 (Machine, List<Effect>) _start(
@@ -519,7 +589,21 @@ Playing _playing(
   ),
 };
 
+(Machine, List<Effect>) _resumeFromUnder(Machine paused, Line line) {
+  final (resumed, effects) = _pause(paused);
+  return (resumed, [StopTheLine(line), ...effects]);
+}
+
+List<Effect> _stopTheLineIn(Channel channel) => switch (channel) {
+  GuideSpeaking(:final line) => [StopTheLine(line)],
+  _ => const [],
+};
+
 (Machine, List<Effect>) _pause(Machine machine) => switch (machine.channel) {
+  GuideSpeaking(:final line, held: final Paused paused) => _resumeFromUnder(
+    machine.copyWith(channel: paused),
+    line,
+  ),
   final Playing playing => (
     machine.copyWith(
       channel: Paused(
@@ -548,6 +632,11 @@ Playing _playing(
 };
 
 (Machine, List<Effect>) _theHalt(Machine machine, MachineEvent event) {
+  if (event is ReachChanged && event.reachable) {
+    final (kept, dropped) = _leaveTheQueue(machine, _aboutTheFall);
+    final (halt, effects) = _reduceTheHalt(machine.halt, event);
+    return (kept.copyWith(halt: halt), [...dropped, ...effects]);
+  }
   final (halt, effects) = _reduceTheHalt(machine.halt, event);
   final next = machine.copyWith(halt: halt);
   if (halt is Blocking && machine.halt is! Blocking) {
@@ -620,6 +709,8 @@ Playing _playing(
   PauseTapped() ||
   GestureSilenced() ||
   GestureDone() ||
+  LineNotSaid() ||
+  StepLeft() ||
   LeftThePassage() => (halt, const []),
 };
 

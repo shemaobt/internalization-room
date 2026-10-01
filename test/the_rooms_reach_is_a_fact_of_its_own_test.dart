@@ -2,10 +2,12 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -328,6 +330,62 @@ void main() {
       await waitFor('a mesa levantar a parada', () => !read().needsPerson);
       await _theOutboxEmpties(harness);
       expect(read().reach, RoomReach.fine);
+    },
+  );
+
+  test(
+    'T13: a call failing again under a halt raised during the fall leaves the halt',
+    () async {
+      final harness = SalaHarness(
+        retryBackoff: _aLadderThatFallsAsleep,
+        settleDelay: const Duration(seconds: 2),
+      );
+      harness.emAberto.rows['Ruth/P01'] = const ResumePoint(
+        sessionId: 'sessao-antiga',
+        stage: SalaStage.conversa,
+      );
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+      await notifier.abrirEscolha();
+      await settle();
+      await notifier.goConversa(pericope: 'P01');
+      await settle();
+      await _theRoomFalls(harness, container);
+      await _theLadderClimbs(harness, 'uma vez antes de adormecer');
+
+      _theServerIsBack(harness);
+      notifier.goEnsaio();
+      await notifier.goConversa(pericope: 'P01');
+      await waitFor(
+        'a conversa reabrir com a sala ainda fora do alcance',
+        () =>
+            read().stage == SalaStage.conversa &&
+            read().sessionId != null &&
+            !read().awaitingTheGuide,
+      );
+      expect(read().reach, isNot(RoomReach.fine));
+
+      harness.room.holdNextTurn();
+      notifier.conversaTap();
+      await waitFor('a sala voltar ao toque', () => !read().unreachable);
+      notifier.conversaTap();
+      await waitFor('o microfone abrir', () => read().channel is Microphone);
+      notifier.conversaTap();
+      await waitFor('o turno sair', () => harness.room.turnsSent == 1);
+      harness.room.serverStatus = 'needs_person';
+      harness.room.serverHalt = HaltKind.blocking;
+      await waitFor('a sala parar com o turno no ar', () => read().needsPerson);
+
+      harness.room.failHeldTurnWith = const NetworkFailed('sem rede');
+      harness.room.finishHeldTurn();
+      await settle();
+      expect(read().needsPerson, isTrue);
+
+      harness.network.networkComesBack();
+      await waitFor('a sala voltar', () => read().reach == RoomReach.fine);
+      expect(read().needsPerson, isTrue);
     },
   );
 

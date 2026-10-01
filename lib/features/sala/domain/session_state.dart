@@ -357,26 +357,31 @@ class SalaSessionState {
     _ => false,
   };
 
-  bool get btTrechoPausada => switch (channel) {
+  Channel get _paused => switch (channel) {
+    GuideSpeaking(held: final Paused held) => held,
+    _ => channel,
+  };
+
+  bool get btTrechoPausada => switch (_paused) {
     Paused(what: StretchSound(telling: false)) => true,
     _ => false,
   };
 
-  bool get btRetroPausada => switch (channel) {
+  bool get btRetroPausada => switch (_paused) {
     Paused(what: StretchSound(telling: true)) => true,
     _ => false,
   };
 
   bool get playPing => stage == SalaStage.ensaio && channel is PartPlaying;
 
-  bool get takePaused => switch (channel) {
+  bool get takePaused => switch (_paused) {
     Paused(what: PartSound()) => stage == SalaStage.ensaio,
     _ => false,
   };
 
   int? get parteDoEnsaioTocando {
     if (stage != SalaStage.ensaio) return null;
-    return switch (channel) {
+    return switch (_paused) {
       PartPlaying(:final part) => part.part,
       Paused(what: final PartSound part) => part.part,
       _ => null,
@@ -585,13 +590,10 @@ class SalaSessionState {
     int? parteARegravar,
     bool clearParteARegravar = false,
   }) {
-    final leaving = stage != null && stage != this.stage;
     return SalaSessionState(
       stage: stage ?? this.stage,
-      awaitingTheGuide:
-          awaitingTheGuide ?? (leaving ? false : this.awaitingTheGuide),
-      endOfThePassage:
-          endOfThePassage ?? (leaving ? false : this.endOfThePassage),
+      awaitingTheGuide: awaitingTheGuide ?? this.awaitingTheGuide,
+      endOfThePassage: endOfThePassage ?? this.endOfThePassage,
       reach: reach ?? this.reach,
       conviteStep: conviteStep ?? this.conviteStep,
       sessionId: clearSession ? null : (sessionId ?? this.sessionId),

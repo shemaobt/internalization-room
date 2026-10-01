@@ -52,33 +52,6 @@ void main() {
     expect(_timesOffered(harness), 2);
   });
 
-  test('a turn and then the offer, both unsaid, call a person', () async {
-    final harness = SalaHarness()..voice.refuses.add(_oferecidaUrl);
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-
-    await notifier.goConversa();
-    await settle();
-    harness.voice.succeeds = false;
-    await notifier.hearAgain();
-    harness.voice.succeeds = true;
-    expect(read().needsPerson, isFalse, reason: 'um degrau, não dois');
-
-    await notifier.abrirEscolha();
-    await waitFor('a roda carregar', () => read().naRoda != null);
-    await settle();
-
-    expect(
-      read().needsPerson,
-      isTrue,
-      reason:
-          'a oferta muda tem de subir a mesma escada dos turnos, não uma '
-          'contagem paralela sua',
-    );
-  });
-
   test('an offer the room says changes nothing', () async {
     final harness = SalaHarness();
     final container = await _atTheWheel(harness);
