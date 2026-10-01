@@ -1033,6 +1033,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Kept _whatIsSounding({bool theOpening = true}) {
+    if (state.stage == SalaStage.escolha && state.naRoda == null) {
+      return const TheWheel();
+    }
     if (state.stage == SalaStage.retro &&
         (state.channel is Playing || !_parteJaTocou)) {
       return const ThePart();
@@ -1285,8 +1288,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  /// The same ask, for a halt with no session to name: the server forgot it, or the
-  /// build never opened one. Asks by the tablet's own device id, from the link ledger.
+  /// The same ask, for a halt with no session to name. Asks by the tablet's own device
+  /// id, from the link ledger.
   Future<void> _askForAPersonWithoutASession() async {
     if (_personAsked || _askingForAPerson) return;
     _askingForAPerson = true;
@@ -2263,15 +2266,33 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _theSessionIsGone([String? sessionId]) {
     if (_gone) return;
     if (sessionId != null && sessionId != _theSession) {
-      _goneSessions.add(sessionId);
-      unawaited(
-        _mindingThePlace(
-          () => _takes.discardTheSession(sessionId),
-        ).whenComplete(_countUnsent),
-      );
-      return;
+      return _letGoOf(sessionId);
     }
     _dispatch(const TheSessionIsGone());
+  }
+
+  void _letGoOf(String sessionId) {
+    _goneSessions.add(sessionId);
+    if (sessionId == _panoramaSessionId) _panoramaSessionId = null;
+    unawaited(
+      _mindingThePlace(
+        () => _takes.discardTheSession(sessionId),
+      ).whenComplete(_countUnsent),
+    );
+  }
+
+  Future<RoomAnswer<SessionSnapshot>> _createThePassage(
+    String? pericope,
+  ) async {
+    final after = _panoramaSessionId;
+    final answer = await _room.createSession(
+      pericope: pericope,
+      afterSession: after,
+      language: _lingua,
+    );
+    if (answer is! SessionGone || after == null) return answer;
+    _letGoOf(after);
+    return _room.createSession(pericope: pericope, language: _lingua);
   }
 
   void _discardTheSession() {
@@ -2432,11 +2453,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final resumed = waiting != null;
     var created = resumed ? null : opened;
     if (!resumed && opened == null) {
-      switch (await _room.createSession(
-        pericope: pericope,
-        afterSession: _panoramaSessionId,
-        language: _lingua,
-      )) {
+      switch (await _createThePassage(pericope)) {
         case Answered(value: final session):
           created = session;
         case final RoomFailure failure:

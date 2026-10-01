@@ -510,6 +510,77 @@ void main() {
     expect(harness.room.personsAsked, 0);
   });
 
+  test('a passage whose panorama the server also forgot neither halts nor '
+      'calls a person, and the next pick opens a passage', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final sala = container.read(salaSessionProvider.notifier);
+    await sala.openConvite();
+    await settle();
+    await sala.abrirEscolha();
+    await settle();
+    sala.entrarNaOferecida();
+    await waitFor(
+      'a passagem abrir',
+      () => _estado(container).sessionId != null,
+    );
+    final panorama = harness.room.sessionIds.first;
+    final passagem = _sessao(container);
+    expect(harness.room.metBefore.last, isTrue);
+
+    harness.room
+      ..forgetTheSession(panorama)
+      ..forgetTheSession(passagem);
+    _abrirOMicrofoneDaConversa(container);
+    await _oMicrofoneAberto(container);
+    sala.conversaTap();
+    await _naEscolha(container);
+    await settle();
+    final abertas = harness.room.sessionIds.length;
+    sala.entrarNaOferecida();
+    await waitFor(
+      'uma passagem abrir de novo',
+      () => harness.room.sessionIds.length > abertas,
+    );
+    await settle();
+
+    expect(_estado(container).needsPerson, isFalse);
+    expect(harness.room.personsAsked, 0);
+    expect(harness.room.deviceAsksReceived, isEmpty);
+    expect(_estado(container).sessionId, harness.room.sessionIds.last);
+    expect(harness.room.metBefore.last, isFalse);
+  });
+
+  test('leaving a passage by the way out keeps the room out of reach, with '
+      'its retry armed', () async {
+    final harness = SalaHarness(
+      retryBackoff: const [Duration(milliseconds: 250)],
+    );
+    final container = await _naPassagem(harness);
+    final sala = container.read(salaSessionProvider.notifier);
+    harness.network.reachable = false;
+    harness.room.reachable = false;
+    _abrirOMicrofoneDaConversa(container);
+    await _oMicrofoneAberto(container);
+    sala.conversaTap();
+    await waitFor('a sala cair', () => _estado(container).unreachable);
+    harness.room.reachable = true;
+
+    sala.leaveThePassage();
+    await waitFor(
+      'a sala abrir a Escolha',
+      () => _estado(container).stage == SalaStage.escolha,
+    );
+    final sondasNaHora = harness.network.checks;
+
+    expect(_estado(container).unreachable, isTrue);
+    await waitFor(
+      'a volta da sala ser tentada de novo',
+      () => harness.network.checks > sondasNaHora,
+    );
+  });
+
   test('ENG-1155: a gone at the chunk door leaves no translation copy in the '
       'Outbox and no file on disk, even with the enqueue in flight', () async {
     final harness = SalaHarness();

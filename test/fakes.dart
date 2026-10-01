@@ -1150,6 +1150,11 @@ class FakeRoom implements RoomRepository {
     if (pericope != null && passagesThatCannotOpen.contains(pericope)) {
       return const Refused(RefusalCode.passageCannotOpen);
     }
+    if (afterSession != null) {
+      if (_forgot('createSession', afterSession) case final gone?) {
+        return gone;
+      }
+    }
     final failure = failCreateOnceWith;
     if (failure != null) {
       failCreateOnceWith = null;

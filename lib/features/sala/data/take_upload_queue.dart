@@ -527,7 +527,7 @@ class TakeUploadQueue {
 
   Stream<String> get sessionsGone => _sessionsGone.stream;
 
-  String? _inTheAir;
+  PendingTake? _inTheAir;
 
   /// Send every row a caller that only asked while this call was already running would
   /// otherwise miss.
@@ -606,7 +606,7 @@ class TakeUploadQueue {
     // not one that was given up on. Every outcome below writes this back.
     final row = entry.lost ? entry.copyWith(lost: false) : entry;
     final RoomAnswer<String> answer;
-    _inTheAir = entry.id;
+    _inTheAir = entry;
     try {
       answer = await _room.sendTake(
         entry.sessionId,
@@ -655,6 +655,11 @@ class TakeUploadQueue {
   static bool _sameRow(PendingTake a, PendingTake b) =>
       a.id == b.id && a.kind == b.kind;
 
+  bool _isInTheAir(PendingTake entry) {
+    final inTheAir = _inTheAir;
+    return inTheAir != null && _sameRow(entry, inTheAir);
+  }
+
   Future<bool> _replace(PendingTake target, PendingTake updated) async {
     var found = false;
     await _mutate((written) {
@@ -685,7 +690,7 @@ class TakeUploadQueue {
       ];
     });
     for (final entry in discarded) {
-      if (entry.id != _inTheAir) await _deleteTheCopy(entry);
+      if (!_isInTheAir(entry)) await _deleteTheCopy(entry);
     }
   }
 

@@ -518,6 +518,74 @@ void main() {
     });
   }
 
+  test(
+    'a line waiting under a halt is never started and then cut when the long '
+    'press releases it into the conversation opening again',
+    () async {
+      _OutboxThatGaveUp? outbox;
+      final harness = SalaHarness(
+        takesOverride: (room, home) =>
+            outbox = _OutboxThatGaveUp(room: room, home: () async => home),
+      );
+      harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+        sessionId: 'sessao-guardada',
+        stage: SalaStage.ensaio,
+        takes: [
+          KeptTake(
+            scopeId: KeptScope.parte(1),
+            path: '${harness.recorder.home.path}/longe.m4a',
+            takeId: 'gravacao-1',
+          ),
+        ],
+      );
+      harness.room
+        ..takes.add(
+          TakeView(
+            takeId: 'gravacao-1',
+            kind: 'ensaio',
+            scope: KeptScope.parte(1),
+            ordinal: 1,
+          ),
+        )
+        ..refuseClipOf.add('gravacao-1')
+        ..askForAPersonFailsWith = const Refused('HTTP_418');
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final sala = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+      final bloqueado = micBlockedAsset(testLanguage);
+      await sala.abrirEscolha();
+      await settle();
+      unawaited(sala.goConversa(pericope: 'P01'));
+      await waitFor('a sala parar', () => read().needsPerson);
+      sala.sayTheMicIsBlocked();
+      outbox!.gaveUp = true;
+      await sala.refreshUnsent();
+      await settle();
+      expect(read().machine.queue, hasLength(2));
+      expect(harness.voice.assets, isNot(contains(bloqueado)));
+
+      harness.room.refuseClipOf.clear();
+      final marca = harness.sounds.length;
+      sala.resolveWithPerson();
+      await waitFor(
+        'a conversa reabrir',
+        () => !read().needsPerson && read().sessionId != null,
+      );
+      await settle();
+
+      final depois = harness.sounds.skip(marca).toList();
+      final dita = depois.indexOf('voice:asset');
+      expect(
+        dita < 0 || !depois.skip(dita).contains('voice:stop'),
+        isTrue,
+        reason:
+            'a linha que esperava a parada nunca começa para ser cortada: '
+            '$depois',
+      );
+    },
+  );
+
   test('a reply silenced by a gesture is not counted against it when the room '
       'then fails', () async {
     final harness = SalaHarness(

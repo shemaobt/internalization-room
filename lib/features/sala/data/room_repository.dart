@@ -115,7 +115,7 @@ class RoomRepository {
     ),
     timeout: _stateTimeout,
     read: readJson(SessionSnapshot.fromJson),
-    asksForTheSession: false,
+    asksForTheSession: afterSession != null,
     atThisDoor: const {400: Refused(RefusalCode.passageCannotOpen)},
   );
 
@@ -398,8 +398,7 @@ class RoomRepository {
     read: readJson((_) {}),
   );
 
-  /// The device-scoped ask, for a halt that has no session to ask through: the server
-  /// forgot it, or the build never opened one.
+  /// The device-scoped ask, for a halt that has no session to ask through.
   Future<RoomAnswer<void>> askForAPersonWithoutASession(String deviceId) =>
       _room.ask(
         () => _client.post(
@@ -408,6 +407,7 @@ class RoomRepository {
         ),
         timeout: _stateTimeout,
         read: readJson((_) {}),
+        asksForTheSession: false,
         atThisDoor: const {
           404: Refused(RefusalCode.nobodyToReach),
           409: Refused(RefusalCode.nobodyToReach),

@@ -1444,8 +1444,7 @@ void main() {
                 answering(404).collectTheCredential('aparelho-1'),
             'askForACode': () => answering(404).askForACode('aparelho-1'),
             'readTheLink': () => answering(404).readTheLink('aparelho-1'),
-            'createSession': () =>
-                answering(404).createSession(language: 'pt', afterSession: 's'),
+            'createSession': () => answering(404).createSession(language: 'pt'),
           };
           for (final door in sessionless.entries) {
             expect(
@@ -1456,6 +1455,14 @@ void main() {
           }
         },
       );
+
+      test('a session creation that names the session before it reads a 404 as '
+          'that session gone', () async {
+        expect(
+          await answering(404).createSession(language: 'pt', afterSession: 's'),
+          isA<SessionGone>(),
+        );
+      });
 
       test('the device routes keep their own answers', () async {
         expect(

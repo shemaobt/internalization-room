@@ -21,9 +21,13 @@ survive, because the Outbox is the room's and not the session's. A standing halt
 with no call for a person. The audio is gone for good: the server no longer holds the
 session it belonged to, so nothing could ever deliver it.
 
-**Only a door that names a session can say it is gone.** Session creation, the passages
-listing, the claim code, the credential and the link answer a 404 as a Refusal with
-`NOT_FOUND`. This closes what ADR 0039 left to the executor: a 404 on the passages listing
+**Only a door that names a session can say it is gone.** The passages listing, the claim
+code, the credential, the link and a session creation that names no session before it
+answer a 404 as a Refusal with `NOT_FOUND`. A creation that names the session before it,
+the panorama's, answers a 404 as that session gone: the room lets the panorama go and
+creates the passage again without it, so the team's pick still opens a passage and nobody
+is called. A gone lets go of every session the room holds that it names, the panorama's
+included. This closes what ADR 0039 left to the executor: a 404 on the passages listing
 read as gone sent the room to the Choice, whose first call is that same listing. The device
 link reads `NOT_FOUND` where it read the gone, and starts over or shows a new code.
 
