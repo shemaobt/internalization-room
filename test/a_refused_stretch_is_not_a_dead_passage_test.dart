@@ -250,16 +250,15 @@ void main() {
         'a sala deixar a passagem',
         () => it.estado.stage == SalaStage.escolha,
       );
+      await waitFor(
+        'a sessão sumida não deixar onde retomar',
+        () async => await harness.emAberto.of('Ruth', 'P01') == null,
+      );
 
       expect(
         it.estado.sessionId,
         isNull,
         reason: 'a sessão sumiu, como em toda outra porta que pergunta por ela',
-      );
-      expect(
-        await harness.emAberto.of('Ruth', 'P01'),
-        isNull,
-        reason: 'a sessão sumida não deixa onde retomar',
       );
       expect(
         it.estado.needsPerson,
