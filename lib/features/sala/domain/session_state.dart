@@ -322,7 +322,7 @@ class SalaSessionState {
 
   VoiceState get voice {
     if (halt is Blocking) return VoiceState.invite;
-    if (reach != RoomReach.fine) return VoiceState.offline;
+    if (unreachable && channel is! Microphone) return VoiceState.offline;
     return switch (channel) {
       Microphone(owner: MicOwner.rehearsal) => _resting,
       Microphone() => VoiceState.listening,
@@ -401,7 +401,7 @@ class SalaSessionState {
 
   bool get offline => voice == VoiceState.offline;
 
-  bool get unreachable => reach != RoomReach.fine;
+  bool get unreachable => !machine.reachable;
 
   bool get canFinishBackTranslation =>
       stage == SalaStage.retro && btPhase == BtPhase.playing && btClipEnded;

@@ -40,6 +40,29 @@ const _entering = [SilenceTheRoom(), CloseAndDiscardTheMic()];
   return (machine.halt, effects);
 }
 
+bool _ofTheHalt(Effect effect) => switch (effect) {
+  SilenceTheRoom() ||
+  CloseAndDiscardTheMic() ||
+  ArmTheWatch() ||
+  CallForAPerson() ||
+  StopCallingForAPerson() ||
+  TellAPersonArrived() ||
+  ReplayTheSound() ||
+  AskTheOpeningAgain() => true,
+  _ => false,
+};
+
+(Halt, List<Effect>) _acrossTheReach(Halt halt, MachineEvent event) {
+  final (machine, effects) = reduce(
+    Machine(
+      halt: halt,
+      reach: event is NetworkReturned ? Reach.outOfReach : Reach.reachable,
+    ),
+    event,
+  );
+  return (machine.halt, effects.where(_ofTheHalt).toList());
+}
+
 Matcher _to(Halt next, List<Effect> effects) => isA<(Halt, List<Effect>)>()
     .having((result) => result.$1, 'the halt', next)
     .having((result) => result.$2, 'the effects', effects);
@@ -96,7 +119,7 @@ void main() {
 
     test('coming back within reach arms the Watch again', () {
       expect(
-        _reduce(none, const ReachChanged(reachable: true)),
+        _acrossTheReach(none, const NetworkReturned()),
         _to(none, const [ArmTheWatch()]),
       );
     });
@@ -105,11 +128,11 @@ void main() {
       for (final event in [
         LongPress(somebodyToAsk: true, at: _at),
         LongPress(somebodyToAsk: false, at: _at),
-        const ReachChanged(reachable: false),
+        const NetworkFailedAt(Door.watch),
         const TheCallLanded(),
       ]) {
         expect(
-          _reduce(none, event),
+          _acrossTheReach(none, event),
           _to(none, const <Effect>[]),
           reason: '$event',
         );
@@ -225,11 +248,11 @@ void main() {
 
     test('going offline keeps it; coming back arms the Watch again', () {
       expect(
-        _reduce(warning, const ReachChanged(reachable: false)),
+        _acrossTheReach(warning, const NetworkFailedAt(Door.watch)),
         _to(warning, const <Effect>[]),
       );
       expect(
-        _reduce(warning, const ReachChanged(reachable: true)),
+        _acrossTheReach(warning, const NetworkReturned()),
         _to(warning, const [ArmTheWatch()]),
       );
     });
@@ -322,7 +345,7 @@ void main() {
 
     test('going offline keeps a halt the server has not heard of', () {
       expect(
-        _reduce(unknown, const ReachChanged(reachable: false)),
+        _acrossTheReach(unknown, const NetworkFailedAt(Door.watch)),
         _to(unknown, const <Effect>[]),
       );
     });
@@ -385,11 +408,11 @@ void main() {
 
     test('going offline keeps it; coming back arms the Watch again', () {
       expect(
-        _reduce(known, const ReachChanged(reachable: false)),
+        _acrossTheReach(known, const NetworkFailedAt(Door.watch)),
         _to(known, const <Effect>[]),
       );
       expect(
-        _reduce(known, const ReachChanged(reachable: true)),
+        _acrossTheReach(known, const NetworkReturned()),
         _to(known, const [ArmTheWatch()]),
       );
     });
@@ -397,7 +420,7 @@ void main() {
     test('coming back within reach calls again for a halt the server has not '
         'heard of', () {
       expect(
-        _reduce(unknown, const ReachChanged(reachable: true)),
+        _acrossTheReach(unknown, const NetworkReturned()),
         _to(unknown, const [CallForAPerson(), ArmTheWatch()]),
       );
     });

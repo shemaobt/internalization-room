@@ -29,6 +29,7 @@ void main() {
     await waitFor('a parada vencer o aviso', () => read().needsPerson);
 
     harness.network.reachable = false;
+    harness.room.reachable = false;
     harness.room.failHeldTurnWith = const NetworkFailed('sem rede');
     harness.room.finishHeldTurn();
     await waitFor('a sala ficar sem alcance', () => read().unreachable);

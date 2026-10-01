@@ -278,8 +278,8 @@ void main() {
         ('a pause', const PauseTapped()),
         ('a warning', const TheAnswerWarned()),
         ('a beat of the Watch', const WatchFired()),
-        ('the reach falling', const ReachChanged(reachable: false)),
-        ('the reach coming back', const ReachChanged(reachable: true)),
+        ('the reach falling', const NetworkFailedAt(Door.watch)),
+        ('the reach coming back', const NetworkReturned()),
       ]) {
         test('$name does not silence what is sounding', () {
           final (_, effects) = reduce(_part1Playing, event);
@@ -461,8 +461,9 @@ void main() {
       'comes back', () {
     final (machine, effects) = _run(const Machine(), [
       const RoomRaisedAHalt(),
+      const NetworkFailedAt(Door.watch),
       const LineArrived(_notice),
-      const ReachChanged(reachable: true),
+      const NetworkReturned(),
       LongPress(somebodyToAsk: false, at: _at),
     ]);
 

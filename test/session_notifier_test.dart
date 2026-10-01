@@ -1648,6 +1648,9 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
       harness.room.failTurnsWith = const NetworkFailed('a conexão caiu');
+      container.listen(salaSessionProvider, (_, next) {
+        if (next.offline) harness.network.reachable = false;
+      });
 
       notifier.conversaTap();
       await settle();
@@ -1694,6 +1697,7 @@ void main() {
               endedAt = async.elapsed - secondTapAt;
               ended = next;
               sentAtEnd = harness.room.turnsSent;
+              harness.network.reachable = false;
             }
           });
 
@@ -1825,12 +1829,15 @@ void main() {
       final clock = Stopwatch();
       Duration? endedAt;
       SalaSessionState? ended;
+      int? sentWhenItEnded;
       container.listen(salaSessionProvider, (previous, next) {
         if (ended == null &&
             previous?.voice == VoiceState.thinking &&
             next.voice != VoiceState.thinking) {
           endedAt = clock.elapsed;
           ended = next;
+          sentWhenItEnded = harness.room.turnsSent;
+          harness.network.reachable = false;
         }
       });
 
@@ -1842,7 +1849,7 @@ void main() {
       harness.room.holdNextTurn();
       await settle(const Duration(milliseconds: 900));
 
-      expect(harness.room.turnsSent, 2);
+      expect(sentWhenItEnded, 2);
       expect(
         ended?.needsPerson,
         isFalse,
@@ -3556,7 +3563,9 @@ void main() {
   test(
     'a network that cannot reach the backend still counts as offline',
     () async {
-      final harness = SalaHarness()..room.reachable = false;
+      final harness = SalaHarness()
+        ..room.reachable = false
+        ..network.reachable = false;
       final container = await inConversa(harness);
       addTearDown(container.dispose);
 
@@ -6096,13 +6105,7 @@ void main() {
       hasLength(1),
     );
 
-    await waitFor(
-      'a sala voltar ao alcance',
-      () => !container.read(salaSessionProvider).offline,
-    );
     harness.room.failReplaceWith = null;
-    await notifier.confirmarTraducao();
-    await settle();
     await waitFor(
       'a correção de reserva sair da fila',
       () async =>
@@ -6949,13 +6952,7 @@ void main() {
       hasLength(1),
     );
 
-    await waitFor(
-      'a sala voltar ao alcance',
-      () => !container.read(salaSessionProvider).offline,
-    );
     harness.room.failChunkWith = null;
-    await notifier.confirmarTraducao();
-    await settle();
     await waitFor(
       'a cópia de reserva sair da fila',
       () async =>

@@ -79,6 +79,7 @@ void main() {
       if (next.offline) outOfReach = true;
     });
     room.turnStatus = 503;
+    harness.network.reachable = false;
     notifier.conversaTap();
     await settle();
     notifier.conversaTap();

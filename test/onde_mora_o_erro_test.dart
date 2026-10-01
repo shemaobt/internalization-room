@@ -479,6 +479,7 @@ void main() {
             'e ela precisa ficar num lugar de onde consegue tentar de '
             'novo — uma correção que falhou não pode ser um beco',
       );
+      closeTheRoom(container);
     });
   }
 

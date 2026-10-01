@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -6,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../domain/machine.dart';
 import 'room_answer.dart';
 import 'room_repository.dart';
 
@@ -13,6 +15,15 @@ const _folder = 'guardadas';
 const _manifest = 'fila.json';
 
 const takeUploadAttempts = 5;
+
+typedef OutboxTally = ({
+  bool stranded,
+  int unsentTakes,
+  int unsentChunks,
+  Set<String> unsentTakeScopes,
+  Map<String, PartFact> parts,
+  Duration due,
+});
 
 /// How many answerless tries pass before the room says a recording is stuck.
 ///
@@ -78,6 +89,8 @@ class PendingTake {
   /// older app wrote are still zoneless and are still read; they come due just the same.
   final DateTime? lastTry;
 
+  final String? refusal;
+
   const PendingTake({
     required this.id,
     required this.path,
@@ -92,9 +105,13 @@ class PendingTake {
     this.attempts = 0,
     this.waits = 0,
     this.lastTry,
+    this.refusal,
   });
 
   bool get exhausted => attempts >= takeUploadAttempts;
+
+  bool get refusedWithNoCode =>
+      exhausted && (refusal?.startsWith('HTTP_') ?? false);
 
   bool get stalled => waits >= takeUploadWaitsBeforeSaying;
 
@@ -107,6 +124,7 @@ class PendingTake {
     int? attempts,
     int? waits,
     DateTime? lastTry,
+    String? refusal,
   }) => PendingTake(
     id: id,
     path: path,
@@ -121,6 +139,7 @@ class PendingTake {
     attempts: attempts ?? this.attempts,
     waits: waits ?? this.waits,
     lastTry: lastTry ?? this.lastTry,
+    refusal: refusal ?? this.refusal,
   );
 
   Map<String, Object?> toJson() => {
@@ -137,6 +156,7 @@ class PendingTake {
     'attempts': attempts,
     'waits': waits,
     'last_try': lastTry?.toUtc().toIso8601String(),
+    'refusal': refusal,
   };
 
   factory PendingTake.fromJson(
@@ -162,6 +182,7 @@ class PendingTake {
       final String stamp => DateTime.tryParse(stamp),
       _ => null,
     },
+    refusal: json['refusal'] as String?,
   );
 }
 
@@ -271,10 +292,13 @@ class TakeUploadQueue {
   /// The rows a flush will try. A written-off row is back among them the moment its
   /// audio is on the disk again; one whose audio really is gone stays out, so the queue
   /// still empties.
-  Future<List<PendingTake>> waiting() async {
+  Future<List<PendingTake>> waiting({bool withTheCodeless = false}) async {
     final trying = <PendingTake>[];
     for (final entry in await pending()) {
-      if (entry.exhausted || await _reallyGone(entry)) continue;
+      if (entry.exhausted && !(withTheCodeless && entry.refusedWithNoCode)) {
+        continue;
+      }
+      if (await _reallyGone(entry)) continue;
       trying.add(entry);
     }
     return trying;
@@ -345,18 +369,21 @@ class TakeUploadQueue {
   /// giveUps() + lostHistory() + unsentOf('ensaio') + unsentOf('retro') +
   /// unsentScopesOf('ensaio'), from the one read this cache already keeps —
   /// what `_countUnsent` asked for five times over is asked for once here.
-  Future<
-    ({
-      bool stranded,
-      int unsentTakes,
-      int unsentChunks,
-      Set<String> unsentTakeScopes,
-    })
-  >
-  tally({required String? sessionId}) async {
+  Future<OutboxTally> tally({required String? sessionId}) async {
     final written = await _written();
     final stranded = (await giveUps()).isNotEmpty || await lostHistory();
+    final waiting = await this.waiting();
+    final trying = {for (final entry in waiting) entry.id};
     return (
+      parts: {
+        for (final entry in written ?? const <PendingTake>[])
+          entry.id: entry.stored
+              ? PartFact.sent
+              : trying.contains(entry.id)
+              ? PartFact.pending
+              : PartFact.stranded,
+      },
+      due: _due(waiting),
       stranded: stranded,
       unsentTakes: _unsentIn(written, 'ensaio', sessionId),
       unsentChunks: _unsentIn(written, 'retro', sessionId),
@@ -378,9 +405,28 @@ class TakeUploadQueue {
     return givenUp;
   }
 
-  bool _ready(PendingTake entry) {
+  Duration _due(List<PendingTake> waiting) {
+    Duration? soonest;
+    final held = <String>{};
+    for (final entry in waiting) {
+      final part = _partOf(entry);
+      if (part != null && !held.add(part)) continue;
+      final wait = _waitFor(entry);
+      if (soonest == null || wait < soonest) soonest = wait;
+    }
+    return soonest ?? Duration.zero;
+  }
+
+  String? _partOf(PendingTake entry) =>
+      entry.kind == 'ensaio' ? '${entry.sessionId}/${entry.scope}' : null;
+
+  bool _ready(PendingTake entry) => _waitFor(entry) == Duration.zero;
+
+  Duration _waitFor(PendingTake entry) {
     final last = entry.lastTry;
-    if (last == null || entry.tries == 0 || _backoff.isEmpty) return true;
+    if (last == null || entry.tries == 0 || _backoff.isEmpty) {
+      return Duration.zero;
+    }
     final now = _now();
     // A stamp we could not have written yet says nothing about when we last tried.
     //
@@ -390,10 +436,11 @@ class TakeUploadQueue {
     // Any amount ahead, not only an implausible one. A corrupt stamp far in the future
     // would stay stuck for good under a threshold rule and cures itself under this one,
     // and flush() runs on events, never on a timer, so the extra try cannot spin.
-    if (last.isAfter(now)) return true;
+    if (last.isAfter(now)) return Duration.zero;
     final step = entry.tries - 1;
     final wait = _backoff[step < _backoff.length ? step : _backoff.length - 1];
-    return !now.isBefore(last.add(wait));
+    final due = last.add(wait).difference(now);
+    return due.isNegative ? Duration.zero : due;
   }
 
   Future<void> _write(List<PendingTake> entries) async {
@@ -473,7 +520,16 @@ class TakeUploadQueue {
   /// read the empty answer as "the room has this" and never asked again. It now waits on
   /// the flush already running and, if anything was asked for while it waited, that flush
   /// takes one more pass before either caller is told it is done.
-  Future<int> flush() {
+  final StreamController<void> _falls = StreamController<void>.broadcast(
+    sync: true,
+  );
+
+  Stream<void> get fallsOnTheNetwork => _falls.stream;
+
+  void _fellOnTheNetwork() => _falls.add(null);
+
+  Future<int> flush({bool withTheCodeless = false}) {
+    _withTheCodeless = _withTheCodeless || withTheCodeless;
     final running = _flushInFlight;
     if (running != null) {
       _flushAgainRequested = true;
@@ -482,12 +538,16 @@ class TakeUploadQueue {
     return _flushInFlight = _flushUntilSettled();
   }
 
+  bool _withTheCodeless = false;
+
   Future<int> _flushUntilSettled() async {
     var sent = 0;
     try {
       do {
         _flushAgainRequested = false;
-        sent += await _flushOnce();
+        final withTheCodeless = _withTheCodeless;
+        _withTheCodeless = false;
+        sent += await _flushOnce(withTheCodeless: withTheCodeless);
       } while (_flushAgainRequested);
     } finally {
       _flushInFlight = null;
@@ -504,13 +564,11 @@ class TakeUploadQueue {
   /// re-recording left the room holding the recording the team abandoned. A row that does
   /// not land holds the rest of its part for the rest of this pass; a row no longer
   /// waiting holds nothing, and a telling-back is not a part.
-  Future<int> _flushOnce() async {
+  Future<int> _flushOnce({required bool withTheCodeless}) async {
     var sent = 0;
     final held = <String>{};
-    for (final entry in await waiting()) {
-      final part = entry.kind == 'ensaio'
-          ? '${entry.sessionId}/${entry.scope}'
-          : null;
+    for (final entry in await waiting(withTheCodeless: withTheCodeless)) {
+      final part = _partOf(entry);
       if (part != null && held.contains(part)) continue;
       if (await _landed(entry)) {
         sent++;
@@ -554,19 +612,32 @@ class TakeUploadQueue {
       );
       return false;
     }
-    await _replace(entry, switch (answer) {
-      Answered(value: final landed) => row.copyWith(
-        takeId: landed,
-        stored: true,
-      ),
-      NetworkFailed() => row.copyWith(waits: row.waits + 1, lastTry: _now()),
-      Refused() => row.copyWith(attempts: takeUploadAttempts, lastTry: _now()),
-      SessionGone() => row.copyWith(
-        attempts: row.attempts + 1,
-        lastTry: _now(),
-      ),
-    });
-    return answer is Answered;
+    switch (answer) {
+      case Answered(value: final landed):
+        await _replace(entry, row.copyWith(takeId: landed, stored: true));
+        return true;
+      case NetworkFailed():
+        _fellOnTheNetwork();
+        await _replace(
+          entry,
+          row.copyWith(waits: row.waits + 1, lastTry: _now()),
+        );
+      case Refused(:final code):
+        await _replace(
+          entry,
+          row.copyWith(
+            attempts: takeUploadAttempts,
+            lastTry: _now(),
+            refusal: code,
+          ),
+        );
+      case SessionGone():
+        await _replace(
+          entry,
+          row.copyWith(attempts: row.attempts + 1, lastTry: _now()),
+        );
+    }
+    return false;
   }
 
   Future<void> _replace(PendingTake target, PendingTake updated) => _mutate(

@@ -248,11 +248,16 @@ void main() {
     // way out of a correction the room took ends the telling-back.
     harness.room.failFinishWith = const NetworkFailed('timeout');
     await _traduzDeNovo(container, notifier);
-    harness.room.failFinishWith = null;
+    harness.room.failFinishWith = const Refused('BAD_REQUEST');
     await waitFor(
       'a sala voltar ao alcance',
       () => !container.read(salaSessionProvider).offline,
     );
+    await waitFor(
+      'o veredito pedido de novo na volta ser recusado',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.playing,
+    );
+    harness.room.failFinishWith = null;
 
     await _traduzTrecho(harness, container, em: const Duration(seconds: 40));
 

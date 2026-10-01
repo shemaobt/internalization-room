@@ -161,7 +161,7 @@ void main() {
       notifier.ensaioTap();
       await settle();
       expect(read().stage, SalaStage.ensaio);
-      expect(read().voice, VoiceState.offline);
+      expect(read().voice, VoiceState.invite);
       expect(read().ensaio, EnsaioStatus.recording);
       expect(read().reach, isNot(RoomReach.fine));
 
@@ -261,20 +261,9 @@ void main() {
       expect(_noticesSpoken(harness), 1);
 
       notifier.resolveWithPerson();
-      expect(read().voice, VoiceState.invite);
+      expect(read().unreachable, isFalse);
       expect(read().reach, RoomReach.fine);
-      await settle();
-      final checks = harness.network.checks;
-      await settle(const Duration(milliseconds: 300));
-      expect(
-        harness.network.checks,
-        checks,
-        reason: 'o toque longo encerra a escada',
-      );
 
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
       await waitFor('a sala cair de novo', () => read().offline);
       expect(_noticesSpoken(harness), 2);
       await _theLadderClimbs(harness, 'na segunda queda');
@@ -400,6 +389,7 @@ void main() {
       harness.network.holdNextCheck();
       notifier.conversaTap();
       await settle();
+      harness.room.reachable = true;
       notifier.resolveWithPerson();
       harness.network.finishHeldCheck();
       await settle();

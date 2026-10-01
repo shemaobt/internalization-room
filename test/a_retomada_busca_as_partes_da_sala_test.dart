@@ -365,7 +365,8 @@ void main() {
   });
 
   test(
-    'sem a lista das gravacoes a sala chama uma pessoa e guarda o ponto',
+    'sem a lista das gravacoes por falta de rede a sala fica fora de alcance '
+    'e guarda o ponto',
     () async {
       final harness = SalaHarness()
         ..room.failTakesWith = const NetworkFailed('sem rede');
@@ -375,7 +376,11 @@ void main() {
         parouEm: SalaStage.retro,
         contado: _contado([1]),
       );
-      await waitFor('a sala chamar uma pessoa', () => it.estado.needsPerson);
+      await waitFor(
+        'a sala ficar fora de alcance',
+        () => it.estado.unreachable,
+      );
+      expect(it.estado.needsPerson, isFalse);
 
       expect(
         it.linhaAgora,
@@ -739,7 +744,7 @@ void main() {
         case _Falha.nenhuma:
           break;
         case _Falha.aLista:
-          harness.room.failTakesWith = const NetworkFailed('sem rede');
+          harness.room.failTakesWith = const Refused('UNKNOWN_REFERENCE');
         case _Falha.umaParte:
           harness.room.refuseClipOf.add('gravacao-2');
       }

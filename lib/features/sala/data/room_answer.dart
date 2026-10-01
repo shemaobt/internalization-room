@@ -49,6 +49,7 @@ abstract final class RefusalCode {
   static const credentialNotYet = 'CREDENTIAL_NOT_YET';
   static const credentialTaken = 'CREDENTIAL_TAKEN';
   static const nobodyToReach = 'NOBODY_TO_REACH';
+  static const idempotencyKeyInFlight = 'IDEMPOTENCY_KEY_IN_FLIGHT';
 
   static const stopsTheRoom = {unauthorized, forbidden, deviceRevoked};
 }
