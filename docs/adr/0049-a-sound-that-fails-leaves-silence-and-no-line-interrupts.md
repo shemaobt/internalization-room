@@ -70,7 +70,9 @@ awaiting the Guide, and the end of the passage. Until then the Station stands fo
 leaving a Station ends both facts and drops the lines that answer it, and re-entering the
 Station the room is already in (the same conversation opened again, the wheel read again
 in the same visit) leaves them as they are. A gesture says at its end whether it started a
-sound, and a waiting line plays only if it did not.
+sound, and a waiting line plays only if it did not. A gesture ends when everything it
+started has ended, the gesture it hands off to included. A line a gesture silenced was
+never said, whatever happens to the room afterwards.
 
 The offline notice has no path under an open microphone until ENG-1174 takes the room out
 of reach from every door; today it is spoken only from doors the room calls while it is
