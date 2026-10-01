@@ -67,6 +67,39 @@ void main() {
       expect(effects, [const ProbeTheRoom()]);
     });
 
+    test('a return the room never answered climbs the ladder too', () {
+      final (_, effects) = _run(_reachable, const [
+        NetworkFailedAt(Door.watch),
+        NetworkReturned(),
+        NetworkFailedAt(Door.watch),
+        NetworkReturned(),
+        NetworkFailedAt(Door.watch),
+      ]);
+
+      expect(effects.whereType<ArmTheRetry>().map((arm) => arm.step), [
+        0,
+        1,
+        2,
+      ]);
+    });
+
+    test('an answer after the return starts the ladder over', () {
+      final (_, effects) = _run(_reachable, const [
+        NetworkFailedAt(Door.watch),
+        NetworkReturned(),
+        NetworkFailedAt(Door.watch),
+        NetworkReturned(),
+        TheRoomAnswered(),
+        NetworkFailedAt(Door.watch),
+      ]);
+
+      expect(effects.whereType<ArmTheRetry>().map((arm) => arm.step), [
+        0,
+        1,
+        0,
+      ]);
+    });
+
     test('a probe that fails climbs the ladder', () {
       final (machine, effects) = _run(_outOfReach, const [
         NetworkFailedAt(Door.probe),

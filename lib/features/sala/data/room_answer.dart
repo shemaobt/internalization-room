@@ -52,4 +52,8 @@ abstract final class RefusalCode {
   static const idempotencyKeyInFlight = 'IDEMPOTENCY_KEY_IN_FLIGHT';
 
   static const stopsTheRoom = {unauthorized, forbidden, deviceRevoked};
+
+  static String unnamed(int status) => 'HTTP_$status';
+
+  static bool namesNothing(String code) => code.startsWith('HTTP_');
 }

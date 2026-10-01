@@ -115,7 +115,7 @@ class RoomClient {
       code ??
           switch (status) {
             404 => RefusalCode.notFound,
-            _ => 'HTTP_$status',
+            _ => RefusalCode.unnamed(status),
           },
       detail,
     );

@@ -530,6 +530,39 @@ void main() {
     expect(harness.room.turnsSent, turnsBefore + 1);
   });
 
+  test('8: a turn of a passage the team left is never re-sent on a later '
+      'return', () async {
+    final harness = SalaHarness(retryBackoff: _aLadderThatWaits);
+    final room = await _conversa(harness);
+    harness.room
+      ..holdNextTurn()
+      ..failHeldTurnWith = const NetworkFailed('sem rede');
+    harness.network.reachable = false;
+    room.sala.conversaTap();
+    await settle();
+    room.sala.conversaTap();
+    await waitFor('o turno sair', () => harness.room.turnsSent == 1);
+
+    room.sala.leaveThePassage();
+    await room.sala.abrirEscolha();
+    harness.room.finishHeldTurn();
+    await settle();
+    harness.room.reachable = false;
+    await harness.takes.enqueue(
+      harness.recorder.aFile('parte-guardada'),
+      sessionId: 'sessao-1',
+      kind: 'ensaio',
+      scope: _parte1,
+    );
+    await harness.takes.flush();
+    await room.outOfReach('pela Outbox');
+    room.theNetworkReturns();
+    await waitFor('a sala voltar', () => !room.estado.unreachable);
+    await settle(const Duration(milliseconds: 300));
+
+    expect(harness.room.turnsSent, 1);
+  });
+
   group('8: the verdict and the approval that fell are asked again once on '
       'the return', () {
     Future<_Room> ready(SalaHarness harness) async {

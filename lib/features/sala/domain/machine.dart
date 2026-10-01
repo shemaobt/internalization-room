@@ -788,10 +788,15 @@ List<Effect> _stopTheLineIn(Channel channel) => switch (channel) {
 
 (Machine, List<Effect>) _fall(Machine machine, Door door) {
   if (machine.reachable) {
+    final fallen = machine.noticeSaid ? machine.fallen + 1 : 0;
     return (
-      machine.copyWith(reach: Reach.outOfReach, fallen: 0, noticeSaid: true),
+      machine.copyWith(
+        reach: Reach.outOfReach,
+        fallen: fallen,
+        noticeSaid: true,
+      ),
       [
-        const ArmTheRetry(),
+        ArmTheRetry(step: fallen),
         if (!machine.noticeSaid) const SayTheOfflineNotice(),
       ],
     );
@@ -806,7 +811,7 @@ List<Effect> _stopTheLineIn(Channel channel) => switch (channel) {
   final (kept, dropped) = _leaveTheQueue(machine, _aboutTheFall);
   final halt = machine.halt;
   return (
-    kept.copyWith(reach: Reach.reachable, fallen: 0, draining: true),
+    kept.copyWith(reach: Reach.reachable, draining: true),
     [
       ...dropped,
       const CancelTheRetry(),

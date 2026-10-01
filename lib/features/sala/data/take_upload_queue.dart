@@ -111,7 +111,7 @@ class PendingTake {
   bool get exhausted => attempts >= takeUploadAttempts;
 
   bool get refusedWithNoCode =>
-      exhausted && (refusal?.startsWith('HTTP_') ?? false);
+      exhausted && RefusalCode.namesNothing(refusal ?? '');
 
   bool get stalled => waits >= takeUploadWaitsBeforeSaying;
 

@@ -1918,8 +1918,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     switch (answer) {
       case NetworkFailed() && final failure:
-        _pending = () =>
-            _sendThePanoramaTurn(panorama, path, turnId, once: true);
+        if (epoch == _epoch) {
+          _pending = () =>
+              _sendThePanoramaTurn(panorama, path, turnId, once: true);
+        }
         failed(failure);
       case Answered(value: final turn):
         if (epoch != _epoch) return;
@@ -2607,6 +2609,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           try {
             takes = await _asPartesDaSala(waiting, guardadas, here, epoch);
           } on NetworkFailed {
+            if (epoch != _epoch || _gone) return _Resume.abandoned;
             return _theResumeFell();
           }
         case SessionGone():
@@ -2616,6 +2619,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           // to resolve. It goes to the handler that already starts the passage clean.
           return _Resume.gone;
         case NetworkFailed():
+          if (epoch != _epoch || _gone) return _Resume.abandoned;
           return _theResumeFell();
         case Refused():
           takes = null;
@@ -2938,8 +2942,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     switch (answer) {
       case NetworkFailed() && final failure:
-        _pending = () =>
-            _sendTheTurn(sessionId, path, turnId, turnClock, once: true);
+        if (epoch == _epoch) {
+          _pending = () =>
+              _sendTheTurn(sessionId, path, turnId, turnClock, once: true);
+        }
         failed(failure);
       case Answered(value: final turn):
         try {
