@@ -69,3 +69,11 @@ server's own when it names them.
 A minted code never comes from the server, so nothing but the door that mints it produces
 it. The streamed doors (the coverage channel and the voice's clip) classify their status by
 the same table, without a body to read the code from.
+
+## Amendment of 2026-10-01 (ENG-1174, the Reach region)
+
+A 409 with the code `IDEMPOTENCY_KEY_IN_FLIGHT` (ENG-1170) is not a refusal of the request:
+it says the same request is still being handled under the same key. The tablet waits the
+backoff and sends it again under the same key; it is never a strike on the room and never
+strands an Outbox row. Every other 409 keeps its code's meaning.
+
