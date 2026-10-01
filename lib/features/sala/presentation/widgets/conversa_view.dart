@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
+import '../../domain/channel.dart';
 import '../../domain/session_state.dart';
 import 'bead.dart';
 import 'bead_styles.dart';
@@ -80,7 +81,9 @@ class ConversaView extends ConsumerWidget {
 
   String _circleLabel(SalaSessionState session, String language) {
     if (session.needsPerson) return circleLabelFor('needsPerson', language);
-    if (session.noteMode) return circleLabelFor('noteMode', language);
+    if (session.channel case Microphone(owner: MicOwner.question)) {
+      return circleLabelFor('noteMode', language);
+    }
     if (session.peerCue && session.voice == VoiceState.invite) {
       return circleLabelFor('teamTalk', language);
     }

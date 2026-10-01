@@ -1,4 +1,6 @@
+import 'channel.dart';
 import 'halt.dart';
+import 'machine.dart';
 import 'spoken_line.dart';
 import 'room_reach.dart';
 import 'coverage.dart';
@@ -92,7 +94,8 @@ class Trecho {
 
 class SalaSessionState {
   final SalaStage stage;
-  final VoiceState voice;
+  final bool awaitingTheGuide;
+  final bool endOfThePassage;
 
   /// Why the room is out of reach, when it is. Two different faces: a tablet with no
   /// network at all, and a network that is fine with no room answering on it.
@@ -120,14 +123,7 @@ class SalaSessionState {
   final EnsaioStatus ensaio;
   final bool micTaken;
   final int takes;
-  final bool playPing;
 
-  /// Whether the rehearsal's play is holding a position rather than sitting at rest.
-  ///
-  /// [playPing] already says whether the rehearsal is sounding; this is the second half
-  /// [btTrechoPausada] gives for its own player — the next tap needs to tell a resume from
-  /// a restart, and nothing else here carries that.
-  final bool takePaused;
   final BtPhase btPhase;
 
   /// Which stretch numbers the room never took, in the order they were told.
@@ -153,32 +149,8 @@ class SalaSessionState {
   final List<Trecho> btTrechos;
   final String? btFindingSegmentId;
 
-  /// Whether a mother-tongue slice is sounding: the pointed stretch, the stretch the
-  /// verdict named, the pending stretch played again after a cut, or a tapped bead.
-  final bool btTrechoTocando;
-
-  /// Whether the telling in Portuguese is sounding. Its own flag, because the two voices
-  /// are two targets and the team compares them one against the other.
-  final bool btRetroTocando;
-
-  /// Whether the mother-tongue player is holding a position rather than sitting at rest.
-  ///
-  /// Neither `tocando` nor a fresh player answers this: the next tap needs to tell a
-  /// resume from a restart, and nothing else in this state carries that.
-  final bool btTrechoPausada;
-
-  /// Whether the Portuguese player is holding a position. Its own flag, for the reason
-  /// [btTrechoPausada] gives.
-  final bool btRetroPausada;
   final bool btClipEnded;
   final bool btParteFronteira;
-
-  /// Whether the rehearsal is running right now.
-  ///
-  /// Listening and cutting used to be the same tap on the circle, so the room could only
-  /// infer what the team had heard. They are two gestures now, and this is the one the
-  /// listening gesture owns.
-  final bool btClipRodando;
 
   final List<int> btFimDasPartesMs;
   final int btParteNoArMs;
@@ -200,7 +172,7 @@ class SalaSessionState {
   final int unsentChunks;
   final Set<String> unsentTakeScopes;
 
-  final Halt halt;
+  final Machine machine;
 
   /// Pericopes the Choice has offered and the room refused to open, in this visit.
   /// [EscolhaView] reads this to dim their spokes on the ruler; the notifier reads it
@@ -215,18 +187,6 @@ class SalaSessionState {
   /// drifted, and the screen said a new part was being recorded over a gesture that was
   /// replacing one.
   final int? parteARegravar;
-
-  /// Which part of the rehearsal sounds right now, 0-based, or null when nothing plays.
-  ///
-  /// The Bead row's ring follows this rather than the play/pause flags alone: the whole
-  /// rehearsal's play walks it forward as the head crosses each part's boundary, and a tap
-  /// on one bead sets it to that part alone. A pending take standing in [parteARegravar]'s
-  /// place still carries its own part number here, so the ring lands on the right bead
-  /// while it sounds.
-  ///
-  /// Named apart from the notifier's own `_parteTocando` (the back-translation part in the
-  /// air): the two sit in different stations and would otherwise read as the same fact.
-  final int? parteDoEnsaioTocando;
 
   /// Whether the bead at [index] does not apply right now (ADR 0040: dimmed means it does
   /// not apply). True for every part but the one a finding sent the team back to record,
@@ -244,7 +204,8 @@ class SalaSessionState {
 
   const SalaSessionState({
     this.stage = SalaStage.convite,
-    this.voice = VoiceState.invite,
+    this.awaitingTheGuide = false,
+    this.endOfThePassage = false,
     this.reach = RoomReach.fine,
     this.conviteStep = ConviteStep.boasVindas,
     this.sessionId,
@@ -261,8 +222,6 @@ class SalaSessionState {
     this.ensaio = EnsaioStatus.idle,
     this.micTaken = false,
     this.takes = 0,
-    this.playPing = false,
-    this.takePaused = false,
     this.btPhase = BtPhase.playing,
     this.btChunkFailures = const [],
     this.naRoda,
@@ -271,13 +230,8 @@ class SalaSessionState {
     this.aOferecer = 0,
     this.btTrechos = const [],
     this.btFindingSegmentId,
-    this.btTrechoTocando = false,
-    this.btRetroTocando = false,
-    this.btTrechoPausada = false,
-    this.btRetroPausada = false,
     this.btClipEnded = false,
     this.btParteFronteira = false,
-    this.btClipRodando = false,
     this.btFimDasPartesMs = const [],
     this.btParteNoArMs = 0,
     this.btOuvidoMs = 0,
@@ -293,10 +247,9 @@ class SalaSessionState {
     this.unsentTakes = 0,
     this.unsentChunks = 0,
     this.unsentTakeScopes = const {},
-    this.halt = const NoHalt(),
+    this.machine = const Machine(),
     this.refusedThisVisit = const {},
     this.parteARegravar,
-    this.parteDoEnsaioTocando,
   });
 
   bool get colarOn => stage == SalaStage.conversa || stage == SalaStage.fim;
@@ -361,6 +314,73 @@ class SalaSessionState {
       if (reply.offered) return reply;
     }
     return null;
+  }
+
+  Halt get halt => machine.halt;
+
+  Channel get channel => machine.channel;
+
+  VoiceState get voice {
+    if (halt is Blocking) return VoiceState.invite;
+    if (reach != RoomReach.fine) return VoiceState.offline;
+    return switch (channel) {
+      Microphone(owner: MicOwner.rehearsal) => _resting,
+      Microphone() => VoiceState.listening,
+      GuideSpeaking(line: Line(kind: LineKind.guide || LineKind.approved)) =>
+        VoiceState.speaking,
+      GuideSpeaking(line: Line(kind: LineKind.acknowledgement))
+          when machine.queue.any((line) => line.kind == LineKind.guide) =>
+        VoiceState.speaking,
+      _ => _resting,
+    };
+  }
+
+  VoiceState get _resting {
+    if (awaitingTheGuide) return VoiceState.thinking;
+    if (endOfThePassage ||
+        stage == SalaStage.fim ||
+        (stage == SalaStage.retro && btPhase == BtPhase.conferida)) {
+      return VoiceState.done;
+    }
+    return VoiceState.invite;
+  }
+
+  bool get btClipRodando => stage == SalaStage.retro && channel is PartPlaying;
+
+  bool get btTrechoTocando => switch (channel) {
+    StretchPlaying(stretch: StretchSound(telling: false)) => true,
+    _ => false,
+  };
+
+  bool get btRetroTocando => switch (channel) {
+    StretchPlaying(stretch: StretchSound(telling: true)) => true,
+    _ => false,
+  };
+
+  bool get btTrechoPausada => switch (channel) {
+    Paused(what: StretchSound(telling: false)) => true,
+    _ => false,
+  };
+
+  bool get btRetroPausada => switch (channel) {
+    Paused(what: StretchSound(telling: true)) => true,
+    _ => false,
+  };
+
+  bool get playPing => stage == SalaStage.ensaio && channel is PartPlaying;
+
+  bool get takePaused => switch (channel) {
+    Paused(what: PartSound()) => stage == SalaStage.ensaio,
+    _ => false,
+  };
+
+  int? get parteDoEnsaioTocando {
+    if (stage != SalaStage.ensaio) return null;
+    return switch (channel) {
+      PartPlaying(:final part) => part.part,
+      Paused(what: final PartSound part) => part.part,
+      _ => null,
+    };
   }
 
   bool get needsPerson => halt is Blocking;
@@ -509,7 +529,8 @@ class SalaSessionState {
 
   SalaSessionState copyWith({
     SalaStage? stage,
-    VoiceState? voice,
+    bool? awaitingTheGuide,
+    bool? endOfThePassage,
     RoomReach? reach,
     ConviteStep? conviteStep,
     String? sessionId,
@@ -529,8 +550,6 @@ class SalaSessionState {
     EnsaioStatus? ensaio,
     bool? micTaken,
     int? takes,
-    bool? playPing,
-    bool? takePaused,
     BtPhase? btPhase,
     List<int>? btChunkFailures,
     List<Passagem>? naRoda,
@@ -541,13 +560,8 @@ class SalaSessionState {
     List<Trecho>? btTrechos,
     String? btFindingSegmentId,
     bool clearFindingSegment = false,
-    bool? btTrechoTocando,
-    bool? btRetroTocando,
-    bool? btTrechoPausada,
-    bool? btRetroPausada,
     bool? btClipEnded,
     bool? btParteFronteira,
-    bool? btClipRodando,
     List<int>? btFimDasPartesMs,
     int? btParteNoArMs,
     int? btOuvidoMs,
@@ -566,16 +580,18 @@ class SalaSessionState {
     int? unsentTakes,
     int? unsentChunks,
     Set<String>? unsentTakeScopes,
-    Halt? halt,
+    Machine? machine,
     Set<String>? refusedThisVisit,
     int? parteARegravar,
     bool clearParteARegravar = false,
-    int? parteDoEnsaioTocando,
-    bool clearParteDoEnsaioTocando = false,
   }) {
+    final leaving = stage != null && stage != this.stage;
     return SalaSessionState(
       stage: stage ?? this.stage,
-      voice: voice ?? this.voice,
+      awaitingTheGuide:
+          awaitingTheGuide ?? (leaving ? false : this.awaitingTheGuide),
+      endOfThePassage:
+          endOfThePassage ?? (leaving ? false : this.endOfThePassage),
       reach: reach ?? this.reach,
       conviteStep: conviteStep ?? this.conviteStep,
       sessionId: clearSession ? null : (sessionId ?? this.sessionId),
@@ -594,8 +610,6 @@ class SalaSessionState {
       ensaio: ensaio ?? this.ensaio,
       micTaken: micTaken ?? this.micTaken,
       takes: takes ?? this.takes,
-      playPing: playPing ?? this.playPing,
-      takePaused: takePaused ?? this.takePaused,
       btPhase: btPhase ?? this.btPhase,
       btChunkFailures: btChunkFailures ?? this.btChunkFailures,
       naRoda: clearRoda ? null : (naRoda ?? this.naRoda),
@@ -606,13 +620,8 @@ class SalaSessionState {
       btFindingSegmentId: clearFindingSegment
           ? null
           : (btFindingSegmentId ?? this.btFindingSegmentId),
-      btTrechoTocando: btTrechoTocando ?? this.btTrechoTocando,
-      btRetroTocando: btRetroTocando ?? this.btRetroTocando,
-      btTrechoPausada: btTrechoPausada ?? this.btTrechoPausada,
-      btRetroPausada: btRetroPausada ?? this.btRetroPausada,
       btClipEnded: btClipEnded ?? this.btClipEnded,
       btParteFronteira: btParteFronteira ?? this.btParteFronteira,
-      btClipRodando: btClipRodando ?? this.btClipRodando,
       btFimDasPartesMs: btFimDasPartesMs ?? this.btFimDasPartesMs,
       btParteNoArMs: btParteNoArMs ?? this.btParteNoArMs,
       btOuvidoMs: btOuvidoMs ?? this.btOuvidoMs,
@@ -636,14 +645,11 @@ class SalaSessionState {
       unsentTakes: unsentTakes ?? this.unsentTakes,
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentTakeScopes: unsentTakeScopes ?? this.unsentTakeScopes,
-      halt: halt ?? this.halt,
+      machine: machine ?? this.machine,
       refusedThisVisit: refusedThisVisit ?? this.refusedThisVisit,
       parteARegravar: clearParteARegravar
           ? null
           : (parteARegravar ?? this.parteARegravar),
-      parteDoEnsaioTocando: clearParteDoEnsaioTocando
-          ? null
-          : (parteDoEnsaioTocando ?? this.parteDoEnsaioTocando),
     );
   }
 }

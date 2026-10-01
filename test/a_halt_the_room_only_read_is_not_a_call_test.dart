@@ -151,33 +151,40 @@ void main() {
     );
   });
 
-  test('the room deciding it cannot play its own audio still calls', () async {
-    final harness = SalaHarness();
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
+  test(
+    'the room deciding twice it cannot play its own audio still calls',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
 
-    notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
-    await settle();
-    notifier.takeKeep();
-    notifier.startRetro();
-    await settle();
+      notifier.goEnsaio();
+      notifier.ensaioTap();
+      notifier.ensaioTap();
+      await settle();
+      notifier.takeKeep();
+      notifier.startRetro();
+      await settle();
 
-    harness.playback.failPlayback();
-    await settle();
+      harness.playback.failPlayback();
+      await settle();
+      notifier.ouvirOTrechoPendente();
+      await settle();
+      harness.playback.failPlayback();
+      await settle();
 
-    expect(read().needsPerson, isTrue);
-    expect(
-      harness.room.personsAsked,
-      1,
-      reason:
-          'pin: a sala decidiu sozinha que não consegue tocar a '
-          'própria equipe, e isso continua chamando alguém como sempre',
-    );
-  });
+      expect(read().needsPerson, isTrue);
+      expect(
+        harness.room.personsAsked,
+        1,
+        reason:
+            'pin: a sala decidiu sozinha que não consegue tocar a '
+            'própria equipe, e isso continua chamando alguém como sempre',
+      );
+    },
+  );
 
   test(
     'the recorder that never started twice in the retro still calls',

@@ -54,6 +54,7 @@ Future<void> gravarUmaParteDoEnsaio(Sala it) async {
 /// back of it runs from its own nought to its own length.
 Future<void> ouvirETraduzirAParteInteira(Sala it, Duration quanto) async {
   final antes = it.estado.btTrechos.length;
+  await theClipOpens(it.harness);
   it.harness.playback.length = quanto;
   it.harness.playback.at = quanto;
   it.sala.cortarTrecho();
@@ -137,6 +138,7 @@ Future<Sala> umEnsaioDeTresPartesContadoInteiro({
 /// stretch back — the caller decides whether that lands mid-part or at its end.
 Future<void> traduzirUmTrecho(Sala it, Duration em) async {
   final antes = it.estado.btTrechos.length;
+  await theClipOpens(it.harness);
   it.harness.playback.at = em;
   it.sala.cortarTrecho();
   it.sala.retroTap();

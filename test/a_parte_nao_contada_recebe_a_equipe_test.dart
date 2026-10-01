@@ -49,6 +49,7 @@ Future<Sala> _parteDoisRegravadaENuncaContada() async {
 Future<Sala> _prontaParaTerminarComParteNaoContada() async {
   final it = await _parteDoisRegravadaENuncaContada();
   it.harness.playback.length = partesDoEnsaio[1];
+  await theClipOpens(it.harness);
   it.harness.playback.at = partesDoEnsaio[1];
   it.harness.playback.finishPlayback();
   await waitFor(
@@ -62,6 +63,7 @@ Future<Sala> _prontaParaTerminarComParteNaoContada() async {
     () => !it.estado.btParteFronteira && it.harness.playback.sounding,
   );
   it.harness.playback.length = partesDoEnsaio[2];
+  await theClipOpens(it.harness);
   it.harness.playback.at = partesDoEnsaio[2];
   it.harness.playback.finishPlayback();
   await waitFor('o terminei acender', () => it.estado.canFinishBackTranslation);
@@ -181,6 +183,7 @@ void main() {
             'nesta rodada',
       );
 
+      await theClipOpens(it.harness);
       it.harness.playback.at = partesDoEnsaio[1];
       it.harness.playback.finishPlayback();
       await waitFor(
@@ -206,6 +209,7 @@ void main() {
     await pedirOVeredito(it);
 
     final trechosAntes = it.estado.btTrechos.length;
+    await theClipOpens(it.harness);
     it.harness.playback.at = const Duration(seconds: 4);
     it.sala.cortarTrecho();
     it.sala.retroTap();
@@ -245,6 +249,7 @@ void main() {
     await pedirOVeredito(it);
 
     final trechosAntes = it.estado.btTrechos.length;
+    await theClipOpens(it.harness);
     it.harness.playback.at = const Duration(seconds: 4);
     it.sala.cortarTrecho();
     it.sala.retroTap();

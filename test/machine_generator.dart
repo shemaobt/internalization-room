@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -10,17 +11,27 @@ class World {
   final bool callOutstanding;
   final bool reachable;
   final bool serverHoldsAWarning;
+  final bool playerBusy;
+  final bool micOpen;
 
   const World({
     this.watchArmed = true,
     this.callOutstanding = false,
     this.reachable = true,
     this.serverHoldsAWarning = false,
+    this.playerBusy = false,
+    this.micOpen = false,
   });
 
   World after(MachineEvent event, List<Effect> effects) {
     var armed = watchArmed && event is! WatchFired;
     var calling = callOutstanding && event is! TheCallLanded;
+    var busy =
+        playerBusy &&
+        event is! PlayerEnded &&
+        event is! PlayerFailed &&
+        event is! GestureSilenced;
+    var mic = micOpen && event is! MicClosed;
     for (final effect in effects) {
       switch (effect) {
         case ArmTheWatch():
@@ -29,6 +40,14 @@ class World {
           calling = true;
         case StopCallingForAPerson():
           calling = false;
+        case PlayLine() || PlayPart() || PlayStretch():
+          busy = true;
+        case SilenceTheRoom() || StopTheSound():
+          busy = false;
+        case OpenTheMic():
+          mic = true;
+        case CloseAndDiscardTheMic():
+          mic = false;
         default:
           break;
       }
@@ -37,6 +56,8 @@ class World {
       watchArmed: armed,
       callOutstanding: calling,
       reachable: event is ReachChanged ? event.reachable : reachable,
+      playerBusy: busy,
+      micOpen: mic,
       serverHoldsAWarning: switch (event) {
         TheAnswerWarned() => true,
         SessionRead(:final snapshot) when !snapshot.needsPerson =>
@@ -47,13 +68,13 @@ class World {
   }
 }
 
-class Machine<S> {
+class MachineUnderTest<S> {
   final S start;
   final (S, List<Effect>) Function(S state, MachineEvent event) step;
   final MachineEvent Function(S state, World world, Random random) draw;
   final String Function(S state) show;
 
-  const Machine({
+  const MachineUnderTest({
     required this.start,
     required this.step,
     required this.draw,
@@ -93,7 +114,7 @@ class Trace<S> {
 }
 
 Trace<S> runSequence<S>(
-  Machine<S> machine,
+  MachineUnderTest<S> machine,
   List<Invariant<S>> invariants,
   int seed, {
   int steps = 40,
@@ -120,7 +141,7 @@ Trace<S> runSequence<S>(
 }
 
 void expectEverySeedHolds<S>(
-  Machine<S> machine,
+  MachineUnderTest<S> machine,
   List<Invariant<S>> invariants, {
   required Iterable<int> seeds,
   int steps = 40,
@@ -133,7 +154,7 @@ void expectEverySeedHolds<S>(
   }
 }
 
-String describeFailure<S>(Machine<S> machine, Trace<S> trace) {
+String describeFailure<S>(MachineUnderTest<S> machine, Trace<S> trace) {
   final lines = [
     'seed ${trace.seed} broke ${trace.violation}',
     'Re-run it alone with MACHINE_SEED=${trace.seed}',
@@ -180,10 +201,51 @@ String describeEvent(MachineEvent event) => switch (event) {
     'LongPress(somebodyToAsk: $somebodyToAsk, at: $at)',
   WatchFired() => 'WatchFired',
   ReachChanged(:final reachable) => 'ReachChanged(reachable: $reachable)',
+  LineArrived(:final line) => 'LineArrived(${describeLine(line)})',
+  PlayerOpened() => 'PlayerOpened',
+  PlayerEnded() => 'PlayerEnded',
+  PlayerFailed(:final source, :final sounding) =>
+    'PlayerFailed(${source.key}, ${describeKept(sounding)})',
+  MicOpened(:final owner) => 'MicOpened(${owner.name})',
+  MicClosed(:final outcome) => 'MicClosed(${outcome.name})',
+  BeadTapped(:final sounds, :final beneath) =>
+    'BeadTapped(${sounds.map(describeSound).join(', ')}'
+        '${beneath == null ? '' : ', beneath: ${describeChannel(beneath)}'})',
+  PauseTapped() => 'PauseTapped',
+  GestureSilenced(:final keepingTheHold) =>
+    'GestureSilenced(keepingTheHold: $keepingTheHold)',
+  GestureDone() => 'GestureDone',
+  LeftThePassage() => 'LeftThePassage',
 };
+
+String describeLine(Line line) => '${line.kind.name}#${line.id}';
+
+String describeSound(Sound sound) => switch (sound) {
+  PartSound(:final part, :final from) => 'part $part from ${from.inSeconds}s',
+  StretchSound(:final segment, :final telling) =>
+    'stretch $segment${telling ? ' told' : ''}',
+};
+
+String describeChannel(Channel channel) => switch (channel) {
+  Silence() => 'Silence',
+  Microphone(:final owner) => 'Microphone(${owner.name})',
+  GuideSpeaking(:final line) => 'GuideSpeaking(${describeLine(line)})',
+  final Playing playing =>
+    'Playing(${describeSound(playing.sound)}, opened: ${playing.opened})',
+  Paused(:final what, :final started, :final opened) =>
+    'Paused(${describeSound(what)}, started: $started, opened: $opened)',
+};
+
+String describeMachine(Machine machine) =>
+    '${describeHalt(machine.halt)} / ${describeChannel(machine.channel)} / '
+    'queue [${machine.queue.map(describeLine).join(', ')}]';
 
 String describeEffect(Effect effect) => switch (effect) {
   ReplayTheSound(:final kept) => 'ReplayTheSound(${describeKept(kept)})',
+  PlayLine(:final line) => 'PlayLine(${describeLine(line)})',
+  PlayPart(:final part) => 'PlayPart(${describeSound(part)})',
+  PlayStretch(:final stretch) => 'PlayStretch(${describeSound(stretch)})',
+  OpenTheMic(:final owner) => 'OpenTheMic(${owner.name})',
   AskTheOpeningAgain(:final freshTurnId) => 'AskTheOpeningAgain($freshTurnId)',
   _ => effect.runtimeType.toString(),
 };
@@ -220,6 +282,17 @@ enum EventKind {
   longPress,
   watchFired,
   reachChanged,
+  lineArrived,
+  playerOpened,
+  playerEnded,
+  playerFailed,
+  micOpened,
+  micClosed,
+  beadTapped,
+  pauseTapped,
+  gestureSilenced,
+  gestureDone,
+  leftThePassage,
 }
 
 EventKind kindOf(MachineEvent event) => switch (event) {
@@ -230,17 +303,60 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   LongPress() => EventKind.longPress,
   WatchFired() => EventKind.watchFired,
   ReachChanged() => EventKind.reachChanged,
+  LineArrived() => EventKind.lineArrived,
+  PlayerOpened() => EventKind.playerOpened,
+  PlayerEnded() => EventKind.playerEnded,
+  PlayerFailed() => EventKind.playerFailed,
+  MicOpened() => EventKind.micOpened,
+  MicClosed() => EventKind.micClosed,
+  BeadTapped() => EventKind.beadTapped,
+  PauseTapped() => EventKind.pauseTapped,
+  GestureSilenced() => EventKind.gestureSilenced,
+  GestureDone() => EventKind.gestureDone,
+  LeftThePassage() => EventKind.leftThePassage,
 };
 
 bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.watchFired => world.watchArmed,
   EventKind.theCallLanded => world.callOutstanding,
+  EventKind.playerOpened ||
+  EventKind.playerEnded ||
+  EventKind.playerFailed => world.playerBusy,
+  EventKind.micClosed => world.micOpen,
   EventKind.sessionRead ||
   EventKind.roomRaisedAHalt ||
   EventKind.theAnswerWarned ||
   EventKind.longPress ||
-  EventKind.reachChanged => true,
+  EventKind.reachChanged ||
+  EventKind.lineArrived ||
+  EventKind.micOpened ||
+  EventKind.beadTapped ||
+  EventKind.pauseTapped ||
+  EventKind.gestureSilenced ||
+  EventKind.gestureDone ||
+  EventKind.leftThePassage => true,
 };
+
+Source _drawASource(Random random) => switch (random.nextInt(4)) {
+  0 => Source.guide,
+  1 => Source.take('parte-${random.nextInt(2)}.m4a'),
+  2 => Source.segment('trecho-${random.nextInt(2)}'),
+  _ => Source.reply('resposta-${random.nextInt(2)}'),
+};
+
+Sound _drawASound(Random random) => random.nextBool()
+    ? PartSound(
+        random.nextInt(2),
+        'parte-${random.nextInt(2)}.m4a',
+        from: Duration(seconds: random.nextInt(20)),
+      )
+    : StretchSound(
+        'trecho-${random.nextInt(2)}',
+        'parte-${random.nextInt(2)}.m4a',
+        from: Duration(seconds: random.nextInt(10)),
+        to: Duration(seconds: 10 + random.nextInt(10)),
+        telling: random.nextBool(),
+      );
 
 MachineEvent _draw(EventKind kind, World world, Random random) =>
     switch (kind) {
@@ -257,6 +373,34 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
       ),
       EventKind.watchFired => const WatchFired(),
       EventKind.reachChanged => ReachChanged(reachable: !world.reachable),
+      EventKind.lineArrived => LineArrived(
+        Line(
+          LineKind.values[random.nextInt(LineKind.values.length)],
+          random.nextInt(1 << 20),
+          source: _drawASource(random),
+        ),
+      ),
+      EventKind.playerOpened => const PlayerOpened(),
+      EventKind.playerEnded => const PlayerEnded(),
+      EventKind.playerFailed => PlayerFailed(
+        _drawASource(random),
+        sounding: _drawKept(random),
+      ),
+      EventKind.micOpened => MicOpened(
+        MicOwner.values[random.nextInt(MicOwner.values.length)],
+      ),
+      EventKind.micClosed => MicClosed(
+        MicOutcome.values[random.nextInt(MicOutcome.values.length)],
+      ),
+      EventKind.beadTapped => BeadTapped([
+        for (var i = 0; i <= random.nextInt(3); i++) _drawASound(random),
+      ]),
+      EventKind.pauseTapped => const PauseTapped(),
+      EventKind.gestureSilenced => GestureSilenced(
+        keepingTheHold: random.nextBool(),
+      ),
+      EventKind.gestureDone => const GestureDone(),
+      EventKind.leftThePassage => const LeftThePassage(),
     };
 
 MachineEvent drawAnEvent(World world, Random random) {

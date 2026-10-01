@@ -353,7 +353,12 @@ void main() {
       );
       expect(harness.recorder.deleted, isNot(contains(pendente)));
       harness.recorder.returnsNothing = false;
+      harness.room.theDeskAttended();
       sala.resolveWithPerson();
+      await waitFor(
+        'a pessoa soltar a sala',
+        () => !container.read(salaSessionProvider).needsPerson,
+      );
       sala.playTheRehearsal();
       await waitFor('tocar', () => harness.playback.played.isNotEmpty);
       expect(harness.playback.played, [pendente]);

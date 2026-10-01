@@ -42,6 +42,7 @@ Future<void> _intoFindings(
   await settle();
   var contados = 0;
   for (final at in const [Duration(seconds: 12), Duration(seconds: 30)]) {
+    await theClipOpens(harness);
     harness.playback.at = at;
     notifier.cortarTrecho();
     notifier.retroTap();
@@ -3869,7 +3870,7 @@ void main() {
 
       await notifier.openConvite();
       await settle();
-      await notifier.openConvite();
+      unawaited(notifier.openConvite());
       await settle();
 
       expect(
@@ -4483,8 +4484,6 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       harness.voice.succeeds = false;
-      await notifier.hearAgain();
-      await settle();
       await notifier.hearAgain();
       await settle();
 
