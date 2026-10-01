@@ -74,7 +74,10 @@ sound, and a waiting line plays only if it did not. A gesture ends when everythi
 started has ended, the gesture it hands off to included: a flow it handed off to holds the
 wait until it puts its own sound into the Channel or ends, and a later gesture never ends
 an earlier one's wait. The machine holds the fact that a gesture is on its way, and while it
-stands no waiting line plays; a line that arrives in the background never ends it, so a
+stands no waiting line plays; a sound is a gesture's own only when the gesture says it, and
+its own line enters ahead of the lines waiting. A flow that outlives a gesture or belongs to
+none (the Outbox, the place kept on the tablet, the Watch, the room's listeners) never
+speaks for a gesture, and the courtesy lines never do; a line that arrives in the background never ends it, so a
 courtesy line can wait behind a turn for as long as the turn's own ceiling, 310 s. A line a
 gesture silenced was never said, whatever happens to the room afterwards.
 
