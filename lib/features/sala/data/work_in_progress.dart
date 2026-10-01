@@ -170,15 +170,17 @@ class WorkInProgress {
   Future<void> forget(String book, String pericope) =>
       _write((rows) => {...rows}..remove(_mark(book, pericope)));
 
-  Future<void> forgetTheSession(
-    String book,
-    String pericope,
-    String sessionId,
-  ) => _write(
-    (rows) => rows[_mark(book, pericope)]?.sessionId == sessionId
-        ? ({...rows}..remove(_mark(book, pericope)))
-        : rows,
-  );
+  Future<List<ResumePoint>> forgetTheSession(String sessionId) async {
+    final forgotten = <ResumePoint>[];
+    await _write((rows) {
+      forgotten.addAll(rows.values.where((row) => row.sessionId == sessionId));
+      return {
+        for (final entry in rows.entries)
+          if (entry.value.sessionId != sessionId) entry.key: entry.value,
+      };
+    });
+    return forgotten;
+  }
 
   /// Serialised, staged and flushed — the pattern the take queue and the finished ledger
   /// both arrived at, for the same reason: a read that fails must never become the base

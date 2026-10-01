@@ -698,14 +698,13 @@ class FakeWorkInProgress implements WorkInProgress {
       rows.remove('$book/$pericope');
 
   @override
-  Future<void> forgetTheSession(
-    String book,
-    String pericope,
-    String sessionId,
-  ) async {
-    if (rows['$book/$pericope']?.sessionId == sessionId) {
-      rows.remove('$book/$pericope');
-    }
+  Future<List<ResumePoint>> forgetTheSession(String sessionId) async {
+    final forgotten = [
+      for (final row in rows.values)
+        if (row.sessionId == sessionId) row,
+    ];
+    rows.removeWhere((_, row) => row.sessionId == sessionId);
+    return forgotten;
   }
 
   @override

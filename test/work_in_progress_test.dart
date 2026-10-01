@@ -264,9 +264,9 @@ void main() {
       const ResumePoint(sessionId: 'sessao-1', stage: SalaStage.conversa),
     );
 
-    await ledger.forgetTheSession('Ruth', 'P01', 'sessao-1');
-    await ledger.forgetTheSession('Ruth', 'P02', 'sessao-1');
+    final forgotten = await ledger.forgetTheSession('sessao-1');
 
+    expect(forgotten.map((row) => row.sessionId), ['sessao-1']);
     expect((await ledger.of('Ruth', 'P01'))?.sessionId, 'sessao-2');
     expect(await ledger.of('Ruth', 'P02'), isNull);
   });

@@ -378,4 +378,103 @@ void main() {
 
     expect(_estado(container).feitas, contains('P01'));
   });
+
+  group('a session the server no longer accepts leaves nothing on the tablet, '
+      'and its passage opens afresh from the Wheel', () {
+    Future<(ProviderContainer, String)> doisPassos(SalaHarness harness) async {
+      final container = await _naPassagem(harness);
+      final primeira = _estado(container).sessionId!;
+      _sala(container).leaveThePassage();
+      await _naEscolha(container);
+      await _sala(container).goConversa(pericope: 'P02');
+      await waitFor(
+        'a outra passagem abrir',
+        () =>
+            _estado(container).sessionId != null &&
+            _estado(container).sessionId != primeira,
+      );
+      return (container, primeira);
+    }
+
+    Future<void> voltaParaAPrimeira(
+      SalaHarness harness,
+      ProviderContainer container,
+      String primeira,
+    ) async {
+      expect(
+        (await harness.emAberto.of('Ruth', 'P01'))?.sessionId,
+        isNot(primeira),
+      );
+      _sala(container).leaveThePassage();
+      await _naEscolha(container);
+      await settle();
+      final criadas = harness.room.calls
+          .where((call) => call == 'createSession')
+          .length;
+      unawaited(_sala(container).goConversa(pericope: 'P01'));
+      await waitFor(
+        'a primeira passagem abrir de novo',
+        () =>
+            _estado(container).stage == SalaStage.conversa &&
+            _estado(container).sessionId != null,
+      );
+
+      expect(_estado(container).sessionId, isNot(primeira));
+      expect(
+        harness.room.calls.where((call) => call == 'createSession').length,
+        criadas + 1,
+      );
+    }
+
+    test(
+      'gone through the Outbox while the room is in another passage',
+      () async {
+        final harness = SalaHarness();
+        final (container, primeira) = await doisPassos(harness);
+        final linha = await harness.takes.enqueue(
+          harness.recorder.aFile('parte-da-primeira'),
+          sessionId: primeira,
+          kind: 'ensaio',
+          scope: 'parte-1',
+          passNumber: 1,
+          chunkIndex: 1,
+        );
+        harness.room.forgetTheSession(primeira);
+
+        await _sala(container).refreshUnsent();
+        await waitFor(
+          'a linha da primeira sair da Outbox',
+          () => !File(linha.path).existsSync(),
+        );
+        await settle();
+
+        await voltaParaAPrimeira(harness, container, primeira);
+      },
+    );
+
+    test('gone through the late answer to the call for a person', () async {
+      final harness = SalaHarness();
+      final container = await _naPassagem(harness);
+      final primeira = _estado(container).sessionId!;
+      harness.room.holdNextAskForAPerson();
+      await _aPassagemFechaNoPedidoDePessoa(harness, container);
+      harness.room
+        ..failTurnsWith = null
+        ..askForAPersonFailsWith = const SessionGone();
+      _sala(container).leaveThePassage();
+      await _naEscolha(container);
+      await _sala(container).goConversa(pericope: 'P02');
+      await waitFor(
+        'a outra passagem abrir',
+        () =>
+            _estado(container).sessionId != null &&
+            _estado(container).sessionId != primeira,
+      );
+
+      harness.room.finishHeldAskForAPerson();
+      await settle(_severalStepsOfTheLadder);
+
+      await voltaParaAPrimeira(harness, container, primeira);
+    });
+  });
 }

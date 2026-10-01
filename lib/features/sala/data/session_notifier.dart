@@ -1328,12 +1328,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (pericope != null && state.stage == SalaStage.escolha) {
       state = state.copyWith(feitas: {...state.feitas, pericope});
     }
-    _goneSessions.add(sessionId);
-    unawaited(
-      _mindingThePlace(
-        () => _forgetTheSessionOnDisk(sessionId, pericope, const []),
-      ).whenComplete(_countUnsent),
-    );
+    _letGoOf(sessionId);
   }
 
   /// The same ask, for a halt with no session to name. Asks by the tablet's own device
@@ -2323,12 +2318,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _dispatch(const TheSessionIsGone());
   }
 
-  void _letGoOf(String sessionId) {
-    _goneSessions.add(sessionId);
+  void _letGoOf(String? sessionId, {List<String> kept = const []}) {
+    if (sessionId != null) _goneSessions.add(sessionId);
     if (sessionId == _panoramaSessionId) _panoramaSessionId = null;
     unawaited(
       _mindingThePlace(
-        () => _takes.discardTheSession(sessionId),
+        () => _forgetTheSessionOnDisk(sessionId, kept),
       ).whenComplete(_countUnsent),
     );
   }
@@ -2353,38 +2348,29 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _discardTheSession() {
     final sessionId = _theSession;
-    final pericope = _emCurso;
     final kept = [for (final take in state.keptTakes) take.path];
-    if (sessionId != null) _goneSessions.add(sessionId);
-    if (sessionId == _panoramaSessionId) _panoramaSessionId = null;
     _clearAll();
     _dropThePendingTake();
     _forgetThePassage();
-    unawaited(
-      _mindingThePlace(
-        () => _forgetTheSessionOnDisk(sessionId, pericope, kept),
-      ).whenComplete(_countUnsent),
-    );
+    _letGoOf(sessionId, kept: kept);
   }
 
   Future<void> _forgetTheSessionOnDisk(
     String? sessionId,
-    String? pericope,
     List<String> kept,
   ) async {
-    final book = _book;
     final open = _emAberto;
     final queue = _takes;
     final recorder = _recorder;
-    final row = pericope == null ? null : await open.of(book, pericope);
-    final itsRow = row != null && row.sessionId == sessionId;
+    final forgotten = sessionId == null
+        ? const <ResumePoint>[]
+        : await open.forgetTheSession(sessionId);
     for (final path in {
       ...kept,
-      if (itsRow) ...row.takes.map((take) => take.path),
+      for (final row in forgotten) ...row.takes.map((take) => take.path),
     }) {
       await recorder.delete(path);
     }
-    if (itsRow) await open.forgetTheSession(book, pericope!, sessionId!);
     if (sessionId != null) await queue.discardTheSession(sessionId);
   }
 

@@ -20,9 +20,15 @@ Session gone, the server still knows the passage and says it is finished, so the
 it to the finished passages before the Choice reads them, and the Wheel shows it closed.
 A passage the server says is closed is closed on the tablet wherever the room stands when
 the answer lands: if the team has already left it, its session's files and rows still go
-and the Wheel still shows it closed, and only the leaving is skipped. What goes is only
-that session's: a newer session in the same passage keeps its place, a resume never opens
-the closed session (it opens the Choice), and an answer about an earlier session never
+and the Wheel still shows it closed, and only the leaving is skipped.
+
+**A session the server no longer accepts, gone or closed, leaves nothing on the tablet,
+wherever the room stands.** Whether the room learns it from the call, a door, the Outbox or
+a resume, it lets go of that session the same way: its Resume point, wherever in the book
+it is, its Outbox rows and their files, and its kept takes, and the session is never
+opened again. Only that session's: a newer session in the same passage keeps its place,
+and the passage opens afresh from the Wheel. Only when it is the session the room stands
+in does the room also leave it for the Choice. An answer about an earlier session never
 swallows the call the room owes the session it stands in now. Every other refusal
 of the call keeps the ladder; a network failure keeps the Reach.
 
