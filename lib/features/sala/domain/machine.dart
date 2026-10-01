@@ -778,10 +778,11 @@ List<Effect> _stopTheLineIn(Channel channel) => switch (channel) {
   }
   if (halt is! Blocking && machine.halt is Blocking) {
     final lifted = next.copyWith(forgetTheFailures: true);
+    final resent = [...effects, if (machine.reachable) const ResendPending()];
     if (effects.contains(const ReplayTheSound(ThePart()))) {
-      return (lifted, effects);
+      return (lifted, resent);
     }
-    return _drain(lifted, effects);
+    return _drain(lifted, resent);
   }
   return (next, effects);
 }
@@ -816,7 +817,7 @@ List<Effect> _stopTheLineIn(Channel channel) => switch (channel) {
       ...dropped,
       const CancelTheRetry(),
       const DrainTheOutbox(),
-      const ResendPending(),
+      if (halt is! Blocking) const ResendPending(),
       const ReadTheState(),
       if (halt is Blocking && !halt.serverKnows) const CallForAPerson(),
       _watch,

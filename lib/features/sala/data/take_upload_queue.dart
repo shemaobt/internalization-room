@@ -182,7 +182,10 @@ class PendingTake {
       final String stamp => DateTime.tryParse(stamp),
       _ => null,
     },
-    refusal: json['refusal'] as String?,
+    refusal: switch (json['refusal']) {
+      final String code => code,
+      _ => null,
+    },
   );
 }
 
@@ -435,7 +438,7 @@ class TakeUploadQueue {
     //
     // Any amount ahead, not only an implausible one. A corrupt stamp far in the future
     // would stay stuck for good under a threshold rule and cures itself under this one,
-    // and flush() runs on events, never on a timer, so the extra try cannot spin.
+    // and the try it buys rewrites the stamp, so the retry armed for it cannot spin.
     if (last.isAfter(now)) return Duration.zero;
     final step = entry.tries - 1;
     final wait = _backoff[step < _backoff.length ? step : _backoff.length - 1];
@@ -511,6 +514,14 @@ class TakeUploadQueue {
     return entry;
   }
 
+  final StreamController<void> _falls = StreamController<void>.broadcast(
+    sync: true,
+  );
+
+  Stream<void> get fallsOnTheNetwork => _falls.stream;
+
+  void _fellOnTheNetwork() => _falls.add(null);
+
   /// Send every row a caller that only asked while this call was already running would
   /// otherwise miss.
   ///
@@ -520,14 +531,6 @@ class TakeUploadQueue {
   /// read the empty answer as "the room has this" and never asked again. It now waits on
   /// the flush already running and, if anything was asked for while it waited, that flush
   /// takes one more pass before either caller is told it is done.
-  final StreamController<void> _falls = StreamController<void>.broadcast(
-    sync: true,
-  );
-
-  Stream<void> get fallsOnTheNetwork => _falls.stream;
-
-  void _fellOnTheNetwork() => _falls.add(null);
-
   Future<int> flush({bool withTheCodeless = false}) {
     _withTheCodeless = _withTheCodeless || withTheCodeless;
     final running = _flushInFlight;

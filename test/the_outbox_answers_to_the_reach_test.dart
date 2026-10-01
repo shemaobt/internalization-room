@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -61,6 +62,38 @@ void main() {
 
     expect(tally.parts.values, containsAll([PartFact.pending, PartFact.sent]));
     expect(tally.due, const Duration(seconds: 20));
+  });
+
+  test('11: a refusal field that is not a code loads as no code, and the '
+      'whole manifest loads', () async {
+    final guardadas = Directory('${home.path}/guardadas')..createSync();
+    File('${guardadas.path}/a.m4a').writeAsStringSync('parte');
+    File('${guardadas.path}/b.m4a').writeAsStringSync('parte');
+    File('${guardadas.path}/fila.json').writeAsStringSync(
+      jsonEncode([
+        {
+          'id': 'linha-1',
+          'name': 'a.m4a',
+          'session_id': 'sessao-1',
+          'kind': 'ensaio',
+          'scope': 'parte-1',
+          'attempts': takeUploadAttempts,
+          'refusal': 42,
+        },
+        {
+          'id': 'linha-2',
+          'name': 'b.m4a',
+          'session_id': 'sessao-1',
+          'kind': 'ensaio',
+          'scope': 'parte-2',
+        },
+      ]),
+    );
+
+    final rows = await queueOn(FakeRoom()).entries();
+
+    expect(rows.map((row) => row.id), ['linha-1', 'linha-2']);
+    expect(rows.first.refusal, isNull);
   });
 
   group('11: a row stranded on a refusal with no code', () {

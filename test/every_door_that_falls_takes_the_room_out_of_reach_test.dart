@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -11,6 +12,7 @@ import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -643,6 +645,113 @@ void main() {
       expect(room.estado.btTraducaoPendente, isNull);
     },
   );
+
+  test('9: a key that met IDEMPOTENCY_KEY_IN_FLIGHT until the watchdog gave up '
+      'is the key the confirmation after the lift sends', () async {
+    final harness = SalaHarness(
+      busyCeiling: const Duration(milliseconds: 300),
+      retryBackoff: const [Duration(milliseconds: 40)],
+    );
+    final room = await _aResumedBackTranslation(harness);
+    await _tellAStretchUpTo(room, const Duration(seconds: 12));
+    harness.room.chunkAnswersFirst.addAll(
+      List.filled(40, _theKeyStillInFlight),
+    );
+
+    unawaited(room.sala.confirmarTraducao());
+    await waitFor('o vigia desistir', () => room.estado.needsPerson);
+    harness.room.chunkAnswersFirst.clear();
+    await waitFor(
+      'o pedido de pessoa pousar',
+      () => harness.room.personsAsked > 0,
+    );
+    harness.room.theDeskAttended();
+    await waitFor('a mesa levantar a parada', () => !room.estado.needsPerson);
+    await room.sala.confirmarTraducao();
+    await waitFor('o trecho pousar', () => harness.room.segments.isNotEmpty);
+
+    expect(harness.room.chunkKeys.toSet(), hasLength(1));
+  });
+
+  test('8: a request that fell waits under a blocking halt, and goes out once '
+      'under its key when the halt lifts', () async {
+    final harness = SalaHarness(retryBackoff: _aLadderThatWaits);
+    final room = await _aResumedBackTranslation(harness);
+    await _tellAStretchUpTo(room, const Duration(seconds: 12));
+    room.theNetworkFalls();
+    await room.sala.confirmarTraducao();
+    await room.outOfReach('pelo trecho');
+    room.sala.haltForABrokenBuild();
+
+    room.theNetworkReturns();
+    await waitFor('a sala voltar', () => !room.estado.unreachable);
+    await settle(const Duration(milliseconds: 200));
+    expect(
+      harness.room.chunkKeys,
+      hasLength(1),
+      reason: 'nada sai sob a parada',
+    );
+
+    await waitFor(
+      'o pedido de pessoa pousar',
+      () => harness.room.personsAsked > 0,
+    );
+    harness.room.theDeskAttended();
+    await waitFor('o trecho pousar', () => harness.room.segments.isNotEmpty);
+    await settle(const Duration(milliseconds: 200));
+
+    expect(harness.room.chunkKeys, hasLength(2));
+    expect(harness.room.chunkKeys.toSet(), hasLength(1));
+    expect(harness.room.segments, hasLength(1));
+  });
+
+  test('5: a pre-flight probe asks the room once with the probe already in '
+      'flight', () async {
+    final harness = SalaHarness(retryBackoff: _aLadderThatWaits);
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final room = _Room(harness, container);
+    await room.sala.abrirEscolha();
+    harness.network.reachable = false;
+    await room.sala.goConversa(pericope: 'P01');
+    await room.outOfReach('pela sonda da conversa');
+    expect(room.estado.reach, RoomReach.roomSilent);
+    harness.network.reachable = true;
+    harness.network.holdNextCheck();
+    room.sala.retryNow();
+    await settle();
+    final checks = harness.network.checks;
+
+    room.sala.resolveWithPerson();
+    await settle();
+    expect(harness.network.checks, checks);
+    harness.network.finishHeldCheck();
+
+    await waitFor(
+      'a conversa ser aberta de novo',
+      () => harness.room.calls.contains('createSession'),
+    );
+  });
+
+  test('5: the reads after a resumed telling-back name a recording the tablet '
+      'does not hold', () async {
+    final harness = SalaHarness(retryBackoff: _aLadderThatWaits)
+      ..room.failTakesWith = const NetworkFailed('sem rede');
+
+    final room = await _aResumedBackTranslation(
+      harness,
+      told: const [
+        SegmentView(
+          segmentId: 'trecho-de-fora',
+          takeId: 'gravacao-de-fora',
+          startsMs: 0,
+          endsMs: 6000,
+        ),
+      ],
+    );
+
+    await room.outOfReach('pela leitura das gravações da sala');
+  });
 
   group('10: the offline notice plays once per outage, through the queue', () {
     test('falls after returns the room never answered say it once', () async {

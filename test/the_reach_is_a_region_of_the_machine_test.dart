@@ -1,7 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
+import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 
+final _at = DateTime.utc(2026, 10, 1, 9);
 const _reachable = Machine();
 const _outOfReach = Machine(reach: Reach.outOfReach, noticeSaid: true);
 const _onePartPending = {'linha-1': PartFact.pending};
@@ -122,6 +124,21 @@ void main() {
     expect(effects.whereType<ResendPending>(), hasLength(1));
     expect(effects.whereType<DrainTheOutbox>(), hasLength(1));
     expect(effects, contains(const CancelTheRetry()));
+  });
+
+  test('8: under a blocking halt the return re-sends nothing, and the lift '
+      're-sends once', () {
+    final (_, returned) = reduce(
+      _outOfReach.copyWith(halt: const Blocking(NothingKept())),
+      const NetworkReturned(),
+    );
+    final (_, lifted) = _run(
+      _outOfReach.copyWith(halt: const Blocking(NothingKept())),
+      [const NetworkReturned(), LongPress(somebodyToAsk: false, at: _at)],
+    );
+
+    expect(returned.whereType<ResendPending>(), isEmpty);
+    expect(lifted.whereType<ResendPending>(), hasLength(1));
   });
 
   test('4 (d): the return reads the session at once and arms the Watch '

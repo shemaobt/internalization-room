@@ -37,7 +37,10 @@ const _entering = [SilenceTheRoom(), CloseAndDiscardTheMic()];
 
 (Halt, List<Effect>) _reduce(Halt halt, MachineEvent event) {
   final (machine, effects) = reduce(Machine(halt: halt), event);
-  return (machine.halt, effects);
+  return (
+    machine.halt,
+    effects.where((effect) => effect is! ResendPending).toList(),
+  );
 }
 
 bool _ofTheHalt(Effect effect) => switch (effect) {
