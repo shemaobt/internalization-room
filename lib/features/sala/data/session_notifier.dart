@@ -1282,9 +1282,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _theSessionIsGone(sessionId);
       case NetworkFailed():
         _outOfReach(Door.person);
+      case Refused(code: RefusalCode.passageClosed):
+        await _thePassageClosed(sessionId);
       case Refused():
         _keepAskingForAPerson(_askForAPerson);
     }
+  }
+
+  Future<void> _thePassageClosed(String sessionId) async {
+    if (_gone || sessionId != _theSession) return;
+    final closed = _emCurso;
+    if (closed != null) {
+      await _feitas.add(_book, closed).catchError((_) {});
+    }
+    if (_gone || sessionId != _theSession) return;
+    _dispatch(const ThePassageClosed());
   }
 
   /// The same ask, for a halt with no session to name. Asks by the tablet's own device

@@ -319,6 +319,10 @@ _Avoid_: snapshot (the wire's name), poll, re-read
 The server no longer knows the session. Wherever the room learns it, whatever was the session's is discarded and the team is taken to the Choice.
 _Avoid_: 404, dead session, lost session
 
+**Passage closed**:
+The server's refusal of the call for a person because the passage is already finished. The room asks once, leaves the passage as for a Session gone, and the Wheel shows the passage closed (ADR 0052).
+_Avoid_: finished session, PASSAGE_CLOSED (the wire's code)
+
 **Refusal**:
 The server's answer that it will not do what was asked, naming why with a code; the room tells refusals apart by the code, never by the words.
 _Avoid_: error, failure, detail

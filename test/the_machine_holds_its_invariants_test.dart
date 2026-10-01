@@ -216,7 +216,7 @@ bool _callsOrStopsCallingAPerson(Effect effect) => switch (effect) {
 final nothingOfAGoneSessionSurvives = Invariant<Machine>(
   'ADR invariant 6, nothing of a gone session survives',
   (before, event, after, effects, world) {
-    if (event is! TheSessionIsGone) return null;
+    if (event is! TheSessionIsGone && event is! ThePassageClosed) return null;
     if (!effects.contains(const DiscardTheSession())) {
       return 'the session gone did not discard the session';
     }

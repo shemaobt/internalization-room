@@ -1,0 +1,39 @@
+---
+status: accepted
+date: 2026-10-01
+amends: 0047, 0050
+---
+
+# A closed passage is asked once, and a key in flight three times
+
+This amends ADRs 0047 and 0050 without editing their text; it adds "amended by 0052" to
+their status lines. Henok's decisions of 29 and 30 September, settled by the Definer on
+1 October (ENG-1185), close two refusals that the room re-sent without end.
+
+**A passage closed is its own event, with the Session gone's destination.** The server
+refuses the call for a person with `PASSAGE_CLOSED` when the passage is already finished
+(shema-api ADR 0044). The ask is never sent again, under any key. The room leaves the
+passage as it does for a Session gone (ADR 0046 invariant 6, ADR 0051): the Watch ends,
+the microphone closes and is discarded, everything of the session goes from the tablet,
+any standing halt is cleared with no call and no stop-call, and the Choice opens. Unlike a
+Session gone, the server still knows the passage and says it is finished, so the room adds
+it to the finished passages before the Choice reads them, and the Wheel shows it closed.
+Every other refusal of the call keeps the ladder; a network failure keeps the Reach.
+
+**A key in flight is sent three times.** ADR 0050 sends a request again under the same key
+when the server answers `IDEMPOTENCY_KEY_IN_FLIGHT`, and only the busy watchdog bounded it.
+After the third such answer under one key, the room takes the answer as a network failure:
+the room goes out of reach, and the request waits with its key and is sent again under it
+when the room comes back. The server's in-flight window is seconds, and three tries spaced
+on the room's ladder cover it.
+
+**A door says whether it names the session.** No door defaults it; a door that names none
+answers a 404 as a Refusal, never as a Session gone (ADR 0051).
+
+## Considered Options
+
+**A closed passage as a Session gone.** Rejected: the Wheel would still offer, as open, a
+passage the server holds finished.
+
+**No ceiling on a key in flight, leaving it to the watchdog.** Rejected: the watchdog
+raises a halt and calls a person over what is the server still working.
