@@ -6,7 +6,15 @@ sealed class MachineEvent {
   const MachineEvent();
 }
 
-final class SessionRead extends MachineEvent {
+/// An event that answers work the machine asked for. [generation] is the machine's
+/// generation when that work was asked; null is read as the current one.
+sealed class AnsweringEvent extends MachineEvent {
+  final int? generation;
+
+  const AnsweringEvent({this.generation});
+}
+
+final class SessionRead extends AnsweringEvent {
   final SessionSnapshot snapshot;
   final Kept sounding;
   final DateTime at;
@@ -17,25 +25,27 @@ final class SessionRead extends MachineEvent {
     required this.at,
     this.sounding = const NothingKept(),
     this.sentBeforeTheCallLanded = false,
+    super.generation,
   });
 }
 
-final class RoomRaisedAHalt extends MachineEvent {
+final class RoomRaisedAHalt extends AnsweringEvent {
   final Kept sounding;
   final bool callsForAPerson;
 
   const RoomRaisedAHalt({
     this.sounding = const NothingKept(),
     this.callsForAPerson = true,
+    super.generation,
   });
 }
 
-final class TheCallLanded extends MachineEvent {
-  const TheCallLanded();
+final class TheCallLanded extends AnsweringEvent {
+  const TheCallLanded({super.generation});
 }
 
-final class TheAnswerWarned extends MachineEvent {
-  const TheAnswerWarned();
+final class TheAnswerWarned extends AnsweringEvent {
+  const TheAnswerWarned({super.generation});
 }
 
 final class LongPress extends MachineEvent {
@@ -45,8 +55,8 @@ final class LongPress extends MachineEvent {
   const LongPress({required this.somebodyToAsk, required this.at});
 }
 
-final class WatchFired extends MachineEvent {
-  const WatchFired();
+final class WatchFired extends AnsweringEvent {
+  const WatchFired({super.generation});
 }
 
 enum Reach { reachable, outOfReach }
@@ -67,22 +77,22 @@ enum Door {
 
 enum PartFact { sent, pending, stranded }
 
-final class NetworkFailedAt extends MachineEvent {
+final class NetworkFailedAt extends AnsweringEvent {
   final Door door;
 
-  const NetworkFailedAt(this.door);
+  const NetworkFailedAt(this.door, {super.generation});
 }
 
 final class NetworkReturned extends MachineEvent {
   const NetworkReturned();
 }
 
-final class RetryFired extends MachineEvent {
-  const RetryFired();
+final class RetryFired extends AnsweringEvent {
+  const RetryFired({super.generation});
 }
 
-final class TheRoomAnswered extends MachineEvent {
-  const TheRoomAnswered();
+final class TheRoomAnswered extends AnsweringEvent {
+  const TheRoomAnswered({super.generation});
 }
 
 final class OutboxChanged extends MachineEvent {
@@ -92,37 +102,41 @@ final class OutboxChanged extends MachineEvent {
   const OutboxChanged(this.parts, {this.due = Duration.zero});
 }
 
-final class LineArrived extends MachineEvent {
+final class LineArrived extends AnsweringEvent {
   final Line line;
   final List<int> by;
 
-  const LineArrived(this.line, {this.by = const []});
+  const LineArrived(this.line, {this.by = const [], super.generation});
 }
 
-final class PlayerOpened extends MachineEvent {
-  const PlayerOpened();
+final class PlayerOpened extends AnsweringEvent {
+  const PlayerOpened({super.generation});
 }
 
-final class PlayerEnded extends MachineEvent {
-  const PlayerEnded();
+final class PlayerEnded extends AnsweringEvent {
+  const PlayerEnded({super.generation});
 }
 
-final class PlayerFailed extends MachineEvent {
+final class PlayerFailed extends AnsweringEvent {
   final Source source;
   final Kept sounding;
 
-  const PlayerFailed(this.source, {this.sounding = const NothingKept()});
+  const PlayerFailed(
+    this.source, {
+    this.sounding = const NothingKept(),
+    super.generation,
+  });
 }
 
-final class MicOpened extends MachineEvent {
+final class MicOpened extends AnsweringEvent {
   final MicOwner owner;
   final String take;
 
-  const MicOpened(this.owner, {this.take = ''});
+  const MicOpened(this.owner, {this.take = '', super.generation});
 }
 
-final class MicClosed extends MachineEvent {
-  const MicClosed();
+final class MicClosed extends AnsweringEvent {
+  const MicClosed({super.generation});
 }
 
 final class BeadTapped extends MachineEvent {
@@ -154,14 +168,14 @@ final class GestureEnded extends MachineEvent {
   const GestureEnded(this.gesture);
 }
 
-final class NothingReplayed extends MachineEvent {
-  const NothingReplayed();
+final class NothingReplayed extends AnsweringEvent {
+  const NothingReplayed({super.generation});
 }
 
-final class LineNotSaid extends MachineEvent {
+final class LineNotSaid extends AnsweringEvent {
   final Line line;
 
-  const LineNotSaid(this.line);
+  const LineNotSaid(this.line, {super.generation});
 }
 
 final class StepLeft extends MachineEvent {
@@ -172,12 +186,12 @@ final class LeftThePassage extends MachineEvent {
   const LeftThePassage();
 }
 
-final class TheSessionIsGone extends MachineEvent {
-  const TheSessionIsGone();
+final class TheSessionIsGone extends AnsweringEvent {
+  const TheSessionIsGone({super.generation});
 }
 
-final class ThePassageClosed extends MachineEvent {
-  const ThePassageClosed();
+final class ThePassageClosed extends AnsweringEvent {
+  const ThePassageClosed({super.generation});
 }
 
 sealed class Effect {
@@ -380,6 +394,7 @@ final class Machine {
   final bool draining;
   final int fallen;
   final bool noticeSaid;
+  final int generation;
 
   const Machine({
     this.halt = const NoHalt(),
@@ -394,6 +409,7 @@ final class Machine {
     this.draining = false,
     this.fallen = 0,
     this.noticeSaid = false,
+    this.generation = 0,
   });
 
   bool get reachable => reach == Reach.reachable;
@@ -407,6 +423,7 @@ final class Machine {
     draining: draining,
     fallen: fallen,
     noticeSaid: noticeSaid,
+    generation: generation,
   );
 
   Machine copyWith({
@@ -423,6 +440,7 @@ final class Machine {
     bool? draining,
     int? fallen,
     bool? noticeSaid,
+    int? generation,
   }) => Machine(
     halt: halt ?? this.halt,
     channel: channel ?? this.channel,
@@ -436,14 +454,20 @@ final class Machine {
     draining: draining ?? this.draining,
     fallen: fallen ?? this.fallen,
     noticeSaid: noticeSaid ?? this.noticeSaid,
+    generation: generation ?? this.generation,
   );
 }
+
+Machine moveTheGeneration(Machine machine) =>
+    machine.copyWith(generation: machine.generation + 1);
 
 const _enter = [SilenceTheRoom(), CloseAndDiscardTheMic()];
 const _watch = ArmTheWatch();
 
 (Machine, List<Effect>) reduce(Machine machine, MachineEvent event) =>
     switch (event) {
+      AnsweringEvent(:final generation?) when generation < machine.generation =>
+        (machine, const []),
       LineArrived(:final line, :final by) => _arrive(machine, line, by),
       PlayerOpened() => (_opened(machine), const []),
       PlayerEnded() => _ended(machine),
