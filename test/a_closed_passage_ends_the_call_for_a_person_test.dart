@@ -293,6 +293,50 @@ void main() {
     expect(_estado(container).needsPerson, isTrue);
   });
 
+  test('a call for an earlier session that fell on the network leaves the call '
+      'for the current session to the return of the room', () async {
+    final harness = SalaHarness();
+    final container = await _naPassagem(harness);
+    final primeira = _estado(container).sessionId!;
+    harness.room.holdNextAskForAPerson();
+    await _aPassagemFechaNoPedidoDePessoa(harness, container);
+    harness.room.askForAPersonFailsWith = const NetworkFailed('sem rede');
+    _sala(container).leaveThePassage();
+    await _naEscolha(container);
+    await _sala(container).goConversa(pericope: 'P02');
+    await waitFor(
+      'a outra passagem abrir',
+      () =>
+          _estado(container).sessionId != null &&
+          _estado(container).sessionId != primeira,
+    );
+    final segunda = _estado(container).sessionId!;
+    _sala(container).conversaTap();
+    await settle();
+    _sala(container).conversaTap();
+    await waitFor('a parada chegar', () => _estado(container).needsPerson);
+    harness.network.reachable = false;
+
+    harness.room.finishHeldAskForAPerson();
+    await waitFor(
+      'a sala ficar fora de alcance',
+      () => _estado(container).unreachable,
+    );
+    await settle(_severalStepsOfTheLadder);
+    expect(harness.room.personAsksFor, [primeira]);
+
+    harness.room.askForAPersonFailsWith = null;
+    harness.network.reachable = true;
+    harness.network.networkComesBack();
+    await waitFor(
+      'a sala chamar alguém na volta',
+      () => harness.room.personsAsked == 1,
+    );
+    await settle(_severalStepsOfTheLadder);
+
+    expect(harness.room.personAsksFor, [primeira, segunda]);
+  });
+
   test('a passage closed after the team left it never erases the Resume point '
       'of a session opened afresh in that passage', () async {
     final harness = SalaHarness();

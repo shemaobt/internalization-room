@@ -1308,7 +1308,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case SessionGone():
         _theSessionIsGone(sessionId);
       case NetworkFailed():
-        _outOfReach(Door.person);
+        _askingForAPerson = false;
+        return _outOfReach(Door.person);
       case Answered() || Refused():
         break;
     }
