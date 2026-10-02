@@ -41,6 +41,32 @@ Run `git config core.hooksPath tool/git-hooks` once to get the doctrine guard on
   --set-exit-if-changed lib test tool` must exit 0; a branch that is not formatted fails
   the check.
 
+## The room's core
+
+The session lifecycle is one pure machine: `reduce(Machine, MachineEvent)` returns the next
+`Machine` and the effects to run (ADR 0046). Under ADR 0053 its shape is three patterns:
+
+- **State.** Each Station (Menu, Canvas, Panorama, Ensaio Final, Checagem externa) is its own
+  type in its own file and answers the events it understands with a transition. Its Steps are
+  substate. The cross-cutting regions (the person sign, the Channel, the Outbox's facts) run
+  before it.
+- **Command.** Effects are data. One `EffectRunner` executes them through four ports: `Room`,
+  `Sound` (voice and parts, one at a time), `Recorder` and `Store`. Every answer returns as an
+  event stamped with the machine's `generation`, and `reduce` drops a stale one.
+- **Strategy.** Every room result goes through one `FailurePolicy` that turns it into an event.
+  The room client gives each door one of four results: answered, network failed,
+  refused(code), session gone (ADR 0047).
+
+`SalaSessionNotifier` is an adapter. It turns gestures into events, keeps the state for the
+UI and hands effects to the runner. A change to the lifecycle (opening a passage, a turn, the
+person sign, resuming, an upload, a Station) lands as an event and a transition, with its test
+at the machine level and in the generator (`test/machine_generator.dart`). It never lands as a
+new field or branch in the notifier.
+
+The migration runs in slices under ENG-1160 while plan work continues. Code that is still in
+the notifier moves out only through those slices. Rebase onto them, and build new lifecycle
+work on the machine.
+
 ## Secrets
 
 Copy `.env.example` to `.env` and fill `BACKEND_URL` and `INTERNALIZATION_ROOM_KEY`. The
