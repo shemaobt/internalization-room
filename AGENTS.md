@@ -50,8 +50,8 @@ The session lifecycle is one pure machine: `reduce(Machine, MachineEvent)` retur
   type in its own file and answers the events it understands with a transition. Its Steps are
   substate. The cross-cutting regions (the person sign, the Channel, the Outbox's facts) run
   before it.
-- **Command.** Effects are data. One `EffectRunner` executes them through four ports: `Room`,
-  `Sound` (voice and parts, one at a time), `Recorder` and `Store`. Every answer returns as an
+- **Command.** Effects are data. One `EffectRunner` executes them through four ports: `RoomPort`,
+  `SoundPort` (voice and parts, one at a time), `RecorderPort` and `StorePort`. Every answer returns as an
   event stamped with the machine's `generation`, and `reduce` drops a stale one.
 - **Strategy.** Every room result goes through one `FailurePolicy` that turns it into an event.
   The room client gives each door one of four results: answered, network failed,
