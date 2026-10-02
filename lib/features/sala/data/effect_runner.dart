@@ -5,10 +5,8 @@ import '../domain/halt.dart';
 import '../domain/machine.dart';
 import '../domain/ports.dart';
 
-/// Temporary: what the runner still asks the notifier to do, because each effect below
-/// reads or writes state that the Station will own once it moves into the machine. One
-/// method per effect, each the notifier's own helper, unchanged. ENG-1444 empties it into
-/// the ports.
+/// Temporary: what the runner still asks the notifier to do, one method per effect that
+/// reads or writes state the Station will own.
 abstract interface class EffectHost {
   bool get watchIsWanted;
 

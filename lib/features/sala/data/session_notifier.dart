@@ -382,7 +382,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       sound: ref.read(soundPortProvider),
       recorder: ref.read(recorderPortProvider),
       store: ref.read(storePortProvider),
-      host: _Host(this),
+      host: _NotifierHost(this),
       watchPeriod: () => ref.read(roomPollDelayProvider),
       retryDelay: _onTheLadder,
     );
@@ -5774,86 +5774,87 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 }
 
-class _Host implements EffectHost {
-  final SalaSessionNotifier _n;
+class _NotifierHost implements EffectHost {
+  final SalaSessionNotifier _notifier;
 
-  _Host(this._n);
-
-  @override
-  bool get watchIsWanted => _n._watchIsWanted;
+  _NotifierHost(this._notifier);
 
   @override
-  bool get roomIsReachable => _n._roomIsReachable;
+  bool get watchIsWanted => _notifier._watchIsWanted;
 
   @override
-  void answer(MachineEvent event) => _n._apart(() => _n._dispatch(event));
+  bool get roomIsReachable => _notifier._roomIsReachable;
 
   @override
-  void silenceTheRoom() => _n._silenceTheHaltedRoom();
+  void answer(MachineEvent event) =>
+      _notifier._apart(() => _notifier._dispatch(event));
+
+  @override
+  void silenceTheRoom() => _notifier._silenceTheHaltedRoom();
 
   @override
   void closeAndDiscardTheMic({required bool wasOpen}) =>
-      _n._closeAndDiscardTheMic(wasOpen: wasOpen);
+      _notifier._closeAndDiscardTheMic(wasOpen: wasOpen);
 
   @override
-  void callForAPerson() => _n._tellTheRoomAPersonIsNeeded();
+  void callForAPerson() => _notifier._tellTheRoomAPersonIsNeeded();
 
   @override
-  void stopCallingForAPerson() => _n._stopCallingForAPerson();
+  void stopCallingForAPerson() => _notifier._stopCallingForAPerson();
 
   @override
-  void tellAPersonArrived() => _n._tellTheRoomAPersonArrived();
+  void tellAPersonArrived() => _notifier._tellTheRoomAPersonArrived();
 
   @override
-  void readTheState() => unawaited(_n._readTheState());
+  void readTheState() => unawaited(_notifier._readTheState());
 
   @override
-  void replayTheSound(Kept kept) => _n._replay(kept);
+  void replayTheSound(Kept kept) => _notifier._replay(kept);
 
   @override
   void askTheOpeningAgain(String freshTurnId) {
-    _n._openTurnId = freshTurnId;
-    unawaited(_n._askForTheOpeningAgain());
+    _notifier._openTurnId = freshTurnId;
+    unawaited(_notifier._askForTheOpeningAgain());
   }
 
   @override
-  void playLine(Line line) => unawaited(_n._speakTheLine(line));
+  void playLine(Line line) => unawaited(_notifier._speakTheLine(line));
 
   @override
-  void thePartIsInTheAir() => _n._watchPlayback(clipStillOpening: true);
+  void thePartIsInTheAir() => _notifier._watchPlayback(clipStillOpening: true);
 
   @override
-  void openTheMic(String take) => unawaited(_n._recordOrBlock(take));
+  void openTheMic(String take) => unawaited(_notifier._recordOrBlock(take));
 
   @override
-  void dropTheLine(Line line) => _n._dropTheLine(line);
+  void dropTheLine(Line line) => _notifier._dropTheLine(line);
 
   @override
-  void holdTheSound() => _n._pauseThePlayer();
+  void holdTheSound() => _notifier._pauseThePlayer();
 
   @override
-  void letTheSoundRun() => _n._resumeThePlayer();
+  void letTheSoundRun() => _notifier._resumeThePlayer();
 
   @override
-  void drainTheOutbox() => _n._drainTheOutbox();
+  void drainTheOutbox() => _notifier._drainTheOutbox();
 
   @override
-  void resendPending() => _n._resendPending();
+  void resendPending() => _notifier._resendPending();
 
   @override
-  void probeTheRoom() => unawaited(_n._probeTheRoom());
+  void probeTheRoom() => unawaited(_notifier._probeTheRoom());
 
   @override
-  void discardTheSession() => _n._discardTheSession();
+  void discardTheSession() => _notifier._discardTheSession();
 
   @override
-  void openTheChoice() => _n._openTheChoice();
+  void openTheChoice() => _notifier._openTheChoice();
 
   @override
   void sayTheOfflineNotice() => unawaited(
-    _n._sayALine(
+    _notifier._sayALine(
       LineKind.offlineNotice,
-      () => _n._voice.playAsset(offlineNoticeAsset(_n._lingua)),
+      () => _notifier._voice.playAsset(offlineNoticeAsset(_notifier._lingua)),
     ),
   );
 }

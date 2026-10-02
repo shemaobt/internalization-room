@@ -1,6 +1,6 @@
 import 'channel.dart';
 
-/// The room client's doors, network health and the person-call inbox.
+/// The room's reach to the server: network health.
 abstract interface class RoomPort {
   Stream<void> get networkReturned;
 }

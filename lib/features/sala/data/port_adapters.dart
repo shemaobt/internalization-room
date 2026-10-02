@@ -84,11 +84,10 @@ class ProviderSoundPort implements SoundPort {
   }
 
   @override
-  Future<void> stop() async {
+  Future<void> stop() {
     _partSounding = false;
     _lineSounding = false;
-    unawaited(_playback.stop());
-    unawaited(_voice.stop());
+    return Future.wait([_playback.stop(), _voice.stop()]);
   }
 }
 
