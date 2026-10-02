@@ -6,8 +6,10 @@ sealed class MachineEvent {
   const MachineEvent();
 }
 
-/// An event that answers work the machine asked for. [generation] is the machine's
-/// generation when that work was asked; null is read as the current one.
+/// An event that answers work the machine asked for. [generation] is the generation the
+/// answer was stamped with: the one a flow captured, where it checked it just before; the
+/// current one everywhere else; and, for the Watch and the retry, the one at the moment
+/// they fire, so that both survive a generation move. Null is read as the current one.
 sealed class AnsweringEvent extends MachineEvent {
   final int? generation;
 
