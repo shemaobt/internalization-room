@@ -27,12 +27,14 @@ import '../domain/spoken_line.dart';
 import '../domain/turn_clock.dart';
 import '../domain/turn_result.dart';
 import 'connectivity_service.dart';
+import 'effect_runner.dart';
 import 'facilitator_voice_service.dart';
 import 'finished_passages.dart';
 import 'hand_inbox_repository.dart';
 import 'linked_team.dart';
 import 'mic_permission.dart';
 import 'playback_repository.dart';
+import 'port_adapters.dart';
 import 'recording_repository.dart';
 import 'room_answer.dart';
 import 'room_client.dart';
@@ -215,7 +217,6 @@ _PortaDaRecusa? _portaDaRecusa(String blocker) => switch (blocker) {
 
 class SalaSessionNotifier extends Notifier<SalaSessionState> {
   final Map<String, Timer> _timers = {};
-  Timer? _watch;
   int _readsSent = 0;
   int _readsApplied = 0;
   int _readsSentBeforeTheCall = 0;
@@ -331,10 +332,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   StreamSubscription<void>? _playbackDone;
   StreamSubscription<void>? _playbackFailed;
   StreamSubscription<void>? _playbackOpened;
-  StreamSubscription<void>? _networkWatch;
   StreamSubscription<void>? _outboxFalls;
   StreamSubscription<String>? _outboxGone;
-  Timer? _retry;
+  late EffectRunner _runner;
   StreamSubscription<CoverageEvent>? _coverageWatch;
   String? _coverageSessionId;
   String? _awaitingCoverageTurnId;
@@ -377,15 +377,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   @override
   SalaSessionState build() {
+    _runner = EffectRunner(
+      room: ref.read(roomPortProvider),
+      sound: ref.read(soundPortProvider),
+      recorder: ref.read(recorderPortProvider),
+      store: ref.read(storePortProvider),
+      host: _NotifierHost(this),
+      watchPeriod: () => ref.read(roomPollDelayProvider),
+      retryDelay: _onTheLadder,
+    );
     ref.onDispose(() {
       _gone = true;
       _cancelTimers();
-      _endTheWatch();
-      _retry?.cancel();
+      _runner.dispose();
       unawaited(_playbackDone?.cancel());
       unawaited(_playbackFailed?.cancel());
       unawaited(_playbackOpened?.cancel());
-      unawaited(_networkWatch?.cancel());
       unawaited(_outboxFalls?.cancel());
       unawaited(_outboxGone?.cancel());
       unawaited(_micWatch?.cancel());
@@ -1030,7 +1037,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _raiseAHaltWithNoSession() {
     state = state.copyWith(clearSession: true);
-    _endTheWatch();
+    _runner.endTheWatch();
     _raiseAHalt();
   }
 
@@ -1050,70 +1057,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final micWasOpen = state.channel is Microphone;
     final (machine, effects) = reduce(state.machine, event);
     state = state.copyWith(machine: machine);
-    for (final effect in effects) {
-      switch (effect) {
-        case SilenceTheRoom():
-          _silenceTheHaltedRoom();
-        case CloseAndDiscardTheMic():
-          _closeAndDiscardTheMic(wasOpen: micWasOpen);
-        case ArmTheWatch():
-          _armTheWatch();
-        case CallForAPerson():
-          _tellTheRoomAPersonIsNeeded();
-        case StopCallingForAPerson():
-          _stopCallingForAPerson();
-        case TellAPersonArrived():
-          _tellTheRoomAPersonArrived();
-        case ReadTheState():
-          unawaited(_readTheState());
-        case ReplayTheSound(:final kept):
-          _replay(kept);
-        case AskTheOpeningAgain(:final freshTurnId):
-          _openTurnId = freshTurnId;
-          unawaited(_askForTheOpeningAgain());
-        case PlayLine(:final line):
-          unawaited(_speakTheLine(line));
-        case PlayPart(:final part):
-          _putInTheAir(part);
-        case PlayStretch(:final stretch):
-          _putInTheAir(stretch);
-        case OpenTheMic(:final take):
-          unawaited(_recordOrBlock(take));
-        case StopTheSound():
-          unawaited(_playback.stop());
-          unawaited(_voice.stop());
-        case StopTheLine():
-          unawaited(_voice.stop());
-        case DropTheLine(:final line):
-          _dropTheLine(line);
-        case HoldTheSound():
-          _pauseThePlayer();
-        case LetTheSoundRun():
-          _resumeThePlayer();
-        case ArmTheRetry(:final step, :final due):
-          _armTheRetry(due ?? _onTheLadder(step));
-        case CancelTheRetry():
-          _cancelTheRetry();
-        case DrainTheOutbox():
-          _drainTheOutbox();
-        case ResendPending():
-          _resendPending();
-        case ProbeTheRoom():
-          unawaited(_probeTheRoom());
-        case DiscardTheSession():
-          _discardTheSession();
-        case OpenTheChoice():
-          _openTheChoice();
-        case SayTheOfflineNotice():
-          unawaited(
-            _sayALine(
-              LineKind.offlineNotice,
-              () => _voice.playAsset(offlineNoticeAsset(_lingua)),
-            ),
-          );
-      }
-    }
+    _runner.run(effects, micWasOpen: micWasOpen);
   }
+
+  bool get _watchIsWanted =>
+      !((state.halt is NoHalt && !ref.read(watchesWithoutAHaltProvider)) ||
+          state.sessionId == null);
+
+  bool get _roomIsReachable => state.machine.reachable;
 
   void _silenceTheHaltedRoom() {
     _openTurnId = null;
@@ -1127,27 +1078,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _recordingStarting = false;
     unawaited(_recorder.discard());
     _undoTheListening();
-  }
-
-  void _armTheWatch() {
-    final period = ref.read(roomPollDelayProvider);
-    if ((state.halt is NoHalt && !ref.read(watchesWithoutAHaltProvider)) ||
-        state.sessionId == null) {
-      _endTheWatch();
-      return;
-    }
-    if (_watch?.isActive ?? false) return;
-    _watch = _apart(
-      () => Timer(period, () {
-        _watch = null;
-        _dispatch(const WatchFired());
-      }),
-    );
-  }
-
-  void _endTheWatch() {
-    _watch?.cancel();
-    _watch = null;
   }
 
   Future<void> _readTheState() async {
@@ -1504,31 +1434,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Duration _onTheLadder(int step) {
     final ladder = ref.read(roomRetryBackoffProvider);
     return ladder[step < ladder.length ? step : ladder.length - 1];
-  }
-
-  void _armTheRetry(Duration delay) {
-    _retry?.cancel();
-    _retry = _apart(
-      () => Timer(delay, () {
-        _retry = null;
-        _dispatch(const RetryFired());
-      }),
-    );
-    if (!state.machine.reachable) {
-      _networkWatch ??= _apart(
-        () => _network.onNetworkReturned.listen(
-          (_) => _dispatch(const RetryFired()),
-        ),
-      );
-    }
-  }
-
-  void _cancelTheRetry() {
-    _retry?.cancel();
-    _retry = null;
-    if (!state.machine.reachable) return;
-    unawaited(_networkWatch?.cancel());
-    _networkWatch = null;
   }
 
   Future<RoomReach> _askTheRoom({bool forAStep = false}) {
@@ -2517,7 +2422,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       coverage: created?.coverage,
       refusedThisVisit: const {},
     );
-    _armTheWatch();
+    _runner.run(const [ArmTheWatch()]);
     _sessionSavedAt = resumed ? waiting.savedAt : clock.now();
     _sessionLanguage = resumed ? waiting.language : _lingua;
     if (pericope != null && !resumed) {
@@ -5852,7 +5757,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _strandedSpoken = false;
     _personAsked = false;
     _personAskStep = 0;
-    _endTheWatch();
+    _runner.endTheWatch();
     _trechoTraduzidoDeNovo = null;
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
@@ -5877,6 +5782,91 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _recordingStarting = false;
     _conviteOpened = false;
   }
+}
+
+class _NotifierHost implements EffectHost {
+  final SalaSessionNotifier _notifier;
+
+  _NotifierHost(this._notifier);
+
+  @override
+  bool get watchIsWanted => _notifier._watchIsWanted;
+
+  @override
+  bool get roomIsReachable => _notifier._roomIsReachable;
+
+  @override
+  void answer(MachineEvent event) =>
+      _notifier._apart(() => _notifier._dispatch(event));
+
+  @override
+  void silenceTheRoom() => _notifier._silenceTheHaltedRoom();
+
+  @override
+  void closeAndDiscardTheMic({required bool wasOpen}) =>
+      _notifier._closeAndDiscardTheMic(wasOpen: wasOpen);
+
+  @override
+  void callForAPerson() => _notifier._tellTheRoomAPersonIsNeeded();
+
+  @override
+  void stopCallingForAPerson() => _notifier._stopCallingForAPerson();
+
+  @override
+  void tellAPersonArrived() => _notifier._tellTheRoomAPersonArrived();
+
+  @override
+  void readTheState() => unawaited(_notifier._readTheState());
+
+  @override
+  void replayTheSound(Kept kept) => _notifier._replay(kept);
+
+  @override
+  void askTheOpeningAgain(String freshTurnId) {
+    _notifier._openTurnId = freshTurnId;
+    unawaited(_notifier._askForTheOpeningAgain());
+  }
+
+  @override
+  void playLine(Line line) => unawaited(_notifier._speakTheLine(line));
+
+  @override
+  void playPart(Sound part) => _notifier._putInTheAir(part);
+
+  @override
+  void openTheMic(String take) => unawaited(_notifier._recordOrBlock(take));
+
+  @override
+  void dropTheLine(Line line) => _notifier._dropTheLine(line);
+
+  @override
+  void holdTheSound() => _notifier._pauseThePlayer();
+
+  @override
+  void letTheSoundRun() => _notifier._resumeThePlayer();
+
+  @override
+  void drainTheOutbox() => _notifier._drainTheOutbox();
+
+  @override
+  void resendPending() => _notifier._resendPending();
+
+  @override
+  void probeTheRoom() => unawaited(_notifier._probeTheRoom());
+
+  @override
+  void discardTheSession() => _notifier._discardTheSession();
+
+  @override
+  void openTheChoice() => _notifier._openTheChoice();
+
+  @override
+  void sayTheOfflineNotice() => unawaited(
+    _notifier._sayALine(
+      LineKind.offlineNotice,
+      () => _notifier._voice.playAsset(offlineNoticeAsset(_notifier._lingua)),
+    ),
+  );
 }
 
 final salaSessionProvider =

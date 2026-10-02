@@ -311,6 +311,22 @@ _Avoid_: retry queue, outbox (which holds recordings only)
 The room's periodic Session read, beating for as long as a session is open, with or without a halt, so a halt only the server wrote still stops the room within one beat (ADR 0048). A halt never stands without it (ADR 0046). A halt with no session has nothing to read, and the long press releases it locally. It ends with the session.
 _Avoid_: poll, timer, vigia (the code's name is not the term)
 
+**Effect**:
+What the machine asks the room to do after an event: a sound to play, a timer to arm, a call to make. The machine returns effects as data and never runs them (ADR 0053).
+_Avoid_: side effect, command, action
+
+**Effect runner**:
+The one place that executes every Effect, through the four Ports; the notifier hands it the effects and holds no switch over them (ADR 0053).
+_Avoid_: dispatcher, interpreter, handler
+
+**Port**:
+One of the four doors the Effect runner reaches the world through: Room (the server, network health and the person-call inbox), Sound, Recorder and Store (the disk and the Outbox). Each is an interface in the domain with one production adapter (ADR 0053).
+_Avoid_: repository (what an adapter wraps), service, gateway
+
+**Sound port**:
+The Port for everything that sounds, the Guide's lines and the parts together, so that only one sound plays at a time.
+_Avoid_: player, voice (what its two halves are called in the code)
+
 **Session read**:
 The room's reading of the session on the server, applied whole whichever door it came through: its halt, its warning, its stretches and its verdict.
 _Avoid_: snapshot (the wire's name), poll, re-read
