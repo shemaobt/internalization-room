@@ -52,7 +52,7 @@ class ARoomHost implements EffectHost {
   void playLine(Line line) => asked.add('playLine');
 
   @override
-  void thePartIsInTheAir() => asked.add('thePartIsInTheAir');
+  void playPart(Sound part) => asked.add('playPart');
 
   @override
   void openTheMic(String take) => asked.add('openTheMic');

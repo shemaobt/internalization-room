@@ -6,7 +6,8 @@ import '../domain/machine.dart';
 import '../domain/ports.dart';
 
 /// Temporary: what the runner still asks the notifier to do, one method per effect that
-/// reads or writes state the Station will own.
+/// reads or writes state the Station will own. PlayPart goes through it so that the voice
+/// is not stopped before ENG-1444 wires the Sound port.
 abstract interface class EffectHost {
   bool get watchIsWanted;
 
@@ -33,7 +34,7 @@ abstract interface class EffectHost {
 
   void playLine(Line line);
 
-  void thePartIsInTheAir();
+  void playPart(Sound part);
 
   void openTheMic(String take);
 
@@ -105,9 +106,9 @@ class EffectRunner {
         case PlayLine(:final line):
           host.playLine(line);
         case PlayPart(:final part):
-          _putInTheAir(part);
+          host.playPart(part);
         case PlayStretch(:final stretch):
-          _putInTheAir(stretch);
+          host.playPart(stretch);
         case OpenTheMic(:final take):
           host.openTheMic(take);
         case StopTheSound():
@@ -144,11 +145,6 @@ class EffectRunner {
     endTheWatch();
     _retry?.cancel();
     unawaited(_networkWatch?.cancel());
-  }
-
-  void _putInTheAir(Sound part) {
-    unawaited(sound.playPart(part));
-    host.thePartIsInTheAir();
   }
 
   void _armTheRetry(Duration delay) {

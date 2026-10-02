@@ -669,6 +669,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _dispatch(BeadTapped(sounds, beneath: beneath));
   }
 
+  void _putInTheAir(Sound sound) {
+    final to = sound.to;
+    unawaited(
+      to == null
+          ? _playback.play(sound.path, from: sound.from)
+          : _playback.playRange(sound.path, sound.from, to),
+    );
+    _watchPlayback(clipStillOpening: true);
+  }
+
   void _listenForTheEnd() {
     _apart(() {
       _playbackDone ??= _playback.completions.listen((_) => _releasePlayback());
@@ -5821,7 +5831,7 @@ class _NotifierHost implements EffectHost {
   void playLine(Line line) => unawaited(_notifier._speakTheLine(line));
 
   @override
-  void thePartIsInTheAir() => _notifier._watchPlayback(clipStillOpening: true);
+  void playPart(Sound part) => _notifier._putInTheAir(part);
 
   @override
   void openTheMic(String take) => unawaited(_notifier._recordOrBlock(take));
