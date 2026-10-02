@@ -93,3 +93,17 @@ CONTEXT.md change when the slice that removes them lands, not before.
   the notifier for a rule that now lives in a Station moves to the machine and the
   generator.
 - ENG-1176 and ENG-1177 are replaced by these slices.
+
+## Amendment · 2026-10-02
+
+Henok settled the interface of slice 1 the same day. There are **four ports: Room, Sound,
+Recorder, Store**. Sound carries voice lines and parts together, so one sound plays at a time.
+Network health and the person-call inbox belong to Room. The clock stays a seam, not a port.
+The token is the machine's **`generation`**. Slice 1 moves it exactly where `_epoch` moves
+today, so that no behaviour changes, and it moves "on every Station change" only once the
+Station is in the machine. Slice 1 is split in two: the runner and ports (ENG-1442), then the
+generation (ENG-1443). The ports are named `RoomPort`, `SoundPort`, `RecorderPort`
+and `StorePort` in code, because `Sound` is already a Channel state. Until the Station
+moves into the machine, an effect that still needs notifier state runs through one temporary
+`EffectHost` the notifier implements. ENG-1444 empties it into the ports once the generation
+has replaced `_epoch`.
