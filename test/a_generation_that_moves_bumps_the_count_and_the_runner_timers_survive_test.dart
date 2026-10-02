@@ -44,18 +44,10 @@ void main() {
 
       time.elapse(_beat);
 
-      final answered = [
-        for (final event in host.answers) reduce(machine, event).$2,
-      ];
-      expect(host.answers.whereType<WatchFired>(), hasLength(1));
-      expect(host.answers.whereType<RetryFired>(), hasLength(1));
-      expect(answered, [
-        for (final event in host.answers)
-          switch (event) {
-            WatchFired() => const [ReadTheState(), ArmTheWatch()],
-            _ => const [ProbeTheRoom()],
-          },
-      ]);
+      final watch = host.answers.whereType<WatchFired>().single;
+      final retry = host.answers.whereType<RetryFired>().single;
+      expect(reduce(machine, watch).$2, const [ReadTheState(), ArmTheWatch()]);
+      expect(reduce(machine, retry).$2, const [ProbeTheRoom()]);
     });
   });
 }

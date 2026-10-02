@@ -329,7 +329,7 @@ _Avoid_: player, voice (what its two halves are called in the code)
 
 **Generation**:
 The machine's count of how many times its in-flight work was abandoned; an answering event from an older generation is ignored (ADR 0053).
-_Avoid_: epoch, token
+_Avoid_: epoch
 
 **Session read**:
 The room's reading of the session on the server, applied whole whichever door it came through: its halt, its warning, its stretches and its verdict.
