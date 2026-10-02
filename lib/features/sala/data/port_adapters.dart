@@ -23,13 +23,20 @@ class ProviderRoomPort implements RoomPort {
 class ProviderSoundPort implements SoundPort {
   final Ref _ref;
 
-  ProviderSoundPort(this._ref);
+  ProviderSoundPort(this._ref) {
+    _ref.onDispose(() {
+      unawaited(_partEnds?.cancel());
+      unawaited(_partFails?.cancel());
+    });
+  }
 
   FacilitatorVoiceService get _voice => _ref.read(facilitatorVoiceProvider);
   PlaybackRepository get _playback => _ref.read(playbackRepositoryProvider);
 
-  bool _lineSounding = false;
+  Object? _line;
   bool _partSounding = false;
+  StreamSubscription<void>? _partEnds;
+  StreamSubscription<void>? _partFails;
 
   @override
   Future<bool> playLine(String url, {void Function()? onSoundStart}) =>
@@ -44,20 +51,22 @@ class ProviderSoundPort implements SoundPort {
       _partSounding = false;
       unawaited(_playback.stop());
     }
-    _lineSounding = true;
+    final mine = _line = Object();
     try {
       return await say();
     } finally {
-      _lineSounding = false;
+      if (identical(_line, mine)) _line = null;
     }
   }
 
   @override
   Future<void> playPart(Sound sound) {
-    if (_lineSounding) {
-      _lineSounding = false;
+    if (_line != null) {
+      _line = null;
       unawaited(_voice.stop());
     }
+    _partEnds ??= _playback.completions.listen((_) => _partSounding = false);
+    _partFails ??= _playback.failures.listen((_) => _partSounding = false);
     _partSounding = true;
     final to = sound.to;
     return to == null
@@ -79,14 +88,14 @@ class ProviderSoundPort implements SoundPort {
 
   @override
   Future<void> stopTheLine() {
-    _lineSounding = false;
+    _line = null;
     return _voice.stop();
   }
 
   @override
   Future<void> stop() {
     _partSounding = false;
-    _lineSounding = false;
+    _line = null;
     return Future.wait([_playback.stop(), _voice.stop()]);
   }
 }

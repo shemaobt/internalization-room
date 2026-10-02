@@ -2,7 +2,6 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/effect_runner.dart';
-import 'package:internalization_room/features/sala/data/port_adapters.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 
 import 'a_room_host_double.dart';
@@ -20,15 +19,7 @@ void main() {
     container = ProviderContainer(overrides: SalaHarness().overrides);
     addTearDown(container.dispose);
     host = ARoomHost();
-    runner = EffectRunner(
-      room: container.read(roomPortProvider),
-      sound: container.read(soundPortProvider),
-      recorder: container.read(recorderPortProvider),
-      store: container.read(storePortProvider),
-      host: host,
-      watchPeriod: () => _beat,
-      retryDelay: (_) => Duration.zero,
-    );
+    runner = runnerOver(container, host, watchPeriod: _beat);
     host.onAnswer = (event) {
       if (event is WatchFired) runner.run(const [ArmTheWatch()]);
     };

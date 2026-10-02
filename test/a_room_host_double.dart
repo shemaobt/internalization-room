@@ -1,4 +1,6 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:internalization_room/features/sala/data/effect_runner.dart';
+import 'package:internalization_room/features/sala/data/port_adapters.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
@@ -82,3 +84,18 @@ class ARoomHost implements EffectHost {
   @override
   void sayTheOfflineNotice() => asked.add('sayTheOfflineNotice');
 }
+
+EffectRunner runnerOver(
+  ProviderContainer container,
+  ARoomHost host, {
+  required Duration watchPeriod,
+  Duration retryDelay = Duration.zero,
+}) => EffectRunner(
+  room: container.read(roomPortProvider),
+  sound: container.read(soundPortProvider),
+  recorder: container.read(recorderPortProvider),
+  store: container.read(storePortProvider),
+  host: host,
+  watchPeriod: () => watchPeriod,
+  retryDelay: (_) => retryDelay,
+);

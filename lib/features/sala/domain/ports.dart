@@ -1,6 +1,7 @@
 import 'channel.dart';
 
-/// The room's reach to the server: network health.
+/// The room client's doors, network health and the person-call inbox. Today it carries
+/// network health only, and grows when the effects empty into the ports.
 abstract interface class RoomPort {
   Stream<void> get networkReturned;
 }

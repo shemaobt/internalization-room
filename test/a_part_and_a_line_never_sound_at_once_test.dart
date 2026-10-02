@@ -62,4 +62,49 @@ void main() {
     );
     expect(harness.sounds, contains('voice:line'));
   });
+
+  test(
+    'a line that ends after a newer line started leaves the newer one sounding',
+    () async {
+      final sound = container.read(soundPortProvider);
+      harness.voice.holdNextLine();
+      final first = sound.playLine('first.mp3');
+      harness.voice.finishHeldLine();
+      harness.voice.holdNextLine();
+      sound.playLine('second.mp3');
+      await first;
+
+      sound.playPart(const PartSound(0, 'part.m4a'));
+
+      expect(
+        _neverBothSounding(harness.sounds),
+        isTrue,
+        reason: '${harness.sounds}',
+      );
+    },
+  );
+
+  test('a line after a part that ended on its own stops nothing', () async {
+    final sound = container.read(soundPortProvider);
+    sound.playPart(const PartSound(0, 'part.m4a'));
+    harness.playback.finishPlayback();
+    await pumpEventQueue();
+
+    sound.playLine('line.mp3');
+
+    expect(harness.sounds, isNot(contains('playback:stop')));
+    expect(harness.sounds, contains('voice:line'));
+  });
+
+  test('a line after a part that failed stops nothing', () async {
+    final sound = container.read(soundPortProvider);
+    sound.playPart(const PartSound(0, 'part.m4a'));
+    harness.playback.failPlayback();
+    await pumpEventQueue();
+
+    sound.playLine('line.mp3');
+
+    expect(harness.sounds, isNot(contains('playback:stop')));
+    expect(harness.sounds, contains('voice:line'));
+  });
 }
