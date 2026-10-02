@@ -62,6 +62,51 @@ void main() {
     );
   });
 
+  test('a call refused with another code is made again', () async {
+    final harness = SalaHarness(retryBackoff: const [_oneStepOfTheLadder]);
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    harness.room
+      ..failTurnsWith = const Refused('PIPELINE_REFUSED')
+      ..askForAPersonFailsWith = const Refused('HTTP_409');
+    await _stopForAPerson(notifier, read);
+    await settle(_severalStepsOfTheLadder);
+
+    expect(read().needsPerson, isTrue);
+    expect(_callsForAPerson(harness), greaterThan(1));
+  });
+
+  test('a call that fell on the network takes the room out of reach, and the '
+      'retry makes it again', () async {
+    final harness = SalaHarness(retryBackoff: const [_oneStepOfTheLadder]);
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    harness.room
+      ..failTurnsWith = const Refused('PIPELINE_REFUSED')
+      ..askForAPersonFailsWith = const NetworkFailed('sem rede');
+    harness.network.reachable = false;
+    await _stopForAPerson(notifier, read);
+    await waitFor(
+      'o pedido de pessoa sair',
+      () => _callsForAPerson(harness) == 1,
+    );
+    await waitFor('a sala ficar fora de alcance', () => read().unreachable);
+    harness.room.askForAPersonFailsWith = null;
+    harness.network.reachable = true;
+
+    await waitFor(
+      'o pedido de pessoa pousar na volta',
+      () => harness.room.personsAsked == 1,
+    );
+    expect(_callsForAPerson(harness), greaterThan(1));
+  });
+
   test('a call the server confirmed is not repeated', () async {
     final harness = SalaHarness(retryBackoff: const [_oneStepOfTheLadder])
       ..voice.succeeds = false;

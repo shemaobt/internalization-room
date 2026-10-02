@@ -603,16 +603,38 @@ class FakePlayback implements PlaybackRepository {
 
 class FakeFinished implements FinishedPassages {
   final Set<String> done = {};
+  Completer<void>? _holdingAdd;
+  Completer<void>? _holdingAll;
+
+  void holdNextAll() => _holdingAll = Completer<void>();
+
+  void finishHeldAll() {
+    _holdingAll?.complete();
+    _holdingAll = null;
+  }
+
+  void holdNextAdd() => _holdingAdd = Completer<void>();
+
+  void finishHeldAdd() {
+    _holdingAdd?.complete();
+    _holdingAdd = null;
+  }
 
   @override
-  Future<Set<String>> all(String book) async => {
-    for (final row in done)
-      if (row.startsWith('$book/')) row.substring(book.length + 1),
-  };
+  Future<Set<String>> all(String book) async {
+    final read = {
+      for (final row in done)
+        if (row.startsWith('$book/')) row.substring(book.length + 1),
+    };
+    await _holdingAll?.future;
+    return read;
+  }
 
   @override
-  Future<void> add(String book, String pericope) async =>
-      done.add('$book/$pericope');
+  Future<void> add(String book, String pericope) async {
+    await _holdingAdd?.future;
+    done.add('$book/$pericope');
+  }
 
   @override
   Future<bool> bookOpened(String book) async => done.contains('livro:$book');
@@ -642,9 +664,28 @@ class FakeWorkInProgress implements WorkInProgress {
       if (key.startsWith('$book/')) key.substring(book.length + 1),
   };
 
+  Completer<void>? _holdingRead;
+  Completer<void>? _heldRead;
+
+  void holdNextRead() => _holdingRead = Completer<void>();
+
+  void finishHeldRead() {
+    (_heldRead ?? _holdingRead)?.complete();
+    _heldRead = null;
+    _holdingRead = null;
+  }
+
   @override
-  Future<ResumePoint?> of(String book, String pericope) async =>
-      rows['$book/$pericope'];
+  Future<ResumePoint?> of(String book, String pericope) async {
+    final row = rows['$book/$pericope'];
+    final held = _holdingRead;
+    if (held != null) {
+      _holdingRead = null;
+      _heldRead = held;
+      await held.future;
+    }
+    return row;
+  }
 
   @override
   Future<void> remember(String book, String pericope, ResumePoint point) async {
@@ -655,6 +696,16 @@ class FakeWorkInProgress implements WorkInProgress {
   @override
   Future<void> forget(String book, String pericope) async =>
       rows.remove('$book/$pericope');
+
+  @override
+  Future<List<ResumePoint>> forgetTheSession(String sessionId) async {
+    final forgotten = [
+      for (final row in rows.values)
+        if (row.sessionId == sessionId) row,
+    ];
+    rows.removeWhere((_, row) => row.sessionId == sessionId);
+    return forgotten;
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -1408,6 +1459,8 @@ class FakeRoom implements RoomRepository {
   /// only the ask itself to fail, and `failWith` is shared by every guarded call.
   RoomFailure? askForAPersonFailsWith;
 
+  final List<String> personAsksFor = [];
+
   Completer<void>? _holdingAskForAPerson;
 
   /// Holds the next session-scoped ask in flight, so a test can act — resolve the halt,
@@ -1422,6 +1475,7 @@ class FakeRoom implements RoomRepository {
   @override
   Future<RoomAnswer<void>> askForAPerson(String sessionId) async {
     if (_guard('askForAPerson') case final failure?) return failure;
+    personAsksFor.add(sessionId);
     if (_forgot('askForAPerson', sessionId) case final gone?) {
       return gone;
     }

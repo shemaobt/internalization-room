@@ -244,4 +244,30 @@ void main() {
           'podia discordar do servidor',
     );
   });
+
+  test('forgetting a session leaves the place of another session in that '
+      'passage', () async {
+    final home = Directory.systemTemp.createTempSync('sala-em-curso-outra');
+    addTearDown(() => home.deleteSync(recursive: true));
+    final ledger = WorkInProgress(
+      home: () async => home,
+      recordings: () async => home,
+    );
+    await ledger.remember(
+      'Ruth',
+      'P01',
+      const ResumePoint(sessionId: 'sessao-2', stage: SalaStage.conversa),
+    );
+    await ledger.remember(
+      'Ruth',
+      'P02',
+      const ResumePoint(sessionId: 'sessao-1', stage: SalaStage.conversa),
+    );
+
+    final forgotten = await ledger.forgetTheSession('sessao-1');
+
+    expect(forgotten.map((row) => row.sessionId), ['sessao-1']);
+    expect((await ledger.of('Ruth', 'P01'))?.sessionId, 'sessao-2');
+    expect(await ledger.of('Ruth', 'P02'), isNull);
+  });
 }

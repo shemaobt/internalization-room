@@ -62,6 +62,7 @@ const _clockSegments = <(String, String, String)>[
 ];
 
 const _roomFailuresBeforeNeedsPerson = 3;
+const _sendsWhileInFlight = 3;
 
 /// How many times the recorder may fail to start in a row before the room calls a
 /// person — mirroring `micFails` in her client.
@@ -223,6 +224,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   final Set<String> _contadasSemResposta = {};
   int _resumeFailures = 0;
   final Set<String> _goneSessions = {};
+  final Set<(String, String)> _toldClosed = {};
 
   /// When and in what language the session now open was created, so a row rewritten by
   /// a later stage advance carries them instead of going blank the moment the team leaves
@@ -1268,7 +1270,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     if (sessionId == null || _personAsked || _askingForAPerson) return;
     _askingForAPerson = true;
+    final pericope = _emCurso;
     final answer = await _room.askForAPerson(sessionId);
+    if (sessionId != state.sessionId) {
+      return _anEarlierSessionAnswered(sessionId, pericope, answer);
+    }
+    if (answer case Refused(code: RefusalCode.passageClosed)) {
+      await _thePassageClosed(sessionId, pericope);
+      _askingForAPerson = false;
+      return;
+    }
     _askingForAPerson = false;
     switch (answer) {
       case Answered():
@@ -1284,6 +1295,41 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Refused():
         _keepAskingForAPerson(_askForAPerson);
     }
+  }
+
+  Future<void> _anEarlierSessionAnswered(
+    String sessionId,
+    String? pericope,
+    RoomAnswer<void> answer,
+  ) async {
+    switch (answer) {
+      case Refused(code: RefusalCode.passageClosed):
+        await _thePassageClosed(sessionId, pericope);
+      case SessionGone():
+        _theSessionIsGone(sessionId);
+      case NetworkFailed():
+        _askingForAPerson = false;
+        return _outOfReach(Door.person);
+      case Answered() || Refused():
+        break;
+    }
+    _askingForAPerson = false;
+    if (!_gone && state.needsPerson) _tellTheRoomAPersonIsNeeded();
+  }
+
+  Future<void> _thePassageClosed(String sessionId, String? pericope) async {
+    if (_gone) return;
+    final book = _book;
+    if (pericope != null) {
+      _toldClosed.add((book, pericope));
+      await _feitas.add(book, pericope).catchError((_) {});
+    }
+    if (_gone) return;
+    if (sessionId == _theSession) return _dispatch(const ThePassageClosed());
+    if (pericope != null && state.stage == SalaStage.escolha) {
+      state = state.copyWith(feitas: {...state.feitas, pericope});
+    }
+    _letGoOf(sessionId);
   }
 
   /// The same ask, for a halt with no session to name. Asks by the tablet's own device
@@ -1998,7 +2044,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final ledger = _feitas;
     final open = _emAberto;
     final book = _book;
-    final feitas = await ledger.all(book);
+    final feitas = {
+      ...await ledger.all(book),
+      for (final (livro, pericope) in _toldClosed)
+        if (livro == book) pericope,
+    };
     final comecadas = await open.startedIn(book);
     if (epoch != _epoch || _gone) return;
     final primeiraOfertavel = todas.indexWhere(_isOfertavel);
@@ -2269,12 +2319,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _dispatch(const TheSessionIsGone());
   }
 
-  void _letGoOf(String sessionId) {
-    _goneSessions.add(sessionId);
+  void _letGoOf(String? sessionId, {List<String> kept = const []}) {
+    if (sessionId != null) _goneSessions.add(sessionId);
     if (sessionId == _panoramaSessionId) _panoramaSessionId = null;
     unawaited(
       _mindingThePlace(
-        () => _takes.discardTheSession(sessionId),
+        () => _forgetTheSessionOnDisk(sessionId, kept),
       ).whenComplete(_countUnsent),
     );
   }
@@ -2299,39 +2349,30 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _discardTheSession() {
     final sessionId = _theSession;
-    final pericope = _emCurso;
     final kept = [for (final take in state.keptTakes) take.path];
-    if (sessionId != null) _goneSessions.add(sessionId);
-    if (sessionId == _panoramaSessionId) _panoramaSessionId = null;
     _clearAll();
     _dropThePendingTake();
     _forgetThePassage();
-    unawaited(
-      _mindingThePlace(
-        () => _forgetTheSessionOnDisk(sessionId, pericope, kept),
-      ).whenComplete(_countUnsent),
-    );
+    _letGoOf(sessionId, kept: kept);
   }
 
   Future<void> _forgetTheSessionOnDisk(
     String? sessionId,
-    String? pericope,
     List<String> kept,
   ) async {
-    final book = _book;
     final open = _emAberto;
     final queue = _takes;
     final recorder = _recorder;
-    final row = pericope == null ? null : await open.of(book, pericope);
-    final itsRow = row != null && row.sessionId == sessionId;
-    for (final path in {
-      ...kept,
-      if (itsRow) ...row.takes.map((take) => take.path),
-    }) {
+    if (sessionId != null) await queue.discardTheSession(sessionId);
+    for (final path in kept) {
       await recorder.delete(path);
     }
-    if (itsRow) await open.forget(book, pericope!);
-    if (sessionId != null) await queue.discardTheSession(sessionId);
+    if (sessionId == null) return;
+    for (final row in await open.forgetTheSession(sessionId)) {
+      for (final take in row.takes) {
+        if (!kept.contains(take.path)) await recorder.delete(take.path);
+      }
+    }
   }
 
   void _openTheChoice() {
@@ -2465,6 +2506,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     final sessionId = waiting?.sessionId ?? created!.sessionId;
     if (epoch != _epoch) return;
+    if (_goneSessions.contains(sessionId)) return _openTheChoice();
     // The passage opened for real, whether created fresh or resumed: the team has left
     // the Choice, and whatever visit was refusing passages there is over. A stumble
     // past this point — a session gone mid-open, a fresh retry the room also refuses —
@@ -4976,6 +5018,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (answer case Refused(
         code: RefusalCode.idempotencyKeyInFlight,
       ) when epoch == _epoch) {
+        if (step == _sendsWhileInFlight - 1) {
+          return const NetworkFailed(RefusalCode.idempotencyKeyInFlight);
+        }
         await Future<void>.delayed(_onTheLadder(step++));
         if (epoch == _epoch) continue;
       }

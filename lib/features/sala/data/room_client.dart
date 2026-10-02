@@ -27,7 +27,7 @@ class RoomClient {
     Future<http.Response> Function() send, {
     required Duration timeout,
     required T Function(http.Response) read,
-    bool asksForTheSession = true,
+    required bool asksForTheSession,
     Map<int, RoomAnswer<T>> atThisDoor = const {},
   }) async {
     final http.Response response;
@@ -59,7 +59,7 @@ class RoomClient {
     http.BaseRequest request, {
     required Duration timeout,
     required T Function(http.Response) read,
-    bool asksForTheSession = true,
+    required bool asksForTheSession,
   }) => ask(
     () async => http.Response.fromStream(await _http.send(request)),
     timeout: timeout,

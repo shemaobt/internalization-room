@@ -61,6 +61,26 @@ void main() {
     },
   );
 
+  test(
+    'a 404 at a sessionless door is a refusal, never the session gone',
+    () async {
+      expect(
+        await answering(404).passagesOf('Ruth', language: 'pt'),
+        refusedWith('NOT_FOUND'),
+      );
+    },
+  );
+
+  test('a 409 on the call for a person names the passage closed', () async {
+    expect(
+      await answering(409, {
+        'detail': 'Passage is closed',
+        'code': 'PASSAGE_CLOSED',
+      }).askForAPerson('sessao-1'),
+      refusedWith('PASSAGE_CLOSED'),
+    );
+  });
+
   test('a 404 on a replace names a stretch, not the session', () async {
     final answer = await replace(answering(404, {'code': 'NOT_FOUND'}));
 

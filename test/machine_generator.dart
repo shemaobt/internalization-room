@@ -88,7 +88,7 @@ class World {
       probing: probes,
       serverHoldsAWarning: switch (event) {
         TheAnswerWarned() => true,
-        TheSessionIsGone() => false,
+        TheSessionIsGone() || ThePassageClosed() => false,
         SessionRead(:final snapshot) when !snapshot.needsPerson =>
           snapshot.halt == HaltKind.warning,
         _ => serverHoldsAWarning,
@@ -256,6 +256,7 @@ String describeEvent(MachineEvent event) => switch (event) {
   StepLeft() => 'StepLeft',
   LeftThePassage() => 'LeftThePassage',
   TheSessionIsGone() => 'TheSessionIsGone',
+  ThePassageClosed() => 'ThePassageClosed',
 };
 
 String describeLine(Line line) => '${line.kind.name}#${line.id}';
@@ -346,6 +347,7 @@ enum EventKind {
   stepLeft,
   leftThePassage,
   sessionGone,
+  passageClosed,
 }
 
 EventKind kindOf(MachineEvent event) => switch (event) {
@@ -376,6 +378,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   StepLeft() => EventKind.stepLeft,
   LeftThePassage() => EventKind.leftThePassage,
   TheSessionIsGone() => EventKind.sessionGone,
+  ThePassageClosed() => EventKind.passageClosed,
 };
 
 bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
@@ -405,7 +408,8 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.lineNotSaid ||
   EventKind.stepLeft ||
   EventKind.leftThePassage ||
-  EventKind.sessionGone => true,
+  EventKind.sessionGone ||
+  EventKind.passageClosed => true,
 };
 
 Source _drawASource(Random random) => switch (random.nextInt(4)) {
@@ -493,6 +497,7 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
       EventKind.stepLeft => const StepLeft(),
       EventKind.leftThePassage => const LeftThePassage(),
       EventKind.sessionGone => const TheSessionIsGone(),
+      EventKind.passageClosed => const ThePassageClosed(),
     };
 
 MachineEvent drawAnEvent(World world, Random random) {

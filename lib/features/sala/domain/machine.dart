@@ -176,6 +176,10 @@ final class TheSessionIsGone extends MachineEvent {
   const TheSessionIsGone();
 }
 
+final class ThePassageClosed extends MachineEvent {
+  const ThePassageClosed();
+}
+
 sealed class Effect {
   const Effect();
 }
@@ -482,7 +486,7 @@ const _watch = ArmTheWatch();
           for (final line in machine.queue) DropTheLine(line),
         ],
       ),
-      TheSessionIsGone() => _theSessionGone(machine),
+      TheSessionIsGone() || ThePassageClosed() => _theSessionGone(machine),
       NetworkFailedAt(:final door) => _fall(machine, door),
       NetworkReturned() => _return(machine),
       RetryFired() => _retry(machine),
@@ -953,7 +957,8 @@ Machine _answered(Machine machine) =>
   LineNotSaid() ||
   StepLeft() ||
   LeftThePassage() ||
-  TheSessionIsGone() => (halt, const []),
+  TheSessionIsGone() ||
+  ThePassageClosed() => (halt, const []),
 };
 
 (Halt, List<Effect>) _read(Halt halt, SessionRead read) {
