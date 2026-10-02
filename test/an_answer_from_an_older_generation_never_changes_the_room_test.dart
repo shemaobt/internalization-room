@@ -13,6 +13,14 @@ final Iterable<int> _seeds = switch (_oneSeed) {
 };
 
 MachineEvent? _stamped(MachineEvent event, int generation) => switch (event) {
+  final AnsweringEvent answer => _stampedAnswer(answer, generation),
+  _ => null,
+};
+
+AnsweringEvent _stampedAnswer(
+  AnsweringEvent event,
+  int generation,
+) => switch (event) {
   SessionRead(
     :final snapshot,
     :final at,
@@ -59,7 +67,6 @@ MachineEvent? _stamped(MachineEvent event, int generation) => switch (event) {
   WatchFired() => WatchFired(generation: generation),
   RetryFired() => RetryFired(generation: generation),
   NetworkFailedAt(:final door) => NetworkFailedAt(door, generation: generation),
-  _ => null,
 };
 
 String? _aStaleAnswerChangedTheRoom(int seed) {
