@@ -24,6 +24,15 @@ bool _neverBothSounding(List<String> log) {
   return true;
 }
 
+bool _lineIsSounding(List<String> log) {
+  var line = false;
+  for (final entry in log) {
+    if (entry == 'voice:line' || entry == 'voice:asset') line = true;
+    if (entry == 'voice:stop') line = false;
+  }
+  return line;
+}
+
 void main() {
   late SalaHarness harness;
   late ProviderContainer container;
@@ -84,27 +93,38 @@ void main() {
     },
   );
 
-  test('a line after a part that ended on its own stops nothing', () async {
+  test(
+    'a line asked while the second part of a chain plays stops that part',
+    () async {
+      final sound = container.read(soundPortProvider);
+      harness.playback.completions.listen(
+        (_) => sound.playPart(const PartSound(1, 'second.m4a')),
+      );
+      sound.playPart(const PartSound(0, 'first.m4a'));
+      await pumpEventQueue();
+      harness.playback.finishPlayback();
+      await pumpEventQueue();
+      expect(harness.playback.sounding, isTrue);
+
+      sound.playLine('line.mp3');
+      await pumpEventQueue();
+
+      expect(harness.playback.sounding, isFalse);
+      expect(_lineIsSounding(harness.sounds), isTrue);
+    },
+  );
+
+  test('a line after a part that ended on its own still sounds', () async {
     final sound = container.read(soundPortProvider);
     sound.playPart(const PartSound(0, 'part.m4a'));
+    await pumpEventQueue();
     harness.playback.finishPlayback();
     await pumpEventQueue();
 
     sound.playLine('line.mp3');
-
-    expect(harness.sounds, isNot(contains('playback:stop')));
-    expect(harness.sounds, contains('voice:line'));
-  });
-
-  test('a line after a part that failed stops nothing', () async {
-    final sound = container.read(soundPortProvider);
-    sound.playPart(const PartSound(0, 'part.m4a'));
-    harness.playback.failPlayback();
     await pumpEventQueue();
 
-    sound.playLine('line.mp3');
-
-    expect(harness.sounds, isNot(contains('playback:stop')));
-    expect(harness.sounds, contains('voice:line'));
+    expect(harness.playback.sounding, isFalse);
+    expect(_lineIsSounding(harness.sounds), isTrue);
   });
 }

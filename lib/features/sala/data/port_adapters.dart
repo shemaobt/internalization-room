@@ -23,51 +23,26 @@ class ProviderRoomPort implements RoomPort {
 class ProviderSoundPort implements SoundPort {
   final Ref _ref;
 
-  ProviderSoundPort(this._ref) {
-    _ref.onDispose(() {
-      unawaited(_partEnds?.cancel());
-      unawaited(_partFails?.cancel());
-    });
-  }
+  ProviderSoundPort(this._ref);
 
   FacilitatorVoiceService get _voice => _ref.read(facilitatorVoiceProvider);
   PlaybackRepository get _playback => _ref.read(playbackRepositoryProvider);
 
-  Object? _line;
-  bool _partSounding = false;
-  StreamSubscription<void>? _partEnds;
-  StreamSubscription<void>? _partFails;
+  @override
+  Future<bool> playLine(String url, {void Function()? onSoundStart}) {
+    unawaited(_playback.stop());
+    return _voice.play(url, onSoundStart: onSoundStart);
+  }
 
   @override
-  Future<bool> playLine(String url, {void Function()? onSoundStart}) =>
-      _aLine(() => _voice.play(url, onSoundStart: onSoundStart));
-
-  @override
-  Future<bool> playAsset(String assetPath, {void Function()? onSoundStart}) =>
-      _aLine(() => _voice.playAsset(assetPath, onSoundStart: onSoundStart));
-
-  Future<bool> _aLine(Future<bool> Function() say) async {
-    if (_partSounding) {
-      _partSounding = false;
-      unawaited(_playback.stop());
-    }
-    final mine = _line = Object();
-    try {
-      return await say();
-    } finally {
-      if (identical(_line, mine)) _line = null;
-    }
+  Future<bool> playAsset(String assetPath, {void Function()? onSoundStart}) {
+    unawaited(_playback.stop());
+    return _voice.playAsset(assetPath, onSoundStart: onSoundStart);
   }
 
   @override
   Future<void> playPart(Sound sound) {
-    if (_line != null) {
-      _line = null;
-      unawaited(_voice.stop());
-    }
-    _partEnds ??= _playback.completions.listen((_) => _partSounding = false);
-    _partFails ??= _playback.failures.listen((_) => _partSounding = false);
-    _partSounding = true;
+    unawaited(_voice.stop());
     final to = sound.to;
     return to == null
         ? _playback.play(sound.path, from: sound.from)
@@ -75,29 +50,16 @@ class ProviderSoundPort implements SoundPort {
   }
 
   @override
-  Future<void> pause() {
-    _partSounding = false;
-    return _playback.pause();
-  }
+  Future<void> pause() => _playback.pause();
 
   @override
-  Future<void> resume() {
-    _partSounding = true;
-    return _playback.resume();
-  }
+  Future<void> resume() => _playback.resume();
 
   @override
-  Future<void> stopTheLine() {
-    _line = null;
-    return _voice.stop();
-  }
+  Future<void> stopTheLine() => _voice.stop();
 
   @override
-  Future<void> stop() {
-    _partSounding = false;
-    _line = null;
-    return Future.wait([_playback.stop(), _voice.stop()]);
-  }
+  Future<void> stop() => Future.wait([_playback.stop(), _voice.stop()]);
 }
 
 class ProviderRecorderPort implements RecorderPort {
