@@ -102,4 +102,8 @@ Network health and the person-call inbox belong to Room. The clock stays a seam,
 The token is the machine's **`generation`**. Slice 1 moves it exactly where `_epoch` moves
 today, so that no behaviour changes, and it moves "on every Station change" only once the
 Station is in the machine. Slice 1 is split in two: the runner and ports (ENG-1442), then the
-generation (ENG-1443).
+generation (ENG-1443). The ports are named `RoomPort`, `SoundPort`, `RecorderPort`
+and `StorePort` in code, because `Sound` is already a Channel state. Until the Station
+moves into the machine, an effect that still needs notifier state runs through one temporary
+`EffectHost` the notifier implements. ENG-1444 empties it into the ports once the generation
+has replaced `_epoch`.
