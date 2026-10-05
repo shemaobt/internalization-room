@@ -48,13 +48,12 @@ final _anEmptyLookShowsThePersonSign = Invariant<Machine>(
   },
 );
 
-final _aFoundReplyPlaysUnderNoSign = Invariant<Machine>(
-  'a reply the look found plays, unless the person sign stands',
+final _aFoundReplyPlaysAsIfOnTime = Invariant<Machine>(
+  'a reply the look found plays as if it had arrived on time',
   (before, event, after, effects, world) {
     if (event is! LookFound) return null;
     final plays = effects.whereType<PlayTheReply>().length;
-    final expected = before.halt is Blocking ? 0 : 1;
-    if (plays != expected) return 'played $plays times';
+    if (plays != 1) return 'played $plays times';
     if (after.halt != before.halt) return 'a found reply moved the halt';
     return null;
   },
@@ -65,7 +64,7 @@ void main() {
     expectEverySeedHolds(_machine, [
       _aGivenUpTurnIsLookedAtOnce,
       _anEmptyLookShowsThePersonSign,
-      _aFoundReplyPlaysUnderNoSign,
+      _aFoundReplyPlaysAsIfOnTime,
     ], seeds: _seeds);
   });
 }

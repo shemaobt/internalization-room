@@ -601,10 +601,7 @@ const _watch = ArmTheWatch();
         machine,
         [LookAtTheSession(turn, sounding: sounding)],
       ),
-      LookFound(:final reply) => (
-        machine,
-        [if (machine.halt is! Blocking) PlayTheReply(reply)],
-      ),
+      LookFound(:final reply) => (machine, [PlayTheReply(reply)]),
       LookEmpty(:final sounding) => _theHalt(
         machine,
         RoomRaisedAHalt(sounding: sounding),

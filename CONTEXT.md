@@ -332,11 +332,11 @@ The machine's count of how many times its in-flight work was abandoned; an answe
 _Avoid_: epoch
 
 **Failure policy**:
-The one place every room result (answered, network failed, refused with a code, session gone, timed out) becomes an event: the One look, the person sign, the Session gone, a fall out of reach, or the Station's own answer. Nothing decides a failure inside a Station or the notifier (ADR 0053).
+The one place every room result (answered, network failed, refused with a code, session gone, timed out) becomes an event: the One look, a blocking Halt that calls for a person, the Session gone, the room out of reach, or the Station's own answer. Nothing decides a failure inside a Station or the notifier (ADR 0053).
 _Avoid_: error handler, retry policy
 
 **One look**:
-What the tablet does once it gives up on a turn, because the network failed, its 305 s wait ran out or the watchdog fired: it reads that one turn on the server, once and without sending it again. A reply that landed plays as if it had arrived on time; anything else shows the person sign and keeps the take.
+What the tablet does once it gives up on a turn, because the network failed, its 305 s wait ran out or the watchdog fired: it reads that one turn on the server, once and without sending it again. A reply that landed plays as if it had arrived on time; anything else raises a blocking Halt that calls for a person and keeps the take, never the offline face.
 _Avoid_: retry, resend, poll
 
 **Session read**:

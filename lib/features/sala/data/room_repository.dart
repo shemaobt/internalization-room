@@ -28,7 +28,7 @@ const _basePath = '/api/internalization-room';
 /// once.
 const _turnTimeout = Duration(seconds: 305);
 
-/// Every other long call keeps the wait it had before the one look.
+/// Every other call that can run long waits 310 s.
 const _longCallTimeout = Duration(seconds: 310);
 const _stateTimeout = Duration(seconds: 20);
 
@@ -245,7 +245,7 @@ class RoomRepository {
     asksForTheSession: true,
   );
 
-  /// The one look at a turn this tablet gave up on, without sending it again (ENG-1445).
+  /// The one look at a turn this tablet gave up on, without sending it again.
   Future<RoomAnswer<TurnResult>> lookAtTheTurn(
     String sessionId,
     String turnId,
