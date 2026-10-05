@@ -20,9 +20,6 @@ const panoramaPericope = 'OV';
 bool isThePanorama(String pericope) =>
     pericope == panoramaPericope || pericope.startsWith('$panoramaPericope-');
 
-String fixedLineAsset(String line, String language) =>
-    'assets/audio/$language/fixed/$line.mp3';
-
 const instantAckLines = ['F0', 'F1', 'F2', 'F3'];
 
 /// The fourth of Marcia's process lines, read by position: start, tell, unheard,

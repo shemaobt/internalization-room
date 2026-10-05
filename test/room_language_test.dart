@@ -123,31 +123,30 @@ void main() {
   );
 
   test(
-    'every line the room can name is in the bundle, in every language it speaks',
+    'the bundle carries the notices the room says without a server, and none of her lines',
     () async {
       TestWidgetsFlutterBinding.ensureInitialized();
 
-      final named = RegExp(r'^[A-Z]\d+$');
+      const notices = {
+        'pt': {'gravacao_presa', 'microfone'},
+        'en': {'sem_conexao', 'gravacao_presa', 'microfone'},
+      };
       for (final language in languages) {
         final manifest = await rootBundle.loadString(
           'assets/audio/$language/manifest.json',
         );
-        final rendered = (jsonDecode(manifest) as Map<String, dynamic>).keys
-            .where(named.hasMatch)
-            .toSet();
-        final spoken = {...rendered, ...instantAckLines, 'E0', approvedLine};
 
         expect(
-          spoken.length,
-          greaterThan(instantAckLines.length),
+          (jsonDecode(manifest) as Map<String, dynamic>).keys.toSet(),
+          notices[language],
           reason:
-              'metade das falas fixas chega do servidor pelo nome e não é citada em '
-              'nenhuma const do app — sem o manifesto, este teste só olharia as que já '
-              'estavam listadas aqui',
+              'as falas dela iam gravadas no app, e uma gravação antiga podia '
+              'tocar depois de ela mudar a letra',
         );
-        for (final line in spoken) {
-          await rootBundle.load(fixedLineAsset(line, language));
-        }
+        await expectLater(
+          () => rootBundle.load('assets/audio/$language/fixed/F0.mp3'),
+          throwsA(anything),
+        );
         for (final asset in [
           offlineNoticeAsset,
           micBlockedAsset,
@@ -158,34 +157,6 @@ void main() {
       }
     },
     timeout: const Timeout(Duration(minutes: 2)),
-  );
-
-  test(
-    'the languages carry the same lines, so a turn in one is a turn in all',
-    () async {
-      TestWidgetsFlutterBinding.ensureInitialized();
-
-      final named = RegExp(r'^[A-Z]\d+$');
-      final shipped = <String, String>{};
-      for (final language in languages) {
-        final manifest = await rootBundle.loadString(
-          'assets/audio/$language/manifest.json',
-        );
-        final recorded = (jsonDecode(manifest) as Map<String, dynamic>).keys;
-        shipped[language] = (recorded.where(named.hasMatch).toList()..sort())
-            .join(',');
-      }
-
-      expect(
-        shipped.values.toSet(),
-        hasLength(1),
-        reason:
-            'o servidor manda o nome da fala no meio de um turno e o app resolve o '
-            'nome dentro do pacote do idioma — uma renderização que pulou uma fala em um '
-            'idioma vira silêncio, que a equipe não distingue de um tablet morto',
-      );
-      expect(shipped[floorLanguage], isNotEmpty);
-    },
   );
 
   test(

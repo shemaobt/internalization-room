@@ -57,16 +57,16 @@ The room's voice: the persona speaking to the team throughout the session, with 
 _Avoid_: guia, narrator, facilitator (a person, not the voice), `Facilitator` (the inherited prefix in code)
 
 **Fixed line**:
-A line pre-approved and shipped inside the app, played straight from the device without asking the server.
+One of Marcia's pre-approved lines, named by its family and its position in her file (`F2`, `D1`, `P3`). The room voices it from the text it was deployed with and answers its address; the tablet asks for that address once per run and keeps the sound, so a line she re-rules is heard on the next load.
 _Avoid_: linha fixa, canned line, static line, fail-safe line (one role a fixed line can serve)
 
 **Process line**:
-One of Marcia's fixed lines for a step of the back-translation (start, tell, unheard, approved), bundled and played by position in the room's language, never rotated; the approval's line is the fourth.
+One of Marcia's fixed lines for a step of the back-translation (start, tell, unheard, approved), asked of the room by position in the room's language, never rotated; the approval's line is the fourth.
 _Avoid_: fail-safe (a fixed line that answers a failure and rotates), canned line, linha de processo
 
 **Spoken line**:
 A line the server composes for this turn, which the room fetches and caches before saying it.
-_Avoid_: linha falada, generated line, TTS, fixed line (the bundled ones)
+_Avoid_: linha falada, generated line, TTS, fixed line (hers, by name)
 
 **Fail-safe line**:
 The line the room falls back to when it could not compose an answer. It is said and deliberately never kept, so asking to hear the last thing again never repeats it.
@@ -241,7 +241,7 @@ One of the codes a refused approval names, one string each: the gate's ten plus 
 _Avoid_: reason, error code, bloqueio, refusal (the answer that carries them)
 
 **Approval**:
-The team's gesture, after a clean verdict, that makes the passage its final draft: one press on the back-translation screen, the server's release answered with a version, and Marcia's approved process line spoken from the bundle. The room closes only after it, and a refused one takes the team to the hole its blockers name.
+The team's gesture, after a clean verdict, that makes the passage its final draft: one press on the back-translation screen, the server's release answered with a version, and Marcia's approved process line, asked of the room by name. The room closes only after it, and a refused one takes the team to the hole its blockers name.
 _Avoid_: aprovação, finalize, release (the server's record of it), approve button
 
 **Finding**:
