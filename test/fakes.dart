@@ -104,11 +104,11 @@ class FakeVoice implements FacilitatorVoiceService {
 
   final List<String> played = [];
   final List<String> assets = [];
+  final List<(String, String)> fixedLines = [];
   final List<String> fetched = [];
   bool succeeds = true;
 
-  /// Lines this voice refuses to say, by url or by asset path — for the halves of one
-  /// turn, and for the bundled line a room can fail to play like any other.
+  /// Lines this voice refuses to say, by url, by asset path or by a fixed line's name.
   final Set<String> refuses = {};
 
   /// What the next `play()` throws, when the room — not the player — is why the line
@@ -186,6 +186,20 @@ class FakeVoice implements FacilitatorVoiceService {
     aoFalar?.call();
     onSoundStart?.call();
     if (refuses.contains(assetPath)) return Future.value(false);
+    return _answer();
+  }
+
+  @override
+  Future<bool> playFixedLine(
+    String line,
+    String language, {
+    void Function()? onSoundStart,
+  }) {
+    fixedLines.add((line, language));
+    sounds.add('voice:fixed');
+    aoFalar?.call();
+    onSoundStart?.call();
+    if (refuses.contains(line)) return Future.value(false);
     return _answer();
   }
 
@@ -764,6 +778,11 @@ class FakeInbox implements HandInboxRepository {
   void dispose() {}
 }
 
+Future<RoomAnswer<String>> noFixedLine(
+  String line, {
+  required String language,
+}) async => const NetworkFailed('nenhuma linha fixa');
+
 class FakeRoom implements RoomRepository {
   @override
   http.Client get client => throw UnimplementedError();
@@ -1177,6 +1196,15 @@ class FakeRoom implements RoomRepository {
 
   /// What fetching audio throws, when it is set.
   RoomFailure? failClipWith;
+
+  @override
+  Future<RoomAnswer<String>> fixedLineAddress(
+    String line, {
+    required String language,
+  }) async {
+    if (_guard('fixedLineAddress') case final failure?) return failure;
+    return Answered('/api/internalization-room/voice/$language-$line');
+  }
 
   @override
   Future<http.StreamedResponse> openClip(

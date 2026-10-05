@@ -38,6 +38,39 @@ void main() {
     );
   });
 
+  test(
+    'a fixed line is asked of the room by its name and language, and comes back as an address',
+    () async {
+      late http.BaseRequest seen;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seen = request;
+          return http.Response(
+            '{"audio_url": "/api/internalization-room/voice/abc"}',
+            200,
+          );
+        }),
+      );
+      addTearDown(repository.dispose);
+
+      final address = await repository.fixedLineAddress('D1', language: 'pt');
+
+      expect(
+        address,
+        isA<Answered<String>>().having(
+          (answer) => answer.value,
+          'value',
+          '/api/internalization-room/voice/abc',
+        ),
+        reason:
+            'a linha vinha gravada no app e tocava a letra velha depois de ela mudar',
+      );
+      expect(seen.url.path, '/api/internalization-room/fixed-lines/D1');
+      expect(seen.url.queryParameters, {'language': 'pt'});
+      expect(seen.headers['X-Room-Key'], 'k');
+    },
+  );
+
   test('the opening turn carries no body at all', () async {
     late http.BaseRequest seen;
     final repository = RoomRepository(

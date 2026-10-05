@@ -30,6 +30,11 @@ class FacilitatorVoiceService {
     String? ifRange,
   })
   _open;
+  final Future<RoomAnswer<String>> Function(
+    String line, {
+    required String language,
+  })
+  _lineAt;
   final bool _playsAsItArrives;
   final Future<Directory> Function() _libraryDir;
   Future<Directory>? _dir;
@@ -41,6 +46,7 @@ class FacilitatorVoiceService {
 
   FacilitatorVoiceService({
     required this._open,
+    required this._lineAt,
     this._playsAsItArrives = true,
     Future<Directory> Function()? libraryDir,
     AudioPlayer? player,
@@ -81,6 +87,19 @@ class FacilitatorVoiceService {
       );
     });
   }
+
+  Future<bool> playFixedLine(
+    String line,
+    String language, {
+    void Function()? onSoundStart,
+  }) async =>
+      play(await _addressOf(line, language), onSoundStart: onSoundStart);
+
+  Future<String> _addressOf(String line, String language) async =>
+      switch (await _lineAt(line, language: language)) {
+        Answered(value: final address) => address,
+        RoomFailure() => '',
+      };
 
   Future<bool> fetch(String url) async {
     if (url.isEmpty) return false;
@@ -500,6 +519,7 @@ final voicePlaysAsItArrivesProvider = Provider<bool>((ref) => true);
 final facilitatorVoiceProvider = Provider<FacilitatorVoiceService>((ref) {
   final service = FacilitatorVoiceService(
     open: ref.read(roomRepositoryProvider).openClip,
+    lineAt: ref.read(roomRepositoryProvider).fixedLineAddress,
     playsAsItArrives: ref.read(voicePlaysAsItArrivesProvider),
   );
   ref.onDispose(service.dispose);

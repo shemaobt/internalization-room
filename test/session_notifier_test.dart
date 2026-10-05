@@ -8466,6 +8466,7 @@ void main() {
       addTearDown(() => library.deleteSync(recursive: true));
       final harness = SalaHarness(
         voiceService: FacilitatorVoiceService(
+          lineAt: noFixedLine,
           open: (_, {from, ifRange}) async => http.StreamedResponse(
             body.stream,
             200,
@@ -8514,6 +8515,7 @@ void main() {
       var answered = false;
       final harness = SalaHarness(
         voiceService: FacilitatorVoiceService(
+          lineAt: noFixedLine,
           open: (_, {from, ifRange}) async {
             answered = true;
             return http.StreamedResponse(
@@ -8564,6 +8566,7 @@ void main() {
     addTearDown(() => library.deleteSync(recursive: true));
     final harness = SalaHarness(
       voiceService: FacilitatorVoiceService(
+        lineAt: noFixedLine,
         open: (_, {from, ifRange}) async => http.StreamedResponse(
           Stream.value([1, 2, 3]),
           200,

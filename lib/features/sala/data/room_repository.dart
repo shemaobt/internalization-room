@@ -447,6 +447,19 @@ class RoomRepository {
     asksForTheSession: true,
   );
 
+  Future<RoomAnswer<String>> fixedLineAddress(
+    String line, {
+    required String language,
+  }) => _room.ask(
+    () => _client.get(
+      _uri('/fixed-lines/$line?language=$language'),
+      headers: _headers,
+    ),
+    timeout: _stateTimeout,
+    read: readJson((json) => json['audio_url'] as String),
+    asksForTheSession: false,
+  );
+
   Future<RoomAnswer<Uint8List>> fetchClip(String url) => _room.ask(
     () => _client.get(Uri.parse('${Env.backendUrl}$url'), headers: _whoWeAre),
     timeout: _turnTimeout,
