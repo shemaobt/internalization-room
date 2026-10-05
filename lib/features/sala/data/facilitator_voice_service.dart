@@ -104,6 +104,9 @@ class FacilitatorVoiceService {
     }
   }
 
+  Future<bool> readyFixedLine(String line, String language) async =>
+      ready(await _addressOf(line, language));
+
   Future<String> _addressOf(String line, String language) async {
     final known = _addresses[(line, language)];
     if (known != null) return known;

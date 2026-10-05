@@ -809,11 +809,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// what makes the screen refuse a touch that would start a second line on top of this
   /// one.
   Future<void> _readyToSpeak(String url, String fixedLine) async {
-    if (fixedLine.isEmpty) {
-      state = state.copyWith(awaitingTheGuide: true);
-      _watchBusyState();
-      await _voice.ready(url);
-    }
+    state = state.copyWith(awaitingTheGuide: true);
+    _watchBusyState();
+    await (fixedLine.isEmpty
+        ? _voice.ready(url)
+        : _voice.readyFixedLine(fixedLine, _lingua));
   }
 
   /// Say a line, and remember it as the one "ouvir de novo" gives back.

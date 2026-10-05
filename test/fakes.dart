@@ -105,6 +105,7 @@ class FakeVoice implements FacilitatorVoiceService {
   final List<String> played = [];
   final List<String> assets = [];
   final List<(String, String)> fixedLines = [];
+  final List<(String, String)> readied = [];
   final List<String> fetched = [];
   bool succeeds = true;
 
@@ -178,6 +179,13 @@ class FakeVoice implements FacilitatorVoiceService {
 
   @override
   Future<bool> ready(String url) => fetch(url);
+
+  @override
+  Future<bool> readyFixedLine(String line, String language) async {
+    readied.add((line, language));
+    await _fetching?.future;
+    return succeeds;
+  }
 
   @override
   Future<bool> playAsset(String assetPath, {void Function()? onSoundStart}) {

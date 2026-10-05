@@ -4433,6 +4433,35 @@ void main() {
     );
   });
 
+  test(
+    'a fixed line the room has to fetch is waited for in thinking, not mimed',
+    () async {
+      final harness = SalaHarness()..room.fixedLine = 'A0';
+      final container = harness.container();
+      addTearDown(container.dispose);
+      harness.voice.holdNextFetch();
+
+      unawaited(container.read(salaSessionProvider.notifier).openConvite());
+      await settle(const Duration(milliseconds: 20));
+
+      expect(
+        container.read(salaSessionProvider).voice,
+        VoiceState.thinking,
+        reason:
+            'a linha fixa vinha do pacote e soava na hora; vinda da sala, o '
+            'círculo ondulava falando enquanto nada saía',
+      );
+      expect(harness.voice.fixedLines, isEmpty);
+
+      harness.voice.finishHeldFetch();
+      await waitFor(
+        'a linha fixa tocar',
+        () => harness.voice.fixedLines.isNotEmpty,
+      );
+      expect(harness.voice.readied, [('A0', testLanguage)]);
+    },
+  );
+
   test('a wait for an answer still gives up at the busy ceiling', () async {
     final harness = SalaHarness(busyCeiling: const Duration(milliseconds: 40));
     final container = harness.container();
