@@ -552,6 +552,63 @@ void main() {
     },
   );
 
+  test(
+    'a fixed line the room cannot give is not said, never thrown, and asked for again',
+    () async {
+      final player = SpeakingPlayer();
+      var lookup = 502;
+      var clip = 503;
+      final room = RoomRepository(
+        client: MockClient.streaming((request, _) async {
+          fetched.add(request.url.path);
+          if (request.url.path.contains('/fixed-lines/')) {
+            return http.StreamedResponse(
+              Stream.value(
+                '{"audio_url": "/api/internalization-room/voice/pt-D1"}'
+                    .codeUnits,
+              ),
+              lookup,
+            );
+          }
+          if (clip != 200) {
+            return http.StreamedResponse(const Stream.empty(), clip);
+          }
+          return _whole([1, 2, 3]);
+        }),
+      );
+      addTearDown(room.dispose);
+      final voice = FacilitatorVoiceService(
+        open: room.openClip,
+        lineAt: room.fixedLineAddress,
+        libraryDir: () async => library,
+        player: player,
+      );
+
+      final semVoz = await voice.playFixedLine('D1', 'pt');
+      lookup = 200;
+      final semClipe = await voice.playFixedLine('D1', 'pt');
+      clip = 200;
+      final speaking = voice.playFixedLine('D1', 'pt');
+      await waitFor('o tocador soar', () => player.sounding);
+      player.reachTheEnd();
+
+      expect(
+        [semVoz, semClipe],
+        [isFalse, isFalse],
+        reason:
+            'sem voz no servidor ou sem rede, a linha fixa estourava como falha '
+            'da sala e a equipe ia para a tela de sem conexão',
+      );
+      expect(await speaking, isTrue);
+      expect(
+        fetched.where((path) => path.contains('/fixed-lines/')),
+        hasLength(2),
+        reason:
+            'uma linha sem voz ficava lembrada como sem endereço até o app fechar',
+      );
+    },
+  );
+
   test('a line already heard is never fetched again', () async {
     final voice = service();
 

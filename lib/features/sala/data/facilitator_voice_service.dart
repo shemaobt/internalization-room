@@ -93,8 +93,16 @@ class FacilitatorVoiceService {
     String line,
     String language, {
     void Function()? onSoundStart,
-  }) async =>
-      play(await _addressOf(line, language), onSoundStart: onSoundStart);
+  }) async {
+    try {
+      return await play(
+        await _addressOf(line, language),
+        onSoundStart: onSoundStart,
+      );
+    } on RoomFailure {
+      return false;
+    }
+  }
 
   Future<String> _addressOf(String line, String language) async {
     final known = _addresses[(line, language)];
