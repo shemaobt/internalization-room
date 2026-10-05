@@ -230,6 +230,14 @@ final class TurnAnswered extends AnsweringEvent {
   const TurnAnswered(this.turn, {super.generation});
 }
 
+/// The turn came back refused or with its session gone: it is no longer in flight, and
+/// what it was owed stays owed.
+final class TurnFailed extends AnsweringEvent {
+  final Turn turn;
+
+  const TurnFailed(this.turn, {super.generation});
+}
+
 final class TurnGivenUp extends AnsweringEvent {
   final Turn turn;
   final Kept sounding;
@@ -673,7 +681,11 @@ const _watch = ArmTheWatch();
   TheSessionIsGone() || ThePassageClosed() => _theSessionGone(machine),
   TheCallMetAClosedPassage() => (machine, const [MarkThePassageClosed()]),
   TurnSent(:final turn) => (machine.copyWith(inFlight: turn), const []),
-  TurnAnswered(:final turn) => (_land(machine, turn), const []),
+  TurnAnswered(:final turn) => (
+    _settleTheOpening(_land(machine, turn), turn),
+    const [],
+  ),
+  TurnFailed(:final turn) => (_land(machine, turn), const []),
   TurnGivenUp(:final turn, :final sounding) => _giveUp(machine, turn, sounding),
   LookFound(:final turn, :final reply) => (
     _settleTheOpening(machine, turn),
@@ -1017,10 +1029,8 @@ List<Effect> _stopTheLineIn(Channel channel) => switch (channel) {
   return (next, effects);
 }
 
-Machine _land(Machine machine, Turn turn) => _settleTheOpening(
-  machine.inFlight == turn ? machine.copyWith(landTheTurn: true) : machine,
-  turn,
-);
+Machine _land(Machine machine, Turn turn) =>
+    machine.inFlight == turn ? machine.copyWith(landTheTurn: true) : machine;
 
 (Machine, List<Effect>) _giveUp(Machine machine, Turn turn, Kept sounding) {
   if (machine.inFlight != turn) return (machine, const []);
@@ -1213,6 +1223,7 @@ Machine _answered(Machine machine) =>
   ThePassageCannotOpen() ||
   TurnSent() ||
   TurnAnswered() ||
+  TurnFailed() ||
   TheRefusalPassed() ||
   TheCallWasRefused() ||
   TheCallMetAClosedPassage() => (halt, const []),

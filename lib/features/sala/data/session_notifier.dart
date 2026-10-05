@@ -1483,13 +1483,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (state.machine.inFlight != turn) return;
     _awaitedReplies.remove(turn);
-    _dispatch(
-      FailurePolicy.decide(const RoomAnswered(), _failureContext(turn: turn)),
-    );
     switch (answer) {
       case Answered(value: final reply):
+        _dispatch(
+          FailurePolicy.decide(
+            const RoomAnswered(),
+            _failureContext(turn: turn),
+          ),
+        );
         await heard(reply);
       case final RoomFailure failure:
+        _dispatch(TurnFailed(turn, generation: _generation));
         failed(failure);
     }
   }
@@ -2593,17 +2597,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     await _askForTheOpening(
       sessionId,
       generation,
-      play: (opening) async {
+      play: (opening) {
         openingClock.mark('open');
-        try {
-          await _voiceTurn(
-            opening,
-            generation,
-            onSoundStart: () => openingClock.mark('sound'),
-          );
-        } on RoomFailure catch (failure) {
-          failed(failure);
-        }
+        return _voiceTurn(
+          opening,
+          generation,
+          onSoundStart: () => openingClock.mark('sound'),
+        );
       },
       failed: failed,
     );

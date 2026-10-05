@@ -267,6 +267,37 @@ void main() {
   );
 
   test(
+    'an opening refused under a standing halt is asked again when the halt lifts',
+    () async {
+      final harness = SalaHarness()..room.holdNextTurn();
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final sala = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+
+      unawaited(sala.goConversa(pericope: 'P01'));
+      await waitFor(
+        'a abertura sair',
+        () => harness.room.turnIdsAsked.length == 1,
+      );
+      sala.haltForABrokenBuild();
+      await waitFor('a sala parar', () => read().needsPerson);
+      harness.room
+        ..failHeldTurnWith = const Refused('BAD_REQUEST')
+        ..finishHeldTurn();
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      harness.room.theDeskAttended();
+      sala.resolveWithPerson();
+      await waitFor(
+        'a abertura ser pedida de novo',
+        () => harness.room.turnIdsAsked.length == 2,
+      );
+      await waitFor('o Guia falar', () => _replies(harness) == 1);
+    },
+  );
+
+  test(
     'A door that is not a turn still falls out of reach as today.',
     () async {
       final harness = SalaHarness(

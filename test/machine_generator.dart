@@ -271,6 +271,7 @@ String describeEvent(MachineEvent event) => switch (event) {
   LookFound(:final turn) => 'LookFound(${turn.turnId})',
   TurnSent(:final turn) => 'TurnSent(${turn.turnId})',
   TurnAnswered(:final turn) => 'TurnAnswered(${turn.turnId})',
+  TurnFailed(:final turn) => 'TurnFailed(${turn.turnId})',
   TheRefusalPassed() => 'TheRefusalPassed',
   TheCallWasRefused() => 'TheCallWasRefused',
   TheCallMetAClosedPassage() => 'TheCallMetAClosedPassage',
@@ -379,6 +380,7 @@ enum EventKind {
   theRefusalPassed,
   theCallWasRefused,
   theCallMetAClosedPassage,
+  turnFailed,
 }
 
 EventKind kindOf(MachineEvent event) => switch (event) {
@@ -420,6 +422,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TheRefusalPassed() => EventKind.theRefusalPassed,
   TheCallWasRefused() => EventKind.theCallWasRefused,
   TheCallMetAClosedPassage() => EventKind.theCallMetAClosedPassage,
+  TurnFailed() => EventKind.turnFailed,
 };
 
 bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
@@ -459,7 +462,8 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.turnAnswered ||
   EventKind.theRefusalPassed ||
   EventKind.theCallWasRefused ||
-  EventKind.theCallMetAClosedPassage => true,
+  EventKind.theCallMetAClosedPassage ||
+  EventKind.turnFailed => true,
 };
 
 Source _drawASource(Random random) => switch (random.nextInt(4)) {
@@ -579,6 +583,7 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
       EventKind.theRefusalPassed => const TheRefusalPassed(),
       EventKind.theCallWasRefused => const TheCallWasRefused(),
       EventKind.theCallMetAClosedPassage => const TheCallMetAClosedPassage(),
+      EventKind.turnFailed => TurnFailed(_drawATurn(random)),
     };
 
 Turn _drawATurn(Random random) => Turn('sessao-1', 'turn-${random.nextInt(3)}');
