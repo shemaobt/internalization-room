@@ -520,6 +520,38 @@ void main() {
     },
   );
 
+  test(
+    'a fixed line said twice in a run asks the room once and downloads once',
+    () async {
+      final player = SpeakingPlayer();
+      final room = roomWithItsLines((_) => _whole([1, 2, 3]));
+      final voice = FacilitatorVoiceService(
+        open: room.openClip,
+        lineAt: room.fixedLineAddress,
+        libraryDir: () async => library,
+        player: player,
+      );
+
+      for (var vez = 0; vez < 2; vez++) {
+        final speaking = voice.playFixedLine('F0', 'pt');
+        await waitFor('o tocador soar', () => player.sounding);
+        player.reachTheEnd();
+        expect(await speaking, isTrue);
+      }
+
+      expect(
+        fetched,
+        [
+          '/api/internalization-room/fixed-lines/F0?language=pt',
+          '/api/internalization-room/voice/pt-F0',
+        ],
+        reason:
+            'cada "hmm" perguntava de novo ao servidor, e numa rede fraca a '
+            'resposta da sala esperava atrás de uma pergunta que já tinha resposta',
+      );
+    },
+  );
+
   test('a line already heard is never fetched again', () async {
     final voice = service();
 

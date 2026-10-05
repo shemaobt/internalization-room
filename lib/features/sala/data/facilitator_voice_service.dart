@@ -43,6 +43,7 @@ class FacilitatorVoiceService {
   final Duration _loadCeiling;
   Future<void> _speaking = Future<void>.value();
   final Map<String, _ArrivingClip> _arriving = {};
+  final Map<(String, String), String> _addresses = {};
 
   FacilitatorVoiceService({
     required this._open,
@@ -95,11 +96,14 @@ class FacilitatorVoiceService {
   }) async =>
       play(await _addressOf(line, language), onSoundStart: onSoundStart);
 
-  Future<String> _addressOf(String line, String language) async =>
-      switch (await _lineAt(line, language: language)) {
-        Answered(value: final address) => address,
-        RoomFailure() => '',
-      };
+  Future<String> _addressOf(String line, String language) async {
+    final known = _addresses[(line, language)];
+    if (known != null) return known;
+    return switch (await _lineAt(line, language: language)) {
+      Answered(value: final address) => _addresses[(line, language)] = address,
+      RoomFailure() => '',
+    };
+  }
 
   Future<bool> fetch(String url) async {
     if (url.isEmpty) return false;
