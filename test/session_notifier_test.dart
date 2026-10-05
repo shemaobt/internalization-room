@@ -4458,7 +4458,54 @@ void main() {
         'a linha fixa tocar',
         () => harness.voice.fixedLines.isNotEmpty,
       );
-      expect(harness.voice.readied, [('A0', testLanguage)]);
+      expect(harness.voice.readied, contains(('A0', testLanguage)));
+    },
+  );
+
+  test(
+    'a passage that opens brings down the acknowledgements and the approval line before the team speaks',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+
+      expect(
+        harness.voice.readied,
+        containsAll([
+          ('F0', testLanguage),
+          ('F1', testLanguage),
+          ('F2', testLanguage),
+          ('F3', testLanguage),
+          ('P3', testLanguage),
+        ]),
+        reason:
+            'o primeiro "hmm" de cada abertura do app esperava o endereço e o '
+            'download, e o reconhecimento instantâneo chegava atrasado',
+      );
+      expect(harness.voice.fixedLines, isEmpty);
+    },
+  );
+
+  test(
+    'a panorama that opens brings down the same lines before the team speaks',
+    () async {
+      final harness = SalaHarness();
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).openConvite();
+      await settle();
+
+      expect(
+        harness.voice.readied,
+        containsAll([
+          ('F0', testLanguage),
+          ('F1', testLanguage),
+          ('F2', testLanguage),
+          ('F3', testLanguage),
+          ('P3', testLanguage),
+        ]),
+      );
     },
   );
 

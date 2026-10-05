@@ -637,6 +637,36 @@ void main() {
     },
   );
 
+  test(
+    'a fixed line brought down ahead is said with no lookup and no download',
+    () async {
+      final player = SpeakingPlayer();
+      final room = roomWithItsLines((_) => _whole([1, 2, 3]));
+      final voice = FacilitatorVoiceService(
+        open: room.openClip,
+        lineAt: room.fixedLineAddress,
+        libraryDir: () async => library,
+        player: player,
+        playsAsItArrives: false,
+      );
+
+      expect(await voice.readyFixedLine('F0', 'pt'), isTrue);
+      final antes = List.of(fetched);
+      final speaking = voice.playFixedLine('F0', 'pt');
+      await waitFor('o tocador soar', () => player.sounding);
+      player.reachTheEnd();
+
+      expect(await speaking, isTrue);
+      expect(
+        fetched,
+        antes,
+        reason:
+            'o primeiro "hmm" da sessão ainda pedia o endereço e baixava o som '
+            'na hora em que a equipe parava de falar',
+      );
+    },
+  );
+
   test('a line already heard is never fetched again', () async {
     final voice = service();
 

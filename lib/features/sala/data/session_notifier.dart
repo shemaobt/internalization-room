@@ -1801,6 +1801,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     final panorama = _panoramaSessionId ?? created!.sessionId;
     _panoramaSessionId = panorama;
+    _warmHerLines();
     final TurnResult turn;
     switch (await _room.openSession(
       panorama,
@@ -2208,6 +2209,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     final panorama = _panoramaSessionId ?? created!.sessionId;
     _panoramaSessionId = panorama;
+    _warmHerLines();
     final TurnResult turn;
     switch (await _room.openSession(
       panorama,
@@ -2458,6 +2460,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _runner.run(const [ArmTheWatch()]);
     _sessionSavedAt = resumed ? waiting.savedAt : clock.now();
     _sessionLanguage = resumed ? waiting.language : _lingua;
+    _warmHerLines();
     if (pericope != null && !resumed) {
       unawaited(
         _mindingThePlace(
@@ -3063,6 +3066,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         case Answered() || Refused() || SessionGone():
           return answer;
       }
+    }
+  }
+
+  void _warmHerLines() {
+    for (final line in [...instantAckLines, approvedLine]) {
+      unawaited(_voice.readyFixedLine(line, _lingua));
     }
   }
 
