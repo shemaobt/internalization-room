@@ -106,14 +106,14 @@ void main() {
       async.elapse(Duration.zero);
 
       harness.network.reachable = false;
-      harness.room.failHeldTurnWith = const NetworkFailed('sem rede');
-      harness.room.finishHeldTurn();
-      async.elapse(const Duration(milliseconds: 100));
+      harness.room.failStateOnceWith = const NetworkFailed('sem rede');
+      async.elapse(_period + const Duration(milliseconds: 100));
       expect(_read(container).unreachable, isTrue);
 
       harness.network.reachable = true;
       async.elapse(const Duration(milliseconds: 200));
       expect(_read(container).unreachable, isFalse);
+      harness.room.finishHeldTurn();
 
       expect(
         _read(container).needsPerson,

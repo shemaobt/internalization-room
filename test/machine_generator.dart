@@ -4,7 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
+import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
 class World {
   final bool watchArmed;
@@ -16,6 +18,7 @@ class World {
   final bool retryArmed;
   final bool draining;
   final bool probing;
+  final bool looking;
 
   const World({
     this.watchArmed = true,
@@ -27,6 +30,7 @@ class World {
     this.retryArmed = false,
     this.draining = false,
     this.probing = false,
+    this.looking = false,
   });
 
   World after(MachineEvent event, List<Effect> effects) {
@@ -44,6 +48,7 @@ class World {
         probing &&
         event is! NetworkReturned &&
         !(event is NetworkFailedAt && event.door == Door.probe);
+    var looks = looking && event is! LookFound && event is! LookEmpty;
     var reach = switch (event) {
       NetworkFailedAt() => false,
       NetworkReturned() => true,
@@ -73,6 +78,8 @@ class World {
           drains = true;
         case ProbeTheRoom():
           probes = true;
+        case LookAtTheSession():
+          looks = true;
         default:
           break;
       }
@@ -86,6 +93,7 @@ class World {
       retryArmed: retry,
       draining: drains,
       probing: probes,
+      looking: looks,
       serverHoldsAWarning: switch (event) {
         TheAnswerWarned() => true,
         TheSessionIsGone() || ThePassageClosed() => false,
@@ -229,7 +237,8 @@ String describeEvent(MachineEvent event) => switch (event) {
   LongPress(:final somebodyToAsk, :final at) =>
     'LongPress(somebodyToAsk: $somebodyToAsk, at: $at)',
   WatchFired() => 'WatchFired',
-  NetworkFailedAt(:final door) => 'NetworkFailedAt(${door.name})',
+  NetworkFailedAt(:final door, :final why) =>
+    'NetworkFailedAt(${door.name}, ${why.name})',
   NetworkReturned() => 'NetworkReturned',
   RetryFired() => 'RetryFired',
   TheRoomAnswered() => 'TheRoomAnswered',
@@ -257,6 +266,19 @@ String describeEvent(MachineEvent event) => switch (event) {
   LeftThePassage() => 'LeftThePassage',
   TheSessionIsGone() => 'TheSessionIsGone',
   ThePassageClosed() => 'ThePassageClosed',
+  TurnGivenUp(:final turn, :final sounding) =>
+    'TurnGivenUp(${turn.turnId}, ${describeKept(sounding)})',
+  LookFound(:final turn) => 'LookFound(${turn.turnId})',
+  TurnSent(:final turn) => 'TurnSent(${turn.turnId})',
+  TurnAnswered(:final turn) => 'TurnAnswered(${turn.turnId})',
+  TurnFailed(:final turn) => 'TurnFailed(${turn.turnId})',
+  TheRefusalPassed() => 'TheRefusalPassed',
+  TheCallWasRefused() => 'TheCallWasRefused',
+  TheCallMetAClosedPassage() => 'TheCallMetAClosedPassage',
+  LookEmpty(:final sounding) => 'LookEmpty(${describeKept(sounding)})',
+  TheRoomRefused(:final third, :final sounding) =>
+    'TheRoomRefused(third: $third, ${describeKept(sounding)})',
+  ThePassageCannotOpen() => 'ThePassageCannotOpen',
 };
 
 String describeLine(Line line) => '${line.kind.name}#${line.id}';
@@ -348,6 +370,17 @@ enum EventKind {
   leftThePassage,
   sessionGone,
   passageClosed,
+  turnGivenUp,
+  lookFound,
+  lookEmpty,
+  theRoomRefused,
+  thePassageCannotOpen,
+  turnSent,
+  turnAnswered,
+  theRefusalPassed,
+  theCallWasRefused,
+  theCallMetAClosedPassage,
+  turnFailed,
 }
 
 EventKind kindOf(MachineEvent event) => switch (event) {
@@ -379,6 +412,17 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   LeftThePassage() => EventKind.leftThePassage,
   TheSessionIsGone() => EventKind.sessionGone,
   ThePassageClosed() => EventKind.passageClosed,
+  TurnGivenUp() => EventKind.turnGivenUp,
+  LookFound() => EventKind.lookFound,
+  LookEmpty() => EventKind.lookEmpty,
+  TheRoomRefused() => EventKind.theRoomRefused,
+  ThePassageCannotOpen() => EventKind.thePassageCannotOpen,
+  TurnSent() => EventKind.turnSent,
+  TurnAnswered() => EventKind.turnAnswered,
+  TheRefusalPassed() => EventKind.theRefusalPassed,
+  TheCallWasRefused() => EventKind.theCallWasRefused,
+  TheCallMetAClosedPassage() => EventKind.theCallMetAClosedPassage,
+  TurnFailed() => EventKind.turnFailed,
 };
 
 bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
@@ -389,6 +433,7 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.playerEnded ||
   EventKind.playerFailed => world.playerBusy,
   EventKind.micClosed => world.micOpen,
+  EventKind.lookFound || EventKind.lookEmpty => world.looking,
   EventKind.sessionRead ||
   EventKind.roomRaisedAHalt ||
   EventKind.theAnswerWarned ||
@@ -409,7 +454,16 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.stepLeft ||
   EventKind.leftThePassage ||
   EventKind.sessionGone ||
-  EventKind.passageClosed => true,
+  EventKind.passageClosed ||
+  EventKind.turnGivenUp ||
+  EventKind.theRoomRefused ||
+  EventKind.thePassageCannotOpen ||
+  EventKind.turnSent ||
+  EventKind.turnAnswered ||
+  EventKind.theRefusalPassed ||
+  EventKind.theCallWasRefused ||
+  EventKind.theCallMetAClosedPassage ||
+  EventKind.turnFailed => true,
 };
 
 Source _drawASource(Random random) => switch (random.nextInt(4)) {
@@ -451,6 +505,7 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
         world.probing && random.nextBool()
             ? Door.probe
             : Door.values[random.nextInt(Door.values.length)],
+        why: RoomReach.values[1 + random.nextInt(RoomReach.values.length - 1)],
       ),
       EventKind.networkReturned => const NetworkReturned(),
       EventKind.retryFired => const RetryFired(),
@@ -498,7 +553,40 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
       EventKind.leftThePassage => const LeftThePassage(),
       EventKind.sessionGone => const TheSessionIsGone(),
       EventKind.passageClosed => const ThePassageClosed(),
+      EventKind.turnGivenUp => TurnGivenUp(
+        _drawATurn(random),
+        sounding: _drawKept(random),
+      ),
+      EventKind.lookFound => LookFound(
+        _drawATurn(random),
+        TurnResult(
+          sessionId: 'sessao-1',
+          audioUrl: '/voice/turn-${random.nextInt(3)}',
+          fixedLine: '',
+          transcript: '',
+          peerCue: false,
+          usedFailSafe: false,
+          degraded: false,
+          coverage: null,
+          done: false,
+          turnId: 'turn-${random.nextInt(3)}',
+        ),
+      ),
+      EventKind.lookEmpty => LookEmpty(sounding: _drawKept(random)),
+      EventKind.theRoomRefused => TheRoomRefused(
+        third: random.nextBool(),
+        sounding: _drawKept(random),
+      ),
+      EventKind.thePassageCannotOpen => const ThePassageCannotOpen(),
+      EventKind.turnSent => TurnSent(_drawATurn(random)),
+      EventKind.turnAnswered => TurnAnswered(_drawATurn(random)),
+      EventKind.theRefusalPassed => const TheRefusalPassed(),
+      EventKind.theCallWasRefused => const TheCallWasRefused(),
+      EventKind.theCallMetAClosedPassage => const TheCallMetAClosedPassage(),
+      EventKind.turnFailed => TurnFailed(_drawATurn(random)),
     };
+
+Turn _drawATurn(Random random) => Turn('sessao-1', 'turn-${random.nextInt(3)}');
 
 MachineEvent drawAnEvent(World world, Random random) {
   final allowed = [
