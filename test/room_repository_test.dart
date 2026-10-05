@@ -1534,21 +1534,41 @@ void main() {
         reason:
             'a escada da Márcia: 300 s no servidor, 305 s no cliente, 330 s no watchdog',
       );
-      fakeAsync((clock) {
+    },
+  );
+
+  test(
+    'a turn the room holds past 305 seconds is given up by the client at 305 seconds',
+    () async {
+      final take = await _tempRecording();
+      for (final send
+          in <Future<RoomAnswer<TurnResult>> Function(RoomRepository)>[
+            (room) => room.sendTurn('sessao-1', take, turnId: 'turno-1'),
+            (room) => room.openSession('sessao-1', turnId: 'turno-1'),
+          ]) {
+        var heard = false;
         final repository = RoomRepository(
-          client: MockClient((_) => Completer<http.Response>().future),
+          client: MockClient((_) {
+            heard = true;
+            return Completer<http.Response>().future;
+          }),
         );
+        addTearDown(repository.dispose);
+        final clock = FakeAsync();
         RoomAnswer<TurnResult>? answer;
-        unawaited(
-          repository
-              .openSession('sessao-1', turnId: 'turno-1')
-              .then((given) => answer = given),
+        clock.run(
+          (_) => unawaited(send(repository).then((given) => answer = given)),
         );
+        while (!heard) {
+          await Future<void>.delayed(const Duration(milliseconds: 5));
+          clock.flushMicrotasks();
+        }
+
         clock.elapse(const Duration(seconds: 304));
         expect(answer, isNull);
         clock.elapse(const Duration(seconds: 2));
         expect(answer, isA<NetworkFailed>());
-      });
+      }
     },
   );
 }
