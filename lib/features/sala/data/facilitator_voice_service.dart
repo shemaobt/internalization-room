@@ -107,10 +107,15 @@ class FacilitatorVoiceService {
   Future<String> _addressOf(String line, String language) async {
     final known = _addresses[(line, language)];
     if (known != null) return known;
-    return switch (await _lineAt(line, language: language)) {
-      Answered(value: final address) => _addresses[(line, language)] = address,
-      RoomFailure() => '',
-    };
+    try {
+      return switch (await _lineAt(line, language: language).timeout(_grace)) {
+        Answered(value: final address) =>
+          _addresses[(line, language)] = address,
+        RoomFailure() => '',
+      };
+    } on TimeoutException {
+      return '';
+    }
   }
 
   Future<bool> fetch(String url) async {

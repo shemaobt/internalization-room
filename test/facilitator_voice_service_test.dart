@@ -609,6 +609,34 @@ void main() {
     },
   );
 
+  test(
+    'a fixed line whose address does not come within the grace is not said, and the room goes on',
+    () async {
+      final player = SpeakingPlayer();
+      final nunca = Completer<RoomAnswer<String>>();
+      final voice = FacilitatorVoiceService(
+        open: roomAnswering((_) => _whole([1, 2, 3])),
+        lineAt: (line, {required language}) => nunca.future,
+        libraryDir: () async => library,
+        player: player,
+        lineGrace: const Duration(milliseconds: 50),
+      );
+
+      final said = await voice
+          .playFixedLine('F0', 'pt')
+          .timeout(const Duration(seconds: 2), onTimeout: () => true);
+
+      expect(
+        said,
+        isFalse,
+        reason:
+            'numa rede lenta o "hmm" esperava o endereço sem fim, e a resposta '
+            'da sala ficava presa atrás dele',
+      );
+      expect(fetched, isEmpty);
+    },
+  );
+
   test('a line already heard is never fetched again', () async {
     final voice = service();
 
