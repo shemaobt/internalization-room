@@ -65,6 +65,7 @@ class EffectRunner {
   final EffectHost host;
   final Duration Function() watchPeriod;
   final Duration Function(int step) retryDelay;
+  final int Function()? generation;
 
   EffectRunner({
     required this.room,
@@ -74,6 +75,7 @@ class EffectRunner {
     required this.host,
     required this.watchPeriod,
     required this.retryDelay,
+    this.generation,
   });
 
   Timer? _watch;
@@ -151,11 +153,11 @@ class EffectRunner {
     _retry?.cancel();
     _retry = Timer(delay, () {
       _retry = null;
-      host.answer(const RetryFired());
+      host.answer(RetryFired(generation: generation?.call()));
     });
     if (!host.roomIsReachable) {
       _networkWatch ??= room.networkReturned.listen(
-        (_) => host.answer(const RetryFired()),
+        (_) => host.answer(RetryFired(generation: generation?.call())),
       );
     }
   }
@@ -178,7 +180,7 @@ class EffectRunner {
     if (_watch?.isActive ?? false) return;
     _watch = Timer(watchPeriod(), () {
       _watch = null;
-      host.answer(const WatchFired());
+      host.answer(WatchFired(generation: generation?.call()));
     });
   }
 }
