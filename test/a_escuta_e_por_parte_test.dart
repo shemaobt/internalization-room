@@ -149,8 +149,10 @@ void main() {
 
   test('a sala não diz mais recontar nem retrotradução', () {
     final retirada = RegExp(
-      r'[Rr]econt|RECONT|[Rr]etrotradução|[Cc]ontandoDeNovo',
+      r'recont|retrotradução|contandoDeNovo',
+      caseSensitive: false,
     );
+    final aFailureContext = RegExp(r'\b_?[Ff]ailureContext\b');
     final ofensores = <String>[];
 
     for (final arquivo
@@ -158,7 +160,10 @@ void main() {
             .listSync(recursive: true)
             .whereType<File>()
             .where((arquivo) => arquivo.path.endsWith('.dart'))) {
-      final fonte = arquivo.readAsStringSync().replaceAll(_commentPattern, '');
+      final fonte = arquivo
+          .readAsStringSync()
+          .replaceAll(_commentPattern, '')
+          .replaceAll(aFailureContext, '');
       if (retirada.hasMatch(fonte)) ofensores.add(arquivo.path);
     }
 
