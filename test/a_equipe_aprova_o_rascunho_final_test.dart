@@ -179,7 +179,7 @@ void main() {
         contains(('P3', testLanguage)),
         reason:
             'a linha da aprovação é a quarta das falas de processo da '
-            'Marcia, tocada do pacote: a sala tem de poder dizê-la sem rede',
+            'Marcia; tocada do pacote, falava do OBT Refine depois de ela mudar',
       );
       // Passado o tempo inteiro que o fecho leva, com a fala ainda na boca da sala: o
       // colar fecha 700ms depois de ser mandado fechar, então medir logo após o toque diz
