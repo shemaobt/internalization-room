@@ -331,6 +331,14 @@ _Avoid_: player, voice (what its two halves are called in the code)
 The machine's count of how many times its in-flight work was abandoned; an answering event from an older generation is ignored (ADR 0053).
 _Avoid_: epoch
 
+**Failure policy**:
+The one place every room result (answered, network failed, refused with a code, session gone, timed out) becomes an event: the One look, the person sign, the Session gone, a fall out of reach, or the Station's own answer. Nothing decides a failure inside a Station or the notifier (ADR 0053).
+_Avoid_: error handler, retry policy
+
+**One look**:
+What the tablet does once it gives up on a turn, because the network failed, its 305 s wait ran out or the watchdog fired: it reads that one turn on the server, once and without sending it again. A reply that landed plays as if it had arrived on time; anything else shows the person sign and keeps the take.
+_Avoid_: retry, resend, poll
+
 **Session read**:
 The room's reading of the session on the server, applied whole whichever door it came through: its halt, its warning, its stretches and its verdict.
 _Avoid_: snapshot (the wire's name), poll, re-read
