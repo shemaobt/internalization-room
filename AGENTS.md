@@ -19,7 +19,7 @@ flutter run                                                          # pick a de
 flutter run -d <iphone-id>
 flutter run --release -d <iphone-id> --dart-define=DEV_ATALHOS=true   # stands in for the device link
 flutter analyze
-flutter test
+flutter test                                     # 3 workers by default (dart_test.yaml); --concurrency overrides, CI uses 2
 flutter build appbundle --release                # reads android/key.properties
 dart run tool/check_doctrine.dart                # the doctrine guard, on demand
 ```
