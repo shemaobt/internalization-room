@@ -5,6 +5,7 @@ import 'package:internalization_room/features/sala/domain/failure_policy.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/refusal_code.dart';
+import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'machine_generator.dart';
@@ -16,20 +17,25 @@ const _aTurn = FailureContext(
   stage: SalaStage.conversa,
   generation: 4,
   turn: _turn,
-  refusalHalts: true,
+  rule: RefusalRule.haltsAtOnce,
   sounding: _kept,
 );
 
-FailureContext _notATurn({int refusals = 0, bool refusalHalts = false}) =>
-    FailureContext(
-      stage: SalaStage.retro,
-      step: BtPhase.thinking,
-      generation: 4,
-      door: Door.outbox,
-      refusals: refusals,
-      refusalHalts: refusalHalts,
-      sounding: const ThePart(),
-    );
+FailureContext _notATurn({
+  int refusals = 0,
+  RefusalRule rule = RefusalRule.counts,
+  Door door = Door.outbox,
+  RoomReach why = RoomReach.noNetwork,
+}) => FailureContext(
+  stage: SalaStage.retro,
+  step: BtPhase.thinking,
+  generation: 4,
+  door: door,
+  why: why,
+  refusals: refusals,
+  rule: rule,
+  sounding: const ThePart(),
+);
 
 String _said(MachineEvent event) => switch (event) {
   final AnsweringEvent answer =>
@@ -40,10 +46,10 @@ String _said(MachineEvent event) => switch (event) {
 void main() {
   final rows = <(String, RoomResult, FailureContext, MachineEvent)>[
     (
-      'a turn answered is the room answering',
+      'a turn answered lands the turn in flight',
       const RoomAnswered(),
       _aTurn,
-      const TheRoomAnswered(generation: 4),
+      const TurnAnswered(_turn, generation: 4),
     ),
     (
       'a turn whose network failed is looked at once',
@@ -143,8 +149,66 @@ void main() {
     (
       'a refusal of a call that calls a person on the spot is not counted',
       const RoomRefused(RefusalCode.unreadable),
-      _notATurn(refusalHalts: true),
+      _notATurn(rule: RefusalRule.haltsAtOnce),
       const RoomRaisedAHalt(sounding: ThePart(), generation: 4),
+    ),
+    (
+      'a call that is not a turn whose room is silent falls out of reach saying so',
+      const RoomNetworkFailed(),
+      _notATurn(why: RoomReach.roomSilent),
+      const NetworkFailedAt(
+        Door.outbox,
+        why: RoomReach.roomSilent,
+        generation: 4,
+      ),
+    ),
+    (
+      'the Watch refused changes nothing, whatever the code',
+      const RoomRefused(RefusalCode.unauthorized),
+      _notATurn(door: Door.watch, rule: RefusalRule.passes),
+      const TheRefusalPassed(generation: 4),
+    ),
+    (
+      'the coverage read refused with a code that stops the room calls a person',
+      const RoomRefused(RefusalCode.deviceRevoked),
+      _notATurn(door: Door.coverage, rule: RefusalRule.passesUnlessItStops),
+      const RoomRaisedAHalt(sounding: ThePart(), generation: 4),
+    ),
+    (
+      'the coverage read refused with any other code changes nothing',
+      const RoomRefused(RefusalCode.unreadable),
+      _notATurn(door: Door.coverage, rule: RefusalRule.passesUnlessItStops),
+      const TheRefusalPassed(generation: 4),
+    ),
+    (
+      'the resume refused calls a person and keeps the resume',
+      const RoomRefused(RefusalCode.unreadable),
+      _notATurn(door: Door.resume, rule: RefusalRule.keepsTheResume),
+      const RoomRaisedAHalt(sounding: TheResume(), generation: 4),
+    ),
+    (
+      'the resume whose parts the room no longer knows calls a person and keeps the resume',
+      const RoomSessionGone(),
+      _notATurn(door: Door.resume, rule: RefusalRule.keepsTheResume),
+      const RoomRaisedAHalt(sounding: TheResume(), generation: 4),
+    ),
+    (
+      'the call for a person refused is asked again, whatever the code',
+      const RoomRefused(RefusalCode.unauthorized),
+      _notATurn(door: Door.person, rule: RefusalRule.asksAgain),
+      const TheCallWasRefused(generation: 4),
+    ),
+    (
+      'the call for a person met by a closed passage writes the passage down as closed',
+      const RoomRefused(RefusalCode.passageClosed),
+      _notATurn(door: Door.person, rule: RefusalRule.asksAgain),
+      const TheCallMetAClosedPassage(generation: 4),
+    ),
+    (
+      'the call for a person nobody can be reached for is not asked again',
+      const RoomRefused(RefusalCode.nobodyToReach),
+      _notATurn(door: Door.person, rule: RefusalRule.asksAgain),
+      const TheRefusalPassed(generation: 4),
     ),
     (
       'a call that is not a turn whose session is gone is the session gone',

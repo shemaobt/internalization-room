@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
@@ -236,7 +237,8 @@ String describeEvent(MachineEvent event) => switch (event) {
   LongPress(:final somebodyToAsk, :final at) =>
     'LongPress(somebodyToAsk: $somebodyToAsk, at: $at)',
   WatchFired() => 'WatchFired',
-  NetworkFailedAt(:final door) => 'NetworkFailedAt(${door.name})',
+  NetworkFailedAt(:final door, :final why) =>
+    'NetworkFailedAt(${door.name}, ${why.name})',
   NetworkReturned() => 'NetworkReturned',
   RetryFired() => 'RetryFired',
   TheRoomAnswered() => 'TheRoomAnswered',
@@ -266,7 +268,12 @@ String describeEvent(MachineEvent event) => switch (event) {
   ThePassageClosed() => 'ThePassageClosed',
   TurnGivenUp(:final turn, :final sounding) =>
     'TurnGivenUp(${turn.turnId}, ${describeKept(sounding)})',
-  LookFound(:final reply) => 'LookFound(${reply.turnId})',
+  LookFound(:final turn) => 'LookFound(${turn.turnId})',
+  TurnSent(:final turn) => 'TurnSent(${turn.turnId})',
+  TurnAnswered(:final turn) => 'TurnAnswered(${turn.turnId})',
+  TheRefusalPassed() => 'TheRefusalPassed',
+  TheCallWasRefused() => 'TheCallWasRefused',
+  TheCallMetAClosedPassage() => 'TheCallMetAClosedPassage',
   LookEmpty(:final sounding) => 'LookEmpty(${describeKept(sounding)})',
   TheRoomRefused(:final third, :final sounding) =>
     'TheRoomRefused(third: $third, ${describeKept(sounding)})',
@@ -367,6 +374,11 @@ enum EventKind {
   lookEmpty,
   theRoomRefused,
   thePassageCannotOpen,
+  turnSent,
+  turnAnswered,
+  theRefusalPassed,
+  theCallWasRefused,
+  theCallMetAClosedPassage,
 }
 
 EventKind kindOf(MachineEvent event) => switch (event) {
@@ -403,6 +415,11 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   LookEmpty() => EventKind.lookEmpty,
   TheRoomRefused() => EventKind.theRoomRefused,
   ThePassageCannotOpen() => EventKind.thePassageCannotOpen,
+  TurnSent() => EventKind.turnSent,
+  TurnAnswered() => EventKind.turnAnswered,
+  TheRefusalPassed() => EventKind.theRefusalPassed,
+  TheCallWasRefused() => EventKind.theCallWasRefused,
+  TheCallMetAClosedPassage() => EventKind.theCallMetAClosedPassage,
 };
 
 bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
@@ -437,7 +454,12 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.passageClosed ||
   EventKind.turnGivenUp ||
   EventKind.theRoomRefused ||
-  EventKind.thePassageCannotOpen => true,
+  EventKind.thePassageCannotOpen ||
+  EventKind.turnSent ||
+  EventKind.turnAnswered ||
+  EventKind.theRefusalPassed ||
+  EventKind.theCallWasRefused ||
+  EventKind.theCallMetAClosedPassage => true,
 };
 
 Source _drawASource(Random random) => switch (random.nextInt(4)) {
@@ -479,6 +501,7 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
         world.probing && random.nextBool()
             ? Door.probe
             : Door.values[random.nextInt(Door.values.length)],
+        why: RoomReach.values[1 + random.nextInt(RoomReach.values.length - 1)],
       ),
       EventKind.networkReturned => const NetworkReturned(),
       EventKind.retryFired => const RetryFired(),
@@ -527,10 +550,11 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
       EventKind.sessionGone => const TheSessionIsGone(),
       EventKind.passageClosed => const ThePassageClosed(),
       EventKind.turnGivenUp => TurnGivenUp(
-        Turn('sessao-1', 'turn-${random.nextInt(3)}'),
+        _drawATurn(random),
         sounding: _drawKept(random),
       ),
       EventKind.lookFound => LookFound(
+        _drawATurn(random),
         TurnResult(
           sessionId: 'sessao-1',
           audioUrl: '/voice/turn-${random.nextInt(3)}',
@@ -550,7 +574,14 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
         sounding: _drawKept(random),
       ),
       EventKind.thePassageCannotOpen => const ThePassageCannotOpen(),
+      EventKind.turnSent => TurnSent(_drawATurn(random)),
+      EventKind.turnAnswered => TurnAnswered(_drawATurn(random)),
+      EventKind.theRefusalPassed => const TheRefusalPassed(),
+      EventKind.theCallWasRefused => const TheCallWasRefused(),
+      EventKind.theCallMetAClosedPassage => const TheCallMetAClosedPassage(),
     };
+
+Turn _drawATurn(Random random) => Turn('sessao-1', 'turn-${random.nextInt(3)}');
 
 MachineEvent drawAnEvent(World world, Random random) {
   final allowed = [

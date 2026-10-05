@@ -1535,6 +1535,36 @@ void main() {
   });
 
   test(
+    'a room that stays out of reach is asked again at the retry pace, not in a burst',
+    () async {
+      final harness = SalaHarness(
+        watchesWithoutAHalt: true,
+        settleDelay: const Duration(milliseconds: 40),
+        retryBackoff: const [Duration(milliseconds: 150)],
+      );
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      harness.network.reachable = false;
+      harness.room.reachable = false;
+      await waitFor(
+        'a vigia cair',
+        () => container.read(salaSessionProvider).unreachable,
+      );
+      final asked = harness.network.checks;
+
+      await settle(const Duration(milliseconds: 900));
+
+      expect(
+        harness.network.checks - asked,
+        inInclusiveRange(3, 7),
+        reason:
+            'sem pausa entre as tentativas o tablet martelava o servidor '
+            'centenas de vezes por segundo enquanto a rede estava fora',
+      );
+    },
+  );
+
+  test(
     'a take the room broke, refused or forgot is never sent again',
     () async {
       for (final failure in <RoomFailure>[

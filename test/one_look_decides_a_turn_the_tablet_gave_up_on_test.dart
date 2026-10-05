@@ -230,6 +230,43 @@ void main() {
   });
 
   test(
+    'an opening the look finds under a standing halt is heard once when the halt lifts, and no second opening is asked',
+    () async {
+      final harness = SalaHarness();
+      harness.room
+        ..holdNextTurn()
+        ..turnsLandBeforeTheyFail = true;
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final sala = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+
+      unawaited(sala.goConversa(pericope: 'P01'));
+      await waitFor(
+        'a abertura sair',
+        () => harness.room.turnIdsAsked.length == 1,
+      );
+      sala.haltForABrokenBuild();
+      await waitFor('a sala parar', () => read().needsPerson);
+      harness.room
+        ..failHeldTurnWith = _theNetworkDrops
+        ..finishHeldTurn();
+      await waitFor(
+        'a sala olhar a abertura',
+        () => harness.room.turnIdsLookedAt.length == 1,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      sala.resolveWithPerson();
+      await waitFor('a parada sair', () => !read().needsPerson);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+
+      expect(harness.room.turnIdsAsked, hasLength(1));
+      expect(_replies(harness), 1);
+    },
+  );
+
+  test(
     'A door that is not a turn still falls out of reach as today.',
     () async {
       final harness = SalaHarness(
