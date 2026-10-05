@@ -972,7 +972,7 @@ void main() {
       notifier.conversaTap();
       await waitFor(
         'a sala dizer uma fala fixa',
-        () => harness.voice.assets.isNotEmpty,
+        () => harness.voice.fixedLines.isNotEmpty,
       );
       await settle();
 
@@ -3530,20 +3530,24 @@ void main() {
     );
   });
 
-  test('a fixed line comes from the bundle, never from the wire', () async {
-    final harness = SalaHarness()..room.fixedLine = 'D1';
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
+  test(
+    'a fixed line is asked of the room by its name, never played from the bundle',
+    () async {
+      final harness = SalaHarness()..room.fixedLine = 'D1';
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
 
-    expect(harness.voice.assets, [fixedLineAsset('D1', testLanguage)]);
-    expect(
-      harness.voice.played,
-      isEmpty,
-      reason:
-          'a linha de segurança não pede rede — a rede costuma ser o que falhou',
-    );
-    expect(harness.room.clipsFetched, isEmpty);
-  });
+      expect(
+        harness.voice.fixedLines,
+        [('D1', testLanguage)],
+        reason:
+            'a linha tocava da gravação dentro do app, e a letra que ela mudou '
+            'só chegava à equipe com uma versão nova na loja',
+      );
+      expect(harness.voice.assets, isEmpty);
+      expect(harness.voice.played, isEmpty);
+    },
+  );
 
   test('no network is caught before the team ever taps', () async {
     final harness = SalaHarness()..network.reachable = false;
@@ -4470,17 +4474,18 @@ void main() {
     expect(container.read(salaSessionProvider).voice, VoiceState.invite);
   });
 
-  test('a fixed line is repeated from the bundle', () async {
+  test('a fixed line is repeated by its name, not from the bundle', () async {
     final harness = SalaHarness()..room.fixedLine = 'D1';
     final container = await inConversa(harness);
     addTearDown(container.dispose);
 
     await container.read(salaSessionProvider.notifier).hearAgain();
 
-    expect(harness.voice.assets, [
-      fixedLineAsset('D1', testLanguage),
-      fixedLineAsset('D1', testLanguage),
+    expect(harness.voice.fixedLines, [
+      ('D1', testLanguage),
+      ('D1', testLanguage),
     ]);
+    expect(harness.voice.assets, isEmpty);
     expect(harness.room.clipsFetched, isEmpty);
   });
 
@@ -5636,8 +5641,8 @@ void main() {
           'indistinguível de um app morto — e não há texto que explique',
     );
     expect(
-      harness.voice.assets,
-      isNot(contains(fixedLineAsset('E0', testLanguage))),
+      harness.voice.fixedLines,
+      isNot(contains(('E0', testLanguage))),
       reason:
           'o disco verde já mostra a parada sozinho; falar por cima dele é a '
           'mesma sala dizendo o mesmo aviso duas vezes, uma vez local e sem o servidor',
@@ -7021,8 +7026,8 @@ void main() {
           'esperar nunca conserta chave errada — não pode virar tela de offline',
     );
     expect(
-      harness.voice.assets,
-      isNot(contains(fixedLineAsset('E0', testLanguage))),
+      harness.voice.fixedLines,
+      isNot(contains(('E0', testLanguage))),
       reason:
           'o disco parado é o aviso; a chave errada nunca chegou a um turno do '
           'servidor, então não há E0 nenhum para repetir aqui',

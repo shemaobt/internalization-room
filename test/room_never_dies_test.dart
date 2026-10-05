@@ -41,8 +41,8 @@ void main() {
       reason: 'a sala de fato chama alguém, não só acende needsPerson',
     );
     expect(
-      harness.voice.assets,
-      isNot(contains(fixedLineAsset('E0', testLanguage))),
+      harness.voice.fixedLines,
+      isNot(contains(('E0', testLanguage))),
       reason: 'o círculo parado já é o aviso; o app não fala por cima dele',
     );
   });
@@ -183,8 +183,8 @@ void main() {
       expect(state.needsPerson, isFalse);
       expect(harness.room.personsAsked, 0);
       expect(
-        harness.voice.assets,
-        isNot(contains(fixedLineAsset('E0', testLanguage))),
+        harness.voice.fixedLines,
+        isNot(contains(('E0', testLanguage))),
         reason:
             'a sala pedia uma pessoa para uma passagem que pessoa nenhuma abre no '
             'tablet',
@@ -228,8 +228,8 @@ void main() {
         reason: 'a sala de fato chama alguém, não só acende needsPerson',
       );
       expect(
-        harness.voice.assets,
-        isNot(contains(fixedLineAsset('E0', testLanguage))),
+        harness.voice.fixedLines,
+        isNot(contains(('E0', testLanguage))),
         reason:
             'a sala chama uma pessoa pelo mesmo caminho de um livro sem nada '
             'a oferecer, sem uma fala fixa nova',
@@ -589,10 +589,7 @@ void main() {
       expect(state.stage, SalaStage.escolha);
       expect(state.needsPerson, isFalse);
       expect(harness.room.personsAsked, 0);
-      expect(
-        harness.voice.assets,
-        isNot(contains(fixedLineAsset('E0', testLanguage))),
-      );
+      expect(harness.voice.fixedLines, isNot(contains(('E0', testLanguage))));
     },
   );
 
@@ -1186,8 +1183,8 @@ void main() {
       );
 
       expect(
-        harness.voice.assets,
-        isNot(contains(fixedLineAsset('E0', testLanguage))),
+        harness.voice.fixedLines,
+        isNot(contains(('E0', testLanguage))),
         reason:
             'a leitura de estado não é um turno; quem fala E0 é o servidor, '
             'no turno em que ele decidir, não a vigia que só leu a marca',
@@ -1215,10 +1212,7 @@ void main() {
     final state = container.read(salaSessionProvider);
     expect(state.sessionId, isNull);
     expect(state.needsPerson, isFalse);
-    expect(
-      harness.voice.assets,
-      isNot(contains(fixedLineAsset('E0', testLanguage))),
-    );
+    expect(harness.voice.fixedLines, isNot(contains(('E0', testLanguage))));
     expect(
       harness.room.personsAsked,
       asked,
@@ -1714,8 +1708,8 @@ void main() {
       await settle();
     }
 
-    final ditas = harness.voice.assets
-        .where((a) => a == fixedLineAsset('D0', testLanguage))
+    final ditas = harness.voice.fixedLines
+        .where((line) => line == ('D0', testLanguage))
         .length;
     expect(
       ditas,

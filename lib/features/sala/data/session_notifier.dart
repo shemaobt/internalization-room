@@ -834,8 +834,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       LineKind.guide,
       () => fixedLine.isEmpty
           ? _voice.play(url, onSoundStart: onSoundStart)
-          : _voice.playAsset(
-              fixedLineAsset(fixedLine, _lingua),
+          : _voice.playFixedLine(
+              fixedLine,
+              _lingua,
               onSoundStart: onSoundStart,
             ),
     );
