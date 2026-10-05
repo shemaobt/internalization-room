@@ -75,7 +75,7 @@ class FacilitatorVoiceService {
                 return await _player.setAudioSource(clip) ?? clip._length;
               },
         onSoundStart: () {
-          unawaited(_tidyLibrary());
+          unawaited(_settled(clip).then((_) => _tidyLibrary()));
           onSoundStart?.call();
         },
       );
@@ -316,7 +316,14 @@ class FacilitatorVoiceService {
     }
   }
 
-  Future<void> dispose() async => _opened?.dispose();
+  Future<void> _settled(_ArrivingClip clip) =>
+      clip.file.then((_) {}, onError: (_) {});
+
+  Future<void> dispose() async {
+    await _giveUp();
+    await Future.wait(_arriving.values.map(_settled));
+    await _opened?.dispose();
+  }
 }
 
 class _ArrivingClip extends StreamAudioSource {
