@@ -4,6 +4,8 @@ import 'package:internalization_room/features/sala/data/port_adapters.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/room_reach.dart';
+import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
 class ARoomHost implements EffectHost {
   final List<String> asked = [];
@@ -83,6 +85,27 @@ class ARoomHost implements EffectHost {
 
   @override
   void sayTheOfflineNotice() => asked.add('sayTheOfflineNotice');
+
+  @override
+  void playTheReply(Turn turn, TurnResult reply) => asked.add('playTheReply');
+
+  @override
+  void letTheTurnGo(Turn turn) => asked.add('letTheTurnGo');
+
+  @override
+  void fellAt(Door door, RoomReach why) => asked.add('fellAt');
+
+  @override
+  void askForAPersonAgain() => asked.add('askForAPersonAgain');
+
+  @override
+  void markThePassageClosed() => asked.add('markThePassageClosed');
+
+  @override
+  void countTheRefusal() => asked.add('countTheRefusal');
+
+  @override
+  void refuseThePassage() => asked.add('refuseThePassage');
 }
 
 EffectRunner runnerOver(

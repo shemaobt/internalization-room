@@ -161,6 +161,7 @@ final theHeadNeverReadsAnotherSound = Invariant<Machine>(
     final sameSound = switch (was) {
       final Playing playing => identical(playing.sound, now.sound),
       Paused(:final what) => identical(what, now.sound),
+      GuideSpeaking(held: Paused(:final what)) => identical(what, now.sound),
       _ => false,
     };
     if (sameSound || now.head != null) return null;

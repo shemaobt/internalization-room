@@ -36,6 +36,8 @@ Future<void> _theRoomFalls(
   final notifier = container.read(salaSessionProvider.notifier);
   harness.network.reachable = false;
   harness.room.reachable = false;
+  harness.inbox.refuses = true;
+  notifier.handTap();
   notifier.conversaTap();
   await settle();
   notifier.conversaTap();

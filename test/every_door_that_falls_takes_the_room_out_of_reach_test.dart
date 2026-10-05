@@ -454,8 +454,9 @@ void main() {
     );
   });
 
-  test('7: out of reach with the microphone open, a tap closes it and keeps '
-      'the take, and no retry fires from it', () async {
+  test('7: out of reach with the microphone open, a tap closes it, keeps the '
+      'take and sends it once, and the look that finds nothing shows the person '
+      'sign', () async {
     final harness = SalaHarness(
       watchesWithoutAHalt: true,
       settleDelay: const Duration(milliseconds: 60),
@@ -489,10 +490,14 @@ void main() {
       checks,
       reason: 'o toque não é a retentativa',
     );
-    expect(room.estado.voice, VoiceState.offline);
+    expect(
+      harness.room.calls.where((call) => call == 'sendTurn'),
+      hasLength(1),
+    );
+    expect(room.estado.needsPerson, isTrue);
   });
 
-  test('8: on return the pending request is re-sent exactly once, and the '
+  test('8: a take closed out of reach is not sent again on return, and the '
       'Outbox drains', () async {
     final harness = SalaHarness(
       watchesWithoutAHalt: true,
@@ -521,15 +526,11 @@ void main() {
     room.theNetworkReturns();
 
     await waitFor(
-      'o turno guardado sair',
-      () => harness.room.turnsSent > turnsBefore,
-    );
-    await waitFor(
       'a Outbox esvaziar',
       () async => (await harness.takes.pending()).isEmpty,
     );
     await settle(const Duration(milliseconds: 300));
-    expect(harness.room.turnsSent, turnsBefore + 1);
+    expect(harness.room.turnsSent, turnsBefore);
   });
 
   test('8: a turn of a passage the team left is never re-sent on a later '

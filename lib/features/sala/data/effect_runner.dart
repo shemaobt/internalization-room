@@ -4,6 +4,8 @@ import '../domain/channel.dart';
 import '../domain/halt.dart';
 import '../domain/machine.dart';
 import '../domain/ports.dart';
+import '../domain/room_reach.dart';
+import '../domain/turn_result.dart';
 
 /// Temporary: what the runner still asks the notifier to do, one method per effect that
 /// reads or writes state the Station will own. PlayPart goes through it so that the voice
@@ -55,6 +57,20 @@ abstract interface class EffectHost {
   void openTheChoice();
 
   void sayTheOfflineNotice();
+
+  void playTheReply(Turn turn, TurnResult reply);
+
+  void countTheRefusal();
+
+  void refuseThePassage();
+
+  void letTheTurnGo(Turn turn);
+
+  void fellAt(Door door, RoomReach why);
+
+  void askForAPersonAgain();
+
+  void markThePassageClosed();
 }
 
 class EffectRunner {
@@ -139,6 +155,22 @@ class EffectRunner {
           host.openTheChoice();
         case SayTheOfflineNotice():
           host.sayTheOfflineNotice();
+        case LookAtTheSession(:final turn, :final sounding):
+          _lookAt(turn, sounding);
+        case PlayTheReply(:final turn, :final reply):
+          host.playTheReply(turn, reply);
+        case LetTheTurnGo(:final turn):
+          host.letTheTurnGo(turn);
+        case FellAt(:final door, :final why):
+          host.fellAt(door, why);
+        case AskForAPersonAgain():
+          host.askForAPersonAgain();
+        case MarkThePassageClosed():
+          host.markThePassageClosed();
+        case CountTheRefusal():
+          host.countTheRefusal();
+        case RefuseThePassage():
+          host.refuseThePassage();
       }
     }
   }
@@ -147,6 +179,21 @@ class EffectRunner {
     endTheWatch();
     _retry?.cancel();
     unawaited(_networkWatch?.cancel());
+  }
+
+  void _lookAt(Turn turn, Kept sounding) {
+    final stamp = generation?.call();
+    unawaited(
+      room
+          .lookAt(turn)
+          .then(
+            (reply) => host.answer(
+              reply == null
+                  ? LookEmpty(sounding: sounding, generation: stamp)
+                  : LookFound(turn, reply, generation: stamp),
+            ),
+          ),
+    );
   }
 
   void _armTheRetry(Duration delay) {

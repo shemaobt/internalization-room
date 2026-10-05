@@ -109,7 +109,10 @@ void main() {
       ]);
 
       expect(machine.reach, Reach.outOfReach);
-      expect(effects, [const ArmTheRetry(step: 1), const ArmTheRetry(step: 2)]);
+      expect(effects.whereType<ArmTheRetry>(), [
+        const ArmTheRetry(step: 1),
+        const ArmTheRetry(step: 2),
+      ]);
     });
   });
 

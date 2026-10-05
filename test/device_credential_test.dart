@@ -47,6 +47,7 @@ final Map<String, _Request> _everyRequest = {
   'createSession': (room, _) => room.createSession(language: 'pt'),
   'passagesOf': (room, _) => room.passagesOf('rute', language: 'pt'),
   'fetchState': (room, _) => room.fetchState('sessao-1'),
+  'lookAtTheTurn': (room, _) => room.lookAtTheTurn('sessao-1', 'turno-1'),
   'openSession': (room, _) => room.openSession('sessao-1'),
   'sendTurn': (room, audio) =>
       room.sendTurn('sessao-1', audio, turnId: 'turno-1'),

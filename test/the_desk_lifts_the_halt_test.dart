@@ -384,10 +384,10 @@ void main() {
       await waitFor('a sala parar com o turno no ar', () => read().needsPerson);
       await waitFor('a vigia reler o estado', () => stateReads(harness) > 1);
 
-      harness.room.failHeldTurnWith = const NetworkFailed('sem rede');
-      harness.room.finishHeldTurn();
+      harness.room.failStateOnceWith = const NetworkFailed('sem rede');
       await waitFor('a sala cair', () => read().unreachable);
       await waitFor('a sala voltar', () => !read().unreachable);
+      harness.room.finishHeldTurn();
 
       // The room is up again and the server is still holding the halt, so the next turn
       // stops the team once more — this time in a room that has been offline under it.

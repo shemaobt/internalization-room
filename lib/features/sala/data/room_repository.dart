@@ -23,9 +23,13 @@ import 'shared_http_client.dart';
 
 const _basePath = '/api/internalization-room';
 
-/// The client's rung of the turn ladder: above the turn route's 300 s server bound
-/// (ENG-817), below the busy-state watchdog in session_notifier.dart (330 s).
-const _turnTimeout = Duration(seconds: 310);
+/// A turn gives up at the turn route's 300 s server bound (ENG-817) plus a 5 s margin,
+/// below the busy-state watchdog in session_notifier.dart (330 s), and is then looked at
+/// once.
+const _turnTimeout = Duration(seconds: 305);
+
+/// Every other call that can run long waits 310 s.
+const _longCallTimeout = Duration(seconds: 310);
 const _defaultStateTimeout = Duration(seconds: 20);
 
 class RoomRepository {
@@ -137,7 +141,7 @@ class RoomRepository {
       _uri('/books/$book/passages?language=$language'),
       headers: _headers,
     ),
-    timeout: _turnTimeout,
+    timeout: _longCallTimeout,
     read: readJson(passagensFromJson),
     asksForTheSession: false,
   );
@@ -245,15 +249,28 @@ class RoomRepository {
     asksForTheSession: true,
   );
 
-  /// One voiced take, under the id it keeps across every resend. The id is not optional:
-  /// a take sent without one is a new turn to the room each time it goes, and a resend
-  /// of it is answered twice.
+  /// The one look at a turn this tablet gave up on, without sending it again.
+  Future<RoomAnswer<TurnResult>> lookAtTheTurn(
+    String sessionId,
+    String turnId,
+  ) => _room.ask(
+    () => _client.get(
+      _uri('/sessions/$sessionId/turns/$turnId'),
+      headers: _headers,
+    ),
+    timeout: _stateTimeout,
+    read: readJson(TurnResult.fromJson),
+    asksForTheSession: false,
+    atThisDoor: {202: Refused(RefusalCode.unnamed(202))},
+  );
+
+  /// One voiced take, under the id it keeps. The id is not optional: a take sent without
+  /// one is a new turn to the room each time it goes, and the one look cannot find it.
   Future<RoomAnswer<TurnResult>> sendTurn(
     String sessionId,
     File audio, {
     required String turnId,
     String? clientTiming,
-    Duration? timeout,
   }) async {
     final request =
         http.MultipartRequest('POST', _uri('/sessions/$sessionId/turns'))
@@ -263,7 +280,7 @@ class RoomRepository {
     if (clientTiming != null) request.fields['client_timing'] = clientTiming;
     return _room.askStreamed(
       request,
-      timeout: timeout ?? _turnTimeout,
+      timeout: _turnTimeout,
       read: readJson(TurnResult.fromJson),
       asksForTheSession: true,
     );
@@ -291,7 +308,7 @@ class RoomRepository {
       ..fields['starts_ms'] = '${from.inMilliseconds}'
       ..fields['ends_ms'] = '${to.inMilliseconds}'
       ..files.add(await http.MultipartFile.fromPath('file', audio.path)),
-    timeout: _turnTimeout,
+    timeout: _longCallTimeout,
     read: readJson(BackTranslationChunk.fromJson),
     asksForTheSession: true,
   );
@@ -319,7 +336,7 @@ class RoomRepository {
     if (chunkIndex != null) request.fields['chunk_index'] = '$chunkIndex';
     return _room.askStreamed(
       request,
-      timeout: _turnTimeout,
+      timeout: _longCallTimeout,
       read: readJson((json) => json['take_id'] as String),
       asksForTheSession: true,
     );
@@ -370,7 +387,7 @@ class RoomRepository {
       ..fields['starts_ms'] = '${from.inMilliseconds}'
       ..fields['ends_ms'] = '${to.inMilliseconds}'
       ..files.add(await http.MultipartFile.fromPath('file', audio.path)),
-    timeout: _turnTimeout,
+    timeout: _longCallTimeout,
     read: readJson(TellingAgain.fromJson),
     asksForTheSession: false,
   );
@@ -446,14 +463,14 @@ class RoomRepository {
               ],
             }),
     ),
-    timeout: _turnTimeout,
+    timeout: _longCallTimeout,
     read: readJson(BackTranslationVerdict.fromJson),
     asksForTheSession: true,
   );
 
   Future<RoomAnswer<Uint8List>> fetchClip(String url) => _room.ask(
     () => _client.get(Uri.parse('${Env.backendUrl}$url'), headers: _whoWeAre),
-    timeout: _turnTimeout,
+    timeout: _longCallTimeout,
     read: (response) => response.bodyBytes,
     asksForTheSession: false,
   );
@@ -467,7 +484,11 @@ class RoomRepository {
       ..headers.addAll(_whoWeAre);
     if (from != null) request.headers['Range'] = 'bytes=$from-';
     if (ifRange != null) request.headers['If-Range'] = ifRange;
-    return _room.open(request, timeout: _turnTimeout, asksForTheSession: false);
+    return _room.open(
+      request,
+      timeout: _longCallTimeout,
+      asksForTheSession: false,
+    );
   }
 
   void dispose() {
