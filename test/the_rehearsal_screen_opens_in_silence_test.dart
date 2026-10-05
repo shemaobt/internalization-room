@@ -31,6 +31,7 @@ void main() {
             'a tela de gravação abre como a dela, em silêncio; os quatro pontos de '
             'agosto vinham de uma fala fixa que nenhum commit de setembro carrega',
       );
+      expect(harness.voice.fixedLines, isEmpty);
     },
   );
 }

@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -57,11 +56,8 @@ Future<_Sala> _aRodaAberta() async {
 /// passage that starts over and hears the second one first is a passage carrying the
 /// count of the one before it.
 List<String> _esperasDitas(SalaHarness harness) => [
-  for (final asset in harness.voice.assets)
-    if (instantAckLines.any(
-      (line) => asset == fixedLineAsset(line, testLanguage),
-    ))
-      asset,
+  for (final (line, _) in harness.voice.fixedLines)
+    if (line.startsWith('F')) line,
 ];
 
 void main() {
@@ -103,10 +99,9 @@ void main() {
     await it.entrar('P02');
     await it.falar(2);
 
-    final primeira = fixedLineAsset(instantAckLines.first, testLanguage);
     expect(
       _esperasDitas(it.harness),
-      [primeira, primeira],
+      ['F0', 'F0'],
       reason:
           'a rotação das esperas é da passagem: herdada, a equipe ouve '
           'a passagem nova começar no meio da volta anterior',

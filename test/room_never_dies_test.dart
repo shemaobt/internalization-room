@@ -769,6 +769,7 @@ void main() {
         isEmpty,
         reason: 'o Guia não anuncia a pergunta nem a resposta — o envio é mudo',
       );
+      expect(harness.voice.fixedLines, isEmpty);
       expect(
         container.read(salaSessionProvider).questionPending,
         isTrue,
@@ -803,6 +804,7 @@ void main() {
         reason:
             'nem a primeira pergunta nem a segunda tiram o Guia do silêncio',
       );
+      expect(harness.voice.fixedLines, isEmpty);
     },
   );
 

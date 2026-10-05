@@ -3071,7 +3071,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(
       _sayALine(
         LineKind.acknowledgement,
-        () => _voice.playAsset(fixedLineAsset(line, _lingua)),
+        () => _voice.playFixedLine(line, _lingua),
       ),
     );
   }

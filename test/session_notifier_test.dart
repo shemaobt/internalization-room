@@ -3724,6 +3724,7 @@ void main() {
           'um convite repetido vira cobrança; quem abre a sessão agora é a fala '
           'que começa a passagem, não um lembrete sozinho',
     );
+    expect(harness.voice.fixedLines, isEmpty);
     expect(
       harness.room.calls,
       isEmpty,
@@ -6234,7 +6235,7 @@ void main() {
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
-    harness.voice.assets.clear();
+    harness.voice.fixedLines.clear();
 
     notifier.conversaTap();
     await settle();
@@ -6242,8 +6243,8 @@ void main() {
     await settle();
 
     expect(
-      harness.voice.assets.first,
-      fixedLineAsset(instantAckLines.first, testLanguage),
+      harness.voice.fixedLines.first,
+      ('F0', testLanguage),
       reason:
           'a fala de reconhecimento existe aprovada e no pacote desde o '
           'começo, e nada nunca a tocava — a sala esperava calada',
@@ -6257,7 +6258,7 @@ void main() {
       final container = await inConversa(harness);
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
-      harness.voice.assets.clear();
+      harness.voice.fixedLines.clear();
 
       for (var turn = 0; turn < 2; turn++) {
         notifier.conversaTap();
@@ -6267,11 +6268,8 @@ void main() {
       }
 
       expect(
-        harness.voice.assets.where((asset) => asset.contains('/F')).toList(),
-        [
-          fixedLineAsset(instantAckLines[0], testLanguage),
-          fixedLineAsset(instantAckLines[1], testLanguage),
-        ],
+        harness.voice.fixedLines.where((line) => line.$1.startsWith('F')),
+        [('F0', testLanguage), ('F1', testLanguage)],
       );
     },
   );
@@ -6283,6 +6281,7 @@ void main() {
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
     harness.voice.assets.clear();
+    harness.voice.fixedLines.clear();
     final turnsBefore = harness.room.turnsSent;
 
     notifier.conversaTap();
@@ -6304,6 +6303,7 @@ void main() {
           'nenhuma linha fixa é falada — o take que o guard reprova '
           'some em silêncio, sem pedir para repetir',
     );
+    expect(harness.voice.fixedLines, isEmpty);
     expect(
       container.read(salaSessionProvider).voice,
       VoiceState.invite,
@@ -7360,6 +7360,7 @@ void main() {
           'não há mais pergunta de método a fazer com uma fala fixa do app; '
           'a primeira voz na sala é a do Guia, tocada pela url que a sala mandou',
     );
+    expect(harness.voice.fixedLines, isEmpty);
     expect(
       harness.voice.played,
       hasLength(1),

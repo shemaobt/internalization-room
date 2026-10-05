@@ -17,6 +17,7 @@ const _fazemSom = {
   'playback:play',
   'voice:line',
   'voice:asset',
+  'voice:fixed',
   'recorder:start',
 };
 
