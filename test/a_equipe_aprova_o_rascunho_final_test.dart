@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/approval_answer.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -164,7 +163,7 @@ void main() {
     (tester) async {
       final it = await _ateAConferida(tester);
       final sessao = _estado(it.container).sessionId;
-      final falasAntes = it.harness.voice.assets.length;
+      final falasAntes = it.harness.voice.fixedLines.length;
 
       it.harness.voice.holdNextLine();
       await tester.tap(byLabel(_aprovar));
@@ -176,8 +175,8 @@ void main() {
         reason: 'um pedido, para a sessão desta passagem',
       );
       expect(
-        it.harness.voice.assets.skip(falasAntes),
-        contains(fixedLineAsset(approvedLine, testLanguage)),
+        it.harness.voice.fixedLines.skip(falasAntes),
+        contains(('P3', testLanguage)),
         reason:
             'a linha da aprovação é a quarta das falas de processo da '
             'Marcia, tocada do pacote: a sala tem de poder dizê-la sem rede',
@@ -224,7 +223,7 @@ void main() {
     tester,
   ) async {
     final it = await _ateAConferida(tester);
-    final falasAntes = it.harness.voice.assets.length;
+    final falasAntes = it.harness.voice.fixedLines.length;
 
     it.harness.room.holdNextRelease();
     await tester.tap(byLabel(_aprovar));
@@ -244,9 +243,9 @@ void main() {
     it.harness.room.finishHeldRelease();
     await tester.pump(const Duration(milliseconds: 300));
 
-    final ditas = it.harness.voice.assets
+    final ditas = it.harness.voice.fixedLines
         .skip(falasAntes)
-        .where((asset) => asset == fixedLineAsset(approvedLine, testLanguage));
+        .where((line) => line == ('P3', testLanguage));
     expect(
       ditas,
       hasLength(1),
@@ -302,7 +301,7 @@ void main() {
       tester,
     ) async {
       final it = await _ateAConferida(tester);
-      final falasAntes = it.harness.voice.assets.length;
+      final falasAntes = it.harness.voice.fixedLines.length;
       it.harness.room.releaseBlockers = [codigo];
 
       await _aprovarEEsperar(tester);
@@ -334,8 +333,8 @@ void main() {
       );
       expect(it.harness.room.personsAsked, 1);
       expect(
-        it.harness.voice.assets.skip(falasAntes),
-        isNot(contains(fixedLineAsset(approvedLine, testLanguage))),
+        it.harness.voice.fixedLines.skip(falasAntes),
+        isNot(contains(('P3', testLanguage))),
         reason: 'e nada foi aprovado, então a linha da aprovação não é dita',
       );
       expect(_estado(it.container).stage, SalaStage.retro);
@@ -673,7 +672,7 @@ void main() {
     () async {
       final it = await _tresPartesAteAConferida();
       final segunda = it.partes[1];
-      final falasAntes = it.harness.voice.assets.length;
+      final falasAntes = it.harness.voice.fixedLines.length;
       it.harness.room
         ..releaseBlockers = const ['telling_back_not_checked', 'untold_part']
         ..releaseUntoldTakeIds = [segunda.takeId!];
@@ -708,8 +707,8 @@ void main() {
             'depois de um chão que não existe toca silêncio',
       );
       expect(
-        it.harness.voice.assets.skip(falasAntes),
-        isNot(contains(fixedLineAsset(approvedLine, testLanguage))),
+        it.harness.voice.fixedLines.skip(falasAntes),
+        isNot(contains(('P3', testLanguage))),
         reason: 'nada foi aprovado, então a linha da aprovação não é dita',
       );
       expect(

@@ -5197,7 +5197,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       try {
         disse = await _sayALine(
           LineKind.approved,
-          () => _voice.playAsset(fixedLineAsset(approvedLine, _lingua)),
+          () => _voice.playFixedLine(approvedLine, _lingua),
         );
       } on RoomFailure catch (failure) {
         return failed(failure);
