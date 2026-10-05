@@ -20,17 +20,17 @@ const _intoTheMapper = [
 const _notYetMoved = <String, String>{
   '_anEarlierSessionAnswered': 'ENG-1354',
   '_tellTheRoomAPersonArrivedAt': 'ENG-1354',
-  '_aprovarRascunhoFinal': 'ENG-1410',
-  '_asPartesDaSala': 'ENG-1410',
-  '_createThePassage': 'ENG-1410',
-  '_finishBackTranslation': 'ENG-1410',
-  '_goConversa': 'ENG-1410',
-  '_markHeard': 'ENG-1410',
-  '_porCadaTrechoNaSuaParte': 'ENG-1410',
-  '_pullInbox': 'ENG-1410',
-  '_tellThatStretchAgain': 'ENG-1410',
-  '_theTranslationWaits': 'ENG-1410',
-  '_watchCoverageChannel': 'ENG-1410',
+  '_aprovarRascunhoFinal': 'ENG-1444',
+  '_asPartesDaSala': 'ENG-1444',
+  '_createThePassage': 'ENG-1444',
+  '_finishBackTranslation': 'ENG-1444',
+  '_goConversa': 'ENG-1444',
+  '_markHeard': 'ENG-1444',
+  '_porCadaTrechoNaSuaParte': 'ENG-1444',
+  '_pullInbox': 'ENG-1444',
+  '_tellThatStretchAgain': 'ENG-1444',
+  '_theTranslationWaits': 'ENG-1444',
+  '_watchCoverageChannel': 'ENG-1444',
 };
 
 final _namesAFailure = RegExp(
@@ -115,6 +115,19 @@ List<String> _failuresCaughtOutsideTheMapper(String source) {
     );
     if (_handsItOn(body, bound?.group(1))) continue;
     found.add('$method: case${pattern.trim()}');
+  }
+  for (final clause in RegExp(
+    r'\bon\s+(?:RoomFailure|NetworkFailed|Refused|SessionGone)\b'
+    r'(?:\s+catch\s*\((\w+)[^)]*\))?\s*\{',
+  ).allMatches(source)) {
+    final method = _methodAround(source, clause.start);
+    if (_notYetMoved.containsKey(method)) continue;
+    final body = source.substring(
+      clause.end,
+      _blockEnd(source, clause.end - 1),
+    );
+    if (_handsItOn(body, clause.group(1))) continue;
+    found.add('$method: ${clause.group(0)!.trim()}');
   }
   return found;
 }
