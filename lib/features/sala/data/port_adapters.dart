@@ -3,11 +3,15 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/channel.dart';
+import '../domain/machine.dart';
 import '../domain/ports.dart';
+import '../domain/turn_result.dart';
 import 'connectivity_service.dart';
 import 'facilitator_voice_service.dart';
 import 'playback_repository.dart';
 import 'recording_repository.dart';
+import 'room_answer.dart';
+import 'room_repository.dart';
 import 'take_upload_queue.dart';
 
 class ProviderRoomPort implements RoomPort {
@@ -18,6 +22,14 @@ class ProviderRoomPort implements RoomPort {
   @override
   Stream<void> get networkReturned =>
       _ref.read(connectivityServiceProvider).onNetworkReturned;
+
+  @override
+  Future<TurnResult?> lookAt(Turn turn) async => switch (await _ref
+      .read(roomRepositoryProvider)
+      .lookAtTheTurn(turn.sessionId, turn.turnId)) {
+    Answered(:final value) => value,
+    RoomFailure() => null,
+  };
 }
 
 class ProviderSoundPort implements SoundPort {

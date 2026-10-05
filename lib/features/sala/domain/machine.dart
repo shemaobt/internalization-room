@@ -1,6 +1,7 @@
 import 'channel.dart';
 import 'halt.dart';
 import 'session_snapshot.dart';
+import 'turn_result.dart';
 
 sealed class MachineEvent {
   const MachineEvent();
@@ -196,6 +197,59 @@ final class ThePassageClosed extends AnsweringEvent {
   const ThePassageClosed({super.generation});
 }
 
+/// One turn: the session it was spoken into and the id it keeps.
+final class Turn {
+  final String sessionId;
+  final String turnId;
+
+  const Turn(this.sessionId, this.turnId);
+
+  @override
+  bool operator ==(Object other) =>
+      other is Turn && other.sessionId == sessionId && other.turnId == turnId;
+
+  @override
+  int get hashCode => Object.hash(sessionId, turnId);
+}
+
+final class TurnGivenUp extends AnsweringEvent {
+  final Turn turn;
+  final Kept sounding;
+
+  const TurnGivenUp(
+    this.turn, {
+    this.sounding = const NothingKept(),
+    super.generation,
+  });
+}
+
+final class LookFound extends AnsweringEvent {
+  final TurnResult reply;
+
+  const LookFound(this.reply, {super.generation});
+}
+
+final class LookEmpty extends AnsweringEvent {
+  final Kept sounding;
+
+  const LookEmpty({this.sounding = const NothingKept(), super.generation});
+}
+
+final class TheRoomRefused extends AnsweringEvent {
+  final bool third;
+  final Kept sounding;
+
+  const TheRoomRefused({
+    this.third = false,
+    this.sounding = const NothingKept(),
+    super.generation,
+  });
+}
+
+final class ThePassageCannotOpen extends AnsweringEvent {
+  const ThePassageCannotOpen({super.generation});
+}
+
 sealed class Effect {
   const Effect();
 }
@@ -383,6 +437,36 @@ final class OpenTheChoice extends Effect {
   const OpenTheChoice();
 }
 
+final class LookAtTheSession extends Effect {
+  final Turn turn;
+  final Kept sounding;
+
+  const LookAtTheSession(this.turn, {this.sounding = const NothingKept()});
+
+  @override
+  bool operator ==(Object other) =>
+      other is LookAtTheSession &&
+      other.turn == turn &&
+      other.sounding == sounding;
+
+  @override
+  int get hashCode => Object.hash(turn, sounding);
+}
+
+final class PlayTheReply extends Effect {
+  final TurnResult reply;
+
+  const PlayTheReply(this.reply);
+}
+
+final class CountTheRefusal extends Effect {
+  const CountTheRefusal();
+}
+
+final class RefuseThePassage extends Effect {
+  const RefuseThePassage();
+}
+
 final class Machine {
   final Halt halt;
   final Channel channel;
@@ -513,6 +597,24 @@ const _watch = ArmTheWatch();
         ],
       ),
       TheSessionIsGone() || ThePassageClosed() => _theSessionGone(machine),
+      TurnGivenUp(:final turn, :final sounding) => (
+        machine,
+        [LookAtTheSession(turn, sounding: sounding)],
+      ),
+      LookFound(:final reply) => (
+        machine,
+        [if (machine.halt is! Blocking) PlayTheReply(reply)],
+      ),
+      LookEmpty(:final sounding) => _theHalt(
+        machine,
+        RoomRaisedAHalt(sounding: sounding),
+      ),
+      TheRoomRefused(:final third, :final sounding) => _refused(
+        machine,
+        third,
+        sounding,
+      ),
+      ThePassageCannotOpen() => (machine, const [RefuseThePassage()]),
       NetworkFailedAt(:final door) => _fall(machine, door),
       NetworkReturned() => _return(machine),
       RetryFired() => _retry(machine),
@@ -839,6 +941,15 @@ List<Effect> _stopTheLineIn(Channel channel) => switch (channel) {
   return (next, effects);
 }
 
+(Machine, List<Effect>) _refused(Machine machine, bool third, Kept sounding) {
+  if (!third) return (machine, const [CountTheRefusal()]);
+  final (halted, effects) = _theHalt(
+    machine,
+    RoomRaisedAHalt(sounding: sounding),
+  );
+  return (halted, [const CountTheRefusal(), ...effects]);
+}
+
 (Machine, List<Effect>) _theSessionGone(Machine machine) => (
   machine.copyWith(
     halt: const NoHalt(),
@@ -984,7 +1095,12 @@ Machine _answered(Machine machine) =>
   StepLeft() ||
   LeftThePassage() ||
   TheSessionIsGone() ||
-  ThePassageClosed() => (halt, const []),
+  ThePassageClosed() ||
+  TurnGivenUp() ||
+  LookFound() ||
+  LookEmpty() ||
+  TheRoomRefused() ||
+  ThePassageCannotOpen() => (halt, const []),
 };
 
 (Halt, List<Effect>) _read(Halt halt, SessionRead read) {

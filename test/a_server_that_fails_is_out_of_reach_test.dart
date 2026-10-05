@@ -24,7 +24,6 @@ class _TurnsOverTheWire extends FakeRoom {
     File audio, {
     required String turnId,
     String? clientTiming,
-    Duration? timeout,
   }) async {
     final status = turnStatus;
     if (status == null) {
@@ -33,7 +32,6 @@ class _TurnsOverTheWire extends FakeRoom {
         audio,
         turnId: turnId,
         clientTiming: clientTiming,
-        timeout: timeout,
       );
     }
     final take = File(
@@ -64,8 +62,8 @@ void main() {
     );
   });
 
-  test('a turn the server fails with a 5xx takes the room out of reach, '
-      'never a strike or a halt', () async {
+  test('a turn the server fails with a 5xx is looked at once and shows the '
+      'person sign, never the offline face or a strike', () async {
     final room = _TurnsOverTheWire();
     final harness = SalaHarness(room: room);
     final container = harness.container();
@@ -86,12 +84,13 @@ void main() {
     await settle(const Duration(milliseconds: 300));
 
     expect(room.turnsOverTheWire, 1);
-    expect(outOfReach, isTrue);
-    expect(container.read(salaSessionProvider).needsPerson, isFalse);
+    expect(room.turnIdsLookedAt, hasLength(1));
+    expect(outOfReach, isFalse);
+    expect(container.read(salaSessionProvider).needsPerson, isTrue);
   });
 
-  test('an opening that outlives the wait takes the room out of reach at '
-      'once, with no thinking loop', () async {
+  test('an opening that outlives the wait is looked at once and shows the '
+      'person sign, with no thinking loop', () async {
     final harness = SalaHarness()
       ..room.failHeldTurnWith = const NetworkFailed('timeout');
     final container = harness.container();
@@ -104,7 +103,8 @@ void main() {
     await settle();
 
     expect(harness.room.turnIdsAsked, hasLength(1));
-    expect(voices, contains(VoiceState.offline));
-    expect(container.read(salaSessionProvider).needsPerson, isFalse);
+    expect(harness.room.turnIdsLookedAt, harness.room.turnIdsAsked);
+    expect(voices, isNot(contains(VoiceState.offline)));
+    expect(container.read(salaSessionProvider).needsPerson, isTrue);
   });
 }

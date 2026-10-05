@@ -12,6 +12,7 @@ const _theReach = [
   '_fellOnTheNetwork(',
   '_theStepFell(',
   '_theResumeFell(',
+  '_giveUpOnTheTurn(',
 ];
 
 final _commentPattern = RegExp(r'//.*$', multiLine: true);
@@ -133,14 +134,16 @@ List<String> _armsThatSwallowTheNetwork(String source) {
 
 void main() {
   for (final path in _doorsOfTheRoom) {
-    test('12 (e): $path catches no NetworkFailed outside the reach', () {
+    test('12 (e): $path catches no NetworkFailed outside the reach or the one '
+        'look', () {
       expect(
         _armsThatSwallowTheNetwork(_withoutComments(path)),
         isEmpty,
         reason:
-            'a network failure at any door takes the room out of reach: an arm '
-            'that names it, or every failure, either hands it on or tells the '
-            'reach, and no type test swallows it',
+            'a network failure takes the room out of reach, or the one look '
+            'when it is a turn: an arm that names it, or every failure, either '
+            'hands it on, tells the reach or gives the turn up, and no type '
+            'test swallows it',
       );
     });
   }

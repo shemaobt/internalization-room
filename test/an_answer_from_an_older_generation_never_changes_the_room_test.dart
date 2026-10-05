@@ -67,6 +67,22 @@ AnsweringEvent _stampedAnswer(
   WatchFired() => WatchFired(generation: generation),
   RetryFired() => RetryFired(generation: generation),
   NetworkFailedAt(:final door) => NetworkFailedAt(door, generation: generation),
+  TurnGivenUp(:final turn, :final sounding) => TurnGivenUp(
+    turn,
+    sounding: sounding,
+    generation: generation,
+  ),
+  LookFound(:final reply) => LookFound(reply, generation: generation),
+  LookEmpty(:final sounding) => LookEmpty(
+    sounding: sounding,
+    generation: generation,
+  ),
+  TheRoomRefused(:final third, :final sounding) => TheRoomRefused(
+    third: third,
+    sounding: sounding,
+    generation: generation,
+  ),
+  ThePassageCannotOpen() => ThePassageCannotOpen(generation: generation),
 };
 
 String? _aStaleAnswerChangedTheRoom(int seed) {

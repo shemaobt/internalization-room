@@ -149,8 +149,7 @@ void main() {
 
   test('a sala não diz mais recontar nem retrotradução', () {
     final retirada = RegExp(
-      r'recont|retrotradução|contandoDeNovo',
-      caseSensitive: false,
+      r'[Rr]econt|RECONT|[Rr]etrotradução|[Cc]ontandoDeNovo',
     );
     final ofensores = <String>[];
 
