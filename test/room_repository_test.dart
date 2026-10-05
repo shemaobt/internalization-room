@@ -604,10 +604,8 @@ void main() {
     'a room that takes too long is not a room that is gone',
     () async {
       final repository = RoomRepository(
-        client: MockClient((_) async {
-          await Future<void>.delayed(const Duration(seconds: 30));
-          return http.Response('{}', 200);
-        }),
+        client: MockClient((_) => Completer<http.Response>().future),
+        stateTimeout: const Duration(milliseconds: 200),
       );
       addTearDown(repository.dispose);
 
@@ -619,7 +617,7 @@ void main() {
             'que a internet tinha caído por causa de um servidor pensando',
       );
     },
-    timeout: const Timeout(Duration(seconds: 90)),
+    timeout: const Timeout(Duration(seconds: 5)),
   );
 
   test(

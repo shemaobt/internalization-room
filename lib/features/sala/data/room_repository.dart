@@ -26,7 +26,7 @@ const _basePath = '/api/internalization-room';
 /// The client's rung of the turn ladder: above the turn route's 300 s server bound
 /// (ENG-817), below the busy-state watchdog in session_notifier.dart (330 s).
 const _turnTimeout = Duration(seconds: 310);
-const _stateTimeout = Duration(seconds: 20);
+const _defaultStateTimeout = Duration(seconds: 20);
 
 class RoomRepository {
   static const turnTimeout = _turnTimeout;
@@ -34,12 +34,16 @@ class RoomRepository {
   final http.Client _client;
   final bool _ownsClient;
   final Future<String> Function() _deviceId;
+  final Duration _stateTimeout;
   late final RoomClient _room = RoomClient(_client);
 
-  RoomRepository({http.Client? client, Future<String> Function()? deviceId})
-    : _client = client ?? http.Client(),
-      _ownsClient = client == null,
-      _deviceId = deviceId ?? deviceIdentity;
+  RoomRepository({
+    http.Client? client,
+    Future<String> Function()? deviceId,
+    this._stateTimeout = _defaultStateTimeout,
+  }) : _client = client ?? http.Client(),
+       _ownsClient = client == null,
+       _deviceId = deviceId ?? deviceIdentity;
 
   http.Client get client => _client;
 
