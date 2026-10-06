@@ -14,18 +14,6 @@ const _panorama = Passagem(
 );
 const _p01 = Passagem(pericope: 'P01', audioUrl: '/voice/p01');
 
-Future<void> _theHaltIsLifted(
-  SalaHarness harness,
-  SalaSessionNotifier notifier,
-  SalaSessionState Function() read,
-) async {
-  harness.voice.roomFailsWith = null;
-  harness.room.theDeskAttended();
-  notifier.resolveWithPerson();
-  await waitFor('a sala soltar', () => !read().needsPerson);
-  await settle();
-}
-
 void _expectAFreshTurnId(SalaHarness harness) {
   expect(harness.room.turnIdsAsked.length, greaterThanOrEqualTo(2));
   expect(
@@ -49,7 +37,7 @@ void main() {
 
     await notifier.openConvite();
     await waitFor('a sala parar', () => read().needsPerson);
-    await _theHaltIsLifted(harness, notifier, read);
+    await theHaltIsLifted(harness, notifier, read);
     notifier.conviteTap();
     await settle();
 
@@ -69,7 +57,7 @@ void main() {
     harness.voice.roomFailsWith = const Refused(RefusalCode.notFound);
     notifier.entrarNaOferecida();
     await waitFor('a sala parar', () => read().needsPerson);
-    await _theHaltIsLifted(harness, notifier, read);
+    await theHaltIsLifted(harness, notifier, read);
     notifier.entrarNaOferecida();
     await settle();
 

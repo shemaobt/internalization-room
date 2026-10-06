@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:clock/clock.dart';
@@ -231,7 +232,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   bool _personAsked = false;
   bool _askingForAPerson = false;
   int _personAskStep = 0;
-  int _ackSpoken = 0;
+  int _lastAcknowledgement = 0;
+  final _random = Random();
   DateTime? _listeningSince;
   bool _recordingStarting = false;
   int _starts = 0;
@@ -2548,7 +2550,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     if (sessionId == null) return;
     final generation = _waitOnTheGeneration;
-    _sayImThinking();
     state = state.copyWith(awaitingTheGuide: true);
     _watchBusyState();
     void failed(RoomFailure failure) {
@@ -2984,7 +2985,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _sayImThinking() {
-    final line = rotated(instantAckLines, _ackSpoken++);
+    _lastAcknowledgement = acknowledgementAfter(_lastAcknowledgement, _random);
+    final line = instantAckLines[_lastAcknowledgement];
     unawaited(
       _sayALine(LineKind.acknowledgement, asset: fixedLineAsset(line, _lingua)),
     );
@@ -5730,7 +5732,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _semNome.clear();
     _captureFails = 0;
     _calmTurns = 0;
-    _ackSpoken = 0;
     _recordingStarting = false;
     _conviteOpened = false;
   }
