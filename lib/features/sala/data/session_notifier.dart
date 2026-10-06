@@ -2487,6 +2487,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (Station.stored(waiting.stage) is Retro) {
           _pickTheTellingBackUp(snapshot.backTranslation);
           landed();
+          unawaited(_countUnsent());
         } else {
           _keepTheStretchesAlreadyTold(snapshot.backTranslation);
         }
