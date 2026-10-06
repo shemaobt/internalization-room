@@ -6134,7 +6134,10 @@ void main() {
     );
 
     notifier.ouvirOTrechoEATraducao();
-    await settle();
+    await waitFor(
+      'o trecho apontado ser tocado',
+      () => harness.playback.ranges.isNotEmpty,
+    );
 
     expect(
       harness.playback.ranges,
