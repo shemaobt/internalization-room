@@ -27,6 +27,18 @@ A take fetched back from the room is named by what its bytes are, not by what th
 expects: a RIFF/WAVE header is kept as `.wav` and anything else as `.m4a`, because the
 player chooses its parser by the extension. Takes already stored as AAC stay as they are.
 
+## Considered Options
+
+**Transcode on the server.** Rejected by the Definer: the tablet would keep recording AAC,
+and a lossy file turned into WAV is still lossy, only larger.
+
+**Everything stays AAC.** Rejected: Refine's hand-off format is not met, and the team's
+deliverable reaches it with what the encoder threw away.
+
+**Every microphone records WAV.** Rejected: her app keeps the telling-back compressed, and
+the conversation turns are not deliverables. Each turn and each stretch would cost the
+Outbox and the room several times the bytes for nothing Refine reads.
+
 ## Consequences
 
 Once WAV parts are stored, the room and Refine hold both formats for good, so this does
