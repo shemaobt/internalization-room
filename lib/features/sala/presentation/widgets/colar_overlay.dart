@@ -61,7 +61,7 @@ class ColarOverlay extends StatelessWidget {
                   ),
                 ),
               ),
-              for (var i = 0; i < session.coverage.total; i++)
+              for (var i = 0; i < session.coverage.beadsTotal; i++)
                 _bead(context, colors, i, map, onFim),
             ],
           );
@@ -77,26 +77,13 @@ class ColarOverlay extends StatelessWidget {
     Offset Function(Offset) map,
     bool onFim,
   ) {
-    final total = session.coverage.total;
+    final total = session.coverage.beadsTotal;
     final size = (onFim ? 26.0 : 18.0);
     final p = map(onFim ? circlePoint(i, total) : arcPoint(i, total));
-    final isAbsence = session.coverage.isAbsence(i);
-    final engaged = i < session.coverage.engaged;
+    final lit = i < session.coverage.beadsFilled;
 
     BoxDecoration decoration;
-    if (engaged && isAbsence) {
-      decoration = BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: ShemaBrand.wood, width: 3),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x2E0A0703),
-            offset: Offset(0, 1),
-            blurRadius: 3,
-          ),
-        ],
-      );
-    } else if (engaged) {
+    if (lit) {
       decoration = const BoxDecoration(
         shape: BoxShape.circle,
         gradient: BeadStyles.wood,
