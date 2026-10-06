@@ -1,3 +1,7 @@
+---
+status: superseded in part by ADR-0056
+---
+
 # Latency is honesty
 
 ## Context

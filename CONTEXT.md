@@ -60,6 +60,10 @@ _Avoid_: guia, narrator, facilitator (a person, not the voice), `Facilitator` (t
 A line pre-approved and shipped inside the app, played straight from the device without asking the server.
 _Avoid_: linha fixa, canned line, static line, fail-safe line (one role a fixed line can serve)
 
+**Instant acknowledgement**:
+The fixed line played the moment a team turn ends: one of Marcia's three, picked at random by her formula, never the same twice running, and never before an opening (ADR 0056).
+_Avoid_: thinking line, filler, wait line
+
 **Process line**:
 One of Marcia's fixed lines for a step of the back-translation (start, tell, unheard, approved), bundled and played by position in the room's language, never rotated; the approval's line is the fourth.
 _Avoid_: fail-safe (a fixed line that answers a failure and rotates), canned line, linha de processo

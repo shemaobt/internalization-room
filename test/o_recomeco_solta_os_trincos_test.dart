@@ -53,14 +53,16 @@ Future<_Sala> _aRodaAberta() async {
   return sala;
 }
 
-/// The lines the room said to fill a wait, in the order it said them. They rotate, so a
-/// passage that starts over and hears the second one first is a passage carrying the
-/// count of the one before it.
+/// The lines the room said to fill a wait, in the order it said them, whichever of the
+/// bundled family they are.
 List<String> _esperasDitas(SalaHarness harness) => [
   for (final asset in harness.voice.assets)
-    if (instantAckLines.any(
-      (line) => asset == fixedLineAsset(line, testLanguage),
-    ))
+    if ([
+      'F0',
+      'F1',
+      'F2',
+      'F3',
+    ].any((line) => asset == fixedLineAsset(line, testLanguage)))
       asset,
 ];
 
@@ -95,23 +97,26 @@ void main() {
     );
   });
 
-  test('a passagem nova começa a rodar as esperas do início', () async {
-    final it = await _aRodaAberta();
-    await it.entrar('P01');
-    await it.falar(1);
+  test(
+    'a passagem nova não abre com a espera em que a anterior terminou',
+    () async {
+      final it = await _aRodaAberta();
+      await it.entrar('P01');
+      await it.falar(1);
+      final ultima = _esperasDitas(it.harness).last;
 
-    await it.entrar('P02');
-    await it.falar(2);
+      await it.entrar('P02');
+      await it.falar(2);
 
-    final primeira = fixedLineAsset(instantAckLines.first, testLanguage);
-    expect(
-      _esperasDitas(it.harness),
-      [primeira, primeira],
-      reason:
-          'a rotação das esperas é da passagem: herdada, a equipe ouve '
-          'a passagem nova começar no meio da volta anterior',
-    );
-  });
+      expect(
+        _esperasDitas(it.harness).last,
+        isNot(ultima),
+        reason:
+            'a espera nunca se repete duas vezes seguidas, e a passagem '
+            'nova não é um recomeço: a sala é a mesma',
+      );
+    },
+  );
 
   test(
     'a passagem nova abre o microfone depois de um que ficou a abrir',
