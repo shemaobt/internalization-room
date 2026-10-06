@@ -7,6 +7,8 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
+import '../domain/channel.dart';
+
 const _permissionAnswerCeiling = Duration(seconds: 60);
 
 /// What came of asking the microphone to start.
@@ -35,25 +37,29 @@ class RecordingRepository {
     }
   }
 
-  // The deliverable takes (ensaio, retro) drop noise suppression and gain — the September
-  // reference's DRAFT_MIC_CONSTRAINTS (wavRecorder.ts:141-144), so Refine hears the team's
-  // voice unfiltered. The conversation mic keeps every filter on: her getUserMedia({audio:
-  // true}) already runs them by browser default (page.tsx:341), and record's own bare
-  // defaults — everything off, stereo — do not reproduce that.
-  Future<Capture> start(String fileName, {bool draft = false}) async {
+  // A rehearsal or a capture drops noise suppression and gain, as the reference's
+  // DRAFT_MIC_CONSTRAINTS (wavRecorder.ts:141-144); only a rehearsal is WAV (ADR 0054).
+  Future<Capture> start(
+    String fileName, {
+    MicOwner owner = MicOwner.conversation,
+  }) async {
     if (await hasPermission() == false) return Capture.denied;
+    final roomFilters =
+        owner != MicOwner.rehearsal && owner != MicOwner.capture;
+    final wav = owner == MicOwner.rehearsal;
     try {
       final dir = await _recordingsDir();
       await _recorder.start(
         RecordConfig(
-          encoder: AudioEncoder.aacLc,
+          encoder: wav ? AudioEncoder.wav : AudioEncoder.aacLc,
+          sampleRate: wav ? 16000 : const RecordConfig().sampleRate,
           audioInterruption: AudioInterruptionMode.pauseResume,
           echoCancel: true,
-          noiseSuppress: !draft,
-          autoGain: !draft,
+          noiseSuppress: roomFilters,
+          autoGain: roomFilters,
           numChannels: 1,
         ),
-        path: p.join(dir.path, '$fileName.m4a'),
+        path: p.join(dir.path, '$fileName.${wav ? 'wav' : 'm4a'}'),
       );
       return Capture.started;
     } on Object {
@@ -90,7 +96,8 @@ class RecordingRepository {
   /// be a second thing to keep alive.
   Future<String> keepBytes(Uint8List bytes, String fileName) async {
     final dir = await _recordingsDir();
-    final target = File(p.join(dir.path, '$fileName.m4a'));
+    final extension = _isWav(bytes) ? 'wav' : 'm4a';
+    final target = File(p.join(dir.path, '$fileName.$extension'));
     await target.writeAsBytes(bytes);
     return target.path;
   }
@@ -104,6 +111,11 @@ class RecordingRepository {
 
   Future<void> dispose() => _recorder.dispose();
 }
+
+bool _isWav(Uint8List bytes) =>
+    bytes.length >= 12 &&
+    String.fromCharCodes(bytes, 0, 4) == 'RIFF' &&
+    String.fromCharCodes(bytes, 8, 12) == 'WAVE';
 
 final recordingRepositoryProvider = Provider<RecordingRepository>((ref) {
   final repository = RecordingRepository();

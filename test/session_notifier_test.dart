@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:internalization_room/features/sala/data/room_answer.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/data/facilitator_voice_service.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
@@ -5971,7 +5972,7 @@ void main() {
     );
   });
 
-  test('an ensaio take asks the recorder for the deliverable config', () async {
+  test('an ensaio take asks the recorder for a rehearsal part', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -5982,17 +5983,17 @@ void main() {
     await settle();
 
     expect(
-      harness.recorder.lastDraft,
-      isTrue,
+      harness.recorder.lastOwner,
+      MicOwner.rehearsal,
       reason:
-          'a tomada do ensaio vai para o Refine, e o que decide o config é '
-          'o estágio da sala, não uma bandeira separada que alguém '
+          'a tomada do ensaio vai para o Refine em WAV, e o que decide o '
+          'config é o estágio da sala, não uma bandeira separada que alguém '
           'esqueceria de levantar',
     );
   });
 
   test(
-    'a retro chunk capture asks the recorder for the deliverable config too',
+    'a retro chunk capture asks the recorder for a capture, not a rehearsal part',
     () async {
       final harness = SalaHarness();
       final container = await inConversa(harness);
@@ -6021,21 +6022,21 @@ void main() {
         greaterThan(capturesBefore),
         reason:
             'sem essa checagem o teste passava com o microfone do pedaço '
-            'nunca aberto, só com o lastDraft que sobrava do ensaio de cima',
+            'nunca aberto, só com o pedido que sobrava do ensaio de cima',
       );
       expect(
-        harness.recorder.lastDraft,
-        isTrue,
+        harness.recorder.lastOwner,
+        MicOwner.capture,
         reason:
-            'o pedaço da retro também vai para o Refine — o mesmo config do '
-            'ensaio, decidido pelo mesmo estágio que já distingue a captura '
-            'de um pedaço',
+            'o pedaço da retro perde os filtros como o ensaio, mas fica '
+            'comprimido como no app dela; o mesmo estágio que distingue a '
+            'captura decide',
       );
     },
   );
 
-  test('a conversa turn asks the recorder for the room\'s own config, not the '
-      'deliverable one', () async {
+  test('a conversa turn asks the recorder for the conversation microphone, '
+      'not a deliverable one', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -6045,8 +6046,8 @@ void main() {
     await settle();
 
     expect(
-      harness.recorder.lastDraft,
-      isFalse,
+      harness.recorder.lastOwner,
+      MicOwner.conversation,
       reason:
           'a fala com a sala nunca perde o filtro dela — só a tomada '
           'entregável perde',
