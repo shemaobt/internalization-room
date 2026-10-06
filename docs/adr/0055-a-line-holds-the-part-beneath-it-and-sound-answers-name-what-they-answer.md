@@ -44,11 +44,10 @@ gap.
   line comes back as not said.
 - **The machine keeps how the last line ended:** the line, said, failed or not said, and the
   room failure that stopped it. The notifier reads that on the transition and answers the
-  gesture waiting on the line. The retro cursor also follows the transition: it stops when
-  the part is held and walks again when the part runs on.
-- **The Station hears a part's end before the machine is answered**, and the part's opening
-  after. One subscription in the runner calls the Station's hearing first and answers the
-  machine second. A part the Station starts on that end makes the old part's answer one
+  gesture waiting on the line. It measures a part once the machine takes the part's opening.
+  The retro cursor hears the runner's own hold and run of the part.
+- **The Station hears a part's end before the machine is answered.** One subscription in
+  the runner calls the Station's hearing first and answers the machine second. A part the Station starts on that end makes the old part's answer one
   that `reduce` drops.
 - **No runner timer survives a silence.** A gesture's silence reaches the runner as the
   machine's own stop, which cancels the part's ceiling, as a hold does. The ceiling is the
@@ -77,6 +76,5 @@ runner would run Station work.
 - Two plays of the same part look the same to `reduce`. If the Station starts the very part
   that just ended, the old part's end is not dropped and ends the new play. Nothing in the
   room does that today.
-- A part's end is stamped with the generation of the play that started it. Every path that
-  moves the generation also silences the room, so a stale end only ever answers a part that
-  was already stopped.
+- Every path that moves the generation silences the room, so no part stays Playing without a
+  ceiling.

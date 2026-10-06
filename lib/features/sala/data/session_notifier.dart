@@ -670,6 +670,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     callback?.call();
   }
 
+  void _theRunHeard() {
+    if (state.btClipRodando) _armCursorDeadline();
+  }
+
   void _thePartOpened() {
     _medirAParteNoAr();
     if (state.btClipRodando) _armCursorDeadline();
@@ -685,24 +689,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  /// What a gesture waits on after a sound: the line it said, and the retro cursor, which
-  /// stops with a hold and walks again when the part runs on.
+  /// What a gesture waits on after a sound: the line it said, and the part that opened.
   void _followTheSound(Machine before, Machine after) {
     final outcome = after.lastLine;
     if (outcome != null && !identical(outcome, before.lastLine)) {
       _theLineEnded(outcome);
     }
-    switch ((before.channel, after.channel)) {
-      case (Playing(), Paused()):
-        _checkCursorNow();
-      case (
-            Paused(started: true, :final what) ||
-                GuideSpeaking(held: Paused(started: true, :final what)),
-            Playing(:final sound),
-          )
-          when sound == what && state.btClipRodando:
-        _armCursorDeadline();
-      default:
+    if ((before.channel, after.channel) case (
+      Playing(opened: false, :final sound),
+      Playing(opened: true, sound: final opened),
+    ) when opened == sound) {
+      _thePartOpened();
     }
   }
 
@@ -5766,7 +5763,10 @@ class _NotifierHost implements EffectHost {
   void hearThePartFail() => _notifier._thePartFailed();
 
   @override
-  void hearThePartOpen() => _notifier._thePartOpened();
+  void hearTheHold() => _notifier._checkCursorNow();
+
+  @override
+  void hearTheRun() => _notifier._theRunHeard();
 
   @override
   void silenceTheRoom() => _notifier._silenceTheHaltedRoom();

@@ -18,13 +18,14 @@ abstract interface class EffectHost {
   /// What the room keeps to sound again if a line it fails to say calls a person.
   Kept get sounding;
 
-  /// The Station hears a part's end and its failure before the machine is answered, and
-  /// its opening after.
+  /// The Station hears a part's end and its failure before the machine is answered.
   void hearThePartEnd();
 
   void hearThePartFail();
 
-  void hearThePartOpen();
+  void hearTheHold();
+
+  void hearTheRun();
 
   /// An event the runner brings back to the machine, outside any gesture.
   void answer(MachineEvent event);
@@ -149,10 +150,12 @@ class EffectRunner {
           _ceiling?.cancel();
           _held = true;
           unawaited(sound.pause());
+          host.hearTheHold();
         case LetTheSoundRun():
           _held = false;
           unawaited(sound.resume());
           _armTheCeiling();
+          host.hearTheRun();
         case ArmTheRetry(:final step, :final due):
           _armTheRetry(due ?? retryDelay(step));
         case CancelTheRetry():
@@ -276,7 +279,6 @@ class EffectRunner {
 
   void _thePartOpened() {
     host.answer(PlayerOpened(generation: _partStamp));
-    host.hearThePartOpen();
     if (!_held) _armTheCeiling();
   }
 

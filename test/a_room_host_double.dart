@@ -40,7 +40,10 @@ class ARoomHost implements EffectHost {
   void hearThePartFail() => asked.add('hearThePartFail');
 
   @override
-  void hearThePartOpen() => asked.add('hearThePartOpen');
+  void hearTheHold() => asked.add('hearTheHold');
+
+  @override
+  void hearTheRun() => asked.add('hearTheRun');
 
   @override
   void silenceTheRoom() => asked.add('silenceTheRoom');

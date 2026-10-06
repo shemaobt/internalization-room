@@ -11,11 +11,19 @@ const _line = Line(LineKind.guide, 1, url: 'scene.mp3');
 const _part = PartSound(0, 'part.m4a');
 const _next = PartSound(1, 'next.m4a');
 const _grace = Duration(seconds: 2);
+const _stretch = StretchSound('part.m4a', to: Duration(seconds: 4));
 
 void main() {
   late ASoundPort sound;
   late ARoomHost host;
   late EffectRunner runner;
+  late Machine machine;
+
+  void reduceAndRun(MachineEvent event) {
+    final (next, effects) = reduce(machine, event);
+    machine = next;
+    runner.run(effects);
+  }
 
   setUp(() {
     sound = ASoundPort();
@@ -147,4 +155,28 @@ void main() {
       expect(machine.channel, const PartPlaying(_next));
     },
   );
+
+  test(
+    'a stretch that ends back onto the part held beneath it is not heard as a hold',
+    () {
+      machine = const Machine(channel: Paused(_part));
+      host.onAnswer = reduceAndRun;
+      reduceAndRun(const BeadTapped([_stretch], beneath: Paused(_part)));
+
+      sound.endThePart();
+
+      expect(machine.channel, const Paused(_part));
+      expect(host.asked, isNot(contains('hearTheHold')));
+    },
+  );
+
+  test('a bead that replays the paused part is not heard as a run', () {
+    machine = const Machine(channel: Paused(_part));
+    host.onAnswer = reduceAndRun;
+
+    reduceAndRun(const BeadTapped([_part]));
+
+    expect(machine.channel, const PartPlaying(_part));
+    expect(host.asked, isNot(contains('hearTheRun')));
+  });
 }
