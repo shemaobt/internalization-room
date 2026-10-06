@@ -1,6 +1,6 @@
 part of '../station.dart';
 
-/// The Back-translation, wrapped unchanged until its own slice.
+/// The Back-translation, the one Station the Closing is reached from.
 final class Retro extends Station {
   const Retro();
 

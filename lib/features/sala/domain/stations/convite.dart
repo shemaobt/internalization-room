@@ -1,6 +1,6 @@
 part of '../station.dart';
 
-/// The Invitation, wrapped unchanged until its own slice.
+/// The Invitation; the Closing is not reached from it.
 final class Convite extends Station {
   const Convite();
 

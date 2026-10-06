@@ -1,6 +1,6 @@
 part of '../station.dart';
 
-/// The Closing, wrapped unchanged until its own slice.
+/// The Closing, reached only from the Back-translation.
 final class Fim extends Station {
   const Fim();
 

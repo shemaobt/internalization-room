@@ -42,8 +42,7 @@ void main() {
     _expectTheArrival(const Menu(), const PassageChosen(), isA<Canvas>());
   });
 
-  group('the Menu answers every other arrival the notifier makes from it '
-      'today with the Station it names', () {
+  group('the Menu answers every other arrival with the Station it names', () {
     test('the rehearsal opened: the Rehearsal', () {
       _expectTheArrival(
         const Menu(),
@@ -112,7 +111,7 @@ void main() {
   });
 
   group('the Invitation, the Rehearsal, the Back-translation and the Closing '
-      'answer the arrivals the notifier makes from them today', () {
+      'answer their arrivals', () {
     test('the Invitation', () {
       _expectTheArrival(const Convite(), const TheChoiceOpened(), isA<Menu>());
       _expectTheArrival(const Convite(), const PassageChosen(), isA<Canvas>());

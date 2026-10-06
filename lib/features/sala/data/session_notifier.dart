@@ -2355,10 +2355,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _emCurso = pericope;
     _arriveAt(const PassageChosen());
     var generation = _waitOnTheGeneration;
-    void landed() {
-      generation = _waitOnTheGeneration;
-      _watchBusyState();
-    }
+    void landed() => generation = _waitOnTheGeneration;
 
     state = state.copyWith(
       awaitingTheGuide: true,

@@ -1,6 +1,6 @@
 part of '../station.dart';
 
-/// The Rehearsal, wrapped unchanged until its own slice.
+/// The Rehearsal; the Closing is not reached from it.
 final class Ensaio extends Station {
   const Ensaio();
 
