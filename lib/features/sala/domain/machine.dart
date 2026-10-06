@@ -432,6 +432,11 @@ final class DropTheLine extends Effect {
   int get hashCode => line.hashCode;
 }
 
+/// The part's ceiling, once the machine has taken the part's opening.
+final class ArmTheCeiling extends Effect {
+  const ArmTheCeiling();
+}
+
 final class StopTheSound extends Effect {
   const StopTheSound();
 }
@@ -666,7 +671,10 @@ const _watch = ArmTheWatch();
     const [],
   ),
   LineArrived(:final line, :final by) => _arrive(machine, line, by),
-  PlayerOpened() => (_opened(machine), const []),
+  PlayerOpened() => (
+    _opened(machine),
+    [if (machine.channel is Playing) const ArmTheCeiling()],
+  ),
   PlayerEnded(:final line?) => _answer(
     machine,
     line,

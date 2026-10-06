@@ -106,7 +106,6 @@ class EffectRunner {
   Timer? _ceiling;
   Sound? _part;
   int? _partStamp;
-  bool _held = false;
   List<StreamSubscription<void>>? _partSignals;
 
   /// [micWasOpen] is what the microphone was before the machine reduced the event that
@@ -140,6 +139,8 @@ class EffectRunner {
           _playThePart(stretch);
         case OpenTheMic(:final take):
           host.openTheMic(take);
+        case ArmTheCeiling():
+          _armTheCeiling();
         case StopTheSound():
           _stopTheSound();
         case StopTheLine():
@@ -148,11 +149,9 @@ class EffectRunner {
           host.answer(LineNotSaid(line, generation: generation?.call()));
         case HoldTheSound():
           _ceiling?.cancel();
-          _held = true;
           unawaited(sound.pause());
           host.hearTheHold();
         case LetTheSoundRun():
-          _held = false;
           unawaited(sound.resume());
           _armTheCeiling();
           host.hearTheRun();
@@ -248,7 +247,6 @@ class EffectRunner {
   void _playThePart(Sound part) {
     _part = part;
     _partStamp = generation?.call();
-    _held = false;
     _partSignals ??= [
       sound.partEnded.listen((_) => _thePartEnded()),
       sound.partFailed.listen((_) => _thePartFailed()),
@@ -277,10 +275,7 @@ class EffectRunner {
     host.answer(PlayerFailed(part.source, sound: part, generation: stamp));
   }
 
-  void _thePartOpened() {
-    host.answer(PlayerOpened(generation: _partStamp));
-    if (!_held) _armTheCeiling();
-  }
+  void _thePartOpened() => host.answer(PlayerOpened(generation: _partStamp));
 
   /// What is left of the clip plus the grace, or the flat ceiling while the clip is still
   /// opening: a held part counts no time, so its ceiling waits for the resume.

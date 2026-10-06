@@ -81,7 +81,9 @@ void main() {
     'a part whose end never comes is released at what is left of it plus the grace',
     () {
       fakeAsync((time) {
-        runner.run(const [PlayPart(_part)]);
+        machine = const Machine();
+        host.onAnswer = reduceAndRun;
+        reduceAndRun(const BeadTapped([_part]));
         sound.openThePart(
           length: const Duration(seconds: 10),
           at: const Duration(seconds: 4),
@@ -178,5 +180,19 @@ void main() {
 
     expect(machine.channel, const PartPlaying(_part));
     expect(host.asked, isNot(contains('hearTheRun')));
+  });
+
+  test('a part stopped while it opens arms no ceiling', () {
+    fakeAsync((time) {
+      machine = const Machine();
+      host.onAnswer = reduceAndRun;
+      reduceAndRun(const BeadTapped([_part]));
+      reduceAndRun(const GestureSilenced());
+
+      sound.openThePart(length: const Duration(seconds: 10));
+      time.elapse(const Duration(minutes: 5));
+
+      expect(host.answers.whereType<PlayerEnded>(), isEmpty);
+    });
   });
 }
