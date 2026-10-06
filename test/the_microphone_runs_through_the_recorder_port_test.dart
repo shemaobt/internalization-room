@@ -157,6 +157,26 @@ void main() {
   );
 
   test(
+    'a close the recorder fails comes back to the gesture as the failure, with the microphone still open',
+    () async {
+      final because = Exception('the platform refused to stop');
+      runner.run(const [CloseTheMic()]);
+      recorder.failTheStop(because);
+      await pumpEventQueue();
+
+      final (machine, _) = reduce(
+        Machine(
+          generation: generation,
+          channel: const Microphone(MicOwner.rehearsal),
+        ),
+        answered().single,
+      );
+      expect(machine.lastMic?.because, because);
+      expect(machine.channel, const Microphone(MicOwner.rehearsal));
+    },
+  );
+
+  test(
     'the room closes and discards the microphone only when it was open or still opening',
     () {
       runner.run(const [CloseAndDiscardTheMic()]);

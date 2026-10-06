@@ -363,11 +363,8 @@ class EffectRunner {
     );
   }
 
-  /// A start's answer is stamped with the generation it was opened under. The answer can
-  /// arrive a minute late, while the platform asks for the permission. A late start that
-  /// is still the newest closes the Channel, and one that started is discarded first, so
-  /// no recorder keeps running on a generation the room left. One that started after the
-  /// room closed its microphone is discarded too.
+  /// A start's answer is stamped with the generation it was opened under; a late start
+  /// that is still the newest closes the Channel and leaves no recorder running (ADR 0057).
   Future<void> _answerTheStart(
     MicOwner owner,
     int start,
@@ -392,9 +389,21 @@ class EffectRunner {
   }
 
   /// A take's answer is stamped when it comes back: the gesture waiting on the take gets
-  /// it whatever moved meanwhile.
+  /// it, or the recorder's failure, whatever moved meanwhile.
   Future<void> _handTheTakeOver() async {
-    final take = await recorder.stop();
+    final String? take;
+    try {
+      take = await recorder.stop();
+    } on Exception catch (because) {
+      if (_disposed) return;
+      return host.answer(
+        MicAnswered(
+          MicAnswer.closed,
+          because: because,
+          generation: generation?.call(),
+        ),
+      );
+    }
     if (_disposed) return;
     host.answer(
       MicAnswered(MicAnswer.closed, take: take, generation: generation?.call()),

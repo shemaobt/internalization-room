@@ -165,8 +165,9 @@ enum MicAnswer { started, refused, failed, closed, discarded, abandoned }
 final class MicAnswered extends AnsweringEvent {
   final MicAnswer answer;
   final String? take;
+  final Exception? because;
 
-  const MicAnswered(this.answer, {this.take, super.generation});
+  const MicAnswered(this.answer, {this.take, this.because, super.generation});
 }
 
 /// A gesture asks for its take: the Microphone stays open until the recorder answers.
@@ -631,8 +632,9 @@ final class LineOutcome {
 final class MicOutcome {
   final MicAnswer answer;
   final String? take;
+  final Exception? because;
 
-  MicOutcome(this.answer, {this.take});
+  const MicOutcome(this.answer, {this.take, this.because});
 }
 
 final class Machine {
@@ -782,7 +784,12 @@ const _watch = ArmTheWatch();
   ),
   MicOpened(:final owner, :final take) => _openTheMic(machine, owner, take),
   MicClosed() => _closeTheMic(machine),
-  MicAnswered(:final answer, :final take) => _heard(machine, answer, take),
+  MicAnswered(:final answer, :final take, :final because) => _heard(
+    machine,
+    answer,
+    take,
+    because,
+  ),
   MicClosing() => (machine, const [CloseTheMic()]),
   MicDiscarded() => _discardTheMic(machine),
   BeadTapped(:final sounds, :final beneath) => _tapped(
@@ -1107,16 +1114,23 @@ Machine _silenced(Machine machine, bool keepingTheHold) =>
       _ => (machine, const []),
     };
 
-/// Every answer but a start gives the Channel back, as a closed microphone does.
+/// Every answer but a start, or a recorder that failed to stop, gives the Channel back, as
+/// a closed microphone does.
 (Machine, List<Effect>) _heard(
   Machine machine,
   MicAnswer answer,
   String? take,
+  Exception? because,
 ) {
-  final (heard, effects) = answer == MicAnswer.started
+  final (answered, effects) = answer == MicAnswer.started || because != null
       ? (machine, const <Effect>[])
       : _closeTheMic(machine);
-  return (heard.copyWith(lastMic: MicOutcome(answer, take: take)), effects);
+  return (
+    answered.copyWith(
+      lastMic: MicOutcome(answer, take: take, because: because),
+    ),
+    effects,
+  );
 }
 
 (Machine, List<Effect>) _discardTheMic(Machine machine) {

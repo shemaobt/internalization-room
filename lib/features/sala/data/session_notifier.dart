@@ -3706,8 +3706,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> refreshUnsent() => _countUnsent();
 
   /// The take of the microphone the gesture closes, or null when the recorder had none.
-  /// The gesture goes on the moment the recorder answers, as it did when it awaited the
-  /// recorder itself.
+  /// The gesture goes on the moment the recorder answers.
   Future<String?> _closeTheMicrophone() {
     final closed = Completer<String?>.sync();
     _closings.add(closed);
@@ -3730,7 +3729,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case MicAnswer.failed:
         _theRecorderNeverStarted();
       case MicAnswer.closed:
-        if (_closings.isNotEmpty) _closings.removeAt(0).complete(heard.take);
+        if (_closings.isEmpty) return;
+        final closed = _closings.removeAt(0);
+        final because = heard.because;
+        if (because != null) return closed.completeError(because);
+        closed.complete(heard.take);
       case MicAnswer.discarded:
         _undoTheListening();
       case MicAnswer.abandoned:
@@ -3739,8 +3742,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// A start that answers after a halt landed, or after its capture was closed, has no
-  /// microphone left to record into: the halt's own discard ran on a recorder that had not
-  /// opened yet, and nothing else will ever close it.
+  /// microphone left to record into.
   bool _keepsTheStart(MicOwner owner) =>
       !state.needsPerson &&
       (owner != MicOwner.capture || state.btPhase == BtPhase.capturing);

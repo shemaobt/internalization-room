@@ -105,6 +105,9 @@ class ARecorderPort implements RecorderPort {
 
   void answerTheStop(String? take) => _stops.removeAt(0).complete(take);
 
+  void failTheStop(Exception because) =>
+      _stops.removeAt(0).completeError(because);
+
   @override
   Future<void> discard() async => heard.add('discard');
 
