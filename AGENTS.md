@@ -29,6 +29,8 @@ Run `git config core.hooksPath tool/git-hooks` once to get the doctrine guard on
 ## What CI enforces beyond the suite
 
 - No test is skipped.
+- Every bundled clip matches `assets/audio/<lang>/clip_hashes.json`: a re-render of the clips
+  rewrites that file in the same commit.
 - The room stays wordless: no `Text(` widget in the room's presentation layer, enforced by
   `test/the_room_stays_wordless_test.dart` against a named exception list — the claim code
   screen, read by the facilitator and not the team, is the only one today.
