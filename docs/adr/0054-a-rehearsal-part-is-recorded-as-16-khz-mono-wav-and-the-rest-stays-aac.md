@@ -1,12 +1,18 @@
+---
+status: accepted
+date: 2026-10-06
+---
+
 # A rehearsal part is recorded as 16 kHz mono WAV, and the rest stays AAC
 
 ## Context
 
 OBT Refine receives the team's **Rehearsal** as its deliverable. Marcia's app records that
 draft on the tablet as uncompressed 16 kHz mono 16-bit sound and keeps every other
-microphone, the telling-back included, compressed. Ours recorded every **Take** as AAC, so
-Refine got a lossy file. The server could have transcoded each upload instead, but a lossy
-file transcoded is still lossy. The tablet records the part without loss, or nobody can.
+microphone, the telling-back included, compressed (`app/lib/wavRecorder.ts:1-15`, at
+18fa7c4). Ours recorded every **Take** as AAC, so Refine got a lossy file.
+The server could have transcoded each upload instead, but a lossy file transcoded is still
+lossy. The tablet records the part without loss, or nobody can.
 
 ## Decision
 
