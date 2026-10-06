@@ -5,24 +5,10 @@ import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
-import 'package:internalization_room/main.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'fakes.dart';
+import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart' show byLabel;
-
-Future<ProviderContainer> pumpSala(
-  WidgetTester tester,
-  SalaHarness harness,
-) async {
-  final container = harness.container();
-  addTearDown(container.dispose);
-  await tester.pumpWidget(
-    UncontrolledProviderScope(container: container, child: const SalaApp()),
-  );
-  await tester.pump(const Duration(milliseconds: 100));
-  return container;
-}
 
 void main() {
   testWidgets(

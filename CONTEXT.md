@@ -119,7 +119,7 @@ _Avoid_: pending line, interrupted line
 ### What is recorded and told
 
 **Passage**:
-The portion of Scripture the team works on, identified by its pericope, with the reference audio and the Meaning Map beads.
+The portion of Scripture the team works on, identified by its pericope, with the reference audio and the Meaning Map elements.
 _Avoid_: passagem, pericope (the passage's identifier, not the passage), text
 
 **Session**:

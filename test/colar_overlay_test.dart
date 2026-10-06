@@ -145,6 +145,25 @@ void main() {
   );
 
   testWidgets(
+    'a coverage answer of ten beads with three filled draws ten beads and lights three',
+    (tester) async {
+      final session = SalaSessionState(
+        coverage: answer({
+          'engaged': 3,
+          'surfaced': 3,
+          'total': 9,
+          'beads_total': 10,
+          'beads_filled': 3,
+        }),
+      );
+      await pumpColar(tester, session);
+
+      expect(find.byType(AnimatedContainer), findsNWidgets(10));
+      expect(litBeads(tester), 3);
+    },
+  );
+
+  testWidgets(
     'a coverage answer without the bead fields draws twelve beads with none lit',
     (tester) async {
       final session = SalaSessionState(
