@@ -16,6 +16,8 @@ const _permissionAnswerCeiling = Duration(seconds: 60);
 /// nothing, on a tablet whose disk was full.
 enum Capture { started, denied, failed }
 
+enum MicUse { conversation, rehearsalPart, capture }
+
 class RecordingRepository {
   final AudioRecorder _recorder = AudioRecorder();
 
@@ -40,20 +42,26 @@ class RecordingRepository {
   // voice unfiltered. The conversation mic keeps every filter on: her getUserMedia({audio:
   // true}) already runs them by browser default (page.tsx:341), and record's own bare
   // defaults — everything off, stereo — do not reproduce that.
-  Future<Capture> start(String fileName, {bool draft = false}) async {
+  Future<Capture> start(
+    String fileName, {
+    MicUse use = MicUse.conversation,
+  }) async {
     if (await hasPermission() == false) return Capture.denied;
+    final draft = use != MicUse.conversation;
+    final wav = use == MicUse.rehearsalPart;
     try {
       final dir = await _recordingsDir();
       await _recorder.start(
         RecordConfig(
-          encoder: AudioEncoder.aacLc,
+          encoder: wav ? AudioEncoder.wav : AudioEncoder.aacLc,
+          sampleRate: wav ? 16000 : 44100,
           audioInterruption: AudioInterruptionMode.pauseResume,
           echoCancel: true,
           noiseSuppress: !draft,
           autoGain: !draft,
           numChannels: 1,
         ),
-        path: p.join(dir.path, '$fileName.m4a'),
+        path: p.join(dir.path, '$fileName.${wav ? 'wav' : 'm4a'}'),
       );
       return Capture.started;
     } on Object {
@@ -90,7 +98,8 @@ class RecordingRepository {
   /// be a second thing to keep alive.
   Future<String> keepBytes(Uint8List bytes, String fileName) async {
     final dir = await _recordingsDir();
-    final target = File(p.join(dir.path, '$fileName.m4a'));
+    final extension = _isWav(bytes) ? 'wav' : 'm4a';
+    final target = File(p.join(dir.path, '$fileName.$extension'));
     await target.writeAsBytes(bytes);
     return target.path;
   }
@@ -104,6 +113,11 @@ class RecordingRepository {
 
   Future<void> dispose() => _recorder.dispose();
 }
+
+bool _isWav(Uint8List bytes) =>
+    bytes.length >= 12 &&
+    String.fromCharCodes(bytes, 0, 4) == 'RIFF' &&
+    String.fromCharCodes(bytes, 8, 12) == 'WAVE';
 
 final recordingRepositoryProvider = Provider<RecordingRepository>((ref) {
   final repository = RecordingRepository();

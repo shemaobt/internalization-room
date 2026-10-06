@@ -17,7 +17,7 @@ dependencies:
   record: ^6.2.1
   just_audio: ^0.9.42
   audio_session: ^0.1.21
-  http: ^1.2.2
+  http: ^1.6.0
   flutter_dotenv: ^5.2.1
   # Outside ADR 0018's stack list, and deliberately: the room must be able to say it
   # has no connection before the team taps, not only after a request has already failed.

@@ -17,6 +17,8 @@ import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
+import 'a_wav_take.dart';
+
 String _turnBody({bool usedFailSafe = false, bool degraded = false}) =>
     jsonEncode({
       'session_id': 'sessao-1',
@@ -1569,17 +1571,142 @@ void main() {
       }
     },
   );
+
+  group('the audio part of each door', () {
+    late http.Request sent;
+    RoomRepository listening() {
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          sent = request;
+          return http.Response('{}', 200);
+        }),
+        deviceId: () async => 'aparelho-1',
+      );
+      addTearDown(repository.dispose);
+      return repository;
+    }
+
+    test(
+      'a rehearsal take recorded as WAV goes up as audio/wav under a .wav name',
+      () async {
+        final wav = aWavTake();
+        final file = await _tempRecording(extension: 'wav', bytes: wav);
+
+        await listening().sendTake(
+          'sessao-1',
+          file,
+          kind: 'ensaio',
+          scope: 'parte-1',
+        );
+
+        final part = _filePart(sent);
+        expect(
+          part.head,
+          contains('content-type: audio/wav'),
+          reason:
+              'a sala guarda o tipo que o envio declara, e o Refine lê o '
+              'formato da parte por ele',
+        );
+        expect(part.head, matches(RegExp(r'filename="[^"]+\.wav"')));
+        expect(part.content, wav);
+      },
+    );
+
+    test('a stretch told goes up as it always did', () async {
+      await listening().sendChunk(
+        'sessao-1',
+        await _tempRecording(),
+        takeId: 'gravacao-1',
+        from: const Duration(seconds: 4),
+        to: const Duration(seconds: 7),
+        idempotencyKey: 'chave-1',
+      );
+
+      expect(
+        _filePart(sent).head,
+        contains('content-type: application/octet-stream'),
+      );
+    });
+
+    test('a stretch told again goes up as it always did', () async {
+      await listening().replaceSegment(
+        'sessao-1',
+        'trecho-1',
+        await _tempRecording(),
+        takeId: 'gravacao-1',
+        from: Duration.zero,
+        to: const Duration(seconds: 4),
+        idempotencyKey: 'chave-1',
+      );
+
+      expect(
+        _filePart(sent).head,
+        contains('content-type: application/octet-stream'),
+      );
+    });
+
+    test(
+      'an older .m4a take still waiting in the Outbox goes up as it always did',
+      () async {
+        await listening().sendTake(
+          'sessao-1',
+          await _tempRecording(),
+          kind: 'ensaio',
+          scope: 'parte-1',
+        );
+
+        expect(
+          _filePart(sent).head,
+          contains('content-type: application/octet-stream'),
+          reason:
+              'uma parte gravada antes da mudança continua AAC, e declará-la '
+              'WAV faria o Refine abrir um arquivo que não é',
+        );
+      },
+    );
+
+    test('a conversation turn goes up as it always did', () async {
+      await listening().sendTurn(
+        'sessao-1',
+        await _tempRecording(),
+        turnId: 'turno-1',
+      );
+
+      expect(
+        _filePart(sent).head,
+        contains('content-type: application/octet-stream'),
+      );
+    });
+  });
 }
 
-Future<File> _tempRecording() async {
+Future<File> _tempRecording({
+  String extension = 'm4a',
+  List<int> bytes = const [0, 1, 2, 3],
+}) async {
   final file = File(
-    '${Directory.systemTemp.path}/sala-teste-${DateTime.now().microsecondsSinceEpoch}.m4a',
+    '${Directory.systemTemp.path}/sala-teste-${DateTime.now().microsecondsSinceEpoch}.$extension',
   );
-  await file.writeAsBytes([0, 1, 2, 3]);
+  await file.writeAsBytes(bytes);
   addTearDown(() async {
     if (file.existsSync()) await file.delete();
   });
   return file;
+}
+
+({String head, List<int> content}) _filePart(http.Request request) {
+  final boundary = request.headers['content-type']!.split('boundary=').last;
+  final body = latin1.decode(request.bodyBytes);
+  final part = body
+      .split('--$boundary')
+      .firstWhere((part) => part.contains('name="file"'));
+  final headEnd = part.indexOf('\r\n\r\n');
+  return (
+    head: part.substring(0, headEnd),
+    content: latin1.encode(
+      part.substring(headEnd + 4, part.length - '\r\n'.length),
+    ),
+  );
 }
 
 T _value<T>(RoomAnswer<T> answer) => (answer as Answered<T>).value;

@@ -331,7 +331,15 @@ class RoomRepository {
           ..headers['X-Room-Device'] = await _deviceId()
           ..fields['kind'] = kind
           ..fields['scope'] = scope
-          ..files.add(await http.MultipartFile.fromPath('file', audio.path));
+          ..files.add(
+            await http.MultipartFile.fromPath(
+              'file',
+              audio.path,
+              contentType: audio.path.endsWith('.wav')
+                  ? http.MediaType('audio', 'wav')
+                  : null,
+            ),
+          );
     if (passNumber != null) request.fields['pass_number'] = '$passNumber';
     if (chunkIndex != null) request.fields['chunk_index'] = '$chunkIndex';
     return _room.askStreamed(

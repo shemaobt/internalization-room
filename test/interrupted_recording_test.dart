@@ -7,6 +7,8 @@ import 'package:internalization_room/features/sala/data/recording_repository.dar
 import 'package:path/path.dart' as p;
 import 'package:record/record.dart';
 
+import 'a_wav_take.dart';
+
 class RecorderSpy extends RecordPlatform {
   RecordConfig? openedWith;
   String? openedPath;
@@ -92,21 +94,27 @@ void main() {
     },
   );
 
-  test('the take is still captured in AAC-LC', () async {
-    final recording = RecordingRepository();
-    addTearDown(recording.dispose);
+  test(
+    'a conversation turn is still recorded as AAC in an .m4a file',
+    () async {
+      final recording = RecordingRepository();
+      addTearDown(recording.dispose);
 
-    await recording.start('ensaio');
+      await recording.start('conversa');
 
-    expect(
-      microphone.openedWith?.encoder,
-      AudioEncoder.aacLc,
-      reason:
-          'o ensaio inteiro, o retro e a fila de upload contam com m4a — '
-          'trocar o encoder de passagem deixaria a sala gravando um formato '
-          'que o resto do caminho não abre',
-    );
-  });
+      expect(
+        microphone.openedWith?.encoder,
+        AudioEncoder.aacLc,
+        reason:
+            'a fala com a sala não é entregável; só a parte do ensaio muda de '
+            'formato',
+      );
+      expect(
+        microphone.openedPath,
+        p.join(documents.path, 'recordings', 'conversa.m4a'),
+      );
+    },
+  );
 
   test(
     'the microphone opens ready for a room where five people talk at once',
@@ -145,12 +153,12 @@ void main() {
   );
 
   test(
-    'an ensaio or retro take is captured plain, not smoothed like the room\'s five voices',
+    'a deliverable take keeps the room\'s own filters off and its echo cancel on',
     () async {
       final recording = RecordingRepository();
       addTearDown(recording.dispose);
 
-      await recording.start('ensaio_tomada', draft: true);
+      await recording.start('ensaio_tomada', use: MicUse.rehearsalPart);
 
       final config = microphone.openedWith;
       expect(
@@ -174,13 +182,96 @@ void main() {
             'o ganho automático coloriria a mesma voz que o Refine precisa '
             'ouvir sem tratamento',
       );
+    },
+  );
+
+  test('a rehearsal take opens the microphone as 16 kHz mono WAV', () async {
+    final recording = RecordingRepository();
+    addTearDown(recording.dispose);
+
+    await recording.start('ensaio_parte1', use: MicUse.rehearsalPart);
+
+    final config = microphone.openedWith;
+    expect(
+      config?.encoder,
+      AudioEncoder.wav,
+      reason: 'o Refine recebe a parte sem perda, como o app dela grava',
+    );
+    expect(config?.sampleRate, 16000);
+    expect(config?.numChannels, 1);
+  });
+
+  test('a rehearsal take is written to a .wav file in recordings/', () async {
+    final recording = RecordingRepository();
+    addTearDown(recording.dispose);
+
+    await recording.start('ensaio_parte1', use: MicUse.rehearsalPart);
+
+    expect(
+      microphone.openedPath,
+      p.join(documents.path, 'recordings', 'ensaio_parte1.wav'),
+      reason:
+          'o player escolhe como ler o arquivo pela extensão, e um WAV '
+          'chamado .m4a não toca',
+    );
+  });
+
+  test(
+    'a capture is still AAC in an .m4a file with the draft filters',
+    () async {
+      final recording = RecordingRepository();
+      addTearDown(recording.dispose);
+
+      await recording.start('retro_passada1_pedaco1', use: MicUse.capture);
+
+      final config = microphone.openedWith;
       expect(
-        config?.numChannels,
-        1,
-        reason:
-            'a passagem falada é uma faixa, e um canal a menos é metade do '
-            'arquivo que a fila de upload carrega à toa',
+        config?.encoder,
+        AudioEncoder.aacLc,
+        reason: 'o contar de volta fica comprimido, como no app dela',
       );
+      expect(
+        microphone.openedPath,
+        p.join(documents.path, 'recordings', 'retro_passada1_pedaco1.m4a'),
+      );
+      expect(config?.echoCancel, isTrue);
+      expect(config?.noiseSuppress, isFalse);
+      expect(config?.autoGain, isFalse);
+    },
+  );
+
+  test(
+    'a take fetched back from the room as WAV is kept as a .wav file',
+    () async {
+      final recording = RecordingRepository();
+      addTearDown(recording.dispose);
+      final wav = aWavTake();
+
+      final kept = await recording.keepBytes(wav, 'parte-1');
+
+      expect(
+        kept,
+        endsWith('.wav'),
+        reason:
+            'a retomada toca a parte buscada de volta, e o player lê um WAV '
+            'chamado .m4a como AAC',
+      );
+      expect(File(kept).readAsBytesSync(), wav);
+    },
+  );
+
+  test(
+    'an older AAC take fetched back from the room is kept as .m4a',
+    () async {
+      final recording = RecordingRepository();
+      addTearDown(recording.dispose);
+
+      final kept = await recording.keepBytes(
+        Uint8List.fromList([0, 0, 0, 24, ...'ftypM4A '.codeUnits]),
+        'parte-1',
+      );
+
+      expect(kept, endsWith('.m4a'));
     },
   );
 
