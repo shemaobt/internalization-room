@@ -1703,6 +1703,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final advanced = told != null && told.engaged > before.engaged;
     if (advanced) clock?.mark('beads');
     if (told != null &&
+        told.beadsFilled >= before.beadsFilled &&
         (advanced ||
             (told.engaged == before.engaged &&
                 told.surfaced >= before.surfaced))) {
@@ -2586,12 +2587,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     for (final passagem in state.naRoda ?? const <Passagem>[]) {
       if (passagem.pericope == pericope && passagem.beads > 0) {
         state = state.copyWith(
-          coverage: Coverage(
-            engaged: 0,
-            surfaced: 0,
-            total: passagem.beads,
-            absenceIndex: passagem.absenceIndex,
-          ),
+          coverage: Coverage(engaged: 0, surfaced: 0, total: passagem.beads),
         );
         return;
       }

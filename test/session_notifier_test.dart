@@ -1012,7 +1012,6 @@ void main() {
       reason: 'esperar o create deixava a equipe diante de um cordão nu',
     );
     expect(seeded.engaged, 0);
-    expect(seeded.absenceIndex, 3);
 
     await entering;
     await settle();
