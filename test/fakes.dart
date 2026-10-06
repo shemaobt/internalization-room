@@ -89,8 +89,13 @@ const falaDaParteNaoOuvida = '/api/internalization-room/voice/parte-nao-ouvida';
 const falaDaParteNaoContada =
     '/api/internalization-room/voice/parte-nao-contada';
 
-Coverage coverage({int engaged = 0, int surfaced = 0}) =>
-    Coverage(engaged: engaged, surfaced: surfaced, total: totalBeads);
+Coverage coverage({int engaged = 0, int surfaced = 0}) => Coverage(
+  engaged: engaged,
+  surfaced: surfaced,
+  total: totalBeads,
+  beadsFilled: engaged,
+  beadsTold: true,
+);
 
 class FakeVoice implements FacilitatorVoiceService {
   /// The room's one ordered log of sound, shared with the other doubles so a test can

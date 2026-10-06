@@ -991,12 +991,7 @@ void main() {
   test('the necklace is strung before the server answers', () async {
     final harness = SalaHarness();
     harness.room.passages = const [
-      Passagem(
-        pericope: 'P01',
-        audioUrl: '/voice/p01',
-        beads: 7,
-        absenceIndex: 3,
-      ),
+      Passagem(pericope: 'P01', audioUrl: '/voice/p01', beads: 7),
     ];
     final container = harness.container();
     addTearDown(container.dispose);
