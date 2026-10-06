@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/port_adapters.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 
@@ -9,7 +8,7 @@ import 'fakes.dart';
 
 void main() {
   test(
-    'a part played while a line is still sounding leaves the line sounding',
+    'a line and a part dispatched together never sound at once on the sound port',
     () async {
       final harness = SalaHarness();
       final container = ProviderContainer(overrides: harness.overrides);
@@ -20,13 +19,21 @@ void main() {
         watchPeriod: const Duration(seconds: 30),
       );
       harness.voice.holdNextLine();
-      container.read(soundPortProvider).playLine('line.mp3');
 
-      runner.run(const [PlayPart(PartSound(0, 'part.m4a'))]);
+      runner.run(const [
+        PlayLine(Line(LineKind.guide, 1, url: 'line.mp3')),
+        PlayPart(PartSound(0, 'part.m4a')),
+      ]);
       await pumpEventQueue();
 
       final voice = harness.sounds.where((entry) => entry.startsWith('voice:'));
-      expect(voice.last, 'voice:line', reason: '${harness.sounds}');
+      expect(voice, ['voice:line', 'voice:stop'], reason: '${harness.sounds}');
+      expect(
+        harness.sounds.indexOf('voice:stop'),
+        lessThan(harness.sounds.indexOf('playback:play')),
+        reason: '${harness.sounds}',
+      );
+      expect(harness.playback.sounding, isTrue);
     },
   );
 }

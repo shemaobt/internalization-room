@@ -123,16 +123,20 @@ final class PlayerOpened extends AnsweringEvent {
 }
 
 final class PlayerEnded extends AnsweringEvent {
-  const PlayerEnded({super.generation});
+  final Line? line;
+
+  const PlayerEnded({this.line, super.generation});
 }
 
 final class PlayerFailed extends AnsweringEvent {
   final Source source;
   final Kept sounding;
+  final Line? line;
 
   const PlayerFailed(
     this.source, {
     this.sounding = const NothingKept(),
+    this.line,
     super.generation,
   });
 }
@@ -183,8 +187,9 @@ final class NothingReplayed extends AnsweringEvent {
 
 final class LineNotSaid extends AnsweringEvent {
   final Line line;
+  final Exception? because;
 
-  const LineNotSaid(this.line, {super.generation});
+  const LineNotSaid(this.line, {this.because, super.generation});
 }
 
 final class StepLeft extends MachineEvent {

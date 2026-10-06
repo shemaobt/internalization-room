@@ -12,13 +12,24 @@ abstract interface class RoomPort {
   Future<TurnResult?> lookAt(Turn turn);
 }
 
-/// Voice lines and parts together: one sound at a time.
+/// Voice lines and parts together: one sound at a time. A part cuts a line; a line holds
+/// the part beneath it, so the part can come back once the line is said.
 abstract interface class SoundPort {
   Future<bool> playLine(String url, {void Function()? onSoundStart});
 
   Future<bool> playAsset(String assetPath, {void Function()? onSoundStart});
 
   Future<void> playPart(Sound sound);
+
+  Stream<void> get partEnded;
+
+  Stream<void> get partFailed;
+
+  Stream<void> get partOpened;
+
+  Duration? get partLength;
+
+  Duration get partPosition;
 
   Future<void> pause();
 

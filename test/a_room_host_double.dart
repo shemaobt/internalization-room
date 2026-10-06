@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:internalization_room/features/sala/data/effect_runner.dart';
 import 'package:internalization_room/features/sala/data/port_adapters.dart';
-import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
@@ -51,22 +50,7 @@ class ARoomHost implements EffectHost {
       asked.add('askTheOpeningAgain');
 
   @override
-  void playLine(Line line) => asked.add('playLine');
-
-  @override
-  void playPart(Sound part) => asked.add('playPart');
-
-  @override
   void openTheMic(String take) => asked.add('openTheMic');
-
-  @override
-  void dropTheLine(Line line) => asked.add('dropTheLine');
-
-  @override
-  void holdTheSound() => asked.add('holdTheSound');
-
-  @override
-  void letTheSoundRun() => asked.add('letTheSoundRun');
 
   @override
   void drainTheOutbox() => asked.add('drainTheOutbox');
@@ -82,9 +66,6 @@ class ARoomHost implements EffectHost {
 
   @override
   void openTheChoice() => asked.add('openTheChoice');
-
-  @override
-  void sayTheOfflineNotice() => asked.add('sayTheOfflineNotice');
 
   @override
   void playTheReply(Turn turn, TurnResult reply) => asked.add('playTheReply');
@@ -121,4 +102,7 @@ EffectRunner runnerOver(
   host: host,
   watchPeriod: () => watchPeriod,
   retryDelay: (_) => retryDelay,
+  partCeiling: () => null,
+  clipGrace: () => Duration.zero,
+  offlineNotice: () => 'offline.mp3',
 );

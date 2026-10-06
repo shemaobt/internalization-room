@@ -318,9 +318,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   TurnClock? _coverageClock;
 
   String? _pendingTakePath;
-  StreamSubscription<void>? _playbackDone;
-  StreamSubscription<void>? _playbackFailed;
-  StreamSubscription<void>? _playbackOpened;
   StreamSubscription<void>? _outboxFalls;
   StreamSubscription<String>? _outboxGone;
   late EffectRunner _runner;
@@ -334,8 +331,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _gestures = 0;
   final Map<int, int> _handedOff = {};
   final Set<int> _waitingOnTheGeneration = {};
-  final Map<Line, ({Future<bool> Function() say, Completer<_Said> ended})>
-  _sayings = {};
+  final Map<Line, Completer<_Said>> _sayings = {};
   VoidCallback? _onPlaybackComplete;
   VoidCallback? _onPlaybackFailed;
 
@@ -374,15 +370,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       host: _NotifierHost(this),
       watchPeriod: () => ref.read(roomPollDelayProvider),
       retryDelay: _onTheLadder,
+      partCeiling: () => ref.read(playbackCeilingProvider),
+      clipGrace: () => ref.read(clipGraceProvider),
+      offlineNotice: () => offlineNoticeAsset(_lingua),
       generation: () => _generation,
     );
     ref.onDispose(() {
       _gone = true;
       _cancelTimers();
       _runner.dispose();
-      unawaited(_playbackDone?.cancel());
-      unawaited(_playbackFailed?.cancel());
-      unawaited(_playbackOpened?.cancel());
       unawaited(_outboxFalls?.cancel());
       unawaited(_outboxGone?.cancel());
       unawaited(_micWatch?.cancel());
@@ -404,22 +400,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void sayTheMicIsBlocked() => unawaited(
-    _sayALine(
-      LineKind.micBlocked,
-      () => _voice.playAsset(micBlockedAsset(_lingua)),
-    ),
+    _sayALine(LineKind.micBlocked, asset: micBlockedAsset(_lingua)),
   );
 
   Future<bool> _sayALine(
-    LineKind kind,
-    Future<bool> Function() say, {
-    Source? source,
-  }) =>
-      _sayTheLine(kind, say, source: source).then((said) => said == _Said.said);
+    LineKind kind, {
+    String? url,
+    String? asset,
+    void Function()? onSoundStart,
+  }) => _sayTheLine(
+    kind,
+    url: url,
+    asset: asset,
+    onSoundStart: onSoundStart,
+  ).then((said) => said == _Said.said);
 
   Future<_Said> _sayTheLine(
-    LineKind kind,
-    Future<bool> Function() say, {
+    LineKind kind, {
+    String? url,
+    String? asset,
+    void Function()? onSoundStart,
     Source? source,
   }) {
     final line = Line(
@@ -431,9 +431,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             LineKind.guide || LineKind.approved => Source.guide,
             _ => Source.aside(kind.name),
           },
+      url: url,
+      asset: asset,
+      onSoundStart: onSoundStart,
     );
     final ended = Completer<_Said>();
-    _sayings[line] = (say: say, ended: ended);
+    _sayings[line] = ended;
     _dispatch(
       LineArrived(
         line,
@@ -444,45 +447,34 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return ended.future;
   }
 
-  Future<void> _speakTheLine(Line line) async {
-    final saying = _sayings[line];
-    if (saying == null) {
-      return _dispatch(LineNotSaid(line, generation: _generation));
-    }
-    final bool played;
-    try {
-      played = await saying.say();
-    } on RoomFailure catch (failure, trace) {
-      _sayings.remove(line);
-      if (!_isSpeaking(line)) return saying.ended.complete(_Said.unsaid);
-      _dispatch(LineNotSaid(line, generation: _generation));
-      saying.ended.completeError(failure, trace);
-      return;
-    }
-    _sayings.remove(line);
+  /// What the runner brought back about a line: the machine hears it only while the line
+  /// is still the one speaking, and the gesture awaiting the line is answered either way.
+  void _theLineAnswered(Line line, MachineEvent event) {
+    final ended = _sayings.remove(line);
     final still = _isSpeaking(line);
-    if (still) {
-      _dispatch(
-        played
-            ? PlayerEnded(generation: _generation)
-            : PlayerFailed(
-                line.source,
-                sounding: _whatIsSounding(theOpening: false),
-                generation: _generation,
-              ),
-      );
+    switch (event) {
+      case LineNotSaid(:final because):
+        if (!still) return ended?.complete(_Said.unsaid);
+        _dispatch(event);
+        if (because != null) return ended?.completeError(because);
+        ended?.complete(_Said.unsaid);
+      case PlayerFailed(:final source, :final generation):
+        if (still) {
+          _dispatch(
+            PlayerFailed(
+              source,
+              sounding: _whatIsSounding(theOpening: false),
+              line: line,
+              generation: generation,
+            ),
+          );
+        }
+        ended?.complete(still ? _Said.failed : _Said.unsaid);
+      default:
+        if (still) _dispatch(event);
+        ended?.complete(_Said.said);
     }
-    saying.ended.complete(
-      played
-          ? _Said.said
-          : still
-          ? _Said.failed
-          : _Said.unsaid,
-    );
   }
-
-  void _dropTheLine(Line line) =>
-      _sayings.remove(line)?.ended.complete(_Said.unsaid);
 
   bool _isSpeaking(Line line) => switch (state.channel) {
     GuideSpeaking(line: final speaking) => speaking == line,
@@ -641,7 +633,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     } else {
       _onPlaybackComplete = null;
       _onPlaybackFailed = null;
-      _timers.remove('playback')?.cancel();
       _timers.remove('cursor')?.cancel();
       unawaited(_playback.stop());
     }
@@ -672,37 +663,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }) {
     _onPlaybackComplete = onComplete;
     _onPlaybackFailed = onFailed;
-    _listenForTheEnd();
     _dispatch(BeadTapped(sounds, beneath: beneath));
   }
 
-  void _putInTheAir(Sound sound) {
-    final to = sound.to;
-    unawaited(
-      to == null
-          ? _playback.play(sound.path, from: sound.from)
-          : _playback.playRange(sound.path, sound.from, to),
-    );
-    _watchPlayback(clipStillOpening: true);
+  void _thePartOpened(PlayerOpened opened) {
+    _dispatch(opened);
+    if (_stale(opened)) return;
+    _medirAParteNoAr();
+    if (state.btClipRodando) _armCursorDeadline();
   }
 
-  void _listenForTheEnd() {
-    _apart(() {
-      _playbackDone ??= _playback.completions.listen((_) => _releasePlayback());
-      _playbackFailed ??= _playback.failures.listen(
-        (_) => _cannotPlayTheirOwnAudio(),
-      );
-      _playbackOpened ??= _playback.openings.listen((_) {
-        _dispatch(PlayerOpened(generation: _generation));
-        _watchPlayback();
-        _medirAParteNoAr();
-        if (state.btClipRodando) _armCursorDeadline();
-      });
-    });
+  bool _stale(AnsweringEvent event) {
+    final generation = event.generation;
+    return generation != null && generation < _generation;
   }
 
-  void _cannotPlayTheirOwnAudio() {
-    _timers.remove('playback')?.cancel();
+  void _cannotPlayTheirOwnAudio(PlayerFailed failed) {
+    if (_stale(failed)) return _dispatch(failed);
     final channel = state.channel;
     _onPlaybackComplete = null;
     final undo = _onPlaybackFailed;
@@ -715,50 +692,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         PlayerFailed(
           channel.sound.source,
           sounding: sounding,
-          generation: _generation,
+          generation: failed.generation,
         ),
       );
     }
   }
 
-  void _releasePlayback() {
-    _timers.remove('playback')?.cancel();
+  void _releasePlayback(PlayerEnded ended) {
+    if (_stale(ended)) return _dispatch(ended);
     final channel = state.channel;
     final next = switch (channel) {
       Playing(:final next) || Paused(:final next) => next,
       _ => null,
     };
     if (next == null) return;
-    if (next.isNotEmpty) {
-      _dispatch(PlayerEnded(generation: _generation));
-      return;
-    }
+    if (next.isNotEmpty) return _dispatch(ended);
     final callback = _onPlaybackComplete;
     _onPlaybackComplete = null;
     _onPlaybackFailed = null;
     callback?.call();
-    if (identical(state.channel, channel)) {
-      _dispatch(PlayerEnded(generation: _generation));
-    }
-  }
-
-  void _watchPlayback({bool clipStillOpening = false}) {
-    if (state.channel is! Playing) return;
-    final length = clipStillOpening ? null : _playback.playingLength;
-    final ceiling = length == null
-        ? ref.read(playbackCeilingProvider)
-        : _leftToHear(length);
-    if (ceiling == null) return;
-    _after('playback', ceiling, _releasePlayback);
-  }
-
-  /// The ceiling counts what is left of the clip, never its whole length: the retro pauses
-  /// the take for as long as the team needs to tell a stretch back, and a wall-clock ceiling
-  /// would end the clip mid-listening — after which nothing resumes it.
-  Duration _leftToHear(Duration length) {
-    final grace = ref.read(clipGraceProvider);
-    final left = length - _playback.position;
-    return left.isNegative ? grace : left + grace;
+    if (identical(state.channel, channel)) _dispatch(ended);
   }
 
   void _holdClip() {
@@ -771,16 +724,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  void _pauseThePlayer() {
-    _timers.remove('playback')?.cancel();
-    unawaited(_playback.pause());
-    _checkCursorNow();
-  }
-
-  void _resumeThePlayer() {
-    unawaited(_playback.resume());
-    _watchPlayback();
-    if (state.btClipRodando) _armCursorDeadline();
+  /// The retro cursor follows the head: it stops with a hold and walks again with a run.
+  void _followTheHead(List<Effect> effects) {
+    if (effects.any((effect) => effect is HoldTheSound)) _checkCursorNow();
+    if (effects.any((effect) => effect is LetTheSoundRun) &&
+        state.btClipRodando) {
+      _armCursorDeadline();
+    }
   }
 
   /// Straight to speaking for a line already on the tablet.
@@ -823,12 +773,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final generation = _waitOnTheGeneration;
     final played = await _sayALine(
       LineKind.guide,
-      () => fixedLine.isEmpty
-          ? _voice.play(url, onSoundStart: onSoundStart)
-          : _voice.playAsset(
-              fixedLineAsset(fixedLine, _lingua),
-              onSoundStart: onSoundStart,
-            ),
+      url: fixedLine.isEmpty ? url : null,
+      asset: fixedLine.isEmpty ? null : fixedLineAsset(fixedLine, _lingua),
+      onSoundStart: onSoundStart,
     );
     if (played && remember && !_abandoned(generation)) {
       state = state.copyWith(
@@ -1075,6 +1022,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final (machine, effects) = reduce(state.machine, event);
     state = state.copyWith(machine: machine);
     _runner.run(effects, micWasOpen: micWasOpen);
+    _followTheHead(effects);
   }
 
   bool get _watchIsWanted =>
@@ -3068,10 +3016,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _sayImThinking() {
     final line = rotated(instantAckLines, _ackSpoken++);
     unawaited(
-      _sayALine(
-        LineKind.acknowledgement,
-        () => _voice.playAsset(fixedLineAsset(line, _lingua)),
-      ),
+      _sayALine(LineKind.acknowledgement, asset: fixedLineAsset(line, _lingua)),
     );
   }
 
@@ -3191,7 +3136,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     try {
       said = await _sayTheLine(
         LineKind.reply,
-        () => _voice.play(reply.audioUrl),
+        url: reply.audioUrl,
         source: Source.reply(reply.id),
       );
     } on NetworkFailed {
@@ -3929,12 +3874,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _sayARecordingIsStranded() {
     if (_strandedSpoken || _gone) return;
     _strandedSpoken = true;
-    unawaited(
-      _sayALine(
-        LineKind.stranded,
-        () => _voice.playAsset(strandedTakeAsset(_lingua)),
-      ),
-    );
+    unawaited(_sayALine(LineKind.stranded, asset: strandedTakeAsset(_lingua)));
   }
 
   void startRetro() => _gesture(() => _startRetro());
@@ -5196,7 +5136,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       try {
         disse = await _sayALine(
           LineKind.approved,
-          () => _voice.playAsset(fixedLineAsset(approvedLine, _lingua)),
+          asset: fixedLineAsset(approvedLine, _lingua),
         );
       } on RoomFailure catch (failure) {
         return failed(failure);
@@ -5840,8 +5780,17 @@ class _NotifierHost implements EffectHost {
   bool get roomIsReachable => _notifier._roomIsReachable;
 
   @override
-  void answer(MachineEvent event) =>
-      _notifier._apart(() => _notifier._dispatch(event));
+  void answer(MachineEvent event) => _notifier._apart(
+    () => switch (event) {
+      LineNotSaid(:final line) ||
+      PlayerEnded(:final line?) ||
+      PlayerFailed(:final line?) => _notifier._theLineAnswered(line, event),
+      final PlayerEnded ended => _notifier._releasePlayback(ended),
+      final PlayerFailed failed => _notifier._cannotPlayTheirOwnAudio(failed),
+      final PlayerOpened opened => _notifier._thePartOpened(opened),
+      _ => _notifier._dispatch(event),
+    },
+  );
 
   @override
   void silenceTheRoom() => _notifier._silenceTheHaltedRoom();
@@ -5872,22 +5821,7 @@ class _NotifierHost implements EffectHost {
   }
 
   @override
-  void playLine(Line line) => unawaited(_notifier._speakTheLine(line));
-
-  @override
-  void playPart(Sound part) => _notifier._putInTheAir(part);
-
-  @override
   void openTheMic(String take) => unawaited(_notifier._recordOrBlock(take));
-
-  @override
-  void dropTheLine(Line line) => _notifier._dropTheLine(line);
-
-  @override
-  void holdTheSound() => _notifier._pauseThePlayer();
-
-  @override
-  void letTheSoundRun() => _notifier._resumeThePlayer();
 
   @override
   void drainTheOutbox() => _notifier._drainTheOutbox();
@@ -5903,14 +5837,6 @@ class _NotifierHost implements EffectHost {
 
   @override
   void openTheChoice() => _notifier._openTheChoice();
-
-  @override
-  void sayTheOfflineNotice() => unawaited(
-    _notifier._sayALine(
-      LineKind.offlineNotice,
-      () => _notifier._voice.playAsset(offlineNoticeAsset(_notifier._lingua)),
-    ),
-  );
 
   @override
   void playTheReply(Turn turn, TurnResult reply) =>

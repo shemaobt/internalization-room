@@ -35,6 +35,9 @@ void main() {
       host: host,
       watchPeriod: () => _beat,
       retryDelay: (_) => _retry,
+      partCeiling: () => null,
+      clipGrace: () => Duration.zero,
+      offlineNotice: () => 'offline.mp3',
       generation: () => machine.generation,
     );
 

@@ -6,10 +6,10 @@ import '../domain/machine.dart';
 import '../domain/ports.dart';
 import '../domain/room_reach.dart';
 import '../domain/turn_result.dart';
+import 'room_answer.dart';
 
 /// Temporary: what the runner still asks the notifier to do, one method per effect that
-/// reads or writes state the Station will own. PlayPart goes through it so that the voice
-/// is not stopped before ENG-1444 wires the Sound port.
+/// reads or writes state the Station will own.
 abstract interface class EffectHost {
   bool get watchIsWanted;
 
@@ -34,17 +34,7 @@ abstract interface class EffectHost {
 
   void askTheOpeningAgain(String freshTurnId);
 
-  void playLine(Line line);
-
-  void playPart(Sound part);
-
   void openTheMic(String take);
-
-  void dropTheLine(Line line);
-
-  void holdTheSound();
-
-  void letTheSoundRun();
 
   void drainTheOutbox();
 
@@ -55,8 +45,6 @@ abstract interface class EffectHost {
   void discardTheSession();
 
   void openTheChoice();
-
-  void sayTheOfflineNotice();
 
   void playTheReply(Turn turn, TurnResult reply);
 
@@ -81,6 +69,9 @@ class EffectRunner {
   final EffectHost host;
   final Duration Function() watchPeriod;
   final Duration Function(int step) retryDelay;
+  final Duration? Function() partCeiling;
+  final Duration Function() clipGrace;
+  final String Function() offlineNotice;
   final int Function()? generation;
 
   EffectRunner({
@@ -91,12 +82,21 @@ class EffectRunner {
     required this.host,
     required this.watchPeriod,
     required this.retryDelay,
+    required this.partCeiling,
+    required this.clipGrace,
+    required this.offlineNotice,
     this.generation,
   });
 
   Timer? _watch;
   Timer? _retry;
   StreamSubscription<void>? _networkWatch;
+  Timer? _ceiling;
+  Sound? _part;
+  int? _partStamp;
+  bool _held = false;
+  int _notices = 0;
+  List<StreamSubscription<void>>? _partSignals;
 
   /// [micWasOpen] is what the microphone was before the machine reduced the event that
   /// returned these effects.
@@ -105,6 +105,7 @@ class EffectRunner {
       switch (effect) {
         case SilenceTheRoom():
           host.silenceTheRoom();
+          _stopTheSound();
         case CloseAndDiscardTheMic():
           host.closeAndDiscardTheMic(wasOpen: micWasOpen);
         case ArmTheWatch():
@@ -122,23 +123,27 @@ class EffectRunner {
         case AskTheOpeningAgain(:final freshTurnId):
           host.askTheOpeningAgain(freshTurnId);
         case PlayLine(:final line):
-          host.playLine(line);
+          _say(line);
         case PlayPart(:final part):
-          host.playPart(part);
+          _playThePart(part);
         case PlayStretch(:final stretch):
-          host.playPart(stretch);
+          _playThePart(stretch);
         case OpenTheMic(:final take):
           host.openTheMic(take);
         case StopTheSound():
-          unawaited(sound.stop());
+          _stopTheSound();
         case StopTheLine():
           unawaited(sound.stopTheLine());
         case DropTheLine(:final line):
-          host.dropTheLine(line);
+          host.answer(LineNotSaid(line, generation: generation?.call()));
         case HoldTheSound():
-          host.holdTheSound();
+          _ceiling?.cancel();
+          _held = true;
+          unawaited(sound.pause());
         case LetTheSoundRun():
-          host.letTheSoundRun();
+          _held = false;
+          unawaited(sound.resume());
+          _armTheCeiling();
         case ArmTheRetry(:final step, :final due):
           _armTheRetry(due ?? retryDelay(step));
         case CancelTheRetry():
@@ -154,7 +159,7 @@ class EffectRunner {
         case OpenTheChoice():
           host.openTheChoice();
         case SayTheOfflineNotice():
-          host.sayTheOfflineNotice();
+          _sayTheOfflineNotice();
         case LookAtTheSession(:final turn, :final sounding):
           _lookAt(turn, sounding);
         case PlayTheReply(:final turn, :final reply):
@@ -178,7 +183,111 @@ class EffectRunner {
   void dispose() {
     endTheWatch();
     _retry?.cancel();
+    _ceiling?.cancel();
     unawaited(_networkWatch?.cancel());
+    for (final signal in _partSignals ?? const <StreamSubscription<void>>[]) {
+      unawaited(signal.cancel());
+    }
+  }
+
+  void _say(Line line) {
+    final stamp = generation?.call();
+    final url = line.url;
+    final asset = line.asset;
+    if (url == null && asset == null) {
+      return host.answer(LineNotSaid(line, generation: stamp));
+    }
+    unawaited(
+      _answerTheLine(
+        line,
+        asset != null
+            ? sound.playAsset(asset, onSoundStart: line.onSoundStart)
+            : sound.playLine(url!, onSoundStart: line.onSoundStart),
+        stamp,
+      ),
+    );
+  }
+
+  Future<void> _answerTheLine(Line line, Future<bool> said, int? stamp) async {
+    final bool whole;
+    try {
+      whole = await said;
+    } on RoomFailure catch (failure) {
+      return host.answer(
+        LineNotSaid(line, because: failure, generation: stamp),
+      );
+    }
+    host.answer(
+      whole
+          ? PlayerEnded(line: line, generation: stamp)
+          : PlayerFailed(line.source, line: line, generation: stamp),
+    );
+  }
+
+  void _sayTheOfflineNotice() => host.answer(
+    LineArrived(
+      Line(
+        LineKind.offlineNotice,
+        ++_notices,
+        source: Source.aside(LineKind.offlineNotice.name),
+        asset: offlineNotice(),
+      ),
+      generation: generation?.call(),
+    ),
+  );
+
+  void _playThePart(Sound part) {
+    _part = part;
+    _partStamp = generation?.call();
+    _held = false;
+    _partSignals ??= [
+      sound.partEnded.listen((_) => _thePartEnded()),
+      sound.partFailed.listen((_) => _thePartFailed()),
+      sound.partOpened.listen((_) => _thePartOpened()),
+    ];
+    unawaited(sound.playPart(part));
+    _armTheCeiling(opening: true);
+  }
+
+  void _thePartEnded() {
+    _ceiling?.cancel();
+    host.answer(PlayerEnded(generation: _partStamp));
+  }
+
+  void _thePartFailed() {
+    _ceiling?.cancel();
+    final part = _part;
+    if (part == null) return;
+    host.answer(PlayerFailed(part.source, generation: _partStamp));
+  }
+
+  void _thePartOpened() {
+    host.answer(PlayerOpened(generation: _partStamp));
+    if (!_held) _armTheCeiling();
+  }
+
+  /// What is left of the clip plus the grace, or the flat ceiling while the clip is still
+  /// opening: a held part counts no time, so its ceiling waits for the resume.
+  void _armTheCeiling({bool opening = false}) {
+    _ceiling?.cancel();
+    final length = opening ? null : sound.partLength;
+    final ceiling = length == null ? partCeiling() : _leftOf(length);
+    if (ceiling == null) return;
+    final stamp = _partStamp;
+    _ceiling = Timer(ceiling, () {
+      _ceiling = null;
+      host.answer(PlayerEnded(generation: stamp));
+    });
+  }
+
+  Duration _leftOf(Duration length) {
+    final left = length - sound.partPosition;
+    return left.isNegative ? clipGrace() : left + clipGrace();
+  }
+
+  void _stopTheSound() {
+    _ceiling?.cancel();
+    unawaited(sound.stop());
   }
 
   void _lookAt(Turn turn, Kept sounding) {
