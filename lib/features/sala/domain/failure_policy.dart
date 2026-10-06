@@ -2,7 +2,7 @@ import 'halt.dart';
 import 'machine.dart';
 import 'refusal_code.dart';
 import 'room_reach.dart';
-import 'session_state.dart';
+import 'station.dart';
 
 /// What a room call came back with, as the failure policy reads it (ADR 0047). Timed out
 /// is this tablet's own give-up, the busy-state watchdog's.
@@ -56,7 +56,7 @@ enum RefusalRule {
 /// Where the room stood when the result came back. [turn] is set only for a call that
 /// carries a `turn_id`, and [why] says how far a request gets when the network failed.
 final class FailureContext {
-  final SalaStage stage;
+  final Station station;
   final Enum? step;
   final int generation;
   final Turn? turn;
@@ -67,7 +67,7 @@ final class FailureContext {
   final Kept sounding;
 
   const FailureContext({
-    required this.stage,
+    required this.station,
     this.step,
     required this.generation,
     this.turn,

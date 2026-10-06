@@ -6,6 +6,7 @@ import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'machine_generator.dart';
 
@@ -174,7 +175,9 @@ final theScreenNeverShowsASoundTheChannelDoesNotHold = Invariant<Machine>(
   'ADR invariant 13, the screen never shows a sound the Channel does not hold',
   (before, event, after, effects, world) {
     for (final stage in SalaStage.values) {
-      final screen = SalaSessionState(stage: stage, machine: after);
+      final screen = SalaSessionState(
+        machine: after.copyWith(station: Station.stored(stage)),
+      );
       final playing =
           screen.btClipRodando ||
           screen.btTrechoTocando ||

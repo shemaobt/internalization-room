@@ -7,14 +7,15 @@ import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/refusal_code.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'machine_generator.dart';
 
 const _turn = Turn('sessao-1', 'turno-7');
 const _kept = TheOpening('turno-7');
 
-const _aTurn = FailureContext(
-  stage: SalaStage.conversa,
+final _aTurn = FailureContext(
+  station: Station.stored(SalaStage.conversa),
   generation: 4,
   turn: _turn,
   rule: RefusalRule.haltsAtOnce,
@@ -27,7 +28,7 @@ FailureContext _notATurn({
   Door door = Door.outbox,
   RoomReach why = RoomReach.noNetwork,
 }) => FailureContext(
-  stage: SalaStage.retro,
+  station: Station.stored(SalaStage.retro),
   step: BtPhase.thinking,
   generation: 4,
   door: door,
@@ -84,8 +85,8 @@ void main() {
     (
       'a turn refused calls a person on the spot whatever its family says',
       const RoomRefused(RefusalCode.unreadable),
-      const FailureContext(
-        stage: SalaStage.conversa,
+      FailureContext(
+        station: Station.stored(SalaStage.conversa),
         generation: 4,
         turn: _turn,
         sounding: _kept,
