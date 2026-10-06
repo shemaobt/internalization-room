@@ -343,7 +343,7 @@ void main() {
   });
 
   test(
-    'a play cut off by a new epoch does not count against the reply',
+    'a play cut off by a new generation does not count against the reply',
     () async {
       final desk = _Desk();
       final harness = _tabletTalkingTo(desk)..voice.succeeds = false;

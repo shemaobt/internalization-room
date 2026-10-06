@@ -5057,7 +5057,7 @@ void main() {
         harness.voice.fetched.where((url) => url == '/voice/p03').length,
         1,
         reason:
-            'a fila antiga viu o epoch trocado e parou antes de pedir p03; '
+            'a fila antiga viu o generation trocado e parou antes de pedir p03; '
             'só a fila nova, aberta pela roda reaberta, pediu esse nome',
       );
     },
@@ -5194,7 +5194,7 @@ void main() {
         harness.voice.fetched,
         isNot(contains('/voice/p02')),
         reason:
-            'o panorama não passa pelo _clearAll e não troca o epoch; a fila '
+            'o panorama não passa pelo _clearAll e não troca o generation; a fila '
             'seguia baixando nomes pelo mesmo link que a abertura lenta do '
             'panorama estava usando',
       );

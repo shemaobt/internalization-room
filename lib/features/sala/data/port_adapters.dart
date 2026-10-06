@@ -42,13 +42,13 @@ class ProviderSoundPort implements SoundPort {
 
   @override
   Future<bool> playLine(String url, {void Function()? onSoundStart}) {
-    unawaited(_playback.stop());
+    unawaited(_playback.pause());
     return _voice.play(url, onSoundStart: onSoundStart);
   }
 
   @override
   Future<bool> playAsset(String assetPath, {void Function()? onSoundStart}) {
-    unawaited(_playback.stop());
+    unawaited(_playback.pause());
     return _voice.playAsset(assetPath, onSoundStart: onSoundStart);
   }
 
@@ -60,6 +60,21 @@ class ProviderSoundPort implements SoundPort {
         ? _playback.play(sound.path, from: sound.from)
         : _playback.playRange(sound.path, sound.from, to);
   }
+
+  @override
+  Stream<void> get partEnded => _playback.completions;
+
+  @override
+  Stream<void> get partFailed => _playback.failures;
+
+  @override
+  Stream<void> get partOpened => _playback.openings;
+
+  @override
+  Duration? get partLength => _playback.playingLength;
+
+  @override
+  Duration get partPosition => _playback.position;
 
   @override
   Future<void> pause() => _playback.pause();

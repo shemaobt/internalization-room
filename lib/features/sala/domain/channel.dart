@@ -45,8 +45,18 @@ final class Line {
   final LineKind kind;
   final int id;
   final Source source;
+  final String? url;
+  final String? asset;
+  final void Function()? onSoundStart;
 
-  const Line(this.kind, this.id, {this.source = Source.guide});
+  const Line(
+    this.kind,
+    this.id, {
+    this.source = Source.guide,
+    this.url,
+    this.asset,
+    this.onSoundStart,
+  });
 
   @override
   bool operator ==(Object other) =>

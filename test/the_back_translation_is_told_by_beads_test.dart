@@ -176,6 +176,34 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a told stretch that ends back onto the part held beneath it '
+      'leaves the cursor as the part left it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness);
+    harness.playback.at = cabeca;
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    await tocar(tester, confirmar);
+    await tester.pump(passaDoCursor);
+    expect(
+      container.read(salaSessionProvider).nothingHeardSinceCursor,
+      isFalse,
+      reason: 'a parte seguinte já passou do cursor',
+    );
+
+    container.read(salaSessionProvider.notifier).ouvirOTrechoContado(0);
+    await tester.pump(const Duration(milliseconds: 300));
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      container.read(salaSessionProvider).nothingHeardSinceCursor,
+      isFalse,
+      reason: 'o fim do trecho contado não é a parte parando no cursor',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('B3 — só o V manda a tradução, confirma o trecho e toca o '
       'seguinte', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
