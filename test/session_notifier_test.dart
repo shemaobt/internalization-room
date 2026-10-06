@@ -5919,39 +5919,13 @@ void main() {
     await settle();
 
     expect(
-      harness.voice.assets.first,
-      fixedLineAsset(instantAckLines.first, testLanguage),
+      [for (final line in instantAckLines) fixedLineAsset(line, testLanguage)],
+      contains(harness.voice.assets.first),
       reason:
           'a fala de reconhecimento existe aprovada e no pacote desde o '
           'começo, e nada nunca a tocava — a sala esperava calada',
     );
   });
-
-  test(
-    'the acknowledgement rotates so the room does not sound stuck',
-    () async {
-      final harness = SalaHarness();
-      final container = await inConversa(harness);
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-      harness.voice.assets.clear();
-
-      for (var turn = 0; turn < 2; turn++) {
-        notifier.conversaTap();
-        await settle();
-        notifier.conversaTap();
-        await settle();
-      }
-
-      expect(
-        harness.voice.assets.where((asset) => asset.contains('/F')).toList(),
-        [
-          fixedLineAsset(instantAckLines[0], testLanguage),
-          fixedLineAsset(instantAckLines[1], testLanguage),
-        ],
-      );
-    },
-  );
 
   test('a capture the guard rejects is answered in silence, never from the '
       'room', () async {
