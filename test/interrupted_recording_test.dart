@@ -113,6 +113,9 @@ void main() {
         microphone.openedPath,
         p.join(documents.path, 'recordings', 'conversa.m4a'),
       );
+      expect(microphone.openedWith?.echoCancel, isTrue);
+      expect(microphone.openedWith?.noiseSuppress, isTrue);
+      expect(microphone.openedWith?.autoGain, isTrue);
     },
   );
 
@@ -237,6 +240,7 @@ void main() {
       expect(config?.echoCancel, isTrue);
       expect(config?.noiseSuppress, isFalse);
       expect(config?.autoGain, isFalse);
+      expect(config?.numChannels, 1);
     },
   );
 

@@ -54,7 +54,7 @@ class RecordingRepository {
       await _recorder.start(
         RecordConfig(
           encoder: wav ? AudioEncoder.wav : AudioEncoder.aacLc,
-          sampleRate: wav ? 16000 : 44100,
+          sampleRate: wav ? 16000 : const RecordConfig().sampleRate,
           audioInterruption: AudioInterruptionMode.pauseResume,
           echoCancel: true,
           noiseSuppress: !draft,
