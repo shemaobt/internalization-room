@@ -5898,8 +5898,10 @@ void main() {
     await settle();
 
     expect(
-      [for (final line in instantAckLines) fixedLineAsset(line, testLanguage)],
-      contains(harness.voice.assets.first),
+      harness.voice.assets.first,
+      isIn([
+        for (final line in instantAckLines) fixedLineAsset(line, testLanguage),
+      ]),
       reason:
           'a fala de reconhecimento existe aprovada e no pacote desde o '
           'começo, e nada nunca a tocava — a sala esperava calada',
