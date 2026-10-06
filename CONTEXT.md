@@ -108,6 +108,10 @@ _Avoid_: audio state, voice (the Circle's colour), player
 Whose open microphone the Channel holds: the conversation, the rehearsal, the capture or the question. The circle's words follow it.
 _Avoid_: listening (the circle's voice, not the fact), recording flag
 
+**Microphone answer**:
+How the recorder answered the microphone the room asked for: an opening started, refused or failed; a close with the take, or with none; a discard; or a late start abandoned. Every answer but a start gives the Channel back (ADR 0057).
+_Avoid_: capture result (a Capture is the back-translation's microphone), recorder state
+
 **Gesture on its way**:
 A gesture of the team from the moment it starts until everything it started has ended, the gesture it hands off to included, or until the room gives up on what that gesture was waiting for. Its own sounds pass, the instant acknowledgement of a turn among them; every other line, the courtesy lines (offline, stranded recording, microphone blocked) included, waits until it ends (ADR 0049).
 _Avoid_: busy, pending gesture
