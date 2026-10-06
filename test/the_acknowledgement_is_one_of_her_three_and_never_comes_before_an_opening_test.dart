@@ -15,13 +15,11 @@ const _panorama = Passagem(
 );
 const _p01 = Passagem(pericope: 'P01', audioUrl: '/voice/p01');
 
-const _theBundledFamily = ['F0', 'F1', 'F2', 'F3'];
-
 String _clip(String line) => fixedLineAsset(line, testLanguage);
 
 List<String> _acknowledgementsIn(Iterable<String> assets) => [
   for (final asset in assets)
-    if (_theBundledFamily.any((line) => asset == _clip(line))) asset,
+    if (theBundledAcknowledgements.any((line) => asset == _clip(line))) asset,
 ];
 
 Future<List<String>> _fiftyAcknowledgements() async {
@@ -39,18 +37,6 @@ Future<List<String>> _fiftyAcknowledgements() async {
     await settle();
   }
   return _acknowledgementsIn(harness.voice.assets);
-}
-
-Future<void> _theHaltIsLifted(
-  SalaHarness harness,
-  SalaSessionNotifier notifier,
-  SalaSessionState Function() read,
-) async {
-  harness.voice.roomFailsWith = null;
-  harness.room.theDeskAttended();
-  notifier.resolveWithPerson();
-  await waitFor('a sala soltar', () => !read().needsPerson);
-  await settle();
 }
 
 void main() {
@@ -117,7 +103,7 @@ void main() {
     await waitFor('a sala parar', () => read().needsPerson);
     harness.voice.assets.clear();
 
-    await _theHaltIsLifted(harness, notifier, read);
+    await theHaltIsLifted(harness, notifier, read);
 
     expect(harness.room.turnIdsAsked.length, greaterThanOrEqualTo(2));
     expect(_acknowledgementsIn(harness.voice.assets), isEmpty);

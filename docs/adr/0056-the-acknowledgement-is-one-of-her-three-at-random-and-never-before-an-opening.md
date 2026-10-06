@@ -1,13 +1,14 @@
 ---
 status: accepted
 date: 2026-10-06
+amends: 0012 (the Decision's "rotated" clause)
 ---
 
 # The acknowledgement is one of her three at random, and never before an opening
 
-This supersedes the clause in ADR 0012's Decision that the line is "rotated so it never
-repeats twice running"; the rest of 0012 stands. The Orchestrator settled it on 6 October
-(ENG-1448).
+This amends ADR 0012 without editing its text; it replaces the clause in its Decision that
+the line is "rotated so it never repeats twice running"; the rest of 0012 stands. The
+Orchestrator settled it on 6 October (ENG-1448).
 
 ## Context
 

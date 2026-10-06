@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 
@@ -121,3 +122,18 @@ T withDiskThatAnswersAtOnce<T>(T Function() body) => IOOverrides.runZoned(
   body,
   createFile: (path) => _FileThatAnswersAtOnce(path),
 );
+
+/// Every acknowledgement clip the bundle holds, the one the room no longer says included.
+const theBundledAcknowledgements = ['F0', 'F1', 'F2', 'F3'];
+
+Future<void> theHaltIsLifted(
+  SalaHarness harness,
+  SalaSessionNotifier notifier,
+  SalaSessionState Function() read,
+) async {
+  harness.voice.roomFailsWith = null;
+  harness.room.theDeskAttended();
+  notifier.resolveWithPerson();
+  await waitFor('a sala soltar', () => !read().needsPerson);
+  await settle();
+}

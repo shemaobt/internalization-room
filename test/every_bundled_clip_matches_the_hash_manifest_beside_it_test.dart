@@ -40,8 +40,10 @@ void main() {
           final bytes = File('${language.path}/$key').readAsBytesSync();
           expect(sha256.convert(bytes).toString(), value, reason: key);
         }
-        expect(record['api_commit'], isA<String>());
-        expect(record['api_commit'] as String, isNotEmpty);
+        for (final field in ['rendered_at', 'api_commit', 'voice_id']) {
+          expect(record[field], isA<String>(), reason: '$field missing');
+          expect(record[field] as String, isNotEmpty, reason: '$field empty');
+        }
       }
     },
     skip: noManifestYet

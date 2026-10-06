@@ -1,5 +1,5 @@
 ---
-status: superseded in part by ADR-0056
+status: accepted, amended by 0056
 ---
 
 # Latency is honesty
