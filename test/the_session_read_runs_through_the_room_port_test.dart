@@ -28,13 +28,13 @@ void main() {
     runner = runnerOver(fakePorts(ASoundPort(), room: room), host);
   });
 
-  test('a state read reaches the room port with the room\'s session', () {
+  test('a Session read reaches the room port with the room\'s session', () {
     runner.run(const [ReadTheState()]);
 
     expect(room.heard, ['read:sessao-1']);
   });
 
-  test('a state read with no session asks the room nothing', () {
+  test('a Session read with no session asks the room nothing', () {
     host.session = null;
 
     runner.run(const [ReadTheState()]);
@@ -43,7 +43,7 @@ void main() {
   });
 
   test(
-    'a state read the room answers is heard by the Station with its snapshot',
+    'a Session read the room answers is heard by the Station with its snapshot',
     () async {
       runner.run(const [ReadTheState()]);
       room.answerTheRead(const SessionReadAnswered(_snapshot));
@@ -55,7 +55,7 @@ void main() {
   );
 
   test(
-    'a state read that fails on the network takes the room out of reach at the Watch\'s door',
+    'a Session read that fails on the network takes the room out of reach at the Watch\'s door',
     () async {
       runner.run(const [ReadTheState()]);
       room.answerTheRead(const SessionReadFailed(RoomNetworkFailed()));
@@ -71,7 +71,7 @@ void main() {
     },
   );
 
-  test('a state read the room refuses passes', () async {
+  test('a Session read the room refuses passes', () async {
     runner.run(const [ReadTheState()]);
     room.answerTheRead(const SessionReadFailed(RoomRefused('some_code')));
     await pumpEventQueue();
@@ -81,7 +81,7 @@ void main() {
   });
 
   test(
-    'a state read whose session is gone tells the machine the session is gone',
+    'a Session read whose session is gone tells the machine the session is gone',
     () async {
       runner.run(const [ReadTheState()]);
       room.answerTheRead(const SessionReadFailed(RoomSessionGone()));
@@ -93,7 +93,7 @@ void main() {
   );
 
   test(
-    'a state read answered after the room left its session changes nothing',
+    'a Session read answered after the room left its session changes nothing',
     () async {
       runner.run(const [ReadTheState()]);
       host.session = null;

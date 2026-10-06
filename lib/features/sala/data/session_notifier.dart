@@ -5712,9 +5712,9 @@ class _NotifierHost implements EffectHost {
 
   @override
   FailureContext failureContext({
-    Door door = Door.step,
-    RefusalRule rule = RefusalRule.counts,
-    RoomReach why = RoomReach.noNetwork,
+    required Door door,
+    required RefusalRule rule,
+    required RoomReach why,
   }) => _notifier._failureContext(door: door, rule: rule, why: why);
 
   @override

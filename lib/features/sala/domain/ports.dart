@@ -6,7 +6,8 @@ import 'session_snapshot.dart';
 import 'turn_result.dart';
 
 /// The room client's doors, network health and the person-call inbox. Today it carries
-/// network health and the one look, and grows when the effects empty into the ports.
+/// network health, the one look, the Session read and the reach, and grows when the
+/// effects empty into the ports.
 abstract interface class RoomPort {
   Stream<void> get networkReturned;
 

@@ -45,14 +45,18 @@ together fall once.
 - **The one ask lives in the runner.** One ask of the reach is in the air at a time; a
   probe and a Step share it, and it falls once, only if a Step asked or the room is out of
   reach when it lands. The Step asks and the retry gesture reach it there.
-- **Two answers keep the zone of the gesture that asked.** The probe's `NetworkReturned` and
-  a failed read's event come back through `EffectHost.answerWhereAsked`, inside the gesture
-  that asked for the work, as they did when the notifier ran them; every other answer still
-  comes back apart from any gesture. What follows them belongs to that gesture: the step a
-  retry resends is handed off to the retry, which stays on its way and owns the lines the
-  step says; and a read that finds the session gone opens the Choice with the asking gesture
-  still on its way. Brought back apart, the retry ended with the probe and left the resent
-  step's lines unowned, so one could be dropped as a duplicate or wait behind the queue.
+- **Three answers come back to the gesture that asked.** The probe's `NetworkReturned`, a
+  failed read's event and the shared ask's fall come back through
+  `EffectHost.answerWhereAsked`, while the gesture that asked for the work is on its way, as
+  they did when the notifier ran them; every other answer still comes back apart from any
+  gesture. What follows them is that gesture's own: the step a retry resends is handed off
+  to the retry, which stays a gesture on its way and owns the lines the step says; and a
+  read that finds the session gone opens the Choice with the asking gesture still on its
+  way. Brought back apart, the retry ended with the probe and left the resent step's lines
+  unowned, so one could be dropped as a duplicate or wait behind the queue. The shared ask's
+  fall shows nothing today, since what a fall at the probe's door does reads no gesture; it
+  is kept with its gesture so the move changes nothing, and so a fall that later says a
+  Step's line still says it as that Step's own.
 - **The reach's face follows the machine.** It goes back to fine on the transition where the
   machine takes the room back, in the same state write, so a probe that finds the room
   answers only `NetworkReturned`.

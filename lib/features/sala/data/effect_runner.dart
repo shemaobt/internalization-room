@@ -26,9 +26,9 @@ abstract interface class EffectHost {
 
   /// The Station's context for a room result that comes back now (ADR 0059).
   FailureContext failureContext({
-    Door door = Door.step,
-    RefusalRule rule = RefusalRule.counts,
-    RoomReach why = RoomReach.noNetwork,
+    required Door door,
+    required RefusalRule rule,
+    required RoomReach why,
   });
 
   /// A conversation, a question or a panorama start is still in the air.
@@ -470,7 +470,11 @@ class EffectRunner {
         host.answerWhereAsked(
           FailurePolicy.decide(
             result,
-            host.failureContext(door: Door.watch, rule: RefusalRule.passes),
+            host.failureContext(
+              door: Door.watch,
+              rule: RefusalRule.passes,
+              why: RoomReach.noNetwork,
+            ),
           ),
         );
     }
@@ -486,10 +490,14 @@ class EffectRunner {
           final falls = _aStepAsks || !host.roomIsReachable;
           _aStepAsks = false;
           if (!_disposed && falls && reach != RoomReach.fine) {
-            host.answer(
+            host.answerWhereAsked(
               FailurePolicy.decide(
                 const RoomNetworkFailed(),
-                host.failureContext(door: Door.probe, why: reach),
+                host.failureContext(
+                  door: Door.probe,
+                  rule: RefusalRule.counts,
+                  why: reach,
+                ),
               ),
             );
           }
