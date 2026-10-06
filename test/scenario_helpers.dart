@@ -123,9 +123,7 @@ T withDiskThatAnswersAtOnce<T>(T Function() body) => IOOverrides.runZoned(
   createFile: (path) => _FileThatAnswersAtOnce(path),
 );
 
-/// Every acknowledgement line the app ever bundled, F3 included: the room no longer says it
-/// and the bundle no longer holds it.
-const theBundledAcknowledgements = ['F0', 'F1', 'F2', 'F3'];
+const everyAcknowledgementLineTheAppEverHad = ['F0', 'F1', 'F2', 'F3'];
 
 Future<void> theHaltIsLifted(
   SalaHarness harness,

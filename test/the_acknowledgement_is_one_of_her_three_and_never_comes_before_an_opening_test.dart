@@ -19,7 +19,10 @@ String _clip(String line) => fixedLineAsset(line, testLanguage);
 
 List<String> _acknowledgementsIn(Iterable<String> assets) => [
   for (final asset in assets)
-    if (theBundledAcknowledgements.any((line) => asset == _clip(line))) asset,
+    if (everyAcknowledgementLineTheAppEverHad.any(
+      (line) => asset == _clip(line),
+    ))
+      asset,
 ];
 
 Future<List<String>> _fiftyAcknowledgements() async {
