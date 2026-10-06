@@ -41,7 +41,14 @@ class World {
         event is! PlayerEnded &&
         event is! PlayerFailed &&
         event is! GestureSilenced;
-    var mic = micOpen && event is! MicClosed;
+    var mic =
+        micOpen &&
+        event is! MicClosed &&
+        event is! MicDiscarded &&
+        !(event is MicAnswered &&
+            event.generation == null &&
+            event.answer != MicAnswer.started &&
+            event.because == null);
     var retry = retryArmed && event is! RetryFired;
     var drains = draining && event is! OutboxChanged;
     var probes =
@@ -252,6 +259,9 @@ String describeEvent(MachineEvent event) => switch (event) {
     'PlayerFailed(${source.key}, ${describeKept(sounding)})',
   MicOpened(:final owner) => 'MicOpened(${owner.name})',
   MicClosed() => 'MicClosed',
+  MicAnswered(:final answer) => 'MicAnswered(${answer.name})',
+  MicClosing() => 'MicClosing',
+  MicDiscarded() => 'MicDiscarded',
   BeadTapped(:final sounds, :final beneath) =>
     'BeadTapped(${sounds.map(describeSound).join(', ')}'
         '${beneath == null ? '' : ', beneath: ${describeChannel(beneath)}'})',
@@ -365,6 +375,9 @@ enum EventKind {
   playerFailed,
   micOpened,
   micClosed,
+  micAnswered,
+  micClosing,
+  micDiscarded,
   beadTapped,
   pauseTapped,
   gestureSilenced,
@@ -413,6 +426,9 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   PlayerFailed() => EventKind.playerFailed,
   MicOpened() => EventKind.micOpened,
   MicClosed() => EventKind.micClosed,
+  MicAnswered() => EventKind.micAnswered,
+  MicClosing() => EventKind.micClosing,
+  MicDiscarded() => EventKind.micDiscarded,
   BeadTapped() => EventKind.beadTapped,
   PauseTapped() => EventKind.pauseTapped,
   GestureSilenced() => EventKind.gestureSilenced,
@@ -450,7 +466,9 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.playerOpened ||
   EventKind.playerEnded ||
   EventKind.playerFailed => world.playerBusy,
-  EventKind.micClosed => world.micOpen,
+  EventKind.micClosed ||
+  EventKind.micAnswered ||
+  EventKind.micClosing => world.micOpen,
   EventKind.lookFound || EventKind.lookEmpty => world.looking,
   EventKind.sessionRead ||
   EventKind.roomRaisedAHalt ||
@@ -462,6 +480,7 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.outboxChanged ||
   EventKind.lineArrived ||
   EventKind.micOpened ||
+  EventKind.micDiscarded ||
   EventKind.beadTapped ||
   EventKind.pauseTapped ||
   EventKind.gestureSilenced ||
@@ -511,6 +530,19 @@ Sound _drawASound(Random random) => random.nextBool()
         telling: random.nextBool(),
       );
 
+/// Unstamped is the generation the machine holds; -1 is always an older one.
+MicAnswered _drawAMicAnswer(Random random) {
+  final answer = MicAnswer.values[random.nextInt(MicAnswer.values.length)];
+  final closed = answer == MicAnswer.closed;
+  final failed = closed && random.nextInt(4) == 0;
+  return MicAnswered(
+    answer,
+    take: closed && !failed && random.nextBool() ? 'tomada.m4a' : null,
+    because: failed ? Exception('the recorder failed to stop') : null,
+    generation: random.nextInt(4) == 0 ? -1 : null,
+  );
+}
+
 MachineEvent _draw(EventKind kind, World world, Random random) =>
     switch (kind) {
       EventKind.sessionRead => _drawARead(world, random),
@@ -556,6 +588,9 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
         MicOwner.values[random.nextInt(MicOwner.values.length)],
       ),
       EventKind.micClosed => const MicClosed(),
+      EventKind.micAnswered => _drawAMicAnswer(random),
+      EventKind.micClosing => const MicClosing(),
+      EventKind.micDiscarded => const MicDiscarded(),
       EventKind.beadTapped => BeadTapped([
         for (var i = 0; i <= random.nextInt(3); i++) _drawASound(random),
       ]),

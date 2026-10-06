@@ -15,6 +15,12 @@ abstract interface class EffectHost {
 
   bool get roomIsReachable;
 
+  /// A conversation, a question or a panorama start is still in the air.
+  bool get recordingStarts;
+
+  /// Whether a start that answers now still has a microphone to record into.
+  bool keepsTheStart(MicOwner owner);
+
   /// What the room keeps to sound again if a line it fails to say calls a person.
   Kept get sounding;
 
@@ -27,12 +33,12 @@ abstract interface class EffectHost {
 
   void hearTheRun();
 
+  void hearTheMicrophoneTaken(bool taken);
+
   /// An event the runner brings back to the machine, outside any gesture.
   void answer(MachineEvent event);
 
   void silenceTheRoom();
-
-  void closeAndDiscardTheMic({required bool wasOpen});
 
   void callForAPerson();
 
@@ -45,8 +51,6 @@ abstract interface class EffectHost {
   void replayTheSound(Kept kept);
 
   void askTheOpeningAgain(String freshTurnId);
-
-  void openTheMic(String take);
 
   void drainTheOutbox();
 
@@ -107,6 +111,9 @@ class EffectRunner {
   Sound? _part;
   int? _partStamp;
   List<StreamSubscription<void>>? _partSignals;
+  StreamSubscription<bool>? _micTaken;
+  int _starts = 0;
+  bool _disposed = false;
 
   /// [micWasOpen] is what the microphone was before the machine reduced the event that
   /// returned these effects.
@@ -116,7 +123,11 @@ class EffectRunner {
         case SilenceTheRoom():
           host.silenceTheRoom();
         case CloseAndDiscardTheMic():
-          host.closeAndDiscardTheMic(wasOpen: micWasOpen);
+          _closeAndDiscardTheMic(wasOpen: micWasOpen);
+        case CloseTheMic():
+          unawaited(_handTheTakeOver());
+        case DiscardTheMic():
+          unawaited(recorder.discard());
         case ArmTheWatch():
           _armTheWatch();
         case CallForAPerson():
@@ -137,8 +148,8 @@ class EffectRunner {
           _playThePart(part);
         case PlayStretch(:final stretch):
           _playThePart(stretch);
-        case OpenTheMic(:final take):
-          host.openTheMic(take);
+        case OpenTheMic(:final owner, :final take):
+          _openTheMic(owner, take);
         case ArmTheCeiling():
           _armTheCeiling();
         case StopTheSound():
@@ -192,7 +203,9 @@ class EffectRunner {
   }
 
   void dispose() {
+    _disposed = true;
     endTheWatch();
+    unawaited(_micTaken?.cancel());
     _retry?.cancel();
     _ceiling?.cancel();
     unawaited(_networkWatch?.cancel());
@@ -336,6 +349,73 @@ class EffectRunner {
     if (!host.roomIsReachable) return;
     unawaited(_networkWatch?.cancel());
     _networkWatch = null;
+  }
+
+  void _openTheMic(MicOwner owner, String take) {
+    _micTaken ??= recorder.taken.listen(host.hearTheMicrophoneTaken);
+    unawaited(
+      _answerTheStart(
+        owner,
+        ++_starts,
+        generation?.call(),
+        recorder.start(take, owner),
+      ),
+    );
+  }
+
+  /// A start's answer is stamped with the generation it was opened under; a late start
+  /// that is still the newest closes the Channel and leaves no recorder running (ADR 0057).
+  Future<void> _answerTheStart(
+    MicOwner owner,
+    int start,
+    int? stamp,
+    Future<MicAnswer> starting,
+  ) async {
+    final answer = await starting;
+    if (_disposed) return;
+    final started = answer == MicAnswer.started;
+    final now = generation?.call();
+    if (stamp != now) {
+      if (start == _starts && started) {
+        unawaited(recorder.discard());
+        host.answer(MicAnswered(MicAnswer.abandoned, generation: now));
+      } else if (start == _starts) {
+        host.answer(MicClosed(generation: now));
+      }
+    } else if (started && !host.keepsTheStart(owner)) {
+      unawaited(recorder.discard());
+    }
+    host.answer(MicAnswered(answer, generation: stamp));
+  }
+
+  /// A take's answer is stamped when it comes back: the gesture waiting on the take gets
+  /// it, or the recorder's failure, whatever moved meanwhile.
+  Future<void> _handTheTakeOver() async {
+    final String? take;
+    try {
+      take = await recorder.stop();
+    } on Object catch (because) {
+      if (_disposed) return;
+      return host.answer(
+        MicAnswered(
+          MicAnswer.closed,
+          because: because,
+          generation: generation?.call(),
+        ),
+      );
+    }
+    if (_disposed) return;
+    host.answer(
+      MicAnswered(MicAnswer.closed, take: take, generation: generation?.call()),
+    );
+  }
+
+  void _closeAndDiscardTheMic({required bool wasOpen}) {
+    if (!wasOpen && !host.recordingStarts) return;
+    unawaited(recorder.discard());
+    host.answer(
+      MicAnswered(MicAnswer.discarded, generation: generation?.call()),
+    );
   }
 
   void endTheWatch() {
