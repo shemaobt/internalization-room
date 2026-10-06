@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:internalization_room/features/sala/domain/channel.dart';
+import 'package:internalization_room/features/sala/domain/failure_policy.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
@@ -70,8 +71,9 @@ class ASoundPort implements SoundPort {
   Future<void> stop() async => heard.add('stop');
 }
 
-/// A room port that reaches nothing: it writes down what it was asked, and a Session read
-/// or a reach answers only when the test says so.
+/// A room port that reaches nothing: it writes down what it was asked, and a Session read,
+/// a reach, a call for a person or a person-arrived mark answers only when the test says
+/// so.
 class ARoomPort implements RoomPort {
   final List<String> heard = [];
   final List<Completer<SessionReadAnswer>> _reads = [];
@@ -103,6 +105,42 @@ class ARoomPort implements RoomPort {
   }
 
   void answerTheReach(RoomReach reach) => _reaches.removeAt(0).complete(reach);
+
+  final List<Completer<RoomResult>> _calls = [];
+  final List<Completer<TabletCallAnswer>> _tabletCalls = [];
+  final List<Completer<RoomResult>> _arrivals = [];
+
+  @override
+  Future<RoomResult> askForAPerson(String session) {
+    heard.add('call:$session');
+    final call = Completer<RoomResult>();
+    _calls.add(call);
+    return call.future;
+  }
+
+  void answerTheCall(RoomResult result) => _calls.removeAt(0).complete(result);
+
+  @override
+  Future<TabletCallAnswer> askForAPersonWithoutASession() {
+    heard.add('call by the tablet');
+    final call = Completer<TabletCallAnswer>();
+    _tabletCalls.add(call);
+    return call.future;
+  }
+
+  void answerTheTabletCall(TabletCallAnswer answer) =>
+      _tabletCalls.removeAt(0).complete(answer);
+
+  @override
+  Future<RoomResult> personArrived(String session) {
+    heard.add('arrived:$session');
+    final arrival = Completer<RoomResult>();
+    _arrivals.add(arrival);
+    return arrival.future;
+  }
+
+  void answerTheArrival(RoomResult result) =>
+      _arrivals.removeAt(0).complete(result);
 }
 
 /// A recorder port that records nothing: it writes down what it was asked, and a start or

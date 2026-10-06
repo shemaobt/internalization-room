@@ -19,6 +19,13 @@ abstract interface class RoomPort {
 
   /// How far a request would get right now.
   Future<RoomReach> reach();
+
+  Future<RoomResult> askForAPerson(String session);
+
+  /// The same call for a halt with no session to name, made by the tablet's own device.
+  Future<TabletCallAnswer> askForAPersonWithoutASession();
+
+  Future<RoomResult> personArrived(String session);
 }
 
 /// What the room answered to a Session read: the snapshot, or the result the failure
@@ -37,6 +44,25 @@ final class SessionReadFailed extends SessionReadAnswer {
   final RoomResult result;
 
   const SessionReadFailed(this.result);
+}
+
+/// What the room answered to a call made by the tablet, or why the call was never made.
+sealed class TabletCallAnswer {
+  const TabletCallAnswer();
+}
+
+final class TabletCallAnswered extends TabletCallAnswer {
+  final RoomResult result;
+
+  const TabletCallAnswered(this.result);
+}
+
+final class TheTabletIsUnknown extends TabletCallAnswer {
+  const TheTabletIsUnknown();
+}
+
+final class TheLedgerFailed extends TabletCallAnswer {
+  const TheLedgerFailed();
 }
 
 /// Voice lines and parts together: one sound at a time. A part cuts a line; a line holds

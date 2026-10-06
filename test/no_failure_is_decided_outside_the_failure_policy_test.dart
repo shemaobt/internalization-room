@@ -18,8 +18,6 @@ const _intoTheMapper = [
 /// Doors whose room failures still decide on their own, each with the ticket that
 /// moves it into the failure policy.
 const _notYetMoved = <String, String>{
-  '_anEarlierSessionAnswered': 'ENG-1354',
-  '_tellTheRoomAPersonArrivedAt': 'ENG-1354',
   '_aprovarRascunhoFinal': 'ENG-1444',
   '_asPartesDaSala': 'ENG-1444',
   '_createThePassage': 'ENG-1444',

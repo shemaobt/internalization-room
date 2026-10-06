@@ -34,7 +34,6 @@ import 'effect_runner.dart';
 import 'facilitator_voice_service.dart';
 import 'finished_passages.dart';
 import 'hand_inbox_repository.dart';
-import 'linked_team.dart';
 import 'mic_permission.dart';
 import 'playback_repository.dart';
 import 'port_adapters.dart';
@@ -228,7 +227,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   final Map<String, String> _stretchKeys = {};
   bool _strandedSpoken = false;
   bool _personAsked = false;
-  bool _askingForAPerson = false;
+  bool _markingThePassageClosed = false;
   int _personAskStep = 0;
   int _lastAcknowledgement = 0;
   final _random = Random();
@@ -337,7 +336,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   PlaybackRepository get _playback => ref.read(playbackRepositoryProvider);
   HandInboxRepository get _inbox => ref.read(handInboxRepositoryProvider);
   RoomRepository get _room => ref.read(roomRepositoryProvider);
-  LinkedTeam get _ledger => ref.read(linkedTeamProvider);
   TakeUploadQueue get _takes => ref.read(takeUploadQueueProvider);
   ConnectivityService get _network => ref.read(connectivityServiceProvider);
   FinishedPassages get _feitas => ref.read(finishedPassagesProvider);
@@ -1105,61 +1103,29 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.rodaPorLer) _handOff(abrirEscolha());
   }
 
-  void _tellTheRoomAPersonIsNeeded() {
-    if (_personAsked || _askingForAPerson) return;
-    if (state.sessionId == null) {
-      unawaited(_askForAPersonWithoutASession());
-    } else {
-      unawaited(_askForAPerson());
-    }
+  bool get _callIsWanted =>
+      !_gone && state.needsPerson && !_personAsked && !_markingThePassageClosed;
+
+  void _theCallLanded() {
+    _theCallLandedWithoutASession();
+    _readsSentBeforeTheCall = _readsSent;
   }
 
-  /// The call is only made when the server says it has it.
-  ///
-  /// Most of the ways into a halt are bad network and a room that is not answering, so
-  /// the call goes out at the worst possible moment to be delivered — and a lost one left
-  /// no trace anywhere: the session never entered the desk's queue, no facilitator was
-  /// told, and nobody arrived to tap the screen that is the only thing that asked again.
-  Future<void> _askForAPerson() async {
-    final sessionId = state.sessionId;
-    if (sessionId == null || _personAsked || _askingForAPerson) return;
-    _askingForAPerson = true;
-    final pericope = _emCurso;
-    final answer = await _room.askForAPerson(sessionId);
-    if (sessionId != state.sessionId) {
-      return _anEarlierSessionAnswered(sessionId, pericope, answer);
-    }
-    _askingForAPerson = false;
-    switch (answer) {
-      case Answered():
-        if (!_gone && state.needsPerson) {
-          _personAsked = true;
-          _readsSentBeforeTheCall = _readsSent;
-          _dispatch(TheCallLanded(generation: _generation));
-        }
-      case final RoomFailure failure:
-        _decideAt(failure, door: Door.person, rule: RefusalRule.asksAgain);
-    }
-  }
+  void _theCallLandedWithoutASession() => _personAsked = true;
 
-  Future<void> _anEarlierSessionAnswered(
+  Future<void> _theCallOfAnEarlierSession(
     String sessionId,
     String? pericope,
-    RoomAnswer<void> answer,
+    RoomResult result,
   ) async {
-    switch (answer) {
-      case Refused(code: RefusalCode.passageClosed):
+    switch (result) {
+      case RoomRefused(code: RefusalCode.passageClosed):
         await _thePassageClosed(sessionId, pericope);
-      case SessionGone():
+      case RoomSessionGone():
         _theSessionIsGone(sessionId);
-      case NetworkFailed():
-        _askingForAPerson = false;
-        return _outOfReach(Door.person);
-      case Answered() || Refused():
+      case _:
         break;
     }
-    _askingForAPerson = false;
-    if (!_gone && state.needsPerson) _tellTheRoomAPersonIsNeeded();
   }
 
   /// Held as a call still being asked until the passage is written down as closed, so a
@@ -1167,9 +1133,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _markThePassageClosed() async {
     final sessionId = state.sessionId;
     if (sessionId == null) return;
-    _askingForAPerson = true;
+    _markingThePassageClosed = true;
     await _thePassageClosed(sessionId, _emCurso);
-    _askingForAPerson = false;
+    _markingThePassageClosed = false;
   }
 
   Future<void> _thePassageClosed(String sessionId, String? pericope) async {
@@ -1187,32 +1153,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(feitas: {...state.feitas, pericope});
     }
     _letGoOf(sessionId);
-  }
-
-  /// The same ask, for a halt with no session to name. Asks by the tablet's own device
-  /// id, from the link ledger.
-  Future<void> _askForAPersonWithoutASession() async {
-    if (_personAsked || _askingForAPerson) return;
-    _askingForAPerson = true;
-    final String? deviceId;
-    try {
-      deviceId = (await _ledger.read()).deviceId;
-    } on Exception {
-      _askingForAPerson = false;
-      return _keepAskingForAPerson(_askForAPersonWithoutASession);
-    }
-    if (deviceId == null || _gone) {
-      _askingForAPerson = false;
-      return;
-    }
-    final answer = await _room.askForAPersonWithoutASession(deviceId);
-    _askingForAPerson = false;
-    switch (answer) {
-      case Answered():
-        if (!_gone && state.needsPerson) _personAsked = true;
-      case final RoomFailure failure:
-        _decideAt(failure, door: Door.person, rule: RefusalRule.asksAgain);
-    }
   }
 
   /// Whether to try again is `state.needsPerson` and not the generation: `_cancelTimers`
@@ -1510,22 +1450,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _theRoomIsBack();
     _settleNetworkHealth(resolved: true);
     _resumeFailures = 0;
-  }
-
-  void _tellTheRoomAPersonArrived() {
-    final sessionId = state.sessionId;
-    if (sessionId != null) unawaited(_tellTheRoomAPersonArrivedAt(sessionId));
-  }
-
-  Future<void> _tellTheRoomAPersonArrivedAt(String sessionId) async {
-    switch (await _room.personArrived(sessionId)) {
-      case NetworkFailed():
-        _outOfReach(Door.person);
-      case SessionGone():
-        _theSessionIsGone(sessionId);
-      case Answered() || Refused():
-        break;
-    }
   }
 
   /// Arms the wait for the coverage channel to say what this turn's classification
@@ -5725,6 +5649,30 @@ class _NotifierHost implements EffectHost {
       _notifier._theSessionReadHeard(snapshot, sent);
 
   @override
+  bool get callIsWanted => _notifier._callIsWanted;
+
+  @override
+  String? get passageInCourse => _notifier._emCurso;
+
+  @override
+  void hearTheCallLanded() => _notifier._theCallLanded();
+
+  @override
+  void hearTheCallLandedWithoutASession() =>
+      _notifier._theCallLandedWithoutASession();
+
+  @override
+  Future<void> hearAnEarlierSessionsCall(
+    String session,
+    String? passage,
+    RoomResult result,
+  ) => _notifier._theCallOfAnEarlierSession(session, passage, result);
+
+  @override
+  void hearAnEarlierSessionGone(String session) =>
+      _notifier._theSessionIsGone(session);
+
+  @override
   bool get recordingStarts => _notifier._recordingStarting;
 
   @override
@@ -5760,13 +5708,7 @@ class _NotifierHost implements EffectHost {
   void silenceTheRoom() => _notifier._silenceTheHaltedRoom();
 
   @override
-  void callForAPerson() => _notifier._tellTheRoomAPersonIsNeeded();
-
-  @override
   void stopCallingForAPerson() => _notifier._stopCallingForAPerson();
-
-  @override
-  void tellAPersonArrived() => _notifier._tellTheRoomAPersonArrived();
 
   @override
   void replayTheSound(Kept kept) => _notifier._replay(kept);
@@ -5801,7 +5743,7 @@ class _NotifierHost implements EffectHost {
 
   @override
   void askForAPersonAgain() => _notifier._keepAskingForAPerson(
-    () async => _notifier._tellTheRoomAPersonIsNeeded(),
+    () async => _notifier._runner.callForAPerson(),
   );
 
   @override
