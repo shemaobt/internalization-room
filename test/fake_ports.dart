@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:internalization_room/features/sala/data/effect_runner.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
@@ -88,20 +87,9 @@ class AStorePort implements StorePort {
   Future<int> flushTheOutbox() async => 0;
 }
 
-EffectRunner runnerOverFakePorts(
-  ASoundPort sound,
-  ARoomHost host, {
-  int Function()? generation,
-}) => EffectRunner(
+Ports fakePorts(ASoundPort sound) => (
   room: ARoomPort(),
   sound: sound,
   recorder: ARecorderPort(),
   store: AStorePort(),
-  host: host,
-  watchPeriod: () => const Duration(seconds: 30),
-  retryDelay: (_) => Duration.zero,
-  partCeiling: () => const Duration(seconds: 90),
-  clipGrace: () => const Duration(seconds: 2),
-  offlineNotice: () => 'offline.mp3',
-  generation: generation,
 );

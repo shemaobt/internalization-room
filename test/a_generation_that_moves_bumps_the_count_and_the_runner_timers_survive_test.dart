@@ -1,8 +1,6 @@
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/effect_runner.dart';
-import 'package:internalization_room/features/sala/data/port_adapters.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 
 import 'a_room_host_double.dart';
@@ -27,17 +25,11 @@ void main() {
     addTearDown(container.dispose);
     final host = ARoomHost()..roomIsReachable = false;
     var machine = reduce(const Machine(), const NetworkFailedAt(Door.step)).$1;
-    final runner = EffectRunner(
-      room: container.read(roomPortProvider),
-      sound: container.read(soundPortProvider),
-      recorder: container.read(recorderPortProvider),
-      store: container.read(storePortProvider),
-      host: host,
-      watchPeriod: () => _beat,
-      retryDelay: (_) => _retry,
-      partCeiling: () => null,
-      clipGrace: () => Duration.zero,
-      offlineNotice: () => 'offline.mp3',
+    final runner = runnerOver(
+      portsOf(container),
+      host,
+      watchPeriod: _beat,
+      retryDelay: _retry,
       generation: () => machine.generation,
     );
 

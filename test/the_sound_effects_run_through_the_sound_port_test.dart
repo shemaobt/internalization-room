@@ -9,6 +9,8 @@ import 'fake_ports.dart';
 
 const _line = Line(LineKind.guide, 1, url: 'scene.mp3');
 const _part = PartSound(0, 'part.m4a');
+const _next = PartSound(1, 'next.m4a');
+const _grace = Duration(seconds: 2);
 
 void main() {
   late ASoundPort sound;
@@ -18,7 +20,7 @@ void main() {
   setUp(() {
     sound = ASoundPort();
     host = ARoomHost();
-    runner = runnerOverFakePorts(sound, host);
+    runner = runnerOver(fakePorts(sound), host, clipGrace: _grace);
   });
 
   test(
@@ -62,7 +64,7 @@ void main() {
       expect(sound.heard, ['part:part.m4a']);
       expect(
         host.answers.single,
-        isA<PlayerEnded>().having((ended) => ended.line, 'line', isNull),
+        isA<PlayerEnded>().having((ended) => ended.sound, 'sound', _part),
       );
     },
   );
@@ -111,7 +113,7 @@ void main() {
     'an end that comes back after the generation moved is stamped with the generation it was played under',
     () async {
       var generation = 3;
-      runner = runnerOverFakePorts(sound, host, generation: () => generation);
+      runner = runnerOver(fakePorts(sound), host, generation: () => generation);
 
       runner.run(const [PlayPart(_part)]);
       generation = 4;
@@ -122,6 +124,27 @@ void main() {
         host.answers.single,
         isA<PlayerEnded>().having((ended) => ended.generation, 'generation', 3),
       );
+    },
+  );
+
+  test(
+    'the Station hears a part end before the machine, and a part it starts then plays on',
+    () {
+      var machine = reduce(const Machine(), const BeadTapped([_part])).$1;
+      Channel? heardOver;
+      host.onAnswer = (event) => machine = reduce(machine, event).$1;
+      host.onPartEnd = () {
+        heardOver = machine.channel;
+        final (next, effects) = reduce(machine, const BeadTapped([_next]));
+        machine = next;
+        runner.run(effects);
+      };
+
+      runner.run(const [PlayPart(_part)]);
+      sound.endThePart();
+
+      expect(heardOver, const PartPlaying(_part));
+      expect(machine.channel, const PartPlaying(_next));
     },
   );
 }

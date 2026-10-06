@@ -15,6 +15,17 @@ abstract interface class EffectHost {
 
   bool get roomIsReachable;
 
+  /// What the room keeps to sound again if a line it fails to say calls a person.
+  Kept get sounding;
+
+  /// The Station hears a part's end and its failure before the machine is answered, and
+  /// its opening after.
+  void hearThePartEnd();
+
+  void hearThePartFail();
+
+  void hearThePartOpen();
+
   /// An event the runner brings back to the machine, outside any gesture.
   void answer(MachineEvent event);
 
@@ -71,7 +82,7 @@ class EffectRunner {
   final Duration Function(int step) retryDelay;
   final Duration? Function() partCeiling;
   final Duration Function() clipGrace;
-  final String Function() offlineNotice;
+  final Line Function() offlineNotice;
   final int Function()? generation;
 
   EffectRunner({
@@ -95,7 +106,6 @@ class EffectRunner {
   Sound? _part;
   int? _partStamp;
   bool _held = false;
-  int _notices = 0;
   List<StreamSubscription<void>>? _partSignals;
 
   /// [micWasOpen] is what the microphone was before the machine reduced the event that
@@ -105,7 +115,6 @@ class EffectRunner {
       switch (effect) {
         case SilenceTheRoom():
           host.silenceTheRoom();
-          _stopTheSound();
         case CloseAndDiscardTheMic():
           host.closeAndDiscardTheMic(wasOpen: micWasOpen);
         case ArmTheWatch():
@@ -190,12 +199,13 @@ class EffectRunner {
     }
   }
 
+  /// A line's answer is stamped when it comes back: the gesture waiting on the line hears
+  /// how it ended whatever moved meanwhile.
   void _say(Line line) {
-    final stamp = generation?.call();
     final url = line.url;
     final asset = line.asset;
     if (url == null && asset == null) {
-      return host.answer(LineNotSaid(line, generation: stamp));
+      return host.answer(LineNotSaid(line, generation: generation?.call()));
     }
     unawaited(
       _answerTheLine(
@@ -203,38 +213,34 @@ class EffectRunner {
         asset != null
             ? sound.playAsset(asset, onSoundStart: line.onSoundStart)
             : sound.playLine(url!, onSoundStart: line.onSoundStart),
-        stamp,
       ),
     );
   }
 
-  Future<void> _answerTheLine(Line line, Future<bool> said, int? stamp) async {
+  Future<void> _answerTheLine(Line line, Future<bool> said) async {
     final bool whole;
     try {
       whole = await said;
     } on RoomFailure catch (failure) {
       return host.answer(
-        LineNotSaid(line, because: failure, generation: stamp),
+        LineNotSaid(line, because: failure, generation: generation?.call()),
       );
     }
+    final stamp = generation?.call();
     host.answer(
       whole
           ? PlayerEnded(line: line, generation: stamp)
-          : PlayerFailed(line.source, line: line, generation: stamp),
+          : PlayerFailed(
+              line.source,
+              sounding: host.sounding,
+              line: line,
+              generation: stamp,
+            ),
     );
   }
 
-  void _sayTheOfflineNotice() => host.answer(
-    LineArrived(
-      Line(
-        LineKind.offlineNotice,
-        ++_notices,
-        source: Source.aside(LineKind.offlineNotice.name),
-        asset: offlineNotice(),
-      ),
-      generation: generation?.call(),
-    ),
-  );
+  void _sayTheOfflineNotice() =>
+      host.answer(LineArrived(offlineNotice(), generation: generation?.call()));
 
   void _playThePart(Sound part) {
     _part = part;
@@ -251,18 +257,26 @@ class EffectRunner {
 
   void _thePartEnded() {
     _ceiling?.cancel();
-    host.answer(PlayerEnded(generation: _partStamp));
+    _ended(_part, _partStamp);
+  }
+
+  void _ended(Sound? part, int? stamp) {
+    host.hearThePartEnd();
+    host.answer(PlayerEnded(sound: part, generation: stamp));
   }
 
   void _thePartFailed() {
     _ceiling?.cancel();
     final part = _part;
+    final stamp = _partStamp;
     if (part == null) return;
-    host.answer(PlayerFailed(part.source, generation: _partStamp));
+    host.hearThePartFail();
+    host.answer(PlayerFailed(part.source, sound: part, generation: stamp));
   }
 
   void _thePartOpened() {
     host.answer(PlayerOpened(generation: _partStamp));
+    host.hearThePartOpen();
     if (!_held) _armTheCeiling();
   }
 
@@ -273,10 +287,11 @@ class EffectRunner {
     final length = opening ? null : sound.partLength;
     final ceiling = length == null ? partCeiling() : _leftOf(length);
     if (ceiling == null) return;
+    final part = _part;
     final stamp = _partStamp;
     _ceiling = Timer(ceiling, () {
       _ceiling = null;
-      host.answer(PlayerEnded(generation: stamp));
+      _ended(part, stamp);
     });
   }
 

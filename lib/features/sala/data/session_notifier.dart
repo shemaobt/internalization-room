@@ -78,8 +78,6 @@ const _gestureChain = #gestureChain;
 
 const _umInstanteOuvido = Duration(milliseconds: 400);
 
-enum _Said { said, failed, unsaid }
-
 /// What a reopening found where the team left off.
 enum _Resume {
   /// The station they left, standing again, with the rehearsal under it.
@@ -331,7 +329,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   int _gestures = 0;
   final Map<int, int> _handedOff = {};
   final Set<int> _waitingOnTheGeneration = {};
-  final Map<Line, Completer<_Said>> _sayings = {};
+  final Map<Line, Completer<Said>> _sayings = {};
   VoidCallback? _onPlaybackComplete;
   VoidCallback? _onPlaybackFailed;
 
@@ -372,7 +370,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       retryDelay: _onTheLadder,
       partCeiling: () => ref.read(playbackCeilingProvider),
       clipGrace: () => ref.read(clipGraceProvider),
-      offlineNotice: () => offlineNoticeAsset(_lingua),
+      offlineNotice: () =>
+          _newLine(LineKind.offlineNotice, asset: offlineNoticeAsset(_lingua)),
       generation: () => _generation,
     );
     ref.onDispose(() {
@@ -413,29 +412,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     url: url,
     asset: asset,
     onSoundStart: onSoundStart,
-  ).then((said) => said == _Said.said);
+  ).then((said) => said == Said.said);
 
-  Future<_Said> _sayTheLine(
+  Future<Said> _sayTheLine(
     LineKind kind, {
     String? url,
     String? asset,
     void Function()? onSoundStart,
     Source? source,
   }) {
-    final line = Line(
+    final line = _newLine(
       kind,
-      ++_lines,
-      source:
-          source ??
-          switch (kind) {
-            LineKind.guide || LineKind.approved => Source.guide,
-            _ => Source.aside(kind.name),
-          },
       url: url,
       asset: asset,
       onSoundStart: onSoundStart,
+      source: source,
     );
-    final ended = Completer<_Said>();
+    final ended = Completer<Said>();
     _sayings[line] = ended;
     _dispatch(
       LineArrived(
@@ -447,39 +440,33 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return ended.future;
   }
 
-  /// What the runner brought back about a line: the machine hears it only while the line
-  /// is still the one speaking, and the gesture awaiting the line is answered either way.
-  void _theLineAnswered(Line line, MachineEvent event) {
-    final ended = _sayings.remove(line);
-    final still = _isSpeaking(line);
-    switch (event) {
-      case LineNotSaid(:final because):
-        if (!still) return ended?.complete(_Said.unsaid);
-        _dispatch(event);
-        if (because != null) return ended?.completeError(because);
-        ended?.complete(_Said.unsaid);
-      case PlayerFailed(:final source, :final generation):
-        if (still) {
-          _dispatch(
-            PlayerFailed(
-              source,
-              sounding: _whatIsSounding(theOpening: false),
-              line: line,
-              generation: generation,
-            ),
-          );
-        }
-        ended?.complete(still ? _Said.failed : _Said.unsaid);
-      default:
-        if (still) _dispatch(event);
-        ended?.complete(_Said.said);
-    }
-  }
+  Line _newLine(
+    LineKind kind, {
+    String? url,
+    String? asset,
+    void Function()? onSoundStart,
+    Source? source,
+  }) => Line(
+    kind,
+    ++_lines,
+    source:
+        source ??
+        switch (kind) {
+          LineKind.guide || LineKind.approved => Source.guide,
+          _ => Source.aside(kind.name),
+        },
+    url: url,
+    asset: asset,
+    onSoundStart: onSoundStart,
+  );
 
-  bool _isSpeaking(Line line) => switch (state.channel) {
-    GuideSpeaking(line: final speaking) => speaking == line,
-    _ => false,
-  };
+  void _theLineEnded(LineOutcome outcome) {
+    final ended = _sayings.remove(outcome.line);
+    if (ended == null) return;
+    final because = outcome.because;
+    if (because != null) return ended.completeError(because);
+    ended.complete(outcome.said);
+  }
 
   void _after(String key, Duration delay, VoidCallback fn) {
     _timers[key]?.cancel();
@@ -634,9 +621,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _onPlaybackComplete = null;
       _onPlaybackFailed = null;
       _timers.remove('cursor')?.cancel();
-      unawaited(_playback.stop());
     }
-    unawaited(_voice.stop());
     _dispatch(GestureSilenced(keepingTheHold: holdTheClip));
     state = state.copyWith(clearContaEscolhida: true);
   }
@@ -666,52 +651,28 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _dispatch(BeadTapped(sounds, beneath: beneath));
   }
 
-  void _thePartOpened(PlayerOpened opened) {
-    _dispatch(opened);
-    if (_stale(opened)) return;
-    _medirAParteNoAr();
-    if (state.btClipRodando) _armCursorDeadline();
-  }
-
-  bool _stale(AnsweringEvent event) {
-    final generation = event.generation;
-    return generation != null && generation < _generation;
-  }
-
-  void _cannotPlayTheirOwnAudio(PlayerFailed failed) {
-    if (_stale(failed)) return _dispatch(failed);
-    final channel = state.channel;
+  void _thePartFailed() {
     _onPlaybackComplete = null;
     final undo = _onPlaybackFailed;
     _onPlaybackFailed = null;
-    if (channel is! Playing) return;
-    final sounding = _whatIsSounding();
-    undo?.call();
-    if (identical(state.channel, channel)) {
-      _dispatch(
-        PlayerFailed(
-          channel.sound.source,
-          sounding: sounding,
-          generation: failed.generation,
-        ),
-      );
-    }
+    if (state.channel is Playing) undo?.call();
   }
 
-  void _releasePlayback(PlayerEnded ended) {
-    if (_stale(ended)) return _dispatch(ended);
-    final channel = state.channel;
-    final next = switch (channel) {
+  void _thePartEnded() {
+    final next = switch (state.channel) {
       Playing(:final next) || Paused(:final next) => next,
       _ => null,
     };
-    if (next == null) return;
-    if (next.isNotEmpty) return _dispatch(ended);
+    if (next == null || next.isNotEmpty) return;
     final callback = _onPlaybackComplete;
     _onPlaybackComplete = null;
     _onPlaybackFailed = null;
     callback?.call();
-    if (identical(state.channel, channel)) _dispatch(ended);
+  }
+
+  void _thePartOpened() {
+    _medirAParteNoAr();
+    if (state.btClipRodando) _armCursorDeadline();
   }
 
   void _holdClip() {
@@ -724,12 +685,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  /// The retro cursor follows the head: it stops with a hold and walks again with a run.
-  void _followTheHead(List<Effect> effects) {
-    if (effects.any((effect) => effect is HoldTheSound)) _checkCursorNow();
-    if (effects.any((effect) => effect is LetTheSoundRun) &&
-        state.btClipRodando) {
-      _armCursorDeadline();
+  /// What a gesture waits on after a sound: the line it said, and the retro cursor, which
+  /// stops with a hold and walks again when the part runs on.
+  void _followTheSound(Machine before, Machine after) {
+    final outcome = after.lastLine;
+    if (outcome != null && !identical(outcome, before.lastLine)) {
+      _theLineEnded(outcome);
+    }
+    switch ((before.channel, after.channel)) {
+      case (Playing(), Paused()):
+        _checkCursorNow();
+      case (
+            Paused(started: true, :final what) ||
+                GuideSpeaking(held: Paused(started: true, :final what)),
+            Playing(:final sound),
+          )
+          when sound == what && state.btClipRodando:
+        _armCursorDeadline();
+      default:
     }
   }
 
@@ -1018,11 +991,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _dispatch(MachineEvent event) {
-    final micWasOpen = state.channel is Microphone;
-    final (machine, effects) = reduce(state.machine, event);
+    final before = state.machine;
+    final (machine, effects) = reduce(before, event);
     state = state.copyWith(machine: machine);
-    _runner.run(effects, micWasOpen: micWasOpen);
-    _followTheHead(effects);
+    _runner.run(effects, micWasOpen: before.channel is Microphone);
+    _followTheSound(before, machine);
   }
 
   bool get _watchIsWanted =>
@@ -3132,7 +3105,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// the reply sounded; a reply that did not, or that outlived its generation, clears it
   /// here, or the hand, the circle and the convite all return early on it for good.
   Future<void> _playReply(HandReply reply) async {
-    _Said said;
+    Said said;
     try {
       said = await _sayTheLine(
         LineKind.reply,
@@ -3145,15 +3118,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       return _outOfReach(Door.reply);
     } on Exception {
-      said = _Said.failed;
+      said = Said.failed;
     }
     if (_gone) return;
     final current =
-        said != _Said.unsaid &&
+        said != Said.unsaid &&
         !state.replies.any(
           (kept) => kept.id == reply.id && kept.audioUrl != reply.audioUrl,
         );
-    if (said == _Said.said && current) {
+    if (said == Said.said && current) {
       unawaited(_markHeard(reply.id, audioUrl: reply.audioUrl));
       return;
     }
@@ -5780,17 +5753,20 @@ class _NotifierHost implements EffectHost {
   bool get roomIsReachable => _notifier._roomIsReachable;
 
   @override
-  void answer(MachineEvent event) => _notifier._apart(
-    () => switch (event) {
-      LineNotSaid(:final line) ||
-      PlayerEnded(:final line?) ||
-      PlayerFailed(:final line?) => _notifier._theLineAnswered(line, event),
-      final PlayerEnded ended => _notifier._releasePlayback(ended),
-      final PlayerFailed failed => _notifier._cannotPlayTheirOwnAudio(failed),
-      final PlayerOpened opened => _notifier._thePartOpened(opened),
-      _ => _notifier._dispatch(event),
-    },
-  );
+  Kept get sounding => _notifier._whatIsSounding(theOpening: false);
+
+  @override
+  void answer(MachineEvent event) =>
+      _notifier._apart(() => _notifier._dispatch(event));
+
+  @override
+  void hearThePartEnd() => _notifier._thePartEnded();
+
+  @override
+  void hearThePartFail() => _notifier._thePartFailed();
+
+  @override
+  void hearThePartOpen() => _notifier._thePartOpened();
 
   @override
   void silenceTheRoom() => _notifier._silenceTheHaltedRoom();

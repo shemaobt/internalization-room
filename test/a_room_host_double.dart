@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:internalization_room/features/sala/data/effect_runner.dart';
 import 'package:internalization_room/features/sala/data/port_adapters.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
@@ -18,10 +20,27 @@ class ARoomHost implements EffectHost {
   bool roomIsReachable = true;
 
   @override
+  Kept sounding = const NothingKept();
+
+  void Function()? onPartEnd;
+
+  @override
   void answer(MachineEvent event) {
     answers.add(event);
     onAnswer?.call(event);
   }
+
+  @override
+  void hearThePartEnd() {
+    asked.add('hearThePartEnd');
+    onPartEnd?.call();
+  }
+
+  @override
+  void hearThePartFail() => asked.add('hearThePartFail');
+
+  @override
+  void hearThePartOpen() => asked.add('hearThePartOpen');
 
   @override
   void silenceTheRoom() => asked.add('silenceTheRoom');
@@ -89,20 +108,38 @@ class ARoomHost implements EffectHost {
   void refuseThePassage() => asked.add('refuseThePassage');
 }
 
-EffectRunner runnerOver(
-  ProviderContainer container,
-  ARoomHost host, {
-  required Duration watchPeriod,
-  Duration retryDelay = Duration.zero,
-}) => EffectRunner(
+typedef Ports = ({
+  RoomPort room,
+  SoundPort sound,
+  RecorderPort recorder,
+  StorePort store,
+});
+
+Ports portsOf(ProviderContainer container) => (
   room: container.read(roomPortProvider),
   sound: container.read(soundPortProvider),
   recorder: container.read(recorderPortProvider),
   store: container.read(storePortProvider),
+);
+
+EffectRunner runnerOver(
+  Ports ports,
+  ARoomHost host, {
+  Duration watchPeriod = const Duration(seconds: 30),
+  Duration retryDelay = Duration.zero,
+  Duration clipGrace = Duration.zero,
+  int Function()? generation,
+}) => EffectRunner(
+  room: ports.room,
+  sound: ports.sound,
+  recorder: ports.recorder,
+  store: ports.store,
   host: host,
   watchPeriod: () => watchPeriod,
   retryDelay: (_) => retryDelay,
   partCeiling: () => null,
-  clipGrace: () => Duration.zero,
-  offlineNotice: () => 'offline.mp3',
+  clipGrace: () => clipGrace,
+  offlineNotice: () =>
+      const Line(LineKind.offlineNotice, 0, asset: 'offline.mp3'),
+  generation: generation,
 );

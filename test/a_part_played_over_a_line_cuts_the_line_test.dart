@@ -13,11 +13,7 @@ void main() {
       final harness = SalaHarness();
       final container = ProviderContainer(overrides: harness.overrides);
       addTearDown(container.dispose);
-      final runner = runnerOver(
-        container,
-        ARoomHost(),
-        watchPeriod: const Duration(seconds: 30),
-      );
+      final runner = runnerOver(portsOf(container), ARoomHost());
       harness.voice.holdNextLine();
 
       runner.run(const [

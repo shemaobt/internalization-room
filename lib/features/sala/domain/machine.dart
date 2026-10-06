@@ -122,21 +122,25 @@ final class PlayerOpened extends AnsweringEvent {
   const PlayerOpened({super.generation});
 }
 
+/// [line] or [sound] names what ended; neither is read as whatever is sounding.
 final class PlayerEnded extends AnsweringEvent {
   final Line? line;
+  final Sound? sound;
 
-  const PlayerEnded({this.line, super.generation});
+  const PlayerEnded({this.line, this.sound, super.generation});
 }
 
 final class PlayerFailed extends AnsweringEvent {
   final Source source;
   final Kept sounding;
   final Line? line;
+  final Sound? sound;
 
   const PlayerFailed(
     this.source, {
     this.sounding = const NothingKept(),
     this.line,
+    this.sound,
     super.generation,
   });
 }
@@ -403,10 +407,11 @@ final class OpenTheMic extends Effect {
   int get hashCode => Object.hash(owner, take);
 }
 
+/// Stops the voice; [line] names the line it cuts, when one is speaking.
 final class StopTheLine extends Effect {
-  final Line line;
+  final Line? line;
 
-  const StopTheLine(this.line);
+  const StopTheLine([this.line]);
 
   @override
   bool operator ==(Object other) => other is StopTheLine && other.line == line;
@@ -546,6 +551,17 @@ final class RefuseThePassage extends Effect {
   const RefuseThePassage();
 }
 
+enum Said { said, failed, unsaid }
+
+/// How the last line the room answered for ended, for the gesture that waits on it.
+final class LineOutcome {
+  final Line line;
+  final Said said;
+  final Exception? because;
+
+  const LineOutcome(this.line, this.said, {this.because});
+}
+
 final class Machine {
   final Halt halt;
   final Channel channel;
@@ -564,6 +580,8 @@ final class Machine {
   /// The turn whose POST is in the air: sent, and neither answered nor given up.
   final Turn? inFlight;
 
+  final LineOutcome? lastLine;
+
   const Machine({
     this.halt = const NoHalt(),
     this.channel = const Silence(),
@@ -579,6 +597,7 @@ final class Machine {
     this.noticeSaid = false,
     this.generation = 0,
     this.inFlight,
+    this.lastLine,
   });
 
   bool get reachable => reach == Reach.reachable;
@@ -612,6 +631,7 @@ final class Machine {
     int? generation,
     Turn? inFlight,
     bool landTheTurn = false,
+    LineOutcome? lastLine,
   }) => Machine(
     halt: halt ?? this.halt,
     channel: channel ?? this.channel,
@@ -627,6 +647,7 @@ final class Machine {
     noticeSaid: noticeSaid ?? this.noticeSaid,
     generation: generation ?? this.generation,
     inFlight: landTheTurn ? null : (inFlight ?? this.inFlight),
+    lastLine: lastLine ?? this.lastLine,
   );
 }
 
@@ -646,6 +667,26 @@ const _watch = ArmTheWatch();
   ),
   LineArrived(:final line, :final by) => _arrive(machine, line, by),
   PlayerOpened() => (_opened(machine), const []),
+  PlayerEnded(:final line?) => _answer(
+    machine,
+    line,
+    Said.said,
+    heard: () => _ended(machine),
+  ),
+  PlayerFailed(:final line?, :final source, :final sounding) => _answer(
+    machine,
+    line,
+    Said.failed,
+    heard: () => _failed(machine, source, sounding),
+  ),
+  PlayerEnded(:final sound?) when !_sounds(machine, sound, orHeld: true) => (
+    machine,
+    const [],
+  ),
+  PlayerFailed(:final sound?) when !_sounds(machine, sound) => (
+    machine,
+    const [],
+  ),
   PlayerEnded() => _ended(machine),
   PlayerFailed(:final source, :final sounding) => _failed(
     machine,
@@ -662,7 +703,9 @@ const _watch = ArmTheWatch();
   PauseTapped() => _pause(machine),
   GestureSilenced(:final keepingTheHold) => (
     _silenced(machine, keepingTheHold),
-    const [],
+    keepingTheHold
+        ? [StopTheLine(_speaking(machine.channel))]
+        : const [StopTheSound()],
   ),
   GestureStarted(:final gesture) => (
     machine.copyWith(onTheirWay: {...machine.onTheirWay, gesture}),
@@ -672,7 +715,14 @@ const _watch = ArmTheWatch();
     machine.copyWith(onTheirWay: {...machine.onTheirWay}..remove(gesture)),
   ),
   NothingReplayed() => _drain(machine),
-  LineNotSaid(:final line) => _notSaid(machine, line),
+  LineNotSaid(:final line, :final because) => _answer(
+    machine,
+    line,
+    because == null ? Said.unsaid : Said.failed,
+    because: because,
+    heard: () => _notSaid(machine, line),
+    unheard: () => _notSaid(machine, line),
+  ),
   StepLeft() => _leaveTheQueue(machine, _answersItsStep),
   LeftThePassage() => (
     machine.copyWith(
@@ -792,6 +842,44 @@ bool _aboutTheFall(Line line) => line.kind == LineKind.offlineNotice;
       if (leaves(line)) DropTheLine(line),
   ],
 );
+
+Line? _speaking(Channel channel) => switch (channel) {
+  GuideSpeaking(:final line) => line,
+  _ => null,
+};
+
+bool _speaks(Machine machine, Line line) => _speaking(machine.channel) == line;
+
+bool _sounds(Machine machine, Sound sound, {bool orHeld = false}) =>
+    switch (machine.channel) {
+      Playing(sound: final playing) => playing == sound,
+      Paused(:final what) => orHeld && what == sound,
+      _ => false,
+    };
+
+/// A line's answer reaches the Channel only while that line is the one speaking; the
+/// gesture that waits on it is told how it ended either way.
+(Machine, List<Effect>) _answer(
+  Machine machine,
+  Line line,
+  Said said, {
+  Exception? because,
+  required (Machine, List<Effect>) Function() heard,
+  (Machine, List<Effect>) Function()? unheard,
+}) {
+  final speaking = _speaks(machine, line);
+  final (next, effects) = speaking
+      ? heard()
+      : unheard?.call() ?? (machine, const <Effect>[]);
+  return (
+    next.copyWith(
+      lastLine: speaking
+          ? LineOutcome(line, said, because: because)
+          : LineOutcome(line, said == Said.said ? Said.said : Said.unsaid),
+    ),
+    effects,
+  );
+}
 
 (Machine, List<Effect>) _notSaid(Machine machine, Line line) =>
     switch (machine.channel) {
