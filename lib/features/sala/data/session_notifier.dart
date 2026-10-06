@@ -24,6 +24,7 @@ import '../domain/session_snapshot.dart';
 import '../domain/halt.dart';
 import '../domain/machine.dart';
 import '../domain/session_state.dart';
+import '../domain/station.dart';
 import '../domain/spoken_line.dart';
 import '../domain/turn_clock.dart';
 import '../domain/turn_result.dart';
@@ -506,10 +507,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  void _leaveTheStepFor(SalaStage next) {
-    if (state.stage == next) return;
+  void _leaveTheStepFor(Station next) {
+    if (state.station == next) return;
     _dispatch(const StepLeft());
     state = state.copyWith(awaitingTheGuide: false, endOfThePassage: false);
+  }
+
+  void _arriveAt(StationEvent arrival) {
+    final generation = _generation;
+    _dispatch(arrival);
+    if (_generation != generation) _endTheGesturesAbandoned();
   }
 
   void _clearAll() {
@@ -591,6 +598,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Machine get _gesturesOnTheirWay => Machine(
     onTheirWay: state.machine.onTheirWay.intersection(_chain.toSet()),
     generation: state.machine.generation,
+    station: state.machine.station,
   );
 
   List<int> get _chain => Zone.current[_gestureChain] as List<int>? ?? const [];
@@ -976,7 +984,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Kept _whatIsSounding({bool theOpening = true}) {
-    if (state.stage == SalaStage.retro &&
+    if (state.station is Retro &&
         (state.channel is Playing || !_parteJaTocou)) {
       return const ThePart();
     }
@@ -1040,7 +1048,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _takeTheStretches(BackTranslationProgress told) {
-    if (state.stage != SalaStage.retro ||
+    if (state.station is! Retro ||
         state.btPhase == BtPhase.thinking ||
         told.nothingTold) {
       return;
@@ -1050,9 +1058,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   bool _applyWhatOnlyGrows(SessionSnapshot snapshot, {TurnClock? clock}) {
     final advanced = _applyCoverage(snapshot.coverage, clock: clock);
-    if (!state.needsPerson &&
-        snapshot.done &&
-        state.stage == SalaStage.conversa) {
+    if (!state.needsPerson && snapshot.done && state.station is Canvas) {
       state = state.copyWith(
         endOfThePassage: true,
         peerCue: state.voice == VoiceState.invite ? false : null,
@@ -1093,7 +1099,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _replay(Kept kept) {
     switch (kept) {
       case ThePart():
-        if (state.stage == SalaStage.retro &&
+        if (state.station is Retro &&
             state.btPhase == BtPhase.playing &&
             _parteNoAr != null &&
             !state.btCortado) {
@@ -1111,7 +1117,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case NothingKept() || TheOpening():
         break;
     }
-    if (state.sessionId == null && state.stage == SalaStage.conversa) {
+    if (state.sessionId == null && state.station is Canvas) {
       _handOff(goConversa(pericope: _emCurso));
     }
     if (state.rodaPorLer) _handOff(abrirEscolha());
@@ -1195,7 +1201,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (sessionId == _theSession) {
       return _dispatch(ThePassageClosed(generation: _generation));
     }
-    if (pericope != null && state.stage == SalaStage.escolha) {
+    if (pericope != null && state.station is Menu) {
       state = state.copyWith(feitas: {...state.feitas, pericope});
     }
     _letGoOf(sessionId);
@@ -1274,10 +1280,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     RoomReach why = RoomReach.noNetwork,
     Turn? turn,
   }) => FailureContext(
-    stage: state.stage,
-    step: switch (state.stage) {
-      SalaStage.convite => state.conviteStep,
-      SalaStage.retro => state.btPhase,
+    station: state.station,
+    step: switch (state.station) {
+      Convite() => state.conviteStep,
+      Retro() => state.btPhase,
       _ => null,
     },
     generation: _generation,
@@ -1434,7 +1440,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// no refusal and no offline circle to show for it. Both stations do all their waiting in
   /// this phase.
   void _leaveThinking() {
-    if (state.stage == SalaStage.retro && state.btPhase == BtPhase.thinking) {
+    if (state.station is Retro && state.btPhase == BtPhase.thinking) {
       state = state.copyWith(btPhase: BtPhase.playing);
     }
   }
@@ -1460,13 +1466,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> Function()? _theStationAgain() {
     final pericope = _emCurso;
-    return switch (state.stage) {
-      SalaStage.fim => _startOver,
-      SalaStage.escolha => abrirEscolha,
-      SalaStage.conversa when state.sessionId == null => () => goConversa(
+    return switch (state.station) {
+      Fim() => _startOver,
+      Menu() => abrirEscolha,
+      Canvas() when state.sessionId == null => () => goConversa(
         pericope: pericope,
       ),
-      SalaStage.convite when state.conviteStep == ConviteStep.boasVindas =>
+      Convite() when state.conviteStep == ConviteStep.boasVindas =>
         () async => _conviteOpened = false,
       _ => null,
     };
@@ -1756,7 +1762,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// tablet. The panorama belongs to a book, not to a launch. Otherwise the room says
   /// nothing and waits for the touch that opens the convite.
   Future<void> openTheRoom() async {
-    if (state.stage != SalaStage.convite) return;
+    if (state.station is! Convite) return;
     if (state.conviteStep != ConviteStep.boasVindas) return;
     if (await _feitas.bookOpened(_book)) {
       await abrirEscolha();
@@ -1764,7 +1770,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> openConvite() async {
-    if (state.stage != SalaStage.convite || _conviteOpened) return;
+    if (state.station is! Convite || _conviteOpened) return;
     _conviteOpened = true;
     final generation = _waitOnTheGeneration;
     state = state.copyWith(awaitingTheGuide: true);
@@ -1849,7 +1855,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void conviteTap() => _gesture(() => _conviteTap());
 
   void _conviteTap() {
-    if (state.stage != SalaStage.convite) return;
+    if (state.station is! Convite) return;
     if (state.offline) {
       retryNow();
       return;
@@ -1925,15 +1931,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // Still the same visit to the Choice when this call never left its stage — a network
     // blip that comes back mid-visit, or the wheel-never-loaded retry — as well as the
     // reload a refusal itself triggers, which leaves the stage but is not a fresh entry.
-    final sameVisit = afterRefusal || state.stage == SalaStage.escolha;
-    if (state.stage != SalaStage.escolha) {
+    final sameVisit = afterRefusal || state.station is Menu;
+    if (state.station is! Menu) {
       _forgetThePassage();
     }
-    _leaveTheStepFor(SalaStage.escolha);
+    _leaveTheStepFor(const Menu());
     _clearAll();
+    _arriveAt(const TheChoiceOpened());
     final generation = _waitOnTheGeneration;
     state = state.copyWith(
-      stage: SalaStage.escolha,
       awaitingTheGuide: true,
       peerCue: false,
       clearRoda: true,
@@ -2030,7 +2036,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void escolhaTap() => _gesture(() => _escolhaTap());
 
   void _escolhaTap() {
-    if (state.stage != SalaStage.escolha) return;
+    if (state.station is! Menu) return;
     if (state.offline) {
       retryNow();
       return;
@@ -2055,7 +2061,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void apontarPassagem(int index) => _gesture(() => _apontarPassagem(index));
 
   void _apontarPassagem(int index) {
-    if (state.stage != SalaStage.escolha) return;
+    if (state.station is! Menu) return;
     if (state.needsPerson || state.offline) return;
     final roda = state.naRoda;
     if (roda == null || roda.isEmpty) return;
@@ -2087,7 +2093,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void dizerAPassagem() => _gesture(() => _dizerAPassagem());
 
   void _dizerAPassagem() {
-    if (state.stage != SalaStage.escolha) return;
+    if (state.station is! Menu) return;
     if (state.needsPerson || state.offline) return;
     if (state.naRoda?.isEmpty ?? true) return;
     _silenceTheRoom();
@@ -2289,6 +2295,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       reach: state.reach,
       machine: state.machine.withNoPassage(_gesturesOnTheirWay.onTheirWay),
     );
+    _arriveAt(const TheRoomStartedOver());
     _handOff(abrirEscolha());
   }
 
@@ -2312,13 +2319,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _emCurso = pericope;
     state = SalaSessionState(
       machine: _gesturesOnTheirWay,
-      stage: SalaStage.conversa,
       awaitingTheGuide: true,
       naRoda: livro.naRoda,
       comecadas: livro.comecadas,
       feitas: livro.feitas,
       aOferecer: livro.aOferecer,
     );
+    _arriveAt(const PassageChosen());
     _stringTheNecklaceEarly(pericope);
   }
 
@@ -2341,12 +2348,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     bool fresh = false,
     SessionSnapshot? opened,
   }) async {
-    _leaveTheStepFor(SalaStage.conversa);
+    _leaveTheStepFor(const Canvas());
     _clearAll();
     _emCurso = pericope;
-    final generation = _waitOnTheGeneration;
+    _arriveAt(const PassageChosen());
+    var generation = _waitOnTheGeneration;
+    void landed() {
+      generation = _waitOnTheGeneration;
+      _watchBusyState();
+    }
+
     state = state.copyWith(
-      stage: SalaStage.conversa,
       awaitingTheGuide: true,
       peerCue: false,
       contasEnfiadas: true,
@@ -2439,7 +2451,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             pericope,
             ResumePoint(
               sessionId: sessionId,
-              stage: SalaStage.conversa,
+              stage: const Canvas().stage,
               savedAt: _sessionSavedAt,
               language: _sessionLanguage,
             ),
@@ -2450,7 +2462,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(_pullInbox());
     _watchBusyState();
     if (resumed) {
-      final onde = await _backToWhereTheyStopped(waiting, generation);
+      final onde = await _backToWhereTheyStopped(
+        waiting,
+        generation,
+        landed: landed,
+      );
       if (_abandoned(generation)) return;
       if (onde == _Resume.halted ||
           onde == _Resume.abandoned ||
@@ -2468,8 +2484,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         }
         if (_abandoned(generation)) return;
         state = state.copyWith(coverage: snapshot.coverage);
-        if (waiting.stage == SalaStage.retro) {
+        if (Station.stored(waiting.stage) is Retro) {
           _pickTheTellingBackUp(snapshot.backTranslation);
+          landed();
         } else {
           _keepTheStretchesAlreadyTold(snapshot.backTranslation);
         }
@@ -2482,7 +2499,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _applyTheSessionRead(snapshot, sent);
         return;
       }
-      if (waiting.stage == SalaStage.retro) {
+      if (Station.stored(waiting.stage) is Retro) {
         final SessionSnapshot read;
         final sent = ++_readsSent;
         switch (await _room.fetchState(sessionId)) {
@@ -2505,6 +2522,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         // is the one way past this door now that a resume fetches the parts.
         if (told.checked && !told.nothingTold) {
           _pickTheTellingBackUp(told);
+          landed();
           _applyTheSessionRead(read, sent);
           return;
         }
@@ -2582,7 +2600,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// Write down where they are, so leaving lands them back here rather than at the start.
-  void _rememberWhereTheyAre(SalaStage stage) {
+  void _rememberWhereTheyAre(Station station) {
     if (_gone) return;
     final pericope = _emCurso;
     final sessionId = state.sessionId;
@@ -2594,7 +2612,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           pericope,
           ResumePoint(
             sessionId: sessionId,
-            stage: stage,
+            stage: station.stage,
             takes: state.keptTakes,
             savedAt: _sessionSavedAt,
             language: _sessionLanguage,
@@ -2625,9 +2643,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// the station they left with the room's own parts under them.
   Future<_Resume> _backToWhereTheyStopped(
     ResumePoint waiting,
-    int generation,
-  ) async {
-    if (waiting.stage == SalaStage.conversa || waiting.takes.isEmpty) {
+    int generation, {
+    required void Function() landed,
+  }) async {
+    if (Station.stored(waiting.stage) is Canvas || waiting.takes.isEmpty) {
       return _Resume.nothingToRestore;
     }
     final here = [
@@ -2682,9 +2701,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // have no end yet.
     if (faltavam) await _medirAsPartes(takes, generation);
     if (_abandoned(generation)) return _Resume.abandoned;
-    _leaveTheStepFor(SalaStage.ensaio);
+    _leaveTheStepFor(const Ensaio());
+    _arriveAt(const TheRehearsalOpened());
+    landed();
     state = state.copyWith(
-      stage: SalaStage.ensaio,
       ensaio: EnsaioStatus.idle,
       awaitingTheGuide: false,
       keptTakes: takes,
@@ -2699,7 +2719,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // the recordings the room gave: a row rewritten without them makes the next opening
       // find nothing to restore, and the rehearsal the room is holding would be out of
       // the team's reach for good.
-      _rememberWhereTheyAre(waiting.stage);
+      _rememberWhereTheyAre(Station.stored(waiting.stage));
     }
     unawaited(_countUnsent());
     return _Resume.landed;
@@ -2809,9 +2829,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// same station: it comes back to the start of the untold ground, with the circle ready
   /// to tell, and not to a rehearsal it has already recorded.
   void _pickTheTellingBackUp(BackTranslationProgress told) {
-    _leaveTheStepFor(SalaStage.retro);
+    _leaveTheStepFor(const Retro());
+    _arriveAt(const TheBackTranslationOpened());
     state = state.copyWith(
-      stage: SalaStage.retro,
       awaitingTheGuide: false,
       btPhase: told.checked ? BtPhase.conferida : BtPhase.playing,
       btTrechos: _trechosFrom(told.segments),
@@ -2841,7 +2861,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void conversaTap() => _gesture(() => _conversaTap());
 
   void _conversaTap() {
-    if (state.stage != SalaStage.conversa) return;
+    if (state.station is! Canvas) return;
     if (state.offline) {
       retryNow();
       return;
@@ -3036,10 +3056,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // hit-testable for the 400 ms the switcher takes, so a finger already travelling
     // lands here from the next stage — and starts a question recording no screen shows
     // and no gesture stops.
-    if (state.stage != SalaStage.conversa && state.stage != SalaStage.convite) {
+    if (state.station is! Canvas && state.station is! Convite) {
       return;
     }
-    if (state.stage == SalaStage.convite && _panoramaSessionId == null) return;
+    if (state.station is Convite && _panoramaSessionId == null) return;
     if (state.offline) {
       retryNow();
       return;
@@ -3223,7 +3243,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final path = await _recorder.stop();
     _dispatch(MicClosed(generation: _generation));
     if (_abandoned(generation)) return;
-    final sessionId = state.stage == SalaStage.convite
+    final sessionId = state.station is Convite
         ? _panoramaSessionId
         : state.sessionId;
     if (path == null || !_hasAudio(path) || sessionId == null) {
@@ -3279,7 +3299,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!Env.devPularFases) return;
     final knob = ref.read(devLanguageProvider.notifier);
     knob.choose(knob.next(_lingua));
-    if (state.stage == SalaStage.convite) {
+    if (state.station is Convite) {
       if (_panoramaSessionId != null) _handOff(_reabrirPanoramaNaLingua());
       return;
     }
@@ -3327,11 +3347,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void goEnsaio() => _gesture(() => _goEnsaio());
 
   void _goEnsaio() {
-    _rememberWhereTheyAre(SalaStage.ensaio);
-    _leaveTheStepFor(SalaStage.ensaio);
+    _rememberWhereTheyAre(const Ensaio());
+    _leaveTheStepFor(const Ensaio());
     _clearAll();
+    _arriveAt(const TheRehearsalOpened());
     state = state.copyWith(
-      stage: SalaStage.ensaio,
       awaitingTheGuide: false,
       ensaio: EnsaioStatus.idle,
       peerCue: false,
@@ -3367,7 +3387,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void tocarAParte(int indice) => _gesture(() => _tocarAParte(indice));
 
   void _tocarAParte(int indice) {
-    if (state.stage != SalaStage.ensaio) return;
+    if (state.station is! Ensaio) return;
     if (state.needsPerson) return;
     if (state.ensaio == EnsaioStatus.recording) return;
     if (indice < 0 || indice >= state.partes.length) return;
@@ -3509,7 +3529,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         chunkIndex: parte,
       ),
     );
-    _rememberWhereTheyAre(SalaStage.ensaio);
+    _rememberWhereTheyAre(const Ensaio());
   }
 
   /// The recording the team just made takes the place of the part it was made for.
@@ -3564,7 +3584,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         chunkIndex: numero,
       ),
     );
-    _rememberWhereTheyAre(SalaStage.ensaio);
+    _rememberWhereTheyAre(const Ensaio());
   }
 
   /// The parts end where they now do, and this part is a file of its own length. Measured
@@ -3853,16 +3873,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void startRetro() => _gesture(() => _startRetro());
 
   void _startRetro() {
-    if (state.stage == SalaStage.ensaio && state.ensaio != EnsaioStatus.idle) {
+    if (state.station is Ensaio && state.ensaio != EnsaioStatus.idle) {
       return;
     }
     // Before the write, not after: the mark belongs to the Rehearsal alone, and a row
     // saved for the retro must never carry one to restore.
-    _leaveTheStepFor(SalaStage.retro);
+    _leaveTheStepFor(const Retro());
     _clearAll();
-    _rememberWhereTheyAre(SalaStage.retro);
+    _rememberWhereTheyAre(const Retro());
+    _arriveAt(const TheBackTranslationOpened());
     state = state.copyWith(
-      stage: SalaStage.retro,
       awaitingTheGuide: false,
       btPhase: BtPhase.playing,
       btChunkFailures: const [],
@@ -4097,7 +4117,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   };
 
   void _medirAParteNoAr() {
-    if (state.stage != SalaStage.retro) return;
+    if (state.station is! Retro) return;
     if (!state.btClipRodando) return;
     final medida = _playback.playingLength;
     if (medida == null) return;
@@ -4224,7 +4244,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void ouvirGravacao() => _gesture(() => _ouvirGravacao());
 
   void _ouvirGravacao() {
-    if (state.stage != SalaStage.retro) return;
+    if (state.station is! Retro) return;
     final conferida = state.btPhase == BtPhase.conferida;
     if (state.btPhase != BtPhase.playing && !conferida) return;
     if (state.needsPerson || state.offline) return;
@@ -4291,7 +4311,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _gesture(() => _ouvirOTrechoContado(indice));
 
   void _ouvirOTrechoContado(int indice) {
-    if (state.stage != SalaStage.retro || state.btPhase != BtPhase.playing) {
+    if (state.station is! Retro || state.btPhase != BtPhase.playing) {
       return;
     }
     if (state.needsPerson || state.offline) return;
@@ -4587,7 +4607,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btTrechos: trechos,
     );
     _armarOTrecho(trechos[sucessor]);
-    _rememberWhereTheyAre(SalaStage.retro);
+    _rememberWhereTheyAre(const Retro());
   }
 
   void _theStretchIsGone(List<SegmentView> segments) {
@@ -4600,7 +4620,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       awaitingTheGuide: false,
       btTrechos: trechos,
     );
-    _rememberWhereTheyAre(SalaStage.retro);
+    _rememberWhereTheyAre(const Retro());
   }
 
   void _theTellingLandedOn(
@@ -4629,7 +4649,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       clearTraducaoPendente: true,
     );
     if (needsPerson) _dispatch(TheAnswerWarned(generation: _generation));
-    _rememberWhereTheyAre(SalaStage.retro);
+    _rememberWhereTheyAre(const Retro());
   }
 
   /// Put the cursor back on the furthest stretch already told.
@@ -4655,7 +4675,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void retroTap() => _gesture(() => _retroTap());
 
   void _retroTap() {
-    if (state.stage != SalaStage.retro) return;
+    if (state.station is! Retro) return;
     if (state.offline) {
       retryNow();
       return;
@@ -5064,7 +5084,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _gestureThen(() => _aprovarRascunhoFinal());
 
   Future<void> _aprovarRascunhoFinal() async {
-    if (state.stage != SalaStage.retro) return;
+    if (state.station is! Retro) return;
     if (state.btPhase != BtPhase.conferida) return;
     if (state.needsPerson || state.offline) return;
     if (_aprovando) return;
@@ -5645,14 +5665,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     _voltarAoEnsaio();
     state = state.copyWith(parteARegravar: parte);
-    _rememberWhereTheyAre(SalaStage.ensaio);
+    _rememberWhereTheyAre(const Ensaio());
   }
 
   void _voltarAoEnsaio() {
-    _leaveTheStepFor(SalaStage.ensaio);
+    _leaveTheStepFor(const Ensaio());
     _clearAll();
+    _arriveAt(const TheRehearsalOpened());
     state = state.copyWith(
-      stage: SalaStage.ensaio,
       awaitingTheGuide: false,
       ensaio: EnsaioStatus.idle,
       btPhase: BtPhase.playing,
@@ -5662,7 +5682,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // A mend left armed by a chunk that never landed would make the first stretch of
     // the next telling-back upload as a correction of one that does not exist.
     _trechoTraduzidoDeNovo = null;
-    _rememberWhereTheyAre(SalaStage.ensaio);
+    _rememberWhereTheyAre(const Ensaio());
   }
 
   void _closeTheNecklace() {
@@ -5672,8 +5692,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       unawaited(_mindingThePlace(() => _emAberto.forget(_book, feita)));
     }
     _after('fim', const Duration(milliseconds: 700), () {
-      _leaveTheStepFor(SalaStage.fim);
-      state = state.copyWith(stage: SalaStage.fim);
+      _leaveTheStepFor(const Fim());
+      _arriveAt(const TheNecklaceClosed());
       _after('close', const Duration(milliseconds: 1000), () {
         _after('recomecar', ref.read(fimLingerProvider), _startOver);
       });
@@ -5685,6 +5705,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _forgetThePassage();
     _panoramaSessionId = null;
     state = SalaSessionState(machine: _gesturesOnTheirWay);
+    _arriveAt(const TheRoomStartedOver());
     return abrirEscolha();
   }
 

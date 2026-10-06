@@ -279,6 +279,12 @@ String describeEvent(MachineEvent event) => switch (event) {
   TheRoomRefused(:final third, :final sounding) =>
     'TheRoomRefused(third: $third, ${describeKept(sounding)})',
   ThePassageCannotOpen() => 'ThePassageCannotOpen',
+  TheChoiceOpened() => 'TheChoiceOpened',
+  PassageChosen() => 'PassageChosen',
+  TheRehearsalOpened() => 'TheRehearsalOpened',
+  TheBackTranslationOpened() => 'TheBackTranslationOpened',
+  TheNecklaceClosed() => 'TheNecklaceClosed',
+  TheRoomStartedOver() => 'TheRoomStartedOver',
 };
 
 String describeLine(Line line) => '${line.kind.name}#${line.id}';
@@ -381,6 +387,12 @@ enum EventKind {
   theCallWasRefused,
   theCallMetAClosedPassage,
   turnFailed,
+  theChoiceOpened,
+  passageChosen,
+  theRehearsalOpened,
+  theBackTranslationOpened,
+  theNecklaceClosed,
+  theRoomStartedOver,
 }
 
 EventKind kindOf(MachineEvent event) => switch (event) {
@@ -423,6 +435,12 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TheCallWasRefused() => EventKind.theCallWasRefused,
   TheCallMetAClosedPassage() => EventKind.theCallMetAClosedPassage,
   TurnFailed() => EventKind.turnFailed,
+  TheChoiceOpened() => EventKind.theChoiceOpened,
+  PassageChosen() => EventKind.passageChosen,
+  TheRehearsalOpened() => EventKind.theRehearsalOpened,
+  TheBackTranslationOpened() => EventKind.theBackTranslationOpened,
+  TheNecklaceClosed() => EventKind.theNecklaceClosed,
+  TheRoomStartedOver() => EventKind.theRoomStartedOver,
 };
 
 bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
@@ -463,7 +481,13 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.theRefusalPassed ||
   EventKind.theCallWasRefused ||
   EventKind.theCallMetAClosedPassage ||
-  EventKind.turnFailed => true,
+  EventKind.turnFailed ||
+  EventKind.theChoiceOpened ||
+  EventKind.passageChosen ||
+  EventKind.theRehearsalOpened ||
+  EventKind.theBackTranslationOpened ||
+  EventKind.theNecklaceClosed ||
+  EventKind.theRoomStartedOver => true,
 };
 
 Source _drawASource(Random random) => switch (random.nextInt(4)) {
@@ -584,6 +608,12 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
       EventKind.theCallWasRefused => const TheCallWasRefused(),
       EventKind.theCallMetAClosedPassage => const TheCallMetAClosedPassage(),
       EventKind.turnFailed => TurnFailed(_drawATurn(random)),
+      EventKind.theChoiceOpened => const TheChoiceOpened(),
+      EventKind.passageChosen => const PassageChosen(),
+      EventKind.theRehearsalOpened => const TheRehearsalOpened(),
+      EventKind.theBackTranslationOpened => const TheBackTranslationOpened(),
+      EventKind.theNecklaceClosed => const TheNecklaceClosed(),
+      EventKind.theRoomStartedOver => const TheRoomStartedOver(),
     };
 
 Turn _drawATurn(Random random) => Turn('sessao-1', 'turn-${random.nextInt(3)}');

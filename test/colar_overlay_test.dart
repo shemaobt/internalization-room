@@ -4,6 +4,8 @@ import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/domain/coverage.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
@@ -141,8 +143,8 @@ void main() {
   });
 
   testWidgets('the necklace closes in stillness, not a loop', (tester) async {
-    const session = SalaSessionState(
-      stage: SalaStage.fim,
+    final session = SalaSessionState(
+      machine: Machine(station: Station.stored(SalaStage.fim)),
       coverage: Coverage(engaged: 5, surfaced: 5, total: 5, absenceIndex: -1),
     );
     await pumpColar(tester, session);
@@ -195,13 +197,23 @@ void main() {
       );
       await pumpReducedColar(tester, arriving);
 
-      await pumpReducedColar(tester, arriving.copyWith(stage: SalaStage.fim));
+      await pumpReducedColar(
+        tester,
+        arriving.copyWith(
+          machine: Machine(station: Station.stored(SalaStage.fim)),
+        ),
+      );
       final landedTopLeft = tester.getTopLeft(
         find.byType(AnimatedPositioned).first,
       );
 
       await tester.pumpWidget(Container());
-      await pumpReducedColar(tester, arriving.copyWith(stage: SalaStage.fim));
+      await pumpReducedColar(
+        tester,
+        arriving.copyWith(
+          machine: Machine(station: Station.stored(SalaStage.fim)),
+        ),
+      );
       final steadyTopLeft = tester.getTopLeft(
         find.byType(AnimatedPositioned).first,
       );
@@ -224,7 +236,12 @@ void main() {
       );
       await pumpReducedColar(tester, arriving);
 
-      await pumpReducedColar(tester, arriving.copyWith(stage: SalaStage.fim));
+      await pumpReducedColar(
+        tester,
+        arriving.copyWith(
+          machine: Machine(station: Station.stored(SalaStage.fim)),
+        ),
+      );
 
       expect(
         tester.getSize(find.byType(ThreadIn).first),

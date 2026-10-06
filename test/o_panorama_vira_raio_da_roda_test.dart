@@ -4,6 +4,8 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show settle;
@@ -62,8 +64,8 @@ void main() {
   });
 
   test('a wheel with only the panorama left is still a finished book', () {
-    const state = SalaSessionState(
-      stage: SalaStage.escolha,
+    final state = SalaSessionState(
+      machine: Machine(station: Station.stored(SalaStage.escolha)),
       naRoda: [_panorama],
     );
 
@@ -78,8 +80,8 @@ void main() {
   });
 
   test('a wheel with the panorama and a passage left is not finished', () {
-    const state = SalaSessionState(
-      stage: SalaStage.escolha,
+    final state = SalaSessionState(
+      machine: Machine(station: Station.stored(SalaStage.escolha)),
       naRoda: [_panorama, _p01],
     );
 

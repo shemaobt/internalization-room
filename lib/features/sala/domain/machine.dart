@@ -2,6 +2,7 @@ import 'channel.dart';
 import 'halt.dart';
 import 'room_reach.dart';
 import 'session_snapshot.dart';
+import 'station.dart';
 import 'turn_result.dart';
 
 sealed class MachineEvent {
@@ -202,6 +203,36 @@ final class StepLeft extends MachineEvent {
 
 final class LeftThePassage extends MachineEvent {
   const LeftThePassage();
+}
+
+/// The team arrives at a Station; the Station held answers it after the cross-cutting
+/// regions, and it is never stale.
+sealed class StationEvent extends MachineEvent {
+  const StationEvent();
+}
+
+final class TheChoiceOpened extends StationEvent {
+  const TheChoiceOpened();
+}
+
+final class PassageChosen extends StationEvent {
+  const PassageChosen();
+}
+
+final class TheRehearsalOpened extends StationEvent {
+  const TheRehearsalOpened();
+}
+
+final class TheBackTranslationOpened extends StationEvent {
+  const TheBackTranslationOpened();
+}
+
+final class TheNecklaceClosed extends StationEvent {
+  const TheNecklaceClosed();
+}
+
+final class TheRoomStartedOver extends StationEvent {
+  const TheRoomStartedOver();
 }
 
 final class TheSessionIsGone extends AnsweringEvent {
@@ -587,6 +618,8 @@ final class Machine {
 
   final LineOutcome? lastLine;
 
+  final Station station;
+
   const Machine({
     this.halt = const NoHalt(),
     this.channel = const Silence(),
@@ -603,6 +636,7 @@ final class Machine {
     this.generation = 0,
     this.inFlight,
     this.lastLine,
+    this.station = const Convite(),
   });
 
   bool get reachable => reach == Reach.reachable;
@@ -617,6 +651,7 @@ final class Machine {
     fallen: fallen,
     noticeSaid: noticeSaid,
     generation: generation,
+    station: station,
   );
 
   Machine copyWith({
@@ -637,6 +672,7 @@ final class Machine {
     Turn? inFlight,
     bool landTheTurn = false,
     LineOutcome? lastLine,
+    Station? station,
   }) => Machine(
     halt: halt ?? this.halt,
     channel: channel ?? this.channel,
@@ -653,6 +689,7 @@ final class Machine {
     generation: generation ?? this.generation,
     inFlight: landTheTurn ? null : (inFlight ?? this.inFlight),
     lastLine: lastLine ?? this.lastLine,
+    station: station ?? this.station,
   );
 }
 
@@ -777,7 +814,14 @@ const _watch = ArmTheWatch();
   TheAnswerWarned() ||
   LongPress() ||
   WatchFired() => _theHalt(machine, event),
+  StationEvent() => (_reachTheStation(machine, event), const []),
 };
+
+Machine _reachTheStation(Machine machine, StationEvent event) {
+  final next = machine.station.answer(event);
+  if (next == machine.station) return machine;
+  return moveTheGeneration(machine).copyWith(station: next);
+}
 
 bool _silent(Machine machine) =>
     machine.halt is! Blocking &&
@@ -1327,7 +1371,8 @@ Machine _answered(Machine machine) =>
   TurnFailed() ||
   TheRefusalPassed() ||
   TheCallWasRefused() ||
-  TheCallMetAClosedPassage() => (halt, const []),
+  TheCallMetAClosedPassage() ||
+  StationEvent() => (halt, const []),
 };
 
 (Halt, List<Effect>) _read(Halt halt, SessionRead read) {

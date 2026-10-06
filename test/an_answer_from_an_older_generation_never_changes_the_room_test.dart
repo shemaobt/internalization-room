@@ -129,6 +129,38 @@ String? _aStaleAnswerChangedTheRoom(int seed) {
   return null;
 }
 
+String? _anAnswerFromBeforeTheStationChangedChangedTheRoom(
+  int seed,
+  void Function() tried,
+) {
+  final random = Random(seed);
+  var machine = const Machine();
+  var world = const World();
+  for (var step = 0; step < 60; step++) {
+    final drawn = drawAnEvent(world, random);
+    final event = _stamped(drawn, machine.generation) ?? drawn;
+    final (next, effects) = reduce(machine, event);
+    world = world.after(event, effects);
+    final older = machine.generation;
+    final moved = next.station != machine.station;
+    machine = next;
+    if (!moved) continue;
+    for (var stale = 0; stale < 4; stale++) {
+      final answer = _stamped(drawAnEvent(world, random), older);
+      if (answer == null) continue;
+      tried();
+      final (after, effects) = reduce(machine, answer);
+      if (!identical(after, machine) || effects.isNotEmpty) {
+        return 'seed $seed, step $step: ${describeEvent(answer)} from '
+            'generation $older, before ${describeEvent(event)}, changed '
+            '${describeMachine(machine)} into ${describeMachine(after)} | '
+            '${effects.map(describeEffect).join(', ')}';
+      }
+    }
+  }
+  return null;
+}
+
 void main() {
   test('an answer from an older generation never changes the room', () {
     for (final seed in _seeds) {
@@ -137,5 +169,24 @@ void main() {
         throw TestFailure('$problem\nRe-run it alone with MACHINE_SEED=$seed');
       }
     }
+  });
+
+  test('an answer stamped with the generation from before a Station change '
+      'never changes the room', () {
+    var tried = 0;
+    for (final seed in _seeds) {
+      final problem = _anAnswerFromBeforeTheStationChangedChangedTheRoom(
+        seed,
+        () => tried++,
+      );
+      if (problem != null) {
+        throw TestFailure('$problem\nRe-run it alone with MACHINE_SEED=$seed');
+      }
+    }
+    expect(
+      tried,
+      greaterThan(0),
+      reason: 'no answer from before a Station change was tried',
+    );
   });
 }

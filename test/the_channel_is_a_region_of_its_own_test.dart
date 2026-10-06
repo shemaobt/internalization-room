@@ -4,6 +4,7 @@ import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 
 final _at = DateTime.utc(2026, 9, 30, 12);
 
@@ -488,8 +489,9 @@ void main() {
 
     test('the rehearsal reads paused while the line speaks', () {
       final screen = SalaSessionState(
-        stage: SalaStage.ensaio,
-        machine: underTheLine(),
+        machine: underTheLine().copyWith(
+          station: Station.stored(SalaStage.ensaio),
+        ),
       );
 
       expect(screen.takePaused, isTrue);

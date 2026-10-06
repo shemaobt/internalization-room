@@ -17,6 +17,8 @@ import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show settle, withDiskThatAnswersAtOnce;
@@ -1022,23 +1024,42 @@ void main() {
   });
 
   test('the necklace is on only for the conversa and the fim', () {
-    expect(const SalaSessionState(stage: SalaStage.escolha).colarOn, isFalse);
-    expect(const SalaSessionState(stage: SalaStage.conversa).colarOn, isTrue);
     expect(
-      const SalaSessionState(stage: SalaStage.ensaio).colarOn,
+      SalaSessionState(
+        machine: Machine(station: Station.stored(SalaStage.escolha)),
+      ).colarOn,
+      isFalse,
+    );
+    expect(
+      SalaSessionState(
+        machine: Machine(station: Station.stored(SalaStage.conversa)),
+      ).colarOn,
+      isTrue,
+    );
+    expect(
+      SalaSessionState(
+        machine: Machine(station: Station.stored(SalaStage.ensaio)),
+      ).colarOn,
       isFalse,
       reason:
           'o progresso do ensaio é a fileira de contas dos pedaços; a '
           'cobertura da conversa não muda ali',
     );
     expect(
-      const SalaSessionState(stage: SalaStage.retro).colarOn,
+      SalaSessionState(
+        machine: Machine(station: Station.stored(SalaStage.retro)),
+      ).colarOn,
       isFalse,
       reason:
           'na retro as contas são os trechos contados; o colar da '
           'conversa por cima lia como a mesma fileira de novo',
     );
-    expect(const SalaSessionState(stage: SalaStage.fim).colarOn, isTrue);
+    expect(
+      SalaSessionState(
+        machine: Machine(station: Station.stored(SalaStage.fim)),
+      ).colarOn,
+      isTrue,
+    );
   });
 
   test('entering the passage opens a session on the backend', () async {
