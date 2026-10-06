@@ -60,6 +60,10 @@ abstract interface class EffectHost {
   /// An event the runner brings back to the machine, outside any gesture.
   void answer(MachineEvent event);
 
+  /// An event brought back inside the gesture that asked for the work, so the lines that
+  /// follow it are that gesture's own (ADR 0059).
+  void answerWhereAsked(MachineEvent event);
+
   void silenceTheRoom();
 
   void callForAPerson();
@@ -463,7 +467,7 @@ class EffectRunner {
       case SessionReadAnswered(:final snapshot):
         host.hearTheSessionRead(snapshot, sent);
       case SessionReadFailed(:final result):
-        host.answer(
+        host.answerWhereAsked(
           FailurePolicy.decide(
             result,
             host.failureContext(door: Door.watch, rule: RefusalRule.passes),
@@ -500,7 +504,9 @@ class EffectRunner {
   Future<void> _probe() async {
     final reach = await askTheRoom();
     if (_disposed || host.roomIsReachable) return;
-    if (reach == RoomReach.fine) host.answer(const NetworkReturned());
+    if (reach == RoomReach.fine) {
+      host.answerWhereAsked(const NetworkReturned());
+    }
   }
 
   void endTheWatch() {

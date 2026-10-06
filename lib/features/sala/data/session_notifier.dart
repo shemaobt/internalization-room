@@ -1009,7 +1009,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   bool get _roomIsReachable => state.machine.reachable;
 
-  String? get _session => state.sessionId;
+  String? get _sessionId => state.sessionId;
 
   void _silenceTheHaltedRoom() {
     _openTurnId = null;
@@ -5708,7 +5708,7 @@ class _NotifierHost implements EffectHost {
   bool get roomIsReachable => _notifier._roomIsReachable;
 
   @override
-  String? get session => _notifier._session;
+  String? get session => _notifier._sessionId;
 
   @override
   FailureContext failureContext({
@@ -5736,6 +5736,9 @@ class _NotifierHost implements EffectHost {
   @override
   void answer(MachineEvent event) =>
       _notifier._apart(() => _notifier._dispatch(event));
+
+  @override
+  void answerWhereAsked(MachineEvent event) => _notifier._dispatch(event);
 
   @override
   void hearThePartEnd() => _notifier._thePartEnded();

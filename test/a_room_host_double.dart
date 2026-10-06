@@ -74,6 +74,9 @@ class ARoomHost implements EffectHost {
   }
 
   @override
+  void answerWhereAsked(MachineEvent event) => answer(event);
+
+  @override
   void hearThePartEnd() {
     asked.add('hearThePartEnd');
     onPartEnd?.call();
