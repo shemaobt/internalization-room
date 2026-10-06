@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/recording_repository.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:path/path.dart' as p;
 import 'package:record/record.dart';
 
@@ -161,7 +162,7 @@ void main() {
       final recording = RecordingRepository();
       addTearDown(recording.dispose);
 
-      await recording.start('ensaio_tomada', use: MicUse.rehearsalPart);
+      await recording.start('ensaio_tomada', owner: MicOwner.rehearsal);
 
       final config = microphone.openedWith;
       expect(
@@ -192,7 +193,7 @@ void main() {
     final recording = RecordingRepository();
     addTearDown(recording.dispose);
 
-    await recording.start('ensaio_parte1', use: MicUse.rehearsalPart);
+    await recording.start('ensaio_parte1', owner: MicOwner.rehearsal);
 
     final config = microphone.openedWith;
     expect(
@@ -208,7 +209,7 @@ void main() {
     final recording = RecordingRepository();
     addTearDown(recording.dispose);
 
-    await recording.start('ensaio_parte1', use: MicUse.rehearsalPart);
+    await recording.start('ensaio_parte1', owner: MicOwner.rehearsal);
 
     expect(
       microphone.openedPath,
@@ -225,7 +226,7 @@ void main() {
       final recording = RecordingRepository();
       addTearDown(recording.dispose);
 
-      await recording.start('retro_passada1_pedaco1', use: MicUse.capture);
+      await recording.start('retro_passada1_pedaco1', owner: MicOwner.capture);
 
       final config = microphone.openedWith;
       expect(
@@ -241,6 +242,26 @@ void main() {
       expect(config?.noiseSuppress, isFalse);
       expect(config?.autoGain, isFalse);
       expect(config?.numChannels, 1);
+    },
+  );
+
+  test(
+    'a capture and a conversation turn keep the plugin\'s own sample rate',
+    () async {
+      final recording = RecordingRepository();
+      addTearDown(recording.dispose);
+      final pluginDefault = const RecordConfig().sampleRate;
+
+      await recording.start('retro_passada1_pedaco1', owner: MicOwner.capture);
+      final capture = microphone.openedWith?.sampleRate;
+      await recording.start('conversa');
+      final turn = microphone.openedWith?.sampleRate;
+
+      expect(
+        [capture, turn],
+        [pluginDefault, pluginDefault],
+        reason: 'só a parte do ensaio pede 16 kHz; o resto abre como antes',
+      );
     },
   );
 

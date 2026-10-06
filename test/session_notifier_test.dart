@@ -5,9 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:internalization_room/features/sala/data/room_answer.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/data/facilitator_voice_service.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/data/recording_repository.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
@@ -5983,8 +5983,8 @@ void main() {
     await settle();
 
     expect(
-      harness.recorder.lastUse,
-      MicUse.rehearsalPart,
+      harness.recorder.lastOwner,
+      MicOwner.rehearsal,
       reason:
           'a tomada do ensaio vai para o Refine em WAV, e o que decide o '
           'config é o estágio da sala, não uma bandeira separada que alguém '
@@ -6025,8 +6025,8 @@ void main() {
             'nunca aberto, só com o pedido que sobrava do ensaio de cima',
       );
       expect(
-        harness.recorder.lastUse,
-        MicUse.capture,
+        harness.recorder.lastOwner,
+        MicOwner.capture,
         reason:
             'o pedaço da retro perde os filtros como o ensaio, mas fica '
             'comprimido como no app dela; o mesmo estágio que distingue a '
@@ -6046,8 +6046,8 @@ void main() {
     await settle();
 
     expect(
-      harness.recorder.lastUse,
-      MicUse.conversation,
+      harness.recorder.lastOwner,
+      MicOwner.conversation,
       reason:
           'a fala com a sala nunca perde o filtro dela — só a tomada '
           'entregável perde',

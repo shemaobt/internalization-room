@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
 import 'package:internalization_room/features/sala/data/connectivity_service.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/data/credential_vault.dart';
 import 'package:internalization_room/features/sala/data/device_link_notifier.dart';
 import 'package:internalization_room/features/sala/data/linked_team.dart';
@@ -217,7 +218,7 @@ class FakeRecorder implements RecordingRepository {
   bool returnsEmpty = false;
   final List<String> deleted = [];
   String? lastPath;
-  MicUse? lastUse;
+  MicOwner? lastOwner;
 
   bool permitted = true;
 
@@ -254,9 +255,9 @@ class FakeRecorder implements RecordingRepository {
   @override
   Future<Capture> start(
     String fileName, {
-    MicUse use = MicUse.conversation,
+    MicOwner owner = MicOwner.conversation,
   }) async {
-    lastUse = use;
+    lastOwner = owner;
     sounds.add('recorder:start');
     final held = _startsTaken < _holdingStarts.length
         ? _holdingStarts[_startsTaken++]

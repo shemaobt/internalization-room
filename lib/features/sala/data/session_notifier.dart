@@ -3788,15 +3788,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final generation = _waitOnTheGeneration;
     final start = ++_starts;
     final openedAsAChunkCapture = state.btPhase == BtPhase.capturing;
-    final use = state.ensaio == EnsaioStatus.recording
-        ? MicUse.rehearsalPart
+    final owner = state.ensaio == EnsaioStatus.recording
+        ? MicOwner.rehearsal
         : openedAsAChunkCapture
-        ? MicUse.capture
-        : MicUse.conversation;
+        ? MicOwner.capture
+        : MicOwner.conversation;
     _micWatch ??= _apart(
       () => _recorder.interrupted.listen(_theMicrophoneChangedHands),
     );
-    final capture = await _recorder.start(fileName, use: use);
+    final capture = await _recorder.start(fileName, owner: owner);
     if (_gone) return;
     // The answer can arrive a minute late — `hasPermission` waits up to sixty seconds for
     // the platform — by which time the team may be on another stage entirely, with a

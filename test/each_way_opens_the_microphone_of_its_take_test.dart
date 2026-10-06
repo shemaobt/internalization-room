@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/recording_repository.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -34,8 +34,8 @@ void main() {
 
       expect(it.harness.recorder.captures, greaterThan(capturesBefore));
       expect(
-        it.harness.recorder.lastUse,
-        MicUse.rehearsalPart,
+        it.harness.recorder.lastOwner,
+        MicOwner.rehearsal,
         reason:
             'a parte gravada de novo substitui uma parte do ensaio, e vai ao '
             'Refine no mesmo formato que ela',
@@ -44,7 +44,7 @@ void main() {
   );
 
   test(
-    'a stretch told again on the Short way is an AAC capture with the draft filters',
+    'a stretch told again on the Short way opens the capture microphone, not the rehearsal one',
     () async {
       final it = await _oAchadoNaParteDois();
       final capturesBefore = it.harness.recorder.captures;
@@ -53,8 +53,8 @@ void main() {
 
       expect(it.harness.recorder.captures, greaterThan(capturesBefore));
       expect(
-        it.harness.recorder.lastUse,
-        MicUse.capture,
+        it.harness.recorder.lastOwner,
+        MicOwner.capture,
         reason:
             'contar o trecho de novo é contar de volta, que fica comprimido '
             'como no app dela',
