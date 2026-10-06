@@ -3003,7 +3003,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _warmHerLines() {
-    for (final line in [...instantAckLines, approvedLine]) {
+    for (final line in [
+      ...instantAckLines,
+      startLine,
+      tellLine,
+      approvedLine,
+    ]) {
       unawaited(_voice.readyFixedLine(line, _lingua));
     }
   }

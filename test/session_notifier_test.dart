@@ -4145,7 +4145,7 @@ void main() {
   );
 
   test(
-    'a passage that opens brings down the acknowledgements and the approval line before the team speaks',
+    'a passage that opens brings down the acknowledgements and her start, tell and approval lines before the team speaks',
     () async {
       final harness = SalaHarness();
       final container = await inConversa(harness);
@@ -4157,11 +4157,14 @@ void main() {
           ('F0', testLanguage),
           ('F1', testLanguage),
           ('F2', testLanguage),
+          ('P0', testLanguage),
+          ('P1', testLanguage),
           ('P3', testLanguage),
         ]),
         reason:
             'o primeiro "hmm" de cada abertura do app esperava o endereço e o '
-            'download, e o reconhecimento instantâneo chegava atrasado',
+            'download, e o reconhecimento instantâneo chegava atrasado; o '
+            'começo e a instrução de traduzir nunca eram buscados',
       );
       expect(
         harness.voice.readied,
@@ -4190,6 +4193,8 @@ void main() {
           ('F0', testLanguage),
           ('F1', testLanguage),
           ('F2', testLanguage),
+          ('P0', testLanguage),
+          ('P1', testLanguage),
           ('P3', testLanguage),
         ]),
       );

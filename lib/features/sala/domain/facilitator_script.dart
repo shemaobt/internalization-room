@@ -24,6 +24,10 @@ bool isThePanorama(String pericope) =>
 
 const instantAckLines = ['F0', 'F1', 'F2'];
 
+const startLine = 'P0';
+
+const tellLine = 'P1';
+
 /// The fourth of Marcia's process lines, read by position: start, tell, unheard,
 /// approved. The approval's is the fourth, never rotated.
 const approvedLine = 'P3';
