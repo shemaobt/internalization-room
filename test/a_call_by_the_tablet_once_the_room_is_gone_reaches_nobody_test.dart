@@ -8,7 +8,7 @@ import 'package:internalization_room/features/sala/data/room_repository.dart';
 
 import 'fakes.dart';
 
-class _ASlowLedger extends FakeLinkedTeam {
+class _ASlowDeviceLink extends FakeLinkedTeam {
   final reading = Completer<RememberedLink>();
 
   @override
@@ -17,14 +17,14 @@ class _ASlowLedger extends FakeLinkedTeam {
 
 void main() {
   test(
-    'a call by the tablet whose ledger answers after the room is gone asks the room nothing',
+    'a call by the tablet whose device link answers after the room is gone asks the room nothing',
     () async {
       final room = FakeRoom();
-      final ledger = _ASlowLedger();
+      final deviceLink = _ASlowDeviceLink();
       final container = ProviderContainer(
         overrides: [
           roomRepositoryProvider.overrideWithValue(room),
-          linkedTeamProvider.overrideWithValue(ledger),
+          linkedTeamProvider.overrideWithValue(deviceLink),
         ],
       );
       final call = container
@@ -32,7 +32,7 @@ void main() {
           .askForAPersonWithoutASession();
 
       container.dispose();
-      ledger.reading.complete(const RememberedLink(deviceId: 'tablet-1'));
+      deviceLink.reading.complete(const RememberedLink(deviceId: 'tablet-1'));
       await call;
 
       expect(room.deviceAsksReceived, isEmpty);

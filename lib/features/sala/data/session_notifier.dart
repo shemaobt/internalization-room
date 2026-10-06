@@ -1106,12 +1106,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   bool get _callIsWanted =>
       !_gone && state.needsPerson && !_personAsked && !_markingThePassageClosed;
 
-  void _theCallLanded() {
-    _theCallLandedWithoutASession();
-    _readsSentBeforeTheCall = _readsSent;
-  }
+  void _theCallLanded() => _personAsked = true;
 
-  void _theCallLandedWithoutASession() => _personAsked = true;
+  void _stampTheReadsSentBeforeTheCall() =>
+      _readsSentBeforeTheCall = _readsSent;
 
   Future<void> _theCallOfAnEarlierSession(
     String sessionId,
@@ -5655,11 +5653,12 @@ class _NotifierHost implements EffectHost {
   String? get passageInCourse => _notifier._emCurso;
 
   @override
-  void hearTheCallLanded() => _notifier._theCallLanded();
+  void hearTheCallLanded() => _notifier
+    .._stampTheReadsSentBeforeTheCall()
+    .._theCallLanded();
 
   @override
-  void hearTheCallLandedWithoutASession() =>
-      _notifier._theCallLandedWithoutASession();
+  void hearTheCallLandedWithoutASession() => _notifier._theCallLanded();
 
   @override
   Future<void> hearAnEarlierSessionsCall(

@@ -15,7 +15,7 @@ notifier (ENG-1454), in the shape of ADR 0059.
 The call for a person goes out when the room halts, which is mostly when the network is bad,
 so it is insisted on until the server says it has it. It has two forms: with the room's
 session, and, for a halt with no session to name, by the tablet's own device id from the
-link ledger. A long press on the person sign tells the server the facilitator arrived.
+device link. A long press on the person sign tells the server the facilitator arrived.
 
 The Station keeps what the machine does not: whether the call landed, the order of its
 reads (a read sent before the call landed must not lift the halt), and the passage in
@@ -43,8 +43,8 @@ acts on the earlier session, not on the room's.
   the call stays in the air until the hearing ends, and the runner then calls again if a
   call is still wanted. A mark's session gone for an earlier session is heard the same way.
 - **The call without a session reads the device id in the Room port's adapter.** The port
-  answers the room's result, the tablet unknown (nothing happens) or the ledger failed (the
-  host's ladder asks again). The policy never sees the last two.
+  answers the room's result, the tablet unknown or the room gone (nothing happens), or the
+  device link unread (the host's ladder asks again). The policy never sees the last three.
 - **Every answer of the family comes back where it was asked**, through
   `EffectHost.answerWhereAsked`, as it did when the notifier dispatched it in the zone of
   the dispatch that ran the effect.
@@ -57,7 +57,7 @@ acts on the earlier session, not on the room's.
 **The earlier session's answer through the policy.** Rejected: a closed passage or a
 session gone would then close or end the room's current session instead of the earlier one.
 
-**The device id as an argument the Station reads.** Rejected: the ledger read is a system
+**The device id as an argument the Station reads.** Rejected: the device link read is a system
 boundary, and the runner would need a third answer from the host for it.
 
 ## Consequences
@@ -66,6 +66,6 @@ boundary, and the runner would need a third answer from the host for it.
   `callIsWanted` and `passageInCourse`, and hears through `hearTheCallLanded`,
   `hearTheCallLandedWithoutASession`, `hearAnEarlierSessionsCall` and
   `hearAnEarlierSessionGone`.
-- One behaviour moves: when the ledger fails, the ladder's retry used to ask again without a
+- One behaviour moves: when the device link cannot be read, the ladder's retry used to ask again without a
   session even if the room had one by then; it now asks with the session if there is one.
   No test sees the difference.

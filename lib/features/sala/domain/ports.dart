@@ -6,8 +6,8 @@ import 'session_snapshot.dart';
 import 'turn_result.dart';
 
 /// The room client's doors, network health and the person-call inbox. Today it carries
-/// network health, the one look, the Session read and the reach, and grows when the
-/// effects empty into the ports.
+/// network health, the one look, the Session read, the reach, the call for a person and
+/// the person-arrived mark, and grows when the effects empty into the ports.
 abstract interface class RoomPort {
   Stream<void> get networkReturned;
 
@@ -20,11 +20,13 @@ abstract interface class RoomPort {
   /// How far a request would get right now.
   Future<RoomReach> reach();
 
+  /// Calls a person for [session]: the room needs someone, and the Desk lists it as halted.
   Future<RoomResult> askForAPerson(String session);
 
   /// The same call for a halt with no session to name, made by the tablet's own device.
   Future<TabletCallAnswer> askForAPersonWithoutASession();
 
+  /// Tells the server the person arrived at the room for [session].
   Future<RoomResult> personArrived(String session);
 }
 
@@ -61,8 +63,12 @@ final class TheTabletIsUnknown extends TabletCallAnswer {
   const TheTabletIsUnknown();
 }
 
-final class TheLedgerFailed extends TabletCallAnswer {
-  const TheLedgerFailed();
+final class TheDeviceLinkUnread extends TabletCallAnswer {
+  const TheDeviceLinkUnread();
+}
+
+final class TheRoomIsGone extends TabletCallAnswer {
+  const TheRoomIsGone();
 }
 
 /// Voice lines and parts together: one sound at a time. A part cuts a line; a line holds

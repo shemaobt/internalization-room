@@ -45,7 +45,8 @@ void main() {
     await pumpEventQueue();
 
     expect(host.answers.single, isA<TheCallLanded>());
-    expect(host.callsLanded, ['with a session']);
+    expect(host.callsLanded, 1);
+    expect(host.callsLandedWithoutASession, 0);
     expect(
       _theSignAfter(host.answers),
       isA<Blocking>().having((sign) => sign.serverKnows, 'serverKnows', true),
@@ -60,7 +61,7 @@ void main() {
       await pumpEventQueue();
 
       expect(host.answers.single, isA<TheCallWasRefused>());
-      expect(host.callsLanded, isEmpty);
+      expect(host.callsLanded + host.callsLandedWithoutASession, 0);
       expect(_theSignAfter(host.answers), isA<Blocking>());
     },
   );
@@ -121,6 +122,19 @@ void main() {
 
     expect(room.heard, ['call:sessao-1']);
   });
+
+  test(
+    'one call for a person is in the air at a time, not one call ever: once it is answered, the next halt calls again',
+    () async {
+      runner.run(const [CallForAPerson()]);
+      room.answerTheCall(const RoomAnswered());
+      await pumpEventQueue();
+
+      runner.run(const [CallForAPerson()]);
+
+      expect(room.heard, ['call:sessao-1', 'call:sessao-1']);
+    },
+  );
 
   test('a call for a person nobody wants asks the room nothing', () {
     host.callIsWanted = false;
@@ -195,7 +209,8 @@ void main() {
       await pumpEventQueue();
 
       expect(room.heard, ['call by the tablet']);
-      expect(host.callsLanded, ['without a session']);
+      expect(host.callsLandedWithoutASession, 1);
+      expect(host.callsLanded, 0);
       expect(host.answers, isEmpty);
     },
   );
@@ -209,19 +224,19 @@ void main() {
       room.answerTheTabletCall(const TheTabletIsUnknown());
       await pumpEventQueue();
 
-      expect(host.callsLanded, isEmpty);
+      expect(host.callsLanded + host.callsLandedWithoutASession, 0);
       expect(host.answers, isEmpty);
       expect(host.asked, isEmpty);
     },
   );
 
   test(
-    'a call with no session whose ledger fails is asked again on the ladder',
+    'a call with no session whose device link cannot be read is asked again on the ladder',
     () async {
       host.session = null;
 
       runner.run(const [CallForAPerson()]);
-      room.answerTheTabletCall(const TheLedgerFailed());
+      room.answerTheTabletCall(const TheDeviceLinkUnread());
       await pumpEventQueue();
 
       expect(host.asked, ['askForAPersonAgain']);
@@ -306,11 +321,11 @@ void main() {
     );
     withoutASession.run(const [CallForAPerson()]);
     withoutASession.dispose();
-    room.answerTheTabletCall(const TheLedgerFailed());
+    room.answerTheTabletCall(const TheDeviceLinkUnread());
     await pumpEventQueue();
 
     expect(host.answers, isEmpty);
-    expect(host.callsLanded, isEmpty);
+    expect(host.callsLanded + host.callsLandedWithoutASession, 0);
     expect(host.earlierCallsHeard, isEmpty);
     expect(host.asked, isEmpty);
     expect(room.heard, [

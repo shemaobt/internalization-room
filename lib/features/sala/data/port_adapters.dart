@@ -58,9 +58,10 @@ class ProviderRoomPort implements RoomPort {
     try {
       deviceId = (await _ref.read(linkedTeamProvider).read()).deviceId;
     } on Exception {
-      return const TheLedgerFailed();
+      return const TheDeviceLinkUnread();
     }
-    if (deviceId == null || _gone) return const TheTabletIsUnknown();
+    if (_gone) return const TheRoomIsGone();
+    if (deviceId == null) return const TheTabletIsUnknown();
     return TabletCallAnswered(
       _resultOf(
         await _ref

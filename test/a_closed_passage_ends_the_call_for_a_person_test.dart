@@ -293,6 +293,32 @@ void main() {
     expect(_estado(container).needsPerson, isTrue);
   });
 
+  test('an earlier session\'s answer that lands once no halt stands calls '
+      'nobody for the passage the team is in', () async {
+    final harness = SalaHarness();
+    final container = await _naPassagem(harness);
+    final primeira = _estado(container).sessionId!;
+    harness.room.holdNextAskForAPerson();
+    await _aPassagemFechaNoPedidoDePessoa(harness, container);
+    harness.room.failTurnsWith = null;
+    _sala(container).leaveThePassage();
+    await _naEscolha(container);
+    await _sala(container).goConversa(pericope: 'P02');
+    await waitFor(
+      'a outra passagem abrir',
+      () =>
+          _estado(container).sessionId != null &&
+          _estado(container).sessionId != primeira,
+    );
+    expect(_estado(container).needsPerson, isFalse);
+
+    harness.room.askForAPersonFailsWith = null;
+    harness.room.finishHeldAskForAPerson();
+    await settle(_severalStepsOfTheLadder);
+
+    expect(harness.room.personAsksFor, [primeira]);
+  });
+
   test('a call for an earlier session that fell on the network leaves the call '
       'for the current session to the return of the room', () async {
     final harness = SalaHarness();

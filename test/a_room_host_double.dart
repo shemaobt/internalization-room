@@ -63,16 +63,16 @@ class ARoomHost implements EffectHost {
   @override
   String? passageInCourse;
 
-  final List<String> callsLanded = [];
+  int callsLanded = 0;
+  int callsLandedWithoutASession = 0;
   final List<(String, String?, RoomResult)> earlierCallsHeard = [];
   final List<String> earlierSessionsGone = [];
 
   @override
-  void hearTheCallLanded() => callsLanded.add('with a session');
+  void hearTheCallLanded() => callsLanded++;
 
   @override
-  void hearTheCallLandedWithoutASession() =>
-      callsLanded.add('without a session');
+  void hearTheCallLandedWithoutASession() => callsLandedWithoutASession++;
 
   @override
   Future<void> hearAnEarlierSessionsCall(
