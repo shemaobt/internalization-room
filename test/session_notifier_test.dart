@@ -6131,7 +6131,10 @@ void main() {
     );
 
     notifier.ouvirOTrechoEATraducao();
-    await settle();
+    await waitFor(
+      'o trecho apontado estar tocando',
+      () => container.read(salaSessionProvider).btTrechoTocando,
+    );
 
     expect(
       harness.playback.ranges,
