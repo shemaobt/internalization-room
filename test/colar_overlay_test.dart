@@ -35,6 +35,8 @@ void main() {
     );
   }
 
+  Coverage answer(Map<String, dynamic> json) => Coverage.fromJson(json);
+
   BoxDecoration decorationAt(WidgetTester tester, int index) =>
       tester
               .widget<AnimatedContainer>(
@@ -43,16 +45,31 @@ void main() {
               .decoration
           as BoxDecoration;
 
+  int litBeads(WidgetTester tester) {
+    var lit = 0;
+    final drawn = find.byType(AnimatedContainer).evaluate().length;
+    for (var i = 0; i < drawn; i++) {
+      if (decorationAt(tester, i).gradient == BeadStyles.wood) lit++;
+    }
+    return lit;
+  }
+
   testWidgets('a bead nobody has spoken into waits, whatever the guide surfaced', (
     tester,
   ) async {
-    const session = SalaSessionState(
-      coverage: Coverage(engaged: 0, surfaced: 10, total: 29, absenceIndex: -1),
+    final session = SalaSessionState(
+      coverage: answer({
+        'engaged': 0,
+        'surfaced': 10,
+        'total': 29,
+        'beads_total': 12,
+        'beads_filled': 0,
+      }),
     );
     await pumpColar(tester, session);
 
-    expect(find.byType(AnimatedContainer), findsNWidgets(29));
-    for (var i = 0; i < 29; i++) {
+    expect(find.byType(AnimatedContainer), findsNWidgets(12));
+    for (var i = 0; i < 12; i++) {
       expect(
         decorationAt(tester, i).gradient,
         isNot(isA<LinearGradient>()),
@@ -68,25 +85,100 @@ void main() {
     }
   });
 
-  testWidgets('exactly the beads the team spoke into come back filled', (
+  testWidgets('exactly the beads the room names come back filled', (
     tester,
   ) async {
-    const session = SalaSessionState(
-      coverage: Coverage(engaged: 3, surfaced: 3, total: 29, absenceIndex: -1),
+    final session = SalaSessionState(
+      coverage: answer({
+        'engaged': 3,
+        'surfaced': 3,
+        'total': 29,
+        'beads_total': 12,
+        'beads_filled': 5,
+      }),
     );
     await pumpColar(tester, session);
 
-    var filled = 0;
-    for (var i = 0; i < 29; i++) {
-      if (decorationAt(tester, i).gradient == BeadStyles.wood) filled++;
-    }
     expect(
-      filled,
-      3,
-      reason:
-          'a conta enche uma a uma com o que o time falou, nunca mais nem menos',
+      litBeads(tester),
+      5,
+      reason: 'a conta enche com o que a sala diz, nunca mais nem menos',
     );
   });
+
+  testWidgets(
+    'a coverage answer of nine elements with three engaged draws twelve beads and lights four',
+    (tester) async {
+      final session = SalaSessionState(
+        coverage: answer({
+          'engaged': 3,
+          'surfaced': 3,
+          'total': 9,
+          'beads_total': 12,
+          'beads_filled': 4,
+        }),
+      );
+      await pumpColar(tester, session);
+
+      expect(find.byType(AnimatedContainer), findsNWidgets(12));
+      expect(litBeads(tester), 4);
+    },
+  );
+
+  testWidgets(
+    'a coverage answer of fifteen elements all engaged draws twelve beads all lit',
+    (tester) async {
+      final session = SalaSessionState(
+        coverage: answer({
+          'engaged': 15,
+          'surfaced': 15,
+          'total': 15,
+          'beads_total': 12,
+          'beads_filled': 12,
+        }),
+      );
+      await pumpColar(tester, session);
+
+      expect(find.byType(AnimatedContainer), findsNWidgets(12));
+      expect(litBeads(tester), 12);
+    },
+  );
+
+  testWidgets(
+    'a coverage answer without the bead fields draws twelve beads with none lit',
+    (tester) async {
+      final session = SalaSessionState(
+        coverage: answer({
+          'engaged': 5,
+          'surfaced': 5,
+          'total': 9,
+          'absence_index': -1,
+        }),
+      );
+      await pumpColar(tester, session);
+
+      expect(find.byType(AnimatedContainer), findsNWidgets(12));
+      expect(litBeads(tester), 0);
+    },
+  );
+
+  testWidgets(
+    'the necklace lights the beads the room names, not the elements engaged',
+    (tester) async {
+      final session = SalaSessionState(
+        coverage: answer({
+          'engaged': 1,
+          'surfaced': 1,
+          'total': 29,
+          'beads_total': 12,
+          'beads_filled': 0,
+        }),
+      );
+      await pumpColar(tester, session);
+
+      expect(litBeads(tester), 0);
+    },
+  );
 
   BoxDecoration renderedDecorationAt(WidgetTester tester, int index) =>
       tester
@@ -110,12 +202,13 @@ void main() {
     await pumpColar(tester, waiting);
 
     final filled = waiting.copyWith(
-      coverage: const Coverage(
-        engaged: 1,
-        surfaced: 0,
-        total: 1,
-        absenceIndex: -1,
-      ),
+      coverage: answer({
+        'engaged': 1,
+        'surfaced': 0,
+        'total': 1,
+        'beads_total': 12,
+        'beads_filled': 1,
+      }),
     );
     await pumpColar(tester, filled);
 
@@ -156,38 +249,6 @@ void main() {
           'o fecho da passagem é quietude, a tela de celebração o design proíbe',
     );
   });
-
-  testWidgets(
-    'the absence bead rings only once the team worked that silence, not before',
-    (tester) async {
-      const waiting = SalaSessionState(
-        coverage: Coverage(engaged: 2, surfaced: 2, total: 10, absenceIndex: 5),
-      );
-      await pumpColar(tester, waiting);
-      expect(
-        decorationAt(tester, 5).gradient,
-        BeadStyles.oat(SalaColors.light),
-        reason: 'a ausência fora de engaged ainda é uma conta vazia comum',
-      );
-
-      const ringed = SalaSessionState(
-        coverage: Coverage(engaged: 6, surfaced: 6, total: 10, absenceIndex: 5),
-      );
-      await pumpColar(tester, ringed);
-      expect(
-        decorationAt(tester, 5).gradient,
-        isNull,
-        reason:
-            'a conta de ausência só ganha o anel quando cai dentro de engaged, e o anel não tem gradiente',
-      );
-      expect(
-        (decorationAt(tester, 5).border as Border).top.width,
-        3,
-        reason:
-            'o anel é a versão cheia da conta de ausência, não um terceiro estado',
-      );
-    },
-  );
 
   testWidgets(
     'a bead whose slot changes lands there on the first frame, reduced',
@@ -262,12 +323,13 @@ void main() {
       await pumpReducedColar(tester, waiting);
 
       final filled = waiting.copyWith(
-        coverage: const Coverage(
-          engaged: 1,
-          surfaced: 0,
-          total: 1,
-          absenceIndex: -1,
-        ),
+        coverage: answer({
+          'engaged': 1,
+          'surfaced': 0,
+          'total': 1,
+          'beads_total': 12,
+          'beads_filled': 1,
+        }),
       );
       await pumpReducedColar(tester, filled);
 

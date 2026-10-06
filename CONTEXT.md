@@ -15,7 +15,7 @@ The session's first station, where the room's voice welcomes the team and presen
 _Avoid_: convite in prose (`convite` is the enum value), introduction, opening, welcome
 
 **Conversation** (`conversa`):
-The station where the team describes the passage out loud and every Meaning Map element it touches lights a bead on the necklace.
+The station where the team describes the passage out loud, and what the team touches fills the necklace.
 _Avoid_: conversa in prose (`conversa` is the enum value), telling, narration
 
 **Rehearsal** (`ensaio`):
@@ -195,12 +195,12 @@ One of the pieces the rehearsal recording is divided into, and the unit a stretc
 _Avoid_: parte, chunk (a position in one reading), take (what holds a part), stretch, composed passage (retired: the take the server assembled around a mend)
 
 **Necklace**:
-The cord of beads that is the room's progress indicator for the conversation: lit beads show the conversation's coverage. Drawn over the Conversation and the Closing only; the Rehearsal, the Back-translation and the findings show the Bead row instead.
+The cord of beads that is the room's progress indicator for the conversation: its twelve beads, of which as many are lit as the room says, show the conversation's coverage. Drawn over the Conversation and the Closing only; the Rehearsal, the Back-translation and the findings show the Bead row instead.
 _Avoid_: colar, progress bar, ghost bead
 
-**Bead**:
-A Meaning Map element represented on the necklace, moving through not encountered, surfaced (the Guide said it) and engaged (the team said it).
-_Avoid_: conta, pearl, item, part bead or stretch bead (those sit on the Bead row)
+**Bead** and **element**:
+One of the necklace's twelve, whatever the passage's number of elements. The room says how many are lit (`beads_filled`): the elements engaged over all the elements, times twelve, rounded half up. An **element** is one of the Meaning Map's, and moves through not encountered, surfaced (the Guide said it) and engaged (the team said it); it is not a bead.
+_Avoid_: conta, pearl, item, bead for an element of the Map, part bead or stretch bead (those sit on the Bead row)
 
 **Bead row**:
 The row at the top of the Rehearsal, the Back-translation and the findings, one bead per Part or Stretch: translucent while its recording is open or pending, solid once confirmed, drained while a finding points at it, ringed while it is the current one; a tap selects it and plays it. A dimmed bead is the exception: it does not apply right now, and a tap on it does nothing.
