@@ -36,7 +36,9 @@ not the one the machine opened the microphone for.
   `MicAnswered`, naming a `MicAnswer`: started, refused, failed, closed (with the take, or
   none), discarded (the room's `CloseAndDiscardTheMic`) or abandoned (a late start that had
   started). A start only records itself. Every other answer gives the Channel back the way
-  `MicClosed` does, through the same handler. A refused or failed microphone is that
+  `MicClosed` does, through the same handler, except a close the recorder failed: it
+  carries the failure, leaves the Microphone open and fails the gesture waiting on the
+  take, as the recorder's own error did. A refused or failed microphone is that
   answer, not a row of the failure policy: a recorder is not the room.
 - **The machine keeps how the microphone last answered**, as it keeps how the last line
   ended. The notifier reads it on the transition and does the Station's work there. It
