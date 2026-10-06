@@ -394,7 +394,7 @@ class EffectRunner {
     final String? take;
     try {
       take = await recorder.stop();
-    } on Exception catch (because) {
+    } on Object catch (because) {
       if (_disposed) return;
       return host.answer(
         MicAnswered(

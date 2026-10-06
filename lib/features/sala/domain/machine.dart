@@ -165,7 +165,7 @@ enum MicAnswer { started, refused, failed, closed, discarded, abandoned }
 final class MicAnswered extends AnsweringEvent {
   final MicAnswer answer;
   final String? take;
-  final Exception? because;
+  final Object? because;
 
   const MicAnswered(this.answer, {this.take, this.because, super.generation});
 }
@@ -632,7 +632,7 @@ final class LineOutcome {
 final class MicOutcome {
   final MicAnswer answer;
   final String? take;
-  final Exception? because;
+  final Object? because;
 
   const MicOutcome(this.answer, {this.take, this.because});
 }
@@ -1120,7 +1120,7 @@ Machine _silenced(Machine machine, bool keepingTheHold) =>
   Machine machine,
   MicAnswer answer,
   String? take,
-  Exception? because,
+  Object? because,
 ) {
   final (answered, effects) = answer == MicAnswer.started || because != null
       ? (machine, const <Effect>[])

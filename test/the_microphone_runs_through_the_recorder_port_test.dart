@@ -1,15 +1,40 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/effect_runner.dart';
+import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'a_room_host_double.dart';
 import 'fake_ports.dart';
+import 'fakes.dart';
+import 'scenario_helpers.dart' show settle;
 
 const _take = 'conversa_1';
 const _file = '/recordings/conversa_1.m4a';
 const _line = Line(LineKind.guide, 1, url: 'scene.mp3');
 const _part = PartSound(0, 'part.m4a');
+
+class _ARecorderThatFailsToStopOnce extends FakeRecorder {
+  _ARecorderThatFailsToStopOnce({super.sounds});
+
+  Object? failsTheNextStop;
+
+  @override
+  Future<String?> stop() async {
+    final failure = failsTheNextStop;
+    failsTheNextStop = null;
+    if (failure != null) throw failure;
+    return super.stop();
+  }
+}
+
+class _AHarnessWhoseRecorderFailsToStop extends SalaHarness {
+  late final _failing = _ARecorderThatFailsToStopOnce(sounds: sounds);
+
+  @override
+  _ARecorderThatFailsToStopOnce get recorder => _failing;
+}
 
 void main() {
   late ARecorderPort recorder;
@@ -254,6 +279,35 @@ void main() {
         expect(effects, [const PlayLine(_line)]);
         expect(next.lastMic?.answer, answer);
       }
+    },
+  );
+
+  test(
+    'a take the recorder fails to hand over ends its own gesture, and the next close gets its own take',
+    () async {
+      final harness = _AHarnessWhoseRecorderFailsToStop();
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+      await notifier.goConversa();
+      await settle();
+      notifier.goEnsaio();
+      notifier.ensaioTap();
+      await settle();
+
+      harness.recorder.failsTheNextStop = StateError('the platform broke');
+      notifier.ensaioTap();
+      await settle();
+
+      expect(read().needsPerson, isFalse);
+      expect(read().ensaio, EnsaioStatus.recording);
+
+      notifier.ensaioTap();
+      await settle();
+
+      expect(read().ensaio, EnsaioStatus.recorded);
+      expect(read().machine.onTheirWay, isEmpty);
     },
   );
 }
