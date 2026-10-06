@@ -65,18 +65,30 @@ void main() {
     },
   );
 
-  test(
-    'a clip the render did not write is named as unrendered, never silently',
-    () {
-      for (final language in _languages()) {
-        final record = _recordOf(language);
-        final unrendered = record['unrendered'];
+  test('every clip listed as unrendered is a clip of the bundle', () {
+    for (final language in _languages()) {
+      final record = _recordOf(language);
+      final unrendered = record['unrendered'];
 
-        expect(unrendered, isA<List>(), reason: '${language.path} unrendered');
-        for (final path in unrendered as List) {
-          expect((record['clips'] as Map).keys, contains(path));
-        }
+      expect(unrendered, isA<List>(), reason: '${language.path} unrendered');
+      for (final path in unrendered as List) {
+        expect((record['clips'] as Map).keys, contains(path));
       }
+    }
+  });
+
+  test(
+    'the only clip the render left in the old voice is the Portuguese sem_conexao',
+    () {
+      final pt = _recordOf(Directory('$_audio/pt'));
+      final en = _recordOf(Directory('$_audio/en'));
+
+      expect(pt['unrendered'], ['sem_conexao.mp3']);
+      expect(
+        (pt['clips'] as Map)['sem_conexao.mp3'],
+        '5abc5bc5b69aa0c64825e949f80afc5ce00a6af1c51653bf3ddb63e7f619a8cb',
+      );
+      expect(en['unrendered'], isEmpty);
     },
   );
 

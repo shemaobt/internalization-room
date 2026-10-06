@@ -5,7 +5,8 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle, theBundledAcknowledgements;
+import 'scenario_helpers.dart'
+    show settle, everyAcknowledgementLineTheAppEverHad;
 
 class _Sala {
   final SalaHarness harness;
@@ -57,7 +58,7 @@ Future<_Sala> _aRodaAberta() async {
 /// bundled family they are.
 List<String> _esperasDitas(SalaHarness harness) => [
   for (final asset in harness.voice.assets)
-    if (theBundledAcknowledgements.any(
+    if (everyAcknowledgementLineTheAppEverHad.any(
       (line) => asset == fixedLineAsset(line, testLanguage),
     ))
       asset,
