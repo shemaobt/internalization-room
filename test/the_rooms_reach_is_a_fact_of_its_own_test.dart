@@ -33,14 +33,8 @@ Future<void> _theRoomFalls(
   SalaHarness harness,
   ProviderContainer container,
 ) async {
-  final notifier = container.read(salaSessionProvider.notifier);
   harness.network.reachable = false;
   harness.room.reachable = false;
-  harness.inbox.refuses = true;
-  notifier.handTap();
-  notifier.conversaTap();
-  await settle();
-  notifier.conversaTap();
   await waitFor(
     'a sala cair no meio da conversa',
     () => container.read(salaSessionProvider).offline,
@@ -135,7 +129,10 @@ void main() {
   test(
     'T1: the way back runs on through the Rehearsal and empties the Outbox',
     () async {
-      final harness = SalaHarness(retryBackoff: _ladder);
+      final harness = SalaHarness(
+        watchesWithoutAHalt: true,
+        retryBackoff: _ladder,
+      );
       final container = await _fallenInConversa(harness);
       final notifier = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
@@ -153,7 +150,10 @@ void main() {
   test(
     'T2: the Rehearsal is drawn while the room is down and stays after it returns',
     () async {
-      final harness = SalaHarness(retryBackoff: _ladder);
+      final harness = SalaHarness(
+        watchesWithoutAHalt: true,
+        retryBackoff: _ladder,
+      );
       final container = await _fallenInConversa(harness);
       final notifier = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
@@ -180,7 +180,10 @@ void main() {
   test(
     'T3: the way back runs on through a halt raised during the fall',
     () async {
-      final harness = SalaHarness(retryBackoff: _ladder);
+      final harness = SalaHarness(
+        watchesWithoutAHalt: true,
+        retryBackoff: _ladder,
+      );
       final container = await _fallenInConversa(harness);
       final notifier = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
@@ -198,7 +201,10 @@ void main() {
   test(
     'T4: a halt raised during the fall stands after the return, until the Desk lifts it',
     () async {
-      final harness = SalaHarness(retryBackoff: _ladder);
+      final harness = SalaHarness(
+        watchesWithoutAHalt: true,
+        retryBackoff: _ladder,
+      );
       final container = await _fallenInConversa(harness);
       final notifier = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
@@ -221,7 +227,10 @@ void main() {
   );
 
   test('T5: the circle draws the fall, the Rehearsal and the halt', () async {
-    final harness = SalaHarness(retryBackoff: _ladder);
+    final harness = SalaHarness(
+      watchesWithoutAHalt: true,
+      retryBackoff: _ladder,
+    );
     final container = await _fallenInConversa(harness);
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
@@ -239,7 +248,10 @@ void main() {
   });
 
   test('T6: the offline notice is spoken once for the whole fall', () async {
-    final harness = SalaHarness(retryBackoff: _ladder);
+    final harness = SalaHarness(
+      watchesWithoutAHalt: true,
+      retryBackoff: _ladder,
+    );
     final container = await _fallenInConversa(harness);
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
@@ -256,7 +268,10 @@ void main() {
   test(
     'T7: the long press lets an offline room out, and it can fall again',
     () async {
-      final harness = SalaHarness(retryBackoff: _ladder);
+      final harness = SalaHarness(
+        watchesWithoutAHalt: true,
+        retryBackoff: _ladder,
+      );
       final container = await _fallenInConversa(harness);
       final notifier = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
@@ -306,7 +321,10 @@ void main() {
   test(
     'T11: the Desk lifting a halt raised during the fall brings the room back',
     () async {
-      final harness = SalaHarness(retryBackoff: _aLadderThatFallsAsleep);
+      final harness = SalaHarness(
+        watchesWithoutAHalt: true,
+        retryBackoff: _aLadderThatFallsAsleep,
+      );
       final container = await _fallenInConversa(harness);
       final notifier = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
@@ -328,6 +346,7 @@ void main() {
     'T13: a call failing again under a halt raised during the fall leaves the halt',
     () async {
       final harness = SalaHarness(
+        watchesWithoutAHalt: true,
         retryBackoff: _aLadderThatFallsAsleep,
         settleDelay: const Duration(seconds: 2),
       );
@@ -383,7 +402,10 @@ void main() {
   test(
     'T14: the long press while a return is being tried leaves the room let out',
     () async {
-      final harness = SalaHarness(retryBackoff: const [Duration(hours: 1)]);
+      final harness = SalaHarness(
+        watchesWithoutAHalt: true,
+        retryBackoff: const [Duration(hours: 1)],
+      );
       final container = await _fallenInConversa(harness);
       final notifier = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
@@ -421,7 +443,10 @@ void main() {
 
   group('T10: a call failing again while the room is down', () {
     test('reopening the conversa draws the fall again', () async {
-      final harness = SalaHarness(retryBackoff: _ladder);
+      final harness = SalaHarness(
+        watchesWithoutAHalt: true,
+        retryBackoff: _ladder,
+      );
       final container = await _fallenInConversa(harness);
       final notifier = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
@@ -436,7 +461,10 @@ void main() {
     });
 
     test('reopening the wheel draws the fall again', () async {
-      final harness = SalaHarness(retryBackoff: _ladder);
+      final harness = SalaHarness(
+        watchesWithoutAHalt: true,
+        retryBackoff: _ladder,
+      );
       final container = await _fallenInConversa(harness);
       final notifier = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);

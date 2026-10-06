@@ -1243,8 +1243,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// every call to one of the three, through whichever door reaches it — including the
   /// opening turn a resume with nothing to restore falls through to. A refusal there
   /// raises the affordance on the spot, the same turn a person would have been shown E0
-  /// in. Every other caller — the resume itself, upload, a written question, a retro
-  /// edit, an approval — keeps the three-strike count underneath.
+  /// in. Every other caller — the resume itself, upload, a retro edit, an approval —
+  /// keeps the three-strike count underneath.
   void _decideTheFailure(
     RoomFailure failure, {
     RefusalRule rule = RefusalRule.counts,
@@ -3004,10 +3004,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (await _inbox.fetchReplies()) {
       case Answered(:final value):
         fetched = value;
-      case NetworkFailed():
-        return _outOfReach(Door.inbox);
-      case Refused() || SessionGone():
-        return;
+      case final RoomFailure failure:
+        return _decideAt(failure, door: Door.inbox);
     }
     if (_gone) return;
     final known = {for (final reply in state.replies) reply.id: reply};
@@ -3103,9 +3101,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// refused mark, and a reply recorded again arrives at its new address with no
   /// failures, which is what lifts the set-aside.
   ///
-  /// A room that cannot serve the clip is one more way for an answer not to play, and it is
-  /// treated the same way — never through `_decideTheFailure`. The hand is a side
-  /// channel: a halt raised over a reply would take the circle along with it.
+  /// A room that cannot serve the clip is not set aside: the Failure policy decides it at the
+  /// reply door, where it changes nothing in the room (ADR 0059), and the reply keeps its dot
+  /// for the next touch.
   ///
   /// The playing mark is given back on every way out. `_markHeard` is what clears it when
   /// the reply sounded; a reply that did not, or that outlived its generation, clears it
@@ -3118,11 +3116,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         url: reply.audioUrl,
         source: Source.reply(reply.id),
       );
-    } on NetworkFailed {
+    } on NetworkFailed catch (failure) {
       if (state.playingReplyId == reply.id) {
         state = state.copyWith(clearPlayingReply: true);
       }
-      return _outOfReach(Door.reply);
+      return _decideAt(failure, door: Door.reply);
     } on Exception {
       said = Said.failed;
     }
@@ -3194,10 +3192,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (await _inbox.markHeard(replyId, audioUrl: audioUrl)) {
       case Answered():
         return;
-      case NetworkFailed():
-        _outOfReach(Door.inbox);
-      case Refused() || SessionGone():
-        break;
+      case final RoomFailure failure:
+        _decideAt(failure, door: Door.inbox);
     }
     if (_abandoned(generation)) return;
     state = state.copyWith(replies: _replies(replyId, heard: false));
@@ -3245,7 +3241,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       sent = await _inbox.sendQuestion(sessionId, File(path));
     } on FileSystemException {
       if (_abandoned(generation)) return;
-      return _theStepFell();
+      state = state.copyWith(awaitingTheGuide: false);
+      return;
     }
     if (_abandoned(generation)) return;
     switch (sent) {
@@ -3253,7 +3250,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         break;
       case final RoomFailure failure:
         state = state.copyWith(awaitingTheGuide: false);
-        return _decideTheFailure(failure);
+        return _decideAt(failure, door: Door.question);
     }
     unawaited(_recorder.delete(path));
     state = state.copyWith(

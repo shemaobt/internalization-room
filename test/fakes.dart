@@ -729,37 +729,46 @@ class FakeInbox implements HandInboxRepository {
   List<HandReply> replies;
   final List<String> heard = [];
   final List<String> questionsSent = [];
-  bool refuses = false;
   bool cannotBeAsked = false;
 
-  /// What the desk answers a question with instead of taking it.
-  Refused? refusesTheQuestionWith;
+  /// What the desk answers a Knot with instead of taking it.
+  RoomFailure? knotFailsWith;
+
+  /// Whether the Knot's recording cannot be read off the disk to be sent.
+  bool cannotReadTheKnot = false;
+
+  /// How many times the tablet checked for waiting replies.
+  int checks = 0;
 
   FakeInbox({this.replies = const []});
 
   @override
-  Future<RoomAnswer<List<HandReply>>> fetchReplies() async =>
-      cannotBeAsked ? const NetworkFailed('sem rede') : Answered(replies);
+  Future<RoomAnswer<List<HandReply>>> fetchReplies() async {
+    checks++;
+    return cannotBeAsked ? const NetworkFailed('sem rede') : Answered(replies);
+  }
 
-  /// Whether the desk turns the mark down — the real one answers for itself now, so the
-  /// double has to be able to say no as well as yes.
-  bool refusesMarks = false;
+  /// What the mark comes back with instead of the desk agreeing.
+  RoomFailure? marksFailWith;
 
   @override
   Future<RoomAnswer<void>> markHeard(
     String replyId, {
     required String audioUrl,
   }) async {
-    if (refusesMarks) return const Refused('REPLY_MOVED_ON');
+    final failure = marksFailWith;
+    if (failure != null) return failure;
     heard.add(replyId);
     return const Answered(null);
   }
 
   @override
   Future<RoomAnswer<void>> sendQuestion(String sessionId, File audio) async {
-    if (refuses) return const NetworkFailed('sem rede');
-    final refusal = refusesTheQuestionWith;
-    if (refusal != null) return refusal;
+    if (cannotReadTheKnot) {
+      throw FileSystemException('sem arquivo', audio.path);
+    }
+    final failure = knotFailsWith;
+    if (failure != null) return failure;
     questionsSent.add(sessionId);
     return const Answered(null);
   }

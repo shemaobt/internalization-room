@@ -1309,6 +1309,7 @@ void main() {
     // No pending reply on purpose: with one, the hand plays it and never reaches the
     // branch that overwrites the offline state.
     final harness = SalaHarness(
+      watchesWithoutAHalt: true,
       retryBackoff: const [Duration(milliseconds: 30)],
     );
     final container = await inConversaHarness(harness);
@@ -1317,11 +1318,6 @@ void main() {
 
     harness.network.reachable = false;
     harness.room.reachable = false;
-    harness.inbox.refuses = true;
-    notifier.handTap();
-    notifier.conversaTap();
-    await settle();
-    notifier.conversaTap();
     await waitFor(
       'a sala se dar por fora do ar',
       () => container.read(salaSessionProvider).offline,

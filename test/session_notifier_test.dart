@@ -3974,7 +3974,7 @@ void main() {
   test(
     'two visible server errors across an offline episode still fall short of a person',
     () async {
-      final harness = SalaHarness();
+      final harness = SalaHarness(watchesWithoutAHalt: true);
       harness.emAberto.rows['Ruth/P01'] = const ResumePoint(
         sessionId: 'sessao-velha',
         stage: SalaStage.retro,
@@ -3988,21 +3988,12 @@ void main() {
       await settle();
 
       harness.room.reachable = false;
-      harness.inbox.refuses = true;
-      notifier.handTap();
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle(const Duration(milliseconds: 5));
-      expect(
-        container.read(salaSessionProvider).offline,
-        isTrue,
-        reason:
-            'servidor totalmente fora vira queda de rede, não erro do servidor',
+      await waitFor(
+        'o servidor totalmente fora virar queda de rede, não erro do servidor',
+        () => container.read(salaSessionProvider).offline,
       );
 
       harness.room.reachable = true;
-      harness.inbox.refuses = false;
       await settle();
       expect(
         container.read(salaSessionProvider).offline,
@@ -4481,7 +4472,7 @@ void main() {
 
   test('a question that never left is kept on the tablet', () async {
     final harness = SalaHarness(retryBackoff: const [Duration(seconds: 30)])
-      ..inbox.refuses = true;
+      ..inbox.knotFailsWith = const NetworkFailed('sem rede');
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -4523,7 +4514,7 @@ void main() {
 
   test('a question that never left marks nothing pending on the hand', () async {
     final harness = SalaHarness(retryBackoff: const [Duration(seconds: 30)])
-      ..inbox.refuses = true;
+      ..inbox.knotFailsWith = const NetworkFailed('sem rede');
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);

@@ -88,6 +88,7 @@ AnsweringEvent _stampedAnswer(AnsweringEvent event, int generation) =>
       TurnAnswered(:final turn) => TurnAnswered(turn, generation: generation),
       TurnFailed(:final turn) => TurnFailed(turn, generation: generation),
       TheRefusalPassed() => TheRefusalPassed(generation: generation),
+      TheHandFailed() => TheHandFailed(generation: generation),
       TheCallWasRefused() => TheCallWasRefused(generation: generation),
       TheCallMetAClosedPassage() => TheCallMetAClosedPassage(
         generation: generation,
