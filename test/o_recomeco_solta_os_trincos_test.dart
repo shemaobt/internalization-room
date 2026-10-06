@@ -4,7 +4,8 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart'
+    show settle, everyAcknowledgementLineTheAppEverHad;
 
 class _Sala {
   final SalaHarness harness;
@@ -52,12 +53,11 @@ Future<_Sala> _aRodaAberta() async {
   return sala;
 }
 
-/// The lines the room said to fill a wait, in the order it said them. They rotate, so a
-/// passage that starts over and hears the second one first is a passage carrying the
-/// count of the one before it.
+/// The lines the room said to fill a wait, in the order it said them, whichever of her
+/// acknowledgements they are.
 List<String> _esperasDitas(SalaHarness harness) => [
   for (final (line, _) in harness.voice.fixedLines)
-    if (line.startsWith('F')) line,
+    if (everyAcknowledgementLineTheAppEverHad.contains(line)) line,
 ];
 
 void main() {
@@ -91,22 +91,30 @@ void main() {
     );
   });
 
-  test('a passagem nova começa a rodar as esperas do início', () async {
-    final it = await _aRodaAberta();
-    await it.entrar('P01');
-    await it.falar(1);
+  test(
+    'vinte passagens novas seguidas nunca abrem com a espera em que a anterior '
+    'terminou',
+    () async {
+      final it = await _aRodaAberta();
+      var turno = 0;
+      for (var i = 0; i < 20; i++) {
+        await it.entrar(i.isEven ? 'P01' : 'P02');
+        await it.falar(++turno);
+      }
 
-    await it.entrar('P02');
-    await it.falar(2);
-
-    expect(
-      _esperasDitas(it.harness),
-      ['F0', 'F0'],
-      reason:
-          'a rotação das esperas é da passagem: herdada, a equipe ouve '
-          'a passagem nova começar no meio da volta anterior',
-    );
-  });
+      final ditas = _esperasDitas(it.harness);
+      expect(ditas, hasLength(20));
+      for (var i = 1; i < ditas.length; i++) {
+        expect(
+          ditas[i],
+          isNot(ditas[i - 1]),
+          reason:
+              'a espera nunca se repete duas vezes seguidas, e a passagem '
+              'nova não é um recomeço: a sala é a mesma (passagem $i)',
+        );
+      }
+    },
+  );
 
   test(
     'a passagem nova abre o microfone depois de um que ficou a abrir',

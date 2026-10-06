@@ -1,0 +1,13 @@
+{
+  "api_commit": "0547cae380a5b204fecc9841e7e3fbfb9dd22262",
+  "clips": {
+    "gravacao_presa.mp3": "b1cd5db6a03f29ef334bb6f7af6c1dc4661615acc649904f4d9d90aa2967ba38",
+    "microfone.mp3": "9d1385dc3b99f01670824bccf6f249400204e76903b035efd0a539e41436c491",
+    "sem_conexao.mp3": "5abc5bc5b69aa0c64825e949f80afc5ce00a6af1c51653bf3ddb63e7f619a8cb"
+  },
+  "rendered_at": "2026-10-06T20:19:38Z",
+  "unrendered": [
+    "sem_conexao.mp3"
+  ],
+  "voice_id": "tZ2oxQJXfOrGrN7iKnta"
+}

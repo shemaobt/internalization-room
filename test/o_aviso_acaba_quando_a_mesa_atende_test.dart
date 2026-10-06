@@ -279,13 +279,11 @@ void main() {
 
     await waitFor('o aviso chegar', () => read().warning);
 
-    harness.room.holdNextTurn();
+    harness.inbox.refuses = true;
+    notifier.handTap();
     notifier.conversaTap();
     await settle();
     notifier.conversaTap();
-    await settle();
-    harness.room.failHeldTurnWith = const NetworkFailed('sem rede');
-    harness.room.finishHeldTurn();
     await waitFor('a sala cair', () => read().offline);
     await waitFor('a sala voltar', () => !read().offline);
 
@@ -309,6 +307,8 @@ void main() {
 
     harness.network.reachable = false;
     harness.room.reachable = false;
+    harness.inbox.refuses = true;
+    notifier.handTap();
     notifier.conversaTap();
     await settle();
     notifier.conversaTap();

@@ -73,6 +73,7 @@ Future<(SalaHarness, ProviderContainer, SalaSessionState Function())>
 _aReplyWaitsThroughAFall() async {
   final harness = SalaHarness(
     replies: const [HandReply(id: 'r1', audioUrl: '/resposta-1')],
+    watchesWithoutAHalt: true,
   );
   final container = await inConversa(harness);
   addTearDown(container.dispose);
@@ -88,10 +89,10 @@ _aReplyWaitsThroughAFall() async {
   await waitFor('a Guia falar', () => read().channel is GuideSpeaking);
   sala.handTap();
   await settle();
-  harness.room.failHeldTurnWith = const NetworkFailed('sem rede');
-  harness.room.finishHeldTurn();
+  harness.room.failStateOnceWith = const NetworkFailed('sem rede');
   await waitFor('a sala cair', () => read().unreachable);
   await waitFor('a sala voltar', () => !read().unreachable);
+  harness.room.finishHeldTurn();
   expect(read().stage, SalaStage.conversa);
   harness.voice.finishHeldLine();
   return (harness, container, read);
@@ -783,8 +784,8 @@ void main() {
     expect(respostaAntes, isTrue, reason: 'a resposta do turno vem antes');
   });
 
-  test("a turn that falls offline does not end the hand's reply, which still "
-      'plays ahead of a waiting courtesy line', () async {
+  test("a turn the one look brings back does not end the hand's reply, which "
+      'still plays ahead of a waiting courtesy line', () async {
     _OutboxThatGaveUp? outbox;
     final harness = SalaHarness(
       replies: const [HandReply(id: 'r1', audioUrl: '/resposta-1')],
@@ -810,7 +811,9 @@ void main() {
       }
     };
     harness.voice.holdNextLine();
-    harness.room.holdNextTurn();
+    harness.room
+      ..holdNextTurn()
+      ..turnsLandBeforeTheyFail = true;
     sala.conversaTap();
     await waitFor('o microfone abrir', () => read().channel is Microphone);
     sala.conversaTap();

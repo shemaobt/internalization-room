@@ -4,6 +4,9 @@ import 'package:internalization_room/features/sala/data/port_adapters.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/ports.dart';
+import 'package:internalization_room/features/sala/domain/room_reach.dart';
+import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
 class ARoomHost implements EffectHost {
   final List<String> asked = [];
@@ -17,17 +20,45 @@ class ARoomHost implements EffectHost {
   bool roomIsReachable = true;
 
   @override
+  Kept sounding = const NothingKept();
+
+  void Function()? onPartEnd;
+
+  @override
+  bool recordingStarts = false;
+
+  bool keepsALateStart = true;
+
+  @override
+  bool keepsTheStart(MicOwner owner) => keepsALateStart;
+
+  @override
   void answer(MachineEvent event) {
     answers.add(event);
     onAnswer?.call(event);
   }
 
   @override
-  void silenceTheRoom() => asked.add('silenceTheRoom');
+  void hearThePartEnd() {
+    asked.add('hearThePartEnd');
+    onPartEnd?.call();
+  }
 
   @override
-  void closeAndDiscardTheMic({required bool wasOpen}) =>
-      asked.add('closeAndDiscardTheMic');
+  void hearThePartFail() => asked.add('hearThePartFail');
+
+  @override
+  void hearTheHold() => asked.add('hearTheHold');
+
+  @override
+  void hearTheRun() => asked.add('hearTheRun');
+
+  @override
+  void hearTheMicrophoneTaken(bool taken) =>
+      asked.add('hearTheMicrophoneTaken:$taken');
+
+  @override
+  void silenceTheRoom() => asked.add('silenceTheRoom');
 
   @override
   void callForAPerson() => asked.add('callForAPerson');
@@ -49,24 +80,6 @@ class ARoomHost implements EffectHost {
       asked.add('askTheOpeningAgain');
 
   @override
-  void playLine(Line line) => asked.add('playLine');
-
-  @override
-  void playPart(Sound part) => asked.add('playPart');
-
-  @override
-  void openTheMic(String take) => asked.add('openTheMic');
-
-  @override
-  void dropTheLine(Line line) => asked.add('dropTheLine');
-
-  @override
-  void holdTheSound() => asked.add('holdTheSound');
-
-  @override
-  void letTheSoundRun() => asked.add('letTheSoundRun');
-
-  @override
   void drainTheOutbox() => asked.add('drainTheOutbox');
 
   @override
@@ -82,20 +95,59 @@ class ARoomHost implements EffectHost {
   void openTheChoice() => asked.add('openTheChoice');
 
   @override
-  void sayTheOfflineNotice() => asked.add('sayTheOfflineNotice');
+  void playTheReply(Turn turn, TurnResult reply) => asked.add('playTheReply');
+
+  @override
+  void letTheTurnGo(Turn turn) => asked.add('letTheTurnGo');
+
+  @override
+  void fellAt(Door door, RoomReach why) => asked.add('fellAt');
+
+  @override
+  void askForAPersonAgain() => asked.add('askForAPersonAgain');
+
+  @override
+  void markThePassageClosed() => asked.add('markThePassageClosed');
+
+  @override
+  void countTheRefusal() => asked.add('countTheRefusal');
+
+  @override
+  void refuseThePassage() => asked.add('refuseThePassage');
 }
 
-EffectRunner runnerOver(
-  ProviderContainer container,
-  ARoomHost host, {
-  required Duration watchPeriod,
-  Duration retryDelay = Duration.zero,
-}) => EffectRunner(
+typedef Ports = ({
+  RoomPort room,
+  SoundPort sound,
+  RecorderPort recorder,
+  StorePort store,
+});
+
+Ports portsOf(ProviderContainer container) => (
   room: container.read(roomPortProvider),
   sound: container.read(soundPortProvider),
   recorder: container.read(recorderPortProvider),
   store: container.read(storePortProvider),
+);
+
+EffectRunner runnerOver(
+  Ports ports,
+  ARoomHost host, {
+  Duration watchPeriod = const Duration(seconds: 30),
+  Duration retryDelay = Duration.zero,
+  Duration clipGrace = Duration.zero,
+  int Function()? generation,
+}) => EffectRunner(
+  room: ports.room,
+  sound: ports.sound,
+  recorder: ports.recorder,
+  store: ports.store,
   host: host,
   watchPeriod: () => watchPeriod,
   retryDelay: (_) => retryDelay,
+  partCeiling: () => null,
+  clipGrace: () => clipGrace,
+  offlineNotice: () =>
+      const Line(LineKind.offlineNotice, 0, asset: 'offline.mp3'),
+  generation: generation,
 );

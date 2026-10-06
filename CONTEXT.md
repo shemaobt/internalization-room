@@ -15,7 +15,7 @@ The session's first station, where the room's voice welcomes the team and presen
 _Avoid_: convite in prose (`convite` is the enum value), introduction, opening, welcome
 
 **Conversation** (`conversa`):
-The station where the team describes the passage out loud and every Meaning Map element it touches lights a bead on the necklace.
+The station where the team describes the passage out loud, and what the team touches fills the necklace.
 _Avoid_: conversa in prose (`conversa` is the enum value), telling, narration
 
 **Rehearsal** (`ensaio`):
@@ -59,6 +59,10 @@ _Avoid_: guia, narrator, facilitator (a person, not the voice), `Facilitator` (t
 **Fixed line**:
 One of Marcia's pre-approved lines, named by its family and its position in her file (`F2`, `D1`, `P3`). The room voices it from the text it was deployed with and answers its address; the tablet asks for that address once per run and keeps the sound, so a line she re-rules is heard on the next load.
 _Avoid_: linha fixa, canned line, static line, fail-safe line (one role a fixed line can serve)
+
+**Instant acknowledgement**:
+The fixed line played the moment a team turn ends: one of Marcia's three, picked at random by her formula, never the same twice running, and never before an opening (ADR 0056).
+_Avoid_: thinking line, filler, wait line
 
 **Process line**:
 One of Marcia's fixed lines for a step of the back-translation (start, tell, unheard, approved), asked of the room by position in the room's language, never rotated; the approval's line is the fourth.
@@ -104,6 +108,10 @@ _Avoid_: audio state, voice (the Circle's colour), player
 Whose open microphone the Channel holds: the conversation, the rehearsal, the capture or the question. The circle's words follow it.
 _Avoid_: listening (the circle's voice, not the fact), recording flag
 
+**Microphone answer**:
+How the recorder answered the microphone the room asked for: an opening started, refused or failed; a close with the take, or with none; a discard; or a late start abandoned. Every answer but a start, and but a close the recorder failed, gives the Channel back (ADR 0057).
+_Avoid_: capture result (a Capture is the back-translation's microphone), recorder state
+
 **Gesture on its way**:
 A gesture of the team from the moment it starts until everything it started has ended, the gesture it hands off to included, or until the room gives up on what that gesture was waiting for. Its own sounds pass, the instant acknowledgement of a turn among them; every other line, the courtesy lines (offline, stranded recording, microphone blocked) included, waits until it ends (ADR 0049).
 _Avoid_: busy, pending gesture
@@ -115,7 +123,7 @@ _Avoid_: pending line, interrupted line
 ### What is recorded and told
 
 **Passage**:
-The portion of Scripture the team works on, identified by its pericope, with the reference audio and the Meaning Map beads.
+The portion of Scripture the team works on, identified by its pericope, with the reference audio and the Meaning Map elements.
 _Avoid_: passagem, pericope (the passage's identifier, not the passage), text
 
 **Session**:
@@ -191,12 +199,12 @@ One of the pieces the rehearsal recording is divided into, and the unit a stretc
 _Avoid_: parte, chunk (a position in one reading), take (what holds a part), stretch, composed passage (retired: the take the server assembled around a mend)
 
 **Necklace**:
-The cord of beads that is the room's progress indicator for the conversation: lit beads show the conversation's coverage. Drawn over the Conversation and the Closing only; the Rehearsal, the Back-translation and the findings show the Bead row instead.
+The cord of beads that is the room's progress indicator for the conversation: its twelve beads, of which as many are lit as the room says, show the conversation's coverage. Drawn over the Conversation and the Closing only; the Rehearsal, the Back-translation and the findings show the Bead row instead.
 _Avoid_: colar, progress bar, ghost bead
 
-**Bead**:
-A Meaning Map element represented on the necklace, moving through not encountered, surfaced (the Guide said it) and engaged (the team said it).
-_Avoid_: conta, pearl, item, part bead or stretch bead (those sit on the Bead row)
+**Bead** and **element**:
+One of the necklace's twelve, whatever the passage's number of elements. The room says how many are lit (`beads_filled`): the elements engaged over all the elements, times twelve, rounded half up. An **element** is one of the Meaning Map's, and moves through not encountered, surfaced (the Guide said it) and engaged (the team said it); it is not a bead.
+_Avoid_: conta, pearl, item, bead for an element of the Map, part bead or stretch bead (those sit on the Bead row)
 
 **Bead row**:
 The row at the top of the Rehearsal, the Back-translation and the findings, one bead per Part or Stretch: translucent while its recording is open or pending, solid once confirmed, drained while a finding points at it, ringed while it is the current one; a tap selects it and plays it. A dimmed bead is the exception: it does not apply right now, and a tap on it does nothing.
@@ -330,6 +338,14 @@ _Avoid_: player, voice (what its two halves are called in the code)
 **Generation**:
 The machine's count of how many times its in-flight work was abandoned; an answering event from an older generation is ignored (ADR 0053).
 _Avoid_: epoch
+
+**Failure policy**:
+The one place every room result (answered, network failed, refused with a code, session gone, timed out) becomes an event: the One look, a blocking Halt that calls for a person, the Session gone, the room out of reach, or the Station's own answer. Nothing decides a failure inside a Station or the notifier (ADR 0053).
+_Avoid_: error handler, retry policy
+
+**One look**:
+What the tablet does once it gives up on a turn, because the network failed, its 305 s wait ran out or the watchdog fired: it reads that one turn on the server, once and without sending it again. A reply that landed plays as if it had arrived on time; anything else raises a blocking Halt that calls for a person and keeps the take, never the offline face.
+_Avoid_: retry, resend, poll
 
 **Session read**:
 The room's reading of the session on the server, applied whole whichever door it came through: its halt, its warning, its stretches and its verdict.

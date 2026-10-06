@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
 import 'package:internalization_room/features/sala/data/connectivity_service.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/data/credential_vault.dart';
 import 'package:internalization_room/features/sala/data/device_link_notifier.dart';
 import 'package:internalization_room/features/sala/data/linked_team.dart';
@@ -239,7 +240,7 @@ class FakeRecorder implements RecordingRepository {
   bool returnsEmpty = false;
   final List<String> deleted = [];
   String? lastPath;
-  bool? lastDraft;
+  MicOwner? lastOwner;
 
   bool permitted = true;
 
@@ -274,8 +275,11 @@ class FakeRecorder implements RecordingRepository {
   bool _recording = false;
 
   @override
-  Future<Capture> start(String fileName, {bool draft = false}) async {
-    lastDraft = draft;
+  Future<Capture> start(
+    String fileName, {
+    MicOwner owner = MicOwner.conversation,
+  }) async {
+    lastOwner = owner;
     sounds.add('recorder:start');
     final held = _startsTaken < _holdingStarts.length
         ? _holdingStarts[_startsTaken++]
@@ -1345,8 +1349,56 @@ class FakeRoom implements RoomRepository {
     }
     sessionsSpokenTo.add(sessionId);
     turnIdsAsked.add(turnId);
-    if (await _turnArrives() case final failure?) return failure;
-    return Answered(_turn(sessionId));
+    return _theTurnAnswers(sessionId, turnId);
+  }
+
+  /// What the room stored for each turn it answered, by session and turn id: what the
+  /// one look reads back.
+  final Map<(String, String), TurnResult> _stored = {};
+
+  /// Whether the room stores a turn the moment it hears it, so that an answer that never
+  /// reaches the tablet (the network dropped on the way back, or the tablet gave up
+  /// waiting) is still there for the one look.
+  bool turnsLandBeforeTheyFail = false;
+
+  /// Whether the one look finds the turn still in flight, the route's 202.
+  bool looksFindTheTurnInFlight = false;
+
+  RoomFailure? failLooksWith;
+
+  /// The turn id every look asked for, the looks that failed included.
+  final List<String> turnIdsLookedAt = [];
+
+  /// A turn gives up the way the client does, at [RoomRepository.turnTimeout].
+  Future<RoomAnswer<TurnResult>> _theTurnAnswers(
+    String sessionId,
+    String? turnId,
+  ) async {
+    final landed = turnsLandBeforeTheyFail ? _turn(sessionId) : null;
+    if (landed != null && turnId != null) _stored[(sessionId, turnId)] = landed;
+    final failure = await _turnArrives().timeout(
+      RoomRepository.turnTimeout,
+      onTimeout: () => const NetworkFailed('timeout'),
+    );
+    if (failure != null) return failure;
+    final turn = landed ?? _turn(sessionId);
+    if (turnId != null) _stored[(sessionId, turnId)] = turn;
+    return Answered(turn);
+  }
+
+  @override
+  Future<RoomAnswer<TurnResult>> lookAtTheTurn(
+    String sessionId,
+    String turnId,
+  ) async {
+    turnIdsLookedAt.add(turnId);
+    if (_guard('lookAtTheTurn') case final failure?) return failure;
+    if (failLooksWith case final failure?) return failure;
+    if (looksFindTheTurnInFlight) return Refused(RefusalCode.unnamed(202));
+    final stored = _stored[(sessionId, turnId)];
+    return stored == null
+        ? const Refused(RefusalCode.notFound)
+        : Answered(stored);
   }
 
   Completer<void>? _substituicaoSegura;
@@ -1626,7 +1678,6 @@ class FakeRoom implements RoomRepository {
     File audio, {
     required String turnId,
     String? clientTiming,
-    Duration? timeout,
   }) async {
     if (_guard('sendTurn') case final failure?) return failure;
     if (_forgot('sendTurn', sessionId) case final gone?) {
@@ -1637,15 +1688,7 @@ class FakeRoom implements RoomRepository {
     turnIdsSent.add(turnId);
     recordingsSent.add(audio.path);
     turnsSent++;
-    final arrives = _turnArrives();
-    final failure = await (timeout == null
-        ? arrives
-        : arrives.timeout(
-            timeout,
-            onTimeout: () => const NetworkFailed('timeout'),
-          ));
-    if (failure != null) return failure;
-    return Answered(_turn(sessionId));
+    return _theTurnAnswers(sessionId, turnId);
   }
 
   TurnResult _turn(String sessionId) => TurnResult(
@@ -2242,11 +2285,6 @@ class SalaHarness {
   final bool watchesWithoutAHalt;
   final List<Duration> retryBackoff;
   final Duration? busyCeiling;
-  final Duration resendMargin;
-
-  /// Replaces `_sendTheTake`'s clock, for the one test that must drive the
-  /// resend-versus-watchdog race on a fake clock instead of the wall one.
-  final Duration Function() Function()? turnElapsedSource;
   final Duration? rewarm;
   final Duration? playbackCeiling;
   final Duration clipGrace;
@@ -2271,8 +2309,6 @@ class SalaHarness {
     this.watchesWithoutAHalt = false,
     this.retryBackoff = const [Duration(milliseconds: 20)],
     this.busyCeiling,
-    this.resendMargin = const Duration(milliseconds: 50),
-    this.turnElapsedSource,
     this.rewarm,
     this.playbackCeiling,
     this.clipGrace = const Duration(seconds: 10),
@@ -2331,9 +2367,6 @@ class SalaHarness {
     coverageFallbackDelayProvider.overrideWithValue(settleDelay),
     roomRetryBackoffProvider.overrideWithValue(retryBackoff),
     busyStateCeilingProvider.overrideWithValue(busyCeiling),
-    resendMarginProvider.overrideWithValue(resendMargin),
-    if (turnElapsedSource != null)
-      turnElapsedSourceProvider.overrideWithValue(turnElapsedSource!),
     connectionRewarmIntervalProvider.overrideWithValue(rewarm),
     playbackCeilingProvider.overrideWithValue(playbackCeiling),
     clipGraceProvider.overrideWithValue(clipGrace),

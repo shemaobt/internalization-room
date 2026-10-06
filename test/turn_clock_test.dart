@@ -35,7 +35,7 @@ void main() {
       clock.mark('stop');
       stopwatch.elapsedMilliseconds = 220;
       clock.mark('answer');
-      // 'recorder' never marked — the epoch changed before recorder.stop() resolved.
+      // 'recorder' never marked — the generation changed before recorder.stop() resolved.
 
       expect(
         clock.clientTiming([

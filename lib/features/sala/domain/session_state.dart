@@ -7,6 +7,7 @@ import 'coverage.dart';
 import 'hand_reply.dart';
 import 'kept_take.dart';
 import 'passagem.dart';
+import 'station.dart';
 
 enum SalaStage { convite, escolha, conversa, ensaio, retro, fim }
 
@@ -93,7 +94,6 @@ class Trecho {
 }
 
 class SalaSessionState {
-  final SalaStage stage;
   final bool awaitingTheGuide;
   final bool endOfThePassage;
 
@@ -203,7 +203,6 @@ class SalaSessionState {
   }
 
   const SalaSessionState({
-    this.stage = SalaStage.convite,
     this.awaitingTheGuide = false,
     this.endOfThePassage = false,
     this.reach = RoomReach.fine,
@@ -315,6 +314,10 @@ class SalaSessionState {
     }
     return null;
   }
+
+  Station get station => machine.station;
+
+  SalaStage get stage => station.stage;
 
   Halt get halt => machine.halt;
 
@@ -533,7 +536,6 @@ class SalaSessionState {
       btPhase == BtPhase.conferida && partes.isNotEmpty;
 
   SalaSessionState copyWith({
-    SalaStage? stage,
     bool? awaitingTheGuide,
     bool? endOfThePassage,
     RoomReach? reach,
@@ -591,7 +593,6 @@ class SalaSessionState {
     bool clearParteARegravar = false,
   }) {
     return SalaSessionState(
-      stage: stage ?? this.stage,
       awaitingTheGuide: awaitingTheGuide ?? this.awaitingTheGuide,
       endOfThePassage: endOfThePassage ?? this.endOfThePassage,
       reach: reach ?? this.reach,

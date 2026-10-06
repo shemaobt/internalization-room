@@ -19,7 +19,7 @@ flutter run                                                          # pick a de
 flutter run -d <iphone-id>
 flutter run --release -d <iphone-id> --dart-define=DEV_ATALHOS=true   # stands in for the device link
 flutter analyze
-flutter test
+flutter test                                     # 3 workers by default (dart_test.yaml); --concurrency overrides, CI uses 2
 flutter build appbundle --release                # reads android/key.properties
 dart run tool/check_doctrine.dart                # the doctrine guard, on demand
 ```
@@ -29,6 +29,8 @@ Run `git config core.hooksPath tool/git-hooks` once to get the doctrine guard on
 ## What CI enforces beyond the suite
 
 - No test is skipped.
+- Every bundled clip matches `assets/audio/<lang>/clip_hashes.json`: a re-render of the clips
+  rewrites that file in the same commit.
 - The room stays wordless: no `Text(` widget in the room's presentation layer, enforced by
   `test/the_room_stays_wordless_test.dart` against a named exception list — the claim code
   screen, read by the facilitator and not the team, is the only one today.

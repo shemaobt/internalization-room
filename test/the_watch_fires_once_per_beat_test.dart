@@ -19,7 +19,7 @@ void main() {
     container = ProviderContainer(overrides: SalaHarness().overrides);
     addTearDown(container.dispose);
     host = ARoomHost();
-    runner = runnerOver(container, host, watchPeriod: _beat);
+    runner = runnerOver(portsOf(container), host, watchPeriod: _beat);
     host.onAnswer = (event) {
       if (event is WatchFired) runner.run(const [ArmTheWatch()]);
     };

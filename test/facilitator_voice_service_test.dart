@@ -69,14 +69,18 @@ void main() {
     AudioPlayer? player,
     Duration? grace,
     Duration? loadCeiling,
-  }) => FacilitatorVoiceService(
-    lineAt: noFixedLine,
-    open: roomAnswering((_) => _whole([1, 2, 3])),
-    libraryDir: () async => library,
-    player: player,
-    lineGrace: grace,
-    loadCeiling: loadCeiling,
-  );
+  }) {
+    final voice = FacilitatorVoiceService(
+      lineAt: noFixedLine,
+      open: roomAnswering((_) => _whole([1, 2, 3])),
+      libraryDir: () async => library,
+      player: player,
+      lineGrace: grace,
+      loadCeiling: loadCeiling,
+    );
+    addTearDown(voice.dispose);
+    return voice;
+  }
 
   test(
     'two callers asking for the same line at once share one download',
@@ -123,6 +127,7 @@ void main() {
         libraryDir: () async => library,
         player: player,
       );
+      addTearDown(voice.dispose);
       body.add([1, 2, 3]);
 
       final speaking = voice.play(_clip);
@@ -164,6 +169,7 @@ void main() {
         libraryDir: () async => library,
         player: player,
       );
+      addTearDown(voice.dispose);
       body.add([1, 2, 3]);
 
       final speaking = voice.play(_clip);
@@ -211,6 +217,7 @@ void main() {
         libraryDir: () async => library,
         player: player,
       );
+      addTearDown(voice.dispose);
 
       final fetching = voice.fetch(_clip);
       final speaking = voice.play(_clip);
@@ -254,6 +261,7 @@ void main() {
         libraryDir: () async => library,
         player: player,
       );
+      addTearDown(voice.dispose);
       body.add([1, 2, 3]);
 
       final speaking = voice.play(_clip);
@@ -302,6 +310,7 @@ void main() {
         player: player,
         lineGrace: const Duration(milliseconds: 30),
       );
+      addTearDown(voice.dispose);
 
       expect(
         await voice.play(_clip).timeout(const Duration(seconds: 5)),
@@ -342,6 +351,7 @@ void main() {
       player: player,
       lineGrace: grace,
     );
+    addTearDown(voice.dispose);
 
     bool? heard;
     unawaited(voice.play(_clip).then((played) => heard = played));
@@ -383,6 +393,7 @@ void main() {
         libraryDir: () async => library,
         player: player,
       );
+      addTearDown(voice.dispose);
       body.add([1, 2, 3]);
 
       final speaking = voice.play(_clip);
@@ -425,6 +436,7 @@ void main() {
           libraryDir: () async =>
               Directory('${library.path}/$streams').create(),
         );
+        addTearDown(voice.dispose);
         var ready = false;
         unawaited(voice.ready(_clip).then((_) => ready = true));
         body.add([1, 2, 3]);
@@ -710,6 +722,7 @@ void main() {
           throw const SocketException('sem rede'),
       libraryDir: () async => library,
     );
+    addTearDown(voice.dispose);
 
     expect(await voice.play(_clip), isFalse);
   });
@@ -729,6 +742,7 @@ void main() {
           ),
           libraryDir: () async => library,
         );
+        addTearDown(voice.dispose);
 
         await expectLater(
           voice.clipFor(_clip),
@@ -756,6 +770,7 @@ void main() {
         ),
         libraryDir: () async => library,
       );
+      addTearDown(voice.dispose);
 
       await expectLater(
         voice.clipFor(_clip),
@@ -785,6 +800,7 @@ void main() {
         libraryDir: () async => library,
         player: player,
       );
+      addTearDown(voice.dispose);
 
       final speaking = voice.play(_clip);
       await waitFor('o tocador soar', () => player.sounding);
@@ -829,6 +845,7 @@ void main() {
         }),
         libraryDir: () async => library,
       );
+      addTearDown(voice.dispose);
 
       final arriving = voice.clipFor(_clip);
       first
@@ -876,6 +893,7 @@ void main() {
         ),
         libraryDir: () async => library,
       );
+      addTearDown(voice.dispose);
 
       await expectLater(
         voice.clipFor(_clip).timeout(const Duration(seconds: 2)),
@@ -916,6 +934,7 @@ void main() {
           }),
           libraryDir: () async => library,
         );
+        addTearDown(voice.dispose);
 
         await expectLater(
           voice.clipFor(_clip).timeout(const Duration(seconds: 2)),
@@ -954,6 +973,7 @@ void main() {
         ),
         libraryDir: () async => library,
       );
+      addTearDown(voice.dispose);
 
       final arriving = voice.clipFor(_clip);
       first
@@ -1005,6 +1025,7 @@ void main() {
           libraryDir: () async =>
               Directory('${library.path}/${firstTag ?? 'sem'}').create(),
         );
+        addTearDown(voice.dispose);
 
         final arriving = voice.clipFor(_clip);
         first
@@ -1052,6 +1073,7 @@ void main() {
         }),
         libraryDir: () async => library,
       );
+      addTearDown(voice.dispose);
 
       final arriving = voice.clipFor(_clip);
       first
@@ -1089,6 +1111,7 @@ void main() {
         libraryDir: () async => library,
         player: player,
       );
+      addTearDown(voice.dispose);
 
       final speaking = voice.play(_clip);
       await waitFor('o tocador soar', () => player.sounding);
@@ -1132,6 +1155,7 @@ void main() {
         lineGrace: const Duration(milliseconds: 30),
         loadCeiling: const Duration(milliseconds: 30),
       );
+      addTearDown(voice.dispose);
 
       await expectLater(
         voice.clipFor(_clip).timeout(const Duration(seconds: 2)),
@@ -1153,6 +1177,7 @@ void main() {
         ),
         libraryDir: () async => library,
       );
+      addTearDown(voice.dispose);
 
       await expectLater(
         voice.clipFor(_clip),
@@ -1173,6 +1198,7 @@ void main() {
           open: (_, {from, ifRange}) async => throw error,
           libraryDir: () async => library,
         );
+        addTearDown(voice.dispose);
 
         await expectLater(
           voice.play(_clip),
@@ -1365,11 +1391,9 @@ void main() {
   test('a clip that opens with no length is not counted as heard', () async {
     final player = SpeakingPlayer()..lineLength = Duration.zero;
     final voice = service(player: player);
-    unawaited(
-      Future<void>.delayed(
-        const Duration(milliseconds: 50),
-        player.reachTheEnd,
-      ),
+    final endOfLine = Future<void>.delayed(
+      const Duration(milliseconds: 50),
+      player.reachTheEnd,
     );
 
     expect(
@@ -1380,6 +1404,7 @@ void main() {
           'e a sala contava como falada uma linha que não soou',
     );
     expect(player.sounding, isFalse);
+    await endOfLine;
   });
 
   test('a line played to the end is still counted as heard', () async {
@@ -1512,6 +1537,7 @@ void main() {
           return library;
         },
       );
+      addTearDown(voice.dispose);
 
       await voice.holds(_clip);
       await voice.clipFor(_clip);
@@ -1540,6 +1566,7 @@ void main() {
           return library;
         },
       );
+      addTearDown(voice.dispose);
 
       await voice.holds(_clip);
       expect(attempt, 1);
@@ -1575,6 +1602,7 @@ void main() {
         libraryDir: () async => library,
         player: player,
       );
+      addTearDown(voice.dispose);
 
       File('${library.path}/orfao.mp3.novo')
         ..writeAsBytesSync([1])
@@ -1621,4 +1649,97 @@ void main() {
       expect(await speaking, isTrue);
     },
   );
+
+  test(
+    'disposing the voice while a line is still arriving lets the file land first',
+    () async {
+      final player = SpeakingPlayer();
+      final body = StreamController<List<int>>();
+      final voice = FacilitatorVoiceService(
+        lineAt: noFixedLine,
+        open: roomAnswering(
+          (_) => http.StreamedResponse(
+            body.stream,
+            200,
+            contentLength: 6,
+            headers: {'etag': 'e1'},
+          ),
+        ),
+        libraryDir: () async => library,
+        player: player,
+      );
+      body.add([1, 2, 3]);
+      final speaking = voice.play(_clip);
+      await waitFor('o tocador soar', () => player.sounding);
+      player.reachTheEnd();
+      expect(await speaking, isTrue);
+
+      final disposing = voice.dispose();
+      body
+        ..add([4, 5, 6])
+        ..close();
+      await disposing;
+
+      expect(
+        library.listSync().whereType<File>().map(
+          (f) => f.uri.pathSegments.last,
+        ),
+        ['aaa.mp3'],
+        reason:
+            'o dispose voltava com o clipe ainda a caminho do disco; quem apagava a '
+            'pasta em seguida encontrava um arquivo nascendo dentro dela',
+      );
+      expect(() => library.deleteSync(recursive: true), returnsNormally);
+    },
+  );
+
+  test('the budget holds even when the line sounds before it lands', () async {
+    final player = SpeakingPlayer();
+    final body = StreamController<List<int>>();
+    final voice = FacilitatorVoiceService(
+      lineAt: noFixedLine,
+      open: roomAnswering(
+        (_) => http.StreamedResponse(
+          body.stream,
+          200,
+          contentLength: 3,
+          headers: {'etag': 'e1'},
+        ),
+      ),
+      libraryDir: () async => library,
+      player: player,
+    );
+    addTearDown(voice.dispose);
+    for (var i = 0; i < 65; i++) {
+      File('${library.path}/c$i.mp3')
+        ..writeAsBytesSync([1])
+        ..setLastModifiedSync(DateTime(2026).add(Duration(minutes: i)));
+    }
+    Iterable<File> mp3s() => library.listSync().whereType<File>().where(
+      (f) => f.path.endsWith('.mp3'),
+    );
+
+    final speaking = voice.play(_clip);
+    await waitFor('o tocador soar', () => player.sounding);
+    player.startSounding();
+    body
+      ..add([1, 2, 3])
+      ..close();
+    await voice.clipFor(_clip);
+    await waitFor(
+      'a poda rodar',
+      () => mp3s().length <= 60,
+      limit: const Duration(seconds: 2),
+    );
+
+    expect(
+      mp3s(),
+      hasLength(60),
+      reason:
+          'a poda corria no primeiro som, contava 65 e deixava 60; o clipe que '
+          'ainda chegava pousava depois como o 61º, e o orçamento não valia',
+    );
+    player.reachTheEnd();
+    expect(await speaking, isTrue);
+  });
 }

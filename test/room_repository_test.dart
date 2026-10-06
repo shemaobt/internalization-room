@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,9 +10,14 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/port_adapters.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
+import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/turn_result.dart';
+
+import 'a_wav_take.dart';
 
 String _turnBody({bool usedFailSafe = false, bool degraded = false}) =>
     jsonEncode({
@@ -214,37 +220,6 @@ void main() {
   );
 
   test(
-    'a resend given only the seconds left gives up at them as a slow room',
-    () async {
-      final repository = RoomRepository(
-        client: MockClient((request) async {
-          await Future<void>.delayed(const Duration(seconds: 2));
-          return http.Response(_turnBody(), 200);
-        }),
-      );
-      addTearDown(repository.dispose);
-      final clock = Stopwatch()..start();
-
-      expect(
-        await repository.sendTurn(
-          'sessao-1',
-          await _tempRecording(),
-          turnId: 'turno-7',
-          timeout: const Duration(milliseconds: 100),
-        ),
-        isA<NetworkFailed>(),
-      );
-      expect(
-        clock.elapsed,
-        lessThan(const Duration(seconds: 1)),
-        reason:
-            'o reenvio esperava os 310 s cheios e passava do vigia, que '
-            'chamava uma pessoa por uma rede lenta',
-      );
-    },
-  );
-
-  test(
     'a turn with marks from the previous one carries them, a turn with none carries no field at all',
     () async {
       late String seenBodyWithTiming;
@@ -350,6 +325,46 @@ void main() {
 
       expect(turn.turnId, 'turno-9');
       expect(turn.classificationPending, isTrue);
+    },
+  );
+
+  test(
+    'the one look reads the reply the room stored for one turn, and anything else as nothing to play',
+    () async {
+      final looked = <String>[];
+      var status = 200;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          looked.add('${request.method} ${request.url.path}');
+          return status == 200
+              ? http.Response(
+                  jsonEncode({
+                    'session_id': 'sessao-1',
+                    'turn_id': 'turno-9',
+                    'audio_url': '/voice/turno-9',
+                    'transcript': 'a equipe falou',
+                  }),
+                  200,
+                )
+              : http.Response('', status);
+        }),
+      );
+      addTearDown(repository.dispose);
+      final container = ProviderContainer(
+        overrides: [roomRepositoryProvider.overrideWithValue(repository)],
+      );
+      addTearDown(container.dispose);
+      final room = container.read(roomPortProvider);
+      const turn = Turn('sessao-1', 'turno-9');
+
+      expect((await room.lookAt(turn))?.turnId, 'turno-9');
+      expect(looked, [
+        'GET /api/internalization-room/sessions/sessao-1/turns/turno-9',
+      ]);
+      for (final nothing in [202, 404, 500]) {
+        status = nothing;
+        expect(await room.lookAt(turn), isNull, reason: 'HTTP $nothing');
+      }
     },
   );
 
@@ -637,10 +652,8 @@ void main() {
     'a room that takes too long is not a room that is gone',
     () async {
       final repository = RoomRepository(
-        client: MockClient((_) async {
-          await Future<void>.delayed(const Duration(seconds: 30));
-          return http.Response('{}', 200);
-        }),
+        client: MockClient((_) => Completer<http.Response>().future),
+        stateTimeout: const Duration(milliseconds: 200),
       );
       addTearDown(repository.dispose);
 
@@ -652,7 +665,7 @@ void main() {
             'que a internet tinha caído por causa de um servidor pensando',
       );
     },
-    timeout: const Timeout(Duration(seconds: 90)),
+    timeout: const Timeout(Duration(seconds: 5)),
   );
 
   test(
@@ -1520,7 +1533,7 @@ void main() {
   );
 
   test(
-    'the client turn wait and the busy watchdog sit above the server bound, in order',
+    'a turn gives up at 305 s, the server bound plus a 5 s margin, below the busy watchdog',
     () {
       const serverBound = Duration(seconds: 300);
       final container = ProviderContainer();
@@ -1544,29 +1557,189 @@ void main() {
       );
       expect(
         RoomRepository.turnTimeout,
-        const Duration(seconds: 310),
+        const Duration(seconds: 305),
         reason:
-            'a escada da Márcia: 300 s no servidor, 310 s no cliente, 330 s no watchdog',
+            'a escada da Márcia: 300 s no servidor, 305 s no cliente, 330 s no watchdog',
       );
       expect(
         watchdog,
         const Duration(seconds: 330),
         reason:
-            'a escada da Márcia: 300 s no servidor, 310 s no cliente, 330 s no watchdog',
+            'a escada da Márcia: 300 s no servidor, 305 s no cliente, 330 s no watchdog',
       );
     },
   );
+
+  test(
+    'a turn the room holds past 305 seconds is given up by the client at 305 seconds',
+    () async {
+      final take = await _tempRecording();
+      for (final send
+          in <Future<RoomAnswer<TurnResult>> Function(RoomRepository)>[
+            (room) => room.sendTurn('sessao-1', take, turnId: 'turno-1'),
+            (room) => room.openSession('sessao-1', turnId: 'turno-1'),
+          ]) {
+        var heard = false;
+        final repository = RoomRepository(
+          client: MockClient((_) {
+            heard = true;
+            return Completer<http.Response>().future;
+          }),
+        );
+        addTearDown(repository.dispose);
+        final clock = FakeAsync();
+        RoomAnswer<TurnResult>? answer;
+        clock.run(
+          (_) => unawaited(send(repository).then((given) => answer = given)),
+        );
+        while (!heard) {
+          await Future<void>.delayed(const Duration(milliseconds: 5));
+          clock.flushMicrotasks();
+        }
+
+        clock.elapse(const Duration(seconds: 304));
+        expect(answer, isNull);
+        clock.elapse(const Duration(seconds: 2));
+        expect(answer, isA<NetworkFailed>());
+      }
+    },
+  );
+
+  group('the audio part of each door', () {
+    late http.Request sent;
+    RoomRepository listening() {
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          sent = request;
+          return http.Response('{}', 200);
+        }),
+        deviceId: () async => 'aparelho-1',
+      );
+      addTearDown(repository.dispose);
+      return repository;
+    }
+
+    test(
+      'a rehearsal take recorded as WAV goes up as audio/wav under a .wav name',
+      () async {
+        final wav = aWavTake();
+        final file = await _tempRecording(extension: 'wav', bytes: wav);
+
+        await listening().sendTake(
+          'sessao-1',
+          file,
+          kind: 'ensaio',
+          scope: 'parte-1',
+        );
+
+        final part = _filePart(sent);
+        expect(
+          part.head,
+          contains('content-type: audio/wav'),
+          reason:
+              'a sala guarda o tipo que o envio declara, e o Refine lê o '
+              'formato da parte por ele',
+        );
+        expect(part.head, matches(RegExp(r'filename="[^"]+\.wav"')));
+        expect(part.content, wav);
+      },
+    );
+
+    test('a stretch told goes up as it always did', () async {
+      await listening().sendChunk(
+        'sessao-1',
+        await _tempRecording(),
+        takeId: 'gravacao-1',
+        from: const Duration(seconds: 4),
+        to: const Duration(seconds: 7),
+        idempotencyKey: 'chave-1',
+      );
+
+      expect(
+        _filePart(sent).head,
+        contains('content-type: application/octet-stream'),
+      );
+    });
+
+    test('a stretch told again goes up as it always did', () async {
+      await listening().replaceSegment(
+        'sessao-1',
+        'trecho-1',
+        await _tempRecording(),
+        takeId: 'gravacao-1',
+        from: Duration.zero,
+        to: const Duration(seconds: 4),
+        idempotencyKey: 'chave-1',
+      );
+
+      expect(
+        _filePart(sent).head,
+        contains('content-type: application/octet-stream'),
+      );
+    });
+
+    test(
+      'an older .m4a take still waiting in the Outbox goes up as it always did',
+      () async {
+        await listening().sendTake(
+          'sessao-1',
+          await _tempRecording(),
+          kind: 'ensaio',
+          scope: 'parte-1',
+        );
+
+        expect(
+          _filePart(sent).head,
+          contains('content-type: application/octet-stream'),
+          reason:
+              'uma parte gravada antes da mudança continua AAC, e declará-la '
+              'WAV faria o Refine abrir um arquivo que não é',
+        );
+      },
+    );
+
+    test('a conversation turn goes up as it always did', () async {
+      await listening().sendTurn(
+        'sessao-1',
+        await _tempRecording(),
+        turnId: 'turno-1',
+      );
+
+      expect(
+        _filePart(sent).head,
+        contains('content-type: application/octet-stream'),
+      );
+    });
+  });
 }
 
-Future<File> _tempRecording() async {
+Future<File> _tempRecording({
+  String extension = 'm4a',
+  List<int> bytes = const [0, 1, 2, 3],
+}) async {
   final file = File(
-    '${Directory.systemTemp.path}/sala-teste-${DateTime.now().microsecondsSinceEpoch}.m4a',
+    '${Directory.systemTemp.path}/sala-teste-${DateTime.now().microsecondsSinceEpoch}.$extension',
   );
-  await file.writeAsBytes([0, 1, 2, 3]);
+  await file.writeAsBytes(bytes);
   addTearDown(() async {
     if (file.existsSync()) await file.delete();
   });
   return file;
+}
+
+({String head, List<int> content}) _filePart(http.Request request) {
+  final boundary = request.headers['content-type']!.split('boundary=').last;
+  final body = latin1.decode(request.bodyBytes);
+  final part = body
+      .split('--$boundary')
+      .firstWhere((part) => part.contains('name="file"'));
+  final headEnd = part.indexOf('\r\n\r\n');
+  return (
+    head: part.substring(0, headEnd),
+    content: latin1.encode(
+      part.substring(headEnd + 4, part.length - '\r\n'.length),
+    ),
+  );
 }
 
 T _value<T>(RoomAnswer<T> answer) => (answer as Answered<T>).value;

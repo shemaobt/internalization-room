@@ -1,3 +1,7 @@
+---
+status: accepted, amended by 0056
+---
+
 # Latency is honesty
 
 ## Context

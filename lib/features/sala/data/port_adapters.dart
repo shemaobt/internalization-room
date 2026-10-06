@@ -3,11 +3,15 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/channel.dart';
+import '../domain/machine.dart';
 import '../domain/ports.dart';
+import '../domain/turn_result.dart';
 import 'connectivity_service.dart';
 import 'facilitator_voice_service.dart';
 import 'playback_repository.dart';
 import 'recording_repository.dart';
+import 'room_answer.dart';
+import 'room_repository.dart';
 import 'take_upload_queue.dart';
 
 class ProviderRoomPort implements RoomPort {
@@ -18,6 +22,14 @@ class ProviderRoomPort implements RoomPort {
   @override
   Stream<void> get networkReturned =>
       _ref.read(connectivityServiceProvider).onNetworkReturned;
+
+  @override
+  Future<TurnResult?> lookAt(Turn turn) async => switch (await _ref
+      .read(roomRepositoryProvider)
+      .lookAtTheTurn(turn.sessionId, turn.turnId)) {
+    Answered(:final value) => value,
+    RoomFailure() => null,
+  };
 }
 
 class ProviderSoundPort implements SoundPort {
@@ -30,14 +42,24 @@ class ProviderSoundPort implements SoundPort {
 
   @override
   Future<bool> playLine(String url, {void Function()? onSoundStart}) {
-    unawaited(_playback.stop());
+    unawaited(_playback.pause());
     return _voice.play(url, onSoundStart: onSoundStart);
   }
 
   @override
   Future<bool> playAsset(String assetPath, {void Function()? onSoundStart}) {
-    unawaited(_playback.stop());
+    unawaited(_playback.pause());
     return _voice.playAsset(assetPath, onSoundStart: onSoundStart);
+  }
+
+  @override
+  Future<bool> playFixedLine(
+    String line,
+    String language, {
+    void Function()? onSoundStart,
+  }) {
+    unawaited(_playback.pause());
+    return _voice.playFixedLine(line, language, onSoundStart: onSoundStart);
   }
 
   @override
@@ -48,6 +70,21 @@ class ProviderSoundPort implements SoundPort {
         ? _playback.play(sound.path, from: sound.from)
         : _playback.playRange(sound.path, sound.from, to);
   }
+
+  @override
+  Stream<void> get partEnded => _playback.completions;
+
+  @override
+  Stream<void> get partFailed => _playback.failures;
+
+  @override
+  Stream<void> get partOpened => _playback.openings;
+
+  @override
+  Duration? get partLength => _playback.playingLength;
+
+  @override
+  Duration get partPosition => _playback.position;
 
   @override
   Future<void> pause() => _playback.pause();
@@ -67,8 +104,24 @@ class ProviderRecorderPort implements RecorderPort {
 
   ProviderRecorderPort(this._ref);
 
+  RecordingRepository get _recorder => _ref.read(recordingRepositoryProvider);
+
   @override
-  Future<void> discard() => _ref.read(recordingRepositoryProvider).discard();
+  Future<MicAnswer> start(String take, MicOwner owner) async =>
+      switch (await _recorder.start(take, owner: owner)) {
+        Capture.started => MicAnswer.started,
+        Capture.denied => MicAnswer.refused,
+        Capture.failed => MicAnswer.failed,
+      };
+
+  @override
+  Future<String?> stop() => _recorder.stop();
+
+  @override
+  Future<void> discard() => _recorder.discard();
+
+  @override
+  Stream<bool> get taken => _recorder.interrupted;
 }
 
 class ProviderStorePort implements StorePort {

@@ -1,3 +1,5 @@
+import 'dart:math';
+
 const languages = ['pt', 'en'];
 
 const floorLanguage = 'en';
@@ -20,13 +22,16 @@ const panoramaPericope = 'OV';
 bool isThePanorama(String pericope) =>
     pericope == panoramaPericope || pericope.startsWith('$panoramaPericope-');
 
-const instantAckLines = ['F0', 'F1', 'F2', 'F3'];
+const instantAckLines = ['F0', 'F1', 'F2'];
 
 /// The fourth of Marcia's process lines, read by position: start, tell, unheard,
 /// approved. The approval's is the fourth, never rotated.
 const approvedLine = 'P3';
 
-String rotated(List<String> lines, int spoken) => lines[spoken % lines.length];
+/// Marcia's pick: any acknowledgement but the one said last.
+int acknowledgementAfter(int last, Random random) =>
+    (last + 1 + random.nextInt(instantAckLines.length - 1)) %
+    instantAckLines.length;
 
 const circleLabels = {
   'needsPerson': {
