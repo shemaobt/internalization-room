@@ -107,3 +107,14 @@ and `StorePort` in code, because `Sound` is already a Channel state. Until the S
 moves into the machine, an effect that still needs notifier state runs through one temporary
 `EffectHost` the notifier implements. ENG-1444 empties it into the ports once the generation
 has replaced `_epoch`.
+
+## Amendment · 2026-10-06
+
+Slice 3 is split. The Station does not exist in the machine yet: the notifier writes `SalaStage`
+in about fourteen places, and the failure policy reads it from its context. Slice 3a
+(ENG-1446) puts the `Station` sealed type in the machine, with the Menu and the Canvas as states
+of their own and today's other stages wrapped unchanged, turns every `stage:` write of the
+notifier into an event, moves `generation` on every Station change, and changes no behaviour.
+Slice 3b (ENG-1282, ENG-1281) then lands the plan's Menu and Canvas as transitions. The tablet
+halves of the server tickets that touch the Canvas (the interruption gesture, ENG-1447; the
+empty telling, ENG-1450) follow 3b on the same rail.
