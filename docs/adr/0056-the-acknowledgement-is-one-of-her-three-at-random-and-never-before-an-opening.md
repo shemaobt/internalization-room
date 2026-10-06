@@ -30,5 +30,4 @@ acknowledgement.
 ## Consequences
 
 The fourth line, «Tá.» / «Right.», leaves the list but its clips stay in the bundle until
-ENG-1458 re-renders them. A skipped test reads `assets/audio/<lang>/clip_hashes.json` once
-ENG-1458 writes it.
+ENG-1458 re-renders them.
