@@ -157,6 +157,27 @@ final class MicClosed extends AnsweringEvent {
   const MicClosed({super.generation});
 }
 
+/// How the recorder answered the microphone: [started], [refused] or [failed] for an
+/// opening; [closed] with the take, or none; [discarded] by the room; [abandoned] when a
+/// start that had started came back after the generation moved.
+enum MicAnswer { started, refused, failed, closed, discarded, abandoned }
+
+final class MicAnswered extends AnsweringEvent {
+  final MicAnswer answer;
+  final String? take;
+
+  const MicAnswered(this.answer, {this.take, super.generation});
+}
+
+/// A gesture asks for its take: the Microphone stays open until the recorder answers.
+final class MicClosing extends MachineEvent {
+  const MicClosing();
+}
+
+final class MicDiscarded extends MachineEvent {
+  const MicDiscarded();
+}
+
 final class BeadTapped extends MachineEvent {
   final List<Sound> sounds;
   final Paused? beneath;
@@ -339,6 +360,14 @@ final class SilenceTheRoom extends Effect {
 
 final class CloseAndDiscardTheMic extends Effect {
   const CloseAndDiscardTheMic();
+}
+
+final class CloseTheMic extends Effect {
+  const CloseTheMic();
+}
+
+final class DiscardTheMic extends Effect {
+  const DiscardTheMic();
 }
 
 final class ArmTheWatch extends Effect {
@@ -598,6 +627,14 @@ final class LineOutcome {
   const LineOutcome(this.line, this.said, {this.because});
 }
 
+/// How the microphone last answered, for the Station and the gesture waiting on its take.
+final class MicOutcome {
+  final MicAnswer answer;
+  final String? take;
+
+  MicOutcome(this.answer, {this.take});
+}
+
 final class Machine {
   final Halt halt;
   final Channel channel;
@@ -618,6 +655,8 @@ final class Machine {
 
   final LineOutcome? lastLine;
 
+  final MicOutcome? lastMic;
+
   final Station station;
 
   const Machine({
@@ -636,6 +675,7 @@ final class Machine {
     this.generation = 0,
     this.inFlight,
     this.lastLine,
+    this.lastMic,
     this.station = const Convite(),
   });
 
@@ -672,6 +712,7 @@ final class Machine {
     Turn? inFlight,
     bool landTheTurn = false,
     LineOutcome? lastLine,
+    MicOutcome? lastMic,
     Station? station,
   }) => Machine(
     halt: halt ?? this.halt,
@@ -689,6 +730,7 @@ final class Machine {
     generation: generation ?? this.generation,
     inFlight: landTheTurn ? null : (inFlight ?? this.inFlight),
     lastLine: lastLine ?? this.lastLine,
+    lastMic: lastMic ?? this.lastMic,
     station: station ?? this.station,
   );
 }
@@ -740,6 +782,9 @@ const _watch = ArmTheWatch();
   ),
   MicOpened(:final owner, :final take) => _openTheMic(machine, owner, take),
   MicClosed() => _closeTheMic(machine),
+  MicAnswered(:final answer, :final take) => _heard(machine, answer, take),
+  MicClosing() => (machine, const [CloseTheMic()]),
+  MicDiscarded() => _discardTheMic(machine),
   BeadTapped(:final sounds, :final beneath) => _tapped(
     machine,
     sounds,
@@ -1062,6 +1107,23 @@ Machine _silenced(Machine machine, bool keepingTheHold) =>
       _ => (machine, const []),
     };
 
+/// Every answer but a start gives the Channel back, as a closed microphone does.
+(Machine, List<Effect>) _heard(
+  Machine machine,
+  MicAnswer answer,
+  String? take,
+) {
+  final (heard, effects) = answer == MicAnswer.started
+      ? (machine, const <Effect>[])
+      : _closeTheMic(machine);
+  return (heard.copyWith(lastMic: MicOutcome(answer, take: take)), effects);
+}
+
+(Machine, List<Effect>) _discardTheMic(Machine machine) {
+  final (closed, effects) = _closeTheMic(machine);
+  return (closed, [const DiscardTheMic(), ...effects]);
+}
+
 (Machine, List<Effect>) _tapped(
   Machine machine,
   List<Sound> sounds,
@@ -1350,6 +1412,9 @@ Machine _answered(Machine machine) =>
   PlayerFailed() ||
   MicOpened() ||
   MicClosed() ||
+  MicAnswered() ||
+  MicClosing() ||
+  MicDiscarded() ||
   BeadTapped() ||
   PauseTapped() ||
   GestureSilenced() ||

@@ -252,6 +252,9 @@ String describeEvent(MachineEvent event) => switch (event) {
     'PlayerFailed(${source.key}, ${describeKept(sounding)})',
   MicOpened(:final owner) => 'MicOpened(${owner.name})',
   MicClosed() => 'MicClosed',
+  MicAnswered(:final answer) => 'MicAnswered(${answer.name})',
+  MicClosing() => 'MicClosing',
+  MicDiscarded() => 'MicDiscarded',
   BeadTapped(:final sounds, :final beneath) =>
     'BeadTapped(${sounds.map(describeSound).join(', ')}'
         '${beneath == null ? '' : ', beneath: ${describeChannel(beneath)}'})',
@@ -365,6 +368,9 @@ enum EventKind {
   playerFailed,
   micOpened,
   micClosed,
+  micAnswered,
+  micClosing,
+  micDiscarded,
   beadTapped,
   pauseTapped,
   gestureSilenced,
@@ -413,6 +419,9 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   PlayerFailed() => EventKind.playerFailed,
   MicOpened() => EventKind.micOpened,
   MicClosed() => EventKind.micClosed,
+  MicAnswered() => EventKind.micAnswered,
+  MicClosing() => EventKind.micClosing,
+  MicDiscarded() => EventKind.micDiscarded,
   BeadTapped() => EventKind.beadTapped,
   PauseTapped() => EventKind.pauseTapped,
   GestureSilenced() => EventKind.gestureSilenced,
@@ -451,6 +460,9 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.playerEnded ||
   EventKind.playerFailed => world.playerBusy,
   EventKind.micClosed => world.micOpen,
+  EventKind.micAnswered ||
+  EventKind.micClosing ||
+  EventKind.micDiscarded => false,
   EventKind.lookFound || EventKind.lookEmpty => world.looking,
   EventKind.sessionRead ||
   EventKind.roomRaisedAHalt ||
@@ -556,6 +568,9 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
         MicOwner.values[random.nextInt(MicOwner.values.length)],
       ),
       EventKind.micClosed => const MicClosed(),
+      EventKind.micAnswered => const MicAnswered(MicAnswer.closed),
+      EventKind.micClosing => const MicClosing(),
+      EventKind.micDiscarded => const MicDiscarded(),
       EventKind.beadTapped => BeadTapped([
         for (var i = 0; i <= random.nextInt(3); i++) _drawASound(random),
       ]),

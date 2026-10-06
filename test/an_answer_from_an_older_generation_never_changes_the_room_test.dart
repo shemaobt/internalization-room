@@ -60,6 +60,11 @@ AnsweringEvent _stampedAnswer(AnsweringEvent event, int generation) =>
         generation: generation,
       ),
       MicClosed() => MicClosed(generation: generation),
+      MicAnswered(:final answer, :final take) => MicAnswered(
+        answer,
+        take: take,
+        generation: generation,
+      ),
       NothingReplayed() => NothingReplayed(generation: generation),
       TheSessionIsGone() => TheSessionIsGone(generation: generation),
       ThePassageClosed() => ThePassageClosed(generation: generation),

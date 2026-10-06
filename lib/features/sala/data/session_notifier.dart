@@ -237,7 +237,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   final _random = Random();
   DateTime? _listeningSince;
   bool _recordingStarting = false;
-  int _starts = 0;
   String? _emCurso;
   Trecho? get _trechoTraduzidoDeNovo => state.btTrechoTraduzidoDeNovo;
   set _trechoTraduzidoDeNovo(Trecho? trecho) => state = trecho == null
@@ -327,12 +326,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   String? _awaitingCoverageTurnId;
   String? _resolvedCoverageTurnId;
   String? _coverageReopenedForTurnId;
-  StreamSubscription<bool>? _micWatch;
   int _lines = 0;
   int _gestures = 0;
   final Map<int, int> _handedOff = {};
   final Set<int> _waitingOnTheGeneration = {};
   final Map<Line, Completer<Said>> _sayings = {};
+  final List<Completer<String?>> _closings = [];
   VoidCallback? _onPlaybackComplete;
   VoidCallback? _onPlaybackFailed;
 
@@ -383,7 +382,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _runner.dispose();
       unawaited(_outboxFalls?.cancel());
       unawaited(_outboxGone?.cancel());
-      unawaited(_micWatch?.cancel());
       unawaited(_coverageWatch?.cancel());
     });
     _outboxFalls = _apart(
@@ -529,8 +527,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _openingOwed = false;
     state = state.copyWith(clearLastSpoken: true, clearParteARegravar: true);
     _silenceTheRoom();
-    unawaited(_recorder.discard());
-    _dispatch(MicClosed(generation: _generation));
+    _dispatch(const MicDiscarded());
   }
 
   void _gesture(void Function() act) {
@@ -1003,6 +1000,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(machine: machine);
     _runner.run(effects, micWasOpen: before.channel is Microphone);
     _followTheSound(before, machine);
+    _followTheMicrophone(before, machine);
   }
 
   bool get _watchIsWanted =>
@@ -1016,13 +1014,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _silenceTheRoom();
     _leaveThinking();
     state = state.copyWith(awaitingTheGuide: false, peerCue: false);
-  }
-
-  void _closeAndDiscardTheMic({required bool wasOpen}) {
-    if (!wasOpen && !_recordingStarting) return;
-    _recordingStarting = false;
-    unawaited(_recorder.discard());
-    _undoTheListening();
   }
 
   Future<void> _readTheState() async {
@@ -1891,8 +1882,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _finishPanoramaListening() async {
     final generation = _waitOnTheGeneration;
-    final path = await _recorder.stop();
-    _dispatch(MicClosed(generation: _generation));
+    final path = await _closeTheMicrophone();
     if (_abandoned(generation)) return;
     final panorama = _panoramaSessionId!;
     if (path == null || !_hasAudio(path)) {
@@ -2937,8 +2927,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _finishListening() async {
     final generation = _waitOnTheGeneration;
     final turnClock = TurnClock()..mark('stop');
-    final path = await _recorder.stop();
-    _dispatch(MicClosed(generation: _generation));
+    final path = await _closeTheMicrophone();
     turnClock.mark('recorder');
     if (_abandoned(generation)) return;
     final sessionId = state.sessionId;
@@ -3226,8 +3215,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ];
 
   void _cancelQuestion() {
-    unawaited(_recorder.discard());
-    _dispatch(MicClosed(generation: _generation));
+    _dispatch(const MicDiscarded());
     state = state.copyWith(noteMode: false);
   }
 
@@ -3240,8 +3228,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _deliverQuestion() async {
     final generation = _waitOnTheGeneration;
-    final path = await _recorder.stop();
-    _dispatch(MicClosed(generation: _generation));
+    final path = await _closeTheMicrophone();
     if (_abandoned(generation)) return;
     final sessionId = state.station is Convite
         ? _panoramaSessionId
@@ -3476,8 +3463,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// `recording` for those few frames is also the truer thing to show.
   Future<void> _finishTake() async {
     final generation = _waitOnTheGeneration;
-    final path = await _recorder.stop();
-    _dispatch(MicClosed(generation: _generation));
+    final path = await _closeTheMicrophone();
     if (_abandoned(generation)) return;
     if (path == null || !_hasAudio(path)) {
       // Nothing came back. A check over a take that does not exist let a team confirm a
@@ -3719,56 +3705,45 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> refreshUnsent() => _countUnsent();
 
-  Future<void> _recordOrBlock(String fileName) async {
-    final generation = _waitOnTheGeneration;
-    final start = ++_starts;
-    final openedAsAChunkCapture = state.btPhase == BtPhase.capturing;
-    final owner = state.ensaio == EnsaioStatus.recording
-        ? MicOwner.rehearsal
-        : openedAsAChunkCapture
-        ? MicOwner.capture
-        : MicOwner.conversation;
-    _micWatch ??= _apart(
-      () => _recorder.interrupted.listen(_theMicrophoneChangedHands),
-    );
-    final capture = await _recorder.start(fileName, owner: owner);
-    if (_gone) return;
-    // The answer can arrive a minute late — `hasPermission` waits up to sixty seconds for
-    // the platform — by which time the team may be on another stage entirely, with a
-    // microphone of its own still opening. Cleared under the guard, never above it: a
-    // start coming back from a passage already left let the next passage's second tap
-    // through, onto a recorder that had not opened.
-    if (_abandoned(generation)) {
-      if (start == _starts) _dispatch(MicClosed(generation: _generation));
-      if (start == _starts && capture == Capture.started) {
-        _recordingStarting = false;
-        unawaited(_recorder.discard());
-      }
-      return;
-    }
-    _recordingStarting = false;
-    switch (capture) {
-      case Capture.started:
+  /// The take of the microphone the gesture closes, or null when the recorder had none.
+  /// The gesture goes on the moment the recorder answers, as it did when it awaited the
+  /// recorder itself.
+  Future<String?> _closeTheMicrophone() {
+    final closed = Completer<String?>.sync();
+    _closings.add(closed);
+    _dispatch(const MicClosing());
+    return closed.future;
+  }
+
+  /// What the Station does with each answer of the microphone, on the transition the
+  /// machine takes.
+  void _followTheMicrophone(Machine before, Machine after) {
+    final heard = after.lastMic;
+    if (heard == null || identical(heard, before.lastMic)) return;
+    if (heard.answer != MicAnswer.closed) _recordingStarting = false;
+    switch (heard.answer) {
+      case MicAnswer.started:
         _captureFails = 0;
-        // A halt landing while this start was still in the air ran its own discard
-        // early, on a recorder that had not opened yet, and left the phase in
-        // `playing`. The recorder only just answered, and nothing else will ever
-        // close it. `btPhase` only means anything for a chunk capture — checked here
-        // too, or every ordinary start outside the retro would read as one discarded.
-        if (state.needsPerson ||
-            (openedAsAChunkCapture && state.btPhase != BtPhase.capturing)) {
-          unawaited(_recorder.discard());
-        }
-        return;
-      case Capture.denied:
-        // Unwound as well: the gate replaces the screen, but the state underneath it is
-        // what the team comes back to, and it said the room was recording.
+      case MicAnswer.refused:
         _undoTheListening();
         ref.read(micPermissionProvider.notifier).refuse();
-      case Capture.failed:
+      case MicAnswer.failed:
         _theRecorderNeverStarted();
+      case MicAnswer.closed:
+        if (_closings.isNotEmpty) _closings.removeAt(0).complete(heard.take);
+      case MicAnswer.discarded:
+        _undoTheListening();
+      case MicAnswer.abandoned:
+        break;
     }
   }
+
+  /// A start that answers after a halt landed, or after its capture was closed, has no
+  /// microphone left to record into: the halt's own discard ran on a recorder that had not
+  /// opened yet, and nothing else will ever close it.
+  bool _keepsTheStart(MicOwner owner) =>
+      !state.needsPerson &&
+      (owner != MicOwner.capture || state.btPhase == BtPhase.capturing);
 
   void _theMicrophoneChangedHands(bool taken) {
     state = state.copyWith(micTaken: taken);
@@ -4725,8 +4700,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final generation = _waitOnTheGeneration;
     state = state.copyWith(btPhase: BtPhase.thinking, awaitingTheGuide: true);
     _watchBusyState();
-    final path = await _recorder.stop();
-    _dispatch(MicClosed(generation: _generation));
+    final path = await _closeTheMicrophone();
     if (_abandoned(generation)) return;
     final sessionId = state.sessionId;
 
@@ -5773,6 +5747,12 @@ class _NotifierHost implements EffectHost {
   bool get roomIsReachable => _notifier._roomIsReachable;
 
   @override
+  bool get recordingStarts => _notifier._recordingStarting;
+
+  @override
+  bool keepsTheStart(MicOwner owner) => _notifier._keepsTheStart(owner);
+
+  @override
   Kept get sounding => _notifier._whatIsSounding(theOpening: false);
 
   @override
@@ -5792,11 +5772,11 @@ class _NotifierHost implements EffectHost {
   void hearTheRun() => _notifier._theRunHeard();
 
   @override
-  void silenceTheRoom() => _notifier._silenceTheHaltedRoom();
+  void hearTheMicrophoneTaken(bool taken) =>
+      _notifier._theMicrophoneChangedHands(taken);
 
   @override
-  void closeAndDiscardTheMic({required bool wasOpen}) =>
-      _notifier._closeAndDiscardTheMic(wasOpen: wasOpen);
+  void silenceTheRoom() => _notifier._silenceTheHaltedRoom();
 
   @override
   void callForAPerson() => _notifier._tellTheRoomAPersonIsNeeded();
@@ -5818,9 +5798,6 @@ class _NotifierHost implements EffectHost {
     _notifier._openTurnId = freshTurnId;
     unawaited(_notifier._askForTheOpeningAgain());
   }
-
-  @override
-  void openTheMic(String take) => unawaited(_notifier._recordOrBlock(take));
 
   @override
   void drainTheOutbox() => _notifier._drainTheOutbox();

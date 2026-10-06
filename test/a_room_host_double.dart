@@ -25,6 +25,14 @@ class ARoomHost implements EffectHost {
   void Function()? onPartEnd;
 
   @override
+  bool recordingStarts = false;
+
+  bool keepsALateStart = true;
+
+  @override
+  bool keepsTheStart(MicOwner owner) => keepsALateStart;
+
+  @override
   void answer(MachineEvent event) {
     answers.add(event);
     onAnswer?.call(event);
@@ -46,11 +54,11 @@ class ARoomHost implements EffectHost {
   void hearTheRun() => asked.add('hearTheRun');
 
   @override
-  void silenceTheRoom() => asked.add('silenceTheRoom');
+  void hearTheMicrophoneTaken(bool taken) =>
+      asked.add('hearTheMicrophoneTaken:$taken');
 
   @override
-  void closeAndDiscardTheMic({required bool wasOpen}) =>
-      asked.add('closeAndDiscardTheMic');
+  void silenceTheRoom() => asked.add('silenceTheRoom');
 
   @override
   void callForAPerson() => asked.add('callForAPerson');
@@ -70,9 +78,6 @@ class ARoomHost implements EffectHost {
   @override
   void askTheOpeningAgain(String freshTurnId) =>
       asked.add('askTheOpeningAgain');
-
-  @override
-  void openTheMic(String take) => asked.add('openTheMic');
 
   @override
   void drainTheOutbox() => asked.add('drainTheOutbox');

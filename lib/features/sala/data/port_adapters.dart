@@ -94,8 +94,24 @@ class ProviderRecorderPort implements RecorderPort {
 
   ProviderRecorderPort(this._ref);
 
+  RecordingRepository get _recorder => _ref.read(recordingRepositoryProvider);
+
   @override
-  Future<void> discard() => _ref.read(recordingRepositoryProvider).discard();
+  Future<MicAnswer> start(String take, MicOwner owner) async =>
+      switch (await _recorder.start(take, owner: owner)) {
+        Capture.started => MicAnswer.started,
+        Capture.denied => MicAnswer.refused,
+        Capture.failed => MicAnswer.failed,
+      };
+
+  @override
+  Future<String?> stop() => _recorder.stop();
+
+  @override
+  Future<void> discard() => _recorder.discard();
+
+  @override
+  Stream<bool> get taken => _recorder.interrupted;
 }
 
 class ProviderStorePort implements StorePort {

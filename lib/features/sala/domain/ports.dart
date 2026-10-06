@@ -40,8 +40,17 @@ abstract interface class SoundPort {
   Future<void> stop();
 }
 
+/// The microphone: a take opened for its owner, closed into its file or discarded, and the
+/// signal of a call taking the microphone and giving it back.
 abstract interface class RecorderPort {
+  /// Answers started, refused or failed.
+  Future<MicAnswer> start(String take, MicOwner owner);
+
+  Future<String?> stop();
+
   Future<void> discard();
+
+  Stream<bool> get taken;
 }
 
 /// The disk and the Outbox.

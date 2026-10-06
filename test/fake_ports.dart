@@ -77,9 +77,41 @@ class ARoomPort implements RoomPort {
   Future<TurnResult?> lookAt(Turn turn) async => null;
 }
 
+/// A recorder port that records nothing: it writes down what it was asked, and a start or
+/// a stop answers only when the test says so.
 class ARecorderPort implements RecorderPort {
+  final List<String> heard = [];
+  final List<Completer<MicAnswer>> _starts = [];
+  final List<Completer<String?>> _stops = [];
+  final _taken = StreamController<bool>.broadcast(sync: true);
+
   @override
-  Future<void> discard() async {}
+  Future<MicAnswer> start(String take, MicOwner owner) {
+    heard.add('start:$take:${owner.name}');
+    final start = Completer<MicAnswer>();
+    _starts.add(start);
+    return start.future;
+  }
+
+  void answerTheStart(MicAnswer answer) => _starts.removeAt(0).complete(answer);
+
+  @override
+  Future<String?> stop() {
+    heard.add('stop');
+    final stop = Completer<String?>();
+    _stops.add(stop);
+    return stop.future;
+  }
+
+  void answerTheStop(String? take) => _stops.removeAt(0).complete(take);
+
+  @override
+  Future<void> discard() async => heard.add('discard');
+
+  @override
+  Stream<bool> get taken => _taken.stream;
+
+  void takeTheMicrophone() => _taken.add(true);
 }
 
 class AStorePort implements StorePort {
@@ -87,9 +119,9 @@ class AStorePort implements StorePort {
   Future<int> flushTheOutbox() async => 0;
 }
 
-Ports fakePorts(ASoundPort sound) => (
+Ports fakePorts(ASoundPort sound, {ARecorderPort? recorder}) => (
   room: ARoomPort(),
   sound: sound,
-  recorder: ARecorderPort(),
+  recorder: recorder ?? ARecorderPort(),
   store: AStorePort(),
 );
