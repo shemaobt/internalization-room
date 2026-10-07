@@ -1744,7 +1744,7 @@ void main() {
         final body = await bodyOf(
           const CutPoint(
             Duration(milliseconds: 2400),
-            Duration(milliseconds: 9000),
+            of: Duration(milliseconds: 9000),
           ),
         );
 
@@ -1757,9 +1757,7 @@ void main() {
     test(
       'after an interruption of unknown length leaves its length out',
       () async {
-        final body = await bodyOf(
-          const CutPoint(Duration(milliseconds: 3000), null),
-        );
+        final body = await bodyOf(const CutPoint(Duration(milliseconds: 3000)));
 
         expect(field(body, 'interrupted'), 'true');
         expect(field(body, 'interrupted_at_ms'), '3000');

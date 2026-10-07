@@ -35,7 +35,8 @@ class FacilitatorVoiceService {
   Future<Directory>? _dir;
   AudioPlayer? _opened;
   bool _lineOpen = false;
-  bool _lineOnDisk = false;
+  bool _lengthKnown = false;
+  int _stops = 0;
   final Duration _grace;
   final Duration _loadCeiling;
   Future<void> _speaking = Future<void>.value();
@@ -60,10 +61,11 @@ class FacilitatorVoiceService {
   Duration get linePosition =>
       _lineOpen ? _opened?.position ?? Duration.zero : Duration.zero;
 
-  /// How long the line is, only when the player opened it from a file on disk: a line
-  /// streamed as it arrives has only an estimate, which must never pass for its length.
+  /// How long the line is, when the player opened it whole, from a file on disk or from
+  /// the app's own assets: a line streamed as it arrives has only an estimate, which must
+  /// never pass for its length.
   Duration? get lineLength =>
-      _lineOpen && _lineOnDisk ? _opened?.duration : null;
+      _lineOpen && _lengthKnown ? _opened?.duration : null;
 
   Future<Directory> get _resolvedDir {
     final dir = _dir ??= _libraryDir();
@@ -76,12 +78,14 @@ class FacilitatorVoiceService {
   Future<bool> play(String url, {void Function()? onSoundStart}) {
     if (url.isEmpty) return Future.value(false);
     _lineOpen = false;
+    final stops = _stops;
     return _afterTheCurrentLine(() async {
       final clip = _clipArriving(url);
       final kept =
           await clip.opened ?? (_playsAsItArrives ? null : await clip.file);
-      _lineOnDisk = kept != null;
+      _lengthKnown = kept != null;
       return _sayItWhole(
+        stops,
         kept != null
             ? () => _player.setFilePath(kept.path)
             : () async {
@@ -143,9 +147,11 @@ class FacilitatorVoiceService {
 
   Future<bool> playAsset(String assetPath, {void Function()? onSoundStart}) {
     _lineOpen = false;
+    final stops = _stops;
     return _afterTheCurrentLine(() {
-      _lineOnDisk = false;
+      _lengthKnown = true;
       return _sayItWhole(
+        stops,
         () => _player.setAsset(assetPath),
         onSoundStart: onSoundStart,
       );
@@ -172,8 +178,10 @@ class FacilitatorVoiceService {
   /// line, but equally on a pause, on a stop, or when another app takes the output. Reading
   /// that as success let a line cut short clear every health counter the room keeps, and
   /// pushed the team on to answer a question they were never asked. A stop the team asked
-  /// for is an interruption, which the room counts as heard before this answers.
+  /// for is an interruption, which the room counts as heard before this answers; a stop
+  /// that lands before the line is open ends it unsaid, and it never plays.
   Future<bool> _sayItWhole(
+    int stops,
     Future<Duration?> Function() load, {
     void Function()? onSoundStart,
   }) async {
@@ -192,7 +200,7 @@ class FacilitatorVoiceService {
       await _giveUp();
       return false;
     }
-    if (length == Duration.zero) return false;
+    if (length == Duration.zero || _stops != stops) return false;
     _lineOpen = true;
     StreamSubscription<PlayerState>? soundStart;
     if (onSoundStart != null) {
@@ -327,6 +335,7 @@ class FacilitatorVoiceService {
   }
 
   Future<void> stop() async {
+    _stops++;
     try {
       await _opened?.stop();
     } on Exception {

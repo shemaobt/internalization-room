@@ -16,8 +16,8 @@ const _part = PartSound(0, 'parte-1.m4a');
 
 const _at = Duration(milliseconds: 2400);
 const _of = Duration(milliseconds: 9000);
-const _cut = CutPoint(_at, _of);
-const _interrupted = Interrupted(take: 'conversa_1', at: _at, of: _of);
+const _cut = CutPoint(_at, of: _of);
+const _interrupted = Interrupted(take: 'conversa_1', cut: _cut);
 
 const _theCut = [
   StopTheSound(),
@@ -69,10 +69,7 @@ void main() {
 
     expect(
       machine.channel,
-      const Microphone(
-        MicOwner.conversation,
-        cut: CutPoint(Duration.zero, null),
-      ),
+      const Microphone(MicOwner.conversation, cut: CutPoint(Duration.zero)),
     );
     expect(machine.queue, isNot(contains(_guide)));
     expect(machine.owners.keys, isNot(contains(_guide)));

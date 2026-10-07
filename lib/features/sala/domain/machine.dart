@@ -202,10 +202,9 @@ final class GestureSilenced extends MachineEvent {
 
 final class Interrupted extends MachineEvent {
   final String take;
-  final Duration at;
-  final Duration? of;
+  final CutPoint cut;
 
-  const Interrupted({required this.take, required this.at, this.of});
+  const Interrupted({required this.take, required this.cut});
 }
 
 final class GestureStarted extends MachineEvent {
@@ -837,11 +836,7 @@ const _watch = ArmTheWatch();
         ? [StopTheLine(_speaking(machine.channel))]
         : const [StopTheSound()],
   ),
-  Interrupted(:final take, :final at, :final of) => _interrupt(
-    machine,
-    take,
-    CutPoint(at, of),
-  ),
+  Interrupted(:final take, :final cut) => _interrupt(machine, take, cut),
   GestureStarted(:final gesture) => (
     machine.copyWith(onTheirWay: {...machine.onTheirWay, gesture}),
     const [],
@@ -1164,7 +1159,7 @@ Paused? _keptUnderTheMic(Channel channel) => switch (channel) {
     GuideSpeaking(line: Line(kind: LineKind.acknowledgement), :final held) => (
       machine.queue.where((line) => line.kind == LineKind.guide).firstOrNull,
       held,
-      const CutPoint(Duration.zero, null),
+      const CutPoint(Duration.zero),
     ),
     _ => (null, null, null),
   };

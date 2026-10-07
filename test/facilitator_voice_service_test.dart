@@ -1024,6 +1024,20 @@ void main() {
       await speaking;
     });
 
+    test('and how long it is, for a line from the app\'s own assets', () async {
+      final player = SpeakingPlayer()
+        ..lineLength = length
+        ..position = at;
+      final voice = service(player: player);
+
+      final speaking = voice.playAsset('assets/linhas/f1.mp3');
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(voice.lineLength, length);
+      player.reachTheEnd();
+      await speaking;
+    });
+
     test('but never how long, for a line streamed as it arrives', () async {
       final player = SpeakingPlayer()
         ..lineLength = length
@@ -1060,6 +1074,23 @@ void main() {
         expect(voice.lineLength, isNull);
       },
     );
+  });
+
+  test('a line stopped while it is still opening is never played', () async {
+    File('${library.path}/aaa.mp3').writeAsBytesSync([1, 2, 3]);
+    final player = SpeakingPlayer()..holdNextLoad();
+    final voice = service(
+      player: player,
+      grace: const Duration(milliseconds: 30),
+    );
+
+    final speaking = voice.play(_clip);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    await voice.stop();
+    player.finishLoad();
+
+    expect(await speaking, isFalse);
+    expect(player.plays, 0);
   });
 
   test('a line the player paused in the middle is not counted as heard', () async {

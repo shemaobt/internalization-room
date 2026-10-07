@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
+import 'package:internalization_room/features/sala/domain/cut_point.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
@@ -268,8 +269,8 @@ String describeEvent(MachineEvent event) => switch (event) {
     'TheHeldPartReturns(${describeChannel(held)})',
   GestureSilenced(:final keepingTheHold) =>
     'GestureSilenced(keepingTheHold: $keepingTheHold)',
-  Interrupted(:final at, :final of) =>
-    'Interrupted(at: ${at.inMilliseconds}ms, of: ${of?.inMilliseconds}ms)',
+  Interrupted(:final cut) =>
+    'Interrupted(at: ${cut.at.inMilliseconds}ms, of: ${cut.of?.inMilliseconds}ms)',
   GestureStarted(:final gesture) => 'GestureStarted($gesture)',
   GestureEnded(:final gesture) => 'GestureEnded($gesture)',
   NothingReplayed() => 'NothingReplayed',
@@ -620,10 +621,12 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
       ),
       EventKind.interrupted => Interrupted(
         take: 'conversa-${random.nextInt(3)}',
-        at: Duration(milliseconds: random.nextInt(9000)),
-        of: random.nextBool()
-            ? Duration(milliseconds: 9000 + random.nextInt(9000))
-            : null,
+        cut: CutPoint(
+          Duration(milliseconds: random.nextInt(9000)),
+          of: random.nextBool()
+              ? Duration(milliseconds: 9000 + random.nextInt(9000))
+              : null,
+        ),
       ),
       EventKind.gestureStarted => GestureStarted(random.nextInt(3)),
       EventKind.gestureEnded => GestureEnded(random.nextInt(3)),

@@ -1063,8 +1063,7 @@ class FakeRoom implements RoomRepository {
 
   /// Where each turn sent said the Guide was cut, one entry per turn: null for a turn
   /// that followed no interruption.
-  final List<({String session, String turnId, Duration at, Duration? of})?>
-  cutsSent = [];
+  final List<CutPoint?> cutsSent = [];
 
   final List<String> recordingsSent = [];
 
@@ -1737,11 +1736,7 @@ class FakeRoom implements RoomRepository {
     clientTimingsSent.add(clientTiming);
     turnIdsSent.add(turnId);
     recordingsSent.add(audio.path);
-    cutsSent.add(
-      cut == null
-          ? null
-          : (session: sessionId, turnId: turnId, at: cut.at, of: cut.of),
-    );
+    cutsSent.add(cut);
     turnsSent++;
     return _theTurnAnswers(sessionId, turnId);
   }
@@ -2469,13 +2464,27 @@ class SpeakingPlayer extends Fake implements AudioPlayer {
   /// A load that never settles, for the line the player never manages to open.
   bool neverLoads = false;
 
+  Completer<void>? _holdingLoad;
+
+  /// Hold the next load until the test lets it go, for a line still opening.
+  void holdNextLoad() => _holdingLoad = Completer<void>();
+
+  void finishLoad() {
+    _holdingLoad?.complete();
+    _holdingLoad = null;
+  }
+
   @override
   Future<Duration?> setFilePath(
     String path, {
     Duration? initialPosition,
     bool preload = true,
     dynamic tag,
-  }) => neverLoads ? Completer<Duration?>().future : Future.value(lineLength);
+  }) async {
+    if (neverLoads) return Completer<Duration?>().future;
+    await _holdingLoad?.future;
+    return lineLength;
+  }
 
   @override
   Future<Duration?> setAsset(
@@ -2504,8 +2513,12 @@ class SpeakingPlayer extends Fake implements AudioPlayer {
   @override
   bool get playing => _playing;
 
+  /// How many times the player was told to play.
+  int plays = 0;
+
   @override
   Future<void> play() {
+    plays++;
     // just_audio returns at once when it already believes it is playing
     // (just_audio.dart:939), and iOS never clears that flag when a clip ends: the native
     // `complete` sets processingState and leaves `_playing` YES. Only stop, pause or a

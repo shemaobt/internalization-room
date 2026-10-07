@@ -4,7 +4,7 @@ final class CutPoint {
   final Duration at;
   final Duration? of;
 
-  const CutPoint(this.at, this.of);
+  const CutPoint(this.at, {this.of});
 
   @override
   bool operator ==(Object other) =>

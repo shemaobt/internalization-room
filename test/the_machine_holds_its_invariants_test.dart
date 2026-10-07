@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
+import 'package:internalization_room/features/sala/domain/cut_point.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -135,8 +136,9 @@ List<Invariant<S>> theAdrInvariants<S>(Halt Function(S) haltOf) => [
 
 bool _sounds(Channel channel) => channel is Playing || channel is GuideSpeaking;
 
-final theMicrophoneNeverOpensUnderASound = Invariant<Machine>(
-  'ADR invariant 1, the microphone never opens under a sound',
+final theMicrophoneOpensOverASoundOnlyAfterAStop = Invariant<Machine>(
+  'ADR invariant 1, the microphone opens over a sound only after a stop in the '
+  'same step',
   (before, event, after, effects, world) {
     final opens = effects.indexWhere((effect) => effect is OpenTheMic);
     final stops = effects.indexWhere((effect) => effect is StopTheSound);
@@ -299,8 +301,9 @@ void main() {
       _holds(theWarningIsTheOneTheServerTold(_haltOf));
     });
 
-    test('ADR invariant 1: the microphone never opens under a sound', () {
-      _holds(theMicrophoneNeverOpensUnderASound);
+    test('ADR invariant 1: the microphone opens over a sound only after a stop '
+        'in the same step', () {
+      _holds(theMicrophoneOpensOverASoundOnlyAfterAStop);
     });
 
     test('ADR invariant 1 reads a microphone opened over a sound with no stop '
@@ -308,9 +311,15 @@ void main() {
       const speaking = Machine(channel: GuideSpeaking(Line(LineKind.guide, 1)));
       const listening = Machine(channel: Microphone(MicOwner.conversation));
       const open = OpenTheMic(MicOwner.conversation, take: 'conversa');
-      const cut = Interrupted(take: 'conversa', at: Duration.zero);
-      String? check(List<Effect> effects) => theMicrophoneNeverOpensUnderASound
-          .check(speaking, cut, listening, effects, const World());
+      const cut = Interrupted(take: 'conversa', cut: CutPoint(Duration.zero));
+      String? check(List<Effect> effects) =>
+          theMicrophoneOpensOverASoundOnlyAfterAStop.check(
+            speaking,
+            cut,
+            listening,
+            effects,
+            const World(),
+          );
 
       expect(check(const [open]), isNotNull);
       expect(check(const [open, StopTheSound()]), isNotNull);
@@ -347,7 +356,7 @@ void main() {
         nothingOfAGoneSessionSurvives,
         nothingOfAClosedPassageSurvives,
         ...theAdrInvariants<Machine>(_haltOf),
-        theMicrophoneNeverOpensUnderASound,
+        theMicrophoneOpensOverASoundOnlyAfterAStop,
         theHeadNeverReadsAnotherSound,
         theOutboxNeverIdlesReachableWithAPartPending,
         theScreenNeverShowsASoundTheChannelDoesNotHold,

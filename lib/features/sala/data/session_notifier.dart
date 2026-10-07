@@ -941,7 +941,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       awaitingTheGuide: false,
       endOfThePassage: turn.done ? true : null,
-      peerCue: turn.peerCue,
+      peerCue: played == Said.said ? turn.peerCue : null,
     );
     _awaitCoverageSettle(turn, clock: clock);
     _scheduleInboxPoll();
@@ -2820,11 +2820,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// Where the Guide is is read before she stops.
   void _cutTheVoice() {
-    final at = _sound.linePosition;
-    final of = _sound.lineLength;
+    final cut = CutPoint(_sound.linePosition, of: _sound.lineLength);
     _quietTheRoom();
     state = state.copyWith(clearContaEscolhida: true);
-    _listen(Interrupted(take: 'conversa_${_stamp()}', at: at, of: of));
+    _listen(Interrupted(take: 'conversa_${_stamp()}', cut: cut));
   }
 
   void _actOnConversaTap() {

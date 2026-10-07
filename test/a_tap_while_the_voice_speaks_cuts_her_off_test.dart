@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/cut_point.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -32,8 +33,7 @@ class _Room {
 
   SalaSessionState get state => container.read(salaSessionProvider);
 
-  ({String session, String turnId, Duration at, Duration? of})? get lastCut =>
-      harness.room.cutsSent.last;
+  CutPoint? get lastCut => harness.room.cutsSent.last;
 
   Future<void> tap() async {
     notifier.conversaTap();
@@ -126,12 +126,8 @@ void main() {
       () => room.harness.room.cutsSent.length == 2,
     );
 
-    expect(room.lastCut, (
-      session: room.state.sessionId!,
-      turnId: room.harness.room.turnIdsSent.last,
-      at: _at,
-      of: _of,
-    ));
+    expect(room.harness.room.sessionsSpokenTo.last, room.state.sessionId);
+    expect(room.lastCut, const CutPoint(_at, of: _of));
 
     await waitFor('a sala voltar ao convite', () {
       return room.state.voice == VoiceState.invite;
@@ -140,6 +136,17 @@ void main() {
 
     expect(room.harness.room.cutsSent, hasLength(3));
     expect(room.lastCut, isNull);
+  });
+
+  test('a cut reply never asks the team to talk among themselves', () async {
+    final room = await _inConversa();
+    room.harness.room.peerCue = true;
+    await _cutWhileSheSpeaks(on: room);
+
+    await room.aGhostTake();
+
+    expect(room.state.voice, VoiceState.invite);
+    expect(room.state.peerCue, isFalse);
   });
 
   test('a cut followed by nothing kept sends nothing and the room comes back '
