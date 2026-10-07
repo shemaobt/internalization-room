@@ -1,10 +1,12 @@
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/capture_guard.dart';
 import 'package:internalization_room/features/sala/domain/cut_point.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -217,6 +219,37 @@ void main() {
     );
 
     expect(room.lastCut, const CutPoint(_at, of: _of));
+  });
+
+  test('a stop tap under 700 ms after the cut does not end the take, and a '
+      'take the guard refuses leaves no cut behind', () async {
+    var now = DateTime(2026, 10, 7);
+    var step = const Duration(seconds: 1);
+    await withClock(Clock(() => now = now.add(step)), () async {
+      final room = await _cutWhileSheSpeaks(
+        on: await _inConversa(
+          harness: SalaHarness(captureGuard: const CaptureGuard(minBytes: 1)),
+        ),
+      );
+      final turns = room.harness.room.turnsSent;
+
+      step = Duration.zero;
+      await room.tap();
+
+      expect(room.state.voice, VoiceState.listening);
+      expect(room.harness.room.turnsSent, turns);
+
+      step = const Duration(seconds: 1);
+      await room.aGhostTake();
+
+      expect(room.state.voice, VoiceState.invite);
+      expect(room.harness.room.turnsSent, turns);
+
+      await room.aRealTake();
+
+      expect(room.harness.room.turnsSent, turns + 1);
+      expect(room.lastCut, isNull);
+    });
   });
 
   test('a tap while the voice thinks does nothing', () async {
