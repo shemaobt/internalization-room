@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
 import 'package:internalization_room/features/sala/data/connectivity_service.dart';
+import 'package:internalization_room/features/sala/data/current_session_ledger.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/data/credential_vault.dart';
 import 'package:internalization_room/features/sala/data/device_link_notifier.dart';
@@ -37,6 +38,7 @@ import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
@@ -651,6 +653,21 @@ const turnoUrl = '/api/internalization-room/voice/turno';
 const panoramaUrl = '/api/internalization-room/voice/panorama';
 const sceneUrl = '/api/internalization-room/voice/cena';
 const deNovoUrl = '/api/internalization-room/voice/de-novo';
+
+class FakeCurrentSessionLedger implements CurrentSessionLedger {
+  CurrentSession? held;
+
+  @override
+  Future<CurrentSession?> read() async => held;
+
+  @override
+  Future<void> hold(CurrentSession session) async => held = session;
+
+  @override
+  Future<void> letGo({String? only}) async {
+    if (only == null || held?.sessionId == only) held = null;
+  }
+}
 
 class FakeWorkInProgress implements WorkInProgress {
   final Map<String, ResumePoint> rows = {};
@@ -2264,9 +2281,11 @@ Future<void> confirmarATraducaoNaTela(
 }
 
 class SalaHarness {
-  final Directory takesHome = Directory.systemTemp.createTempSync(
-    'sala-tomadas',
-  );
+  final Directory takesHome;
+
+  /// In memory unless the test hands it a ledger on disk, for widget tests, whose binding
+  /// never lets real IO finish. A relaunch hands it on.
+  final CurrentSessionLedger currentSession;
 
   /// Everything that made or stopped a sound, in the order it happened: `playback:play`,
   /// `playback:pause`, `playback:stop`, `voice:line`, `voice:asset`, `voice:stop`,
@@ -2326,7 +2345,12 @@ class SalaHarness {
     this.inboxService,
     FakeRoom? room,
     this.takesOverride,
+    Directory? takesHome,
+    CurrentSessionLedger? currentSession,
   }) : room = room ?? FakeRoom(),
+       takesHome =
+           takesHome ?? Directory.systemTemp.createTempSync('sala-tomadas'),
+       currentSession = currentSession ?? FakeCurrentSessionLedger(),
        inbox = FakeInbox(replies: replies),
        vinculo = FakeLinkedTeam(remembered: linkedAs);
 
@@ -2364,6 +2388,7 @@ class SalaHarness {
     takeUploadQueueProvider.overrideWithValue(takes),
     finishedPassagesProvider.overrideWithValue(finishedOnDisk ?? finished),
     workInProgressProvider.overrideWithValue(emAbertoNoDisco ?? emAberto),
+    currentSessionLedgerProvider.overrideWithValue(currentSession),
     connectivityServiceProvider.overrideWithValue(network),
     linkedTeamProvider.overrideWithValue(vinculo),
     linkPollIntervalProvider.overrideWithValue(linkPoll),

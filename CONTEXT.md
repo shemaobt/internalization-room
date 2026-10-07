@@ -239,6 +239,10 @@ _Avoid_: fila, caixa de saída, upload queue, buffer
 The durable slice of the room's state for one passage, written whole at every transition — the session, the Station and its Step, the kept takes, the part being recorded again (ADR 0045), the Cursor, the pending translation and the Listening ledger — so a reopening lands where the team stopped, on a tablet that still holds the recordings or on one that fetches them from the room again. The server rules over what it knows, the slice over the rest (ADR 0046). It never expires by age: what drops it are facts about the room or the passage — the room no longer knowing the session, the approval closing the passage, the language changing — never the clock.
 _Avoid_: ponto de retomada, em curso, checkpoint, snapshot (the session's own lives on the server)
 
+**Current session**:
+The session this tablet was in when it last stood in a passage, kept on the tablet so a relaunch lands on it while the room still holds it. Let go when the team goes to the Choice, when the passage closes and when the room no longer knows the session.
+_Avoid_: pointer, last session, sessão atual
+
 ### Findings and mends
 
 **Verdict**:

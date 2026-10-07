@@ -184,8 +184,21 @@ class ARecorderPort implements RecorderPort {
 }
 
 class AStorePort implements StorePort {
+  CurrentSession? _held;
+
   @override
   Future<int> flushTheOutbox() async => 0;
+
+  @override
+  Future<CurrentSession?> currentSession() async => _held;
+
+  @override
+  Future<void> holdTheSession(CurrentSession session) async => _held = session;
+
+  @override
+  Future<void> letGoOfTheSession({String? only}) async {
+    if (only == null || _held?.sessionId == only) _held = null;
+  }
 }
 
 Ports fakePorts(ASoundPort sound, {ARecorderPort? recorder, ARoomPort? room}) =>

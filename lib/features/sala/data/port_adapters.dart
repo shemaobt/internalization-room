@@ -9,6 +9,7 @@ import '../domain/ports.dart';
 import '../domain/room_reach.dart';
 import '../domain/turn_result.dart';
 import 'connectivity_service.dart';
+import 'current_session_ledger.dart';
 import 'facilitator_voice_service.dart';
 import 'linked_team.dart';
 import 'playback_repository.dart';
@@ -171,6 +172,18 @@ class ProviderStorePort implements StorePort {
   @override
   Future<int> flushTheOutbox() =>
       _ref.read(takeUploadQueueProvider).flush(withTheCodeless: true);
+
+  @override
+  Future<CurrentSession?> currentSession() =>
+      _ref.read(currentSessionLedgerProvider).read();
+
+  @override
+  Future<void> holdTheSession(CurrentSession session) =>
+      _ref.read(currentSessionLedgerProvider).hold(session);
+
+  @override
+  Future<void> letGoOfTheSession({String? only}) =>
+      _ref.read(currentSessionLedgerProvider).letGo(only: only);
 }
 
 final roomPortProvider = Provider<RoomPort>(ProviderRoomPort.new);
