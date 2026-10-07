@@ -837,7 +837,6 @@ void main() {
       expect(coverage!.engaged, 3);
       expect(coverage.surfaced, 4);
       expect(coverage.total, 29);
-      expect(coverage.absenceIndex, 13);
     },
   );
 

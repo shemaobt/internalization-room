@@ -81,7 +81,7 @@ Color markAsSeen(WidgetTester tester, Finder corner, Color background) {
 bool leaveIsDeaf(WidgetTester tester) => tester
     .widgetList<IgnorePointer>(
       find.ancestor(
-        of: byLabel('Deixar esta passagem e escolher outra'),
+        of: byLabel('Escolher outra passagem'),
         matching: find.byType(IgnorePointer),
       ),
     )
@@ -728,16 +728,16 @@ void main() {
     );
   });
 
-  testWidgets('the way out of a passage speaks english to an english room', (
+  testWidgets('«Choose another passage» speaks english to an english room', (
     tester,
   ) async {
     final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
     container.read(salaSessionProvider.notifier).goConversa();
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(byLabel('Leave this passage and choose another'), findsOneWidget);
+    expect(byLabel('Choose another passage'), findsOneWidget);
     expect(
-      byLabel('Deixar esta passagem e escolher outra'),
+      byLabel('Escolher outra passagem'),
       findsNothing,
       reason:
           'a saída da passagem se anunciava em português a um aparelho em '
@@ -1266,7 +1266,7 @@ void main() {
       await notifier.goConversa(pericope: 'P01');
       await tester.pump(const Duration(milliseconds: 300));
 
-      final sair = byLabel('Deixar esta passagem e escolher outra');
+      final sair = byLabel('Escolher outra passagem');
       expect(
         sair,
         findsOneWidget,
@@ -1319,10 +1319,7 @@ void main() {
         .goConversa(pericope: 'P01');
     await tester.pump(const Duration(milliseconds: 300));
 
-    await tester.tap(
-      byLabel('Deixar esta passagem e escolher outra'),
-      warnIfMissed: false,
-    );
+    await tester.tap(byLabel('Escolher outra passagem'), warnIfMissed: false);
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(
