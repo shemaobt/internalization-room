@@ -9,7 +9,7 @@ import 'kept_take.dart';
 import 'passagem.dart';
 import 'station.dart';
 
-enum SalaStage { convite, escolha, conversa, ensaio, retro, fim }
+enum SalaStage { panorama, escolha, conversa, ensaio, retro, fim }
 
 enum VoiceState {
   invite,
@@ -20,8 +20,6 @@ enum VoiceState {
   offline,
   blocked,
 }
-
-enum ConviteStep { boasVindas, panorama, entrada }
 
 enum EnsaioStatus { idle, recording, recorded }
 
@@ -93,14 +91,36 @@ class Trecho {
   });
 }
 
+class LeftEntry {
+  final String? pericope;
+  final bool panorama;
+  final String? session;
+  final bool said;
+  final Paused? held;
+
+  const LeftEntry({
+    this.pericope,
+    this.panorama = false,
+    this.session,
+    this.said = false,
+    this.held,
+  });
+}
+
 class SalaSessionState {
   final bool awaitingTheGuide;
+
+  /// The entry the team last left by the way out, for the Choice to offer the way back.
+  final LeftEntry? leftEntry;
   final bool endOfThePassage;
 
   /// Why the room is out of reach, when it is. Two different faces: a tablet with no
   /// network at all, and a network that is fine with no room answering on it.
   final RoomReach reach;
-  final ConviteStep conviteStep;
+
+  /// Whether the Panorama's line was said on this visit to its Station; from then on the
+  /// circle records the team's turn.
+  final bool panoramaSaid;
   final String? sessionId;
   final Coverage coverage;
 
@@ -120,6 +140,7 @@ class SalaSessionState {
   final String? playingReplyId;
   final List<KeptTake> keptTakes;
   final SpokenLine? lastSpoken;
+  final bool roomSaysItAgain;
   final EnsaioStatus ensaio;
   final bool micTaken;
   final int takes;
@@ -174,11 +195,6 @@ class SalaSessionState {
 
   final Machine machine;
 
-  /// Pericopes the Choice has offered and the room refused to open, in this visit.
-  /// [EscolhaView] reads this to dim their spokes on the ruler; the notifier reads it
-  /// to keep [aOferecer] off them. Cleared when the Choice is opened afresh.
-  final Set<String> refusedThisVisit;
-
   /// Which part of the rehearsal the team came back to record again, 0-based, or null when
   /// the next recording is a part of its own.
   ///
@@ -204,9 +220,10 @@ class SalaSessionState {
 
   const SalaSessionState({
     this.awaitingTheGuide = false,
+    this.leftEntry,
     this.endOfThePassage = false,
     this.reach = RoomReach.fine,
-    this.conviteStep = ConviteStep.boasVindas,
+    this.panoramaSaid = false,
     this.sessionId,
     this.coverage = Coverage.empty,
     this.contasEnfiadas = true,
@@ -218,6 +235,7 @@ class SalaSessionState {
     this.playingReplyId,
     this.keptTakes = const [],
     this.lastSpoken,
+    this.roomSaysItAgain = false,
     this.ensaio = EnsaioStatus.idle,
     this.micTaken = false,
     this.takes = 0,
@@ -247,7 +265,6 @@ class SalaSessionState {
     this.unsentChunks = 0,
     this.unsentTakeScopes = const {},
     this.machine = const Machine(),
-    this.refusedThisVisit = const {},
     this.parteARegravar,
   });
 
@@ -275,36 +292,12 @@ class SalaSessionState {
   bool get ensaioDone =>
       takes >= 1 && ensaio == EnsaioStatus.idle && parteARegravar == null;
 
-  bool get awaitingFirstTouch =>
-      stage == SalaStage.convite &&
-      conviteStep == ConviteStep.boasVindas &&
-      voice == VoiceState.invite &&
-      !needsPerson;
-
   bool get canHearAgain =>
-      lastSpoken != null &&
+      (lastSpoken != null || roomSaysItAgain) &&
       voice == VoiceState.invite &&
       !needsPerson &&
       stage != SalaStage.ensaio &&
       stage != SalaStage.retro;
-
-  bool get showEntrada =>
-      stage == SalaStage.convite &&
-      conviteStep == ConviteStep.entrada &&
-      voice == VoiceState.invite &&
-      !needsPerson;
-
-  bool get entradaOffered =>
-      stage == SalaStage.convite &&
-      (conviteStep == ConviteStep.entrada ||
-          voice == VoiceState.thinking ||
-          voice == VoiceState.speaking);
-
-  bool get entradaLive =>
-      entradaOffered &&
-      voice != VoiceState.listening &&
-      voice != VoiceState.thinking &&
-      voice != VoiceState.speaking;
 
   bool get hasUnheardReply => replies.any((reply) => reply.offered);
 
@@ -392,6 +385,33 @@ class SalaSessionState {
   }
 
   bool get needsPerson => halt is Blocking;
+
+  /// The Choice offers the way back to the entry left, once the Wheel is read.
+  bool get theWayBackIsOffered =>
+      stage == SalaStage.escolha &&
+      leftEntry != null &&
+      naRoda != null &&
+      !needsPerson;
+
+  /// The way back answers the finger only while the Wheel is quiet.
+  bool get theWayBackIsLive =>
+      theWayBackIsOffered && voice == VoiceState.invite;
+
+  /// The way out of a Station is hidden while it cannot apply: the voice is busy, or a
+  /// microphone other than the raised-hand note's is open, or a person is called, except
+  /// at the Back-translation's resting screen (ADR 0019).
+  bool get wayOutIsHidden {
+    if (needsPerson) {
+      return !(stage == SalaStage.retro && btPhase == BtPhase.conferida);
+    }
+    return switch (voice) {
+      VoiceState.thinking || VoiceState.speaking => true,
+      _ => switch (channel) {
+        Microphone(:final owner) => owner != MicOwner.question,
+        _ => false,
+      },
+    };
+  }
 
   bool get warning => halt is Warning;
 
@@ -537,9 +557,11 @@ class SalaSessionState {
 
   SalaSessionState copyWith({
     bool? awaitingTheGuide,
+    LeftEntry? leftEntry,
+    bool clearLeftEntry = false,
     bool? endOfThePassage,
     RoomReach? reach,
-    ConviteStep? conviteStep,
+    bool? panoramaSaid,
     String? sessionId,
     bool clearSession = false,
     Coverage? coverage,
@@ -554,6 +576,7 @@ class SalaSessionState {
     List<KeptTake>? keptTakes,
     SpokenLine? lastSpoken,
     bool clearLastSpoken = false,
+    bool? roomSaysItAgain,
     EnsaioStatus? ensaio,
     bool? micTaken,
     int? takes,
@@ -588,15 +611,15 @@ class SalaSessionState {
     int? unsentChunks,
     Set<String>? unsentTakeScopes,
     Machine? machine,
-    Set<String>? refusedThisVisit,
     int? parteARegravar,
     bool clearParteARegravar = false,
   }) {
     return SalaSessionState(
       awaitingTheGuide: awaitingTheGuide ?? this.awaitingTheGuide,
+      leftEntry: clearLeftEntry ? null : (leftEntry ?? this.leftEntry),
       endOfThePassage: endOfThePassage ?? this.endOfThePassage,
       reach: reach ?? this.reach,
-      conviteStep: conviteStep ?? this.conviteStep,
+      panoramaSaid: panoramaSaid ?? this.panoramaSaid,
       sessionId: clearSession ? null : (sessionId ?? this.sessionId),
       coverage: coverage ?? this.coverage,
       contasEnfiadas: contasEnfiadas ?? this.contasEnfiadas,
@@ -610,6 +633,7 @@ class SalaSessionState {
           : (playingReplyId ?? this.playingReplyId),
       keptTakes: keptTakes ?? this.keptTakes,
       lastSpoken: clearLastSpoken ? null : (lastSpoken ?? this.lastSpoken),
+      roomSaysItAgain: roomSaysItAgain ?? this.roomSaysItAgain,
       ensaio: ensaio ?? this.ensaio,
       micTaken: micTaken ?? this.micTaken,
       takes: takes ?? this.takes,
@@ -649,7 +673,6 @@ class SalaSessionState {
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentTakeScopes: unsentTakeScopes ?? this.unsentTakeScopes,
       machine: machine ?? this.machine,
-      refusedThisVisit: refusedThisVisit ?? this.refusedThisVisit,
       parteARegravar: clearParteARegravar
           ? null
           : (parteARegravar ?? this.parteARegravar),

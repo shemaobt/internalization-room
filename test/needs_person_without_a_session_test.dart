@@ -71,6 +71,23 @@ void main() {
     },
   );
 
+  test(
+    'a call by the tablet that landed is not sent again while the halt stands',
+    () async {
+      final ledger = _ledgerOnDisk();
+      await ledger.rememberDevice('aparelho-D');
+      final harness = SalaHarness();
+      final container = await _haltedWithNoSession(harness, ledger);
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).abrirEscolha();
+      await settle();
+
+      expect(container.read(salaSessionProvider).needsPerson, isTrue);
+      expect(harness.room.deviceAsksReceived, ['aparelho-D']);
+    },
+  );
+
   test('case 2 (Emenda 1, trava de regressão): um build quebrado para na tela '
       'e não pede a ninguém', () async {
     // Emenda 1: o "Question" do plano supunha uma falha comum; Env.roomKey /

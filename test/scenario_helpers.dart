@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
@@ -135,4 +136,57 @@ Future<void> theHaltIsLifted(
   notifier.resolveWithPerson();
   await waitFor('a sala soltar', () => !read().needsPerson);
   await settle();
+}
+
+/// Kill the tablet and launch it again: a new container over the same disk and the same
+/// room, opened only after the old one is gone.
+Future<(SalaHarness, ProviderContainer)> relaunch(
+  SalaHarness harness,
+  ProviderContainer container, {
+  String? lingua,
+  Duration? linkPoll,
+}) async {
+  container.dispose();
+  final again = SalaHarness(
+    room: harness.room,
+    emAbertoNoDisco: harness.emAbertoNoDisco ?? harness.emAberto,
+    finishedOnDisk: harness.finishedOnDisk ?? harness.finished,
+    takesHome: harness.takesHome,
+    currentSession: harness.currentSession,
+    lingua: lingua ?? harness.lingua,
+    linkPoll: linkPoll ?? harness.linkPoll,
+  );
+  final next = again.container();
+  addTearDown(next.dispose);
+  return (again, next);
+}
+
+/// Open the Choice, aim at the Panorama's entry and tap it, as the team does.
+Future<void> enterThePanorama(
+  SalaSessionNotifier notifier,
+  SalaSessionState Function() read,
+) => _enterTheEntry(notifier, read, (entry) => entry.isPanorama);
+
+/// Open the Choice, aim at [pericope]'s entry and tap it, as the team does.
+Future<void> enterThePassage(
+  SalaSessionNotifier notifier,
+  SalaSessionState Function() read,
+  String pericope,
+) => _enterTheEntry(notifier, read, (entry) => entry.pericope == pericope);
+
+Future<void> _enterTheEntry(
+  SalaSessionNotifier notifier,
+  SalaSessionState Function() read,
+  bool Function(Passagem entry) isIt,
+) async {
+  await notifier.abrirEscolha();
+  await waitFor('a roda carregar', () => read().naRoda != null);
+  final at = read().naRoda!.indexWhere(isIt);
+  expect(at, isNonNegative, reason: 'a roda não tem essa entrada');
+  notifier.apontarPassagem(at);
+  await waitFor(
+    'a roda oferecer a entrada',
+    () => read().aOferecer == at && read().voice == VoiceState.invite,
+  );
+  notifier.entrarNaOferecida();
 }

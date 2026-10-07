@@ -20,7 +20,7 @@ import 'um_ensaio_de_tres_partes.dart';
 
 const _aprovar = 'Aprovar como rascunho final';
 const _ouvir = 'Ouvir a gravação';
-const _sairDaPassagem = 'Deixar esta passagem e escolher outra';
+const _sairDaPassagem = 'Escolher outra passagem';
 const micParteLabel = 'Gravar a parte de novo na língua materna';
 
 /// A team standing on a finding the analyst addressed to the stretch of part 2, with the

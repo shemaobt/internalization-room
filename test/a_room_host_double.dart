@@ -2,10 +2,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:internalization_room/features/sala/data/effect_runner.dart';
 import 'package:internalization_room/features/sala/data/port_adapters.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
+import 'package:internalization_room/features/sala/domain/failure_policy.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
 class ARoomHost implements EffectHost {
@@ -22,6 +25,86 @@ class ARoomHost implements EffectHost {
   @override
   Kept sounding = const NothingKept();
 
+  @override
+  String? session;
+
+  FailureContext context = const FailureContext(station: Menu(), generation: 0);
+
+  @override
+  FailureContext failureContext({
+    required Door door,
+    required RefusalRule rule,
+    required RoomReach why,
+  }) => FailureContext(
+    station: context.station,
+    step: context.step,
+    generation: context.generation,
+    turn: context.turn,
+    refusals: context.refusals,
+    sounding: context.sounding,
+    door: door,
+    rule: rule,
+    why: why,
+  );
+
+  final List<SessionSnapshot> readsHeard = [];
+  int _readsSent = 0;
+
+  @override
+  SentRead hearTheReadSent() => (order: ++_readsSent, row: const []);
+
+  @override
+  void hearTheSessionRead(SessionSnapshot snapshot, SentRead sent) =>
+      readsHeard.add(snapshot);
+
+  @override
+  bool callIsWanted = true;
+
+  @override
+  String? passageInCourse;
+
+  @override
+  bool aPersonIsNeeded = true;
+
+  int callsStopped = 0;
+  ClosedPassage? passageToMark = (book: 'rute', passage: 'rute-1');
+  final List<String> marksHeard = [];
+
+  @override
+  void hearTheCallStopped() => callsStopped++;
+
+  @override
+  ClosedPassage? hearTheMarkBegin() {
+    marksHeard.add('begin');
+    return passageToMark;
+  }
+
+  @override
+  void hearTheMarkEnd(String session, String? passage) =>
+      marksHeard.add('end:$session:$passage');
+
+  int callsLanded = 0;
+  int callsLandedWithoutASession = 0;
+  final List<(String, String?, RoomResult)> earlierCallsHeard = [];
+  final List<String> earlierSessionsGone = [];
+
+  @override
+  void hearTheCallLanded() => callsLanded++;
+
+  @override
+  void hearTheCallLandedWithoutASession() => callsLandedWithoutASession++;
+
+  @override
+  Future<void> hearAnEarlierSessionsCall(
+    String session,
+    String? passage,
+    RoomResult result,
+  ) async => earlierCallsHeard.add((session, passage, result));
+
+  @override
+  void hearAnEarlierSessionGone(String session) =>
+      earlierSessionsGone.add(session);
+
   void Function()? onPartEnd;
 
   @override
@@ -37,6 +120,9 @@ class ARoomHost implements EffectHost {
     answers.add(event);
     onAnswer?.call(event);
   }
+
+  @override
+  void answerWhereAsked(MachineEvent event) => answer(event);
 
   @override
   void hearThePartEnd() {
@@ -57,63 +143,46 @@ class ARoomHost implements EffectHost {
   void hearTheMicrophoneTaken(bool taken) =>
       asked.add('hearTheMicrophoneTaken:$taken');
 
-  @override
-  void silenceTheRoom() => asked.add('silenceTheRoom');
+  final List<LifecycleHandOff> handedOver = [];
+  final Map<Turn, List<int>> awaiting = {};
 
   @override
-  void callForAPerson() => asked.add('callForAPerson');
+  void handOver(LifecycleHandOff handOff) => handedOver.add(handOff);
 
   @override
-  void stopCallingForAPerson() => asked.add('stopCallingForAPerson');
+  Iterable<int> gesturesAwaiting(Turn turn) => awaiting[turn] ?? const [];
 
   @override
-  void tellAPersonArrived() => asked.add('tellAPersonArrived');
+  void hearTheTurnLetGo() => asked.add('hearTheTurnLetGo');
 
   @override
-  void readTheState() => asked.add('readTheState');
+  void hearTheReplyFound(Turn turn, TurnResult reply) =>
+      asked.add('hearTheReplyFound:${turn.turnId}');
 
   @override
-  void replayTheSound(Kept kept) => asked.add('replayTheSound');
+  void hearTheSoundKept(Kept kept) =>
+      asked.add('hearTheSoundKept:${kept.runtimeType}');
 
   @override
-  void askTheOpeningAgain(String freshTurnId) =>
-      asked.add('askTheOpeningAgain');
+  void hearTheOpeningLetGo() => asked.add('hearTheOpeningLetGo');
 
   @override
-  void drainTheOutbox() => asked.add('drainTheOutbox');
+  Future<void> hearTheOutboxFlushed() async =>
+      asked.add('hearTheOutboxFlushed');
 
   @override
-  void resendPending() => asked.add('resendPending');
+  Future<void> hearTheOutboxCounted() async =>
+      asked.add('hearTheOutboxCounted');
 
   @override
-  void probeTheRoom() => asked.add('probeTheRoom');
+  void hearTheFall(Door door, RoomReach why) =>
+      asked.add('hearTheFall:${door.name}:${why.name}');
 
   @override
-  void discardTheSession() => asked.add('discardTheSession');
+  void hearTheRefusalCounted() => asked.add('hearTheRefusalCounted');
 
   @override
-  void openTheChoice() => asked.add('openTheChoice');
-
-  @override
-  void playTheReply(Turn turn, TurnResult reply) => asked.add('playTheReply');
-
-  @override
-  void letTheTurnGo(Turn turn) => asked.add('letTheTurnGo');
-
-  @override
-  void fellAt(Door door, RoomReach why) => asked.add('fellAt');
-
-  @override
-  void askForAPersonAgain() => asked.add('askForAPersonAgain');
-
-  @override
-  void markThePassageClosed() => asked.add('markThePassageClosed');
-
-  @override
-  void countTheRefusal() => asked.add('countTheRefusal');
-
-  @override
-  void refuseThePassage() => asked.add('refuseThePassage');
+  void hearThePassageRefused() => asked.add('hearThePassageRefused');
 }
 
 typedef Ports = ({

@@ -24,8 +24,6 @@ const _legacyBook = 'Ruth';
 /// team: swap the tablet and the record is gone. Correct for one tablet per team, and the
 /// thing that moves server-side once a team login exists.
 class FinishedPassages {
-  static String _bookMark(String book) => 'livro:$book';
-
   static String _mark(String book, String pericope) => '$book/$pericope';
 
   final Future<Directory> Function() _home;
@@ -56,6 +54,7 @@ class FinishedPassages {
 
   /// The passages of this book the tablet has carried to the end.
   Future<Set<String>> all(String book) async {
+    await _writes;
     final rows = await _rows();
     return {
       for (final row in rows)
@@ -68,16 +67,6 @@ class FinishedPassages {
     };
   }
 
-  /// Whether the book's panorama has already been heard on this tablet.
-  ///
-  /// It opens the room and takes minutes. Playing it on every launch made the team sit
-  /// through the whole book again before they could choose where to work, and minted an
-  /// orphan panorama session on the server each time.
-  Future<bool> bookOpened(String book) async =>
-      (await _rows()).contains(_bookMark(book));
-
-  Future<void> markBookOpened(String book) => _remember(_bookMark(book));
-
   Future<void> add(String book, String pericope) {
     if (pericope.isEmpty) return Future<void>.value();
     return _remember(_mark(book, pericope));
@@ -88,8 +77,7 @@ class FinishedPassages {
   /// This was a read-modify-write over a plain truncating write, unlike the take queue
   /// two files away: a kill mid-write left a partial array, that array read as `{}`, and
   /// the next passage the team finished wrote a ledger holding exactly one entry. Every
-  /// passage they had already carried came back to the wheel, and the book's own mark went
-  /// with it — so the panorama played again and minted another orphan session.
+  /// passage they had already carried came back to the wheel.
   Future<void> _remember(String row) {
     final next = _writes.then((_) async {
       final file = await _file();

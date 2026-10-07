@@ -330,6 +330,7 @@ void main() {
       final harness = SalaHarness(
         retryBackoff: _aLadderThatFallsAsleep,
         settleDelay: const Duration(seconds: 2),
+        watchesWithoutAHalt: true,
       );
       harness.emAberto.rows['Ruth/P01'] = const ResumePoint(
         sessionId: 'sessao-antiga',

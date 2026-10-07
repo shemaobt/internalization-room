@@ -131,6 +131,9 @@ abstract final class FailurePolicy {
       RoomRefused(code: RefusalCode.passageCannotOpen) => ThePassageCannotOpen(
         generation: generation,
       ),
+      RoomRefused() when sounding is TheOpening => TheOpeningMissed(
+        generation: generation,
+      ),
       RoomRefused() when rule == RefusalRule.haltsAtOnce || turn != null =>
         halt,
       RoomRefused() => TheRoomRefused(

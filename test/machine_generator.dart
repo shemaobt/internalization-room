@@ -231,18 +231,16 @@ String describeEvent(MachineEvent event) => switch (event) {
     :final snapshot,
     :final sounding,
     :final sentBeforeTheCallLanded,
-    :final at,
   ) =>
     'SessionRead(status: ${snapshot.status}, halt: ${snapshot.halt.name}, '
         'sounding: ${describeKept(sounding)}, '
-        'sentBeforeTheCallLanded: $sentBeforeTheCallLanded, at: $at)',
+        'sentBeforeTheCallLanded: $sentBeforeTheCallLanded)',
   RoomRaisedAHalt(:final sounding, :final callsForAPerson) =>
     'RoomRaisedAHalt(${describeKept(sounding)}, '
         'callsForAPerson: $callsForAPerson)',
   TheCallLanded() => 'TheCallLanded',
   TheAnswerWarned() => 'TheAnswerWarned',
-  LongPress(:final somebodyToAsk, :final at) =>
-    'LongPress(somebodyToAsk: $somebodyToAsk, at: $at)',
+  LongPress(:final somebodyToAsk) => 'LongPress(somebodyToAsk: $somebodyToAsk)',
   WatchFired() => 'WatchFired',
   NetworkFailedAt(:final door, :final why) =>
     'NetworkFailedAt(${door.name}, ${why.name})',
@@ -266,6 +264,8 @@ String describeEvent(MachineEvent event) => switch (event) {
     'BeadTapped(${sounds.map(describeSound).join(', ')}'
         '${beneath == null ? '' : ', beneath: ${describeChannel(beneath)}'})',
   PauseTapped() => 'PauseTapped',
+  TheHeldPartReturns(:final held) =>
+    'TheHeldPartReturns(${describeChannel(held)})',
   GestureSilenced(:final keepingTheHold) =>
     'GestureSilenced(keepingTheHold: $keepingTheHold)',
   GestureStarted(:final gesture) => 'GestureStarted($gesture)',
@@ -286,6 +286,7 @@ String describeEvent(MachineEvent event) => switch (event) {
   TheCallWasRefused() => 'TheCallWasRefused',
   TheCallMetAClosedPassage() => 'TheCallMetAClosedPassage',
   LookEmpty(:final sounding) => 'LookEmpty(${describeKept(sounding)})',
+  TheOpeningMissed() => 'TheOpeningMissed',
   TheRoomRefused(:final third, :final sounding) =>
     'TheRoomRefused(third: $third, ${describeKept(sounding)})',
   ThePassageCannotOpen() => 'ThePassageCannotOpen',
@@ -295,6 +296,7 @@ String describeEvent(MachineEvent event) => switch (event) {
   TheBackTranslationOpened() => 'TheBackTranslationOpened',
   TheNecklaceClosed() => 'TheNecklaceClosed',
   TheRoomStartedOver() => 'TheRoomStartedOver',
+  ThePanoramaChosen() => 'ThePanoramaChosen',
 };
 
 String describeLine(Line line) => '${line.kind.name}#${line.id}';
@@ -327,13 +329,10 @@ String describeEffect(Effect effect) => switch (effect) {
   PlayPart(:final part) => 'PlayPart(${describeSound(part)})',
   PlayStretch(:final stretch) => 'PlayStretch(${describeSound(stretch)})',
   OpenTheMic(:final owner) => 'OpenTheMic(${owner.name})',
-  AskTheOpeningAgain(:final freshTurnId) => 'AskTheOpeningAgain($freshTurnId)',
   ArmTheRetry(:final step, :final due) =>
     'ArmTheRetry(${due == null ? 'step $step' : 'due ${due.inSeconds}s'})',
   _ => effect.runtimeType.toString(),
 };
-
-final _at = DateTime.utc(2026, 9, 30, 12);
 
 Kept _drawKept(Random random) => switch (random.nextInt(5)) {
   0 => const NothingKept(),
@@ -352,7 +351,6 @@ SessionRead _drawARead(World world, Random random) => SessionRead(
     done: false,
     halt: HaltKind.values[random.nextInt(HaltKind.values.length)],
   ),
-  at: _at.add(Duration(milliseconds: random.nextInt(3))),
   sounding: _drawKept(random),
   sentBeforeTheCallLanded: world.callOutstanding && random.nextBool(),
 );
@@ -380,6 +378,7 @@ enum EventKind {
   micDiscarded,
   beadTapped,
   pauseTapped,
+  theHeldPartReturns,
   gestureSilenced,
   gestureStarted,
   gestureEnded,
@@ -392,6 +391,7 @@ enum EventKind {
   turnGivenUp,
   lookFound,
   lookEmpty,
+  theOpeningMissed,
   theRoomRefused,
   thePassageCannotOpen,
   turnSent,
@@ -406,6 +406,7 @@ enum EventKind {
   theBackTranslationOpened,
   theNecklaceClosed,
   theRoomStartedOver,
+  thePanoramaChosen,
 }
 
 EventKind kindOf(MachineEvent event) => switch (event) {
@@ -431,6 +432,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   MicDiscarded() => EventKind.micDiscarded,
   BeadTapped() => EventKind.beadTapped,
   PauseTapped() => EventKind.pauseTapped,
+  TheHeldPartReturns() => EventKind.theHeldPartReturns,
   GestureSilenced() => EventKind.gestureSilenced,
   GestureStarted() => EventKind.gestureStarted,
   GestureEnded() => EventKind.gestureEnded,
@@ -443,6 +445,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TurnGivenUp() => EventKind.turnGivenUp,
   LookFound() => EventKind.lookFound,
   LookEmpty() => EventKind.lookEmpty,
+  TheOpeningMissed() => EventKind.theOpeningMissed,
   TheRoomRefused() => EventKind.theRoomRefused,
   ThePassageCannotOpen() => EventKind.thePassageCannotOpen,
   TurnSent() => EventKind.turnSent,
@@ -457,6 +460,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TheBackTranslationOpened() => EventKind.theBackTranslationOpened,
   TheNecklaceClosed() => EventKind.theNecklaceClosed,
   TheRoomStartedOver() => EventKind.theRoomStartedOver,
+  ThePanoramaChosen() => EventKind.thePanoramaChosen,
 };
 
 bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
@@ -483,6 +487,7 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.micDiscarded ||
   EventKind.beadTapped ||
   EventKind.pauseTapped ||
+  EventKind.theHeldPartReturns ||
   EventKind.gestureSilenced ||
   EventKind.gestureStarted ||
   EventKind.gestureEnded ||
@@ -493,6 +498,7 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.sessionGone ||
   EventKind.passageClosed ||
   EventKind.turnGivenUp ||
+  EventKind.theOpeningMissed ||
   EventKind.theRoomRefused ||
   EventKind.thePassageCannotOpen ||
   EventKind.turnSent ||
@@ -506,7 +512,8 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.theRehearsalOpened ||
   EventKind.theBackTranslationOpened ||
   EventKind.theNecklaceClosed ||
-  EventKind.theRoomStartedOver => true,
+  EventKind.theRoomStartedOver ||
+  EventKind.thePanoramaChosen => true,
 };
 
 Source _drawASource(Random random) => switch (random.nextInt(4)) {
@@ -552,10 +559,7 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
       ),
       EventKind.theCallLanded => const TheCallLanded(),
       EventKind.theAnswerWarned => const TheAnswerWarned(),
-      EventKind.longPress => LongPress(
-        somebodyToAsk: random.nextBool(),
-        at: _at.add(Duration(milliseconds: random.nextInt(3))),
-      ),
+      EventKind.longPress => LongPress(somebodyToAsk: random.nextBool()),
       EventKind.watchFired => const WatchFired(),
       EventKind.networkFailedAt => NetworkFailedAt(
         world.probing && random.nextBool()
@@ -595,6 +599,17 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
         for (var i = 0; i <= random.nextInt(3); i++) _drawASound(random),
       ]),
       EventKind.pauseTapped => const PauseTapped(),
+      EventKind.theHeldPartReturns => TheHeldPartReturns(
+        Paused(
+          PartSound(
+            random.nextInt(2),
+            'parte-${random.nextInt(2)}.m4a',
+            from: Duration(seconds: random.nextInt(20)),
+          ),
+          started: false,
+          opened: false,
+        ),
+      ),
       EventKind.gestureSilenced => GestureSilenced(
         keepingTheHold: random.nextBool(),
       ),
@@ -632,6 +647,7 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
         ),
       ),
       EventKind.lookEmpty => LookEmpty(sounding: _drawKept(random)),
+      EventKind.theOpeningMissed => const TheOpeningMissed(),
       EventKind.theRoomRefused => TheRoomRefused(
         third: random.nextBool(),
         sounding: _drawKept(random),
@@ -649,6 +665,7 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
       EventKind.theBackTranslationOpened => const TheBackTranslationOpened(),
       EventKind.theNecklaceClosed => const TheNecklaceClosed(),
       EventKind.theRoomStartedOver => const TheRoomStartedOver(),
+      EventKind.thePanoramaChosen => const ThePanoramaChosen(),
     };
 
 Turn _drawATurn(Random random) => Turn('sessao-1', 'turn-${random.nextInt(3)}');

@@ -19,9 +19,6 @@ String strandedTakeAsset(String language) =>
 
 const panoramaPericope = 'OV';
 
-bool isThePanorama(String pericope) =>
-    pericope == panoramaPericope || pericope.startsWith('$panoramaPericope-');
-
 const instantAckLines = ['F0', 'F1', 'F2'];
 
 const startLine = 'P0';
@@ -63,14 +60,13 @@ const warningNoticeLabel = {
 String warningNoticeLabelFor(String language) =>
     warningNoticeLabel[language] ?? warningNoticeLabel[floorLanguage]!;
 
-const conviteLabels = {
-  'circle': {'pt': 'Falar com o facilitador', 'en': 'Talk to the facilitator'},
-  'enter': {'pt': 'Entrar na passagem', 'en': 'Enter the passage'},
+const panoramaCircleLabels = {
+  'pt': 'Falar com o facilitador',
+  'en': 'Talk to the facilitator',
 };
 
-String conviteLabelFor(String control, String language) =>
-    conviteLabels[control]![language] ??
-    conviteLabels[control]![floorLanguage]!;
+String panoramaCircleLabelFor(String language) =>
+    panoramaCircleLabels[language] ?? panoramaCircleLabels[floorLanguage]!;
 
 const handLabels = {
   'answering': {
@@ -95,8 +91,12 @@ String handLabelFor(String state, String language) =>
 const roomLabels = {
   'hearAgain': {'pt': 'Ouvir de novo', 'en': 'Hear it again'},
   'leavePassage': {
-    'pt': 'Deixar esta passagem e escolher outra',
-    'en': 'Leave this passage and choose another',
+    'pt': 'Escolher outra passagem',
+    'en': 'Choose another passage',
+  },
+  'backToPassage': {
+    'pt': 'Voltar para a passagem atual',
+    'en': 'Back to the current passage',
   },
   'micBlocked': {
     'pt': 'A sala precisa do microfone para funcionar',

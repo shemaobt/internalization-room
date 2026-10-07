@@ -14,11 +14,12 @@ import '../dev/dev_skip_bar.dart';
 import 'widgets/codigo_view.dart';
 import 'widgets/colar_overlay.dart';
 import 'widgets/conversa_view.dart';
-import 'widgets/convite_view.dart';
+import 'widgets/panorama_view.dart';
 import 'widgets/ensaio_view.dart';
 import 'widgets/escolha_view.dart';
 import 'widgets/hand_button.dart';
 import 'widgets/hear_again_button.dart';
+import 'widgets/back_to_passage_button.dart';
 import 'widgets/leave_passage_button.dart';
 import 'widgets/mic_gate_view.dart';
 import 'widgets/retro_view.dart';
@@ -136,6 +137,7 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
             const _HandLayer(),
             const HearAgainButton(),
             const LeavePassageButton(),
+            const BackToPassageButton(),
             const DevSkipBar(),
           ],
         ),
@@ -145,8 +147,8 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
 
   Widget _stageView(SalaStage stage) {
     switch (stage) {
-      case SalaStage.convite:
-        return const ConviteView();
+      case SalaStage.panorama:
+        return const PanoramaView();
       case SalaStage.escolha:
         return const EscolhaView();
       case SalaStage.conversa:
@@ -188,13 +190,12 @@ class _ColarLayer extends ConsumerWidget {
   }
 }
 
-/// The hand lives outside the switcher, so raising it once during the convite carries
-/// through into the conversa without a second copy flashing up beside it while the two
+/// The hand lives outside the switcher, so no second copy flashes up beside it while two
 /// screens cross-fade.
 class _HandLayer extends ConsumerWidget {
   const _HandLayer();
 
-  static const _inside = {SalaStage.convite, SalaStage.conversa};
+  static const _inside = {SalaStage.panorama, SalaStage.conversa};
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

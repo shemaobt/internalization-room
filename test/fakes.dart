@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
 import 'package:internalization_room/features/sala/data/connectivity_service.dart';
+import 'package:internalization_room/features/sala/data/current_session_ledger.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/data/credential_vault.dart';
 import 'package:internalization_room/features/sala/data/device_link_notifier.dart';
@@ -35,9 +36,9 @@ import 'package:internalization_room/features/sala/domain/coverage.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
@@ -93,7 +94,8 @@ Coverage coverage({int engaged = 0, int surfaced = 0}) => Coverage(
   engaged: engaged,
   surfaced: surfaced,
   total: totalBeads,
-  absenceIndex: totalBeads - 1,
+  beadsFilled: engaged,
+  beadsTold: true,
 );
 
 class FakeVoice implements FacilitatorVoiceService {
@@ -108,6 +110,9 @@ class FakeVoice implements FacilitatorVoiceService {
   final List<(String, String)> fixedLines = [];
   final List<(String, String)> readied = [];
   final List<String> fetched = [];
+
+  /// Whether a line is said whole. A stopped line ends unsaid: the real service answers
+  /// false when its sound is cut short (`_sayItWhole`).
   bool succeeds = true;
 
   /// Lines this voice refuses to say, by url, by asset path or by a fixed line's name.
@@ -661,12 +666,6 @@ class FakeFinished implements FinishedPassages {
     await _holdingAdd?.future;
     done.add('$book/$pericope');
   }
-
-  @override
-  Future<bool> bookOpened(String book) async => done.contains('livro:$book');
-
-  @override
-  Future<void> markBookOpened(String book) async => done.add('livro:$book');
 }
 
 /// In memory, like the finished-passages double. The real one touches disk, and the
@@ -675,6 +674,22 @@ class FakeFinished implements FinishedPassages {
 const turnoUrl = '/api/internalization-room/voice/turno';
 const panoramaUrl = '/api/internalization-room/voice/panorama';
 const sceneUrl = '/api/internalization-room/voice/cena';
+const deNovoUrl = '/api/internalization-room/voice/de-novo';
+
+class FakeCurrentSessionLedger implements CurrentSessionLedger {
+  CurrentSession? held;
+
+  @override
+  Future<CurrentSession?> read() async => held;
+
+  @override
+  Future<void> hold(CurrentSession session) async => held = session;
+
+  @override
+  Future<void> letGo({String? only}) async {
+    if (only == null || held?.sessionId == only) held = null;
+  }
+}
 
 class FakeWorkInProgress implements WorkInProgress {
   final Map<String, ResumePoint> rows = {};
@@ -1033,9 +1048,6 @@ class FakeRoom implements RoomRepository {
     Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
   ];
 
-  /// The passage the room hands back when this tablet asks for the panorama.
-  String? panoramaAnsweredWith;
-
   /// The ids this room gave the sessions it opened, in the order it opened them.
   final List<String> sessionIds = [];
 
@@ -1044,6 +1056,16 @@ class FakeRoom implements RoomRepository {
 
   /// The turn id each opening turn carried, null included, in the order it was asked.
   final List<String?> turnIdsAsked = [];
+
+  /// The sessions that hold a Guide line: an opening answered, or a team turn.
+  final Set<String> openedSessions = {};
+
+  /// The sessions this room was asked to say its last line again, in order.
+  final List<String> sessionsSaidAgain = [];
+
+  /// Whether the session `createSession` hands back is one the team already talked in,
+  /// the way another tablet or a lost row leaves it.
+  bool createdOpened = false;
 
   final List<String> turnIdsSent = [];
 
@@ -1070,6 +1092,15 @@ class FakeRoom implements RoomRepository {
   RoomFailure? failWith;
 
   Set<String> passagesThatCannotOpen = {};
+
+  Completer<void>? _holdingPassages;
+
+  void holdNextPassages() => _holdingPassages = Completer<void>();
+
+  void finishHeldPassages() {
+    _holdingPassages?.complete();
+    _holdingPassages = null;
+  }
 
   Completer<void>? _holdingTurn;
   Completer<void>? _holdingCode;
@@ -1272,21 +1303,17 @@ class FakeRoom implements RoomRepository {
     pericopesAsked.add(pericope);
     metBefore.add(afterSession != null);
     languagesSent.add(language);
-    // The server decides which passage a session is for; asking for the panorama is a
-    // request, not an instruction. Honoured, the ask for "OV" comes back as the real id
-    // "OV-Ruth", the way the room answers it; this is where that stops being true.
-    final answered = pericope == panoramaPericope
-        ? panoramaAnsweredWith ?? '$panoramaPericope-Ruth'
-        : pericope;
     final sessionId = 'sessao-${sessionIds.length + 1}';
     sessionIds.add(sessionId);
     return Answered(
       SessionSnapshot(
         sessionId: sessionId,
-        pericope: answered ?? 'rute-1',
-        status: 'in_progress',
+        pericope: pericope ?? 'rute-1',
+        status: serverStatus ?? 'in_progress',
         coverage: nextCoverage,
         done: false,
+        halt: serverHalt,
+        opened: createdOpened,
       ),
     );
   }
@@ -1297,6 +1324,7 @@ class FakeRoom implements RoomRepository {
     required String language,
   }) async {
     if (_guard('passagesOf') case final failure?) return failure;
+    await _holdingPassages?.future;
     booksAsked.add(book);
     languagesAsked.add(language);
     return Answered(passages);
@@ -1325,6 +1353,7 @@ class FakeRoom implements RoomRepository {
             : (settledCoverage ?? nextCoverage),
         done: done,
         halt: serverHalt,
+        opened: openedSessions.contains(sessionId),
         backTranslation:
             retroSoFar ?? BackTranslationProgress(segments: List.of(segments)),
       ),
@@ -1349,6 +1378,28 @@ class FakeRoom implements RoomRepository {
     }
     sessionsSpokenTo.add(sessionId);
     turnIdsAsked.add(turnId);
+    if (openedSessions.contains(sessionId)) {
+      sessionsSaidAgain.add(sessionId);
+      return Answered(
+        TurnResult(
+          sessionId: sessionId,
+          audioUrl: deNovoUrl,
+          fixedLine: '',
+          transcript: '',
+          peerCue: false,
+          usedFailSafe: turnsAreCanned,
+          degraded: false,
+          coverage: silentAboutCoverage ? null : nextCoverage,
+          done: done,
+          segments: opensInTwoMovements
+              ? const [
+                  SpokenSegment(role: 'panorama', audioUrl: panoramaUrl),
+                  SpokenSegment(role: 'scene', audioUrl: sceneUrl),
+                ]
+              : const [],
+        ),
+      );
+    }
     return _theTurnAnswers(sessionId, turnId);
   }
 
@@ -1375,13 +1426,17 @@ class FakeRoom implements RoomRepository {
     String? turnId,
   ) async {
     final landed = turnsLandBeforeTheyFail ? _turn(sessionId) : null;
-    if (landed != null && turnId != null) _stored[(sessionId, turnId)] = landed;
+    if (landed != null) {
+      openedSessions.add(sessionId);
+      if (turnId != null) _stored[(sessionId, turnId)] = landed;
+    }
     final failure = await _turnArrives().timeout(
       RoomRepository.turnTimeout,
       onTimeout: () => const NetworkFailed('timeout'),
     );
     if (failure != null) return failure;
     final turn = landed ?? _turn(sessionId);
+    openedSessions.add(sessionId);
     if (turnId != null) _stored[(sessionId, turnId)] = turn;
     return Answered(turn);
   }
@@ -1392,6 +1447,8 @@ class FakeRoom implements RoomRepository {
     String turnId,
   ) async {
     turnIdsLookedAt.add(turnId);
+    final held = _holdingLook;
+    if (held != null) await held.future;
     if (_guard('lookAtTheTurn') case final failure?) return failure;
     if (failLooksWith case final failure?) return failure;
     if (looksFindTheTurnInFlight) return Refused(RefusalCode.unnamed(202));
@@ -1400,6 +1457,10 @@ class FakeRoom implements RoomRepository {
         ? const Refused(RefusalCode.notFound)
         : Answered(stored);
   }
+
+  Completer<void>? _holdingLook;
+
+  void holdTheLooks() => _holdingLook = Completer<void>();
 
   Completer<void>? _substituicaoSegura;
 
@@ -2262,9 +2323,11 @@ Future<void> confirmarATraducaoNaTela(
 }
 
 class SalaHarness {
-  final Directory takesHome = Directory.systemTemp.createTempSync(
-    'sala-tomadas',
-  );
+  final Directory takesHome;
+
+  /// In memory unless the test hands it a ledger on disk, for widget tests, whose binding
+  /// never lets real IO finish. A relaunch hands it on.
+  final CurrentSessionLedger currentSession;
 
   /// Everything that made or stopped a sound, in the order it happened: `playback:play`,
   /// `playback:pause`, `playback:stop`, `voice:line`, `voice:asset`, `voice:stop`,
@@ -2320,16 +2383,25 @@ class SalaHarness {
     this.filaEmMemoria = false,
     this.lingua = testLanguage,
     this.emAbertoNoDisco,
+    this.finishedOnDisk,
     this.inboxService,
     FakeRoom? room,
     this.takesOverride,
+    Directory? takesHome,
+    CurrentSessionLedger? currentSession,
   }) : room = room ?? FakeRoom(),
+       takesHome =
+           takesHome ?? Directory.systemTemp.createTempSync('sala-tomadas'),
+       currentSession = currentSession ?? FakeCurrentSessionLedger(),
        inbox = FakeInbox(replies: replies),
        vinculo = FakeLinkedTeam(remembered: linkedAs);
 
   final Duration? linkPoll;
 
   final FakeFinished finished = FakeFinished();
+
+  /// The real ledger, for the tests that need a write still on its way to the disk.
+  final FinishedPassages? finishedOnDisk;
 
   /// The real inbox, for the cases that need a server that can refuse or go away.
   final HandInboxRepository? inboxService;
@@ -2356,8 +2428,9 @@ class SalaHarness {
     handInboxRepositoryProvider.overrideWithValue(inboxService ?? inbox),
     roomRepositoryProvider.overrideWithValue(room),
     takeUploadQueueProvider.overrideWithValue(takes),
-    finishedPassagesProvider.overrideWithValue(finished),
+    finishedPassagesProvider.overrideWithValue(finishedOnDisk ?? finished),
     workInProgressProvider.overrideWithValue(emAbertoNoDisco ?? emAberto),
+    currentSessionLedgerProvider.overrideWithValue(currentSession),
     connectivityServiceProvider.overrideWithValue(network),
     linkedTeamProvider.overrideWithValue(vinculo),
     linkPollIntervalProvider.overrideWithValue(linkPoll),

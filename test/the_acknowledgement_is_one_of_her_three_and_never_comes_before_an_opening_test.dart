@@ -93,43 +93,33 @@ void main() {
     expect(_acknowledgementsIn(harness.voice.fixedLines), isEmpty);
   });
 
-  test('a scene asked again after a lift plays no acknowledgement', () async {
-    final harness = SalaHarness();
-    harness.voice.roomFailsWith = const Refused(RefusalCode.notFound);
+  test('a scene asked again from the Menu after a failed opening plays no '
+      'acknowledgement', () async {
+    final harness = SalaHarness()
+      ..room.failHeldTurnWith = const Refused('BAD_REQUEST');
     final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
-    await notifier.goConversa();
-    await waitFor('a sala parar', () => read().needsPerson);
+    await enterThePassage(notifier, read, 'P01');
+    await waitFor(
+      'a abertura falhar em silêncio',
+      () =>
+          harness.room.turnIdsAsked.isNotEmpty &&
+          read().voice == VoiceState.invite,
+    );
+    notifier.leaveThePassage();
     harness.voice.fixedLines.clear();
 
-    await theHaltIsLifted(harness, notifier, read);
+    await enterThePassage(notifier, read, 'P01');
+    await waitFor(
+      'a cena ser dita',
+      () => harness.voice.played.contains(turnoUrl),
+    );
 
-    expect(harness.room.turnIdsAsked.length, greaterThanOrEqualTo(2));
+    expect(harness.room.turnIdsAsked, hasLength(2));
     expect(_acknowledgementsIn(harness.voice.fixedLines), isEmpty);
   });
-
-  test('a scene asked again by a tap while it is owed plays no '
-      'acknowledgement', () async {
-    final harness = SalaHarness();
-    harness.voice.succeeds = false;
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    await notifier.goConversa();
-    await settle();
-    harness.voice.succeeds = true;
-    harness.voice.fixedLines.clear();
-    final turnsBefore = harness.room.turnIdsAsked.length;
-
-    notifier.conversaTap();
-    await settle();
-
-    expect(harness.room.turnIdsAsked.length, turnsBefore + 1);
-    expect(_acknowledgementsIn(harness.voice.fixedLines), isEmpty);
-  });
-
   test('the panorama\'s opening plays no acknowledgement', () async {
     final harness = SalaHarness()..room.passages = const [_panorama, _p01];
     final container = harness.container();

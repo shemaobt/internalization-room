@@ -164,6 +164,8 @@ class SessionSnapshot {
 
   final HaltKind halt;
 
+  final bool opened;
+
   const SessionSnapshot({
     required this.sessionId,
     required this.pericope,
@@ -172,6 +174,7 @@ class SessionSnapshot {
     required this.done,
     this.backTranslation = const BackTranslationProgress(),
     this.halt = HaltKind.unnamed,
+    this.opened = false,
   });
 
   factory SessionSnapshot.fromJson(Map<String, dynamic> json) =>
@@ -191,6 +194,7 @@ class SessionSnapshot {
                 (json['back_translation'] as Map).cast<String, dynamic>(),
               ),
         halt: HaltKind.fromJson(json['halt']),
+        opened: json['opened'] as bool? ?? false,
       );
 
   /// A halt the server calls a warning asks for a person to come and watch and refuses

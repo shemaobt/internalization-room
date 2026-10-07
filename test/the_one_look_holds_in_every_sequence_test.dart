@@ -54,9 +54,18 @@ final _aGivenUpTurnNeverFallsOutOfReach = Invariant<_Room>(
 );
 
 final _anEmptyLookShowsThePersonSign = Invariant<_Room>(
-  'an empty look shows the person sign',
+  'an empty look shows the person sign, unless it looked for an opening',
   (before, event, after, effects, world) {
     if (event is! LookEmpty) return null;
+    if (event.sounding is TheOpening) {
+      if (after.machine.halt != before.machine.halt) {
+        return 'a look for an opening changed the halt';
+      }
+      if (!effects.contains(const LetTheOpeningGo())) {
+        return 'a look for an opening did not let it go';
+      }
+      return null;
+    }
     if (after.machine.halt is! Blocking) {
       return 'no person sign after an empty look';
     }

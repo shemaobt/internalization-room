@@ -9,9 +9,10 @@ import 'package:internalization_room/features/sala/data/device_link_notifier.dar
 import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
+import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/dev/dev_skip_bar.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/convite_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/escolha_view.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
@@ -53,6 +54,26 @@ void main() {
     },
   );
 
+  testWidgets(
+    'an unlinked tablet holding a session shows the code screen and asks the room nothing',
+    (tester) async {
+      final harness = SalaHarness(linkedAs: _unclaimed);
+      await harness.currentSession.hold(
+        const CurrentSession(
+          sessionId: 'sessao-guardada',
+          book: 'Ruth',
+          pericope: 'P01',
+          language: testLanguage,
+        ),
+      );
+      await pumpSala(tester, harness);
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.byType(CodigoView), findsOneWidget);
+      expect(harness.room.calls, isNot(contains('fetchState')));
+    },
+  );
+
   testWidgets('a tablet still waiting for its code offers the room no way in', (
     tester,
   ) async {
@@ -61,11 +82,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(
-      find.byType(ConviteView),
+      find.byType(EscolhaView),
       findsNothing,
       reason:
-          'entre o pedido e a resposta a tela caía no convite, e um toque ali abria '
-          'sessão com a chave compartilhada — exatamente o que o vínculo existe para tirar',
+          'entre o pedido e a resposta a tela não pode mostrar a sala: um toque ali '
+          'abriria sessão com a chave compartilhada — exatamente o que o vínculo existe '
+          'para tirar',
     );
     expect(find.byType(EditableText), findsNothing);
 
@@ -82,6 +104,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(find.byType(CodigoView), findsNothing);
+    expect(find.byType(EscolhaView), findsOneWidget);
     expect(
       harness.room.codesAskedFor,
       isEmpty,

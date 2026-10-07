@@ -19,7 +19,6 @@ class FacilitatorCircle extends StatelessWidget {
   final RoomReach reach;
   final bool noteMode;
   final bool peerCue;
-  final bool beckon;
 
   /// What the warning mark says to VoiceOver, or null while the server's last word
   /// was silence rather than a warning.
@@ -44,7 +43,6 @@ class FacilitatorCircle extends StatelessWidget {
     required this.semanticLabel,
     this.noteMode = false,
     this.peerCue = false,
-    this.beckon = false,
     this.warning,
     this.halt = const NoHalt(),
     this.opacity = 1,
@@ -75,7 +73,6 @@ class FacilitatorCircle extends StatelessWidget {
               clipBehavior: Clip.none,
               alignment: Alignment.center,
               children: [
-                if (beckon) ..._beckoning(colors),
                 _body(colors, still),
                 if (!_halted && voice == VoiceState.speaking)
                   ..._ripples(colors),
@@ -136,28 +133,6 @@ class FacilitatorCircle extends StatelessWidget {
       ),
     );
     return [ring(0), ring(0.65)];
-  }
-
-  List<Widget> _beckoning(SalaColors colors) {
-    Widget ring(double phase) => Ripple(
-      period: const Duration(milliseconds: 2600),
-      phase: phase,
-      builder: (context, t) => Transform.scale(
-        scale: 1 + 0.42 * t,
-        child: Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: colors.telha.withValues(alpha: 0.55 * (1 - t)),
-              width: 3,
-            ),
-          ),
-        ),
-      ),
-    );
-    return [ring(0), ring(0.5)];
   }
 
   /// A tablet with no network at all, or a network with no room answering on it.
@@ -343,11 +318,9 @@ class FacilitatorCircle extends StatelessWidget {
   );
 
   Widget _liveBreath(SalaColors colors) => Loop(
-    period: Duration(milliseconds: beckon ? 1800 : 4600),
-    builder: (context, t) => Transform.scale(
-      scale: 1 + (beckon ? 0.09 : 0.045) * t,
-      child: _liveDisc(colors),
-    ),
+    period: const Duration(milliseconds: 4600),
+    builder: (context, t) =>
+        Transform.scale(scale: 1 + 0.045 * t, child: _liveDisc(colors)),
   );
 
   /// A room that has stopped, and is still running.

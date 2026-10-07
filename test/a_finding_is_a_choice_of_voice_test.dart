@@ -30,7 +30,7 @@ const conferir = 'Conferir a tradução';
 const gravarEstaParteDeNovo = 'Tocar para gravar esta parte de novo';
 const confirmarAParte = 'Confirmar esta parte';
 const irParaATraducao = 'Ir para a tradução';
-const sairDaPassagem = 'Deixar esta passagem e escolher outra';
+const sairDaPassagem = 'Escolher outra passagem';
 
 const rotulosDaGrade = [
   'Ouvir a voz de vocês, na língua materna',
