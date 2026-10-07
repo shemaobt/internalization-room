@@ -3,12 +3,14 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/channel.dart';
+import '../domain/failure_policy.dart';
 import '../domain/machine.dart';
 import '../domain/ports.dart';
 import '../domain/room_reach.dart';
 import '../domain/turn_result.dart';
 import 'connectivity_service.dart';
 import 'facilitator_voice_service.dart';
+import 'linked_team.dart';
 import 'playback_repository.dart';
 import 'recording_repository.dart';
 import 'room_answer.dart';
@@ -17,8 +19,11 @@ import 'take_upload_queue.dart';
 
 class ProviderRoomPort implements RoomPort {
   final Ref _ref;
+  bool _gone = false;
 
-  ProviderRoomPort(this._ref);
+  ProviderRoomPort(this._ref) {
+    _ref.onDispose(() => _gone = true);
+  }
 
   @override
   Stream<void> get networkReturned =>
@@ -42,6 +47,38 @@ class ProviderRoomPort implements RoomPort {
   @override
   Future<RoomReach> reach() =>
       _ref.read(connectivityServiceProvider).reachRoom();
+
+  @override
+  Future<RoomResult> askForAPerson(String session) async =>
+      _resultOf(await _ref.read(roomRepositoryProvider).askForAPerson(session));
+
+  @override
+  Future<TabletCallAnswer> askForAPersonWithoutASession() async {
+    final String? deviceId;
+    try {
+      deviceId = (await _ref.read(linkedTeamProvider).read()).deviceId;
+    } on Exception {
+      return const TheDeviceLinkUnread();
+    }
+    if (_gone) return const TheRoomIsGone();
+    if (deviceId == null) return const TheTabletIsUnknown();
+    return TabletCallAnswered(
+      _resultOf(
+        await _ref
+            .read(roomRepositoryProvider)
+            .askForAPersonWithoutASession(deviceId),
+      ),
+    );
+  }
+
+  @override
+  Future<RoomResult> personArrived(String session) async =>
+      _resultOf(await _ref.read(roomRepositoryProvider).personArrived(session));
+
+  RoomResult _resultOf(RoomAnswer<void> answer) => switch (answer) {
+    Answered() => const RoomAnswered(),
+    final RoomFailure failure => failure.result,
+  };
 }
 
 class ProviderSoundPort implements SoundPort {

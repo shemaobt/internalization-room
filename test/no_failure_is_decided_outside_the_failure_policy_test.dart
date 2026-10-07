@@ -18,8 +18,6 @@ const _intoTheMapper = [
 /// Doors whose room failures still decide on their own, each with the ticket that
 /// moves it into the failure policy.
 const _notYetMoved = <String, String>{
-  '_anEarlierSessionAnswered': 'ENG-1354',
-  '_tellTheRoomAPersonArrivedAt': 'ENG-1354',
   '_aprovarRascunhoFinal': 'ENG-1444',
   '_asPartesDaSala': 'ENG-1444',
   '_createThePassage': 'ENG-1444',
@@ -33,8 +31,14 @@ const _notYetMoved = <String, String>{
   '_watchCoverageChannel': 'ENG-1444',
 };
 
+/// Doors that act on a room result themselves by decision, each with the ADR that keeps it
+/// out of the failure policy.
+const _keptByDecision = <String, String>{
+  '_theCallOfAnEarlierSession': 'ADR 0060',
+};
+
 final _namesAFailure = RegExp(
-  r'\b(NetworkFailed|Refused|SessionGone)\b|\bRoomFailure\b',
+  r'\b(Room)?(NetworkFailed|Refused|SessionGone)\b|\bRoom(Failure|Result)\b',
 );
 
 final _aMethod = RegExp(r'^  (?![\s/])[\w<>?, ]*?\b(_?\w+)\(', multiLine: true);
@@ -103,7 +107,10 @@ List<String> _failuresCaughtOutsideTheMapper(String source) {
     final pattern = source.substring(arm.end, colon);
     if (!_namesAFailure.hasMatch(pattern)) continue;
     final method = _methodAround(source, arm.start);
-    if (_notYetMoved.containsKey(method)) continue;
+    if (_notYetMoved.containsKey(method) ||
+        _keptByDecision.containsKey(method)) {
+      continue;
+    }
     final bound = RegExp(
       r'final\s+(?:\w+\s+)?(\w+)\s*$',
     ).firstMatch(pattern.split(' when ').first.split('&&').last.trim());
@@ -121,7 +128,10 @@ List<String> _failuresCaughtOutsideTheMapper(String source) {
     r'(?:\s+catch\s*\((\w+)[^)]*\))?\s*\{',
   ).allMatches(source)) {
     final method = _methodAround(source, clause.start);
-    if (_notYetMoved.containsKey(method)) continue;
+    if (_notYetMoved.containsKey(method) ||
+        _keptByDecision.containsKey(method)) {
+      continue;
+    }
     final body = source.substring(
       clause.end,
       _blockEnd(source, clause.end - 1),

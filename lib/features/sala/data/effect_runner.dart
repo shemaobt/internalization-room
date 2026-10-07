@@ -57,6 +57,29 @@ abstract interface class EffectHost {
 
   void hearTheSessionRead(SessionSnapshot snapshot, SentRead sent);
 
+  /// The room needs a person, the call has not landed, and no closed passage is being
+  /// marked.
+  bool get callIsWanted;
+
+  /// The passage in course, kept with a call for a person when it is sent.
+  String? get passageInCourse;
+
+  /// The Station hears a call that landed; with a session it also stamps the read order,
+  /// so a read sent before the landing cannot lift the halt.
+  void hearTheCallLanded();
+
+  void hearTheCallLandedWithoutASession();
+
+  /// A call's answer for a session that is no longer the room's acts on that session, with
+  /// the passage kept when the call was sent.
+  Future<void> hearAnEarlierSessionsCall(
+    String session,
+    String? passage,
+    RoomResult result,
+  );
+
+  void hearAnEarlierSessionGone(String session);
+
   /// An event the runner brings back to the machine, outside any gesture.
   void answer(MachineEvent event);
 
@@ -66,11 +89,7 @@ abstract interface class EffectHost {
 
   void silenceTheRoom();
 
-  void callForAPerson();
-
   void stopCallingForAPerson();
-
-  void tellAPersonArrived();
 
   void replayTheSound(Kept kept);
 
@@ -138,6 +157,7 @@ class EffectRunner {
   Future<void>? _probing;
   Future<RoomReach>? _asking;
   bool _aStepAsks = false;
+  bool _calling = false;
   bool _disposed = false;
 
   /// [micWasOpen] is what the microphone was before the machine reduced the event that
@@ -156,11 +176,11 @@ class EffectRunner {
         case ArmTheWatch():
           _armTheWatch();
         case CallForAPerson():
-          host.callForAPerson();
+          callForAPerson();
         case StopCallingForAPerson():
           host.stopCallingForAPerson();
         case TellAPersonArrived():
-          host.tellAPersonArrived();
+          _tellAPersonArrived();
         case ReadTheState():
           _readTheState();
         case ReplayTheSound(:final kept):
@@ -467,15 +487,11 @@ class EffectRunner {
       case SessionReadAnswered(:final snapshot):
         host.hearTheSessionRead(snapshot, sent);
       case SessionReadFailed(:final result):
-        host.answerWhereAsked(
-          FailurePolicy.decide(
-            result,
-            host.failureContext(
-              door: Door.watch,
-              rule: RefusalRule.passes,
-              why: RoomReach.noNetwork,
-            ),
-          ),
+        _decideAt(
+          result,
+          door: Door.watch,
+          rule: RefusalRule.passes,
+          why: RoomReach.noNetwork,
         );
     }
   }
@@ -490,15 +506,11 @@ class EffectRunner {
           final falls = _aStepAsks || !host.roomIsReachable;
           _aStepAsks = false;
           if (!_disposed && falls && reach != RoomReach.fine) {
-            host.answerWhereAsked(
-              FailurePolicy.decide(
-                const RoomNetworkFailed(),
-                host.failureContext(
-                  door: Door.probe,
-                  rule: RefusalRule.counts,
-                  why: reach,
-                ),
-              ),
+            _decideAt(
+              const RoomNetworkFailed(),
+              door: Door.probe,
+              rule: RefusalRule.counts,
+              why: reach,
             );
           }
           return reach;
@@ -514,6 +526,128 @@ class EffectRunner {
     if (_disposed || host.roomIsReachable) return;
     if (reach == RoomReach.fine) {
       host.answerWhereAsked(const NetworkReturned());
+    }
+  }
+
+  /// The call is only made when the server says it has it.
+  ///
+  /// Most of the ways into a halt are bad network and a room that is not answering, so
+  /// the call goes out at the worst possible moment to be delivered — and a lost one left
+  /// no trace anywhere: the session never entered the desk's queue, no facilitator was
+  /// told, and nobody arrived to tap the screen that is the only thing that asked again.
+  void callForAPerson() {
+    if (_calling || !host.callIsWanted) return;
+    _calling = true;
+    final session = host.session;
+    unawaited(
+      session == null
+          ? _callWithoutASession()
+          : _call(session, host.passageInCourse),
+    );
+  }
+
+  Future<void> _call(String session, String? passage) async {
+    final result = await room.askForAPerson(session);
+    if (_disposed) return;
+    if (host.session != session) {
+      return _anEarlierSessionAnswered(session, passage, result);
+    }
+    _calling = false;
+    if (result is! RoomAnswered) {
+      return _decideAt(
+        result,
+        door: Door.person,
+        rule: RefusalRule.asksAgain,
+        why: RoomReach.noNetwork,
+      );
+    }
+    if (!host.callIsWanted) return;
+    host.hearTheCallLanded();
+    host.answerWhereAsked(TheCallLanded(generation: generation?.call()));
+  }
+
+  /// An earlier session's call stays in the air until the Station has acted on it, so a
+  /// call wanted meanwhile is not asked twice.
+  Future<void> _anEarlierSessionAnswered(
+    String session,
+    String? passage,
+    RoomResult result,
+  ) async {
+    if (result is RoomNetworkFailed) {
+      _calling = false;
+      return _decideAt(
+        result,
+        door: Door.person,
+        rule: RefusalRule.counts,
+        why: RoomReach.noNetwork,
+      );
+    }
+    await host.hearAnEarlierSessionsCall(session, passage, result);
+    _calling = false;
+    if (!_disposed) callForAPerson();
+  }
+
+  /// The same ask, for a halt with no session to name: the tablet asks by its own device.
+  Future<void> _callWithoutASession() async {
+    final answer = await room.askForAPersonWithoutASession();
+    if (_disposed) return;
+    _calling = false;
+    switch (answer) {
+      case TabletCallAnswered(result: RoomAnswered()):
+        if (host.callIsWanted) host.hearTheCallLandedWithoutASession();
+      case TabletCallAnswered(:final result):
+        _decideAt(
+          result,
+          door: Door.person,
+          rule: RefusalRule.asksAgain,
+          why: RoomReach.noNetwork,
+        );
+      case TheTabletIsUnknown() || TheRoomIsGone():
+        break;
+      case TheDeviceLinkUnread():
+        host.askForAPersonAgain();
+    }
+  }
+
+  void _decideAt(
+    RoomResult result, {
+    required Door door,
+    required RefusalRule rule,
+    required RoomReach why,
+  }) => host.answerWhereAsked(
+    FailurePolicy.decide(
+      result,
+      host.failureContext(door: door, rule: rule, why: why),
+    ),
+  );
+
+  void _tellAPersonArrived() {
+    final session = host.session;
+    if (session != null) unawaited(_markTheArrival(session));
+  }
+
+  Future<void> _markTheArrival(String session) async {
+    final result = await room.personArrived(session);
+    if (_disposed) return;
+    switch (result) {
+      case RoomNetworkFailed():
+        _decideAt(
+          result,
+          door: Door.person,
+          rule: RefusalRule.counts,
+          why: RoomReach.noNetwork,
+        );
+      case RoomSessionGone() when host.session == session:
+        _decideAt(
+          result,
+          door: Door.step,
+          rule: RefusalRule.counts,
+          why: RoomReach.noNetwork,
+        );
+      case RoomSessionGone():
+        host.hearAnEarlierSessionGone(session);
+      case RoomAnswered() || RoomRefused() || RoomTimedOut():
+        break;
     }
   }
 

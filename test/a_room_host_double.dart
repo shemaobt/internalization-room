@@ -57,6 +57,34 @@ class ARoomHost implements EffectHost {
   void hearTheSessionRead(SessionSnapshot snapshot, SentRead sent) =>
       readsHeard.add(snapshot);
 
+  @override
+  bool callIsWanted = true;
+
+  @override
+  String? passageInCourse;
+
+  int callsLanded = 0;
+  int callsLandedWithoutASession = 0;
+  final List<(String, String?, RoomResult)> earlierCallsHeard = [];
+  final List<String> earlierSessionsGone = [];
+
+  @override
+  void hearTheCallLanded() => callsLanded++;
+
+  @override
+  void hearTheCallLandedWithoutASession() => callsLandedWithoutASession++;
+
+  @override
+  Future<void> hearAnEarlierSessionsCall(
+    String session,
+    String? passage,
+    RoomResult result,
+  ) async => earlierCallsHeard.add((session, passage, result));
+
+  @override
+  void hearAnEarlierSessionGone(String session) =>
+      earlierSessionsGone.add(session);
+
   void Function()? onPartEnd;
 
   @override
@@ -99,13 +127,7 @@ class ARoomHost implements EffectHost {
   void silenceTheRoom() => asked.add('silenceTheRoom');
 
   @override
-  void callForAPerson() => asked.add('callForAPerson');
-
-  @override
   void stopCallingForAPerson() => asked.add('stopCallingForAPerson');
-
-  @override
-  void tellAPersonArrived() => asked.add('tellAPersonArrived');
 
   @override
   void replayTheSound(Kept kept) => asked.add('replayTheSound');
