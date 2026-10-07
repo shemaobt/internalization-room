@@ -1,15 +1,15 @@
 ---
 status: accepted
 date: 2026-10-07
-amends: 0053, 0013 (in part: the first tap also cuts the voice)
+amends: 0053, 0013 (in part: the first tap also cuts the voice), 0024 (in part: the interruption's stop is the machine's), 0046 (in part: the invariant)
 ---
 
 # A tap while the voice speaks cuts her off, opens the microphone, and the next take carries the cut
 
-This amends ADRs 0053 and 0013 without editing their decisions; it adds "amended by 0067"
-to 0053's status line and a note under 0013's title. The Definer settled the rules on the
-ticket (ENG-1447) on 7 October; the Orchestrator settled the mechanism and the invariant
-the same day. The server half (shema-api #643) reads three optional form fields on a turn.
+This amends ADRs 0053, 0013, 0024 and 0046 without editing their decisions; it adds
+"amended by 0067" to the status lines of 0053 and 0046 and a note under the titles of 0013
+and 0024. The Definer settled the rules on the ticket (ENG-1447) on 7 October; the
+Orchestrator settled the mechanism and the invariant the same day. The server half (shema-api #643) reads three optional form fields on a turn.
 
 ## Context
 
@@ -25,16 +25,23 @@ where. No ADR said in words that the tap was ignored.
   Canvas, with no blocking halt, and only while a guide or approved line speaks, or the
   instant acknowledgement speaks with the reply queued behind it. Its effects are
   `[StopTheSound, OpenTheMic]`, in that order.
+- **The interruption's silence does not pass through the one silence of ADR 0024.** Its
+  bookkeeping is the Station's quieting (what was heard, the playback callbacks, the
+  cursor), and its stop is the machine's `StopTheSound`; no `GestureSilenced` is
+  dispatched.
 - **The cut point is measured on the voice player before the stop.** `at` is the line's
   position; `of` is the line's length only when the player knows the clip's real duration,
-  that is for a clip it opened from a file on disk, never the estimate a streamed clip is
-  bounded by.
+  that is for a clip it opened whole, from a file on disk or from the app's own assets,
+  never the estimate a streamed clip is bounded by. Until her line is open, the player
+  answers no position and no length, and a stop that lands before then ends the line
+  unsaid: it never plays.
 - **The cut rides the microphone and then the take, and leaves with the take's send.** A
   take the capture guard refuses, a discard, a refusal and a generation move drop it. No
   field of the notifier holds it.
 - **A cut line counts as heard** (`Said.cut`). The reply is remembered whole for «Ouvir de
   novo», and the turn settles as played: the end of the passage, the network health and the
-  calm count.
+  calm count. Its cue for the team to talk among themselves is not given: they already
+  spoke over her.
 - **A cut ends the whole line, both movements of an Opening included.** The movement being
   spoken gives `at` and `of`. A cut in the first movement remembers the Scene with its
   Panorama and does not say the Scene, whether the Opening is said for the first time or
@@ -43,8 +50,8 @@ where. No ADR said in words that the tap was ignored.
   queued cuts the acknowledgement and drops the queued reply. It reports `at = 0`, and `of`
   only when the reply's length is known, and remembers the reply.
 - **The thinking voice, the Panorama's circle and the note keep ignoring the tap.**
-- **The invariant "the microphone never opens under a sound" is sharpened** to "`OpenTheMic`
-  over a sound only when a `StopTheSound` comes before it in the same effects". That is the
+- **ADR 0046's invariant "the microphone never opens under a sound" is sharpened** to
+  "`OpenTheMic` over a sound only when a `StopTheSound` comes before it in the same effects". That is the
   order `_startListening` already gives in two events back to back; one event carries both,
   so no queued line drains into the silence between them.
 
@@ -53,6 +60,11 @@ where. No ADR said in words that the tap was ignored.
 **`GestureSilenced` then `MicOpened`, as `_startListening` does.** Rejected: between the
 two events the Channel is silent, and a queued line can drain into it; the reply waiting
 behind the acknowledgement would start under the microphone the tap is opening.
+
+**The runner measuring the cut when it runs `StopTheSound`, and answering the machine
+afterwards.** Rejected: the measure must precede the reduce that carries it, or the event
+would carry no cut. ADR 0066's "port work is the runner's" holds for the stop, not for the
+reading; the Station reads the Sound port before it dispatches.
 
 **A notifier field holding the cut until the next send.** Rejected: every way a microphone
 ends without a take would need its own clearing, and a missed one sends a stale cut.
