@@ -9,7 +9,8 @@ final class Menu extends Station {
 
   @override
   Station answer(StationEvent event) => switch (event) {
-    TheRoomStartedOver() => const Convite(),
+    TheRoomStartedOver() => const Menu(),
+    ThePanoramaChosen() => const Panorama(),
     TheChoiceOpened() => const Menu(),
     PassageChosen() => const Canvas(),
     TheRehearsalOpened() => const Ensaio(),

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -37,7 +38,6 @@ void main() {
 
       expect(await ledger.all('Ruth'), {'P01', 'P02'});
       expect(await ledger.all('Jonah'), isEmpty);
-      expect(await ledger.bookOpened('Ruth'), isTrue);
     },
   );
 
@@ -66,7 +66,25 @@ void main() {
       await file().writeAsString('{"feitas": ["P01"]}');
 
       expect(await ledger.all('Ruth'), isEmpty);
-      expect(await ledger.bookOpened('Ruth'), isFalse);
+    },
+  );
+
+  test(
+    'a read of the finished passages waits for a write still in flight',
+    () async {
+      final theDiskAnswers = Completer<void>();
+      final ledger = FinishedPassages(
+        home: () async {
+          await theDiskAnswers.future;
+          return home;
+        },
+      );
+
+      unawaited(ledger.add('Ruth', 'P01'));
+      final read = ledger.all('Ruth');
+      theDiskAnswers.complete();
+
+      expect(await read, contains('P01'));
     },
   );
 }

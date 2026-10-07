@@ -257,6 +257,10 @@ final class TheRoomStartedOver extends StationEvent {
   const TheRoomStartedOver();
 }
 
+final class ThePanoramaChosen extends StationEvent {
+  const ThePanoramaChosen();
+}
+
 final class TheSessionIsGone extends AnsweringEvent {
   const TheSessionIsGone({super.generation});
 }
@@ -678,7 +682,7 @@ final class Machine {
     this.inFlight,
     this.lastLine,
     this.lastMic,
-    this.station = const Convite(),
+    this.station = const Menu(),
   });
 
   bool get reachable => reach == Reach.reachable;

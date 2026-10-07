@@ -8,7 +8,7 @@ import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart' show enterThePassage, settle;
 
 const _panorama = Passagem(
   pericope: 'panorama',
@@ -150,16 +150,15 @@ void main() {
         harness.room.pericopesAsked,
         contains(panoramaPericope),
         reason:
-            'o panorama é pedido pelo mesmo alias que o convite já '
-            'usa (panoramaPericope), não pelo id que a roda pôs nele — '
-            'é o mesmo pedido, venha de onde vier',
+            'o panorama é pedido pelo seu alias (panoramaPericope), não '
+            'pelo id que a roda pôs nele',
       );
       expect(
         container.read(salaSessionProvider).stage,
-        SalaStage.escolha,
+        SalaStage.panorama,
         reason:
             'entrar no panorama nunca cai numa passagem — a equipe '
-            'continua na roda depois de ele falar',
+            'fica no panorama depois de ele falar',
       );
       expect(
         harness.room.sessionsSpokenTo,
@@ -270,7 +269,7 @@ void main() {
     final state = container.read(salaSessionProvider);
     expect(
       state.stage,
-      SalaStage.escolha,
+      SalaStage.panorama,
       reason:
           'o panorama não tem fim previsto e nada aqui agenda um — '
           'esperar não move a equipe para lugar nenhum',
@@ -297,9 +296,8 @@ void main() {
       hasLength(1),
       reason:
           'o mesmo toque repetido sem sair da roda não pode cunhar '
-          'uma segunda sessão de panorama — é exatamente o defeito que '
-          'a guarda do openConvite existe para evitar, um panorama '
-          'abandonado por toque',
+          'uma segunda sessão de panorama — um panorama abandonado '
+          'por toque',
     );
     expect(
       harness.room.sessionsSpokenTo,
@@ -318,41 +316,8 @@ void main() {
     );
   });
 
-  test('when the room answers the panorama with a passage instead, the team '
-      'lands there, not stuck on the wheel', () async {
-    final harness = SalaHarness()
-      ..room.passages = const [_panorama, _p01]
-      ..room.panoramaAnsweredWith = 'P02';
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    await notifier.abrirEscolha();
-    await settle();
-
-    notifier.entrarNaOferecida();
-    await settle();
-
-    expect(harness.room.pericopesAsked, contains(panoramaPericope));
-    expect(
-      container.read(salaSessionProvider).stage,
-      SalaStage.conversa,
-      reason:
-          'pedir o panorama é um pedido, não uma ordem — a sala pode '
-          'responder com a passagem em que a equipe já está, e ficar na '
-          'roda tocando um turno de abertura que ninguém está pronto '
-          'para responder é pior do que segui-la para onde respondeu',
-    );
-    expect(
-      harness.room.sessionIds,
-      hasLength(1),
-      reason:
-          'a sessão que a sala já abriu é a que a equipe entra — '
-          'pedir outra abandonaria a primeira',
-    );
-  });
-
   test(
-    'the team leaves the panorama by turning the wheel to a passage',
+    'the team leaves the panorama for the wheel and enters a passage',
     () async {
       final harness = SalaHarness()..room.passages = const [_panorama, _p01];
       final container = harness.container();
@@ -364,11 +329,16 @@ void main() {
       await settle();
       final panoramaSession = harness.room.sessionIds.single;
 
-      notifier.apontarPassagem(1);
-      notifier.dizerAPassagem();
-      await settle();
-      notifier.entrarNaOferecida();
-      await settle();
+      notifier.leaveThePassage();
+      await enterThePassage(
+        notifier,
+        () => container.read(salaSessionProvider),
+        'P01',
+      );
+      await waitFor(
+        'a passagem abrir',
+        () => container.read(salaSessionProvider).sessionId != null,
+      );
 
       expect(
         container.read(salaSessionProvider).stage,

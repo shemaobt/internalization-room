@@ -21,7 +21,8 @@ import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle, withDiskThatAnswersAtOnce;
+import 'scenario_helpers.dart'
+    show enterThePanorama, settle, theHaltIsLifted, withDiskThatAnswersAtOnce;
 
 Future<void> _intoFindings(
   SalaHarness harness,
@@ -97,19 +98,39 @@ Future<ProviderContainer> inConversa(SalaHarness harness) async {
   return container;
 }
 
-void main() {
-  test('session starts at convite with an inviting voice', () {
-    final container = SalaHarness().container();
-    addTearDown(container.dispose);
+const _thePanorama = Passagem(
+  pericope: 'panorama',
+  audioUrl: '/voice/panorama',
+  kind: PassagemKind.panorama,
+);
 
+/// The Choice open with the Panorama, its first entry, offered and nothing tapped yet.
+Future<void> _aimAtThePanorama(
+  SalaHarness harness,
+  ProviderContainer container,
+) async {
+  harness.room.passages = [_thePanorama, ...harness.room.passages];
+  await container.read(salaSessionProvider.notifier).abrirEscolha();
+  await waitFor('a roda oferecer o panorama', () {
     final state = container.read(salaSessionProvider);
-
-    expect(state.stage, SalaStage.convite);
-    expect(state.voice, VoiceState.invite);
-    expect(state.sessionId, isNull);
-    expect(state.colarOn, isFalse);
+    return state.oferecida == _thePanorama && state.voice == VoiceState.invite;
   });
+}
 
+/// The team taps the Panorama on the Choice, and its opening has had time to be said.
+Future<void> _enterThePanorama(
+  SalaHarness harness,
+  ProviderContainer container,
+) async {
+  harness.room.passages = [_thePanorama, ...harness.room.passages];
+  await enterThePanorama(
+    container.read(salaSessionProvider.notifier),
+    () => container.read(salaSessionProvider),
+  );
+  await settle();
+}
+
+void main() {
   test('resuming past the conversa does not reopen the conversa', () async {
     final harness = SalaHarness();
     final gravada = File(
@@ -1617,12 +1638,12 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
-      await notifier.openConvite();
+      await _enterThePanorama(harness, container);
       harness.room.failHeldTurnWith = const NetworkFailed('a conexão caiu');
 
-      notifier.conviteTap();
+      notifier.panoramaTap();
       await settle();
-      notifier.conviteTap();
+      notifier.panoramaTap();
       await settle(const Duration(milliseconds: 400));
 
       expect(
@@ -3378,49 +3399,6 @@ void main() {
     );
   });
 
-  test('a team that stays silent is never asked twice to begin', () async {
-    final harness = SalaHarness();
-    final container = harness.container();
-    addTearDown(container.dispose);
-
-    await container.read(salaSessionProvider.notifier).openTheRoom();
-    await settle(const Duration(milliseconds: 200));
-
-    expect(
-      harness.voice.assets,
-      isEmpty,
-      reason:
-          'um convite repetido vira cobrança; quem abre a sessão agora é a fala '
-          'que começa a passagem, não um lembrete sozinho',
-    );
-    expect(
-      harness.room.calls,
-      isEmpty,
-      reason:
-          'nada que a sala diz sozinha pode abrir sessao — o toque é que começa',
-    );
-    expect(container.read(salaSessionProvider).awaitingFirstTouch, isTrue);
-  });
-
-  test('the convite speaks the panorama before offering the way in', () async {
-    final harness = SalaHarness();
-    final container = harness.container();
-    addTearDown(container.dispose);
-
-    await container.read(salaSessionProvider.notifier).openConvite();
-
-    expect(harness.room.pericopesAsked, [panoramaPericope]);
-    expect(harness.voice.played, hasLength(1));
-    final state = container.read(salaSessionProvider);
-    expect(state.conviteStep, ConviteStep.entrada);
-    expect(state.showEntrada, isTrue);
-    expect(
-      state.sessionId,
-      isNull,
-      reason: 'o panorama é do livro; a sessão da perícope nasce ao entrar',
-    );
-  });
-
   test(
     'a question raised during the panorama posts against the panorama session',
     () async {
@@ -3429,7 +3407,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      await notifier.openConvite();
+      await _enterThePanorama(harness, container);
 
       notifier.handTap();
       expect(
@@ -3438,8 +3416,8 @@ void main() {
         reason: 'a mão existe durante o panorama, a sessão inteira',
       );
 
-      notifier.conviteTap();
-      notifier.conviteTap();
+      notifier.panoramaTap();
+      notifier.panoramaTap();
       await settle();
 
       expect(
@@ -3447,7 +3425,7 @@ void main() {
         ['sessao-1'],
         reason: 'sem sessão de perícope ainda, a pergunta vai para o panorama',
       );
-      expect(container.read(salaSessionProvider).stage, SalaStage.convite);
+      expect(container.read(salaSessionProvider).stage, SalaStage.panorama);
     },
   );
 
@@ -3458,6 +3436,13 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
+      await _aimAtThePanorama(harness, container);
+      harness.room.holdNextCreate();
+      notifier.entrarNaOferecida();
+      await waitFor(
+        'a sessão do panorama ser pedida',
+        () => harness.room.createHeld,
+      );
 
       notifier.handTap();
 
@@ -3479,7 +3464,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      await notifier.openConvite();
+      await _enterThePanorama(harness, container);
       await notifier.goConversa();
       await settle();
 
@@ -3493,30 +3478,33 @@ void main() {
   );
 
   test(
-    'the convite without a room halts spoken, not on a dead screen',
+    'the Panorama without a room halts spoken, not on a dead screen',
     () async {
-      final harness = SalaHarness(retryBackoff: const [Duration(seconds: 30)])
-        ..network.reachable = false;
+      final harness = SalaHarness(retryBackoff: const [Duration(seconds: 30)]);
       final container = harness.container();
       addTearDown(container.dispose);
+      await _aimAtThePanorama(harness, container);
+      harness.network.reachable = false;
 
-      await container.read(salaSessionProvider.notifier).openConvite();
+      container.read(salaSessionProvider.notifier).entrarNaOferecida();
+      await settle();
 
       expect(container.read(salaSessionProvider).offline, isTrue);
       expect(harness.voice.assets, [offlineNoticeAsset(testLanguage)]);
-      expect(container.read(salaSessionProvider).showEntrada, isFalse);
+      expect(container.read(salaSessionProvider).panoramaSaid, isFalse);
     },
   );
 
   test(
     'a room that answers badly does not disguise itself as a dead network',
     () async {
-      final harness = SalaHarness()
-        ..room.failWith = const Refused('BAD_REQUEST');
+      final harness = SalaHarness();
       final container = harness.container();
       addTearDown(container.dispose);
+      await _aimAtThePanorama(harness, container);
+      harness.room.failWith = const Refused('BAD_REQUEST');
 
-      await container.read(salaSessionProvider.notifier).openConvite();
+      container.read(salaSessionProvider.notifier).entrarNaOferecida();
       await settle();
 
       final state = container.read(salaSessionProvider);
@@ -3531,7 +3519,7 @@ void main() {
         state.needsPerson,
         isTrue,
         reason:
-            'abrir o convite é uma chamada de turno: a recusa chama alguém na hora, '
+            'abrir o panorama é uma chamada de turno: a recusa chama alguém na hora, '
             'em vez de devolver a equipe ao aceno para tentar de novo sozinha',
       );
       expect(
@@ -3542,17 +3530,19 @@ void main() {
   );
 
   test(
-    'a convite asked again after the room stalls goes under a fresh turn id',
+    'a Panorama asked again after the room stalls goes under a fresh turn id',
     () async {
       final harness = SalaHarness()
         ..room.failHeldTurnWith = const Refused('BAD_REQUEST');
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
 
-      await notifier.openConvite();
-      await settle();
-      unawaited(notifier.openConvite());
+      await _enterThePanorama(harness, container);
+      await waitFor('a sala parar', () => read().needsPerson);
+      await theHaltIsLifted(harness, notifier, read);
+      await enterThePanorama(notifier, read);
       await settle();
 
       expect(
@@ -3576,13 +3566,14 @@ void main() {
   test(
     'a single bad answer asks for a person, not for another touch',
     () async {
-      final harness = SalaHarness()
-        ..room.failWith = const Refused('BAD_REQUEST');
+      final harness = SalaHarness();
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
+      await _aimAtThePanorama(harness, container);
+      harness.room.failWith = const Refused('BAD_REQUEST');
 
-      await notifier.openConvite();
+      notifier.entrarNaOferecida();
       await settle();
 
       expect(
@@ -4039,18 +4030,19 @@ void main() {
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await notifier.openConvite();
+    await _enterThePanorama(harness, container);
     await settle();
 
     final state = container.read(salaSessionProvider);
     expect(
-      state.conviteStep,
-      ConviteStep.boasVindas,
+      state.panoramaSaid,
+      isFalse,
       reason: 'o passo só avança depois que o panorama foi realmente falado',
     );
-    expect(state.awaitingFirstTouch, isTrue);
+    expect(state.station, isA<Panorama>());
 
-    notifier.conviteTap();
+    notifier.leaveThePassage();
+    await enterThePanorama(notifier, () => container.read(salaSessionProvider));
     await settle();
 
     expect(
@@ -4070,9 +4062,10 @@ void main() {
     final harness = SalaHarness(busyCeiling: const Duration(milliseconds: 40));
     final container = harness.container();
     addTearDown(container.dispose);
+    await _aimAtThePanorama(harness, container);
     harness.voice.holdNextLine();
 
-    unawaited(container.read(salaSessionProvider.notifier).openConvite());
+    container.read(salaSessionProvider.notifier).entrarNaOferecida();
     await settle(const Duration(milliseconds: 20));
 
     expect(container.read(salaSessionProvider).voice, VoiceState.speaking);
@@ -4108,9 +4101,10 @@ void main() {
     final harness = SalaHarness(busyCeiling: const Duration(milliseconds: 40));
     final container = harness.container();
     addTearDown(container.dispose);
+    await _aimAtThePanorama(harness, container);
     harness.voice.holdNextFetch();
 
-    unawaited(container.read(salaSessionProvider.notifier).openConvite());
+    container.read(salaSessionProvider.notifier).entrarNaOferecida();
     await settle(const Duration(milliseconds: 20));
 
     expect(container.read(salaSessionProvider).voice, VoiceState.thinking);
@@ -7000,8 +6994,12 @@ void main() {
     final harness = SalaHarness();
     final container = harness.container();
     addTearDown(container.dispose);
+    await _aimAtThePanorama(harness, container);
+    harness.room.calls.clear();
+    harness.voice.played.clear();
 
-    await container.read(salaSessionProvider.notifier).openConvite();
+    container.read(salaSessionProvider.notifier).entrarNaOferecida();
+    await settle();
 
     expect(
       harness.voice.assets,
@@ -7030,8 +7028,8 @@ void main() {
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await notifier.openConvite();
-    notifier.conviteTap();
+    await _enterThePanorama(harness, container);
+    notifier.panoramaTap();
     await settle();
 
     expect(
@@ -7052,8 +7050,8 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      await notifier.openConvite();
-      notifier.conviteTap();
+      await _enterThePanorama(harness, container);
+      notifier.panoramaTap();
       await settle();
 
       expect(
@@ -7067,17 +7065,17 @@ void main() {
     },
   );
 
-  test('finishing that recording opens a second panorama turn, and the bead '
-      'stays offered through both', () async {
+  test('finishing that recording opens a second panorama turn, and the circle '
+      'still takes the team\'s turn after the first reply', () async {
     final harness = SalaHarness();
     final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await notifier.openConvite();
-    notifier.conviteTap();
+    await _enterThePanorama(harness, container);
+    notifier.panoramaTap();
     await settle();
-    notifier.conviteTap();
+    notifier.panoramaTap();
     await settle();
 
     expect(
@@ -7087,19 +7085,17 @@ void main() {
           'a pergunta gravada vira um turno de panorama, não fica presa '
           'no aparelho',
     );
-    final afterFirst = container.read(salaSessionProvider);
-    expect(afterFirst.conviteStep, ConviteStep.entrada);
     expect(
-      afterFirst.entradaOffered,
+      container.read(salaSessionProvider).panoramaSaid,
       isTrue,
       reason:
-          'a conta continua na mesa depois da 1ª resposta, não só depois '
-          'da 1ª fala',
+          'o círculo continua tomando a vez da equipe depois da 1ª resposta, '
+          'não só depois da 1ª fala',
     );
 
-    notifier.conviteTap();
+    notifier.panoramaTap();
     await settle();
-    notifier.conviteTap();
+    notifier.panoramaTap();
     await settle();
 
     expect(
@@ -7109,7 +7105,7 @@ void main() {
           'o panorama não tem fim previsto — um segundo toque abre um '
           'segundo turno em vez de bater numa tela morta',
     );
-    expect(container.read(salaSessionProvider).entradaOffered, isTrue);
+    expect(container.read(salaSessionProvider).panoramaSaid, isTrue);
   });
 
   test(
@@ -7120,17 +7116,17 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      await notifier.openConvite();
+      await _enterThePanorama(harness, container);
       for (var i = 0; i < 4; i++) {
-        notifier.conviteTap();
+        notifier.panoramaTap();
         await settle();
-        notifier.conviteTap();
+        notifier.panoramaTap();
         await settle();
       }
 
       expect(
         container.read(salaSessionProvider).stage,
-        SalaStage.convite,
+        SalaStage.panorama,
         reason:
             'quatro idas e voltas de gravação não têm por que sair do '
             'panorama sozinhas — a passagem só nasce quando a equipe toca a conta',
@@ -7151,10 +7147,10 @@ void main() {
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await notifier.openConvite();
-    notifier.conviteTap();
+    await _enterThePanorama(harness, container);
+    notifier.panoramaTap();
     await settle();
-    notifier.conviteTap();
+    notifier.panoramaTap();
     await settle();
 
     final state = container.read(salaSessionProvider);
@@ -7175,10 +7171,10 @@ void main() {
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    await notifier.openConvite();
-    notifier.conviteTap();
+    await _enterThePanorama(harness, container);
+    notifier.panoramaTap();
     await settle();
-    notifier.conviteTap();
+    notifier.panoramaTap();
     await settle();
 
     final path = harness.recorder.lastPath;
@@ -7861,11 +7857,11 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
-      await notifier.openConvite();
+      await _enterThePanorama(harness, container);
 
-      notifier.conviteTap();
+      notifier.panoramaTap();
       await settle();
-      notifier.conviteTap();
+      notifier.panoramaTap();
       await settle();
 
       expect(harness.room.turnsSent, 1);
@@ -7884,12 +7880,12 @@ void main() {
     final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
-    await notifier.openConvite();
+    await _enterThePanorama(harness, container);
     harness.room.failWith = const NetworkFailed('sem rede');
 
-    notifier.conviteTap();
+    notifier.panoramaTap();
     await settle();
-    notifier.conviteTap();
+    notifier.panoramaTap();
     await settle();
 
     final path = harness.recorder.lastPath;
@@ -7913,12 +7909,12 @@ void main() {
     final harness = SalaHarness();
     final container = harness.container();
     final notifier = container.read(salaSessionProvider.notifier);
-    await notifier.openConvite();
+    await _enterThePanorama(harness, container);
 
-    notifier.conviteTap();
+    notifier.panoramaTap();
     await settle();
     harness.room.holdNextTurn();
-    notifier.conviteTap();
+    notifier.panoramaTap();
     await settle();
     final path = harness.recorder.lastPath;
 

@@ -11,6 +11,7 @@ class LeavePassageButton extends ConsumerWidget {
   const LeavePassageButton({super.key});
 
   static const _inside = {
+    SalaStage.panorama,
     SalaStage.conversa,
     SalaStage.ensaio,
     SalaStage.retro,

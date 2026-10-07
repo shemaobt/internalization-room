@@ -35,7 +35,6 @@ import 'package:internalization_room/features/sala/domain/coverage.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -640,12 +639,6 @@ class FakeFinished implements FinishedPassages {
     await _holdingAdd?.future;
     done.add('$book/$pericope');
   }
-
-  @override
-  Future<bool> bookOpened(String book) async => done.contains('livro:$book');
-
-  @override
-  Future<void> markBookOpened(String book) async => done.add('livro:$book');
 }
 
 /// In memory, like the finished-passages double. The real one touches disk, and the
@@ -1007,9 +1000,6 @@ class FakeRoom implements RoomRepository {
     Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
   ];
 
-  /// The passage the room hands back when this tablet asks for the panorama.
-  String? panoramaAnsweredWith;
-
   /// The ids this room gave the sessions it opened, in the order it opened them.
   final List<String> sessionIds = [];
 
@@ -1237,18 +1227,12 @@ class FakeRoom implements RoomRepository {
     pericopesAsked.add(pericope);
     metBefore.add(afterSession != null);
     languagesSent.add(language);
-    // The server decides which passage a session is for; asking for the panorama is a
-    // request, not an instruction. Honoured, the ask for "OV" comes back as the real id
-    // "OV-Ruth", the way the room answers it; this is where that stops being true.
-    final answered = pericope == panoramaPericope
-        ? panoramaAnsweredWith ?? '$panoramaPericope-Ruth'
-        : pericope;
     final sessionId = 'sessao-${sessionIds.length + 1}';
     sessionIds.add(sessionId);
     return Answered(
       SessionSnapshot(
         sessionId: sessionId,
-        pericope: answered ?? 'rute-1',
+        pericope: pericope ?? 'rute-1',
         status: 'in_progress',
         coverage: nextCoverage,
         done: false,
@@ -2285,6 +2269,7 @@ class SalaHarness {
     this.filaEmMemoria = false,
     this.lingua = testLanguage,
     this.emAbertoNoDisco,
+    this.finishedOnDisk,
     this.inboxService,
     FakeRoom? room,
     this.takesOverride,
@@ -2295,6 +2280,9 @@ class SalaHarness {
   final Duration? linkPoll;
 
   final FakeFinished finished = FakeFinished();
+
+  /// The real ledger, for the tests that need a write still on its way to the disk.
+  final FinishedPassages? finishedOnDisk;
 
   /// The real inbox, for the cases that need a server that can refuse or go away.
   final HandInboxRepository? inboxService;
@@ -2321,7 +2309,7 @@ class SalaHarness {
     handInboxRepositoryProvider.overrideWithValue(inboxService ?? inbox),
     roomRepositoryProvider.overrideWithValue(room),
     takeUploadQueueProvider.overrideWithValue(takes),
-    finishedPassagesProvider.overrideWithValue(finished),
+    finishedPassagesProvider.overrideWithValue(finishedOnDisk ?? finished),
     workInProgressProvider.overrideWithValue(emAbertoNoDisco ?? emAberto),
     connectivityServiceProvider.overrideWithValue(network),
     linkedTeamProvider.overrideWithValue(vinculo),

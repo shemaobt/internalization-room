@@ -9,7 +9,7 @@ import 'kept_take.dart';
 import 'passagem.dart';
 import 'station.dart';
 
-enum SalaStage { convite, escolha, conversa, ensaio, retro, fim }
+enum SalaStage { panorama, escolha, conversa, ensaio, retro, fim }
 
 enum VoiceState {
   invite,
@@ -20,8 +20,6 @@ enum VoiceState {
   offline,
   blocked,
 }
-
-enum ConviteStep { boasVindas, panorama, entrada }
 
 enum EnsaioStatus { idle, recording, recorded }
 
@@ -100,7 +98,10 @@ class SalaSessionState {
   /// Why the room is out of reach, when it is. Two different faces: a tablet with no
   /// network at all, and a network that is fine with no room answering on it.
   final RoomReach reach;
-  final ConviteStep conviteStep;
+
+  /// Whether the Panorama's line was said on this visit to its Station; from then on the
+  /// circle records the team's turn.
+  final bool panoramaSaid;
   final String? sessionId;
   final Coverage coverage;
 
@@ -174,11 +175,6 @@ class SalaSessionState {
 
   final Machine machine;
 
-  /// Pericopes the Choice has offered and the room refused to open, in this visit.
-  /// [EscolhaView] reads this to dim their spokes on the ruler; the notifier reads it
-  /// to keep [aOferecer] off them. Cleared when the Choice is opened afresh.
-  final Set<String> refusedThisVisit;
-
   /// Which part of the rehearsal the team came back to record again, 0-based, or null when
   /// the next recording is a part of its own.
   ///
@@ -206,7 +202,7 @@ class SalaSessionState {
     this.awaitingTheGuide = false,
     this.endOfThePassage = false,
     this.reach = RoomReach.fine,
-    this.conviteStep = ConviteStep.boasVindas,
+    this.panoramaSaid = false,
     this.sessionId,
     this.coverage = Coverage.empty,
     this.contasEnfiadas = true,
@@ -247,7 +243,6 @@ class SalaSessionState {
     this.unsentChunks = 0,
     this.unsentTakeScopes = const {},
     this.machine = const Machine(),
-    this.refusedThisVisit = const {},
     this.parteARegravar,
   });
 
@@ -275,36 +270,12 @@ class SalaSessionState {
   bool get ensaioDone =>
       takes >= 1 && ensaio == EnsaioStatus.idle && parteARegravar == null;
 
-  bool get awaitingFirstTouch =>
-      stage == SalaStage.convite &&
-      conviteStep == ConviteStep.boasVindas &&
-      voice == VoiceState.invite &&
-      !needsPerson;
-
   bool get canHearAgain =>
       lastSpoken != null &&
       voice == VoiceState.invite &&
       !needsPerson &&
       stage != SalaStage.ensaio &&
       stage != SalaStage.retro;
-
-  bool get showEntrada =>
-      stage == SalaStage.convite &&
-      conviteStep == ConviteStep.entrada &&
-      voice == VoiceState.invite &&
-      !needsPerson;
-
-  bool get entradaOffered =>
-      stage == SalaStage.convite &&
-      (conviteStep == ConviteStep.entrada ||
-          voice == VoiceState.thinking ||
-          voice == VoiceState.speaking);
-
-  bool get entradaLive =>
-      entradaOffered &&
-      voice != VoiceState.listening &&
-      voice != VoiceState.thinking &&
-      voice != VoiceState.speaking;
 
   bool get hasUnheardReply => replies.any((reply) => reply.offered);
 
@@ -539,7 +510,7 @@ class SalaSessionState {
     bool? awaitingTheGuide,
     bool? endOfThePassage,
     RoomReach? reach,
-    ConviteStep? conviteStep,
+    bool? panoramaSaid,
     String? sessionId,
     bool clearSession = false,
     Coverage? coverage,
@@ -588,7 +559,6 @@ class SalaSessionState {
     int? unsentChunks,
     Set<String>? unsentTakeScopes,
     Machine? machine,
-    Set<String>? refusedThisVisit,
     int? parteARegravar,
     bool clearParteARegravar = false,
   }) {
@@ -596,7 +566,7 @@ class SalaSessionState {
       awaitingTheGuide: awaitingTheGuide ?? this.awaitingTheGuide,
       endOfThePassage: endOfThePassage ?? this.endOfThePassage,
       reach: reach ?? this.reach,
-      conviteStep: conviteStep ?? this.conviteStep,
+      panoramaSaid: panoramaSaid ?? this.panoramaSaid,
       sessionId: clearSession ? null : (sessionId ?? this.sessionId),
       coverage: coverage ?? this.coverage,
       contasEnfiadas: contasEnfiadas ?? this.contasEnfiadas,
@@ -649,7 +619,6 @@ class SalaSessionState {
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentTakeScopes: unsentTakeScopes ?? this.unsentTakeScopes,
       machine: machine ?? this.machine,
-      refusedThisVisit: refusedThisVisit ?? this.refusedThisVisit,
       parteARegravar: clearParteARegravar
           ? null
           : (parteARegravar ?? this.parteARegravar),

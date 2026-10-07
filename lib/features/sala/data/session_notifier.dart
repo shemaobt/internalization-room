@@ -167,10 +167,6 @@ final fimLingerProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 14),
 );
 
-final entradaSettleProvider = Provider<Duration>(
-  (ref) => const Duration(seconds: 1),
-);
-
 final roomRetryBackoffProvider = Provider<List<Duration>>(
   (ref) => const [
     Duration(seconds: 5),
@@ -218,7 +214,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   DateTime? _sessionSavedAt;
   String? _sessionLanguage;
   int _calmTurns = 0;
-  bool _conviteOpened = false;
   Future<void> Function()? _pending;
 
   /// What plays the reply of the turn the machine holds in flight, and the gestures that
@@ -1091,7 +1086,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _handOff(goConversa(pericope: _emCurso));
         return;
       case TheWheel():
-        state = state.copyWith(refusedThisVisit: {});
         _handOff(abrirEscolha());
         return;
       case NothingKept() || TheOpening():
@@ -1202,7 +1196,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }) => FailureContext(
     station: state.station,
     step: switch (state.station) {
-      Convite() => state.conviteStep,
       Retro() => state.btPhase,
       _ => null,
     },
@@ -1223,19 +1216,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _countTheRefusal() {
     _roomFailures++;
     _calmTurns = 0;
-    _conviteOpened = false;
     state = state.copyWith(awaitingTheGuide: false, peerCue: false);
   }
 
-  void _refuseThePassage() {
-    final refused = _emCurso;
-    if (refused != null) {
-      state = state.copyWith(
-        refusedThisVisit: {...state.refusedThisVisit, refused},
-      );
-    }
-    unawaited(abrirEscolha(afterRefusal: true));
-  }
+  void _refuseThePassage() => unawaited(abrirEscolha());
 
   /// A played turn only earns `_roomFailures` back after two calm turns
   /// in a row — a network failing every other turn traded one failure for one success
@@ -1273,7 +1257,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final turn = state.machine.inFlight;
     if (turn != null) return _giveUpOnTheTurn(turn, const RoomTimedOut());
     _cancelTimers();
-    _conviteOpened = false;
     _leaveThinking();
     _dispatch(FailurePolicy.decide(const RoomTimedOut(), _failureContext()));
   }
@@ -1289,7 +1272,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// as the room's own, not as an answer still owed to a tap.
   void _letTheTurnGo(Turn turn) {
     _awaitedReplies[turn]?.gestures.forEach(_endTheGesture);
-    _conviteOpened = false;
     _watchBusyState();
   }
 
@@ -1392,8 +1374,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       Canvas() when state.sessionId == null => () => goConversa(
         pericope: pericope,
       ),
-      Convite() when state.conviteStep == ConviteStep.boasVindas =>
-        () async => _conviteOpened = false,
+      Panorama() when !state.panoramaSaid => _entrarNoPanorama,
       _ => null,
     };
   }
@@ -1634,76 +1615,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  /// Open the room: go straight to the passages if the book was already opened on this
-  /// tablet. The panorama belongs to a book, not to a launch. Otherwise the room says
-  /// nothing and waits for the touch that opens the convite.
+  /// Open the room on the Choice, unless the team already stands somewhere in it.
   Future<void> openTheRoom() async {
-    if (state.station is! Convite) return;
-    if (state.conviteStep != ConviteStep.boasVindas) return;
-    if (await _feitas.bookOpened(_book)) {
-      await abrirEscolha();
-    }
-  }
-
-  Future<void> openConvite() async {
-    if (state.station is! Convite || _conviteOpened) return;
-    _conviteOpened = true;
-    final generation = _waitOnTheGeneration;
-    state = state.copyWith(awaitingTheGuide: true);
-    _watchBusyState();
-    final reach = await _runner.askTheRoom(forAStep: true);
-    if (_abandoned(generation)) return;
-    if (reach != RoomReach.fine) {
-      _conviteOpened = false;
-      _theStepWaits();
-      return;
-    }
-    _watchBusyState();
-    void failed(RoomFailure failure) {
-      if (_abandoned(generation)) return;
-      _conviteOpened = false;
-      _decideTheFailure(failure, rule: RefusalRule.haltsAtOnce);
-    }
-
-    // A panorama that fails to play sends the team back to the invite, and every touch
-    // used to mint another session for the same book — the server collected one
-    // abandoned panorama per attempt. One launch asks for one panorama.
-    SessionSnapshot? created;
-    if (_panoramaSessionId == null) {
-      switch (await _room.createSession(
-        pericope: panoramaPericope,
-        language: _lingua,
-      )) {
-        case Answered(value: final session):
-          created = session;
-        case final RoomFailure failure:
-          return failed(failure);
-      }
-    }
-    if (_abandoned(generation)) return;
-    // Asking for the panorama is a request and not an instruction: which passage a
-    // session is for is the room's to say, and the answer carries it. The answer is
-    // also the session to enter: opening another for the same passage left the one the
-    // room had just made abandoned, one ghost row per launch.
-    final given = created?.pericope;
-    if (given != null && !isThePanorama(given)) {
-      // The room answering a passage is its word that the panorama was heard. Left
-      // unwritten, a tablet without the mark asked for the panorama on every launch and
-      // adopted a new session each time, its coverage starting over from zero.
-      unawaited(_feitas.markBookOpened(_book).catchError((_) {}));
-      unawaited(goConversa(pericope: given, opened: created));
-      return;
-    }
-    final panorama = _panoramaSessionId ?? created!.sessionId;
-    _panoramaSessionId = panorama;
-    final turnId = _openTurnId ??= _stamp();
-    await _sendATurn(
-      Turn(panorama, turnId),
-      generation,
-      () => _room.openSession(panorama, turnId: turnId),
-      play: (turn) => _voicePanorama(turn),
-      failed: failed,
-    );
+    if (state.station is Menu && state.naRoda == null) await abrirEscolha();
   }
 
   Future<void> _voicePanorama(TurnResult turn) async {
@@ -1714,24 +1628,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final played = await _speak(turn.audioUrl, turn.fixedLine);
     if (_abandoned(generation)) return;
     if (!played) {
-      _conviteOpened = false;
       _registerUnplayableTurn();
       return;
     }
     _settleNetworkHealth();
     _resumeFailures = 0;
     _openTurnId = null;
-    unawaited(_feitas.markBookOpened(_book).catchError((_) {}));
-    state = state.copyWith(
-      awaitingTheGuide: false,
-      conviteStep: ConviteStep.entrada,
-    );
+    state = state.copyWith(awaitingTheGuide: false, panoramaSaid: true);
   }
 
-  void conviteTap() => _gesture(() => _conviteTap());
+  void panoramaTap() => _gesture(() => _panoramaTap());
 
-  void _conviteTap() {
-    if (state.station is! Convite) return;
+  void _panoramaTap() {
+    if (state.station is! Panorama) return;
     if (state.offline) {
       retryNow();
       return;
@@ -1744,7 +1653,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _noteTap();
       return;
     }
-    if (state.conviteStep == ConviteStep.entrada) {
+    if (state.panoramaSaid) {
       switch (state.voice) {
         case VoiceState.invite:
           _startListening('panorama_${_stamp()}');
@@ -1759,8 +1668,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       return;
     }
-    if (state.voice != VoiceState.invite) return;
-    if (state.conviteStep == ConviteStep.boasVindas) _handOff(openConvite());
+    if (state.voice == VoiceState.invite) _handOff(_entrarNoPanorama());
   }
 
   Future<void> _finishPanoramaListening() async {
@@ -1799,14 +1707,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  Future<void> abrirEscolha({bool afterRefusal = false}) =>
-      _gestureThen(() => _abrirEscolha(afterRefusal: afterRefusal));
+  Future<void> abrirEscolha() => _gestureThen(_abrirEscolha);
 
-  Future<void> _abrirEscolha({bool afterRefusal = false}) async {
-    // Still the same visit to the Choice when this call never left its stage — a network
-    // blip that comes back mid-visit, or the wheel-never-loaded retry — as well as the
-    // reload a refusal itself triggers, which leaves the stage but is not a fresh entry.
-    final sameVisit = afterRefusal || state.station is Menu;
+  Future<void> _abrirEscolha() async {
     if (state.station is! Menu) {
       _forgetThePassage();
     }
@@ -1818,7 +1721,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       awaitingTheGuide: true,
       peerCue: false,
       clearRoda: true,
-      refusedThisVisit: sameVisit ? null : const {},
     );
     _watchBusyState();
     final List<Passagem> todas;
@@ -1846,25 +1748,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     };
     final comecadas = await open.startedIn(book);
     if (_abandoned(generation)) return;
-    final primeiraOfertavel = todas.indexWhere(_isOfertavel);
     state = state.copyWith(
       naRoda: todas,
       comecadas: comecadas,
       feitas: feitas,
-      aOferecer: primeiraOfertavel < 0 ? 0 : primeiraOfertavel,
+      aOferecer: 0,
       awaitingTheGuide: false,
     );
-    if (todas.every(
-      (passagem) =>
-          passagem.isPanorama ||
-          state.refusedThisVisit.contains(passagem.pericope),
-    )) {
+    if (todas.every((passagem) => passagem.isPanorama)) {
       // Nothing left for the room to offer, which is exactly what needsPerson means —
       // and it is the only state here with a glyph, a spoken line and a way out. A green
       // disc that refused every gesture in silence looked like a room that had died.
       //
-      // The panorama's own spoke is not a passage, and neither is a real one this visit
-      // already offered and the room refused to open.
+      // The panorama's own spoke is not a passage.
       _raiseAHalt(kept: const TheWheel());
       return;
     }
@@ -1873,17 +1769,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  /// Whether the wheel can land on this passage and speak it: a spoke of the panorama
-  /// always is, and a real passage is unless this same visit to the Choice already had
-  /// it refused at creation.
-  bool _isOfertavel(Passagem passagem) =>
-      passagem.isPanorama ||
-      !state.refusedThisVisit.contains(passagem.pericope);
-
-  /// One number per quiet download of the wheel's names. Every way off the wheel moves
-  /// the generation except the panorama spoke, which never passes through `_clearAll`;
-  /// entering any spoke bumps this instead, so a download started for the wheel dies with
-  /// it either way.
+  /// One number per quiet download of the wheel's names; entering any entry bumps it, so
+  /// a download started for the wheel dies with it.
   int _wheelPrefetch = 0;
 
   Future<void> _fetchTheNamesTheWheelLacks(int generation) async {
@@ -1941,27 +1828,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final roda = state.naRoda;
     if (roda == null || roda.isEmpty) return;
     final at = index.clamp(0, roda.length - 1);
-    final landing = _nearestOfertavel(roda, at, from: state.aOferecer);
-    if (landing == null) return;
-    if (landing == state.aOferecer && state.voice == VoiceState.invite) return;
+    if (at == state.aOferecer && state.voice == VoiceState.invite) return;
     // Not `_cancelTimers()`: it moves the generation and clears every timer in the room.
     // Cutting the line short is enough, and `_dizerAOferecida` checks for itself that the
     // finger has not moved on.
     _silenceTheRoom();
-    state = state.copyWith(aOferecer: landing, awaitingTheGuide: false);
-  }
-
-  /// The nearest spoke to [target] the wheel can land on, walking from [from] toward
-  /// [target] rather than jumping straight there. A refused spoke is still on the ruler
-  /// (ADR 0040: dimmed, never hidden) but is not a stop: VoiceOver's one-step increase
-  /// landing on one used to move nothing at all, stuck there for good.
-  int? _nearestOfertavel(List<Passagem> roda, int target, {required int from}) {
-    if (_isOfertavel(roda[target])) return target;
-    final step = target >= from ? 1 : -1;
-    for (var at = target; at >= 0 && at < roda.length; at += step) {
-      if (_isOfertavel(roda[at])) return at;
-    }
-    return null;
+    state = state.copyWith(aOferecer: at, awaitingTheGuide: false);
   }
 
   /// Say where the finger landed.
@@ -2007,25 +1879,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _wheelPrefetch++;
-    // Acima dos dois ramos: o panorama não passa pelo _clearAll do goConversa, e a
-    // linha que a roda acabou de oferecer seguia soando por cima da espera dele.
     _silenceTheRoom();
     if (passagem.isPanorama) {
+      _leaveTheStepFor(const Panorama());
+      _clearAll();
+      _arriveAt(const ThePanoramaChosen());
       _handOff(_entrarNoPanorama());
       return;
     }
     _handOff(goConversa(pericope: passagem.pericope));
   }
 
-  /// Enter the panorama from its own spoke on the wheel, instead of falling into a
-  /// passage. It has no foreseen end, and nothing here schedules one: the team leaves it
-  /// the same way it leaves any session, by turning the wheel to a passage.
+  /// Open the Panorama's session and voice its opening. It has no foreseen end, and
+  /// nothing here schedules one: the team leaves it the way it leaves any session.
   ///
-  /// Asked for by `panoramaPericope`, the same alias `openConvite` already asks for it
-  /// by — not by whatever id the wheel happens to label the spoke with — and the session
-  /// is reused rather than asked for again on every tap, for the reason `openConvite`'s
-  /// own guard gives: a retried touch would otherwise mint one abandoned panorama session
-  /// per attempt.
+  /// Asked for by `panoramaPericope`, not by whatever id the wheel happens to label the
+  /// entry with, and the session is reused rather than asked for again on every tap: a
+  /// retried touch would otherwise mint one abandoned panorama session per attempt.
   Future<void> _entrarNoPanorama() async {
     final generation = _waitOnTheGeneration;
     state = state.copyWith(awaitingTheGuide: true);
@@ -2055,15 +1925,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
     }
     if (_abandoned(generation)) return;
-    // Which passage a session is for is the room's to say, and the answer carries it —
-    // the same swap openConvite already honours. A team touching this spoke while the
-    // room decides otherwise lands where the room answered, rather than being left on
-    // the wheel mid an opening turn nothing here is set up to answer.
-    final given = created?.pericope;
-    if (given != null && !isThePanorama(given)) {
-      unawaited(goConversa(pericope: given, opened: created));
-      return;
-    }
     final panorama = _panoramaSessionId ?? created!.sessionId;
     _panoramaSessionId = panorama;
     final turnId = _openTurnId ??= _stamp();
@@ -2071,16 +1932,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       Turn(panorama, turnId),
       generation,
       () => _room.openSession(panorama, turnId: turnId),
-      play: (turn) async {
-        await _readyToSpeak(turn.audioUrl, turn.fixedLine);
-        if (_abandoned(generation)) return;
-        _watchBusyState();
-        final spoke = await _speak(turn.audioUrl, turn.fixedLine);
-        if (_abandoned(generation)) return;
-        if (!spoke) return _registerUnplayableTurn();
-        _openTurnId = null;
-        state = state.copyWith(awaitingTheGuide: false);
-      },
+      play: _voicePanorama,
       failed: failed,
     );
   }
@@ -2252,8 +2104,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchBusyState();
     // Only the passages the wheel already said have work waiting are looked up on disk,
     // so entering a fresh one through the wheel costs no read at all. A door the room
-    // opened has no wheel behind it — the list is still empty at the invitation — so the
-    // row is looked up there whatever the list says (ADR 0033).
+    // opened has no wheel behind it — the list is still empty before the Choice reads
+    // it — so the row is looked up there whatever the list says (ADR 0033).
     final stored =
         !fresh &&
             pericope != null &&
@@ -2276,7 +2128,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       // A resume keeps the three-strike ladder above (waiting != null): the server is
       // being asked to hand back work it already holds, not to open a fresh turn. A
-      // session born clean is the turn call openConvite and its kin already are — and so
+      // session born clean is the turn call the Panorama's opening and its kin already are — and so
       // is the opening turn a resume with nothing to restore falls through to, once it
       // gets there: the door is `_askForTheOpening`, the same one every other empty
       // resume takes.
@@ -2302,16 +2154,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = waiting?.sessionId ?? created!.sessionId;
     if (_abandoned(generation)) return;
     if (_goneSessions.contains(sessionId)) return _openTheChoice();
-    // The passage opened for real, whether created fresh or resumed: the team has left
-    // the Choice, and whatever visit was refusing passages there is over. A stumble
-    // past this point — a session gone mid-open, a fresh retry the room also refuses —
-    // is this passage's own new refusal, not the last visit's.
     if (!resumed) _startTheSessionClean(pericope);
-    state = state.copyWith(
-      sessionId: sessionId,
-      coverage: created?.coverage,
-      refusedThisVisit: const {},
-    );
+    state = state.copyWith(sessionId: sessionId, coverage: created?.coverage);
     _runner.run(const [ArmTheWatch()]);
     _sessionSavedAt = resumed ? waiting.savedAt : clock.now();
     _sessionLanguage = resumed ? waiting.language : _lingua;
@@ -2919,14 +2763,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void handTap() => _gesture(() => _handTap());
 
   void _handTap() {
-    // The hand lives on the convite and the conversa, but the outgoing screen stays
+    // The hand lives on the Panorama and the conversa, but the outgoing screen stays
     // hit-testable for the 400 ms the switcher takes, so a finger already travelling
     // lands here from the next stage — and starts a question recording no screen shows
     // and no gesture stops.
-    if (state.station is! Canvas && state.station is! Convite) {
+    if (state.station is! Canvas && state.station is! Panorama) {
       return;
     }
-    if (state.station is Convite && _panoramaSessionId == null) return;
+    if (state.station is Panorama && _panoramaSessionId == null) return;
     if (state.offline) {
       retryNow();
       return;
@@ -2987,7 +2831,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ///
   /// The playing mark is given back on every way out. `_markHeard` is what clears it when
   /// the reply sounded; a reply that did not, or that outlived its generation, clears it
-  /// here, or the hand, the circle and the convite all return early on it for good.
+  /// here, or the hand and the circle return early on it for good.
   Future<void> _playReply(HandReply reply) async {
     Said said;
     try {
@@ -3059,7 +2903,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// A refusal also pulls the inbox. The one refusal the desk makes on purpose is that the
   /// reply moved on: the facilitator recorded again while this one played, and the address
   /// the tablet holds has stopped answering. The inbox is otherwise read thirty seconds
-  /// after a turn, and not at all while the room sits on the convite, so without this pull
+  /// after a turn, and not at all while the room sits on the Choice, so without this pull
   /// the hand kept offering a clip that sounds nothing and marks nothing. The answer is a
   /// bool that cannot tell that refusal from an outage, so every refusal pulls; a pull is
   /// one GET, and after an outage it changes nothing.
@@ -3108,7 +2952,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final generation = _waitOnTheGeneration;
     final path = await _closeTheMicrophone();
     if (_abandoned(generation)) return;
-    final sessionId = state.station is Convite
+    final sessionId = state.station is Panorama
         ? _panoramaSessionId
         : state.sessionId;
     if (path == null || !_hasAudio(path) || sessionId == null) {
@@ -3164,49 +3008,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!Env.devPularFases) return;
     final knob = ref.read(devLanguageProvider.notifier);
     knob.choose(knob.next(_lingua));
-    if (state.station is Convite) {
-      if (_panoramaSessionId != null) _handOff(_reabrirPanoramaNaLingua());
-      return;
-    }
     _handOff(_startOver());
-  }
-
-  Future<void> _reabrirPanoramaNaLingua() async {
-    _clearAll();
-    _conviteOpened = true;
-    _panoramaSessionId = null;
-    state = state.copyWith(
-      conviteStep: ConviteStep.boasVindas,
-      awaitingTheGuide: true,
-      noteMode: false,
-    );
-    _watchBusyState();
-    final generation = _waitOnTheGeneration;
-    final reach = await _runner.askTheRoom(forAStep: true);
-    if (_abandoned(generation)) return;
-    if (reach != RoomReach.fine) {
-      _conviteOpened = false;
-      _theStepWaits();
-      return;
-    }
-    _watchBusyState();
-    final answer = await _room.createSession(
-      pericope: panoramaPericope,
-      language: _lingua,
-    );
-    if (_abandoned(generation)) return;
-    _conviteOpened = false;
-    switch (answer) {
-      case Answered(value: final created):
-        if (!isThePanorama(created.pericope)) {
-          state = state.copyWith(awaitingTheGuide: false);
-          return;
-        }
-        _panoramaSessionId = created.sessionId;
-        unawaited(openConvite());
-      case final RoomFailure failure:
-        _decideTheFailure(failure, rule: RefusalRule.haltsAtOnce);
-    }
   }
 
   void goEnsaio() => _gesture(() => _goEnsaio());
@@ -5606,7 +5408,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _captureFails = 0;
     _calmTurns = 0;
     _recordingStarting = false;
-    _conviteOpened = false;
   }
 }
 

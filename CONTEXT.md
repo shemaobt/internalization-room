@@ -7,12 +7,12 @@ The oral translation team's tablet app: it walks the team through a Bible passag
 ### Stations
 
 **Station**:
-One of the stops a session passes through, from the Invitation to the Closing; the server names the one the team is in for the Desk, reading it off what the session holds.
+One of the stops a session passes through, from the Choice to the Closing; the server names the one the team is in for the Desk, reading it off what the session holds.
 _Avoid_: stage (`SalaStage` is the enum, not the term), phase, screen, step
 
-**Invitation** (`convite`):
-The session's first station, where the room's voice welcomes the team and presents the book (panorama). The passage's scene is said when the Conversation opens, not here.
-_Avoid_: convite in prose (`convite` is the enum value), introduction, opening, welcome
+**Panorama Station** (`panorama`):
+The station where the book's Panorama is voiced, reached by tapping the Panorama on the wheel; after its line, the team can answer it out loud.
+_Avoid_: invitation, convite, welcome
 
 **Conversation** (`conversa`):
 The station where the team describes the passage out loud, and what the team touches fills the necklace.
@@ -32,11 +32,8 @@ On screen and in the voice its Portuguese is *traduzir / tradução*; *contar* b
 _Avoid_: retrotradução, retro in prose (`retro` is the code prefix, not the term), contar de volta, contado de volta, reconto, recontar
 
 **Choice** (`escolha`):
-The station where the team picks the next passage among those on the wheel. One visit to it
-lasts until the Choice is opened afresh — lifting a halt raised here, or a passage really
-opening, both end it from inside; a passage the room refused to open is not offered again
-within one visit, but is again on the next.
-_Avoid_: escolha in prose (`escolha` is the enum value), selection, wheel (the wheel is the list of passages, not the station)
+The station where the room starts and where the team picks an entry on the wheel, the Panorama or a passage.
+_Avoid_: escolha in prose (`escolha` is the enum value), Menu in prose (`Menu` is the class), selection, wheel (the wheel is the list of entries, not the station)
 
 **Closing** (`fim`):
 The last station, where the necklace's cord closes into a circle and the session ends.
@@ -131,7 +128,7 @@ One team's work on one passage, with state and a persisted snapshot allowing it 
 _Avoid_: sessão, passage, round
 
 **Wheel**:
-The list of passages still to be worked, which the room offers at the Choice and reopens on its own after the Closing. Not yet read and empty are different states: empty means the book is finished.
+The list of entries the room offers at the Choice, the book's Panorama first and then the passages still to be worked, which the room reopens on its own after the Closing. Not yet read and holding no passage are different states: holding no passage means the book is finished.
 _Avoid_: roda, passage list, carousel, choice (the station that shows it)
 
 **Take**:
@@ -223,12 +220,12 @@ A question the team raised, recorded by a tap on the hand and drawn on the neckl
 _Avoid_: nó, question, bead (a knot is not one)
 
 **Panorama**:
-The opening line about the whole book, played once before the scene.
+The book's own entry and the line about the whole book, first on the wheel, played when the team taps it. Not a passage: nothing that counts passages counts it.
 _Avoid_: introduction, overview
 
 **Scene**:
-The opening line specific to the chosen passage, following the panorama.
-_Avoid_: cena, invitation (the whole station)
+The opening line specific to the chosen passage, said when its Conversation opens.
+_Avoid_: cena
 
 **Outbox**:
 The queue of takes and stretches waiting to reach the server, with a manifest that survives the app closing and names each recording by file rather than by path. It delivers one part's recordings in the order the team made them.
