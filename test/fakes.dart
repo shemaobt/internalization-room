@@ -93,7 +93,8 @@ Coverage coverage({int engaged = 0, int surfaced = 0}) => Coverage(
   engaged: engaged,
   surfaced: surfaced,
   total: totalBeads,
-  absenceIndex: totalBeads - 1,
+  beadsFilled: engaged,
+  beadsTold: true,
 );
 
 class FakeVoice implements FacilitatorVoiceService {

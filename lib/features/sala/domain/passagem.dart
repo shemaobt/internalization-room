@@ -4,14 +4,12 @@ class Passagem {
   final String pericope;
   final String audioUrl;
   final int beads;
-  final int absenceIndex;
   final PassagemKind kind;
 
   const Passagem({
     required this.pericope,
     required this.audioUrl,
     this.beads = 0,
-    this.absenceIndex = -1,
     this.kind = PassagemKind.passage,
   });
 
@@ -23,7 +21,6 @@ class Passagem {
     pericope: json['pericope'] as String? ?? '',
     audioUrl: json['audio_url'] as String? ?? '',
     beads: json['beads'] as int? ?? 0,
-    absenceIndex: json['absence_index'] as int? ?? -1,
     kind: json['kind'] == 'panorama'
         ? PassagemKind.panorama
         : PassagemKind.passage,

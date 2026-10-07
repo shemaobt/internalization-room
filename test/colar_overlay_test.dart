@@ -167,12 +167,7 @@ void main() {
     'a coverage answer without the bead fields draws twelve beads with none lit',
     (tester) async {
       final session = SalaSessionState(
-        coverage: answer({
-          'engaged': 5,
-          'surfaced': 5,
-          'total': 9,
-          'absence_index': -1,
-        }),
+        coverage: answer({'engaged': 5, 'surfaced': 5, 'total': 9}),
       );
       await pumpColar(tester, session);
 
@@ -216,7 +211,7 @@ void main() {
     tester,
   ) async {
     const waiting = SalaSessionState(
-      coverage: Coverage(engaged: 0, surfaced: 0, total: 1, absenceIndex: -1),
+      coverage: Coverage(engaged: 0, surfaced: 0, total: 1),
     );
     await pumpColar(tester, waiting);
 
@@ -257,7 +252,7 @@ void main() {
   testWidgets('the necklace closes in stillness, not a loop', (tester) async {
     final session = SalaSessionState(
       machine: Machine(station: Station.stored(SalaStage.fim)),
-      coverage: Coverage(engaged: 5, surfaced: 5, total: 5, absenceIndex: -1),
+      coverage: Coverage(engaged: 5, surfaced: 5, total: 5),
     );
     await pumpColar(tester, session);
 
@@ -273,7 +268,7 @@ void main() {
     'a bead whose slot changes lands there on the first frame, reduced',
     (tester) async {
       const arriving = SalaSessionState(
-        coverage: Coverage(engaged: 0, surfaced: 0, total: 1, absenceIndex: -1),
+        coverage: Coverage(engaged: 0, surfaced: 0, total: 1),
       );
       await pumpReducedColar(tester, arriving);
 
@@ -312,7 +307,7 @@ void main() {
     'a bead growing at the close lands at full size on the first frame, reduced',
     (tester) async {
       const arriving = SalaSessionState(
-        coverage: Coverage(engaged: 0, surfaced: 0, total: 1, absenceIndex: -1),
+        coverage: Coverage(engaged: 0, surfaced: 0, total: 1),
       );
       await pumpReducedColar(tester, arriving);
 
@@ -337,7 +332,7 @@ void main() {
     'a bead just spoken into lands filled on the first frame, reduced',
     (tester) async {
       const waiting = SalaSessionState(
-        coverage: Coverage(engaged: 0, surfaced: 0, total: 1, absenceIndex: -1),
+        coverage: Coverage(engaged: 0, surfaced: 0, total: 1),
       );
       await pumpReducedColar(tester, waiting);
 

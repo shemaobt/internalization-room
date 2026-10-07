@@ -1682,8 +1682,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  /// A turn that carried no coverage, or fewer beads than the necklace already shows,
-  /// leaves the necklace where it is. Reading a missing field as zero emptied the cord
+  /// A turn that carried no coverage, or fewer elements than the necklace already
+  /// shows, leaves the necklace where it is; an answer without the bead fields keeps the
+  /// beads it shows and takes the rest. Reading a missing field as zero emptied the cord
   /// mid-passage — the only record of progress this team can perceive — and a read
   /// that raced ahead of a slower one used to be able to put it back. The same guard
   /// runs whether the number came from the coverage frame or from the state pull that
@@ -1691,15 +1692,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// the clock a second time.
   bool _applyCoverage(Coverage? told, {TurnClock? clock}) {
     final before = state.coverage;
-    final advanced = told != null && told.engaged > before.engaged;
-    if (advanced) clock?.mark('beads');
-    if (told != null &&
-        (advanced ||
-            (told.engaged == before.engaged &&
-                told.surfaced >= before.surfaced))) {
-      state = state.copyWith(coverage: told);
-    }
-    return advanced;
+    if (told == null) return false;
+    final grows =
+        told.engaged > before.engaged ||
+        (told.engaged == before.engaged && told.surfaced >= before.surfaced);
+    if (!grows) return false;
+    final next = told.beadsTold ? told : told.keepingTheBeadsOf(before);
+    final moved = next.beadsFilled > before.beadsFilled;
+    if (moved) clock?.mark('beads');
+    state = state.copyWith(coverage: next);
+    return moved;
   }
 
   void _resolveCoverageWait(
@@ -2576,12 +2578,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     for (final passagem in state.naRoda ?? const <Passagem>[]) {
       if (passagem.pericope == pericope && passagem.beads > 0) {
         state = state.copyWith(
-          coverage: Coverage(
-            engaged: 0,
-            surfaced: 0,
-            total: passagem.beads,
-            absenceIndex: passagem.absenceIndex,
-          ),
+          coverage: Coverage(engaged: 0, surfaced: 0, total: passagem.beads),
         );
         return;
       }
