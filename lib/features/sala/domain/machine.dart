@@ -378,6 +378,10 @@ final class TheTellingLanded extends AnsweringEvent {
   const TheTellingLanded({super.generation});
 }
 
+final class TheVerdictAsked extends MachineEvent {
+  const TheVerdictAsked();
+}
+
 sealed class Effect {
   const Effect();
 }
@@ -913,6 +917,7 @@ const _watch = ArmTheWatch();
   ),
   TheTellingCameBackEmpty() => (machine, const []),
   TheTellingLanded() => (machine.copyWith(wordlessTelling: false), const []),
+  TheVerdictAsked() => (machine.copyWith(wordlessTelling: false), const []),
   NetworkFailedAt(:final door, :final why) => _fall(machine, door, why),
   NetworkReturned() => _return(machine),
   RetryFired() => _retry(machine),
@@ -1556,6 +1561,7 @@ Machine _answered(Machine machine) =>
   ThePassageCannotOpen() ||
   TheTellingCameBackEmpty() ||
   TheTellingLanded() ||
+  TheVerdictAsked() ||
   TurnSent() ||
   TurnAnswered() ||
   TurnFailed() ||

@@ -61,6 +61,16 @@ void main() {
     expect(effects, isEmpty);
   });
 
+  test('Asking for the verdict clears her line.', () {
+    final (machine, effects) = reduce(
+      _afterAnEmptyTelling(),
+      const TheVerdictAsked(),
+    );
+
+    expect(machine.wordlessTelling, isFalse);
+    expect(effects, isEmpty);
+  });
+
   test('Leaving the Back-translation clears her line.', () {
     final (machine, _) = reduce(
       _afterAnEmptyTelling(),

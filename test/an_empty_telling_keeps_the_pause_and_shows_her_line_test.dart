@@ -71,6 +71,30 @@ Future<void> confirmarComPalavras(
   await tester.pump(const Duration(milliseconds: 300));
 }
 
+Future<String?> ateOTrechoNomeado(
+  WidgetTester tester,
+  SalaHarness harness,
+) async {
+  await cortarEGravar(tester, harness);
+  final daPrimeira = harness.recorder.lastPath;
+  await tocar(tester, confirmar);
+  harness.playback.at = parte;
+  harness.playback.finishPlayback();
+  await tester.pump(const Duration(milliseconds: 300));
+  await gravarATraducao(tester);
+  await tocar(tester, confirmar);
+  harness.room
+    ..verdictChecked = false
+    ..verdictUntoldSegmentId = 'trecho-1';
+  await tocar(tester, conferir);
+  await tester.pump(const Duration(milliseconds: 600));
+  harness.playback.finishPlayback();
+  await tester.pump(const Duration(milliseconds: 300));
+  harness.room.verdictUntoldSegmentId = null;
+  await gravarATraducao(tester);
+  return daPrimeira;
+}
+
 void main() {
   testWidgets('a first telling the room makes nothing of keeps the room paused '
       'on the stretch, shows her line and plays nothing', (tester) async {
@@ -122,23 +146,7 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     final sala = container.read(salaSessionProvider.notifier);
-    await cortarEGravar(tester, harness);
-    final daPrimeira = harness.recorder.lastPath;
-    await tocar(tester, confirmar);
-    harness.playback.at = parte;
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(milliseconds: 300));
-    await gravarATraducao(tester);
-    await tocar(tester, confirmar);
-    harness.room
-      ..verdictChecked = false
-      ..verdictUntoldSegmentId = 'trecho-1';
-    await tocar(tester, conferir);
-    await tester.pump(const Duration(milliseconds: 600));
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(milliseconds: 300));
-    harness.room.verdictUntoldSegmentId = null;
-    await gravarATraducao(tester);
+    final daPrimeira = await ateOTrechoNomeado(tester, harness);
     final pedidos = harness.room.replaceKeys.length;
     final falado = harness.voice.played.length;
     final tocado = harness.playback.played.length;
@@ -160,6 +168,19 @@ void main() {
       harness.playback.played.last,
       daPrimeira,
       reason: 'o trecho segue com a tradução de antes',
+    );
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    harness.room.failReplaceWith = null;
+    await contarDeNovo(tester);
+    await tocar(tester, confirmar);
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(
+      harness.room.replacesAsked.last,
+      'trecho-1@${harness.room.takeIds.first}:0-4000',
+      reason: 'o círculo reabre o microfone no trecho nomeado',
     );
     closeTheRoom(container);
   });
@@ -269,6 +290,29 @@ void main() {
 
     expect(find.byType(RetroView), findsOneWidget);
     expect(byLabel(linha), findsNothing);
+    closeTheRoom(container);
+  });
+
+  testWidgets('asking for the verdict takes her line away', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness, partes: 1);
+    harness.playback.at = parte - const Duration(milliseconds: 500);
+    await tocar(tester, tesoura);
+    await gravarATraducao(tester);
+    await confirmarComPalavras(tester, harness);
+    harness.playback.at = parte;
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+    await gravarATraducao(tester);
+    await confirmarSemPalavras(tester, harness);
+    expect(byLabel(linha), findsWidgets);
+    expect(aceso(tester, conferir), isTrue);
+
+    await tocar(tester, conferir);
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(byLabel(linha), findsNothing);
+    expect(rotuloDoCirculo(tester), isNot(linha));
     closeTheRoom(container);
   });
 
