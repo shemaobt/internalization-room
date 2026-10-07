@@ -229,7 +229,7 @@ _Avoid_: cena
 
 **Opened**:
 A session that holds a Guide line, its Opening at least. The room asks a session's Opening only while it is not opened.
-_Avoid_: started, begun, resumed
+_Avoid_: started, begun
 
 **Outbox**:
 The queue of takes and stretches waiting to reach the server, with a manifest that survives the app closing and names each recording by file rather than by path. It delivers one part's recordings in the order the team made them.
