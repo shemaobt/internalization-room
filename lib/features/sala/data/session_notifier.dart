@@ -4415,7 +4415,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         await _readWhatTheRefusalSays(alvo, path, sessionId, generation);
         return;
       case final RoomFailure failure:
-        _contadasSemResposta.add(path);
+        if (failure case NetworkFailed()) _contadasSemResposta.add(path);
         _guardarATraducao(path);
         if (_abandoned(generation)) return;
         _theTranslationWaits(failure);
@@ -4542,7 +4542,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btTrechos: trechos.isEmpty ? state.btTrechos : trechos,
       clearTraducaoPendente: true,
     );
-    _dispatch(TheTellingLanded(generation: _generation));
     if (needsPerson) _dispatch(TheAnswerWarned(generation: _generation));
     _rememberWhereTheyAre(const Retro());
   }
@@ -4750,7 +4749,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ],
       clearTraducaoPendente: true,
     );
-    _dispatch(TheTellingLanded(generation: _generation));
     if (!state.needsPerson) _tocarOProximoTrecho();
   }
 
@@ -4800,10 +4798,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  void _letThePendingTranslationGo() => state = state.copyWith(
-    clearTraducaoPendente: true,
-    awaitingTheGuide: false,
-  );
+  void _letThePendingTranslationGo() {
+    final path = state.btTraducaoPendente;
+    state = state.copyWith(
+      clearTraducaoPendente: true,
+      awaitingTheGuide: false,
+    );
+    if (path != null) unawaited(_recorder.delete(path));
+  }
 
   void _descartarATraducaoPendente() {
     final path = state.btTraducaoPendente;

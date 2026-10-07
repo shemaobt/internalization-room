@@ -102,7 +102,6 @@ AnsweringEvent _stampedAnswer(
   ),
   ThePassageCannotOpen() => ThePassageCannotOpen(generation: generation),
   TheTellingCameBackEmpty() => TheTellingCameBackEmpty(generation: generation),
-  TheTellingLanded() => TheTellingLanded(generation: generation),
   TheOpeningMissed() => TheOpeningMissed(generation: generation),
 };
 

@@ -376,7 +376,6 @@ void main() {
           'ends_ms': 6000,
         },
       ],
-      'captured': true,
       'composed_take_id': 'gravacao-de-fora',
     });
 

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 
@@ -17,6 +18,7 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         entrarNaTraducao,
         gravar,
         gravarATraducao,
+        ouvir,
         parte,
         passaDoCursor,
         tesoura,
@@ -249,6 +251,8 @@ void main() {
     await letTheRehearsalReachTheRoom(tester);
 
     expect(aceso(tester, confirmar), isFalse);
+    expect(aceso(tester, ouvir), isFalse);
+    expect(aceso(tester, tesoura), isFalse);
     expect(rotuloDoCirculo(tester), linha);
     expect(
       [
@@ -258,6 +262,92 @@ void main() {
       ['retro'],
       reason: 'a cópia da gravação recusada fica na fila',
     );
+    closeTheRoom(container);
+  });
+
+  testWidgets('the refused recording\'s file goes with it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness, partes: 1);
+    await cortarEGravar(tester, harness);
+    final recusada = harness.recorder.lastPath;
+
+    await confirmarSemPalavras(tester, harness);
+
+    expect(harness.recorder.deleted, contains(recusada));
+    closeTheRoom(container);
+  });
+
+  testWidgets('a correction answered after an empty one lands as the '
+      'team\'s own when the room says the stretch moved on', (tester) async {
+    final harness = SalaHarness(
+      filaEmMemoria: true,
+      retryBackoff: const [Duration(seconds: 2)],
+    )..room.forgetsTheKeys = true;
+    final container = await entrarNaTraducao(tester, harness, partes: 1);
+    final fila = harness.takes as FakeTakeQueue;
+    await ateOTrechoNomeado(tester, harness);
+    harness.room.failReplaceWith = vazia;
+    await tocar(tester, confirmar);
+    await tester.pump(const Duration(milliseconds: 600));
+    harness.room.failReplaceWith = null;
+    await contarDeNovo(tester);
+    final contada = harness.recorder.lastPath;
+
+    harness.room.loseTheNextReplaceAnswerWith = const NetworkFailed('timeout');
+    await tocar(tester, confirmar);
+    await tester.pump(const Duration(milliseconds: 600));
+    for (var passo = 0; passo < 8; passo++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    expect(aceso(tester, confirmar), isFalse, reason: 'a contada pousou');
+    expect(
+      container.read(salaSessionProvider).btTrechos.map((t) => t.segmentId),
+      harness.room.segments.map((s) => s.segmentId),
+    );
+    expect([
+      for (final guardada in fila.rows)
+        if (guardada.path == contada) guardada.kind,
+    ], isEmpty);
+    closeTheRoom(container);
+  });
+
+  Future<void> aSalaParaDeVez(WidgetTester tester, SalaHarness harness) async {
+    harness.room.serverHalt = HaltKind.blocking;
+    for (var passo = 0; passo < 40; passo++) {
+      await tester.pump(const Duration(milliseconds: 500));
+    }
+  }
+
+  testWidgets('under a person sign the circle says the sign, not her line', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.serverStatus = 'needs_person'
+      ..room.serverHalt = HaltKind.warning;
+    final container = await entrarNaTraducao(tester, harness, partes: 1);
+    await ateACapturaVazia(tester, harness);
+    expect(byLabel(linha), findsWidgets);
+
+    await aSalaParaDeVez(tester, harness);
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue);
+    expect(rotuloDoCirculo(tester), circleLabelFor('needsPerson', 'pt'));
+    closeTheRoom(container);
+  });
+
+  testWidgets('a blocking halt hides her mark', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.serverStatus = 'needs_person'
+      ..room.serverHalt = HaltKind.warning;
+    final container = await entrarNaTraducao(tester, harness, partes: 1);
+    await ateACapturaVazia(tester, harness);
+    expect(byLabel(linha), findsWidgets);
+
+    await aSalaParaDeVez(tester, harness);
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue);
+    expect(byLabel(linha), findsNothing);
     closeTheRoom(container);
   });
 

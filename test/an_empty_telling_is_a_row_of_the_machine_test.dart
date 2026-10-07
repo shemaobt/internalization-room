@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
+import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 
@@ -51,16 +52,6 @@ void main() {
     expect(machine.wordlessTelling, isTrue);
   });
 
-  test('A telling that lands clears her line.', () {
-    final (machine, effects) = reduce(
-      _afterAnEmptyTelling(),
-      const TheTellingLanded(),
-    );
-
-    expect(machine.wordlessTelling, isFalse);
-    expect(effects, isEmpty);
-  });
-
   test('Asking for the verdict clears her line.', () {
     final (machine, effects) = reduce(
       _afterAnEmptyTelling(),
@@ -69,6 +60,16 @@ void main() {
 
     expect(machine.wordlessTelling, isFalse);
     expect(effects, isEmpty);
+  });
+
+  test('A halt does not clear her line, raised or lifted.', () {
+    final (halted, _) = reduce(_afterAnEmptyTelling(), const RoomRaisedAHalt());
+    expect(halted.halt, isA<Blocking>());
+    expect(halted.wordlessTelling, isTrue);
+
+    final (lifted, _) = reduce(halted, const LongPress(somebodyToAsk: false));
+    expect(lifted.halt, isA<NoHalt>());
+    expect(lifted.wordlessTelling, isTrue);
   });
 
   test('Leaving the Back-translation clears her line.', () {

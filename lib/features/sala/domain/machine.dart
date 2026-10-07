@@ -238,6 +238,10 @@ final class LeftThePassage extends MachineEvent {
   const LeftThePassage();
 }
 
+final class TheVerdictAsked extends MachineEvent {
+  const TheVerdictAsked();
+}
+
 /// The team arrives at a Station; the Station held answers it after the cross-cutting
 /// regions, and it is never stale.
 sealed class StationEvent extends MachineEvent {
@@ -372,14 +376,6 @@ final class TheCallMetAClosedPassage extends AnsweringEvent {
 
 final class TheTellingCameBackEmpty extends AnsweringEvent {
   const TheTellingCameBackEmpty({super.generation});
-}
-
-final class TheTellingLanded extends AnsweringEvent {
-  const TheTellingLanded({super.generation});
-}
-
-final class TheVerdictAsked extends MachineEvent {
-  const TheVerdictAsked();
 }
 
 sealed class Effect {
@@ -916,7 +912,6 @@ const _watch = ArmTheWatch();
     const [LetThePendingTranslationGo()],
   ),
   TheTellingCameBackEmpty() => (machine, const []),
-  TheTellingLanded() => (machine.copyWith(wordlessTelling: false), const []),
   TheVerdictAsked() => (machine.copyWith(wordlessTelling: false), const []),
   NetworkFailedAt(:final door, :final why) => _fall(machine, door, why),
   NetworkReturned() => _return(machine),
@@ -1560,7 +1555,6 @@ Machine _answered(Machine machine) =>
   TheRoomRefused() ||
   ThePassageCannotOpen() ||
   TheTellingCameBackEmpty() ||
-  TheTellingLanded() ||
   TheVerdictAsked() ||
   TurnSent() ||
   TurnAnswered() ||
