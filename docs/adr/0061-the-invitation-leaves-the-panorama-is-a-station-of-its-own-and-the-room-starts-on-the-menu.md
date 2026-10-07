@@ -23,10 +23,10 @@ before the write of the passage just finished had landed, and showed it unfinish
 
 ## Decision
 
-- **The room starts on the Menu.** The machine is born on the Menu, and the room started over
-  arrives there from every Station. Opening the room opens the Choice only while the Menu has
-  not read its Wheel; anywhere else it changes nothing.
-- **The Panorama is a Station reached from the Menu.** Tapping the Panorama, the book's first
+- **The room starts on the Choice.** The machine is born on the Choice (the `Menu` Station),
+  and the room started over arrives there from every Station. Opening the room opens the
+  Choice only while its Wheel is unread; anywhere else it changes nothing.
+- **The Panorama is a Station reached from the Choice.** Tapping the Panorama, the book's first
   entry, arrives at the Panorama Station and voices the Panorama there. It shows the circle
   only, with the hand. After its line, a tap on the circle records the team and the next one
   sends the turn to the Panorama session, as the Invitation's panorama step did. The Panorama
@@ -34,7 +34,7 @@ before the write of the passage just finished had landed, and showed it unfinish
 - **A tap opens exactly the entry tapped.** The app never swaps to another pericope named in
   the room's answer.
 - **No entry is dimmed, skipped, reordered or hidden.** A passage the room refuses to open
-  returns the team to the Menu with the entry in place and still tappable. The Wheel halt
+  returns the team to the Choice with the entry in place and still tappable. The Wheel halt
   stands only for a Wheel that holds the Panorama alone.
 - **A read of the finished passages waits for the write in flight**, so the Choice after the
   Closing shows the passage just finished.
@@ -44,8 +44,8 @@ before the write of the passage just finished had landed, and showed it unfinish
 
 ## Considered Options
 
-**Keep the Panorama on the Menu's screen, as the Wheel's spoke played it.** Rejected: the
-Panorama's turn needs a place where a tap on the circle records the team, and the Menu's
+**Keep the Panorama on the Choice's screen, as the Wheel's spoke played it.** Rejected: the
+Panorama's turn needs a place where a tap on the circle records the team, and the Choice's
 circle says the entry aimed at.
 
 **A Step for "the line was said".** Rejected: the Panorama has one fact to keep, and the

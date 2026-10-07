@@ -10,7 +10,7 @@ The oral translation team's tablet app: it walks the team through a Bible passag
 One of the stops a session passes through, from the Choice to the Closing; the server names the one the team is in for the Desk, reading it off what the session holds.
 _Avoid_: stage (`SalaStage` is the enum, not the term), phase, screen, step
 
-**Panorama station** (`panorama`):
+**Panorama Station** (`panorama`):
 The station where the book's Panorama is voiced, reached by tapping the Panorama on the
 wheel; after its line, the team can answer it out loud.
 _Avoid_: invitation, convite, welcome
