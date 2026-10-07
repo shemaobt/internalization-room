@@ -183,6 +183,42 @@ void main() {
     expect(room.state.needsPerson, isFalse);
   });
 
+  test('a tap while «Ouvir de novo» plays cuts it as it cuts a first telling, '
+      'and the next take carries where', () async {
+    final room = await _inConversa();
+    await room.aReplySpeaking();
+    room.harness.voice.finishHeldLine();
+    await waitFor(
+      'a sala voltar ao convite',
+      () => room.state.voice == VoiceState.invite,
+    );
+    room.harness.voice.holdNextLine();
+    unawaited(room.notifier.hearAgain());
+    await waitFor(
+      'a repetição falar',
+      () => room.state.voice == VoiceState.speaking,
+    );
+    room.harness.voice
+      ..linePosition = _at
+      ..lineLength = _of;
+    final stops = room.harness.voice.stops;
+    final captures = room.harness.recorder.captures;
+
+    await room.tap();
+
+    expect(room.harness.voice.stops, greaterThan(stops));
+    expect(room.state.voice, VoiceState.listening);
+    expect(room.harness.recorder.captures, captures + 1);
+
+    await room.tap();
+    await waitFor(
+      'a vez cortada chegar à sala',
+      () => room.harness.room.cutsSent.length == 2,
+    );
+
+    expect(room.lastCut, const CutPoint(_at, of: _of));
+  });
+
   test('a tap while the voice thinks does nothing', () async {
     final room = await _inConversa();
     room.harness.room.holdNextTurn();
