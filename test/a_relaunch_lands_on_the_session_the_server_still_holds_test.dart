@@ -3,8 +3,11 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/current_session_ledger.dart';
+import 'package:internalization_room/features/sala/data/device_link_notifier.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
+import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -72,11 +75,16 @@ Future<void> _takeATurn(_Tablet tablet) async {
   await settle();
 }
 
-Future<_Tablet> _relaunch(_Tablet tablet, {String? lingua}) async {
+Future<_Tablet> _relaunch(
+  _Tablet tablet, {
+  String? lingua,
+  Duration? linkPoll,
+}) async {
   final (harness, container) = await relaunch(
     tablet.harness,
     tablet.container,
     lingua: lingua,
+    linkPoll: linkPoll,
   );
   return _Tablet(harness, container);
 }
@@ -445,6 +453,93 @@ void main() {
         isNot(contains('passagesOf')),
       );
       expect(again.said, isEmpty);
+    },
+  );
+
+  test('a tablet linked again to another team opens the Choice', () async {
+    final first = await _inP01();
+
+    final again = await _relaunch(
+      first,
+      linkPoll: const Duration(milliseconds: 50),
+    );
+    again.harness.room.refuseCredentialWith = const Refused(
+      RefusalCode.credentialTaken,
+    );
+    final link = again.container.read(deviceLinkProvider.notifier);
+    await link.findTheTeam();
+    await waitFor(
+      'the link to start over',
+      () => again.container.read(deviceLinkProvider).code != null,
+    );
+    again.harness.room
+      ..refuseCredentialWith = null
+      ..linkedTo = const TeamLink(projectId: 'outra-equipe');
+    await waitFor(
+      'the tablet to be linked again',
+      () => again.container.read(deviceLinkProvider).linked,
+    );
+    await settle();
+
+    final later = await _relaunch(again);
+    final reads = later.asked('fetchState');
+    await later.notifier.openTheRoom();
+    await _theChoiceShowsItsWheel(later);
+
+    expect(later.state.station, isA<Menu>());
+    expect(later.asked('fetchState'), reads);
+  });
+
+  test(
+    'the room resumed after a launch that lost the network stays on the Choice',
+    () async {
+      final first = await _inP01();
+      final session = first.state.sessionId!;
+
+      final again = await _relaunch(first);
+      again.harness.network.reachable = false;
+      again.harness.room.reachable = false;
+      await again.notifier.openTheRoom();
+      await waitFor('the room to be out of reach', () => again.state.offline);
+      again.harness.network.reachable = true;
+      again.harness.room.reachable = true;
+      final reads = again.asked('fetchState');
+
+      await again.notifier.openTheRoom();
+      await _theChoiceShowsItsWheel(again);
+      await settle();
+
+      expect(again.state.station, isA<Menu>());
+      expect(again.state.sessionId, isNull);
+      expect(again.asked('fetchState'), reads);
+
+      final later = await _relaunch(again);
+      await later.notifier.openTheRoom();
+      await _landsOn(later, session);
+    },
+  );
+
+  test(
+    'a launch landing that waits for the room enters the same session when it comes back',
+    () async {
+      final first = await _inP01();
+      final session = first.state.sessionId!;
+      await first.harness.emAberto.forget('Ruth', 'P01');
+
+      final again = await _relaunch(first);
+      final before = again.harness.room.calls.length;
+      again.harness.network.reachable = false;
+      await again.notifier.openTheRoom();
+      await waitFor('the room to be out of reach', () => again.state.offline);
+      again.harness.network.reachable = true;
+      final saidOutOfReach = again.said.length;
+      again.notifier.retryNow();
+      await _landsOn(again, session);
+
+      final asked = again.harness.room.calls.skip(before);
+      expect(asked, isNot(contains('createSession')));
+      expect(asked, isNot(contains('openSession')));
+      expect(again.said.skip(saidOutOfReach), isEmpty);
     },
   );
 }

@@ -216,6 +216,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   String? _sessionLanguage;
   int _calmTurns = 0;
   Future<void> Function()? _pending;
+  SessionSnapshot? _enteredWith;
 
   /// What plays the reply of the turn the machine holds in flight, and the gestures that
   /// wait on it, until the look the machine asks for comes back (ENG-1444 moves it).
@@ -1420,11 +1421,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> Function()? _theStationAgain() {
     final pericope = _emCurso;
+    final opened = _enteredWith;
     return switch (state.station) {
       Fim() => _startOver,
       Menu() => abrirEscolha,
       Canvas() when state.sessionId == null => () => goConversa(
         pericope: pericope,
+        opened: opened,
       ),
       Panorama() when !state.panoramaSaid => _entrarNoPanorama,
       _ => null,
@@ -1663,13 +1666,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void>? _launching;
+  bool _launched = false;
 
   /// Land on the Current session while the room still holds it, and on the Choice
-  /// otherwise, unless the team already stands somewhere in the room. A second call while
-  /// the first is on its way is the first.
+  /// otherwise, unless the team already stands somewhere in the room. The record is read
+  /// once per launch: a later call opens the Choice, so a resume never pulls the team into
+  /// a passage. A second call while the first is on its way is the first.
   Future<void> openTheRoom() async {
     if (state.station is! Menu || state.naRoda != null) return;
-    final launching = _launching ??= _gestureThen(_launch);
+    final launching = _launching ??= _gestureThen(
+      _launched ? _abrirEscolha : _launch,
+    );
+    _launched = true;
     try {
       await launching;
     } finally {
@@ -2251,8 +2259,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ///
   /// `fresh` skips the resume.
   ///
-  /// `opened` is a session the room already made for this passage, entered as it came
-  /// back rather than asked for again.
+  /// `opened` is a session the room already holds for this passage, entered as it came
+  /// back rather than asked for again, and never asked its Opening: the launch hands it
+  /// the session it read (ADR 0064), and a step that waits enters with it again.
   Future<void> goConversa({
     String? pericope,
     bool fresh = false,
@@ -2269,6 +2278,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _leaveTheStepFor(const Canvas());
     _clearAll();
     _emCurso = pericope;
+    _enteredWith = opened;
     _arriveAt(const PassageChosen());
     var generation = _waitOnTheGeneration;
     void landed() => generation = _waitOnTheGeneration;
@@ -2539,7 +2549,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   _Resume _theResumeFell() {
     final pericope = _emCurso;
-    _pending = () => goConversa(pericope: pericope);
+    final opened = _enteredWith;
+    _pending = () => goConversa(pericope: pericope, opened: opened);
     _theStepFell();
     return _Resume.abandoned;
   }
@@ -5555,7 +5566,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _forgetThePassage();
     _panoramaSessionId = null;
     state = SalaSessionState(machine: _gesturesOnTheirWay);
-    _letGoOfTheCurrentSession();
     _arriveAt(const TheRoomStartedOver());
     return abrirEscolha();
   }
