@@ -7068,8 +7068,8 @@ void main() {
     },
   );
 
-  test('finishing that recording opens a second panorama turn, and the bead '
-      'stays offered through both', () async {
+  test('finishing that recording opens a second panorama turn, and the circle '
+      'still takes the team\'s turn after the first reply', () async {
     final harness = SalaHarness();
     final container = harness.container();
     addTearDown(container.dispose);
@@ -7088,14 +7088,12 @@ void main() {
           'a pergunta gravada vira um turno de panorama, não fica presa '
           'no aparelho',
     );
-    final afterFirst = container.read(salaSessionProvider);
-    expect(afterFirst.panoramaSaid, isTrue);
     expect(
-      afterFirst.panoramaSaid,
+      container.read(salaSessionProvider).panoramaSaid,
       isTrue,
       reason:
-          'a conta continua na mesa depois da 1ª resposta, não só depois '
-          'da 1ª fala',
+          'o círculo continua tomando a vez da equipe depois da 1ª resposta, '
+          'não só depois da 1ª fala',
     );
 
     notifier.panoramaTap();

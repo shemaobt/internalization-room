@@ -1664,7 +1664,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         case VoiceState.blocked:
           break;
       }
+      return;
     }
+    if (state.voice == VoiceState.invite) _handOff(_entrarNoPanorama());
   }
 
   Future<void> _finishPanoramaListening() async {
@@ -2100,8 +2102,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchBusyState();
     // Only the passages the wheel already said have work waiting are looked up on disk,
     // so entering a fresh one through the wheel costs no read at all. A door the room
-    // opened has no wheel behind it — the list is still empty at the invitation — so the
-    // row is looked up there whatever the list says (ADR 0033).
+    // opened has no wheel behind it — the list is still empty before the Choice reads
+    // it — so the row is looked up there whatever the list says (ADR 0033).
     final stored =
         !fresh &&
             pericope != null &&

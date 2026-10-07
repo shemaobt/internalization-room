@@ -35,7 +35,6 @@ import 'package:internalization_room/features/sala/domain/coverage.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -1227,16 +1226,12 @@ class FakeRoom implements RoomRepository {
     pericopesAsked.add(pericope);
     metBefore.add(afterSession != null);
     languagesSent.add(language);
-    // The ask for "OV" comes back as the real id "OV-Ruth", the way the room answers it.
-    final answered = pericope == panoramaPericope
-        ? '$panoramaPericope-Ruth'
-        : pericope;
     final sessionId = 'sessao-${sessionIds.length + 1}';
     sessionIds.add(sessionId);
     return Answered(
       SessionSnapshot(
         sessionId: sessionId,
-        pericope: answered ?? 'rute-1',
+        pericope: pericope ?? 'rute-1',
         status: 'in_progress',
         coverage: nextCoverage,
         done: false,

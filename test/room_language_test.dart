@@ -340,31 +340,34 @@ void main() {
     },
   );
 
-  test('the dev language button on the Panorama restarts the room on the Menu in '
-      'the new language', () async {
-    dotenv.testLoad(
-      fileInput:
-          'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
-    );
-    addTearDown(() => dotenv.testLoad(fileInput: ''));
-    final binding = TestWidgetsFlutterBinding.ensureInitialized();
-    binding.platformDispatcher.localesTestValue = const [Locale('pt', 'BR')];
-    addTearDown(binding.platformDispatcher.clearLocalesTestValue);
-    final harness = SalaHarness(lingua: null)
-      ..room.passages = _livroComPanorama;
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-    await enterThePanorama(notifier, read);
-    await waitFor('o panorama ser dito', () => read().panoramaSaid);
+  test(
+    'the dev language button on the Panorama restarts the room on the Choice in '
+    'the new language',
+    () async {
+      dotenv.testLoad(
+        fileInput:
+            'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
+      );
+      addTearDown(() => dotenv.testLoad(fileInput: ''));
+      final binding = TestWidgetsFlutterBinding.ensureInitialized();
+      binding.platformDispatcher.localesTestValue = const [Locale('pt', 'BR')];
+      addTearDown(binding.platformDispatcher.clearLocalesTestValue);
+      final harness = SalaHarness(lingua: null)
+        ..room.passages = _livroComPanorama;
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+      await enterThePanorama(notifier, read);
+      await waitFor('o panorama ser dito', () => read().panoramaSaid);
 
-    notifier.devTrocarIdioma();
-    await waitFor('a roda voltar', () => read().naRoda != null);
+      notifier.devTrocarIdioma();
+      await waitFor('a roda voltar', () => read().naRoda != null);
 
-    expect(read().station, isA<Menu>());
-    expect(harness.room.languagesAsked.last, 'en');
-  });
+      expect(read().station, isA<Menu>());
+      expect(harness.room.languagesAsked.last, 'en');
+    },
+  );
 
   test(
     'a tablet set to the language nobody approved opens the room in English',

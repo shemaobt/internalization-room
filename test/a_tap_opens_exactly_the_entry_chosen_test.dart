@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
@@ -156,6 +157,64 @@ void main() {
 
     expect(harness.room.sessionsSpokenTo, hasLength(1));
     expect(read().station, isA<Panorama>());
+  });
+
+  test('a tap on the Panorama\'s circle after its line could not be played '
+      'asks the opening again in the same session', () async {
+    final harness = SalaHarness()..room.passages = _theBook;
+    harness.voice.succeeds = false;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await enterThePanorama(notifier, read);
+    await waitFor(
+      'the opening to end unsaid',
+      () =>
+          harness.room.sessionsSpokenTo.isNotEmpty &&
+          read().voice == VoiceState.invite,
+    );
+
+    notifier.panoramaTap();
+    await waitFor(
+      'the opening to be asked again',
+      () => harness.room.sessionsSpokenTo.length == 2,
+    );
+
+    expect(
+      harness.room.sessionsSpokenTo,
+      everyElement(harness.room.sessionIds.single),
+    );
+    expect(
+      harness.room.calls.where((call) => call == 'createSession'),
+      hasLength(1),
+    );
+  });
+
+  test('a tap on the Panorama\'s circle after the person lifts the halt its '
+      'refused opening raised asks the opening again', () async {
+    final harness = SalaHarness()
+      ..room.passages = _theBook
+      ..room.failHeldTurnWith = const Refused('BAD_REQUEST');
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await enterThePanorama(notifier, read);
+    await waitFor('the room to halt', () => read().needsPerson);
+    await theHaltIsLifted(harness, notifier, read);
+
+    notifier.panoramaTap();
+    await waitFor(
+      'the opening to be asked again',
+      () => harness.room.turnIdsAsked.length == 2,
+    );
+
+    expect(read().station, isA<Panorama>());
+    expect(
+      harness.room.calls.where((call) => call == 'createSession'),
+      hasLength(1),
+    );
   });
 
   testWidgets('the team can leave the Panorama for the passage choice', (

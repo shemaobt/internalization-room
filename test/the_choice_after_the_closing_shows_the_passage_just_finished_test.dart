@@ -44,10 +44,14 @@ void main() {
     await pedirOVeredito(it);
     expect(it.estado.btPhase, BtPhase.conferida);
 
+    final wheelsAsked = harness.room.booksAsked.length;
     await it.sala.aprovarRascunhoFinal();
     await waitFor('the Closing', () => it.estado.station is Fim);
     await waitFor('the Choice to open', () => it.estado.station is Menu);
-    await Future<void>.delayed(const Duration(milliseconds: 200));
+    await waitFor(
+      'the Choice to ask for its Wheel',
+      () => harness.room.booksAsked.length > wheelsAsked,
+    );
     theWriteLands.complete();
     await waitFor('the Wheel to load', () => it.estado.naRoda != null);
 

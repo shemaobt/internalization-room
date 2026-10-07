@@ -123,6 +123,11 @@ void main() {
     );
     expect(estado.keptTakes, hasLength(3));
     expect(harness.emAberto.rows['Ruth/$_passagem']!.sessionId, _daLinha);
+    expect(
+      harness.room.sessionIds,
+      isEmpty,
+      reason: 'a linha já tem sessão; o toque não cunha outra',
+    );
   });
 
   test('uma linha parada na conversa guarda a sua sessão', () async {
