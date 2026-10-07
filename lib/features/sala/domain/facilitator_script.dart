@@ -90,8 +90,12 @@ String handLabelFor(String state, String language) =>
 const roomLabels = {
   'hearAgain': {'pt': 'Ouvir de novo', 'en': 'Hear it again'},
   'leavePassage': {
-    'pt': 'Deixar esta passagem e escolher outra',
-    'en': 'Leave this passage and choose another',
+    'pt': 'Escolher outra passagem',
+    'en': 'Choose another passage',
+  },
+  'backToPassage': {
+    'pt': 'Voltar para a passagem atual',
+    'en': 'Back to the current passage',
   },
   'micBlocked': {
     'pt': 'A sala precisa do microfone para funcionar',

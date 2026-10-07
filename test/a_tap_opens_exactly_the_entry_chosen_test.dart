@@ -235,7 +235,7 @@ void main() {
     }
 
     await enter();
-    final leave = byLabel('Leave this passage and choose another');
+    final leave = byLabel('Choose another passage');
     expect(leave, findsOneWidget);
 
     await tester.tap(leave);

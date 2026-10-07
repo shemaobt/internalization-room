@@ -106,6 +106,9 @@ class FakeVoice implements FacilitatorVoiceService {
   final List<String> played = [];
   final List<String> assets = [];
   final List<String> fetched = [];
+
+  /// Whether a line is said whole. A stopped line ends unsaid: the real service answers
+  /// false when its sound is cut short (`_sayItWhole`).
   bool succeeds = true;
 
   /// Lines this voice refuses to say, by url or by asset path — for the halves of one
@@ -1035,6 +1038,15 @@ class FakeRoom implements RoomRepository {
 
   Set<String> passagesThatCannotOpen = {};
 
+  Completer<void>? _holdingPassages;
+
+  void holdNextPassages() => _holdingPassages = Completer<void>();
+
+  void finishHeldPassages() {
+    _holdingPassages?.complete();
+    _holdingPassages = null;
+  }
+
   Completer<void>? _holdingTurn;
   Completer<void>? _holdingCode;
 
@@ -1246,6 +1258,7 @@ class FakeRoom implements RoomRepository {
     required String language,
   }) async {
     if (_guard('passagesOf') case final failure?) return failure;
+    await _holdingPassages?.future;
     booksAsked.add(book);
     languagesAsked.add(language);
     return Answered(passages);

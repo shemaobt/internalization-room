@@ -1880,6 +1880,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     _wheelPrefetch++;
     _silenceTheRoom();
+    state = state.copyWith(clearLeftEntry: true);
     if (passagem.isPanorama) {
       _leaveTheStepFor(const Panorama());
       _clearAll();
@@ -1945,10 +1946,97 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void leaveThePassage() => _gesture(() => _leaveThePassage());
 
   void _leaveThePassage() {
+    final left = _whatTheLeaveLeaves();
     _clearAll();
     _dropThePendingTake();
     _forgetThePassage();
     _openTheChoice();
+    if (left != null) state = state.copyWith(leftEntry: left);
+  }
+
+  LeftEntry? _whatTheLeaveLeaves() {
+    final panorama = state.station is Panorama;
+    final session = _theSession;
+    final pericope = panorama ? null : _emCurso;
+    if (session == null && pericope == null) return null;
+    return LeftEntry(
+      pericope: pericope,
+      panorama: panorama,
+      session: session,
+      said: panorama && state.panoramaSaid,
+      held: _theTakeTheLeaveHolds(),
+    );
+  }
+
+  /// A kept take sounding in the Rehearsal, as it will be laid back: paused where it was.
+  /// The place is the channel's head, never the player's position while its clip has not
+  /// opened. The pending take dies with the leave, so neither it nor what follows it is held.
+  Paused? _theTakeTheLeaveHolds() {
+    if (state.station is! Ensaio) return null;
+    final kept = state.partes.length;
+    final pending = _pendingTakePath;
+    bool isKept(Sound sound) =>
+        sound is PartSound && sound.part < kept && sound.path != pending;
+    final PartSound part;
+    final List<Sound> next;
+    final Duration? head;
+    switch (state.channel) {
+      case PartPlaying(
+        part: final playing,
+        next: final following,
+        head: final playingHead,
+      ):
+        (part, next, head) = (playing, following, playingHead);
+      case Paused(
+        what: final PartSound held,
+        next: final following,
+        head: final heldHead,
+      ):
+        (part, next, head) = (held, following, heldHead);
+      default:
+        return null;
+    }
+    if (!isKept(part)) return null;
+    final position = _playback.position;
+    final at = head ?? (part.to == null ? position : part.from + position);
+    return Paused(
+      PartSound(part.part, part.path, from: at, to: part.to),
+      next: next.takeWhile(isKept).toList(),
+      started: false,
+      opened: false,
+    );
+  }
+
+  /// The way back to the entry the team left: a return, not a new entry. The Panorama
+  /// comes back silent once its line was said; a passage comes back through the resume.
+  Future<void> returnToTheLeftEntry() => _gestureThen(_returnToTheLeftEntry);
+
+  Future<void> _returnToTheLeftEntry() async {
+    if (!state.theWayBackIsLive) return;
+    final left = state.leftEntry!;
+    state = state.copyWith(clearLeftEntry: true);
+    if (left.panorama) return _returnToThePanorama(left);
+    await goConversa(pericope: left.pericope);
+    final held = left.held;
+    if (held != null &&
+        state.sessionId == left.session &&
+        state.station is Ensaio) {
+      _dispatch(TheHeldPartReturns(held));
+    }
+  }
+
+  void _returnToThePanorama(LeftEntry left) {
+    _wheelPrefetch++;
+    _silenceTheRoom();
+    _leaveTheStepFor(const Panorama());
+    _clearAll();
+    _arriveAt(const ThePanoramaChosen());
+    if (left.said && _panoramaSessionId == left.session) {
+      state = state.copyWith(panoramaSaid: true);
+      unawaited(_pullInbox());
+      return;
+    }
+    _handOff(_entrarNoPanorama());
   }
 
   String? get _theSession => state.sessionId ?? _panoramaSessionId;
@@ -1964,6 +2052,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _letGoOf(String? sessionId, {List<String> kept = const []}) {
     if (sessionId != null) _goneSessions.add(sessionId);
     if (sessionId == _panoramaSessionId) _panoramaSessionId = null;
+    if (sessionId != null && state.leftEntry?.session == sessionId) {
+      state = state.copyWith(clearLeftEntry: true);
+    }
     unawaited(
       _mindingThePlace(
         () => _forgetTheSessionOnDisk(sessionId, kept),

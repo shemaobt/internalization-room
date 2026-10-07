@@ -91,8 +91,27 @@ class Trecho {
   });
 }
 
+class LeftEntry {
+  final String? pericope;
+  final bool panorama;
+  final String? session;
+  final bool said;
+  final Paused? held;
+
+  const LeftEntry({
+    this.pericope,
+    this.panorama = false,
+    this.session,
+    this.said = false,
+    this.held,
+  });
+}
+
 class SalaSessionState {
   final bool awaitingTheGuide;
+
+  /// The entry the team last left by the way out, for the Choice to offer the way back.
+  final LeftEntry? leftEntry;
   final bool endOfThePassage;
 
   /// Why the room is out of reach, when it is. Two different faces: a tablet with no
@@ -200,6 +219,7 @@ class SalaSessionState {
 
   const SalaSessionState({
     this.awaitingTheGuide = false,
+    this.leftEntry,
     this.endOfThePassage = false,
     this.reach = RoomReach.fine,
     this.panoramaSaid = false,
@@ -364,6 +384,33 @@ class SalaSessionState {
 
   bool get needsPerson => halt is Blocking;
 
+  /// The Choice offers the way back to the entry left, once the Wheel is read.
+  bool get theWayBackIsOffered =>
+      stage == SalaStage.escolha &&
+      leftEntry != null &&
+      naRoda != null &&
+      !needsPerson;
+
+  /// The way back answers the finger only while the Wheel is quiet.
+  bool get theWayBackIsLive =>
+      theWayBackIsOffered && voice == VoiceState.invite;
+
+  /// The way out of a Station is hidden while it cannot apply: the voice is busy, or a
+  /// microphone other than the raised-hand note's is open, or a person is called, except
+  /// at the Back-translation's resting screen (ADR 0019).
+  bool get wayOutIsHidden {
+    if (needsPerson) {
+      return !(stage == SalaStage.retro && btPhase == BtPhase.conferida);
+    }
+    return switch (voice) {
+      VoiceState.thinking || VoiceState.speaking => true,
+      _ => switch (channel) {
+        Microphone(:final owner) => owner != MicOwner.question,
+        _ => false,
+      },
+    };
+  }
+
   bool get warning => halt is Warning;
 
   bool get wheelHalted => switch (halt) {
@@ -508,6 +555,8 @@ class SalaSessionState {
 
   SalaSessionState copyWith({
     bool? awaitingTheGuide,
+    LeftEntry? leftEntry,
+    bool clearLeftEntry = false,
     bool? endOfThePassage,
     RoomReach? reach,
     bool? panoramaSaid,
@@ -564,6 +613,7 @@ class SalaSessionState {
   }) {
     return SalaSessionState(
       awaitingTheGuide: awaitingTheGuide ?? this.awaitingTheGuide,
+      leftEntry: clearLeftEntry ? null : (leftEntry ?? this.leftEntry),
       endOfThePassage: endOfThePassage ?? this.endOfThePassage,
       reach: reach ?? this.reach,
       panoramaSaid: panoramaSaid ?? this.panoramaSaid,

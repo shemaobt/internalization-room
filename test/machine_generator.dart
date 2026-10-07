@@ -266,6 +266,8 @@ String describeEvent(MachineEvent event) => switch (event) {
     'BeadTapped(${sounds.map(describeSound).join(', ')}'
         '${beneath == null ? '' : ', beneath: ${describeChannel(beneath)}'})',
   PauseTapped() => 'PauseTapped',
+  TheHeldPartReturns(:final held) =>
+    'TheHeldPartReturns(${describeChannel(held)})',
   GestureSilenced(:final keepingTheHold) =>
     'GestureSilenced(keepingTheHold: $keepingTheHold)',
   GestureStarted(:final gesture) => 'GestureStarted($gesture)',
@@ -381,6 +383,7 @@ enum EventKind {
   micDiscarded,
   beadTapped,
   pauseTapped,
+  theHeldPartReturns,
   gestureSilenced,
   gestureStarted,
   gestureEnded,
@@ -433,6 +436,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   MicDiscarded() => EventKind.micDiscarded,
   BeadTapped() => EventKind.beadTapped,
   PauseTapped() => EventKind.pauseTapped,
+  TheHeldPartReturns() => EventKind.theHeldPartReturns,
   GestureSilenced() => EventKind.gestureSilenced,
   GestureStarted() => EventKind.gestureStarted,
   GestureEnded() => EventKind.gestureEnded,
@@ -486,6 +490,7 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.micDiscarded ||
   EventKind.beadTapped ||
   EventKind.pauseTapped ||
+  EventKind.theHeldPartReturns ||
   EventKind.gestureSilenced ||
   EventKind.gestureStarted ||
   EventKind.gestureEnded ||
@@ -599,6 +604,17 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
         for (var i = 0; i <= random.nextInt(3); i++) _drawASound(random),
       ]),
       EventKind.pauseTapped => const PauseTapped(),
+      EventKind.theHeldPartReturns => TheHeldPartReturns(
+        Paused(
+          PartSound(
+            random.nextInt(2),
+            'parte-${random.nextInt(2)}.m4a',
+            from: Duration(seconds: random.nextInt(20)),
+          ),
+          started: false,
+          opened: false,
+        ),
+      ),
       EventKind.gestureSilenced => GestureSilenced(
         keepingTheHold: random.nextBool(),
       ),
