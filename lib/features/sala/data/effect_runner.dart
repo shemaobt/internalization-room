@@ -666,11 +666,10 @@ class EffectRunner {
     }
   }
 
-  /// Whether to try again is [EffectHost.aPersonIsNeeded] and not the generation:
-  /// the machine moves the generation on the way into other halts, and an attempt still
-  /// in flight when it does would otherwise land on a room that is still stopped and stop
-  /// insisting in silence. A ladder armed before the generation moves is dropped when it
-  /// fires, as the Station drops any answer older than the generation.
+  /// The arm is gated by [EffectHost.aPersonIsNeeded] and not by the generation: the
+  /// machine moves the generation on the way into other halts, and a ladder that did not
+  /// arm for it would stop insisting in silence. The fire is gated by the generation: a
+  /// ladder armed before it moved is dropped, as the Station drops any older answer.
   void _askForAPersonAgain() {
     if (!host.aPersonIsNeeded) return;
     final armedUnder = generation?.call();

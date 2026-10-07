@@ -194,7 +194,7 @@ void main() {
       store.answerTheMark();
       await pumpEventQueue();
 
-      expect(host.marksHeard, ['begin', 'end:sessao-1']);
+      expect(host.marksHeard, ['begin', 'end:sessao-1:rute-1']);
     },
   );
 
@@ -217,7 +217,7 @@ void main() {
       await pumpEventQueue();
 
       expect(store.heard, isEmpty);
-      expect(host.marksHeard, ['begin', 'end:sessao-1']);
+      expect(host.marksHeard, ['begin', 'end:sessao-1:null']);
     },
   );
 

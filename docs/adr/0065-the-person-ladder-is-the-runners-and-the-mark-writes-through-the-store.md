@@ -33,13 +33,15 @@ The mark wrote the finished passage to the disk from the notifier.
 - **The closed-passage mark writes through the Store port.** The Station hears the mark
   begin, holds the call, tells the Choice the passage is closed, and hands back the book and
   the passage to write; the Store port writes them and swallows its failure at the boundary.
-  The Station then hears the mark end with the session and does what it did: the room's
+  The Station then hears the mark end with the session and the passage and does what it did: the room's
   session hears `ThePassageClosed`, another session is let go. A mark with no session asks
   nothing.
 - **The ladder's fire runs in the zone of the dispatch that armed it, not apart.** The
   notifier's timer ran with no gesture on the chain. Measured: no test sees the difference,
   because the retry, the answers of that call and the stop's settle say no line and arm no
-  wait.
+  wait. The arm also registers no gesture: the notifier's timer registered the arming
+  gesture's chain to be ended as abandoned if the generation moved, and what that would
+  have ended is already ended by the time the ladder fires.
 
 ## Considered Options
 

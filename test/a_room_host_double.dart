@@ -81,7 +81,7 @@ class ARoomHost implements EffectHost {
 
   @override
   void hearTheMarkEnd(String session, String? passage) =>
-      marksHeard.add('end:$session');
+      marksHeard.add('end:$session:$passage');
 
   int callsLanded = 0;
   int callsLandedWithoutASession = 0;
