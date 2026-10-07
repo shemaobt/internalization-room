@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -342,4 +345,72 @@ void main() {
 
     await waitFor('the person sign', () => read().needsPerson);
   });
+
+  test(
+    'a fail-safe the room said again is not kept as the last line, and the next '
+    '«Ouvir de novo» asks the room again',
+    () async {
+      final harness = SalaHarness()..room.turnsAreCanned = true;
+      _aCanvasRow(harness, opened: true);
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+      await enterThePassage(notifier, read, 'P01');
+      await waitFor('the passage to land at rest', () => read().canHearAgain);
+
+      await notifier.hearAgain();
+      await waitFor(
+        'the room to rest again',
+        () => read().voice == VoiceState.invite && read().canHearAgain,
+      );
+      await notifier.hearAgain();
+      await waitFor(
+        'the room to be asked again',
+        () => harness.room.sessionsSaidAgain.length == 2,
+      );
+
+      expect(read().lastSpoken, isNull);
+    },
+  );
+
+  test(
+    'a stored Rehearsal whose session read fell with the network enters again '
+    'when the room comes back and lands on the Rehearsal',
+    () async {
+      final home = Directory.systemTemp.createTempSync('sala-ensaio-lembrado');
+      addTearDown(() => home.deleteSync(recursive: true));
+      final part = File('${home.path}/p1.m4a')..writeAsBytesSync([1, 2, 3]);
+      final harness = SalaHarness();
+      harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+        sessionId: _rememberedSession,
+        stage: SalaStage.ensaio,
+        takes: [KeptTake(scopeId: KeptScope.parte(1), path: part.path)],
+      );
+      harness.room.failStateOnceWith = const NetworkFailed('sem rede');
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+      await enterThePassage(notifier, read, 'P01');
+      await waitFor('the room to be out of reach', () => read().offline);
+
+      notifier.retryNow();
+
+      await waitFor(
+        'the entry to read the session again',
+        () => stateReads(harness) == 3,
+      );
+      await settle();
+      expect(
+        stateReads(harness),
+        3,
+        reason:
+            'the read that fell, the probe that finds the room back, and '
+            'the entry that reads the session again',
+      );
+      expect(read().stage, SalaStage.ensaio);
+      expect(read().sessionId, _rememberedSession);
+    },
+  );
 }

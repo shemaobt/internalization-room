@@ -789,6 +789,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             url,
             line.fixedLine,
             panoramaUrl: twoMovements ? line.panoramaUrl : '',
+            remember: !line.usedFailSafe,
           );
           if (_abandoned(generation)) return;
           if (!played) return _registerUnplayableTurn(leavesTeamTalk: false);
@@ -2330,6 +2331,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         switch (await _room.fetchState(sessionId)) {
           case Answered(value: final read):
             snapshot = read;
+          case NetworkFailed():
+            if (_abandoned(generation)) return;
+            _theResumeFell();
+            return;
           case final RoomFailure failure:
             return failed(failure);
         }

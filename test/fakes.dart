@@ -1334,7 +1334,7 @@ class FakeRoom implements RoomRepository {
           fixedLine: '',
           transcript: '',
           peerCue: false,
-          usedFailSafe: false,
+          usedFailSafe: turnsAreCanned,
           degraded: false,
           coverage: silentAboutCoverage ? null : nextCoverage,
           done: done,
