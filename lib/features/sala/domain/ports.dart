@@ -115,4 +115,26 @@ abstract interface class RecorderPort {
 /// The disk and the Outbox.
 abstract interface class StorePort {
   Future<int> flushTheOutbox();
+
+  Future<CurrentSession?> currentSession();
+
+  Future<void> holdTheSession(CurrentSession session);
+
+  /// Lets go of the Current session, or only of the session [only] names.
+  Future<void> letGoOfTheSession({String? only});
+}
+
+/// The session this tablet was in when it last stood in a passage.
+class CurrentSession {
+  final String sessionId;
+  final String book;
+  final String pericope;
+  final String language;
+
+  const CurrentSession({
+    required this.sessionId,
+    required this.book,
+    required this.pericope,
+    required this.language,
+  });
 }

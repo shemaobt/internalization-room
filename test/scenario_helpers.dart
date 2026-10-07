@@ -138,6 +138,27 @@ Future<void> theHaltIsLifted(
   await settle();
 }
 
+/// Kill the tablet and launch it again: a new container over the same disk and the same
+/// room, opened only after the old one is gone.
+Future<(SalaHarness, ProviderContainer)> relaunch(
+  SalaHarness harness,
+  ProviderContainer container, {
+  String? lingua,
+}) async {
+  container.dispose();
+  final again = SalaHarness(
+    room: harness.room,
+    emAbertoNoDisco: harness.emAbertoNoDisco ?? harness.emAberto,
+    finishedOnDisk: harness.finishedOnDisk ?? harness.finished,
+    takesHome: harness.takesHome,
+    currentSession: harness.currentSession,
+    lingua: lingua ?? harness.lingua,
+  );
+  final next = again.container();
+  addTearDown(next.dispose);
+  return (again, next);
+}
+
 /// Open the Choice, aim at the Panorama's entry and tap it, as the team does.
 Future<void> enterThePanorama(
   SalaSessionNotifier notifier,
