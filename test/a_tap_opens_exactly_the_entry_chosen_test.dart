@@ -134,6 +134,30 @@ void main() {
     },
   );
 
+  test('a fall on the Panorama after its line was said does not voice the '
+      'Panorama again when the room comes back', () async {
+    final harness = SalaHarness()..room.passages = _theBook;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await enterThePanorama(notifier, read);
+    await waitFor('the Panorama to be said', () => read().panoramaSaid);
+    harness.inbox.refuses = true;
+
+    notifier.handTap();
+    notifier.panoramaTap();
+    notifier.panoramaTap();
+    await waitFor('the room to be out of reach', () => read().offline);
+    harness.inbox.refuses = false;
+    notifier.retryNow();
+    await waitFor('the room to come back', () => !read().offline);
+    await settle();
+
+    expect(harness.room.sessionsSpokenTo, hasLength(1));
+    expect(read().station, isA<Panorama>());
+  });
+
   testWidgets('the team can leave the Panorama for the passage choice', (
     tester,
   ) async {

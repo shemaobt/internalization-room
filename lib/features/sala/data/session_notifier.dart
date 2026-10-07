@@ -1374,7 +1374,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       Canvas() when state.sessionId == null => () => goConversa(
         pericope: pericope,
       ),
-      Panorama() => _entrarNoPanorama,
+      Panorama() when !state.panoramaSaid => _entrarNoPanorama,
       _ => null,
     };
   }
@@ -1765,10 +1765,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  /// One number per quiet download of the wheel's names. Every way off the wheel moves
-  /// the generation except the panorama spoke, which never passes through `_clearAll`;
-  /// entering any spoke bumps this instead, so a download started for the wheel dies with
-  /// it either way.
+  /// One number per quiet download of the wheel's names; entering any entry bumps it, so
+  /// a download started for the wheel dies with it.
   int _wheelPrefetch = 0;
 
   Future<void> _fetchTheNamesTheWheelLacks(int generation) async {
@@ -1877,8 +1875,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _wheelPrefetch++;
-    // Acima dos dois ramos: o panorama não passa pelo _clearAll do goConversa, e a
-    // linha que a roda acabou de oferecer seguia soando por cima da espera dele.
     _silenceTheRoom();
     if (passagem.isPanorama) {
       _leaveTheStepFor(const Panorama());
@@ -2836,7 +2832,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ///
   /// The playing mark is given back on every way out. `_markHeard` is what clears it when
   /// the reply sounded; a reply that did not, or that outlived its generation, clears it
-  /// here, or the hand, the circle and the convite all return early on it for good.
+  /// here, or the hand and the circle return early on it for good.
   Future<void> _playReply(HandReply reply) async {
     Said said;
     try {
