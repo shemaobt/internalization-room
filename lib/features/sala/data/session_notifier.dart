@@ -4423,24 +4423,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return;
     }
 
-    if (!told.captured) {
-      // The room made nothing out of it, which is also what a transcriber outage looks
-      // like from here. The stretch is left exactly as it was — an explanation is not
-      // swapped for an empty one over somebody else's failure — and their audio is kept.
-      _guardarATraducao(path);
-      // A refusal leaves the stretches as they were, so the ground told back is the same
-      // ground the taken correction would have left: read it off what the tablet already
-      // holds rather than off an answer that carries nothing.
-      _walkTheCursorBack(state.btTrechos);
-      state = state.copyWith(
-        btPhase: BtPhase.playing,
-        awaitingTheGuide: false,
-        btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
-      );
-      if (told.needsPerson) _dispatch(TheAnswerWarned(generation: generation));
-      return;
-    }
-
     _contadasSemResposta.clear();
     _theTellingLandedOn(
       told.segments,
@@ -4560,6 +4542,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btTrechos: trechos.isEmpty ? state.btTrechos : trechos,
       clearTraducaoPendente: true,
     );
+    _dispatch(TheTellingLanded(generation: _generation));
     if (needsPerson) _dispatch(TheAnswerWarned(generation: _generation));
     _rememberWhereTheyAre(const Retro());
   }
@@ -4570,11 +4553,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// staying where the excursion left it. The ordinary path walks it forward past what
   /// was just told; here there is nothing to walk past, and a cursor left behind makes
   /// the next cut begin inside ground already explained.
-  ///
-  /// Whether the room made anything of the correction does not change that. A refused
-  /// one used to skip this and leave the cursor on the bounds the finding had named, so
-  /// the next cut began at the start of the recording and sent the whole rehearsal as one
-  /// new stretch — the team's own telling, handed back to the room a second time.
   void _walkTheCursorBack(List<Trecho> trechos) {
     final alcancado = trechos.fold(
       Duration.zero,
@@ -4732,21 +4710,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return _theStepFell();
     }
     switch (sent) {
-      case Answered(value: final captured):
+      case Answered():
         if (_abandoned(generation)) return;
-        if (!captured.captured) {
-          // The room heard nothing in it — which is also what a transcription outage
-          // looks like from here. Either way the stretch they just told is audio, and it
-          // used to be dropped on both sides: the server returns before it stores
-          // anything, and this branch kept no copy.
-          _guardarATraducao(path);
-          state = state.copyWith(
-            btPhase: BtPhase.playing,
-            awaitingTheGuide: false,
-            btChunkFailures: [...state.btChunkFailures, _nextChunkPlace()],
-          );
-          return;
-        }
       case final RoomFailure failure:
         _guardarATraducao(path);
         if (_abandoned(generation)) return;
@@ -4785,6 +4750,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ],
       clearTraducaoPendente: true,
     );
+    _dispatch(TheTellingLanded(generation: _generation));
     if (!state.needsPerson) _tocarOProximoTrecho();
   }
 
@@ -4833,6 +4799,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ),
     );
   }
+
+  void _letThePendingTranslationGo() => state = state.copyWith(
+    clearTraducaoPendente: true,
+    awaitingTheGuide: false,
+  );
 
   void _descartarATraducaoPendente() {
     final path = state.btTraducaoPendente;
@@ -5813,6 +5784,10 @@ class _NotifierHost implements EffectHost {
 
   @override
   void hearTheRefusalCounted() => _notifier._countTheRefusal();
+
+  @override
+  void hearThePendingTranslationLetGo() =>
+      _notifier._letThePendingTranslationGo();
 
   @override
   void hearThePassageRefused() => _notifier._refuseThePassage();

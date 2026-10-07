@@ -316,6 +316,8 @@ class SalaSessionState {
 
   Channel get channel => machine.channel;
 
+  bool get wordlessTelling => machine.wordlessTelling;
+
   VoiceState get voice {
     if (halt is Blocking) return VoiceState.invite;
     if (unreachable && channel is! Microphone) return VoiceState.offline;

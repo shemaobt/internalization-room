@@ -28,6 +28,10 @@ class FacilitatorCircle extends StatelessWidget {
   /// neither [halt] blocks nor [voice] is a halted state — a room the team cannot use yet is
   /// still a stop, whatever the last warning said.
   final String? warning;
+
+  /// Her line after a telling the room made nothing of, said to VoiceOver by a mark on
+  /// the other side of the disc, or null while no telling came back empty.
+  final String? notUnderstood;
   final Halt halt;
   final double opacity;
   final String semanticLabel;
@@ -44,6 +48,7 @@ class FacilitatorCircle extends StatelessWidget {
     this.noteMode = false,
     this.peerCue = false,
     this.warning,
+    this.notUnderstood,
     this.halt = const NoHalt(),
     this.opacity = 1,
     this.onTap,
@@ -81,6 +86,8 @@ class FacilitatorCircle extends StatelessWidget {
                 if (!_halted && voice == VoiceState.listening)
                   ..._gatheringIn(),
                 if (warning != null && !_halted) _warningMark(warning!),
+                if (notUnderstood != null && !_halted)
+                  _notUnderstoodMark(notUnderstood!),
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 1000),
                   child: _modeGlyph == null
@@ -299,8 +306,20 @@ class FacilitatorCircle extends StatelessWidget {
     );
   }
 
-  Widget _warningMark(String label) => Positioned(
-    right: 0,
+  Widget _warningMark(String label) =>
+      _mark(label, right: 0, gradient: BeadStyles.verde);
+
+  Widget _notUnderstoodMark(String label) =>
+      _mark(label, left: 0, gradient: BeadStyles.azul);
+
+  Widget _mark(
+    String label, {
+    double? left,
+    double? right,
+    required Gradient gradient,
+  }) => Positioned(
+    left: left,
+    right: right,
     bottom: 0,
     child: Semantics(
       container: true,
@@ -308,9 +327,9 @@ class FacilitatorCircle extends StatelessWidget {
       child: Container(
         width: size * 0.22,
         height: size * 0.22,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: BeadStyles.verde,
+          gradient: gradient,
           boxShadow: BeadStyles.matte,
         ),
       ),

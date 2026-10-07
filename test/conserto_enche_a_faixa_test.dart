@@ -218,21 +218,20 @@ void main() {
     await _escolherTraduzirDeNovo(tester);
     await _abrirOMicrofone(tester, container);
     expect(_faixasVazias(tester, container), isEmpty);
-    harness.room.replaceCaptured = false;
+    harness.room.failReplaceWith = const Refused(RefusalCode.wordlessTelling);
     await _entregarATraducao(tester, container);
 
     expect(
       _faixasVazias(tester, container),
-      isEmpty,
+      [0],
       reason:
-          'a sala não fez nada com o que subiu, e a tradução nova segue '
-          'pendente, translúcida: o conserto não aterrou, mas também não se '
-          'perdeu',
+          'a sala não fez nada com o que subiu: não há tradução nova '
+          'pendente, e o trecho volta a esperar o conserto',
     );
     expect(
       container.read(salaSessionProvider).canConfirmTranslation,
-      isTrue,
-      reason: 'e o check continua aceso para mandá-la de novo',
+      isFalse,
+      reason: 'só o círculo é oferecido, para contar o trecho de novo',
     );
   });
 

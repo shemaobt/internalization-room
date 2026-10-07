@@ -370,6 +370,14 @@ final class TheCallMetAClosedPassage extends AnsweringEvent {
   const TheCallMetAClosedPassage({super.generation});
 }
 
+final class TheTellingCameBackEmpty extends AnsweringEvent {
+  const TheTellingCameBackEmpty({super.generation});
+}
+
+final class TheTellingLanded extends AnsweringEvent {
+  const TheTellingLanded({super.generation});
+}
+
 sealed class Effect {
   const Effect();
 }
@@ -629,6 +637,10 @@ final class CountTheRefusal extends Effect {
   const CountTheRefusal();
 }
 
+final class LetThePendingTranslationGo extends Effect {
+  const LetThePendingTranslationGo();
+}
+
 final class RefuseThePassage extends Effect {
   const RefuseThePassage();
 }
@@ -687,6 +699,8 @@ final class Machine {
 
   final Station station;
 
+  final bool wordlessTelling;
+
   const Machine({
     this.halt = const NoHalt(),
     this.channel = const Silence(),
@@ -705,6 +719,7 @@ final class Machine {
     this.lastLine,
     this.lastMic,
     this.station = const Menu(),
+    this.wordlessTelling = false,
   });
 
   bool get reachable => reach == Reach.reachable;
@@ -742,6 +757,7 @@ final class Machine {
     LineOutcome? lastLine,
     MicOutcome? lastMic,
     Station? station,
+    bool? wordlessTelling,
   }) => Machine(
     halt: halt ?? this.halt,
     channel: channel ?? this.channel,
@@ -760,6 +776,7 @@ final class Machine {
     lastLine: lastLine ?? this.lastLine,
     lastMic: lastMic ?? this.lastMic,
     station: station ?? this.station,
+    wordlessTelling: wordlessTelling ?? this.wordlessTelling,
   );
 }
 
@@ -890,6 +907,12 @@ const _watch = ArmTheWatch();
     sounding,
   ),
   ThePassageCannotOpen() => (machine, const [RefuseThePassage()]),
+  TheTellingCameBackEmpty() when machine.station is Retro => (
+    machine.copyWith(wordlessTelling: true),
+    const [LetThePendingTranslationGo()],
+  ),
+  TheTellingCameBackEmpty() => (machine, const []),
+  TheTellingLanded() => (machine.copyWith(wordlessTelling: false), const []),
   NetworkFailedAt(:final door, :final why) => _fall(machine, door, why),
   NetworkReturned() => _return(machine),
   RetryFired() => _retry(machine),
@@ -907,7 +930,9 @@ const _watch = ArmTheWatch();
 Machine _reachTheStation(Machine machine, StationEvent event) {
   final next = machine.station.answer(event);
   if (next == machine.station) return machine;
-  return moveTheGeneration(machine).copyWith(station: next);
+  return moveTheGeneration(
+    machine,
+  ).copyWith(station: next, wordlessTelling: false);
 }
 
 bool _silent(Machine machine) =>
@@ -1128,6 +1153,7 @@ Machine _silenced(Machine machine, bool keepingTheHold) =>
   return (
     machine.copyWith(
       channel: Microphone(owner, held: _keptUnderTheMic(machine.channel)),
+      wordlessTelling: machine.wordlessTelling && owner != MicOwner.capture,
     ),
     [OpenTheMic(owner, take: take)],
   );
@@ -1528,6 +1554,8 @@ Machine _answered(Machine machine) =>
   TheOpeningMissed() ||
   TheRoomRefused() ||
   ThePassageCannotOpen() ||
+  TheTellingCameBackEmpty() ||
+  TheTellingLanded() ||
   TurnSent() ||
   TurnAnswered() ||
   TurnFailed() ||

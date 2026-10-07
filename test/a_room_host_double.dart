@@ -182,6 +182,10 @@ class ARoomHost implements EffectHost {
   void hearTheRefusalCounted() => asked.add('hearTheRefusalCounted');
 
   @override
+  void hearThePendingTranslationLetGo() =>
+      asked.add('hearThePendingTranslationLetGo');
+
+  @override
   void hearThePassageRefused() => asked.add('hearThePassageRefused');
 }
 

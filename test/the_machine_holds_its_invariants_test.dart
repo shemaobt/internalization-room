@@ -437,18 +437,18 @@ void main() {
       final events = [
         for (final entry in runSequence(_machine, [
           aHaltNeverStands,
-        ], 7).entries)
+        ], 0).entries)
           describeEvent(entry.event),
       ];
 
       expect(
-        () => expectEverySeedHolds(_machine, [aHaltNeverStands], seeds: [7]),
+        () => expectEverySeedHolds(_machine, [aHaltNeverStands], seeds: [0]),
         throwsA(
           isA<TestFailure>()
               .having(
                 (failure) => failure.message,
                 'message',
-                startsWith('seed 7 broke'),
+                startsWith('seed 0 broke'),
               )
               .having(
                 (failure) => failure.message,

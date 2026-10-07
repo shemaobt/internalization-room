@@ -17,91 +17,94 @@ MachineEvent? _stamped(MachineEvent event, int generation) => switch (event) {
   _ => null,
 };
 
-AnsweringEvent _stampedAnswer(AnsweringEvent event, int generation) =>
-    switch (event) {
-      SessionRead(
-        :final snapshot,
-        :final sounding,
-        :final sentBeforeTheCallLanded,
-      ) =>
-        SessionRead(
-          snapshot,
-          sounding: sounding,
-          sentBeforeTheCallLanded: sentBeforeTheCallLanded,
-          generation: generation,
-        ),
-      TheCallLanded() => TheCallLanded(generation: generation),
-      TheRoomAnswered() => TheRoomAnswered(generation: generation),
-      TheAnswerWarned() => TheAnswerWarned(generation: generation),
-      RoomRaisedAHalt(:final sounding, :final callsForAPerson) =>
-        RoomRaisedAHalt(
-          sounding: sounding,
-          callsForAPerson: callsForAPerson,
-          generation: generation,
-        ),
-      LineArrived(:final line, :final by) => LineArrived(
-        line,
-        by: by,
-        generation: generation,
-      ),
-      LineNotSaid(:final line) => LineNotSaid(line, generation: generation),
-      PlayerOpened() => PlayerOpened(generation: generation),
-      PlayerEnded() => PlayerEnded(generation: generation),
-      PlayerFailed(:final source, :final sounding) => PlayerFailed(
-        source,
-        sounding: sounding,
-        generation: generation,
-      ),
-      MicOpened(:final owner, :final take) => MicOpened(
-        owner,
-        take: take,
-        generation: generation,
-      ),
-      MicClosed() => MicClosed(generation: generation),
-      MicAnswered(:final answer, :final take) => MicAnswered(
-        answer,
-        take: take,
-        generation: generation,
-      ),
-      NothingReplayed() => NothingReplayed(generation: generation),
-      TheSessionIsGone() => TheSessionIsGone(generation: generation),
-      ThePassageClosed() => ThePassageClosed(generation: generation),
-      WatchFired() => WatchFired(generation: generation),
-      RetryFired() => RetryFired(generation: generation),
-      NetworkFailedAt(:final door, :final why) => NetworkFailedAt(
-        door,
-        why: why,
-        generation: generation,
-      ),
-      TurnGivenUp(:final turn, :final sounding) => TurnGivenUp(
-        turn,
-        sounding: sounding,
-        generation: generation,
-      ),
-      LookFound(:final turn, :final reply) => LookFound(
-        turn,
-        reply,
-        generation: generation,
-      ),
-      TurnAnswered(:final turn) => TurnAnswered(turn, generation: generation),
-      TurnFailed(:final turn) => TurnFailed(turn, generation: generation),
-      TheRefusalPassed() => TheRefusalPassed(generation: generation),
-      TheCallWasRefused() => TheCallWasRefused(generation: generation),
-      TheCallMetAClosedPassage() => TheCallMetAClosedPassage(
-        generation: generation,
-      ),
-      LookEmpty(:final sounding) => LookEmpty(
-        sounding: sounding,
-        generation: generation,
-      ),
-      TheRoomRefused(:final third, :final sounding) => TheRoomRefused(
-        third: third,
-        sounding: sounding,
-        generation: generation,
-      ),
-      ThePassageCannotOpen() => ThePassageCannotOpen(generation: generation),
-      TheOpeningMissed() => TheOpeningMissed(generation: generation),
-    };
+AnsweringEvent _stampedAnswer(
+  AnsweringEvent event,
+  int generation,
+) => switch (event) {
+  SessionRead(
+    :final snapshot,
+    :final sounding,
+    :final sentBeforeTheCallLanded,
+  ) =>
+    SessionRead(
+      snapshot,
+      sounding: sounding,
+      sentBeforeTheCallLanded: sentBeforeTheCallLanded,
+      generation: generation,
+    ),
+  TheCallLanded() => TheCallLanded(generation: generation),
+  TheRoomAnswered() => TheRoomAnswered(generation: generation),
+  TheAnswerWarned() => TheAnswerWarned(generation: generation),
+  RoomRaisedAHalt(:final sounding, :final callsForAPerson) => RoomRaisedAHalt(
+    sounding: sounding,
+    callsForAPerson: callsForAPerson,
+    generation: generation,
+  ),
+  LineArrived(:final line, :final by) => LineArrived(
+    line,
+    by: by,
+    generation: generation,
+  ),
+  LineNotSaid(:final line) => LineNotSaid(line, generation: generation),
+  PlayerOpened() => PlayerOpened(generation: generation),
+  PlayerEnded() => PlayerEnded(generation: generation),
+  PlayerFailed(:final source, :final sounding) => PlayerFailed(
+    source,
+    sounding: sounding,
+    generation: generation,
+  ),
+  MicOpened(:final owner, :final take) => MicOpened(
+    owner,
+    take: take,
+    generation: generation,
+  ),
+  MicClosed() => MicClosed(generation: generation),
+  MicAnswered(:final answer, :final take) => MicAnswered(
+    answer,
+    take: take,
+    generation: generation,
+  ),
+  NothingReplayed() => NothingReplayed(generation: generation),
+  TheSessionIsGone() => TheSessionIsGone(generation: generation),
+  ThePassageClosed() => ThePassageClosed(generation: generation),
+  WatchFired() => WatchFired(generation: generation),
+  RetryFired() => RetryFired(generation: generation),
+  NetworkFailedAt(:final door, :final why) => NetworkFailedAt(
+    door,
+    why: why,
+    generation: generation,
+  ),
+  TurnGivenUp(:final turn, :final sounding) => TurnGivenUp(
+    turn,
+    sounding: sounding,
+    generation: generation,
+  ),
+  LookFound(:final turn, :final reply) => LookFound(
+    turn,
+    reply,
+    generation: generation,
+  ),
+  TurnAnswered(:final turn) => TurnAnswered(turn, generation: generation),
+  TurnFailed(:final turn) => TurnFailed(turn, generation: generation),
+  TheRefusalPassed() => TheRefusalPassed(generation: generation),
+  TheCallWasRefused() => TheCallWasRefused(generation: generation),
+  TheCallMetAClosedPassage() => TheCallMetAClosedPassage(
+    generation: generation,
+  ),
+  LookEmpty(:final sounding) => LookEmpty(
+    sounding: sounding,
+    generation: generation,
+  ),
+  TheRoomRefused(:final third, :final sounding) => TheRoomRefused(
+    third: third,
+    sounding: sounding,
+    generation: generation,
+  ),
+  ThePassageCannotOpen() => ThePassageCannotOpen(generation: generation),
+  TheTellingCameBackEmpty() => TheTellingCameBackEmpty(generation: generation),
+  TheTellingLanded() => TheTellingLanded(generation: generation),
+  TheOpeningMissed() => TheOpeningMissed(generation: generation),
+};
 
 String? _aStaleAnswerChangedTheRoom(int seed) {
   final random = Random(seed);

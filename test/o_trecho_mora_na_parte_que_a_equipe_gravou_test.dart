@@ -388,7 +388,6 @@ void main() {
           'de um servidor que ainda a manda',
     );
     expect(trocado.segments.first.segmentId, 'trecho-1');
-    expect(trocado.captured, isTrue);
     expect(trocado.needsPerson, isFalse);
   });
 

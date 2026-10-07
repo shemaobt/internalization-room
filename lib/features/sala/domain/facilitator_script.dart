@@ -150,6 +150,10 @@ const retroLabels = {
   'listenFirst': {'pt': 'Ouvir primeiro', 'en': 'Listen first'},
   'thinking': {'pt': 'Um instante', 'en': 'One moment'},
   'translated': {'pt': 'Traduzida', 'en': 'Translated'},
+  'notUnderstood': {
+    'pt': 'Não entendi — traduzam de novo esse pedaço',
+    'en': 'I didn\'t catch that — translate that piece again',
+  },
 };
 
 String retroLabelFor(String control, String language) =>

@@ -319,7 +319,7 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('a correction the room made nothing of also only warns', (
+  testWidgets('a correction the room made nothing of calls nobody', (
     tester,
   ) async {
     final container = await pumpToPergunta(tester);
@@ -328,9 +328,7 @@ void main() {
         .read(salaSessionProvider)
         .btTrechos
         .map((t) => t.segmentId);
-    harness.room
-      ..replaceCaptured = false
-      ..replaceNeedsPerson = true;
+    harness.room.failReplaceWith = const Refused(RefusalCode.wordlessTelling);
 
     await traduzirDeNovo(tester, container);
 
@@ -341,13 +339,6 @@ void main() {
       reason:
           'a sala não fez nada da correção, então os trechos ficam como '
           'estavam — uma explicação não se troca por uma vazia',
-    );
-    expect(
-      state.warning,
-      isTrue,
-      reason:
-          'e o aviso que veio com a recusa vale na mesma: o orçamento '
-          'foi gasto pela gravação que a equipe acabou de fazer',
     );
     expect(
       state.btPhase,
@@ -412,17 +403,14 @@ void main() {
 
   test('a correction answer with no such field asks for nobody', () {
     expect(
-      TellingAgain.fromJson(const {'captured': true}).needsPerson,
+      TellingAgain.fromJson(const {}).needsPerson,
       isFalse,
       reason:
           'a ausência atravessa a leitura da resposta, não só o dublê: '
           'é aqui que um "sem notícia" viraria "pare tudo"',
     );
     expect(
-      TellingAgain.fromJson(const {
-        'captured': true,
-        'needs_person': true,
-      }).needsPerson,
+      TellingAgain.fromJson(const {'needs_person': true}).needsPerson,
       isTrue,
       reason:
           'e o controle positivo, para um campo que fosse lido do nome '
@@ -457,7 +445,9 @@ void main() {
       final harness = harnessDaVez!;
       final antes = vereditosPedidos(harness);
       if (quebra == 'a sala recusa') {
-        harness.room.replaceCaptured = false;
+        harness.room.failReplaceWith = const Refused(
+          RefusalCode.wordlessTelling,
+        );
       } else {
         harness.room.failReplaceWith = const NetworkFailed('sem rede');
       }

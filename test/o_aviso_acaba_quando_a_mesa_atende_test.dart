@@ -57,23 +57,6 @@ void main() {
   });
 
   test(
-    'a mesa atendendo acaba também o aviso de um conserto recusado',
-    () async {
-      final harness = SalaHarness()..room.replaceCaptured = false;
-      final container = await achadoComAvisoAtivo(harness);
-      SalaSessionState read() => container.read(salaSessionProvider);
-
-      expect(read().warning, isTrue);
-
-      harness.room.theDeskAttended();
-
-      await waitFor('o círculo sair do verde', () => !read().warning);
-
-      expect(read().needsPerson, isFalse);
-    },
-  );
-
-  test(
     'a parada bloqueante lida sobre um aviso vence, e a mesa levanta as duas',
     () async {
       final harness = SalaHarness();

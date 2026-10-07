@@ -293,6 +293,8 @@ String describeEvent(MachineEvent event) => switch (event) {
   TheRoomRefused(:final third, :final sounding) =>
     'TheRoomRefused(third: $third, ${describeKept(sounding)})',
   ThePassageCannotOpen() => 'ThePassageCannotOpen',
+  TheTellingCameBackEmpty() => 'TheTellingCameBackEmpty',
+  TheTellingLanded() => 'TheTellingLanded',
   TheChoiceOpened() => 'TheChoiceOpened',
   PassageChosen() => 'PassageChosen',
   TheRehearsalOpened() => 'TheRehearsalOpened',
@@ -398,6 +400,8 @@ enum EventKind {
   theOpeningMissed,
   theRoomRefused,
   thePassageCannotOpen,
+  theTellingCameBackEmpty,
+  theTellingLanded,
   turnSent,
   turnAnswered,
   theRefusalPassed,
@@ -453,6 +457,8 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TheOpeningMissed() => EventKind.theOpeningMissed,
   TheRoomRefused() => EventKind.theRoomRefused,
   ThePassageCannotOpen() => EventKind.thePassageCannotOpen,
+  TheTellingCameBackEmpty() => EventKind.theTellingCameBackEmpty,
+  TheTellingLanded() => EventKind.theTellingLanded,
   TurnSent() => EventKind.turnSent,
   TurnAnswered() => EventKind.turnAnswered,
   TheRefusalPassed() => EventKind.theRefusalPassed,
@@ -507,6 +513,8 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.theOpeningMissed ||
   EventKind.theRoomRefused ||
   EventKind.thePassageCannotOpen ||
+  EventKind.theTellingCameBackEmpty ||
+  EventKind.theTellingLanded ||
   EventKind.turnSent ||
   EventKind.turnAnswered ||
   EventKind.theRefusalPassed ||
@@ -668,6 +676,8 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
         sounding: _drawKept(random),
       ),
       EventKind.thePassageCannotOpen => const ThePassageCannotOpen(),
+      EventKind.theTellingCameBackEmpty => const TheTellingCameBackEmpty(),
+      EventKind.theTellingLanded => const TheTellingLanded(),
       EventKind.turnSent => TurnSent(_drawATurn(random)),
       EventKind.turnAnswered => TurnAnswered(_drawATurn(random)),
       EventKind.theRefusalPassed => const TheRefusalPassed(),
