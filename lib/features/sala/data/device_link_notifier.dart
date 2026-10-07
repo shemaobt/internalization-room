@@ -8,6 +8,7 @@ import '../../../core/config/env.dart';
 import '../dev/dev_skip_bar.dart';
 import '../domain/device_link.dart';
 import 'credential_vault.dart';
+import 'current_session_ledger.dart';
 import 'hand_inbox_repository.dart';
 import 'linked_team.dart';
 import 'room_answer.dart';
@@ -46,6 +47,9 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
   RoomRepository get _room => ref.read(roomRepositoryProvider);
 
   LinkedTeam get _ledger => ref.read(linkedTeamProvider);
+
+  CurrentSessionLedger get _currentSession =>
+      ref.read(currentSessionLedgerProvider);
 
   HandInboxRepository get _inbox => ref.read(handInboxRepositoryProvider);
 
@@ -99,6 +103,7 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     // put down disposes. The vault behind it is what the answer has to reach, and it
     // outlives both.
     final ledger = _ledger;
+    final current = _currentSession;
     final String credential;
     switch (await _room.collectTheCredential(deviceId)) {
       case Answered(value: final collected):
@@ -107,13 +112,13 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
         _lookAgainLater();
         return;
       case Refused(code: RefusalCode.credentialTaken):
-        await _startOver(ledger);
+        await _startOver(ledger, current);
         return;
       case Refused(code: RefusalCode.notFound):
         // The server does not know this device at all. Keeping the team beside an id
         // nobody claimed is a lie the next opening believes: it walks into the room as
         // linked, and the code the facilitator would have to write down never shows.
-        await _startOver(ledger);
+        await _startOver(ledger, current);
         return;
       case NetworkFailed() || Refused() || SessionGone():
         _tryAgainLater(_collectTheCredential);
@@ -148,10 +153,15 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
   /// again; or the server does not know the device at all. Either way the id can prove
   /// nothing, and a team kept beside it leaves the tablet believing in a vínculo no
   /// request of its will be let into — believing it hard enough that the next opening
-  /// walks into the room instead of showing the code that would fix it.
-  Future<void> _startOver(LinkedTeam ledger) async {
+  /// walks into the room instead of showing the code that would fix it. The Current
+  /// session goes with the link: it was the old team's (ADR 0064).
+  Future<void> _startOver(
+    LinkedTeam ledger,
+    CurrentSessionLedger current,
+  ) async {
     _deviceId = null;
     await ledger.forgetTheLink();
+    await current.letGo().catchError((_) {});
     if (_closed) return;
     _present(null);
     await _showACode();

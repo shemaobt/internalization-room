@@ -22,7 +22,7 @@ import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart'
-    show enterThePanorama, settle, theHaltIsLifted, withDiskThatAnswersAtOnce;
+    show enterThePanorama, settle, withDiskThatAnswersAtOnce;
 
 Future<void> _intoFindings(
   SalaHarness harness,
@@ -1748,40 +1748,7 @@ void main() {
   });
 
   test(
-    'a passage opening refused and lifted is asked again under a fresh turn id',
-    () async {
-      final harness = SalaHarness()
-        ..room.failHeldTurnWith = const Refused('BAD_REQUEST');
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      await notifier.goConversa(pericope: 'P01');
-      await settle();
-      await waitFor(
-        'a sala parar',
-        () => container.read(salaSessionProvider).needsPerson,
-      );
-      harness.room.theDeskAttended();
-      notifier.resolveWithPerson();
-      await waitFor(
-        'a abertura ser pedida de novo',
-        () => harness.room.turnIdsAsked.length == 2,
-      );
-
-      expect(harness.room.turnIdsAsked[0], isNotNull);
-      expect(
-        harness.room.turnIdsAsked[1],
-        isNot(harness.room.turnIdsAsked[0]),
-        reason:
-            'a soltura nunca reenvia com a mesma chave o pedido que parou a '
-            'sala: o servidor devolveria a mesma resposta lembrada',
-      );
-    },
-  );
-
-  test(
-    'an opening the network lost is looked at once under its own id, and a tap under the person sign never records a turn',
+    'an opening the network lost is looked at once under its own id, and the room rests at the invite',
     () async {
       final harness = SalaHarness()
         ..room.failTurnsWith = const NetworkFailed('timeout');
@@ -1791,59 +1758,13 @@ void main() {
 
       await notifier.goConversa(pericope: 'P01');
       await settle();
-      expect(container.read(salaSessionProvider).needsPerson, isTrue);
+
       expect(harness.room.turnIdsAsked, hasLength(1));
       expect(harness.room.turnIdsLookedAt, harness.room.turnIdsAsked);
-
-      harness.room.failTurnsWith = null;
-      notifier.conversaTap();
-      await settle();
-
-      expect(
-        harness.recorder.captures,
-        0,
-        reason:
-            'a equipe tocava e falava numa sessão que nunca tinha sido '
-            'aberta — o Guia se apresentava em resposta a ela, ou nunca',
-      );
-      expect(harness.room.turnsSent, 0);
-      expect(harness.room.turnIdsAsked, hasLength(1));
-    },
-  );
-
-  test(
-    'an opening that arrived but would not play still keeps the tap off the microphone',
-    () async {
-      final harness = SalaHarness()..voice.succeeds = false;
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      await notifier.goConversa(pericope: 'P01');
-      await settle();
+      expect(container.read(salaSessionProvider).needsPerson, isFalse);
       expect(container.read(salaSessionProvider).voice, VoiceState.invite);
-
-      harness.voice.succeeds = true;
-      notifier.conversaTap();
-      await settle();
-
-      expect(
-        harness.recorder.captures,
-        0,
-        reason:
-            'a abertura chegou e não tocou — o Guia ainda não falou, e o '
-            'toque abria um take numa sala onde nada tinha sido dito',
-      );
-      expect(harness.room.turnIdsAsked, hasLength(2));
-      expect(
-        harness.room.turnIdsAsked[1],
-        isNot(harness.room.turnIdsAsked[0]),
-        reason: 'o mesmo id devolve o mesmo clipe que acabou de falhar',
-      );
-      expect(harness.voice.played.last, turnoUrl);
     },
   );
-
   test(
     'a passage left with its opening unheard does not hand its id to the next one',
     () async {
@@ -3530,7 +3451,7 @@ void main() {
   );
 
   test(
-    'a Panorama asked again after the room stalls goes under a fresh turn id',
+    'a Panorama asked again after its opening was refused goes under a fresh turn id',
     () async {
       final harness = SalaHarness()
         ..room.failHeldTurnWith = const Refused('BAD_REQUEST');
@@ -3540,8 +3461,10 @@ void main() {
       SalaSessionState read() => container.read(salaSessionProvider);
 
       await _enterThePanorama(harness, container);
-      await waitFor('a sala parar', () => read().needsPerson);
-      await theHaltIsLifted(harness, notifier, read);
+      await waitFor(
+        'a sala descansar no convite',
+        () => read().voice == VoiceState.invite,
+      );
       await enterThePanorama(notifier, read);
       await settle();
 
@@ -3733,8 +3656,8 @@ void main() {
     );
   });
 
-  test('a resume with nothing to restore still raises the affordance on the spot '
-      'when its own opening turn breaks', () async {
+  test('a resume with nothing to restore whose opening the room refuses rests '
+      'at the invite', () async {
     final harness = SalaHarness();
     harness.emAberto.rows['Ruth/P01'] = const ResumePoint(
       sessionId: 'sessao-velha',
@@ -3746,22 +3669,14 @@ void main() {
     await notifier.abrirEscolha();
     await settle();
 
-    harness.room.failWith = const Refused('BAD_REQUEST');
+    harness.room.failHeldTurnWith = const Refused('BAD_REQUEST');
     await notifier.goConversa(pericope: 'P01');
     await settle();
 
-    expect(
-      container.read(salaSessionProvider).needsPerson,
-      isTrue,
-      reason:
-          'nothing to restore falls through to _askForTheOpening — the same '
-          'openSession a person would have been shown E0 in — so one refusal '
-          'there is a turn call too, not the first rung of a ladder that never '
-          'gets a second one: two more taps just sent the team back to the '
-          'invite',
-    );
+    expect(harness.room.turnIdsAsked, hasLength(1));
+    expect(container.read(salaSessionProvider).needsPerson, isFalse);
+    expect(container.read(salaSessionProvider).voice, VoiceState.invite);
   });
-
   test(
     'a resolve clears the inbox-silence count too, not just the room-failure one',
     () async {

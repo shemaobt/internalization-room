@@ -9,6 +9,7 @@ import 'package:internalization_room/features/sala/data/device_link_notifier.dar
 import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
+import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/dev/dev_skip_bar.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/escolha_view.dart';
@@ -50,6 +51,26 @@ void main() {
         reason:
             'quem digita é o facilitador, na Mesa — o aparelho mostra e nunca pede',
       );
+    },
+  );
+
+  testWidgets(
+    'an unlinked tablet holding a session shows the code screen and asks the room nothing',
+    (tester) async {
+      final harness = SalaHarness(linkedAs: _unclaimed);
+      await harness.currentSession.hold(
+        const CurrentSession(
+          sessionId: 'sessao-guardada',
+          book: 'Ruth',
+          pericope: 'P01',
+          language: testLanguage,
+        ),
+      );
+      await pumpSala(tester, harness);
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.byType(CodigoView), findsOneWidget);
+      expect(harness.room.calls, isNot(contains('fetchState')));
     },
   );
 

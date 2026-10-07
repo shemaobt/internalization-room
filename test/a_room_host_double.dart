@@ -150,8 +150,7 @@ class ARoomHost implements EffectHost {
   void replayTheSound(Kept kept) => asked.add('replayTheSound');
 
   @override
-  void askTheOpeningAgain(String freshTurnId) =>
-      asked.add('askTheOpeningAgain');
+  void letTheOpeningGo() => asked.add('letTheOpeningGo');
 
   @override
   void drainTheOutbox() => asked.add('drainTheOutbox');

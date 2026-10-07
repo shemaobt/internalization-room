@@ -267,7 +267,7 @@ void main() {
   );
 
   test(
-    'an opening refused under a standing halt is asked again when the halt lifts',
+    'an opening refused under a standing halt is let go, and the lift asks nothing',
     () async {
       final harness = SalaHarness()..room.holdNextTurn();
       final container = harness.container();
@@ -289,11 +289,11 @@ void main() {
 
       harness.room.theDeskAttended();
       sala.resolveWithPerson();
-      await waitFor(
-        'a abertura ser pedida de novo',
-        () => harness.room.turnIdsAsked.length == 2,
-      );
-      await waitFor('o Guia falar', () => _replies(harness) == 1);
+      await waitFor('a sala soltar', () => !read().needsPerson);
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      expect(harness.room.turnIdsAsked, hasLength(1));
+      expect(_replies(harness), 0);
     },
   );
 

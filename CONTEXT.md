@@ -224,8 +224,12 @@ The book's own entry and the line about the whole book, first on the wheel, play
 _Avoid_: introduction, overview
 
 **Scene**:
-The opening line specific to the chosen passage, said when its Conversation opens.
+The opening line specific to the chosen passage, said when its Conversation opens for the first time.
 _Avoid_: cena
+
+**Opened**:
+A session that holds a Guide line, its Opening at least. The room asks a session's Opening only while it is not opened.
+_Avoid_: started, begun
 
 **Outbox**:
 The queue of takes and stretches waiting to reach the server, with a manifest that survives the app closing and names each recording by file rather than by path. It delivers one part's recordings in the order the team made them.
@@ -234,6 +238,10 @@ _Avoid_: fila, caixa de saída, upload queue, buffer
 **Resume point**:
 The durable slice of the room's state for one passage, written whole at every transition — the session, the Station and its Step, the kept takes, the part being recorded again (ADR 0045), the Cursor, the pending translation and the Listening ledger — so a reopening lands where the team stopped, on a tablet that still holds the recordings or on one that fetches them from the room again. The server rules over what it knows, the slice over the rest (ADR 0046). It never expires by age: what drops it are facts about the room or the passage — the room no longer knowing the session, the approval closing the passage, the language changing — never the clock.
 _Avoid_: ponto de retomada, em curso, checkpoint, snapshot (the session's own lives on the server)
+
+**Current session**:
+The session this tablet was in when it last stood in a passage, kept on the tablet so a relaunch lands on it while the room still holds it. Let go when the team goes to the Choice, when the passage closes and when the room no longer knows the session.
+_Avoid_: pointer, last session, sessão atual
 
 ### Findings and mends
 
@@ -341,7 +349,7 @@ The one place every room result (answered, network failed, refused with a code, 
 _Avoid_: error handler, retry policy
 
 **One look**:
-What the tablet does once it gives up on a turn, because the network failed, its 305 s wait ran out or the watchdog fired: it reads that one turn on the server, once and without sending it again. A reply that landed plays as if it had arrived on time; anything else raises a blocking Halt that calls for a person and keeps the take, never the offline face.
+What the tablet does once it gives up on a turn, because the network failed, its 305 s wait ran out or the watchdog fired: it reads that one turn on the server, once and without sending it again. A reply that landed plays as if it had arrived on time; anything else raises a blocking Halt that calls for a person and keeps the take, never the offline face, except over an Opening, which rests at the quiet invite.
 _Avoid_: retry, resend, poll
 
 **Session read**:

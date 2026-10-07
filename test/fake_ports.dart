@@ -186,6 +186,7 @@ class ARecorderPort implements RecorderPort {
 class AStorePort implements StorePort {
   final List<String> heard = [];
   final List<Completer<void>> _marks = [];
+  CurrentSession? _held;
 
   @override
   Future<int> flushTheOutbox() async => 0;
@@ -199,6 +200,17 @@ class AStorePort implements StorePort {
   }
 
   void answerTheMark() => _marks.removeAt(0).complete();
+
+  @override
+  Future<CurrentSession?> currentSession() async => _held;
+
+  @override
+  Future<void> holdTheSession(CurrentSession session) async => _held = session;
+
+  @override
+  Future<void> letGoOfTheSession({String? only}) async {
+    if (only == null || _held?.sessionId == only) _held = null;
+  }
 }
 
 Ports fakePorts(

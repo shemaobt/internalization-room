@@ -29,6 +29,7 @@ import '../domain/station.dart';
 import '../domain/spoken_line.dart';
 import '../domain/turn_clock.dart';
 import '../domain/turn_result.dart';
+import '../domain/ports.dart';
 import 'connectivity_service.dart';
 import 'effect_runner.dart';
 import 'facilitator_voice_service.dart';
@@ -215,6 +216,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   String? _sessionLanguage;
   int _calmTurns = 0;
   Future<void> Function()? _pending;
+  CurrentSession? _landingOn;
 
   /// What plays the reply of the turn the machine holds in flight, and the gestures that
   /// wait on it, until the look the machine asks for comes back (ENG-1444 moves it).
@@ -334,6 +336,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ConnectivityService get _network => ref.read(connectivityServiceProvider);
   FinishedPassages get _feitas => ref.read(finishedPassagesProvider);
   WorkInProgress get _emAberto => ref.read(workInProgressProvider);
+  StorePort get _store => ref.read(storePortProvider);
   CaptureGuard get _captureGuard => ref.read(captureGuardProvider);
 
   String get _book => ref.read(bookProvider);
@@ -514,7 +517,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _awaitedReplies.clear();
     _openTurnId = null;
     _openingOwed = false;
-    state = state.copyWith(clearLastSpoken: true, clearParteARegravar: true);
+    state = state.copyWith(
+      clearLastSpoken: true,
+      roomSaysItAgain: false,
+      clearParteARegravar: true,
+    );
     _silenceTheRoom();
     _dispatch(const MicDiscarded());
   }
@@ -757,7 +764,46 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> hearAgain() async {
     if (!state.canHearAgain) return;
-    await _repeatLastSpoken(state.lastSpoken!);
+    final line = state.lastSpoken;
+    if (line != null) return _repeatLastSpoken(line);
+    await _askTheRoomToSayItAgain();
+  }
+
+  /// A session the team walked back into holds no line of its own here, so the room is
+  /// asked for its last one. Not a turn: nothing is written, and a lost answer is not
+  /// looked at.
+  Future<void> _askTheRoomToSayItAgain() async {
+    final sessionId = state.sessionId;
+    if (sessionId == null) return;
+    final generation = _waitOnTheGeneration;
+    state = state.copyWith(awaitingTheGuide: true);
+    _watchBusyState();
+    try {
+      switch (await _room.openSession(sessionId)) {
+        case Answered(value: final line):
+          if (_abandoned(generation)) return;
+          final twoMovements = line.toldInTwoMovements;
+          final url = twoMovements ? line.sceneUrl : line.audioUrl;
+          await _readyToSpeak(url, line.fixedLine);
+          if (_abandoned(generation)) return;
+          _watchBusyState();
+          final played = await _speak(
+            url,
+            line.fixedLine,
+            panoramaUrl: twoMovements ? line.panoramaUrl : '',
+            remember: !line.usedFailSafe,
+          );
+          if (_abandoned(generation)) return;
+          if (!played) return _registerUnplayableTurn(leavesTeamTalk: false);
+          state = state.copyWith(awaitingTheGuide: false);
+        case final RoomFailure failure:
+          if (_abandoned(generation)) return;
+          _decideTheFailure(failure);
+      }
+    } on RoomFailure catch (failure) {
+      if (_abandoned(generation)) return;
+      _decideTheFailure(failure);
+    }
   }
 
   /// Repeat the narrator's last line on the circle in `findings`, instead of the stretch
@@ -941,6 +987,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _registerUnplayableTurn({bool leavesTeamTalk = true}) {
     _openTurnId = null;
+    _openingOwed = false;
     _calmTurns = 0;
     state = state.copyWith(
       awaitingTheGuide: false,
@@ -1003,6 +1050,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   String? get _sessionId => state.sessionId;
 
+  void _letTheOpeningGo() {
+    _openingOwed = false;
+    _openTurnId = null;
+    _leaveThinking();
+    state = state.copyWith(awaitingTheGuide: false, peerCue: false);
+  }
+
   void _silenceTheHaltedRoom() {
     _openTurnId = null;
     _silenceTheRoom();
@@ -1054,7 +1108,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _dispatch(
       SessionRead(
         snapshot,
-        at: clock.now(),
         sounding: _whatIsSounding(),
         sentBeforeTheCallLanded: sent <= _readsSentBeforeTheCall,
         generation: _generation,
@@ -1155,12 +1208,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _letGoOf(sessionId);
   }
 
-  /// [rule] is [RefusalRule.haltsAtOnce] for the openSession/sendTurn/loadWheel family:
-  /// every call to one of the three, through whichever door reaches it — including the
-  /// opening turn a resume with nothing to restore falls through to. A refusal there
-  /// raises the affordance on the spot, the same turn a person would have been shown E0
-  /// in. Every other caller — the resume itself, upload, a written question, a retro
-  /// edit, an approval — keeps the three-strike count underneath.
+  /// [rule] is [RefusalRule.haltsAtOnce] for a turn of the openSession/sendTurn/loadWheel
+  /// family. A refusal there raises the affordance on the spot, the same turn a person
+  /// would have been shown E0 in — except over an opening, which rests at the invite
+  /// unless the refusal stops the room. Every other caller — the resume itself, the room
+  /// saying its last line again, upload, a written question, a retro edit, an approval —
+  /// keeps the three-strike count underneath.
   void _decideTheFailure(
     RoomFailure failure, {
     RefusalRule rule = RefusalRule.counts,
@@ -1362,13 +1415,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> Function()? _theStationAgain() {
-    final pericope = _emCurso;
     return switch (state.station) {
       Fim() => _startOver,
       Menu() => abrirEscolha,
-      Canvas() when state.sessionId == null => () => goConversa(
-        pericope: pericope,
-      ),
+      Canvas() when state.sessionId == null => _enterAgain(_emCurso),
       Panorama() when !state.panoramaSaid => _entrarNoPanorama,
       _ => null,
     };
@@ -1411,12 +1461,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _resolveWithPerson() {
     if (!state.needsPerson && !state.offline) return;
     final wasOut = state.unreachable;
-    _dispatch(
-      LongPress(
-        somebodyToAsk: state.sessionId != null && !wasOut,
-        at: clock.now(),
-      ),
-    );
+    _dispatch(LongPress(somebodyToAsk: state.sessionId != null && !wasOut));
     if (!state.needsPerson && wasOut) _releaseTheReach();
   }
 
@@ -1610,10 +1655,75 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  /// Open the room on the Choice, unless the team already stands somewhere in it.
+  Future<void>? _launching;
+  bool _launched = false;
+
+  /// Land on the Current session while the room still holds it, and on the Choice
+  /// otherwise, unless the team already stands somewhere in the room. The record is read
+  /// once per launch: a later call opens the Choice, so a resume never pulls the team into
+  /// a passage. A second call while the first is on its way is the first.
   Future<void> openTheRoom() async {
-    if (state.station is Menu && state.naRoda == null) await abrirEscolha();
+    if (state.station is! Menu || state.naRoda != null) return;
+    final launching = _launching ??= _gestureThen(
+      _launched ? _abrirEscolha : _launch,
+    );
+    _launched = true;
+    try {
+      await launching;
+    } finally {
+      if (identical(_launching, launching)) _launching = null;
+    }
   }
+
+  /// Read by its id, never opened: an open would hand back a fresh session after a Desk
+  /// reset and hide that this one is gone (ADR 0064).
+  Future<void> _launch() async {
+    final generation = _waitOnTheGeneration;
+    final held = await _store.currentSession();
+    if (_abandoned(generation)) return;
+    if (held == null) return _abrirEscolha();
+    if (held.book != _book || held.language != _lingua) {
+      _letGoOfTheCurrentSession();
+      return _abrirEscolha();
+    }
+    return _landOn(held);
+  }
+
+  /// The session read afresh before every landing, the retry's included: a snapshot kept
+  /// across a wait would miss a halt the room raised meanwhile.
+  Future<void> _landOn(CurrentSession held) async {
+    final generation = _waitOnTheGeneration;
+    final read = await _room.fetchState(held.sessionId);
+    if (_abandoned(generation)) return;
+    if (read case Answered(value: final snapshot)) {
+      _landingOn = held;
+      return _goConversa(pericope: held.pericope, opened: snapshot);
+    }
+    if (read case SessionGone()) _theSessionIsGone(held.sessionId);
+    return _abrirEscolha();
+  }
+
+  Future<void> Function() _enterAgain(String? pericope) {
+    final landing = _landingOn;
+    if (landing == null) return () => goConversa(pericope: pericope);
+    return () => _gestureThen(() => _landOn(landing));
+  }
+
+  void _holdTheCurrentSession(String sessionId, String pericope) => unawaited(
+    _store
+        .holdTheSession(
+          CurrentSession(
+            sessionId: sessionId,
+            book: _book,
+            pericope: pericope,
+            language: _lingua,
+          ),
+        )
+        .catchError((_) {}),
+  );
+
+  void _letGoOfTheCurrentSession({String? only}) =>
+      unawaited(_store.letGoOfTheSession(only: only).catchError((_) {}));
 
   Future<void> _voicePanorama(TurnResult turn) async {
     final generation = _waitOnTheGeneration;
@@ -1629,6 +1739,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _settleNetworkHealth();
     _resumeFailures = 0;
     _openTurnId = null;
+    _openingOwed = false;
     state = state.copyWith(awaitingTheGuide: false, panoramaSaid: true);
   }
 
@@ -1893,6 +2004,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// entry with, and the session is reused rather than asked for again on every tap: a
   /// retried touch would otherwise mint one abandoned panorama session per attempt.
   Future<void> _entrarNoPanorama() async {
+    _letGoOfTheCurrentSession();
     final generation = _waitOnTheGeneration;
     state = state.copyWith(awaitingTheGuide: true);
     _watchBusyState();
@@ -1923,6 +2035,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     final panorama = _panoramaSessionId ?? created!.sessionId;
     _panoramaSessionId = panorama;
+    _openingOwed = true;
     final turnId = _openTurnId ??= _stamp();
     await _sendATurn(
       Turn(panorama, turnId),
@@ -2091,7 +2204,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final open = _emAberto;
     final queue = _takes;
     final recorder = _recorder;
-    if (sessionId != null) await queue.discardTheSession(sessionId);
+    if (sessionId != null) {
+      _letGoOfTheCurrentSession(only: sessionId);
+      await queue.discardTheSession(sessionId);
+    }
     for (final path in kept) {
       await recorder.delete(path);
     }
@@ -2108,6 +2224,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       reach: state.reach,
       machine: state.machine.withNoPassage(_gesturesOnTheirWay.onTheirWay),
     );
+    _letGoOfTheCurrentSession();
     _arriveAt(const TheRoomStartedOver());
     _handOff(abrirEscolha());
   }
@@ -2146,8 +2263,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ///
   /// `fresh` skips the resume.
   ///
-  /// `opened` is a session the room already made for this passage, entered as it came
-  /// back rather than asked for again.
+  /// `opened` is a session the room already holds for this passage, entered as it came
+  /// back rather than asked for again, and never asked its Opening: the launch hands it
+  /// the session it read (ADR 0064).
   Future<void> goConversa({
     String? pericope,
     bool fresh = false,
@@ -2164,6 +2282,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _leaveTheStepFor(const Canvas());
     _clearAll();
     _emCurso = pericope;
+    if (opened == null) _landingOn = null;
     _arriveAt(const PassageChosen());
     var generation = _waitOnTheGeneration;
     void landed() => generation = _waitOnTheGeneration;
@@ -2213,11 +2332,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         }
       }
       // A resume keeps the three-strike ladder above (waiting != null): the server is
-      // being asked to hand back work it already holds, not to open a fresh turn. A
-      // session born clean is the turn call the Panorama's opening and its kin already are — and so
-      // is the opening turn a resume with nothing to restore falls through to, once it
-      // gets there: the door is `_askForTheOpening`, the same one every other empty
-      // resume takes.
+      // being asked to hand back work it already holds, including the session read that
+      // says whether it was opened. A session born clean, and the opening a session the
+      // room never opened is asked for, are turn calls like the Panorama's opening.
       _decideTheFailure(
         failure,
         rule: reachedTheOpeningTurn || waiting == null
@@ -2243,6 +2360,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!resumed) _startTheSessionClean(pericope);
     state = state.copyWith(sessionId: sessionId, coverage: created?.coverage);
     _runner.run(const [ArmTheWatch()]);
+    if (pericope != null) _holdTheCurrentSession(sessionId, pericope);
     _sessionSavedAt = resumed ? waiting.savedAt : clock.now();
     _sessionLanguage = resumed ? waiting.language : _lingua;
     if (pericope != null && !resumed) {
@@ -2281,6 +2399,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         switch (await _room.fetchState(sessionId)) {
           case Answered(value: final read):
             snapshot = read;
+          case NetworkFailed():
+            if (_abandoned(generation)) return;
+            _theResumeFell();
+            return;
           case final RoomFailure failure:
             return failed(failure);
         }
@@ -2302,24 +2424,29 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _applyTheSessionRead(snapshot, sent);
         return;
       }
+      final SessionSnapshot read;
+      final sent = ++_readsSent;
+      switch (await _room.fetchState(sessionId)) {
+        case Answered(value: final snapshot):
+          read = snapshot;
+        case NetworkFailed():
+          if (_abandoned(generation)) return;
+          _theResumeFell();
+          return;
+        case final RoomFailure failure:
+          return failed(failure);
+      }
+      if (_abandoned(generation)) return;
       if (Station.stored(waiting.stage) is Retro) {
-        final SessionSnapshot read;
-        final sent = ++_readsSent;
-        switch (await _room.fetchState(sessionId)) {
-          case Answered(value: final snapshot):
-            read = snapshot;
-          case final RoomFailure failure:
-            return failed(failure);
-        }
         final told = read.backTranslation;
-        if (_abandoned(generation)) return;
         // Only when there is a telling-back to land on. A checked answer carrying no
         // stretch contradicts itself — the check is about what was told — and there is
         // no rehearsal here to land it on either, so this door declines it: landing it
         // left the room standing in the conversa until the watchdog called a person two
-        // minutes later. It falls through to the turn instead, which is the door every
-        // other empty answer takes: closing would call a passage the team never
-        // approved its final draft.
+        // minutes later. It falls through instead, as every other empty answer does:
+        // the room lands quiet on a session it opened and asks the Opening only of one
+        // it never opened. Closing would call a passage the team never approved its
+        // final draft.
         //
         // Reached only when the room holds no rehearsal of its own to hand back, which
         // is the one way past this door now that a resume fetches the parts.
@@ -2330,8 +2457,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           return;
         }
       }
+      state = state.copyWith(coverage: read.coverage);
+      _applyTheSessionRead(read, sent);
+      if (opened != null || read.opened) return _landWhereTheyStopped();
+    } else if (opened != null || created!.opened) {
+      _applyTheSessionRead(created!, ++_readsSent);
+      return _landWhereTheyStopped();
     }
-    // Re-opening carries the coverage back with it, so the necklace fills itself.
     reachedTheOpeningTurn = true;
     await _askForTheOpening(
       sessionId,
@@ -2348,6 +2480,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
+  /// A session the room already opened is not opened again: the team lands at rest, and
+  /// «Ouvir de novo» asks the room for its last line.
+  void _landWhereTheyStopped() {
+    _settleNetworkHealth();
+    _resumeFailures = 0;
+    state = state.copyWith(
+      awaitingTheGuide: false,
+      peerCue: false,
+      roomSaysItAgain: true,
+    );
+  }
+
   Future<void> _askForTheOpening(
     String sessionId,
     int generation, {
@@ -2361,25 +2505,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       generation,
       () => _room.openSession(sessionId, turnId: turnId),
       play: play,
-      failed: failed,
-    );
-  }
-
-  Future<void> _askForTheOpeningAgain() async {
-    final sessionId = state.sessionId;
-    if (sessionId == null) return;
-    final generation = _waitOnTheGeneration;
-    state = state.copyWith(awaitingTheGuide: true);
-    _watchBusyState();
-    void failed(RoomFailure failure) {
-      if (_abandoned(generation)) return;
-      _decideTheFailure(failure, rule: RefusalRule.haltsAtOnce);
-    }
-
-    await _askForTheOpening(
-      sessionId,
-      generation,
-      play: (opening) => _voiceTurn(opening, generation),
       failed: failed,
     );
   }
@@ -2427,8 +2552,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   _Resume _theResumeFell() {
-    final pericope = _emCurso;
-    _pending = () => goConversa(pericope: pericope);
+    _pending = _enterAgain(_emCurso);
     _theStepFell();
     return _Resume.abandoned;
   }
@@ -2686,10 +2810,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _actOnConversaTap() {
     if (_recordingStarting) return;
-    if (_openingOwed) {
-      _handOff(_askForTheOpeningAgain());
-      return;
-    }
     final isRecording = state.voice == VoiceState.listening;
     final elapsed = _listeningSince == null
         ? Duration.zero
@@ -5433,6 +5553,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       unawaited(_feitas.add(_book, feita).catchError((_) {}));
       unawaited(_mindingThePlace(() => _emAberto.forget(_book, feita)));
     }
+    _letGoOfTheCurrentSession();
     _after('fim', const Duration(milliseconds: 700), () {
       _leaveTheStepFor(const Fim());
       _arriveAt(const TheNecklaceClosed());
@@ -5607,10 +5728,7 @@ class _NotifierHost implements EffectHost {
   void replayTheSound(Kept kept) => _notifier._replay(kept);
 
   @override
-  void askTheOpeningAgain(String freshTurnId) {
-    _notifier._openTurnId = freshTurnId;
-    unawaited(_notifier._askForTheOpeningAgain());
-  }
+  void letTheOpeningGo() => _notifier._letTheOpeningGo();
 
   @override
   void drainTheOutbox() => _notifier._drainTheOutbox();

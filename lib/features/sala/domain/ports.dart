@@ -118,4 +118,26 @@ abstract interface class StorePort {
 
   /// Writes the passage down as finished; a failure to write is swallowed.
   Future<void> markThePassageClosed(String book, String passage);
+
+  Future<CurrentSession?> currentSession();
+
+  Future<void> holdTheSession(CurrentSession session);
+
+  /// Lets go of the Current session, or only of the session [only] names.
+  Future<void> letGoOfTheSession({String? only});
+}
+
+/// The session this tablet was in when it last stood in a passage.
+class CurrentSession {
+  final String sessionId;
+  final String book;
+  final String pericope;
+  final String language;
+
+  const CurrentSession({
+    required this.sessionId,
+    required this.book,
+    required this.pericope,
+    required this.language,
+  });
 }

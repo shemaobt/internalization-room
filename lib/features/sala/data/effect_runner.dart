@@ -109,7 +109,7 @@ abstract interface class EffectHost {
 
   void replayTheSound(Kept kept);
 
-  void askTheOpeningAgain(String freshTurnId);
+  void letTheOpeningGo();
 
   void drainTheOutbox();
 
@@ -199,8 +199,8 @@ class EffectRunner {
           _readTheState();
         case ReplayTheSound(:final kept):
           host.replayTheSound(kept);
-        case AskTheOpeningAgain(:final freshTurnId):
-          host.askTheOpeningAgain(freshTurnId);
+        case LetTheOpeningGo():
+          host.letTheOpeningGo();
         case PlayLine(:final line):
           _say(line);
         case PlayPart(:final part):

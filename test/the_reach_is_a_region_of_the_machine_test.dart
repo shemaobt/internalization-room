@@ -3,7 +3,6 @@ import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 
-final _at = DateTime.utc(2026, 10, 1, 9);
 const _reachable = Machine();
 const _outOfReach = Machine(reach: Reach.outOfReach, noticeSaid: true);
 const _onePartPending = {'linha-1': PartFact.pending};
@@ -137,7 +136,7 @@ void main() {
     );
     final (_, lifted) = _run(
       _outOfReach.copyWith(halt: const Blocking(NothingKept())),
-      [const NetworkReturned(), LongPress(somebodyToAsk: false, at: _at)],
+      [const NetworkReturned(), const LongPress(somebodyToAsk: false)],
     );
 
     expect(returned.whereType<ResendPending>(), isEmpty);

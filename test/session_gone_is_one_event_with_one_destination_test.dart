@@ -226,8 +226,8 @@ void main() {
   });
 
   test('case (c): a Resume point of a session the server deleted, reopened in '
-      'the conversation, meets gone at openSession and opens the Choice with '
-      'no fresh session', () async {
+      'the conversation, meets gone at the session read and opens the Choice '
+      'with no fresh session', () async {
     final harness = SalaHarness();
     harness.emAberto.rows['Ruth/P01'] = const ResumePoint(
       sessionId: 'sessao-apagada',
@@ -244,7 +244,7 @@ void main() {
     await _naEscolha(container);
     await settle();
 
-    expect(harness.room.askedOfTheForgotten, contains('openSession'));
+    expect(harness.room.askedOfTheForgotten, contains('fetchState'));
     expect(await harness.emAberto.of('Ruth', 'P01'), isNull);
     expect(harness.room.calls, isNot(contains('createSession')));
     expect(_estado(container).stage, SalaStage.escolha);

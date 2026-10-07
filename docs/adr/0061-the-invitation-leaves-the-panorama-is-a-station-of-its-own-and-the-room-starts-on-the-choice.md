@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by 0064
 date: 2026-10-06
 amends: 0053, 0040 (the Wheel: nothing dimmed)
 supersedes: 0046 (in part: what it says of the Invitation)
