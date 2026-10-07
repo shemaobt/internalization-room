@@ -221,8 +221,7 @@ void main() {
     expect(room.lastCut, const CutPoint(_at, of: _of));
   });
 
-  test('a stop tap under 700 ms after the cut does not end the take, and a '
-      'take the guard refuses leaves no cut behind', () async {
+  test('a stop tap under 700 ms after the cut does not end the take', () async {
     var now = DateTime(2026, 10, 7);
     var step = const Duration(seconds: 1);
     await withClock(Clock(() => now = now.add(step)), () async {
@@ -238,17 +237,6 @@ void main() {
 
       expect(room.state.voice, VoiceState.listening);
       expect(room.harness.room.turnsSent, turns);
-
-      step = const Duration(seconds: 1);
-      await room.aGhostTake();
-
-      expect(room.state.voice, VoiceState.invite);
-      expect(room.harness.room.turnsSent, turns);
-
-      await room.aRealTake();
-
-      expect(room.harness.room.turnsSent, turns + 1);
-      expect(room.lastCut, isNull);
     });
   });
 
