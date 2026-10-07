@@ -259,6 +259,36 @@ void main() {
   });
 
   testWidgets(
+    'numa sessão em inglês a aprovação pede a P3 em inglês, nunca a portuguesa',
+    (tester) async {
+      final it = await _ateAConferida(
+        tester,
+        comEsta: SalaHarness(filaEmMemoria: true, lingua: 'en'),
+      );
+      final falasAntes = it.harness.voice.fixedLines.length;
+
+      await tester.tap(byLabel('Approve as the final draft'));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final ditas = it.harness.voice.fixedLines.skip(falasAntes).toList();
+      expect(
+        ditas,
+        contains(('P3', 'en')),
+        reason:
+            'uma equipe que trabalha em inglês ouve a gêmea inglesa da linha '
+            'da aprovação',
+      );
+      expect(
+        ditas,
+        isNot(contains(('P3', 'pt'))),
+        reason: 'a frase portuguesa no meio de uma sessão em inglês',
+      );
+
+      closeTheRoom(it.container);
+    },
+  );
+
+  testWidgets(
     'aprovar de novo depois de a release ter voltado não manda outra',
     (tester) async {
       final it = await _ateAConferida(tester);
