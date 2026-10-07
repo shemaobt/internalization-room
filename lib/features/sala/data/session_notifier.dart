@@ -127,7 +127,7 @@ final playbackCeilingProvider = Provider<Duration?>(
   (ref) => const Duration(minutes: 6),
 );
 
-/// The tap boundary the conversa recorder is held to: a take under 1,200 ms or 800 bytes
+/// The tap boundary the conversa recorder is held to: a take under 700 ms or 800 bytes
 /// never becomes a question for the room.
 final captureGuardProvider = Provider<CaptureGuard>(
   (ref) => const CaptureGuard(),
