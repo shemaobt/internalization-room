@@ -15,6 +15,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
 import 'a_wav_take.dart';
@@ -334,6 +335,43 @@ void main() {
       }
     },
   );
+
+  test('a session read says whether the room has opened it, and a server that '
+      'does not say reads as not opened', () async {
+    Map<String, Object?> state(String id) => {
+      'session_id': id,
+      'pericope': 'P01',
+      'status': 'in_progress',
+      'done': false,
+      if (id == 'aberta') 'opened': true,
+    };
+    final repository = RoomRepository(
+      client: MockClient(
+        (request) async => http.Response(
+          jsonEncode(state(request.url.pathSegments.last)),
+          200,
+        ),
+      ),
+    );
+    addTearDown(repository.dispose);
+
+    expect(
+      await repository.fetchState('aberta'),
+      isA<Answered<SessionSnapshot>>().having(
+        (read) => read.value.opened,
+        'opened',
+        isTrue,
+      ),
+    );
+    expect(
+      await repository.fetchState('antiga'),
+      isA<Answered<SessionSnapshot>>().having(
+        (read) => read.value.opened,
+        'opened',
+        isFalse,
+      ),
+    );
+  });
 
   test('the panorama is asked for by name, a plain session is not', () async {
     final asked = <String>[];

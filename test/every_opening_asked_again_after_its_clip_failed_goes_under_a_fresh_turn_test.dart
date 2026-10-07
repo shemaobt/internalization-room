@@ -36,16 +36,19 @@ void main() {
     SalaSessionState read() => container.read(salaSessionProvider);
 
     await enterThePanorama(notifier, read);
-    await waitFor('a sala parar', () => read().needsPerson);
-    await theHaltIsLifted(harness, notifier, read);
+    await waitFor(
+      'a sala descansar no convite',
+      () => harness.room.turnIdsAsked.isNotEmpty && !read().awaitingTheGuide,
+    );
+    harness.voice.roomFailsWith = null;
     await enterThePanorama(notifier, read);
     await settle();
 
     _expectAFreshTurnId(harness);
   });
 
-  test('the panorama\'s opening asked again after its clip could not be '
-      'fetched goes under a fresh turn id', () async {
+  test('the panorama\'s opening asked again by the circle after its clip '
+      'could not be fetched goes under a fresh turn id', () async {
     final harness = SalaHarness()..room.passages = const [_panorama, _p01];
     final container = harness.container();
     addTearDown(container.dispose);
@@ -56,9 +59,15 @@ void main() {
 
     harness.voice.roomFailsWith = const Refused(RefusalCode.notFound);
     notifier.entrarNaOferecida();
-    await waitFor('a sala parar', () => read().needsPerson);
-    await theHaltIsLifted(harness, notifier, read);
-    notifier.entrarNaOferecida();
+    await waitFor(
+      'a sala descansar no convite',
+      () =>
+          harness.room.turnIdsAsked.isNotEmpty &&
+          read().voice == VoiceState.invite,
+    );
+    expect(read().needsPerson, isFalse);
+    harness.voice.roomFailsWith = null;
+    notifier.panoramaTap();
     await settle();
 
     _expectAFreshTurnId(harness);

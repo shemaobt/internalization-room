@@ -50,8 +50,7 @@ bool _ofTheHalt(Effect effect) => switch (effect) {
   CallForAPerson() ||
   StopCallingForAPerson() ||
   TellAPersonArrived() ||
-  ReplayTheSound() ||
-  AskTheOpeningAgain() => true,
+  ReplayTheSound() => true,
   _ => false,
 };
 
@@ -77,6 +76,20 @@ void main() {
     test('a read with nothing standing changes nothing', () {
       expect(_reduce(none, _nothingStands), _to(none, const <Effect>[]));
     });
+
+    test(
+      'a look that finds no opening lets the opening go and raises no halt',
+      () {
+        const opening = LookEmpty(sounding: TheOpening('turno-7'));
+        expect(_reduce(none, opening), _to(none, const [LetTheOpeningGo()]));
+        expect(
+          _reduce(const Blocking(NothingKept(), serverKnows: true), opening),
+          _to(const Blocking(NothingKept(), serverKnows: true), const [
+            LetTheOpeningGo(),
+          ]),
+        );
+      },
+    );
 
     test('a read warning marks the room and arms the Watch', () {
       expect(
@@ -428,20 +441,19 @@ void main() {
       );
     });
 
-    test('a halt over an opening that could not be fetched is lifted by asking '
-        'the opening again with a fresh turn id', () {
+    test('a halt kept over an opening is lifted with nothing asked', () {
       const failed = '1727700000000';
-      final (next, effects) = _reduce(
-        const Blocking(TheOpening(failed), serverKnows: true),
-        _nothingStands,
+      expect(
+        _reduce(
+          const Blocking(TheOpening(failed), serverKnows: true),
+          _nothingStands,
+        ),
+        _to(const NoHalt(), const [
+          StopCallingForAPerson(),
+          ReplayTheSound(TheOpening(failed)),
+          ArmTheWatch(),
+        ]),
       );
-
-      expect(next, const NoHalt());
-      expect(effects.first, const StopCallingForAPerson());
-      expect(effects.last, const ArmTheWatch());
-      final ask = effects.whereType<AskTheOpeningAgain>().single;
-      expect(ask.freshTurnId, isNot(failed));
-      expect(effects.whereType<ReplayTheSound>(), isEmpty);
     });
   });
 }

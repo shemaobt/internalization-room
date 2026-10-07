@@ -191,8 +191,8 @@ void main() {
     );
   });
 
-  test('a tap on the Panorama\'s circle after the person lifts the halt its '
-      'refused opening raised asks the opening again', () async {
+  test('a refused Panorama opening rests with no sign, and the circle asks it '
+      'again', () async {
     final harness = SalaHarness()
       ..room.passages = _theBook
       ..room.failHeldTurnWith = const Refused('BAD_REQUEST');
@@ -201,8 +201,13 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
     await enterThePanorama(notifier, read);
-    await waitFor('the room to halt', () => read().needsPerson);
-    await theHaltIsLifted(harness, notifier, read);
+    await waitFor(
+      'the room to rest at the circle',
+      () =>
+          harness.room.turnIdsAsked.isNotEmpty &&
+          read().voice == VoiceState.invite,
+    );
+    expect(read().needsPerson, isFalse);
 
     notifier.panoramaTap();
     await waitFor(

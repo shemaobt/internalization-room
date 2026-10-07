@@ -102,6 +102,7 @@ AnsweringEvent _stampedAnswer(AnsweringEvent event, int generation) =>
         generation: generation,
       ),
       ThePassageCannotOpen() => ThePassageCannotOpen(generation: generation),
+      TheOpeningMissed() => TheOpeningMissed(generation: generation),
     };
 
 String? _aStaleAnswerChangedTheRoom(int seed) {

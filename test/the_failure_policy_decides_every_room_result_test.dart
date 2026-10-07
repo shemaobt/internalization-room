@@ -19,6 +19,12 @@ final _aTurn = FailureContext(
   generation: 4,
   turn: _turn,
   rule: RefusalRule.haltsAtOnce,
+);
+
+final _theOpening = FailureContext(
+  station: Station.stored(SalaStage.conversa),
+  generation: 4,
+  rule: RefusalRule.haltsAtOnce,
   sounding: _kept,
 );
 
@@ -56,19 +62,19 @@ void main() {
       'a turn whose network failed is looked at once',
       const RoomNetworkFailed(),
       _aTurn,
-      const TurnGivenUp(_turn, sounding: _kept, generation: 4),
+      const TurnGivenUp(_turn, generation: 4),
     ),
     (
       'a turn that timed out is looked at once',
       const RoomTimedOut(),
       _aTurn,
-      const TurnGivenUp(_turn, sounding: _kept, generation: 4),
+      const TurnGivenUp(_turn, generation: 4),
     ),
     (
       'a turn refused with a code that stops the room calls a person',
       const RoomRefused(RefusalCode.deviceRevoked),
       _aTurn,
-      const RoomRaisedAHalt(sounding: _kept, generation: 4),
+      const RoomRaisedAHalt(generation: 4),
     ),
     (
       'a turn refused because the passage cannot open goes back to the Choice',
@@ -80,7 +86,7 @@ void main() {
       'a turn refused with any other code calls a person on the spot',
       const RoomRefused(RefusalCode.unreadable),
       _aTurn,
-      const RoomRaisedAHalt(sounding: _kept, generation: 4),
+      const RoomRaisedAHalt(generation: 4),
     ),
     (
       'a turn refused calls a person on the spot whatever its family says',
@@ -89,8 +95,20 @@ void main() {
         station: Station.stored(SalaStage.conversa),
         generation: 4,
         turn: _turn,
-        sounding: _kept,
       ),
+      const RoomRaisedAHalt(generation: 4),
+    ),
+    (
+      'an opening refused with any code that does not stop the room is missed, '
+          'not halted',
+      const RoomRefused(RefusalCode.unreadable),
+      _theOpening,
+      const TheOpeningMissed(generation: 4),
+    ),
+    (
+      'an opening refused with a code that stops the room calls a person',
+      const RoomRefused(RefusalCode.deviceRevoked),
+      _theOpening,
       const RoomRaisedAHalt(sounding: _kept, generation: 4),
     ),
     (

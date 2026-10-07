@@ -89,8 +89,8 @@ void main() {
     expect(container.read(salaSessionProvider).needsPerson, isTrue);
   });
 
-  test('an opening that outlives the wait is looked at once and shows the '
-      'person sign, with no thinking loop', () async {
+  test('an opening that outlives the wait is looked at once and rests at the '
+      'invite, with no thinking loop', () async {
     final harness = SalaHarness()
       ..room.failHeldTurnWith = const NetworkFailed('timeout');
     final container = harness.container();
@@ -105,6 +105,7 @@ void main() {
     expect(harness.room.turnIdsAsked, hasLength(1));
     expect(harness.room.turnIdsLookedAt, harness.room.turnIdsAsked);
     expect(voices, isNot(contains(VoiceState.offline)));
-    expect(container.read(salaSessionProvider).needsPerson, isTrue);
+    expect(container.read(salaSessionProvider).needsPerson, isFalse);
+    expect(container.read(salaSessionProvider).voice, VoiceState.invite);
   });
 }

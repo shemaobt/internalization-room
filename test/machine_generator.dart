@@ -286,6 +286,7 @@ String describeEvent(MachineEvent event) => switch (event) {
   TheCallWasRefused() => 'TheCallWasRefused',
   TheCallMetAClosedPassage() => 'TheCallMetAClosedPassage',
   LookEmpty(:final sounding) => 'LookEmpty(${describeKept(sounding)})',
+  TheOpeningMissed() => 'TheOpeningMissed',
   TheRoomRefused(:final third, :final sounding) =>
     'TheRoomRefused(third: $third, ${describeKept(sounding)})',
   ThePassageCannotOpen() => 'ThePassageCannotOpen',
@@ -328,7 +329,6 @@ String describeEffect(Effect effect) => switch (effect) {
   PlayPart(:final part) => 'PlayPart(${describeSound(part)})',
   PlayStretch(:final stretch) => 'PlayStretch(${describeSound(stretch)})',
   OpenTheMic(:final owner) => 'OpenTheMic(${owner.name})',
-  AskTheOpeningAgain(:final freshTurnId) => 'AskTheOpeningAgain($freshTurnId)',
   ArmTheRetry(:final step, :final due) =>
     'ArmTheRetry(${due == null ? 'step $step' : 'due ${due.inSeconds}s'})',
   _ => effect.runtimeType.toString(),
@@ -393,6 +393,7 @@ enum EventKind {
   turnGivenUp,
   lookFound,
   lookEmpty,
+  theOpeningMissed,
   theRoomRefused,
   thePassageCannotOpen,
   turnSent,
@@ -445,6 +446,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TurnGivenUp() => EventKind.turnGivenUp,
   LookFound() => EventKind.lookFound,
   LookEmpty() => EventKind.lookEmpty,
+  TheOpeningMissed() => EventKind.theOpeningMissed,
   TheRoomRefused() => EventKind.theRoomRefused,
   ThePassageCannotOpen() => EventKind.thePassageCannotOpen,
   TurnSent() => EventKind.turnSent,
@@ -496,6 +498,7 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.sessionGone ||
   EventKind.passageClosed ||
   EventKind.turnGivenUp ||
+  EventKind.theOpeningMissed ||
   EventKind.theRoomRefused ||
   EventKind.thePassageCannotOpen ||
   EventKind.turnSent ||
@@ -636,6 +639,7 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
         ),
       ),
       EventKind.lookEmpty => LookEmpty(sounding: _drawKept(random)),
+      EventKind.theOpeningMissed => const TheOpeningMissed(),
       EventKind.theRoomRefused => TheRoomRefused(
         third: random.nextBool(),
         sounding: _drawKept(random),

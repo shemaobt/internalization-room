@@ -646,6 +646,7 @@ class FakeFinished implements FinishedPassages {
 const turnoUrl = '/api/internalization-room/voice/turno';
 const panoramaUrl = '/api/internalization-room/voice/panorama';
 const sceneUrl = '/api/internalization-room/voice/cena';
+const deNovoUrl = '/api/internalization-room/voice/de-novo';
 
 class FakeWorkInProgress implements WorkInProgress {
   final Map<String, ResumePoint> rows = {};
@@ -1008,6 +1009,16 @@ class FakeRoom implements RoomRepository {
   /// The turn id each opening turn carried, null included, in the order it was asked.
   final List<String?> turnIdsAsked = [];
 
+  /// The sessions that hold a Guide line: an opening answered, or a team turn.
+  final Set<String> openedSessions = {};
+
+  /// The sessions this room was asked to say its last line again, in order.
+  final List<String> sessionsSaidAgain = [];
+
+  /// Whether the session `createSession` hands back is one the team already talked in,
+  /// the way another tablet or a lost row leaves it.
+  bool createdOpened = false;
+
   final List<String> turnIdsSent = [];
 
   final List<String> recordingsSent = [];
@@ -1235,6 +1246,7 @@ class FakeRoom implements RoomRepository {
         status: 'in_progress',
         coverage: nextCoverage,
         done: false,
+        opened: createdOpened,
       ),
     );
   }
@@ -1273,6 +1285,7 @@ class FakeRoom implements RoomRepository {
             : (settledCoverage ?? nextCoverage),
         done: done,
         halt: serverHalt,
+        opened: openedSessions.contains(sessionId),
         backTranslation:
             retroSoFar ?? BackTranslationProgress(segments: List.of(segments)),
       ),
@@ -1297,6 +1310,22 @@ class FakeRoom implements RoomRepository {
     }
     sessionsSpokenTo.add(sessionId);
     turnIdsAsked.add(turnId);
+    if (openedSessions.contains(sessionId)) {
+      sessionsSaidAgain.add(sessionId);
+      return Answered(
+        TurnResult(
+          sessionId: sessionId,
+          audioUrl: deNovoUrl,
+          fixedLine: '',
+          transcript: '',
+          peerCue: false,
+          usedFailSafe: false,
+          degraded: false,
+          coverage: silentAboutCoverage ? null : nextCoverage,
+          done: done,
+        ),
+      );
+    }
     return _theTurnAnswers(sessionId, turnId);
   }
 
@@ -1323,13 +1352,17 @@ class FakeRoom implements RoomRepository {
     String? turnId,
   ) async {
     final landed = turnsLandBeforeTheyFail ? _turn(sessionId) : null;
-    if (landed != null && turnId != null) _stored[(sessionId, turnId)] = landed;
+    if (landed != null) {
+      openedSessions.add(sessionId);
+      if (turnId != null) _stored[(sessionId, turnId)] = landed;
+    }
     final failure = await _turnArrives().timeout(
       RoomRepository.turnTimeout,
       onTimeout: () => const NetworkFailed('timeout'),
     );
     if (failure != null) return failure;
     final turn = landed ?? _turn(sessionId);
+    openedSessions.add(sessionId);
     if (turnId != null) _stored[(sessionId, turnId)] = turn;
     return Answered(turn);
   }

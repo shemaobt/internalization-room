@@ -219,7 +219,7 @@ void main() {
       await settle();
       expect(await harness.emAberto.of('Ruth', 'P01'), isNotNull);
 
-      harness.room.failHeldTurnWith = const SessionGone();
+      harness.room.forgetTheSession(harness.room.sessionIds.single);
       harness.room.passagesThatCannotOpen = {'P01'};
       notifier.entrarNaOferecida();
       await settle();
@@ -1573,7 +1573,7 @@ void main() {
       notifier.leaveThePassage();
       await settle();
 
-      harness.room.failHeldTurnWith = const SessionGone();
+      harness.room.forgetTheSession(harness.room.sessionIds.single);
       harness.room.failCreateOnceWith = const SessionGone();
       notifier.entrarNaOferecida();
       await settle();
