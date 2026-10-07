@@ -21,13 +21,11 @@ AnsweringEvent _stampedAnswer(AnsweringEvent event, int generation) =>
     switch (event) {
       SessionRead(
         :final snapshot,
-        :final at,
         :final sounding,
         :final sentBeforeTheCallLanded,
       ) =>
         SessionRead(
           snapshot,
-          at: at,
           sounding: sounding,
           sentBeforeTheCallLanded: sentBeforeTheCallLanded,
           generation: generation,
@@ -102,6 +100,7 @@ AnsweringEvent _stampedAnswer(AnsweringEvent event, int generation) =>
         generation: generation,
       ),
       ThePassageCannotOpen() => ThePassageCannotOpen(generation: generation),
+      TheOpeningMissed() => TheOpeningMissed(generation: generation),
     };
 
 String? _aStaleAnswerChangedTheRoom(int seed) {

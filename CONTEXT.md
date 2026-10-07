@@ -224,8 +224,12 @@ The book's own entry and the line about the whole book, first on the wheel, play
 _Avoid_: introduction, overview
 
 **Scene**:
-The opening line specific to the chosen passage, said when its Conversation opens.
+The opening line specific to the chosen passage, said when its Conversation opens for the first time.
 _Avoid_: cena
+
+**Opened**:
+A session that holds a Guide line, its Opening at least. The room asks a session's Opening only while it is not opened.
+_Avoid_: started, begun
 
 **Outbox**:
 The queue of takes and stretches waiting to reach the server, with a manifest that survives the app closing and names each recording by file rather than by path. It delivers one part's recordings in the order the team made them.
@@ -341,7 +345,7 @@ The one place every room result (answered, network failed, refused with a code, 
 _Avoid_: error handler, retry policy
 
 **One look**:
-What the tablet does once it gives up on a turn, because the network failed, its 305 s wait ran out or the watchdog fired: it reads that one turn on the server, once and without sending it again. A reply that landed plays as if it had arrived on time; anything else raises a blocking Halt that calls for a person and keeps the take, never the offline face.
+What the tablet does once it gives up on a turn, because the network failed, its 305 s wait ran out or the watchdog fired: it reads that one turn on the server, once and without sending it again. A reply that landed plays as if it had arrived on time; anything else raises a blocking Halt that calls for a person and keeps the take, never the offline face, except over an Opening, which rests at the quiet invite.
 _Avoid_: retry, resend, poll
 
 **Session read**:

@@ -88,7 +88,7 @@ Invariant<S> aSessionReadIsAppliedWholeOrNotAtAll<S>(Halt Function(S) haltOf) =>
     );
 
 bool _tellsThePersonOrBringsTheSoundBack(Effect effect) => switch (effect) {
-  TellAPersonArrived() || ReplayTheSound() || AskTheOpeningAgain() => true,
+  TellAPersonArrived() || ReplayTheSound() => true,
   _ => false,
 };
 

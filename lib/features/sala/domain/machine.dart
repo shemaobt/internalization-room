@@ -22,12 +22,10 @@ sealed class AnsweringEvent extends MachineEvent {
 final class SessionRead extends AnsweringEvent {
   final SessionSnapshot snapshot;
   final Kept sounding;
-  final DateTime at;
   final bool sentBeforeTheCallLanded;
 
   const SessionRead(
     this.snapshot, {
-    required this.at,
     this.sounding = const NothingKept(),
     this.sentBeforeTheCallLanded = false,
     super.generation,
@@ -55,9 +53,8 @@ final class TheAnswerWarned extends AnsweringEvent {
 
 final class LongPress extends MachineEvent {
   final bool somebodyToAsk;
-  final DateTime at;
 
-  const LongPress({required this.somebodyToAsk, required this.at});
+  const LongPress({required this.somebodyToAsk});
 }
 
 final class WatchFired extends AnsweringEvent {
@@ -334,6 +331,10 @@ final class LookEmpty extends AnsweringEvent {
   const LookEmpty({this.sounding = const NothingKept(), super.generation});
 }
 
+final class TheOpeningMissed extends AnsweringEvent {
+  const TheOpeningMissed({super.generation});
+}
+
 final class TheRoomRefused extends AnsweringEvent {
   final bool third;
   final Kept sounding;
@@ -414,17 +415,8 @@ final class ReplayTheSound extends Effect {
   int get hashCode => kept.hashCode;
 }
 
-final class AskTheOpeningAgain extends Effect {
-  final String freshTurnId;
-
-  const AskTheOpeningAgain(this.freshTurnId);
-
-  @override
-  bool operator ==(Object other) =>
-      other is AskTheOpeningAgain && other.freshTurnId == freshTurnId;
-
-  @override
-  int get hashCode => freshTurnId.hashCode;
+final class LetTheOpeningGo extends Effect {
+  const LetTheOpeningGo();
 }
 
 final class PlayLine extends Effect {
@@ -861,6 +853,8 @@ const _watch = ArmTheWatch();
   ),
   TheRefusalPassed() => (machine, const []),
   TheCallWasRefused() => (machine, const [AskForAPersonAgain()]),
+  LookEmpty(sounding: TheOpening()) ||
+  TheOpeningMissed() => (machine, const [LetTheOpeningGo()]),
   LookEmpty(:final sounding) => _theHalt(
     machine,
     RoomRaisedAHalt(sounding: sounding),
@@ -1418,7 +1412,7 @@ Machine _answered(Machine machine) =>
     ),
     _ => (const Warning(), const [_watch]),
   },
-  LongPress(:final somebodyToAsk, :final at) => switch (halt) {
+  LongPress(:final somebodyToAsk) => switch (halt) {
     Blocking(serverKnows: true) when somebodyToAsk => (
       halt,
       const [TellAPersonArrived(), ReadTheState()],
@@ -1426,7 +1420,6 @@ Machine _answered(Machine machine) =>
     Blocking(:final warningBeneath) => _lift(
       halt,
       warningBeneath ? const Warning() : const NoHalt(),
-      at,
     ),
     _ => (halt, const []),
   },
@@ -1460,6 +1453,7 @@ Machine _answered(Machine machine) =>
   TurnGivenUp() ||
   LookFound() ||
   LookEmpty() ||
+  TheOpeningMissed() ||
   TheRoomRefused() ||
   ThePassageCannotOpen() ||
   TurnSent() ||
@@ -1493,7 +1487,7 @@ Machine _answered(Machine machine) =>
         ),
         const [_watch],
       ),
-    (final Blocking blocking, _) => _lift(blocking, told, read.at),
+    (final Blocking blocking, _) => _lift(blocking, told),
     (_, Blocking()) => (
       Blocking(
         read.sounding,
@@ -1507,21 +1501,5 @@ Machine _answered(Machine machine) =>
   };
 }
 
-(Halt, List<Effect>) _lift(Blocking halt, Halt next, DateTime at) => (
-  next,
-  [
-    const StopCallingForAPerson(),
-    switch (halt.kept) {
-      TheOpening(:final failedTurnId) => AskTheOpeningAgain(
-        _freshTurnId(failedTurnId, at),
-      ),
-      final kept => ReplayTheSound(kept),
-    },
-    _watch,
-  ],
-);
-
-String _freshTurnId(String failed, DateTime at) {
-  final stamp = at.millisecondsSinceEpoch.toString();
-  return stamp == failed ? '$stamp-1' : stamp;
-}
+(Halt, List<Effect>) _lift(Blocking halt, Halt next) =>
+    (next, [const StopCallingForAPerson(), ReplayTheSound(halt.kept), _watch]);
