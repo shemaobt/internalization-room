@@ -31,3 +31,7 @@ acknowledgement.
 
 The fourth line, «Tá.» / «Right.», leaves the list but its clips stay in the bundle until
 ENG-1458 re-renders them.
+
+Amended by ENG-1268 (where the clips are): none of her lines ships in the bundle any more,
+so the fourth line's clips are not in it either, and there is nothing in the bundle for
+ENG-1458 to re-render here.

@@ -1,5 +1,10 @@
 # The room picks its language once per run
 
+Amended by ENG-1268 (what the language decides): no fixed line is bundled any more, so the
+choice no longer picks a bundle. It is the language the tablet asks the room for each fixed
+and process line in, by family and position; the choice itself, its fallback and its
+once-per-run rule stand.
+
 ## Context
 
 Everything the room says is generated or bundled per language, and the tablet has to pick

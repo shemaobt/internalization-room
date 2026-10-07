@@ -4,6 +4,11 @@ status: accepted, amended by 0056
 
 # Latency is honesty
 
+Amended by ENG-1268 (where the Fixed line comes from): the tablet no longer plays it from the
+bundle. It asks the room for the line by family and position, once per run, keeps the sound,
+and plays that clip the moment the recorder stops. Wherever this record says bundled,
+read that: the line is on the device once the room has answered, not shipped with it.
+
 ## Context
 
 Every turn the team speaks goes to the server, and the answer takes time. The room needed
