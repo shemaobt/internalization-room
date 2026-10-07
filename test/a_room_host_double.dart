@@ -63,6 +63,26 @@ class ARoomHost implements EffectHost {
   @override
   String? passageInCourse;
 
+  @override
+  bool aPersonIsNeeded = true;
+
+  int callsStopped = 0;
+  ClosedPassage? passageToMark = (book: 'rute', passage: 'rute-1');
+  final List<String> marksHeard = [];
+
+  @override
+  void hearTheCallStopped() => callsStopped++;
+
+  @override
+  ClosedPassage? hearTheMarkBegin() {
+    marksHeard.add('begin');
+    return passageToMark;
+  }
+
+  @override
+  void hearTheMarkEnd(String session, String? passage) =>
+      marksHeard.add('end:$session');
+
   int callsLanded = 0;
   int callsLandedWithoutASession = 0;
   final List<(String, String?, RoomResult)> earlierCallsHeard = [];
@@ -127,9 +147,6 @@ class ARoomHost implements EffectHost {
   void silenceTheRoom() => asked.add('silenceTheRoom');
 
   @override
-  void stopCallingForAPerson() => asked.add('stopCallingForAPerson');
-
-  @override
   void replayTheSound(Kept kept) => asked.add('replayTheSound');
 
   @override
@@ -156,12 +173,6 @@ class ARoomHost implements EffectHost {
 
   @override
   void fellAt(Door door, RoomReach why) => asked.add('fellAt');
-
-  @override
-  void askForAPersonAgain() => asked.add('askForAPersonAgain');
-
-  @override
-  void markThePassageClosed() => asked.add('markThePassageClosed');
 
   @override
   void countTheRefusal() => asked.add('countTheRefusal');

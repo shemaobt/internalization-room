@@ -184,14 +184,31 @@ class ARecorderPort implements RecorderPort {
 }
 
 class AStorePort implements StorePort {
+  final List<String> heard = [];
+  final List<Completer<void>> _marks = [];
+
   @override
   Future<int> flushTheOutbox() async => 0;
+
+  @override
+  Future<void> markThePassageClosed(String book, String passage) {
+    heard.add('mark:$book:$passage');
+    final mark = Completer<void>();
+    _marks.add(mark);
+    return mark.future;
+  }
+
+  void answerTheMark() => _marks.removeAt(0).complete();
 }
 
-Ports fakePorts(ASoundPort sound, {ARecorderPort? recorder, ARoomPort? room}) =>
-    (
-      room: room ?? ARoomPort(),
-      sound: sound,
-      recorder: recorder ?? ARecorderPort(),
-      store: AStorePort(),
-    );
+Ports fakePorts(
+  ASoundPort sound, {
+  ARecorderPort? recorder,
+  ARoomPort? room,
+  AStorePort? store,
+}) => (
+  room: room ?? ARoomPort(),
+  sound: sound,
+  recorder: recorder ?? ARecorderPort(),
+  store: store ?? AStorePort(),
+);

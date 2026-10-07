@@ -239,7 +239,7 @@ void main() {
       room.answerTheTabletCall(const TheDeviceLinkUnread());
       await pumpEventQueue();
 
-      expect(host.asked, ['askForAPersonAgain']);
+      expect(room.heard, ['call by the tablet', 'call by the tablet']);
       expect(host.answers, isEmpty);
     },
   );
