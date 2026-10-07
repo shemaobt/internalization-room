@@ -136,7 +136,7 @@ void main() {
   });
 
   test(
-    'after a failed opening, opening the passage again from the Menu asks it '
+    'after a failed opening, opening the passage again from the Choice asks it '
     'again',
     () async {
       final room = await _enterP01(
@@ -161,4 +161,63 @@ void main() {
       );
     },
   );
+
+  test(
+    'an opening whose clip would not play is not asked again from the Choice, '
+    'and «Ouvir de novo» has the room say it',
+    () async {
+      final harness = SalaHarness();
+      harness.voice.refuses.add(turnoUrl);
+      final room = await _enterP01(harness);
+      await waitFor(
+        'the opening to be tried',
+        () => harness.voice.played.contains(turnoUrl),
+      );
+      await _theRoomRests(room);
+      harness.voice.refuses.clear();
+      final session = room.read().sessionId;
+
+      room.notifier.leaveThePassage();
+      await enterThePassage(room.notifier, room.read, 'P01');
+      await waitFor(
+        'the passage to land at rest',
+        () => room.read().sessionId == session && room.read().canHearAgain,
+      );
+      await room.notifier.hearAgain();
+      await waitFor(
+        'the room to say it',
+        () => harness.voice.played.contains(deNovoUrl),
+      );
+
+      expect(harness.room.turnIdsAsked.whereType<String>(), hasLength(1));
+      expect(harness.room.sessionsSaidAgain, [session]);
+    },
+  );
+
+  test('after an opening whose clip would not play, a refused team turn still '
+      'calls a person', () async {
+    final harness = SalaHarness();
+    harness.voice.refuses.add(turnoUrl);
+    final room = await _enterP01(harness);
+    await waitFor(
+      'the opening to be tried',
+      () => harness.voice.played.contains(turnoUrl),
+    );
+    await _theRoomRests(room);
+    harness.voice.refuses.clear();
+    harness.room.failHeldTurnWith = const Refused('BAD_REQUEST');
+
+    room.notifier.conversaTap();
+    await waitFor(
+      'the team to be heard',
+      () => room.read().voice == VoiceState.listening,
+    );
+    room.notifier.conversaTap();
+    await waitFor(
+      'the team turn to be sent',
+      () => harness.room.turnsSent == 1,
+    );
+
+    await waitFor('a person to be called', () => room.read().needsPerson);
+  });
 }

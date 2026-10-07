@@ -20,7 +20,6 @@ final _notTheirOwn = <MachineEvent>[
       coverage: null,
       done: false,
     ),
-    at: DateTime.utc(2026, 10, 6, 12),
   ),
 ];
 

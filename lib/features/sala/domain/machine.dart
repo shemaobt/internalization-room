@@ -22,12 +22,10 @@ sealed class AnsweringEvent extends MachineEvent {
 final class SessionRead extends AnsweringEvent {
   final SessionSnapshot snapshot;
   final Kept sounding;
-  final DateTime at;
   final bool sentBeforeTheCallLanded;
 
   const SessionRead(
     this.snapshot, {
-    required this.at,
     this.sounding = const NothingKept(),
     this.sentBeforeTheCallLanded = false,
     super.generation,
@@ -55,9 +53,8 @@ final class TheAnswerWarned extends AnsweringEvent {
 
 final class LongPress extends MachineEvent {
   final bool somebodyToAsk;
-  final DateTime at;
 
-  const LongPress({required this.somebodyToAsk, required this.at});
+  const LongPress({required this.somebodyToAsk});
 }
 
 final class WatchFired extends AnsweringEvent {

@@ -6,8 +6,6 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 
-final _at = DateTime.utc(2026, 9, 30, 12);
-
 const _part1 = PartSound(0, 'parte-1.m4a', from: Duration(seconds: 12));
 const _part2 = PartSound(1, 'parte-2.m4a');
 const _guide1 = Line(LineKind.guide, 1);
@@ -252,7 +250,6 @@ void main() {
               done: false,
               halt: HaltKind.blocking,
             ),
-            at: _at,
           ),
         );
 
@@ -465,7 +462,7 @@ void main() {
       const NetworkFailedAt(Door.watch),
       const LineArrived(_notice),
       const NetworkReturned(),
-      LongPress(somebodyToAsk: false, at: _at),
+      const LongPress(somebodyToAsk: false),
     ]);
 
     expect(effects, isNot(contains(const PlayLine(_notice))));
@@ -519,7 +516,7 @@ void main() {
     final (waiting, arriving) = reduce(halted, const LineArrived(_notice));
     final (lifted, lifting) = reduce(
       waiting,
-      LongPress(somebodyToAsk: false, at: _at),
+      const LongPress(somebodyToAsk: false),
     );
 
     expect(arriving, isEmpty);

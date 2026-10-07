@@ -3,8 +3,6 @@ import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 
-final _at = DateTime.utc(2026, 9, 30, 12);
-
 SessionRead _read({
   String status = 'in_progress',
   HaltKind halt = HaltKind.unnamed,
@@ -18,16 +16,12 @@ SessionRead _read({
     done: false,
     halt: halt,
   ),
-  at: _at,
   sounding: sounding,
 );
 
 SessionRead get _nothingStands => _read();
-SessionRead get _nothingStoodBeforeTheCall => SessionRead(
-  _nothingStands.snapshot,
-  at: _at,
-  sentBeforeTheCallLanded: true,
-);
+SessionRead get _nothingStoodBeforeTheCall =>
+    SessionRead(_nothingStands.snapshot, sentBeforeTheCallLanded: true);
 SessionRead get _aWarningStands =>
     _read(status: 'needs_person', halt: HaltKind.warning);
 SessionRead _aBlockingHalt({Kept sounding = const NothingKept()}) =>
@@ -142,8 +136,8 @@ void main() {
 
     test('a long press, going offline and a landed call change nothing', () {
       for (final event in [
-        LongPress(somebodyToAsk: true, at: _at),
-        LongPress(somebodyToAsk: false, at: _at),
+        const LongPress(somebodyToAsk: true),
+        const LongPress(somebodyToAsk: false),
         const NetworkFailedAt(Door.watch),
         const TheCallLanded(),
       ]) {
@@ -253,11 +247,11 @@ void main() {
 
     test('a long press refuses the team nothing and lifts nothing', () {
       expect(
-        _reduce(warning, LongPress(somebodyToAsk: true, at: _at)),
+        _reduce(warning, const LongPress(somebodyToAsk: true)),
         _to(warning, const <Effect>[]),
       );
       expect(
-        _reduce(warning, LongPress(somebodyToAsk: false, at: _at)),
+        _reduce(warning, const LongPress(somebodyToAsk: false)),
         _to(warning, const <Effect>[]),
       );
     });
@@ -383,14 +377,14 @@ void main() {
     test('a long press with somebody to ask tells a person arrived and reads '
         'the state', () {
       expect(
-        _reduce(known, LongPress(somebodyToAsk: true, at: _at)),
+        _reduce(known, const LongPress(somebodyToAsk: true)),
         _to(known, const [TellAPersonArrived(), ReadTheState()]),
       );
     });
 
     test('a long press with nobody to ask releases it locally', () {
       expect(
-        _reduce(known, LongPress(somebodyToAsk: false, at: _at)),
+        _reduce(known, const LongPress(somebodyToAsk: false)),
         _to(const NoHalt(), const [
           StopCallingForAPerson(),
           ReplayTheSound(ThePart()),
@@ -402,7 +396,7 @@ void main() {
     test('a long press on a halt the server never heard of releases it '
         'locally', () {
       expect(
-        _reduce(unknown, LongPress(somebodyToAsk: true, at: _at)),
+        _reduce(unknown, const LongPress(somebodyToAsk: true)),
         _to(const NoHalt(), const [
           StopCallingForAPerson(),
           ReplayTheSound(ThePart()),
@@ -413,7 +407,7 @@ void main() {
 
     test('lifted over a warning, the warning stands again, still watched', () {
       expect(
-        _reduce(overAWarning, LongPress(somebodyToAsk: false, at: _at)),
+        _reduce(overAWarning, const LongPress(somebodyToAsk: false)),
         _to(const Warning(), const [
           StopCallingForAPerson(),
           ReplayTheSound(ThePart()),

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -21,26 +22,23 @@ int _opensAsked(SalaHarness harness) =>
     harness.room.calls.where((call) => call == 'openSession').length;
 
 void main() {
-  test(
-    'a passage opened for the first time from the Menu speaks its opening with '
-    'no tap',
-    () async {
-      final harness = SalaHarness();
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-      SalaSessionState read() => container.read(salaSessionProvider);
+  test('a passage opened for the first time from the Choice speaks its opening '
+      'with no tap', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
 
-      await enterThePassage(notifier, read, 'P01');
-      await waitFor(
-        'the opening to be said',
-        () => harness.voice.played.contains(turnoUrl),
-      );
+    await enterThePassage(notifier, read, 'P01');
+    await waitFor(
+      'the opening to be said',
+      () => harness.voice.played.contains(turnoUrl),
+    );
 
-      expect(harness.room.sessionsSpokenTo, [harness.room.sessionIds.single]);
-      expect(harness.room.turnIdsAsked, hasLength(1));
-    },
-  );
+    expect(harness.room.sessionsSpokenTo, [harness.room.sessionIds.single]);
+    expect(harness.room.turnIdsAsked, hasLength(1));
+  });
 
   group('a passage the team talked in, left and entered again', () {
     late SalaHarness harness;
@@ -119,7 +117,7 @@ void main() {
   });
 
   test(
-    'a passage reopened from the Menu before any conversation asks its opening',
+    'a passage reopened from the Choice before any conversation asks its opening',
     () async {
       final harness = SalaHarness();
       _aCanvasRow(harness, opened: false);
@@ -241,5 +239,107 @@ void main() {
 
       expect(harness.room.sessionsSpokenTo, [_rememberedSession]);
     });
+  });
+
+  group(
+    'a resumed passage whose last line is an Opening told in two movements',
+    () {
+      late SalaHarness harness;
+      late SalaSessionNotifier notifier;
+      late SalaSessionState Function() read;
+      late int playedBeforeTheReplay;
+
+      setUp(() async {
+        harness = SalaHarness()..room.opensInTwoMovements = true;
+        _aCanvasRow(harness, opened: true);
+        final container = harness.container();
+        addTearDown(container.dispose);
+        notifier = container.read(salaSessionProvider.notifier);
+        read = () => container.read(salaSessionProvider);
+        await enterThePassage(notifier, read, 'P01');
+        await waitFor('the passage to land at rest', () => read().canHearAgain);
+        playedBeforeTheReplay = harness.voice.played.length;
+        await notifier.hearAgain();
+        await waitFor(
+          'the room to rest again',
+          () => read().voice == VoiceState.invite && read().canHearAgain,
+        );
+      });
+
+      test('«Ouvir de novo» says its scene again', () {
+        expect(harness.voice.played.skip(playedBeforeTheReplay), [sceneUrl]);
+      });
+
+      test('the long press says both movements', () async {
+        final playedBeforeThePress = harness.voice.played.length;
+
+        await notifier.hearTheWholeOpening();
+        await waitFor(
+          'both movements to be said',
+          () => harness.voice.played.length == playedBeforeThePress + 2,
+        );
+
+        expect(harness.voice.played.skip(playedBeforeThePress), [
+          panoramaUrl,
+          sceneUrl,
+        ]);
+      });
+    },
+  );
+
+  group('a resumed passage whose session read fell with the network', () {
+    Future<(SalaHarness, SalaSessionState Function())> theRoomComesBack({
+      required bool opened,
+    }) async {
+      final harness = SalaHarness();
+      _aCanvasRow(harness, opened: opened);
+      harness.room.failStateOnceWith = const NetworkFailed('sem rede');
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+      await enterThePassage(notifier, read, 'P01');
+      await waitFor('the room to be out of reach', () => read().offline);
+
+      notifier.retryNow();
+      return (harness, read);
+    }
+
+    test('enters again when the room comes back and lands quiet', () async {
+      final (harness, read) = await theRoomComesBack(opened: true);
+      await waitFor('the passage to land at rest', () => read().canHearAgain);
+      await settle();
+
+      expect(read().sessionId, _rememberedSession);
+      expect(read().voice, VoiceState.invite);
+      expect(_opensAsked(harness), 0);
+    });
+
+    test('enters again when the room comes back and asks its opening if the '
+        'session was never opened', () async {
+      final (harness, _) = await theRoomComesBack(opened: false);
+      await waitFor(
+        'the opening to be said',
+        () => harness.voice.played.contains(turnoUrl),
+      );
+
+      expect(harness.room.sessionsSpokenTo, [_rememberedSession]);
+    });
+  });
+
+  test('a passage another tablet opened, which the room has halted, shows the '
+      'person sign at once', () async {
+    final harness = SalaHarness()
+      ..room.createdOpened = true
+      ..room.serverStatus = 'needs_person'
+      ..room.serverHalt = HaltKind.blocking;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    await enterThePassage(notifier, read, 'P01');
+
+    await waitFor('the person sign', () => read().needsPerson);
   });
 }

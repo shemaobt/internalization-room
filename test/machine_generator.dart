@@ -231,18 +231,16 @@ String describeEvent(MachineEvent event) => switch (event) {
     :final snapshot,
     :final sounding,
     :final sentBeforeTheCallLanded,
-    :final at,
   ) =>
     'SessionRead(status: ${snapshot.status}, halt: ${snapshot.halt.name}, '
         'sounding: ${describeKept(sounding)}, '
-        'sentBeforeTheCallLanded: $sentBeforeTheCallLanded, at: $at)',
+        'sentBeforeTheCallLanded: $sentBeforeTheCallLanded)',
   RoomRaisedAHalt(:final sounding, :final callsForAPerson) =>
     'RoomRaisedAHalt(${describeKept(sounding)}, '
         'callsForAPerson: $callsForAPerson)',
   TheCallLanded() => 'TheCallLanded',
   TheAnswerWarned() => 'TheAnswerWarned',
-  LongPress(:final somebodyToAsk, :final at) =>
-    'LongPress(somebodyToAsk: $somebodyToAsk, at: $at)',
+  LongPress(:final somebodyToAsk) => 'LongPress(somebodyToAsk: $somebodyToAsk)',
   WatchFired() => 'WatchFired',
   NetworkFailedAt(:final door, :final why) =>
     'NetworkFailedAt(${door.name}, ${why.name})',
@@ -334,8 +332,6 @@ String describeEffect(Effect effect) => switch (effect) {
   _ => effect.runtimeType.toString(),
 };
 
-final _at = DateTime.utc(2026, 9, 30, 12);
-
 Kept _drawKept(Random random) => switch (random.nextInt(5)) {
   0 => const NothingKept(),
   1 => const ThePart(),
@@ -353,7 +349,6 @@ SessionRead _drawARead(World world, Random random) => SessionRead(
     done: false,
     halt: HaltKind.values[random.nextInt(HaltKind.values.length)],
   ),
-  at: _at.add(Duration(milliseconds: random.nextInt(3))),
   sounding: _drawKept(random),
   sentBeforeTheCallLanded: world.callOutstanding && random.nextBool(),
 );
@@ -559,10 +554,7 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
       ),
       EventKind.theCallLanded => const TheCallLanded(),
       EventKind.theAnswerWarned => const TheAnswerWarned(),
-      EventKind.longPress => LongPress(
-        somebodyToAsk: random.nextBool(),
-        at: _at.add(Duration(milliseconds: random.nextInt(3))),
-      ),
+      EventKind.longPress => LongPress(somebodyToAsk: random.nextBool()),
       EventKind.watchFired => const WatchFired(),
       EventKind.networkFailedAt => NetworkFailedAt(
         world.probing && random.nextBool()

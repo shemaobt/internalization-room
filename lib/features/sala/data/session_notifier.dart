@@ -780,10 +780,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       switch (await _room.openSession(sessionId)) {
         case Answered(value: final line):
           if (_abandoned(generation)) return;
-          await _readyToSpeak(line.audioUrl, line.fixedLine);
+          final twoMovements = line.toldInTwoMovements;
+          final url = twoMovements ? line.sceneUrl : line.audioUrl;
+          await _readyToSpeak(url, line.fixedLine);
           if (_abandoned(generation)) return;
           _watchBusyState();
-          final played = await _speak(line.audioUrl, line.fixedLine);
+          final played = await _speak(
+            url,
+            line.fixedLine,
+            panoramaUrl: twoMovements ? line.panoramaUrl : '',
+          );
           if (_abandoned(generation)) return;
           if (!played) return _registerUnplayableTurn(leavesTeamTalk: false);
           state = state.copyWith(awaitingTheGuide: false);
@@ -1099,7 +1105,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _dispatch(
       SessionRead(
         snapshot,
-        at: clock.now(),
         sounding: _whatIsSounding(),
         sentBeforeTheCallLanded: sent <= _readsSentBeforeTheCall,
         generation: _generation,
@@ -1204,12 +1209,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _after('person', backoff[step], () => unawaited(retry()));
   }
 
-  /// [rule] is [RefusalRule.haltsAtOnce] for the openSession/sendTurn/loadWheel family:
-  /// every call to one of the three, through whichever door reaches it. A refusal there
-  /// raises the affordance on the spot, the same turn a person would have been shown E0
-  /// in — except over an opening, which rests at the invite unless the refusal stops the
-  /// room. Every other caller — the resume itself, upload, a written question, a retro
-  /// edit, an approval — keeps the three-strike count underneath.
+  /// [rule] is [RefusalRule.haltsAtOnce] for a turn of the openSession/sendTurn/loadWheel
+  /// family. A refusal there raises the affordance on the spot, the same turn a person
+  /// would have been shown E0 in — except over an opening, which rests at the invite
+  /// unless the refusal stops the room. Every other caller — the resume itself, the room
+  /// saying its last line again, upload, a written question, a retro edit, an approval —
+  /// keeps the three-strike count underneath.
   void _decideTheFailure(
     RoomFailure failure, {
     RefusalRule rule = RefusalRule.counts,
@@ -1460,12 +1465,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _resolveWithPerson() {
     if (!state.needsPerson && !state.offline) return;
     final wasOut = state.unreachable;
-    _dispatch(
-      LongPress(
-        somebodyToAsk: state.sessionId != null && !wasOut,
-        at: clock.now(),
-      ),
-    );
+    _dispatch(LongPress(somebodyToAsk: state.sessionId != null && !wasOut));
     if (!state.needsPerson && wasOut) _releaseTheReach();
   }
 
@@ -2263,6 +2263,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       switch (await _room.fetchState(sessionId)) {
         case Answered(value: final snapshot):
           read = snapshot;
+        case NetworkFailed():
+          if (_abandoned(generation)) return;
+          _theResumeFell();
+          return;
         case final RoomFailure failure:
           return failed(failure);
       }
@@ -2273,9 +2277,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         // stretch contradicts itself — the check is about what was told — and there is
         // no rehearsal here to land it on either, so this door declines it: landing it
         // left the room standing in the conversa until the watchdog called a person two
-        // minutes later. It falls through to the turn instead, which is the door every
-        // other empty answer takes: closing would call a passage the team never
-        // approved its final draft.
+        // minutes later. It falls through instead, as every other empty answer does:
+        // the room lands quiet on a session it opened and asks the Opening only of one
+        // it never opened. Closing would call a passage the team never approved its
+        // final draft.
         //
         // Reached only when the room holds no rehearsal of its own to hand back, which
         // is the one way past this door now that a resume fetches the parts.
@@ -2290,6 +2295,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _applyTheSessionRead(read, sent);
       if (read.opened) return _landWhereTheyStopped();
     } else if (created!.opened) {
+      _applyTheSessionRead(created, ++_readsSent);
       return _landWhereTheyStopped();
     }
     reachedTheOpeningTurn = true;

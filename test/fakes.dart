@@ -1243,9 +1243,10 @@ class FakeRoom implements RoomRepository {
       SessionSnapshot(
         sessionId: sessionId,
         pericope: pericope ?? 'rute-1',
-        status: 'in_progress',
+        status: serverStatus ?? 'in_progress',
         coverage: nextCoverage,
         done: false,
+        halt: serverHalt,
         opened: createdOpened,
       ),
     );
@@ -1323,6 +1324,12 @@ class FakeRoom implements RoomRepository {
           degraded: false,
           coverage: silentAboutCoverage ? null : nextCoverage,
           done: done,
+          segments: opensInTwoMovements
+              ? const [
+                  SpokenSegment(role: 'panorama', audioUrl: panoramaUrl),
+                  SpokenSegment(role: 'scene', audioUrl: sceneUrl),
+                ]
+              : const [],
         ),
       );
     }
