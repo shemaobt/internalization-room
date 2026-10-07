@@ -28,8 +28,11 @@ The mark wrote the finished passage to the disk from the notifier.
   clamped at the last step. The runner keeps the step and climbs it on every ask again.
 - **The stop cancels the timer and resets the step, then the Station hears it:** its flag,
   the network health settled and the resume counter, in that order. A forgotten passage
-  does the same through a public runner method. Cancelling there is equivalent to before,
-  because every caller of the forget already moves the generation through `_clearAll`.
+  does the same through a public runner method. Cancelling there is equivalent to before:
+  every caller but one runs `_clearAll` around the forget and so moves the generation. The one
+  that does not, `_startTheSessionClean`, runs after `_goConversa` entered through `_clearAll`;
+  a ladder armed since then used to survive the forget with only its step reset, and now dies
+  there, and either way its fire asks nothing, because the rebuilt state needs no person.
 - **The closed-passage mark writes through the Store port.** The Station hears the mark
   begin, holds the call, tells the Choice the passage is closed, and hands back the book and
   the passage to write; the Store port writes them and swallows its failure at the boundary.
