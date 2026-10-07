@@ -233,6 +233,7 @@ void main() {
       final turns = room.harness.room.turnsSent;
 
       step = Duration.zero;
+      now = now.add(const Duration(milliseconds: 699));
       await room.tap();
 
       expect(room.state.voice, VoiceState.listening);
