@@ -11,8 +11,7 @@ One of the stops a session passes through, from the Choice to the Closing; the s
 _Avoid_: stage (`SalaStage` is the enum, not the term), phase, screen, step
 
 **Panorama Station** (`panorama`):
-The station where the book's Panorama is voiced, reached by tapping the Panorama on the
-wheel; after its line, the team can answer it out loud.
+The station where the book's Panorama is voiced, reached by tapping the Panorama on the wheel; after its line, the team can answer it out loud.
 _Avoid_: invitation, convite, welcome
 
 **Conversation** (`conversa`):
@@ -33,9 +32,8 @@ On screen and in the voice its Portuguese is *traduzir / tradução*; *contar* b
 _Avoid_: retrotradução, retro in prose (`retro` is the code prefix, not the term), contar de volta, contado de volta, reconto, recontar
 
 **Choice** (`escolha`):
-The station where the room starts and where the team picks an entry on the wheel, the
-Panorama or a passage.
-_Avoid_: escolha in prose (`escolha` is the enum value), selection, wheel (the wheel is the list of passages, not the station)
+The station where the room starts and where the team picks an entry on the wheel, the Panorama or a passage.
+_Avoid_: escolha in prose (`escolha` is the enum value), Menu in prose (`Menu` is the class), selection, wheel (the wheel is the list of entries, not the station)
 
 **Closing** (`fim`):
 The last station, where the necklace's cord closes into a circle and the session ends.
@@ -130,7 +128,7 @@ One team's work on one passage, with state and a persisted snapshot allowing it 
 _Avoid_: sessão, passage, round
 
 **Wheel**:
-The list of passages still to be worked, which the room offers at the Choice and reopens on its own after the Closing. Not yet read and empty are different states: empty means the book is finished.
+The list of entries the room offers at the Choice, the book's Panorama first and then the passages still to be worked, which the room reopens on its own after the Closing. Not yet read and holding no passage are different states: holding no passage means the book is finished.
 _Avoid_: roda, passage list, carousel, choice (the station that shows it)
 
 **Take**:
@@ -226,7 +224,7 @@ The book's own entry and the line about the whole book, first on the wheel, play
 _Avoid_: introduction, overview
 
 **Scene**:
-The opening line specific to the chosen passage, following the panorama.
+The opening line specific to the chosen passage, said when its Conversation opens.
 _Avoid_: cena
 
 **Outbox**:

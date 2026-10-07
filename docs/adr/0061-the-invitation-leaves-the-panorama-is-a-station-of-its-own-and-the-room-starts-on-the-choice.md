@@ -1,15 +1,16 @@
 ---
 status: accepted
 date: 2026-10-06
-amends: 0053
+amends: 0053, 0040 (the Wheel: nothing dimmed)
 supersedes: 0046 (in part: what it says of the Invitation)
 ---
 
-# The Invitation leaves, the Panorama is a Station of its own, and the room starts on the Menu
+# The Invitation leaves, the Panorama is a Station of its own, and the room starts on the Choice
 
-This amends ADR 0053 without editing it; it adds "amended by 0061" to its status line. Henok
-decided on 6 October, and the Definer settled it on the ticket (ENG-1282), that the app
-opens on the passage choice and always opens the passage the team chose, as Marcia's does.
+This amends ADRs 0053 and 0040 without editing them; it adds "amended by 0061" to 0053's
+status line. Henok decided on 6 October, and the Definer settled it on the ticket
+(ENG-1282), that the app opens on the passage choice and always opens the passage the team
+chose, as Marcia's does.
 
 ## Context
 
