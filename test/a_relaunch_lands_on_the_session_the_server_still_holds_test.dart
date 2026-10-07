@@ -8,6 +8,7 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -540,6 +541,33 @@ void main() {
       expect(asked, isNot(contains('createSession')));
       expect(asked, isNot(contains('openSession')));
       expect(again.said.skip(saidOutOfReach), isEmpty);
+    },
+  );
+
+  test(
+    'a launch landing that waits for the room reads the session again when it comes back',
+    () async {
+      final first = await _inP01();
+      final session = first.state.sessionId!;
+      await first.harness.emAberto.forget('Ruth', 'P01');
+
+      final again = await _relaunch(first);
+      final before = again.harness.room.calls.length;
+      again.harness.network.reachable = false;
+      await again.notifier.openTheRoom();
+      await waitFor('the room to be out of reach', () => again.state.offline);
+      again.harness.room
+        ..serverStatus = 'needs_person'
+        ..serverHalt = HaltKind.blocking;
+      again.harness.network.reachable = true;
+      again.notifier.retryNow();
+      await waitFor('the halt to be read', () => again.state.needsPerson);
+
+      expect(again.state.sessionId, session);
+      expect(
+        again.harness.room.calls.skip(before),
+        isNot(contains('createSession')),
+      );
     },
   );
 }

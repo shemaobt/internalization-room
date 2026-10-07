@@ -216,7 +216,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   String? _sessionLanguage;
   int _calmTurns = 0;
   Future<void> Function()? _pending;
-  SessionSnapshot? _enteredWith;
+  CurrentSession? _landingOn;
 
   /// What plays the reply of the turn the machine holds in flight, and the gestures that
   /// wait on it, until the look the machine asks for comes back (ENG-1444 moves it).
@@ -1420,15 +1420,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> Function()? _theStationAgain() {
-    final pericope = _emCurso;
-    final opened = _enteredWith;
     return switch (state.station) {
       Fim() => _startOver,
       Menu() => abrirEscolha,
-      Canvas() when state.sessionId == null => () => goConversa(
-        pericope: pericope,
-        opened: opened,
-      ),
+      Canvas() when state.sessionId == null => _enterAgain(_emCurso),
       Panorama() when !state.panoramaSaid => _entrarNoPanorama,
       _ => null,
     };
@@ -1696,13 +1691,27 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _letGoOfTheCurrentSession();
       return _abrirEscolha();
     }
+    return _landOn(held);
+  }
+
+  /// The session read afresh before every landing, the retry's included: a snapshot kept
+  /// across a wait would miss a halt the room raised meanwhile.
+  Future<void> _landOn(CurrentSession held) async {
+    final generation = _waitOnTheGeneration;
     final read = await _room.fetchState(held.sessionId);
     if (_abandoned(generation)) return;
     if (read case Answered(value: final snapshot)) {
+      _landingOn = held;
       return _goConversa(pericope: held.pericope, opened: snapshot);
     }
     if (read case SessionGone()) _theSessionIsGone(held.sessionId);
     return _abrirEscolha();
+  }
+
+  Future<void> Function() _enterAgain(String? pericope) {
+    final landing = _landingOn;
+    if (landing == null) return () => goConversa(pericope: pericope);
+    return () => _gestureThen(() => _landOn(landing));
   }
 
   void _holdTheCurrentSession(String sessionId, String pericope) => unawaited(
@@ -2261,7 +2270,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ///
   /// `opened` is a session the room already holds for this passage, entered as it came
   /// back rather than asked for again, and never asked its Opening: the launch hands it
-  /// the session it read (ADR 0064), and a step that waits enters with it again.
+  /// the session it read (ADR 0064).
   Future<void> goConversa({
     String? pericope,
     bool fresh = false,
@@ -2278,7 +2287,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _leaveTheStepFor(const Canvas());
     _clearAll();
     _emCurso = pericope;
-    _enteredWith = opened;
+    if (opened == null) _landingOn = null;
     _arriveAt(const PassageChosen());
     var generation = _waitOnTheGeneration;
     void landed() => generation = _waitOnTheGeneration;
@@ -2548,9 +2557,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   _Resume _theResumeFell() {
-    final pericope = _emCurso;
-    final opened = _enteredWith;
-    _pending = () => goConversa(pericope: pericope, opened: opened);
+    _pending = _enterAgain(_emCurso);
     _theStepFell();
     return _Resume.abandoned;
   }

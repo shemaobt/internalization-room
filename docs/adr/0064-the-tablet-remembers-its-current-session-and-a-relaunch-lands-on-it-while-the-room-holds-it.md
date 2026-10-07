@@ -43,7 +43,8 @@ where each passage was left, but nothing said which passage the tablet was in.
   the Canvas when there is no row. It never asks the Opening, even of a session the room
   says is not Opened, so a session killed while its Opening drafted lands quiet with
   «Ouvir de novo» armed. A landing that waits for the room enters again with the same
-  session when the room comes back, never a new one.
+  session when the room comes back, never a new one, and reads it afresh first, so a halt
+  raised during the wait is seen.
 - **The room says the session is gone: it is let go and the Choice opens**, with no person
   sign and nothing said. The record goes with the session's Resume point and its Outbox
   rows (ADR 0051).
