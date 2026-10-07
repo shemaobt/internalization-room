@@ -38,9 +38,11 @@ would not record them.
   failure or the client's give-up is looked at once: a reply that landed plays, and
   anything else lets the Opening go. A refusal lets it go too, unless its code stops the
   room, which still calls a person. A clip that will not play lets it go.
-- **The next open from the Menu asks again.** The tap and the lift no longer do: after a
-  quiet failure, a tap on the circle records a team turn, and a lift over an Opening asks
-  nothing.
+- **The next open from the Menu asks again** while the room has not opened the session.
+  An Opening that reached the tablet but whose clip would not play is already in the room:
+  the return lands quiet, and «Ouvir de novo» has the room say it. The tap and the lift no
+  longer ask: after a quiet failure, a tap on the circle records a team turn, and a lift
+  over an Opening asks nothing.
 - **The Panorama's failed Opening stays calm too**, and its circle still asks it again
   before its line plays.
 - **ENG-1371** ("a failed opening returns to the resting invite") is the same rule seen
