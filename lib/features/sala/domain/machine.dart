@@ -1,4 +1,5 @@
 import 'channel.dart';
+import 'cut_point.dart';
 import 'halt.dart';
 import 'room_reach.dart';
 import 'session_snapshot.dart';
@@ -197,6 +198,13 @@ final class GestureSilenced extends MachineEvent {
   final bool keepingTheHold;
 
   const GestureSilenced({this.keepingTheHold = false});
+}
+
+final class Interrupted extends MachineEvent {
+  final String take;
+  final CutPoint cut;
+
+  const Interrupted({required this.take, required this.cut});
 }
 
 final class GestureStarted extends MachineEvent {
@@ -625,7 +633,16 @@ final class RefuseThePassage extends Effect {
   const RefuseThePassage();
 }
 
-enum Said { said, failed, unsaid }
+/// How a line ended: said whole, failed, not said, or cut by the team, which counts as
+/// heard.
+enum Said {
+  said,
+  failed,
+  unsaid,
+  cut;
+
+  bool get heard => this == said || this == cut;
+}
 
 /// How the last line the room answered for ended, for the gesture that waits on it.
 final class LineOutcome {
@@ -641,8 +658,9 @@ final class MicOutcome {
   final MicAnswer answer;
   final String? take;
   final Object? because;
+  final CutPoint? cut;
 
-  const MicOutcome(this.answer, {this.take, this.because});
+  const MicOutcome(this.answer, {this.take, this.because, this.cut});
 }
 
 final class Machine {
@@ -818,6 +836,7 @@ const _watch = ArmTheWatch();
         ? [StopTheLine(_speaking(machine.channel))]
         : const [StopTheSound()],
   ),
+  Interrupted(:final take, :final cut) => _interrupt(machine, take, cut),
   GestureStarted(:final gesture) => (
     machine.copyWith(onTheirWay: {...machine.onTheirWay, gesture}),
     const [],
@@ -1021,8 +1040,8 @@ Machine _opened(Machine machine) => switch (machine.channel) {
   GuideSpeaking(:final line, :final held) => machine.copyWith(
     channel: GuideSpeaking(line, held: _openedUnder(held)),
   ),
-  Microphone(:final owner, :final held) => machine.copyWith(
-    channel: Microphone(owner, held: _openedUnder(held)),
+  Microphone(:final owner, :final held, :final cut) => machine.copyWith(
+    channel: Microphone(owner, held: _openedUnder(held), cut: cut),
   ),
   _ => machine,
 };
@@ -1106,19 +1125,57 @@ Machine _silenced(Machine machine, bool keepingTheHold) =>
   String take,
 ) {
   if (!_silent(machine)) return (machine, const []);
-  final held = machine.channel;
+  return (
+    machine.copyWith(
+      channel: Microphone(owner, held: _keptUnderTheMic(machine.channel)),
+    ),
+    [OpenTheMic(owner, take: take)],
+  );
+}
+
+Paused? _keptUnderTheMic(Channel channel) => switch (channel) {
+  Paused(what: PartSound()) => channel,
+  Paused(held: final part) => part,
+  _ => null,
+};
+
+/// The team's tap while the Guide speaks on the Canvas: her line ends cut, and the
+/// conversation's microphone opens in the same step, after the stop. Over the
+/// acknowledgement, the reply waiting behind it is the line cut, at its very start.
+(Machine, List<Effect>) _interrupt(
+  Machine machine,
+  String take,
+  CutPoint measured,
+) {
+  if (machine.station is! Canvas || machine.halt is Blocking) {
+    return (machine, const []);
+  }
+  final (reply, held, cut) = switch (machine.channel) {
+    GuideSpeaking(
+      line: Line(kind: LineKind.guide || LineKind.approved) && final line,
+      :final held,
+    ) =>
+      (line, held, measured),
+    GuideSpeaking(line: Line(kind: LineKind.acknowledgement), :final held) => (
+      machine.queue.where((line) => line.kind == LineKind.guide).firstOrNull,
+      held,
+      const CutPoint(Duration.zero),
+    ),
+    _ => (null, null, null),
+  };
+  if (reply == null) return (machine, const []);
   return (
     machine.copyWith(
       channel: Microphone(
-        owner,
-        held: switch (held) {
-          Paused(what: PartSound()) => held,
-          Paused(held: final part) => part,
-          _ => null,
-        },
+        MicOwner.conversation,
+        held: _keptUnderTheMic(held ?? const Silence()),
+        cut: cut,
       ),
+      queue: [...machine.queue.where((line) => line != reply)],
+      owners: {...machine.owners}..remove(reply),
+      lastLine: LineOutcome(reply, Said.cut),
     ),
-    [OpenTheMic(owner, take: take)],
+    [const StopTheSound(), OpenTheMic(MicOwner.conversation, take: take)],
   );
 }
 
@@ -1143,7 +1200,15 @@ Machine _silenced(Machine machine, bool keepingTheHold) =>
       : _closeTheMic(machine);
   return (
     answered.copyWith(
-      lastMic: MicOutcome(answer, take: take, because: because),
+      lastMic: MicOutcome(
+        answer,
+        take: take,
+        because: because,
+        cut: switch ((answer, machine.channel)) {
+          (MicAnswer.closed, Microphone(:final cut)) => cut,
+          _ => null,
+        },
+      ),
     ),
     effects,
   );
@@ -1448,6 +1513,7 @@ Machine _answered(Machine machine) =>
   PauseTapped() ||
   TheHeldPartReturns() ||
   GestureSilenced() ||
+  Interrupted() ||
   GestureStarted() ||
   GestureEnded() ||
   NothingReplayed() ||

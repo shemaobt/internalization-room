@@ -138,6 +138,12 @@ class ProviderSoundPort implements SoundPort {
   Duration get partPosition => _playback.position;
 
   @override
+  Duration get linePosition => _voice.linePosition;
+
+  @override
+  Duration? get lineLength => _voice.lineLength;
+
+  @override
   Future<void> pause() => _playback.pause();
 
   @override

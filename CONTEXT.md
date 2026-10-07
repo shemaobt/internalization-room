@@ -117,6 +117,10 @@ _Avoid_: busy, pending gesture
 A line, spontaneous or the answer to a gesture, that arrived while the Channel was not free (a sound playing, the microphone open, a blocking halt standing or a gesture on its way), played once it is free; one of each kind waits, in arrival order, except a gesture's own line, which enters ahead and is never dropped (ADR 0049).
 _Avoid_: pending line, interrupted line
 
+**Interruption**:
+The team's tap on the circle while the Guide speaks in the Conversation. It stops her and opens the microphone, and the next turn sent tells the room where she was cut: how far into the line (`at`) and how long the line was (`of`, when the tablet knows it). A take too short to keep, or none, tells nothing. The cut line counts as heard, and «Ouvir de novo» says it whole (ADR 0067).
+_Avoid_: barge-in, interrupted line (a **Queued line** is not cut)
+
 ### What is recorded and told
 
 **Passage**:

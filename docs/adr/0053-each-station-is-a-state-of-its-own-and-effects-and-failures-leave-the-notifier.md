@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0055, 0057, 0058, 0059, 0060, 0061, 0063, 0066
+status: accepted, amended by 0055, 0057, 0058, 0059, 0060, 0061, 0063, 0066, 0067
 date: 2026-10-02
 supersedes: 0046 (in part: the Station region, the Halt lifted by the Desk, the Reach and the automatic resend)
 amends: 0048, 0050

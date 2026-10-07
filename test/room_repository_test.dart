@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/domain/cut_point.dart';
 import 'package:internalization_room/features/sala/data/port_adapters.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
@@ -1746,6 +1747,61 @@ void main() {
         _filePart(sent).head,
         contains('content-type: application/octet-stream'),
       );
+    });
+  });
+  group('a turn', () {
+    Future<String> bodyOf(CutPoint? cut) async {
+      late String body;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          body = request.body;
+          return http.Response(_turnBody(), 200);
+        }),
+      );
+      addTearDown(repository.dispose);
+      await repository.sendTurn(
+        'sessao-1',
+        await _tempRecording(),
+        turnId: 'turno-1',
+        cut: cut,
+      );
+      return body;
+    }
+
+    String? field(String body, String name) =>
+        RegExp('name="$name"\r\n\r\n([^\r]*)\r\n').firstMatch(body)?.group(1);
+
+    test(
+      'after an interruption carries the three fields the room reads',
+      () async {
+        final body = await bodyOf(
+          const CutPoint(
+            Duration(milliseconds: 2400),
+            of: Duration(milliseconds: 9000),
+          ),
+        );
+
+        expect(field(body, 'interrupted'), 'true');
+        expect(field(body, 'interrupted_at_ms'), '2400');
+        expect(field(body, 'interrupted_of_ms'), '9000');
+      },
+    );
+
+    test(
+      'after an interruption of unknown length leaves its length out',
+      () async {
+        final body = await bodyOf(const CutPoint(Duration(milliseconds: 3000)));
+
+        expect(field(body, 'interrupted'), 'true');
+        expect(field(body, 'interrupted_at_ms'), '3000');
+        expect(body, isNot(contains('name="interrupted_of_ms"')));
+      },
+    );
+
+    test('and a turn with no interruption carries none of the three', () async {
+      final body = await bodyOf(null);
+
+      expect(body, isNot(contains('name="interrupted')));
     });
   });
 }

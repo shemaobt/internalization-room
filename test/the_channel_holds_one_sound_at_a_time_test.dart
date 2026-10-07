@@ -369,6 +369,7 @@ void main() {
     await settle();
 
     unawaited(sala.abrirEscolha());
+    harness.voice.holdNextLine();
     await waitFor(
       'a passagem que esperava tocar',
       () => harness.voice.played.where((url) => url == oferecida).length == 2,

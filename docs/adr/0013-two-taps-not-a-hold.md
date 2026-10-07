@@ -1,5 +1,7 @@
 # Two taps, not a hold
 
+Amended by 0067 (the first tap also cuts the voice).
+
 ## Context
 
 The room has one circle and no words, so the gesture that opens the microphone is the whole

@@ -34,6 +34,7 @@ import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/coverage.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
+import 'package:internalization_room/features/sala/domain/cut_point.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
@@ -111,8 +112,8 @@ class FakeVoice implements FacilitatorVoiceService {
   final List<(String, String)> readied = [];
   final List<String> fetched = [];
 
-  /// Whether a line is said whole. A stopped line ends unsaid: the real service answers
-  /// false when its sound is cut short (`_sayItWhole`).
+  /// Whether a line is said whole. A stopped line is never whole, as the real service
+  /// answers false for a sound cut short (`_sayItWhole`).
   bool succeeds = true;
 
   /// Lines this voice refuses to say, by url, by asset path or by a fixed line's name.
@@ -123,6 +124,14 @@ class FakeVoice implements FacilitatorVoiceService {
   /// already in hand.
   RoomFailure? roomFailsWith;
   Completer<bool>? _holding;
+  Completer<bool>? _saying;
+
+  /// Where the line being said is, and how long it is when the player knows.
+  @override
+  Duration linePosition = Duration.zero;
+
+  @override
+  Duration? lineLength;
 
   void holdNextLine() => _holding = Completer<bool>();
 
@@ -138,7 +147,9 @@ class FakeVoice implements FacilitatorVoiceService {
 
   Future<bool> _answer() {
     final held = _holding;
-    return held == null ? Future.value(succeeds) : held.future;
+    if (held == null) return Future.value(succeeds);
+    _saying = held;
+    return held.future;
   }
 
   /// Called the instant a line starts, so a test can read what else was sounding then —
@@ -224,6 +235,11 @@ class FakeVoice implements FacilitatorVoiceService {
   Future<void> stop() async {
     stops++;
     sounds.add('voice:stop');
+    final saying = _saying;
+    _saying = null;
+    if (saying == null || saying.isCompleted) return;
+    saying.complete(false);
+    if (identical(saying, _holding)) _holding = null;
   }
 
   @override
@@ -866,6 +882,9 @@ class FakeRoom implements RoomRepository {
   /// Whether the opening comes back cut where the Guide marked it.
   bool opensInTwoMovements = false;
   bool done = false;
+
+  /// What the session read says of the passage's end, when it is not what the turns say.
+  bool? readsDone;
   int turnsSent = 0;
   int chunksSent = 0;
   final List<String> chunkSpans = [];
@@ -1068,6 +1087,10 @@ class FakeRoom implements RoomRepository {
   bool createdOpened = false;
 
   final List<String> turnIdsSent = [];
+
+  /// Where each turn sent said the Guide was cut, one entry per turn: null for a turn
+  /// that followed no interruption.
+  final List<CutPoint?> cutsSent = [];
 
   final List<String> recordingsSent = [];
 
@@ -1347,11 +1370,11 @@ class FakeRoom implements RoomRepository {
       SessionSnapshot(
         sessionId: sessionId,
         pericope: 'rute-1',
-        status: serverStatus ?? (done ? 'done' : 'in_progress'),
+        status: serverStatus ?? ((readsDone ?? done) ? 'done' : 'in_progress'),
         coverage: silentAboutCoverage
             ? null
             : (settledCoverage ?? nextCoverage),
-        done: done,
+        done: readsDone ?? done,
         halt: serverHalt,
         opened: openedSessions.contains(sessionId),
         backTranslation:
@@ -1739,6 +1762,7 @@ class FakeRoom implements RoomRepository {
     File audio, {
     required String turnId,
     String? clientTiming,
+    CutPoint? cut,
   }) async {
     if (_guard('sendTurn') case final failure?) return failure;
     if (_forgot('sendTurn', sessionId) case final gone?) {
@@ -1748,6 +1772,7 @@ class FakeRoom implements RoomRepository {
     clientTimingsSent.add(clientTiming);
     turnIdsSent.add(turnId);
     recordingsSent.add(audio.path);
+    cutsSent.add(cut);
     turnsSent++;
     return _theTurnAnswers(sessionId, turnId);
   }
@@ -2459,6 +2484,12 @@ class SpeakingPlayer extends Fake implements AudioPlayer {
   ProcessingState _state = ProcessingState.ready;
 
   @override
+  Duration position = Duration.zero;
+
+  @override
+  Duration? get duration => lineLength;
+
+  @override
   ProcessingState get processingState => _state;
 
   bool get sounding => _sounding?.isCompleted == false;
@@ -2469,13 +2500,27 @@ class SpeakingPlayer extends Fake implements AudioPlayer {
   /// A load that never settles, for the line the player never manages to open.
   bool neverLoads = false;
 
+  Completer<void>? _holdingLoad;
+
+  /// Hold the next load until the test lets it go, for a line still opening.
+  void holdNextLoad() => _holdingLoad = Completer<void>();
+
+  void finishLoad() {
+    _holdingLoad?.complete();
+    _holdingLoad = null;
+  }
+
   @override
   Future<Duration?> setFilePath(
     String path, {
     Duration? initialPosition,
     bool preload = true,
     dynamic tag,
-  }) => neverLoads ? Completer<Duration?>().future : Future.value(lineLength);
+  }) async {
+    if (neverLoads) return Completer<Duration?>().future;
+    await _holdingLoad?.future;
+    return lineLength;
+  }
 
   @override
   Future<Duration?> setAsset(
@@ -2504,8 +2549,12 @@ class SpeakingPlayer extends Fake implements AudioPlayer {
   @override
   bool get playing => _playing;
 
+  /// How many times the player was told to play.
+  int plays = 0;
+
   @override
   Future<void> play() {
+    plays++;
     // just_audio returns at once when it already believes it is playing
     // (just_audio.dart:939), and iOS never clears that flag when a clip ends: the native
     // `complete` sets processingState and leaves `_playing` YES. Only stop, pause or a
