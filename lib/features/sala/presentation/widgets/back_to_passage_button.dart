@@ -5,7 +5,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
-import '../../domain/session_state.dart';
 
 class BackToPassageButton extends ConsumerWidget {
   const BackToPassageButton({super.key});
@@ -13,18 +12,13 @@ class BackToPassageButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(salaSessionProvider);
-    if (session.stage != SalaStage.escolha ||
-        session.leftEntry == null ||
-        session.naRoda == null ||
-        session.needsPerson) {
-      return const SizedBox.shrink();
-    }
+    if (!session.theWayBackIsOffered) return const SizedBox.shrink();
 
     return Positioned(
       left: 14,
       top: 118 + MediaQuery.viewPaddingOf(context).top,
       child: IgnorePointer(
-        ignoring: session.voice != VoiceState.invite,
+        ignoring: !session.theWayBackIsLive,
         child: Semantics(
           button: true,
           label: roomLabelFor('backToPassage', ref.watch(roomLanguageProvider)),

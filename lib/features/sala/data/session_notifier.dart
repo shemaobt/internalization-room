@@ -1966,34 +1966,40 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  /// A kept take sounding in the Rehearsal, as it will be laid back: paused where it was,
-  /// read before the stop, which makes the player forget the place.
+  /// A kept take sounding in the Rehearsal, as it will be laid back: paused where it was.
+  /// The place is the channel's head, never the player's position while its clip has not
+  /// opened. The pending take dies with the leave, so neither it nor what follows it is held.
   Paused? _theTakeTheLeaveHolds() {
     if (state.station is! Ensaio) return null;
+    final kept = state.partes.length;
+    final pending = _pendingTakePath;
+    bool isKept(Sound sound) =>
+        sound is PartSound && sound.part < kept && sound.path != pending;
     final PartSound part;
     final List<Sound> next;
-    final bool placed;
+    final Duration? head;
     switch (state.channel) {
-      case PartPlaying(part: final playing, next: final following):
-        (part, next, placed) = (playing, following, true);
+      case PartPlaying(
+        part: final playing,
+        next: final following,
+        head: final playingHead,
+      ):
+        (part, next, head) = (playing, following, playingHead);
       case Paused(
         what: final PartSound held,
         next: final following,
-        :final started,
+        head: final heldHead,
       ):
-        (part, next, placed) = (held, following, started);
+        (part, next, head) = (held, following, heldHead);
       default:
         return null;
     }
+    if (!isKept(part)) return null;
     final position = _playback.position;
-    final at = !placed
-        ? part.from
-        : part.to == null
-        ? position
-        : part.from + position;
+    final at = head ?? (part.to == null ? position : part.from + position);
     return Paused(
       PartSound(part.part, part.path, from: at, to: part.to),
-      next: next,
+      next: next.takeWhile(isKept).toList(),
       started: false,
       opened: false,
     );
@@ -2004,19 +2010,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> returnToTheLeftEntry() => _gestureThen(_returnToTheLeftEntry);
 
   Future<void> _returnToTheLeftEntry() async {
-    final left = state.leftEntry;
-    if (left == null ||
-        state.station is! Menu ||
-        state.naRoda == null ||
-        state.voice != VoiceState.invite ||
-        state.needsPerson) {
-      return;
-    }
+    if (!state.theWayBackIsLive) return;
+    final left = state.leftEntry!;
     state = state.copyWith(clearLeftEntry: true);
     if (left.panorama) return _returnToThePanorama(left);
     await goConversa(pericope: left.pericope);
     final held = left.held;
-    if (held != null && state.station is Ensaio) {
+    if (held != null &&
+        state.sessionId == left.session &&
+        state.station is Ensaio) {
       _dispatch(TheHeldPartReturns(held));
     }
   }

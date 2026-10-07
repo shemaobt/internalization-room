@@ -121,10 +121,6 @@ int _voicedLines(SalaHarness harness) => harness.sounds
     .where((sound) => sound == 'voice:line' || sound == 'voice:asset')
     .length;
 
-int _sessionsAsked(SalaHarness harness) => harness.room.calls
-    .where((call) => call == 'createSession' || call == 'openSession')
-    .length;
-
 Future<void> _keepAPart(WidgetTester tester, _Room room) async {
   room.notifier.goEnsaio();
   await _passTime(tester, 300);
@@ -166,14 +162,14 @@ void main() {
       await _tap(tester, _leave);
       await tester.pump(const Duration(seconds: 1));
       expect(room.state.voice, VoiceState.invite);
-      final asked = _sessionsAsked(room.harness);
+      final asked = room.harness.room.calls.length;
       final voiced = _voicedLines(room.harness);
 
       await _tap(tester, _back);
       await tester.pump(const Duration(seconds: 1));
 
       expect(room.state.station, isA<Panorama>());
-      expect(_sessionsAsked(room.harness), asked);
+      expect(room.harness.room.calls.length, asked);
       expect(_voicedLines(room.harness), voiced);
 
       room.notifier.panoramaTap();
@@ -208,6 +204,113 @@ void main() {
       await _passTime(tester, 200);
 
       expect(room.harness.playback.playedFrom.last, where);
+    }),
+  );
+
+  testWidgets(
+    'a pending take sounding when the team leaves is dropped with the leave, '
+    'and nothing is held on the way back',
+    (tester) => withDiskThatAnswersAtOnce(() async {
+      final room = await _pump(tester, memory: true);
+      await _takeThePassage(tester, room, 'P01');
+      await _keepAPart(tester, room);
+      room.notifier.ensaioTap();
+      room.notifier.ensaioTap();
+      await _passTime(tester, 300);
+      room.notifier.playTheRehearsal();
+      await _passTime(tester, 200);
+      room.harness.playback.finishPlayback();
+      await _passTime(tester, 200);
+      expect(room.state.playPing, isTrue);
+      room.harness.playback.at = const Duration(seconds: 2);
+
+      await _tap(tester, _leave);
+      await tester.pump(const Duration(seconds: 1));
+      await _tap(tester, _back);
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(room.state.stage, SalaStage.ensaio);
+      expect(room.state.takePaused, isFalse);
+      expect(room.state.needsPerson, isFalse);
+      final played = room.harness.playback.played.length;
+
+      room.notifier.playTheRehearsal();
+      await _passTime(tester, 200);
+
+      final dropped = room.harness.recorder.deleted;
+      expect(dropped, hasLength(1));
+      expect(room.harness.playback.played.skip(played), isNotEmpty);
+      expect(
+        room.harness.playback.played.skip(played),
+        everyElement(isNot(dropped.single)),
+      );
+      expect(room.state.needsPerson, isFalse);
+    }),
+  );
+
+  testWidgets(
+    'a chain held when the team leaves is held up to its last kept part',
+    (tester) => withDiskThatAnswersAtOnce(() async {
+      final room = await _pump(tester, memory: true);
+      await _takeThePassage(tester, room, 'P01');
+      await _keepAPart(tester, room);
+      room.notifier.ensaioTap();
+      room.notifier.ensaioTap();
+      await _passTime(tester, 300);
+      room.notifier.playTheRehearsal();
+      await _passTime(tester, 200);
+      room.harness.playback.at = const Duration(seconds: 2);
+
+      await _tap(tester, _leave);
+      await tester.pump(const Duration(seconds: 1));
+      await _tap(tester, _back);
+      await tester.pump(const Duration(seconds: 1));
+      final dropped = room.harness.recorder.deleted.single;
+      final played = room.harness.playback.played.length;
+
+      room.notifier.playTheRehearsal();
+      await _passTime(tester, 200);
+      room.harness.playback.finishPlayback();
+      await _passTime(tester, 400);
+
+      expect(room.state.needsPerson, isFalse);
+      expect(
+        room.harness.playback.played.skip(played),
+        everyElement(isNot(dropped)),
+      );
+    }),
+  );
+
+  testWidgets(
+    'a part whose clip had not opened when the team left comes back at its '
+    'own start',
+    (tester) => withDiskThatAnswersAtOnce(() async {
+      final room = await _pump(tester, memory: true);
+      await _takeThePassage(tester, room, 'P01');
+      await _keepAPart(tester, room);
+      room.notifier.ensaioTap();
+      room.notifier.ensaioTap();
+      await _passTime(tester, 300);
+      room.notifier.takeKeep();
+      await letTheRehearsalReachTheRoom(tester);
+      room.notifier.playTheRehearsal();
+      await _passTime(tester, 200);
+      room.harness.playback.holdNextOpening();
+      room.harness.playback.at = const Duration(seconds: 40);
+      room.harness.playback.finishPlayback();
+      await _passTime(tester, 200);
+
+      await _tap(tester, _leave);
+      await tester.pump(const Duration(seconds: 1));
+      await _tap(tester, _back);
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(room.state.takePaused, isTrue);
+
+      room.notifier.playTheRehearsal();
+      await _passTime(tester, 200);
+
+      expect(room.harness.playback.playedFrom.last, Duration.zero);
     }),
   );
 

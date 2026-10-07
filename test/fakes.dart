@@ -105,6 +105,9 @@ class FakeVoice implements FacilitatorVoiceService {
   final List<String> played = [];
   final List<String> assets = [];
   final List<String> fetched = [];
+
+  /// Whether a line is said whole. A stopped line ends unsaid: the real service answers
+  /// false when its sound is cut short (`_sayItWhole`).
   bool succeeds = true;
 
   /// Lines this voice refuses to say, by url or by asset path — for the halves of one

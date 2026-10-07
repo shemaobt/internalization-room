@@ -384,6 +384,17 @@ class SalaSessionState {
 
   bool get needsPerson => halt is Blocking;
 
+  /// The Choice offers the way back to the entry left, once the Wheel is read.
+  bool get theWayBackIsOffered =>
+      stage == SalaStage.escolha &&
+      leftEntry != null &&
+      naRoda != null &&
+      !needsPerson;
+
+  /// The way back answers the finger only while the Wheel is quiet.
+  bool get theWayBackIsLive =>
+      theWayBackIsOffered && voice == VoiceState.invite;
+
   /// The way out of a Station is hidden while it cannot apply: the voice is busy, or a
   /// microphone other than the raised-hand note's is open, or a person is called, except
   /// at the Back-translation's resting screen (ADR 0019).
