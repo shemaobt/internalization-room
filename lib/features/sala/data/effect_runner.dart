@@ -17,8 +17,8 @@ typedef SentRead = ({int order, List<Trecho> row});
 /// The book and the passage a closed-passage mark writes down as finished.
 typedef ClosedPassage = ({String book, String passage});
 
-/// Temporary: what the runner still asks the notifier to do, one method per effect that
-/// reads or writes state the Station will own.
+/// Temporary: what the runner still asks the Station, what it tells the Station to hear,
+/// the answers it brings back to the machine, and the one lifecycle hand-off.
 abstract interface class EffectHost {
   bool get watchIsWanted;
 
@@ -105,29 +105,34 @@ abstract interface class EffectHost {
   /// follow it are that gesture's own (ADR 0059).
   void answerWhereAsked(MachineEvent event);
 
-  void silenceTheRoom();
+  /// The one callback for the Station's lifecycle: opening the Choice, discarding the
+  /// session, the silence's own writes and resending the Pending request.
+  void handOver(LifecycleHandOff handOff);
 
-  void replayTheSound(Kept kept);
+  /// The gestures still waiting on [turn]'s reply.
+  Iterable<int> gesturesAwaiting(Turn turn);
 
-  void letTheOpeningGo();
+  void hearTheTurnLetGo();
 
-  void drainTheOutbox();
+  void hearTheReplyFound(Turn turn, TurnResult reply);
 
-  void resendPending();
+  /// The Station decides what a lifted halt sounds again (ADR 0055).
+  void hearTheSoundKept(Kept kept);
 
-  void discardTheSession();
+  void hearTheOpeningLetGo();
 
-  void openTheChoice();
+  /// The Station takes the names the flushed Outbox gave its takes.
+  Future<void> hearTheOutboxFlushed();
 
-  void playTheReply(Turn turn, TurnResult reply);
+  /// The Station counts what the Outbox still holds, after a flush that landed or failed.
+  Future<void> hearTheOutboxCounted();
 
-  void countTheRefusal();
+  /// The Station shows the reach's face, and at a Step keeps the Pending request.
+  void hearTheFall(Door door, RoomReach why);
 
-  void refuseThePassage();
+  void hearTheRefusalCounted();
 
-  void letTheTurnGo(Turn turn);
-
-  void fellAt(Door door, RoomReach why);
+  void hearThePassageRefused();
 }
 
 class EffectRunner {
@@ -180,7 +185,8 @@ class EffectRunner {
     for (final effect in effects) {
       switch (effect) {
         case SilenceTheRoom():
-          host.silenceTheRoom();
+          host.handOver(effect);
+          host.answerWhereAsked(const GestureSilenced(keepingTheHold: false));
         case CloseAndDiscardTheMic():
           _closeAndDiscardTheMic(wasOpen: micWasOpen);
         case CloseTheMic():
@@ -198,9 +204,9 @@ class EffectRunner {
         case ReadTheState():
           _readTheState();
         case ReplayTheSound(:final kept):
-          host.replayTheSound(kept);
+          host.hearTheSoundKept(kept);
         case LetTheOpeningGo():
-          host.letTheOpeningGo();
+          host.hearTheOpeningLetGo();
         case PlayLine(:final line):
           _say(line);
         case PlayPart(:final part):
@@ -230,33 +236,33 @@ class EffectRunner {
         case CancelTheRetry():
           _cancelTheRetry();
         case DrainTheOutbox():
-          host.drainTheOutbox();
+          _drainTheOutbox();
         case ResendPending():
-          host.resendPending();
+          host.handOver(effect);
         case ProbeTheRoom():
           unawaited(probeTheRoom());
         case DiscardTheSession():
-          host.discardTheSession();
+          host.handOver(effect);
         case OpenTheChoice():
-          host.openTheChoice();
+          host.handOver(effect);
         case SayTheOfflineNotice():
           _sayTheOfflineNotice();
         case LookAtTheSession(:final turn, :final sounding):
           _lookAt(turn, sounding);
         case PlayTheReply(:final turn, :final reply):
-          host.playTheReply(turn, reply);
+          host.hearTheReplyFound(turn, reply);
         case LetTheTurnGo(:final turn):
-          host.letTheTurnGo(turn);
+          _letTheTurnGo(turn);
         case FellAt(:final door, :final why):
-          host.fellAt(door, why);
+          host.hearTheFall(door, why);
         case AskForAPersonAgain():
           _askForAPersonAgain();
         case MarkThePassageClosed():
           unawaited(_markThePassageClosed());
         case CountTheRefusal():
-          host.countTheRefusal();
+          host.hearTheRefusalCounted();
         case RefuseThePassage():
-          host.refuseThePassage();
+          host.hearThePassageRefused();
       }
     }
   }
@@ -373,6 +379,26 @@ class EffectRunner {
   void _stopTheSound() {
     _ceiling?.cancel();
     unawaited(sound.stop());
+  }
+
+  /// Unawaited and uncaught, so a flush that fails surfaces as an error; the Station counts
+  /// what is unsent whether it landed or not.
+  void _drainTheOutbox() => unawaited(
+    store
+        .flushTheOutbox()
+        .then((_) => _disposed ? null : host.hearTheOutboxFlushed())
+        .whenComplete(() => _disposed ? null : host.hearTheOutboxCounted()),
+  );
+
+  /// The gestures that waited on the turn stop waiting: what the look brings back sounds
+  /// as the room's own, not as an answer still owed to a tap.
+  void _letTheTurnGo(Turn turn) {
+    if (!_disposed) {
+      for (final gesture in host.gesturesAwaiting(turn)) {
+        host.answerWhereAsked(GestureEnded(gesture));
+      }
+    }
+    host.hearTheTurnLetGo();
   }
 
   void _lookAt(Turn turn, Kept sounding) {

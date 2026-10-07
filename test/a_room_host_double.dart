@@ -143,41 +143,46 @@ class ARoomHost implements EffectHost {
   void hearTheMicrophoneTaken(bool taken) =>
       asked.add('hearTheMicrophoneTaken:$taken');
 
-  @override
-  void silenceTheRoom() => asked.add('silenceTheRoom');
+  final List<LifecycleHandOff> handedOver = [];
+  final Map<Turn, List<int>> awaiting = {};
 
   @override
-  void replayTheSound(Kept kept) => asked.add('replayTheSound');
+  void handOver(LifecycleHandOff handOff) => handedOver.add(handOff);
 
   @override
-  void letTheOpeningGo() => asked.add('letTheOpeningGo');
+  Iterable<int> gesturesAwaiting(Turn turn) => awaiting[turn] ?? const [];
 
   @override
-  void drainTheOutbox() => asked.add('drainTheOutbox');
+  void hearTheTurnLetGo() => asked.add('hearTheTurnLetGo');
 
   @override
-  void resendPending() => asked.add('resendPending');
+  void hearTheReplyFound(Turn turn, TurnResult reply) =>
+      asked.add('hearTheReplyFound:${turn.turnId}');
 
   @override
-  void discardTheSession() => asked.add('discardTheSession');
+  void hearTheSoundKept(Kept kept) =>
+      asked.add('hearTheSoundKept:${kept.runtimeType}');
 
   @override
-  void openTheChoice() => asked.add('openTheChoice');
+  void hearTheOpeningLetGo() => asked.add('hearTheOpeningLetGo');
 
   @override
-  void playTheReply(Turn turn, TurnResult reply) => asked.add('playTheReply');
+  Future<void> hearTheOutboxFlushed() async =>
+      asked.add('hearTheOutboxFlushed');
 
   @override
-  void letTheTurnGo(Turn turn) => asked.add('letTheTurnGo');
+  Future<void> hearTheOutboxCounted() async =>
+      asked.add('hearTheOutboxCounted');
 
   @override
-  void fellAt(Door door, RoomReach why) => asked.add('fellAt');
+  void hearTheFall(Door door, RoomReach why) =>
+      asked.add('hearTheFall:${door.name}:${why.name}');
 
   @override
-  void countTheRefusal() => asked.add('countTheRefusal');
+  void hearTheRefusalCounted() => asked.add('hearTheRefusalCounted');
 
   @override
-  void refuseThePassage() => asked.add('refuseThePassage');
+  void hearThePassageRefused() => asked.add('hearThePassageRefused');
 }
 
 typedef Ports = ({

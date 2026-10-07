@@ -617,6 +617,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// recorder: those belong to [_clearAll], which leaves a passage rather than moving
   /// inside one.
   void _silenceTheRoom({bool holdTheClip = false}) {
+    _quietTheRoom(holdTheClip: holdTheClip);
+    _dispatch(GestureSilenced(keepingTheHold: holdTheClip));
+    state = state.copyWith(clearContaEscolhida: true);
+  }
+
+  void _quietTheRoom({bool holdTheClip = false}) {
     _anotarOQueFoiOuvido();
     if (holdTheClip) {
       _holdClip();
@@ -625,8 +631,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _onPlaybackFailed = null;
       _timers.remove('cursor')?.cancel();
     }
-    _dispatch(GestureSilenced(keepingTheHold: holdTheClip));
-    state = state.copyWith(clearContaEscolhida: true);
   }
 
   String _stamp() => clock.now().millisecondsSinceEpoch.toString();
@@ -1059,7 +1063,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _silenceTheHaltedRoom() {
     _openTurnId = null;
-    _silenceTheRoom();
+    _quietTheRoom();
+    state = state.copyWith(clearContaEscolhida: true);
     _leaveThinking();
     state = state.copyWith(awaitingTheGuide: false, peerCue: false);
   }
@@ -1316,13 +1321,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     ),
   );
 
-  /// The gestures that waited on the turn stop waiting: what the look brings back sounds
-  /// as the room's own, not as an answer still owed to a tap.
-  void _letTheTurnGo(Turn turn) {
-    _awaitedReplies[turn]?.gestures.forEach(_endTheGesture);
-    _watchBusyState();
-  }
-
   void _playTheReplyTheLookFound(Turn turn, TurnResult reply) {
     final awaited = _awaitedReplies.remove(turn);
     if (awaited != null) _handOff(awaited.play(reply));
@@ -1430,16 +1428,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _theRoomIsBack() => _dispatch(const NetworkReturned());
-
-  void _drainTheOutbox() => _apart(() {
-    final queue = _takes;
-    unawaited(
-      queue
-          .flush(withTheCodeless: true)
-          .then((_) => _adoptTheNames(queue))
-          .whenComplete(_countUnsent),
-    );
-  });
 
   void _resendPending() {
     final pending = _pending;
@@ -5722,41 +5710,51 @@ class _NotifierHost implements EffectHost {
       _notifier._theMicrophoneChangedHands(taken);
 
   @override
-  void silenceTheRoom() => _notifier._silenceTheHaltedRoom();
+  void handOver(LifecycleHandOff handOff) {
+    switch (handOff) {
+      case OpenTheChoice():
+        _notifier._openTheChoice();
+      case DiscardTheSession():
+        _notifier._discardTheSession();
+      case SilenceTheRoom():
+        _notifier._silenceTheHaltedRoom();
+      case ResendPending():
+        _notifier._resendPending();
+    }
+  }
 
   @override
-  void replayTheSound(Kept kept) => _notifier._replay(kept);
+  Iterable<int> gesturesAwaiting(Turn turn) =>
+      _notifier._awaitedReplies[turn]?.gestures ?? const [];
 
   @override
-  void letTheOpeningGo() => _notifier._letTheOpeningGo();
+  void hearTheTurnLetGo() => _notifier._watchBusyState();
 
   @override
-  void drainTheOutbox() => _notifier._drainTheOutbox();
-
-  @override
-  void resendPending() => _notifier._resendPending();
-
-  @override
-  void discardTheSession() => _notifier._discardTheSession();
-
-  @override
-  void openTheChoice() => _notifier._openTheChoice();
-
-  @override
-  void playTheReply(Turn turn, TurnResult reply) =>
+  void hearTheReplyFound(Turn turn, TurnResult reply) =>
       _notifier._playTheReplyTheLookFound(turn, reply);
 
   @override
-  void letTheTurnGo(Turn turn) => _notifier._letTheTurnGo(turn);
+  void hearTheSoundKept(Kept kept) => _notifier._replay(kept);
 
   @override
-  void fellAt(Door door, RoomReach why) => _notifier._fellAt(door, why);
+  void hearTheOpeningLetGo() => _notifier._letTheOpeningGo();
 
   @override
-  void countTheRefusal() => _notifier._countTheRefusal();
+  Future<void> hearTheOutboxFlushed() =>
+      _notifier._adoptTheNames(_notifier._takes);
 
   @override
-  void refuseThePassage() => _notifier._refuseThePassage();
+  Future<void> hearTheOutboxCounted() => _notifier._countUnsent();
+
+  @override
+  void hearTheFall(Door door, RoomReach why) => _notifier._fellAt(door, why);
+
+  @override
+  void hearTheRefusalCounted() => _notifier._countTheRefusal();
+
+  @override
+  void hearThePassageRefused() => _notifier._refuseThePassage();
 }
 
 final salaSessionProvider =
