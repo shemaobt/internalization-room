@@ -62,14 +62,13 @@ const warningNoticeLabel = {
 String warningNoticeLabelFor(String language) =>
     warningNoticeLabel[language] ?? warningNoticeLabel[floorLanguage]!;
 
-const conviteLabels = {
-  'circle': {'pt': 'Falar com o facilitador', 'en': 'Talk to the facilitator'},
-  'enter': {'pt': 'Entrar na passagem', 'en': 'Enter the passage'},
+const panoramaCircleLabels = {
+  'pt': 'Falar com o facilitador',
+  'en': 'Talk to the facilitator',
 };
 
-String conviteLabelFor(String control, String language) =>
-    conviteLabels[control]![language] ??
-    conviteLabels[control]![floorLanguage]!;
+String panoramaCircleLabelFor(String language) =>
+    panoramaCircleLabels[language] ?? panoramaCircleLabels[floorLanguage]!;
 
 const handLabels = {
   'answering': {

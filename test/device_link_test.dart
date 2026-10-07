@@ -11,7 +11,7 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/dev/dev_skip_bar.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/convite_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/panorama_view.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
@@ -61,7 +61,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(
-      find.byType(ConviteView),
+      find.byType(PanoramaView),
       findsNothing,
       reason:
           'entre o pedido e a resposta a tela caía no convite, e um toque ali abria '

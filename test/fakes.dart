@@ -639,12 +639,6 @@ class FakeFinished implements FinishedPassages {
     await _holdingAdd?.future;
     done.add('$book/$pericope');
   }
-
-  @override
-  Future<bool> bookOpened(String book) async => done.contains('livro:$book');
-
-  @override
-  Future<void> markBookOpened(String book) async => done.add('livro:$book');
 }
 
 /// In memory, like the finished-passages double. The real one touches disk, and the
@@ -1006,9 +1000,6 @@ class FakeRoom implements RoomRepository {
     Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
   ];
 
-  /// The passage the room hands back when this tablet asks for the panorama.
-  String? panoramaAnsweredWith;
-
   /// The ids this room gave the sessions it opened, in the order it opened them.
   final List<String> sessionIds = [];
 
@@ -1240,7 +1231,7 @@ class FakeRoom implements RoomRepository {
     // request, not an instruction. Honoured, the ask for "OV" comes back as the real id
     // "OV-Ruth", the way the room answers it; this is where that stops being true.
     final answered = pericope == panoramaPericope
-        ? panoramaAnsweredWith ?? '$panoramaPericope-Ruth'
+        ? '$panoramaPericope-Ruth'
         : pericope;
     final sessionId = 'sessao-${sessionIds.length + 1}';
     sessionIds.add(sessionId);
@@ -2284,6 +2275,7 @@ class SalaHarness {
     this.filaEmMemoria = false,
     this.lingua = testLanguage,
     this.emAbertoNoDisco,
+    this.finishedOnDisk,
     this.inboxService,
     FakeRoom? room,
     this.takesOverride,
@@ -2294,6 +2286,9 @@ class SalaHarness {
   final Duration? linkPoll;
 
   final FakeFinished finished = FakeFinished();
+
+  /// The real ledger, for the tests that need a write still on its way to the disk.
+  final FinishedPassages? finishedOnDisk;
 
   /// The real inbox, for the cases that need a server that can refuse or go away.
   final HandInboxRepository? inboxService;
@@ -2320,7 +2315,7 @@ class SalaHarness {
     handInboxRepositoryProvider.overrideWithValue(inboxService ?? inbox),
     roomRepositoryProvider.overrideWithValue(room),
     takeUploadQueueProvider.overrideWithValue(takes),
-    finishedPassagesProvider.overrideWithValue(finished),
+    finishedPassagesProvider.overrideWithValue(finishedOnDisk ?? finished),
     workInProgressProvider.overrideWithValue(emAbertoNoDisco ?? emAberto),
     connectivityServiceProvider.overrideWithValue(network),
     linkedTeamProvider.overrideWithValue(vinculo),

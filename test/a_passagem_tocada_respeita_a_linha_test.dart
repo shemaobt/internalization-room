@@ -11,9 +11,9 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart' show enterThePassage, settle;
 
-/// The passage the room answers with when this tablet asks for the panorama.
+/// The passage the team taps on the Choice.
 const _passagem = 'P02';
 
 /// The session the row names: the one the team worked in and left.
@@ -27,6 +27,7 @@ const _panorama = Passagem(
   kind: PassagemKind.panorama,
 );
 const _p01 = Passagem(pericope: 'P01', audioUrl: '/voice/p01');
+const _p02 = Passagem(pericope: _passagem, audioUrl: '/voice/p02');
 
 /// What the room hands back of the telling-back the team had already done.
 const _contado = BackTranslationProgress(
@@ -78,91 +79,37 @@ void _aLinhaDeixada(
   harness.playback.measured = _parte;
 }
 
-/// The app on its first breath: it asks the room for the panorama, and the room answers
-/// with a passage, in a session it has already opened.
-Future<ProviderContainer> _oConviteAbre(SalaHarness harness) async {
-  harness.room.panoramaAnsweredWith = _passagem;
+/// The team taps [_passagem] on the Choice.
+Future<ProviderContainer> _aEquipeTocaAPassagem(SalaHarness harness) async {
+  harness.room.passages = const [_panorama, _p01, _p02];
   final container = harness.container();
   addTearDown(container.dispose);
-  await container.read(salaSessionProvider.notifier).openConvite();
+  await enterThePassage(
+    container.read(salaSessionProvider.notifier),
+    () => container.read(salaSessionProvider),
+    _passagem,
+  );
   await settle();
   return container;
 }
 
-/// The wheel's own panorama spoke, entered by the team and answered with a passage.
-Future<ProviderContainer> _aRodaOferecePanorama(SalaHarness harness) async {
-  harness.room
-    ..panoramaAnsweredWith = _passagem
-    ..passages = const [_panorama, _p01];
-  final container = harness.container();
-  addTearDown(container.dispose);
-  final sala = container.read(salaSessionProvider.notifier);
-  await sala.abrirEscolha();
-  await waitFor('a roda oferecer o panorama', () {
-    final estado = container.read(salaSessionProvider);
-    return estado.oferecida == _panorama && estado.voice == VoiceState.invite;
-  });
-  sala.entrarNaOferecida();
-  await settle();
-  return container;
-}
-
-/// The session the room minted for this launch, which no row names.
+/// The session the room minted for the tap, which no row names.
 String _aMintada(SalaHarness harness) {
   expect(
     harness.room.sessionIds,
     hasLength(1),
     reason:
-        'o lançamento pede uma sessão só, a do panorama; é essa que as '
-        'asserções abaixo nomeiam',
+        'o toque pede uma sessão só; é essa que as asserções abaixo nomeiam',
   );
   return harness.room.sessionIds.first;
 }
 
 void main() {
-  test('a linha guardada vence a sessão que a sala abriu no convite', () async {
+  test('a passagem tocada na roda respeita a sua linha', () async {
     final harness = SalaHarness();
     _aLinhaDeixada(harness, parouEm: SalaStage.retro);
 
-    final container = await _oConviteAbre(harness);
-
-    await waitFor(
-      'a equipe pousar na tradução que deixou',
-      () => container.read(salaSessionProvider).stage == SalaStage.retro,
-    );
-    final estado = container.read(salaSessionProvider);
-    expect(
-      estado.sessionId,
-      _daLinha,
-      reason:
-          'a linha é o fato: a passagem foi deixada nesta sessão, e é '
-          'nela que a equipe volta a entrar, venha por que porta vier',
-    );
-    expect(
-      estado.keptTakes,
-      hasLength(3),
-      reason: 'com as três partes que ela gravou debaixo dela',
-    );
-    expect(harness.emAberto.rows['Ruth/$_passagem']!.sessionId, _daLinha);
-    expect(
-      [for (final linha in harness.emAberto.written) linha.sessionId],
-      isNot(contains(_aMintada(harness))),
-      reason:
-          'carimbar a sessão nova por cima da linha é perder a sessão que '
-          'guarda tudo o que a equipe gravou',
-    );
-    expect(
-      harness.room.sessionsSpokenTo,
-      isNot(contains(_aMintada(harness))),
-      reason: 'a sessão que a sala abriu sem precisar não é entrada',
-    );
-  });
-
-  test('o raio do panorama na roda respeita a mesma linha', () async {
-    final harness = SalaHarness();
-    _aLinhaDeixada(harness, parouEm: SalaStage.retro);
-
-    final container = await _aRodaOferecePanorama(harness);
+    final container = await _aEquipeTocaAPassagem(harness);
 
     await waitFor(
       'a equipe pousar na tradução que deixou',
@@ -176,14 +123,13 @@ void main() {
     );
     expect(estado.keptTakes, hasLength(3));
     expect(harness.emAberto.rows['Ruth/$_passagem']!.sessionId, _daLinha);
-    expect(harness.room.sessionsSpokenTo, isNot(contains(_aMintada(harness))));
   });
 
   test('uma linha parada na conversa guarda a sua sessão', () async {
     final harness = SalaHarness();
     _aLinhaDeixada(harness, parouEm: SalaStage.conversa);
 
-    final container = await _oConviteAbre(harness);
+    final container = await _aEquipeTocaAPassagem(harness);
 
     await waitFor(
       'a sala abrir a conversa da sessão lembrada',
@@ -206,7 +152,7 @@ void main() {
       final harness = SalaHarness();
       _aLinhaDeixada(harness, parouEm: SalaStage.retro, lingua: 'xx');
 
-      final container = await _oConviteAbre(harness);
+      final container = await _aEquipeTocaAPassagem(harness);
 
       await waitFor(
         'a equipe chegar à conversa da passagem que a sala devolveu',
@@ -245,7 +191,7 @@ void main() {
           ),
       ]);
 
-      final container = await _oConviteAbre(harness);
+      final container = await _aEquipeTocaAPassagem(harness);
 
       await waitFor(
         'as partes voltarem da sala',

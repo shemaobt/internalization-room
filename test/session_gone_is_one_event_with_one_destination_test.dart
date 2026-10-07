@@ -10,10 +10,21 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart' show enterThePanorama, enterThePassage, settle;
+
+const _livroComPanorama = [
+  Passagem(
+    pericope: 'panorama',
+    audioUrl: '/voice/panorama',
+    kind: PassagemKind.panorama,
+  ),
+  Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+  Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
+];
 
 Future<ProviderContainer> _semPassagemNaMemoria(SalaHarness harness) async {
   final container = harness.container();
@@ -485,16 +496,20 @@ void main() {
 
   test('the panorama\'s session gone opens the Choice, and the next passage '
       'is not opened after it', () async {
-    final harness = SalaHarness();
+    final harness = SalaHarness()..room.passages = _livroComPanorama;
     final container = harness.container();
     addTearDown(container.dispose);
     final sala = container.read(salaSessionProvider.notifier);
     harness.room.forgetTheSession('sessao-1');
 
-    await sala.openConvite();
+    await enterThePanorama(sala, () => _estado(container));
+    await waitFor(
+      'a sala tentar a abertura',
+      () => harness.room.askedOfTheForgotten.contains('openSession'),
+    );
     await _naEscolha(container);
     await settle();
-    sala.entrarNaOferecida();
+    await enterThePassage(sala, () => _estado(container), 'P01');
     await waitFor(
       'a passagem abrir',
       () => _estado(container).sessionId != null,
@@ -512,15 +527,13 @@ void main() {
 
   test('a passage whose panorama the server also forgot neither halts nor '
       'calls a person, and the next pick opens a passage', () async {
-    final harness = SalaHarness();
+    final harness = SalaHarness()..room.passages = _livroComPanorama;
     final container = harness.container();
     addTearDown(container.dispose);
     final sala = container.read(salaSessionProvider.notifier);
-    await sala.openConvite();
+    await enterThePanorama(sala, () => _estado(container));
     await settle();
-    await sala.abrirEscolha();
-    await settle();
-    sala.entrarNaOferecida();
+    await enterThePassage(sala, () => _estado(container), 'P01');
     await waitFor(
       'a passagem abrir',
       () => _estado(container).sessionId != null,
@@ -538,7 +551,7 @@ void main() {
     await _naEscolha(container);
     await settle();
     final abertas = harness.room.sessionIds.length;
-    sala.entrarNaOferecida();
+    await enterThePassage(sala, () => _estado(container), 'P01');
     await waitFor(
       'uma passagem abrir de novo',
       () => harness.room.sessionIds.length > abertas,
@@ -554,18 +567,18 @@ void main() {
 
   test('a team that leaves while the creation after a gone panorama is in the '
       'air sends no second creation', () async {
-    final harness = SalaHarness();
+    final harness = SalaHarness()..room.passages = _livroComPanorama;
     final container = harness.container();
     addTearDown(container.dispose);
     final sala = container.read(salaSessionProvider.notifier);
-    await sala.openConvite();
+    await enterThePanorama(sala, () => _estado(container));
     await settle();
     await sala.abrirEscolha();
     await settle();
     harness.room
       ..forgetTheSession(harness.room.sessionIds.first)
       ..holdNextCreate();
-    sala.entrarNaOferecida();
+    await enterThePassage(sala, () => _estado(container), 'P01');
     await waitFor('a criação sair', () => harness.room.createHeld);
     final criacoes = harness.room.calls
         .where((call) => call == 'createSession')

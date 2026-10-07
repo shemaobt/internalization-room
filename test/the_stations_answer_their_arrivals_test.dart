@@ -59,11 +59,11 @@ void main() {
       );
     });
 
-    test('the room started over: the Invitation', () {
+    test('the Panorama chosen: the Panorama', () {
       _expectTheArrival(
         const Menu(),
-        const TheRoomStartedOver(),
-        isA<Convite>(),
+        const ThePanoramaChosen(),
+        isA<Panorama>(),
       );
     });
   });
@@ -95,11 +95,11 @@ void main() {
       _expectTheArrival(const Canvas(), const TheChoiceOpened(), isA<Menu>());
     });
 
-    test('the room started over: the Invitation', () {
+    test('the room started over: the Menu', () {
       _expectTheArrival(
         const Canvas(),
         const TheRoomStartedOver(),
-        isA<Convite>(),
+        isA<Menu>(),
       );
     });
   });
@@ -110,25 +110,30 @@ void main() {
     }
   });
 
-  group('the Invitation, the Rehearsal, the Back-translation and the Closing '
+  group('the Panorama, the Rehearsal, the Back-translation and the Closing '
       'answer their arrivals', () {
-    test('the Invitation', () {
-      _expectTheArrival(const Convite(), const TheChoiceOpened(), isA<Menu>());
-      _expectTheArrival(const Convite(), const PassageChosen(), isA<Canvas>());
+    test('the Panorama', () {
+      _expectTheArrival(const Panorama(), const TheChoiceOpened(), isA<Menu>());
+      _expectTheArrival(const Panorama(), const PassageChosen(), isA<Canvas>());
       _expectTheArrival(
-        const Convite(),
+        const Panorama(),
         const TheRehearsalOpened(),
         isA<Ensaio>(),
       );
       _expectTheArrival(
-        const Convite(),
+        const Panorama(),
         const TheBackTranslationOpened(),
         isA<Retro>(),
       );
+      _expectTheArrival(
+        const Panorama(),
+        const TheRoomStartedOver(),
+        isA<Menu>(),
+      );
       _expectItStays(
-        const Convite(),
+        const Panorama(),
         const TheNecklaceClosed(),
-        isA<Convite>(),
+        isA<Panorama>(),
       );
     });
 
@@ -143,7 +148,7 @@ void main() {
       _expectTheArrival(
         const Ensaio(),
         const TheRoomStartedOver(),
-        isA<Convite>(),
+        isA<Menu>(),
       );
       _expectItStays(const Ensaio(), const TheNecklaceClosed(), isA<Ensaio>());
     });
@@ -157,19 +162,11 @@ void main() {
       );
       _expectTheArrival(const Retro(), const TheChoiceOpened(), isA<Menu>());
       _expectTheArrival(const Retro(), const PassageChosen(), isA<Canvas>());
-      _expectTheArrival(
-        const Retro(),
-        const TheRoomStartedOver(),
-        isA<Convite>(),
-      );
+      _expectTheArrival(const Retro(), const TheRoomStartedOver(), isA<Menu>());
     });
 
     test('the Closing', () {
-      _expectTheArrival(
-        const Fim(),
-        const TheRoomStartedOver(),
-        isA<Convite>(),
-      );
+      _expectTheArrival(const Fim(), const TheRoomStartedOver(), isA<Menu>());
       _expectTheArrival(const Fim(), const TheChoiceOpened(), isA<Menu>());
       _expectTheArrival(const Fim(), const PassageChosen(), isA<Canvas>());
       _expectTheArrival(const Fim(), const TheRehearsalOpened(), isA<Ensaio>());
@@ -184,7 +181,12 @@ void main() {
   test('an arrival at the Station already held moves nothing', () {
     _expectItStays(const Menu(), const TheChoiceOpened(), isA<Menu>());
     _expectItStays(const Canvas(), const PassageChosen(), isA<Canvas>());
-    _expectItStays(const Convite(), const TheRoomStartedOver(), isA<Convite>());
+    _expectItStays(
+      const Panorama(),
+      const ThePanoramaChosen(),
+      isA<Panorama>(),
+    );
+    _expectItStays(const Menu(), const TheRoomStartedOver(), isA<Menu>());
     _expectItStays(const Ensaio(), const TheRehearsalOpened(), isA<Ensaio>());
     _expectItStays(
       const Retro(),
@@ -192,5 +194,33 @@ void main() {
       isA<Retro>(),
     );
     _expectItStays(const Fim(), const TheNecklaceClosed(), isA<Fim>());
+  });
+
+  test('the machine is born on the Menu', () {
+    expect(Machine().station, isA<Menu>());
+  });
+
+  test('every Station answers the Panorama chosen with the Panorama, and the '
+      'room started over with the Menu', () {
+    const everyStation = <Station>[
+      Menu(),
+      Panorama(),
+      Canvas(),
+      Ensaio(),
+      Retro(),
+      Fim(),
+    ];
+    for (final station in everyStation) {
+      expect(
+        reduce(_at(station), const ThePanoramaChosen()).$1.station,
+        isA<Panorama>(),
+        reason: '$station',
+      );
+      expect(
+        reduce(_at(station), const TheRoomStartedOver()).$1.station,
+        isA<Menu>(),
+        reason: '$station',
+      );
+    }
   });
 }

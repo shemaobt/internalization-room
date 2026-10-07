@@ -26,19 +26,19 @@ void _expectAFreshTurnId(SalaHarness harness) {
 }
 
 void main() {
-  test('the invitation\'s opening asked again after its clip could not be '
-      'fetched goes under a fresh turn id', () async {
-    final harness = SalaHarness();
+  test('the Panorama\'s opening asked again from the Choice after its clip '
+      'could not be fetched goes under a fresh turn id', () async {
+    final harness = SalaHarness()..room.passages = const [_panorama, _p01];
     harness.voice.roomFailsWith = const Refused(RefusalCode.notFound);
     final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
-    await notifier.openConvite();
+    await enterThePanorama(notifier, read);
     await waitFor('a sala parar', () => read().needsPerson);
     await theHaltIsLifted(harness, notifier, read);
-    notifier.conviteTap();
+    await enterThePanorama(notifier, read);
     await settle();
 
     _expectAFreshTurnId(harness);

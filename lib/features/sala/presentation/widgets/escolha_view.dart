@@ -80,11 +80,6 @@ class EscolhaView extends ConsumerWidget {
             for (var index = 0; index < roda.length; index++)
               if (session.feitas.contains(roda[index].pericope)) index,
           },
-          refused: {
-            for (var index = 0; index < roda.length; index++)
-              if (session.refusedThisVisit.contains(roda[index].pericope))
-                index,
-          },
           hint: podeEntrar,
           onAim: notifier.apontarPassagem,
           onSettle: notifier.dizerAPassagem,
