@@ -15,6 +15,7 @@ import 'scenario_helpers.dart' show settle;
 const _thePassageClosed = Refused('PASSAGE_CLOSED');
 const _oneStepOfTheLadder = Duration(milliseconds: 20);
 const _severalStepsOfTheLadder = Duration(milliseconds: 300);
+const _slowerThanAnyWait = Duration(milliseconds: 500);
 
 Future<ProviderContainer> _naPassagem(SalaHarness harness) async {
   final container = harness.container();
@@ -469,6 +470,11 @@ void main() {
       ProviderContainer container,
       String primeira,
     ) async {
+      await waitFor(
+        'o lugar da primeira sair do tablet',
+        () async =>
+            (await harness.emAberto.of('Ruth', 'P01'))?.sessionId != primeira,
+      );
       expect(
         (await harness.emAberto.of('Ruth', 'P01'))?.sessionId,
         isNot(primeira),
@@ -497,7 +503,8 @@ void main() {
     test(
       'gone through the Outbox while the room is in another passage',
       () async {
-        final harness = SalaHarness();
+        final harness = SalaHarness()
+          ..emAberto.forgetsTheSessionAfter = _slowerThanAnyWait;
         final (container, primeira) = await doisPassos(harness);
         final linha = await harness.takes.enqueue(
           harness.recorder.aFile('parte-da-primeira'),
@@ -521,7 +528,8 @@ void main() {
     );
 
     test('gone through the late answer to the call for a person', () async {
-      final harness = SalaHarness();
+      final harness = SalaHarness()
+        ..emAberto.forgetsTheSessionAfter = _slowerThanAnyWait;
       final container = await _naPassagem(harness);
       final primeira = _estado(container).sessionId!;
       harness.room.holdNextAskForAPerson();
