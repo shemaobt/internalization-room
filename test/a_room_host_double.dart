@@ -2,10 +2,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:internalization_room/features/sala/data/effect_runner.dart';
 import 'package:internalization_room/features/sala/data/port_adapters.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
+import 'package:internalization_room/features/sala/domain/failure_policy.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
 class ARoomHost implements EffectHost {
@@ -22,6 +25,38 @@ class ARoomHost implements EffectHost {
   @override
   Kept sounding = const NothingKept();
 
+  @override
+  String? session;
+
+  FailureContext context = const FailureContext(station: Menu(), generation: 0);
+
+  @override
+  FailureContext failureContext({
+    required Door door,
+    required RefusalRule rule,
+    required RoomReach why,
+  }) => FailureContext(
+    station: context.station,
+    step: context.step,
+    generation: context.generation,
+    turn: context.turn,
+    refusals: context.refusals,
+    sounding: context.sounding,
+    door: door,
+    rule: rule,
+    why: why,
+  );
+
+  final List<SessionSnapshot> readsHeard = [];
+  int _readsSent = 0;
+
+  @override
+  SentRead hearTheReadSent() => (order: ++_readsSent, row: const []);
+
+  @override
+  void hearTheSessionRead(SessionSnapshot snapshot, SentRead sent) =>
+      readsHeard.add(snapshot);
+
   void Function()? onPartEnd;
 
   @override
@@ -37,6 +72,9 @@ class ARoomHost implements EffectHost {
     answers.add(event);
     onAnswer?.call(event);
   }
+
+  @override
+  void answerWhereAsked(MachineEvent event) => answer(event);
 
   @override
   void hearThePartEnd() {
@@ -70,9 +108,6 @@ class ARoomHost implements EffectHost {
   void tellAPersonArrived() => asked.add('tellAPersonArrived');
 
   @override
-  void readTheState() => asked.add('readTheState');
-
-  @override
   void replayTheSound(Kept kept) => asked.add('replayTheSound');
 
   @override
@@ -84,9 +119,6 @@ class ARoomHost implements EffectHost {
 
   @override
   void resendPending() => asked.add('resendPending');
-
-  @override
-  void probeTheRoom() => asked.add('probeTheRoom');
 
   @override
   void discardTheSession() => asked.add('discardTheSession');

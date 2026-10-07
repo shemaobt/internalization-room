@@ -220,9 +220,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   String? _sessionLanguage;
   int _calmTurns = 0;
   bool _conviteOpened = false;
-  Future<void>? _probing;
-  Future<RoomReach>? _asking;
-  bool _aStepAsks = false;
   Future<void> Function()? _pending;
 
   /// What plays the reply of the turn the machine holds in flight, and the gestures that
@@ -997,7 +994,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _dispatch(MachineEvent event) {
     final before = state.machine;
     final (machine, effects) = reduce(before, event);
-    state = state.copyWith(machine: machine);
+    state = state.copyWith(
+      machine: machine,
+      reach: !before.reachable && machine.reachable ? RoomReach.fine : null,
+    );
     _runner.run(effects, micWasOpen: before.channel is Microphone);
     _followTheSound(before, machine);
     _followTheMicrophone(before, machine);
@@ -1009,6 +1009,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   bool get _roomIsReachable => state.machine.reachable;
 
+  String? get _sessionId => state.sessionId;
+
   void _silenceTheHaltedRoom() {
     _openTurnId = null;
     _silenceTheRoom();
@@ -1016,27 +1018,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(awaitingTheGuide: false, peerCue: false);
   }
 
-  Future<void> _readTheState() async {
-    final sessionId = state.sessionId;
-    if (sessionId == null) return;
-    final sent = ++_readsSent;
-    final row = state.btTrechos;
-    final answer = await _room.fetchState(sessionId);
-    if (_gone || state.sessionId != sessionId) return;
-    switch (answer) {
-      case Answered(value: final snapshot):
-        final wasBlocking = state.needsPerson;
-        _applyTheSessionRead(snapshot, sent, rowWhenSent: row);
-        _applyWhatOnlyGrows(snapshot);
-        if (wasBlocking && !state.needsPerson && state.unreachable) {
-          _theRoomIsBack();
-        }
-      case SessionGone():
-        _theSessionIsGone(sessionId);
-      case NetworkFailed():
-        _outOfReach(Door.watch);
-      case final Refused refused:
-        _decideAt(refused, door: Door.watch, rule: RefusalRule.passes);
+  SentRead _theReadSent() => (order: ++_readsSent, row: state.btTrechos);
+
+  void _theSessionReadHeard(SessionSnapshot snapshot, SentRead sent) {
+    final wasBlocking = state.needsPerson;
+    _applyTheSessionRead(snapshot, sent.order, rowWhenSent: sent.row);
+    _applyWhatOnlyGrows(snapshot);
+    if (wasBlocking && !state.needsPerson && state.unreachable) {
+      _theRoomIsBack();
     }
   }
 
@@ -1476,37 +1465,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return ladder[step < ladder.length ? step : ladder.length - 1];
   }
 
-  Future<RoomReach> _askTheRoom({bool forAStep = false}) {
-    _aStepAsks = _aStepAsks || forAStep;
-    return _asking ??= _network
-        .reachRoom()
-        .then((reach) {
-          final falls = _aStepAsks || !state.machine.reachable;
-          _aStepAsks = false;
-          if (!_gone && falls && reach != RoomReach.fine) {
-            _outOfReach(Door.probe, reach);
-          }
-          return reach;
-        })
-        .whenComplete(() => _asking = null);
-  }
-
-  Future<void> _probeTheRoom() {
-    final running = _probing;
-    if (running != null) return running;
-    final probe = () async {
-      final reach = await _askTheRoom();
-      if (_gone || state.machine.reachable) return;
-      if (reach == RoomReach.fine) _theRoomIsBack();
-    }();
-    _probing = probe.whenComplete(() => _probing = null);
-    return probe;
-  }
-
-  void _theRoomIsBack() {
-    state = state.copyWith(reach: RoomReach.fine);
-    _dispatch(const NetworkReturned());
-  }
+  void _theRoomIsBack() => _dispatch(const NetworkReturned());
 
   void _drainTheOutbox() => _apart(() {
     final queue = _takes;
@@ -1528,7 +1487,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _retryNow() {
     if (!state.unreachable) return;
-    _handOff(_probeTheRoom());
+    _handOff(_runner.probeTheRoom());
   }
 
   void beginAgain() => _gesture(() => _handOff(_startOver()));
@@ -1770,7 +1729,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final generation = _waitOnTheGeneration;
     state = state.copyWith(awaitingTheGuide: true);
     _watchBusyState();
-    final reach = await _askTheRoom(forAStep: true);
+    final reach = await _runner.askTheRoom(forAStep: true);
     if (_abandoned(generation)) return;
     if (reach != RoomReach.fine) {
       _conviteOpened = false;
@@ -2149,7 +2108,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final generation = _waitOnTheGeneration;
     state = state.copyWith(awaitingTheGuide: true);
     _watchBusyState();
-    final reach = await _askTheRoom(forAStep: true);
+    final reach = await _runner.askTheRoom(forAStep: true);
     if (_abandoned(generation)) return;
     if (reach != RoomReach.fine) {
       _theStepWaits();
@@ -2358,7 +2317,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchBusyState();
     final openingClock = TurnClock();
     _pendingClock = openingClock;
-    final reach = await _askTheRoom(forAStep: true);
+    final reach = await _runner.askTheRoom(forAStep: true);
     if (_abandoned(generation)) return;
     openingClock.mark('health');
     if (reach != RoomReach.fine) {
@@ -3301,7 +3260,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     _watchBusyState();
     final generation = _waitOnTheGeneration;
-    final reach = await _askTheRoom(forAStep: true);
+    final reach = await _runner.askTheRoom(forAStep: true);
     if (_abandoned(generation)) return;
     if (reach != RoomReach.fine) {
       _conviteOpened = false;
@@ -5746,6 +5705,23 @@ class _NotifierHost implements EffectHost {
   bool get roomIsReachable => _notifier._roomIsReachable;
 
   @override
+  String? get session => _notifier._sessionId;
+
+  @override
+  FailureContext failureContext({
+    required Door door,
+    required RefusalRule rule,
+    required RoomReach why,
+  }) => _notifier._failureContext(door: door, rule: rule, why: why);
+
+  @override
+  SentRead hearTheReadSent() => _notifier._theReadSent();
+
+  @override
+  void hearTheSessionRead(SessionSnapshot snapshot, SentRead sent) =>
+      _notifier._theSessionReadHeard(snapshot, sent);
+
+  @override
   bool get recordingStarts => _notifier._recordingStarting;
 
   @override
@@ -5757,6 +5733,9 @@ class _NotifierHost implements EffectHost {
   @override
   void answer(MachineEvent event) =>
       _notifier._apart(() => _notifier._dispatch(event));
+
+  @override
+  void answerWhereAsked(MachineEvent event) => _notifier._dispatch(event);
 
   @override
   void hearThePartEnd() => _notifier._thePartEnded();
@@ -5787,9 +5766,6 @@ class _NotifierHost implements EffectHost {
   void tellAPersonArrived() => _notifier._tellTheRoomAPersonArrived();
 
   @override
-  void readTheState() => unawaited(_notifier._readTheState());
-
-  @override
   void replayTheSound(Kept kept) => _notifier._replay(kept);
 
   @override
@@ -5803,9 +5779,6 @@ class _NotifierHost implements EffectHost {
 
   @override
   void resendPending() => _notifier._resendPending();
-
-  @override
-  void probeTheRoom() => unawaited(_notifier._probeTheRoom());
 
   @override
   void discardTheSession() => _notifier._discardTheSession();

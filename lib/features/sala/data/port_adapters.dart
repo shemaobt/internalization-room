@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/channel.dart';
 import '../domain/machine.dart';
 import '../domain/ports.dart';
+import '../domain/room_reach.dart';
 import '../domain/turn_result.dart';
 import 'connectivity_service.dart';
 import 'facilitator_voice_service.dart';
@@ -30,6 +31,17 @@ class ProviderRoomPort implements RoomPort {
     Answered(:final value) => value,
     RoomFailure() => null,
   };
+
+  @override
+  Future<SessionReadAnswer> readTheSession(String session) async =>
+      switch (await _ref.read(roomRepositoryProvider).fetchState(session)) {
+        Answered(:final value) => SessionReadAnswered(value),
+        final RoomFailure failure => SessionReadFailed(failure.result),
+      };
+
+  @override
+  Future<RoomReach> reach() =>
+      _ref.read(connectivityServiceProvider).reachRoom();
 }
 
 class ProviderSoundPort implements SoundPort {

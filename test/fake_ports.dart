@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
+import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
 import 'a_room_host_double.dart';
@@ -69,12 +70,39 @@ class ASoundPort implements SoundPort {
   Future<void> stop() async => heard.add('stop');
 }
 
+/// A room port that reaches nothing: it writes down what it was asked, and a Session read
+/// or a reach answers only when the test says so.
 class ARoomPort implements RoomPort {
+  final List<String> heard = [];
+  final List<Completer<SessionReadAnswer>> _reads = [];
+  final List<Completer<RoomReach>> _reaches = [];
+
   @override
   Stream<void> get networkReturned => const Stream.empty();
 
   @override
   Future<TurnResult?> lookAt(Turn turn) async => null;
+
+  @override
+  Future<SessionReadAnswer> readTheSession(String session) {
+    heard.add('read:$session');
+    final read = Completer<SessionReadAnswer>();
+    _reads.add(read);
+    return read.future;
+  }
+
+  void answerTheRead(SessionReadAnswer answer) =>
+      _reads.removeAt(0).complete(answer);
+
+  @override
+  Future<RoomReach> reach() {
+    heard.add('reach');
+    final reach = Completer<RoomReach>();
+    _reaches.add(reach);
+    return reach.future;
+  }
+
+  void answerTheReach(RoomReach reach) => _reaches.removeAt(0).complete(reach);
 }
 
 /// A recorder port that records nothing: it writes down what it was asked, and a start or
@@ -122,9 +150,10 @@ class AStorePort implements StorePort {
   Future<int> flushTheOutbox() async => 0;
 }
 
-Ports fakePorts(ASoundPort sound, {ARecorderPort? recorder}) => (
-  room: ARoomPort(),
-  sound: sound,
-  recorder: recorder ?? ARecorderPort(),
-  store: AStorePort(),
-);
+Ports fakePorts(ASoundPort sound, {ARecorderPort? recorder, ARoomPort? room}) =>
+    (
+      room: room ?? ARoomPort(),
+      sound: sound,
+      recorder: recorder ?? ARecorderPort(),
+      store: AStorePort(),
+    );

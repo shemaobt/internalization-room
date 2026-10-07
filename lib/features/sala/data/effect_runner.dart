@@ -1,12 +1,18 @@
 import 'dart:async';
 
 import '../domain/channel.dart';
+import '../domain/failure_policy.dart';
 import '../domain/halt.dart';
 import '../domain/machine.dart';
 import '../domain/ports.dart';
 import '../domain/room_reach.dart';
+import '../domain/session_snapshot.dart';
+import '../domain/session_state.dart';
 import '../domain/turn_result.dart';
 import 'room_answer.dart';
+
+/// Where a Session read stands in the room's order of reads, and the row it was sent over.
+typedef SentRead = ({int order, List<Trecho> row});
 
 /// Temporary: what the runner still asks the notifier to do, one method per effect that
 /// reads or writes state the Station will own.
@@ -14,6 +20,16 @@ abstract interface class EffectHost {
   bool get watchIsWanted;
 
   bool get roomIsReachable;
+
+  /// The room's session, or null.
+  String? get session;
+
+  /// The Station's context for a room result that comes back now (ADR 0059).
+  FailureContext failureContext({
+    required Door door,
+    required RefusalRule rule,
+    required RoomReach why,
+  });
 
   /// A conversation, a question or a panorama start is still in the air.
   bool get recordingStarts;
@@ -35,8 +51,18 @@ abstract interface class EffectHost {
 
   void hearTheMicrophoneTaken(bool taken);
 
+  /// The Station stamps a Session read when it is sent, and applies it with that stamp
+  /// when the room answers it.
+  SentRead hearTheReadSent();
+
+  void hearTheSessionRead(SessionSnapshot snapshot, SentRead sent);
+
   /// An event the runner brings back to the machine, outside any gesture.
   void answer(MachineEvent event);
+
+  /// An event brought back inside the gesture that asked for the work, so the lines that
+  /// follow it are that gesture's own (ADR 0059).
+  void answerWhereAsked(MachineEvent event);
 
   void silenceTheRoom();
 
@@ -46,8 +72,6 @@ abstract interface class EffectHost {
 
   void tellAPersonArrived();
 
-  void readTheState();
-
   void replayTheSound(Kept kept);
 
   void askTheOpeningAgain(String freshTurnId);
@@ -55,8 +79,6 @@ abstract interface class EffectHost {
   void drainTheOutbox();
 
   void resendPending();
-
-  void probeTheRoom();
 
   void discardTheSession();
 
@@ -113,6 +135,9 @@ class EffectRunner {
   List<StreamSubscription<void>>? _partSignals;
   StreamSubscription<bool>? _micTaken;
   int _starts = 0;
+  Future<void>? _probing;
+  Future<RoomReach>? _asking;
+  bool _aStepAsks = false;
   bool _disposed = false;
 
   /// [micWasOpen] is what the microphone was before the machine reduced the event that
@@ -137,7 +162,7 @@ class EffectRunner {
         case TellAPersonArrived():
           host.tellAPersonArrived();
         case ReadTheState():
-          host.readTheState();
+          _readTheState();
         case ReplayTheSound(:final kept):
           host.replayTheSound(kept);
         case AskTheOpeningAgain(:final freshTurnId):
@@ -175,7 +200,7 @@ class EffectRunner {
         case ResendPending():
           host.resendPending();
         case ProbeTheRoom():
-          host.probeTheRoom();
+          unawaited(probeTheRoom());
         case DiscardTheSession():
           host.discardTheSession();
         case OpenTheChoice():
@@ -416,6 +441,80 @@ class EffectRunner {
     host.answer(
       MicAnswered(MicAnswer.discarded, generation: generation?.call()),
     );
+  }
+
+  void _readTheState() {
+    final session = host.session;
+    if (session == null) return;
+    unawaited(
+      _answerTheRead(
+        session,
+        host.hearTheReadSent(),
+        room.readTheSession(session),
+      ),
+    );
+  }
+
+  /// A read the room answers for a session that is no longer the room's changes nothing.
+  Future<void> _answerTheRead(
+    String session,
+    SentRead sent,
+    Future<SessionReadAnswer> reading,
+  ) async {
+    final answer = await reading;
+    if (_disposed || host.session != session) return;
+    switch (answer) {
+      case SessionReadAnswered(:final snapshot):
+        host.hearTheSessionRead(snapshot, sent);
+      case SessionReadFailed(:final result):
+        host.answerWhereAsked(
+          FailurePolicy.decide(
+            result,
+            host.failureContext(
+              door: Door.watch,
+              rule: RefusalRule.passes,
+              why: RoomReach.noNetwork,
+            ),
+          ),
+        );
+    }
+  }
+
+  /// One ask in the air at a time, shared by a probe and a Step: it falls once, and only
+  /// if a Step asked or the room is out of reach when it lands.
+  Future<RoomReach> askTheRoom({bool forAStep = false}) {
+    _aStepAsks = _aStepAsks || forAStep;
+    return _asking ??= room
+        .reach()
+        .then((reach) {
+          final falls = _aStepAsks || !host.roomIsReachable;
+          _aStepAsks = false;
+          if (!_disposed && falls && reach != RoomReach.fine) {
+            host.answerWhereAsked(
+              FailurePolicy.decide(
+                const RoomNetworkFailed(),
+                host.failureContext(
+                  door: Door.probe,
+                  rule: RefusalRule.counts,
+                  why: reach,
+                ),
+              ),
+            );
+          }
+          return reach;
+        })
+        .whenComplete(() => _asking = null);
+  }
+
+  Future<void> probeTheRoom() =>
+      _probing ??= _probe().whenComplete(() => _probing = null);
+
+  Future<void> _probe() async {
+    final reach = await askTheRoom();
+    if (_disposed || host.roomIsReachable) return;
+    if (reach == RoomReach.fine) {
+      host.answerWhereAsked(const NetworkReturned());
+    }
   }
 
   void endTheWatch() {
