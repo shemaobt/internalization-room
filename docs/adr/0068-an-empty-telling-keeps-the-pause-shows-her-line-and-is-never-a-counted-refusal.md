@@ -32,10 +32,11 @@ entendi — traduzam de novo esse pedaço», and nothing is voiced.
   the part left where the confirm held it. Anywhere else the event changes nothing. The
   Station clears the pending translation and ends its wait, and keeps the recording's copy
   in the Outbox; only the circle is offered.
-- **The fact clears three ways:** the capture microphone opening, a telling with words
+- **The fact clears four ways:** the capture microphone opening, a telling with words
   landing (a plain answering event, `TheTellingLanded`, not the room's answer, which every
-  session read also brings), and the team leaving the Back-translation. A halt does not
-  clear it, and it is not kept in the slice, so a reopened session shows nothing.
+  session read also brings), the team asking for the verdict (`TheVerdictAsked`, which
+  closes the stretch's open telling), and the team leaving the Back-translation. A halt does
+  not clear it, and it is not kept in the slice, so a reopened session shows nothing.
 - **Shown, in a wordless room (ADR 0014),** means a mark beside the circle, on the side
   opposite the warning mark and drawn like it in the blue of the translation, whose
   VoiceOver label is her line; the circle's own label becomes her line too. A person and
