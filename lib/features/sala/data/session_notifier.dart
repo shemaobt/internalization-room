@@ -1878,6 +1878,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     _wheelPrefetch++;
     _silenceTheRoom();
+    state = state.copyWith(clearLeftEntry: true);
     if (passagem.isPanorama) {
       _leaveTheStepFor(const Panorama());
       _clearAll();
@@ -1943,10 +1944,95 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void leaveThePassage() => _gesture(() => _leaveThePassage());
 
   void _leaveThePassage() {
+    final left = _whatTheLeaveLeaves();
     _clearAll();
     _dropThePendingTake();
     _forgetThePassage();
     _openTheChoice();
+    if (left != null) state = state.copyWith(leftEntry: left);
+  }
+
+  LeftEntry? _whatTheLeaveLeaves() {
+    final panorama = state.station is Panorama;
+    final session = _theSession;
+    final pericope = panorama ? null : _emCurso;
+    if (session == null && pericope == null) return null;
+    return LeftEntry(
+      pericope: pericope,
+      panorama: panorama,
+      session: session,
+      said: panorama && state.panoramaSaid,
+      held: _theTakeTheLeaveHolds(),
+    );
+  }
+
+  /// A kept take sounding in the Rehearsal, as it will be laid back: paused where it was,
+  /// read before the stop, which makes the player forget the place.
+  Paused? _theTakeTheLeaveHolds() {
+    if (state.station is! Ensaio) return null;
+    final PartSound part;
+    final List<Sound> next;
+    final bool placed;
+    switch (state.channel) {
+      case PartPlaying(part: final playing, next: final following):
+        (part, next, placed) = (playing, following, true);
+      case Paused(
+        what: final PartSound held,
+        next: final following,
+        :final started,
+      ):
+        (part, next, placed) = (held, following, started);
+      default:
+        return null;
+    }
+    final position = _playback.position;
+    final at = !placed
+        ? part.from
+        : part.to == null
+        ? position
+        : part.from + position;
+    return Paused(
+      PartSound(part.part, part.path, from: at, to: part.to),
+      next: next,
+      started: false,
+      opened: false,
+    );
+  }
+
+  /// The way back to the entry the team left: a return, not a new entry. The Panorama
+  /// comes back silent once its line was said; a passage comes back through the resume.
+  Future<void> returnToTheLeftEntry() => _gestureThen(_returnToTheLeftEntry);
+
+  Future<void> _returnToTheLeftEntry() async {
+    final left = state.leftEntry;
+    if (left == null ||
+        state.station is! Menu ||
+        state.naRoda == null ||
+        state.voice != VoiceState.invite ||
+        state.needsPerson) {
+      return;
+    }
+    state = state.copyWith(clearLeftEntry: true);
+    if (left.panorama) return _returnToThePanorama(left);
+    await goConversa(pericope: left.pericope);
+    final held = left.held;
+    if (held != null && state.station is Ensaio) {
+      _dispatch(TheHeldPartReturns(held));
+    }
+  }
+
+  void _returnToThePanorama(LeftEntry left) {
+    _wheelPrefetch++;
+    _silenceTheRoom();
+    _leaveTheStepFor(const Panorama());
+    _clearAll();
+    _arriveAt(const ThePanoramaChosen());
+    if (left.said && _panoramaSessionId == left.session) {
+      state = state.copyWith(panoramaSaid: true);
+      unawaited(_pullInbox());
+      return;
+    }
+    _handOff(_entrarNoPanorama());
   }
 
   String? get _theSession => state.sessionId ?? _panoramaSessionId;
@@ -1962,6 +2048,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _letGoOf(String? sessionId, {List<String> kept = const []}) {
     if (sessionId != null) _goneSessions.add(sessionId);
     if (sessionId == _panoramaSessionId) _panoramaSessionId = null;
+    if (sessionId != null && state.leftEntry?.session == sessionId) {
+      state = state.copyWith(clearLeftEntry: true);
+    }
     unawaited(
       _mindingThePlace(
         () => _forgetTheSessionOnDisk(sessionId, kept),

@@ -1034,6 +1034,15 @@ class FakeRoom implements RoomRepository {
 
   Set<String> passagesThatCannotOpen = {};
 
+  Completer<void>? _holdingPassages;
+
+  void holdNextPassages() => _holdingPassages = Completer<void>();
+
+  void finishHeldPassages() {
+    _holdingPassages?.complete();
+    _holdingPassages = null;
+  }
+
   Completer<void>? _holdingTurn;
   Completer<void>? _holdingCode;
 
@@ -1245,6 +1254,7 @@ class FakeRoom implements RoomRepository {
     required String language,
   }) async {
     if (_guard('passagesOf') case final failure?) return failure;
+    await _holdingPassages?.future;
     booksAsked.add(book);
     languagesAsked.add(language);
     return Answered(passages);

@@ -167,7 +167,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(harness.recorder.deleted, hasLength(1), reason: 'descartado');
-    await tester.tap(byLabel('Deixar esta passagem e escolher outra'));
+    await tester.tap(byLabel('Escolher outra passagem'));
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(

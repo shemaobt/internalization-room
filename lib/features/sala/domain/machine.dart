@@ -190,6 +190,12 @@ final class PauseTapped extends MachineEvent {
   const PauseTapped();
 }
 
+final class TheHeldPartReturns extends MachineEvent {
+  final Paused held;
+
+  const TheHeldPartReturns(this.held);
+}
+
 final class GestureSilenced extends MachineEvent {
   final bool keepingTheHold;
 
@@ -802,6 +808,12 @@ const _watch = ArmTheWatch();
     beneath,
   ),
   PauseTapped() => _pause(machine),
+  TheHeldPartReturns(:final held) => (
+    machine.channel is Silence && machine.halt is! Blocking
+        ? machine.copyWith(channel: held)
+        : machine,
+    const [],
+  ),
   GestureSilenced(:final keepingTheHold) => (
     _silenced(machine, keepingTheHold),
     keepingTheHold
@@ -1435,6 +1447,7 @@ Machine _answered(Machine machine) =>
   MicDiscarded() ||
   BeadTapped() ||
   PauseTapped() ||
+  TheHeldPartReturns() ||
   GestureSilenced() ||
   GestureStarted() ||
   GestureEnded() ||
