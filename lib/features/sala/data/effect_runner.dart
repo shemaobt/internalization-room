@@ -14,6 +14,9 @@ import 'room_answer.dart';
 /// Where a Session read stands in the room's order of reads, and the row it was sent over.
 typedef SentRead = ({int order, List<Trecho> row});
 
+/// The book and the passage a closed-passage mark writes down as finished.
+typedef ClosedPassage = ({String book, String passage});
+
 /// Temporary: what the runner still asks the notifier to do, one method per effect that
 /// reads or writes state the Station will own.
 abstract interface class EffectHost {
@@ -64,6 +67,21 @@ abstract interface class EffectHost {
   /// The passage in course, kept with a call for a person when it is sent.
   String? get passageInCourse;
 
+  /// The room is not gone and a person is needed.
+  bool get aPersonIsNeeded;
+
+  /// The Station hears the stop: the call is no longer made, the network health is
+  /// settled and the resume failures start again.
+  void hearTheCallStopped();
+
+  /// The Station hears a closed passage begin to be marked, holds the call while it is
+  /// written, and hands back the row to write, or null with no passage in course.
+  ClosedPassage? hearTheMarkBegin();
+
+  /// The Station hears the write end, acts on the closed [passage] for [session] and
+  /// lets the call be wanted again.
+  void hearTheMarkEnd(String session, String? passage);
+
   /// The Station hears a call that landed; with a session it also stamps the read order,
   /// so a read sent before the landing cannot lift the halt.
   void hearTheCallLanded();
@@ -89,8 +107,6 @@ abstract interface class EffectHost {
 
   void silenceTheRoom();
 
-  void stopCallingForAPerson();
-
   void replayTheSound(Kept kept);
 
   void letTheOpeningGo();
@@ -112,10 +128,6 @@ abstract interface class EffectHost {
   void letTheTurnGo(Turn turn);
 
   void fellAt(Door door, RoomReach why);
-
-  void askForAPersonAgain();
-
-  void markThePassageClosed();
 }
 
 class EffectRunner {
@@ -147,6 +159,8 @@ class EffectRunner {
 
   Timer? _watch;
   Timer? _retry;
+  Timer? _ladder;
+  int _ladderStep = 0;
   StreamSubscription<void>? _networkWatch;
   Timer? _ceiling;
   Sound? _part;
@@ -178,7 +192,7 @@ class EffectRunner {
         case CallForAPerson():
           callForAPerson();
         case StopCallingForAPerson():
-          host.stopCallingForAPerson();
+          _stopCallingForAPerson();
         case TellAPersonArrived():
           _tellAPersonArrived();
         case ReadTheState():
@@ -236,9 +250,9 @@ class EffectRunner {
         case FellAt(:final door, :final why):
           host.fellAt(door, why);
         case AskForAPersonAgain():
-          host.askForAPersonAgain();
+          _askForAPersonAgain();
         case MarkThePassageClosed():
-          host.markThePassageClosed();
+          unawaited(_markThePassageClosed());
         case CountTheRefusal():
           host.countTheRefusal();
         case RefuseThePassage():
@@ -252,6 +266,7 @@ class EffectRunner {
     endTheWatch();
     unawaited(_micTaken?.cancel());
     _retry?.cancel();
+    _ladder?.cancel();
     _ceiling?.cancel();
     unawaited(_networkWatch?.cancel());
     for (final signal in _partSignals ?? const <StreamSubscription<void>>[]) {
@@ -605,7 +620,7 @@ class EffectRunner {
       case TheTabletIsUnknown() || TheRoomIsGone():
         break;
       case TheDeviceLinkUnread():
-        host.askForAPersonAgain();
+        _askForAPersonAgain();
     }
   }
 
@@ -649,6 +664,45 @@ class EffectRunner {
       case RoomAnswered() || RoomRefused() || RoomTimedOut():
         break;
     }
+  }
+
+  /// The arm is gated by [EffectHost.aPersonIsNeeded] and not by the generation: the
+  /// machine moves the generation on the way into other halts, and a ladder that did not
+  /// arm for it would stop insisting in silence. The fire is gated by the generation: a
+  /// ladder armed before it moved is dropped, as the Station drops any older answer.
+  void _askForAPersonAgain() {
+    if (!host.aPersonIsNeeded) return;
+    final armedUnder = generation?.call();
+    _ladder?.cancel();
+    _ladder = Timer(retryDelay(_ladderStep++), () {
+      _ladder = null;
+      if (generation?.call() != armedUnder) return;
+      callForAPerson();
+    });
+  }
+
+  void forgetTheLadder() {
+    _ladder?.cancel();
+    _ladder = null;
+    _ladderStep = 0;
+  }
+
+  void _stopCallingForAPerson() {
+    forgetTheLadder();
+    host.hearTheCallStopped();
+  }
+
+  /// Held as a call still being asked until the passage is written down as closed, so a
+  /// return in the meantime does not ask again.
+  Future<void> _markThePassageClosed() async {
+    final session = host.session;
+    if (session == null) return;
+    final closed = host.hearTheMarkBegin();
+    if (closed != null) {
+      await store.markThePassageClosed(closed.book, closed.passage);
+    }
+    if (_disposed) return;
+    host.hearTheMarkEnd(session, closed?.passage);
   }
 
   void endTheWatch() {

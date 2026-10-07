@@ -116,6 +116,9 @@ abstract interface class RecorderPort {
 abstract interface class StorePort {
   Future<int> flushTheOutbox();
 
+  /// Writes the passage down as finished; a failure to write is swallowed.
+  Future<void> markThePassageClosed(String book, String passage);
+
   Future<CurrentSession?> currentSession();
 
   Future<void> holdTheSession(CurrentSession session);

@@ -225,7 +225,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   bool _strandedSpoken = false;
   bool _personAsked = false;
   bool _markingThePassageClosed = false;
-  int _personAskStep = 0;
   int _lastAcknowledgement = 0;
   final _random = Random();
   DateTime? _listeningSince;
@@ -1117,9 +1116,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _stopCallingForAPerson() {
-    _timers.remove('person')?.cancel();
     _personAsked = false;
-    _personAskStep = 0;
     _settleNetworkHealth(resolved: true);
     _resumeFailures = 0;
   }
@@ -1150,8 +1147,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.rodaPorLer) _handOff(abrirEscolha());
   }
 
+  bool get _aPersonIsNeeded => !_gone && state.needsPerson;
+
   bool get _callIsWanted =>
-      !_gone && state.needsPerson && !_personAsked && !_markingThePassageClosed;
+      _aPersonIsNeeded && !_personAsked && !_markingThePassageClosed;
 
   void _theCallLanded() => _personAsked = true;
 
@@ -1173,13 +1172,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  /// Held as a call still being asked until the passage is written down as closed, so a
-  /// return in the meantime does not ask again.
-  Future<void> _markThePassageClosed() async {
-    final sessionId = state.sessionId;
-    if (sessionId == null) return;
+  ClosedPassage? _theMarkBegins() {
+    if (_gone) return null;
     _markingThePassageClosed = true;
-    await _thePassageClosed(sessionId, _emCurso);
+    final pericope = _emCurso;
+    if (pericope == null) return null;
+    final book = _book;
+    _toldClosed.add((book, pericope));
+    return (book: book, passage: pericope);
+  }
+
+  void _theMarkEnds(String sessionId, String? pericope) {
+    _theSessionIsClosed(sessionId, pericope);
     _markingThePassageClosed = false;
   }
 
@@ -1190,6 +1194,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _toldClosed.add((book, pericope));
       await _feitas.add(book, pericope).catchError((_) {});
     }
+    _theSessionIsClosed(sessionId, pericope);
+  }
+
+  void _theSessionIsClosed(String sessionId, String? pericope) {
     if (_gone) return;
     if (sessionId == _theSession) {
       return _dispatch(ThePassageClosed(generation: _generation));
@@ -1198,19 +1206,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(feitas: {...state.feitas, pericope});
     }
     _letGoOf(sessionId);
-  }
-
-  /// Whether to try again is `state.needsPerson` and not the generation: `_cancelTimers`
-  /// runs on the way into other halts, and an attempt still in flight when it does would
-  /// otherwise land on a room that is still stopped and stop insisting in silence.
-  void _keepAskingForAPerson(Future<void> Function() retry) {
-    if (_gone || !state.needsPerson) return;
-    final backoff = ref.read(roomRetryBackoffProvider);
-    final step = _personAskStep < backoff.length
-        ? _personAskStep
-        : backoff.length - 1;
-    _personAskStep++;
-    _after('person', backoff[step], () => unawaited(retry()));
   }
 
   /// [rule] is [RefusalRule.haltsAtOnce] for a turn of the openSession/sendTurn/loadWheel
@@ -5597,8 +5592,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _resumeFailures = 0;
     _strandedSpoken = false;
     _personAsked = false;
-    _personAskStep = 0;
     _runner.endTheWatch();
+    _runner.forgetTheLadder();
     _trechoTraduzidoDeNovo = null;
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
@@ -5663,6 +5658,19 @@ class _NotifierHost implements EffectHost {
   String? get passageInCourse => _notifier._emCurso;
 
   @override
+  bool get aPersonIsNeeded => _notifier._aPersonIsNeeded;
+
+  @override
+  void hearTheCallStopped() => _notifier._stopCallingForAPerson();
+
+  @override
+  ClosedPassage? hearTheMarkBegin() => _notifier._theMarkBegins();
+
+  @override
+  void hearTheMarkEnd(String session, String? passage) =>
+      _notifier._theMarkEnds(session, passage);
+
+  @override
   void hearTheCallLanded() => _notifier
     .._stampTheReadsSentBeforeTheCall()
     .._theCallLanded();
@@ -5717,9 +5725,6 @@ class _NotifierHost implements EffectHost {
   void silenceTheRoom() => _notifier._silenceTheHaltedRoom();
 
   @override
-  void stopCallingForAPerson() => _notifier._stopCallingForAPerson();
-
-  @override
   void replayTheSound(Kept kept) => _notifier._replay(kept);
 
   @override
@@ -5746,14 +5751,6 @@ class _NotifierHost implements EffectHost {
 
   @override
   void fellAt(Door door, RoomReach why) => _notifier._fellAt(door, why);
-
-  @override
-  void askForAPersonAgain() => _notifier._keepAskingForAPerson(
-    () async => _notifier._runner.callForAPerson(),
-  );
-
-  @override
-  void markThePassageClosed() => unawaited(_notifier._markThePassageClosed());
 
   @override
   void countTheRefusal() => _notifier._countTheRefusal();

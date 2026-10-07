@@ -11,6 +11,7 @@ import '../domain/turn_result.dart';
 import 'connectivity_service.dart';
 import 'current_session_ledger.dart';
 import 'facilitator_voice_service.dart';
+import 'finished_passages.dart';
 import 'linked_team.dart';
 import 'playback_repository.dart';
 import 'recording_repository.dart';
@@ -172,6 +173,10 @@ class ProviderStorePort implements StorePort {
   @override
   Future<int> flushTheOutbox() =>
       _ref.read(takeUploadQueueProvider).flush(withTheCodeless: true);
+
+  @override
+  Future<void> markThePassageClosed(String book, String passage) =>
+      _ref.read(finishedPassagesProvider).add(book, passage).catchError((_) {});
 
   @override
   Future<CurrentSession?> currentSession() =>
