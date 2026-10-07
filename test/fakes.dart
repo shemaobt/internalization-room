@@ -2453,6 +2453,12 @@ class SpeakingPlayer extends Fake implements AudioPlayer {
   ProcessingState _state = ProcessingState.ready;
 
   @override
+  Duration position = Duration.zero;
+
+  @override
+  Duration? get duration => lineLength;
+
+  @override
   ProcessingState get processingState => _state;
 
   bool get sounding => _sounding?.isCompleted == false;

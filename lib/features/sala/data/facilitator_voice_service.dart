@@ -34,6 +34,7 @@ class FacilitatorVoiceService {
   final Future<Directory> Function() _libraryDir;
   Future<Directory>? _dir;
   AudioPlayer? _opened;
+  bool _lineOpen = false;
   bool _lineOnDisk = false;
   final Duration _grace;
   final Duration _loadCeiling;
@@ -54,12 +55,15 @@ class FacilitatorVoiceService {
 
   AudioPlayer get _player => _opened ??= AudioPlayer();
 
-  /// How far into the line the player is.
-  Duration get linePosition => _opened?.position ?? Duration.zero;
+  /// How far into the line the player is, once the line is open: until then the player
+  /// still holds the line before it.
+  Duration get linePosition =>
+      _lineOpen ? _opened?.position ?? Duration.zero : Duration.zero;
 
   /// How long the line is, only when the player opened it from a file on disk: a line
   /// streamed as it arrives has only an estimate, which must never pass for its length.
-  Duration? get lineLength => _lineOnDisk ? _opened?.duration : null;
+  Duration? get lineLength =>
+      _lineOpen && _lineOnDisk ? _opened?.duration : null;
 
   Future<Directory> get _resolvedDir {
     final dir = _dir ??= _libraryDir();
@@ -71,6 +75,7 @@ class FacilitatorVoiceService {
 
   Future<bool> play(String url, {void Function()? onSoundStart}) {
     if (url.isEmpty) return Future.value(false);
+    _lineOpen = false;
     return _afterTheCurrentLine(() async {
       final clip = _clipArriving(url);
       final kept =
@@ -137,6 +142,7 @@ class FacilitatorVoiceService {
   }
 
   Future<bool> playAsset(String assetPath, {void Function()? onSoundStart}) {
+    _lineOpen = false;
     return _afterTheCurrentLine(() {
       _lineOnDisk = false;
       return _sayItWhole(
@@ -187,6 +193,7 @@ class FacilitatorVoiceService {
       return false;
     }
     if (length == Duration.zero) return false;
+    _lineOpen = true;
     StreamSubscription<PlayerState>? soundStart;
     if (onSoundStart != null) {
       soundStart = _player.playerStateStream

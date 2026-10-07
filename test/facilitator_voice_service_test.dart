@@ -1004,6 +1004,64 @@ void main() {
     );
   });
 
+  group('the voice tells where she is in her line', () {
+    const at = Duration(milliseconds: 2400);
+    const length = Duration(milliseconds: 9000);
+
+    test('and how long it is, for a line on the tablet', () async {
+      File('${library.path}/aaa.mp3').writeAsBytesSync([1, 2, 3]);
+      final player = SpeakingPlayer()
+        ..lineLength = length
+        ..position = at;
+      final voice = service(player: player);
+
+      final speaking = voice.play(_clip);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(voice.linePosition, at);
+      expect(voice.lineLength, length);
+      player.reachTheEnd();
+      await speaking;
+    });
+
+    test('but never how long, for a line streamed as it arrives', () async {
+      final player = SpeakingPlayer()
+        ..lineLength = length
+        ..position = at;
+      final voice = service(player: player);
+
+      final speaking = voice.play(_clip);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(voice.linePosition, at);
+      expect(voice.lineLength, isNull);
+      player.reachTheEnd();
+      await speaking;
+    });
+
+    test(
+      'and nothing of the line before, while hers is still opening',
+      () async {
+        File('${library.path}/aaa.mp3').writeAsBytesSync([1, 2, 3]);
+        final player = SpeakingPlayer()..lineLength = length;
+        final voice = service(player: player);
+        final before = voice.play(_clip);
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        player
+          ..position = length
+          ..reachTheEnd();
+        await before;
+        player.neverLoads = true;
+
+        unawaited(voice.play(_clip));
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(voice.linePosition, Duration.zero);
+        expect(voice.lineLength, isNull);
+      },
+    );
+  });
+
   test('a line the player paused in the middle is not counted as heard', () async {
     final player = SpeakingPlayer();
     final voice = service(player: player);

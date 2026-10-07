@@ -67,6 +67,13 @@ void main() {
       _interrupted,
     );
 
+    expect(
+      machine.channel,
+      const Microphone(
+        MicOwner.conversation,
+        cut: CutPoint(Duration.zero, null),
+      ),
+    );
     expect(machine.queue, isNot(contains(_guide)));
     expect(machine.owners.keys, isNot(contains(_guide)));
     expect(machine.lastLine?.line, _guide);

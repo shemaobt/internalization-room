@@ -2818,15 +2818,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  /// Where the Guide is is read before she stops: over the acknowledgement, the reply
-  /// waiting behind it has not begun.
+  /// Where the Guide is is read before she stops.
   void _cutTheVoice() {
-    final acknowledging = switch (state.channel) {
-      GuideSpeaking(:final line) => line.kind == LineKind.acknowledgement,
-      _ => false,
-    };
-    final at = acknowledging ? Duration.zero : _sound.linePosition;
-    final of = acknowledging ? null : _sound.lineLength;
+    final at = _sound.linePosition;
+    final of = _sound.lineLength;
     _quietTheRoom();
     state = state.copyWith(clearContaEscolhida: true);
     _listen(Interrupted(take: 'conversa_${_stamp()}', at: at, of: of));
