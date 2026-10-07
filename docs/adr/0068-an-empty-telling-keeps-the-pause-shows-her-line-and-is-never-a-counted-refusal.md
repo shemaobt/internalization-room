@@ -12,7 +12,7 @@ the server's change (ENG-1226).
 
 ## Context
 
-Since the server's ADR 0049, both telling doors refuse a telling with no words with a 422
+Since shema-api ADR 0049, both telling doors refuse a telling with no words with a 422
 and the code `WORDLESS_TELLING`, and send no line. The tablet had no such code, so the
 failure policy counted the refusal like any other and the third one raised a blocking halt
 that called for a person. The refused recording also stayed pending with the confirm lit,
@@ -30,13 +30,18 @@ entendi — traduzam de novo esse pedaço», and nothing is voiced.
 - **The machine answers in the Back-translation only.** It sets the fact that the telling
   came back empty and lets the pending translation go: no refusal counted, no line played,
   the part left where the confirm held it. Anywhere else the event changes nothing. The
-  Station clears the pending translation and ends its wait, and keeps the recording's copy
-  in the Outbox; only the circle is offered.
-- **The fact clears four ways:** the capture microphone opening, a telling with words
-  landing (a plain answering event, `TheTellingLanded`, not the room's answer, which every
-  session read also brings), the team asking for the verdict (`TheVerdictAsked`, which
-  closes the stretch's open telling), and the team leaving the Back-translation. A halt does
-  not clear it, and it is not kept in the slice, so a reopened session shows nothing.
+  Station clears the pending translation, deletes its recording file and ends its wait; the
+  Outbox keeps its own copy. Only the circle is offered: the confirm, the scissors and the
+  listen control stay dark while the fact stands.
+- **A refusal is an answer.** Only a telling that got no answer (the network failed or timed
+  out) waits as told-without-answer for a later landing; a refused one never does, so a
+  refusal cannot hide the team's own landed telling behind a stranger's.
+- **The fact clears three ways:** the capture microphone opening, the team asking for the
+  verdict (`TheVerdictAsked`, which closes the stretch's open telling), and the team leaving
+  the Back-translation. A telling with words needs no clearing of its own: once the pending
+  translation is let go, nothing can land until the team records again, and the microphone
+  that records has already cleared the fact. A halt does not clear it, and it is not kept in
+  the slice, so a reopened session shows nothing.
 - **Shown, in a wordless room (ADR 0014),** means a mark beside the circle, on the side
   opposite the warning mark and drawn like it in the blue of the translation, whose
   VoiceOver label is her line; the circle's own label becomes her line too. A person and
@@ -54,6 +59,9 @@ policy, and the guard test enforces it.
 
 **Clearing the fact on any room answer.** Rejected: a background session read would wipe
 her line before the team acted.
+
+**A clearing when a telling lands.** Dropped: measured, no landing can reach the room while
+the fact stands, so the event would have had no witness.
 
 **Withdrawing the refused recording from the Outbox.** Rejected: the copy is audio the team
 made, and it goes up as any other.
