@@ -41,12 +41,15 @@ final class Source {
   int get hashCode => Object.hash(key, counts);
 }
 
+typedef FixedLine = ({String name, String language});
+
 final class Line {
   final LineKind kind;
   final int id;
   final Source source;
   final String? url;
   final String? asset;
+  final FixedLine? fixedLine;
   final void Function()? onSoundStart;
 
   const Line(
@@ -55,6 +58,7 @@ final class Line {
     this.source = Source.guide,
     this.url,
     this.asset,
+    this.fixedLine,
     this.onSoundStart,
   });
 

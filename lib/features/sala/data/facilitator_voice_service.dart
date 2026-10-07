@@ -30,6 +30,11 @@ class FacilitatorVoiceService {
     String? ifRange,
   })
   _open;
+  final Future<RoomAnswer<String>> Function(
+    String line, {
+    required String language,
+  })
+  _lineAt;
   final bool _playsAsItArrives;
   final Future<Directory> Function() _libraryDir;
   Future<Directory>? _dir;
@@ -38,9 +43,11 @@ class FacilitatorVoiceService {
   final Duration _loadCeiling;
   Future<void> _speaking = Future<void>.value();
   final Map<String, _ArrivingClip> _arriving = {};
+  final Map<(String, String), String> _addresses = {};
 
   FacilitatorVoiceService({
     required this._open,
+    required this._lineAt,
     this._playsAsItArrives = true,
     Future<Directory> Function()? libraryDir,
     AudioPlayer? player,
@@ -80,6 +87,38 @@ class FacilitatorVoiceService {
         },
       );
     });
+  }
+
+  Future<bool> playFixedLine(
+    String line,
+    String language, {
+    void Function()? onSoundStart,
+  }) async {
+    try {
+      return await play(
+        await _addressOf(line, language),
+        onSoundStart: onSoundStart,
+      );
+    } on RoomFailure {
+      return false;
+    }
+  }
+
+  Future<bool> readyFixedLine(String line, String language) async =>
+      ready(await _addressOf(line, language));
+
+  Future<String> _addressOf(String line, String language) async {
+    final known = _addresses[(line, language)];
+    if (known != null) return known;
+    try {
+      return switch (await _lineAt(line, language: language).timeout(_grace)) {
+        Answered(value: final address) =>
+          _addresses[(line, language)] = address,
+        RoomFailure() => '',
+      };
+    } on TimeoutException {
+      return '';
+    }
   }
 
   Future<bool> fetch(String url) async {
@@ -507,6 +546,7 @@ final voicePlaysAsItArrivesProvider = Provider<bool>((ref) => true);
 final facilitatorVoiceProvider = Provider<FacilitatorVoiceService>((ref) {
   final service = FacilitatorVoiceService(
     open: ref.read(roomRepositoryProvider).openClip,
+    lineAt: ref.read(roomRepositoryProvider).fixedLineAddress,
     playsAsItArrives: ref.read(voicePlaysAsItArrivesProvider),
   );
   ref.onDispose(service.dispose);

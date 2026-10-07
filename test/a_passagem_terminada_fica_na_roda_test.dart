@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/passage_ruler.dart';
 
@@ -30,8 +29,8 @@ void main() {
     );
     expect(state.needsPerson, isFalse);
     expect(
-      harness.voice.assets,
-      isNot(contains(fixedLineAsset('E0', testLanguage))),
+      harness.voice.fixedLines,
+      isNot(contains(('E0', testLanguage))),
       reason:
           'o círculo é alive at done: o registro informa, ele não fecha '
           'a conversa',

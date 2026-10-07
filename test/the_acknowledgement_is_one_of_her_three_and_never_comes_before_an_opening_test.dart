@@ -15,36 +15,34 @@ const _panorama = Passagem(
 );
 const _p01 = Passagem(pericope: 'P01', audioUrl: '/voice/p01');
 
-String _clip(String line) => fixedLineAsset(line, testLanguage);
+(String, String) _asked(String line) => (line, testLanguage);
 
-List<String> _acknowledgementsIn(Iterable<String> assets) => [
-  for (final asset in assets)
-    if (everyAcknowledgementLineTheAppEverHad.any(
-      (line) => asset == _clip(line),
-    ))
-      asset,
-];
+List<(String, String)> _acknowledgementsIn(Iterable<(String, String)> asked) =>
+    [
+      for (final line in asked)
+        if (everyAcknowledgementLineTheAppEverHad.contains(line.$1)) line,
+    ];
 
-Future<List<String>> _fiftyAcknowledgements() async {
+Future<List<(String, String)>> _fiftyAcknowledgements() async {
   final harness = SalaHarness();
   final container = harness.container();
   addTearDown(container.dispose);
   final notifier = container.read(salaSessionProvider.notifier);
   await notifier.goConversa();
   await settle();
-  harness.voice.assets.clear();
+  harness.voice.fixedLines.clear();
   for (var turn = 0; turn < 50; turn++) {
     notifier.conversaTap();
     await settle();
     notifier.conversaTap();
     await settle();
   }
-  return _acknowledgementsIn(harness.voice.assets);
+  return _acknowledgementsIn(harness.voice.fixedLines);
 }
 
 void main() {
   group('fifty acknowledgements in a row', () {
-    late Future<List<String>> fifty;
+    late Future<List<(String, String)>> fifty;
 
     setUpAll(() => fifty = _fiftyAcknowledgements());
 
@@ -54,9 +52,9 @@ void main() {
       expect(heard, hasLength(50));
       expect(
         heard,
-        everyElement(isIn([for (final l in instantAckLines) _clip(l)])),
+        everyElement(isIn([for (final l in instantAckLines) _asked(l)])),
       );
-      expect(heard, isNot(contains(_clip('F3'))));
+      expect(heard, isNot(contains(_asked('F3'))));
       for (var i = 1; i < heard.length; i++) {
         expect(heard[i], isNot(heard[i - 1]), reason: 'turn $i repeated');
       }
@@ -79,7 +77,7 @@ void main() {
     test('let every one of the three be heard', () async {
       final heard = await fifty;
 
-      expect(heard.toSet(), {for (final l in instantAckLines) _clip(l)});
+      expect(heard.toSet(), {for (final l in instantAckLines) _asked(l)});
     });
   });
 
@@ -92,7 +90,7 @@ void main() {
     await settle();
 
     expect(harness.voice.played, isNotEmpty);
-    expect(_acknowledgementsIn(harness.voice.assets), isEmpty);
+    expect(_acknowledgementsIn(harness.voice.fixedLines), isEmpty);
   });
 
   test('a scene asked again from the Menu after a failed opening plays no '
@@ -111,7 +109,7 @@ void main() {
           read().voice == VoiceState.invite,
     );
     notifier.leaveThePassage();
-    harness.voice.assets.clear();
+    harness.voice.fixedLines.clear();
 
     await enterThePassage(notifier, read, 'P01');
     await waitFor(
@@ -120,7 +118,7 @@ void main() {
     );
 
     expect(harness.room.turnIdsAsked, hasLength(2));
-    expect(_acknowledgementsIn(harness.voice.assets), isEmpty);
+    expect(_acknowledgementsIn(harness.voice.fixedLines), isEmpty);
   });
   test('the panorama\'s opening plays no acknowledgement', () async {
     final harness = SalaHarness()..room.passages = const [_panorama, _p01];
@@ -134,6 +132,6 @@ void main() {
     await settle();
 
     expect(harness.voice.played, isNotEmpty);
-    expect(_acknowledgementsIn(harness.voice.assets), isEmpty);
+    expect(_acknowledgementsIn(harness.voice.fixedLines), isEmpty);
   });
 }

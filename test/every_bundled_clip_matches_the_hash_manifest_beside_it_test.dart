@@ -92,17 +92,15 @@ void main() {
     },
   );
 
-  test('the bundle holds her three acknowledgements and no fourth', () {
+  test('the bundle holds the three notices and none of her lines', () {
     for (final language in _languages()) {
-      final acknowledgements = _clipsIn(
-        language,
-      ).where((clip) => RegExp(r'^fixed/F\d+\.mp3$').hasMatch(clip));
-
-      expect(acknowledgements, [
-        'fixed/F0.mp3',
-        'fixed/F1.mp3',
-        'fixed/F2.mp3',
-      ]);
+      expect(
+        _clipsIn(language),
+        ['gravacao_presa.mp3', 'microfone.mp3', 'sem_conexao.mp3'],
+        reason:
+            '${language.path}: as falas dela iam gravadas no app, e uma '
+            'gravação antiga tocava depois de ela mudar a letra',
+      );
     }
   });
 }

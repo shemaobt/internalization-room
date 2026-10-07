@@ -118,7 +118,12 @@ bool _live(WidgetTester tester, String label) =>
     !_ignoring(tester, label);
 
 int _voicedLines(SalaHarness harness) => harness.sounds
-    .where((sound) => sound == 'voice:line' || sound == 'voice:asset')
+    .where(
+      (sound) =>
+          sound == 'voice:line' ||
+          sound == 'voice:asset' ||
+          sound == 'voice:fixed',
+    )
     .length;
 
 Future<void> _keepAPart(WidgetTester tester, _Room room) async {

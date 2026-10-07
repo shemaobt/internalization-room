@@ -10,7 +10,7 @@ bool _neverBothSounding(List<String> log) {
   var part = false;
   for (final entry in log) {
     switch (entry) {
-      case 'voice:line' || 'voice:asset':
+      case 'voice:line' || 'voice:asset' || 'voice:fixed':
         line = true;
       case 'voice:stop':
         line = false;
@@ -27,7 +27,11 @@ bool _neverBothSounding(List<String> log) {
 bool _lineIsSounding(List<String> log) {
   var line = false;
   for (final entry in log) {
-    if (entry == 'voice:line' || entry == 'voice:asset') line = true;
+    if (entry == 'voice:line' ||
+        entry == 'voice:asset' ||
+        entry == 'voice:fixed') {
+      line = true;
+    }
     if (entry == 'voice:stop') line = false;
   }
   return line;

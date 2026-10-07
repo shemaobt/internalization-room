@@ -28,6 +28,7 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
       harness.voice.assets.clear();
+      harness.voice.fixedLines.clear();
       final callsBefore = harness.room.calls.length;
 
       await _miss(notifier);
@@ -39,6 +40,7 @@ void main() {
             'o toque de dentro da janela nunca chega a falar nada — a '
             'gravação continua, não é um take reprovado',
       );
+      expect(harness.voice.fixedLines, isEmpty);
       expect(
         harness.room.calls.length,
         callsBefore,

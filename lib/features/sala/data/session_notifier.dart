@@ -399,11 +399,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     LineKind kind, {
     String? url,
     String? asset,
+    FixedLine? fixedLine,
     void Function()? onSoundStart,
   }) => _sayTheLine(
     kind,
     url: url,
     asset: asset,
+    fixedLine: fixedLine,
     onSoundStart: onSoundStart,
   ).then((said) => said == Said.said);
 
@@ -411,6 +413,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     LineKind kind, {
     String? url,
     String? asset,
+    FixedLine? fixedLine,
     void Function()? onSoundStart,
     Source? source,
   }) {
@@ -418,6 +421,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       kind,
       url: url,
       asset: asset,
+      fixedLine: fixedLine,
       onSoundStart: onSoundStart,
       source: source,
     );
@@ -437,6 +441,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     LineKind kind, {
     String? url,
     String? asset,
+    FixedLine? fixedLine,
     void Function()? onSoundStart,
     Source? source,
   }) => Line(
@@ -450,6 +455,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         },
     url: url,
     asset: asset,
+    fixedLine: fixedLine,
     onSoundStart: onSoundStart,
   );
 
@@ -727,11 +733,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// what makes the screen refuse a touch that would start a second line on top of this
   /// one.
   Future<void> _readyToSpeak(String url, String fixedLine) async {
-    if (fixedLine.isEmpty) {
-      state = state.copyWith(awaitingTheGuide: true);
-      _watchBusyState();
-      await _voice.ready(url);
-    }
+    state = state.copyWith(awaitingTheGuide: true);
+    _watchBusyState();
+    await (fixedLine.isEmpty
+        ? _voice.ready(url)
+        : _voice.readyFixedLine(fixedLine, _lingua));
   }
 
   /// Say a line, and remember it as the one "ouvir de novo" gives back.
@@ -751,7 +757,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final played = await _sayALine(
       LineKind.guide,
       url: fixedLine.isEmpty ? url : null,
-      asset: fixedLine.isEmpty ? null : fixedLineAsset(fixedLine, _lingua),
+      fixedLine: fixedLine.isEmpty
+          ? null
+          : (name: fixedLine, language: _lingua),
       onSoundStart: onSoundStart,
     );
     if (played && remember && !_abandoned(generation)) {
@@ -2023,6 +2031,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     final panorama = _panoramaSessionId ?? created!.sessionId;
     _panoramaSessionId = panorama;
+    _warmHerLines();
     _openingOwed = true;
     final turnId = _openTurnId ??= _stamp();
     await _sendATurn(
@@ -2351,6 +2360,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (pericope != null) _holdTheCurrentSession(sessionId, pericope);
     _sessionSavedAt = resumed ? waiting.savedAt : clock.now();
     _sessionLanguage = resumed ? waiting.language : _lingua;
+    _warmHerLines();
     if (pericope != null && !resumed) {
       unawaited(
         _mindingThePlace(
@@ -2907,11 +2917,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
+  void _warmHerLines() {
+    for (final line in [
+      ...instantAckLines,
+      startLine,
+      tellLine,
+      approvedLine,
+    ]) {
+      unawaited(_voice.readyFixedLine(line, _lingua));
+    }
+  }
+
   void _sayImThinking() {
     _lastAcknowledgement = acknowledgementAfter(_lastAcknowledgement, _random);
     final line = instantAckLines[_lastAcknowledgement];
     unawaited(
-      _sayALine(LineKind.acknowledgement, asset: fixedLineAsset(line, _lingua)),
+      _sayALine(
+        LineKind.acknowledgement,
+        fixedLine: (name: line, language: _lingua),
+      ),
     );
   }
 
@@ -4979,7 +5003,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       try {
         disse = await _sayALine(
           LineKind.approved,
-          asset: fixedLineAsset(approvedLine, _lingua),
+          fixedLine: (name: approvedLine, language: _lingua),
         );
       } on RoomFailure catch (failure) {
         return failed(failure);

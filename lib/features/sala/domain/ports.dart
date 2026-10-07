@@ -78,6 +78,12 @@ abstract interface class SoundPort {
 
   Future<bool> playAsset(String assetPath, {void Function()? onSoundStart});
 
+  Future<bool> playFixedLine(
+    String line,
+    String language, {
+    void Function()? onSoundStart,
+  });
+
   Future<void> playPart(Sound sound);
 
   Stream<void> get partEnded;

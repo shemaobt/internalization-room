@@ -285,13 +285,20 @@ class EffectRunner {
   void _say(Line line) {
     final url = line.url;
     final asset = line.asset;
-    if (url == null && asset == null) {
+    final fixedLine = line.fixedLine;
+    if (url == null && asset == null && fixedLine == null) {
       return host.answer(LineNotSaid(line, generation: generation?.call()));
     }
     unawaited(
       _answerTheLine(
         line,
-        asset != null
+        fixedLine != null
+            ? sound.playFixedLine(
+                fixedLine.name,
+                fixedLine.language,
+                onSoundStart: line.onSoundStart,
+              )
+            : asset != null
             ? sound.playAsset(asset, onSoundStart: line.onSoundStart)
             : sound.playLine(url!, onSoundStart: line.onSoundStart),
       ),

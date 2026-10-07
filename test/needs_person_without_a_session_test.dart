@@ -288,6 +288,7 @@ void main() {
       reason: 'a parada chegou; o pedido pela sessão está em voo, seguro',
     );
     final playedBeforeResolve = harness.voice.assets.length;
+    final fixedBeforeResolve = harness.voice.fixedLines.length;
 
     notifier.resolveWithPerson();
     await settle();
@@ -326,6 +327,7 @@ void main() {
           'a linha de precisa-de-pessoa não pode tocar uma segunda vez para '
           'uma parada que a equipe já resolveu',
     );
+    expect(harness.voice.fixedLines.length, fixedBeforeResolve);
   });
 
   group('askForAPersonWithoutASession (repositório)', () {

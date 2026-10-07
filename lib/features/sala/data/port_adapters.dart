@@ -104,6 +104,16 @@ class ProviderSoundPort implements SoundPort {
   }
 
   @override
+  Future<bool> playFixedLine(
+    String line,
+    String language, {
+    void Function()? onSoundStart,
+  }) {
+    unawaited(_playback.pause());
+    return _voice.playFixedLine(line, language, onSoundStart: onSoundStart);
+  }
+
+  @override
   Future<void> playPart(Sound sound) {
     unawaited(_voice.stop());
     final to = sound.to;

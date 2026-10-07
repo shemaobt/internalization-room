@@ -36,6 +36,16 @@ class ASoundPort implements SoundPort {
     return (_line = Completer<bool>()).future;
   }
 
+  @override
+  Future<bool> playFixedLine(
+    String line,
+    String language, {
+    void Function()? onSoundStart,
+  }) {
+    heard.add('fixed:$line:$language');
+    return (_line = Completer<bool>()).future;
+  }
+
   void endTheLine({bool whole = true}) => _line?.complete(whole);
 
   @override

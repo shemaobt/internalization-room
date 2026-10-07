@@ -995,7 +995,7 @@ void main() {
       notifier.conversaTap();
       await waitFor(
         'a sala dizer uma fala fixa',
-        () => harness.voice.assets.isNotEmpty,
+        () => harness.voice.fixedLines.isNotEmpty,
       );
       await settle();
 
@@ -3144,20 +3144,24 @@ void main() {
     );
   });
 
-  test('a fixed line comes from the bundle, never from the wire', () async {
-    final harness = SalaHarness()..room.fixedLine = 'D1';
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
+  test(
+    'a fixed line is asked of the room by its name, never played from the bundle',
+    () async {
+      final harness = SalaHarness()..room.fixedLine = 'D1';
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
 
-    expect(harness.voice.assets, [fixedLineAsset('D1', testLanguage)]);
-    expect(
-      harness.voice.played,
-      isEmpty,
-      reason:
-          'a linha de segurança não pede rede — a rede costuma ser o que falhou',
-    );
-    expect(harness.room.clipsFetched, isEmpty);
-  });
+      expect(
+        harness.voice.fixedLines,
+        [('D1', testLanguage)],
+        reason:
+            'a linha tocava da gravação dentro do app, e a letra que ela mudou '
+            'só chegava à equipe com uma versão nova na loja',
+      );
+      expect(harness.voice.assets, isEmpty);
+      expect(harness.voice.played, isEmpty);
+    },
+  );
 
   test('no network is caught before the team ever taps', () async {
     final harness = SalaHarness()..network.reachable = false;
@@ -4012,6 +4016,92 @@ void main() {
     );
   });
 
+  test(
+    'a fixed line the room has to fetch is waited for in thinking, not mimed',
+    () async {
+      final harness = SalaHarness()..room.fixedLine = 'A0';
+      final container = harness.container();
+      addTearDown(container.dispose);
+      await _aimAtThePanorama(harness, container);
+      harness.voice.holdNextFetch();
+
+      container.read(salaSessionProvider.notifier).entrarNaOferecida();
+      await settle(const Duration(milliseconds: 20));
+
+      expect(
+        container.read(salaSessionProvider).voice,
+        VoiceState.thinking,
+        reason:
+            'a linha fixa vinha do pacote e soava na hora; vinda da sala, o '
+            'círculo ondulava falando enquanto nada saía',
+      );
+      expect(harness.voice.fixedLines, isEmpty);
+
+      harness.voice.finishHeldFetch();
+      await waitFor(
+        'a linha fixa tocar',
+        () => harness.voice.fixedLines.isNotEmpty,
+      );
+      expect(harness.voice.readied, contains(('A0', testLanguage)));
+    },
+  );
+
+  test(
+    'a passage that opens brings down the acknowledgements and her start, tell and approval lines before the team speaks',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+
+      expect(
+        harness.voice.readied,
+        unorderedEquals([
+          ('F0', testLanguage),
+          ('F1', testLanguage),
+          ('F2', testLanguage),
+          ('P0', testLanguage),
+          ('P1', testLanguage),
+          ('P3', testLanguage),
+        ]),
+        reason:
+            'o primeiro "hmm" de cada abertura do app esperava o endereço e o '
+            'download, e o reconhecimento instantâneo chegava atrasado; o '
+            'começo e a instrução de traduzir nunca eram buscados',
+      );
+      expect(
+        harness.voice.readied,
+        isNot(contains(('F3', testLanguage))),
+        reason:
+            'a quarta espera saiu do arquivo dela, e a sala pedia uma fala que '
+            'não existe a cada abertura',
+      );
+      expect(harness.voice.fixedLines, isEmpty);
+    },
+  );
+
+  test(
+    'a panorama that opens brings down the same lines before the team speaks',
+    () async {
+      final harness = SalaHarness();
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await _enterThePanorama(harness, container);
+
+      expect(
+        harness.voice.readied,
+        unorderedEquals([
+          ('F0', testLanguage),
+          ('F1', testLanguage),
+          ('F2', testLanguage),
+          ('P0', testLanguage),
+          ('P1', testLanguage),
+          ('P3', testLanguage),
+        ]),
+      );
+    },
+  );
+
   test('a wait for an answer still gives up at the busy ceiling', () async {
     final harness = SalaHarness(busyCeiling: const Duration(milliseconds: 40));
     final container = harness.container();
@@ -4055,17 +4145,18 @@ void main() {
     expect(container.read(salaSessionProvider).voice, VoiceState.invite);
   });
 
-  test('a fixed line is repeated from the bundle', () async {
+  test('a fixed line is repeated by its name, not from the bundle', () async {
     final harness = SalaHarness()..room.fixedLine = 'D1';
     final container = await inConversa(harness);
     addTearDown(container.dispose);
 
     await container.read(salaSessionProvider.notifier).hearAgain();
 
-    expect(harness.voice.assets, [
-      fixedLineAsset('D1', testLanguage),
-      fixedLineAsset('D1', testLanguage),
+    expect(harness.voice.fixedLines, [
+      ('D1', testLanguage),
+      ('D1', testLanguage),
     ]);
+    expect(harness.voice.assets, isEmpty);
     expect(harness.room.clipsFetched, isEmpty);
   });
 
@@ -5221,8 +5312,8 @@ void main() {
           'indistinguível de um app morto — e não há texto que explique',
     );
     expect(
-      harness.voice.assets,
-      isNot(contains(fixedLineAsset('E0', testLanguage))),
+      harness.voice.fixedLines,
+      isNot(contains(('E0', testLanguage))),
       reason:
           'o disco verde já mostra a parada sozinho; falar por cima dele é a '
           'mesma sala dizendo o mesmo aviso duas vezes, uma vez local e sem o servidor',
@@ -5814,7 +5905,7 @@ void main() {
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
-    harness.voice.assets.clear();
+    harness.voice.fixedLines.clear();
 
     notifier.conversaTap();
     await settle();
@@ -5822,10 +5913,8 @@ void main() {
     await settle();
 
     expect(
-      harness.voice.assets.first,
-      isIn([
-        for (final line in instantAckLines) fixedLineAsset(line, testLanguage),
-      ]),
+      harness.voice.fixedLines.first,
+      isIn([for (final line in instantAckLines) (line, testLanguage)]),
       reason:
           'a fala de reconhecimento existe aprovada e no pacote desde o '
           'começo, e nada nunca a tocava — a sala esperava calada',
@@ -5839,6 +5928,7 @@ void main() {
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
     harness.voice.assets.clear();
+    harness.voice.fixedLines.clear();
     final turnsBefore = harness.room.turnsSent;
 
     notifier.conversaTap();
@@ -5860,6 +5950,7 @@ void main() {
           'nenhuma linha fixa é falada — o take que o guard reprova '
           'some em silêncio, sem pedir para repetir',
     );
+    expect(harness.voice.fixedLines, isEmpty);
     expect(
       container.read(salaSessionProvider).voice,
       VoiceState.invite,
@@ -6585,8 +6676,8 @@ void main() {
           'esperar nunca conserta chave errada — não pode virar tela de offline',
     );
     expect(
-      harness.voice.assets,
-      isNot(contains(fixedLineAsset('E0', testLanguage))),
+      harness.voice.fixedLines,
+      isNot(contains(('E0', testLanguage))),
       reason:
           'o disco parado é o aviso; a chave errada nunca chegou a um turno do '
           'servidor, então não há E0 nenhum para repetir aqui',
@@ -6923,6 +7014,7 @@ void main() {
           'não há mais pergunta de método a fazer com uma fala fixa do app; '
           'a primeira voz na sala é a do Guia, tocada pela url que a sala mandou',
     );
+    expect(harness.voice.fixedLines, isEmpty);
     expect(
       harness.voice.played,
       hasLength(1),
@@ -8032,6 +8124,7 @@ void main() {
       addTearDown(() => library.deleteSync(recursive: true));
       final harness = SalaHarness(
         voiceService: FacilitatorVoiceService(
+          lineAt: noFixedLine,
           open: (_, {from, ifRange}) async => http.StreamedResponse(
             body.stream,
             200,
@@ -8080,6 +8173,7 @@ void main() {
       var answered = false;
       final harness = SalaHarness(
         voiceService: FacilitatorVoiceService(
+          lineAt: noFixedLine,
           open: (_, {from, ifRange}) async {
             answered = true;
             return http.StreamedResponse(
@@ -8130,6 +8224,7 @@ void main() {
     addTearDown(() => library.deleteSync(recursive: true));
     final harness = SalaHarness(
       voiceService: FacilitatorVoiceService(
+        lineAt: noFixedLine,
         open: (_, {from, ifRange}) async => http.StreamedResponse(
           Stream.value([1, 2, 3]),
           200,

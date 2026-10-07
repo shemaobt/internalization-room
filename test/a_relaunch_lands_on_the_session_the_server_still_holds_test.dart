@@ -27,7 +27,11 @@ class _Tablet {
 
   SalaSessionState get state => container.read(salaSessionProvider);
 
-  List<String> get said => [...harness.voice.played, ...harness.voice.assets];
+  List<String> get said => [
+    ...harness.voice.played,
+    ...harness.voice.assets,
+    for (final (line, _) in harness.voice.fixedLines) line,
+  ];
 
   int asked(String call) =>
       harness.room.calls.where((asked) => asked == call).length;

@@ -19,10 +19,11 @@ String strandedTakeAsset(String language) =>
 
 const panoramaPericope = 'OV';
 
-String fixedLineAsset(String line, String language) =>
-    'assets/audio/$language/fixed/$line.mp3';
-
 const instantAckLines = ['F0', 'F1', 'F2'];
+
+const startLine = 'P0';
+
+const tellLine = 'P1';
 
 /// The fourth of Marcia's process lines, read by position: start, tell, unheard,
 /// approved. The approval's is the fourth, never rotated.

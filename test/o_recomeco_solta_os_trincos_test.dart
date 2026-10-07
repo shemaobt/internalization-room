@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -54,14 +53,11 @@ Future<_Sala> _aRodaAberta() async {
   return sala;
 }
 
-/// The lines the room said to fill a wait, in the order it said them, whichever of the
-/// bundled family they are.
+/// The lines the room said to fill a wait, in the order it said them, whichever of her
+/// acknowledgements they are.
 List<String> _esperasDitas(SalaHarness harness) => [
-  for (final asset in harness.voice.assets)
-    if (everyAcknowledgementLineTheAppEverHad.any(
-      (line) => asset == fixedLineAsset(line, testLanguage),
-    ))
-      asset,
+  for (final (line, _) in harness.voice.fixedLines)
+    if (everyAcknowledgementLineTheAppEverHad.contains(line)) line,
 ];
 
 void main() {
