@@ -366,7 +366,13 @@ sealed class Effect {
   const Effect();
 }
 
-final class SilenceTheRoom extends Effect {
+/// An effect whose work is the Station's own lifecycle, handed over to it through one
+/// narrow callback (ENG-1444).
+sealed class LifecycleHandOff extends Effect {
+  const LifecycleHandOff();
+}
+
+final class SilenceTheRoom extends LifecycleHandOff {
   const SilenceTheRoom();
 }
 
@@ -534,7 +540,7 @@ final class DrainTheOutbox extends Effect {
   const DrainTheOutbox();
 }
 
-final class ResendPending extends Effect {
+final class ResendPending extends LifecycleHandOff {
   const ResendPending();
 }
 
@@ -546,11 +552,11 @@ final class SayTheOfflineNotice extends Effect {
   const SayTheOfflineNotice();
 }
 
-final class DiscardTheSession extends Effect {
+final class DiscardTheSession extends LifecycleHandOff {
   const DiscardTheSession();
 }
 
-final class OpenTheChoice extends Effect {
+final class OpenTheChoice extends LifecycleHandOff {
   const OpenTheChoice();
 }
 

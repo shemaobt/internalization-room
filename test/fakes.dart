@@ -1411,6 +1411,8 @@ class FakeRoom implements RoomRepository {
     String turnId,
   ) async {
     turnIdsLookedAt.add(turnId);
+    final held = _holdingLook;
+    if (held != null) await held.future;
     if (_guard('lookAtTheTurn') case final failure?) return failure;
     if (failLooksWith case final failure?) return failure;
     if (looksFindTheTurnInFlight) return Refused(RefusalCode.unnamed(202));
@@ -1419,6 +1421,10 @@ class FakeRoom implements RoomRepository {
         ? const Refused(RefusalCode.notFound)
         : Answered(stored);
   }
+
+  Completer<void>? _holdingLook;
+
+  void holdTheLooks() => _holdingLook = Completer<void>();
 
   Completer<void>? _substituicaoSegura;
 

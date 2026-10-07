@@ -230,6 +230,28 @@ void main() {
   });
 
   test(
+    'a turn the tablet gave up on whose look never answers still calls a person when the wait is stuck',
+    () {
+      _aTake(
+        (room) => room
+          ..holdNextTurn()
+          ..holdTheLooks(),
+        (clock, take) {
+          clock.elapse(const Duration(seconds: 31));
+
+          expect(take.harness.room.turnIdsLookedAt, [take.takeTurnId]);
+          expect(take.room.needsPerson, isFalse);
+
+          clock.elapse(const Duration(seconds: 30));
+
+          expect(take.room.needsPerson, isTrue);
+        },
+        harness: SalaHarness(busyCeiling: const Duration(seconds: 30)),
+      );
+    },
+  );
+
+  test(
     'an opening the look finds under a standing halt is heard once when the halt lifts, and no second opening is asked',
     () async {
       final harness = SalaHarness();
