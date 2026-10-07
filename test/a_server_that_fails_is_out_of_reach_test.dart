@@ -8,6 +8,7 @@ import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/cut_point.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
@@ -24,6 +25,7 @@ class _TurnsOverTheWire extends FakeRoom {
     File audio, {
     required String turnId,
     String? clientTiming,
+    CutPoint? cut,
   }) async {
     final status = turnStatus;
     if (status == null) {
@@ -32,6 +34,7 @@ class _TurnsOverTheWire extends FakeRoom {
         audio,
         turnId: turnId,
         clientTiming: clientTiming,
+        cut: cut,
       );
     }
     final take = File(

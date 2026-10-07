@@ -268,6 +268,8 @@ String describeEvent(MachineEvent event) => switch (event) {
     'TheHeldPartReturns(${describeChannel(held)})',
   GestureSilenced(:final keepingTheHold) =>
     'GestureSilenced(keepingTheHold: $keepingTheHold)',
+  Interrupted(:final at, :final of) =>
+    'Interrupted(at: ${at.inMilliseconds}ms, of: ${of?.inMilliseconds}ms)',
   GestureStarted(:final gesture) => 'GestureStarted($gesture)',
   GestureEnded(:final gesture) => 'GestureEnded($gesture)',
   NothingReplayed() => 'NothingReplayed',
@@ -380,6 +382,7 @@ enum EventKind {
   pauseTapped,
   theHeldPartReturns,
   gestureSilenced,
+  interrupted,
   gestureStarted,
   gestureEnded,
   nothingReplayed,
@@ -434,6 +437,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   PauseTapped() => EventKind.pauseTapped,
   TheHeldPartReturns() => EventKind.theHeldPartReturns,
   GestureSilenced() => EventKind.gestureSilenced,
+  Interrupted() => EventKind.interrupted,
   GestureStarted() => EventKind.gestureStarted,
   GestureEnded() => EventKind.gestureEnded,
   NothingReplayed() => EventKind.nothingReplayed,
@@ -489,6 +493,7 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.pauseTapped ||
   EventKind.theHeldPartReturns ||
   EventKind.gestureSilenced ||
+  EventKind.interrupted ||
   EventKind.gestureStarted ||
   EventKind.gestureEnded ||
   EventKind.nothingReplayed ||
@@ -612,6 +617,13 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
       ),
       EventKind.gestureSilenced => GestureSilenced(
         keepingTheHold: random.nextBool(),
+      ),
+      EventKind.interrupted => Interrupted(
+        take: 'conversa-${random.nextInt(3)}',
+        at: Duration(milliseconds: random.nextInt(9000)),
+        of: random.nextBool()
+            ? Duration(milliseconds: 9000 + random.nextInt(9000))
+            : null,
       ),
       EventKind.gestureStarted => GestureStarted(random.nextInt(3)),
       EventKind.gestureEnded => GestureEnded(random.nextInt(3)),

@@ -34,6 +34,7 @@ class FacilitatorVoiceService {
   final Future<Directory> Function() _libraryDir;
   Future<Directory>? _dir;
   AudioPlayer? _opened;
+  bool _lineOnDisk = false;
   final Duration _grace;
   final Duration _loadCeiling;
   Future<void> _speaking = Future<void>.value();
@@ -53,6 +54,13 @@ class FacilitatorVoiceService {
 
   AudioPlayer get _player => _opened ??= AudioPlayer();
 
+  /// How far into the line the player is.
+  Duration get linePosition => _opened?.position ?? Duration.zero;
+
+  /// How long the line is, only when the player opened it from a file on disk: a line
+  /// streamed as it arrives has only an estimate, which must never pass for its length.
+  Duration? get lineLength => _lineOnDisk ? _opened?.duration : null;
+
   Future<Directory> get _resolvedDir {
     final dir = _dir ??= _libraryDir();
     return dir.catchError((Object error, StackTrace stackTrace) {
@@ -67,6 +75,7 @@ class FacilitatorVoiceService {
       final clip = _clipArriving(url);
       final kept =
           await clip.opened ?? (_playsAsItArrives ? null : await clip.file);
+      _lineOnDisk = kept != null;
       return _sayItWhole(
         kept != null
             ? () => _player.setFilePath(kept.path)
@@ -128,12 +137,13 @@ class FacilitatorVoiceService {
   }
 
   Future<bool> playAsset(String assetPath, {void Function()? onSoundStart}) {
-    return _afterTheCurrentLine(
-      () => _sayItWhole(
+    return _afterTheCurrentLine(() {
+      _lineOnDisk = false;
+      return _sayItWhole(
         () => _player.setAsset(assetPath),
         onSoundStart: onSoundStart,
-      ),
-    );
+      );
+    });
   }
 
   Future<bool> _afterTheCurrentLine(Future<bool> Function() speak) {
@@ -150,12 +160,13 @@ class FacilitatorVoiceService {
     return spoken;
   }
 
-  /// Whether the team heard the whole line.
+  /// Whether the line played to its end.
   ///
   /// just_audio completes the future of `play()` when the sound stops — at the end of the
   /// line, but equally on a pause, on a stop, or when another app takes the output. Reading
-  /// that as success let an interrupted line clear every health counter the room keeps, and
-  /// pushed the team on to answer a question they were never asked.
+  /// that as success let a line cut short clear every health counter the room keeps, and
+  /// pushed the team on to answer a question they were never asked. A stop the team asked
+  /// for is an interruption, which the room counts as heard before this answers.
   Future<bool> _sayItWhole(
     Future<Duration?> Function() load, {
     void Function()? onSoundStart,

@@ -25,6 +25,12 @@ class ASoundPort implements SoundPort {
   Duration partPosition = Duration.zero;
 
   @override
+  Duration linePosition = Duration.zero;
+
+  @override
+  Duration? lineLength;
+
+  @override
   Future<bool> playLine(String url, {void Function()? onSoundStart}) {
     heard.add('line:$url');
     return (_line = Completer<bool>()).future;

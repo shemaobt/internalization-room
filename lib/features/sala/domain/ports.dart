@@ -90,6 +90,10 @@ abstract interface class SoundPort {
 
   Duration get partPosition;
 
+  Duration get linePosition;
+
+  Duration? get lineLength;
+
   Future<void> pause();
 
   Future<void> resume();

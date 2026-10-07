@@ -11,6 +11,7 @@ import '../domain/approval_answer.dart';
 import '../domain/bt_finding.dart';
 import '../domain/coverage.dart';
 import '../domain/coverage_event.dart';
+import '../domain/cut_point.dart';
 import '../domain/device_link.dart';
 import '../domain/escuta_das_partes.dart';
 import '../domain/passagem.dart';
@@ -271,6 +272,7 @@ class RoomRepository {
     File audio, {
     required String turnId,
     String? clientTiming,
+    CutPoint? cut,
   }) async {
     final request =
         http.MultipartRequest('POST', _uri('/sessions/$sessionId/turns'))
@@ -278,6 +280,14 @@ class RoomRepository {
           ..fields['turn_id'] = turnId
           ..files.add(await http.MultipartFile.fromPath('file', audio.path));
     if (clientTiming != null) request.fields['client_timing'] = clientTiming;
+    if (cut != null) {
+      request.fields['interrupted'] = 'true';
+      request.fields['interrupted_at_ms'] = '${cut.at.inMilliseconds}';
+      final of = cut.of;
+      if (of != null) {
+        request.fields['interrupted_of_ms'] = '${of.inMilliseconds}';
+      }
+    }
     return _room.askStreamed(
       request,
       timeout: _turnTimeout,

@@ -34,6 +34,7 @@ import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/coverage.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
+import 'package:internalization_room/features/sala/domain/cut_point.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
@@ -109,8 +110,8 @@ class FakeVoice implements FacilitatorVoiceService {
   final List<String> assets = [];
   final List<String> fetched = [];
 
-  /// Whether a line is said whole. A stopped line ends unsaid: the real service answers
-  /// false when its sound is cut short (`_sayItWhole`).
+  /// Whether a line is said whole. A stopped line is never whole, as the real service
+  /// answers false for a sound cut short (`_sayItWhole`).
   bool succeeds = true;
 
   /// Lines this voice refuses to say, by url or by asset path — for the halves of one
@@ -122,6 +123,14 @@ class FakeVoice implements FacilitatorVoiceService {
   /// already in hand.
   RoomFailure? roomFailsWith;
   Completer<bool>? _holding;
+  Completer<bool>? _saying;
+
+  /// Where the line being said is, and how long it is when the player knows.
+  @override
+  Duration linePosition = Duration.zero;
+
+  @override
+  Duration? lineLength;
 
   void holdNextLine() => _holding = Completer<bool>();
 
@@ -137,7 +146,9 @@ class FakeVoice implements FacilitatorVoiceService {
 
   Future<bool> _answer() {
     final held = _holding;
-    return held == null ? Future.value(succeeds) : held.future;
+    if (held == null) return Future.value(succeeds);
+    _saying = held;
+    return held.future;
   }
 
   /// Called the instant a line starts, so a test can read what else was sounding then —
@@ -202,6 +213,11 @@ class FakeVoice implements FacilitatorVoiceService {
   Future<void> stop() async {
     stops++;
     sounds.add('voice:stop');
+    final saying = _saying;
+    _saying = null;
+    if (saying == null || saying.isCompleted) return;
+    saying.complete(false);
+    if (identical(saying, _holding)) _holding = null;
   }
 
   @override
@@ -839,6 +855,9 @@ class FakeRoom implements RoomRepository {
   /// Whether the opening comes back cut where the Guide marked it.
   bool opensInTwoMovements = false;
   bool done = false;
+
+  /// What the session read says of the passage's end, when it is not what the turns say.
+  bool? readsDone;
   int turnsSent = 0;
   int chunksSent = 0;
   final List<String> chunkSpans = [];
@@ -1041,6 +1060,11 @@ class FakeRoom implements RoomRepository {
   bool createdOpened = false;
 
   final List<String> turnIdsSent = [];
+
+  /// Where each turn sent said the Guide was cut, one entry per turn: null for a turn
+  /// that followed no interruption.
+  final List<({String session, String turnId, Duration at, Duration? of})?>
+  cutsSent = [];
 
   final List<String> recordingsSent = [];
 
@@ -1311,11 +1335,11 @@ class FakeRoom implements RoomRepository {
       SessionSnapshot(
         sessionId: sessionId,
         pericope: 'rute-1',
-        status: serverStatus ?? (done ? 'done' : 'in_progress'),
+        status: serverStatus ?? ((readsDone ?? done) ? 'done' : 'in_progress'),
         coverage: silentAboutCoverage
             ? null
             : (settledCoverage ?? nextCoverage),
-        done: done,
+        done: readsDone ?? done,
         halt: serverHalt,
         opened: openedSessions.contains(sessionId),
         backTranslation:
@@ -1703,6 +1727,7 @@ class FakeRoom implements RoomRepository {
     File audio, {
     required String turnId,
     String? clientTiming,
+    CutPoint? cut,
   }) async {
     if (_guard('sendTurn') case final failure?) return failure;
     if (_forgot('sendTurn', sessionId) case final gone?) {
@@ -1712,6 +1737,11 @@ class FakeRoom implements RoomRepository {
     clientTimingsSent.add(clientTiming);
     turnIdsSent.add(turnId);
     recordingsSent.add(audio.path);
+    cutsSent.add(
+      cut == null
+          ? null
+          : (session: sessionId, turnId: turnId, at: cut.at, of: cut.of),
+    );
     turnsSent++;
     return _theTurnAnswers(sessionId, turnId);
   }

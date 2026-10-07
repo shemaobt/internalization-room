@@ -138,8 +138,11 @@ bool _sounds(Channel channel) => channel is Playing || channel is GuideSpeaking;
 final theMicrophoneNeverOpensUnderASound = Invariant<Machine>(
   'ADR invariant 1, the microphone never opens under a sound',
   (before, event, after, effects, world) {
-    if (effects.any((effect) => effect is OpenTheMic) &&
-        _sounds(before.channel)) {
+    final opens = effects.indexWhere((effect) => effect is OpenTheMic);
+    final stops = effects.indexWhere((effect) => effect is StopTheSound);
+    if (opens >= 0 &&
+        _sounds(before.channel) &&
+        !(stops >= 0 && stops < opens)) {
       return 'the microphone opened over ${describeChannel(before.channel)}';
     }
     final starts = effects.any(
@@ -298,6 +301,20 @@ void main() {
 
     test('ADR invariant 1: the microphone never opens under a sound', () {
       _holds(theMicrophoneNeverOpensUnderASound);
+    });
+
+    test('ADR invariant 1 reads a microphone opened over a sound with no stop '
+        'before it', () {
+      const speaking = Machine(channel: GuideSpeaking(Line(LineKind.guide, 1)));
+      const listening = Machine(channel: Microphone(MicOwner.conversation));
+      const open = OpenTheMic(MicOwner.conversation, take: 'conversa');
+      const cut = Interrupted(take: 'conversa', at: Duration.zero);
+      String? check(List<Effect> effects) => theMicrophoneNeverOpensUnderASound
+          .check(speaking, cut, listening, effects, const World());
+
+      expect(check(const [open]), isNotNull);
+      expect(check(const [open, StopTheSound()]), isNotNull);
+      expect(check(const [StopTheSound(), open]), isNull);
     });
 
     test('ADR invariant 8: the Head never reads another part\'s or '
