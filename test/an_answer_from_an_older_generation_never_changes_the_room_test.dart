@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 
 import 'machine_generator.dart';
@@ -168,6 +169,38 @@ String? _anAnswerFromBeforeTheStationChangedChangedTheRoom(
   return null;
 }
 
+String? _theWorldKeptTheMicrophoneOpenAfterTheMachineClosedIt(
+  int seed,
+  void Function() tried,
+) {
+  final random = Random(seed);
+  var machine = const Machine();
+  var world = const World();
+  for (var step = 0; step < 60; step++) {
+    final drawn = drawAnEvent(world, random);
+    final event = _stamped(drawn, machine.generation) ?? drawn;
+    final closes =
+        event is MicAnswered &&
+        event.answer != MicAnswer.started &&
+        event.because == null &&
+        machine.channel is Microphone;
+    final (next, effects) = reduce(machine, event);
+    world = world.after(event, effects);
+    machine = next;
+    if (!closes) continue;
+    tried();
+    if (machine.channel is Microphone) {
+      return 'seed $seed, step $step: ${describeEvent(event)} left the '
+          'microphone open';
+    }
+    if (world.micOpen) {
+      return 'seed $seed, step $step: ${describeEvent(event)} closed the '
+          'microphone and the World still holds it open';
+    }
+  }
+  return null;
+}
+
 void main() {
   test('an answer from an older generation never changes the room', () {
     for (final seed in _seeds) {
@@ -194,6 +227,25 @@ void main() {
       tried,
       greaterThan(0),
       reason: 'no answer from before a Station change was tried',
+    );
+  });
+
+  test('the World closes the microphone on a stamped answer that is not '
+      'stale', () {
+    var tried = 0;
+    for (final seed in _seeds) {
+      final problem = _theWorldKeptTheMicrophoneOpenAfterTheMachineClosedIt(
+        seed,
+        () => tried++,
+      );
+      if (problem != null) {
+        throw TestFailure('$problem\nRe-run it alone with MACHINE_SEED=$seed');
+      }
+    }
+    expect(
+      tried,
+      greaterThan(0),
+      reason: 'no closing answer reached an open microphone',
     );
   });
 }

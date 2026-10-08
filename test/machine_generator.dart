@@ -47,7 +47,7 @@ class World {
         event is! MicClosed &&
         event is! MicDiscarded &&
         !(event is MicAnswered &&
-            event.generation == null &&
+            (event.generation ?? 0) >= 0 &&
             event.answer != MicAnswer.started &&
             event.because == null);
     var retry = retryArmed && event is! RetryFired;
