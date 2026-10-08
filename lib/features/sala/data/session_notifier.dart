@@ -2434,7 +2434,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             return failed(failure);
         }
         if (_abandoned(generation)) return;
-        state = state.copyWith(coverage: snapshot.coverage);
+        state = state.copyWith(
+          coverage: snapshot.coverage,
+          moment: snapshot.moment,
+          clearMoment: snapshot.moment == null,
+        );
         if (Station.stored(waiting.stage) is Retro) {
           _pickTheTellingBackUp(snapshot.backTranslation);
           landed();

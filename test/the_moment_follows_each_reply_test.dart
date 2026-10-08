@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/current_session_ledger.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -158,6 +160,54 @@ void main() {
             'a sessão que outro tablet abriu pousava sem etiqueta, embora a sala soubesse o momento',
       );
       expect(moment?.part, 2);
+    },
+  );
+
+  test(
+    'a relaunch into the rehearsal with its takes on disk comes back with the moment the room kept',
+    () async {
+      final pasta = Directory.systemTemp.createTempSync('sala-momento-ensaio');
+      addTearDown(() => pasta.deleteSync(recursive: true));
+      final gravada = File('${pasta.path}/p1.m4a')..writeAsBytesSync([1, 2, 3]);
+      final harness = SalaHarness()
+        ..room.nextMoment = const Moment(
+          at: MomentAt.articulation,
+          part: 2,
+          parts: 4,
+        );
+      harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+        sessionId: 'sessao-antiga',
+        stage: SalaStage.ensaio,
+        takes: [
+          KeptTake(
+            scopeId: KeptScope.parte(1),
+            path: gravada.path,
+            takeId: 'gravacao-1',
+          ),
+        ],
+      );
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+
+      await notifier.abrirEscolha();
+      await settle();
+      await notifier.goConversa(pericope: 'P01');
+      await waitFor(
+        'a equipe voltar ao ensaio',
+        () => read().stage == SalaStage.ensaio && read().coverage != null,
+      );
+      await settle();
+
+      expect(read().stage, SalaStage.ensaio);
+      expect(
+        read().moment?.at,
+        MomentAt.articulation,
+        reason:
+            'o tablet reaberto no meio do ensaio voltava sem etiqueta até a próxima resposta',
+      );
+      expect(read().moment?.part, 2);
     },
   );
 }
