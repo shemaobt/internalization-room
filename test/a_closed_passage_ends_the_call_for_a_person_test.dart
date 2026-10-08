@@ -81,7 +81,8 @@ Future<ProviderContainer> _naPassagemSemEspera(SalaHarness harness) async {
     () =>
         _estado(container).sessionId != null &&
         _estado(container).stage == SalaStage.conversa &&
-        _estado(container).voice == VoiceState.invite,
+        _estado(container).voice == VoiceState.invite &&
+        !_estado(container).awaitingTheGuide,
   );
   return container;
 }
