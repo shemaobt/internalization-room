@@ -196,7 +196,7 @@ void main() {
       await notifier.goConversa(pericope: 'P01');
       await waitFor(
         'a equipe voltar ao ensaio',
-        () => read().stage == SalaStage.ensaio && read().coverage != null,
+        () => read().stage == SalaStage.ensaio && !read().awaitingTheGuide,
       );
       await settle();
 
