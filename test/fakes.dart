@@ -2698,3 +2698,16 @@ class QueueThatEnqueuesLate extends TakeUploadQueue {
     );
   }
 }
+
+class LedgerThatReadsLate extends CurrentSessionLedger {
+  LedgerThatReadsLate({super.home});
+
+  Duration? readsAfter;
+
+  @override
+  Future<CurrentSession?> read() async {
+    final wait = readsAfter;
+    if (wait != null) await Future<void>.delayed(wait);
+    return super.read();
+  }
+}
