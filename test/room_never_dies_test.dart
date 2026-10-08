@@ -210,11 +210,27 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       await notifier.abrirEscolha();
-      await settle();
+      await waitFor(
+        'a Escolha oferecer uma passagem',
+        () =>
+            container.read(salaSessionProvider).stage == SalaStage.escolha &&
+            container.read(salaSessionProvider).oferecida != null &&
+            container.read(salaSessionProvider).voice == VoiceState.invite,
+      );
       notifier.entrarNaOferecida();
-      await settle();
+      await waitFor(
+        'a passagem abrir',
+        () => container.read(salaSessionProvider).sessionId != null,
+      );
       notifier.leaveThePassage();
-      await settle();
+      await waitFor(
+        'a sala voltar à Escolha com o lugar da passagem guardado',
+        () async =>
+            container.read(salaSessionProvider).stage == SalaStage.escolha &&
+            container.read(salaSessionProvider).oferecida != null &&
+            container.read(salaSessionProvider).voice == VoiceState.invite &&
+            await harness.emAberto.of('Ruth', 'P01') != null,
+      );
       expect(await harness.emAberto.of('Ruth', 'P01'), isNotNull);
 
       harness.room.forgetTheSession(harness.room.sessionIds.single);
