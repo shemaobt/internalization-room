@@ -6056,24 +6056,57 @@ void main() {
       notifier.goEnsaio();
       notifier.ensaioTap();
       notifier.ensaioTap();
-      await settle();
+      await waitFor(
+        'a tomada ser oferecida',
+        () =>
+            container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+      );
       notifier.takeKeep();
+      await waitFor(
+        'a sala nomear a parte',
+        () => container.read(salaSessionProvider).partes.last.takeId != null,
+      );
       notifier.startRetro();
-      await settle();
+      await waitFor(
+        'o clipe estar rodando',
+        () => container.read(salaSessionProvider).btClipRodando,
+      );
 
+      final capturasDoPrimeiro = harness.recorder.captures;
       harness.playback.at = const Duration(seconds: 12);
       notifier.cortarTrecho();
       notifier.retroTap();
-      await settle();
+      await waitFor(
+        'o microfone abrir para o primeiro trecho',
+        () => harness.recorder.captures == capturasDoPrimeiro + 1,
+      );
+      final reaberturas = harness.playback.played.length;
       await confirmarATraducao(container);
-      await settle();
+      await waitFor(
+        'o primeiro trecho voltar da sala',
+        () => container.read(salaSessionProvider).btTrechos.length == 1,
+      );
+      await waitFor(
+        'o clipe reabrir no cursor',
+        () =>
+            harness.playback.played.length > reaberturas &&
+            harness.playback.open &&
+            container.read(salaSessionProvider).canCut,
+      );
 
+      final capturasDoSegundo = harness.recorder.captures;
       harness.playback.at = const Duration(seconds: 30);
       notifier.cortarTrecho();
       notifier.retroTap();
-      await settle();
+      await waitFor(
+        'o microfone abrir para o segundo trecho',
+        () => harness.recorder.captures == capturasDoSegundo + 1,
+      );
       await confirmarATraducao(container);
-      await settle();
+      await waitFor(
+        'o segundo trecho voltar da sala',
+        () => container.read(salaSessionProvider).btTrechos.length == 2,
+      );
 
       expect(
         harness.room.chunkSpans,
@@ -6099,30 +6132,75 @@ void main() {
     notifier.goEnsaio();
     notifier.ensaioTap();
     notifier.ensaioTap();
-    await settle();
+    await waitFor(
+      'a tomada ser oferecida',
+      () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+    );
     notifier.takeKeep();
+    await waitFor(
+      'a sala nomear a parte',
+      () => container.read(salaSessionProvider).partes.last.takeId != null,
+    );
     notifier.startRetro();
-    await settle();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
 
+    final capturasDoPrimeiro = harness.recorder.captures;
     harness.playback.at = const Duration(seconds: 12);
     notifier.cortarTrecho();
     notifier.retroTap();
-    await settle();
+    await waitFor(
+      'o microfone abrir para o primeiro trecho',
+      () => harness.recorder.captures == capturasDoPrimeiro + 1,
+    );
+    final reaberturas = harness.playback.played.length;
     await confirmarATraducao(container);
-    await settle();
+    await waitFor(
+      'o primeiro trecho voltar da sala',
+      () => container.read(salaSessionProvider).btTrechos.length == 1,
+    );
+    await waitFor(
+      'o clipe reabrir no cursor',
+      () =>
+          harness.playback.played.length > reaberturas &&
+          harness.playback.open &&
+          container.read(salaSessionProvider).canCut,
+    );
 
+    final capturasDoSegundo = harness.recorder.captures;
     harness.playback.at = const Duration(seconds: 30);
     notifier.cortarTrecho();
     notifier.retroTap();
-    await settle();
+    await waitFor(
+      'o microfone abrir para o segundo trecho',
+      () => harness.recorder.captures == capturasDoSegundo + 1,
+    );
+    final reaberturasDoSegundo = harness.playback.played.length;
     await confirmarATraducao(container);
-    await settle();
+    await waitFor(
+      'o segundo trecho voltar da sala',
+      () => container.read(salaSessionProvider).btTrechos.length == 2,
+    );
+    await waitFor(
+      'o clipe reabrir no cursor',
+      () =>
+          harness.playback.played.length > reaberturasDoSegundo &&
+          harness.playback.open,
+    );
 
     harness.playback.finishPlayback();
-    await settle();
+    await waitFor(
+      'o clipe acabar',
+      () => container.read(salaSessionProvider).btClipEnded,
+    );
     harness.playback.ranges.clear();
     await notifier.finishBackTranslation();
-    await settle();
+    await waitFor(
+      'o veredito apontar o trecho',
+      () => container.read(salaSessionProvider).btFindingSegmentId != null,
+    );
 
     expect(container.read(salaSessionProvider).btFindingSegmentId, 'trecho-2');
     expect(
@@ -6697,9 +6775,15 @@ void main() {
 
       harness.room.failWith = const SessionGone();
       container.read(salaSessionProvider.notifier).conversaTap();
-      await settle();
+      await waitFor(
+        'o microfone abrir na conversa',
+        () => container.read(salaSessionProvider).voice == VoiceState.listening,
+      );
       container.read(salaSessionProvider.notifier).conversaTap();
-      await settle();
+      await waitFor(
+        'a sessão ser largada',
+        () => container.read(salaSessionProvider).sessionId == null,
+      );
 
       expect(container.read(salaSessionProvider).sessionId, isNull);
     },
@@ -7291,6 +7375,22 @@ void main() {
     await settle();
   }
 
+  Future<void> gravaEGuardaAParte(ProviderContainer container) async {
+    final notifier = container.read(salaSessionProvider.notifier);
+    final guardadas = container.read(salaSessionProvider).partes.length;
+    notifier.ensaioTap();
+    notifier.ensaioTap();
+    await waitFor(
+      'a tomada ser oferecida',
+      () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+    );
+    notifier.takeKeep();
+    await waitFor(
+      'a parte entrar na lista',
+      () => container.read(salaSessionProvider).partes.length == guardadas + 1,
+    );
+  }
+
   Future<void> theRoomNamesBothParts(ProviderContainer container) =>
       waitFor('a sala nomear as duas partes', () {
         final partes = container.read(salaSessionProvider).partes;
@@ -7572,20 +7672,36 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier);
-    await gravaParte(notifier);
+    await gravaEGuardaAParte(container);
+    await gravaEGuardaAParte(container);
     await theRoomNamesBothParts(container);
     notifier.startRetro();
-    await settle();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
     harness.playback.finishPlayback();
-    await settle();
+    await waitFor(
+      'a primeira parte acabar',
+      () => container.read(salaSessionProvider).btParteFronteira,
+    );
+    final tocadas = harness.playback.played.length;
     notifier.ouvirGravacao();
-    await settle();
+    await waitFor(
+      'a segunda gravação tocar',
+      () => harness.playback.played.length > tocadas && harness.playback.open,
+    );
     harness.playback.finishPlayback();
-    await settle();
+    await waitFor(
+      'a segunda gravação acabar',
+      () => container.read(salaSessionProvider).btClipEnded,
+    );
 
     await notifier.finishBackTranslation();
-    await settle();
+    await waitFor(
+      'a sala receber o que foi ouvido',
+      () => harness.room.playedByTakeSent.isNotEmpty,
+    );
 
     expect(
       harness.room.playedByTakeSent.last,
@@ -7672,21 +7788,37 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier);
-    await gravaParte(notifier);
+    await gravaEGuardaAParte(container);
+    await gravaEGuardaAParte(container);
     await theRoomNamesBothParts(container);
     notifier.startRetro();
-    await settle();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
     harness.playback.at = Duration.zero;
     harness.playback.finishPlayback();
-    await settle();
+    await waitFor(
+      'a primeira parte acabar',
+      () => container.read(salaSessionProvider).btParteFronteira,
+    );
+    final tocadas = harness.playback.played.length;
     notifier.ouvirGravacao();
-    await settle();
+    await waitFor(
+      'a segunda gravação tocar',
+      () => harness.playback.played.length > tocadas && harness.playback.open,
+    );
     harness.playback.finishPlayback();
-    await settle();
+    await waitFor(
+      'a segunda gravação acabar',
+      () => container.read(salaSessionProvider).btClipEnded,
+    );
 
     await notifier.finishBackTranslation();
-    await settle();
+    await waitFor(
+      'a sala receber o que foi ouvido',
+      () => harness.room.playedByTakeSent.isNotEmpty,
+    );
 
     expect(
       [
