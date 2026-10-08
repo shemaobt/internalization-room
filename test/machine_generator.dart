@@ -481,9 +481,8 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.playerOpened ||
   EventKind.playerEnded ||
   EventKind.playerFailed => world.playerBusy,
-  EventKind.micClosed ||
-  EventKind.micAnswered ||
-  EventKind.micClosing => world.micOpen,
+  EventKind.micClosed || EventKind.micClosing => world.micOpen,
+  EventKind.micAnswered => true,
   EventKind.lookFound || EventKind.lookEmpty => world.looking,
   EventKind.sessionRead ||
   EventKind.roomRaisedAHalt ||

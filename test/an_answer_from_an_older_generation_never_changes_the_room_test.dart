@@ -59,9 +59,10 @@ AnsweringEvent _stampedAnswer(
     generation: generation,
   ),
   MicClosed() => MicClosed(generation: generation),
-  MicAnswered(:final answer, :final take) => MicAnswered(
+  MicAnswered(:final answer, :final take, :final because) => MicAnswered(
     answer,
     take: take,
+    because: because,
     generation: generation,
   ),
   NothingReplayed() => NothingReplayed(generation: generation),
