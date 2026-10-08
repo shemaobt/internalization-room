@@ -1714,6 +1714,8 @@ class FakeRoom implements RoomRepository {
 
   Duration? takeLandsAfter;
 
+  Duration? aHeldTakeAnswersAfter;
+
   @override
   Future<RoomAnswer<String>> sendTake(
     String sessionId,
@@ -1732,6 +1734,8 @@ class FakeRoom implements RoomRepository {
     if (scope == holdTakeScope) {
       _reachedTakeHold?.complete();
       await _holdingTake?.future;
+      final answersAfter = aHeldTakeAnswersAfter;
+      if (answersAfter != null) await Future<void>.delayed(answersAfter);
     }
     if (refuseTake == '$kind/$scope') return Refused(refuseTakeCode);
     if (unreachableTake == '$kind/$scope') {
@@ -2629,11 +2633,13 @@ class QueueThatDiscardsLate extends TakeUploadQueue {
   QueueThatDiscardsLate({required super.room, super.home});
 
   Duration? discardsAfter;
+  int discardsDone = 0;
 
   @override
   Future<void> discardTheSession(String sessionId) async {
     final wait = discardsAfter;
     if (wait != null) await Future<void>.delayed(wait);
-    return super.discardTheSession(sessionId);
+    await super.discardTheSession(sessionId);
+    discardsDone++;
   }
 }
