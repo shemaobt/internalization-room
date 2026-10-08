@@ -1,12 +1,14 @@
 import 'dart:async';
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/moment_label.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
@@ -46,6 +48,32 @@ Future<(SalaHarness, ProviderContainer)> _theOpeningSays(
 }
 
 void main() {
+  testWidgets(
+    'a label with no separator shows whole instead of breaking the screen',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const Scaffold(
+            body: MomentLabel(
+              moment: Moment(at: MomentAt.familiarization, parts: 4),
+              words: 'Familiarização',
+              language: 'pt',
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        tester.takeException(),
+        isNull,
+        reason:
+            'uma etiqueta sem o separador derrubava a tela no meio do build',
+      );
+      expect(byLabel('Momento da sessão: Familiarização'), findsOneWidget);
+    },
+  );
+
   testWidgets(
     'the opening that begins the Familiarization puts it on the screen as the voice starts',
     (tester) async {

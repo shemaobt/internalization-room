@@ -6,14 +6,19 @@ import '../../domain/moment.dart';
 
 class MomentLabel extends StatelessWidget {
   final Moment moment;
+  final String words;
   final String language;
 
-  const MomentLabel({super.key, required this.moment, required this.language});
+  const MomentLabel({
+    super.key,
+    required this.moment,
+    required this.words,
+    required this.language,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final label = momentLabelFor(moment, language);
-    final cut = label.indexOf(' · ');
+    final [name, ...rest] = words.split(' · ');
     final colors = SalaColors.of(context);
     final tint = switch (moment.at) {
       MomentAt.familiarization => colors.momentoFam,
@@ -27,7 +32,7 @@ class MomentLabel extends StatelessWidget {
         : (moment.at == MomentAt.articulation ? 0.1 : 0.12);
     final ink = colors.ink;
     return Semantics(
-      label: '${momentAriaFor(language)}: $label',
+      label: '${momentAriaFor(language)}: $words',
       liveRegion: true,
       child: ExcludeSemantics(
         child: Container(
@@ -46,7 +51,7 @@ class MomentLabel extends StatelessWidget {
               ),
               const SizedBox(width: 7),
               Text(
-                label.substring(0, cut),
+                name,
                 style: TextStyle(
                   color: ink,
                   fontSize: 13,
@@ -54,7 +59,7 @@ class MomentLabel extends StatelessWidget {
                 ),
               ),
               Text(
-                label.substring(cut),
+                rest.map((piece) => ' · $piece').join(),
                 style: TextStyle(color: ink, fontSize: 13),
               ),
             ],

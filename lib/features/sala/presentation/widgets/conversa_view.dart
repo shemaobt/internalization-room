@@ -78,7 +78,11 @@ class ConversaView extends ConsumerWidget {
               child: AnimatedOpacity(
                 opacity: _momentOpacity(session),
                 duration: const Duration(milliseconds: 800),
-                child: MomentLabel(moment: moment, language: language),
+                child: MomentLabel(
+                  moment: moment,
+                  words: momentLabelFor(moment, language),
+                  language: language,
+                ),
               ),
             ),
           ),
