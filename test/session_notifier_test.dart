@@ -98,6 +98,68 @@ Future<ProviderContainer> inConversa(SalaHarness harness) async {
   return container;
 }
 
+Future<ProviderContainer> inTheChoiceWithAPlaceToResume(
+  SalaHarness harness,
+) async {
+  harness.emAberto.rows['Ruth/P01'] = const ResumePoint(
+    sessionId: 'sessao-velha',
+    stage: SalaStage.retro,
+  );
+  final container = harness.container();
+  await container.read(salaSessionProvider.notifier).abrirEscolha();
+  await waitFor(
+    'a Escolha oferecer uma passagem',
+    () =>
+        container.read(salaSessionProvider).oferecida != null &&
+        container.read(salaSessionProvider).voice == VoiceState.invite,
+  );
+  return container;
+}
+
+/// The one refusal that counts without halting: the resume's check for a telling-back,
+/// which keeps the three-strike ladder where the opening turn itself would call a person.
+Future<void> theResumeCheckIsRefused(
+  SalaHarness harness,
+  ProviderContainer container,
+) async {
+  final reads = harness.room.calls.where((call) => call == 'fetchState').length;
+  harness.room.failWith = const Refused('BAD_REQUEST');
+  await container
+      .read(salaSessionProvider.notifier)
+      .goConversa(pericope: 'P01');
+  harness.room.failWith = null;
+  await waitFor(
+    'a sala recusar a conferência e voltar ao convite',
+    () =>
+        harness.room.calls.where((call) => call == 'fetchState').length ==
+            reads + 1 &&
+        container.read(salaSessionProvider).stage == SalaStage.conversa &&
+        container.read(salaSessionProvider).voice == VoiceState.invite,
+  );
+}
+
+Future<void> aTurnIsTold(
+  SalaHarness harness,
+  ProviderContainer container,
+) async {
+  final notifier = container.read(salaSessionProvider.notifier);
+  final turns = harness.room.calls.where((call) => call == 'sendTurn').length;
+  notifier.conversaTap();
+  await waitFor(
+    'o microfone abrir na conversa',
+    () => container.read(salaSessionProvider).voice == VoiceState.listening,
+  );
+  notifier.conversaTap();
+  await waitFor(
+    'a sala dizer o turno e voltar ao convite',
+    () =>
+        harness.room.calls.where((call) => call == 'sendTurn').length ==
+            turns + 1 &&
+        container.read(salaSessionProvider).voice == VoiceState.invite &&
+        !container.read(salaSessionProvider).awaitingTheGuide,
+  );
+}
+
 const _thePanorama = Passagem(
   pericope: 'panorama',
   audioUrl: '/voice/panorama',
@@ -3568,39 +3630,20 @@ void main() {
     'a network that fails every other turn still climbs to a person',
     () async {
       final harness = SalaHarness();
-      final container = await inConversa(harness);
+      final container = await inTheChoiceWithAPlaceToResume(harness);
       addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
 
-      harness.room.failWith = const Refused('BAD_REQUEST');
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
+      await theResumeCheckIsRefused(harness, container);
+      expect(
+        container.read(salaSessionProvider).needsPerson,
+        isFalse,
+        reason: 'a primeira recusa conta um ponto e não chama ninguém',
+      );
 
-      harness.room.failWith = null;
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
-
-      harness.room.failWith = const Refused('BAD_REQUEST');
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
-
-      harness.room.failWith = null;
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
-
-      harness.room.failWith = const Refused('BAD_REQUEST');
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
+      await aTurnIsTold(harness, container);
+      await theResumeCheckIsRefused(harness, container);
+      await aTurnIsTold(harness, container);
+      await theResumeCheckIsRefused(harness, container);
 
       expect(
         container.read(salaSessionProvider).needsPerson,
@@ -3732,37 +3775,22 @@ void main() {
     'a degraded turn does not count toward the calm streak that forgives a failure',
     () async {
       final harness = SalaHarness();
-      final container = await inConversa(harness);
+      final container = await inTheChoiceWithAPlaceToResume(harness);
       addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
 
-      harness.room.failWith = const Refused('BAD_REQUEST');
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
+      await theResumeCheckIsRefused(harness, container);
+      expect(
+        container.read(salaSessionProvider).needsPerson,
+        isFalse,
+        reason: 'a primeira recusa conta um ponto e não chama ninguém',
+      );
 
-      harness.room.failWith = null;
       harness.room.turnsAreDegraded = true;
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
-
+      await aTurnIsTold(harness, container);
+      await aTurnIsTold(harness, container);
       harness.room.turnsAreDegraded = false;
-      harness.room.failWith = const Refused('BAD_REQUEST');
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
+      await theResumeCheckIsRefused(harness, container);
+      await theResumeCheckIsRefused(harness, container);
 
       expect(
         container.read(salaSessionProvider).needsPerson,
@@ -3779,43 +3807,23 @@ void main() {
     'an unplayable turn does not count toward the calm streak either',
     () async {
       final harness = SalaHarness();
-      final container = await inConversa(harness);
+      final container = await inTheChoiceWithAPlaceToResume(harness);
       addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
 
-      harness.room.failWith = const Refused('BAD_REQUEST');
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
+      await theResumeCheckIsRefused(harness, container);
+      expect(
+        container.read(salaSessionProvider).needsPerson,
+        isFalse,
+        reason: 'a primeira recusa conta um ponto e não chama ninguém',
+      );
 
-      harness.room.failWith = null;
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
-
+      await aTurnIsTold(harness, container);
       harness.voice.succeeds = false;
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
+      await aTurnIsTold(harness, container);
       harness.voice.succeeds = true;
-
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
-
-      harness.room.failWith = const Refused('BAD_REQUEST');
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
+      await aTurnIsTold(harness, container);
+      await theResumeCheckIsRefused(harness, container);
+      await theResumeCheckIsRefused(harness, container);
 
       expect(
         container.read(salaSessionProvider).needsPerson,
@@ -3831,38 +3839,22 @@ void main() {
     'a clean turn right before a degraded one still does not forgive a failure',
     () async {
       final harness = SalaHarness();
-      final container = await inConversa(harness);
+      final container = await inTheChoiceWithAPlaceToResume(harness);
       addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
 
-      harness.room.failWith = const Refused('BAD_REQUEST');
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
+      await theResumeCheckIsRefused(harness, container);
+      expect(
+        container.read(salaSessionProvider).needsPerson,
+        isFalse,
+        reason: 'a primeira recusa conta um ponto e não chama ninguém',
+      );
 
-      harness.room.failWith = null;
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
-
+      await aTurnIsTold(harness, container);
       harness.room.turnsAreDegraded = true;
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
+      await aTurnIsTold(harness, container);
       harness.room.turnsAreDegraded = false;
-
-      harness.room.failWith = const Refused('BAD_REQUEST');
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
-      notifier.conversaTap();
-      await settle();
+      await theResumeCheckIsRefused(harness, container);
+      await theResumeCheckIsRefused(harness, container);
 
       expect(
         container.read(salaSessionProvider).needsPerson,
