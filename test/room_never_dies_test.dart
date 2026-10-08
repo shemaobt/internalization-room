@@ -1004,16 +1004,10 @@ void main() {
       notifier.takeKeep();
       container.dispose();
       await waitFor(
-        'a gravação guardada chegar à fila',
+        'a gravação guardada chegar à fila (a guarda contra ler providers '
+        'descartados foi posta antes do enfileiramento, no método cujo '
+        'trabalho é não perder gravação)',
         () async => (await harness.takes.entries()).isNotEmpty,
-      );
-
-      expect(
-        await harness.takes.entries(),
-        isNotEmpty,
-        reason:
-            'a guarda contra ler providers descartados foi posta antes do '
-            'enfileiramento, no método cujo trabalho é não perder gravação',
       );
     },
   );
