@@ -1,7 +1,10 @@
 import 'dart:async';
 
+import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 
@@ -9,12 +12,26 @@ import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart';
 
-Future<void> _theOpeningSays(
+const _familiarizationLabel =
+    'Momento da sessão: Familiarização · a passagem inteira';
+
+double _labelOpacity(WidgetTester tester) => tester
+    .widget<AnimatedOpacity>(
+      find.ancestor(
+        of: byLabel(_familiarizationLabel),
+        matching: find.byType(AnimatedOpacity),
+      ),
+    )
+    .opacity;
+
+Future<(SalaHarness, ProviderContainer)> _theOpeningSays(
   WidgetTester tester,
   Moment moment, {
   String lingua = 'pt',
+  bool heldMidLine = false,
+  bool watching = false,
 }) async {
-  final harness = SalaHarness(lingua: lingua)
+  final harness = SalaHarness(lingua: lingua, watchesWithoutAHalt: watching)
     ..room.passages = const [Passagem(pericope: 'P01', audioUrl: '/voice/p01')]
     ..room.nextMoment = moment;
   final container = await pumpSala(tester, harness);
@@ -22,8 +39,10 @@ Future<void> _theOpeningSays(
   final notifier = container.read(salaSessionProvider.notifier);
   await notifier.abrirEscolha();
   await tester.pump(const Duration(milliseconds: 300));
+  if (heldMidLine) harness.voice.holdNextLine();
   unawaited(notifier.goConversa(pericope: 'P01'));
   await tester.pump(const Duration(milliseconds: 300));
+  return (harness, container);
 }
 
 void main() {
@@ -72,6 +91,57 @@ void main() {
       findsOneWidget,
       reason: 'o tablet em inglês mostrou o momento em português',
     );
+  });
+
+  testWidgets(
+    'the label dims while the voice speaks and comes back when it stops',
+    (tester) async {
+      final (harness, _) = await _theOpeningSays(
+        tester,
+        const Moment(at: MomentAt.familiarization, parts: 4),
+        heldMidLine: true,
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(
+        _labelOpacity(tester),
+        0.6,
+        reason: 'o momento disputava a atenção com a voz enquanto ela falava',
+      );
+
+      harness.voice.finishHeldLine();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(_labelOpacity(tester), 1.0);
+    },
+  );
+
+  testWidgets('the label goes while the screen calls for a person', (
+    tester,
+  ) async {
+    final (harness, container) = await _theOpeningSays(
+      tester,
+      const Moment(at: MomentAt.familiarization, parts: 4),
+      watching: true,
+    );
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(_labelOpacity(tester), 1.0);
+
+    harness.room
+      ..serverStatus = 'needs_person'
+      ..serverHalt = HaltKind.blocking;
+    final reads = stateReads(harness);
+    var vez = 0;
+    while (stateReads(harness) == reads && vez < 30) {
+      await tester.pump(const Duration(seconds: 1));
+      vez++;
+    }
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(
+      _labelOpacity(tester),
+      0.0,
+      reason: 'a tela chamou o facilitador e o momento continuou ali',
+    );
+    closeTheRoom(container);
   });
 }
 

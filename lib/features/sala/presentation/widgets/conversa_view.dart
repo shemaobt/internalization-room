@@ -75,7 +75,11 @@ class ConversaView extends ConsumerWidget {
             right: 0,
             top: 18 + MediaQuery.viewPaddingOf(context).top,
             child: Center(
-              child: MomentLabel(moment: moment, language: language),
+              child: AnimatedOpacity(
+                opacity: _momentOpacity(session),
+                duration: const Duration(milliseconds: 300),
+                child: MomentLabel(moment: moment, language: language),
+              ),
             ),
           ),
         if (session.handAck)
@@ -87,6 +91,14 @@ class ConversaView extends ConsumerWidget {
           ),
       ],
     );
+  }
+
+  double _momentOpacity(SalaSessionState session) {
+    if (session.needsPerson || session.noteMode) return 0;
+    return switch (session.voice) {
+      VoiceState.listening || VoiceState.thinking || VoiceState.speaking => 0.6,
+      _ => 1,
+    };
   }
 
   String _circleLabel(SalaSessionState session, String language) {
