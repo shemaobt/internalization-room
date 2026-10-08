@@ -2671,3 +2671,30 @@ class QueueWhoseTranslationLandsLate extends TakeUploadQueue {
     return row;
   }
 }
+
+class QueueThatEnqueuesLate extends TakeUploadQueue {
+  QueueThatEnqueuesLate({required super.room, super.home});
+
+  Duration? enqueuesAfter;
+
+  @override
+  Future<PendingTake> enqueue(
+    File audio, {
+    required String sessionId,
+    required String kind,
+    required String scope,
+    int? passNumber,
+    int? chunkIndex,
+  }) async {
+    final wait = enqueuesAfter;
+    if (wait != null) await Future<void>.delayed(wait);
+    return super.enqueue(
+      audio,
+      sessionId: sessionId,
+      kind: kind,
+      scope: scope,
+      passNumber: passNumber,
+      chunkIndex: chunkIndex,
+    );
+  }
+}
