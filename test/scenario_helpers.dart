@@ -25,6 +25,14 @@ Finder byLabel(String label) => find.byWidgetPredicate(
 int stateReads(SalaHarness harness) =>
     harness.room.calls.where((call) => call == 'fetchState').length;
 
+Future<void> theChoiceOffersAPassage(ProviderContainer container) =>
+    waitFor('a Escolha oferecer uma passagem', () {
+      final state = container.read(salaSessionProvider);
+      return state.stage == SalaStage.escolha &&
+          state.oferecida != null &&
+          state.voice == VoiceState.invite;
+    });
+
 /// A fixed pause, for the gestures whose landing has no state of its own to wait on.
 Future<void> settle([
   Duration delay = const Duration(milliseconds: 120),
