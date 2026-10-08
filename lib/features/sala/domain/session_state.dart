@@ -6,6 +6,7 @@ import 'room_reach.dart';
 import 'coverage.dart';
 import 'hand_reply.dart';
 import 'kept_take.dart';
+import 'moment.dart';
 import 'passagem.dart';
 import 'station.dart';
 
@@ -123,6 +124,7 @@ class SalaSessionState {
   final bool panoramaSaid;
   final String? sessionId;
   final Coverage coverage;
+  final Moment? moment;
 
   /// Whether the beads are on the cord yet.
   ///
@@ -226,6 +228,7 @@ class SalaSessionState {
     this.panoramaSaid = false,
     this.sessionId,
     this.coverage = Coverage.empty,
+    this.moment,
     this.contasEnfiadas = true,
     this.peerCue = false,
     this.noteMode = false,
@@ -565,6 +568,8 @@ class SalaSessionState {
     String? sessionId,
     bool clearSession = false,
     Coverage? coverage,
+    Moment? moment,
+    bool clearMoment = false,
     bool? contasEnfiadas,
     bool? peerCue,
     bool? noteMode,
@@ -622,6 +627,7 @@ class SalaSessionState {
       panoramaSaid: panoramaSaid ?? this.panoramaSaid,
       sessionId: clearSession ? null : (sessionId ?? this.sessionId),
       coverage: coverage ?? this.coverage,
+      moment: clearMoment ? null : (moment ?? this.moment),
       contasEnfiadas: contasEnfiadas ?? this.contasEnfiadas,
       peerCue: peerCue ?? this.peerCue,
       noteMode: noteMode ?? this.noteMode,

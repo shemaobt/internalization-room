@@ -9,6 +9,7 @@ const _presentationDir = 'lib/features/sala/presentation';
 // (ENG-979).
 const _wordyExceptions = {
   'lib/features/sala/presentation/widgets/codigo_view.dart',
+  'lib/features/sala/presentation/widgets/moment_label.dart',
 };
 
 final _textWidgetPattern = RegExp(r'\bText\(');

@@ -907,7 +907,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     void Function()? onSoundStart,
   }) async {
     if (_abandoned(generation)) return;
-    state = state.copyWith(coverage: turn.coverage);
+    state = state.copyWith(
+      coverage: turn.coverage,
+      moment: turn.moment,
+      clearMoment: turn.moment == null,
+    );
     clock?.mark('answer');
     _awaitCoverageSettle(turn, clock: clock);
     _scheduleInboxPoll();
