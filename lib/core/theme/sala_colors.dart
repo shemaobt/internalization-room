@@ -21,6 +21,8 @@ abstract class ShemaBrand {
   static const verdeLo = Color(0xFF4C5028);
 
   static const verdeAzulado = Color(0xFF2E6F63);
+  static const roxo = Color(0xFF6A4C9C);
+  static const vermelhoMic = Color(0xFFC8321E);
 }
 
 @immutable

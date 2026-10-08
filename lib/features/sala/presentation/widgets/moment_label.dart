@@ -14,7 +14,12 @@ class MomentLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     final label = momentLabelFor(moment, language);
     final cut = label.indexOf(' · ');
-    const tint = ShemaBrand.verdeAzulado;
+    final tint = switch (moment.at) {
+      MomentAt.familiarization => ShemaBrand.verdeAzulado,
+      MomentAt.internalization => ShemaBrand.roxo,
+      MomentAt.articulation => ShemaBrand.vermelhoMic,
+      MomentAt.ensaioFinal => ShemaBrand.telha,
+    };
     final ink = SalaColors.of(context).ink;
     return Semantics(
       label: '${momentAriaFor(language)}: $label',
@@ -30,7 +35,7 @@ class MomentLabel extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const DecoratedBox(
+              DecoratedBox(
                 decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
                 child: SizedBox(width: 9, height: 9),
               ),

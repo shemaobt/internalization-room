@@ -269,13 +269,27 @@ const momentLabels = {
     'pt': 'Familiarização · a passagem inteira',
     'en': 'Familiarization · the whole passage',
   },
+  MomentAt.internalization: {
+    'pt': 'Internalização · cena {n} de {k}',
+    'en': 'Internalization · scene {n} of {k}',
+  },
+  MomentAt.articulation: {
+    'pt': 'Articulação · cena {n} de {k}',
+    'en': 'Articulation · scene {n} of {k}',
+  },
+  MomentAt.ensaioFinal: {
+    'pt': 'Ensaio Final · a passagem inteira',
+    'en': 'Final Rehearsal · the whole passage',
+  },
 };
 
 const momentAria = {'pt': 'Momento da sessão', 'en': 'Session moment'};
 
 String momentLabelFor(Moment moment, String language) =>
-    momentLabels[moment.at]![language] ??
-    momentLabels[moment.at]![floorLanguage]!;
+    (momentLabels[moment.at]![language] ??
+            momentLabels[moment.at]![floorLanguage]!)
+        .replaceAll('{n}', '${moment.part}')
+        .replaceAll('{k}', '${moment.parts}');
 
 String momentAriaFor(String language) =>
     momentAria[language] ?? momentAria[floorLanguage]!;
