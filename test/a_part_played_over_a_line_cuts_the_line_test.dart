@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 
-import 'a_room_host_double.dart';
+import 'a_station_host_double.dart';
 import 'fakes.dart';
 
 void main() {
@@ -13,7 +13,7 @@ void main() {
       final harness = SalaHarness();
       final container = ProviderContainer(overrides: harness.overrides);
       addTearDown(container.dispose);
-      final runner = runnerOver(portsOf(container), ARoomHost());
+      final runner = runnerOver(portsOf(container), AStationHost());
       harness.voice.holdNextLine();
 
       runner.run(const [

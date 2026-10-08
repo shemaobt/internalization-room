@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/current_session_ledger.dart';
 import 'package:internalization_room/features/sala/data/device_link_notifier.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -46,7 +45,7 @@ Future<_Tablet> _aTablet({
   final harness = SalaHarness(
     lingua: lingua,
     watchesWithoutAHalt: watching,
-    currentSession: CurrentSessionLedger(home: () async => home),
+    currentSession: LedgerThatReadsLate(home: () async => home),
   );
   final container = harness.container();
   addTearDown(container.dispose);
@@ -250,6 +249,9 @@ void main() {
 
     setUp(() async {
       final first = await _inP01();
+      first.harness.emAberto.forgetsTheSessionAfter = const Duration(
+        milliseconds: 500,
+      );
       final session = first.state.sessionId!;
       again = await _relaunch(first);
       again.harness.room.forgetTheSession(session);
@@ -270,6 +272,12 @@ void main() {
     });
 
     test('lets the session go', () async {
+      await waitFor(
+        'the place of the lost session to leave the tablet',
+        () async => !(await again.harness.emAbertoNoDisco!.startedIn(
+          'Ruth',
+        )).contains('P01'),
+      );
       expect(
         await again.harness.emAbertoNoDisco!.startedIn('Ruth'),
         isNot(contains('P01')),
@@ -437,10 +445,16 @@ void main() {
       final session = first.state.sessionId!;
 
       final again = await _relaunch(first);
+      final ledger = again.harness.currentSession as LedgerThatReadsLate;
+      ledger.readsAfter = const Duration(milliseconds: 500);
       final before = again.harness.room.calls.length;
       again.harness.room.holdNextState();
       final launched = again.notifier.openTheRoom();
-      await settle();
+      await waitFor(
+        'the first read of the session to reach the room',
+        () => again.harness.room.calls.skip(before).contains('fetchState'),
+      );
+      ledger.readsAfter = null;
       final twice = again.notifier.openTheRoom();
       await settle();
 

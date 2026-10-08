@@ -158,6 +158,18 @@ final theMicrophoneOpensOverASoundOnlyAfterAStop = Invariant<Machine>(
   },
 );
 
+final aMicrophoneAnswerWithNoMicrophoneOpenLeavesTheChannelAsItWas =
+    Invariant<Machine>(
+      'a microphone answer with no microphone open leaves the Channel as it was',
+      (before, event, after, effects, world) {
+        if (event is! MicAnswered || before.channel is Microphone) return null;
+        if (identical(after.channel, before.channel)) return null;
+        return '${describeEvent(event)} changed '
+            '${describeChannel(before.channel)} into '
+            '${describeChannel(after.channel)}';
+      },
+    );
+
 final theHeadNeverReadsAnotherSound = Invariant<Machine>(
   'ADR invariant 8, the Head never reads another part\'s or stretch\'s position',
   (before, event, after, effects, world) {
@@ -326,6 +338,30 @@ void main() {
       expect(check(const [StopTheSound(), open]), isNull);
     });
 
+    test('a microphone answer with no microphone open leaves the Channel as it '
+        'was', () {
+      _holds(aMicrophoneAnswerWithNoMicrophoneOpenLeavesTheChannelAsItWas);
+    });
+
+    test('a microphone answer with no microphone open reads a Channel that '
+        'changed', () {
+      const playing = Machine(channel: GuideSpeaking(Line(LineKind.guide, 1)));
+      const silent = Machine();
+      const listening = Machine(channel: Microphone(MicOwner.conversation));
+      String? check(Machine before, Machine after) =>
+          aMicrophoneAnswerWithNoMicrophoneOpenLeavesTheChannelAsItWas.check(
+            before,
+            const MicAnswered(MicAnswer.closed),
+            after,
+            const [],
+            const World(),
+          );
+
+      expect(check(playing, silent), isNotNull);
+      expect(check(playing, playing), isNull);
+      expect(check(listening, silent), isNull);
+    });
+
     test('ADR invariant 8: the Head never reads another part\'s or '
         'stretch\'s position', () {
       _holds(theHeadNeverReadsAnotherSound);
@@ -350,13 +386,14 @@ void main() {
       _holds(nothingOfAClosedPassageSurvives);
     });
 
-    test('ADR invariants 1, 2, 3, 5, 6, 8, 11, 12, 13 and 15 hold over the '
-        'default run', () {
+    test('ADR invariants 1, 2, 3, 5, 6, 8, 11, 12, 13 and 15, and a microphone '
+        'answer with no microphone open, hold over the default run', () {
       expectEverySeedHolds(_machine, [
         nothingOfAGoneSessionSurvives,
         nothingOfAClosedPassageSurvives,
         ...theAdrInvariants<Machine>(_haltOf),
         theMicrophoneOpensOverASoundOnlyAfterAStop,
+        aMicrophoneAnswerWithNoMicrophoneOpenLeavesTheChannelAsItWas,
         theHeadNeverReadsAnotherSound,
         theOutboxNeverIdlesReachableWithAPartPending,
         theScreenNeverShowsASoundTheChannelDoesNotHold,
@@ -437,18 +474,18 @@ void main() {
       final events = [
         for (final entry in runSequence(_machine, [
           aHaltNeverStands,
-        ], 7).entries)
+        ], 0).entries)
           describeEvent(entry.event),
       ];
 
       expect(
-        () => expectEverySeedHolds(_machine, [aHaltNeverStands], seeds: [7]),
+        () => expectEverySeedHolds(_machine, [aHaltNeverStands], seeds: [0]),
         throwsA(
           isA<TestFailure>()
               .having(
                 (failure) => failure.message,
                 'message',
-                startsWith('seed 7 broke'),
+                startsWith('seed 0 broke'),
               )
               .having(
                 (failure) => failure.message,

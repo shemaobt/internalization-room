@@ -47,7 +47,7 @@ class World {
         event is! MicClosed &&
         event is! MicDiscarded &&
         !(event is MicAnswered &&
-            event.generation == null &&
+            event.generation != theOlderGeneration &&
             event.answer != MicAnswer.started &&
             event.because == null);
     var retry = retryArmed && event is! RetryFired;
@@ -293,6 +293,8 @@ String describeEvent(MachineEvent event) => switch (event) {
   TheRoomRefused(:final third, :final sounding) =>
     'TheRoomRefused(third: $third, ${describeKept(sounding)})',
   ThePassageCannotOpen() => 'ThePassageCannotOpen',
+  TheTellingCameBackEmpty() => 'TheTellingCameBackEmpty',
+  TheVerdictAsked() => 'TheVerdictAsked',
   TheChoiceOpened() => 'TheChoiceOpened',
   PassageChosen() => 'PassageChosen',
   TheRehearsalOpened() => 'TheRehearsalOpened',
@@ -398,6 +400,8 @@ enum EventKind {
   theOpeningMissed,
   theRoomRefused,
   thePassageCannotOpen,
+  theTellingCameBackEmpty,
+  theVerdictAsked,
   turnSent,
   turnAnswered,
   theRefusalPassed,
@@ -453,6 +457,8 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TheOpeningMissed() => EventKind.theOpeningMissed,
   TheRoomRefused() => EventKind.theRoomRefused,
   ThePassageCannotOpen() => EventKind.thePassageCannotOpen,
+  TheTellingCameBackEmpty() => EventKind.theTellingCameBackEmpty,
+  TheVerdictAsked() => EventKind.theVerdictAsked,
   TurnSent() => EventKind.turnSent,
   TurnAnswered() => EventKind.turnAnswered,
   TheRefusalPassed() => EventKind.theRefusalPassed,
@@ -475,9 +481,8 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.playerOpened ||
   EventKind.playerEnded ||
   EventKind.playerFailed => world.playerBusy,
-  EventKind.micClosed ||
-  EventKind.micAnswered ||
-  EventKind.micClosing => world.micOpen,
+  EventKind.micClosed || EventKind.micClosing => world.micOpen,
+  EventKind.micAnswered => true,
   EventKind.lookFound || EventKind.lookEmpty => world.looking,
   EventKind.sessionRead ||
   EventKind.roomRaisedAHalt ||
@@ -507,6 +512,8 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.theOpeningMissed ||
   EventKind.theRoomRefused ||
   EventKind.thePassageCannotOpen ||
+  EventKind.theTellingCameBackEmpty ||
+  EventKind.theVerdictAsked ||
   EventKind.turnSent ||
   EventKind.turnAnswered ||
   EventKind.theRefusalPassed ||
@@ -543,7 +550,10 @@ Sound _drawASound(Random random) => random.nextBool()
         telling: random.nextBool(),
       );
 
-/// Unstamped is the generation the machine holds; -1 is always an older one.
+/// The stamp the generator gives an answer that is always from an older generation.
+const theOlderGeneration = -1;
+
+/// Unstamped is the generation the machine holds; [theOlderGeneration] is always an older one.
 MicAnswered _drawAMicAnswer(Random random) {
   final answer = MicAnswer.values[random.nextInt(MicAnswer.values.length)];
   final closed = answer == MicAnswer.closed;
@@ -552,7 +562,7 @@ MicAnswered _drawAMicAnswer(Random random) {
     answer,
     take: closed && !failed && random.nextBool() ? 'tomada.m4a' : null,
     because: failed ? Exception('the recorder failed to stop') : null,
-    generation: random.nextInt(4) == 0 ? -1 : null,
+    generation: random.nextInt(4) == 0 ? theOlderGeneration : null,
   );
 }
 
@@ -668,6 +678,8 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
         sounding: _drawKept(random),
       ),
       EventKind.thePassageCannotOpen => const ThePassageCannotOpen(),
+      EventKind.theTellingCameBackEmpty => const TheTellingCameBackEmpty(),
+      EventKind.theVerdictAsked => const TheVerdictAsked(),
       EventKind.turnSent => TurnSent(_drawATurn(random)),
       EventKind.turnAnswered => TurnAnswered(_drawATurn(random)),
       EventKind.theRefusalPassed => const TheRefusalPassed(),

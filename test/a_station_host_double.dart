@@ -11,7 +11,7 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
-class ARoomHost implements EffectHost {
+class AStationHost implements StationHost {
   final List<String> asked = [];
   final List<MachineEvent> answers = [];
   void Function(MachineEvent event)? onAnswer;
@@ -182,6 +182,10 @@ class ARoomHost implements EffectHost {
   void hearTheRefusalCounted() => asked.add('hearTheRefusalCounted');
 
   @override
+  void hearThePendingTranslationLetGo() =>
+      asked.add('hearThePendingTranslationLetGo');
+
+  @override
   void hearThePassageRefused() => asked.add('hearThePassageRefused');
 }
 
@@ -201,7 +205,7 @@ Ports portsOf(ProviderContainer container) => (
 
 EffectRunner runnerOver(
   Ports ports,
-  ARoomHost host, {
+  AStationHost host, {
   Duration watchPeriod = const Duration(seconds: 30),
   Duration retryDelay = Duration.zero,
   Duration clipGrace = Duration.zero,

@@ -6,7 +6,7 @@ import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 
-import 'a_room_host_double.dart';
+import 'a_station_host_double.dart';
 import 'fake_ports.dart';
 
 const _snapshot = SessionSnapshot(
@@ -19,12 +19,12 @@ const _snapshot = SessionSnapshot(
 
 void main() {
   late ARoomPort room;
-  late ARoomHost host;
+  late AStationHost host;
   late EffectRunner runner;
 
   setUp(() {
     room = ARoomPort();
-    host = ARoomHost()..session = 'sessao-1';
+    host = AStationHost()..session = 'sessao-1';
     runner = runnerOver(fakePorts(ASoundPort(), room: room), host);
   });
 

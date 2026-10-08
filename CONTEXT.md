@@ -180,7 +180,7 @@ The position inside the open part or stretch that the scissors, the Capture and 
 _Avoid_: playhead, reading head (retired), position
 
 **Wordless recording**:
-A recording whose transcription holds no words. The server answers it with the inaudible line; the tablet never judges it.
+A recording whose transcription holds no words. On the telling doors the server refuses it with no line, and it refuses the same way when its transcriber fails or answers too late. The room stays paused on the same stretch, shows Marcia's line «Não entendi — traduzam de novo esse pedaço» beside the circle and voices nothing, and the circle reopens the microphone for that stretch. It is never counted toward calling a person.
 _Avoid_: empty capture, silence, inaudible take
 
 **Listening ledger** (`escuta das partes`):
@@ -333,8 +333,12 @@ What the machine asks the room to do after an event: a sound to play, a timer to
 _Avoid_: side effect, command, action
 
 **Effect runner**:
-The one place that executes every Effect, through the four Ports; the notifier hands it the effects and holds no switch over them (ADR 0053).
+The one place that executes every Effect, through the four Ports, reading the StationHost; the notifier hands it the effects and holds no switch over them (ADR 0053).
 _Avoid_: dispatcher, interpreter, handler
+
+**StationHost**:
+The one interface the EffectRunner reads from the room: the Station's questions (what is wanted, reachable or in course), its hearings (what the runner heard back) and the lifecycle hand-off. It executes no effect.
+_Avoid_: EffectHost, callback, delegate
 
 **Port**:
 One of the four doors the Effect runner reaches the world through: Room (the server, network health and the person-call inbox), Sound, Recorder and Store (the disk and the Outbox). Each is an interface in the domain with one production adapter (ADR 0053).

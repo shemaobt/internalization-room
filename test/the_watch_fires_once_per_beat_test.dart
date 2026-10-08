@@ -4,21 +4,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/effect_runner.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 
-import 'a_room_host_double.dart';
+import 'a_station_host_double.dart';
 import 'fakes.dart';
 
 const _beat = Duration(seconds: 30);
 
 void main() {
   late ProviderContainer container;
-  late ARoomHost host;
+  late AStationHost host;
   late EffectRunner runner;
   int fired() => host.answers.whereType<WatchFired>().length;
 
   setUp(() {
     container = ProviderContainer(overrides: SalaHarness().overrides);
     addTearDown(container.dispose);
-    host = ARoomHost();
+    host = AStationHost();
     runner = runnerOver(portsOf(container), host, watchPeriod: _beat);
     host.onAnswer = (event) {
       if (event is WatchFired) runner.run(const [ArmTheWatch()]);

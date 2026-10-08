@@ -232,9 +232,14 @@ class FakeVoice implements FacilitatorVoiceService {
   /// How many times the room told this voice to stop, whatever it was saying.
   int stops = 0;
 
+  /// Called the instant the room tells the voice to stop, so a test can read where the
+  /// room stood then.
+  void Function()? onStop;
+
   @override
   Future<void> stop() async {
     stops++;
+    onStop?.call();
     sounds.add('voice:stop');
     final saying = _saying;
     _saying = null;
@@ -755,8 +760,12 @@ class FakeWorkInProgress implements WorkInProgress {
   Future<void> forget(String book, String pericope) async =>
       rows.remove('$book/$pericope');
 
+  Duration? forgetsTheSessionAfter;
+
   @override
   Future<List<ResumePoint>> forgetTheSession(String sessionId) async {
+    final wait = forgetsTheSessionAfter;
+    if (wait != null) await Future<void>.delayed(wait);
     final forgotten = [
       for (final row in rows.values)
         if (row.sessionId == sessionId) row,
@@ -995,7 +1004,6 @@ class FakeRoom implements RoomRepository {
   /// Run while the ask for a verdict is still in the air. The seam for a test that needs
   /// the team to do something — leave the passage, say — during that wait.
   void Function()? duranteOVeredito;
-  bool replaceCaptured = true;
 
   /// Whether the room answers a correction by asking for a person. False is also what a
   /// server that does not send the field at all looks like from here.
@@ -1008,7 +1016,6 @@ class FakeRoom implements RoomRepository {
   final List<String> replacesComArquivo = [];
   int _versoes = 0;
 
-  bool chunkCaptured = true;
   bool turnsAreCanned = false;
   bool turnsAreDegraded = false;
   bool silentAboutCoverage = false;
@@ -1583,22 +1590,9 @@ class FakeRoom implements RoomRepository {
       serverStatus = 'needs_person';
       serverHalt = HaltKind.warning;
     }
-    if (!replaceCaptured) {
-      return Answered(
-        TellingAgain(
-          segments: List.of(segments),
-          captured: false,
-          needsPerson: needsPerson,
-        ),
-      );
-    }
     _tellAgain(segmentId);
     final told = Answered(
-      TellingAgain(
-        segments: List.of(segments),
-        captured: true,
-        needsPerson: needsPerson,
-      ),
+      TellingAgain(segments: List.of(segments), needsPerson: needsPerson),
     );
     final lost = loseTheNextReplaceAnswerWith;
     if (lost != null) {
@@ -1723,6 +1717,10 @@ class FakeRoom implements RoomRepository {
     holdTakeScope = null;
   }
 
+  Duration? takeLandsAfter;
+
+  Duration? aHeldTakeAnswersAfter;
+
   @override
   Future<RoomAnswer<String>> sendTake(
     String sessionId,
@@ -1736,9 +1734,13 @@ class FakeRoom implements RoomRepository {
     if (_forgot('sendTake', sessionId) case final gone?) {
       return gone;
     }
+    final wait = takeLandsAfter;
+    if (wait != null) await Future<void>.delayed(wait);
     if (scope == holdTakeScope) {
       _reachedTakeHold?.complete();
       await _holdingTake?.future;
+      final answersAfter = aHeldTakeAnswersAfter;
+      if (answersAfter != null) await Future<void>.delayed(answersAfter);
     }
     if (refuseTake == '$kind/$scope') return Refused(refuseTakeCode);
     if (unreachableTake == '$kind/$scope') {
@@ -1840,19 +1842,17 @@ class FakeRoom implements RoomRepository {
     chunkSpans.add('${from.inMilliseconds}-${to.inMilliseconds}');
     chunkTakes.add(takeId);
     chunkFiles.add(audio.path);
-    if (chunkCaptured) {
-      segments.add(
-        SegmentView(
-          segmentId: 'trecho-${segments.length + 1}',
-          takeId: takeId,
-          startsMs: from.inMilliseconds,
-          endsMs: to.inMilliseconds,
-        ),
-      );
-    }
+    segments.add(
+      SegmentView(
+        segmentId: 'trecho-${segments.length + 1}',
+        takeId: takeId,
+        startsMs: from.inMilliseconds,
+        endsMs: to.inMilliseconds,
+      ),
+    );
     final held = _holdingChunk;
     if (held != null) await held.future;
-    return Answered(BackTranslationChunk(captured: chunkCaptured));
+    return const Answered(BackTranslationChunk());
   }
 
   Completer<void>? _holdingChunk;
@@ -2633,4 +2633,87 @@ class QueueWithdrawThrows extends TakeUploadQueue {
   @override
   Future<void> withdraw(PendingTake row) async =>
       throw const FileSystemException('disco cheio');
+}
+
+class QueueThatDiscardsLate extends TakeUploadQueue {
+  QueueThatDiscardsLate({required super.room, super.home});
+
+  Duration? discardsAfter;
+
+  @override
+  Future<void> discardTheSession(String sessionId) async {
+    final wait = discardsAfter;
+    if (wait != null) await Future<void>.delayed(wait);
+    await super.discardTheSession(sessionId);
+  }
+}
+
+class QueueWhoseTranslationLandsLate extends TakeUploadQueue {
+  QueueWhoseTranslationLandsLate({required super.room, super.home});
+
+  Duration? landsAfter;
+  bool translationLanded = false;
+
+  @override
+  Future<PendingTake> enqueue(
+    File audio, {
+    required String sessionId,
+    required String kind,
+    required String scope,
+    int? passNumber,
+    int? chunkIndex,
+  }) async {
+    final wait = landsAfter;
+    if (kind == 'retro' && wait != null) await Future<void>.delayed(wait);
+    final row = await super.enqueue(
+      audio,
+      sessionId: sessionId,
+      kind: kind,
+      scope: scope,
+      passNumber: passNumber,
+      chunkIndex: chunkIndex,
+    );
+    if (kind == 'retro') translationLanded = true;
+    return row;
+  }
+}
+
+class QueueThatEnqueuesLate extends TakeUploadQueue {
+  QueueThatEnqueuesLate({required super.room, super.home});
+
+  Duration? enqueuesAfter;
+
+  @override
+  Future<PendingTake> enqueue(
+    File audio, {
+    required String sessionId,
+    required String kind,
+    required String scope,
+    int? passNumber,
+    int? chunkIndex,
+  }) async {
+    final wait = enqueuesAfter;
+    if (wait != null) await Future<void>.delayed(wait);
+    return super.enqueue(
+      audio,
+      sessionId: sessionId,
+      kind: kind,
+      scope: scope,
+      passNumber: passNumber,
+      chunkIndex: chunkIndex,
+    );
+  }
+}
+
+class LedgerThatReadsLate extends CurrentSessionLedger {
+  LedgerThatReadsLate({super.home});
+
+  Duration? readsAfter;
+
+  @override
+  Future<CurrentSession?> read() async {
+    final wait = readsAfter;
+    if (wait != null) await Future<void>.delayed(wait);
+    return super.read();
+  }
 }

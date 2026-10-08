@@ -6,7 +6,7 @@ import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/failure_policy.dart';
 import 'package:internalization_room/features/sala/domain/refusal_code.dart';
 
-import 'a_room_host_double.dart';
+import 'a_station_host_double.dart';
 import 'fake_ports.dart';
 
 const _first = Duration(seconds: 2);
@@ -16,14 +16,14 @@ const _ms = Duration(milliseconds: 1);
 void main() {
   late ARoomPort room;
   late AStorePort store;
-  late ARoomHost host;
+  late AStationHost host;
   late EffectRunner runner;
   var machine = const Machine();
 
   setUp(() {
     room = ARoomPort();
     store = AStorePort();
-    host = ARoomHost()
+    host = AStationHost()
       ..session = 'sessao-1'
       ..passageInCourse = 'rute-1'
       ..passageToMark = (book: 'rute', passage: 'rute-1');

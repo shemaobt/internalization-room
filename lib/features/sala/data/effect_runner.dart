@@ -17,9 +17,9 @@ typedef SentRead = ({int order, List<Trecho> row});
 /// The book and the passage a closed-passage mark writes down as finished.
 typedef ClosedPassage = ({String book, String passage});
 
-/// Temporary: what the runner still asks the Station, what it tells the Station to hear,
-/// the answers it brings back to the machine, and the one lifecycle hand-off.
-abstract interface class EffectHost {
+/// What the runner asks the Station, what it tells the Station to hear, the answers it
+/// brings back to the machine, and the one lifecycle hand-off. It executes no effect.
+abstract interface class StationHost {
   bool get watchIsWanted;
 
   bool get roomIsReachable;
@@ -132,6 +132,8 @@ abstract interface class EffectHost {
 
   void hearTheRefusalCounted();
 
+  void hearThePendingTranslationLetGo();
+
   void hearThePassageRefused();
 }
 
@@ -140,7 +142,7 @@ class EffectRunner {
   final SoundPort sound;
   final RecorderPort recorder;
   final StorePort store;
-  final EffectHost host;
+  final StationHost host;
   final Duration Function() watchPeriod;
   final Duration Function(int step) retryDelay;
   final Duration? Function() partCeiling;
@@ -261,6 +263,8 @@ class EffectRunner {
           unawaited(_markThePassageClosed());
         case CountTheRefusal():
           host.hearTheRefusalCounted();
+        case LetThePendingTranslationGo():
+          host.hearThePendingTranslationLetGo();
         case RefuseThePassage():
           host.hearThePassageRefused();
       }
@@ -699,7 +703,7 @@ class EffectRunner {
     }
   }
 
-  /// The arm is gated by [EffectHost.aPersonIsNeeded] and not by the generation: the
+  /// The arm is gated by [StationHost.aPersonIsNeeded] and not by the generation: the
   /// machine moves the generation on the way into other halts, and a ladder that did not
   /// arm for it would stop insisting in silence. The fire is gated by the generation: a
   /// ladder armed before it moved is dropped, as the Station drops any older answer.

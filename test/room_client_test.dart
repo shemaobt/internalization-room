@@ -199,6 +199,26 @@ void main() {
       expect(answer, refusedWith('STRETCH_NO_LONGER_COUNTS'));
     },
   );
+
+  test('the room\'s wordless refusal is told by its code', () async {
+    RoomRepository wordless() => answering(422, {
+      'detail': 'The telling has no words in it',
+      'code': 'WORDLESS_TELLING',
+    });
+
+    expect(await replace(wordless()), refusedWith(RefusalCode.wordlessTelling));
+    expect(
+      await wordless().sendChunk(
+        'sessao-1',
+        await _tempRecording(),
+        takeId: 'gravacao-1',
+        from: Duration.zero,
+        to: const Duration(seconds: 4),
+        idempotencyKey: 'chave-1',
+      ),
+      refusedWith(RefusalCode.wordlessTelling),
+    );
+  });
 }
 
 Future<File> _tempRecording() async {

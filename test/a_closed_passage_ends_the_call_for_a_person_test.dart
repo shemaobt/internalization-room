@@ -15,6 +15,7 @@ import 'scenario_helpers.dart' show settle;
 const _thePassageClosed = Refused('PASSAGE_CLOSED');
 const _oneStepOfTheLadder = Duration(milliseconds: 20);
 const _severalStepsOfTheLadder = Duration(milliseconds: 300);
+const _slowerThanAnyWait = Duration(milliseconds: 500);
 
 Future<ProviderContainer> _naPassagem(SalaHarness harness) async {
   final container = harness.container();
@@ -68,6 +69,14 @@ Future<List<PendingTake>> _daSessao(
     if (row.sessionId == sessionId) row,
 ];
 
+Future<bool> _aCopiaSaiu(
+  SalaHarness harness,
+  String sessionId,
+  PendingTake linha,
+) async =>
+    (await _daSessao(harness, sessionId)).isEmpty &&
+    !File(linha.path).existsSync();
+
 void main() {
   test(
     'a passage closed on the call for a person is asked once and never again',
@@ -97,7 +106,7 @@ void main() {
     final harness = SalaHarness(
       retryBackoff: const [_oneStepOfTheLadder],
       watchesWithoutAHalt: true,
-    );
+    )..emAberto.forgetsTheSessionAfter = _slowerThanAnyWait;
     final container = await _naPassagem(harness);
     final sessao = _estado(container).sessionId!;
     harness.room.holdNextAskForAPerson();
@@ -126,6 +135,12 @@ void main() {
     harness.room.finishHeldAskForAPerson();
     await _naEscolha(container);
     await settle(_severalStepsOfTheLadder);
+    await waitFor(
+      'o lugar e a cópia da sessão saírem do tablet',
+      () async =>
+          (await harness.emAberto.of('Ruth', 'P01')) == null &&
+          await _aCopiaSaiu(harness, sessao, linha),
+    );
 
     expect(_estado(container).stage, SalaStage.escolha);
     expect(_estado(container).voice, isNot(VoiceState.listening));
@@ -153,7 +168,8 @@ void main() {
 
   test('a passage closed after the team left it is closed on the tablet, '
       'and the room stays at the Choice', () async {
-    final harness = SalaHarness(retryBackoff: const [_oneStepOfTheLadder]);
+    final harness = SalaHarness(retryBackoff: const [_oneStepOfTheLadder])
+      ..emAberto.forgetsTheSessionAfter = _slowerThanAnyWait;
     final container = await _naPassagem(harness);
     final sessao = _estado(container).sessionId!;
     harness.room.holdNextAskForAPerson();
@@ -178,6 +194,12 @@ void main() {
       () => _estado(container).feitas.contains('P01'),
     );
     await settle(_severalStepsOfTheLadder);
+    await waitFor(
+      'o lugar e a cópia da sessão saírem do tablet',
+      () async =>
+          (await harness.emAberto.of('Ruth', 'P01')) == null &&
+          await _aCopiaSaiu(harness, sessao, linha),
+    );
 
     expect(_estado(container).stage, SalaStage.escolha);
     expect(_estado(container).naRoda, isNotNull);
@@ -469,6 +491,11 @@ void main() {
       ProviderContainer container,
       String primeira,
     ) async {
+      await waitFor(
+        'o lugar da primeira sair do tablet',
+        () async =>
+            (await harness.emAberto.of('Ruth', 'P01'))?.sessionId != primeira,
+      );
       expect(
         (await harness.emAberto.of('Ruth', 'P01'))?.sessionId,
         isNot(primeira),
@@ -497,7 +524,8 @@ void main() {
     test(
       'gone through the Outbox while the room is in another passage',
       () async {
-        final harness = SalaHarness();
+        final harness = SalaHarness()
+          ..emAberto.forgetsTheSessionAfter = _slowerThanAnyWait;
         final (container, primeira) = await doisPassos(harness);
         final linha = await harness.takes.enqueue(
           harness.recorder.aFile('parte-da-primeira'),
@@ -521,7 +549,8 @@ void main() {
     );
 
     test('gone through the late answer to the call for a person', () async {
-      final harness = SalaHarness();
+      final harness = SalaHarness()
+        ..emAberto.forgetsTheSessionAfter = _slowerThanAnyWait;
       final container = await _naPassagem(harness);
       final primeira = _estado(container).sessionId!;
       harness.room.holdNextAskForAPerson();
@@ -555,6 +584,9 @@ void main() {
       '${casa.path}/guardadas/em_curso.json',
     ).writeAsStringSync('{"Ruth/P01": isto nao e json');
     final harness = SalaHarness(
+      takesOverride: (room, home) =>
+          QueueThatDiscardsLate(room: room, home: () async => home)
+            ..discardsAfter = _slowerThanAnyWait,
       emAbertoNoDisco: WorkInProgress(
         home: () async => casa,
         recordings: () async =>
@@ -575,6 +607,10 @@ void main() {
     await _aPassagemFechaNoPedidoDePessoa(harness, container);
     await _naEscolha(container);
     await settle(_severalStepsOfTheLadder);
+    await waitFor(
+      'a cópia da sessão sair do tablet',
+      () => _aCopiaSaiu(harness, sessao, linha),
+    );
 
     expect(await _daSessao(harness, sessao), isEmpty);
     expect(File(linha.path).existsSync(), isFalse);

@@ -203,7 +203,8 @@ void main() {
   test(
     'a remembered session gone and a fresh one refused send the team back to the wheel',
     () async {
-      final harness = SalaHarness();
+      final harness = SalaHarness()
+        ..emAberto.forgetsTheSessionAfter = const Duration(milliseconds: 500);
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -219,7 +220,10 @@ void main() {
       harness.room.forgetTheSession(harness.room.sessionIds.single);
       harness.room.passagesThatCannotOpen = {'P01'};
       notifier.entrarNaOferecida();
-      await settle();
+      await waitFor(
+        'o lugar da sessão lembrada sair do tablet',
+        () async => (await harness.emAberto.of('Ruth', 'P01')) == null,
+      );
 
       final state = container.read(salaSessionProvider);
       expect(state.stage, SalaStage.escolha);
@@ -516,7 +520,7 @@ void main() {
 
   test('a stretch the room did not capture is still kept as audio', () async {
     final harness = SalaHarness();
-    harness.room.chunkCaptured = false;
+    harness.room.failChunkWith = const Refused(RefusalCode.wordlessTelling);
     final container = await inConversaHarness(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -587,7 +591,7 @@ void main() {
     notifier.startRetro();
     await settle();
 
-    harness.room.chunkCaptured = false;
+    harness.room.failChunkWith = const Refused('BAD_REQUEST');
     harness.playback.at = const Duration(seconds: 12);
     notifier.cortarTrecho();
     notifier.retroTap();
@@ -598,7 +602,7 @@ void main() {
       () => container.read(salaSessionProvider).btChunkFailures.isNotEmpty,
     );
 
-    harness.room.chunkCaptured = true;
+    harness.room.failChunkWith = null;
     harness.playback.at = const Duration(seconds: 30);
     notifier.cortarTrecho();
     notifier.retroTap();
@@ -985,7 +989,11 @@ void main() {
   test(
     'a kept take still reaches the queue when the room is disposed',
     () async {
-      final harness = SalaHarness();
+      final harness = SalaHarness(
+        takesOverride: (room, home) =>
+            QueueThatEnqueuesLate(room: room, home: () async => home)
+              ..enqueuesAfter = const Duration(milliseconds: 700),
+      );
       final container = await inConversaHarness(harness);
       final notifier = container.read(salaSessionProvider.notifier);
 
@@ -995,14 +1003,11 @@ void main() {
       await settle();
       notifier.takeKeep();
       container.dispose();
-      await settle(const Duration(milliseconds: 400));
-
-      expect(
-        await harness.takes.entries(),
-        isNotEmpty,
-        reason:
-            'a guarda contra ler providers descartados foi posta antes do '
-            'enfileiramento, no método cujo trabalho é não perder gravação',
+      await waitFor(
+        'a gravação guardada chegar à fila (a guarda contra ler providers '
+        'descartados foi posta antes do enfileiramento, no método cujo '
+        'trabalho é não perder gravação)',
+        () async => (await harness.takes.entries()).isNotEmpty,
       );
     },
   );

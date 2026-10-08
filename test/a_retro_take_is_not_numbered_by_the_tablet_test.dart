@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -40,13 +41,12 @@ void main() {
     notifier.startRetro();
     await waitFor('a retro tocar', () => harness.playback.played.isNotEmpty);
 
-    harness.room.chunkCaptured = false;
+    harness.room.failChunkWith = const Refused(RefusalCode.wordlessTelling);
     harness.playback.at = umaParteInteira;
     notifier.cortarTrecho();
     notifier.retroTap();
     await settle();
     await confirmarATraducao(container);
-    await waitFor('o trecho chegar à sala', () => harness.room.chunksSent == 1);
     // Waited on the outbox, not on time, for the reason the case below gives: the guard's
     // write to disk can land after the chunk reached the room, and on a loaded runner a
     // fixed settle read an empty outbox.
@@ -118,7 +118,7 @@ void main() {
       () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
     );
 
-    harness.room.replaceCaptured = false;
+    harness.room.failReplaceWith = const Refused(RefusalCode.wordlessTelling);
     await fecharACaptura(container);
     await notifier.confirmarTraducao();
     // Waited on the outbox, not on the phase. What this case reads is the row the guard
