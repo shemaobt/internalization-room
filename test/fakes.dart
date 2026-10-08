@@ -2633,13 +2633,41 @@ class QueueThatDiscardsLate extends TakeUploadQueue {
   QueueThatDiscardsLate({required super.room, super.home});
 
   Duration? discardsAfter;
-  int discardsDone = 0;
 
   @override
   Future<void> discardTheSession(String sessionId) async {
     final wait = discardsAfter;
     if (wait != null) await Future<void>.delayed(wait);
     await super.discardTheSession(sessionId);
-    discardsDone++;
+  }
+}
+
+class QueueWhoseTranslationLandsLate extends TakeUploadQueue {
+  QueueWhoseTranslationLandsLate({required super.room, super.home});
+
+  Duration? landsAfter;
+  bool translationLanded = false;
+
+  @override
+  Future<PendingTake> enqueue(
+    File audio, {
+    required String sessionId,
+    required String kind,
+    required String scope,
+    int? passNumber,
+    int? chunkIndex,
+  }) async {
+    final wait = landsAfter;
+    if (kind == 'retro' && wait != null) await Future<void>.delayed(wait);
+    final row = await super.enqueue(
+      audio,
+      sessionId: sessionId,
+      kind: kind,
+      scope: scope,
+      passNumber: passNumber,
+      chunkIndex: chunkIndex,
+    );
+    if (kind == 'retro') translationLanded = true;
+    return row;
   }
 }

@@ -673,11 +673,12 @@ void main() {
 
   test('ENG-1155: a gone at the chunk door leaves no translation copy in the '
       'Outbox and no file on disk, even with the enqueue in flight', () async {
-    late QueueThatDiscardsLate fila;
+    late QueueWhoseTranslationLandsLate fila;
     final harness = SalaHarness(
-      takesOverride: (room, home) =>
-          fila = QueueThatDiscardsLate(room: room, home: () async => home)
-            ..discardsAfter = _slowerThanAnyWait,
+      takesOverride: (room, home) => fila = QueueWhoseTranslationLandsLate(
+        room: room,
+        home: () async => home,
+      )..landsAfter = _slowerThanAnyWait,
     );
     final container = await _naPassagem(harness);
     await _abrirACapturaDeUmTrecho(harness, container);
@@ -686,9 +687,16 @@ void main() {
     await confirmarATraducao(container);
     final traducao = harness.recorder.lastPath!;
     await _naEscolha(container);
+    final guardadas = Directory('${harness.takesHome.path}/guardadas');
     await waitFor(
-      'a sala descartar a sessão e a cópia da tradução em voo',
-      () => fila.discardsDone >= 2,
+      'a cópia da tradução chegar tarde e sair da fila',
+      () async =>
+          fila.translationLanded &&
+          [
+            for (final row in await harness.takes.entries())
+              if (row.kind == 'retro') row,
+          ].isEmpty &&
+          guardadas.listSync().length == 1,
     );
 
     final retro = [
@@ -696,9 +704,9 @@ void main() {
         if (row.kind == 'retro') row,
     ];
     expect(retro, isEmpty);
-    final naPasta = Directory(
-      '${harness.takesHome.path}/guardadas',
-    ).listSync().map((entry) => entry.uri.pathSegments.last);
+    final naPasta = guardadas.listSync().map(
+      (entry) => entry.uri.pathSegments.last,
+    );
     expect(naPasta, ['fila.json']);
     expect(harness.recorder.deleted, contains(traducao));
   });
