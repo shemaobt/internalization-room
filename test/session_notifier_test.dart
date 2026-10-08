@@ -7614,6 +7614,7 @@ void main() {
 
   test('a part left unheard is not reported as heard', () async {
     final harness = SalaHarness()
+      ..room.takeLandsAfter = const Duration(milliseconds: 500)
       ..playback.length = const Duration(seconds: 10);
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -7622,6 +7623,7 @@ void main() {
     notifier.goEnsaio();
     await gravaParte(notifier);
     await gravaParte(notifier);
+    await theRoomNamesBothParts(container);
     notifier.startRetro();
     await settle();
     harness.playback.finishPlayback();
@@ -7650,7 +7652,7 @@ void main() {
     );
     expect(
       harness.room.chunkTakes.last,
-      harness.room.takeIds[1],
+      'gravacao-2',
       reason: 'e é a segunda gravação que ele fatia, não a primeira',
     );
     expect(
@@ -7767,6 +7769,7 @@ void main() {
 
   test('a finding in the second part plays the right stretch of it', () async {
     final harness = SalaHarness()
+      ..room.takeLandsAfter = const Duration(milliseconds: 500)
       ..room.verdictChecked = false
       ..room.verdictHasFinding = true;
     final container = await inConversa(harness);
@@ -7775,6 +7778,7 @@ void main() {
     notifier.goEnsaio();
     await gravaParte(notifier);
     await gravaParte(notifier);
+    await theRoomNamesBothParts(container);
     notifier.startRetro();
     await settle();
     harness.playback.at = const Duration(seconds: 10);

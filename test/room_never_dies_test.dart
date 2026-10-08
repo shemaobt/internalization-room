@@ -989,7 +989,11 @@ void main() {
   test(
     'a kept take still reaches the queue when the room is disposed',
     () async {
-      final harness = SalaHarness();
+      final harness = SalaHarness(
+        takesOverride: (room, home) =>
+            QueueThatEnqueuesLate(room: room, home: () async => home)
+              ..enqueuesAfter = const Duration(milliseconds: 700),
+      );
       final container = await inConversaHarness(harness);
       final notifier = container.read(salaSessionProvider.notifier);
 
@@ -999,14 +1003,11 @@ void main() {
       await settle();
       notifier.takeKeep();
       container.dispose();
-      await settle(const Duration(milliseconds: 400));
-
-      expect(
-        await harness.takes.entries(),
-        isNotEmpty,
-        reason:
-            'a guarda contra ler providers descartados foi posta antes do '
-            'enfileiramento, no método cujo trabalho é não perder gravação',
+      await waitFor(
+        'a gravação guardada chegar à fila (a guarda contra ler providers '
+        'descartados foi posta antes do enfileiramento, no método cujo '
+        'trabalho é não perder gravação)',
+        () async => (await harness.takes.entries()).isNotEmpty,
       );
     },
   );
