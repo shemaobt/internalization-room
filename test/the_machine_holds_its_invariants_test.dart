@@ -386,8 +386,8 @@ void main() {
       _holds(nothingOfAClosedPassageSurvives);
     });
 
-    test('ADR invariants 1, 2, 3, 5, 6, 8, 11, 12, 13 and 15 hold over the '
-        'default run', () {
+    test('ADR invariants 1, 2, 3, 5, 6, 8, 11, 12, 13 and 15, and a microphone '
+        'answer with no microphone open, hold over the default run', () {
       expectEverySeedHolds(_machine, [
         nothingOfAGoneSessionSurvives,
         nothingOfAClosedPassageSurvives,

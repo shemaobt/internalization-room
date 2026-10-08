@@ -333,7 +333,7 @@ What the machine asks the room to do after an event: a sound to play, a timer to
 _Avoid_: side effect, command, action
 
 **Effect runner**:
-The one place that executes every Effect, through the four Ports and the StationHost; the notifier hands it the effects and holds no switch over them (ADR 0053).
+The one place that executes every Effect, through the four Ports, reading the StationHost; the notifier hands it the effects and holds no switch over them (ADR 0053).
 _Avoid_: dispatcher, interpreter, handler
 
 **StationHost**:

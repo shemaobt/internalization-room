@@ -231,6 +231,8 @@ class FakeVoice implements FacilitatorVoiceService {
   /// How many times the room told this voice to stop, whatever it was saying.
   int stops = 0;
 
+  /// Called the instant the room tells the voice to stop, so a test can read where the
+  /// room stood then.
   void Function()? onStop;
 
   @override

@@ -47,7 +47,7 @@ class World {
         event is! MicClosed &&
         event is! MicDiscarded &&
         !(event is MicAnswered &&
-            (event.generation ?? 0) >= 0 &&
+            event.generation != theOlderGeneration &&
             event.answer != MicAnswer.started &&
             event.because == null);
     var retry = retryArmed && event is! RetryFired;
@@ -550,7 +550,10 @@ Sound _drawASound(Random random) => random.nextBool()
         telling: random.nextBool(),
       );
 
-/// Unstamped is the generation the machine holds; -1 is always an older one.
+/// The stamp the generator gives an answer that is always from an older generation.
+const theOlderGeneration = -1;
+
+/// Unstamped is the generation the machine holds; [theOlderGeneration] is always an older one.
 MicAnswered _drawAMicAnswer(Random random) {
   final answer = MicAnswer.values[random.nextInt(MicAnswer.values.length)];
   final closed = answer == MicAnswer.closed;
@@ -559,7 +562,7 @@ MicAnswered _drawAMicAnswer(Random random) {
     answer,
     take: closed && !failed && random.nextBool() ? 'tomada.m4a' : null,
     because: failed ? Exception('the recorder failed to stop') : null,
-    generation: random.nextInt(4) == 0 ? -1 : null,
+    generation: random.nextInt(4) == 0 ? theOlderGeneration : null,
   );
 }
 
