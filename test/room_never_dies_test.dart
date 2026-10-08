@@ -17,7 +17,12 @@ import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart'
-    show enterThePanorama, enterThePassage, settle, withDiskThatAnswersAtOnce;
+    show
+        enterThePanorama,
+        enterThePassage,
+        settle,
+        theChoiceOffersAPassage,
+        withDiskThatAnswersAtOnce;
 
 void main() {
   test('a book with nothing left to offer reaches a person', () async {
@@ -210,13 +215,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       await notifier.abrirEscolha();
-      await waitFor(
-        'a Escolha oferecer uma passagem',
-        () =>
-            container.read(salaSessionProvider).stage == SalaStage.escolha &&
-            container.read(salaSessionProvider).oferecida != null &&
-            container.read(salaSessionProvider).voice == VoiceState.invite,
-      );
+      await theChoiceOffersAPassage(container);
       notifier.entrarNaOferecida();
       await waitFor(
         'a passagem abrir',

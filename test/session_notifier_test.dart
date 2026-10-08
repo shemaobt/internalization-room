@@ -22,7 +22,12 @@ import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart'
-    show enterThePanorama, settle, withDiskThatAnswersAtOnce;
+    show
+        enterThePanorama,
+        settle,
+        stateReads,
+        theChoiceOffersAPassage,
+        withDiskThatAnswersAtOnce;
 
 Future<void> _intoFindings(
   SalaHarness harness,
@@ -91,6 +96,57 @@ Future<void> _aprovar(SalaSessionNotifier notifier) async {
   await settle(const Duration(milliseconds: 900));
 }
 
+Future<void> tellTwoStretches(
+  SalaHarness harness,
+  ProviderContainer container,
+) async {
+  final notifier = container.read(salaSessionProvider.notifier);
+  notifier.goEnsaio();
+  notifier.ensaioTap();
+  notifier.ensaioTap();
+  await waitFor(
+    'a tomada ser oferecida',
+    () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+  );
+  notifier.takeKeep();
+  await waitFor(
+    'a sala nomear a parte',
+    () => container.read(salaSessionProvider).partes.last.takeId != null,
+  );
+  notifier.startRetro();
+  await waitFor(
+    'o clipe estar rodando',
+    () => container.read(salaSessionProvider).btClipRodando,
+  );
+
+  for (final (index, cut) in const [
+    Duration(seconds: 12),
+    Duration(seconds: 30),
+  ].indexed) {
+    final captures = harness.recorder.captures;
+    harness.playback.at = cut;
+    notifier.cortarTrecho();
+    notifier.retroTap();
+    await waitFor(
+      'o microfone abrir para o trecho ${index + 1}',
+      () => harness.recorder.captures == captures + 1,
+    );
+    final reopenings = harness.playback.played.length;
+    await confirmarATraducao(container);
+    await waitFor(
+      'o trecho ${index + 1} voltar da sala',
+      () => container.read(salaSessionProvider).btTrechos.length == index + 1,
+    );
+    await waitFor(
+      'o clipe reabrir no cursor',
+      () =>
+          harness.playback.played.length > reopenings &&
+          harness.playback.open &&
+          container.read(salaSessionProvider).canCut,
+    );
+  }
+}
+
 Future<ProviderContainer> inConversa(SalaHarness harness) async {
   final container = harness.container();
   await container.read(salaSessionProvider.notifier).goConversa();
@@ -98,7 +154,20 @@ Future<ProviderContainer> inConversa(SalaHarness harness) async {
   return container;
 }
 
-Future<ProviderContainer> inTheChoiceWithAPlaceToResume(
+Future<ProviderContainer> inConversaWithoutPausing(SalaHarness harness) async {
+  final container = harness.container();
+  await container.read(salaSessionProvider.notifier).goConversa();
+  await waitFor('a sala abrir a conversa e se calar', () {
+    final state = container.read(salaSessionProvider);
+    return state.sessionId != null &&
+        state.stage == SalaStage.conversa &&
+        state.voice == VoiceState.invite &&
+        !state.awaitingTheGuide;
+  });
+  return container;
+}
+
+Future<ProviderContainer> inTheChoiceWithAResumePoint(
   SalaHarness harness,
 ) async {
   harness.emAberto.rows['Ruth/P01'] = const ResumePoint(
@@ -107,12 +176,7 @@ Future<ProviderContainer> inTheChoiceWithAPlaceToResume(
   );
   final container = harness.container();
   await container.read(salaSessionProvider.notifier).abrirEscolha();
-  await waitFor(
-    'a Escolha oferecer uma passagem',
-    () =>
-        container.read(salaSessionProvider).oferecida != null &&
-        container.read(salaSessionProvider).voice == VoiceState.invite,
-  );
+  await theChoiceOffersAPassage(container);
   return container;
 }
 
@@ -120,7 +184,7 @@ Future<void> theResumeCheckIsRefused(
   SalaHarness harness,
   ProviderContainer container,
 ) async {
-  final reads = harness.room.calls.where((call) => call == 'fetchState').length;
+  final reads = stateReads(harness);
   harness.room.failWith = const Refused('BAD_REQUEST');
   await container
       .read(salaSessionProvider.notifier)
@@ -129,8 +193,7 @@ Future<void> theResumeCheckIsRefused(
   await waitFor(
     'a sala recusar a conferência e voltar ao convite',
     () =>
-        harness.room.calls.where((call) => call == 'fetchState').length ==
-            reads + 1 &&
+        stateReads(harness) == reads + 1 &&
         container.read(salaSessionProvider).stage == SalaStage.conversa &&
         container.read(salaSessionProvider).voice == VoiceState.invite,
   );
@@ -3625,10 +3688,10 @@ void main() {
   );
 
   test(
-    'a network that fails every other turn still climbs to a person',
+    'a refusal that counts, every other turn, still climbs to a person',
     () async {
       final harness = SalaHarness();
-      final container = await inTheChoiceWithAPlaceToResume(harness);
+      final container = await inTheChoiceWithAResumePoint(harness);
       addTearDown(container.dispose);
 
       await theResumeCheckIsRefused(harness, container);
@@ -3648,9 +3711,8 @@ void main() {
         isTrue,
         reason:
             'o turno que tocava zerava _roomFailures a cada sucesso, e '
-            'uma rede que cai a cada duas trocas nunca somava três seguidas — '
-            'doze falhas em vinte e quatro turnos e a sala nunca chamava '
-            'ninguém',
+            'uma recusa que conta a cada duas trocas nunca somava três '
+            'seguidas — a sala nunca chamava ninguém',
       );
     },
   );
@@ -3773,7 +3835,7 @@ void main() {
     'a degraded turn does not count toward the calm streak that forgives a failure',
     () async {
       final harness = SalaHarness();
-      final container = await inTheChoiceWithAPlaceToResume(harness);
+      final container = await inTheChoiceWithAResumePoint(harness);
       addTearDown(container.dispose);
 
       await theResumeCheckIsRefused(harness, container);
@@ -3805,7 +3867,7 @@ void main() {
     'an unplayable turn does not count toward the calm streak either',
     () async {
       final harness = SalaHarness();
-      final container = await inTheChoiceWithAPlaceToResume(harness);
+      final container = await inTheChoiceWithAResumePoint(harness);
       addTearDown(container.dispose);
 
       await theResumeCheckIsRefused(harness, container);
@@ -3837,7 +3899,7 @@ void main() {
     'a clean turn right before a degraded one still does not forgive a failure',
     () async {
       final harness = SalaHarness();
-      final container = await inTheChoiceWithAPlaceToResume(harness);
+      final container = await inTheChoiceWithAResumePoint(harness);
       addTearDown(container.dispose);
 
       await theResumeCheckIsRefused(harness, container);
@@ -6039,64 +6101,10 @@ void main() {
     'each pause closes a stretch, and the stretches follow the recording',
     () async {
       final harness = SalaHarness();
-      final container = await inConversa(harness);
+      final container = await inConversaWithoutPausing(harness);
       addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
 
-      notifier.goEnsaio();
-      notifier.ensaioTap();
-      notifier.ensaioTap();
-      await waitFor(
-        'a tomada ser oferecida',
-        () =>
-            container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
-      );
-      notifier.takeKeep();
-      await waitFor(
-        'a sala nomear a parte',
-        () => container.read(salaSessionProvider).partes.last.takeId != null,
-      );
-      notifier.startRetro();
-      await waitFor(
-        'o clipe estar rodando',
-        () => container.read(salaSessionProvider).btClipRodando,
-      );
-
-      final capturasDoPrimeiro = harness.recorder.captures;
-      harness.playback.at = const Duration(seconds: 12);
-      notifier.cortarTrecho();
-      notifier.retroTap();
-      await waitFor(
-        'o microfone abrir para o primeiro trecho',
-        () => harness.recorder.captures == capturasDoPrimeiro + 1,
-      );
-      final reaberturas = harness.playback.played.length;
-      await confirmarATraducao(container);
-      await waitFor(
-        'o primeiro trecho voltar da sala',
-        () => container.read(salaSessionProvider).btTrechos.length == 1,
-      );
-      await waitFor(
-        'o clipe reabrir no cursor',
-        () =>
-            harness.playback.played.length > reaberturas &&
-            harness.playback.open &&
-            container.read(salaSessionProvider).canCut,
-      );
-
-      final capturasDoSegundo = harness.recorder.captures;
-      harness.playback.at = const Duration(seconds: 30);
-      notifier.cortarTrecho();
-      notifier.retroTap();
-      await waitFor(
-        'o microfone abrir para o segundo trecho',
-        () => harness.recorder.captures == capturasDoSegundo + 1,
-      );
-      await confirmarATraducao(container);
-      await waitFor(
-        'o segundo trecho voltar da sala',
-        () => container.read(salaSessionProvider).btTrechos.length == 2,
-      );
+      await tellTwoStretches(harness, container);
 
       expect(
         harness.room.chunkSpans,
@@ -6115,70 +6123,11 @@ void main() {
       ..room.verdictChecked = false
       ..room.verdictHasFinding = true
       ..room.verdictFindingSegmentId = 'trecho-2';
-    final container = await inConversa(harness);
+    final container = await inConversaWithoutPausing(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
-    await waitFor(
-      'a tomada ser oferecida',
-      () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
-    );
-    notifier.takeKeep();
-    await waitFor(
-      'a sala nomear a parte',
-      () => container.read(salaSessionProvider).partes.last.takeId != null,
-    );
-    notifier.startRetro();
-    await waitFor(
-      'o clipe estar rodando',
-      () => container.read(salaSessionProvider).btClipRodando,
-    );
-
-    final capturasDoPrimeiro = harness.recorder.captures;
-    harness.playback.at = const Duration(seconds: 12);
-    notifier.cortarTrecho();
-    notifier.retroTap();
-    await waitFor(
-      'o microfone abrir para o primeiro trecho',
-      () => harness.recorder.captures == capturasDoPrimeiro + 1,
-    );
-    final reaberturas = harness.playback.played.length;
-    await confirmarATraducao(container);
-    await waitFor(
-      'o primeiro trecho voltar da sala',
-      () => container.read(salaSessionProvider).btTrechos.length == 1,
-    );
-    await waitFor(
-      'o clipe reabrir no cursor',
-      () =>
-          harness.playback.played.length > reaberturas &&
-          harness.playback.open &&
-          container.read(salaSessionProvider).canCut,
-    );
-
-    final capturasDoSegundo = harness.recorder.captures;
-    harness.playback.at = const Duration(seconds: 30);
-    notifier.cortarTrecho();
-    notifier.retroTap();
-    await waitFor(
-      'o microfone abrir para o segundo trecho',
-      () => harness.recorder.captures == capturasDoSegundo + 1,
-    );
-    final reaberturasDoSegundo = harness.playback.played.length;
-    await confirmarATraducao(container);
-    await waitFor(
-      'o segundo trecho voltar da sala',
-      () => container.read(salaSessionProvider).btTrechos.length == 2,
-    );
-    await waitFor(
-      'o clipe reabrir no cursor',
-      () =>
-          harness.playback.played.length > reaberturasDoSegundo &&
-          harness.playback.open,
-    );
+    await tellTwoStretches(harness, container);
 
     harness.playback.finishPlayback();
     await waitFor(
@@ -6759,7 +6708,7 @@ void main() {
     'a session the server no longer has is dropped, not retried forever',
     () async {
       final harness = SalaHarness();
-      final container = await inConversa(harness);
+      final container = await inConversaWithoutPausing(harness);
       addTearDown(container.dispose);
       expect(container.read(salaSessionProvider).sessionId, isNotNull);
 
@@ -7657,7 +7606,7 @@ void main() {
     final harness = SalaHarness()
       ..room.takeLandsAfter = const Duration(milliseconds: 500)
       ..playback.length = const Duration(seconds: 10);
-    final container = await inConversa(harness);
+    final container = await inConversaWithoutPausing(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
 
@@ -7773,7 +7722,7 @@ void main() {
     final harness = SalaHarness()
       ..room.takeLandsAfter = const Duration(milliseconds: 500)
       ..playback.length = const Duration(seconds: 10);
-    final container = await inConversa(harness);
+    final container = await inConversaWithoutPausing(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
 

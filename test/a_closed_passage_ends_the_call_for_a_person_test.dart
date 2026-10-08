@@ -10,7 +10,7 @@ import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart' show settle, theChoiceOffersAPassage;
 
 const _thePassageClosed = Refused('PASSAGE_CLOSED');
 const _oneStepOfTheLadder = Duration(milliseconds: 20);
@@ -61,20 +61,12 @@ Future<void> _aPassagemFechaNoPedidoDePessoa(
   );
 }
 
-Future<void> _aEscolhaOferecer(ProviderContainer container) => waitFor(
-  'a Escolha oferecer uma passagem',
-  () =>
-      _estado(container).stage == SalaStage.escolha &&
-      _estado(container).oferecida != null &&
-      _estado(container).voice == VoiceState.invite,
-);
-
 Future<ProviderContainer> _naPassagemSemEspera(SalaHarness harness) async {
   final container = harness.container();
   addTearDown(container.dispose);
   final sala = container.read(salaSessionProvider.notifier);
   await sala.abrirEscolha();
-  await _aEscolhaOferecer(container);
+  await theChoiceOffersAPassage(container);
   sala.entrarNaOferecida();
   await waitFor(
     'a passagem abrir e a sala se calar',
@@ -590,7 +582,7 @@ void main() {
       );
       _sala(container).leaveThePassage();
       await _naEscolha(container);
-      await _aEscolhaOferecer(container);
+      await theChoiceOffersAPassage(container);
       await abreAPrimeiraDeNovo(harness, container, primeira);
     }
 
