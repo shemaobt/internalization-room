@@ -754,8 +754,12 @@ class FakeWorkInProgress implements WorkInProgress {
   Future<void> forget(String book, String pericope) async =>
       rows.remove('$book/$pericope');
 
+  Duration? forgetsTheSessionAfter;
+
   @override
   Future<List<ResumePoint>> forgetTheSession(String sessionId) async {
+    final wait = forgetsTheSessionAfter;
+    if (wait != null) await Future<void>.delayed(wait);
     final forgotten = [
       for (final row in rows.values)
         if (row.sessionId == sessionId) row,
