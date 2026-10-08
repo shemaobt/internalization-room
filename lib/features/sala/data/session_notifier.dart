@@ -2380,7 +2380,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     if (_goneSessions.contains(sessionId)) return _openTheChoice();
     if (!resumed) _startTheSessionClean(pericope);
-    state = state.copyWith(sessionId: sessionId, coverage: created?.coverage);
+    state = state.copyWith(
+      sessionId: sessionId,
+      coverage: created?.coverage,
+      moment: created?.moment,
+    );
     _runner.run(const [ArmTheWatch()]);
     if (pericope != null) _holdTheCurrentSession(sessionId, pericope);
     _sessionSavedAt = resumed ? waiting.savedAt : clock.now();

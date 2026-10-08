@@ -124,4 +124,40 @@ void main() {
       expect(moment?.part, 3);
     },
   );
+
+  test(
+    'a passage the team already opened on another tablet lands with its moment, not without a label',
+    () async {
+      final harness = SalaHarness()
+        ..room.createdOpened = true
+        ..room.nextMoment = const Moment(
+          at: MomentAt.internalization,
+          part: 2,
+          parts: 4,
+        );
+      final container = harness.container();
+      addTearDown(container.dispose);
+      SalaSessionState read() => container.read(salaSessionProvider);
+
+      await enterThePassage(
+        container.read(salaSessionProvider.notifier),
+        read,
+        'P01',
+      );
+      await waitFor(
+        'a passagem pousar',
+        () => read().sessionId != null && read().voice == VoiceState.invite,
+      );
+      await settle();
+
+      final moment = read().moment;
+      expect(
+        moment?.at,
+        MomentAt.internalization,
+        reason:
+            'a sessão que outro tablet abriu pousava sem etiqueta, embora a sala soubesse o momento',
+      );
+      expect(moment?.part, 2);
+    },
+  );
 }
