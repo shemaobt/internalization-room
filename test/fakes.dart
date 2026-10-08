@@ -1707,6 +1707,8 @@ class FakeRoom implements RoomRepository {
     holdTakeScope = null;
   }
 
+  Duration? takeLandsAfter;
+
   @override
   Future<RoomAnswer<String>> sendTake(
     String sessionId,
@@ -1720,6 +1722,8 @@ class FakeRoom implements RoomRepository {
     if (_forgot('sendTake', sessionId) case final gone?) {
       return gone;
     }
+    final wait = takeLandsAfter;
+    if (wait != null) await Future<void>.delayed(wait);
     if (scope == holdTakeScope) {
       _reachedTakeHold?.complete();
       await _holdingTake?.future;

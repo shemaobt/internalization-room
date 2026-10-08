@@ -7197,7 +7197,8 @@ void main() {
   });
 
   test('the check carries how much of the clip was actually heard', () async {
-    final harness = SalaHarness();
+    final harness = SalaHarness()
+      ..room.takeLandsAfter = const Duration(milliseconds: 500);
     final container = await inConversa(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
@@ -7206,6 +7207,10 @@ void main() {
     notifier.ensaioTap();
     await settle();
     notifier.takeKeep();
+    await waitFor(
+      'a sala nomear a parte',
+      () => container.read(salaSessionProvider).partes.last.takeId != null,
+    );
     notifier.startRetro();
     await settle();
     harness.playback.at = const Duration(seconds: 61);
@@ -7219,7 +7224,7 @@ void main() {
       harness.room.playedByTakeSent.last,
       [
         {
-          'take_id': harness.room.takeIds.single,
+          'take_id': 'gravacao-1',
           'played_ranges': [
             [0, 61000],
           ],
