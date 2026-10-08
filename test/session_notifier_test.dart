@@ -7291,13 +7291,12 @@ void main() {
     await settle();
   }
 
-  Future<void> theRoomNamesTheParts(ProviderContainer container) => waitFor(
-    'a sala nomear as partes',
-    () => container
-        .read(salaSessionProvider)
-        .partes
-        .every((parte) => parte.takeId != null),
-  );
+  Future<void> theRoomNamesBothParts(ProviderContainer container) =>
+      waitFor('a sala nomear as duas partes', () {
+        final partes = container.read(salaSessionProvider).partes;
+        return partes.length == 2 &&
+            partes.every((parte) => parte.takeId != null);
+      });
 
   test('the rehearsal is told in parts, each kept in order', () async {
     final harness = SalaHarness();
@@ -7575,7 +7574,7 @@ void main() {
     notifier.goEnsaio();
     await gravaParte(notifier);
     await gravaParte(notifier);
-    await theRoomNamesTheParts(container);
+    await theRoomNamesBothParts(container);
     notifier.startRetro();
     await settle();
     harness.playback.finishPlayback();
@@ -7673,7 +7672,7 @@ void main() {
     notifier.goEnsaio();
     await gravaParte(notifier);
     await gravaParte(notifier);
-    await theRoomNamesTheParts(container);
+    await theRoomNamesBothParts(container);
     notifier.startRetro();
     await settle();
     harness.playback.at = Duration.zero;
@@ -7733,7 +7732,7 @@ void main() {
     notifier.goEnsaio();
     await gravaParte(notifier);
     await gravaParte(notifier);
-    await theRoomNamesTheParts(container);
+    await theRoomNamesBothParts(container);
     notifier.startRetro();
     await settle();
     harness.playback.at = const Duration(seconds: 10);
