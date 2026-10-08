@@ -1,4 +1,5 @@
 import 'coverage.dart';
+import 'moment.dart';
 
 /// One stretch the team told back, addressed rather than counted.
 ///
@@ -166,6 +167,8 @@ class SessionSnapshot {
 
   final bool opened;
 
+  final Moment? moment;
+
   const SessionSnapshot({
     required this.sessionId,
     required this.pericope,
@@ -175,6 +178,7 @@ class SessionSnapshot {
     this.backTranslation = const BackTranslationProgress(),
     this.halt = HaltKind.unnamed,
     this.opened = false,
+    this.moment,
   });
 
   factory SessionSnapshot.fromJson(Map<String, dynamic> json) =>
@@ -195,6 +199,7 @@ class SessionSnapshot {
               ),
         halt: HaltKind.fromJson(json['halt']),
         opened: json['opened'] as bool? ?? false,
+        moment: Moment.fromJson(json['moment']),
       );
 
   /// A halt the server calls a warning asks for a person to come and watch and refuses
