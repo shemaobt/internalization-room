@@ -7,9 +7,19 @@ const _presentationDir = 'lib/features/sala/presentation';
 // The claim code is read by the facilitator off the tablet, typed at the table — the
 // room's own team never reads this screen, so the wordless rule does not reach it
 // (ENG-979).
-const _wordyExceptions = {
+const _screensTheTeamNeverReads = {
   'lib/features/sala/presentation/widgets/codigo_view.dart',
+};
+
+// The moment label is her words, and the team does read them: «A palavra está sempre
+// escrita» (her MOMENTOS-FIA-TEXTOS §4, ruled 2026-09-24).
+const _herWordsTheTeamReads = {
   'lib/features/sala/presentation/widgets/moment_label.dart',
+};
+
+const _wordyExceptions = {
+  ..._screensTheTeamNeverReads,
+  ..._herWordsTheTeamReads,
 };
 
 final _textWidgetPattern = RegExp(r'\bText\(');
