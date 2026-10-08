@@ -2624,3 +2624,16 @@ class QueueWithdrawThrows extends TakeUploadQueue {
   Future<void> withdraw(PendingTake row) async =>
       throw const FileSystemException('disco cheio');
 }
+
+class QueueThatDiscardsLate extends TakeUploadQueue {
+  QueueThatDiscardsLate({required super.room, super.home});
+
+  Duration? discardsAfter;
+
+  @override
+  Future<void> discardTheSession(String sessionId) async {
+    final wait = discardsAfter;
+    if (wait != null) await Future<void>.delayed(wait);
+    return super.discardTheSession(sessionId);
+  }
+}
