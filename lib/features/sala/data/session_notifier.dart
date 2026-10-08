@@ -2480,7 +2480,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           return;
         }
       }
-      state = state.copyWith(coverage: read.coverage);
+      state = state.copyWith(
+        coverage: read.coverage,
+        moment: read.moment,
+        clearMoment: read.moment == null,
+      );
       _applyTheSessionRead(read, sent);
       if (opened != null || read.opened) return _landWhereTheyStopped();
     } else if (opened != null || created!.opened) {

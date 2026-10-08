@@ -1339,6 +1339,7 @@ class FakeRoom implements RoomRepository {
         done: false,
         halt: serverHalt,
         opened: createdOpened,
+        moment: nextMoment,
       ),
     );
   }
@@ -1379,6 +1380,7 @@ class FakeRoom implements RoomRepository {
         done: readsDone ?? done,
         halt: serverHalt,
         opened: openedSessions.contains(sessionId),
+        moment: nextMoment,
         backTranslation:
             retroSoFar ?? BackTranslationProgress(segments: List.of(segments)),
       ),

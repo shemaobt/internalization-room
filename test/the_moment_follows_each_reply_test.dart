@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/current_session_ledger.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart';
@@ -67,6 +71,57 @@ void main() {
         reason:
             'a sala parou de mandar o momento e a tela continuou mostrando o antigo',
       );
+    },
+  );
+
+  test(
+    'a relaunch mid-conversation lands with the moment the room kept',
+    () async {
+      final home = Directory.systemTemp.createTempSync('sala-momento');
+      addTearDown(() => home.deleteSync(recursive: true));
+      final harness =
+          SalaHarness(
+              currentSession: CurrentSessionLedger(home: () async => home),
+            )
+            ..room.nextMoment = const Moment(
+              at: MomentAt.articulation,
+              part: 3,
+              parts: 4,
+            );
+      final container = harness.container();
+      addTearDown(container.dispose);
+      SalaSessionState read() => container.read(salaSessionProvider);
+      await enterThePassage(
+        container.read(salaSessionProvider.notifier),
+        read,
+        'P01',
+      );
+      await waitFor(
+        'a abertura ser dita',
+        () =>
+            harness.voice.played.contains(turnoUrl) &&
+            read().voice == VoiceState.invite,
+      );
+      await settle();
+      final session = read().sessionId!;
+
+      final (_, next) = await relaunch(harness, container);
+      await next.read(salaSessionProvider.notifier).openTheRoom();
+      await waitFor('a equipe voltar à sessão', () {
+        final state = next.read(salaSessionProvider);
+        return state.sessionId == session &&
+            !state.awaitingTheGuide &&
+            state.voice == VoiceState.invite;
+      });
+
+      final moment = next.read(salaSessionProvider).moment;
+      expect(
+        moment?.at,
+        MomentAt.articulation,
+        reason:
+            'o tablet voltou à sessão e a tela perdeu o momento em que a sala estava',
+      );
+      expect(moment?.part, 3);
     },
   );
 }
