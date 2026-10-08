@@ -231,9 +231,12 @@ class FakeVoice implements FacilitatorVoiceService {
   /// How many times the room told this voice to stop, whatever it was saying.
   int stops = 0;
 
+  void Function()? onStop;
+
   @override
   Future<void> stop() async {
     stops++;
+    onStop?.call();
     sounds.add('voice:stop');
     final saying = _saying;
     _saying = null;
