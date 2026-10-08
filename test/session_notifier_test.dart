@@ -116,8 +116,6 @@ Future<ProviderContainer> inTheChoiceWithAPlaceToResume(
   return container;
 }
 
-/// The one refusal that counts without halting: the resume's check for a telling-back,
-/// which keeps the three-strike ladder where the opening turn itself would call a person.
 Future<void> theResumeCheckIsRefused(
   SalaHarness harness,
   ProviderContainer container,
