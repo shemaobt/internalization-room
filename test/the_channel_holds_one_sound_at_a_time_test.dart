@@ -709,41 +709,6 @@ void main() {
     harness.room.finishHeldTurn();
   });
 
-  test(
-    'no background line plays between the two movements of an opening',
-    () async {
-      final ledger = _LedgerThatCannotWrite();
-      final harness = SalaHarness(emAbertoNoDisco: ledger)
-        ..room.opensInTwoMovements = true;
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final sala = container.read(salaSessionProvider.notifier);
-      SalaSessionState read() => container.read(salaSessionProvider);
-      await sala.abrirEscolha();
-      await waitFor('a roda carregar', () => read().naRoda != null);
-      await settle();
-      ledger.refuses = true;
-      final antes = harness.voice.played.length;
-      int? linhasAntesDaPresa;
-      var vistas = harness.voice.assets.length;
-      harness.voice.aoFalar = () {
-        if (harness.voice.assets.length == vistas) return;
-        vistas = harness.voice.assets.length;
-        if (harness.voice.assets.last == _stranded) {
-          linhasAntesDaPresa ??= harness.voice.played.length - antes;
-        }
-      };
-
-      sala.entrarNaOferecida();
-      await waitFor(
-        'a linha da gravação presa tocar',
-        () => harness.voice.assets.contains(_stranded),
-      );
-
-      expect(linhasAntesDaPresa, 2, reason: 'o panorama e a cena, juntos');
-    },
-  );
-
   test('no background line plays between the acknowledgement and the reply of '
       'a turn', () async {
     _OutboxThatGaveUp? outbox;
