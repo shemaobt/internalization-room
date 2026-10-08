@@ -77,21 +77,20 @@ void main() {
     );
   }
 
-  testWidgets('an English tablet shows the moment in her English words', (
-    tester,
-  ) async {
-    await _theOpeningSays(
-      tester,
-      const Moment(at: MomentAt.internalization, part: 2, parts: 4),
-      lingua: 'en',
-    );
+  for (final MapEntry(key: words, value: moment) in _herEnglishWords.entries) {
+    testWidgets(
+      'an English tablet shows the moment in her English words: $words',
+      (tester) async {
+        await _theOpeningSays(tester, moment, lingua: 'en');
 
-    expect(
-      byLabel('Session moment: Internalization · scene 2 of 4'),
-      findsOneWidget,
-      reason: 'o tablet em inglês mostrou o momento em português',
+        expect(
+          byLabel('Session moment: $words'),
+          findsOneWidget,
+          reason: 'o tablet em inglês mostrou o momento em português',
+        );
+      },
     );
-  });
+  }
 
   testWidgets(
     'the label dims while the voice speaks and comes back when it stops',
@@ -180,6 +179,27 @@ const _herWords = {
     parts: 4,
   ),
   'Ensaio Final · a passagem inteira': Moment(
+    at: MomentAt.ensaioFinal,
+    parts: 4,
+  ),
+};
+
+const _herEnglishWords = {
+  'Familiarization · the whole passage': Moment(
+    at: MomentAt.familiarization,
+    parts: 4,
+  ),
+  'Internalization · scene 2 of 4': Moment(
+    at: MomentAt.internalization,
+    part: 2,
+    parts: 4,
+  ),
+  'Articulation · scene 2 of 4': Moment(
+    at: MomentAt.articulation,
+    part: 2,
+    parts: 4,
+  ),
+  'Final Rehearsal · the whole passage': Moment(
     at: MomentAt.ensaioFinal,
     parts: 4,
   ),
