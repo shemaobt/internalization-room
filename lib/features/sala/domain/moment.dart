@@ -17,10 +17,13 @@ class Moment {
       _ => null,
     };
     if (at == null) return null;
-    return Moment(
-      at: at,
-      part: json['part'] as int? ?? 0,
-      parts: json['parts'] as int? ?? 0,
-    );
+    final part = json['part'] as int?;
+    final parts = json['parts'] as int?;
+    if (parts == null) return null;
+    if (part == null &&
+        (at == MomentAt.internalization || at == MomentAt.articulation)) {
+      return null;
+    }
+    return Moment(at: at, part: part ?? 0, parts: parts);
   }
 }

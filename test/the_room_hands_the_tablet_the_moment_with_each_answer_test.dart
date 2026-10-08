@@ -58,4 +58,33 @@ void main() {
       }
     },
   );
+
+  test(
+    'a moment missing the numbers its words need is no moment, not scene 0 of 0',
+    () {
+      const incomplete = [
+        {'at': 'internalization', 'parts': 4},
+        {'at': 'articulation', 'part': 2},
+        {'at': 'familiarization'},
+        {'at': 'ensaio_final', 'part': null},
+      ];
+      for (final json in incomplete) {
+        expect(
+          Moment.fromJson(json),
+          isNull,
+          reason:
+              'um momento sem os números chegava à tela como cena 0 de 0: $json',
+        );
+      }
+      expect(
+        Moment.fromJson({
+          'at': 'familiarization',
+          'part': null,
+          'parts': 4,
+        })?.at,
+        MomentAt.familiarization,
+        reason: 'a Familiarização não tem cena, e só precisa das partes',
+      );
+    },
+  );
 }
