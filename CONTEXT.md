@@ -180,7 +180,7 @@ The position inside the open part or stretch that the scissors, the Capture and 
 _Avoid_: playhead, reading head (retired), position
 
 **Wordless recording**:
-A recording whose transcription holds no words. The server answers it with the inaudible line; the tablet never judges it.
+A recording whose transcription holds no words. On the telling doors the server refuses it with no line, and it refuses the same way when its transcriber fails or answers too late. The room stays paused on the same stretch, shows Marcia's line «Não entendi — traduzam de novo esse pedaço» beside the circle and voices nothing, and the circle reopens the microphone for that stretch. It is never counted toward calling a person.
 _Avoid_: empty capture, silence, inaudible take
 
 **Listening ledger** (`escuta das partes`):

@@ -6284,7 +6284,8 @@ void main() {
   });
 
   test('an inaudible piece is not counted', () async {
-    final harness = SalaHarness()..room.chunkCaptured = false;
+    final harness = SalaHarness()
+      ..room.failChunkWith = const Refused(RefusalCode.wordlessTelling);
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -6330,7 +6331,8 @@ void main() {
 
   test('a translation the room refused is withdrawn from the outbox when the '
       'part is recorded over', () async {
-    final harness = SalaHarness()..room.chunkCaptured = false;
+    final harness = SalaHarness()
+      ..room.failChunkWith = const Refused('BAD_REQUEST');
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -6434,7 +6436,8 @@ void main() {
 
   test('leaving the passage withdraws a refused translation still parked in '
       'the outbox', () async {
-    final harness = SalaHarness()..room.chunkCaptured = false;
+    final harness = SalaHarness()
+      ..room.failChunkWith = const Refused('BAD_REQUEST');
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -6562,7 +6565,7 @@ void main() {
     final harness = SalaHarness(
       takesOverride: (room, home) =>
           QueueWithdrawThrows(room: room, home: () async => home),
-    )..room.chunkCaptured = false;
+    )..room.failChunkWith = const Refused('BAD_REQUEST');
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);

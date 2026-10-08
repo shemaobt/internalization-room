@@ -1,10 +1,8 @@
 class BackTranslationChunk {
-  final bool captured;
-
-  const BackTranslationChunk({required this.captured});
+  const BackTranslationChunk();
 
   factory BackTranslationChunk.fromJson(Map<String, dynamic> json) =>
-      BackTranslationChunk(captured: json['captured'] as bool? ?? false);
+      const BackTranslationChunk();
 }
 
 class BackTranslationVerdict {

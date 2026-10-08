@@ -997,7 +997,6 @@ class FakeRoom implements RoomRepository {
   /// Run while the ask for a verdict is still in the air. The seam for a test that needs
   /// the team to do something — leave the passage, say — during that wait.
   void Function()? duranteOVeredito;
-  bool replaceCaptured = true;
 
   /// Whether the room answers a correction by asking for a person. False is also what a
   /// server that does not send the field at all looks like from here.
@@ -1010,7 +1009,6 @@ class FakeRoom implements RoomRepository {
   final List<String> replacesComArquivo = [];
   int _versoes = 0;
 
-  bool chunkCaptured = true;
   bool turnsAreCanned = false;
   bool turnsAreDegraded = false;
   bool silentAboutCoverage = false;
@@ -1582,22 +1580,9 @@ class FakeRoom implements RoomRepository {
       serverStatus = 'needs_person';
       serverHalt = HaltKind.warning;
     }
-    if (!replaceCaptured) {
-      return Answered(
-        TellingAgain(
-          segments: List.of(segments),
-          captured: false,
-          needsPerson: needsPerson,
-        ),
-      );
-    }
     _tellAgain(segmentId);
     final told = Answered(
-      TellingAgain(
-        segments: List.of(segments),
-        captured: true,
-        needsPerson: needsPerson,
-      ),
+      TellingAgain(segments: List.of(segments), needsPerson: needsPerson),
     );
     final lost = loseTheNextReplaceAnswerWith;
     if (lost != null) {
@@ -1838,19 +1823,17 @@ class FakeRoom implements RoomRepository {
     chunkSpans.add('${from.inMilliseconds}-${to.inMilliseconds}');
     chunkTakes.add(takeId);
     chunkFiles.add(audio.path);
-    if (chunkCaptured) {
-      segments.add(
-        SegmentView(
-          segmentId: 'trecho-${segments.length + 1}',
-          takeId: takeId,
-          startsMs: from.inMilliseconds,
-          endsMs: to.inMilliseconds,
-        ),
-      );
-    }
+    segments.add(
+      SegmentView(
+        segmentId: 'trecho-${segments.length + 1}',
+        takeId: takeId,
+        startsMs: from.inMilliseconds,
+        endsMs: to.inMilliseconds,
+      ),
+    );
     final held = _holdingChunk;
     if (held != null) await held.future;
-    return Answered(BackTranslationChunk(captured: chunkCaptured));
+    return const Answered(BackTranslationChunk());
   }
 
   Completer<void>? _holdingChunk;

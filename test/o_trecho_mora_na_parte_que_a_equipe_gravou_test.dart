@@ -376,7 +376,6 @@ void main() {
           'ends_ms': 6000,
         },
       ],
-      'captured': true,
       'composed_take_id': 'gravacao-de-fora',
     });
 
@@ -388,7 +387,6 @@ void main() {
           'de um servidor que ainda a manda',
     );
     expect(trocado.segments.first.segmentId, 'trecho-1');
-    expect(trocado.captured, isTrue);
     expect(trocado.needsPerson, isFalse);
   });
 

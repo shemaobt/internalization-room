@@ -132,6 +132,8 @@ abstract interface class EffectHost {
 
   void hearTheRefusalCounted();
 
+  void hearThePendingTranslationLetGo();
+
   void hearThePassageRefused();
 }
 
@@ -261,6 +263,8 @@ class EffectRunner {
           unawaited(_markThePassageClosed());
         case CountTheRefusal():
           host.hearTheRefusalCounted();
+        case LetThePendingTranslationGo():
+          host.hearThePendingTranslationLetGo();
         case RefuseThePassage():
           host.hearThePassageRefused();
       }

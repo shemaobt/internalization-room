@@ -1076,7 +1076,7 @@ void main() {
     harness.room.loseTheNextReplaceAnswerAndLandItLaterWith =
         const NetworkFailed('timeout');
     await confirmarEEsperar(tester);
-    harness.room.replaceCaptured = false;
+    harness.room.failReplaceWith = const Refused('BAD_REQUEST');
     await aSalaVolta(tester);
     expect(
       container.read(salaSessionProvider).btTraducaoPendente,
@@ -1085,7 +1085,7 @@ void main() {
     );
 
     harness.room
-      ..replaceCaptured = true
+      ..failReplaceWith = null
       ..landTheLostReplace();
     await confirmarEEsperar(tester);
 

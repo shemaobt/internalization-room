@@ -516,7 +516,7 @@ void main() {
 
   test('a stretch the room did not capture is still kept as audio', () async {
     final harness = SalaHarness();
-    harness.room.chunkCaptured = false;
+    harness.room.failChunkWith = const Refused(RefusalCode.wordlessTelling);
     final container = await inConversaHarness(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -587,7 +587,7 @@ void main() {
     notifier.startRetro();
     await settle();
 
-    harness.room.chunkCaptured = false;
+    harness.room.failChunkWith = const Refused('BAD_REQUEST');
     harness.playback.at = const Duration(seconds: 12);
     notifier.cortarTrecho();
     notifier.retroTap();
@@ -598,7 +598,7 @@ void main() {
       () => container.read(salaSessionProvider).btChunkFailures.isNotEmpty,
     );
 
-    harness.room.chunkCaptured = true;
+    harness.room.failChunkWith = null;
     harness.playback.at = const Duration(seconds: 30);
     notifier.cortarTrecho();
     notifier.retroTap();

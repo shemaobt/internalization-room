@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
@@ -90,7 +91,9 @@ Future<void> _consertoQueNaoPegou(
   WidgetTester tester,
   ProviderContainer container,
 ) async {
-  _harnessDaVez!.room.replaceCaptured = false;
+  _harnessDaVez!.room.failReplaceWith = const Refused(
+    RefusalCode.wordlessTelling,
+  );
   await tester.tap(byLabel(_micRetro));
   await tester.pump(const Duration(milliseconds: 300));
   _notifier(container).retroTap();
@@ -100,7 +103,7 @@ Future<void> _consertoQueNaoPegou(
   await _notifier(container).confirmarTraducao();
   await letTheRehearsalReachTheRoom(tester);
   await tester.pump(const Duration(milliseconds: 500));
-  _harnessDaVez!.room.replaceCaptured = true;
+  _harnessDaVez!.room.failReplaceWith = null;
 }
 
 /// The team says they have finished, and the analyst has no more objections.
@@ -143,11 +146,11 @@ void main() {
     await _consertoQueNaoPegou(tester, container);
     expect(
       _faixasVazias(tester, container),
-      isEmpty,
+      [0],
       reason:
-          'o conserto não pegou e a tradução nova segue pendente sobre o '
-          'trecho: translúcida, como toda regravação pendente (ADR 0040), '
-          'e o ponteiro segue nomeando um trecho que está lá',
+          'o conserto não pegou e nada fica pendente sobre o trecho: ele '
+          'volta a esperar o conserto, e o ponteiro segue nomeando um '
+          'trecho que está lá',
     );
 
     await _oVeredictoVoltaLimpo(tester, container);

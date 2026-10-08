@@ -148,6 +148,12 @@ void main() {
       const ThePassageCannotOpen(generation: 4),
     ),
     (
+      'a wordless telling is its own answer and never a counted refusal',
+      const RoomRefused(RefusalCode.wordlessTelling),
+      _notATurn(refusals: 2),
+      const TheTellingCameBackEmpty(generation: 4),
+    ),
+    (
       'a refusal that is not a turn and is under the strike count is counted',
       const RoomRefused(RefusalCode.unreadable),
       _notATurn(refusals: 1),

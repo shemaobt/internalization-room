@@ -82,13 +82,8 @@ class TakeView {
 }
 
 /// What the room answers when a stretch is told again.
-///
-/// [captured] is false when the room made nothing out of the recording, and then the
-/// stretch is left exactly as it was: swapping an explanation for an empty one over a
-/// transcriber outage would lose the team's work to somebody else's failure.
 class TellingAgain {
   final List<SegmentView> segments;
-  final bool captured;
 
   /// Whether the room has stopped taking corrections and wants somebody to come.
   ///
@@ -98,15 +93,10 @@ class TellingAgain {
   /// to go on working.
   final bool needsPerson;
 
-  const TellingAgain({
-    this.segments = const [],
-    this.captured = true,
-    this.needsPerson = false,
-  });
+  const TellingAgain({this.segments = const [], this.needsPerson = false});
 
   factory TellingAgain.fromJson(Map<String, dynamic> json) => TellingAgain(
     segments: SegmentView.listFrom(json),
-    captured: json['captured'] as bool? ?? true,
     needsPerson: json['needs_person'] as bool? ?? false,
   );
 }
