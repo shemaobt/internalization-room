@@ -333,8 +333,12 @@ What the machine asks the room to do after an event: a sound to play, a timer to
 _Avoid_: side effect, command, action
 
 **Effect runner**:
-The one place that executes every Effect, through the four Ports; the notifier hands it the effects and holds no switch over them (ADR 0053).
+The one place that executes every Effect, through the four Ports and the StationHost; the notifier hands it the effects and holds no switch over them (ADR 0053).
 _Avoid_: dispatcher, interpreter, handler
+
+**StationHost**:
+The one interface the EffectRunner reads from the room: the Station's questions (what is wanted, reachable or in course), its hearings (what the runner heard back) and the lifecycle hand-off. It executes no effect.
+_Avoid_: EffectHost, callback, delegate
 
 **Port**:
 One of the four doors the Effect runner reaches the world through: Room (the server, network health and the person-call inbox), Sound, Recorder and Store (the disk and the Outbox). Each is an interface in the domain with one production adapter (ADR 0053).
