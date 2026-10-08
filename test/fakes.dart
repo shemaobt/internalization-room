@@ -2311,6 +2311,32 @@ Future<void> letTheRehearsalReachTheRoom(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 100));
 }
 
+Future<void> theRoomNamesTheParts(
+  WidgetTester tester,
+  ProviderContainer container, {
+  required int parts,
+  Duration limit = const Duration(seconds: 10),
+}) async {
+  final deadline = DateTime.now().add(limit);
+  bool named() {
+    final kept = container.read(salaSessionProvider).partes;
+    return kept.length == parts && kept.every((part) => part.takeId != null);
+  }
+
+  while (!named()) {
+    if (DateTime.now().isAfter(deadline)) {
+      final waited = limit.inMilliseconds % 1000 == 0
+          ? '${limit.inSeconds}s'
+          : '${limit.inMilliseconds}ms';
+      throw TimeoutException(
+        'esperei $waited e a sala nomear as partes ($parts) não aconteceu',
+        limit,
+      );
+    }
+    await letTheRehearsalReachTheRoom(tester);
+  }
+}
+
 Future<void> theClipOpens(SalaHarness harness) =>
     waitFor('o clipe abrir', () => harness.playback.open);
 
