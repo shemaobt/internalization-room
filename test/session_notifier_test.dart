@@ -635,79 +635,6 @@ void main() {
   });
 
   test(
-    'the opening is told in two movements, and the necklace waits',
-    () async {
-      final harness = SalaHarness()..room.opensInTwoMovements = true;
-      final container = await inConversa(harness);
-      addTearDown(container.dispose);
-
-      expect(
-        harness.voice.played,
-        [panoramaUrl, sceneUrl],
-        reason: 'o todo primeiro, a cena depois — nessa ordem e sem emenda',
-      );
-
-      final state = container.read(salaSessionProvider);
-      expect(
-        state.contasEnfiadas,
-        isTrue,
-        reason: 'as contas entram quando a cena chega e ficam',
-      );
-      expect(state.lastSpoken!.url, sceneUrl);
-      expect(state.lastSpoken!.panoramaUrl, panoramaUrl);
-    },
-  );
-
-  test(
-    'a two-movement opening fetches the first movement, never the whole line',
-    () async {
-      final harness = SalaHarness()..room.opensInTwoMovements = true;
-      final container = await inConversa(harness);
-      addTearDown(container.dispose);
-
-      expect(
-        harness.voice.fetched,
-        [panoramaUrl, sceneUrl],
-        reason:
-            'o que baixa antes de tocar é o primeiro movimento — a linha '
-            'inteira (turnoUrl) nunca é pedida, porque nunca é ela quem soa',
-      );
-    },
-  );
-
-  test(
-    'the necklace stays off the cord while the whole is being told',
-    () async {
-      final harness = SalaHarness()..room.opensInTwoMovements = true;
-      harness.voice.holdNextLine();
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-      unawaited(notifier.goConversa(pericope: 'P01'));
-      await waitFor(
-        'a primeira fala tocar',
-        () => harness.voice.played.isNotEmpty,
-      );
-      await settle();
-
-      expect(harness.voice.played, [panoramaUrl]);
-      expect(
-        container.read(salaSessionProvider).contasEnfiadas,
-        isFalse,
-        reason:
-            'um colar cheio sobre uma passagem ainda não aberta diz que o '
-            'trabalho já está posto',
-      );
-
-      harness.voice.finishHeldLine();
-      await waitFor(
-        'as contas ficarem enfiadas',
-        () => container.read(salaSessionProvider).contasEnfiadas,
-      );
-    },
-  );
-
-  test(
     'replaying takes the circle off team-talk while the room speaks',
     () async {
       final harness = SalaHarness()..room.peerCue = true;
@@ -786,42 +713,10 @@ void main() {
     );
   });
 
-  test('a scene that never played is not a turn that finished', () async {
-    final harness = SalaHarness()..room.opensInTwoMovements = true;
-    harness.room.peerCue = true;
-    harness.voice.refuses.add(sceneUrl);
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-
-    final state = container.read(salaSessionProvider);
-    expect(harness.voice.played, [panoramaUrl, sceneUrl]);
-    expect(
-      state.peerCue,
-      isFalse,
-      reason:
-          'o panorama tocou e o convite não — dizer "conversem entre '
-          'vocês" ali é a sala fingir que terminou de falar',
-    );
-    expect(state.contasEnfiadas, isTrue);
-  });
-
-  test('ouvir de novo repeats the scene, never the whole passage', () async {
-    final harness = SalaHarness()..room.opensInTwoMovements = true;
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    harness.voice.played.clear();
-
-    await notifier.hearAgain();
-    await settle();
-
-    expect(harness.voice.played, [sceneUrl]);
-  });
-
   test(
     'a repeat that fails on the GET calls a person, instead of a dead replay',
     () async {
-      final harness = SalaHarness()..room.opensInTwoMovements = true;
+      final harness = SalaHarness();
       final container = await inConversa(harness);
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -841,142 +736,18 @@ void main() {
     },
   );
 
-  test('a held press gives the whole opening back, necklace and all', () async {
-    final harness = SalaHarness()..room.opensInTwoMovements = true;
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    harness.voice.played.clear();
-    harness.voice.holdNextLine();
-
-    unawaited(notifier.hearTheWholeOpening());
-    await waitFor(
-      'a primeira fala tocar',
-      () => harness.voice.played.isNotEmpty,
-    );
-    await settle();
-
-    expect(harness.voice.played, [panoramaUrl]);
-    expect(
-      container.read(salaSessionProvider).contasEnfiadas,
-      isFalse,
-      reason:
-          'as contas saem do fio para o panorama e voltam com a cena — é '
-          'o que faz o gesto ser percebido sem uma palavra',
-    );
-
-    harness.voice.finishHeldLine();
-    await waitFor(
-      'a segunda fala tocar',
-      () => harness.voice.played.length > 1,
-    );
-    await settle();
-
-    expect(harness.voice.played, [panoramaUrl, sceneUrl]);
-    expect(container.read(salaSessionProvider).contasEnfiadas, isTrue);
-  });
-
-  test(
-    'the whole opening replayed calls a person when its GET fails, instead of a dead necklace',
-    () async {
-      final harness = SalaHarness()..room.opensInTwoMovements = true;
-      final container = await inConversa(harness);
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      harness.voice.roomFailsWith = const Refused('UNAUTHORIZED');
-      await notifier.hearTheWholeOpening();
-      await settle();
-
-      expect(
-        container.read(salaSessionProvider).needsPerson,
-        isTrue,
-        reason:
-            'a abertura pedida de novo não passava por nenhum catch — a '
-            'mesma recusa que o turno original já chamava uma pessoa por, '
-            'aqui caía muda como um gesto que não tocou',
-      );
-    },
-  );
-
-  test(
-    'the whole opening replayed hands the necklace back when the room fails its first clip',
-    () async {
-      final harness = SalaHarness()..room.opensInTwoMovements = true;
-      final container = await inConversa(harness);
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      harness.voice.roomFailsWith = const Refused('BAD_REQUEST');
-      await notifier.hearTheWholeOpening();
-      await settle();
-
-      final state = container.read(salaSessionProvider);
-      expect(
-        state.needsPerson,
-        isFalse,
-        reason:
-            'uma queda abaixo do limite volta ao convite, sem chamar ninguém',
-      );
-      expect(
-        state.contasEnfiadas,
-        isTrue,
-        reason:
-            'o gesto tira as contas do fio e o panorama as devolve, tocado ou '
-            'não — a queda lançada pulava a devolução e o colar ficava fora até '
-            'a equipe sair da passagem',
-      );
-    },
-  );
-
-  test(
-    'an opening whose first clip the room fails still hands the necklace over',
-    () async {
-      final harness = SalaHarness()..room.opensInTwoMovements = true;
-      harness.voice.roomFailsWith = const Refused('BAD_REQUEST');
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      await notifier.goConversa(pericope: 'P01');
-      await settle();
-
-      expect(
-        container.read(salaSessionProvider).contasEnfiadas,
-        isTrue,
-        reason:
-            'a abertura tira as contas antes do panorama e as entrega depois, '
-            'aconteça o que acontecer — a queda lançada pulava a entrega',
-      );
-    },
-  );
-
-  test('an opening told in one breath shows the necklace at once', () async {
+  test('an opening told in one reply is played as its one clip', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
     addTearDown(container.dispose);
 
-    final state = container.read(salaSessionProvider);
-    expect(state.contasEnfiadas, isTrue);
-    expect(state.lastSpoken!.panoramaUrl, isEmpty);
-    expect(state.lastSpoken!.toldInTwoMovements, isFalse);
-  });
-
-  test('a scene that will not play still hands the necklace over', () async {
-    final harness = SalaHarness()..room.opensInTwoMovements = true;
-    harness.voice.succeeds = false;
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    await notifier.goConversa(pericope: 'P01');
-    await settle();
-
     expect(
-      container.read(salaSessionProvider).contasEnfiadas,
-      isTrue,
-      reason: 'um colar preso por uma falha nunca mais chegaria',
+      harness.voice.played,
+      [turnoUrl],
+      reason:
+          'a abertura tocava a panorama e a cena, dois clipes de uma fala só',
     );
+    expect(container.read(salaSessionProvider).lastSpoken!.url, turnoUrl);
   });
 
   test(
