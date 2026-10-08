@@ -143,6 +143,29 @@ void main() {
     );
     closeTheRoom(container);
   });
+
+  testWidgets(
+    'the label goes while the team opens a note for the facilitator',
+    (tester) async {
+      final (_, container) = await _theOpeningSays(
+        tester,
+        const Moment(at: MomentAt.familiarization, parts: 4),
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(_labelOpacity(tester), 1.0);
+
+      container.read(salaSessionProvider.notifier).handTap();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(container.read(salaSessionProvider).noteMode, isTrue);
+      expect(
+        _labelOpacity(tester),
+        0.0,
+        reason:
+            'a equipe abriu um recado e o momento continuou disputando a tela',
+      );
+    },
+  );
 }
 
 const _herWords = {
