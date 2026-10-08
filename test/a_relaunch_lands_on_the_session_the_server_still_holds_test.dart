@@ -250,6 +250,9 @@ void main() {
 
     setUp(() async {
       final first = await _inP01();
+      first.harness.emAberto.forgetsTheSessionAfter = const Duration(
+        milliseconds: 500,
+      );
       final session = first.state.sessionId!;
       again = await _relaunch(first);
       again.harness.room.forgetTheSession(session);
@@ -270,6 +273,12 @@ void main() {
     });
 
     test('lets the session go', () async {
+      await waitFor(
+        'the place of the lost session to leave the tablet',
+        () async => !(await again.harness.emAbertoNoDisco!.startedIn(
+          'Ruth',
+        )).contains('P01'),
+      );
       expect(
         await again.harness.emAbertoNoDisco!.startedIn('Ruth'),
         isNot(contains('P01')),
