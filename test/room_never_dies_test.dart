@@ -203,7 +203,8 @@ void main() {
   test(
     'a remembered session gone and a fresh one refused send the team back to the wheel',
     () async {
-      final harness = SalaHarness();
+      final harness = SalaHarness()
+        ..emAberto.forgetsTheSessionAfter = const Duration(milliseconds: 500);
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -219,7 +220,10 @@ void main() {
       harness.room.forgetTheSession(harness.room.sessionIds.single);
       harness.room.passagesThatCannotOpen = {'P01'};
       notifier.entrarNaOferecida();
-      await settle();
+      await waitFor(
+        'o lugar da sessão lembrada sair do tablet',
+        () async => (await harness.emAberto.of('Ruth', 'P01')) == null,
+      );
 
       final state = container.read(salaSessionProvider);
       expect(state.stage, SalaStage.escolha);
