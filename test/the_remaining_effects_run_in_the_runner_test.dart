@@ -8,7 +8,7 @@ import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
-import 'a_room_host_double.dart';
+import 'a_station_host_double.dart';
 import 'fake_ports.dart';
 
 const _turn = Turn('sessao-1', 'turno-1');
@@ -28,12 +28,12 @@ const _reply = TurnResult(
 
 void main() {
   late AStorePort store;
-  late ARoomHost host;
+  late AStationHost host;
   late EffectRunner runner;
 
   setUp(() {
     store = AStorePort();
-    host = ARoomHost()..session = 'sessao-1';
+    host = AStationHost()..session = 'sessao-1';
     runner = runnerOver(
       fakePorts(ASoundPort(), room: ARoomPort(), store: store),
       host,

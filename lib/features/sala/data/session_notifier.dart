@@ -5646,7 +5646,7 @@ typedef _AwaitedReply = ({
   List<int> gestures,
 });
 
-class _NotifierHost implements EffectHost {
+class _NotifierHost implements StationHost {
   final SalaSessionNotifier _notifier;
 
   _NotifierHost(this._notifier);
