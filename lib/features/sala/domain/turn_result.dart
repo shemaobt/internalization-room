@@ -1,4 +1,5 @@
 import 'coverage.dart';
+import 'moment.dart';
 
 /// One clip of a turn the room chose to tell in more than one breath.
 class SpokenSegment {
@@ -41,6 +42,8 @@ class TurnResult {
   /// plays. Any other turn, segments or not, still fetches and plays `audioUrl`.
   final List<SpokenSegment> segments;
 
+  final Moment? moment;
+
   const TurnResult({
     required this.sessionId,
     required this.audioUrl,
@@ -55,6 +58,7 @@ class TurnResult {
     this.classificationPending = false,
     this.bridgeMode = '',
     this.segments = const [],
+    this.moment,
   });
 
   String _segment(String role) {
@@ -90,5 +94,6 @@ class TurnResult {
       for (final entry in json['segments'] as List<Object?>? ?? const [])
         SpokenSegment.fromJson((entry as Map).cast<String, dynamic>()),
     ],
+    moment: Moment.fromJson(json['moment']),
   );
 }

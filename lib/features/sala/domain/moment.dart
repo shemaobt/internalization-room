@@ -1,0 +1,29 @@
+enum MomentAt { familiarization, internalization, articulation, ensaioFinal }
+
+class Moment {
+  final MomentAt at;
+  final int part;
+  final int parts;
+
+  const Moment({required this.at, this.part = 0, required this.parts});
+
+  static Moment? fromJson(Object? json) {
+    if (json is! Map) return null;
+    final at = switch (json['at']) {
+      'familiarization' => MomentAt.familiarization,
+      'internalization' => MomentAt.internalization,
+      'articulation' => MomentAt.articulation,
+      'ensaio_final' => MomentAt.ensaioFinal,
+      _ => null,
+    };
+    if (at == null) return null;
+    final part = json['part'] as int?;
+    final parts = json['parts'] as int?;
+    if (parts == null) return null;
+    if (part == null &&
+        (at == MomentAt.internalization || at == MomentAt.articulation)) {
+      return null;
+    }
+    return Moment(at: at, part: part ?? 0, parts: parts);
+  }
+}

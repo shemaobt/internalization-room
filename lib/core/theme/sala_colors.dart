@@ -37,6 +37,9 @@ class SalaColors extends ThemeExtension<SalaColors> {
   final Color clayHi;
   final Color clay;
   final Color elev;
+  final Color momentoFam;
+  final Color momentoInt;
+  final Color vermelhoMic;
 
   const SalaColors({
     required this.pg,
@@ -53,6 +56,9 @@ class SalaColors extends ThemeExtension<SalaColors> {
     required this.clayHi,
     required this.clay,
     required this.elev,
+    required this.momentoFam,
+    required this.momentoInt,
+    required this.vermelhoMic,
   });
 
   static const light = SalaColors(
@@ -70,6 +76,9 @@ class SalaColors extends ThemeExtension<SalaColors> {
     clayHi: Color(0xFFD9CDBB),
     clay: Color(0xFFB9A990),
     elev: Color(0xFFFFFFFF),
+    momentoFam: Color(0xFF2E6F63),
+    momentoInt: Color(0xFF6A4C9C),
+    vermelhoMic: Color(0xFFC8321E),
   );
 
   static const dark = SalaColors(
@@ -94,6 +103,9 @@ class SalaColors extends ThemeExtension<SalaColors> {
     clayHi: Color(0xFF5A5045),
     clay: Color(0xFF463E33),
     elev: Color(0xFF221B12),
+    momentoFam: Color(0xFF6FC3B2),
+    momentoInt: Color(0xFFB9A2E6),
+    vermelhoMic: Color(0xFFE9503A),
   );
 
   static SalaColors of(BuildContext context) =>
@@ -121,6 +133,9 @@ class SalaColors extends ThemeExtension<SalaColors> {
       clayHi: mix(clayHi, other.clayHi),
       clay: mix(clay, other.clay),
       elev: mix(elev, other.elev),
+      momentoFam: mix(momentoFam, other.momentoFam),
+      momentoInt: mix(momentoInt, other.momentoInt),
+      vermelhoMic: mix(vermelhoMic, other.vermelhoMic),
     );
   }
 }

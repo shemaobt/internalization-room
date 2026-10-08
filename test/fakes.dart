@@ -38,6 +38,7 @@ import 'package:internalization_room/features/sala/domain/cut_point.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
+import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -884,6 +885,7 @@ class FakeRoom implements RoomRepository {
   final List<String> clipsFetched = [];
   bool reachable = true;
   Coverage nextCoverage = coverage();
+  Moment? nextMoment;
 
   Coverage? settledCoverage;
   bool peerCue = false;
@@ -1344,6 +1346,7 @@ class FakeRoom implements RoomRepository {
         done: false,
         halt: serverHalt,
         opened: createdOpened,
+        moment: nextMoment,
       ),
     );
   }
@@ -1384,6 +1387,7 @@ class FakeRoom implements RoomRepository {
         done: readsDone ?? done,
         halt: serverHalt,
         opened: openedSessions.contains(sessionId),
+        moment: nextMoment,
         backTranslation:
             retroSoFar ?? BackTranslationProgress(segments: List.of(segments)),
       ),
@@ -1421,6 +1425,7 @@ class FakeRoom implements RoomRepository {
           degraded: false,
           coverage: silentAboutCoverage ? null : nextCoverage,
           done: done,
+          moment: nextMoment,
           segments: opensInTwoMovements
               ? const [
                   SpokenSegment(role: 'panorama', audioUrl: panoramaUrl),
@@ -1789,6 +1794,7 @@ class FakeRoom implements RoomRepository {
     degraded: turnsAreDegraded,
     coverage: silentAboutCoverage ? null : nextCoverage,
     done: done,
+    moment: nextMoment,
     turnId: turnIdInResponse ?? 'turno-fake-${++_turnCount}',
     classificationPending: classificationPending,
     bridgeMode: bridgeMode,
