@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 
-import 'a_room_host_double.dart';
+import 'a_station_host_double.dart';
 import 'fakes.dart';
 
 const _beat = Duration(seconds: 30);
@@ -23,7 +23,7 @@ void main() {
       'and the machine takes their answers', () {
     final container = ProviderContainer(overrides: SalaHarness().overrides);
     addTearDown(container.dispose);
-    final host = ARoomHost()..roomIsReachable = false;
+    final host = AStationHost()..roomIsReachable = false;
     var machine = reduce(const Machine(), const NetworkFailedAt(Door.step)).$1;
     final runner = runnerOver(
       portsOf(container),

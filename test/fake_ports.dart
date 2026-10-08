@@ -7,7 +7,7 @@ import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
-import 'a_room_host_double.dart';
+import 'a_station_host_double.dart';
 
 /// A sound port that sounds nothing: it writes down what it was asked, and a line or a
 /// part ends or opens only when the test says so.

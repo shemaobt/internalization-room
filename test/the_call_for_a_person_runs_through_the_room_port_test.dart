@@ -7,7 +7,7 @@ import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/refusal_code.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
 
-import 'a_room_host_double.dart';
+import 'a_station_host_double.dart';
 import 'fake_ports.dart';
 
 Halt _theSignAfter(List<MachineEvent> answers) => answers
@@ -19,12 +19,12 @@ Halt _theSignAfter(List<MachineEvent> answers) => answers
 
 void main() {
   late ARoomPort room;
-  late ARoomHost host;
+  late AStationHost host;
   late EffectRunner runner;
 
   setUp(() {
     room = ARoomPort();
-    host = ARoomHost()
+    host = AStationHost()
       ..session = 'sessao-1'
       ..passageInCourse = 'rute-1';
     runner = runnerOver(fakePorts(ASoundPort(), room: room), host);

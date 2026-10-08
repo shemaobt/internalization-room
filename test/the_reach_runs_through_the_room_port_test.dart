@@ -3,17 +3,17 @@ import 'package:internalization_room/features/sala/data/effect_runner.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
 
-import 'a_room_host_double.dart';
+import 'a_station_host_double.dart';
 import 'fake_ports.dart';
 
 void main() {
   late ARoomPort room;
-  late ARoomHost host;
+  late AStationHost host;
   late EffectRunner runner;
 
   setUp(() {
     room = ARoomPort();
-    host = ARoomHost()..roomIsReachable = false;
+    host = AStationHost()..roomIsReachable = false;
     runner = runnerOver(fakePorts(ASoundPort(), room: room), host);
   });
 

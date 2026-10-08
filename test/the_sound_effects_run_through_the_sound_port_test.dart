@@ -4,7 +4,7 @@ import 'package:internalization_room/features/sala/data/effect_runner.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 
-import 'a_room_host_double.dart';
+import 'a_station_host_double.dart';
 import 'fake_ports.dart';
 
 const _line = Line(LineKind.guide, 1, url: 'scene.mp3');
@@ -15,7 +15,7 @@ const _stretch = StretchSound('part.m4a', to: Duration(seconds: 4));
 
 void main() {
   late ASoundPort sound;
-  late ARoomHost host;
+  late AStationHost host;
   late EffectRunner runner;
   late Machine machine;
 
@@ -27,7 +27,7 @@ void main() {
 
   setUp(() {
     sound = ASoundPort();
-    host = ARoomHost();
+    host = AStationHost();
     runner = runnerOver(fakePorts(sound), host, clipGrace: _grace);
   });
 
