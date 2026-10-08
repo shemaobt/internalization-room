@@ -7291,6 +7291,14 @@ void main() {
     await settle();
   }
 
+  Future<void> theRoomNamesTheParts(ProviderContainer container) => waitFor(
+    'a sala nomear as partes',
+    () => container
+        .read(salaSessionProvider)
+        .partes
+        .every((parte) => parte.takeId != null),
+  );
+
   test('the rehearsal is told in parts, each kept in order', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
@@ -7558,6 +7566,7 @@ void main() {
 
   test('the check reports what was heard, not the length of the clip', () async {
     final harness = SalaHarness()
+      ..room.takeLandsAfter = const Duration(milliseconds: 500)
       ..playback.length = const Duration(seconds: 10);
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -7566,6 +7575,7 @@ void main() {
     notifier.goEnsaio();
     await gravaParte(notifier);
     await gravaParte(notifier);
+    await theRoomNamesTheParts(container);
     notifier.startRetro();
     await settle();
     harness.playback.finishPlayback();
@@ -7582,14 +7592,14 @@ void main() {
       harness.room.playedByTakeSent.last,
       [
         {
-          'take_id': harness.room.takeIds[0],
+          'take_id': 'gravacao-1',
           'played_ranges': [
             [0, 10000],
           ],
           'clip_duration_ms': 10000,
         },
         {
-          'take_id': harness.room.takeIds[1],
+          'take_id': 'gravacao-2',
           'played_ranges': [
             [0, 10000],
           ],
@@ -7654,6 +7664,7 @@ void main() {
 
   test('a part measures itself, not the position it stopped at', () async {
     final harness = SalaHarness()
+      ..room.takeLandsAfter = const Duration(milliseconds: 500)
       ..playback.length = const Duration(seconds: 10);
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -7662,6 +7673,7 @@ void main() {
     notifier.goEnsaio();
     await gravaParte(notifier);
     await gravaParte(notifier);
+    await theRoomNamesTheParts(container);
     notifier.startRetro();
     await settle();
     harness.playback.at = Duration.zero;
@@ -7713,13 +7725,15 @@ void main() {
   });
 
   test('the check names every part the team heard, one entry each', () async {
-    final harness = SalaHarness();
+    final harness = SalaHarness()
+      ..room.takeLandsAfter = const Duration(milliseconds: 500);
     final container = await inConversa(harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
     await gravaParte(notifier);
     await gravaParte(notifier);
+    await theRoomNamesTheParts(container);
     notifier.startRetro();
     await settle();
     harness.playback.at = const Duration(seconds: 10);
@@ -7736,14 +7750,14 @@ void main() {
 
     expect(harness.room.playedByTakeSent.last, [
       {
-        'take_id': harness.room.takeIds[0],
+        'take_id': 'gravacao-1',
         'played_ranges': [
           [0, 10000],
         ],
         'clip_duration_ms': 10000,
       },
       {
-        'take_id': harness.room.takeIds[1],
+        'take_id': 'gravacao-2',
         'played_ranges': [
           [0, 8000],
         ],
