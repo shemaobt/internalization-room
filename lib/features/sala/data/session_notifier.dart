@@ -907,7 +907,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     void Function()? onSoundStart,
   }) async {
     if (_abandoned(generation)) return;
-    state = state.copyWith(coverage: turn.coverage);
+    state = state.copyWith(
+      coverage: turn.coverage,
+      moment: turn.moment,
+      clearMoment: turn.moment == null,
+    );
     clock?.mark('answer');
     _awaitCoverageSettle(turn, clock: clock);
     _scheduleInboxPoll();
@@ -2376,7 +2380,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     if (_goneSessions.contains(sessionId)) return _openTheChoice();
     if (!resumed) _startTheSessionClean(pericope);
-    state = state.copyWith(sessionId: sessionId, coverage: created?.coverage);
+    state = state.copyWith(
+      sessionId: sessionId,
+      coverage: created?.coverage,
+      moment: created?.moment,
+    );
     _runner.run(const [ArmTheWatch()]);
     if (pericope != null) _holdTheCurrentSession(sessionId, pericope);
     _sessionSavedAt = resumed ? waiting.savedAt : clock.now();
@@ -2426,7 +2434,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             return failed(failure);
         }
         if (_abandoned(generation)) return;
-        state = state.copyWith(coverage: snapshot.coverage);
+        state = state.copyWith(
+          coverage: snapshot.coverage,
+          moment: snapshot.moment,
+          clearMoment: snapshot.moment == null,
+        );
         if (Station.stored(waiting.stage) is Retro) {
           _pickTheTellingBackUp(snapshot.backTranslation);
           landed();
@@ -2476,7 +2488,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           return;
         }
       }
-      state = state.copyWith(coverage: read.coverage);
+      state = state.copyWith(
+        coverage: read.coverage,
+        moment: read.moment,
+        clearMoment: read.moment == null,
+      );
       _applyTheSessionRead(read, sent);
       if (opened != null || read.opened) return _landWhereTheyStopped();
     } else if (opened != null || created!.opened) {

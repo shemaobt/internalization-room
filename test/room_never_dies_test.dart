@@ -17,7 +17,12 @@ import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart'
-    show enterThePanorama, enterThePassage, settle, withDiskThatAnswersAtOnce;
+    show
+        enterThePanorama,
+        enterThePassage,
+        settle,
+        theChoiceOffersAPassage,
+        withDiskThatAnswersAtOnce;
 
 void main() {
   test('a book with nothing left to offer reaches a person', () async {
@@ -210,11 +215,21 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       await notifier.abrirEscolha();
-      await settle();
+      await theChoiceOffersAPassage(container);
       notifier.entrarNaOferecida();
-      await settle();
+      await waitFor(
+        'a passagem abrir',
+        () => container.read(salaSessionProvider).sessionId != null,
+      );
       notifier.leaveThePassage();
-      await settle();
+      await waitFor(
+        'a sala voltar à Escolha com o lugar da passagem guardado',
+        () async =>
+            container.read(salaSessionProvider).stage == SalaStage.escolha &&
+            container.read(salaSessionProvider).oferecida != null &&
+            container.read(salaSessionProvider).voice == VoiceState.invite &&
+            await harness.emAberto.of('Ruth', 'P01') != null,
+      );
       expect(await harness.emAberto.of('Ruth', 'P01'), isNotNull);
 
       harness.room.forgetTheSession(harness.room.sessionIds.single);
