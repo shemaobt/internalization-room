@@ -249,6 +249,7 @@ void main() {
     harness.room.failFinishWith = const NetworkFailed('timeout');
     await _traduzDeNovo(container, notifier);
     harness.room.failFinishWith = const Refused('BAD_REQUEST');
+    notifier.retryNow();
     await waitFor(
       'a sala voltar ao alcance',
       () => !container.read(salaSessionProvider).offline,

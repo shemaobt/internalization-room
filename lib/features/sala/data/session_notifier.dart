@@ -1297,7 +1297,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _fellAt(Door door, RoomReach why) {
     state = state.copyWith(reach: why);
-    if (door == Door.step) _theStepWaits();
+    if (door == Door.step || door == Door.verdict) _theStepWaits();
   }
 
   void _countTheRefusal() {
@@ -4882,7 +4882,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         verdict = answer;
       case final RoomFailure failure:
         if (_abandoned(generation)) return;
-        if (failure case NetworkFailed()) _pending = _finishBackTranslation;
+        if (failure case NetworkFailed()) {
+          _pending = _finishBackTranslation;
+          _decideAt(failure, door: Door.verdict);
+          return;
+        }
         _decideTheFailure(failure);
         return;
     }

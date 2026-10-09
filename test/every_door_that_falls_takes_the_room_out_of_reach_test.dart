@@ -566,8 +566,7 @@ void main() {
     expect(harness.room.turnsSent, 1);
   });
 
-  group('8: the verdict and the approval that fell are asked again once on '
-      'the return', () {
+  group('8: the approval that fell is asked again once on the return', () {
     Future<_Room> ready(SalaHarness harness) async {
       final room = await _aResumedBackTranslation(harness);
       harness.playback.finishPlayback();
@@ -577,27 +576,6 @@ void main() {
       );
       return room;
     }
-
-    test('the verdict', () async {
-      final harness = SalaHarness(retryBackoff: _aLadderThatWaits);
-      final room = await ready(harness);
-      harness.room.failFinishWith = const NetworkFailed('sem rede');
-      harness.network.reachable = false;
-
-      await room.sala.finishBackTranslation();
-      await room.outOfReach('pelo veredito');
-      final asked = harness.room.playedByTakeSent.length;
-      harness.room.failFinishWith = null;
-      room.theNetworkReturns();
-
-      await waitFor(
-        'o veredito ser pedido de novo',
-        () => harness.room.playedByTakeSent.length > asked,
-      );
-      await settle(const Duration(milliseconds: 300));
-      expect(harness.room.playedByTakeSent, hasLength(asked + 1));
-      expect(room.estado.btPhase, isNot(BtPhase.thinking));
-    });
 
     test('the approval', () async {
       final harness = SalaHarness(retryBackoff: _aLadderThatWaits);
