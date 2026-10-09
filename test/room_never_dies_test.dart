@@ -977,7 +977,9 @@ void main() {
   );
 
   test('no network and no room wear different faces', () async {
-    final harness = SalaHarness()..network.radioSeesNothing = true;
+    final harness = SalaHarness()
+      ..network.reachable = false
+      ..network.radioSeesNothing = true;
     final container = harness.container();
     addTearDown(container.dispose);
 

@@ -1,7 +1,12 @@
 import 'dart:async';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:internalization_room/features/sala/data/connectivity_service.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_client.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -41,10 +46,47 @@ Future<void> _until(_Sala sala, String what, bool Function() ready) => waitFor(
   step: () => sala.tester.pump(const Duration(milliseconds: 100)),
 );
 
+Future<void> _pass(_Sala sala, Duration time) async {
+  for (var beat = Duration.zero; beat < time; beat += _aBeat) {
+    await sala.tester.pump(_aBeat);
+  }
+}
+
+const _aBeat = Duration(milliseconds: 100);
+
 Future<void> _wait(_Sala sala) async {
   for (var beat = 0; beat < 10; beat++) {
     await sala.tester.pump(const Duration(milliseconds: 100));
   }
+}
+
+class _ARadioThatForgetsWhenNobodyListens implements Connectivity {
+  late final StreamController<List<ConnectivityResult>> _changes =
+      StreamController<List<ConnectivityResult>>.broadcast(
+        onCancel: () => _forgot = true,
+      );
+  bool _forgot = false;
+
+  @override
+  Future<List<ConnectivityResult>> checkConnectivity() async {
+    if (!_forgot) return [ConnectivityResult.wifi];
+    _forgot = false;
+    return [ConnectivityResult.none];
+  }
+
+  @override
+  Stream<List<ConnectivityResult>> get onConnectivityChanged => _changes.stream;
+
+  void close() => _changes.close();
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+List<Duration> get _theProductionLadder {
+  final container = ProviderContainer();
+  addTearDown(container.dispose);
+  return container.read(roomRetryBackoffProvider);
 }
 
 SalaHarness _aRoomThatWaitsForTheTap() =>
@@ -99,6 +141,8 @@ Future<void> _theNextTapOpens(_Sala sala, void Function() tap) async {
 }
 
 void main() {
+  setUpAll(() => dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local'));
+
   testWidgets(
     'a session refused by a network failure at the Choice rests on «Tocar '
     'para tentar de novo» and raises no halt',
@@ -242,6 +286,70 @@ void main() {
       expect(_read(sala).stage, SalaStage.conversa);
       _restsWithoutAHalt(sala);
       sala.harness.room.finishHeldCreate();
+      closeTheRoom(sala.container);
+    },
+  );
+
+  Future<_Sala> aPassageThatFellWhileTheRoomWasSilent(
+    WidgetTester tester,
+  ) async {
+    var roomIsSilent = false;
+    final radio = _ARadioThatForgetsWhenNobodyListens();
+    addTearDown(radio.close);
+    final harness = SalaHarness(
+      retryBackoff: _theProductionLadder,
+      connectivity: ConnectivityService(
+        connectivity: radio,
+        client: MockClient((_) async {
+          if (roomIsSilent) throw http.ClientException('Connection refused');
+          return http.Response('{"status":"ok"}', 200);
+        }),
+      ),
+    );
+    final sala = await _theSala(tester, harness);
+    unawaited(sala.notifier.abrirEscolha());
+    await _theChoiceOffers(sala, (entry) => entry.pericope == 'P01');
+    void set(bool silent) {
+      roomIsSilent = silent;
+      harness.room.reachable = !silent;
+    }
+
+    set(true);
+    sala.notifier.entrarNaOferecida();
+    await _wait(sala);
+    expect(byLabel(_tryAgain), findsOneWidget);
+    await _pass(sala, _theProductionLadder[0] + _theProductionLadder[1]);
+    set(false);
+    return sala;
+  }
+
+  testWidgets(
+    'a passage that fell while the room was silent asks for its session once '
+    'when the tap finds the room back',
+    (tester) async {
+      final sala = await aPassageThatFellWhileTheRoomWasSilent(tester);
+      final before = _creates(sala);
+
+      sala.notifier.conversaTap();
+      await _pass(sala, const Duration(seconds: 3));
+
+      expect(_creates(sala), before + 1);
+      expect(byLabel(_tryAgain), findsNothing);
+      closeTheRoom(sala.container);
+    },
+  );
+
+  testWidgets(
+    'a passage that fell while the room was silent asks for its session once '
+    'when the ladder finds the room back',
+    (tester) async {
+      final sala = await aPassageThatFellWhileTheRoomWasSilent(tester);
+      final before = _creates(sala);
+
+      await _pass(sala, _theProductionLadder[2]);
+
+      expect(_creates(sala), before + 1);
+      expect(byLabel(_tryAgain), findsNothing);
       closeTheRoom(sala.container);
     },
   );

@@ -2073,8 +2073,8 @@ class FakeNetwork implements ConnectivityService {
       _heldCheck = held;
       await held.future;
     }
-    if (radioSeesNothing) return RoomReach.noNetwork;
-    return reachable ? RoomReach.fine : RoomReach.roomSilent;
+    if (reachable) return RoomReach.fine;
+    return radioSeesNothing ? RoomReach.noNetwork : RoomReach.roomSilent;
   }
 
   @override
@@ -2475,6 +2475,8 @@ class SalaHarness {
   final FakeInbox inbox;
   final FakeRoom room;
   final FakeNetwork network = FakeNetwork();
+
+  final ConnectivityService? connectivity;
   final FakeScreenAwake awake = FakeScreenAwake();
   final FakeLinkedTeam vinculo;
   final Duration settleDelay;
@@ -2504,6 +2506,7 @@ class SalaHarness {
     this.settleDelay = const Duration(milliseconds: 60),
     this.watchesWithoutAHalt = false,
     this.retryBackoff = const [Duration(milliseconds: 20)],
+    this.connectivity,
     this.busyCeiling,
     this.rewarm,
     this.playbackCeiling,
@@ -2564,7 +2567,7 @@ class SalaHarness {
     finishedPassagesProvider.overrideWithValue(finishedOnDisk ?? finished),
     workInProgressProvider.overrideWithValue(emAbertoNoDisco ?? emAberto),
     currentSessionLedgerProvider.overrideWithValue(currentSession),
-    connectivityServiceProvider.overrideWithValue(network),
+    connectivityServiceProvider.overrideWithValue(connectivity ?? network),
     linkedTeamProvider.overrideWithValue(vinculo),
     linkPollIntervalProvider.overrideWithValue(linkPoll),
     screenAwakeProvider.overrideWithValue(awake),
