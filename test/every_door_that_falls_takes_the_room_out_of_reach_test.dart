@@ -879,6 +879,56 @@ void main() {
       expect(await queue.giveUps(), hasLength(1));
     });
   });
+  group('5: what a retry finds stays with the gesture that asked', () {
+    test('a retry that finds the room back stays on its way while the step it '
+        'resends speaks', () async {
+      final harness = SalaHarness(retryBackoff: _aLadderThatWaits);
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final room = _Room(harness, container);
+      await room.sala.abrirEscolha();
+      harness.network.reachable = false;
+      await room.sala.goConversa(pericope: 'P01');
+      await room.outOfReach('pela sonda da conversa');
+      harness.network.reachable = true;
+      harness.voice.holdNextLine();
+      final before = room.estado.machine.onTheirWay;
+
+      room.sala.retryNow();
+      final retry = room.estado.machine.onTheirWay.difference(before).single;
+
+      await waitFor(
+        'o passo reenviado falar',
+        () => room.estado.channel is GuideSpeaking,
+      );
+      expect(room.estado.machine.onTheirWay, contains(retry));
+    });
+
+    test('a read that finds the session gone after a retry opens the Choice '
+        'with the retry still on its way', () async {
+      final harness = SalaHarness(retryBackoff: _aLadderThatWaits);
+      final room = await _aResumedBackTranslation(harness);
+      await _tellAStretchUpTo(room, const Duration(seconds: 12));
+      room.theNetworkFalls();
+      await room.sala.confirmarTraducao();
+      await room.outOfReach('pelo trecho');
+      harness.network.reachable = true;
+      harness.room
+        ..reachable = true
+        ..failStateOnceWith = const SessionGone()
+        ..holdNextChunk();
+      final before = room.estado.machine.onTheirWay;
+
+      room.sala.retryNow();
+      final retry = room.estado.machine.onTheirWay.difference(before).single;
+
+      await waitFor(
+        'a Escolha abrir',
+        () => room.estado.stage != SalaStage.retro,
+      );
+      expect(room.estado.machine.onTheirWay, contains(retry));
+    });
+  });
 }
 
 class _RoomThatCannotReadTheTakeOnce extends FakeRoom {

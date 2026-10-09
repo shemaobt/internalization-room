@@ -1,5 +1,11 @@
 # The room stays wordless, and CI enforces it
 
+Amended by ENG-1250 (her moment label): the conversation screen writes the moment the voice
+named — «Familiarização · a passagem inteira», «Internalização · cena 2 de 4» — as Marcia ruled
+it on 2026-09-24 («A palavra está sempre escrita», D8 (a)). It is the second named exception,
+and the only one the **Team** sees; its words are hers, and it reads the same through
+VoiceOver.
+
 ## Context
 
 The **Team** cannot read. Every screen is spoken, and a written word on a team screen is a

@@ -2,18 +2,16 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// What the build was told about the room it serves.
 ///
-/// Both values are baked in at build time, so a mistake here is a broken build rather
+/// The address is baked in at build time, so a mistake here is a broken build rather
 /// than a bad afternoon — and the room has to be able to say so. It could not: the
 /// missing-value throw is a `StateError`, an `Error` and not an `Exception`, and every
-/// catch between here and the screen is `on Exception`. A `.env` without the room key
+/// catch between here and the screen is `on Exception`. A `.env` missing a value
 /// looped the invite between offline and touch-me against a perfectly healthy server.
 abstract class Env {
   static Future<void> load() => dotenv.load();
 
   /// Whether the build carries everything the room needs, checked before it opens.
-  static bool get complete =>
-      _value('BACKEND_URL') != null &&
-      _value('INTERNALIZATION_ROOM_KEY') != null;
+  static bool get complete => _value('BACKEND_URL') != null;
 
   /// The room's address, without the trailing slash a human will eventually type.
   ///
@@ -22,8 +20,6 @@ abstract class Env {
   /// the team was told their session no longer existed.
   static String get backendUrl =>
       _stripTrailingSlashes(_required('BACKEND_URL'));
-
-  static String get roomKey => _required('INTERNALIZATION_ROOM_KEY');
 
   static bool get devPularFases =>
       dotenv.isInitialized && _value('DEV_PULAR_FASES') == '1';

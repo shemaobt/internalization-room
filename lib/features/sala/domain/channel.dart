@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import 'cut_point.dart';
+
 enum MicOwner { conversation, rehearsal, capture, question }
 
 enum LineKind {
@@ -41,12 +43,15 @@ final class Source {
   int get hashCode => Object.hash(key, counts);
 }
 
+typedef FixedLine = ({String name, String language});
+
 final class Line {
   final LineKind kind;
   final int id;
   final Source source;
   final String? url;
   final String? asset;
+  final FixedLine? fixedLine;
   final void Function()? onSoundStart;
 
   const Line(
@@ -55,6 +60,7 @@ final class Line {
     this.source = Source.guide,
     this.url,
     this.asset,
+    this.fixedLine,
     this.onSoundStart,
   });
 
@@ -152,15 +158,19 @@ final class Silence extends Channel {
 final class Microphone extends Channel {
   final MicOwner owner;
   final Paused? held;
+  final CutPoint? cut;
 
-  const Microphone(this.owner, {this.held});
+  const Microphone(this.owner, {this.held, this.cut});
 
   @override
   bool operator ==(Object other) =>
-      other is Microphone && other.owner == owner && other.held == held;
+      other is Microphone &&
+      other.owner == owner &&
+      other.held == held &&
+      other.cut == cut;
 
   @override
-  int get hashCode => Object.hash(owner, held);
+  int get hashCode => Object.hash(owner, held, cut);
 }
 
 final class GuideSpeaking extends Channel {

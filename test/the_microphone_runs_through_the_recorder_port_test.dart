@@ -5,7 +5,7 @@ import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
-import 'a_room_host_double.dart';
+import 'a_station_host_double.dart';
 import 'fake_ports.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart' show settle;
@@ -38,14 +38,14 @@ class _AHarnessWhoseRecorderFailsToStop extends SalaHarness {
 
 void main() {
   late ARecorderPort recorder;
-  late ARoomHost host;
+  late AStationHost host;
   late EffectRunner runner;
   var generation = 3;
 
   setUp(() {
     generation = 3;
     recorder = ARecorderPort();
-    host = ARoomHost();
+    host = AStationHost();
     runner = runnerOver(
       fakePorts(ASoundPort(), recorder: recorder),
       host,

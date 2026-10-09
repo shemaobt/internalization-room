@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
+import 'package:internalization_room/features/sala/domain/cut_point.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -88,7 +89,7 @@ Invariant<S> aSessionReadIsAppliedWholeOrNotAtAll<S>(Halt Function(S) haltOf) =>
     );
 
 bool _tellsThePersonOrBringsTheSoundBack(Effect effect) => switch (effect) {
-  TellAPersonArrived() || ReplayTheSound() || AskTheOpeningAgain() => true,
+  TellAPersonArrived() || ReplayTheSound() => true,
   _ => false,
 };
 
@@ -135,11 +136,15 @@ List<Invariant<S>> theAdrInvariants<S>(Halt Function(S) haltOf) => [
 
 bool _sounds(Channel channel) => channel is Playing || channel is GuideSpeaking;
 
-final theMicrophoneNeverOpensUnderASound = Invariant<Machine>(
-  'ADR invariant 1, the microphone never opens under a sound',
+final theMicrophoneOpensOverASoundOnlyAfterAStop = Invariant<Machine>(
+  'ADR invariant 1, the microphone opens over a sound only after a stop in the '
+  'same step',
   (before, event, after, effects, world) {
-    if (effects.any((effect) => effect is OpenTheMic) &&
-        _sounds(before.channel)) {
+    final opens = effects.indexWhere((effect) => effect is OpenTheMic);
+    final stops = effects.indexWhere((effect) => effect is StopTheSound);
+    if (opens >= 0 &&
+        _sounds(before.channel) &&
+        !(stops >= 0 && stops < opens)) {
       return 'the microphone opened over ${describeChannel(before.channel)}';
     }
     final starts = effects.any(
@@ -152,6 +157,18 @@ final theMicrophoneNeverOpensUnderASound = Invariant<Machine>(
     return null;
   },
 );
+
+final aMicrophoneAnswerWithNoMicrophoneOpenLeavesTheChannelAsItWas =
+    Invariant<Machine>(
+      'a microphone answer with no microphone open leaves the Channel as it was',
+      (before, event, after, effects, world) {
+        if (event is! MicAnswered || before.channel is Microphone) return null;
+        if (identical(after.channel, before.channel)) return null;
+        return '${describeEvent(event)} changed '
+            '${describeChannel(before.channel)} into '
+            '${describeChannel(after.channel)}';
+      },
+    );
 
 final theHeadNeverReadsAnotherSound = Invariant<Machine>(
   'ADR invariant 8, the Head never reads another part\'s or stretch\'s position',
@@ -296,8 +313,53 @@ void main() {
       _holds(theWarningIsTheOneTheServerTold(_haltOf));
     });
 
-    test('ADR invariant 1: the microphone never opens under a sound', () {
-      _holds(theMicrophoneNeverOpensUnderASound);
+    test('ADR invariant 1: the microphone opens over a sound only after a stop '
+        'in the same step', () {
+      _holds(theMicrophoneOpensOverASoundOnlyAfterAStop);
+    });
+
+    test('ADR invariant 1 reads a microphone opened over a sound with no stop '
+        'before it', () {
+      const speaking = Machine(channel: GuideSpeaking(Line(LineKind.guide, 1)));
+      const listening = Machine(channel: Microphone(MicOwner.conversation));
+      const open = OpenTheMic(MicOwner.conversation, take: 'conversa');
+      const cut = Interrupted(take: 'conversa', cut: CutPoint(Duration.zero));
+      String? check(List<Effect> effects) =>
+          theMicrophoneOpensOverASoundOnlyAfterAStop.check(
+            speaking,
+            cut,
+            listening,
+            effects,
+            const World(),
+          );
+
+      expect(check(const [open]), isNotNull);
+      expect(check(const [open, StopTheSound()]), isNotNull);
+      expect(check(const [StopTheSound(), open]), isNull);
+    });
+
+    test('a microphone answer with no microphone open leaves the Channel as it '
+        'was', () {
+      _holds(aMicrophoneAnswerWithNoMicrophoneOpenLeavesTheChannelAsItWas);
+    });
+
+    test('a microphone answer with no microphone open reads a Channel that '
+        'changed', () {
+      const playing = Machine(channel: GuideSpeaking(Line(LineKind.guide, 1)));
+      const silent = Machine();
+      const listening = Machine(channel: Microphone(MicOwner.conversation));
+      String? check(Machine before, Machine after) =>
+          aMicrophoneAnswerWithNoMicrophoneOpenLeavesTheChannelAsItWas.check(
+            before,
+            const MicAnswered(MicAnswer.closed),
+            after,
+            const [],
+            const World(),
+          );
+
+      expect(check(playing, silent), isNotNull);
+      expect(check(playing, playing), isNull);
+      expect(check(listening, silent), isNull);
     });
 
     test('ADR invariant 8: the Head never reads another part\'s or '
@@ -324,13 +386,14 @@ void main() {
       _holds(nothingOfAClosedPassageSurvives);
     });
 
-    test('ADR invariants 1, 2, 3, 5, 6, 8, 11, 12, 13 and 15 hold over the '
-        'default run', () {
+    test('ADR invariants 1, 2, 3, 5, 6, 8, 11, 12, 13 and 15, and a microphone '
+        'answer with no microphone open, hold over the default run', () {
       expectEverySeedHolds(_machine, [
         nothingOfAGoneSessionSurvives,
         nothingOfAClosedPassageSurvives,
         ...theAdrInvariants<Machine>(_haltOf),
-        theMicrophoneNeverOpensUnderASound,
+        theMicrophoneOpensOverASoundOnlyAfterAStop,
+        aMicrophoneAnswerWithNoMicrophoneOpenLeavesTheChannelAsItWas,
         theHeadNeverReadsAnotherSound,
         theOutboxNeverIdlesReachableWithAPartPending,
         theScreenNeverShowsASoundTheChannelDoesNotHold,
@@ -411,18 +474,18 @@ void main() {
       final events = [
         for (final entry in runSequence(_machine, [
           aHaltNeverStands,
-        ], 7).entries)
+        ], 0).entries)
           describeEvent(entry.event),
       ];
 
       expect(
-        () => expectEverySeedHolds(_machine, [aHaltNeverStands], seeds: [7]),
+        () => expectEverySeedHolds(_machine, [aHaltNeverStands], seeds: [0]),
         throwsA(
           isA<TestFailure>()
               .having(
                 (failure) => failure.message,
                 'message',
-                startsWith('seed 7 broke'),
+                startsWith('seed 0 broke'),
               )
               .having(
                 (failure) => failure.message,

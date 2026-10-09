@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -21,7 +20,7 @@ import 'um_ensaio_de_tres_partes.dart';
 
 const _aprovar = 'Aprovar como rascunho final';
 const _ouvir = 'Ouvir a gravação';
-const _sairDaPassagem = 'Deixar esta passagem e escolher outra';
+const _sairDaPassagem = 'Escolher outra passagem';
 const micParteLabel = 'Gravar a parte de novo na língua materna';
 
 /// A team standing on a finding the analyst addressed to the stretch of part 2, with the
@@ -1396,7 +1395,7 @@ void main() {
 
   testWidgets('a aprovação conta a vez que não tocou', (tester) async {
     final it = await _ateAConferida(tester);
-    it.harness.voice.refuses.add(fixedLineAsset(approvedLine, testLanguage));
+    it.harness.voice.refuses.add('P3');
 
     await tester.tap(byLabel(_aprovar));
     await tester.pump(const Duration(milliseconds: 400));

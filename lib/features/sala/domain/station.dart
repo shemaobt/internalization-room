@@ -2,7 +2,7 @@ import 'machine.dart';
 import 'session_state.dart';
 
 part 'stations/canvas.dart';
-part 'stations/convite.dart';
+part 'stations/panorama.dart';
 part 'stations/ensaio.dart';
 part 'stations/fim.dart';
 part 'stations/menu.dart';
@@ -14,7 +14,7 @@ sealed class Station {
 
   /// The Station a stored resume point names.
   factory Station.stored(SalaStage stage) => switch (stage) {
-    SalaStage.convite => const Convite(),
+    SalaStage.panorama => const Panorama(),
     SalaStage.escolha => const Menu(),
     SalaStage.conversa => const Canvas(),
     SalaStage.ensaio => const Ensaio(),

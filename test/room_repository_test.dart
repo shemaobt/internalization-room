@@ -10,11 +10,13 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/domain/cut_point.dart';
 import 'package:internalization_room/features/sala/data/port_adapters.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
 import 'a_wav_take.dart';
@@ -39,10 +41,40 @@ String _turnBody({bool usedFailSafe = false, bool degraded = false}) =>
 
 void main() {
   setUpAll(() {
-    dotenv.testLoad(
-      fileInput: 'BACKEND_URL=http://sala.local\nINTERNALIZATION_ROOM_KEY=k',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
   });
+
+  test(
+    'a fixed line is asked of the room by its name and language, and comes back as an address',
+    () async {
+      late http.BaseRequest seen;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seen = request;
+          return http.Response(
+            '{"audio_url": "/api/internalization-room/voice/abc"}',
+            200,
+          );
+        }),
+      );
+      addTearDown(repository.dispose);
+
+      final address = await repository.fixedLineAddress('D1', language: 'pt');
+
+      expect(
+        address,
+        isA<Answered<String>>().having(
+          (answer) => answer.value,
+          'value',
+          '/api/internalization-room/voice/abc',
+        ),
+        reason:
+            'a linha vinha gravada no app e tocava a letra velha depois de ela mudar',
+      );
+      expect(seen.url.path, '/api/internalization-room/fixed-lines/D1');
+      expect(seen.url.queryParameters, {'language': 'pt'});
+    },
+  );
 
   test('the opening turn carries no body at all', () async {
     late http.BaseRequest seen;
@@ -64,7 +96,6 @@ void main() {
           'consegue ler, e a recusa chega ao app como se fosse falta de rede',
     );
     expect(seen.headers['content-type'] ?? '', isNot(contains('multipart')));
-    expect(seen.headers['X-Room-Key'], 'k');
   });
 
   test(
@@ -335,6 +366,43 @@ void main() {
     },
   );
 
+  test('a session read says whether the room has opened it, and a server that '
+      'does not say reads as not opened', () async {
+    Map<String, Object?> state(String id) => {
+      'session_id': id,
+      'pericope': 'P01',
+      'status': 'in_progress',
+      'done': false,
+      if (id == 'aberta') 'opened': true,
+    };
+    final repository = RoomRepository(
+      client: MockClient(
+        (request) async => http.Response(
+          jsonEncode(state(request.url.pathSegments.last)),
+          200,
+        ),
+      ),
+    );
+    addTearDown(repository.dispose);
+
+    expect(
+      await repository.fetchState('aberta'),
+      isA<Answered<SessionSnapshot>>().having(
+        (read) => read.value.opened,
+        'opened',
+        isTrue,
+      ),
+    );
+    expect(
+      await repository.fetchState('antiga'),
+      isA<Answered<SessionSnapshot>>().having(
+        (read) => read.value.opened,
+        'opened',
+        isFalse,
+      ),
+    );
+  });
+
   test('the panorama is asked for by name, a plain session is not', () async {
     final asked = <String>[];
     final types = <String>[];
@@ -416,7 +484,6 @@ void main() {
             'um device_id nulo virava a string "null" no corpo e o servidor '
             'procurava um aparelho com esse id',
       );
-      expect(seen.headers['X-Room-Key'], 'k');
       expect(asked.code, 'QHF-3M7K');
       expect(asked.deviceId, 'aparelho-1');
     },
@@ -799,7 +866,6 @@ void main() {
       expect(coverage!.engaged, 3);
       expect(coverage.surfaced, 4);
       expect(coverage.total, 29);
-      expect(coverage.absenceIndex, 13);
     },
   );
 
@@ -1092,7 +1158,6 @@ void main() {
             'a sala monta a release do que já guarda: o tablet não tem '
             'nada a mandar junto',
       );
-      expect(seen.headers['X-Room-Key'], 'k');
       expect(seen.headers['X-Device-Credential'], 'credencial-1');
       expect(
         seen.headers['X-Room-Device'],
@@ -1676,6 +1741,61 @@ void main() {
         _filePart(sent).head,
         contains('content-type: application/octet-stream'),
       );
+    });
+  });
+  group('a turn', () {
+    Future<String> bodyOf(CutPoint? cut) async {
+      late String body;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          body = request.body;
+          return http.Response(_turnBody(), 200);
+        }),
+      );
+      addTearDown(repository.dispose);
+      await repository.sendTurn(
+        'sessao-1',
+        await _tempRecording(),
+        turnId: 'turno-1',
+        cut: cut,
+      );
+      return body;
+    }
+
+    String? field(String body, String name) =>
+        RegExp('name="$name"\r\n\r\n([^\r]*)\r\n').firstMatch(body)?.group(1);
+
+    test(
+      'after an interruption carries the three fields the room reads',
+      () async {
+        final body = await bodyOf(
+          const CutPoint(
+            Duration(milliseconds: 2400),
+            of: Duration(milliseconds: 9000),
+          ),
+        );
+
+        expect(field(body, 'interrupted'), 'true');
+        expect(field(body, 'interrupted_at_ms'), '2400');
+        expect(field(body, 'interrupted_of_ms'), '9000');
+      },
+    );
+
+    test(
+      'after an interruption of unknown length leaves its length out',
+      () async {
+        final body = await bodyOf(const CutPoint(Duration(milliseconds: 3000)));
+
+        expect(field(body, 'interrupted'), 'true');
+        expect(field(body, 'interrupted_at_ms'), '3000');
+        expect(body, isNot(contains('name="interrupted_of_ms"')));
+      },
+    );
+
+    test('and a turn with no interruption carries none of the three', () async {
+      final body = await bodyOf(null);
+
+      expect(body, isNot(contains('name="interrupted')));
     });
   });
 }

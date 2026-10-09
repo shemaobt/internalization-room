@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:path/path.dart' as p;
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 
@@ -868,6 +869,58 @@ void main() {
     expect(await queue.flush(), 1);
   });
 
+  test('a revocation mid-flush leaves the rest of the queue waiting', () async {
+    final room = FakeRoom()
+      ..failWith = const Refused(RefusalCode.deviceRevoked);
+    final queue = queueOn(room);
+    for (final session in ['sessao-1', 'sessao-2']) {
+      await queue.enqueue(
+        aTake(session),
+        sessionId: session,
+        kind: 'ensaio',
+        scope: 'inteira',
+      );
+    }
+
+    await queue.flush();
+
+    expect(
+      room.calls.where((call) => call == 'sendTake'),
+      hasLength(1),
+      reason:
+          'depois da revogação o tablet não apresenta nada, e cada parte que '
+          'saísse ainda seria recusada por isso',
+    );
+    expect(
+      await queue.giveUps(),
+      isEmpty,
+      reason:
+          'a recusa é do tablet, não da parte: revinculado, ela ainda tem para '
+          'onde ir',
+    );
+
+    room.failWith = null;
+    await queue.flush();
+
+    expect(await queue.waiting(), isEmpty);
+  });
+
+  test('a take refused unauthorized waits for the link too', () async {
+    final room = FakeRoom()..failWith = const Refused(RefusalCode.unauthorized);
+    final queue = queueOn(room);
+    await queue.enqueue(
+      aTake('tomada'),
+      sessionId: 'sessao-1',
+      kind: 'ensaio',
+      scope: 'inteira',
+    );
+
+    await queue.flush();
+
+    expect(await queue.giveUps(), isEmpty);
+    expect(await queue.waiting(), hasLength(1));
+  });
+
   test('a room that refuses spends the tries, and keeps the audio', () async {
     final room = FakeRoom()..refuseTake = 'ensaio/inteira';
     final queue = queueOn(room);
@@ -1400,9 +1453,7 @@ void main() {
 
   group('a take the room answers over the wire', () {
     setUpAll(() {
-      dotenv.testLoad(
-        fileInput: 'BACKEND_URL=http://sala.local\nINTERNALIZATION_ROOM_KEY=k',
-      );
+      dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
     });
 
     var asked = 0;

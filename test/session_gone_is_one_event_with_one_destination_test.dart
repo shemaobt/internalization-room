@@ -10,10 +10,24 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart' show enterThePanorama, enterThePassage, settle;
+
+const _slowerThanAnyWait = Duration(milliseconds: 500);
+const _slowerThanTheLongestWait = Duration(seconds: 1);
+
+const _livroComPanorama = [
+  Passagem(
+    pericope: 'panorama',
+    audioUrl: '/voice/panorama',
+    kind: PassagemKind.panorama,
+  ),
+  Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+  Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
+];
 
 Future<ProviderContainer> _semPassagemNaMemoria(SalaHarness harness) async {
   final container = harness.container();
@@ -108,6 +122,14 @@ Future<List<PendingTake>> _daSessao(
     if (row.sessionId == sessionId) row,
 ];
 
+Future<bool> _aFilaEsvaziou(
+  SalaHarness harness,
+  String sessionId,
+  List<PendingTake> linhas,
+) async =>
+    (await _daSessao(harness, sessionId)).isEmpty &&
+    linhas.every((linha) => !File(linha.path).existsSync());
+
 void _abrirOMicrofoneDaConversa(ProviderContainer container) {
   container.read(salaSessionProvider.notifier).conversaTap();
 }
@@ -147,7 +169,11 @@ void main() {
     'case (b): gone with two Outbox rows of the session pending removes the '
     'rows and their files, and the Outbox tally shows nothing pending',
     () async {
-      final harness = SalaHarness();
+      final harness = SalaHarness(
+        takesOverride: (room, home) =>
+            QueueThatDiscardsLate(room: room, home: () async => home)
+              ..discardsAfter = _slowerThanAnyWait,
+      );
       final container = await _naPassagem(harness);
       final sessao = _sessao(container);
       final primeira = await _naFila(harness, sessao, nome: 'parte-um');
@@ -163,7 +189,10 @@ void main() {
       await _oMicrofoneAberto(container);
       container.read(salaSessionProvider.notifier).conversaTap();
       await _naEscolha(container);
-      await settle();
+      await waitFor(
+        'as linhas e os arquivos da sessão saírem da fila',
+        () => _aFilaEsvaziou(harness, sessao, [primeira, segunda]),
+      );
 
       expect(await _daSessao(harness, sessao), isEmpty);
       expect(File(primeira.path).existsSync(), isFalse);
@@ -180,7 +209,8 @@ void main() {
   test('case (c): a Resume point of a session the server deleted forgets the '
       'row and the session\'s files at takesOf, and opens the Choice with no '
       'fresh session', () async {
-    final harness = SalaHarness();
+    final harness = SalaHarness()
+      ..emAberto.forgetsTheSessionAfter = _slowerThanAnyWait;
     final aqui = harness.recorder.aFile('parte-1-guardada').path;
     final naoMaisAqui = '${harness.recorder.home.path}/parte-2-sumida.m4a';
     harness.emAberto.rows['Ruth/P01'] = ResumePoint(
@@ -200,7 +230,12 @@ void main() {
 
     await sala.goConversa(pericope: 'P01');
     await _naEscolha(container);
-    await settle();
+    await waitFor(
+      'o lugar e a gravação guardada saírem do tablet',
+      () async =>
+          (await harness.emAberto.of('Ruth', 'P01')) == null &&
+          harness.recorder.deleted.contains(aqui),
+    );
 
     expect(harness.room.askedOfTheForgotten, contains('takesOf'));
     expect(await harness.emAberto.of('Ruth', 'P01'), isNull);
@@ -215,9 +250,10 @@ void main() {
   });
 
   test('case (c): a Resume point of a session the server deleted, reopened in '
-      'the conversation, meets gone at openSession and opens the Choice with '
-      'no fresh session', () async {
-    final harness = SalaHarness();
+      'the conversation, meets gone at the session read and opens the Choice '
+      'with no fresh session', () async {
+    final harness = SalaHarness()
+      ..emAberto.forgetsTheSessionAfter = _slowerThanAnyWait;
     harness.emAberto.rows['Ruth/P01'] = const ResumePoint(
       sessionId: 'sessao-apagada',
       stage: SalaStage.conversa,
@@ -231,9 +267,12 @@ void main() {
 
     await sala.goConversa(pericope: 'P01');
     await _naEscolha(container);
-    await settle();
+    await waitFor(
+      'o lugar da sessão esquecida sair do tablet',
+      () async => (await harness.emAberto.of('Ruth', 'P01')) == null,
+    );
 
-    expect(harness.room.askedOfTheForgotten, contains('openSession'));
+    expect(harness.room.askedOfTheForgotten, contains('fetchState'));
     expect(await harness.emAberto.of('Ruth', 'P01'), isNull);
     expect(harness.room.calls, isNot(contains('createSession')));
     expect(_estado(container).stage, SalaStage.escolha);
@@ -294,7 +333,7 @@ void main() {
       'asks the room about it again', () async {
     final harness = SalaHarness(
       retryBackoff: const [Duration(milliseconds: 40)],
-    );
+    )..emAberto.forgetsTheSessionAfter = _slowerThanTheLongestWait;
     final container = await _naPassagem(harness);
     final sessao = _sessao(container);
     await _abrirACapturaDeUmTrecho(harness, container);
@@ -312,7 +351,13 @@ void main() {
     harness.room.forgetTheSession(sessao);
     harness.network.reachable = true;
     await _naEscolha(container);
-    await settle();
+    await waitFor(
+      'o lugar, a fila e as gravações da sessão saírem do tablet',
+      () async =>
+          (await harness.emAberto.of('Ruth', 'P01')) == null &&
+          await _aFilaEsvaziou(harness, sessao, linhas) &&
+          [parte, traducao].every(harness.recorder.deleted.contains),
+    );
     final perguntasNaHora = harness.room.askedOfTheForgotten.length;
     await settle(const Duration(milliseconds: 400));
 
@@ -400,7 +445,11 @@ void main() {
 
   test('Q1: gone from an older session\'s Outbox row removes that session\'s '
       'rows and files only, and the room stays where it is', () async {
-    final harness = SalaHarness();
+    final harness = SalaHarness(
+      takesOverride: (room, home) =>
+          QueueThatDiscardsLate(room: room, home: () async => home)
+            ..discardsAfter = _slowerThanAnyWait,
+    );
     final container = await _naPassagem(harness);
     final sessao = _sessao(container);
     final velha = await _naFila(harness, 'sessao-velha', nome: 'parte-velha');
@@ -408,7 +457,10 @@ void main() {
     harness.room.forgetTheSession('sessao-velha');
 
     await container.read(salaSessionProvider.notifier).refreshUnsent();
-    await settle(const Duration(milliseconds: 300));
+    await waitFor(
+      'a fila e o arquivo da sessão velha saírem do tablet',
+      () => _aFilaEsvaziou(harness, 'sessao-velha', [velha]),
+    );
 
     expect(await _daSessao(harness, 'sessao-velha'), isEmpty);
     expect(File(velha.path).existsSync(), isFalse);
@@ -420,7 +472,8 @@ void main() {
 
   test('Q2: a row mid-upload when gone lands is never re-added, and its file '
       'is deleted after the call ends', () async {
-    final harness = SalaHarness();
+    final harness = SalaHarness()
+      ..room.aHeldTakeAnswersAfter = _slowerThanAnyWait;
     final container = await _naPassagem(harness);
     final sessao = _sessao(container);
     final linha = await _naFila(harness, sessao, nome: 'parte-no-ar');
@@ -441,7 +494,10 @@ void main() {
     );
 
     harness.room.finishHeldTake();
-    await settle(const Duration(milliseconds: 300));
+    await waitFor(
+      'a fila e o arquivo da sessão saírem do tablet',
+      () => _aFilaEsvaziou(harness, sessao, [linha]),
+    );
 
     expect(await _daSessao(harness, sessao), isEmpty);
     expect(File(linha.path).existsSync(), isFalse);
@@ -485,16 +541,20 @@ void main() {
 
   test('the panorama\'s session gone opens the Choice, and the next passage '
       'is not opened after it', () async {
-    final harness = SalaHarness();
+    final harness = SalaHarness()..room.passages = _livroComPanorama;
     final container = harness.container();
     addTearDown(container.dispose);
     final sala = container.read(salaSessionProvider.notifier);
     harness.room.forgetTheSession('sessao-1');
 
-    await sala.openConvite();
+    await enterThePanorama(sala, () => _estado(container));
+    await waitFor(
+      'a sala tentar a abertura',
+      () => harness.room.askedOfTheForgotten.contains('openSession'),
+    );
     await _naEscolha(container);
     await settle();
-    sala.entrarNaOferecida();
+    await enterThePassage(sala, () => _estado(container), 'P01');
     await waitFor(
       'a passagem abrir',
       () => _estado(container).sessionId != null,
@@ -512,15 +572,13 @@ void main() {
 
   test('a passage whose panorama the server also forgot neither halts nor '
       'calls a person, and the next pick opens a passage', () async {
-    final harness = SalaHarness();
+    final harness = SalaHarness()..room.passages = _livroComPanorama;
     final container = harness.container();
     addTearDown(container.dispose);
     final sala = container.read(salaSessionProvider.notifier);
-    await sala.openConvite();
+    await enterThePanorama(sala, () => _estado(container));
     await settle();
-    await sala.abrirEscolha();
-    await settle();
-    sala.entrarNaOferecida();
+    await enterThePassage(sala, () => _estado(container), 'P01');
     await waitFor(
       'a passagem abrir',
       () => _estado(container).sessionId != null,
@@ -538,7 +596,7 @@ void main() {
     await _naEscolha(container);
     await settle();
     final abertas = harness.room.sessionIds.length;
-    sala.entrarNaOferecida();
+    await enterThePassage(sala, () => _estado(container), 'P01');
     await waitFor(
       'uma passagem abrir de novo',
       () => harness.room.sessionIds.length > abertas,
@@ -554,18 +612,18 @@ void main() {
 
   test('a team that leaves while the creation after a gone panorama is in the '
       'air sends no second creation', () async {
-    final harness = SalaHarness();
+    final harness = SalaHarness()..room.passages = _livroComPanorama;
     final container = harness.container();
     addTearDown(container.dispose);
     final sala = container.read(salaSessionProvider.notifier);
-    await sala.openConvite();
+    await enterThePanorama(sala, () => _estado(container));
     await settle();
     await sala.abrirEscolha();
     await settle();
     harness.room
       ..forgetTheSession(harness.room.sessionIds.first)
       ..holdNextCreate();
-    sala.entrarNaOferecida();
+    await enterThePassage(sala, () => _estado(container), 'P01');
     await waitFor('a criação sair', () => harness.room.createHeld);
     final criacoes = harness.room.calls
         .where((call) => call == 'createSession')
@@ -615,7 +673,13 @@ void main() {
 
   test('ENG-1155: a gone at the chunk door leaves no translation copy in the '
       'Outbox and no file on disk, even with the enqueue in flight', () async {
-    final harness = SalaHarness();
+    late QueueWhoseTranslationLandsLate fila;
+    final harness = SalaHarness(
+      takesOverride: (room, home) => fila = QueueWhoseTranslationLandsLate(
+        room: room,
+        home: () async => home,
+      )..landsAfter = _slowerThanAnyWait,
+    );
     final container = await _naPassagem(harness);
     await _abrirACapturaDeUmTrecho(harness, container);
 
@@ -623,16 +687,26 @@ void main() {
     await confirmarATraducao(container);
     final traducao = harness.recorder.lastPath!;
     await _naEscolha(container);
-    await settle(const Duration(milliseconds: 300));
+    final guardadas = Directory('${harness.takesHome.path}/guardadas');
+    await waitFor(
+      'a cópia da tradução chegar tarde e sair da fila',
+      () async =>
+          fila.translationLanded &&
+          [
+            for (final row in await harness.takes.entries())
+              if (row.kind == 'retro') row,
+          ].isEmpty &&
+          guardadas.listSync().length == 1,
+    );
 
     final retro = [
       for (final row in await harness.takes.entries())
         if (row.kind == 'retro') row,
     ];
     expect(retro, isEmpty);
-    final naPasta = Directory(
-      '${harness.takesHome.path}/guardadas',
-    ).listSync().map((entry) => entry.uri.pathSegments.last);
+    final naPasta = guardadas.listSync().map(
+      (entry) => entry.uri.pathSegments.last,
+    );
     expect(naPasta, ['fila.json']);
     expect(harness.recorder.deleted, contains(traducao));
   });

@@ -1,5 +1,7 @@
 # A gesture that moves the room silences it first, in one place
 
+Amended by 0067 (the interruption's stop is the machine's).
+
 ## Context
 
 The room has two independent players: the rehearsal's (`PlaybackRepository`, one sounding

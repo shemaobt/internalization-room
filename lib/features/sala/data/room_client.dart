@@ -13,10 +13,60 @@ T Function(http.Response) readJson<T>(T Function(Map<String, dynamic>) build) =>
       jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>,
     );
 
+const deviceCredentialHeader = 'X-Device-Credential';
+
+/// Hands every answer back with the request that drew it, so what a refused request
+/// carried is read off that request, not off what the tablet presents by the time the
+/// answer returns.
+class KeepsTheRequest extends http.BaseClient {
+  final http.Client _inner;
+
+  KeepsTheRequest(this._inner);
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    final response = await _inner.send(request);
+    if (response.request != null) return response;
+    return http.StreamedResponse(
+      response.stream,
+      response.statusCode,
+      contentLength: response.contentLength,
+      request: request,
+      headers: response.headers,
+      isRedirect: response.isRedirect,
+      persistentConnection: response.persistentConnection,
+      reasonPhrase: response.reasonPhrase,
+    );
+  }
+
+  @override
+  void close() => _inner.close();
+}
+
 class RoomClient {
   final http.Client _http;
+  final _revocations = StreamController<String?>.broadcast();
 
-  const RoomClient(this._http);
+  RoomClient(this._http);
+
+  /// Every answer that says the Desk unlinked this tablet, whichever door it came to,
+  /// told with the credential the refused request carried.
+  ///
+  /// Heard here rather than at each door because the doors read a refusal by rules of
+  /// their own, and some of them let it pass: a revocation is about the tablet, not
+  /// about the request that met it.
+  Stream<String?> get revoked => _revocations.stream;
+
+  void close() => unawaited(_revocations.close());
+
+  RoomAnswer<T> _heard<T>(RoomAnswer<T> answer, http.BaseRequest? request) {
+    if (answer case Refused(
+      code: RefusalCode.deviceRevoked,
+    ) when !_revocations.isClosed) {
+      _revocations.add(request?.headers[deviceCredentialHeader]);
+    }
+    return answer;
+  }
 
   static int _minted = 0;
 
@@ -38,6 +88,23 @@ class RoomClient {
     } on Exception catch (error) {
       return NetworkFailed('$error');
     }
+    return _heard(
+      _answer(
+        response,
+        read: read,
+        asksForTheSession: asksForTheSession,
+        atThisDoor: atThisDoor,
+      ),
+      response.request,
+    );
+  }
+
+  RoomAnswer<T> _answer<T>(
+    http.Response response, {
+    required T Function(http.Response) read,
+    required bool asksForTheSession,
+    required Map<int, RoomAnswer<T>> atThisDoor,
+  }) {
     final atTheDoor = atThisDoor[response.statusCode];
     if (atTheDoor != null) return atTheDoor;
     final failure = classify(
@@ -81,16 +148,26 @@ class RoomClient {
     } on Exception catch (error) {
       throw NetworkFailed('$error');
     }
-    final failure = classify(
-      response.statusCode,
-      const [],
-      asksForTheSession: asksForTheSession,
+    final status = response.statusCode;
+    if (status >= 200 && status < 300) return response;
+    throw _heard(
+      classify(
+        status,
+        await _bodyOf(response),
+        asksForTheSession: asksForTheSession,
+      )!,
+      request,
     );
-    if (failure != null) {
-      unawaited(response.stream.listen(null).cancel());
-      throw failure;
+  }
+
+  /// A refusal's body names its code, and only the code tells a revoked tablet apart
+  /// from any other 403.
+  static Future<List<int>> _bodyOf(http.StreamedResponse response) async {
+    try {
+      return await response.stream.toBytes();
+    } on Exception {
+      return const [];
     }
-    return response;
   }
 
   static RoomFailure? classify(

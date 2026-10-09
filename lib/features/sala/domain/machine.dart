@@ -1,4 +1,5 @@
 import 'channel.dart';
+import 'cut_point.dart';
 import 'halt.dart';
 import 'room_reach.dart';
 import 'session_snapshot.dart';
@@ -22,12 +23,10 @@ sealed class AnsweringEvent extends MachineEvent {
 final class SessionRead extends AnsweringEvent {
   final SessionSnapshot snapshot;
   final Kept sounding;
-  final DateTime at;
   final bool sentBeforeTheCallLanded;
 
   const SessionRead(
     this.snapshot, {
-    required this.at,
     this.sounding = const NothingKept(),
     this.sentBeforeTheCallLanded = false,
     super.generation,
@@ -55,9 +54,8 @@ final class TheAnswerWarned extends AnsweringEvent {
 
 final class LongPress extends MachineEvent {
   final bool somebodyToAsk;
-  final DateTime at;
 
-  const LongPress({required this.somebodyToAsk, required this.at});
+  const LongPress({required this.somebodyToAsk});
 }
 
 final class WatchFired extends AnsweringEvent {
@@ -190,10 +188,23 @@ final class PauseTapped extends MachineEvent {
   const PauseTapped();
 }
 
+final class TheHeldPartReturns extends MachineEvent {
+  final Paused held;
+
+  const TheHeldPartReturns(this.held);
+}
+
 final class GestureSilenced extends MachineEvent {
   final bool keepingTheHold;
 
   const GestureSilenced({this.keepingTheHold = false});
+}
+
+final class Interrupted extends MachineEvent {
+  final String take;
+  final CutPoint cut;
+
+  const Interrupted({required this.take, required this.cut});
 }
 
 final class GestureStarted extends MachineEvent {
@@ -227,6 +238,10 @@ final class LeftThePassage extends MachineEvent {
   const LeftThePassage();
 }
 
+final class TheVerdictAsked extends MachineEvent {
+  const TheVerdictAsked();
+}
+
 /// The team arrives at a Station; the Station held answers it after the cross-cutting
 /// regions, and it is never stale.
 sealed class StationEvent extends MachineEvent {
@@ -255,6 +270,10 @@ final class TheNecklaceClosed extends StationEvent {
 
 final class TheRoomStartedOver extends StationEvent {
   const TheRoomStartedOver();
+}
+
+final class ThePanoramaChosen extends StationEvent {
+  const ThePanoramaChosen();
 }
 
 final class TheSessionIsGone extends AnsweringEvent {
@@ -324,6 +343,10 @@ final class LookEmpty extends AnsweringEvent {
   const LookEmpty({this.sounding = const NothingKept(), super.generation});
 }
 
+final class TheOpeningMissed extends AnsweringEvent {
+  const TheOpeningMissed({super.generation});
+}
+
 final class TheRoomRefused extends AnsweringEvent {
   final bool third;
   final Kept sounding;
@@ -355,11 +378,21 @@ final class TheCallMetAClosedPassage extends AnsweringEvent {
   const TheCallMetAClosedPassage({super.generation});
 }
 
+final class TheTellingCameBackEmpty extends AnsweringEvent {
+  const TheTellingCameBackEmpty({super.generation});
+}
+
 sealed class Effect {
   const Effect();
 }
 
-final class SilenceTheRoom extends Effect {
+/// An effect whose work is the Station's own lifecycle, handed over to it through one
+/// narrow callback (ENG-1444).
+sealed class LifecycleHandOff extends Effect {
+  const LifecycleHandOff();
+}
+
+final class SilenceTheRoom extends LifecycleHandOff {
   const SilenceTheRoom();
 }
 
@@ -408,17 +441,8 @@ final class ReplayTheSound extends Effect {
   int get hashCode => kept.hashCode;
 }
 
-final class AskTheOpeningAgain extends Effect {
-  final String freshTurnId;
-
-  const AskTheOpeningAgain(this.freshTurnId);
-
-  @override
-  bool operator ==(Object other) =>
-      other is AskTheOpeningAgain && other.freshTurnId == freshTurnId;
-
-  @override
-  int get hashCode => freshTurnId.hashCode;
+final class LetTheOpeningGo extends Effect {
+  const LetTheOpeningGo();
 }
 
 final class PlayLine extends Effect {
@@ -536,7 +560,7 @@ final class DrainTheOutbox extends Effect {
   const DrainTheOutbox();
 }
 
-final class ResendPending extends Effect {
+final class ResendPending extends LifecycleHandOff {
   const ResendPending();
 }
 
@@ -548,11 +572,11 @@ final class SayTheOfflineNotice extends Effect {
   const SayTheOfflineNotice();
 }
 
-final class DiscardTheSession extends Effect {
+final class DiscardTheSession extends LifecycleHandOff {
   const DiscardTheSession();
 }
 
-final class OpenTheChoice extends Effect {
+final class OpenTheChoice extends LifecycleHandOff {
   const OpenTheChoice();
 }
 
@@ -617,11 +641,24 @@ final class CountTheRefusal extends Effect {
   const CountTheRefusal();
 }
 
+final class LetThePendingTranslationGo extends Effect {
+  const LetThePendingTranslationGo();
+}
+
 final class RefuseThePassage extends Effect {
   const RefuseThePassage();
 }
 
-enum Said { said, failed, unsaid }
+/// How a line ended: said whole, failed, not said, or cut by the team, which counts as
+/// heard.
+enum Said {
+  said,
+  failed,
+  unsaid,
+  cut;
+
+  bool get heard => this == said || this == cut;
+}
 
 /// How the last line the room answered for ended, for the gesture that waits on it.
 final class LineOutcome {
@@ -637,8 +674,9 @@ final class MicOutcome {
   final MicAnswer answer;
   final String? take;
   final Object? because;
+  final CutPoint? cut;
 
-  const MicOutcome(this.answer, {this.take, this.because});
+  const MicOutcome(this.answer, {this.take, this.because, this.cut});
 }
 
 final class Machine {
@@ -665,6 +703,8 @@ final class Machine {
 
   final Station station;
 
+  final bool wordlessTelling;
+
   const Machine({
     this.halt = const NoHalt(),
     this.channel = const Silence(),
@@ -682,7 +722,8 @@ final class Machine {
     this.inFlight,
     this.lastLine,
     this.lastMic,
-    this.station = const Convite(),
+    this.station = const Menu(),
+    this.wordlessTelling = false,
   });
 
   bool get reachable => reach == Reach.reachable;
@@ -720,6 +761,7 @@ final class Machine {
     LineOutcome? lastLine,
     MicOutcome? lastMic,
     Station? station,
+    bool? wordlessTelling,
   }) => Machine(
     halt: halt ?? this.halt,
     channel: channel ?? this.channel,
@@ -738,6 +780,7 @@ final class Machine {
     lastLine: lastLine ?? this.lastLine,
     lastMic: lastMic ?? this.lastMic,
     station: station ?? this.station,
+    wordlessTelling: wordlessTelling ?? this.wordlessTelling,
   );
 }
 
@@ -802,12 +845,19 @@ const _watch = ArmTheWatch();
     beneath,
   ),
   PauseTapped() => _pause(machine),
+  TheHeldPartReturns(:final held) => (
+    machine.channel is Silence && machine.halt is! Blocking
+        ? machine.copyWith(channel: held)
+        : machine,
+    const [],
+  ),
   GestureSilenced(:final keepingTheHold) => (
     _silenced(machine, keepingTheHold),
     keepingTheHold
         ? [StopTheLine(_speaking(machine.channel))]
         : const [StopTheSound()],
   ),
+  Interrupted(:final take, :final cut) => _interrupt(machine, take, cut),
   GestureStarted(:final gesture) => (
     machine.copyWith(onTheirWay: {...machine.onTheirWay, gesture}),
     const [],
@@ -850,6 +900,8 @@ const _watch = ArmTheWatch();
   TheRefusalPassed() => (machine, const []),
   TheHandFailed() => (machine, const []),
   TheCallWasRefused() => (machine, const [AskForAPersonAgain()]),
+  LookEmpty(sounding: TheOpening()) ||
+  TheOpeningMissed() => (machine, const [LetTheOpeningGo()]),
   LookEmpty(:final sounding) => _theHalt(
     machine,
     RoomRaisedAHalt(sounding: sounding),
@@ -860,6 +912,12 @@ const _watch = ArmTheWatch();
     sounding,
   ),
   ThePassageCannotOpen() => (machine, const [RefuseThePassage()]),
+  TheTellingCameBackEmpty() when machine.station is Retro => (
+    machine.copyWith(wordlessTelling: true),
+    const [LetThePendingTranslationGo()],
+  ),
+  TheTellingCameBackEmpty() => (machine, const []),
+  TheVerdictAsked() => (machine.copyWith(wordlessTelling: false), const []),
   NetworkFailedAt(:final door, :final why) => _fall(machine, door, why),
   NetworkReturned() => _return(machine),
   RetryFired() => _retry(machine),
@@ -877,7 +935,9 @@ const _watch = ArmTheWatch();
 Machine _reachTheStation(Machine machine, StationEvent event) {
   final next = machine.station.answer(event);
   if (next == machine.station) return machine;
-  return moveTheGeneration(machine).copyWith(station: next);
+  return moveTheGeneration(
+    machine,
+  ).copyWith(station: next, wordlessTelling: false);
 }
 
 bool _silent(Machine machine) =>
@@ -1010,8 +1070,8 @@ Machine _opened(Machine machine) => switch (machine.channel) {
   GuideSpeaking(:final line, :final held) => machine.copyWith(
     channel: GuideSpeaking(line, held: _openedUnder(held)),
   ),
-  Microphone(:final owner, :final held) => machine.copyWith(
-    channel: Microphone(owner, held: _openedUnder(held)),
+  Microphone(:final owner, :final held, :final cut) => machine.copyWith(
+    channel: Microphone(owner, held: _openedUnder(held), cut: cut),
   ),
   _ => machine,
 };
@@ -1095,19 +1155,58 @@ Machine _silenced(Machine machine, bool keepingTheHold) =>
   String take,
 ) {
   if (!_silent(machine)) return (machine, const []);
-  final held = machine.channel;
+  return (
+    machine.copyWith(
+      channel: Microphone(owner, held: _keptUnderTheMic(machine.channel)),
+      wordlessTelling: machine.wordlessTelling && owner != MicOwner.capture,
+    ),
+    [OpenTheMic(owner, take: take)],
+  );
+}
+
+Paused? _keptUnderTheMic(Channel channel) => switch (channel) {
+  Paused(what: PartSound()) => channel,
+  Paused(held: final part) => part,
+  _ => null,
+};
+
+/// The team's tap while the Guide speaks on the Canvas: her line ends cut, and the
+/// conversation's microphone opens in the same step, after the stop. Over the
+/// acknowledgement, the reply waiting behind it is the line cut, at its very start.
+(Machine, List<Effect>) _interrupt(
+  Machine machine,
+  String take,
+  CutPoint measured,
+) {
+  if (machine.station is! Canvas || machine.halt is Blocking) {
+    return (machine, const []);
+  }
+  final (reply, held, cut) = switch (machine.channel) {
+    GuideSpeaking(
+      line: Line(kind: LineKind.guide || LineKind.approved) && final line,
+      :final held,
+    ) =>
+      (line, held, measured),
+    GuideSpeaking(line: Line(kind: LineKind.acknowledgement), :final held) => (
+      machine.queue.where((line) => line.kind == LineKind.guide).firstOrNull,
+      held,
+      const CutPoint(Duration.zero),
+    ),
+    _ => (null, null, null),
+  };
+  if (reply == null) return (machine, const []);
   return (
     machine.copyWith(
       channel: Microphone(
-        owner,
-        held: switch (held) {
-          Paused(what: PartSound()) => held,
-          Paused(held: final part) => part,
-          _ => null,
-        },
+        MicOwner.conversation,
+        held: _keptUnderTheMic(held ?? const Silence()),
+        cut: cut,
       ),
+      queue: [...machine.queue.where((line) => line != reply)],
+      owners: {...machine.owners}..remove(reply),
+      lastLine: LineOutcome(reply, Said.cut),
     ),
-    [OpenTheMic(owner, take: take)],
+    [const StopTheSound(), OpenTheMic(MicOwner.conversation, take: take)],
   );
 }
 
@@ -1132,7 +1231,15 @@ Machine _silenced(Machine machine, bool keepingTheHold) =>
       : _closeTheMic(machine);
   return (
     answered.copyWith(
-      lastMic: MicOutcome(answer, take: take, because: because),
+      lastMic: MicOutcome(
+        answer,
+        take: take,
+        because: because,
+        cut: switch ((answer, machine.channel)) {
+          (MicAnswer.closed, Microphone(:final cut)) => cut,
+          _ => null,
+        },
+      ),
     ),
     effects,
   );
@@ -1407,7 +1514,7 @@ Machine _answered(Machine machine) =>
     ),
     _ => (const Warning(), const [_watch]),
   },
-  LongPress(:final somebodyToAsk, :final at) => switch (halt) {
+  LongPress(:final somebodyToAsk) => switch (halt) {
     Blocking(serverKnows: true) when somebodyToAsk => (
       halt,
       const [TellAPersonArrived(), ReadTheState()],
@@ -1415,7 +1522,6 @@ Machine _answered(Machine machine) =>
     Blocking(:final warningBeneath) => _lift(
       halt,
       warningBeneath ? const Warning() : const NoHalt(),
-      at,
     ),
     _ => (halt, const []),
   },
@@ -1436,7 +1542,9 @@ Machine _answered(Machine machine) =>
   MicDiscarded() ||
   BeadTapped() ||
   PauseTapped() ||
+  TheHeldPartReturns() ||
   GestureSilenced() ||
+  Interrupted() ||
   GestureStarted() ||
   GestureEnded() ||
   NothingReplayed() ||
@@ -1448,8 +1556,11 @@ Machine _answered(Machine machine) =>
   TurnGivenUp() ||
   LookFound() ||
   LookEmpty() ||
+  TheOpeningMissed() ||
   TheRoomRefused() ||
   ThePassageCannotOpen() ||
+  TheTellingCameBackEmpty() ||
+  TheVerdictAsked() ||
   TurnSent() ||
   TurnAnswered() ||
   TurnFailed() ||
@@ -1482,7 +1593,7 @@ Machine _answered(Machine machine) =>
         ),
         const [_watch],
       ),
-    (final Blocking blocking, _) => _lift(blocking, told, read.at),
+    (final Blocking blocking, _) => _lift(blocking, told),
     (_, Blocking()) => (
       Blocking(
         read.sounding,
@@ -1496,21 +1607,5 @@ Machine _answered(Machine machine) =>
   };
 }
 
-(Halt, List<Effect>) _lift(Blocking halt, Halt next, DateTime at) => (
-  next,
-  [
-    const StopCallingForAPerson(),
-    switch (halt.kept) {
-      TheOpening(:final failedTurnId) => AskTheOpeningAgain(
-        _freshTurnId(failedTurnId, at),
-      ),
-      final kept => ReplayTheSound(kept),
-    },
-    _watch,
-  ],
-);
-
-String _freshTurnId(String failed, DateTime at) {
-  final stamp = at.millisecondsSinceEpoch.toString();
-  return stamp == failed ? '$stamp-1' : stamp;
-}
+(Halt, List<Effect>) _lift(Blocking halt, Halt next) =>
+    (next, [const StopCallingForAPerson(), ReplayTheSound(halt.kept), _watch]);

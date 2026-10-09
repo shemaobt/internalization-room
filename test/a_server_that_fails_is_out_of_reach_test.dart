@@ -8,6 +8,7 @@ import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/cut_point.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
@@ -24,6 +25,7 @@ class _TurnsOverTheWire extends FakeRoom {
     File audio, {
     required String turnId,
     String? clientTiming,
+    CutPoint? cut,
   }) async {
     final status = turnStatus;
     if (status == null) {
@@ -32,6 +34,7 @@ class _TurnsOverTheWire extends FakeRoom {
         audio,
         turnId: turnId,
         clientTiming: clientTiming,
+        cut: cut,
       );
     }
     final take = File(
@@ -57,9 +60,7 @@ class _TurnsOverTheWire extends FakeRoom {
 
 void main() {
   setUpAll(() {
-    dotenv.testLoad(
-      fileInput: 'BACKEND_URL=http://sala.local\nINTERNALIZATION_ROOM_KEY=k',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
   });
 
   test('a turn the server fails with a 5xx is looked at once and shows the '
@@ -89,8 +90,8 @@ void main() {
     expect(container.read(salaSessionProvider).needsPerson, isTrue);
   });
 
-  test('an opening that outlives the wait is looked at once and shows the '
-      'person sign, with no thinking loop', () async {
+  test('an opening that outlives the wait is looked at once and rests at the '
+      'invite, with no thinking loop', () async {
     final harness = SalaHarness()
       ..room.failHeldTurnWith = const NetworkFailed('timeout');
     final container = harness.container();
@@ -105,6 +106,7 @@ void main() {
     expect(harness.room.turnIdsAsked, hasLength(1));
     expect(harness.room.turnIdsLookedAt, harness.room.turnIdsAsked);
     expect(voices, isNot(contains(VoiceState.offline)));
-    expect(container.read(salaSessionProvider).needsPerson, isTrue);
+    expect(container.read(salaSessionProvider).needsPerson, isFalse);
+    expect(container.read(salaSessionProvider).voice, VoiceState.invite);
   });
 }

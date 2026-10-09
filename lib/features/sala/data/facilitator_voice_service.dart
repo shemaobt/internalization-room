@@ -30,17 +30,27 @@ class FacilitatorVoiceService {
     String? ifRange,
   })
   _open;
+  final Future<RoomAnswer<String>> Function(
+    String line, {
+    required String language,
+  })
+  _lineAt;
   final bool _playsAsItArrives;
   final Future<Directory> Function() _libraryDir;
   Future<Directory>? _dir;
   AudioPlayer? _opened;
+  bool _lineOpen = false;
+  bool _lengthKnown = false;
+  int _stops = 0;
   final Duration _grace;
   final Duration _loadCeiling;
   Future<void> _speaking = Future<void>.value();
   final Map<String, _ArrivingClip> _arriving = {};
+  final Map<(String, String), String> _addresses = {};
 
   FacilitatorVoiceService({
     required this._open,
+    required this._lineAt,
     this._playsAsItArrives = true,
     Future<Directory> Function()? libraryDir,
     AudioPlayer? player,
@@ -53,6 +63,17 @@ class FacilitatorVoiceService {
 
   AudioPlayer get _player => _opened ??= AudioPlayer();
 
+  /// How far into the line the player is, once the line is open: until then the player
+  /// still holds the line before it.
+  Duration get linePosition =>
+      _lineOpen ? _opened?.position ?? Duration.zero : Duration.zero;
+
+  /// How long the line is, when the player opened it whole, from a file on disk or from
+  /// the app's own assets: a line streamed as it arrives has only an estimate, which must
+  /// never pass for its length.
+  Duration? get lineLength =>
+      _lineOpen && _lengthKnown ? _opened?.duration : null;
+
   Future<Directory> get _resolvedDir {
     final dir = _dir ??= _libraryDir();
     return dir.catchError((Object error, StackTrace stackTrace) {
@@ -63,11 +84,15 @@ class FacilitatorVoiceService {
 
   Future<bool> play(String url, {void Function()? onSoundStart}) {
     if (url.isEmpty) return Future.value(false);
+    _lineOpen = false;
+    final stops = _stops;
     return _afterTheCurrentLine(() async {
       final clip = _clipArriving(url);
       final kept =
           await clip.opened ?? (_playsAsItArrives ? null : await clip.file);
+      _lengthKnown = kept != null;
       return _sayItWhole(
+        stops,
         kept != null
             ? () => _player.setFilePath(kept.path)
             : () async {
@@ -80,6 +105,38 @@ class FacilitatorVoiceService {
         },
       );
     });
+  }
+
+  Future<bool> playFixedLine(
+    String line,
+    String language, {
+    void Function()? onSoundStart,
+  }) async {
+    try {
+      return await play(
+        await _addressOf(line, language),
+        onSoundStart: onSoundStart,
+      );
+    } on RoomFailure {
+      return false;
+    }
+  }
+
+  Future<bool> readyFixedLine(String line, String language) async =>
+      ready(await _addressOf(line, language));
+
+  Future<String> _addressOf(String line, String language) async {
+    final known = _addresses[(line, language)];
+    if (known != null) return known;
+    try {
+      return switch (await _lineAt(line, language: language).timeout(_grace)) {
+        Answered(value: final address) =>
+          _addresses[(line, language)] = address,
+        RoomFailure() => '',
+      };
+    } on TimeoutException {
+      return '';
+    }
   }
 
   Future<bool> fetch(String url) async {
@@ -128,12 +185,16 @@ class FacilitatorVoiceService {
   }
 
   Future<bool> playAsset(String assetPath, {void Function()? onSoundStart}) {
-    return _afterTheCurrentLine(
-      () => _sayItWhole(
+    _lineOpen = false;
+    final stops = _stops;
+    return _afterTheCurrentLine(() {
+      _lengthKnown = true;
+      return _sayItWhole(
+        stops,
         () => _player.setAsset(assetPath),
         onSoundStart: onSoundStart,
-      ),
-    );
+      );
+    });
   }
 
   Future<bool> _afterTheCurrentLine(Future<bool> Function() speak) {
@@ -150,13 +211,16 @@ class FacilitatorVoiceService {
     return spoken;
   }
 
-  /// Whether the team heard the whole line.
+  /// Whether the line played to its end.
   ///
   /// just_audio completes the future of `play()` when the sound stops — at the end of the
   /// line, but equally on a pause, on a stop, or when another app takes the output. Reading
-  /// that as success let an interrupted line clear every health counter the room keeps, and
-  /// pushed the team on to answer a question they were never asked.
+  /// that as success let a line cut short clear every health counter the room keeps, and
+  /// pushed the team on to answer a question they were never asked. A stop the team asked
+  /// for is an interruption, which the room counts as heard before this answers; a stop
+  /// that lands before the line is open ends it unsaid, and it never plays.
   Future<bool> _sayItWhole(
+    int stops,
     Future<Duration?> Function() load, {
     void Function()? onSoundStart,
   }) async {
@@ -175,7 +239,8 @@ class FacilitatorVoiceService {
       await _giveUp();
       return false;
     }
-    if (length == Duration.zero) return false;
+    if (length == Duration.zero || _stops != stops) return false;
+    _lineOpen = true;
     StreamSubscription<PlayerState>? soundStart;
     if (onSoundStart != null) {
       soundStart = _player.playerStateStream
@@ -309,6 +374,7 @@ class FacilitatorVoiceService {
   }
 
   Future<void> stop() async {
+    _stops++;
     try {
       await _opened?.stop();
     } on Exception {
@@ -507,6 +573,7 @@ final voicePlaysAsItArrivesProvider = Provider<bool>((ref) => true);
 final facilitatorVoiceProvider = Provider<FacilitatorVoiceService>((ref) {
   final service = FacilitatorVoiceService(
     open: ref.read(roomRepositoryProvider).openClip,
+    lineAt: ref.read(roomRepositoryProvider).fixedLineAddress,
     playsAsItArrives: ref.read(voicePlaysAsItArrivesProvider),
   );
   ref.onDispose(service.dispose);

@@ -24,11 +24,6 @@ class PassageRuler extends StatefulWidget {
 
   final Set<int> finished;
 
-  /// Passages the room refused to open, this visit to the Choice. Still a notch on the
-  /// row — a control that does not apply is dimmed, never hidden (ADR 0040) — but not a
-  /// stop the finger or VoiceOver's step can land on.
-  final Set<int> refused;
-
   /// While the finger is down: move, and stay quiet.
   final ValueChanged<int> onAim;
 
@@ -49,7 +44,6 @@ class PassageRuler extends StatefulWidget {
     required this.language,
     this.started = const {},
     this.finished = const {},
-    this.refused = const {},
     this.hint = false,
   });
 
@@ -136,7 +130,6 @@ class _PassageRulerState extends State<PassageRuler> {
                     at: widget.at,
                     started: widget.started,
                     finished: widget.finished,
-                    refused: widget.refused,
                     // Toward the end that has room, so the mark never drifts off the row.
                     nudge: hinting
                         ? 7 * t * (widget.at < total - 1 ? 1 : -1)
@@ -155,13 +148,10 @@ class _PassageRulerState extends State<PassageRuler> {
 }
 
 class _RulerPainter extends CustomPainter {
-  static const _dimmed = 0.35;
-
   final int total;
   final int at;
   final Set<int> started;
   final Set<int> finished;
-  final Set<int> refused;
   final double nudge;
   final Color cord;
   final Color mark;
@@ -171,7 +161,6 @@ class _RulerPainter extends CustomPainter {
     required this.at,
     required this.started,
     required this.finished,
-    required this.refused,
     required this.nudge,
     required this.cord,
     required this.mark,
@@ -207,9 +196,7 @@ class _RulerPainter extends CustomPainter {
         Offset(x, y - reach),
         Offset(x, y + reach),
         Paint()
-          ..color = refused.contains(index)
-              ? tone.withValues(alpha: _dimmed)
-              : tone
+          ..color = tone
           ..strokeWidth = waiting
               ? 2.5
               : carried
@@ -233,7 +220,5 @@ class _RulerPainter extends CustomPainter {
       old.started.length != started.length ||
       !old.started.containsAll(started) ||
       old.finished.length != finished.length ||
-      !old.finished.containsAll(finished) ||
-      old.refused.length != refused.length ||
-      !old.refused.containsAll(refused);
+      !old.finished.containsAll(finished);
 }

@@ -75,12 +75,14 @@ void main() {
 
       final tocadosAntes = harness.voice.played.length;
       final assetsAntes = harness.voice.assets.length;
+      final fixasAntes = harness.voice.fixedLines.length;
 
       notifier.retroTap();
       await settle();
 
       expect(harness.voice.played.length, tocadosAntes);
       expect(harness.voice.assets.length, assetsAntes);
+      expect(harness.voice.fixedLines.length, fixasAntes);
       expect(harness.playback.ranges, isEmpty);
     });
 

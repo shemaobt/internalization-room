@@ -4,10 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/main.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart' show enterThePanorama, settle;
 
 /// Stages the room is meant never to leave.
 ///
@@ -29,7 +30,10 @@ final _wayOut =
       SalaStage,
       ({String name, Future<void> Function(SalaSessionNotifier) take})
     >{
-      SalaStage.convite: (name: 'abrirEscolha', take: (n) => n.abrirEscolha()),
+      SalaStage.panorama: (
+        name: 'leaveThePassage',
+        take: (n) async => n.leaveThePassage(),
+      ),
       SalaStage.escolha: (
         name: 'entrarNaOferecida',
         take: (n) async => n.entrarNaOferecida(),
@@ -51,7 +55,19 @@ Future<void> _standIn(
 ) async {
   final notifier = container.read(salaSessionProvider.notifier);
   SalaSessionState read() => container.read(salaSessionProvider);
-  if (stage == SalaStage.convite) return;
+  if (stage == SalaStage.panorama) {
+    harness.room.passages = [
+      const Passagem(
+        pericope: 'panorama',
+        audioUrl: '/voice/panorama',
+        kind: PassagemKind.panorama,
+      ),
+      ...harness.room.passages,
+    ];
+    await enterThePanorama(notifier, read);
+    await waitFor('o panorama abrir', () => read().stage == SalaStage.panorama);
+    return;
+  }
 
   await notifier.abrirEscolha();
   await waitFor('a roda abrir', () => read().naRoda != null);
@@ -179,9 +195,7 @@ void main() {
   });
 
   testWidgets('the fecho screen answers the touch it offers', (tester) async {
-    dotenv.testLoad(
-      fileInput: 'BACKEND_URL=http://sala.local\nINTERNALIZATION_ROOM_KEY=k',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
     final harness = SalaHarness(
       filaEmMemoria: true,
       fimLinger: const Duration(minutes: 5),
@@ -239,9 +253,7 @@ void main() {
   testWidgets('the fecho offers to begin again in english to an english room', (
     tester,
   ) async {
-    dotenv.testLoad(
-      fileInput: 'BACKEND_URL=http://sala.local\nINTERNALIZATION_ROOM_KEY=k',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
     final harness = SalaHarness(
       filaEmMemoria: true,
       fimLinger: const Duration(minutes: 5),

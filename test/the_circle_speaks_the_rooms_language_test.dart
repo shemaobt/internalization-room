@@ -17,7 +17,7 @@ void main() {
       'retroLabels': retroLabels,
       'rehearsalLabels': rehearsalLabels,
       'findingLabels': findingLabels,
-      'conviteLabels': conviteLabels,
+      'panoramaCircleLabels': {'circle': panoramaCircleLabels},
       'escolhaLabels': escolhaLabels,
       'handLabels': handLabels,
       'roomLabels': roomLabels,

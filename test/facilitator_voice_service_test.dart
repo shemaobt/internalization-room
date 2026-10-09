@@ -35,9 +35,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() {
-    dotenv.testLoad(
-      fileInput: 'BACKEND_URL=http://sala.local\nINTERNALIZATION_ROOM_KEY=k',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
   });
 
   late Directory library;
@@ -71,6 +69,7 @@ void main() {
     Duration? loadCeiling,
   }) {
     final voice = FacilitatorVoiceService(
+      lineAt: noFixedLine,
       open: roomAnswering((_) => _whole([1, 2, 3])),
       libraryDir: () async => library,
       player: player,
@@ -114,6 +113,7 @@ void main() {
       final player = SpeakingPlayer();
       final body = StreamController<List<int>>();
       final voice = FacilitatorVoiceService(
+        lineAt: noFixedLine,
         open: roomAnswering(
           (_) => http.StreamedResponse(
             body.stream,
@@ -155,6 +155,7 @@ void main() {
       final player = SpeakingPlayer();
       final body = StreamController<List<int>>();
       final voice = FacilitatorVoiceService(
+        lineAt: noFixedLine,
         open: roomAnswering(
           (_) => http.StreamedResponse(
             body.stream,
@@ -200,6 +201,7 @@ void main() {
       final player = SpeakingPlayer();
       final bodies = <StreamController<List<int>>>[];
       final voice = FacilitatorVoiceService(
+        lineAt: noFixedLine,
         open: roomAnswering((_) {
           final body = StreamController<List<int>>();
           bodies.add(body);
@@ -245,6 +247,7 @@ void main() {
       final player = SpeakingPlayer();
       final body = StreamController<List<int>>();
       final voice = FacilitatorVoiceService(
+        lineAt: noFixedLine,
         open: roomAnswering(
           (_) => http.StreamedResponse(
             body.stream,
@@ -296,6 +299,7 @@ void main() {
     () async {
       final player = SpeakingPlayer()..lineLength = null;
       final voice = FacilitatorVoiceService(
+        lineAt: noFixedLine,
         open: roomAnswering(
           (request) =>
               _whole(List.filled(request.url.path == _clip ? 1600 : 32000, 0)),
@@ -334,6 +338,7 @@ void main() {
     final player = SpeakingPlayer()..lineLength = null;
     final body = StreamController<List<int>>();
     final voice = FacilitatorVoiceService(
+      lineAt: noFixedLine,
       open: (_, {from, ifRange}) async => http.StreamedResponse(
         body.stream,
         200,
@@ -373,6 +378,7 @@ void main() {
       final player = SpeakingPlayer();
       final body = StreamController<List<int>>();
       final voice = FacilitatorVoiceService(
+        lineAt: noFixedLine,
         open: roomAnswering(
           (_) => http.StreamedResponse(
             body.stream,
@@ -415,6 +421,7 @@ void main() {
         fetched.clear();
         final body = StreamController<List<int>>();
         final voice = FacilitatorVoiceService(
+          lineAt: noFixedLine,
           open: roomAnswering(
             (_) => http.StreamedResponse(
               body.stream,
@@ -465,6 +472,211 @@ void main() {
     expect(fetched, [_clip]);
   });
 
+  RoomRepository roomWithItsLines(
+    FutureOr<http.StreamedResponse> Function(http.BaseRequest request) clip,
+  ) {
+    final room = RoomRepository(
+      client: MockClient.streaming((request, _) async {
+        fetched.add(
+          request.url.toString().replaceFirst('http://sala.local', ''),
+        );
+        if (request.url.path.startsWith(
+          '/api/internalization-room/fixed-lines/',
+        )) {
+          final line = request.url.pathSegments.last;
+          final language = request.url.queryParameters['language'];
+          return http.StreamedResponse(
+            Stream.value(
+              '{"audio_url": "/api/internalization-room/voice/$language-$line"}'
+                  .codeUnits,
+            ),
+            200,
+          );
+        }
+        return clip(request);
+      }),
+    );
+    addTearDown(room.dispose);
+    return room;
+  }
+
+  test(
+    'a fixed line is asked of the room by its name and heard from the address it answers',
+    () async {
+      final player = SpeakingPlayer();
+      final room = roomWithItsLines((_) => _whole([1, 2, 3]));
+      final voice = FacilitatorVoiceService(
+        open: room.openClip,
+        lineAt: room.fixedLineAddress,
+        libraryDir: () async => library,
+        player: player,
+      );
+
+      final speaking = voice.playFixedLine('D1', 'pt');
+      await waitFor('o tocador soar', () => player.sounding);
+      player.reachTheEnd();
+
+      expect(await speaking, isTrue);
+      expect(
+        fetched,
+        [
+          '/api/internalization-room/fixed-lines/D1?language=pt',
+          '/api/internalization-room/voice/pt-D1',
+        ],
+        reason:
+            'a linha tocava da gravação dentro do app, e uma letra que ela '
+            'mudou só chegava à equipe com uma versão nova na loja',
+      );
+    },
+  );
+
+  test(
+    'a fixed line said twice in a run asks the room once and downloads once',
+    () async {
+      final player = SpeakingPlayer();
+      final room = roomWithItsLines((_) => _whole([1, 2, 3]));
+      final voice = FacilitatorVoiceService(
+        open: room.openClip,
+        lineAt: room.fixedLineAddress,
+        libraryDir: () async => library,
+        player: player,
+      );
+
+      for (var vez = 0; vez < 2; vez++) {
+        final speaking = voice.playFixedLine('F0', 'pt');
+        await waitFor('o tocador soar', () => player.sounding);
+        player.reachTheEnd();
+        expect(await speaking, isTrue);
+      }
+
+      expect(
+        fetched,
+        [
+          '/api/internalization-room/fixed-lines/F0?language=pt',
+          '/api/internalization-room/voice/pt-F0',
+        ],
+        reason:
+            'cada "hmm" perguntava de novo ao servidor, e numa rede fraca a '
+            'resposta da sala esperava atrás de uma pergunta que já tinha resposta',
+      );
+    },
+  );
+
+  test(
+    'a fixed line the room cannot give is not said, never thrown, and asked for again',
+    () async {
+      final player = SpeakingPlayer();
+      var lookup = 502;
+      var clip = 503;
+      final room = RoomRepository(
+        client: MockClient.streaming((request, _) async {
+          fetched.add(request.url.path);
+          if (request.url.path.contains('/fixed-lines/')) {
+            return http.StreamedResponse(
+              Stream.value(
+                '{"audio_url": "/api/internalization-room/voice/pt-D1"}'
+                    .codeUnits,
+              ),
+              lookup,
+            );
+          }
+          if (clip != 200) {
+            return http.StreamedResponse(const Stream.empty(), clip);
+          }
+          return _whole([1, 2, 3]);
+        }),
+      );
+      addTearDown(room.dispose);
+      final voice = FacilitatorVoiceService(
+        open: room.openClip,
+        lineAt: room.fixedLineAddress,
+        libraryDir: () async => library,
+        player: player,
+      );
+
+      final semVoz = await voice.playFixedLine('D1', 'pt');
+      lookup = 200;
+      final semClipe = await voice.playFixedLine('D1', 'pt');
+      clip = 200;
+      final speaking = voice.playFixedLine('D1', 'pt');
+      await waitFor('o tocador soar', () => player.sounding);
+      player.reachTheEnd();
+
+      expect(
+        [semVoz, semClipe],
+        [isFalse, isFalse],
+        reason:
+            'sem voz no servidor ou sem rede, a linha fixa estourava como falha '
+            'da sala e a equipe ia para a tela de sem conexão',
+      );
+      expect(await speaking, isTrue);
+      expect(
+        fetched.where((path) => path.contains('/fixed-lines/')),
+        hasLength(2),
+        reason:
+            'uma linha sem voz ficava lembrada como sem endereço até o app fechar',
+      );
+    },
+  );
+
+  test(
+    'a fixed line whose address does not come within the grace is not said, and the room goes on',
+    () async {
+      final player = SpeakingPlayer();
+      final nunca = Completer<RoomAnswer<String>>();
+      final voice = FacilitatorVoiceService(
+        open: roomAnswering((_) => _whole([1, 2, 3])),
+        lineAt: (line, {required language}) => nunca.future,
+        libraryDir: () async => library,
+        player: player,
+        lineGrace: const Duration(milliseconds: 50),
+      );
+
+      final said = await voice
+          .playFixedLine('F0', 'pt')
+          .timeout(const Duration(seconds: 2), onTimeout: () => true);
+
+      expect(
+        said,
+        isFalse,
+        reason:
+            'numa rede lenta o "hmm" esperava o endereço sem fim, e a resposta '
+            'da sala ficava presa atrás dele',
+      );
+      expect(fetched, isEmpty);
+    },
+  );
+
+  test(
+    'a fixed line brought down ahead is said with no lookup and no download',
+    () async {
+      final player = SpeakingPlayer();
+      final room = roomWithItsLines((_) => _whole([1, 2, 3]));
+      final voice = FacilitatorVoiceService(
+        open: room.openClip,
+        lineAt: room.fixedLineAddress,
+        libraryDir: () async => library,
+        player: player,
+        playsAsItArrives: false,
+      );
+
+      expect(await voice.readyFixedLine('F0', 'pt'), isTrue);
+      final antes = List.of(fetched);
+      final speaking = voice.playFixedLine('F0', 'pt');
+      await waitFor('o tocador soar', () => player.sounding);
+      player.reachTheEnd();
+
+      expect(await speaking, isTrue);
+      expect(
+        fetched,
+        antes,
+        reason:
+            'o primeiro "hmm" da sessão ainda pedia o endereço e baixava o som '
+            'na hora em que a equipe parava de falar',
+      );
+    },
+  );
+
   test('a line already heard is never fetched again', () async {
     final voice = service();
 
@@ -503,6 +715,7 @@ void main() {
     // already `NetworkFailed`, and that one is the room's failure and is let through
     // (the test after this one).
     final voice = FacilitatorVoiceService(
+      lineAt: noFixedLine,
       open: (_, {from, ifRange}) async =>
           throw const SocketException('sem rede'),
       libraryDir: () async => library,
@@ -521,6 +734,7 @@ void main() {
         (503, isA<NetworkFailed>()),
       ]) {
         final voice = FacilitatorVoiceService(
+          lineAt: noFixedLine,
           open: roomAnswering(
             (_) => http.StreamedResponse(const Stream.empty(), status),
           ),
@@ -543,6 +757,7 @@ void main() {
     'a reply that breaks before any byte arrives fails as the room being gone',
     () async {
       final voice = FacilitatorVoiceService(
+        lineAt: noFixedLine,
         open: roomAnswering(
           (_) => http.StreamedResponse(
             Stream.error(http.ClientException('a conexão caiu')),
@@ -571,6 +786,7 @@ void main() {
       final player = SpeakingPlayer();
       final body = StreamController<List<int>>();
       final voice = FacilitatorVoiceService(
+        lineAt: noFixedLine,
         open: roomAnswering(
           (_) => http.StreamedResponse(
             body.stream,
@@ -607,6 +823,7 @@ void main() {
       final asked = <http.BaseRequest>[];
       final first = StreamController<List<int>>();
       final voice = FacilitatorVoiceService(
+        lineAt: noFixedLine,
         open: roomAnswering((request) {
           asked.add(request);
           if (asked.length == 1) {
@@ -656,6 +873,7 @@ void main() {
     'a reply that keeps ending short gives up, instead of asking forever',
     () async {
       final voice = FacilitatorVoiceService(
+        lineAt: noFixedLine,
         open: roomAnswering(
           (request) => request.headers.containsKey('Range')
               ? http.StreamedResponse(
@@ -700,6 +918,7 @@ void main() {
         }
 
         final voice = FacilitatorVoiceService(
+          lineAt: noFixedLine,
           open: roomAnswering((_) async {
             // A real pause between answers: a loop that never ends would otherwise
             // starve the timer below and hang the suite instead of failing it.
@@ -739,6 +958,7 @@ void main() {
     () async {
       final first = StreamController<List<int>>();
       final voice = FacilitatorVoiceService(
+        lineAt: noFixedLine,
         open: roomAnswering(
           (request) => request.headers.containsKey('Range')
               ? _whole([7, 8, 9, 10, 11, 12])
@@ -776,6 +996,7 @@ void main() {
         final asked = <http.BaseRequest>[];
         final first = StreamController<List<int>>();
         final voice = FacilitatorVoiceService(
+          lineAt: noFixedLine,
           open: roomAnswering((request) {
             asked.add(request);
             if (asked.length == 1) {
@@ -827,6 +1048,7 @@ void main() {
       final asked = <http.BaseRequest>[];
       final first = StreamController<List<int>>();
       final voice = FacilitatorVoiceService(
+        lineAt: noFixedLine,
         open: roomAnswering((request) {
           asked.add(request);
           if (request.headers.containsKey('Range')) {
@@ -875,6 +1097,7 @@ void main() {
       final first = StreamController<List<int>>();
       final second = StreamController<List<int>>();
       final voice = FacilitatorVoiceService(
+        lineAt: noFixedLine,
         open: roomAnswering(
           (request) => http.StreamedResponse(
             request.headers.containsKey('Range') ? second.stream : first.stream,
@@ -917,6 +1140,7 @@ void main() {
     'a reply whose bytes stop coming is given up as slow, not waited on forever',
     () async {
       final voice = FacilitatorVoiceService(
+        lineAt: noFixedLine,
         open: roomAnswering(
           (_) => http.StreamedResponse(
             StreamController<List<int>>().stream,
@@ -945,6 +1169,7 @@ void main() {
     'a reply with no declared size fails as the room, not as a crash',
     () async {
       final voice = FacilitatorVoiceService(
+        lineAt: noFixedLine,
         open: roomAnswering(
           (_) => http.StreamedResponse(Stream.value([1, 2, 3]), 200),
         ),
@@ -967,6 +1192,7 @@ void main() {
     () async {
       Future<void> expectSurfaced(Exception error) async {
         final voice = FacilitatorVoiceService(
+          lineAt: noFixedLine,
           open: (_, {from, ifRange}) async => throw error,
           libraryDir: () async => library,
         );
@@ -1002,6 +1228,95 @@ void main() {
           'um arquivo de zero byte de uma escrita interrompida tocaria '
           'silêncio, e a equipe ouve cada frase uma vez só',
     );
+  });
+
+  group('the voice tells where she is in her line', () {
+    const at = Duration(milliseconds: 2400);
+    const length = Duration(milliseconds: 9000);
+
+    test('and how long it is, for a line on the tablet', () async {
+      File('${library.path}/aaa.mp3').writeAsBytesSync([1, 2, 3]);
+      final player = SpeakingPlayer()
+        ..lineLength = length
+        ..position = at;
+      final voice = service(player: player);
+
+      final speaking = voice.play(_clip);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(voice.linePosition, at);
+      expect(voice.lineLength, length);
+      player.reachTheEnd();
+      await speaking;
+    });
+
+    test('and how long it is, for a line from the app\'s own assets', () async {
+      final player = SpeakingPlayer()
+        ..lineLength = length
+        ..position = at;
+      final voice = service(player: player);
+
+      final speaking = voice.playAsset('assets/linhas/f1.mp3');
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(voice.lineLength, length);
+      player.reachTheEnd();
+      await speaking;
+    });
+
+    test('but never how long, for a line streamed as it arrives', () async {
+      final player = SpeakingPlayer()
+        ..lineLength = length
+        ..position = at;
+      final voice = service(player: player);
+
+      final speaking = voice.play(_clip);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(voice.linePosition, at);
+      expect(voice.lineLength, isNull);
+      player.reachTheEnd();
+      await speaking;
+    });
+
+    test(
+      'and nothing of the line before, while hers is still opening',
+      () async {
+        File('${library.path}/aaa.mp3').writeAsBytesSync([1, 2, 3]);
+        final player = SpeakingPlayer()..lineLength = length;
+        final voice = service(player: player);
+        final before = voice.play(_clip);
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        player
+          ..position = length
+          ..reachTheEnd();
+        await before;
+        player.neverLoads = true;
+
+        unawaited(voice.play(_clip));
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(voice.linePosition, Duration.zero);
+        expect(voice.lineLength, isNull);
+      },
+    );
+  });
+
+  test('a line stopped while it is still opening is never played', () async {
+    File('${library.path}/aaa.mp3').writeAsBytesSync([1, 2, 3]);
+    final player = SpeakingPlayer()..holdNextLoad();
+    final voice = service(
+      player: player,
+      grace: const Duration(milliseconds: 30),
+    );
+
+    final speaking = voice.play(_clip);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    await voice.stop();
+    player.finishLoad();
+
+    expect(await speaking, isFalse);
+    expect(player.plays, 0);
   });
 
   test('a line the player paused in the middle is not counted as heard', () async {
@@ -1302,6 +1617,7 @@ void main() {
     () async {
       var calls = 0;
       final voice = FacilitatorVoiceService(
+        lineAt: noFixedLine,
         open: roomAnswering((_) => _whole([1, 2, 3])),
         libraryDir: () async {
           calls++;
@@ -1329,6 +1645,7 @@ void main() {
     () async {
       var attempt = 0;
       final voice = FacilitatorVoiceService(
+        lineAt: noFixedLine,
         open: roomAnswering((_) => _whole([1, 2, 3])),
         libraryDir: () async {
           attempt++;
@@ -1358,6 +1675,7 @@ void main() {
       final player = SpeakingPlayer();
       final downloading = Completer<List<int>>();
       final voice = FacilitatorVoiceService(
+        lineAt: noFixedLine,
         open: roomAnswering(
           (request) => request.url.path == _lenta
               ? http.StreamedResponse(
@@ -1425,6 +1743,7 @@ void main() {
       final player = SpeakingPlayer();
       final body = StreamController<List<int>>();
       final voice = FacilitatorVoiceService(
+        lineAt: noFixedLine,
         open: roomAnswering(
           (_) => http.StreamedResponse(
             body.stream,
@@ -1465,6 +1784,7 @@ void main() {
     final player = SpeakingPlayer();
     final body = StreamController<List<int>>();
     final voice = FacilitatorVoiceService(
+      lineAt: noFixedLine,
       open: roomAnswering(
         (_) => http.StreamedResponse(
           body.stream,

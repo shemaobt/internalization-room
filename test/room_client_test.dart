@@ -12,9 +12,7 @@ import 'package:internalization_room/features/sala/data/room_repository.dart';
 
 void main() {
   setUpAll(() {
-    dotenv.testLoad(
-      fileInput: 'BACKEND_URL=http://sala.local\nINTERNALIZATION_ROOM_KEY=k',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
   });
 
   RoomRepository answering(int status, [Object? body]) {
@@ -144,7 +142,7 @@ void main() {
     expect(
       await answering(403, {
         'detail': 'no',
-        'code': 'ROOM_KEY_INVALID',
+        'code': 'NOT_THIS_TEAM',
       }).fetchState('sessao-1'),
       refusedWith('FORBIDDEN'),
     );
@@ -155,6 +153,35 @@ void main() {
       }).fetchState('sessao-1'),
       refusedWith('DEVICE_REVOKED'),
     );
+  });
+
+  test('a revoked device is told apart on a door the room streams', () async {
+    await expectLater(
+      answering(403, {
+        'detail': 'revoked',
+        'code': 'DEVICE_REVOKED',
+      }).openClip('/voice/p01', from: 0, ifRange: 'e1'),
+      throwsA(refusedWith('DEVICE_REVOKED')),
+    );
+  });
+
+  test('a revoked answer that lands after the room is put down is still an '
+      'answer', () async {
+    final late = Completer<http.Response>();
+    final repository = RoomRepository(
+      client: MockClient((_) => late.future),
+      deviceId: () async => 'aparelho-1',
+    );
+    final asked = repository.fetchState('sessao-1');
+    repository.dispose();
+    late.complete(
+      http.Response(
+        jsonEncode({'detail': 'revoked', 'code': 'DEVICE_REVOKED'}),
+        403,
+      ),
+    );
+
+    expect(await asked, refusedWith('DEVICE_REVOKED'));
   });
 
   test('a 500 or a 429 is the network, not a refusal', () async {
@@ -199,6 +226,26 @@ void main() {
       expect(answer, refusedWith('STRETCH_NO_LONGER_COUNTS'));
     },
   );
+
+  test('the room\'s wordless refusal is told by its code', () async {
+    RoomRepository wordless() => answering(422, {
+      'detail': 'The telling has no words in it',
+      'code': 'WORDLESS_TELLING',
+    });
+
+    expect(await replace(wordless()), refusedWith(RefusalCode.wordlessTelling));
+    expect(
+      await wordless().sendChunk(
+        'sessao-1',
+        await _tempRecording(),
+        takeId: 'gravacao-1',
+        from: Duration.zero,
+        to: const Duration(seconds: 4),
+        idempotencyKey: 'chave-1',
+      ),
+      refusedWith(RefusalCode.wordlessTelling),
+    );
+  });
 }
 
 Future<File> _tempRecording() async {

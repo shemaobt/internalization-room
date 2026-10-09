@@ -65,6 +65,4 @@ flutter:
   assets:
     - .env
     - assets/audio/pt/
-    - assets/audio/pt/fixed/
     - assets/audio/en/
-    - assets/audio/en/fixed/

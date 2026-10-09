@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 
 import 'machine_generator.dart';
@@ -17,93 +18,95 @@ MachineEvent? _stamped(MachineEvent event, int generation) => switch (event) {
   _ => null,
 };
 
-AnsweringEvent _stampedAnswer(AnsweringEvent event, int generation) =>
-    switch (event) {
-      SessionRead(
-        :final snapshot,
-        :final at,
-        :final sounding,
-        :final sentBeforeTheCallLanded,
-      ) =>
-        SessionRead(
-          snapshot,
-          at: at,
-          sounding: sounding,
-          sentBeforeTheCallLanded: sentBeforeTheCallLanded,
-          generation: generation,
-        ),
-      TheCallLanded() => TheCallLanded(generation: generation),
-      TheRoomAnswered() => TheRoomAnswered(generation: generation),
-      TheAnswerWarned() => TheAnswerWarned(generation: generation),
-      RoomRaisedAHalt(:final sounding, :final callsForAPerson) =>
-        RoomRaisedAHalt(
-          sounding: sounding,
-          callsForAPerson: callsForAPerson,
-          generation: generation,
-        ),
-      LineArrived(:final line, :final by) => LineArrived(
-        line,
-        by: by,
-        generation: generation,
-      ),
-      LineNotSaid(:final line) => LineNotSaid(line, generation: generation),
-      PlayerOpened() => PlayerOpened(generation: generation),
-      PlayerEnded() => PlayerEnded(generation: generation),
-      PlayerFailed(:final source, :final sounding) => PlayerFailed(
-        source,
-        sounding: sounding,
-        generation: generation,
-      ),
-      MicOpened(:final owner, :final take) => MicOpened(
-        owner,
-        take: take,
-        generation: generation,
-      ),
-      MicClosed() => MicClosed(generation: generation),
-      MicAnswered(:final answer, :final take) => MicAnswered(
-        answer,
-        take: take,
-        generation: generation,
-      ),
-      NothingReplayed() => NothingReplayed(generation: generation),
-      TheSessionIsGone() => TheSessionIsGone(generation: generation),
-      ThePassageClosed() => ThePassageClosed(generation: generation),
-      WatchFired() => WatchFired(generation: generation),
-      RetryFired() => RetryFired(generation: generation),
-      NetworkFailedAt(:final door, :final why) => NetworkFailedAt(
-        door,
-        why: why,
-        generation: generation,
-      ),
-      TurnGivenUp(:final turn, :final sounding) => TurnGivenUp(
-        turn,
-        sounding: sounding,
-        generation: generation,
-      ),
-      LookFound(:final turn, :final reply) => LookFound(
-        turn,
-        reply,
-        generation: generation,
-      ),
-      TurnAnswered(:final turn) => TurnAnswered(turn, generation: generation),
-      TurnFailed(:final turn) => TurnFailed(turn, generation: generation),
-      TheRefusalPassed() => TheRefusalPassed(generation: generation),
-      TheHandFailed() => TheHandFailed(generation: generation),
-      TheCallWasRefused() => TheCallWasRefused(generation: generation),
-      TheCallMetAClosedPassage() => TheCallMetAClosedPassage(
-        generation: generation,
-      ),
-      LookEmpty(:final sounding) => LookEmpty(
-        sounding: sounding,
-        generation: generation,
-      ),
-      TheRoomRefused(:final third, :final sounding) => TheRoomRefused(
-        third: third,
-        sounding: sounding,
-        generation: generation,
-      ),
-      ThePassageCannotOpen() => ThePassageCannotOpen(generation: generation),
-    };
+AnsweringEvent _stampedAnswer(
+  AnsweringEvent event,
+  int generation,
+) => switch (event) {
+  SessionRead(
+    :final snapshot,
+    :final sounding,
+    :final sentBeforeTheCallLanded,
+  ) =>
+    SessionRead(
+      snapshot,
+      sounding: sounding,
+      sentBeforeTheCallLanded: sentBeforeTheCallLanded,
+      generation: generation,
+    ),
+  TheCallLanded() => TheCallLanded(generation: generation),
+  TheRoomAnswered() => TheRoomAnswered(generation: generation),
+  TheAnswerWarned() => TheAnswerWarned(generation: generation),
+  RoomRaisedAHalt(:final sounding, :final callsForAPerson) => RoomRaisedAHalt(
+    sounding: sounding,
+    callsForAPerson: callsForAPerson,
+    generation: generation,
+  ),
+  LineArrived(:final line, :final by) => LineArrived(
+    line,
+    by: by,
+    generation: generation,
+  ),
+  LineNotSaid(:final line) => LineNotSaid(line, generation: generation),
+  PlayerOpened() => PlayerOpened(generation: generation),
+  PlayerEnded() => PlayerEnded(generation: generation),
+  PlayerFailed(:final source, :final sounding) => PlayerFailed(
+    source,
+    sounding: sounding,
+    generation: generation,
+  ),
+  MicOpened(:final owner, :final take) => MicOpened(
+    owner,
+    take: take,
+    generation: generation,
+  ),
+  MicClosed() => MicClosed(generation: generation),
+  MicAnswered(:final answer, :final take, :final because) => MicAnswered(
+    answer,
+    take: take,
+    because: because,
+    generation: generation,
+  ),
+  NothingReplayed() => NothingReplayed(generation: generation),
+  TheSessionIsGone() => TheSessionIsGone(generation: generation),
+  ThePassageClosed() => ThePassageClosed(generation: generation),
+  WatchFired() => WatchFired(generation: generation),
+  RetryFired() => RetryFired(generation: generation),
+  NetworkFailedAt(:final door, :final why) => NetworkFailedAt(
+    door,
+    why: why,
+    generation: generation,
+  ),
+  TurnGivenUp(:final turn, :final sounding) => TurnGivenUp(
+    turn,
+    sounding: sounding,
+    generation: generation,
+  ),
+  LookFound(:final turn, :final reply) => LookFound(
+    turn,
+    reply,
+    generation: generation,
+  ),
+  TurnAnswered(:final turn) => TurnAnswered(turn, generation: generation),
+  TurnFailed(:final turn) => TurnFailed(turn, generation: generation),
+  TheRefusalPassed() => TheRefusalPassed(generation: generation),
+  TheHandFailed() => TheHandFailed(generation: generation),
+  TheCallWasRefused() => TheCallWasRefused(generation: generation),
+  TheCallMetAClosedPassage() => TheCallMetAClosedPassage(
+    generation: generation,
+  ),
+  LookEmpty(:final sounding) => LookEmpty(
+    sounding: sounding,
+    generation: generation,
+  ),
+  TheRoomRefused(:final third, :final sounding) => TheRoomRefused(
+    third: third,
+    sounding: sounding,
+    generation: generation,
+  ),
+  ThePassageCannotOpen() => ThePassageCannotOpen(generation: generation),
+  TheTellingCameBackEmpty() => TheTellingCameBackEmpty(generation: generation),
+  TheOpeningMissed() => TheOpeningMissed(generation: generation),
+};
 
 String? _aStaleAnswerChangedTheRoom(int seed) {
   final random = Random(seed);
@@ -167,6 +170,38 @@ String? _anAnswerFromBeforeTheStationChangedChangedTheRoom(
   return null;
 }
 
+String? _theWorldKeptTheMicrophoneOpenAfterTheMachineClosedIt(
+  int seed,
+  void Function() tried,
+) {
+  final random = Random(seed);
+  var machine = const Machine();
+  var world = const World();
+  for (var step = 0; step < 60; step++) {
+    final drawn = drawAnEvent(world, random);
+    final event = _stamped(drawn, machine.generation) ?? drawn;
+    final closes =
+        event is MicAnswered &&
+        event.answer != MicAnswer.started &&
+        event.because == null &&
+        machine.channel is Microphone;
+    final (next, effects) = reduce(machine, event);
+    world = world.after(event, effects);
+    machine = next;
+    if (!closes) continue;
+    tried();
+    if (machine.channel is Microphone) {
+      return 'seed $seed, step $step: ${describeEvent(event)} left the '
+          'microphone open';
+    }
+    if (world.micOpen) {
+      return 'seed $seed, step $step: ${describeEvent(event)} closed the '
+          'microphone and the World still holds it open';
+    }
+  }
+  return null;
+}
+
 void main() {
   test('an answer from an older generation never changes the room', () {
     for (final seed in _seeds) {
@@ -193,6 +228,25 @@ void main() {
       tried,
       greaterThan(0),
       reason: 'no answer from before a Station change was tried',
+    );
+  });
+
+  test('the World closes the microphone on a stamped answer that is not '
+      'stale', () {
+    var tried = 0;
+    for (final seed in _seeds) {
+      final problem = _theWorldKeptTheMicrophoneOpenAfterTheMachineClosedIt(
+        seed,
+        () => tried++,
+      );
+      if (problem != null) {
+        throw TestFailure('$problem\nRe-run it alone with MACHINE_SEED=$seed');
+      }
+    }
+    expect(
+      tried,
+      greaterThan(0),
+      reason: 'no closing answer reached an open microphone',
     );
   });
 }

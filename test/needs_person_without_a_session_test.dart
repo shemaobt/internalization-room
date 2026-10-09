@@ -71,10 +71,27 @@ void main() {
     },
   );
 
+  test(
+    'a call by the tablet that landed is not sent again while the halt stands',
+    () async {
+      final ledger = _ledgerOnDisk();
+      await ledger.rememberDevice('aparelho-D');
+      final harness = SalaHarness();
+      final container = await _haltedWithNoSession(harness, ledger);
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).abrirEscolha();
+      await settle();
+
+      expect(container.read(salaSessionProvider).needsPerson, isTrue);
+      expect(harness.room.deviceAsksReceived, ['aparelho-D']);
+    },
+  );
+
   test('case 2 (Emenda 1, trava de regressão): um build quebrado para na tela '
       'e não pede a ninguém', () async {
-    // Emenda 1: o "Question" do plano supunha uma falha comum; Env.roomKey /
-    // Env.backendUrl lançam StateError, um Error que nenhum catch entre o
+    // Emenda 1: o "Question" do plano supunha uma falha comum;
+    // Env.backendUrl lança StateError, um Error que nenhum catch entre o
     // repositório e a tela pega — ler build quebrado como se tivesse uma
     // sessão nula era o que mantinha esse caminho fora da rede, sem ninguém
     // ter documentado assim. haltForABrokenBuild() passa a ser o próprio
@@ -271,6 +288,7 @@ void main() {
       reason: 'a parada chegou; o pedido pela sessão está em voo, seguro',
     );
     final playedBeforeResolve = harness.voice.assets.length;
+    final fixedBeforeResolve = harness.voice.fixedLines.length;
 
     notifier.resolveWithPerson();
     await settle();
@@ -309,38 +327,33 @@ void main() {
           'a linha de precisa-de-pessoa não pode tocar uma segunda vez para '
           'uma parada que a equipe já resolveu',
     );
+    expect(harness.voice.fixedLines.length, fixedBeforeResolve);
   });
 
   group('askForAPersonWithoutASession (repositório)', () {
     setUpAll(() {
-      dotenv.testLoad(
-        fileInput: 'BACKEND_URL=http://sala.local\nINTERNALIZATION_ROOM_KEY=k',
-      );
+      dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
     });
 
-    test(
-      'case 6: o pedido que sai, com a credencial e a chave da sala',
-      () async {
-        late http.BaseRequest seen;
-        final repository = RoomRepository(
-          client: MockClient((request) async {
-            seen = request;
-            return http.Response('{}', 200);
-          }),
-        )..presents('credencial-1');
-        addTearDown(repository.dispose);
+    test('case 6: o pedido que sai, com a credencial', () async {
+      late http.BaseRequest seen;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seen = request;
+          return http.Response('{}', 200);
+        }),
+      )..presents('credencial-1');
+      addTearDown(repository.dispose);
 
-        await repository.askForAPersonWithoutASession('aparelho-D');
+      await repository.askForAPersonWithoutASession('aparelho-D');
 
-        expect(seen.method, 'POST');
-        expect(
-          seen.url.path,
-          '/api/internalization-room/devices/aparelho-D/needs-person',
-        );
-        expect(seen.headers['X-Room-Key'], 'k');
-        expect(seen.headers['X-Device-Credential'], 'credencial-1');
-      },
-    );
+      expect(seen.method, 'POST');
+      expect(
+        seen.url.path,
+        '/api/internalization-room/devices/aparelho-D/needs-person',
+      );
+      expect(seen.headers['X-Device-Credential'], 'credencial-1');
+    });
 
     test(
       '404 e 409 são o mesmo final: não há equipe para este aparelho',

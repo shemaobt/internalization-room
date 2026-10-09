@@ -4,15 +4,15 @@ import 'dart:math';
 import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/config/env.dart';
-import '../dev/dev_skip_bar.dart';
 import '../domain/device_link.dart';
 import 'credential_vault.dart';
+import 'current_session_ledger.dart';
 import 'hand_inbox_repository.dart';
 import 'linked_team.dart';
 import 'room_answer.dart';
 import 'room_repository.dart';
 import 'session_notifier.dart';
+import 'take_upload_queue.dart';
 
 /// How often the tablet asks whether its code has been spent yet.
 ///
@@ -30,10 +30,13 @@ final linkPollIntervalProvider = Provider<Duration?>(
 class DeviceLink {
   final ClaimCode? code;
   final TeamLink? team;
+  final bool presented;
 
-  const DeviceLink({this.code, this.team});
+  const DeviceLink({this.code, this.team, this.presented = false});
 
-  bool get linked => team != null;
+  /// A team alone is not a way in: the room refuses every request that does not carry
+  /// the credential, so the room opens only once it is presented.
+  bool get linked => team != null && presented;
 }
 
 class DeviceLinkNotifier extends Notifier<DeviceLink> {
@@ -47,23 +50,29 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
 
   LinkedTeam get _ledger => ref.read(linkedTeamProvider);
 
+  CurrentSessionLedger get _currentSession =>
+      ref.read(currentSessionLedgerProvider);
+
   HandInboxRepository get _inbox => ref.read(handInboxRepositoryProvider);
 
   @override
   DeviceLink build() {
+    final revocations = [
+      _room.revoked.listen((carried) => unawaited(_revoked(carried))),
+      _inbox.revoked.listen((carried) => unawaited(_revoked(carried))),
+    ];
     ref.onDispose(() {
       _closed = true;
       _next?.cancel();
+      for (final revocation in revocations) {
+        unawaited(revocation.cancel());
+      }
     });
     return const DeviceLink();
   }
 
   /// Find out who this tablet belongs to, and keep asking until somebody says.
   Future<void> findTheTeam() async {
-    if (Env.devAtalhos || (ref.read(debugBuildProvider) && Env.devPularFases)) {
-      state = const DeviceLink(team: TeamLink(projectId: 'dev'));
-      return;
-    }
     final remembered = await _ledger.read();
     if (_closed) return;
     if (remembered.credentialUnavailable) {
@@ -76,11 +85,12 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     }
     _failures = 0;
     _deviceId = remembered.deviceId;
-    _present(remembered.credential);
+    final flushed = _present(remembered.credential);
     final team = remembered.team;
     if (team != null) {
-      state = DeviceLink(team: team);
-      return _collectTheCredential();
+      state = DeviceLink(team: team, presented: _credential != null);
+      await _collectTheCredential();
+      return flushed;
     }
     await _lookForTheTeam();
   }
@@ -99,6 +109,7 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     // put down disposes. The vault behind it is what the answer has to reach, and it
     // outlives both.
     final ledger = _ledger;
+    final current = _currentSession;
     final String credential;
     switch (await _room.collectTheCredential(deviceId)) {
       case Answered(value: final collected):
@@ -107,13 +118,13 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
         _lookAgainLater();
         return;
       case Refused(code: RefusalCode.credentialTaken):
-        await _startOver(ledger);
+        await _startOver(ledger, current);
         return;
       case Refused(code: RefusalCode.notFound):
         // The server does not know this device at all. Keeping the team beside an id
         // nobody claimed is a lie the next opening believes: it walks into the room as
         // linked, and the code the facilitator would have to write down never shows.
-        await _startOver(ledger);
+        await _startOver(ledger, current);
         return;
       case NetworkFailed() || Refused() || SessionGone():
         _tryAgainLater(_collectTheCredential);
@@ -128,7 +139,7 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     await _keepCredential(ledger, credential);
     if (_closed) return;
     _failures = 0;
-    _present(credential);
+    await _present(credential);
   }
 
   /// Persists a credential the server will never hand over again — retried on its own,
@@ -148,22 +159,49 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
   /// again; or the server does not know the device at all. Either way the id can prove
   /// nothing, and a team kept beside it leaves the tablet believing in a vínculo no
   /// request of its will be let into — believing it hard enough that the next opening
-  /// walks into the room instead of showing the code that would fix it.
-  Future<void> _startOver(LinkedTeam ledger) async {
+  /// walks into the room instead of showing the code that would fix it. The Current
+  /// session goes with the link: it was the old team's (ADR 0064).
+  Future<void> _startOver(
+    LinkedTeam ledger,
+    CurrentSessionLedger current,
+  ) async {
     _deviceId = null;
     await ledger.forgetTheLink();
+    await current.letGo().catchError((_) {});
     if (_closed) return;
-    _present(null);
+    unawaited(_present(null));
     await _showACode();
+  }
+
+  /// The Desk unlinked this tablet, so the credential it presents opens nothing any more.
+  ///
+  /// Heard once, and only for the credential the refused request carried: the requests
+  /// already on their way come back revoked too, and one sent before a relink speaks of
+  /// a credential this tablet no longer presents.
+  Future<void> _revoked(String? carried) async {
+    if (carried == null || carried != _credential) return;
+    _next?.cancel();
+    unawaited(_present(null));
+    state = const DeviceLink();
+    await _startOver(_ledger, _currentSession);
   }
 
   /// Told to everything that speaks to the room. The hand keeps a client and a header of
   /// its own, so a credential that reached only the room would leave the team's questions
   /// as the one thing still arriving unnamed.
-  void _present(String? credential) {
+  ///
+  /// The room opens with it, and the takes that waited for it leave with it: answered
+  /// once they have, so the tally taken after a launch counts what is really left.
+  Future<void> _present(String? credential) async {
     _credential = credential;
     _room.presents(credential);
     _inbox.presents(credential);
+    state = DeviceLink(
+      code: state.code,
+      team: state.team,
+      presented: credential != null,
+    );
+    if (credential != null) await ref.read(takeUploadQueueProvider).flush();
   }
 
   Future<void> _showACode() async {
@@ -198,7 +236,7 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
             return _tryAgainLater(_lookForTheTeam);
           }
           if (_closed) return;
-          state = DeviceLink(team: team);
+          state = DeviceLink(team: team, presented: _credential != null);
           return _collectTheCredential();
         }
         final showing = state.code;

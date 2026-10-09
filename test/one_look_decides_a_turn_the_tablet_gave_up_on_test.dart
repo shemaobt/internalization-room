@@ -230,6 +230,28 @@ void main() {
   });
 
   test(
+    'a turn the tablet gave up on whose look never answers still calls a person when the wait is stuck',
+    () {
+      _aTake(
+        (room) => room
+          ..holdNextTurn()
+          ..holdTheLooks(),
+        (clock, take) {
+          clock.elapse(const Duration(seconds: 31));
+
+          expect(take.harness.room.turnIdsLookedAt, [take.takeTurnId]);
+          expect(take.room.needsPerson, isFalse);
+
+          clock.elapse(const Duration(seconds: 30));
+
+          expect(take.room.needsPerson, isTrue);
+        },
+        harness: SalaHarness(busyCeiling: const Duration(seconds: 30)),
+      );
+    },
+  );
+
+  test(
     'an opening the look finds under a standing halt is heard once when the halt lifts, and no second opening is asked',
     () async {
       final harness = SalaHarness();
@@ -267,7 +289,7 @@ void main() {
   );
 
   test(
-    'an opening refused under a standing halt is asked again when the halt lifts',
+    'an opening refused under a standing halt is let go, and the lift asks nothing',
     () async {
       final harness = SalaHarness()..room.holdNextTurn();
       final container = harness.container();
@@ -289,11 +311,11 @@ void main() {
 
       harness.room.theDeskAttended();
       sala.resolveWithPerson();
-      await waitFor(
-        'a abertura ser pedida de novo',
-        () => harness.room.turnIdsAsked.length == 2,
-      );
-      await waitFor('o Guia falar', () => _replies(harness) == 1);
+      await waitFor('a sala soltar', () => !read().needsPerson);
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      expect(harness.room.turnIdsAsked, hasLength(1));
+      expect(_replies(harness), 0);
     },
   );
 

@@ -7,12 +7,12 @@ The oral translation team's tablet app: it walks the team through a Bible passag
 ### Stations
 
 **Station**:
-One of the stops a session passes through, from the Invitation to the Closing; the server names the one the team is in for the Desk, reading it off what the session holds.
+One of the stops a session passes through, from the Choice to the Closing; the server names the one the team is in for the Desk, reading it off what the session holds.
 _Avoid_: stage (`SalaStage` is the enum, not the term), phase, screen, step
 
-**Invitation** (`convite`):
-The session's first station, where the room's voice welcomes the team and presents the book (panorama). The passage's scene is said when the Conversation opens, not here.
-_Avoid_: convite in prose (`convite` is the enum value), introduction, opening, welcome
+**Panorama Station** (`panorama`):
+The station where the book's Panorama is voiced, reached by tapping the Panorama on the wheel; after its line, the team can answer it out loud.
+_Avoid_: invitation, convite, welcome
 
 **Conversation** (`conversa`):
 The station where the team describes the passage out loud, and what the team touches fills the necklace.
@@ -32,11 +32,8 @@ On screen and in the voice its Portuguese is *traduzir / tradução*; *contar* b
 _Avoid_: retrotradução, retro in prose (`retro` is the code prefix, not the term), contar de volta, contado de volta, reconto, recontar
 
 **Choice** (`escolha`):
-The station where the team picks the next passage among those on the wheel. One visit to it
-lasts until the Choice is opened afresh — lifting a halt raised here, or a passage really
-opening, both end it from inside; a passage the room refused to open is not offered again
-within one visit, but is again on the next.
-_Avoid_: escolha in prose (`escolha` is the enum value), selection, wheel (the wheel is the list of passages, not the station)
+The station where the room starts and where the team picks an entry on the wheel, the Panorama or a passage.
+_Avoid_: escolha in prose (`escolha` is the enum value), Menu in prose (`Menu` is the class), selection, wheel (the wheel is the list of entries, not the station)
 
 **Closing** (`fim`):
 The last station, where the necklace's cord closes into a circle and the session ends.
@@ -57,7 +54,7 @@ The room's voice: the persona speaking to the team throughout the session, with 
 _Avoid_: guia, narrator, facilitator (a person, not the voice), `Facilitator` (the inherited prefix in code)
 
 **Fixed line**:
-A line pre-approved and shipped inside the app, played straight from the device without asking the server.
+One of Marcia's pre-approved lines, named by its family and its position in her file (`F2`, `D1`, `P3`). The room voices it from the text it was deployed with and answers its address; the tablet asks for that address once per run and keeps the sound, so a line she re-rules is heard on the next load.
 _Avoid_: linha fixa, canned line, static line, fail-safe line (one role a fixed line can serve)
 
 **Instant acknowledgement**:
@@ -65,12 +62,12 @@ The fixed line played the moment a team turn ends: one of Marcia's three, picked
 _Avoid_: thinking line, filler, wait line
 
 **Process line**:
-One of Marcia's fixed lines for a step of the back-translation (start, tell, unheard, approved), bundled and played by position in the room's language, never rotated; the approval's line is the fourth.
+One of Marcia's fixed lines for a step of the back-translation (start, tell, unheard, approved), asked of the room by position in the room's language, never rotated; the approval's line is the fourth.
 _Avoid_: fail-safe (a fixed line that answers a failure and rotates), canned line, linha de processo
 
 **Spoken line**:
 A line the server composes for this turn, which the room fetches and caches before saying it.
-_Avoid_: linha falada, generated line, TTS, fixed line (the bundled ones)
+_Avoid_: linha falada, generated line, TTS, fixed line (hers, by name)
 
 **Fail-safe line**:
 The line the room falls back to when it could not compose an answer. It is said and deliberately never kept, so asking to hear the last thing again never repeats it.
@@ -120,6 +117,10 @@ _Avoid_: busy, pending gesture
 A line, spontaneous or the answer to a gesture, that arrived while the Channel was not free (a sound playing, the microphone open, a blocking halt standing or a gesture on its way), played once it is free; one of each kind waits, in arrival order, except a gesture's own line, which enters ahead and is never dropped (ADR 0049).
 _Avoid_: pending line, interrupted line
 
+**Interruption**:
+The team's tap on the circle while the Guide speaks in the Conversation. It stops her and opens the microphone, and the next turn sent tells the room where she was cut: how far into the line (`at`) and how long the line was (`of`, when the tablet knows it). A take too short to keep, or none, tells nothing. The cut line counts as heard, and «Ouvir de novo» says it whole (ADR 0067).
+_Avoid_: barge-in, interrupted line (a **Queued line** is not cut)
+
 ### What is recorded and told
 
 **Passage**:
@@ -131,7 +132,7 @@ One team's work on one passage, with state and a persisted snapshot allowing it 
 _Avoid_: sessão, passage, round
 
 **Wheel**:
-The list of passages still to be worked, which the room offers at the Choice and reopens on its own after the Closing. Not yet read and empty are different states: empty means the book is finished.
+The list of entries the room offers at the Choice, the book's Panorama first and then the passages still to be worked, which the room reopens on its own after the Closing. Not yet read and holding no passage are different states: holding no passage means the book is finished.
 _Avoid_: roda, passage list, carousel, choice (the station that shows it)
 
 **Take**:
@@ -179,7 +180,7 @@ The position inside the open part or stretch that the scissors, the Capture and 
 _Avoid_: playhead, reading head (retired), position
 
 **Wordless recording**:
-A recording whose transcription holds no words. The server answers it with the inaudible line; the tablet never judges it.
+A recording whose transcription holds no words. On the telling doors the server refuses it with no line, and it refuses the same way when its transcriber fails or answers too late. The room stays paused on the same stretch, shows Marcia's line «Não entendi — traduzam de novo esse pedaço» beside the circle and voices nothing, and the circle reopens the microphone for that stretch. It is never counted toward calling a person.
 _Avoid_: empty capture, silence, inaudible take
 
 **Listening ledger** (`escuta das partes`):
@@ -223,16 +224,20 @@ A question the team raised, recorded by a tap on the hand and drawn on the neckl
 _Avoid_: nó, question, bead (a knot is not one)
 
 **Raised hand**:
-The team's side channel to the facilitator: it sends a Knot, checks for the facilitator's replies, plays a reply and marks it heard. A failure anywhere on it changes nothing in the room and speaks no line (ADR 0059).
+The team's side channel to the facilitator: it sends a Knot, checks for the facilitator's replies, plays a reply and marks it heard. A failure anywhere on it changes nothing in the room and speaks no line (ADR 0071).
 _Avoid_: mão levantada, question button, note
 
 **Panorama**:
-The opening line about the whole book, played once before the scene.
+The book's own entry and the line about the whole book, first on the wheel, played when the team taps it. Not a passage: nothing that counts passages counts it.
 _Avoid_: introduction, overview
 
 **Scene**:
-The opening line specific to the chosen passage, following the panorama.
-_Avoid_: cena, invitation (the whole station)
+The opening line specific to the chosen passage, said when its Conversation opens for the first time.
+_Avoid_: cena
+
+**Opened**:
+A session that holds a Guide line, its Opening at least. The room asks a session's Opening only while it is not opened.
+_Avoid_: started, begun
 
 **Outbox**:
 The queue of takes and stretches waiting to reach the server, with a manifest that survives the app closing and names each recording by file rather than by path. It delivers one part's recordings in the order the team made them.
@@ -241,6 +246,10 @@ _Avoid_: fila, caixa de saída, upload queue, buffer
 **Resume point**:
 The durable slice of the room's state for one passage, written whole at every transition — the session, the Station and its Step, the kept takes, the part being recorded again (ADR 0045), the Cursor, the pending translation and the Listening ledger — so a reopening lands where the team stopped, on a tablet that still holds the recordings or on one that fetches them from the room again. The server rules over what it knows, the slice over the rest (ADR 0046). It never expires by age: what drops it are facts about the room or the passage — the room no longer knowing the session, the approval closing the passage, the language changing — never the clock.
 _Avoid_: ponto de retomada, em curso, checkpoint, snapshot (the session's own lives on the server)
+
+**Current session**:
+The session this tablet was in when it last stood in a passage, kept on the tablet so a relaunch lands on it while the room still holds it. Let go when the team goes to the Choice, when the passage closes, when the room no longer knows the session and when the Desk unlinks the tablet.
+_Avoid_: pointer, last session, sessão atual
 
 ### Findings and mends
 
@@ -253,7 +262,7 @@ One of the codes a refused approval names, one string each: the gate's ten plus 
 _Avoid_: reason, error code, bloqueio, refusal (the answer that carries them)
 
 **Approval**:
-The team's gesture, after a clean verdict, that makes the passage its final draft: one press on the back-translation screen, the server's release answered with a version, and Marcia's approved process line spoken from the bundle. The room closes only after it, and a refused one takes the team to the hole its blockers name.
+The team's gesture, after a clean verdict, that makes the passage its final draft: one press on the back-translation screen, the server's release answered with a version, and Marcia's approved process line, asked of the room by name. The room closes only after it, and a refused one takes the team to the hole its blockers name.
 _Avoid_: aprovação, finalize, release (the server's record of it), approve button
 
 **Finding**:
@@ -312,7 +321,7 @@ The room's action of signalling it needs someone, insisted on at intervals until
 _Avoid_: pedir uma pessoa, calling a human, SOS, `needsPerson` (the internal name)
 
 **Reach**:
-Whether the room can get to the server: reachable or out of reach, a region of the machine. A network failure at any door but the Raised hand's, the Outbox's included, takes the room out of reach (ADR 0059); coming back drains the Outbox and re-sends the Pending request once. The circle says the room has fallen, except over an open microphone; the reach is what knows it (ADR 0050).
+Whether the room can get to the server: reachable or out of reach, a region of the machine. A network failure at any door but the Raised hand's, the Outbox's included, takes the room out of reach (ADR 0071); coming back drains the Outbox and re-sends the Pending request once. The circle says the room has fallen, except over an open microphone; the reach is what knows it (ADR 0050).
 _Avoid_: offline (the voice the circle draws while the reach is down, not the fact), connectivity, online/offline flag, Alcance
 
 **Pending request**:
@@ -328,8 +337,12 @@ What the machine asks the room to do after an event: a sound to play, a timer to
 _Avoid_: side effect, command, action
 
 **Effect runner**:
-The one place that executes every Effect, through the four Ports; the notifier hands it the effects and holds no switch over them (ADR 0053).
+The one place that executes every Effect, through the four Ports, reading the StationHost; the notifier hands it the effects and holds no switch over them (ADR 0053).
 _Avoid_: dispatcher, interpreter, handler
+
+**StationHost**:
+The one interface the EffectRunner reads from the room: the Station's questions (what is wanted, reachable or in course), its hearings (what the runner heard back) and the lifecycle hand-off. It executes no effect.
+_Avoid_: EffectHost, callback, delegate
 
 **Port**:
 One of the four doors the Effect runner reaches the world through: Room (the server, network health and the person-call inbox), Sound, Recorder and Store (the disk and the Outbox). Each is an interface in the domain with one production adapter (ADR 0053).
@@ -344,11 +357,11 @@ The machine's count of how many times its in-flight work was abandoned; an answe
 _Avoid_: epoch
 
 **Failure policy**:
-The one place every room result (answered, network failed, refused with a code, session gone, timed out) becomes an event: the One look, a blocking Halt that calls for a person, the Session gone, the room out of reach, the Station's own answer, or the Raised hand's failure, which the machine answers with no change (ADR 0059). Nothing decides a failure inside a Station or the notifier (ADR 0053).
+The one place every room result (answered, network failed, refused with a code, session gone, timed out) becomes an event: the One look, a blocking Halt that calls for a person, the Session gone, the room out of reach, the Station's own answer, or the Raised hand's failure, which the machine answers with no change (ADR 0071). Nothing decides a failure inside a Station or the notifier (ADR 0053).
 _Avoid_: error handler, retry policy
 
 **One look**:
-What the tablet does once it gives up on a turn, because the network failed, its 305 s wait ran out or the watchdog fired: it reads that one turn on the server, once and without sending it again. A reply that landed plays as if it had arrived on time; anything else raises a blocking Halt that calls for a person and keeps the take, never the offline face.
+What the tablet does once it gives up on a turn, because the network failed, its 305 s wait ran out or the watchdog fired: it reads that one turn on the server, once and without sending it again. A reply that landed plays as if it had arrived on time; anything else raises a blocking Halt that calls for a person and keeps the take, never the offline face, except over an Opening, which rests at the quiet invite.
 _Avoid_: retry, resend, poll
 
 **Session read**:
@@ -380,5 +393,5 @@ The code the server mints for one tablet, which a facilitator spends once from t
 _Avoid_: código, pairing code, device code, credential (what the link yields afterwards)
 
 **Device link**:
-The bond between one tablet and one team, drawn once a claim code is spent, and carrying the credential the tablet sends on every request thereafter.
+The bond between one tablet and one team, drawn once a claim code is spent, and carrying the device credential: the only thing the tablet sends to be let in, on every request thereafter. Unlinking the tablet from the Desk revokes the credential, and the tablet returns to a fresh claim code.
 _Avoid_: vínculo, pairing, enrolment

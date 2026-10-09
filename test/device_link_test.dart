@@ -8,10 +8,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/device_link_notifier.dart';
 import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
+import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
+import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/dev/dev_skip_bar.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/convite_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/escolha_view.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
@@ -20,10 +22,7 @@ import 'scenario_helpers.dart' show settle;
 const _unclaimed = RememberedLink();
 
 void _devEnv() {
-  dotenv.testLoad(
-    fileInput:
-        'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
-  );
+  dotenv.testLoad(fileInput: 'BACKEND_URL=http://x\nDEV_PULAR_FASES=1');
   addTearDown(() => dotenv.testLoad(fileInput: ''));
 }
 
@@ -53,6 +52,26 @@ void main() {
     },
   );
 
+  testWidgets(
+    'an unlinked tablet holding a session shows the code screen and asks the room nothing',
+    (tester) async {
+      final harness = SalaHarness(linkedAs: _unclaimed);
+      await harness.currentSession.hold(
+        const CurrentSession(
+          sessionId: 'sessao-guardada',
+          book: 'Ruth',
+          pericope: 'P01',
+          language: testLanguage,
+        ),
+      );
+      await pumpSala(tester, harness);
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.byType(CodigoView), findsOneWidget);
+      expect(harness.room.calls, isNot(contains('fetchState')));
+    },
+  );
+
   testWidgets('a tablet still waiting for its code offers the room no way in', (
     tester,
   ) async {
@@ -61,17 +80,66 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(
-      find.byType(ConviteView),
+      find.byType(EscolhaView),
       findsNothing,
       reason:
-          'entre o pedido e a resposta a tela caía no convite, e um toque ali abria '
-          'sessão com a chave compartilhada — exatamente o que o vínculo existe para tirar',
+          'entre o pedido e a resposta a tela não pode mostrar a sala: um toque ali '
+          'abriria sessão com a chave compartilhada — exatamente o que o vínculo existe '
+          'para tirar',
     );
     expect(find.byType(EditableText), findsNothing);
 
     harness.room.finishHeldCode();
     await tester.pump(const Duration(milliseconds: 200));
     expect(find.byType(CodigoView), findsOneWidget);
+  });
+
+  testWidgets('the room opens only once the tablet presents its credential', (
+    tester,
+  ) async {
+    final harness = SalaHarness(
+      linkedAs: _unclaimed,
+      linkPoll: const Duration(milliseconds: 50),
+    );
+    final container = await pumpSala(tester, harness);
+    final room = harness.room;
+
+    Future<void> aLinkWhoseCredentialComesLate(String team) async {
+      room
+        ..linkedTo = TeamLink(projectId: team)
+        ..refuseCredentialWith = const Refused(RefusalCode.credentialNotYet);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
+      room.refuseCredentialWith = null;
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    await aLinkWhoseCredentialComesLate('equipe-1');
+    expect(find.byType(EscolhaView), findsOneWidget);
+
+    room.failWith = const Refused(RefusalCode.deviceRevoked);
+    await container.read(salaSessionProvider.notifier).abrirEscolha();
+    await tester.pump(const Duration(milliseconds: 200));
+    room.failWith = null;
+    room.credential = 'credencial-2';
+    await aLinkWhoseCredentialComesLate('equipe-2');
+
+    const claimDoors = {'askForACode', 'readTheLink', 'collectTheCredential'};
+    expect(
+      [
+        for (var at = 0; at < room.calls.length; at++)
+          if (!claimDoors.contains(room.calls[at]) &&
+              room.presentedOnEachCall[at] == null)
+            room.calls[at],
+      ],
+      isEmpty,
+      reason:
+          'sem a chave, o que sai sem a credencial é recusado, e a sala para '
+          'logo depois de vinculada',
+    );
+    expect(find.byType(EscolhaView), findsOneWidget);
+    expect(container.read(salaSessionProvider).needsPerson, isFalse);
   });
 
   testWidgets('a tablet that was already linked never sees the code screen', (
@@ -82,6 +150,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(find.byType(CodigoView), findsNothing);
+    expect(find.byType(EscolhaView), findsOneWidget);
     expect(
       harness.room.codesAskedFor,
       isEmpty,
@@ -227,32 +296,32 @@ void main() {
     );
   });
 
-  test(
-    'a debug build told to skip the phases is linked without asking the room',
-    () async {
+  testWidgets(
+    'a debug build with DEV_PULAR_FASES=1 runs the link and shows the shortcut bar',
+    (tester) async {
       _devEnv();
-      final harness = SalaHarness(linkedAs: _unclaimed);
-      final container = harness.container();
-      addTearDown(container.dispose);
-
-      await container.read(deviceLinkProvider.notifier).findTheTeam();
-      await settle();
-
-      expect(container.read(deviceLinkProvider).linked, isTrue);
-      expect(
-        harness.room.codesAskedFor,
-        isEmpty,
-        reason:
-            'sem isso a sala de desenvolvimento só abre depois que alguém vincula '
-            'o aparelho pela Mesa, que é justamente o que ainda não roda local',
+      final harness = SalaHarness(
+        linkedAs: _unclaimed,
+        linkPoll: const Duration(milliseconds: 50),
       );
+      await pumpSala(tester, harness);
+      await tester.pump(const Duration(milliseconds: 100));
+
       expect(
-        harness.vinculo.remembered.team,
-        isNull,
+        find.byType(CodigoView),
+        findsOneWidget,
         reason:
-            'um vínculo inventado gravado em disco sobrevive a desligar o '
-            'sinalizador, e o aparelho passa a mentir sobre a equipe para sempre',
+            'a sala só aceita a credencial do aparelho, e um build de debug que '
+            'pula o vínculo não tem nenhuma para mandar',
       );
+      expect(harness.room.codesAskedFor, isNotEmpty);
+
+      harness.room.linkedTo = const TeamLink(projectId: 'equipe-1');
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.byType(CodigoView), findsNothing);
+      expect(find.text('DEV'), findsOneWidget);
     },
   );
 

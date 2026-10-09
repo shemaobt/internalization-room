@@ -8,7 +8,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/dev/dev_skip_bar.dart';
+import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/data/mic_permission.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
@@ -20,6 +22,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/colar_ov
 import 'package:internalization_room/features/sala/presentation/widgets/conversa_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/passage_ruler.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/panorama_view.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/hear_again_button.dart';
@@ -80,7 +83,7 @@ Color markAsSeen(WidgetTester tester, Finder corner, Color background) {
 bool leaveIsDeaf(WidgetTester tester) => tester
     .widgetList<IgnorePointer>(
       find.ancestor(
-        of: byLabel('Deixar esta passagem e escolher outra'),
+        of: byLabel('Escolher outra passagem'),
         matching: find.byType(IgnorePointer),
       ),
     )
@@ -98,6 +101,14 @@ Future<ProviderContainer> pumpSala(
   await tester.pump(const Duration(milliseconds: 100));
   return container;
 }
+
+/// A tablet whose credential was collected on an earlier day: a room that refuses every
+/// door from the start still finds it linked.
+const _holdingItsCredential = RememberedLink(
+  deviceId: 'aparelho-1',
+  team: TeamLink(projectId: 'equipe-1'),
+  credential: 'credencial-1',
+);
 
 const retellExit = 'Ouvir e traduzir esta parte de novo';
 const wholeClipExit = 'Ouvir e traduzir a gravação de novo';
@@ -128,6 +139,26 @@ Future<ProviderContainer> pumpToFindings(
   await notifier.finishBackTranslation();
   await tester.pump(const Duration(milliseconds: 200));
   return container;
+}
+
+const _thePanorama = Passagem(
+  pericope: 'panorama',
+  audioUrl: '/voice/panorama',
+  kind: PassagemKind.panorama,
+);
+
+/// The team taps the Panorama, the Choice's first entry, and its line is said.
+Future<void> _enterThePanorama(
+  WidgetTester tester,
+  SalaHarness harness,
+  ProviderContainer container,
+) async {
+  harness.room.passages = [_thePanorama, ...harness.room.passages];
+  final notifier = container.read(salaSessionProvider.notifier);
+  await notifier.abrirEscolha();
+  await tester.pump(const Duration(milliseconds: 300));
+  notifier.entrarNaOferecida();
+  await tester.pump(const Duration(milliseconds: 400));
 }
 
 void main() {
@@ -403,7 +434,7 @@ void main() {
   testWidgets(
     'a wheel still to be read asks for it in english, not in portuguese',
     (tester) async {
-      final harness = SalaHarness(lingua: 'en')
+      final harness = SalaHarness(lingua: 'en', linkedAs: _holdingItsCredential)
         ..room.failWith = const Refused('BAD_REQUEST');
       final container = await pumpSala(tester, harness);
       await container.read(salaSessionProvider.notifier).abrirEscolha();
@@ -437,49 +468,6 @@ void main() {
     );
     expect(byLabel('Todas as passagens foram trabalhadas'), findsOneWidget);
   });
-
-  testWidgets(
-    'the Choice halts and calls a person once every passage it offered is refused',
-    (tester) async {
-      final harness = SalaHarness()
-        ..room.passages = const [
-          Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
-          Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
-        ]
-        ..room.passagesThatCannotOpen = {'P01', 'P02'};
-      final container = await pumpSala(tester, harness);
-      final notifier = container.read(salaSessionProvider.notifier);
-      await notifier.abrirEscolha();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      await tester.tap(byLabel('Entrar nesta passagem'));
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(
-        byLabel('Todas as passagens foram trabalhadas'),
-        findsNothing,
-        reason: 'uma passagem da roda ainda não foi tentada nesta visita',
-      );
-      expect(container.read(salaSessionProvider).needsPerson, isFalse);
-
-      await tester.tap(byLabel('Entrar nesta passagem'));
-      await tester.pump(const Duration(milliseconds: 300));
-
-      expect(
-        byLabel('Entrar nesta passagem'),
-        findsNothing,
-        reason: 'nada sobrou para entrar nesta visita',
-      );
-      expect(
-        byLabel('Todas as passagens foram trabalhadas'),
-        findsOneWidget,
-        reason:
-            'a sala chama uma pessoa pelo mesmo caminho de um livro sem nada '
-            'a oferecer, com o mesmo rótulo',
-      );
-      expect(container.read(salaSessionProvider).needsPerson, isTrue);
-      expect(harness.room.personsAsked, 0);
-    },
-  );
 
   testWidgets('no stage ever shows a written word', (tester) async {
     final harness = SalaHarness()..room.done = true;
@@ -580,10 +568,7 @@ void main() {
   testWidgets('the dev seal shows from the invite on, before any skip exists', (
     tester,
   ) async {
-    dotenv.testLoad(
-      fileInput:
-          'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://x\nDEV_PULAR_FASES=1');
     addTearDown(() => dotenv.testLoad(fileInput: ''));
     final container = await pumpSala(tester, SalaHarness());
     final notifier = container.read(salaSessionProvider.notifier);
@@ -606,10 +591,7 @@ void main() {
   testWidgets('the dev bar names every skip, and waits for its inputs', (
     tester,
   ) async {
-    dotenv.testLoad(
-      fileInput:
-          'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://x\nDEV_PULAR_FASES=1');
     addTearDown(() => dotenv.testLoad(fileInput: ''));
     final harness = SalaHarness()..network.reachable = false;
     final container = await pumpSala(tester, harness);
@@ -639,10 +621,7 @@ void main() {
   testWidgets('the dev bar walks into the ensaio once the session exists', (
     tester,
   ) async {
-    dotenv.testLoad(
-      fileInput:
-          'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://x\nDEV_PULAR_FASES=1');
     addTearDown(() => dotenv.testLoad(fileInput: ''));
     final container = await pumpSala(tester, SalaHarness());
     unawaited(container.read(salaSessionProvider.notifier).goConversa());
@@ -664,9 +643,7 @@ void main() {
   });
 
   testWidgets('a field build shows no dev bar at all', (tester) async {
-    dotenv.testLoad(
-      fileInput: 'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://x');
     addTearDown(() => dotenv.testLoad(fileInput: ''));
     final container = await pumpSala(tester, SalaHarness());
     unawaited(container.read(salaSessionProvider.notifier).goConversa());
@@ -679,10 +656,7 @@ void main() {
   testWidgets(
     "the room's own screen hides the skip bar, not only a bar built by a test",
     (tester) async {
-      dotenv.testLoad(
-        fileInput:
-            'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
-      );
+      dotenv.testLoad(fileInput: 'BACKEND_URL=http://x\nDEV_PULAR_FASES=1');
       addTearDown(() => dotenv.testLoad(fileInput: ''));
       final harness = SalaHarness();
       final container = ProviderContainer(
@@ -735,9 +709,9 @@ void main() {
   testWidgets('hearing a line again is offered in english to an english room', (
     tester,
   ) async {
-    final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
-    container.read(salaSessionProvider.notifier).conviteTap();
-    await tester.pump(const Duration(milliseconds: 200));
+    final harness = SalaHarness(lingua: 'en');
+    final container = await pumpSala(tester, harness);
+    await _enterThePanorama(tester, harness, container);
     await tester.pump(const Duration(seconds: 1));
 
     expect(container.read(salaSessionProvider).canHearAgain, isTrue);
@@ -750,16 +724,16 @@ void main() {
     );
   });
 
-  testWidgets('the way out of a passage speaks english to an english room', (
+  testWidgets('«Choose another passage» speaks english to an english room', (
     tester,
   ) async {
     final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
     container.read(salaSessionProvider.notifier).goConversa();
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(byLabel('Leave this passage and choose another'), findsOneWidget);
+    expect(byLabel('Choose another passage'), findsOneWidget);
     expect(
-      byLabel('Deixar esta passagem e escolher outra'),
+      byLabel('Escolher outra passagem'),
       findsNothing,
       reason:
           'a saída da passagem se anunciava em português a um aparelho em '
@@ -1110,45 +1084,39 @@ void main() {
     );
   });
 
-  testWidgets('the way forward does not vanish while the room replays a line', (
-    tester,
-  ) async {
-    final harness = SalaHarness();
-    final container = await pumpSala(tester, harness);
-    final notifier = container.read(salaSessionProvider.notifier);
+  testWidgets(
+    'the Panorama\'s turn does not vanish while the room replays a line',
+    (tester) async {
+      final harness = SalaHarness();
+      final container = await pumpSala(tester, harness);
+      final notifier = container.read(salaSessionProvider.notifier);
 
-    await notifier.openConvite();
-    await tester.pump(const Duration(milliseconds: 400));
-    expect(container.read(salaSessionProvider).showEntrada, isTrue);
-    expect(
-      find.byWidgetPredicate(
-        (w) => w is RoundActionButton && w.mood != ButtonMood.lit,
-      ),
-      findsOneWidget,
-    );
+      await _enterThePanorama(tester, harness, container);
+      expect(container.read(salaSessionProvider).panoramaSaid, isTrue);
+      expect(find.byType(PanoramaView), findsOneWidget);
 
-    harness.voice.holdNextLine();
-    unawaited(notifier.hearAgain());
-    await tester.pump(const Duration(milliseconds: 200));
+      harness.voice.holdNextLine();
+      unawaited(notifier.hearAgain());
+      await tester.pump(const Duration(milliseconds: 200));
 
-    expect(
-      container.read(salaSessionProvider).showEntrada,
-      isFalse,
-      reason: 'a sala está falando, então o toque não vale agora',
-    );
-    expect(
-      find.byWidgetPredicate(
-        (w) => w is RoundActionButton && w.mood != ButtonMood.lit,
-      ),
-      findsOneWidget,
-      reason:
-          'mas o alvo não pode sumir: ouvir o panorama de novo leva um a dois '
-          'minutos, e a mão já estava a caminho do botão',
-    );
+      expect(
+        container.read(salaSessionProvider).voice,
+        VoiceState.speaking,
+        reason: 'a sala está falando, então o toque não vale agora',
+      );
+      expect(
+        container.read(salaSessionProvider).panoramaSaid,
+        isTrue,
+        reason:
+            'mas a vez da equipe não pode sumir: ouvir o panorama de novo leva '
+            'um a dois minutos, e a mão já estava a caminho do círculo',
+      );
+      expect(find.byType(PanoramaView), findsOneWidget);
 
-    harness.voice.finishHeldLine();
-    await tester.pump(const Duration(milliseconds: 400));
-  });
+      harness.voice.finishHeldLine();
+      await tester.pump(const Duration(milliseconds: 400));
+    },
+  );
 
   testWidgets('the way out of the rehearsal survives playing it', (
     tester,
@@ -1234,9 +1202,9 @@ void main() {
   testWidgets(
     'hearing a line again is a quiet green mark, never a second terracotta disc',
     (tester) async {
-      final container = await pumpSala(tester, SalaHarness());
-      container.read(salaSessionProvider.notifier).conviteTap();
-      await tester.pump(const Duration(milliseconds: 200));
+      final harness = SalaHarness();
+      final container = await pumpSala(tester, harness);
+      await _enterThePanorama(tester, harness, container);
       await tester.pump(const Duration(seconds: 1));
 
       expect(
@@ -1294,7 +1262,7 @@ void main() {
       await notifier.goConversa(pericope: 'P01');
       await tester.pump(const Duration(milliseconds: 300));
 
-      final sair = byLabel('Deixar esta passagem e escolher outra');
+      final sair = byLabel('Escolher outra passagem');
       expect(
         sair,
         findsOneWidget,
@@ -1347,10 +1315,7 @@ void main() {
         .goConversa(pericope: 'P01');
     await tester.pump(const Duration(milliseconds: 300));
 
-    await tester.tap(
-      byLabel('Deixar esta passagem e escolher outra'),
-      warnIfMissed: false,
-    );
+    await tester.tap(byLabel('Escolher outra passagem'), warnIfMissed: false);
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(
@@ -1488,7 +1453,7 @@ void main() {
   testWidgets(
     'the way out stays out of reach while the room waits for a person',
     (tester) async {
-      final harness = SalaHarness()
+      final harness = SalaHarness(linkedAs: _holdingItsCredential)
         ..room.failWith = const Refused('UNAUTHORIZED');
       final container = await pumpSala(tester, harness);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -1526,20 +1491,12 @@ void main() {
     final harness = SalaHarness();
     final container = await pumpSala(tester, harness);
 
-    await tester.tap(byLabel('Falar com o facilitador'));
-    await tester.pump(const Duration(milliseconds: 200));
+    await _enterThePanorama(tester, harness, container);
 
     expect(
-      container.read(salaSessionProvider).conviteStep,
-      ConviteStep.entrada,
-      reason: 'o que vem abaixo só vale com a abertura já dita',
-    );
-    expect(
-      await harness.finished.bookOpened('Ruth'),
+      container.read(salaSessionProvider).panoramaSaid,
       isTrue,
-      reason:
-          'o resumed só leva à roda num livro já aberto — sem a marca o teste '
-          'passaria sem nunca chegar à porta que abria a roda',
+      reason: 'o que vem abaixo só vale com a abertura já dita',
     );
 
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
@@ -1551,7 +1508,7 @@ void main() {
     final state = container.read(salaSessionProvider);
     expect(
       state.stage,
-      SalaStage.convite,
+      SalaStage.panorama,
       reason: 'a volta ao primeiro plano abria a roda por cima do panorama',
     );
     expect(

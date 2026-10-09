@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -17,6 +16,7 @@ const _fazemSom = {
   'playback:play',
   'voice:line',
   'voice:asset',
+  'voice:fixed',
   'recorder:start',
 };
 
@@ -311,12 +311,10 @@ void main() {
         await cena.sala.aprovarRascunhoFinal();
         await waitFor(
           'a linha aprovada ser dita',
-          () => cena.harness.voice.assets.contains(
-            fixedLineAsset(approvedLine, testLanguage),
-          ),
+          () => cena.harness.voice.fixedLines.contains(('P3', testLanguage)),
         );
       },
-      somProprio: 'voice:asset',
+      somProprio: 'voice:fixed',
     ),
     _linha('terminei', _prontoParaTerminei, (cena) async {
       await cena.sala.finishBackTranslation();

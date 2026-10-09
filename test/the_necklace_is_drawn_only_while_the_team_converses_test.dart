@@ -2,30 +2,39 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
-import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show byLabel;
 
 void main() {
   testWidgets(
-    'the panorama played in the invitation draws no necklace, while it plays and after',
+    'the panorama played on the Panorama draws no necklace, while it plays and after',
     (tester) async {
-      final harness = SalaHarness();
+      final harness = SalaHarness()
+        ..room.passages = const [
+          Passagem(
+            pericope: 'panorama',
+            audioUrl: '/voice/panorama',
+            kind: PassagemKind.panorama,
+          ),
+          Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+        ];
       final container = await pumpSala(tester, harness);
+      final notifier = container.read(salaSessionProvider.notifier);
+      await notifier.abrirEscolha();
+      await tester.pump(const Duration(milliseconds: 300));
       expect(find.byType(ColarOverlay), findsNothing);
 
-      await tester.tap(byLabel('Falar com o facilitador'));
+      notifier.entrarNaOferecida();
       await tester.pump(const Duration(milliseconds: 100));
       expect(find.byType(ColarOverlay), findsNothing);
 
       await tester.pump(const Duration(milliseconds: 200));
       expect(
-        container.read(salaSessionProvider).conviteStep,
-        ConviteStep.entrada,
+        container.read(salaSessionProvider).panoramaSaid,
+        isTrue,
         reason: 'a abertura já foi dita',
       );
       expect(find.byType(ColarOverlay), findsNothing);

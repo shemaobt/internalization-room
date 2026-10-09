@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'moment.dart';
+
 const languages = ['pt', 'en'];
 
 const floorLanguage = 'en';
@@ -19,13 +21,11 @@ String strandedTakeAsset(String language) =>
 
 const panoramaPericope = 'OV';
 
-bool isThePanorama(String pericope) =>
-    pericope == panoramaPericope || pericope.startsWith('$panoramaPericope-');
-
-String fixedLineAsset(String line, String language) =>
-    'assets/audio/$language/fixed/$line.mp3';
-
 const instantAckLines = ['F0', 'F1', 'F2'];
+
+const startLine = 'P0';
+
+const tellLine = 'P1';
 
 /// The fourth of Marcia's process lines, read by position: start, tell, unheard,
 /// approved. The approval's is the fourth, never rotated.
@@ -62,14 +62,13 @@ const warningNoticeLabel = {
 String warningNoticeLabelFor(String language) =>
     warningNoticeLabel[language] ?? warningNoticeLabel[floorLanguage]!;
 
-const conviteLabels = {
-  'circle': {'pt': 'Falar com o facilitador', 'en': 'Talk to the facilitator'},
-  'enter': {'pt': 'Entrar na passagem', 'en': 'Enter the passage'},
+const panoramaCircleLabels = {
+  'pt': 'Falar com o facilitador',
+  'en': 'Talk to the facilitator',
 };
 
-String conviteLabelFor(String control, String language) =>
-    conviteLabels[control]![language] ??
-    conviteLabels[control]![floorLanguage]!;
+String panoramaCircleLabelFor(String language) =>
+    panoramaCircleLabels[language] ?? panoramaCircleLabels[floorLanguage]!;
 
 const handLabels = {
   'answering': {
@@ -94,8 +93,12 @@ String handLabelFor(String state, String language) =>
 const roomLabels = {
   'hearAgain': {'pt': 'Ouvir de novo', 'en': 'Hear it again'},
   'leavePassage': {
-    'pt': 'Deixar esta passagem e escolher outra',
-    'en': 'Leave this passage and choose another',
+    'pt': 'Escolher outra passagem',
+    'en': 'Choose another passage',
+  },
+  'backToPassage': {
+    'pt': 'Voltar para a passagem atual',
+    'en': 'Back to the current passage',
   },
   'micBlocked': {
     'pt': 'A sala precisa do microfone para funcionar',
@@ -149,6 +152,10 @@ const retroLabels = {
   'listenFirst': {'pt': 'Ouvir primeiro', 'en': 'Listen first'},
   'thinking': {'pt': 'Um instante', 'en': 'One moment'},
   'translated': {'pt': 'Traduzida', 'en': 'Translated'},
+  'notUnderstood': {
+    'pt': 'Não entendi — traduzam de novo esse pedaço',
+    'en': 'I didn\'t catch that — translate that piece again',
+  },
 };
 
 String retroLabelFor(String control, String language) =>
@@ -260,3 +267,33 @@ const codigoLabels = {
 
 String codigoLabelFor(String control, String language) =>
     codigoLabels[control]![language] ?? codigoLabels[control]![floorLanguage]!;
+
+const momentLabels = {
+  MomentAt.familiarization: {
+    'pt': 'Familiarização · a passagem inteira',
+    'en': 'Familiarization · the whole passage',
+  },
+  MomentAt.internalization: {
+    'pt': 'Internalização · cena {n} de {k}',
+    'en': 'Internalization · scene {n} of {k}',
+  },
+  MomentAt.articulation: {
+    'pt': 'Articulação · cena {n} de {k}',
+    'en': 'Articulation · scene {n} of {k}',
+  },
+  MomentAt.ensaioFinal: {
+    'pt': 'Ensaio Final · a passagem inteira',
+    'en': 'Final Rehearsal · the whole passage',
+  },
+};
+
+const momentAria = {'pt': 'Momento da sessão', 'en': 'Session moment'};
+
+String momentLabelFor(Moment moment, String language) =>
+    (momentLabels[moment.at]![language] ??
+            momentLabels[moment.at]![floorLanguage]!)
+        .replaceAll('{n}', '${moment.part}')
+        .replaceAll('{k}', '${moment.parts}');
+
+String momentAriaFor(String language) =>
+    momentAria[language] ?? momentAria[floorLanguage]!;

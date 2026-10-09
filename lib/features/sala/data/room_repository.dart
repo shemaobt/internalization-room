@@ -11,6 +11,7 @@ import '../domain/approval_answer.dart';
 import '../domain/bt_finding.dart';
 import '../domain/coverage.dart';
 import '../domain/coverage_event.dart';
+import '../domain/cut_point.dart';
 import '../domain/device_link.dart';
 import '../domain/escuta_das_partes.dart';
 import '../domain/passagem.dart';
@@ -35,7 +36,8 @@ const _defaultStateTimeout = Duration(seconds: 20);
 class RoomRepository {
   static const turnTimeout = _turnTimeout;
 
-  final http.Client _client;
+  final http.Client client;
+  late final http.Client _client = KeepsTheRequest(client);
   final bool _ownsClient;
   final Future<String> Function() _deviceId;
   final Duration _stateTimeout;
@@ -45,11 +47,11 @@ class RoomRepository {
     http.Client? client,
     Future<String> Function()? deviceId,
     this._stateTimeout = _defaultStateTimeout,
-  }) : _client = client ?? http.Client(),
+  }) : client = client ?? http.Client(),
        _ownsClient = client == null,
        _deviceId = deviceId ?? deviceIdentity;
 
-  http.Client get client => _client;
+  Stream<String?> get revoked => _room.revoked;
 
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
@@ -61,10 +63,11 @@ class RoomRepository {
   /// One builder rather than nine here and five written out by hand at the call sites:
   /// a header each site spells for itself is a header the next site forgets, and the
   /// omission only ever shows against a real server.
-  Map<String, String> get _whoWeAre => {
-    'X-Room-Key': Env.roomKey,
-    'X-Device-Credential': ?_credential,
-  };
+  Map<String, String> get _whoWeAre => {deviceCredentialHeader: ?_credential};
+
+  /// The claim doors open to anyone: a tablet that belongs to no team yet has nothing to
+  /// present, and the code is only worth what a facilitator spends on it.
+  static const _claimHeaders = {'Content-Type': 'application/json'};
 
   String? _credential;
 
@@ -77,8 +80,10 @@ class RoomRepository {
   /// The one and only copy of this tablet's credential, drawn once for the device id the
   /// claim code was minted for.
   Future<RoomAnswer<String>> collectTheCredential(String deviceId) => _room.ask(
-    () =>
-        _client.post(_uri('/devices/$deviceId/credential'), headers: _headers),
+    () => _client.post(
+      _uri('/devices/$deviceId/credential'),
+      headers: _claimHeaders,
+    ),
     timeout: _stateTimeout,
     read: readJson((json) => json['credential'] as String),
     asksForTheSession: false,
@@ -91,7 +96,7 @@ class RoomRepository {
   Future<RoomAnswer<ClaimCode>> askForACode(String? deviceId) => _room.ask(
     () => _client.post(
       _uri('/devices/code'),
-      headers: _headers,
+      headers: _claimHeaders,
       body: jsonEncode({'device_id': ?deviceId}),
     ),
     timeout: _stateTimeout,
@@ -100,7 +105,7 @@ class RoomRepository {
   );
 
   Future<RoomAnswer<TeamLink?>> readTheLink(String deviceId) => _room.ask(
-    () => _client.get(_uri('/devices/$deviceId/link'), headers: _headers),
+    () => _client.get(_uri('/devices/$deviceId/link'), headers: _claimHeaders),
     timeout: _stateTimeout,
     read: readJson(TeamLink.fromJson),
     asksForTheSession: false,
@@ -271,6 +276,7 @@ class RoomRepository {
     File audio, {
     required String turnId,
     String? clientTiming,
+    CutPoint? cut,
   }) async {
     final request =
         http.MultipartRequest('POST', _uri('/sessions/$sessionId/turns'))
@@ -278,6 +284,14 @@ class RoomRepository {
           ..fields['turn_id'] = turnId
           ..files.add(await http.MultipartFile.fromPath('file', audio.path));
     if (clientTiming != null) request.fields['client_timing'] = clientTiming;
+    if (cut != null) {
+      request.fields['interrupted'] = 'true';
+      request.fields['interrupted_at_ms'] = '${cut.at.inMilliseconds}';
+      final of = cut.of;
+      if (of != null) {
+        request.fields['interrupted_of_ms'] = '${of.inMilliseconds}';
+      }
+    }
     return _room.askStreamed(
       request,
       timeout: _turnTimeout,
@@ -476,6 +490,19 @@ class RoomRepository {
     asksForTheSession: true,
   );
 
+  Future<RoomAnswer<String>> fixedLineAddress(
+    String line, {
+    required String language,
+  }) => _room.ask(
+    () => _client.get(
+      _uri('/fixed-lines/$line?language=$language'),
+      headers: _headers,
+    ),
+    timeout: _stateTimeout,
+    read: readJson((json) => json['audio_url'] as String),
+    asksForTheSession: false,
+  );
+
   Future<RoomAnswer<Uint8List>> fetchClip(String url) => _room.ask(
     () => _client.get(Uri.parse('${Env.backendUrl}$url'), headers: _whoWeAre),
     timeout: _longCallTimeout,
@@ -500,7 +527,8 @@ class RoomRepository {
   }
 
   void dispose() {
-    if (_ownsClient) _client.close();
+    _room.close();
+    if (_ownsClient) client.close();
   }
 }
 

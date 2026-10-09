@@ -84,7 +84,7 @@ Future<ProviderContainer> entrarNaTraducao(
     notifier.ensaioTap();
     await tester.pump(const Duration(milliseconds: 100));
     notifier.takeKeep();
-    await letTheRehearsalReachTheRoom(tester);
+    await theRoomNamesTheParts(tester, container, parts: gravada + 1);
   }
   notifier.startRetro();
   await tester.pump(const Duration(milliseconds: 300));
@@ -112,7 +112,8 @@ const _volta = [Duration(seconds: 2)];
 void main() {
   testWidgets('B1 — a tradução entra tocando, com uma conta pendente e sem '
       'corda', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.takeLandsAfter = const Duration(seconds: 1);
     final container = await entrarNaTraducao(tester, harness);
 
     expect(
@@ -341,7 +342,8 @@ void main() {
 
   testWidgets('B7 — o trecho não contado que o veredito nomeia vai pelo V '
       'como substituição', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.takeLandsAfter = const Duration(seconds: 1);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     final gravacao = harness.room.takeIds.first;
 
@@ -1076,7 +1078,7 @@ void main() {
     harness.room.loseTheNextReplaceAnswerAndLandItLaterWith =
         const NetworkFailed('timeout');
     await confirmarEEsperar(tester);
-    harness.room.replaceCaptured = false;
+    harness.room.failReplaceWith = const Refused('BAD_REQUEST');
     await aSalaVolta(tester);
     expect(
       container.read(salaSessionProvider).btTraducaoPendente,
@@ -1085,7 +1087,7 @@ void main() {
     );
 
     harness.room
-      ..replaceCaptured = true
+      ..failReplaceWith = null
       ..landTheLostReplace();
     await confirmarEEsperar(tester);
 

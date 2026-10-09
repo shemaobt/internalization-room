@@ -7,24 +7,24 @@ import '../data/device_link_notifier.dart';
 import '../data/mic_permission.dart';
 import '../data/screen_awake.dart';
 import '../data/session_notifier.dart';
-import '../data/take_upload_queue.dart';
 import '../domain/facilitator_script.dart';
 import '../domain/session_state.dart';
 import '../dev/dev_skip_bar.dart';
 import 'widgets/codigo_view.dart';
 import 'widgets/colar_overlay.dart';
 import 'widgets/conversa_view.dart';
-import 'widgets/convite_view.dart';
+import 'widgets/panorama_view.dart';
 import 'widgets/ensaio_view.dart';
 import 'widgets/escolha_view.dart';
 import 'widgets/hand_button.dart';
 import 'widgets/hear_again_button.dart';
+import 'widgets/back_to_passage_button.dart';
 import 'widgets/leave_passage_button.dart';
 import 'widgets/mic_gate_view.dart';
 import 'widgets/retro_view.dart';
 
 class SalaScreen extends ConsumerStatefulWidget {
-  /// Whether the build carries an address and a key at all.
+  /// Whether the build carries an address at all.
   final bool built;
 
   const SalaScreen({super.key, this.built = true});
@@ -48,16 +48,21 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
         ref.read(salaSessionProvider.notifier).haltForABrokenBuild();
         return;
       }
-      unawaited(
-        ref
-            .read(takeUploadQueueProvider)
-            .flush()
-            .then(
-              (_) => ref.read(salaSessionProvider.notifier).refreshUnsent(),
-            ),
-      );
-      unawaited(ref.read(deviceLinkProvider.notifier).findTheTeam());
+      unawaited(_findTheTeam());
     });
+  }
+
+  Future<void> _findTheTeam() async {
+    await ref.read(deviceLinkProvider.notifier).findTheTeam();
+    if (!mounted) return;
+    await ref.read(salaSessionProvider.notifier).refreshUnsent();
+  }
+
+  /// The room the tablet was in belonged to the link the Desk just took back. Built
+  /// afresh, the next link opens it the way a first launch does.
+  void _closeTheRoom() {
+    _roomOpened = false;
+    ref.invalidate(salaSessionProvider);
   }
 
   @override
@@ -90,6 +95,9 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
     final session = ref.watch(salaSessionProvider);
     final mic = ref.watch(micPermissionProvider);
     final link = ref.watch(deviceLinkProvider);
+    ref.listen(deviceLinkProvider, (was, now) {
+      if ((was?.linked ?? false) && !now.linked) _closeTheRoom();
+    });
 
     if (!link.linked) {
       return Scaffold(
@@ -136,6 +144,7 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
             const _HandLayer(),
             const HearAgainButton(),
             const LeavePassageButton(),
+            const BackToPassageButton(),
             const DevSkipBar(),
           ],
         ),
@@ -145,8 +154,8 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
 
   Widget _stageView(SalaStage stage) {
     switch (stage) {
-      case SalaStage.convite:
-        return const ConviteView();
+      case SalaStage.panorama:
+        return const PanoramaView();
       case SalaStage.escolha:
         return const EscolhaView();
       case SalaStage.conversa:
@@ -188,13 +197,12 @@ class _ColarLayer extends ConsumerWidget {
   }
 }
 
-/// The hand lives outside the switcher, so raising it once during the convite carries
-/// through into the conversa without a second copy flashing up beside it while the two
+/// The hand lives outside the switcher, so no second copy flashes up beside it while two
 /// screens cross-fade.
 class _HandLayer extends ConsumerWidget {
   const _HandLayer();
 
-  static const _inside = {SalaStage.convite, SalaStage.conversa};
+  static const _inside = {SalaStage.panorama, SalaStage.conversa};
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
