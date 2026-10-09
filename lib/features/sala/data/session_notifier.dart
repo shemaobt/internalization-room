@@ -1086,11 +1086,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   bool get _watchIsWanted =>
       !((state.halt is NoHalt && !ref.read(watchesWithoutAHaltProvider)) ||
-          state.sessionId == null);
+          _sessionId == null);
 
   bool get _roomIsReachable => state.machine.reachable;
 
-  String? get _sessionId => state.sessionId;
+  String? get _sessionId =>
+      state.station is Panorama ? _panoramaSessionId : state.sessionId;
 
   void _letTheOpeningGo() {
     _openingOwed = false;
@@ -1494,7 +1495,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _resolveWithPerson() {
     if (!state.needsPerson && !state.offline) return;
     final wasOut = state.unreachable;
-    _dispatch(LongPress(somebodyToAsk: state.sessionId != null && !wasOut));
+    _dispatch(LongPress(somebodyToAsk: _sessionId != null && !wasOut));
     if (!state.needsPerson && wasOut) _releaseTheReach();
   }
 

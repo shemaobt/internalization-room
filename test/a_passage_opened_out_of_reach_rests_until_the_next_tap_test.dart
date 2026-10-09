@@ -354,6 +354,77 @@ void main() {
     },
   );
 
+  Future<String> aHaltInThePanoramaCalledFor(_Sala sala) async {
+    final harness = sala.harness;
+    unawaited(sala.notifier.abrirEscolha());
+    await _theChoiceOffers(sala, (entry) => entry.isPanorama);
+    sala.notifier.entrarNaOferecida();
+    await _until(
+      sala,
+      'the Panorama to be said',
+      () => _read(sala).panoramaSaid && _read(sala).voice == VoiceState.invite,
+    );
+    harness.room.reachable = false;
+    harness.network.reachable = false;
+    sala.notifier.panoramaTap();
+    await sala.tester.pump(const Duration(milliseconds: 100));
+    sala.notifier.panoramaTap();
+    await _until(sala, 'the person sign', () => _read(sala).needsPerson);
+    harness.room.reachable = true;
+    harness.network.reachable = true;
+    await _until(
+      sala,
+      'the call for a person',
+      () =>
+          harness.room.personAsksFor.isNotEmpty ||
+          harness.room.deviceAsksReceived.isNotEmpty,
+    );
+    return harness.room.sessionIds.single;
+  }
+
+  testWidgets(
+    'a halt in the Panorama calls for a person by the Panorama\'s session, and '
+    'the Desk\'s lift on that session clears it',
+    (tester) async {
+      final sala = await _theSala(
+        tester,
+        SalaHarness()..room.passages = _aBookWithItsPanorama,
+      );
+      final panorama = await aHaltInThePanoramaCalledFor(sala);
+
+      expect(sala.harness.room.personAsksFor, [panorama]);
+      expect(sala.harness.room.deviceAsksReceived, isEmpty);
+
+      sala.harness.room.theDeskAttended();
+      await _until(
+        sala,
+        'the Desk\'s lift to reach the tablet',
+        () => !_read(sala).needsPerson,
+      );
+      expect(sala.harness.room.deviceAsksReceived, isEmpty);
+      closeTheRoom(sala.container);
+    },
+  );
+
+  testWidgets(
+    'a long press over a halt in the Panorama tells the Panorama\'s session a '
+    'person arrived',
+    (tester) async {
+      final sala = await _theSala(
+        tester,
+        SalaHarness()..room.passages = _aBookWithItsPanorama,
+      );
+      final panorama = await aHaltInThePanoramaCalledFor(sala);
+      await _wait(sala);
+
+      sala.notifier.resolveWithPerson();
+      await _wait(sala);
+
+      expect(sala.harness.room.personArrivedSessions, [panorama]);
+      closeTheRoom(sala.container);
+    },
+  );
+
   testWidgets(
     'a turn without network on a live session still shows the person sign',
     (tester) async {
