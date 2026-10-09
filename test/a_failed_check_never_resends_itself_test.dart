@@ -209,4 +209,28 @@ void main() {
       () => check.harness.network.checks > probes,
     );
   });
+
+  test('7: a finish the advance button sends while the check rests lands, '
+      'leaves the room reachable and speaks the verdict', () async {
+    final check = await _readyForTheVerdict(SalaHarness());
+    check.harness.room.failFinishWith = _a502;
+    await check.sala.finishBackTranslation();
+    await check.resting('depois do 502');
+    check.harness.room.failFinishWith = null;
+
+    await check.sala.finishBackTranslation();
+    await waitFor(
+      'o veredito pousar',
+      () => check.harness.room.playedByTakeSent.isNotEmpty,
+    );
+    await waitFor(
+      'a sala sair do pensamento',
+      () => check.estado.btPhase != BtPhase.thinking,
+    );
+    await settle(_aWhile);
+
+    expect(check.harness.room.playedByTakeSent, hasLength(1));
+    expect(check.estado.unreachable, isFalse);
+    expect(check.estado.offline, isFalse);
+  });
 }

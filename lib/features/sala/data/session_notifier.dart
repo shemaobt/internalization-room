@@ -4862,6 +4862,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _finishBackTranslation() async {
     if (!state.canFinishBackTranslation) return;
+    if (state.machine.theVerdictWaitsForTheTap) {
+      _retryNow();
+      return;
+    }
     _dispatch(const TheVerdictAsked());
     _silenceTheRoom();
     final sessionId = state.sessionId;
