@@ -44,6 +44,7 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
   String? _deviceId;
   String? _credential;
   int _failures = 0;
+  int _forgets = 0;
   bool _closed = false;
 
   RoomRepository get _room => ref.read(roomRepositoryProvider);
@@ -110,6 +111,7 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     // outlives both.
     final ledger = _ledger;
     final current = _currentSession;
+    final forgets = _forgets;
     final String credential;
     switch (await _room.collectTheCredential(deviceId)) {
       case Answered(value: final collected):
@@ -136,7 +138,7 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     // again and is answered 403), and never drawn a second time from here on — asking
     // again over a write the vault merely could not finish yet would draw that same 403
     // for a credential that is not actually lost.
-    await _keepCredential(ledger, credential, deviceId);
+    await _keepCredential(ledger, credential, deviceId, forgets);
     if (_closed) return;
     _failures = 0;
     await _present(credential);
@@ -148,11 +150,15 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     LinkedTeam ledger,
     String credential,
     String deviceId,
+    int forgets,
   ) async {
     try {
       await ledger.rememberCredential(credential, forDevice: deviceId);
     } on VaultUnavailable {
-      _tryAgainLater(() => _keepCredential(ledger, credential, deviceId));
+      if (_forgets != forgets) return;
+      _tryAgainLater(
+        () => _keepCredential(ledger, credential, deviceId, forgets),
+      );
     }
   }
 
@@ -170,6 +176,7 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     CurrentSessionLedger current,
   ) async {
     _deviceId = null;
+    _forgets++;
     await ledger.forgetTheLink();
     await current.letGo().catchError((_) {});
     if (_closed) return;

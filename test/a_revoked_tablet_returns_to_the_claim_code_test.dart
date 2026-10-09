@@ -13,6 +13,7 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
+import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/escolha_view.dart';
@@ -26,6 +27,15 @@ const _linked = RememberedLink(
   team: TeamLink(projectId: 'equipe-1'),
   credential: 'credencial-1',
 );
+
+const _bookWithPanorama = [
+  Passagem(
+    pericope: 'panorama',
+    audioUrl: '/voice/panorama',
+    kind: PassagemKind.panorama,
+  ),
+  Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+];
 
 const _revoked = Refused(RefusalCode.deviceRevoked);
 
@@ -314,6 +324,162 @@ void main() {
       reason:
           'a sala que parou na revogação é a do vínculo de antes; revinculado, '
           'o tablet volta a trabalhar sem ninguém precisar reabrir o app',
+    );
+  });
+
+  testWidgets(
+    'a session open answered after the Desk unlinks the tablet never takes the '
+    "new room's Current session",
+    (tester) async {
+      final currentSession = FakeCurrentSessionLedger();
+      final harness = SalaHarness(
+        linkedAs: _linked,
+        linkPoll: const Duration(milliseconds: 50),
+        currentSession: currentSession,
+      );
+      final container = await pumpSala(tester, harness);
+      await tester.pump(const Duration(milliseconds: 300));
+      final notifier = container.read(salaSessionProvider.notifier);
+      expect(container.read(salaSessionProvider).oferecida, isNotNull);
+
+      harness.room.holdNextCreate();
+      notifier.entrarNaOferecida();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(harness.room.createHeld, isTrue);
+
+      harness.room.failWith = _revoked;
+      await notifier.abrirEscolha();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(find.byType(CodigoView), findsOneWidget);
+      harness.room
+        ..failWith = null
+        ..linkedTo = const TeamLink(projectId: 'equipe-2');
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byType(EscolhaView), findsOneWidget);
+
+      notifier.entrarNaOferecida();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(currentSession.held?.sessionId, 'sessao-1');
+
+      harness.room.finishHeldCreate();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        currentSession.held?.sessionId,
+        'sessao-1',
+        reason:
+            'a abertura que voltou depois do desvínculo era da equipe de antes '
+            '(ADR 0064); guardá-la tomaria o lugar da sessão da sala nova e o '
+            'próximo lançamento entraria numa passagem que ninguém abriu',
+      );
+    },
+  );
+
+  testWidgets('a relinked tablet opens the Choice with its passages on the '
+      'first try', (tester) async {
+    final harness = SalaHarness(
+      linkedAs: _linked,
+      linkPoll: const Duration(milliseconds: 50),
+    );
+    final container = await pumpSala(tester, harness);
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byType(EscolhaView), findsOneWidget);
+
+    harness.room.failWith = _revoked;
+    await container.read(salaSessionProvider.notifier).abrirEscolha();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byType(CodigoView), findsOneWidget);
+
+    final asked = harness.room.calls
+        .where((call) => call == 'passagesOf')
+        .length;
+    harness.room
+      ..failWith = null
+      ..linkedTo = const TeamLink(projectId: 'equipe-2');
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      harness.room.calls.where((call) => call == 'passagesOf').length,
+      greaterThan(asked),
+    );
+    expect(
+      container.read(salaSessionProvider).naRoda,
+      harness.room.passages,
+      reason:
+          'a resposta das passagens é do novo vínculo; tratada como a da sala '
+          'de antes, a Escolha fica mudando «Tocar para procurar as passagens»',
+    );
+  });
+
+  testWidgets('a relink while the Choice still waits on its passages opens the '
+      'Choice with them', (tester) async {
+    final harness = SalaHarness(
+      linkedAs: _linked,
+      linkPoll: const Duration(milliseconds: 50),
+    );
+    harness.room.holdNextPassages();
+    final container = await pumpSala(tester, harness);
+    await tester.pump(const Duration(milliseconds: 200));
+
+    harness.room.failWith = _revoked;
+    await container.read(salaSessionProvider.notifier).abrirEscolha();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byType(CodigoView), findsOneWidget);
+    harness.room
+      ..failWith = null
+      ..linkedTo = const TeamLink(projectId: 'equipe-2');
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 300));
+    harness.room.finishHeldPassages();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      container.read(salaSessionProvider).naRoda,
+      harness.room.passages,
+      reason:
+          'o lançamento do vínculo de antes ainda estava a caminho; a sala '
+          'nova espera por ele e a Escolha fica mudando «Tocar para procurar '
+          'as passagens»',
+    );
+  });
+
+  testWidgets('a relinked tablet entering the Panorama opens a new session '
+      'instead of the old link\'s', (tester) async {
+    final harness = SalaHarness(
+      linkedAs: _linked,
+      linkPoll: const Duration(milliseconds: 50),
+    )..room.passages = _bookWithPanorama;
+    final container = await pumpSala(tester, harness);
+    await tester.pump(const Duration(milliseconds: 300));
+    final notifier = container.read(salaSessionProvider.notifier);
+    notifier.apontarPassagem(0);
+    await tester.pump(const Duration(milliseconds: 300));
+    notifier.entrarNaOferecida();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(harness.room.sessionIds, ['sessao-1']);
+
+    harness.room.failWith = _revoked;
+    await notifier.abrirEscolha();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byType(CodigoView), findsOneWidget);
+    harness.room
+      ..failWith = null
+      ..linkedTo = const TeamLink(projectId: 'equipe-2');
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 300));
+    notifier.apontarPassagem(0);
+    await tester.pump(const Duration(milliseconds: 300));
+    notifier.entrarNaOferecida();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      harness.room.sessionIds,
+      ['sessao-1', 'sessao-2'],
+      reason:
+          'a sessão do Panorama era do vínculo de antes; reaproveitá-la manda '
+          'as falas da equipe nova para a equipe antiga',
     );
   });
 }
