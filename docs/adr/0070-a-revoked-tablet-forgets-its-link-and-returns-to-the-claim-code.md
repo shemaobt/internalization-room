@@ -28,9 +28,14 @@ refusal pass by their own rule, and some still decide their failures outside the
 policy, so a per-door route would leave a revoked tablet working until the one door that
 noticed.
 
-A take refused because the tablet was turned away, revoked or unauthorized, is not given
-up: the flush stops and the take waits for the next link. The takes queued from an
-earlier launch leave only after the credential is presented.
+A revocation counts only for the credential the refused request carried: an answer to a
+request sent before a relink speaks of a credential the tablet no longer presents.
+
+The link opens the room only once its credential is presented, and every presentation of
+a credential — at launch, after a late collect, after a relink — sends the takes that
+waited for it. A take refused because the tablet was turned away is not given up: the
+flush stops, and the take leaves with the next flush; after a revocation that is the
+next link, after a plain 401 (the link is kept) the next flush of any kind.
 
 ## Considered Options
 
@@ -43,6 +48,4 @@ earlier launch leave only after the credential is presented.
 ## Consequences
 
 - A tablet that never collected a credential cannot reach the room after this change: it
-  is linked again from the Desk.
-- Disposing the session notifier must not read its own state: the screen rebuilds it on a
-  revocation, and a read during that rebuild builds it again inside its own disposal.
+  is linked from the Desk before it opens a session.
