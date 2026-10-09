@@ -13,6 +13,7 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
+import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/escolha_view.dart';
@@ -26,6 +27,15 @@ const _linked = RememberedLink(
   team: TeamLink(projectId: 'equipe-1'),
   credential: 'credencial-1',
 );
+
+const _bookWithPanorama = [
+  Passagem(
+    pericope: 'panorama',
+    audioUrl: '/voice/panorama',
+    kind: PassagemKind.panorama,
+  ),
+  Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+];
 
 const _revoked = Refused(RefusalCode.deviceRevoked);
 
@@ -400,6 +410,76 @@ void main() {
       reason:
           'a resposta das passagens é do novo vínculo; tratada como a da sala '
           'de antes, a Escolha fica mudando «Tocar para procurar as passagens»',
+    );
+  });
+
+  testWidgets('a relink while the Choice still waits on its passages opens the '
+      'Choice with them', (tester) async {
+    final harness = SalaHarness(
+      linkedAs: _linked,
+      linkPoll: const Duration(milliseconds: 50),
+    );
+    harness.room.holdNextPassages();
+    final container = await pumpSala(tester, harness);
+    await tester.pump(const Duration(milliseconds: 200));
+
+    harness.room.failWith = _revoked;
+    await container.read(salaSessionProvider.notifier).abrirEscolha();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byType(CodigoView), findsOneWidget);
+    harness.room
+      ..failWith = null
+      ..linkedTo = const TeamLink(projectId: 'equipe-2');
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 300));
+    harness.room.finishHeldPassages();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      container.read(salaSessionProvider).naRoda,
+      harness.room.passages,
+      reason:
+          'o lançamento do vínculo de antes ainda estava a caminho; a sala '
+          'nova espera por ele e a Escolha fica mudando «Tocar para procurar '
+          'as passagens»',
+    );
+  });
+
+  testWidgets('a relinked tablet entering the Panorama opens a new session '
+      'instead of the old link\'s', (tester) async {
+    final harness = SalaHarness(
+      linkedAs: _linked,
+      linkPoll: const Duration(milliseconds: 50),
+    )..room.passages = _bookWithPanorama;
+    final container = await pumpSala(tester, harness);
+    await tester.pump(const Duration(milliseconds: 300));
+    final notifier = container.read(salaSessionProvider.notifier);
+    notifier.apontarPassagem(0);
+    await tester.pump(const Duration(milliseconds: 300));
+    notifier.entrarNaOferecida();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(harness.room.sessionIds, ['sessao-1']);
+
+    harness.room.failWith = _revoked;
+    await notifier.abrirEscolha();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byType(CodigoView), findsOneWidget);
+    harness.room
+      ..failWith = null
+      ..linkedTo = const TeamLink(projectId: 'equipe-2');
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 300));
+    notifier.apontarPassagem(0);
+    await tester.pump(const Duration(milliseconds: 300));
+    notifier.entrarNaOferecida();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      harness.room.sessionIds,
+      ['sessao-1', 'sessao-2'],
+      reason:
+          'a sessão do Panorama era do vínculo de antes; reaproveitá-la manda '
+          'as falas da equipe nova para a equipe antiga',
     );
   });
 }

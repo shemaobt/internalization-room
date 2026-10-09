@@ -360,6 +360,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   @override
   SalaSessionState build() {
     _gone = false;
+    _launching = null;
+    _panoramaSessionId = null;
     listenSelf((_, now) {
       _highestGeneration = max(_highestGeneration, now.machine.generation);
     });
