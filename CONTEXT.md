@@ -118,7 +118,7 @@ A line, spontaneous or the answer to a gesture, that arrived while the Channel w
 _Avoid_: pending line, interrupted line
 
 **Interruption**:
-The team's tap on the circle while the Guide speaks in the Conversation. It stops her and opens the microphone, and the next turn sent tells the room where she was cut: how far into the line (`at`) and how long the line was (`of`, when the tablet knows it). A take too short to keep, or none, tells nothing. The cut line counts as heard, and «Ouvir de novo» says it whole (ADR 0067). A second tap within the capture guard's 700 ms after the cut cancels the capture: nothing is sent and the circle rests.
+The team's tap on the circle while the Guide speaks in the Conversation. It stops her and opens the microphone, and the next turn sent tells the room where she was cut: how far into the line (`at`) and how long the line was (`of`, when the tablet knows it). A take too short to keep, or none, tells nothing. The cut line counts as heard, and «Ouvir de novo» says it whole (ADR 0067).
 _Avoid_: barge-in, interrupted line (a **Queued line** is not cut)
 
 ### What is recorded and told
@@ -138,6 +138,9 @@ _Avoid_: roda, passage list, carousel, choice (the station that shows it)
 **Take**:
 A recording the team kept, identified locally by its scope (part or whole passage) and, after upload, by the server's identifier.
 _Avoid_: gravação, recording (too general), audio
+
+**Capture guard**:
+The short window after a Conversation take opens in which the team's next tap on the circle cancels the take instead of ending it: nothing is sent, the take is discarded on the tablet and the circle rests. A tap after the window ends the take and sends it. This also covers the take an Interruption opens.
 
 **Mother tongue**:
 The team's language, in which the passage is recorded in the Conversation and the Rehearsal, and which nobody in the room needs to understand.

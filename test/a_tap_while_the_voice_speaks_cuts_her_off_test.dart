@@ -76,8 +76,11 @@ Future<_Room> _inConversa({SalaHarness? harness}) async {
 
 /// In the Conversation after an Opening said in two movements, so the line «Ouvir de
 /// novo» holds before any turn is the Scene, never the reply's own url.
-Future<_Room> _afterATwoMovementOpening() async {
-  final harness = SalaHarness()..room.opensInTwoMovements = true;
+Future<_Room> _afterATwoMovementOpening({CaptureGuard? guard}) async {
+  final harness = guard == null
+      ? SalaHarness()
+      : SalaHarness(captureGuard: guard);
+  harness.room.opensInTwoMovements = true;
   final room = await _inConversa(harness: harness);
   harness.room.opensInTwoMovements = false;
   expect(room.state.lastSpoken?.url, sceneUrl);
@@ -269,7 +272,9 @@ void main() {
       () async {
         await secondTapAfter(
           const Duration(milliseconds: 500),
-          on: await _afterATwoMovementOpening(),
+          on: await _afterATwoMovementOpening(
+            guard: const CaptureGuard(minBytes: 1),
+          ),
           (room) async {
             await room.tap();
 
