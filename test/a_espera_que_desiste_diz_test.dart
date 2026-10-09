@@ -32,40 +32,58 @@ void main() {
     },
   );
 
-  testWidgets(
-    'a wait for the parts that runs out fails at the wait, naming the parts it '
-    'waited for',
-    (tester) async {
-      final harness = SalaHarness(filaEmMemoria: true)
-        ..room.takeLandsAfter = const Duration(seconds: 1);
-      final container = await pumpSala(tester, harness);
-      final notifier = container.read(salaSessionProvider.notifier);
-      await notifier.goConversa();
-      await tester.pump(const Duration(milliseconds: 200));
-      notifier.goEnsaio();
-      await tester.pump(const Duration(milliseconds: 100));
-      await gravarUmaParte(tester, notifier);
+  test(
+    'a wait that steps the room is counted in room time, not on the clock',
+    () async {
+      var steps = 0;
+
+      await waitFor(
+        'a sala responder',
+        () => steps >= 3,
+        limit: const Duration(milliseconds: 300),
+        step: () async {
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+          steps++;
+        },
+      );
+
+      expect(
+        steps,
+        3,
+        reason:
+            'o passo lento gastava o relógio da espera antes de a sala ter '
+            'andado o que o teste pediu, e a carga da máquina virava timeout',
+      );
+    },
+  );
+
+  test(
+    'a wait that steps the room gives up after the room time it was given',
+    () async {
+      var steps = 0;
 
       await expectLater(
-        theRoomNamesTheParts(
-          tester,
-          container,
-          parts: 1,
-          limit: const Duration(milliseconds: 100),
+        waitFor(
+          'a sala responder',
+          () => false,
+          limit: const Duration(milliseconds: 300),
+          step: () async => steps++,
         ),
         throwsA(
           isA<TimeoutException>().having(
             (timeout) => timeout.message,
             'message',
-            allOf(contains('100ms'), contains('nomear as partes (1)')),
+            allOf(contains('300ms'), contains('a sala responder')),
           ),
         ),
-        reason:
-            'a espera que seguia sem a parte ter nome deixava o retro contar '
-            'um trecho sobre uma gravação sem nome, e o erro aparecia longe dali',
       );
-      await tester.pump(const Duration(seconds: 1));
-      closeTheRoom(container);
+
+      expect(
+        steps,
+        3,
+        reason:
+            'três passos de cem milissegundos são os trezentos que ela tinha',
+      );
     },
   );
 
