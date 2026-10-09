@@ -1344,9 +1344,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final turn = state.machine.inFlight;
     if (turn != null) return _giveUpOnTheTurn(turn, const RoomTimedOut());
     _cancelTimers();
+    if (_onAWayIn) return _theStepFell();
     _leaveThinking();
     _dispatch(FailurePolicy.decide(const RoomTimedOut(), _failureContext()));
   }
+
+  bool get _onAWayIn =>
+      _theSession == null &&
+      (state.station is Canvas || state.station is Panorama);
 
   void _giveUpOnTheTurn(Turn turn, RoomResult result) => _dispatch(
     FailurePolicy.decide(

@@ -22,6 +22,8 @@ class PanoramaView extends ConsumerWidget {
         reach: session.reach,
         semanticLabel: session.needsPerson
             ? circleLabelFor('needsPerson', language)
+            : session.offline
+            ? circleLabelFor('offline', language)
             : panoramaCircleLabelFor(language),
         onTap: notifier.panoramaTap,
         onLongPress: session.canResolveWithPerson
