@@ -51,3 +51,6 @@ never asked for, and the ticket's rule is that none is sent unasked.
 A Verdict lost to a real network outage now waits for the tap even after the radio comes
 back, which costs the team one gesture ADR 0050 had saved them. The circle already asks
 for it.
+
+While the Verdict rests, a part pending in the Outbox waits for the same tap, or for the
+team to leave the Retro: the room asks the server nothing on its own.
