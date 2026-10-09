@@ -10,7 +10,6 @@ import '../../domain/session_state.dart';
 import 'bead.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
-import 'moment_label.dart';
 import 'motion.dart';
 
 class ConversaView extends ConsumerWidget {
@@ -69,23 +68,6 @@ class ConversaView extends ConsumerWidget {
             ],
           ),
         ),
-        if (session.moment case final moment?)
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 18 + MediaQuery.viewPaddingOf(context).top,
-            child: Center(
-              child: AnimatedOpacity(
-                opacity: _momentOpacity(session),
-                duration: const Duration(milliseconds: 800),
-                child: MomentLabel(
-                  moment: moment,
-                  words: momentLabelFor(moment, language),
-                  language: language,
-                ),
-              ),
-            ),
-          ),
         if (session.handAck)
           Positioned(
             left: 0,
@@ -95,14 +77,6 @@ class ConversaView extends ConsumerWidget {
           ),
       ],
     );
-  }
-
-  double _momentOpacity(SalaSessionState session) {
-    if (session.needsPerson || session.noteMode) return 0;
-    return switch (session.voice) {
-      VoiceState.listening || VoiceState.thinking || VoiceState.speaking => 0.6,
-      _ => 1,
-    };
   }
 
   String _circleLabel(SalaSessionState session, String language) {
