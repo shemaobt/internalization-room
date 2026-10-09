@@ -51,16 +51,24 @@ Future<void> waitFor(
   String what,
   FutureOr<bool> Function() ready, {
   Duration limit = const Duration(seconds: 10),
+  Future<void> Function()? step,
 }) async {
+  const stepLength = Duration(milliseconds: 100);
   final deadline = DateTime.now().add(limit);
+  var stepped = Duration.zero;
   while (!await ready()) {
-    if (DateTime.now().isAfter(deadline)) {
+    if (step == null ? DateTime.now().isAfter(deadline) : stepped >= limit) {
       final waited = limit.inMilliseconds % 1000 == 0
           ? '${limit.inSeconds}s'
           : '${limit.inMilliseconds}ms';
       throw TimeoutException('esperei $waited e $what não aconteceu', limit);
     }
-    await Future<void>.delayed(const Duration(milliseconds: 5));
+    if (step == null) {
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+    } else {
+      await step();
+      stepped += stepLength;
+    }
   }
 }
 
@@ -2316,6 +2324,21 @@ Future<void> letTheRehearsalReachTheRoom(WidgetTester tester) async {
   );
   await tester.pump(const Duration(milliseconds: 100));
 }
+
+Future<void> theRoomNamesTheParts(
+  WidgetTester tester,
+  ProviderContainer container, {
+  required int parts,
+  Duration limit = const Duration(seconds: 10),
+}) => waitFor(
+  'a sala nomear as partes ($parts)',
+  () {
+    final kept = container.read(salaSessionProvider).partes;
+    return kept.length == parts && kept.every((part) => part.takeId != null);
+  },
+  limit: limit,
+  step: () => letTheRehearsalReachTheRoom(tester),
+);
 
 Future<void> theClipOpens(SalaHarness harness) =>
     waitFor('o clipe abrir', () => harness.playback.open);

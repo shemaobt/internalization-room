@@ -145,7 +145,7 @@ Future<ProviderContainer> _freshlyInRetro(
   notifier.ensaioTap();
   await tester.pump(const Duration(milliseconds: 100));
   notifier.takeKeep();
-  await letTheRehearsalReachTheRoom(tester);
+  await theRoomNamesTheParts(tester, container, parts: 1);
   notifier.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
   return container;
@@ -207,7 +207,8 @@ void main() {
     'T2: the circle says listen first when nothing has been heard since the '
     'cursor, and a tap leaves the state unchanged',
     (tester) async {
-      final harness = SalaHarness();
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..room.takeLandsAfter = const Duration(seconds: 1);
       final container = await _freshlyInRetro(tester, harness);
       SalaSessionState read() => container.read(salaSessionProvider);
 
@@ -238,7 +239,7 @@ void main() {
     'the circle stops saying listen first once the part has run past the '
     'cursor, with no gesture of its own',
     (tester) async {
-      final harness = SalaHarness();
+      final harness = SalaHarness(filaEmMemoria: true);
       final container = await _freshlyInRetro(tester, harness);
       expect(byLabel('Ouvir primeiro'), findsOneWidget);
 
@@ -318,7 +319,7 @@ void main() {
   });
 
   testWidgets('T5w: in english the circle says listen first', (tester) async {
-    final harness = SalaHarness(lingua: 'en');
+    final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
     final container = await _freshlyInRetro(tester, harness);
 
     expect(byLabel('Listen first'), findsOneWidget);
