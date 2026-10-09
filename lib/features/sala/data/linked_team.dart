@@ -109,7 +109,7 @@ class LinkedTeam {
   Future<RememberedLink> read() async {
     final onDisk = await _readFile();
     try {
-      final credential = await _credentialOf(onDisk);
+      final credential = await _credentialOfThisDevice(onDisk);
       if (onDisk.credential != null) {
         await _write(
           (was) => RememberedLink(deviceId: was.deviceId, team: was.team),
@@ -129,7 +129,7 @@ class LinkedTeam {
     }
   }
 
-  Future<String?> _credentialOf(RememberedLink onDisk) async {
+  Future<String?> _credentialOfThisDevice(RememberedLink onDisk) async {
     final credential = await _vault.read() ?? onDisk.credential;
     if (credential == null) return null;
     final deviceId = onDisk.deviceId;

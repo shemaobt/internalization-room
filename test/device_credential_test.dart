@@ -865,13 +865,13 @@ void main() {
 
   group('the credential belongs to the remembered link', () {
     Future<LinkedTeam> linkedAs(
-      String deviceId,
+      String? deviceId,
       FakeCredentialVault vault,
     ) async {
       final home = Directory.systemTemp.createTempSync('sala-par');
       addTearDown(() => home.deleteSync(recursive: true));
       final ledger = LinkedTeam(home: () async => home, vault: vault);
-      if (deviceId.isEmpty) return ledger;
+      if (deviceId == null) return ledger;
       await ledger.rememberDevice(deviceId);
       await ledger.rememberTeam(const TeamLink(projectId: 'equipe-terena'));
       return ledger;
@@ -886,8 +886,8 @@ void main() {
       'own after the link',
       () async {
         final vault = FakeCredentialVault();
-        await vault.keep('credencial-antiga', forDevice: 'e564bb2e');
-        final ledger = await linkedAs('', vault);
+        await vault.keep('credencial-antiga');
+        final ledger = await linkedAs(null, vault);
         final room = roomThatLinks();
         final container = _tablet(
           room: room,

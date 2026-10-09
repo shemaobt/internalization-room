@@ -63,8 +63,8 @@ class KeychainCredentialVault implements CredentialVault {
   @override
   Future<void> keep(String credential, {required String forDevice}) async {
     try {
-      await _storage.write(key: _keptForKey, value: forDevice);
       await _storage.write(key: _key, value: credential);
+      await _storage.write(key: _keptForKey, value: forDevice);
     } on Object {
       throw const VaultUnavailable();
     }

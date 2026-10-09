@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage_platform_interface/flutter_secure_storage_platform_interface.dart';
@@ -409,6 +410,37 @@ void main() {
       },
     );
 
+    test(
+      'a migration the Keychain refused halfway keeps the credential on the next '
+      'look',
+      () async {
+        final platform = _RecordingSecureStoragePlatform({})
+          ..refuseOnce.add('credencial-antiga');
+        FlutterSecureStoragePlatform.instance = platform;
+        final home = _tempHome();
+        await _ledgerFile(home).create(recursive: true);
+        await _ledgerFile(home).writeAsString(
+          jsonEncode({
+            'device_id': 'aparelho-1',
+            'project_id': 'equipe-terena',
+            'credential': 'credencial-antiga',
+          }),
+        );
+        final ledger = _ledger(home, KeychainCredentialVault());
+
+        expect((await ledger.read()).credentialUnavailable, isTrue);
+        await ledger.read();
+
+        expect(
+          (await _ledger(home, KeychainCredentialVault()).read()).credential,
+          'credencial-antiga',
+          reason:
+              'o servidor nunca entrega a credencial duas vezes; a migração que '
+              'apaga o arquivo sem tê-la no cofre perde a única cópia',
+        );
+      },
+    );
+
     test('case 9 — a vault that cannot keep does not draw a second credential '
         'from the server', () async {
       final home = _tempHome();
@@ -477,12 +509,16 @@ class _RecordingSecureStoragePlatform extends FlutterSecureStoragePlatform {
   final Map<String, Map<String, String>> writtenOptions;
   final Map<String, String> _data = {};
 
+  /// Values whose next write the Keychain refuses, once each.
+  final Set<String> refuseOnce = {};
+
   @override
   Future<void> write({
     required String key,
     required String value,
     required Map<String, String> options,
   }) async {
+    if (refuseOnce.remove(value)) throw PlatformException(code: 'refused');
     _data[key] = value;
     writtenOptions[value] = options;
   }
