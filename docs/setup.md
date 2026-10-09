@@ -7,8 +7,9 @@ What a fresh checkout needs before the room will run.
 Copy `.env.example` to `.env` and fill it in. `BACKEND_URL` addresses the room's backend —
 the simulator reaches it at `http://localhost:8000`, a physical iPhone needs the Mac's LAN
 address. Nothing else in it reaches the room: the tablet is known by the device credential
-it collects once a facilitator links it from the Desk. The file is gitignored and is bundled as an asset, so a
-release build carries whatever sat in the tree of whoever compiled it.
+it collects once a facilitator links it from the Desk. The file is gitignored and is
+bundled as an asset, so a release build carries whatever sat in the tree of whoever
+compiled it.
 
 ## Choosing a device
 
