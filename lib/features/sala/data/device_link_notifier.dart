@@ -4,8 +4,6 @@ import 'dart:math';
 import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/config/env.dart';
-import '../dev/dev_skip_bar.dart';
 import '../domain/device_link.dart';
 import 'credential_vault.dart';
 import 'current_session_ledger.dart';
@@ -74,10 +72,6 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
 
   /// Find out who this tablet belongs to, and keep asking until somebody says.
   Future<void> findTheTeam() async {
-    if (Env.devAtalhos || (ref.read(debugBuildProvider) && Env.devPularFases)) {
-      state = const DeviceLink(team: TeamLink(projectId: 'dev'));
-      return;
-    }
     final remembered = await _ledger.read();
     if (_closed) return;
     if (remembered.credentialUnavailable) {

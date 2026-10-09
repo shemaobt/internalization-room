@@ -247,32 +247,32 @@ void main() {
     );
   });
 
-  test(
-    'a debug build told to skip the phases is linked without asking the room',
-    () async {
+  testWidgets(
+    'a debug build with DEV_PULAR_FASES=1 runs the link and shows the shortcut bar',
+    (tester) async {
       _devEnv();
-      final harness = SalaHarness(linkedAs: _unclaimed);
-      final container = harness.container();
-      addTearDown(container.dispose);
-
-      await container.read(deviceLinkProvider.notifier).findTheTeam();
-      await settle();
-
-      expect(container.read(deviceLinkProvider).linked, isTrue);
-      expect(
-        harness.room.codesAskedFor,
-        isEmpty,
-        reason:
-            'sem isso a sala de desenvolvimento só abre depois que alguém vincula '
-            'o aparelho pela Mesa, que é justamente o que ainda não roda local',
+      final harness = SalaHarness(
+        linkedAs: _unclaimed,
+        linkPoll: const Duration(milliseconds: 50),
       );
+      await pumpSala(tester, harness);
+      await tester.pump(const Duration(milliseconds: 100));
+
       expect(
-        harness.vinculo.remembered.team,
-        isNull,
+        find.byType(CodigoView),
+        findsOneWidget,
         reason:
-            'um vínculo inventado gravado em disco sobrevive a desligar o '
-            'sinalizador, e o aparelho passa a mentir sobre a equipe para sempre',
+            'a sala só aceita a credencial do aparelho, e um build de debug que '
+            'pula o vínculo não tem nenhuma para mandar',
       );
+      expect(harness.room.codesAskedFor, isNotEmpty);
+
+      harness.room.linkedTo = const TeamLink(projectId: 'equipe-1');
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.byType(CodigoView), findsNothing);
+      expect(find.text('DEV'), findsOneWidget);
     },
   );
 
