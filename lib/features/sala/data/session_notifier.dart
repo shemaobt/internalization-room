@@ -354,8 +354,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// where nobody was looking.
   bool _gone = false;
 
+  int _highestGeneration = 0;
+  int _firstGeneration = 0;
+
   @override
   SalaSessionState build() {
+    _gone = false;
+    listenSelf((_, now) {
+      _highestGeneration = max(_highestGeneration, now.machine.generation);
+    });
     _runner = EffectRunner(
       room: ref.read(roomPortProvider),
       sound: ref.read(soundPortProvider),
@@ -371,6 +378,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       generation: () => _generation,
     );
     ref.onDispose(() {
+      _firstGeneration = _highestGeneration + 1;
       _gone = true;
       _cancelTimers();
       _runner.dispose();
@@ -390,7 +398,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           .sessionsGone
           .listen(_theSessionIsGone),
     );
-    return const SalaSessionState();
+    return SalaSessionState(machine: Machine(generation: _firstGeneration));
   }
 
   void sayTheMicIsBlocked() => unawaited(

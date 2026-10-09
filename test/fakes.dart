@@ -2145,6 +2145,20 @@ class FakeCredentialVault implements CredentialVault {
   bool unavailable = false;
   bool keepUnavailable = false;
 
+  Completer<bool>? _holdingKeep;
+  Completer<bool>? _heldKeep;
+
+  void holdNextKeep() => _holdingKeep = Completer<bool>();
+
+  bool get keepHeld => _heldKeep != null;
+
+  /// Lets the held `keep` go: written, or failing the way a Keychain that refuses
+  /// mid-write does.
+  void finishHeldKeep({bool unavailable = false}) {
+    _heldKeep?.complete(unavailable);
+    _heldKeep = null;
+  }
+
   @override
   Future<String?> read() async {
     if (unavailable) throw const VaultUnavailable();
@@ -2156,6 +2170,12 @@ class FakeCredentialVault implements CredentialVault {
   @override
   Future<void> keep(String credential, {String? forDevice}) async {
     if (unavailable || keepUnavailable) throw const VaultUnavailable();
+    final held = _holdingKeep;
+    _holdingKeep = null;
+    if (held != null) {
+      _heldKeep = held;
+      if (await held.future) throw const VaultUnavailable();
+    }
     _credential = credential;
     _keptFor = forDevice;
   }

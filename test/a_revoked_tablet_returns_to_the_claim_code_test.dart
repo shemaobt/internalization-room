@@ -316,4 +316,90 @@ void main() {
           'o tablet volta a trabalhar sem ninguém precisar reabrir o app',
     );
   });
+
+  testWidgets(
+    'a session open answered after the Desk unlinks the tablet never takes the '
+    "new room's Current session",
+    (tester) async {
+      final currentSession = FakeCurrentSessionLedger();
+      final harness = SalaHarness(
+        linkedAs: _linked,
+        linkPoll: const Duration(milliseconds: 50),
+        currentSession: currentSession,
+      );
+      final container = await pumpSala(tester, harness);
+      await tester.pump(const Duration(milliseconds: 300));
+      final notifier = container.read(salaSessionProvider.notifier);
+      expect(container.read(salaSessionProvider).oferecida, isNotNull);
+
+      harness.room.holdNextCreate();
+      notifier.entrarNaOferecida();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(harness.room.createHeld, isTrue);
+
+      harness.room.failWith = _revoked;
+      await notifier.abrirEscolha();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(find.byType(CodigoView), findsOneWidget);
+      harness.room
+        ..failWith = null
+        ..linkedTo = const TeamLink(projectId: 'equipe-2');
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byType(EscolhaView), findsOneWidget);
+
+      notifier.entrarNaOferecida();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(currentSession.held?.sessionId, 'sessao-1');
+
+      harness.room.finishHeldCreate();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        currentSession.held?.sessionId,
+        'sessao-1',
+        reason:
+            'a abertura que voltou depois do desvínculo era da equipe de antes '
+            '(ADR 0064); guardá-la tomaria o lugar da sessão da sala nova e o '
+            'próximo lançamento entraria numa passagem que ninguém abriu',
+      );
+    },
+  );
+
+  testWidgets('a relinked tablet opens the Choice with its passages on the '
+      'first try', (tester) async {
+    final harness = SalaHarness(
+      linkedAs: _linked,
+      linkPoll: const Duration(milliseconds: 50),
+    );
+    final container = await pumpSala(tester, harness);
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byType(EscolhaView), findsOneWidget);
+
+    harness.room.failWith = _revoked;
+    await container.read(salaSessionProvider.notifier).abrirEscolha();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byType(CodigoView), findsOneWidget);
+
+    final asked = harness.room.calls
+        .where((call) => call == 'passagesOf')
+        .length;
+    harness.room
+      ..failWith = null
+      ..linkedTo = const TeamLink(projectId: 'equipe-2');
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      harness.room.calls.where((call) => call == 'passagesOf').length,
+      greaterThan(asked),
+    );
+    expect(
+      container.read(salaSessionProvider).naRoda,
+      harness.room.passages,
+      reason:
+          'a resposta das passagens é do novo vínculo; tratada como a da sala '
+          'de antes, a Escolha fica mudando «Tocar para procurar as passagens»',
+    );
+  });
 }

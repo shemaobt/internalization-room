@@ -66,6 +66,7 @@ class LinkedTeam {
   final Future<Directory> Function() _home;
   final CredentialVault _vault;
   Future<void> _writes = Future<void>.value();
+  Future<void> _vaultTurns = Future<void>.value();
 
   LinkedTeam({Future<Directory> Function()? home, CredentialVault? vault})
     : _home = home ?? getApplicationSupportDirectory,
@@ -157,7 +158,7 @@ class LinkedTeam {
   Future<void> rememberCredential(
     String credential, {
     required String forDevice,
-  }) => _vault.keep(credential, forDevice: forDevice);
+  }) => _inVaultOrder(() => _vault.keep(credential, forDevice: forDevice));
 
   /// Everything this tablet knew about being itself, dropped in one write.
   ///
@@ -166,8 +167,18 @@ class LinkedTeam {
   /// vínculo it still believes in. The credential's copy lives in the vault now, so
   /// forgetting it is a second, separate erasure — not a line in the file's write.
   Future<void> forgetTheLink() async {
-    await _vault.forget();
     await _write((_) => const RememberedLink());
+    try {
+      await _inVaultOrder(_vault.forget);
+    } on VaultUnavailable {
+      return;
+    }
+  }
+
+  Future<void> _inVaultOrder(Future<void> Function() change) {
+    final next = _vaultTurns.then((_) => change());
+    _vaultTurns = next.then((_) {}, onError: (_) {});
+    return next;
   }
 
   /// Serialised, staged and flushed, like the other ledgers, and for their reason: a read
