@@ -1221,6 +1221,9 @@ class FakeRoom implements RoomRepository {
     'openClip',
   };
 
+  /// What the tablet presented as itself on each call, beside [calls].
+  final List<String?> presentedOnEachCall = [];
+
   final _revocations = StreamController<void>.broadcast();
 
   /// Announced for every call [failWith] turns down as revoked, the way the real
@@ -1231,6 +1234,7 @@ class FakeRoom implements RoomRepository {
 
   RoomFailure? _guard(String call) {
     calls.add(call);
+    presentedOnEachCall.add(presented);
     final failure = failWith;
     if (failure is SessionGone && _sessionless.contains(call)) {
       return const Refused(RefusalCode.notFound);

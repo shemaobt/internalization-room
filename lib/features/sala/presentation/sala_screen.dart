@@ -49,16 +49,21 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
         ref.read(salaSessionProvider.notifier).haltForABrokenBuild();
         return;
       }
-      unawaited(
-        ref
-            .read(takeUploadQueueProvider)
-            .flush()
-            .then(
-              (_) => ref.read(salaSessionProvider.notifier).refreshUnsent(),
-            ),
-      );
-      unawaited(ref.read(deviceLinkProvider.notifier).findTheTeam());
+      unawaited(_findTheTeamThenFlush());
     });
+  }
+
+  /// The takes queued from an earlier life leave only once the credential is presented:
+  /// the room refuses anything that does not carry it, and a refused take is given up.
+  Future<void> _findTheTeamThenFlush() async {
+    final link = ref.read(deviceLinkProvider.notifier);
+    await link.findTheTeam();
+    if (!mounted) return;
+    if (link.presentsTheCredential) {
+      await ref.read(takeUploadQueueProvider).flush();
+      if (!mounted) return;
+    }
+    await ref.read(salaSessionProvider.notifier).refreshUnsent();
   }
 
   /// The room the tablet was in belonged to the link the Desk just took back. Built

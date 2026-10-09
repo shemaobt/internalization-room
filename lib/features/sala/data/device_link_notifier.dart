@@ -69,6 +69,9 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     return const DeviceLink();
   }
 
+  /// Whether the room is hearing this tablet's credential on what it sends now.
+  bool get presentsTheCredential => _credential != null;
+
   /// Find out who this tablet belongs to, and keep asking until somebody says.
   Future<void> findTheTeam() async {
     if (Env.devAtalhos || (ref.read(debugBuildProvider) && Env.devPularFases)) {
