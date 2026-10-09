@@ -26,7 +26,8 @@ failure takes the room out of reach, says the offline notice once per outage, an
 nor the radio coming back asks for a probe, and a probe that fails climbs no ladder.
 
 **Only the team's tap asks again.** The tap probes the room; a return sends the finish
-once, as the Pending request. A second failure returns to the same rest.
+once, as the Pending request. A second failure returns to the same rest. The advance
+button, pressed while the check rests, takes the same route.
 
 **Leaving the Retro gives the ladder back.** The rest belongs to the Retro: if the team
 goes to another Station while the room is still out of reach, the machine arms the room's
@@ -34,7 +35,7 @@ own ladder again.
 
 Every other door keeps ADR 0050: a stretch, the approval, a turn or the way in still goes
 again once when the room comes back on its own. A halt the Desk lifts while the room is out
-of reach still sends what is pending.
+of reach, and the long press that releases the room, still send what is pending.
 
 ## Considered Options
 
@@ -54,3 +55,7 @@ for it.
 
 While the Verdict rests, a part pending in the Outbox waits for the same tap, or for the
 team to leave the Retro: the room asks the server nothing on its own.
+
+A probe already in the air when the Verdict falls, because another door had taken the room
+out of reach first, can still answer and send the finish once with no tap. It stops at that
+one send; it is accepted as a race.
