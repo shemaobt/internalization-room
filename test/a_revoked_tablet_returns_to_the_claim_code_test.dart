@@ -105,7 +105,7 @@ void main() {
   setUp(() => dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local'));
 
   test(
-    'a DeviceRevoked refusal forgets the link and shows a fresh claim code',
+    'a revoked device credential forgets the link and shows a fresh claim code',
     () async {
       final currentSession = FakeCurrentSessionLedger();
       final tablet = await _linkedTablet(
@@ -219,16 +219,37 @@ void main() {
     _theLinkIsForgotten(tablet);
   });
 
-  test('the room repository announces a revocation it was answered, and no '
-      'other refusal', () async {
-    var status = 403;
+  test('the room repository announces a revocation it was answered', () async {
+    final repository = RoomRepository(
+      client: MockClient((_) async => _revokedAnswer()),
+    )..presents('credencial-1');
+    addTearDown(repository.dispose);
+    final announced = <String?>[];
+    final listening = repository.revoked.listen(announced.add);
+    addTearDown(listening.cancel);
+
+    await repository.fetchState('sessao-1');
+    await expectLater(
+      repository.openClip('/voice/p01'),
+      throwsA(isA<Refused>()),
+    );
+    await settle(Duration.zero);
+
+    expect(
+      announced,
+      ['credencial-1', 'credencial-1'],
+      reason:
+          'o canal e a fala chegam por uma porta transmitida, e também ouvem; '
+          'e cada anúncio diz qual credencial foi recusada',
+    );
+  });
+
+  test('a plain 401 is not announced as a revocation', () async {
     final repository = RoomRepository(
       client: MockClient(
-        (_) async => status == 403
-            ? _revokedAnswer()
-            : http.Response(jsonEncode({'detail': 'no'}), status),
+        (_) async => http.Response(jsonEncode({'detail': 'no'}), 401),
       ),
-    );
+    )..presents('credencial-1');
     addTearDown(repository.dispose);
     var announced = 0;
     final listening = repository.revoked.listen((_) => announced++);
@@ -236,26 +257,10 @@ void main() {
 
     await repository.fetchState('sessao-1');
     await settle(Duration.zero);
-    expect(announced, 1);
 
-    await expectLater(
-      repository.openClip('/voice/p01'),
-      throwsA(isA<Refused>()),
-    );
-    await settle(Duration.zero);
     expect(
       announced,
-      2,
-      reason:
-          'o canal e a fala chegam por uma porta transmitida, e também ouvem',
-    );
-
-    status = 401;
-    await repository.fetchState('sessao-1');
-    await settle(Duration.zero);
-    expect(
-      announced,
-      2,
+      0,
       reason: 'só a revogação fala do vínculo; um 401 comum para a sala',
     );
   });

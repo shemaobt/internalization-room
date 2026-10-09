@@ -2,10 +2,12 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'fakes.dart' show theRoomKeyHeader;
+
 const _itself = 'test/no_source_names_the_room_key_test.dart';
 
-/// The header the shared key travelled in, named here and nowhere else.
-const theRoomKeyHeader = 'X-Room-Key';
+/// The one line that may name it: the doubles' own constant, read by the header tests.
+const _theDoublesName = "const theRoomKeyHeader = '$theRoomKeyHeader';";
 
 final _theRoomKey = RegExp('INTERNALIZATION_ROOM_KEY|$theRoomKeyHeader');
 
@@ -24,7 +26,10 @@ void main() {
   test('no source names the room key', () {
     final offenders = [
       for (final file in _sources())
-        if (_theRoomKey.hasMatch(file.readAsStringSync())) file.path,
+        if (_theRoomKey.hasMatch(
+          file.readAsStringSync().replaceFirst(_theDoublesName, ''),
+        ))
+          file.path,
     ];
 
     expect(

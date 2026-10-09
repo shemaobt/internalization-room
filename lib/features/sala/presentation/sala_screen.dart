@@ -7,7 +7,6 @@ import '../data/device_link_notifier.dart';
 import '../data/mic_permission.dart';
 import '../data/screen_awake.dart';
 import '../data/session_notifier.dart';
-import '../data/take_upload_queue.dart';
 import '../domain/facilitator_script.dart';
 import '../domain/session_state.dart';
 import '../dev/dev_skip_bar.dart';
@@ -49,20 +48,13 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
         ref.read(salaSessionProvider.notifier).haltForABrokenBuild();
         return;
       }
-      unawaited(_findTheTeamThenFlush());
+      unawaited(_findTheTeam());
     });
   }
 
-  /// The takes queued from an earlier life leave only once the credential is presented:
-  /// the room refuses anything that does not carry it.
-  Future<void> _findTheTeamThenFlush() async {
-    final link = ref.read(deviceLinkProvider.notifier);
-    await link.findTheTeam();
+  Future<void> _findTheTeam() async {
+    await ref.read(deviceLinkProvider.notifier).findTheTeam();
     if (!mounted) return;
-    if (link.presentsTheCredential) {
-      await ref.read(takeUploadQueueProvider).flush();
-      if (!mounted) return;
-    }
     await ref.read(salaSessionProvider.notifier).refreshUnsent();
   }
 

@@ -23,7 +23,7 @@ class HandInboxRepository {
   final http.Client _client;
   final bool _ownsClient;
   final Future<String> Function() _deviceId;
-  late final RoomClient _room = RoomClient(_client);
+  late final RoomClient _room = RoomClient(_client, () => _credential);
 
   HandInboxRepository({
     http.Client? client,
@@ -34,7 +34,7 @@ class HandInboxRepository {
 
   http.Client get client => _client;
 
-  Stream<void> get revoked => _room.revoked;
+  Stream<String?> get revoked => _room.revoked;
 
   String? _credential;
 

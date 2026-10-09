@@ -15,22 +15,26 @@ T Function(http.Response) readJson<T>(T Function(Map<String, dynamic>) build) =>
 
 class RoomClient {
   final http.Client _http;
-  final _revocations = StreamController<void>.broadcast();
+  final String? Function() _presenting;
+  final _revocations = StreamController<String?>.broadcast();
 
-  RoomClient(this._http);
+  RoomClient(this._http, this._presenting);
 
-  /// Every answer that says the Desk unlinked this tablet, whichever door it came to.
+  /// Every answer that says the Desk unlinked this tablet, whichever door it came to,
+  /// told with the credential the refused request carried.
   ///
   /// Heard here rather than at each door because the doors read a refusal by rules of
   /// their own, and some of them let it pass: a revocation is about the tablet, not
   /// about the request that met it.
-  Stream<void> get revoked => _revocations.stream;
+  Stream<String?> get revoked => _revocations.stream;
 
   void close() => unawaited(_revocations.close());
 
-  RoomAnswer<T> _heard<T>(RoomAnswer<T> answer) {
-    if (answer case Refused(code: RefusalCode.deviceRevoked)) {
-      _revocations.add(null);
+  RoomAnswer<T> _heard<T>(RoomAnswer<T> answer, String? carried) {
+    if (answer case Refused(
+      code: RefusalCode.deviceRevoked,
+    ) when !_revocations.isClosed) {
+      _revocations.add(carried);
     }
     return answer;
   }
@@ -46,15 +50,19 @@ class RoomClient {
     required T Function(http.Response) read,
     required bool asksForTheSession,
     Map<int, RoomAnswer<T>> atThisDoor = const {},
-  }) async => _heard(
-    await _ask(
-      send,
-      timeout: timeout,
-      read: read,
-      asksForTheSession: asksForTheSession,
-      atThisDoor: atThisDoor,
-    ),
-  );
+  }) async {
+    final carried = _presenting();
+    return _heard(
+      await _ask(
+        send,
+        timeout: timeout,
+        read: read,
+        asksForTheSession: asksForTheSession,
+        atThisDoor: atThisDoor,
+      ),
+      carried,
+    );
+  }
 
   Future<RoomAnswer<T>> _ask<T>(
     Future<http.Response> Function() send, {
@@ -105,6 +113,7 @@ class RoomClient {
     Duration? timeout,
     required bool asksForTheSession,
   }) async {
+    final carried = _presenting();
     final http.StreamedResponse response;
     try {
       final sent = _http.send(request);
@@ -122,6 +131,7 @@ class RoomClient {
         await _bodyOf(response),
         asksForTheSession: asksForTheSession,
       )!,
+      carried,
     );
   }
 

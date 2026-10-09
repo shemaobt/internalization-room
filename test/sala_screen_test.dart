@@ -8,7 +8,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/dev/dev_skip_bar.dart';
+import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/data/mic_permission.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
@@ -99,6 +101,14 @@ Future<ProviderContainer> pumpSala(
   await tester.pump(const Duration(milliseconds: 100));
   return container;
 }
+
+/// A tablet whose credential was collected on an earlier day: a room that refuses every
+/// door from the start still finds it linked.
+const _holdingItsCredential = RememberedLink(
+  deviceId: 'aparelho-1',
+  team: TeamLink(projectId: 'equipe-1'),
+  credential: 'credencial-1',
+);
 
 const retellExit = 'Ouvir e traduzir esta parte de novo';
 const wholeClipExit = 'Ouvir e traduzir a gravação de novo';
@@ -424,7 +434,7 @@ void main() {
   testWidgets(
     'a wheel still to be read asks for it in english, not in portuguese',
     (tester) async {
-      final harness = SalaHarness(lingua: 'en')
+      final harness = SalaHarness(lingua: 'en', linkedAs: _holdingItsCredential)
         ..room.failWith = const Refused('BAD_REQUEST');
       final container = await pumpSala(tester, harness);
       await container.read(salaSessionProvider.notifier).abrirEscolha();
@@ -1443,7 +1453,7 @@ void main() {
   testWidgets(
     'the way out stays out of reach while the room waits for a person',
     (tester) async {
-      final harness = SalaHarness()
+      final harness = SalaHarness(linkedAs: _holdingItsCredential)
         ..room.failWith = const Refused('UNAUTHORIZED');
       final container = await pumpSala(tester, harness);
       final notifier = container.read(salaSessionProvider.notifier);

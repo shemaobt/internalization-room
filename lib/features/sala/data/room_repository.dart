@@ -40,7 +40,7 @@ class RoomRepository {
   final bool _ownsClient;
   final Future<String> Function() _deviceId;
   final Duration _stateTimeout;
-  late final RoomClient _room = RoomClient(_client);
+  late final RoomClient _room = RoomClient(_client, () => _credential);
 
   RoomRepository({
     http.Client? client,
@@ -52,7 +52,7 @@ class RoomRepository {
 
   http.Client get client => _client;
 
-  Stream<void> get revoked => _room.revoked;
+  Stream<String?> get revoked => _room.revoked;
 
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',

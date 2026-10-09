@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/device_link_notifier.dart';
 import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
+import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/dev/dev_skip_bar.dart';
@@ -91,6 +92,54 @@ void main() {
     harness.room.finishHeldCode();
     await tester.pump(const Duration(milliseconds: 200));
     expect(find.byType(CodigoView), findsOneWidget);
+  });
+
+  testWidgets('the room opens only once the tablet presents its credential', (
+    tester,
+  ) async {
+    final harness = SalaHarness(
+      linkedAs: _unclaimed,
+      linkPoll: const Duration(milliseconds: 50),
+    );
+    final container = await pumpSala(tester, harness);
+    final room = harness.room;
+
+    Future<void> aLinkWhoseCredentialComesLate(String team) async {
+      room
+        ..linkedTo = TeamLink(projectId: team)
+        ..refuseCredentialWith = const Refused(RefusalCode.credentialNotYet);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
+      room.refuseCredentialWith = null;
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    await aLinkWhoseCredentialComesLate('equipe-1');
+    expect(find.byType(EscolhaView), findsOneWidget);
+
+    room.failWith = const Refused(RefusalCode.deviceRevoked);
+    await container.read(salaSessionProvider.notifier).abrirEscolha();
+    await tester.pump(const Duration(milliseconds: 200));
+    room.failWith = null;
+    room.credential = 'credencial-2';
+    await aLinkWhoseCredentialComesLate('equipe-2');
+
+    const claimDoors = {'askForACode', 'readTheLink', 'collectTheCredential'};
+    expect(
+      [
+        for (var at = 0; at < room.calls.length; at++)
+          if (!claimDoors.contains(room.calls[at]) &&
+              room.presentedOnEachCall[at] == null)
+            room.calls[at],
+      ],
+      isEmpty,
+      reason:
+          'sem a chave, o que sai sem a credencial é recusado, e a sala para '
+          'logo depois de vinculada',
+    );
+    expect(find.byType(EscolhaView), findsOneWidget);
+    expect(container.read(salaSessionProvider).needsPerson, isFalse);
   });
 
   testWidgets('a tablet that was already linked never sees the code screen', (

@@ -165,6 +165,25 @@ void main() {
     );
   });
 
+  test('a revoked answer that lands after the room is put down is still an '
+      'answer', () async {
+    final late = Completer<http.Response>();
+    final repository = RoomRepository(
+      client: MockClient((_) => late.future),
+      deviceId: () async => 'aparelho-1',
+    );
+    final asked = repository.fetchState('sessao-1');
+    repository.dispose();
+    late.complete(
+      http.Response(
+        jsonEncode({'detail': 'revoked', 'code': 'DEVICE_REVOKED'}),
+        403,
+      ),
+    );
+
+    expect(await asked, refusedWith('DEVICE_REVOKED'));
+  });
+
   test('a 500 or a 429 is the network, not a refusal', () async {
     expect(
       await answering(500, {
