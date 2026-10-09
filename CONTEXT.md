@@ -317,11 +317,11 @@ The room's action of signalling it needs someone, insisted on at intervals until
 _Avoid_: pedir uma pessoa, calling a human, SOS, `needsPerson` (the internal name)
 
 **Reach**:
-Whether the room can get to the server: reachable or out of reach, a region of the machine. A network failure at any door, the Outbox's included, takes the room out of reach; coming back drains the Outbox and re-sends the Pending request once. The circle says the room has fallen, except over an open microphone; the reach is what knows it (ADR 0050).
+Whether the room can get to the server: reachable or out of reach, a region of the machine. A network failure at any door, the Outbox's included, takes the room out of reach; coming back drains the Outbox and re-sends the Pending request once. A Verdict that fell is the exception: the room waits out of reach with no retry until the team's tap asks again (ADR 0073). The circle says the room has fallen, except over an open microphone; the reach is what knows it (ADR 0050).
 _Avoid_: offline (the voice the circle draws while the reach is down, not the fact), connectivity, online/offline flag, Alcance
 
 **Pending request**:
-The one request a Step was waiting on when its door fell on the network, kept in memory with its key and re-sent once when the room comes back (ADR 0050).
+The one request a Step was waiting on when its door fell on the network, kept in memory with its key and re-sent once when the room comes back (ADR 0050). The Verdict is re-sent only when the team's tap brings the room back (ADR 0073).
 _Avoid_: retry queue, outbox (which holds recordings only)
 
 **Watch**:
