@@ -1,3 +1,7 @@
+---
+status: accepted, amended by 0072
+---
+
 # The device credential lives in the Keychain
 
 ## Context
