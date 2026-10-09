@@ -1050,12 +1050,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     ),
   );
 
-  void _raiseAHaltWithNoSession() {
-    state = state.copyWith(clearSession: true);
-    _runner.endTheWatch();
-    _raiseAHalt();
-  }
-
   Kept _whatIsSounding({bool theOpening = true}) {
     if (state.station is Retro &&
         (state.channel is Playing || !_parteJaTocou)) {
@@ -2829,6 +2823,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (state.needsPerson) return;
+    if (state.sessionId == null) {
+      if (!state.awaitingTheGuide) _handOff(_enterAgain(_emCurso)());
+      return;
+    }
     if (state.playingReplyId != null && state.channel is! Microphone) {
       return;
     }
@@ -2930,9 +2928,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (sessionId == null) {
-      state = state.copyWith(awaitingTheGuide: false);
-      _raiseAHaltWithNoSession();
       unawaited(_recorder.delete(path));
+      _theStepFell();
       return;
     }
     await _sendTheTurn(sessionId, path, _stamp(), turnClock, cut: closed.cut);
