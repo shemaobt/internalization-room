@@ -270,7 +270,7 @@ void main() {
         );
 
         final vault = KeychainCredentialVault();
-        await vault.keep('credencial-1');
+        await vault.keep('credencial-1', forDevice: 'aparelho-1');
 
         expect(
           recorded['credencial-1']?['accessibility'],

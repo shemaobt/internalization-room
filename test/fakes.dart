@@ -2112,8 +2112,10 @@ class FakeLinkedTeam implements LinkedTeam {
   Future<void> rememberTeam(TeamLink team) async => _keep(team: team);
 
   @override
-  Future<void> rememberCredential(String credential) async =>
-      _keep(credential: credential);
+  Future<void> rememberCredential(
+    String credential, {
+    required String forDevice,
+  }) async => _keep(credential: credential);
 
   @override
   Future<void> forgetTheLink() async => remembered = const RememberedLink();
@@ -2139,6 +2141,7 @@ class FakeLinkedTeam implements LinkedTeam {
 /// can succeed (confirmed empty) while a write to the same item still cannot.
 class FakeCredentialVault implements CredentialVault {
   String? _credential;
+  String? _keptFor;
   bool unavailable = false;
   bool keepUnavailable = false;
 
@@ -2148,16 +2151,26 @@ class FakeCredentialVault implements CredentialVault {
     return _credential;
   }
 
+  /// [forDevice] left out keeps a credential the way a vault from before the device id
+  /// existed held one.
   @override
-  Future<void> keep(String credential) async {
+  Future<void> keep(String credential, {String? forDevice}) async {
     if (unavailable || keepUnavailable) throw const VaultUnavailable();
     _credential = credential;
+    _keptFor = forDevice;
+  }
+
+  @override
+  Future<String?> keptFor() async {
+    if (unavailable) throw const VaultUnavailable();
+    return _keptFor;
   }
 
   @override
   Future<void> forget() async {
     if (unavailable) throw const VaultUnavailable();
     _credential = null;
+    _keptFor = null;
   }
 }
 
