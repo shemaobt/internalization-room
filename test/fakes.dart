@@ -698,6 +698,9 @@ class FakeFinished implements FinishedPassages {
   }
 }
 
+/// The header the shared key travelled in, named here and nowhere else under `test/`.
+const theRoomKeyHeader = 'X-Room-Key';
+
 /// In memory, like the finished-passages double. The real one touches disk, and the
 /// wheel now reads it on every open — under a widget test's fake clock that never
 /// resolves, which hangs the whole suite.
@@ -826,10 +829,18 @@ class FakeInbox implements HandInboxRepository {
     return const Answered(null);
   }
 
+  final _revocations = StreamController<String?>.broadcast();
+
+  @override
+  Stream<String?> get revoked => _revocations.stream;
+
   @override
   Future<RoomAnswer<void>> sendQuestion(String sessionId, File audio) async {
     if (refuses) return const NetworkFailed('sem rede');
     final refusal = refusesTheQuestionWith;
+    if (refusal case Refused(code: RefusalCode.deviceRevoked)) {
+      _revocations.add(presented);
+    }
     if (refusal != null) return refusal;
     questionsSent.add(sessionId);
     return const Answered(null);
@@ -1120,7 +1131,10 @@ class FakeRoom implements RoomRepository {
 
   /// What this tablet last told the room to present as itself. What the header actually
   /// carries is measured against real HTTP, not here.
-  String? presented;
+  ///
+  /// A linked tablet's by default, so a case about the room need not walk the link first;
+  /// a case about the link starts from whatever `findTheTeam` presents.
+  String? presented = 'credencial-1';
   String credential = 'credencial-1';
   RoomFailure? refuseCredentialWith;
   RoomFailure? refuseLinkWith;
@@ -1199,21 +1213,49 @@ class FakeRoom implements RoomRepository {
     return const SessionGone();
   }
 
-  static const _sessionless = {
+  static const _claimDoors = {
     'askForACode',
     'readTheLink',
     'collectTheCredential',
+  };
+
+  static const _sessionless = {
+    ..._claimDoors,
     'createSession',
     'passagesOf',
     'fetchClip',
     'openClip',
   };
 
+  /// What the tablet presented as itself on each call, beside [calls].
+  final List<String?> presentedOnEachCall = [];
+
+  final _revocations = StreamController<String?>.broadcast();
+
+  /// Announced, with the credential the call carried, for every call [failWith] turns
+  /// down as revoked, the way the real repository announces every one it is answered. A
+  /// door's own knob is that door's answer, not the tablet's revocation.
+  @override
+  Stream<String?> get revoked => _revocations.stream;
+
   RoomFailure? _guard(String call) {
     calls.add(call);
+    presentedOnEachCall.add(presented);
     final failure = failWith;
     if (failure is SessionGone && _sessionless.contains(call)) {
       return const Refused(RefusalCode.notFound);
+    }
+    if (failure case Refused(code: RefusalCode.deviceRevoked)) {
+      if (_claimDoors.contains(call)) {
+        return reachable ? null : const NetworkFailed('sem rede');
+      }
+      _revocations.add(presented);
+    }
+    if (failure == null &&
+        reachable &&
+        presented == null &&
+        !_claimDoors.contains(call)) {
+      return const Refused(RefusalCode.unauthorized);
     }
     return failure ?? (reachable ? null : const NetworkFailed('sem rede'));
   }
@@ -2262,8 +2304,12 @@ class FakeTakeQueue implements TakeUploadQueue {
         entry.scope,
   };
 
+  /// How many takes were still unsent each time the room counted, in order.
+  final List<int> unsentAtEachTally = [];
+
   @override
   Future<OutboxTally> tally({required String? sessionId}) async {
+    unsentAtEachTally.add(rows.where((entry) => !entry.stored).length);
     final held = _armed;
     _armed = null;
     if (held != null) _holding = held;

@@ -195,9 +195,7 @@ void main() {
   });
 
   testWidgets('the fecho screen answers the touch it offers', (tester) async {
-    dotenv.testLoad(
-      fileInput: 'BACKEND_URL=http://sala.local\nINTERNALIZATION_ROOM_KEY=k',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
     final harness = SalaHarness(
       filaEmMemoria: true,
       fimLinger: const Duration(minutes: 5),
@@ -255,9 +253,7 @@ void main() {
   testWidgets('the fecho offers to begin again in english to an english room', (
     tester,
   ) async {
-    dotenv.testLoad(
-      fileInput: 'BACKEND_URL=http://sala.local\nINTERNALIZATION_ROOM_KEY=k',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
     final harness = SalaHarness(
       filaEmMemoria: true,
       fimLinger: const Duration(minutes: 5),

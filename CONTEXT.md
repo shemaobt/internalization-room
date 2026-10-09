@@ -244,7 +244,7 @@ The durable slice of the room's state for one passage, written whole at every tr
 _Avoid_: ponto de retomada, em curso, checkpoint, snapshot (the session's own lives on the server)
 
 **Current session**:
-The session this tablet was in when it last stood in a passage, kept on the tablet so a relaunch lands on it while the room still holds it. Let go when the team goes to the Choice, when the passage closes and when the room no longer knows the session.
+The session this tablet was in when it last stood in a passage, kept on the tablet so a relaunch lands on it while the room still holds it. Let go when the team goes to the Choice, when the passage closes, when the room no longer knows the session and when the Desk unlinks the tablet.
 _Avoid_: pointer, last session, sessão atual
 
 ### Findings and mends
@@ -389,5 +389,5 @@ The code the server mints for one tablet, which a facilitator spends once from t
 _Avoid_: código, pairing code, device code, credential (what the link yields afterwards)
 
 **Device link**:
-The bond between one tablet and one team, drawn once a claim code is spent, and carrying the credential the tablet sends on every request thereafter.
+The bond between one tablet and one team, drawn once a claim code is spent, and carrying the device credential: the only thing the tablet sends to be let in, on every request thereafter. Unlinking the tablet from the Desk revokes the credential, and the tablet returns to a fresh claim code.
 _Avoid_: vínculo, pairing, enrolment

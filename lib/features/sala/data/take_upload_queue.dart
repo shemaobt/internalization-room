@@ -529,6 +529,10 @@ class TakeUploadQueue {
 
   PendingTake? _inTheAir;
 
+  /// The room turned the tablet away, not the take: nothing more leaves until it is
+  /// linked again, and nothing is given up for it.
+  bool _turnedAway = false;
+
   /// Send every row a caller that only asked while this call was already running would
   /// otherwise miss.
   ///
@@ -577,7 +581,9 @@ class TakeUploadQueue {
   Future<int> _flushOnce({required bool withTheCodeless}) async {
     var sent = 0;
     final held = <String>{};
+    _turnedAway = false;
     for (final entry in await waiting(withTheCodeless: withTheCodeless)) {
+      if (_turnedAway) break;
       final part = _partOf(entry);
       if (part != null && held.contains(part)) continue;
       if (await _landed(entry)) {
@@ -631,6 +637,12 @@ class TakeUploadQueue {
         return true;
       case NetworkFailed():
         _fellOnTheNetwork();
+        await _settle(
+          entry,
+          row.copyWith(waits: row.waits + 1, lastTry: _now()),
+        );
+      case Refused(code: RefusalCode.deviceRevoked || RefusalCode.unauthorized):
+        _turnedAway = true;
         await _settle(
           entry,
           row.copyWith(waits: row.waits + 1, lastTry: _now()),

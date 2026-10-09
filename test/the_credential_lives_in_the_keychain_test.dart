@@ -13,6 +13,7 @@ import 'package:internalization_room/features/sala/data/device_link_notifier.dar
 import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 
@@ -47,21 +48,25 @@ ProviderContainer _tablet({
   required RoomRepository room,
   required LinkedTeam ledger,
   Duration? linkPoll,
-}) => ProviderContainer(
-  overrides: [
-    roomRepositoryProvider.overrideWithValue(room),
-    linkedTeamProvider.overrideWithValue(ledger),
-    linkPollIntervalProvider.overrideWithValue(linkPoll),
-    roomRetryBackoffProvider.overrideWithValue(const [_quickPoll]),
-  ],
-);
+}) {
+  final outbox = _tempHome();
+  return ProviderContainer(
+    overrides: [
+      roomRepositoryProvider.overrideWithValue(room),
+      linkedTeamProvider.overrideWithValue(ledger),
+      linkPollIntervalProvider.overrideWithValue(linkPoll),
+      roomRetryBackoffProvider.overrideWithValue(const [_quickPoll]),
+      takeUploadQueueProvider.overrideWithValue(
+        TakeUploadQueue(room: room, home: () async => outbox),
+      ),
+    ],
+  );
+}
 
 void main() {
   setUpAll(() {
     TestWidgetsFlutterBinding.ensureInitialized();
-    dotenv.testLoad(
-      fileInput: 'BACKEND_URL=http://sala.local\nINTERNALIZATION_ROOM_KEY=k',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
   });
 
   group('the credential lives in the Keychain', () {
@@ -71,6 +76,7 @@ void main() {
         final home = _tempHome();
         final vault = FakeCredentialVault();
         final room = FakeRoom()
+          ..presented = null
           ..linkedTo = const TeamLink(projectId: 'equipe-terena');
         final firstRun = _tablet(
           room: room,
@@ -123,6 +129,7 @@ void main() {
       final home = _tempHome();
       final vault = FakeCredentialVault();
       final room = FakeRoom()
+        ..presented = null
         ..linkedTo = const TeamLink(projectId: 'equipe-terena');
       final container = _tablet(
         room: room,
@@ -214,6 +221,7 @@ void main() {
       // notes, refusing after the credential is already held would prove nothing about
       // "sent back to a new code" that "never collected one" would not also show.
       final room = FakeRoom()
+        ..presented = null
         ..linkedTo = const TeamLink(projectId: 'equipe-terena')
         ..refuseCredentialWith = const Refused(RefusalCode.credentialTaken);
       final container = _tablet(room: room, ledger: ledger);
@@ -287,6 +295,7 @@ void main() {
         await ledger.rememberTeam(const TeamLink(projectId: 'equipe-terena'));
 
         final room = FakeRoom()
+          ..presented = null
           ..linkedTo = const TeamLink(projectId: 'equipe-terena')
           ..refuseCredentialWith = const Refused(RefusalCode.credentialTaken);
         final container = _tablet(
@@ -409,6 +418,7 @@ void main() {
       await ledger.rememberTeam(const TeamLink(projectId: 'equipe-terena'));
 
       final room = FakeRoom()
+        ..presented = null
         ..linkedTo = const TeamLink(projectId: 'equipe-terena');
       final container = _tablet(
         room: room,
