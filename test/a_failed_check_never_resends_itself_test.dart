@@ -193,4 +193,20 @@ void main() {
     expect(check.harness.room.playedByTakeSent, hasLength(1));
     expect(check.estado.unreachable, isFalse);
   });
+
+  test('6: a team that leaves the passage while the check rests gets the '
+      'room\'s own ladder back', () async {
+    final check = await _readyForTheVerdict(SalaHarness());
+    check.harness.room.failFinishWith = _a502;
+    await check.sala.finishBackTranslation();
+    await check.resting('depois do 502');
+    final probes = check.harness.network.checks;
+
+    check.sala.leaveThePassage();
+
+    await waitFor(
+      'a sala voltar a sondar sozinha',
+      () => check.harness.network.checks > probes,
+    );
+  });
 }

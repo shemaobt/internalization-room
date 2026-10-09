@@ -739,6 +739,7 @@ final class Machine {
     noticeSaid: noticeSaid,
     generation: generation,
     station: station,
+    theVerdictWaitsForTheTap: theVerdictWaitsForTheTap,
   );
 
   Machine copyWith({
