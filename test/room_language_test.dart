@@ -144,7 +144,7 @@ void main() {
       TestWidgetsFlutterBinding.ensureInitialized();
 
       const notices = {
-        'pt': {'gravacao_presa', 'microfone'},
+        'pt': {'sem_conexao', 'gravacao_presa', 'microfone'},
         'en': {'sem_conexao', 'gravacao_presa', 'microfone'},
       };
       for (final language in languages) {
