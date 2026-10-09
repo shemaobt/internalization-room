@@ -643,7 +643,10 @@ class TakeUploadQueue {
         );
       case Refused(code: RefusalCode.deviceRevoked || RefusalCode.unauthorized):
         _turnedAway = true;
-        await _settle(entry, row);
+        await _settle(
+          entry,
+          row.copyWith(waits: row.waits + 1, lastTry: _now()),
+        );
       case Refused(:final code):
         await _settle(
           entry,

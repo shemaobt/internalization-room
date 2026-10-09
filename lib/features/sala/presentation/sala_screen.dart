@@ -54,7 +54,7 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
   }
 
   /// The takes queued from an earlier life leave only once the credential is presented:
-  /// the room refuses anything that does not carry it, and a refused take is given up.
+  /// the room refuses anything that does not carry it.
   Future<void> _findTheTeamThenFlush() async {
     final link = ref.read(deviceLinkProvider.notifier);
     await link.findTheTeam();
