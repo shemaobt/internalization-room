@@ -410,36 +410,51 @@ void main() {
       },
     );
 
-    test(
-      'a migration the Keychain refused halfway keeps the credential on the next '
-      'look',
-      () async {
-        final platform = _RecordingSecureStoragePlatform({})
-          ..refuseOnce.add('credencial-antiga');
-        FlutterSecureStoragePlatform.instance = platform;
-        final home = _tempHome();
-        await _ledgerFile(home).create(recursive: true);
-        await _ledgerFile(home).writeAsString(
-          jsonEncode({
-            'device_id': 'aparelho-1',
-            'project_id': 'equipe-terena',
-            'credential': 'credencial-antiga',
-          }),
-        );
-        final ledger = _ledger(home, KeychainCredentialVault());
+    test('a migration keeps the credential when the Keychain refuses its first '
+        'write', () async {
+      final platform = _RecordingSecureStoragePlatform({})
+        ..refuseOnce.add('credencial-antiga');
+      FlutterSecureStoragePlatform.instance = platform;
+      final home = _tempHome();
+      await _ledgerFile(home).create(recursive: true);
+      await _ledgerFile(home).writeAsString(
+        jsonEncode({
+          'device_id': 'aparelho-1',
+          'project_id': 'equipe-terena',
+          'credential': 'credencial-antiga',
+        }),
+      );
+      final ledger = _ledger(home, KeychainCredentialVault());
 
-        expect((await ledger.read()).credentialUnavailable, isTrue);
-        await ledger.read();
+      expect((await ledger.read()).credentialUnavailable, isTrue);
+      await ledger.read();
 
-        expect(
-          (await _ledger(home, KeychainCredentialVault()).read()).credential,
-          'credencial-antiga',
-          reason:
-              'o servidor nunca entrega a credencial duas vezes; a migração que '
-              'apaga o arquivo sem tê-la no cofre perde a única cópia',
-        );
-      },
-    );
+      expect(
+        (await _ledger(home, KeychainCredentialVault()).read()).credential,
+        'credencial-antiga',
+        reason:
+            'o servidor nunca entrega a credencial duas vezes; a migração que '
+            'apaga o arquivo sem tê-la no cofre perde a única cópia',
+      );
+    });
+
+    test('an unreadable ledger leaves the vault\'s credential alone', () async {
+      final home = _tempHome();
+      final vault = FakeCredentialVault();
+      await vault.keep('credencial-1', forDevice: 'aparelho-1');
+      await _ledgerFile(home).create(recursive: true);
+      await _ledgerFile(home).writeAsString('{"device_id": "aparel');
+
+      await _ledger(home, vault).read();
+
+      expect(
+        await vault.read(),
+        'credencial-1',
+        reason:
+            'um arquivo que não pôde ser lido não diz que o vínculo sumiu; '
+            'apagar a credencial por isso perde a única cópia que o servidor deu',
+      );
+    });
 
     test('case 9 — a vault that cannot keep does not draw a second credential '
         'from the server', () async {

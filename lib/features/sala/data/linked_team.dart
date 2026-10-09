@@ -77,7 +77,8 @@ class LinkedTeam {
     return File(p.join(dir.path, _ledger));
   }
 
-  Future<RememberedLink> _readFile() async {
+  /// `null` when the file is there but could not be read: not the same as no file.
+  Future<RememberedLink?> _readFile() async {
     final file = await _file();
     if (!await file.exists()) return const RememberedLink();
     try {
@@ -85,7 +86,7 @@ class LinkedTeam {
         (jsonDecode(await file.readAsString()) as Map).cast<String, Object?>(),
       );
     } on Object {
-      return const RememberedLink();
+      return null;
     }
   }
 
@@ -101,15 +102,20 @@ class LinkedTeam {
   /// no device id in the file, or kept for another device id, belongs to a tablet this
   /// one no longer is: it is forgotten here, and the link flow collects a new one. One
   /// kept before the vault recorded its device is taken as the file's, and recorded so.
+  /// A file that is there but cannot be read says nothing of the kind, and leaves the
+  /// vault as it is.
   ///
   /// Never throws on a vault that cannot answer (before the tablet's first unlock since a
   /// reboot, the Keychain refuses every access): `credentialUnavailable` says so instead,
   /// and the file is not rewritten, so an old file still carrying its credential migrates
   /// on the next look that finds the vault reachable.
   Future<RememberedLink> read() async {
-    final onDisk = await _readFile();
+    final readable = await _readFile();
+    final onDisk = readable ?? const RememberedLink();
     try {
-      final credential = await _credentialOfThisDevice(onDisk);
+      final credential = readable == null
+          ? await _vault.read()
+          : await _credentialOfThisDevice(readable);
       if (onDisk.credential != null) {
         await _write(
           (was) => RememberedLink(deviceId: was.deviceId, team: was.team),
@@ -174,7 +180,9 @@ class LinkedTeam {
       if (await file.exists() && !await _readable(file)) return;
       final staging = File('${file.path}.novo');
       await staging.writeAsString(
-        jsonEncode(change(await _readFile()).toJson()),
+        jsonEncode(
+          change(await _readFile() ?? const RememberedLink()).toJson(),
+        ),
         flush: true,
       );
       await staging.rename(file.path);
