@@ -229,6 +229,22 @@ final theOutboxNeverIdlesReachableWithAPartPending = Invariant<Machine>(
   },
 );
 
+bool _asksTheRoomAgain(Effect effect) => switch (effect) {
+  ProbeTheRoom() || ArmTheRetry() || ResendPending() => true,
+  _ => false,
+};
+
+final aVerdictWaitingForTheTapIsNeverAskedAgainOnItsOwn = Invariant<Machine>(
+  'ADR 0073, a Verdict waiting for the tap asks the room nothing on its own',
+  (before, event, after, effects, world) {
+    if (!after.theVerdictWaitsForTheTap) return null;
+    final asks = effects.where(_asksTheRoomAgain);
+    if (asks.isEmpty) return null;
+    return 'with the Verdict waiting for the tap, ${describeEvent(event)} '
+        'asked ${asks.map(describeEffect).join(', ')}';
+  },
+);
+
 bool _callsOrStopsCallingAPerson(Effect effect) => switch (effect) {
   CallForAPerson() || TellAPersonArrived() => true,
   _ => false,
@@ -375,6 +391,11 @@ void main() {
     test('ADR invariant 12: the Outbox never idles reachable with a part '
         'pending', () {
       _holds(theOutboxNeverIdlesReachableWithAPartPending);
+    });
+
+    test('ADR 0073: a Verdict waiting for the tap asks the room nothing on '
+        'its own', () {
+      _holds(aVerdictWaitingForTheTapIsNeverAskedAgainOnItsOwn);
     });
 
     test('ADR invariant 6: nothing of a gone session survives', () {
