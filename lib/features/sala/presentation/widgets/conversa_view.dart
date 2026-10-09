@@ -111,11 +111,12 @@ class ConversaView extends ConsumerWidget {
     if (session.channel case Microphone(owner: MicOwner.question)) {
       return circleLabelFor('noteMode', language);
     }
-    if (session.peerCue && session.voice == VoiceState.invite) {
-      return circleLabelFor('teamTalk', language);
-    }
     if (session.voice == VoiceState.listening) {
       return circleLabelFor('listening', language);
+    }
+    if (session.noteMode) return circleLabelFor('default', language);
+    if (session.peerCue && session.voice == VoiceState.invite) {
+      return circleLabelFor('teamTalk', language);
     }
     return circleLabelFor('default', language);
   }

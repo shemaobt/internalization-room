@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
+import '../../domain/session_state.dart';
 import 'facilitator_circle.dart';
 
 class PanoramaView extends ConsumerWidget {
@@ -24,6 +25,8 @@ class PanoramaView extends ConsumerWidget {
             ? circleLabelFor('needsPerson', language)
             : session.offline
             ? circleLabelFor('offline', language)
+            : session.voice == VoiceState.listening
+            ? circleLabelFor('listening', language)
             : panoramaCircleLabelFor(language),
         onTap: notifier.panoramaTap,
         onLongPress: session.canResolveWithPerson
