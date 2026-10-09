@@ -51,8 +51,8 @@ Future<void> waitFor(
   FutureOr<bool> Function() ready, {
   Duration limit = const Duration(seconds: 10),
   Future<void> Function()? step,
-  Duration stepLength = const Duration(milliseconds: 100),
 }) async {
+  const stepLength = Duration(milliseconds: 100);
   final deadline = DateTime.now().add(limit);
   var stepped = Duration.zero;
   while (!await ready()) {
