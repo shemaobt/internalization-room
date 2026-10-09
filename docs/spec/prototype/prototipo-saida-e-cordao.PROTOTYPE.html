@@ -1,0 +1,228 @@
+<title>Sala · saída e cordão</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600&display=swap">
+<style>
+/* Layout: a header line, then one row per variant of two phone frames (Conversa, Escolha); a fixed bottom bar switches the variant. */
+:root{
+  --pg:#EFEDE2; --paper:#F6F5EB; --ink:#0A0703; --mut:#6D6C56; --line:rgba(63,62,32,.16); --card:#ECEADF; --cord:#C5C29F;
+  --telha:#BE4A01; --oatHi:#FBFAF3; --oat:#E7E3D3; --elev:#FFFFFF; --momFam:#2E6F63;
+  --woodHi:#E2C08F; --wood:#C9A26B; --woodLo:#7E5F36; --azul:#89AAA3; --azulInk:#3F6862; --verdeClaro:#777D45; --verde:#3F3E20; --branco:#F6F5EB;
+  --font:"Montserrat",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --pg:#100D08; --paper:#1A150E; --ink:#F2EDE1; --mut:#A79E8C; --line:rgba(242,237,225,.16); --card:#241D13; --cord:#4A4336;
+  --telha:#E36A1E; --oatHi:#6E6455; --oat:#5F564A; --elev:#221B12; --momFam:#6FC3B2; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --pg:#100D08; --paper:#1A150E; --ink:#F2EDE1; --mut:#A79E8C; --line:rgba(242,237,225,.16); --card:#241D13; --cord:#4A4336;
+  --telha:#E36A1E; --oatHi:#6E6455; --oat:#5F564A; --elev:#221B12; --momFam:#6FC3B2; color-scheme:dark }
+
+body{background:var(--pg);color:var(--ink);font-family:var(--font);margin:0;padding-block:24px 110px;padding-inline:16px}
+h1{font-size:18px;font-weight:600;margin:0 0 4px;text-wrap:balance}
+p.lead{color:var(--mut);font-size:13px;margin:0 0 20px;max-width:62ch}
+.variant{display:none}
+.variant.on{display:block}
+.variant h2{font-size:15px;font-weight:600;margin:0 0 2px}
+.variant p{color:var(--mut);font-size:13px;margin:0 0 14px;max-width:62ch}
+.phones{display:flex;gap:20px;flex-wrap:wrap}
+.phone{position:relative;width:300px;height:600px;border-radius:34px;background:var(--paper);box-shadow:0 10px 30px rgba(10,7,3,.18),inset 0 0 0 1px var(--line);overflow:hidden;flex:0 0 auto}
+.phone .cap{position:absolute;left:0;right:0;top:0;height:46px}
+.phone .name{position:absolute;left:0;right:0;bottom:10px;text-align:center;font-size:11px;color:var(--mut);letter-spacing:.06em;text-transform:uppercase}
+/* materials */
+.wood{background:radial-gradient(110% 110% at 35% 30%,var(--woodHi) 0,var(--wood) 55%,var(--woodLo) 100%)}
+.oat{background:radial-gradient(100% 100% at 35% 30%,var(--oatHi) 0,var(--oat) 70%);box-shadow:inset 0 0 0 1px var(--line),0 1px 2px rgba(10,7,3,.1)}
+.telhaM{background:radial-gradient(110% 110% at 34% 30%,color-mix(in srgb,var(--telha) 72%,var(--branco)) 0,var(--telha) 68%)}
+.verdeM{background:radial-gradient(110% 110% at 35% 30%,#9AA061 0,var(--verdeClaro) 60%,#4C5028 100%)}
+.matte{box-shadow:0 1px 3px rgba(10,7,3,.2)}
+.drop{box-shadow:0 4px 12px rgba(10,7,3,.2)}
+.circle{position:absolute;left:50%;top:238px;width:122px;height:122px;margin-left:-61px;border-radius:50%;box-shadow:0 8px 26px rgba(190,74,1,.32)}
+.check{position:absolute;left:50%;top:394px;width:50px;height:50px;margin-left:-25px;border-radius:50%;display:grid;place-items:center}
+.check svg{width:22px;height:22px;stroke:var(--branco);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.hear{position:absolute;right:14px;bottom:30px;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--elev);box-shadow:0 1px 3px rgba(10,7,3,.15)}
+.hear svg,.hand svg{width:17px;height:17px;stroke:var(--verdeClaro);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.hand{position:absolute;left:14px;bottom:30px;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--elev);box-shadow:0 1px 3px rgba(10,7,3,.15)}
+.chip{position:absolute;left:50%;top:54px;transform:translateX(-50%);display:flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;background:var(--card);color:var(--momFam);font-size:10px;font-weight:600;white-space:nowrap}
+.chip i{width:7px;height:7px;border-radius:50%;background:var(--momFam)}
+/* exit buttons */
+.exit{position:absolute;left:12px;top:92px;width:36px;height:36px;display:grid;place-items:center}
+.exit svg{width:18px;height:18px;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.exit.hoje svg{stroke:var(--mut);opacity:.5}
+.exit.disc{border-radius:50%}
+.exit.disc svg{stroke:var(--branco)}
+.exit.ring{border-radius:50%;background:var(--elev);box-shadow:0 1px 3px rgba(10,7,3,.15)}
+.exit.ring svg{stroke:var(--verdeClaro)}
+.exit.knot{border-radius:50%;width:30px;height:30px;left:16px;top:52px}
+.exit.knot svg{stroke:var(--branco);width:15px;height:15px}
+/* necklace */
+.cord{position:absolute;left:0;top:0;width:300px;height:120px}
+.bead{position:absolute;border-radius:50%}
+/* choice */
+.ruler{position:absolute;left:0;right:0;top:418px;height:60px}
+.enter{position:absolute;left:50%;top:330px;width:60px;height:60px;margin-left:-30px;border-radius:50%;box-shadow:0 4px 12px rgba(10,7,3,.2),0 0 0 2px var(--cord)}
+.circle.escolha{top:190px;box-shadow:0 8px 26px rgba(190,74,1,.32)}
+/* switcher */
+.bar{position:fixed;left:50%;bottom:0;transform:translateX(-50%);padding:0 0 calc(14px + env(safe-area-inset-bottom,0px));display:flex;gap:8px;align-items:center;z-index:9}
+.bar button{font:inherit;font-weight:600;font-size:13px;border:0;border-radius:999px;padding:10px 14px;background:var(--ink);color:var(--paper);cursor:pointer}
+.bar button:focus-visible{outline:3px solid var(--telha);outline-offset:2px}
+.bar .lbl{background:var(--elev);color:var(--ink);box-shadow:0 2px 10px rgba(10,7,3,.2);min-width:220px;text-align:center}
+.notes{margin-top:14px;font-size:12px;color:var(--mut);max-width:62ch}
+@media (prefers-reduced-motion: reduce){ *{transition:none!important} }
+</style>
+
+<h1>Sala · saída e cordão</h1>
+<p class="lead">Protótipo descartável. Cada variação mostra a Conversa (botão de sair + cordão de 12 contas, sem a tag de momento) e a Escolha (o chevron de volta). As cores, tamanhos e materiais são os do app (madeira, telha, aveia, cordão). Setas ← → ou a barra embaixo trocam a variação.</p>
+
+<!-- HOJE -->
+<section class="variant" data-k="0">
+  <h2>Como está hoje</h2>
+  <p>≡ cinza a 50% no canto, sem corpo; fio de 2 px com 12 contas de 18 px penduradas num arco; tag «Familiarização · a passagem inteira» no alto.</p>
+  <div class="phones">
+    <div class="phone">
+      <svg class="cord" viewBox="0 0 300 120"><path d="M26 18 Q150 70 274 18" fill="none" stroke="var(--cord)" stroke-width="2"/></svg>
+      <div id="n0"></div>
+      <div class="chip"><i></i>Familiarização · a passagem inteira</div>
+      <div class="exit hoje"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></div>
+      <div class="circle telhaM"></div>
+      <div class="check verdeM matte"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></div>
+      <div class="hand"><svg viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-4 0v1M14 10V4a2 2 0 0 0-4 0v2M10 10.5V6a2 2 0 0 0-4 0v8M18 8a2 2 0 0 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-5.9-2.4L3 16.3a2 2 0 0 1 2.8-2.8L7 15"/></svg></div>
+      <div class="hear"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div>
+      <div class="name">Conversa</div>
+    </div>
+    <div class="phone">
+      <div class="exit hoje"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></div>
+      <div class="circle escolha telhaM"></div>
+      <div class="enter wood"></div>
+      <svg class="ruler" viewBox="0 0 300 60" id="r0"></svg>
+      <div class="hear"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div>
+      <div class="name">Escolha</div>
+    </div>
+  </div>
+</section>
+
+<!-- A -->
+<section class="variant" data-k="A">
+  <h2>A · Disco de madeira</h2>
+  <p>O botão de sair vira um pequeno disco de madeira, da mesma família do disco «Entrar nesta passagem», com o chevron em branco. O cordão perde o fio: só as 12 contas, maiores (22 px), num arco mais raso. As acesas em madeira com sombra; as apagadas em aveia. Sem tag.</p>
+  <div class="phones">
+    <div class="phone">
+      <div id="nA"></div>
+      <div class="exit disc wood drop"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></div>
+      <div class="circle telhaM"></div>
+      <div class="check verdeM matte"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></div>
+      <div class="hand"><svg viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-4 0v1M14 10V4a2 2 0 0 0-4 0v2M10 10.5V6a2 2 0 0 0-4 0v8M18 8a2 2 0 0 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-5.9-2.4L3 16.3a2 2 0 0 1 2.8-2.8L7 15"/></svg></div>
+      <div class="hear"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div>
+      <div class="name">Conversa</div>
+    </div>
+    <div class="phone">
+      <div class="exit disc wood drop"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+      <div class="circle escolha telhaM"></div>
+      <div class="enter wood"></div>
+      <svg class="ruler" viewBox="0 0 300 60" id="rA"></svg>
+      <div class="hear"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div>
+      <div class="name">Escolha · o disco aponta para a passagem</div>
+    </div>
+  </div>
+</section>
+
+<!-- B -->
+<section class="variant" data-k="B">
+  <h2>B · Botão claro, como o «Ouvir de novo»</h2>
+  <p>O botão de sair usa a mesma forma do «Ouvir de novo» e da mão: redondo, claro, sombra leve, ícone verde. Os cantos ficam todos da mesma família. O cordão vira uma fileira reta de 12 contas de 16 px no alto, sem fio, como a fileira de contas do Ensaio. Sem tag.</p>
+  <div class="phones">
+    <div class="phone">
+      <div id="nB"></div>
+      <div class="exit ring"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></div>
+      <div class="circle telhaM"></div>
+      <div class="check verdeM matte"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></div>
+      <div class="hand"><svg viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-4 0v1M14 10V4a2 2 0 0 0-4 0v2M10 10.5V6a2 2 0 0 0-4 0v8M18 8a2 2 0 0 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-5.9-2.4L3 16.3a2 2 0 0 1 2.8-2.8L7 15"/></svg></div>
+      <div class="hear"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div>
+      <div class="name">Conversa</div>
+    </div>
+    <div class="phone">
+      <div class="exit ring"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+      <div class="circle escolha telhaM"></div>
+      <div class="enter wood"></div>
+      <svg class="ruler" viewBox="0 0 300 60" id="rB"></svg>
+      <div class="hear"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div>
+      <div class="name">Escolha</div>
+    </div>
+  </div>
+</section>
+
+<!-- C -->
+<section class="variant" data-k="C">
+  <h2>C · O nó do cordão</h2>
+  <p>O botão de sair é o nó onde o cordão começa: uma conta de madeira um pouco maior, no canto, com o chevron. O fio fica fino (1,5 px, na cor da linha) e as contas acesas ganham um brilho suave. O gesto de sair «puxa o cordão». Sem tag.</p>
+  <div class="phones">
+    <div class="phone">
+      <svg class="cord" viewBox="0 0 300 120"><path d="M31 67 Q150 108 272 60" fill="none" stroke="var(--line)" stroke-width="1.5"/></svg>
+      <div id="nC"></div>
+      <div class="exit knot wood matte"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></div>
+      <div class="circle telhaM"></div>
+      <div class="check verdeM matte"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></div>
+      <div class="hand"><svg viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-4 0v1M14 10V4a2 2 0 0 0-4 0v2M10 10.5V6a2 2 0 0 0-4 0v8M18 8a2 2 0 0 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-5.9-2.4L3 16.3a2 2 0 0 1 2.8-2.8L7 15"/></svg></div>
+      <div class="hear"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div>
+      <div class="name">Conversa</div>
+    </div>
+    <div class="phone">
+      <div class="exit knot wood matte"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+      <div class="circle escolha telhaM"></div>
+      <div class="enter wood"></div>
+      <svg class="ruler" viewBox="0 0 300 60" id="rC"></svg>
+      <div class="hear"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div>
+      <div class="name">Escolha</div>
+    </div>
+  </div>
+</section>
+
+<p class="notes">O que não muda em nenhuma variação: o círculo telha de 160 px, o check verde, a mão e o «Ouvir de novo» embaixo, a régua e o disco de entrar na Escolha. A ligação das contas (7 de 12 acesas aqui) é só exemplo.</p>
+
+<div class="bar">
+  <button id="prev" aria-label="Variação anterior">←</button>
+  <button class="lbl" id="lbl" aria-live="polite">Como está hoje</button>
+  <button id="next" aria-label="Próxima variação">→</button>
+</div>
+
+<script>
+(function(){
+  var keys=['0','A','B','C'];
+  var names={'0':'Como está hoje','A':'A · Disco de madeira','B':'B · Botão claro','C':'C · O nó do cordão'};
+  var lit=7, total=12;
+  function bead(x,y,d,on,extra){
+    var b=document.createElement('div');
+    b.className='bead '+(on?'wood matte':'oat')+(extra||'');
+    b.style.cssText='left:'+(x-d/2)+'px;top:'+(y-d/2)+'px;width:'+d+'px;height:'+d+'px';
+    return b;
+  }
+  function arc(host,x0,y0,cx,cy,x1,y1,d,glow){
+    for(var i=0;i<total;i++){
+      var t=i/(total-1), u=1-t;
+      var x=u*u*x0+2*u*t*cx+t*t*x1, y=u*u*y0+2*u*t*cy+t*t*y1;
+      var b=bead(x,y,d,i<lit);
+      if(glow&&i<lit) b.style.boxShadow='0 1px 3px rgba(10,7,3,.2),0 0 0 3px rgba(201,162,107,.25)';
+      host.appendChild(b);
+    }
+  }
+  arc(document.getElementById('n0'),26,18,150,70,274,18,14);
+  arc(document.getElementById('nA'),28,70,150,112,272,70,17);
+  (function(){var h=document.getElementById('nB');var w=300,pad=30,gap=(w-2*pad)/(total-1);for(var i=0;i<total;i++)h.appendChild(bead(pad+i*gap,74,12,i<lit));})();
+  arc(document.getElementById('nC'),52,70,150,110,272,60,13,true);
+  function ruler(id,wood){
+    var s=document.getElementById(id); if(!s) return;
+    var n=15,pad=30,y=30,ns='http://www.w3.org/2000/svg';
+    var l=document.createElementNS(ns,'line');l.setAttribute('x1',pad);l.setAttribute('x2',300-pad);l.setAttribute('y1',y);l.setAttribute('y2',y);l.setAttribute('stroke','var(--cord)');l.setAttribute('stroke-width','1.5');l.setAttribute('stroke-linecap','round');s.appendChild(l);
+    for(var i=0;i<n;i++){var x=pad+i*(300-2*pad)/(n-1);var t=document.createElementNS(ns,'line');var r=5,sw=2,c='var(--cord)';if(i<3){r=5;sw=4;c='var(--wood)'}if(i===3){r=9;sw=2.5;c='var(--telha)'}
+      t.setAttribute('x1',x);t.setAttribute('x2',x);t.setAttribute('y1',y-r);t.setAttribute('y2',y+r);t.setAttribute('stroke',c);t.setAttribute('stroke-width',sw);t.setAttribute('stroke-linecap','round');s.appendChild(t);}
+    var m=document.createElementNS(ns,'circle');m.setAttribute('cx',pad+5*(300-2*pad)/(n-1));m.setAttribute('cy',y);m.setAttribute('r',7);m.setAttribute('fill','var(--telha)');s.appendChild(m);
+  }
+  ['r0','rA','rB','rC'].forEach(ruler);
+  var cur=0;
+  function show(i){cur=(i+keys.length)%keys.length;
+    document.querySelectorAll('.variant').forEach(function(v){v.classList.toggle('on',v.getAttribute('data-k')===keys[cur])});
+    document.getElementById('lbl').textContent=names[keys[cur]];
+    try{location.hash=keys[cur]==='0'?'hoje':keys[cur]}catch(e){}
+  }
+  document.getElementById('prev').onclick=function(){show(cur-1)};
+  document.getElementById('next').onclick=function(){show(cur+1)};
+  document.addEventListener('keydown',function(e){var t=e.target&&e.target.tagName;if(t==='INPUT'||t==='TEXTAREA'||(e.target&&e.target.isContentEditable))return;if(e.key==='ArrowLeft')show(cur-1);if(e.key==='ArrowRight')show(cur+1)});
+  var h=(location.hash||'').replace('#','');var start=keys.indexOf(h);if(h==='hoje')start=0;show(start<0?0:start);
+})();
+</script>
