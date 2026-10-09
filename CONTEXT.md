@@ -139,6 +139,9 @@ _Avoid_: roda, passage list, carousel, choice (the station that shows it)
 A recording the team kept, identified locally by its scope (part or whole passage) and, after upload, by the server's identifier.
 _Avoid_: gravação, recording (too general), audio
 
+**Capture guard**:
+The short window after a Conversation take opens in which the team's next tap on the circle cancels the take instead of ending it: nothing is sent, the take is discarded on the tablet and the circle rests. A tap after the window ends the take and sends it. This also covers the take an Interruption opens.
+
 **Mother tongue**:
 The team's language, in which the passage is recorded in the Conversation and the Rehearsal, and which nobody in the room needs to understand.
 _Avoid_: língua materna, materna (only as a short form in prose), L1, the team's language
