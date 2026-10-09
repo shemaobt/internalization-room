@@ -253,6 +253,12 @@ Future<void> _enterThePanorama(
   await settle();
 }
 
+class _RoomThatKeepsAnOwnTake extends SalaSessionNotifier {
+  void keepBesideTheParts(KeptTake own) {
+    state = state.copyWith(keptTakes: [own, ...state.keptTakes]);
+  }
+}
+
 void main() {
   test('resuming past the conversa does not reopen the conversa', () async {
     final harness = SalaHarness();
@@ -7843,8 +7849,16 @@ void main() {
       ..room.takeLandsAfter = const Duration(milliseconds: 500)
       ..room.verdictChecked = false
       ..room.verdictHasFinding = true;
-    final container = await inConversa(harness);
+    final container = ProviderContainer(
+      overrides: [
+        ...harness.overrides,
+        salaSessionProvider.overrideWith(_RoomThatKeepsAnOwnTake.new),
+      ],
+    );
     final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.goConversa();
+    await settle();
+    final room = notifier as _RoomThatKeepsAnOwnTake;
 
     notifier.goEnsaio();
     await gravaParte(notifier);
@@ -7884,6 +7898,13 @@ void main() {
     await notifier.finishBackTranslation();
     await settle();
 
+    room.keepBesideTheParts(
+      const KeptTake(
+        scopeId: KeptScope.whole,
+        path: 'the-stretch-own-recording.m4a',
+        takeId: 'gravacao-2',
+      ),
+    );
     notifier.ouvirOTrechoEATraducao();
     await settle();
 
@@ -7897,8 +7918,10 @@ void main() {
     );
     expect(
       harness.playback.played.last,
-      contains('captura'),
-      reason: 'e o arquivo tocado é o da parte 2',
+      'the-stretch-own-recording.m4a',
+      reason:
+          'o trecho toca a gravação que o nome dele aponta, e não cai de '
+          'volta na parte onde mora',
     );
   });
 
