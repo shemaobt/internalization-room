@@ -118,7 +118,7 @@ A line, spontaneous or the answer to a gesture, that arrived while the Channel w
 _Avoid_: pending line, interrupted line
 
 **Interruption**:
-The team's tap on the circle while the Guide speaks in the Conversation. It stops her and opens the microphone, and the next turn sent tells the room where she was cut: how far into the line (`at`) and how long the line was (`of`, when the tablet knows it). A take too short to keep, or none, tells nothing. The cut line counts as heard, and «Ouvir de novo» says it whole (ADR 0067).
+The team's tap on the circle while the Guide speaks in the Conversation. It stops her and opens the microphone, and the next turn sent tells the room where she was cut: how far into the line (`at`) and how long the line was (`of`, when the tablet knows it). A take too short to keep, or none, tells nothing. The cut line counts as heard, and «Ouvir de novo» says it whole (ADR 0067). A second tap within the capture guard's 700 ms after the cut cancels the capture: nothing is sent and the circle rests.
 _Avoid_: barge-in, interrupted line (a **Queued line** is not cut)
 
 ### What is recorded and told
