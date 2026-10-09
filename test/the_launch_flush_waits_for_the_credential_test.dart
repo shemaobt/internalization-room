@@ -143,4 +143,30 @@ void main() {
       ].contains('credencial-2'),
     );
   });
+
+  testWidgets('the launch tally counts the takes the launch flush already sent', (
+    tester,
+  ) async {
+    final harness = SalaHarness(
+      linkedAs: const RememberedLink(
+        deviceId: 'aparelho-1',
+        team: TeamLink(projectId: 'equipe-1'),
+        credential: 'credencial-1',
+      ),
+      filaEmMemoria: true,
+    );
+    harness.room.takeLandsAfter = const Duration(milliseconds: 50);
+    await _aTakeIsQueued(harness);
+
+    await pumpSala(tester, harness);
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      (harness.takes as FakeTakeQueue).unsentAtEachTally.first,
+      0,
+      reason:
+          'contada antes de a descarga voltar, a parte que já saiu aparece como '
+          'pendente até a próxima contagem',
+    );
+  });
 }

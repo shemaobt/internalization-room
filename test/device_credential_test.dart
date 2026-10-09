@@ -675,6 +675,92 @@ void main() {
   );
 
   test(
+    'a revoked answer to a credential written before a relink leaves the new link '
+    'alone',
+    () async {
+      final vault = FakeCredentialVault();
+      final home = Directory.systemTemp.createTempSync('sala-credencial');
+      addTearDown(() => home.deleteSync(recursive: true));
+      final ledger = LinkedTeam(home: () async => home, vault: vault);
+      await ledger.rememberDevice('aparelho-1');
+      await ledger.rememberTeam(const TeamLink(projectId: 'equipe-terena'));
+      await ledger.rememberCredential('credencial-1');
+
+      final betweenTheHeaderAndTheSend = Completer<void>();
+      var heldOnce = false;
+      var revokedOnce = false;
+      var codesAsked = 0;
+      http.Response revoked() => http.Response(
+        jsonEncode({'detail': 'revoked', 'code': 'DEVICE_REVOKED'}),
+        403,
+      );
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          final path = request.url.path;
+          if (path.endsWith('/devices/code')) codesAsked++;
+          if (path.endsWith('/takes')) return revoked();
+          if (path.endsWith('/sessions/sessao-1') && !revokedOnce) {
+            revokedOnce = true;
+            return revoked();
+          }
+          if (path.endsWith('/credential')) {
+            return http.Response(
+              jsonEncode({
+                'device_id': 'aparelho-1',
+                'credential': 'credencial-2',
+              }),
+              200,
+            );
+          }
+          return http.Response(_anyAnswer(), 200);
+        }),
+        deviceId: () async {
+          if (!heldOnce) {
+            heldOnce = true;
+            await betweenTheHeaderAndTheSend.future;
+          }
+          return 'aparelho-1';
+        },
+      );
+      addTearDown(repository.dispose);
+      final container = _tablet(
+        room: repository,
+        ledger: ledger,
+        linkPoll: _quickPoll,
+      );
+      addTearDown(container.dispose);
+      await container.read(deviceLinkProvider.notifier).findTheTeam();
+
+      final takeInTheAir = repository.sendTake(
+        'sessao-1',
+        _recording,
+        kind: 'ensaio',
+        scope: 'passagem',
+      );
+      await repository.fetchState('sessao-1');
+      await waitFor(
+        'o tablet ser vinculado de novo, com a credencial nova',
+        () async =>
+            container.read(deviceLinkProvider).linked &&
+            (await ledger.read()).credential == 'credencial-2',
+      );
+
+      final codesBefore = codesAsked;
+      betweenTheHeaderAndTheSend.complete();
+      await takeInTheAir;
+      await settle(const Duration(milliseconds: 100));
+
+      expect(
+        codesAsked,
+        codesBefore,
+        reason:
+            'o cabeçalho da parte foi escrito com a credencial antiga; a recusa '
+            'fala dela, não da que o tablet apresenta quando a resposta volta',
+      );
+    },
+  );
+
+  test(
     'a revoked credential the vault could not keep yet is not written back',
     () async {
       final home = Directory.systemTemp.createTempSync('sala-credencial');

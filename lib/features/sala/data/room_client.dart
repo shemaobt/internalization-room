@@ -13,12 +13,41 @@ T Function(http.Response) readJson<T>(T Function(Map<String, dynamic>) build) =>
       jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>,
     );
 
+const deviceCredentialHeader = 'X-Device-Credential';
+
+/// Hands every answer back with the request that drew it, so what a refused request
+/// carried is read off that request, not off what the tablet presents by the time the
+/// answer returns.
+class KeepsTheRequest extends http.BaseClient {
+  final http.Client _inner;
+
+  KeepsTheRequest(this._inner);
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    final response = await _inner.send(request);
+    if (response.request != null) return response;
+    return http.StreamedResponse(
+      response.stream,
+      response.statusCode,
+      contentLength: response.contentLength,
+      request: request,
+      headers: response.headers,
+      isRedirect: response.isRedirect,
+      persistentConnection: response.persistentConnection,
+      reasonPhrase: response.reasonPhrase,
+    );
+  }
+
+  @override
+  void close() => _inner.close();
+}
+
 class RoomClient {
   final http.Client _http;
-  final String? Function() _presenting;
   final _revocations = StreamController<String?>.broadcast();
 
-  RoomClient(this._http, this._presenting);
+  RoomClient(this._http);
 
   /// Every answer that says the Desk unlinked this tablet, whichever door it came to,
   /// told with the credential the refused request carried.
@@ -30,11 +59,11 @@ class RoomClient {
 
   void close() => unawaited(_revocations.close());
 
-  RoomAnswer<T> _heard<T>(RoomAnswer<T> answer, String? carried) {
+  RoomAnswer<T> _heard<T>(RoomAnswer<T> answer, http.BaseRequest? request) {
     if (answer case Refused(
       code: RefusalCode.deviceRevoked,
     ) when !_revocations.isClosed) {
-      _revocations.add(carried);
+      _revocations.add(request?.headers[deviceCredentialHeader]);
     }
     return answer;
   }
@@ -51,26 +80,6 @@ class RoomClient {
     required bool asksForTheSession,
     Map<int, RoomAnswer<T>> atThisDoor = const {},
   }) async {
-    final carried = _presenting();
-    return _heard(
-      await _ask(
-        send,
-        timeout: timeout,
-        read: read,
-        asksForTheSession: asksForTheSession,
-        atThisDoor: atThisDoor,
-      ),
-      carried,
-    );
-  }
-
-  Future<RoomAnswer<T>> _ask<T>(
-    Future<http.Response> Function() send, {
-    required Duration timeout,
-    required T Function(http.Response) read,
-    required bool asksForTheSession,
-    required Map<int, RoomAnswer<T>> atThisDoor,
-  }) async {
     final http.Response response;
     try {
       response = await send().timeout(timeout);
@@ -79,6 +88,23 @@ class RoomClient {
     } on Exception catch (error) {
       return NetworkFailed('$error');
     }
+    return _heard(
+      _answer(
+        response,
+        read: read,
+        asksForTheSession: asksForTheSession,
+        atThisDoor: atThisDoor,
+      ),
+      response.request,
+    );
+  }
+
+  RoomAnswer<T> _answer<T>(
+    http.Response response, {
+    required T Function(http.Response) read,
+    required bool asksForTheSession,
+    required Map<int, RoomAnswer<T>> atThisDoor,
+  }) {
     final atTheDoor = atThisDoor[response.statusCode];
     if (atTheDoor != null) return atTheDoor;
     final failure = classify(
@@ -113,7 +139,6 @@ class RoomClient {
     Duration? timeout,
     required bool asksForTheSession,
   }) async {
-    final carried = _presenting();
     final http.StreamedResponse response;
     try {
       final sent = _http.send(request);
@@ -131,7 +156,7 @@ class RoomClient {
         await _bodyOf(response),
         asksForTheSession: asksForTheSession,
       )!,
-      carried,
+      request,
     );
   }
 

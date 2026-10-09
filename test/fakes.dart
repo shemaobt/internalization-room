@@ -2304,8 +2304,12 @@ class FakeTakeQueue implements TakeUploadQueue {
         entry.scope,
   };
 
+  /// How many takes were still unsent each time the room counted, in order.
+  final List<int> unsentAtEachTally = [];
+
   @override
   Future<OutboxTally> tally({required String? sessionId}) async {
+    unsentAtEachTally.add(rows.where((entry) => !entry.stored).length);
     final held = _armed;
     _armed = null;
     if (held != null) _holding = held;

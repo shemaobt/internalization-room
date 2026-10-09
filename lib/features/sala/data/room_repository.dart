@@ -36,21 +36,20 @@ const _defaultStateTimeout = Duration(seconds: 20);
 class RoomRepository {
   static const turnTimeout = _turnTimeout;
 
-  final http.Client _client;
+  final http.Client client;
+  late final http.Client _client = KeepsTheRequest(client);
   final bool _ownsClient;
   final Future<String> Function() _deviceId;
   final Duration _stateTimeout;
-  late final RoomClient _room = RoomClient(_client, () => _credential);
+  late final RoomClient _room = RoomClient(_client);
 
   RoomRepository({
     http.Client? client,
     Future<String> Function()? deviceId,
     this._stateTimeout = _defaultStateTimeout,
-  }) : _client = client ?? http.Client(),
+  }) : client = client ?? http.Client(),
        _ownsClient = client == null,
        _deviceId = deviceId ?? deviceIdentity;
-
-  http.Client get client => _client;
 
   Stream<String?> get revoked => _room.revoked;
 
@@ -64,7 +63,7 @@ class RoomRepository {
   /// One builder rather than nine here and five written out by hand at the call sites:
   /// a header each site spells for itself is a header the next site forgets, and the
   /// omission only ever shows against a real server.
-  Map<String, String> get _whoWeAre => {'X-Device-Credential': ?_credential};
+  Map<String, String> get _whoWeAre => {deviceCredentialHeader: ?_credential};
 
   /// The claim doors open to anyone: a tablet that belongs to no team yet has nothing to
   /// present, and the code is only worth what a facilitator spends on it.
@@ -529,7 +528,7 @@ class RoomRepository {
 
   void dispose() {
     _room.close();
-    if (_ownsClient) _client.close();
+    if (_ownsClient) client.close();
   }
 }
 

@@ -85,11 +85,12 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     }
     _failures = 0;
     _deviceId = remembered.deviceId;
-    _present(remembered.credential);
+    final flushed = _present(remembered.credential);
     final team = remembered.team;
     if (team != null) {
       state = DeviceLink(team: team, presented: _credential != null);
-      return _collectTheCredential();
+      await _collectTheCredential();
+      return flushed;
     }
     await _lookForTheTeam();
   }
@@ -138,7 +139,7 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     await _keepCredential(ledger, credential);
     if (_closed) return;
     _failures = 0;
-    _present(credential);
+    await _present(credential);
   }
 
   /// Persists a credential the server will never hand over again — retried on its own,
@@ -168,7 +169,7 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     await ledger.forgetTheLink();
     await current.letGo().catchError((_) {});
     if (_closed) return;
-    _present(null);
+    unawaited(_present(null));
     await _showACode();
   }
 
@@ -180,7 +181,7 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
   Future<void> _revoked(String? carried) async {
     if (carried == null || carried != _credential) return;
     _next?.cancel();
-    _present(null);
+    unawaited(_present(null));
     state = const DeviceLink();
     await _startOver(_ledger, _currentSession);
   }
@@ -189,8 +190,9 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
   /// its own, so a credential that reached only the room would leave the team's questions
   /// as the one thing still arriving unnamed.
   ///
-  /// The room opens with it, and the takes that waited for it leave with it.
-  void _present(String? credential) {
+  /// The room opens with it, and the takes that waited for it leave with it: answered
+  /// once they have, so the tally taken after a launch counts what is really left.
+  Future<void> _present(String? credential) async {
     _credential = credential;
     _room.presents(credential);
     _inbox.presents(credential);
@@ -199,9 +201,7 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
       team: state.team,
       presented: credential != null,
     );
-    if (credential != null) {
-      unawaited(ref.read(takeUploadQueueProvider).flush());
-    }
+    if (credential != null) await ref.read(takeUploadQueueProvider).flush();
   }
 
   Future<void> _showACode() async {
