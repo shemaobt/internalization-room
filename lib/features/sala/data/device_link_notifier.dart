@@ -177,7 +177,9 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
   /// and each of them asking for a code would leave the facilitator chasing the last one.
   Future<void> _revoked() async {
     if (_credential == null) return;
+    _next?.cancel();
     _present(null);
+    state = const DeviceLink();
     await _startOver(_ledger, _currentSession);
   }
 

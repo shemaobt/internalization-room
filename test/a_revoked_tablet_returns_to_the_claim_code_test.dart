@@ -135,6 +135,34 @@ void main() {
     },
   );
 
+  test(
+    'a revoked tablet leaves the room at once, before its code arrives',
+    () async {
+      final tablet = await _linkedTablet(SalaHarness(linkedAs: _linked));
+      tablet.harness.room
+        ..holdNextCode()
+        ..failWith = _revoked;
+
+      await tablet.container
+          .read(roomRepositoryProvider)
+          .fetchState('sessao-1');
+      await waitFor(
+        'the tablet to stop being linked',
+        () => !tablet.container.read(deviceLinkProvider).linked,
+      );
+
+      expect(
+        tablet.container.read(deviceLinkProvider).code,
+        isNull,
+        reason:
+            'a tela do código espera o código; a sala parada atrás dela seguiria '
+            'mandando pedidos que nada mais abre',
+      );
+      tablet.harness.room.finishHeldCode();
+      await _aFreshCodeShows(tablet);
+    },
+  );
+
   test('a plain 401 halts the room and keeps the link', () async {
     final tablet = await _linkedTablet(SalaHarness(linkedAs: _linked));
     await _inAPassage(tablet);

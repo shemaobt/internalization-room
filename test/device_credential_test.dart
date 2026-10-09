@@ -596,6 +596,49 @@ void main() {
   );
 
   test(
+    'a revoked credential the vault could not keep yet is not written back',
+    () async {
+      final home = Directory.systemTemp.createTempSync('sala-credencial');
+      addTearDown(() => home.deleteSync(recursive: true));
+      final vault = FakeCredentialVault()..keepUnavailable = true;
+      final ledger = LinkedTeam(home: () async => home, vault: vault);
+      await ledger.rememberDevice('aparelho-1');
+      await ledger.rememberTeam(const TeamLink(projectId: 'equipe-terena'));
+      final room = FakeRoom()
+        ..linkedTo = const TeamLink(projectId: 'equipe-terena');
+      final container = _tablet(
+        room: room,
+        ledger: ledger,
+        linkPoll: _quickPoll,
+      );
+      addTearDown(container.dispose);
+      await container.read(deviceLinkProvider.notifier).findTheTeam();
+      expect(room.presented, 'credencial-1');
+
+      room
+        ..holdNextCode()
+        ..failWith = const Refused(RefusalCode.deviceRevoked);
+      await room.fetchState('sessao-1');
+      await waitFor(
+        'um código novo ser pedido',
+        () => room.calls.contains('askForACode'),
+      );
+      vault.keepUnavailable = false;
+      await settle(const Duration(milliseconds: 100));
+
+      expect(
+        await vault.read(),
+        isNull,
+        reason:
+            'a credencial que o cofre não pôde guardar ainda tem uma nova '
+            'tentativa marcada; guardada depois da revogação, a abertura '
+            'seguinte a apresenta e nunca recolhe outra',
+      );
+      room.finishHeldCode();
+    },
+  );
+
+  test(
     'a credential that arrives after the tablet was put down is still kept',
     () async {
       final ledger = await _alreadyLinked();
