@@ -558,10 +558,7 @@ void main() {
   testWidgets('the dev seal shows from the invite on, before any skip exists', (
     tester,
   ) async {
-    dotenv.testLoad(
-      fileInput:
-          'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://x\nDEV_PULAR_FASES=1');
     addTearDown(() => dotenv.testLoad(fileInput: ''));
     final container = await pumpSala(tester, SalaHarness());
     final notifier = container.read(salaSessionProvider.notifier);
@@ -584,10 +581,7 @@ void main() {
   testWidgets('the dev bar names every skip, and waits for its inputs', (
     tester,
   ) async {
-    dotenv.testLoad(
-      fileInput:
-          'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://x\nDEV_PULAR_FASES=1');
     addTearDown(() => dotenv.testLoad(fileInput: ''));
     final harness = SalaHarness()..network.reachable = false;
     final container = await pumpSala(tester, harness);
@@ -617,10 +611,7 @@ void main() {
   testWidgets('the dev bar walks into the ensaio once the session exists', (
     tester,
   ) async {
-    dotenv.testLoad(
-      fileInput:
-          'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://x\nDEV_PULAR_FASES=1');
     addTearDown(() => dotenv.testLoad(fileInput: ''));
     final container = await pumpSala(tester, SalaHarness());
     unawaited(container.read(salaSessionProvider.notifier).goConversa());
@@ -642,9 +633,7 @@ void main() {
   });
 
   testWidgets('a field build shows no dev bar at all', (tester) async {
-    dotenv.testLoad(
-      fileInput: 'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://x');
     addTearDown(() => dotenv.testLoad(fileInput: ''));
     final container = await pumpSala(tester, SalaHarness());
     unawaited(container.read(salaSessionProvider.notifier).goConversa());
@@ -657,10 +646,7 @@ void main() {
   testWidgets(
     "the room's own screen hides the skip bar, not only a bar built by a test",
     (tester) async {
-      dotenv.testLoad(
-        fileInput:
-            'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
-      );
+      dotenv.testLoad(fileInput: 'BACKEND_URL=http://x\nDEV_PULAR_FASES=1');
       addTearDown(() => dotenv.testLoad(fileInput: ''));
       final harness = SalaHarness();
       final container = ProviderContainer(

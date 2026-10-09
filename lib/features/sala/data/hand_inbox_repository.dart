@@ -41,7 +41,6 @@ class HandInboxRepository {
   void presents(String? credential) => _credential = credential;
 
   Future<Map<String, String>> get _headers async => {
-    'X-Room-Key': Env.roomKey,
     'X-Room-Device': await _deviceId(),
     'X-Device-Credential': ?_credential,
   };

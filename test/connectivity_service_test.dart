@@ -29,9 +29,7 @@ class FakeConnectivity implements Connectivity {
 
 void main() {
   setUpAll(() {
-    dotenv.testLoad(
-      fileInput: 'BACKEND_URL=http://sala.local\nINTERNALIZATION_ROOM_KEY=k',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
   });
 
   test('a burst of checks becomes a single request to the room', () async {

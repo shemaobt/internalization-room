@@ -25,7 +25,7 @@ import 'widgets/mic_gate_view.dart';
 import 'widgets/retro_view.dart';
 
 class SalaScreen extends ConsumerStatefulWidget {
-  /// Whether the build carries an address and a key at all.
+  /// Whether the build carries an address at all.
   final bool built;
 
   const SalaScreen({super.key, this.built = true});

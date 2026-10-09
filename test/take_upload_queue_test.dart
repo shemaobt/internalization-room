@@ -1400,9 +1400,7 @@ void main() {
 
   group('a take the room answers over the wire', () {
     setUpAll(() {
-      dotenv.testLoad(
-        fileInput: 'BACKEND_URL=http://sala.local\nINTERNALIZATION_ROOM_KEY=k',
-      );
+      dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
     });
 
     var asked = 0;

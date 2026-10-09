@@ -200,10 +200,7 @@ void main() {
   );
 
   test('the dev knob is refused a language the room does not speak', () {
-    dotenv.testLoad(
-      fileInput:
-          'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://x\nDEV_PULAR_FASES=1');
     addTearDown(() => dotenv.testLoad(fileInput: ''));
     final container = SalaHarness(lingua: null).container();
     addTearDown(container.dispose);
@@ -221,10 +218,7 @@ void main() {
   testWidgets(
     'changing the language in dev opens a new room rather than moving this one',
     (tester) async {
-      dotenv.testLoad(
-        fileInput:
-            'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
-      );
+      dotenv.testLoad(fileInput: 'BACKEND_URL=http://x\nDEV_PULAR_FASES=1');
       addTearDown(() => dotenv.testLoad(fileInput: ''));
       tester.platformDispatcher.localesTestValue = const [Locale('pt')];
       addTearDown(tester.platformDispatcher.clearLocalesTestValue);
@@ -261,10 +255,7 @@ void main() {
   test(
     'the dev language button on the wheel restarts the room, even after the panorama was said',
     () async {
-      dotenv.testLoad(
-        fileInput:
-            'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
-      );
+      dotenv.testLoad(fileInput: 'BACKEND_URL=http://x\nDEV_PULAR_FASES=1');
       addTearDown(() => dotenv.testLoad(fileInput: ''));
       final binding = TestWidgetsFlutterBinding.ensureInitialized();
       binding.platformDispatcher.localesTestValue = const [Locale('pt', 'BR')];
@@ -315,10 +306,7 @@ void main() {
     'the dev language button on the Panorama restarts the room on the Choice in '
     'the new language',
     () async {
-      dotenv.testLoad(
-        fileInput:
-            'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
-      );
+      dotenv.testLoad(fileInput: 'BACKEND_URL=http://x\nDEV_PULAR_FASES=1');
       addTearDown(() => dotenv.testLoad(fileInput: ''));
       final binding = TestWidgetsFlutterBinding.ensureInitialized();
       binding.platformDispatcher.localesTestValue = const [Locale('pt', 'BR')];

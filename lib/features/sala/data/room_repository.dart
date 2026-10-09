@@ -62,10 +62,11 @@ class RoomRepository {
   /// One builder rather than nine here and five written out by hand at the call sites:
   /// a header each site spells for itself is a header the next site forgets, and the
   /// omission only ever shows against a real server.
-  Map<String, String> get _whoWeAre => {
-    'X-Room-Key': Env.roomKey,
-    'X-Device-Credential': ?_credential,
-  };
+  Map<String, String> get _whoWeAre => {'X-Device-Credential': ?_credential};
+
+  /// The claim doors open to anyone: a tablet that belongs to no team yet has nothing to
+  /// present, and the code is only worth what a facilitator spends on it.
+  static const _claimHeaders = {'Content-Type': 'application/json'};
 
   String? _credential;
 
@@ -78,8 +79,10 @@ class RoomRepository {
   /// The one and only copy of this tablet's credential, drawn once for the device id the
   /// claim code was minted for.
   Future<RoomAnswer<String>> collectTheCredential(String deviceId) => _room.ask(
-    () =>
-        _client.post(_uri('/devices/$deviceId/credential'), headers: _headers),
+    () => _client.post(
+      _uri('/devices/$deviceId/credential'),
+      headers: _claimHeaders,
+    ),
     timeout: _stateTimeout,
     read: readJson((json) => json['credential'] as String),
     asksForTheSession: false,
@@ -92,7 +95,7 @@ class RoomRepository {
   Future<RoomAnswer<ClaimCode>> askForACode(String? deviceId) => _room.ask(
     () => _client.post(
       _uri('/devices/code'),
-      headers: _headers,
+      headers: _claimHeaders,
       body: jsonEncode({'device_id': ?deviceId}),
     ),
     timeout: _stateTimeout,
@@ -101,7 +104,7 @@ class RoomRepository {
   );
 
   Future<RoomAnswer<TeamLink?>> readTheLink(String deviceId) => _room.ask(
-    () => _client.get(_uri('/devices/$deviceId/link'), headers: _headers),
+    () => _client.get(_uri('/devices/$deviceId/link'), headers: _claimHeaders),
     timeout: _stateTimeout,
     read: readJson(TeamLink.fromJson),
     asksForTheSession: false,

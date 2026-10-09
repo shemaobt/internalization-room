@@ -17,6 +17,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 
 import 'fakes.dart';
+import 'no_source_names_the_room_key_test.dart' show theRoomKeyHeader;
 import 'scenario_helpers.dart' show settle;
 
 const _oneSecond = Duration(seconds: 1);
@@ -35,15 +36,20 @@ String _anyAnswer() => jsonEncode({
 
 typedef _Request = Future<void> Function(RoomRepository room, File audio);
 
-/// Every way the room touches the network, named as the app names it.
-///
-/// The header belongs to the tablet, not to a route, so a case that checks one method is
-/// a case that proves nothing about the next one. `noRequestSlipsOut` below reads the
-/// repository and fails when a method is added without a line here.
-final Map<String, _Request> _everyRequest = {
+/// The three claim doors, which open to anyone: a tablet that has no team yet has
+/// nothing to present, and the code is only worth what a facilitator spends on it.
+final Map<String, _Request> _everyClaimDoor = {
   'askForACode': (room, _) => room.askForACode('aparelho-1'),
   'readTheLink': (room, _) => room.readTheLink('aparelho-1'),
   'collectTheCredential': (room, _) => room.collectTheCredential('aparelho-1'),
+};
+
+/// Every other way the room touches the network, named as the app names it.
+///
+/// The header belongs to the tablet, not to a route, so a case that checks one method is
+/// a case that proves nothing about the next one. `noRequestSlipsOut` below reads the
+/// repository and fails when a method is added without a line in one of the two tables.
+final Map<String, _Request> _everyRequest = {
   'createSession': (room, _) => room.createSession(language: 'pt'),
   'passagesOf': (room, _) => room.passagesOf('rute', language: 'pt'),
   'fetchState': (room, _) => room.fetchState('sessao-1'),
@@ -89,8 +95,7 @@ typedef _InboxRequest =
 /// The hand's own way to the room, which keeps a client and a header of its own.
 ///
 /// It is a second repository, so the credential does not reach it by reaching the first
-/// one — and once ENG-455 retires the shared key, a question carrying nothing that names
-/// the tablet is a question the room stops accepting.
+/// one, and a question carrying nothing that names the tablet is one the room refuses.
 final Map<String, _InboxRequest> _everyInboxRequest = {
   'fetchReplies': (inbox, _) => inbox.fetchReplies(),
   'markHeard': (inbox, _) =>
@@ -148,9 +153,7 @@ Future<LinkedTeam> _alreadyLinked() async {
 void main() {
   setUpAll(() {
     TestWidgetsFlutterBinding.ensureInitialized();
-    dotenv.testLoad(
-      fileInput: 'BACKEND_URL=http://sala.local\nINTERNALIZATION_ROOM_KEY=k',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
     _support = Directory.systemTemp.createTempSync('sala-aparelho');
     _recording = File('${_support.path}/ensaio.m4a')
       ..writeAsBytesSync([1, 2, 3]);
@@ -165,49 +168,91 @@ void main() {
 
   group('once the tablet holds a credential', () {
     for (final entry in _everyRequest.entries) {
-      test('${entry.key} presents it, and still presents the room key', () async {
-        final seen = <http.BaseRequest>[];
-        final repository = RoomRepository(
-          client: MockClient((request) async {
-            seen.add(request);
-            return http.Response(_anyAnswer(), 200);
-          }),
-        )..presents('credencial-1');
-        addTearDown(repository.dispose);
+      test(
+        'a request from the room repository carries the credential and no room '
+        'key: ${entry.key}',
+        () async {
+          final seen = <http.BaseRequest>[];
+          final repository = RoomRepository(
+            client: MockClient((request) async {
+              seen.add(request);
+              return http.Response(_anyAnswer(), 200);
+            }),
+          )..presents('credencial-1');
+          addTearDown(repository.dispose);
 
-        await entry.value(repository, _recording);
+          await entry.value(repository, _recording);
 
-        expect(
-          seen.single.headers['X-Device-Credential'],
-          'credencial-1',
-          reason:
-              'uma rota sem a credencial é uma rota que o servidor julga pela '
-              'chave compartilhada, que é exatamente o que a credencial existe '
-              'para substituir',
-        );
-        expect(
-          seen.single.headers['X-Room-Key'],
-          'k',
-          reason: 'aposentar a chave é ENG-455; até lá as duas viajam juntas',
-        );
-      });
+          expect(
+            seen.single.headers['X-Device-Credential'],
+            'credencial-1',
+            reason:
+                'a credencial é a única coisa que abre uma porta da equipe; uma '
+                'rota sem ela é uma rota que o servidor recusa',
+          );
+          expect(
+            seen.single.headers.containsKey(theRoomKeyHeader),
+            isFalse,
+            reason:
+                'a chave compartilhada saiu do app: um segredo empacotado em '
+                'todo tablet é um segredo de qualquer um que abra o pacote',
+          );
+        },
+      );
     }
 
     for (final entry in _everyInboxRequest.entries) {
-      test('the hand presents it in ${entry.key} too', () async {
-        final seen = <http.BaseRequest>[];
-        final inbox = _inboxSeenBy(seen)..presents('credencial-1');
+      test(
+        'a request from the hand inbox repository carries the credential and no '
+        'room key: ${entry.key}',
+        () async {
+          final seen = <http.BaseRequest>[];
+          final inbox = _inboxSeenBy(seen)..presents('credencial-1');
 
-        await entry.value(inbox, _recording);
+          await entry.value(inbox, _recording);
 
-        expect(seen.single.headers['X-Device-Credential'], 'credencial-1');
-        expect(seen.single.headers['X-Room-Key'], 'k');
-      });
+          expect(seen.single.headers['X-Device-Credential'], 'credencial-1');
+          expect(seen.single.headers.containsKey(theRoomKeyHeader), isFalse);
+        },
+      );
+    }
+
+    for (final entry in _everyClaimDoor.entries) {
+      test(
+        'the claim-code mint, the link poll and the credential collect carry no '
+        'authentication header: ${entry.key}',
+        () async {
+          final seen = <http.BaseRequest>[];
+          final repository = RoomRepository(
+            client: MockClient((request) async {
+              seen.add(request);
+              return http.Response(_anyAnswer(), 200);
+            }),
+          )..presents('credencial-1');
+          addTearDown(repository.dispose);
+
+          await entry.value(repository, _recording);
+
+          expect(
+            seen.single.headers.keys.map((name) => name.toLowerCase()),
+            isNot(
+              anyOf(
+                contains('x-device-credential'),
+                contains(theRoomKeyHeader.toLowerCase()),
+              ),
+            ),
+            reason:
+                'as portas do vínculo abrem para qualquer um; uma credencial '
+                'mandada ali é uma credencial que vaza para uma porta que não a '
+                'julga',
+          );
+        },
+      );
     }
   });
 
   group('before the tablet holds a credential', () {
-    for (final entry in _everyRequest.entries) {
+    for (final entry in {..._everyClaimDoor, ..._everyRequest}.entries) {
       test('${entry.key} presents none', () async {
         final seen = <http.BaseRequest>[];
         final repository = RoomRepository(
@@ -227,7 +272,6 @@ void main() {
               'um cabeçalho vazio é um aparelho afirmando ser alguém, e o '
               'servidor passa a julgá-lo por uma credencial que não existe',
         );
-        expect(seen.single.headers['X-Room-Key'], 'k');
       });
     }
 
@@ -239,19 +283,21 @@ void main() {
         await entry.value(inbox, _recording);
 
         expect(seen.single.headers.containsKey('X-Device-Credential'), isFalse);
-        expect(seen.single.headers['X-Room-Key'], 'k');
       });
     }
   });
 
   for (final (file, enumerated) in [
-    ('lib/features/sala/data/room_repository.dart', _everyRequest.keys),
+    (
+      'lib/features/sala/data/room_repository.dart',
+      [..._everyClaimDoor.keys, ..._everyRequest.keys],
+    ),
     (
       'lib/features/sala/data/hand_inbox_repository.dart',
       _everyInboxRequest.keys,
     ),
   ]) {
-    test('no request in $file slips out of the enumeration above', () {
+    test('every public request of $file is in one of the header groups', () {
       final source = File(file).readAsStringSync();
       final signature = RegExp(r'^  Future<.+> (\w+)\(', multiLine: true);
       final declared = signature

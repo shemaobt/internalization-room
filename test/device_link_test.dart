@@ -21,10 +21,7 @@ import 'scenario_helpers.dart' show settle;
 const _unclaimed = RememberedLink();
 
 void _devEnv() {
-  dotenv.testLoad(
-    fileInput:
-        'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
-  );
+  dotenv.testLoad(fileInput: 'BACKEND_URL=http://x\nDEV_PULAR_FASES=1');
   addTearDown(() => dotenv.testLoad(fileInput: ''));
 }
 

@@ -59,9 +59,7 @@ ProviderContainer _tablet({
 void main() {
   setUpAll(() {
     TestWidgetsFlutterBinding.ensureInitialized();
-    dotenv.testLoad(
-      fileInput: 'BACKEND_URL=http://sala.local\nINTERNALIZATION_ROOM_KEY=k',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
   });
 
   group('the credential lives in the Keychain', () {

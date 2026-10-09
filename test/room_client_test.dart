@@ -12,9 +12,7 @@ import 'package:internalization_room/features/sala/data/room_repository.dart';
 
 void main() {
   setUpAll(() {
-    dotenv.testLoad(
-      fileInput: 'BACKEND_URL=http://sala.local\nINTERNALIZATION_ROOM_KEY=k',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
   });
 
   RoomRepository answering(int status, [Object? body]) {
@@ -144,7 +142,7 @@ void main() {
     expect(
       await answering(403, {
         'detail': 'no',
-        'code': 'ROOM_KEY_INVALID',
+        'code': 'NOT_THIS_TEAM',
       }).fetchState('sessao-1'),
       refusedWith('FORBIDDEN'),
     );
