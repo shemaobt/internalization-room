@@ -107,6 +107,7 @@ class ConversaView extends ConsumerWidget {
 
   String _circleLabel(SalaSessionState session, String language) {
     if (session.needsPerson) return circleLabelFor('needsPerson', language);
+    if (session.offline) return circleLabelFor('offline', language);
     if (session.channel case Microphone(owner: MicOwner.question)) {
       return circleLabelFor('noteMode', language);
     }
