@@ -77,7 +77,8 @@ class LinkedTeam {
     return File(p.join(dir.path, _ledger));
   }
 
-  Future<RememberedLink> _readFile() async {
+  /// `null` when the file is there but could not be read: not the same as no file.
+  Future<RememberedLink?> _readFile() async {
     final file = await _file();
     if (!await file.exists()) return const RememberedLink();
     try {
@@ -85,50 +86,66 @@ class LinkedTeam {
         (jsonDecode(await file.readAsString()) as Map).cast<String, Object?>(),
       );
     } on Object {
-      return const RememberedLink();
+      return null;
     }
   }
 
-  /// The file for who this tablet is, the vault for what proves it.
+  /// The file for who this tablet is, the vault for what proves it — and only a proof
+  /// of this file's device.
   ///
   /// Migration is on read, once: a file written before the vault existed still carries a
   /// `credential`, which moves into the vault here and is rewritten out of the file — and
   /// the same line clears a credential left behind by a migration interrupted between the
   /// vault write and the file rewrite, where both would otherwise hold one.
   ///
+  /// The Keychain outlives an uninstall and the file does not, so a vault credential with
+  /// no device id in the file, or kept for another device id, belongs to a tablet this
+  /// one no longer is: it is forgotten here, and the link flow collects a new one. One
+  /// kept before the vault recorded its device is taken as the file's, and recorded so.
+  /// A file that is there but cannot be read says nothing of the kind, and leaves the
+  /// vault as it is.
+  ///
   /// Never throws on a vault that cannot answer (before the tablet's first unlock since a
   /// reboot, the Keychain refuses every access): `credentialUnavailable` says so instead,
-  /// and nothing is written — not the vault, not the file — so an old file still carrying
-  /// its credential migrates on the next look that finds the vault reachable.
+  /// and the file is not rewritten, so an old file still carrying its credential migrates
+  /// on the next look that finds the vault reachable.
   Future<RememberedLink> read() async {
-    final onDisk = await _readFile();
-    String? vaulted;
-    var unavailable = false;
+    final readable = await _readFile();
+    final onDisk = readable ?? const RememberedLink();
     try {
-      vaulted = await _vault.read();
-    } on VaultUnavailable {
-      unavailable = true;
-    }
-    if (!unavailable && onDisk.credential != null) {
-      if (vaulted == null) {
-        try {
-          await _vault.keep(onDisk.credential!);
-        } on VaultUnavailable {
-          unavailable = true;
-        }
-      }
-      if (!unavailable) {
+      final credential = readable == null
+          ? await _vault.read()
+          : await _credentialOfThisDevice(readable);
+      if (onDisk.credential != null) {
         await _write(
           (was) => RememberedLink(deviceId: was.deviceId, team: was.team),
         );
       }
+      return RememberedLink(
+        deviceId: onDisk.deviceId,
+        team: onDisk.team,
+        credential: credential,
+      );
+    } on VaultUnavailable {
+      return RememberedLink(
+        deviceId: onDisk.deviceId,
+        team: onDisk.team,
+        credentialUnavailable: true,
+      );
     }
-    return RememberedLink(
-      deviceId: onDisk.deviceId,
-      team: onDisk.team,
-      credential: unavailable ? null : (vaulted ?? onDisk.credential),
-      credentialUnavailable: unavailable,
-    );
+  }
+
+  Future<String?> _credentialOfThisDevice(RememberedLink onDisk) async {
+    final credential = await _vault.read() ?? onDisk.credential;
+    if (credential == null) return null;
+    final deviceId = onDisk.deviceId;
+    final keptFor = await _vault.keptFor();
+    if (deviceId == null || (keptFor != null && keptFor != deviceId)) {
+      await _vault.forget();
+      return null;
+    }
+    if (keptFor == null) await _vault.keep(credential, forDevice: deviceId);
+    return credential;
   }
 
   Future<void> rememberDevice(String deviceId) =>
@@ -137,7 +154,10 @@ class LinkedTeam {
   Future<void> rememberTeam(TeamLink team) =>
       _write((was) => RememberedLink(deviceId: was.deviceId, team: team));
 
-  Future<void> rememberCredential(String credential) => _vault.keep(credential);
+  Future<void> rememberCredential(
+    String credential, {
+    required String forDevice,
+  }) => _vault.keep(credential, forDevice: forDevice);
 
   /// Everything this tablet knew about being itself, dropped in one write.
   ///
@@ -160,7 +180,9 @@ class LinkedTeam {
       if (await file.exists() && !await _readable(file)) return;
       final staging = File('${file.path}.novo');
       await staging.writeAsString(
-        jsonEncode(change(await _readFile()).toJson()),
+        jsonEncode(
+          change(await _readFile() ?? const RememberedLink()).toJson(),
+        ),
         flush: true,
       );
       await staging.rename(file.path);

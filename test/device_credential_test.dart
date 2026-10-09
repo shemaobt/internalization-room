@@ -603,7 +603,7 @@ void main() {
       final ledger = LinkedTeam(home: () async => home, vault: vault);
       await ledger.rememberDevice('aparelho-1');
       await ledger.rememberTeam(const TeamLink(projectId: 'equipe-terena'));
-      await ledger.rememberCredential('credencial-1');
+      await ledger.rememberCredential('credencial-1', forDevice: 'aparelho-1');
 
       final slowTake = Completer<http.Response>();
       var revokedOnce = false;
@@ -684,7 +684,7 @@ void main() {
       final ledger = LinkedTeam(home: () async => home, vault: vault);
       await ledger.rememberDevice('aparelho-1');
       await ledger.rememberTeam(const TeamLink(projectId: 'equipe-terena'));
-      await ledger.rememberCredential('credencial-1');
+      await ledger.rememberCredential('credencial-1', forDevice: 'aparelho-1');
 
       final betweenTheHeaderAndTheSend = Completer<void>();
       var heldOnce = false;
@@ -862,4 +862,134 @@ void main() {
       expect(seen.last.headers['X-Device-Credential'], 'credencial-tardia');
     },
   );
+
+  group('the credential belongs to the remembered link', () {
+    Future<LinkedTeam> linkedAs(
+      String? deviceId,
+      FakeCredentialVault vault,
+    ) async {
+      final home = Directory.systemTemp.createTempSync('sala-par');
+      addTearDown(() => home.deleteSync(recursive: true));
+      final ledger = LinkedTeam(home: () async => home, vault: vault);
+      if (deviceId == null) return ledger;
+      await ledger.rememberDevice(deviceId);
+      await ledger.rememberTeam(const TeamLink(projectId: 'equipe-terena'));
+      return ledger;
+    }
+
+    FakeRoom roomThatLinks() => FakeRoom()
+      ..presented = null
+      ..linkedTo = const TeamLink(projectId: 'equipe-terena');
+
+    test(
+      'a fresh install forgets the credential the Keychain kept and collects its '
+      'own after the link',
+      () async {
+        final vault = FakeCredentialVault();
+        await vault.keep('credencial-antiga');
+        final ledger = await linkedAs(null, vault);
+        final room = roomThatLinks();
+        final container = _tablet(
+          room: room,
+          ledger: ledger,
+          linkPoll: _quickPoll,
+        );
+        addTearDown(container.dispose);
+
+        await container.read(deviceLinkProvider.notifier).findTheTeam();
+        await waitFor(
+          'o tablet recolher a própria credencial',
+          () => room.credentialsCollected.isNotEmpty,
+        );
+        await settle();
+
+        expect(
+          room.presentedOnEachCall[room.calls.indexOf('askForACode')],
+          isNull,
+          reason:
+              'o código de uma instalação nova é pedido sem credencial; a que o '
+              'Keychain guardou é de outro aparelho, que o servidor serviria no '
+              'lugar deste',
+        );
+        expect(room.credentialsCollected, ['aparelho-1']);
+        expect(await vault.read(), 'credencial-1');
+        expect(room.presented, 'credencial-1');
+        expect(room.presentedOnEachCall, isNot(contains('credencial-antiga')));
+      },
+    );
+
+    test(
+      'a ledger naming another device than the vault\'s credential forgets the '
+      'vault and collects for the ledger\'s device',
+      () async {
+        final vault = FakeCredentialVault();
+        await vault.keep('credencial-antiga', forDevice: 'e564bb2e');
+        final ledger = await linkedAs('aparelho-1', vault);
+        final room = roomThatLinks();
+        final container = _tablet(room: room, ledger: ledger);
+        addTearDown(container.dispose);
+
+        await container.read(deviceLinkProvider.notifier).findTheTeam();
+        await waitFor(
+          'a credencial nova ser apresentada',
+          () => room.presented == 'credencial-1',
+        );
+
+        expect(room.credentialsCollected, ['aparelho-1']);
+        expect(await vault.read(), 'credencial-1');
+        expect(
+          room.presentedOnEachCall,
+          isNot(contains('credencial-antiga')),
+          reason:
+              'a credencial de outro aparelho faz o servidor tratar este tablet '
+              'como aquele, e desvinculá-lo no Desk não o revogaria',
+        );
+      },
+    );
+
+    test('a ledger and a vault for the same device present the credential and '
+        'collect nothing', () async {
+      final vault = FakeCredentialVault();
+      await vault.keep('credencial-1', forDevice: 'aparelho-1');
+      final ledger = await linkedAs('aparelho-1', vault);
+      final room = roomThatLinks();
+      final container = _tablet(room: room, ledger: ledger);
+      addTearDown(container.dispose);
+
+      await container.read(deviceLinkProvider.notifier).findTheTeam();
+      await settle();
+
+      expect(room.presented, 'credencial-1');
+      expect(
+        room.credentialsCollected,
+        isEmpty,
+        reason:
+            'o servidor entrega a credencial uma única vez; pedir outra volta '
+            '403 e derruba o vínculo de uma sala que já está trabalhando',
+      );
+    });
+
+    test('a credential kept before this change, with no device id beside it, is '
+        'trusted for the ledger\'s device and recorded for it', () async {
+      final vault = FakeCredentialVault();
+      await vault.keep('credencial-1');
+      final ledger = await linkedAs('aparelho-1', vault);
+      final room = roomThatLinks();
+      final container = _tablet(room: room, ledger: ledger);
+      addTearDown(container.dispose);
+
+      await container.read(deviceLinkProvider.notifier).findTheTeam();
+      await settle();
+
+      expect(
+        room.presented,
+        'credencial-1',
+        reason:
+            'um tablet em campo vinculado antes desta mudança está funcionando; '
+            'esquecer a credencial dele forçaria um novo vínculo sem motivo',
+      );
+      expect(room.credentialsCollected, isEmpty);
+      expect(await vault.keptFor(), 'aparelho-1');
+    });
+  });
 }
