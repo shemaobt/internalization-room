@@ -188,24 +188,58 @@ void main() {
     },
   );
 
+  SalaHarness aRoomThatGivesUp() => SalaHarness(
+    retryBackoff: const [Duration(minutes: 1)],
+    busyCeiling: const Duration(milliseconds: 300),
+  )..room.passages = _aBookWithItsPanorama;
+
+  Future<void> theCreationIsGivenUp(_Sala sala) async {
+    unawaited(sala.notifier.abrirEscolha());
+    await _theChoiceOffers(sala, (entry) => entry.pericope == 'P01');
+    sala.harness.room.holdNextCreate();
+    sala.notifier.entrarNaOferecida();
+    await _wait(sala);
+  }
+
   testWidgets(
     'a session\'s creation the tablet gives up waiting for rests on «Tocar '
-    'para tentar de novo» and raises no halt',
+    'para tentar de novo», raises no halt, and its late answer opens nothing',
     (tester) async {
-      final sala = await _theSala(
-        tester,
-        SalaHarness(
-          retryBackoff: const [Duration(minutes: 1)],
-          busyCeiling: const Duration(milliseconds: 300),
-        ),
-      );
-      unawaited(sala.notifier.abrirEscolha());
-      await _theChoiceOffers(sala, (entry) => entry.pericope == 'P01');
-      sala.harness.room.holdNextCreate();
-      sala.notifier.entrarNaOferecida();
+      final sala = await _theSala(tester, aRoomThatGivesUp());
+      await theCreationIsGivenUp(sala);
+
+      expect(_read(sala).sessionId, isNull);
+      _restsWithoutAHalt(sala);
+
+      sala.harness.room.finishHeldCreate();
       await _wait(sala);
 
       expect(_read(sala).sessionId, isNull);
+      expect(sala.harness.room.turnIdsAsked, isEmpty);
+      _restsWithoutAHalt(sala);
+      closeTheRoom(sala.container);
+    },
+  );
+
+  testWidgets(
+    'a creation given up after a visit to the Panorama rests the same way',
+    (tester) async {
+      final sala = await _theSala(tester, aRoomThatGivesUp());
+      unawaited(sala.notifier.abrirEscolha());
+      await _theChoiceOffers(sala, (entry) => entry.isPanorama);
+      sala.notifier.entrarNaOferecida();
+      await _until(
+        sala,
+        'the Panorama to be said',
+        () => _read(sala).panoramaSaid,
+      );
+      sala.notifier.leaveThePassage();
+      await tester.pump(const Duration(seconds: 2));
+
+      await theCreationIsGivenUp(sala);
+      await tester.pump(const Duration(seconds: 2));
+
+      expect(_read(sala).stage, SalaStage.conversa);
       _restsWithoutAHalt(sala);
       sala.harness.room.finishHeldCreate();
       closeTheRoom(sala.container);

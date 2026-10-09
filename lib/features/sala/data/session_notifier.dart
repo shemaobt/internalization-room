@@ -1343,9 +1343,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _dispatch(FailurePolicy.decide(const RoomTimedOut(), _failureContext()));
   }
 
-  bool get _onAWayIn =>
-      _theSession == null &&
-      (state.station is Canvas || state.station is Panorama);
+  bool get _onAWayIn => switch (state.station) {
+    Canvas() => state.sessionId == null,
+    Panorama() => _panoramaSessionId == null,
+    _ => false,
+  };
 
   void _giveUpOnTheTurn(Turn turn, RoomResult result) => _dispatch(
     FailurePolicy.decide(
