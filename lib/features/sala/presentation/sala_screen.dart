@@ -61,6 +61,13 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
     });
   }
 
+  /// The room the tablet was in belonged to the link the Desk just took back. Built
+  /// afresh, the next link opens it the way a first launch does.
+  void _closeTheRoom() {
+    _roomOpened = false;
+    ref.invalidate(salaSessionProvider);
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -91,6 +98,9 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
     final session = ref.watch(salaSessionProvider);
     final mic = ref.watch(micPermissionProvider);
     final link = ref.watch(deviceLinkProvider);
+    ref.listen(deviceLinkProvider, (was, now) {
+      if ((was?.linked ?? false) && !now.linked) _closeTheRoom();
+    });
 
     if (!link.linked) {
       return Scaffold(

@@ -502,6 +502,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _endTheGesturesAbandoned() {
     final abandoned = _waitingOnTheGeneration.difference(_chain.toSet());
     _waitingOnTheGeneration.clear();
+    if (_gone) return;
     for (final gesture in abandoned.intersection(state.machine.onTheirWay)) {
       _endTheGesture(gesture);
     }

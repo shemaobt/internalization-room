@@ -52,6 +52,8 @@ class RoomRepository {
 
   http.Client get client => _client;
 
+  Stream<void> get revoked => _room.revoked;
+
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
     ..._whoWeAre,
@@ -526,6 +528,7 @@ class RoomRepository {
   }
 
   void dispose() {
+    _room.close();
     if (_ownsClient) _client.close();
   }
 }

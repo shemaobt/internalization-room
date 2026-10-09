@@ -34,6 +34,8 @@ class HandInboxRepository {
 
   http.Client get client => _client;
 
+  Stream<void> get revoked => _room.revoked;
+
   String? _credential;
 
   /// What this tablet presents as itself from now on. The hand keeps a client and a
@@ -106,6 +108,7 @@ class HandInboxRepository {
       );
 
   void dispose() {
+    _room.close();
     if (_ownsClient) _client.close();
   }
 }

@@ -155,6 +155,16 @@ void main() {
     );
   });
 
+  test('a revoked device is told apart on a door the room streams', () async {
+    await expectLater(
+      answering(403, {
+        'detail': 'revoked',
+        'code': 'DEVICE_REVOKED',
+      }).openClip('/voice/p01', from: 0, ifRange: 'e1'),
+      throwsA(refusedWith('DEVICE_REVOKED')),
+    );
+  });
+
   test('a 500 or a 429 is the network, not a refusal', () async {
     expect(
       await answering(500, {

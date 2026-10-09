@@ -826,10 +826,18 @@ class FakeInbox implements HandInboxRepository {
     return const Answered(null);
   }
 
+  final _revocations = StreamController<void>.broadcast();
+
+  @override
+  Stream<void> get revoked => _revocations.stream;
+
   @override
   Future<RoomAnswer<void>> sendQuestion(String sessionId, File audio) async {
     if (refuses) return const NetworkFailed('sem rede');
     final refusal = refusesTheQuestionWith;
+    if (refusal case Refused(code: RefusalCode.deviceRevoked)) {
+      _revocations.add(null);
+    }
     if (refusal != null) return refusal;
     questionsSent.add(sessionId);
     return const Answered(null);
@@ -1199,21 +1207,39 @@ class FakeRoom implements RoomRepository {
     return const SessionGone();
   }
 
-  static const _sessionless = {
+  static const _claimDoors = {
     'askForACode',
     'readTheLink',
     'collectTheCredential',
+  };
+
+  static const _sessionless = {
+    ..._claimDoors,
     'createSession',
     'passagesOf',
     'fetchClip',
     'openClip',
   };
 
+  final _revocations = StreamController<void>.broadcast();
+
+  /// Announced for every call [failWith] turns down as revoked, the way the real
+  /// repository announces every one it is answered. A door's own knob is that door's
+  /// answer, not the tablet's revocation.
+  @override
+  Stream<void> get revoked => _revocations.stream;
+
   RoomFailure? _guard(String call) {
     calls.add(call);
     final failure = failWith;
     if (failure is SessionGone && _sessionless.contains(call)) {
       return const Refused(RefusalCode.notFound);
+    }
+    if (failure case Refused(code: RefusalCode.deviceRevoked)) {
+      if (_claimDoors.contains(call)) {
+        return reachable ? null : const NetworkFailed('sem rede');
+      }
+      _revocations.add(null);
     }
     return failure ?? (reachable ? null : const NetworkFailed('sem rede'));
   }

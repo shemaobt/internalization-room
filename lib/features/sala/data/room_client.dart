@@ -15,8 +15,25 @@ T Function(http.Response) readJson<T>(T Function(Map<String, dynamic>) build) =>
 
 class RoomClient {
   final http.Client _http;
+  final _revocations = StreamController<void>.broadcast();
 
-  const RoomClient(this._http);
+  RoomClient(this._http);
+
+  /// Every answer that says the Desk unlinked this tablet, whichever door it came to.
+  ///
+  /// Heard here rather than at each door because the doors read a refusal by rules of
+  /// their own, and some of them let it pass: a revocation is about the tablet, not
+  /// about the request that met it.
+  Stream<void> get revoked => _revocations.stream;
+
+  void close() => unawaited(_revocations.close());
+
+  RoomAnswer<T> _heard<T>(RoomAnswer<T> answer) {
+    if (answer case Refused(code: RefusalCode.deviceRevoked)) {
+      _revocations.add(null);
+    }
+    return answer;
+  }
 
   static int _minted = 0;
 
@@ -29,6 +46,22 @@ class RoomClient {
     required T Function(http.Response) read,
     required bool asksForTheSession,
     Map<int, RoomAnswer<T>> atThisDoor = const {},
+  }) async => _heard(
+    await _ask(
+      send,
+      timeout: timeout,
+      read: read,
+      asksForTheSession: asksForTheSession,
+      atThisDoor: atThisDoor,
+    ),
+  );
+
+  Future<RoomAnswer<T>> _ask<T>(
+    Future<http.Response> Function() send, {
+    required Duration timeout,
+    required T Function(http.Response) read,
+    required bool asksForTheSession,
+    required Map<int, RoomAnswer<T>> atThisDoor,
   }) async {
     final http.Response response;
     try {
@@ -81,16 +114,25 @@ class RoomClient {
     } on Exception catch (error) {
       throw NetworkFailed('$error');
     }
-    final failure = classify(
-      response.statusCode,
-      const [],
-      asksForTheSession: asksForTheSession,
+    final status = response.statusCode;
+    if (status >= 200 && status < 300) return response;
+    throw _heard(
+      classify(
+        status,
+        await _bodyOf(response),
+        asksForTheSession: asksForTheSession,
+      )!,
     );
-    if (failure != null) {
-      unawaited(response.stream.listen(null).cancel());
-      throw failure;
+  }
+
+  /// A refusal's body names its code, and only the code tells a revoked tablet apart
+  /// from any other 403.
+  static Future<List<int>> _bodyOf(http.StreamedResponse response) async {
+    try {
+      return await response.stream.toBytes();
+    } on Exception {
+      return const [];
     }
-    return response;
   }
 
   static RoomFailure? classify(

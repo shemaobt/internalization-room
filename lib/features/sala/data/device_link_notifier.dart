@@ -55,9 +55,16 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
 
   @override
   DeviceLink build() {
+    final revocations = [
+      _room.revoked.listen((_) => unawaited(_revoked())),
+      _inbox.revoked.listen((_) => unawaited(_revoked())),
+    ];
     ref.onDispose(() {
       _closed = true;
       _next?.cancel();
+      for (final revocation in revocations) {
+        unawaited(revocation.cancel());
+      }
     });
     return const DeviceLink();
   }
@@ -165,6 +172,16 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     if (_closed) return;
     _present(null);
     await _showACode();
+  }
+
+  /// The Desk unlinked this tablet, so the credential it presents opens nothing any more.
+  ///
+  /// Heard once per credential: the requests already on their way come back revoked too,
+  /// and each of them asking for a code would leave the facilitator chasing the last one.
+  Future<void> _revoked() async {
+    if (_credential == null) return;
+    _present(null);
+    await _startOver(_ledger, _currentSession);
   }
 
   /// Told to everything that speaks to the room. The hand keeps a client and a header of
