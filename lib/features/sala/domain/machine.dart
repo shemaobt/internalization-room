@@ -367,6 +367,10 @@ final class TheRefusalPassed extends AnsweringEvent {
   const TheRefusalPassed({super.generation});
 }
 
+final class TheHandFailed extends AnsweringEvent {
+  const TheHandFailed({super.generation});
+}
+
 final class TheCallWasRefused extends AnsweringEvent {
   const TheCallWasRefused({super.generation});
 }
@@ -902,6 +906,7 @@ const _watch = ArmTheWatch();
     [PlayTheReply(turn, reply)],
   ),
   TheRefusalPassed() => (machine, const []),
+  TheHandFailed() => (machine, const []),
   TheCallWasRefused() => (machine, const [AskForAPersonAgain()]),
   LookEmpty(sounding: TheOpening()) ||
   TheOpeningMissed() => (machine, const [LetTheOpeningGo()]),
@@ -1588,6 +1593,7 @@ Machine _answered(Machine machine) =>
   TurnAnswered() ||
   TurnFailed() ||
   TheRefusalPassed() ||
+  TheHandFailed() ||
   TheCallWasRefused() ||
   TheCallMetAClosedPassage() ||
   StationEvent() => (halt, const []),

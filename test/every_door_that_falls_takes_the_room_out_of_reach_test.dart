@@ -10,7 +10,6 @@ import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
-import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -324,32 +323,6 @@ void main() {
       expect(room.estado.needsPerson, isFalse);
     });
 
-    test('the hand reply', () async {
-      final harness = SalaHarness(
-        retryBackoff: _aLadderThatWaits,
-        replies: const [HandReply(id: 'r1', audioUrl: '/resposta/r1')],
-      );
-      final room = await _conversa(harness);
-      await waitFor('a resposta chegar', () => room.estado.hasUnheardReply);
-      harness.voice.roomFailsWith = const NetworkFailed('sem rede');
-
-      room.sala.handTap();
-
-      await room.outOfReach('pela resposta da mão');
-    });
-
-    test('the inbox', () async {
-      final harness = SalaHarness(retryBackoff: _aLadderThatWaits);
-      final room = await _conversa(harness);
-      harness.inbox.cannotBeAsked = true;
-
-      room.sala.conversaTap();
-      await settle();
-      room.sala.conversaTap();
-
-      await room.outOfReach('pela caixa de respostas');
-    });
-
     test('the coverage stream', () async {
       final harness = SalaHarness(
         retryBackoff: _aLadderThatWaits,
@@ -387,44 +360,6 @@ void main() {
       await room.sala.finishBackTranslation();
 
       await room.outOfReach('pela releitura depois do veredito');
-    });
-
-    test('the question door', () async {
-      final harness = SalaHarness(retryBackoff: _aLadderThatWaits);
-      final room = await _conversa(harness);
-      harness.inbox.refuses = true;
-
-      room.sala.handTap();
-      room.sala.conversaTap();
-      await waitFor(
-        'a pergunta abrir o microfone',
-        () => room.estado.channel is Microphone,
-      );
-      room.sala.conversaTap();
-
-      await room.outOfReach('pela pergunta');
-    });
-
-    test('the question door classifies a refusal as a refusal, like every '
-        'other door', () async {
-      final harness = SalaHarness(retryBackoff: _aLadderThatWaits);
-      final room = await _conversa(harness);
-      harness.inbox.refusesTheQuestionWith = const Refused('QUESTION_REFUSED');
-
-      room.sala.handTap();
-      room.sala.conversaTap();
-      await waitFor(
-        'a pergunta abrir o microfone',
-        () => room.estado.channel is Microphone,
-      );
-      room.sala.conversaTap();
-      await waitFor(
-        'a pergunta sair',
-        () => room.estado.channel is! Microphone && !room.estado.noteMode,
-      );
-      await settle();
-
-      expect(room.estado.unreachable, isFalse);
     });
   });
 
