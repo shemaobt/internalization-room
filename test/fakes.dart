@@ -2082,8 +2082,8 @@ class FakeNetwork implements ConnectivityService {
       _heldCheck = held;
       await held.future;
     }
-    if (radioSeesNothing) return RoomReach.noNetwork;
-    return reachable ? RoomReach.fine : RoomReach.roomSilent;
+    if (reachable) return RoomReach.fine;
+    return radioSeesNothing ? RoomReach.noNetwork : RoomReach.roomSilent;
   }
 
   @override
@@ -2121,8 +2121,10 @@ class FakeLinkedTeam implements LinkedTeam {
   Future<void> rememberTeam(TeamLink team) async => _keep(team: team);
 
   @override
-  Future<void> rememberCredential(String credential) async =>
-      _keep(credential: credential);
+  Future<void> rememberCredential(
+    String credential, {
+    required String forDevice,
+  }) async => _keep(credential: credential);
 
   @override
   Future<void> forgetTheLink() async => remembered = const RememberedLink();
@@ -2148,8 +2150,23 @@ class FakeLinkedTeam implements LinkedTeam {
 /// can succeed (confirmed empty) while a write to the same item still cannot.
 class FakeCredentialVault implements CredentialVault {
   String? _credential;
+  String? _keptFor;
   bool unavailable = false;
   bool keepUnavailable = false;
+
+  Completer<bool>? _holdingKeep;
+  Completer<bool>? _heldKeep;
+
+  void holdNextKeep() => _holdingKeep = Completer<bool>();
+
+  bool get keepHeld => _heldKeep != null;
+
+  /// Lets the held `keep` go: written, or failing the way a Keychain that refuses
+  /// mid-write does.
+  void finishHeldKeep({bool unavailable = false}) {
+    _heldKeep?.complete(unavailable);
+    _heldKeep = null;
+  }
 
   @override
   Future<String?> read() async {
@@ -2157,16 +2174,32 @@ class FakeCredentialVault implements CredentialVault {
     return _credential;
   }
 
+  /// [forDevice] left out keeps a credential the way a vault from before the device id
+  /// existed held one.
   @override
-  Future<void> keep(String credential) async {
+  Future<void> keep(String credential, {String? forDevice}) async {
     if (unavailable || keepUnavailable) throw const VaultUnavailable();
+    final held = _holdingKeep;
+    _holdingKeep = null;
+    if (held != null) {
+      _heldKeep = held;
+      if (await held.future) throw const VaultUnavailable();
+    }
     _credential = credential;
+    _keptFor = forDevice;
+  }
+
+  @override
+  Future<String?> keptFor() async {
+    if (unavailable) throw const VaultUnavailable();
+    return _keptFor;
   }
 
   @override
   Future<void> forget() async {
     if (unavailable) throw const VaultUnavailable();
     _credential = null;
+    _keptFor = null;
   }
 }
 
@@ -2451,6 +2484,8 @@ class SalaHarness {
   final FakeInbox inbox;
   final FakeRoom room;
   final FakeNetwork network = FakeNetwork();
+
+  final ConnectivityService? connectivity;
   final FakeScreenAwake awake = FakeScreenAwake();
   final FakeLinkedTeam vinculo;
   final Duration settleDelay;
@@ -2480,6 +2515,7 @@ class SalaHarness {
     this.settleDelay = const Duration(milliseconds: 60),
     this.watchesWithoutAHalt = false,
     this.retryBackoff = const [Duration(milliseconds: 20)],
+    this.connectivity,
     this.busyCeiling,
     this.rewarm,
     this.playbackCeiling,
@@ -2540,7 +2576,7 @@ class SalaHarness {
     finishedPassagesProvider.overrideWithValue(finishedOnDisk ?? finished),
     workInProgressProvider.overrideWithValue(emAbertoNoDisco ?? emAberto),
     currentSessionLedgerProvider.overrideWithValue(currentSession),
-    connectivityServiceProvider.overrideWithValue(network),
+    connectivityServiceProvider.overrideWithValue(connectivity ?? network),
     linkedTeamProvider.overrideWithValue(vinculo),
     linkPollIntervalProvider.overrideWithValue(linkPoll),
     screenAwakeProvider.overrideWithValue(awake),

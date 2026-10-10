@@ -1,3 +1,7 @@
+---
+status: accepted, amended by 0074
+---
+
 # Two packages outside the stack list, and one version pinned
 
 ## Context

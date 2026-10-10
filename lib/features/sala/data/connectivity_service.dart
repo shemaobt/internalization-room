@@ -32,8 +32,10 @@ class ConnectivityService {
   }
 
   Future<RoomReach> _check() async {
-    if (!await _radioSeesSomething()) return RoomReach.noNetwork;
-    return await _pingBackend() ? RoomReach.fine : RoomReach.roomSilent;
+    if (await _pingBackend()) return RoomReach.fine;
+    return await _radioSeesSomething()
+        ? RoomReach.roomSilent
+        : RoomReach.noNetwork;
   }
 
   Future<bool> _radioSeesSomething() async {

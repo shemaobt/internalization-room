@@ -354,8 +354,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// where nobody was looking.
   bool _gone = false;
 
+  int _highestGeneration = 0;
+  int _firstGeneration = 0;
+
   @override
   SalaSessionState build() {
+    _gone = false;
+    _launching = null;
+    _panoramaSessionId = null;
+    listenSelf((_, now) {
+      _highestGeneration = max(_highestGeneration, now.machine.generation);
+    });
     _runner = EffectRunner(
       room: ref.read(roomPortProvider),
       sound: ref.read(soundPortProvider),
@@ -371,6 +380,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       generation: () => _generation,
     );
     ref.onDispose(() {
+      _firstGeneration = _highestGeneration + 1;
       _gone = true;
       _cancelTimers();
       _runner.dispose();
@@ -390,7 +400,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           .sessionsGone
           .listen(_theSessionIsGone),
     );
-    return const SalaSessionState();
+    return SalaSessionState(machine: Machine(generation: _firstGeneration));
   }
 
   void sayTheMicIsBlocked() => unawaited(
@@ -1050,12 +1060,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     ),
   );
 
-  void _raiseAHaltWithNoSession() {
-    state = state.copyWith(clearSession: true);
-    _runner.endTheWatch();
-    _raiseAHalt();
-  }
-
   Kept _whatIsSounding({bool theOpening = true}) {
     if (state.station is Retro &&
         (state.channel is Playing || !_parteJaTocou)) {
@@ -1082,11 +1086,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   bool get _watchIsWanted =>
       !((state.halt is NoHalt && !ref.read(watchesWithoutAHaltProvider)) ||
-          state.sessionId == null);
+          _sessionId == null);
 
   bool get _roomIsReachable => state.machine.reachable;
 
-  String? get _sessionId => state.sessionId;
+  String? get _sessionId =>
+      state.station is Panorama ? _panoramaSessionId : state.sessionId;
 
   void _letTheOpeningGo() {
     _openingOwed = false;
@@ -1297,7 +1302,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _fellAt(Door door, RoomReach why) {
     state = state.copyWith(reach: why);
-    if (door == Door.step) _theStepWaits();
+    if (door == Door.step || door == Door.verdict) _theStepWaits();
   }
 
   void _countTheRefusal() {
@@ -1344,9 +1349,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final turn = state.machine.inFlight;
     if (turn != null) return _giveUpOnTheTurn(turn, const RoomTimedOut());
     _cancelTimers();
+    if (_onAWayIn) return _theStepFell();
     _leaveThinking();
     _dispatch(FailurePolicy.decide(const RoomTimedOut(), _failureContext()));
   }
+
+  bool get _onAWayIn => switch (state.station) {
+    Canvas() => state.sessionId == null,
+    Panorama() => _panoramaSessionId == null,
+    _ => false,
+  };
 
   void _giveUpOnTheTurn(Turn turn, RoomResult result) => _dispatch(
     FailurePolicy.decide(
@@ -1483,7 +1495,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _resolveWithPerson() {
     if (!state.needsPerson && !state.offline) return;
     final wasOut = state.unreachable;
-    _dispatch(LongPress(somebodyToAsk: state.sessionId != null && !wasOut));
+    _dispatch(LongPress(somebodyToAsk: _sessionId != null && !wasOut));
     if (!state.needsPerson && wasOut) _releaseTheReach();
   }
 
@@ -2824,6 +2836,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (state.needsPerson) return;
+    if (state.sessionId == null) {
+      if (!state.awaitingTheGuide) _handOff(_enterAgain(_emCurso)());
+      return;
+    }
     if (state.playingReplyId != null && state.channel is! Microphone) {
       return;
     }
@@ -2864,8 +2880,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _startListening('conversa_${_stamp()}');
       case TapDecision.stop:
         _handOff(_finishListening());
-      case TapDecision.ignore:
-        break;
+      case TapDecision.cancel:
+        _dispatch(const MicDiscarded());
     }
   }
 
@@ -2925,9 +2941,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (sessionId == null) {
-      state = state.copyWith(awaitingTheGuide: false);
-      _raiseAHaltWithNoSession();
       unawaited(_recorder.delete(path));
+      _theStepFell();
       return;
     }
     await _sendTheTurn(sessionId, path, _stamp(), turnClock, cut: closed.cut);
@@ -4859,6 +4874,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _finishBackTranslation() async {
     if (!state.canFinishBackTranslation) return;
+    if (state.machine.theVerdictWaitsForTheTap) {
+      _retryNow();
+      return;
+    }
     _dispatch(const TheVerdictAsked());
     _silenceTheRoom();
     final sessionId = state.sessionId;
@@ -4879,7 +4898,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         verdict = answer;
       case final RoomFailure failure:
         if (_abandoned(generation)) return;
-        if (failure case NetworkFailed()) _pending = _finishBackTranslation;
+        if (failure case NetworkFailed()) {
+          _pending = _finishBackTranslation;
+          _decideAt(failure, door: Door.verdict);
+          return;
+        }
         _decideTheFailure(failure);
         return;
     }

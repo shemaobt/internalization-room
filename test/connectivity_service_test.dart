@@ -154,7 +154,21 @@ void main() {
     },
   );
 
-  test('no interface at all never reaches for the network', () async {
+  test('a room that answers is fine whatever the radio reads', () async {
+    final connectivity = FakeConnectivity()
+      ..current = [ConnectivityResult.none];
+    addTearDown(connectivity.close);
+    final service = ConnectivityService(
+      connectivity: connectivity,
+      client: MockClient((_) async => http.Response('ok', 200)),
+    );
+    addTearDown(service.dispose);
+
+    expect(await service.reachRoom(), RoomReach.fine);
+  });
+
+  test('with the radio off the room is still asked, and the fall is named '
+      'noNetwork', () async {
     var requests = 0;
     final connectivity = FakeConnectivity()
       ..current = [ConnectivityResult.none];
@@ -163,12 +177,12 @@ void main() {
       connectivity: connectivity,
       client: MockClient((_) async {
         requests++;
-        return http.Response('ok', 200);
+        throw http.ClientException('Network is unreachable');
       }),
     );
     addTearDown(service.dispose);
 
     expect(await service.reachRoom(), RoomReach.noNetwork);
-    expect(requests, 0);
+    expect(requests, 1);
   });
 }

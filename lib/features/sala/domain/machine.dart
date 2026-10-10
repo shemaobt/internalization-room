@@ -76,6 +76,7 @@ enum Door {
   stretches,
   question,
   step,
+  verdict,
 }
 
 enum PartFact { sent, pending, stranded }
@@ -705,6 +706,8 @@ final class Machine {
 
   final bool wordlessTelling;
 
+  final bool theVerdictWaitsForTheTap;
+
   const Machine({
     this.halt = const NoHalt(),
     this.channel = const Silence(),
@@ -724,6 +727,7 @@ final class Machine {
     this.lastMic,
     this.station = const Menu(),
     this.wordlessTelling = false,
+    this.theVerdictWaitsForTheTap = false,
   });
 
   bool get reachable => reach == Reach.reachable;
@@ -739,6 +743,7 @@ final class Machine {
     noticeSaid: noticeSaid,
     generation: generation,
     station: station,
+    theVerdictWaitsForTheTap: theVerdictWaitsForTheTap,
   );
 
   Machine copyWith({
@@ -762,6 +767,7 @@ final class Machine {
     MicOutcome? lastMic,
     Station? station,
     bool? wordlessTelling,
+    bool? theVerdictWaitsForTheTap,
   }) => Machine(
     halt: halt ?? this.halt,
     channel: channel ?? this.channel,
@@ -781,6 +787,8 @@ final class Machine {
     lastMic: lastMic ?? this.lastMic,
     station: station ?? this.station,
     wordlessTelling: wordlessTelling ?? this.wordlessTelling,
+    theVerdictWaitsForTheTap:
+        theVerdictWaitsForTheTap ?? this.theVerdictWaitsForTheTap,
   );
 }
 
@@ -929,15 +937,23 @@ const _watch = ArmTheWatch();
   TheAnswerWarned() ||
   LongPress() ||
   WatchFired() => _theHalt(machine, event),
-  StationEvent() => (_reachTheStation(machine, event), const []),
+  StationEvent() => _reachTheStation(machine, event),
 };
 
-Machine _reachTheStation(Machine machine, StationEvent event) {
+(Machine, List<Effect>) _reachTheStation(Machine machine, StationEvent event) {
   final next = machine.station.answer(event);
-  if (next == machine.station) return machine;
-  return moveTheGeneration(
-    machine,
-  ).copyWith(station: next, wordlessTelling: false);
+  if (next == machine.station) return (machine, const []);
+  return (
+    moveTheGeneration(machine).copyWith(
+      station: next,
+      wordlessTelling: false,
+      theVerdictWaitsForTheTap: false,
+    ),
+    [
+      if (machine.theVerdictWaitsForTheTap && !machine.reachable)
+        ArmTheRetry(step: machine.fallen),
+    ],
+  );
 }
 
 bool _silent(Machine machine) =>
@@ -1420,6 +1436,7 @@ Machine _settleTheOpening(Machine machine, Turn turn) => switch (machine.halt) {
 
 (Machine, List<Effect>) _fall(Machine machine, Door door, RoomReach why) {
   final fell = FellAt(door, why: why);
+  final waits = door == Door.verdict || machine.theVerdictWaitsForTheTap;
   if (machine.reachable) {
     final fallen = machine.noticeSaid ? machine.fallen + 1 : 0;
     return (
@@ -1427,14 +1444,16 @@ Machine _settleTheOpening(Machine machine, Turn turn) => switch (machine.halt) {
         reach: Reach.outOfReach,
         fallen: fallen,
         noticeSaid: true,
+        theVerdictWaitsForTheTap: waits,
       ),
       [
         fell,
-        ArmTheRetry(step: fallen),
+        if (!waits) ArmTheRetry(step: fallen),
         if (!machine.noticeSaid) const SayTheOfflineNotice(),
       ],
     );
   }
+  if (waits) return (machine.copyWith(theVerdictWaitsForTheTap: true), [fell]);
   if (door != Door.probe) return (machine, [fell]);
   final fallen = machine.fallen + 1;
   return (machine.copyWith(fallen: fallen), [fell, ArmTheRetry(step: fallen)]);
@@ -1445,7 +1464,11 @@ Machine _settleTheOpening(Machine machine, Turn turn) => switch (machine.halt) {
   final (kept, dropped) = _leaveTheQueue(machine, _aboutTheFall);
   final halt = machine.halt;
   return (
-    kept.copyWith(reach: Reach.reachable, draining: true),
+    kept.copyWith(
+      reach: Reach.reachable,
+      draining: true,
+      theVerdictWaitsForTheTap: false,
+    ),
     [
       ...dropped,
       const CancelTheRetry(),
@@ -1462,7 +1485,12 @@ Machine _answered(Machine machine) =>
     machine.reachable ? machine.copyWith(noticeSaid: false) : machine;
 
 (Machine, List<Effect>) _retry(Machine machine) {
-  if (!machine.reachable) return (machine, const [ProbeTheRoom()]);
+  if (!machine.reachable) {
+    return (
+      machine,
+      [if (!machine.theVerdictWaitsForTheTap) const ProbeTheRoom()],
+    );
+  }
   if (!machine.somethingPending || machine.draining) {
     return (machine, const []);
   }

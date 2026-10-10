@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 
 const _reachable = Machine();
 const _outOfReach = Machine(reach: Reach.outOfReach, noticeSaid: true);
@@ -53,7 +54,7 @@ void main() {
   });
 
   group('5: a network failure at any door takes the room out of reach', () {
-    for (final door in Door.values) {
+    for (final door in Door.values.where((door) => door != Door.verdict)) {
       test('the ${door.name} door', () {
         final (machine, effects) = reduce(_reachable, NetworkFailedAt(door));
 
@@ -99,6 +100,59 @@ void main() {
         1,
         0,
       ]);
+    });
+
+    test('a fall at the Verdict\'s door arms no retry', () {
+      final (machine, effects) = reduce(
+        _reachable,
+        const NetworkFailedAt(Door.verdict),
+      );
+
+      expect(machine.reach, Reach.outOfReach);
+      expect(effects.whereType<ArmTheRetry>(), isEmpty);
+    });
+
+    test(
+      'out of reach with the Verdict waiting, a retry asks for no probe',
+      () {
+        final (_, effects) = _run(_reachable, const [
+          NetworkFailedAt(Door.verdict),
+          RetryFired(),
+        ]);
+
+        expect(effects, isNot(contains(const ProbeTheRoom())));
+      },
+    );
+
+    test('a probe that fails while the Verdict waits arms no retry', () {
+      final (_, effects) = _run(_reachable, const [
+        NetworkFailedAt(Door.verdict),
+        NetworkFailedAt(Door.probe),
+      ]);
+
+      expect(effects.whereType<ArmTheRetry>(), isEmpty);
+    });
+
+    test('leaving the Retro gives the ladder back', () {
+      final (_, effects) = _run(const Machine(station: Retro()), const [
+        NetworkFailedAt(Door.verdict),
+        TheChoiceOpened(),
+        RetryFired(),
+      ]);
+
+      expect(effects.whereType<ArmTheRetry>(), hasLength(1));
+      expect(effects, contains(const ProbeTheRoom()));
+    });
+
+    test('after the tap\'s return, another door that falls climbs the ladder '
+        'again', () {
+      final (_, effects) = _run(_reachable, const [
+        NetworkFailedAt(Door.verdict),
+        NetworkReturned(),
+        NetworkFailedAt(Door.watch),
+      ]);
+
+      expect(effects.whereType<ArmTheRetry>(), hasLength(1));
     });
 
     test('a probe that fails climbs the ladder', () {

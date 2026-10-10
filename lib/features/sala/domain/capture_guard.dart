@@ -1,4 +1,4 @@
-enum TapDecision { start, stop, ignore }
+enum TapDecision { start, stop, cancel }
 
 class CaptureGuard {
   const CaptureGuard({
@@ -11,7 +11,7 @@ class CaptureGuard {
 
   TapDecision decide({required bool isRecording, required Duration elapsed}) {
     if (!isRecording) return TapDecision.start;
-    return elapsed < minDuration ? TapDecision.ignore : TapDecision.stop;
+    return elapsed < minDuration ? TapDecision.cancel : TapDecision.stop;
   }
 
   bool accepts({required Duration duration, required int bytes}) =>

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 const _key = 'device_credential';
+const _keptForKey = 'device_credential_kept_for';
 
 /// Where the device's one proof of who it is lives once it leaves `vinculo.json`.
 ///
@@ -9,7 +10,11 @@ const _key = 'device_credential';
 /// and never learns that a Keychain sits behind that on iOS — ADR 0017 says why.
 abstract class CredentialVault {
   Future<String?> read();
-  Future<void> keep(String credential);
+
+  /// The device id the credential was collected for: `null` for one kept before the
+  /// vault recorded it.
+  Future<String?> keptFor();
+  Future<void> keep(String credential, {required String forDevice});
   Future<void> forget();
 }
 
@@ -47,9 +52,19 @@ class KeychainCredentialVault implements CredentialVault {
   }
 
   @override
-  Future<void> keep(String credential) async {
+  Future<String?> keptFor() async {
+    try {
+      return await _storage.read(key: _keptForKey);
+    } on Object {
+      throw const VaultUnavailable();
+    }
+  }
+
+  @override
+  Future<void> keep(String credential, {required String forDevice}) async {
     try {
       await _storage.write(key: _key, value: credential);
+      await _storage.write(key: _keptForKey, value: forDevice);
     } on Object {
       throw const VaultUnavailable();
     }
@@ -59,6 +74,7 @@ class KeychainCredentialVault implements CredentialVault {
   Future<void> forget() async {
     try {
       await _storage.delete(key: _key);
+      await _storage.delete(key: _keptForKey);
     } on Object {
       throw const VaultUnavailable();
     }

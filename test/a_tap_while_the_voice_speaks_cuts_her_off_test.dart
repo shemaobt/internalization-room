@@ -76,8 +76,11 @@ Future<_Room> _inConversa({SalaHarness? harness}) async {
 
 /// In the Conversation after an Opening said in two movements, so the line «Ouvir de
 /// novo» holds before any turn is the Scene, never the reply's own url.
-Future<_Room> _afterATwoMovementOpening() async {
-  final harness = SalaHarness()..room.opensInTwoMovements = true;
+Future<_Room> _afterATwoMovementOpening({CaptureGuard? guard}) async {
+  final harness = guard == null
+      ? SalaHarness()
+      : SalaHarness(captureGuard: guard);
+  harness.room.opensInTwoMovements = true;
   final room = await _inConversa(harness: harness);
   harness.room.opensInTwoMovements = false;
   expect(room.state.lastSpoken?.url, sceneUrl);
@@ -221,23 +224,82 @@ void main() {
     expect(room.lastCut, const CutPoint(_at, of: _of));
   });
 
-  test('a stop tap under 700 ms after the cut does not end the take', () async {
-    var now = DateTime(2026, 10, 7);
-    var step = const Duration(seconds: 1);
-    await withClock(Clock(() => now = now.add(step)), () async {
-      final room = await _cutWhileSheSpeaks(
-        on: await _inConversa(
-          harness: SalaHarness(captureGuard: const CaptureGuard(minBytes: 1)),
-        ),
-      );
-      final turns = room.harness.room.turnsSent;
+  group('a second tap after the cut, under the 700 ms guard', () {
+    Future<void> secondTapAfter(
+      Duration wait,
+      Future<void> Function(_Room room) then, {
+      _Room? on,
+    }) async {
+      var now = DateTime(2026, 10, 7);
+      var step = const Duration(seconds: 1);
+      await withClock(Clock(() => now = now.add(step)), () async {
+        final room = await _cutWhileSheSpeaks(
+          on:
+              on ??
+              await _inConversa(
+                harness: SalaHarness(
+                  captureGuard: const CaptureGuard(minBytes: 1),
+                ),
+              ),
+        );
+        step = Duration.zero;
+        now = now.add(wait);
+        await then(room);
+      });
+    }
 
-      step = Duration.zero;
-      now = now.add(const Duration(milliseconds: 699));
-      await room.tap();
+    test('a second tap 0.5 s after the cut cancels the capture and sends '
+        'nothing', () async {
+      await secondTapAfter(const Duration(milliseconds: 500), (room) async {
+        final turns = room.harness.room.turnsSent;
+        final fixed = [...room.harness.voice.fixedLines];
+        final played = [...room.harness.voice.played];
+        final deleted = room.harness.recorder.deleted.length;
 
-      expect(room.state.voice, VoiceState.listening);
-      expect(room.harness.room.turnsSent, turns);
+        await room.tap();
+
+        expect(room.harness.recorder.sounds.last, 'recorder:discard');
+        expect(room.harness.recorder.deleted, hasLength(deleted + 1));
+        expect(room.harness.room.turnsSent, turns);
+        expect(room.harness.voice.fixedLines, fixed);
+        expect(room.harness.voice.played, played);
+        expect(room.state.voice, VoiceState.invite);
+      });
+    });
+
+    test(
+      'after a cancelled cut, «Ouvir de novo» plays the cut reply whole',
+      () async {
+        await secondTapAfter(
+          const Duration(milliseconds: 500),
+          on: await _afterATwoMovementOpening(
+            guard: const CaptureGuard(minBytes: 1),
+          ),
+          (room) async {
+            await room.tap();
+
+            expect(room.state.canHearAgain, isTrue);
+            final before = room.harness.voice.played.length;
+            await room.notifier.hearAgain();
+
+            expect(room.harness.voice.played.sublist(before), [turnoUrl]);
+          },
+        );
+      },
+    );
+
+    test('a second tap 1.5 s after the cut sends the take as today', () async {
+      await secondTapAfter(const Duration(milliseconds: 1500), (room) async {
+        final turns = room.harness.room.turnsSent;
+
+        await room.tap();
+        await waitFor(
+          'a vez cortada chegar à sala',
+          () => room.harness.room.turnsSent == turns + 1,
+        );
+
+        expect(room.lastCut, const CutPoint(_at, of: _of));
+      });
     });
   });
 
