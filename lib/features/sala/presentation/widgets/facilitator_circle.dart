@@ -177,6 +177,7 @@ class FacilitatorCircle extends StatelessWidget {
 
     switch (voice) {
       case VoiceState.invite:
+      case VoiceState.done:
         return _liveBreath(colors);
       case VoiceState.listening:
         return _disc(
@@ -203,25 +204,12 @@ class FacilitatorCircle extends StatelessWidget {
           builder: (context, t) =>
               Transform.scale(scale: 1 + 0.02 * t, child: _liveDisc(colors)),
         );
-      case VoiceState.done:
-        return _doneDisc();
       case VoiceState.offline:
         return _haltedBody(colors, _offlineGlyph);
       case VoiceState.blocked:
         return _haltedBody(colors, LucideIcons.micOff);
     }
   }
-
-  Widget _doneDisc() => _disc(
-    gradient: BeadStyles.verde,
-    shadows: [
-      BoxShadow(
-        color: ShemaBrand.verdeLo.withValues(alpha: 0.28),
-        offset: const Offset(0, 10),
-        blurRadius: 34,
-      ),
-    ],
-  );
 
   Gradient _liveGradient(SalaColors colors) {
     if (voice != VoiceState.speaking) {
