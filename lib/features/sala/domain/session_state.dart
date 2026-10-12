@@ -288,10 +288,11 @@ class SalaSessionState {
 
   bool get canHearAgain =>
       (lastSpoken != null || roomSaysItAgain) &&
-      voice == VoiceState.invite &&
+      (voice == VoiceState.invite || voice == VoiceState.done) &&
       !needsPerson &&
       stage != SalaStage.ensaio &&
-      stage != SalaStage.retro;
+      stage != SalaStage.retro &&
+      stage != SalaStage.fim;
 
   bool get hasUnheardReply => replies.any((reply) => reply.offered);
 

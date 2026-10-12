@@ -3000,6 +3000,42 @@ void main() {
     },
   );
 
+  test(
+    'the last line can be heard again at done, as it can at the invite',
+    () async {
+      final harness = SalaHarness()..room.done = true;
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+
+      expect(container.read(salaSessionProvider).voice, VoiceState.done);
+      expect(
+        container.read(salaSessionProvider).canHearAgain,
+        isTrue,
+        reason:
+            'o botão de ouvir de novo sumia junto com o pronto; na tela da '
+            'Marcia ele aparece sempre que a sala está ociosa, e o pronto é '
+            'um turno ocioso como o convite',
+      );
+    },
+  );
+
+  test('once the necklace has closed nothing is left to hear again', () {
+    final session = SalaSessionState(
+      machine: const Machine(station: Fim()),
+      roomSaysItAgain: true,
+    );
+
+    expect(session.voice, VoiceState.done);
+    expect(
+      session.canHearAgain,
+      isFalse,
+      reason:
+          'o botão fica montado em todas as telas; no fim do colar não há '
+          'círculo, e deixar o pronto valer como convite faria aparecer um '
+          'botão de ouvir de novo numa tela que só espera o toque',
+    );
+  });
+
   test('a tap on the circle at done still records, not a dead touch', () async {
     final harness = SalaHarness()..room.done = true;
     final container = await inConversa(harness);
