@@ -8,6 +8,7 @@ import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/channel.dart';
+import '../../domain/moment.dart';
 import '../../domain/session_state.dart';
 import 'bead.dart';
 import 'bead_styles.dart';
@@ -94,6 +95,35 @@ class ConversaView extends ConsumerWidget {
                 ),
               ),
             ),
+        if (session.moment?.at == MomentAt.ensaioFinal)
+          Positioned(
+            right: 14,
+            top: 118 + MediaQuery.viewPaddingOf(context).top,
+            child: IgnorePointer(
+              ignoring: _dotIsHidden(session),
+              child: AnimatedOpacity(
+                opacity: _dotIsHidden(session) ? 0 : 0.85,
+                duration: const Duration(milliseconds: 400),
+                child: Semantics(
+                  button: true,
+                  label: roomLabelFor('recordDraft', language),
+                  child: SizedBox(
+                    width: 34,
+                    height: 34,
+                    child: Center(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: SalaColors.of(context).telha,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const SizedBox(width: 15, height: 15),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         if (session.handAck)
           Positioned(
             left: 0,
@@ -112,6 +142,9 @@ class ConversaView extends ConsumerWidget {
       _ => 1,
     };
   }
+
+  bool _dotIsHidden(SalaSessionState session) =>
+      session.voice == VoiceState.speaking;
 
   String _circleLabel(SalaSessionState session, String language) {
     if (session.needsPerson) return circleLabelFor('needsPerson', language);
