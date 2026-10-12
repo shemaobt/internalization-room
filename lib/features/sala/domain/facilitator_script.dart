@@ -270,11 +270,14 @@ String codigoLabelFor(String control, String language) =>
 
 const momentLabels = {
   MomentAt.familiarization: {'pt': 'Familiarização · a passagem inteira'},
+  MomentAt.internalization: {'pt': 'Internalização · cena {n} de {k}'},
 };
 
 const momentAria = {'pt': 'Momento da sessão'};
 
 String momentLabelFor(Moment moment, String language) =>
-    momentLabels[moment.at]![language]!;
+    momentLabels[moment.at]![language]!
+        .replaceAll('{n}', '${moment.part}')
+        .replaceAll('{k}', '${moment.parts}');
 
 String momentAriaFor(String language) => momentAria[language]!;

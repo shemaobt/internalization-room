@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
@@ -49,6 +50,27 @@ Future<(SalaHarness, ProviderContainer)> _theOpeningSays(
   return (harness, container);
 }
 
+Future<void> _theNextReplySays(
+  WidgetTester tester,
+  SalaHarness harness,
+  ProviderContainer container,
+  Moment moment,
+) async {
+  final notifier = container.read(salaSessionProvider.notifier);
+  harness.room.nextMoment = moment;
+  harness.voice.holdNextLine();
+  notifier.conversaTap();
+  await tester.pump(const Duration(milliseconds: 300));
+  notifier.conversaTap();
+  for (var vez = 0; vez < 30; vez++) {
+    await tester.pump(const Duration(milliseconds: 100));
+    if (container.read(salaSessionProvider).voice == VoiceState.speaking) {
+      break;
+    }
+  }
+  expect(container.read(salaSessionProvider).voice, VoiceState.speaking);
+}
+
 void main() {
   testWidgets(
     'the opening of a new session writes the Familiarização in her words and her teal',
@@ -66,6 +88,30 @@ void main() {
       );
       expect(_shown(tester), 'Familiarização · a passagem inteira');
       expect(_dot(tester), const Color(0xFF2E6F63));
+    },
+  );
+
+  testWidgets(
+    'the reply that opens scene two turns the label violet as it starts to play',
+    (tester) async {
+      final (harness, container) = await _theOpeningSays(
+        tester,
+        const Moment(at: MomentAt.familiarization, parts: 3),
+      );
+
+      await _theNextReplySays(
+        tester,
+        harness,
+        container,
+        const Moment(at: MomentAt.internalization, part: 2, parts: 3),
+      );
+
+      expect(
+        _shown(tester),
+        'Internalização · cena 2 de 3',
+        reason: 'a voz abriu a cena 2 e a tela ficou na Familiarização',
+      );
+      expect(_dot(tester), const Color(0xFF6A4C9C));
     },
   );
 }
