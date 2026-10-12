@@ -10,6 +10,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
+import 'scenario_helpers.dart' show stateReads;
 
 final _dot = find.byWidgetPredicate(
   (widget) =>
@@ -195,6 +196,59 @@ void main() {
         findsNothing,
         reason: 'o ponto acendeu numa resposta que a sala deixou na cena',
       );
+    },
+  );
+
+  testWidgets(
+    'a turn that reaches the floor before the send-off lights the dot and leaves the scene on the label',
+    (tester) async {
+      final (harness, container) = await _inTheLastScene(tester);
+      harness.room
+        ..done = true
+        ..readsDone = false;
+
+      await _theNextReplyPlays(tester, harness, container, _lastScene);
+      await _theReplyEnds(tester, harness, container);
+
+      expect(container.read(salaSessionProvider).voice, VoiceState.done);
+      expect(_shown(tester), 'Articulação · cena 3 de 3');
+      expect(
+        _dotOpacity(tester),
+        0.85,
+        reason: 'a sala disse done e o ponto ficou apagado, ao contrário dela',
+      );
+      expect(_dotIsDeaf(tester), isFalse);
+    },
+  );
+
+  testWidgets(
+    'a read that reports the floor at rest lights the dot and leaves the scene on the label',
+    (tester) async {
+      final (harness, container) = await _inTheLastScene(
+        tester,
+        watching: true,
+      );
+      expect(_dot, findsNothing);
+
+      harness.room.readsDone = true;
+      final reads = stateReads(harness);
+      await _pumpUntil(
+        tester,
+        () => stateReads(harness) != reads,
+        beat: const Duration(seconds: 1),
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(container.read(salaSessionProvider).voice, VoiceState.done);
+      expect(_shown(tester), 'Articulação · cena 3 de 3');
+      expect(
+        _dotOpacity(tester),
+        0.85,
+        reason:
+            'a leitura disse done e o ponto ficou apagado, ao contrário dela',
+      );
+      expect(_dotIsDeaf(tester), isFalse);
+      closeTheRoom(container);
     },
   );
 }

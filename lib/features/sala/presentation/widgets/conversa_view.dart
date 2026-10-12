@@ -95,7 +95,8 @@ class ConversaView extends ConsumerWidget {
                 ),
               ),
             ),
-        if (session.moment?.at == MomentAt.ensaioFinal)
+        if (session.endOfThePassage ||
+            session.moment?.at == MomentAt.ensaioFinal)
           Positioned(
             right: 14,
             top: 118 + MediaQuery.viewPaddingOf(context).top,
