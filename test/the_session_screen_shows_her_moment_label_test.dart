@@ -114,4 +114,29 @@ void main() {
       expect(_dot(tester), const Color(0xFF6A4C9C));
     },
   );
+
+  testWidgets(
+    'the reply that carries the practice of scene three turns the label red',
+    (tester) async {
+      final (harness, container) = await _theOpeningSays(
+        tester,
+        const Moment(at: MomentAt.internalization, part: 3, parts: 3),
+      );
+
+      await _theNextReplySays(
+        tester,
+        harness,
+        container,
+        const Moment(at: MomentAt.articulation, part: 3, parts: 3),
+      );
+
+      expect(
+        _shown(tester),
+        'Articulação · cena 3 de 3',
+        reason:
+            'a voz deu o ensaio da cena 3 e a tela seguiu na Internalização',
+      );
+      expect(_dot(tester), const Color(0xFFC8321E));
+    },
+  );
 }

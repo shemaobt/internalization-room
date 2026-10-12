@@ -271,6 +271,7 @@ String codigoLabelFor(String control, String language) =>
 const momentLabels = {
   MomentAt.familiarization: {'pt': 'Familiarização · a passagem inteira'},
   MomentAt.internalization: {'pt': 'Internalização · cena {n} de {k}'},
+  MomentAt.articulation: {'pt': 'Articulação · cena {n} de {k}'},
 };
 
 const momentAria = {'pt': 'Momento da sessão'};
