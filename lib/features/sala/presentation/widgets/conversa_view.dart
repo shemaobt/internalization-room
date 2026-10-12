@@ -97,10 +97,13 @@ class ConversaView extends ConsumerWidget {
     );
   }
 
-  double _momentOpacity(SalaSessionState session) => switch (session.voice) {
-    VoiceState.listening || VoiceState.thinking || VoiceState.speaking => 0.6,
-    _ => 1,
-  };
+  double _momentOpacity(SalaSessionState session) {
+    if (session.needsPerson || session.noteMode) return 0;
+    return switch (session.voice) {
+      VoiceState.listening || VoiceState.thinking || VoiceState.speaking => 0.6,
+      _ => 1,
+    };
+  }
 
   String _circleLabel(SalaSessionState session, String language) {
     if (session.needsPerson) return circleLabelFor('needsPerson', language);

@@ -7,11 +7,13 @@ import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/moment_label.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
+import 'scenario_helpers.dart' show stateReads;
 
 final _label = find.byWidgetPredicate(
   (widget) =>
@@ -45,8 +47,9 @@ Future<(SalaHarness, ProviderContainer)> _theOpeningSays(
   Moment? moment, {
   String lingua = 'pt',
   bool heldMidLine = false,
+  bool watching = false,
 }) async {
-  final harness = SalaHarness(lingua: lingua)
+  final harness = SalaHarness(lingua: lingua, watchesWithoutAHalt: watching)
     ..room.passages = const [Passagem(pericope: 'P01', audioUrl: '/voice/p01')]
     ..room.nextMoment = moment;
   final container = await pumpSala(tester, harness);
@@ -60,9 +63,13 @@ Future<(SalaHarness, ProviderContainer)> _theOpeningSays(
   return (harness, container);
 }
 
-Future<void> _pumpUntil(WidgetTester tester, bool Function() done) async {
+Future<void> _pumpUntil(
+  WidgetTester tester,
+  bool Function() done, {
+  Duration beat = const Duration(milliseconds: 100),
+}) async {
   for (var vez = 0; vez < 30 && !done(); vez++) {
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(beat);
   }
 }
 
@@ -243,6 +250,60 @@ void main() {
 
       harness.room.finishHeldTurn();
       await _pumpUntil(tester, () => voice() == VoiceState.invite);
+    },
+  );
+
+  testWidgets('the label goes while the screen calls for a person', (
+    tester,
+  ) async {
+    final (harness, container) = await _theOpeningSays(
+      tester,
+      const Moment(at: MomentAt.familiarization, parts: 3),
+      watching: true,
+    );
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(_opacity(tester), 1.0);
+
+    harness.room
+      ..serverStatus = 'needs_person'
+      ..serverHalt = HaltKind.blocking;
+    final reads = stateReads(harness);
+    await _pumpUntil(
+      tester,
+      () => stateReads(harness) != reads,
+      beat: const Duration(seconds: 1),
+    );
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(container.read(salaSessionProvider).needsPerson, isTrue);
+    expect(
+      _opacity(tester),
+      0.0,
+      reason: 'a tela chamou o facilitador e o momento continuou ali',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets(
+    'the label goes while the team opens a note for the facilitator',
+    (tester) async {
+      final (_, container) = await _theOpeningSays(
+        tester,
+        const Moment(at: MomentAt.familiarization, parts: 3),
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(_opacity(tester), 1.0);
+
+      container.read(salaSessionProvider.notifier).handTap();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(container.read(salaSessionProvider).noteMode, isTrue);
+      expect(
+        _opacity(tester),
+        0.0,
+        reason:
+            'a equipe abriu um recado e o momento continuou disputando a tela',
+      );
     },
   );
 
