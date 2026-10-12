@@ -51,7 +51,12 @@ Future<void> gravarUmaParte(
   final notifier = container.read(salaSessionProvider.notifier);
   notifier.ensaioTap();
   notifier.ensaioTap();
-  await tester.pump(const Duration(milliseconds: 100));
+  await waitFor(
+    'a gravação da parte chegar',
+    () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+    limit: const Duration(seconds: 2),
+    step: () => tester.pump(const Duration(milliseconds: 100)),
+  );
   notifier.takeKeep();
   await theRoomNamesTheParts(
     tester,
