@@ -307,6 +307,62 @@ void main() {
     },
   );
 
+  for (final MapEntry(key: what, value: moment) in _untrusted.entries) {
+    testWidgets(
+      'a moment whose number cannot be trusted shows no label: $what',
+      (tester) async {
+        await _theOpeningSays(tester, moment);
+
+        expect(
+          _label,
+          findsNothing,
+          reason: 'a tela escrevia um número de cena que a passagem não tem',
+        );
+      },
+    );
+  }
+
+  testWidgets('a session the room keeps no moment for shows no label', (
+    tester,
+  ) async {
+    await _theOpeningSays(tester, null);
+
+    expect(
+      _label,
+      findsNothing,
+      reason: 'uma sessão antiga, sem momento, ganhava um momento inventado',
+    );
+  });
+
+  testWidgets('the Panorama shows no label even when the room sends a moment', (
+    tester,
+  ) async {
+    final harness = SalaHarness()
+      ..room.passages = const [
+        Passagem(
+          pericope: 'panorama',
+          audioUrl: '/voice/panorama',
+          kind: PassagemKind.panorama,
+        ),
+        Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+      ]
+      ..room.nextMoment = const Moment(at: MomentAt.familiarization, parts: 3);
+    final container = await pumpSala(tester, harness);
+    addTearDown(() => closeTheRoom(container));
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.abrirEscolha();
+    await tester.pump(const Duration(milliseconds: 300));
+    notifier.entrarNaOferecida();
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(container.read(salaSessionProvider).stage, SalaStage.panorama);
+    expect(
+      _label,
+      findsNothing,
+      reason: 'o Panorama do Livro não tem momento, e a tela escrevia um',
+    );
+  });
+
   for (final MapEntry(key: words, value: moment) in _herEnglishWords.entries) {
     testWidgets('an English session shows her English words: $words', (
       tester,
@@ -341,4 +397,10 @@ const _herEnglishWords = {
     at: MomentAt.ensaioFinal,
     parts: 3,
   ),
+};
+
+const _untrusted = {
+  'scene 5 of 3': Moment(at: MomentAt.internalization, part: 5, parts: 3),
+  'scene 0 of 3': Moment(at: MomentAt.articulation, part: 0, parts: 3),
+  'a passage with no scenes': Moment(at: MomentAt.familiarization, parts: 0),
 };

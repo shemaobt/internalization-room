@@ -70,22 +70,23 @@ class ConversaView extends ConsumerWidget {
           ),
         ),
         if (session.moment case final moment?)
-          Positioned(
-            left: 0,
-            right: 0,
-            top: MediaQuery.sizeOf(context).height * 0.08 + 58,
-            child: Center(
-              child: AnimatedOpacity(
-                opacity: _momentOpacity(session),
-                duration: const Duration(milliseconds: 800),
-                child: MomentLabel(
-                  at: moment.at,
-                  words: momentLabelFor(moment, language),
-                  aria: momentAriaFor(language),
+          if (momentLabelFor(moment, language) case final words?)
+            Positioned(
+              left: 0,
+              right: 0,
+              top: MediaQuery.sizeOf(context).height * 0.08 + 58,
+              child: Center(
+                child: AnimatedOpacity(
+                  opacity: _momentOpacity(session),
+                  duration: const Duration(milliseconds: 800),
+                  child: MomentLabel(
+                    at: moment.at,
+                    words: words,
+                    aria: momentAriaFor(language),
+                  ),
                 ),
               ),
             ),
-          ),
         if (session.handAck)
           Positioned(
             left: 0,

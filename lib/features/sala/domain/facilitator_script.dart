@@ -289,11 +289,17 @@ const momentLabels = {
 
 const momentAria = {'pt': 'Momento da sessão', 'en': 'Session moment'};
 
-String momentLabelFor(Moment moment, String language) =>
-    (momentLabels[moment.at]![language] ??
-            momentLabels[moment.at]![floorLanguage]!)
-        .replaceAll('{n}', '${moment.part}')
-        .replaceAll('{k}', '${moment.parts}');
+String? momentLabelFor(Moment moment, String language) {
+  final numbered =
+      moment.at == MomentAt.internalization ||
+      moment.at == MomentAt.articulation;
+  if (moment.parts < 1) return null;
+  if (numbered && (moment.part < 1 || moment.part > moment.parts)) return null;
+  return (momentLabels[moment.at]![language] ??
+          momentLabels[moment.at]![floorLanguage]!)
+      .replaceAll('{n}', '${moment.part}')
+      .replaceAll('{k}', '${moment.parts}');
+}
 
 String momentAriaFor(String language) =>
     momentAria[language] ?? momentAria[floorLanguage]!;
