@@ -254,8 +254,31 @@ Future<void> _enterThePanorama(
 }
 
 class _RoomThatKeepsAnOwnTake extends SalaSessionNotifier {
-  void keepBesideTheParts(KeptTake own) {
-    state = state.copyWith(keptTakes: [own, ...state.keptTakes]);
+  void keepBesideTheParts(
+    KeptTake own, {
+    required Duration from,
+    required Duration to,
+  }) {
+    state = state.copyWith(
+      keptTakes: [own, ...state.keptTakes],
+      btTrechos: [
+        for (final trecho in state.btTrechos)
+          if (trecho.takeId == own.takeId)
+            Trecho(
+              segmentId: trecho.segmentId,
+              takeId: trecho.takeId,
+              retroPath: trecho.retroPath,
+              parte: trecho.parte,
+              from: from,
+              to: to,
+              contado: trecho.contado,
+              lugarFrom: trecho.lugarFrom,
+              lugarTo: trecho.lugarTo,
+            )
+          else
+            trecho,
+      ],
+    );
   }
 }
 
@@ -7666,6 +7689,8 @@ void main() {
         path: 'the-stretch-own-recording.m4a',
         takeId: 'gravacao-2',
       ),
+      from: const Duration(seconds: 4),
+      to: const Duration(seconds: 9),
     );
     notifier.ouvirOTrechoEATraducao();
     await settle();
@@ -7673,10 +7698,10 @@ void main() {
     expect(harness.playback.ranges, isNotEmpty);
     expect(
       harness.playback.ranges.last,
-      '0-3000',
+      '4000-9000',
       reason:
-          'o trecho global 10s–13s vive na parte 2, que começa em 10s: '
-          'localmente é 0–3s dentro do arquivo da parte',
+          'o trecho toca a fatia da gravação própria dele, de 4s a 9s, e não '
+          'o lugar que ocupa na parte, de 0s a 3s',
     );
     expect(
       harness.playback.played.last,
