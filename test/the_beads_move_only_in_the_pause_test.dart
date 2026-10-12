@@ -270,4 +270,44 @@ void main() {
       );
     },
   );
+
+  test(
+    'a reply that carries fewer beads than the necklace shows leaves the lit cord as it was',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1';
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      int lit() => container.read(salaSessionProvider).coverage.beadsFilled;
+
+      harness.room.pushCoverage(
+        CoverageEvent(
+          turnId: 'turno-1',
+          status: CoverageStatus.failed,
+          coverage: coverage(engaged: 3, surfaced: 3),
+        ),
+      );
+      await waitFor('o aviso acender as contas', () => lit() == 3);
+
+      harness.room.turnIdInResponse = 'turno-2';
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await waitFor(
+        'a resposta ser ouvida',
+        () =>
+            harness.room.turnsSent == 1 &&
+            container.read(salaSessionProvider).voice == VoiceState.invite,
+      );
+
+      expect(
+        lit(),
+        3,
+        reason:
+            'a resposta trazia a cobertura de antes do aviso e apagava as 3 '
+            'contas assim que chegava',
+      );
+    },
+  );
 }

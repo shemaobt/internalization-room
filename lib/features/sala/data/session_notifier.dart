@@ -868,8 +868,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     void Function()? onSoundStart,
   }) async {
     if (_abandoned(generation)) return;
+    _paintCoverage(turn.coverage);
     state = state.copyWith(
-      coverage: turn.coverage,
       moment: turn.moment,
       clearMoment: turn.moment == null,
     );
@@ -1524,6 +1524,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       return false;
     }
+    return _paintCoverage(told, clock: clock);
+  }
+
+  bool _paintCoverage(Coverage? told, {TurnClock? clock}) {
+    final before = state.coverage;
+    if (told == null) return false;
     final next = _grown(told, from: before);
     if (next == null) return false;
     final moved = next.beadsFilled > before.beadsFilled;
