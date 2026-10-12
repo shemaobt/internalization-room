@@ -40,6 +40,8 @@ class SalaColors extends ThemeExtension<SalaColors> {
   final Color momentoFam;
   final Color momentoInt;
   final Color vermelhoMic;
+  final Color momentoEf;
+  final Color momentoInk;
 
   const SalaColors({
     required this.pg,
@@ -59,6 +61,8 @@ class SalaColors extends ThemeExtension<SalaColors> {
     required this.momentoFam,
     required this.momentoInt,
     required this.vermelhoMic,
+    required this.momentoEf,
+    required this.momentoInk,
   });
 
   static const light = SalaColors(
@@ -79,6 +83,8 @@ class SalaColors extends ThemeExtension<SalaColors> {
     momentoFam: Color(0xFF2E6F63),
     momentoInt: Color(0xFF6A4C9C),
     vermelhoMic: Color(0xFFC8321E),
+    momentoEf: Color(0xFFBE4A01),
+    momentoInk: Color(0xFF3F3E20),
   );
 
   static const dark = SalaColors(
@@ -106,6 +112,8 @@ class SalaColors extends ThemeExtension<SalaColors> {
     momentoFam: Color(0xFF6FC3B2),
     momentoInt: Color(0xFFB9A2E6),
     vermelhoMic: Color(0xFFE9503A),
+    momentoEf: Color(0xFFD6612A),
+    momentoInk: Color(0xFFECEADC),
   );
 
   static SalaColors of(BuildContext context) =>
@@ -136,6 +144,8 @@ class SalaColors extends ThemeExtension<SalaColors> {
       momentoFam: mix(momentoFam, other.momentoFam),
       momentoInt: mix(momentoInt, other.momentoInt),
       vermelhoMic: mix(vermelhoMic, other.vermelhoMic),
+      momentoEf: mix(momentoEf, other.momentoEf),
+      momentoInk: mix(momentoInk, other.momentoInk),
     );
   }
 }

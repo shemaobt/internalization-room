@@ -9,6 +9,10 @@ VoiceOver.
 Amended by ENG-1535 (Henok, 2026-10-09): the moment chip leaves the screen until her own
 moment label arrives with ENG-1434; the exception above no longer stands.
 
+Amended by ENG-1434 (2026-10-12): her moment label arrives on the session screen
+(`widgets/moment_label.dart`), in her words, her colours and her hiding rules, and the
+exception stands again under its own reason, her words the team reads.
+
 ## Context
 
 The **Team** cannot read. Every screen is spoken, and a written word on a team screen is a
