@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -34,15 +36,12 @@ Future<void> _ateEnsaio(
   WidgetTester tester,
   ProviderContainer container,
   EnsaioStatus alvo,
-) async {
-  for (
-    var vezes = 0;
-    vezes < 40 && container.read(salaSessionProvider).ensaio != alvo;
-    vezes++
-  ) {
-    await tester.pump(const Duration(milliseconds: 50));
-  }
-}
+) => waitFor(
+  'o ensaio chegar a $alvo',
+  () => container.read(salaSessionProvider).ensaio == alvo,
+  limit: const Duration(seconds: 2),
+  step: () => tester.pump(const Duration(milliseconds: 100)),
+);
 
 List<BeadRowEntry> _beads(WidgetTester tester) => tester
     .widget<BeadRow>(
@@ -199,6 +198,23 @@ Future<ProviderContainer> _achadoNaParteDoisNaTela(
 }
 
 void main() {
+  testWidgets(
+    'a wait for a rehearsal status that never comes fails at its deadline, '
+    'not in silence',
+    (tester) async {
+      final container = await _ensaioDeTresPartes(tester);
+
+      await expectLater(
+        () => _ateEnsaio(tester, container, EnsaioStatus.recording),
+        throwsA(isA<TimeoutException>()),
+        reason:
+            'a espera devolvia depois de quarenta quadros sem ter visto o '
+            'estado, e o teste seguia como se ele tivesse chegado',
+      );
+      closeTheRoom(container);
+    },
+  );
+
   testWidgets(
     'a batida no segundo bead acende o anel, toca só a parte 2 e para no '
     'fim dela',
