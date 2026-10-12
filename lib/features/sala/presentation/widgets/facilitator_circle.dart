@@ -19,6 +19,7 @@ class FacilitatorCircle extends StatelessWidget {
   final RoomReach reach;
   final bool noteMode;
   final bool peerCue;
+  final bool answersATouch;
 
   /// What the warning mark says to VoiceOver, or null while the server's last word
   /// was silence rather than a warning.
@@ -47,6 +48,7 @@ class FacilitatorCircle extends StatelessWidget {
     required this.semanticLabel,
     this.noteMode = false,
     this.peerCue = false,
+    this.answersATouch = true,
     this.warning,
     this.notUnderstood,
     this.halt = const NoHalt(),
@@ -176,6 +178,7 @@ class FacilitatorCircle extends StatelessWidget {
   Widget _body(SalaColors colors, bool still) {
     if (halt is Blocking) return _haltedBody(colors, LucideIcons.userCheck);
     if (voice == VoiceState.offline) return _haltedBody(colors, _offlineGlyph);
+    if (!answersATouch) return _haltedBody(colors, null);
     if (_teamTalk) return _liveBreath(colors);
 
     switch (voice) {

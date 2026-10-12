@@ -52,6 +52,7 @@ class RetroView extends ConsumerWidget {
           halt: session.halt,
           voice: voz,
           tongue: lingua,
+          answersATouch: !conferida,
           warning: session.warning ? warningNoticeLabelFor(language) : null,
           notUnderstood: session.wordlessTelling
               ? retroLabelFor('notUnderstood', language)
