@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -10,6 +12,7 @@ import '../../domain/session_state.dart';
 import 'bead.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
+import 'moment_label.dart';
 import 'motion.dart';
 
 class ConversaView extends ConsumerWidget {
@@ -20,6 +23,8 @@ class ConversaView extends ConsumerWidget {
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);
     final language = ref.watch(roomLanguageProvider);
+    final screen = MediaQuery.sizeOf(context);
+    final phone = screen.width <= 520;
 
     return Stack(
       children: [
@@ -68,6 +73,27 @@ class ConversaView extends ConsumerWidget {
             ],
           ),
         ),
+        if (session.moment case final moment?)
+          if (momentLabelFor(moment, language) case final words?)
+            Positioned(
+              left: 0,
+              right: 0,
+              top: phone
+                  ? max(screen.height * 0.08 + 66, screen.height * 0.05 + 94)
+                  : screen.height * 0.08 + 58,
+              child: Center(
+                child: AnimatedOpacity(
+                  opacity: _momentOpacity(session),
+                  duration: const Duration(milliseconds: 800),
+                  child: MomentLabel(
+                    at: moment.at,
+                    words: words,
+                    aria: momentAriaFor(language),
+                    size: phone ? 11.52 : 12.8,
+                  ),
+                ),
+              ),
+            ),
         if (session.handAck)
           Positioned(
             left: 0,
@@ -77,6 +103,14 @@ class ConversaView extends ConsumerWidget {
           ),
       ],
     );
+  }
+
+  double _momentOpacity(SalaSessionState session) {
+    if (session.needsPerson || session.noteMode) return 0;
+    return switch (session.voice) {
+      VoiceState.listening || VoiceState.thinking || VoiceState.speaking => 0.6,
+      _ => 1,
+    };
   }
 
   String _circleLabel(SalaSessionState session, String language) {
