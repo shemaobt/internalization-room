@@ -1490,7 +1490,7 @@ Future<_Conferida> _ateAConferida(
   await tester.pump(const Duration(milliseconds: 200));
   notifier.goEnsaio();
   await tester.pump(const Duration(milliseconds: 100));
-  await gravarUmaParte(tester, notifier);
+  await gravarUmaParte(tester, container);
   notifier.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
   harness.playback.at = umaParteInteira;

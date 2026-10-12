@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -655,17 +656,41 @@ void main() {
     harness.room
       ..serverStatus = 'needs_person'
       ..serverHalt = HaltKind.blocking;
-    for (
-      var vez = 0;
-      vez < 30 && byLabel('Um momento para uma pessoa').evaluate().isEmpty;
-      vez++
-    ) {
-      await tester.pump(const Duration(seconds: 1));
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 20)),
-      );
-    }
+    await waitFor(
+      'a tela da parada aparecer',
+      () => byLabel('Um momento para uma pessoa').evaluate().isNotEmpty,
+      limit: const Duration(seconds: 3),
+      step: () async {
+        await tester.pump(const Duration(seconds: 1));
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+      },
+    );
   }
+
+  testWidgets(
+    'waiting for the halt screen fails at its deadline when the room never '
+    'stops, not in silence',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = harness.container();
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(container: container, child: const SalaApp()),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await expectLater(
+        () => pararPorUmaPessoa(tester, harness),
+        throwsA(isA<TimeoutException>()),
+        reason:
+            'a espera devolvia depois de trinta segundos sem a parada ter '
+            'aparecido, e o caso seguia como se ela tivesse aparecido',
+      );
+      closeTheRoom(container);
+    },
+  );
 
   testWidgets('R2 — uma parada lida com o clipe tocando vence a madeira', (
     tester,
