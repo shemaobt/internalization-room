@@ -319,6 +319,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   String? _awaitingCoverageTurnId;
   String? _resolvedCoverageTurnId;
   String? _coverageReopenedForTurnId;
+  Coverage? _heldCoverage;
+  TurnClock? _heldCoverageClock;
   int _lines = 0;
   int _gestures = 0;
   final Map<int, int> _handedOff = {};
@@ -536,6 +538,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _awaitedReplies.clear();
     _openTurnId = null;
     _openingOwed = false;
+    _heldCoverage = null;
+    _heldCoverageClock = null;
     state = state.copyWith(
       clearLastSpoken: true,
       roomSaysItAgain: false,
@@ -851,6 +855,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (_abandoned(generation)) return;
       if (!played.heard) return _registerUnplayableTurn(leavesTeamTalk: false);
       state = state.copyWith(awaitingTheGuide: false);
+      _landTheHeldCoverage();
     } on RoomFailure catch (failure) {
       if (_abandoned(generation)) return;
       _decideTheFailure(failure);
@@ -864,8 +869,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     void Function()? onSoundStart,
   }) async {
     if (_abandoned(generation)) return;
+    _paintCoverage(turn.coverage);
     state = state.copyWith(
-      coverage: turn.coverage,
       moment: turn.moment,
       clearMoment: turn.moment == null,
     );
@@ -907,6 +912,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       endOfThePassage: turn.done ? true : null,
       peerCue: played == Said.said ? turn.peerCue : null,
     );
+    _landTheHeldCoverage();
     _awaitCoverageSettle(turn, clock: clock);
     _scheduleInboxPoll();
   }
@@ -919,6 +925,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       awaitingTheGuide: false,
       peerCue: leavesTeamTalk ? false : null,
     );
+    _landTheHeldCoverage();
   }
 
   /// The build has no address or no key, so nothing the team does can work.
@@ -1507,15 +1514,48 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   bool _applyCoverage(Coverage? told, {TurnClock? clock}) {
     final before = state.coverage;
     if (told == null) return false;
-    final grows =
-        told.engaged > before.engaged ||
-        (told.engaged == before.engaged && told.surfaced >= before.surfaced);
-    if (!grows) return false;
-    final next = told.beadsTold ? told : told.keepingTheBeadsOf(before);
+    if (const {
+      VoiceState.listening,
+      VoiceState.thinking,
+      VoiceState.speaking,
+    }.contains(state.voice)) {
+      final held = _grown(told, from: _heldCoverage ?? before);
+      if (held != null) {
+        _heldCoverage = held;
+        _heldCoverageClock = clock ?? _heldCoverageClock;
+      }
+      return held != null && held.beadsFilled > before.beadsFilled;
+    }
+    return _paintCoverage(told, clock: clock);
+  }
+
+  bool _paintCoverage(Coverage? told, {TurnClock? clock}) {
+    final before = state.coverage;
+    if (told == null) return false;
+    final next = _grown(told, from: before);
+    if (next == null) return false;
     final moved = next.beadsFilled > before.beadsFilled;
     if (moved) clock?.mark('beads');
     state = state.copyWith(coverage: next);
     return moved;
+  }
+
+  Coverage? _grown(Coverage told, {required Coverage from}) {
+    final grows =
+        told.engaged > from.engaged ||
+        (told.engaged == from.engaged && told.surfaced >= from.surfaced);
+    if (!grows) return null;
+    return told.beadsTold && told.beadsFilled >= from.beadsFilled
+        ? told
+        : told.keepingTheBeadsOf(from);
+  }
+
+  void _landTheHeldCoverage() {
+    final held = _heldCoverage;
+    final clock = _heldCoverageClock;
+    _heldCoverage = null;
+    _heldCoverageClock = null;
+    _applyCoverage(held, clock: clock);
   }
 
   void _resolveCoverageWait(
