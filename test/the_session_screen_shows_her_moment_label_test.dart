@@ -405,7 +405,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 1500));
       expect(
         tester.getSemantics(_label),
-        containsSemantics(
+        isSemantics(
           label: 'Momento da sessão: Internalização · cena 2 de 3',
           isLiveRegion: true,
         ),
@@ -438,7 +438,7 @@ void main() {
     );
     expect(read().channel, channel);
     expect(read().stage, SalaStage.conversa);
-    expect(tester.getSemantics(_label), containsSemantics(hasTapAction: false));
+    expect(tester.getSemantics(_label), isSemantics(hasTapAction: false));
     semantics.dispose();
   });
 
