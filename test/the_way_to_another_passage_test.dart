@@ -134,10 +134,29 @@ Future<void> _keepAPart(WidgetTester tester, _Room room) async {
   room.notifier.ensaioTap();
   await _passTime(tester, 300);
   room.notifier.takeKeep();
-  await letTheRehearsalReachTheRoom(tester);
+  await theRoomNamesTheParts(tester, room.container, parts: 1);
 }
 
 void main() {
+  testWidgets(
+    'a kept part is named by the room before the team goes on, not after a clock',
+    (tester) => withDiskThatAnswersAtOnce(() async {
+      final room = await _pump(tester, memory: true);
+      room.harness.room.takeLandsInRealTime = const Duration(seconds: 1);
+      await _takeThePassage(tester, room, 'P01');
+      await _keepAPart(tester, room);
+
+      expect(
+        room.state.partes.single.takeId,
+        'gravacao-1',
+        reason:
+            'a equipe seguia com a parte ainda sem nome, e o que vinha '
+            'depois contava com uma gravação que a sala não tinha dado',
+      );
+      closeTheRoom(room.container);
+    }),
+  );
+
   testWidgets(
     'on the Panorama with the voice silent, «Choose another passage» is there '
     'and leads to the Choice, which offers the way back',
