@@ -415,6 +415,57 @@ void main() {
     },
   );
 
+  testWidgets('a tap on the label does nothing, since it is not a control', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final (_, container) = await _theOpeningSays(
+      tester,
+      const Moment(at: MomentAt.familiarization, parts: 3),
+    );
+    await tester.pump(const Duration(milliseconds: 1500));
+    SalaSessionState read() => container.read(salaSessionProvider);
+    expect(read().voice, VoiceState.invite);
+    final channel = read().channel;
+
+    await tester.tap(_label, warnIfMissed: false);
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      read().voice,
+      VoiceState.invite,
+      reason: 'um toque na etiqueta abria o microfone da conversa',
+    );
+    expect(read().channel, channel);
+    expect(read().stage, SalaStage.conversa);
+    expect(tester.getSemantics(_label), containsSemantics(hasTapAction: false));
+    semantics.dispose();
+  });
+
+  testWidgets(
+    'the label stays on the session screen and does not follow the team into the rehearsal',
+    (tester) async {
+      final (_, container) = await _theOpeningSays(
+        tester,
+        const Moment(at: MomentAt.articulation, part: 1, parts: 3),
+      );
+      await tester.pump(const Duration(milliseconds: 1500));
+      expect(_label, findsOneWidget);
+
+      container.read(salaSessionProvider.notifier).goEnsaio();
+      await tester.pump(const Duration(milliseconds: 1500));
+      await tester.pump(const Duration(milliseconds: 1500));
+
+      expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
+      expect(container.read(salaSessionProvider).moment, isNotNull);
+      expect(
+        _label,
+        findsNothing,
+        reason: 'a etiqueta da conversa aparecia na tela do ensaio',
+      );
+    },
+  );
+
   for (final MapEntry(key: words, value: moment) in _herEnglishWords.entries) {
     testWidgets('an English session shows her English words: $words', (
       tester,
