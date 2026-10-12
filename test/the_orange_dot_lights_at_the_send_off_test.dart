@@ -284,4 +284,34 @@ void main() {
       expect(_dotIsDeaf(tester), isTrue);
     },
   );
+
+  testWidgets('the dot goes, and takes no touch, while the voice thinks', (
+    tester,
+  ) async {
+    final (harness, container) = await _afterTheSendOff(tester);
+    final notifier = container.read(salaSessionProvider.notifier);
+    harness.room.holdNextTurn();
+
+    notifier.conversaTap();
+    await tester.pump(const Duration(milliseconds: 300));
+    notifier.conversaTap();
+    await _pumpUntil(
+      tester,
+      () => container.read(salaSessionProvider).voice == VoiceState.thinking,
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(container.read(salaSessionProvider).voice, VoiceState.thinking);
+    expect(
+      _dotOpacity(tester),
+      0.0,
+      reason: 'o ponto continuou aceso com a voz pensando',
+    );
+    expect(_dotIsDeaf(tester), isTrue);
+    harness.room.finishHeldTurn();
+    await _pumpUntil(
+      tester,
+      () => container.read(salaSessionProvider).voice == VoiceState.invite,
+    );
+  });
 }

@@ -145,7 +145,7 @@ class ConversaView extends ConsumerWidget {
   }
 
   bool _dotIsHidden(SalaSessionState session) => switch (session.voice) {
-    VoiceState.listening || VoiceState.speaking => true,
+    VoiceState.listening || VoiceState.thinking || VoiceState.speaking => true,
     _ => false,
   };
 
