@@ -88,6 +88,54 @@ void main() {
   );
 
   testWidgets(
+    'a recorded part is named by the room when the helper returns, not after a clock',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..room.takeLandsAfter = const Duration(milliseconds: 300);
+      final container = await pumpSala(tester, harness);
+      final notifier = container.read(salaSessionProvider.notifier);
+      await notifier.goConversa();
+      await tester.pump(const Duration(milliseconds: 200));
+      notifier.goEnsaio();
+      await tester.pump(const Duration(milliseconds: 100));
+      await gravarUmaParte(tester, container);
+
+      expect(
+        container.read(salaSessionProvider).partes.single.takeId,
+        'gravacao-1',
+        reason:
+            'a parte seguia sem nome quando o ajudante voltava, e o que '
+            'vinha depois contava com uma gravação que a sala não tinha dado',
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'recording a part the recorder never hands over fails at the helper, not in silence',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      harness.recorder.returnsNothing = true;
+      final container = await pumpSala(tester, harness);
+      final notifier = container.read(salaSessionProvider.notifier);
+      await notifier.goConversa();
+      await tester.pump(const Duration(milliseconds: 200));
+      notifier.goEnsaio();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await expectLater(
+        () => gravarUmaParte(tester, container),
+        throwsA(isA<TimeoutException>()),
+        reason:
+            'a guarda caía quando a gravação não chegava, e a espera lia a '
+            'contagem da mesma lista que ia conferir: nenhuma parte nova, '
+            'todas as antigas com nome, e a espera voltava de primeira',
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
     'a wait for two parts is not met by the one part that was kept and named',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true)
@@ -98,7 +146,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
       notifier.goEnsaio();
       await tester.pump(const Duration(milliseconds: 100));
-      await gravarUmaParte(tester, notifier);
+      await gravarUmaParte(tester, container);
       await theRoomNamesTheParts(tester, container, parts: 1);
 
       await expectLater(

@@ -40,7 +40,7 @@ Future<ProviderContainer> pumpToFindings(
   notifier.ensaioTap();
   await tester.pump(const Duration(milliseconds: 100));
   notifier.takeKeep();
-  await letTheRehearsalReachTheRoom(tester);
+  await theRoomNamesTheParts(tester, container, parts: 1);
   notifier.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
 
@@ -58,6 +58,26 @@ Future<ProviderContainer> pumpToFindings(
 }
 
 void main() {
+  testWidgets(
+    'the retro opens on a part the room has named, not on one still in the air',
+    (tester) async {
+      final container = await pumpToFindings(
+        tester,
+        true,
+        harness: SalaHarness(filaEmMemoria: true)
+          ..room.takeLandsInRealTime = const Duration(milliseconds: 300),
+      );
+
+      expect(
+        container.read(salaSessionProvider).partes.single.takeId,
+        'gravacao-1',
+        reason:
+            'a parte entrava no retro antes de a sala dar o nome, e o '
+            'trecho contado de volta não tinha de quem ser',
+      );
+    },
+  );
+
   testWidgets('a verdict that names no stretch leaves the rehearsal standing', (
     tester,
   ) async {
