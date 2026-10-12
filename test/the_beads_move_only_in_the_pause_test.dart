@@ -310,4 +310,54 @@ void main() {
       );
     },
   );
+
+  test(
+    'a frame held through a reply that would not play lands once the room is back at rest',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1';
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState shown() => container.read(salaSessionProvider);
+
+      harness.room
+        ..turnIdInResponse = 'turno-2'
+        ..holdNextTurn();
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await waitFor(
+        'o turno seguir para a sala',
+        () => shown().machine.inFlight != null,
+      );
+      harness.room.pushCoverage(
+        CoverageEvent(
+          turnId: 'turno-1',
+          status: CoverageStatus.failed,
+          coverage: coverage(engaged: 3, surfaced: 3),
+        ),
+      );
+      await settle();
+
+      harness.voice.refuses.add(turnoUrl);
+      harness.room.finishHeldTurn();
+      await waitFor(
+        'a resposta que não toca devolver a sala ao descanso',
+        () =>
+            harness.room.turnsSent == 1 &&
+            !shown().awaitingTheGuide &&
+            shown().voice == VoiceState.invite,
+      );
+      await settle();
+
+      expect(
+        shown().coverage.beadsFilled,
+        3,
+        reason:
+            'a resposta que não tocou devolvia a sala ao descanso sem soltar o '
+            'aviso guardado — as contas esperavam a próxima resposta',
+      );
+    },
+  );
 }

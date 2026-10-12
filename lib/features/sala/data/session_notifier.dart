@@ -924,6 +924,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       awaitingTheGuide: false,
       peerCue: leavesTeamTalk ? false : null,
     );
+    _landTheHeldCoverage();
   }
 
   /// The build has no address or no key, so nothing the team does can work.
