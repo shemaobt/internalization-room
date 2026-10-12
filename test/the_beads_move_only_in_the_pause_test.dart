@@ -400,4 +400,42 @@ void main() {
       );
     },
   );
+
+  test(
+    'a recovery read that brings beads while the voice speaks still closes the wait, so the fallback never asks again',
+    () async {
+      final harness =
+          SalaHarness(settleDelay: const Duration(milliseconds: 600))
+            ..room.turnIdInResponse = 'turno-1'
+            ..room.settledCoverage = coverage(engaged: 3, surfaced: 4);
+      harness.voice.holdNextLine();
+      final container = harness.container();
+      addTearDown(container.dispose);
+      int fetches() =>
+          harness.room.calls.where((call) => call == 'fetchState').length;
+
+      final opening = container.read(salaSessionProvider.notifier).goConversa();
+      await waitFor(
+        'a fala do Guia começar',
+        () => container.read(salaSessionProvider).voice == VoiceState.speaking,
+      );
+
+      harness.room.dropCoverageStream();
+      await waitFor('o pull de recuperação', () => fetches() == 1);
+      await settle(const Duration(seconds: 1));
+
+      expect(
+        fetches(),
+        1,
+        reason:
+            'o pull de recuperação trouxe as contas com a voz falando, a espera '
+            'ficou armada e o fallback pedia o estado de novo ao tablet cujo '
+            'canal o Cloud Run acabara de cortar',
+      );
+
+      harness.voice.finishHeldLine();
+      await opening;
+      expect(container.read(salaSessionProvider).coverage.beadsFilled, 3);
+    },
+  );
 }

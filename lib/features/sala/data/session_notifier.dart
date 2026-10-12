@@ -1524,7 +1524,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _heldCoverage = held;
         _heldCoverageClock = clock ?? _heldCoverageClock;
       }
-      return false;
+      return held != null && held.beadsFilled > before.beadsFilled;
     }
     return _paintCoverage(told, clock: clock);
   }
