@@ -5651,10 +5651,7 @@ void main() {
     harness.room.refuseTake = 'retro/${KeptScope.whole}';
     harness.room.failReplaceWith = const NetworkFailed('timeout');
     await notifier.confirmarTraducao();
-    await waitFor(
-      'a correção ficar por enviar',
-      () async => (await harness.takes.entries()).any((e) => e.kind == 'retro'),
-    );
+    await theRoomRefusesTheGuardedCopy(harness);
     expect(
       (await harness.takes.entries()).where((e) => e.kind == 'retro'),
       hasLength(1),
@@ -6376,10 +6373,7 @@ void main() {
     harness.room.refuseTake = 'retro/${KeptScope.whole}';
     harness.room.failChunkWith = const NetworkFailed('timeout');
     await confirmarATraducao(container);
-    await waitFor(
-      'o trecho ficar por enviar',
-      () async => (await harness.takes.entries()).any((e) => e.kind == 'retro'),
-    );
+    await theRoomRefusesTheGuardedCopy(harness);
     expect(
       (await harness.takes.entries()).where((e) => e.kind == 'retro'),
       hasLength(1),
