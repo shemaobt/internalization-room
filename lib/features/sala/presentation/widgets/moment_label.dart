@@ -54,8 +54,26 @@ class MomentLabel extends StatelessWidget {
                 child: const SizedBox(width: 9.6, height: 9.6),
               ),
               const SizedBox(width: 7.2),
-              Text(name, style: style.copyWith(fontWeight: FontWeight.w600)),
-              Text(rest.map((piece) => ' · $piece').join(), style: style),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        name,
+                        maxLines: 1,
+                        style: style.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        rest.map((piece) => ' · $piece').join(),
+                        maxLines: 1,
+                        style: style,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),

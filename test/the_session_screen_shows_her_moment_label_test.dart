@@ -395,6 +395,40 @@ void main() {
   }
 
   testWidgets(
+    'at an accessibility text size the label shrinks inside her pill instead of spilling off a phone',
+    (tester) async {
+      tester.view
+        ..physicalSize = const Size(390, 844)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      tester.platformDispatcher.textScaleFactorTestValue = 3.0;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await _theOpeningSays(
+        tester,
+        const Moment(at: MomentAt.familiarization, parts: 3),
+      );
+
+      expect(
+        tester.takeException(),
+        isNull,
+        reason:
+            'num tamanho de texto de acessibilidade as palavras saíam da borda dela',
+      );
+      final pill = tester.getRect(_label);
+      expect(pill.left, greaterThanOrEqualTo(0));
+      expect(pill.right, lessThanOrEqualTo(390));
+      for (final words in tester.widgetList<Text>(
+        find.descendant(of: _label, matching: find.byType(Text)),
+      )) {
+        expect(
+          tester.getRect(find.byWidget(words)).right,
+          lessThanOrEqualTo(pill.right),
+        );
+      }
+    },
+  );
+
+  testWidgets(
     'a screen reader hears the label as a live status named Momento da sessão',
     (tester) async {
       final semantics = tester.ensureSemantics();
