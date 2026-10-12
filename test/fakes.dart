@@ -2831,6 +2831,25 @@ class QueueThatFinishesLate extends TakeUploadQueue {
   }
 }
 
+class QueueThatFlushesLate extends TakeUploadQueue {
+  QueueThatFlushesLate({required super.room, super.home});
+
+  Duration? flushesAfter;
+  int flushing = 0;
+
+  @override
+  Future<int> flush({bool withTheCodeless = false}) async {
+    flushing++;
+    try {
+      final wait = flushesAfter;
+      if (wait != null) await Future<void>.delayed(wait);
+      return await super.flush(withTheCodeless: withTheCodeless);
+    } finally {
+      flushing--;
+    }
+  }
+}
+
 class QueueThatEnqueuesLate extends TakeUploadQueue {
   QueueThatEnqueuesLate({required super.room, super.home});
 
