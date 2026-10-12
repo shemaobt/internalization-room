@@ -55,7 +55,7 @@ Future<_Conferida> _ateAConferida(
   sala.ensaioTap();
   await tester.pump(const Duration(milliseconds: 100));
   sala.takeKeep();
-  await letTheRehearsalReachTheRoom(tester);
+  await theRoomNamesTheParts(tester, container, parts: 1);
   sala.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
 
@@ -96,6 +96,25 @@ Future<void> _aprovarEEsperar(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets(
+    'the retro opens on a part the room has named, not on one still in the air',
+    (tester) async {
+      final container = await _ateAConferida(
+        tester,
+        comEsta: SalaHarness(filaEmMemoria: true)
+          ..room.takeLandsInRealTime = const Duration(seconds: 1),
+      ).then((conferida) => conferida.container);
+
+      expect(
+        container.read(salaSessionProvider).partes.single.takeId,
+        'gravacao-1',
+        reason:
+            'a parte entrava no retro antes de a sala dar o nome, e o '
+            'trecho contado de volta não tinha de quem ser',
+      );
+    },
+  );
+
   testWidgets(
     'o veredito limpo deixa a sala aberta com o botão de ouvir e o de aprovar',
     (tester) async {
