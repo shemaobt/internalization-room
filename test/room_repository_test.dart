@@ -41,9 +41,7 @@ String _turnBody({bool usedFailSafe = false, bool degraded = false}) =>
 
 void main() {
   setUpAll(() {
-    dotenv.testLoad(
-      fileInput: 'BACKEND_URL=http://sala.local\nINTERNALIZATION_ROOM_KEY=k',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
   });
 
   test(
@@ -75,7 +73,6 @@ void main() {
       );
       expect(seen.url.path, '/api/internalization-room/fixed-lines/D1');
       expect(seen.url.queryParameters, {'language': 'pt'});
-      expect(seen.headers['X-Room-Key'], 'k');
     },
   );
 
@@ -99,7 +96,6 @@ void main() {
           'consegue ler, e a recusa chega ao app como se fosse falta de rede',
     );
     expect(seen.headers['content-type'] ?? '', isNot(contains('multipart')));
-    expect(seen.headers['X-Room-Key'], 'k');
   });
 
   test(
@@ -488,7 +484,6 @@ void main() {
             'um device_id nulo virava a string "null" no corpo e o servidor '
             'procurava um aparelho com esse id',
       );
-      expect(seen.headers['X-Room-Key'], 'k');
       expect(asked.code, 'QHF-3M7K');
       expect(asked.deviceId, 'aparelho-1');
     },
@@ -1163,7 +1158,6 @@ void main() {
             'a sala monta a release do que já guarda: o tablet não tem '
             'nada a mandar junto',
       );
-      expect(seen.headers['X-Room-Key'], 'k');
       expect(seen.headers['X-Device-Credential'], 'credencial-1');
       expect(
         seen.headers['X-Room-Device'],

@@ -17,7 +17,12 @@ import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart'
-    show enterThePanorama, enterThePassage, settle, withDiskThatAnswersAtOnce;
+    show
+        enterThePanorama,
+        enterThePassage,
+        settle,
+        theChoiceOffersAPassage,
+        withDiskThatAnswersAtOnce;
 
 void main() {
   test('a book with nothing left to offer reaches a person', () async {
@@ -210,11 +215,21 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       await notifier.abrirEscolha();
-      await settle();
+      await theChoiceOffersAPassage(container);
       notifier.entrarNaOferecida();
-      await settle();
+      await waitFor(
+        'a passagem abrir',
+        () => container.read(salaSessionProvider).sessionId != null,
+      );
       notifier.leaveThePassage();
-      await settle();
+      await waitFor(
+        'a sala voltar à Escolha com o lugar da passagem guardado',
+        () async =>
+            container.read(salaSessionProvider).stage == SalaStage.escolha &&
+            container.read(salaSessionProvider).oferecida != null &&
+            container.read(salaSessionProvider).voice == VoiceState.invite &&
+            await harness.emAberto.of('Ruth', 'P01') != null,
+      );
       expect(await harness.emAberto.of('Ruth', 'P01'), isNotNull);
 
       harness.room.forgetTheSession(harness.room.sessionIds.single);
@@ -962,7 +977,9 @@ void main() {
   );
 
   test('no network and no room wear different faces', () async {
-    final harness = SalaHarness()..network.radioSeesNothing = true;
+    final harness = SalaHarness()
+      ..network.reachable = false
+      ..network.radioSeesNothing = true;
     final container = harness.container();
     addTearDown(container.dispose);
 
@@ -1016,6 +1033,7 @@ void main() {
     // No pending reply on purpose: with one, the hand plays it and never reaches the
     // branch that overwrites the offline state.
     final harness = SalaHarness(
+      watchesWithoutAHalt: true,
       retryBackoff: const [Duration(milliseconds: 30)],
     );
     final container = await inConversaHarness(harness);
@@ -1024,11 +1042,6 @@ void main() {
 
     harness.network.reachable = false;
     harness.room.reachable = false;
-    harness.inbox.refuses = true;
-    notifier.handTap();
-    notifier.conversaTap();
-    await settle();
-    notifier.conversaTap();
     await waitFor(
       'a sala se dar por fora do ar',
       () => container.read(salaSessionProvider).offline,

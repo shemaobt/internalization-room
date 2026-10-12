@@ -8,7 +8,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/dev/dev_skip_bar.dart';
+import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/data/mic_permission.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
@@ -99,6 +101,14 @@ Future<ProviderContainer> pumpSala(
   await tester.pump(const Duration(milliseconds: 100));
   return container;
 }
+
+/// A tablet whose credential was collected on an earlier day: a room that refuses every
+/// door from the start still finds it linked.
+const _holdingItsCredential = RememberedLink(
+  deviceId: 'aparelho-1',
+  team: TeamLink(projectId: 'equipe-1'),
+  credential: 'credencial-1',
+);
 
 const retellExit = 'Ouvir e traduzir esta parte de novo';
 const wholeClipExit = 'Ouvir e traduzir a gravação de novo';
@@ -424,7 +434,7 @@ void main() {
   testWidgets(
     'a wheel still to be read asks for it in english, not in portuguese',
     (tester) async {
-      final harness = SalaHarness(lingua: 'en')
+      final harness = SalaHarness(lingua: 'en', linkedAs: _holdingItsCredential)
         ..room.failWith = const Refused('BAD_REQUEST');
       final container = await pumpSala(tester, harness);
       await container.read(salaSessionProvider.notifier).abrirEscolha();
@@ -558,10 +568,7 @@ void main() {
   testWidgets('the dev seal shows from the invite on, before any skip exists', (
     tester,
   ) async {
-    dotenv.testLoad(
-      fileInput:
-          'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://x\nDEV_PULAR_FASES=1');
     addTearDown(() => dotenv.testLoad(fileInput: ''));
     final container = await pumpSala(tester, SalaHarness());
     final notifier = container.read(salaSessionProvider.notifier);
@@ -584,10 +591,7 @@ void main() {
   testWidgets('the dev bar names every skip, and waits for its inputs', (
     tester,
   ) async {
-    dotenv.testLoad(
-      fileInput:
-          'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://x\nDEV_PULAR_FASES=1');
     addTearDown(() => dotenv.testLoad(fileInput: ''));
     final harness = SalaHarness()..network.reachable = false;
     final container = await pumpSala(tester, harness);
@@ -617,10 +621,7 @@ void main() {
   testWidgets('the dev bar walks into the ensaio once the session exists', (
     tester,
   ) async {
-    dotenv.testLoad(
-      fileInput:
-          'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://x\nDEV_PULAR_FASES=1');
     addTearDown(() => dotenv.testLoad(fileInput: ''));
     final container = await pumpSala(tester, SalaHarness());
     unawaited(container.read(salaSessionProvider.notifier).goConversa());
@@ -642,9 +643,7 @@ void main() {
   });
 
   testWidgets('a field build shows no dev bar at all', (tester) async {
-    dotenv.testLoad(
-      fileInput: 'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://x');
     addTearDown(() => dotenv.testLoad(fileInput: ''));
     final container = await pumpSala(tester, SalaHarness());
     unawaited(container.read(salaSessionProvider.notifier).goConversa());
@@ -657,10 +656,7 @@ void main() {
   testWidgets(
     "the room's own screen hides the skip bar, not only a bar built by a test",
     (tester) async {
-      dotenv.testLoad(
-        fileInput:
-            'BACKEND_URL=http://x\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
-      );
+      dotenv.testLoad(fileInput: 'BACKEND_URL=http://x\nDEV_PULAR_FASES=1');
       addTearDown(() => dotenv.testLoad(fileInput: ''));
       final harness = SalaHarness();
       final container = ProviderContainer(
@@ -1457,7 +1453,7 @@ void main() {
   testWidgets(
     'the way out stays out of reach while the room waits for a person',
     (tester) async {
-      final harness = SalaHarness()
+      final harness = SalaHarness(linkedAs: _holdingItsCredential)
         ..room.failWith = const Refused('UNAUTHORIZED');
       final container = await pumpSala(tester, harness);
       final notifier = container.read(salaSessionProvider.notifier);

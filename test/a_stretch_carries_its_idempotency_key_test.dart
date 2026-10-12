@@ -9,9 +9,7 @@ import 'package:internalization_room/features/sala/data/room_repository.dart';
 
 void main() {
   setUpAll(() {
-    dotenv.testLoad(
-      fileInput: 'BACKEND_URL=http://sala.local\nINTERNALIZATION_ROOM_KEY=k',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
   });
 
   Future<File> aRecording() async {

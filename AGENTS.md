@@ -17,7 +17,7 @@ podspec still says 13.0.
 flutter pub get
 flutter run                                                          # pick a device
 flutter run -d <iphone-id>
-flutter run --release -d <iphone-id> --dart-define=DEV_ATALHOS=true   # stands in for the device link
+flutter run --release -d <iphone-id> --dart-define=DEV_ATALHOS=true   # the skip bar in a release build
 flutter analyze
 flutter test                                     # 3 workers by default (dart_test.yaml); --concurrency overrides, CI uses 2
 flutter build appbundle --release                # reads android/key.properties
@@ -39,6 +39,9 @@ Run `git config core.hooksPath tool/git-hooks` once to get the doctrine guard on
   spelled in Dart, against a typed allowlist in `tool/doctrine_allowlist.dart`.
 - Time comes from `package:clock`: no `DateTime.now` and no bare `Stopwatch()` under `lib/`,
   enforced by `test/the_room_reads_the_clock_through_one_seam_test.dart`.
+- No shared key returns: nothing under `lib/`, `test/`, `tool/` or in `.env.example` names
+  it, enforced by `test/no_source_names_the_room_key_test.dart`. The device credential is
+  the only thing a tablet sends.
 - The source is what the pinned formatter produces: `dart format --output=none
   --set-exit-if-changed lib test tool` must exit 0; a branch that is not formatted fails
   the check.
@@ -71,8 +74,9 @@ work on the machine.
 
 ## Secrets
 
-Copy `.env.example` to `.env` and fill `BACKEND_URL` and `INTERNALIZATION_ROOM_KEY`. The
-device credential is never in that file: it lives in the iOS Keychain, and ADR 0017 says why.
+Copy `.env.example` to `.env` and fill `BACKEND_URL`. The app ships no shared key: the
+device credential is the only thing a tablet sends, and it is never in that file. It lives
+in the iOS Keychain, and ADR 0017 says why.
 
 ## Where the rest is
 

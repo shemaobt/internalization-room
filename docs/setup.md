@@ -6,9 +6,10 @@ What a fresh checkout needs before the room will run.
 
 Copy `.env.example` to `.env` and fill it in. `BACKEND_URL` addresses the room's backend —
 the simulator reaches it at `http://localhost:8000`, a physical iPhone needs the Mac's LAN
-address. `INTERNALIZATION_ROOM_KEY` must match the key the backend expects, and it is sent
-as a header on every request. The file is gitignored and is bundled as an asset, so a
-release build carries whatever sat in the tree of whoever compiled it.
+address. Nothing else in it reaches the room: the tablet is known by the device credential
+it collects once a facilitator links it from the Desk. The file is gitignored and is
+bundled as an asset, so a release build carries whatever sat in the tree of whoever
+compiled it.
 
 ## Choosing a device
 
@@ -17,18 +18,19 @@ straight to one; `flutter devices` lists the ids.
 
 ## The dev skip bar
 
-An installation nobody has linked stops at the claim code and waits for a facilitator to
-spend it from the Desk. `DEV_PULAR_FASES=1` in `.env` opens both the skip bar and the
-stand-in for the device link, and only in a debug build — a release would otherwise ship
-whatever `.env` was compiled in. A release build on a developer's own device takes the
-latch on the command line instead, where nothing but that one build can pick it up:
+Every build, a debug one included, stops at the claim code until a facilitator spends it
+from the Desk: the room opens to nothing but a device credential, and a build that skipped
+the link would have none. `DEV_PULAR_FASES=1` in `.env` opens the skip bar and its
+shortcuts, and only in a debug build — a release would otherwise ship whatever `.env` was
+compiled in. A release build on a developer's own device takes the latch on the command
+line instead, where nothing but that one build can pick it up:
 
 ```sh
 flutter run --release -d <iphone-id> --dart-define=DEV_ATALHOS=true
 ```
 
-`DEV_ATALHOS` stands in for the device link, and brings the skip bar with it when
-`DEV_PULAR_FASES=1` is also set.
+`DEV_ATALHOS` brings the skip bar to that release build when `DEV_PULAR_FASES=1` is also
+set; on its own it does nothing.
 
 ## iOS signing
 

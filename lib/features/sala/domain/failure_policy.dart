@@ -83,6 +83,8 @@ final class FailureContext {
 abstract final class FailurePolicy {
   static const refusalsBeforeAPerson = 3;
 
+  static const _theHandsDoors = {Door.question, Door.inbox, Door.reply};
+
   static MachineEvent decide(RoomResult result, FailureContext context) {
     final generation = context.generation;
     final sounding = context.sounding;
@@ -100,6 +102,9 @@ abstract final class FailurePolicy {
         generation: generation,
       ),
       RoomAnswered() => TheRoomAnswered(generation: generation),
+      _ when _theHandsDoors.contains(context.door) => TheHandFailed(
+        generation: generation,
+      ),
       RoomSessionGone() when rule == RefusalRule.keepsTheResume =>
         keptTheResume,
       RoomSessionGone() => TheSessionIsGone(generation: generation),

@@ -1,12 +1,12 @@
 # Backend seams
 
 The room talks to `tripod-backend` under `/api/internalization-room`, addressed by
-`BACKEND_URL` and authenticated with `INTERNALIZATION_ROOM_KEY`, sent as `X-Room-Key` on
-every request. A tablet that has already been linked also carries a credential of its own,
-sent as `X-Device-Credential`; where that header is present the server judges the tablet by
-it alone, and the room key still rides along beside it until retiring it becomes its own
-change. The credential is handed to every client that speaks to the room, not only the
-first, so the team's questions never arrive unnamed.
+`BACKEND_URL`. A linked tablet is known by its device credential alone, sent as
+`X-Device-Credential` on every request; the app ships no shared key. The three claim doors
+— minting a claim code, reading whether it was spent, collecting the credential — take no
+header at all. The credential is handed to every client that speaks to the room, not only
+the first, so the team's questions never arrive unnamed. An answer that says the device was
+revoked, at any door, sends the tablet back to a fresh claim code (ADR 0070).
 
 Every seam below is a provider, and every one of them is overridden in the suite.
 

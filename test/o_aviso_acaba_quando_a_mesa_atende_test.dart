@@ -257,17 +257,13 @@ void main() {
       ..room.serverHalt = HaltKind.warning;
     final container = await inConversa(harness);
     addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
 
     await waitFor('o aviso chegar', () => read().warning);
 
-    harness.inbox.refuses = true;
-    notifier.handTap();
-    notifier.conversaTap();
-    await settle();
-    notifier.conversaTap();
+    harness.room.reachable = false;
     await waitFor('a sala cair', () => read().offline);
+    harness.room.reachable = true;
     await waitFor('a sala voltar', () => !read().offline);
 
     // A equipe não toca em nada depois da volta: sem a vigia, nada mais nesta
@@ -290,11 +286,6 @@ void main() {
 
     harness.network.reachable = false;
     harness.room.reachable = false;
-    harness.inbox.refuses = true;
-    notifier.handTap();
-    notifier.conversaTap();
-    await settle();
-    notifier.conversaTap();
     await waitFor('a sala cair', () => read().offline);
 
     // Fora, o toque longo é a tentativa de voltar e continua a ser a saída

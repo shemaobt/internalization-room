@@ -139,7 +139,7 @@ Future<ProviderContainer> entrarNaTraducao(
     notifier.ensaioTap();
     await tester.pump(const Duration(milliseconds: 100));
     notifier.takeKeep();
-    await letTheRehearsalReachTheRoom(tester);
+    await theRoomNamesTheParts(tester, container, parts: gravada + 1);
   }
   notifier.startRetro();
   await tester.pump(const Duration(milliseconds: 300));
@@ -467,7 +467,8 @@ void main() {
 
   testWidgets('R3 — a conta pendente, sem conta escolhida, toca o trecho '
       'pendente como o play', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.takeLandsAfter = const Duration(seconds: 1);
     final container = await entrarNaTraducao(tester, harness);
 
     harness.playback.at = cabeca;
@@ -830,7 +831,9 @@ void main() {
   testWidgets('R9 — a checked passage in the back-translation speaks the rooms '
       'language', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
-    harness.room.verdictChecked = true;
+    harness.room
+      ..verdictChecked = true
+      ..takeLandsAfter = const Duration(seconds: 2);
     harness.playback
       ..measured = parte
       ..length = parte;
@@ -848,7 +851,7 @@ void main() {
     notifier.ensaioTap();
     await tester.pump(const Duration(milliseconds: 100));
     notifier.takeKeep();
-    await letTheRehearsalReachTheRoom(tester);
+    await theRoomNamesTheParts(tester, container, parts: 1);
     notifier.startRetro();
     await tester.pump(const Duration(milliseconds: 200));
 
