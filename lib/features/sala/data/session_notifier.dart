@@ -538,6 +538,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _awaitedReplies.clear();
     _openTurnId = null;
     _openingOwed = false;
+    _heldCoverage = null;
+    _heldCoverageClock = null;
     state = state.copyWith(
       clearLastSpoken: true,
       roomSaysItAgain: false,

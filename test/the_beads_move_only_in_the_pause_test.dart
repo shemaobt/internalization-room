@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
@@ -155,6 +157,62 @@ void main() {
         lit(),
         3,
         reason: 'ouvida a resposta, as contas que o aviso trouxe assentam',
+      );
+    },
+  );
+
+  test(
+    'a frame held in a passage the team left never lights a bead in the next one',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1';
+      harness.voice.holdNextLine();
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState shown() => container.read(salaSessionProvider);
+
+      unawaited(notifier.goConversa(pericope: 'P01'));
+      await waitFor(
+        'a fala do Guia começar na P01',
+        () => shown().voice == VoiceState.speaking,
+      );
+      harness.room.pushCoverage(
+        CoverageEvent(
+          turnId: 'turno-1',
+          status: CoverageStatus.settled,
+          coverage: coverage(engaged: 3, surfaced: 3),
+        ),
+      );
+      await waitFor(
+        'o aviso da P01 chegar e pedir o estado',
+        () =>
+            harness.room.calls.where((call) => call == 'fetchState').length ==
+            1,
+      );
+
+      notifier.leaveThePassage();
+      harness.voice.finishHeldLine();
+      await waitFor(
+        'a escolha abrir',
+        () => shown().stage == SalaStage.escolha,
+      );
+
+      harness.room.turnIdInResponse = 'turno-2';
+      await notifier.goConversa(pericope: 'P02');
+      await waitFor(
+        'a abertura da P02 ser ouvida',
+        () =>
+            shown().stage == SalaStage.conversa &&
+            shown().voice == VoiceState.invite,
+      );
+
+      expect(
+        shown().coverage.beadsFilled,
+        0,
+        reason:
+            'as contas guardadas durante a fala da P01 acendiam na P02 assim '
+            'que a abertura dela terminava',
       );
     },
   );
