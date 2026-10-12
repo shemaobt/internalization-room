@@ -272,6 +272,7 @@ const momentLabels = {
   MomentAt.familiarization: {'pt': 'Familiarização · a passagem inteira'},
   MomentAt.internalization: {'pt': 'Internalização · cena {n} de {k}'},
   MomentAt.articulation: {'pt': 'Articulação · cena {n} de {k}'},
+  MomentAt.ensaioFinal: {'pt': 'Ensaio Final · a passagem inteira'},
 };
 
 const momentAria = {'pt': 'Momento da sessão'};

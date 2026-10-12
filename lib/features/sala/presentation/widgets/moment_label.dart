@@ -23,12 +23,12 @@ class MomentLabel extends StatelessWidget {
       MomentAt.familiarization => colors.momentoFam,
       MomentAt.internalization => colors.momentoInt,
       MomentAt.articulation => colors.vermelhoMic,
-      MomentAt.ensaioFinal => colors.telha,
+      MomentAt.ensaioFinal => colors.momentoEf,
     };
     final dark = Theme.of(context).brightness == Brightness.dark;
     final wash = dark ? 0.14 : (at == MomentAt.articulation ? 0.1 : 0.12);
     final style = TextStyle(
-      color: colors.ink,
+      color: colors.momentoInk,
       fontSize: 12.8,
       height: 1.25,
       letterSpacing: 0.128,
