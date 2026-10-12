@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -314,4 +315,34 @@ void main() {
       () => container.read(salaSessionProvider).voice == VoiceState.invite,
     );
   });
+
+  testWidgets(
+    'the dot goes, and takes no touch, while the screen calls a person',
+    (tester) async {
+      final (harness, container) = await _afterTheSendOff(
+        tester,
+        watching: true,
+      );
+
+      harness.room
+        ..serverStatus = 'needs_person'
+        ..serverHalt = HaltKind.blocking;
+      final reads = stateReads(harness);
+      await _pumpUntil(
+        tester,
+        () => stateReads(harness) != reads,
+        beat: const Duration(seconds: 1),
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(container.read(salaSessionProvider).needsPerson, isTrue);
+      expect(
+        _dotOpacity(tester),
+        0.0,
+        reason: 'o ponto continuou aceso com a tela chamando o facilitador',
+      );
+      expect(_dotIsDeaf(tester), isTrue);
+      closeTheRoom(container);
+    },
+  );
 }
