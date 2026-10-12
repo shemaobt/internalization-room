@@ -10,6 +10,7 @@ import '../../domain/session_state.dart';
 import 'bead.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
+import 'moment_label.dart';
 import 'motion.dart';
 
 class ConversaView extends ConsumerWidget {
@@ -68,6 +69,19 @@ class ConversaView extends ConsumerWidget {
             ],
           ),
         ),
+        if (session.moment case final moment?)
+          Positioned(
+            left: 0,
+            right: 0,
+            top: MediaQuery.sizeOf(context).height * 0.08 + 58,
+            child: Center(
+              child: MomentLabel(
+                at: moment.at,
+                words: momentLabelFor(moment, language),
+                aria: momentAriaFor(language),
+              ),
+            ),
+          ),
         if (session.handAck)
           Positioned(
             left: 0,

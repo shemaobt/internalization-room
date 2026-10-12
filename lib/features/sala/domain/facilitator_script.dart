@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'moment.dart';
+
 const languages = ['pt', 'en'];
 
 const floorLanguage = 'en';
@@ -265,3 +267,14 @@ const codigoLabels = {
 
 String codigoLabelFor(String control, String language) =>
     codigoLabels[control]![language] ?? codigoLabels[control]![floorLanguage]!;
+
+const momentLabels = {
+  MomentAt.familiarization: {'pt': 'Familiarização · a passagem inteira'},
+};
+
+const momentAria = {'pt': 'Momento da sessão'};
+
+String momentLabelFor(Moment moment, String language) =>
+    momentLabels[moment.at]![language]!;
+
+String momentAriaFor(String language) => momentAria[language]!;
