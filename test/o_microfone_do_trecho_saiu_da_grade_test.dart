@@ -63,7 +63,7 @@ Future<ProviderContainer> aPerguntaSobreAParteDois(
   sala.goEnsaio();
   await tester.pump(const Duration(milliseconds: 100));
   for (var parte = 0; parte < 3; parte++) {
-    await gravarUmaParte(tester, sala);
+    await gravarUmaParte(tester, container);
   }
   sala.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
@@ -214,7 +214,6 @@ void main() {
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
       final container = await aPerguntaSobreAParteDois(tester, harness);
-      final sala = container.read(salaSessionProvider.notifier);
       final antes = container.read(salaSessionProvider).partes;
       expect(antes, hasLength(3));
 
@@ -229,7 +228,7 @@ void main() {
             'onde a parte se grava outra vez',
       );
 
-      await gravarUmaParte(tester, sala);
+      await gravarUmaParte(tester, container);
 
       final agora = container.read(salaSessionProvider).partes;
       expect(

@@ -45,11 +45,15 @@ List<int> _faixasVazias(WidgetTester tester, ProviderContainer container) => [
 /// The kind is scenery, not subject: nothing here reads it, and swapping it for any other
 /// leaves every case as it is. What every case needs is only a finding that names a
 /// stretch, and a correction route out of it.
-Future<ProviderContainer> _pumpToPergunta(WidgetTester tester) async {
+Future<ProviderContainer> _pumpToPergunta(
+  WidgetTester tester, {
+  Duration? takeLandsInRealTime,
+}) async {
   final harness = SalaHarness(filaEmMemoria: true)
     ..room.verdictChecked = false
     ..room.verdictHasFinding = true
-    ..room.verdictFindingSegmentId = 'trecho-1';
+    ..room.verdictFindingSegmentId = 'trecho-1'
+    ..room.takeLandsInRealTime = takeLandsInRealTime;
   _harnessDaVez = harness;
   final container = harness.container();
   addTearDown(container.dispose);
@@ -66,7 +70,7 @@ Future<ProviderContainer> _pumpToPergunta(WidgetTester tester) async {
   sala.ensaioTap();
   await tester.pump(const Duration(milliseconds: 100));
   sala.takeKeep();
-  await letTheRehearsalReachTheRoom(tester);
+  await theRoomNamesTheParts(tester, container, parts: 1);
   sala.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
 
@@ -135,6 +139,24 @@ Future<void> _deixarOColarFechar(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets(
+    'the retro opens on a part the room has named, not on one still in the air',
+    (tester) async {
+      final container = await _pumpToPergunta(
+        tester,
+        takeLandsInRealTime: const Duration(milliseconds: 300),
+      );
+
+      expect(
+        container.read(salaSessionProvider).partes.single.takeId,
+        'gravacao-1',
+        reason:
+            'a parte entrava no retro antes de a sala dar o nome, e o '
+            'trecho contado de volta não tinha de quem ser',
+      );
+    },
+  );
+
   testWidgets('uma passagem conferida não deixa faixa vazia no colar', (
     tester,
   ) async {

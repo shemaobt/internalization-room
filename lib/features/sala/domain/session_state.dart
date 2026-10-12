@@ -281,8 +281,6 @@ class SalaSessionState {
       naRoda != null &&
       naRoda!.every((passagem) => passagem.isPanorama);
 
-  bool get onFim => stage == SalaStage.fim;
-
   bool get ensaioDone =>
       takes >= 1 && ensaio == EnsaioStatus.idle && parteARegravar == null;
 

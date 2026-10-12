@@ -1768,6 +1768,8 @@ class FakeRoom implements RoomRepository {
 
   Duration? takeLandsAfter;
 
+  Duration? takeLandsInRealTime;
+
   Duration? aHeldTakeAnswersAfter;
 
   @override
@@ -1785,6 +1787,10 @@ class FakeRoom implements RoomRepository {
     }
     final wait = takeLandsAfter;
     if (wait != null) await Future<void>.delayed(wait);
+    final onTheClock = takeLandsInRealTime;
+    if (onTheClock != null) {
+      await Zone.root.run(() => Future<void>.delayed(onTheClock));
+    }
     if (scope == holdTakeScope) {
       _reachedTakeHold?.complete();
       await _holdingTake?.future;
