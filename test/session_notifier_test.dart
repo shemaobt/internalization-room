@@ -6282,8 +6282,11 @@ void main() {
 
   test('leaving the passage withdraws a refused translation still parked in '
       'the outbox', () async {
-    final harness = SalaHarness()
-      ..room.failChunkWith = const Refused('BAD_REQUEST');
+    final harness = SalaHarness(
+      takesOverride: (room, home) =>
+          QueueThatFinishesLate(room: room, home: () async => home)
+            ..answersAfter = const Duration(milliseconds: 300),
+    )..room.failChunkWith = const Refused('BAD_REQUEST');
     final container = await inConversa(harness);
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -6315,10 +6318,7 @@ void main() {
     );
     harness.room.refuseTake = 'retro/${KeptScope.whole}';
     await confirmarATraducao(container);
-    await waitFor(
-      'a tradução recusada entrar na fila',
-      () async => (await harness.takes.entries()).any((e) => e.kind == 'retro'),
-    );
+    await theRoomRefusesTheGuardedCopy(harness);
 
     await notifier.abrirEscolha();
     await waitFor(
