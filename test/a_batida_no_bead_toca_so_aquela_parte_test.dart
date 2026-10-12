@@ -203,7 +203,7 @@ Future<ProviderContainer> _achadoNaParteDoisNaTela(
   notifier.goEnsaio();
   await tester.pump(const Duration(milliseconds: 100));
   for (var parte = 0; parte < 3; parte++) {
-    await gravarUmaParte(tester, notifier);
+    await gravarUmaParte(tester, container);
   }
   notifier.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
