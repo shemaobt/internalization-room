@@ -939,7 +939,8 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true)
       ..room.verdictChecked = false
       ..room.verdictHasFinding = true
-      ..room.verdictFindingSegmentId = 'trecho-1';
+      ..room.verdictFindingSegmentId = 'trecho-1'
+      ..room.takeLandsInRealTime = const Duration(seconds: 1);
     final container = await pumpSala(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
@@ -951,9 +952,16 @@ void main() {
     notifier.ensaioTap();
     await tester.pump(const Duration(milliseconds: 100));
     notifier.takeKeep();
-    await letTheRehearsalReachTheRoom(tester);
+    await theRoomNamesTheParts(tester, container, parts: 1);
     notifier.startRetro();
     await tester.pump(const Duration(milliseconds: 200));
+    expect(
+      container.read(salaSessionProvider).partes.single.takeId,
+      'gravacao-1',
+      reason:
+          'a parte entrava no retro antes de a sala dar o nome, e o '
+          'trecho contado de volta não tinha de quem ser',
+    );
     harness.playback.at = const Duration(seconds: 10);
     notifier.cortarTrecho();
     notifier.retroTap();
