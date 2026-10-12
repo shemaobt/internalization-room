@@ -16,14 +16,6 @@ class HearAgainButton extends ConsumerWidget {
     final canHear = ref.watch(
       salaSessionProvider.select((session) => session.canHearAgain),
     );
-    // The opening was told in two movements, so a held press can give back the one a tap
-    // leaves out. Nothing on the button says so; the necklace coming off the cord and
-    // being strung again is what the team sees when the press lands.
-    final twoMovements = ref.watch(
-      salaSessionProvider.select(
-        (session) => session.lastSpoken?.toldInTwoMovements ?? false,
-      ),
-    );
     return Positioned(
       right: 14,
       bottom: 18 + MediaQuery.viewPaddingOf(context).bottom,
@@ -40,11 +32,6 @@ class HearAgainButton extends ConsumerWidget {
                       ref.watch(roomLanguageProvider),
                     ),
                     onTap: ref.read(salaSessionProvider.notifier).hearAgain,
-                    onLongPress: twoMovements
-                        ? ref
-                              .read(salaSessionProvider.notifier)
-                              .hearTheWholeOpening
-                        : null,
                     child: const Icon(
                       LucideIcons.rotateCcw,
                       size: 22,

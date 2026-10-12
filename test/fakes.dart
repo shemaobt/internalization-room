@@ -705,8 +705,6 @@ const theRoomKeyHeader = 'X-Room-Key';
 /// wheel now reads it on every open — under a widget test's fake clock that never
 /// resolves, which hangs the whole suite.
 const turnoUrl = '/api/internalization-room/voice/turno';
-const panoramaUrl = '/api/internalization-room/voice/panorama';
-const sceneUrl = '/api/internalization-room/voice/cena';
 const deNovoUrl = '/api/internalization-room/voice/de-novo';
 
 class FakeCurrentSessionLedger implements CurrentSessionLedger {
@@ -918,8 +916,6 @@ class FakeRoom implements RoomRepository {
   Coverage? settledCoverage;
   bool peerCue = false;
 
-  /// Whether the opening comes back cut where the Guide marked it.
-  bool opensInTwoMovements = false;
   bool done = false;
 
   /// What the session read says of the passage's end, when it is not what the turns say.
@@ -1485,12 +1481,6 @@ class FakeRoom implements RoomRepository {
           coverage: silentAboutCoverage ? null : nextCoverage,
           done: done,
           moment: nextMoment,
-          segments: opensInTwoMovements
-              ? const [
-                  SpokenSegment(role: 'panorama', audioUrl: panoramaUrl),
-                  SpokenSegment(role: 'scene', audioUrl: sceneUrl),
-                ]
-              : const [],
         ),
       );
     }
@@ -1857,12 +1847,6 @@ class FakeRoom implements RoomRepository {
     turnId: turnIdInResponse ?? 'turno-fake-${++_turnCount}',
     classificationPending: classificationPending,
     bridgeMode: bridgeMode,
-    segments: opensInTwoMovements
-        ? const [
-            SpokenSegment(role: 'panorama', audioUrl: panoramaUrl),
-            SpokenSegment(role: 'scene', audioUrl: sceneUrl),
-          ]
-        : const [],
   );
 
   @override

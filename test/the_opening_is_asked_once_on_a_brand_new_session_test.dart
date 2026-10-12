@@ -244,52 +244,6 @@ void main() {
     });
   });
 
-  group(
-    'a resumed passage whose last line is an Opening told in two movements',
-    () {
-      late SalaHarness harness;
-      late SalaSessionNotifier notifier;
-      late SalaSessionState Function() read;
-      late int playedBeforeTheReplay;
-
-      setUp(() async {
-        harness = SalaHarness()..room.opensInTwoMovements = true;
-        _aCanvasRow(harness, opened: true);
-        final container = harness.container();
-        addTearDown(container.dispose);
-        notifier = container.read(salaSessionProvider.notifier);
-        read = () => container.read(salaSessionProvider);
-        await enterThePassage(notifier, read, 'P01');
-        await waitFor('the passage to land at rest', () => read().canHearAgain);
-        playedBeforeTheReplay = harness.voice.played.length;
-        await notifier.hearAgain();
-        await waitFor(
-          'the room to rest again',
-          () => read().voice == VoiceState.invite && read().canHearAgain,
-        );
-      });
-
-      test('«Ouvir de novo» says its scene again', () {
-        expect(harness.voice.played.skip(playedBeforeTheReplay), [sceneUrl]);
-      });
-
-      test('the long press says both movements', () async {
-        final playedBeforeThePress = harness.voice.played.length;
-
-        await notifier.hearTheWholeOpening();
-        await waitFor(
-          'both movements to be said',
-          () => harness.voice.played.length == playedBeforeThePress + 2,
-        );
-
-        expect(harness.voice.played.skip(playedBeforeThePress), [
-          panoramaUrl,
-          sceneUrl,
-        ]);
-      });
-    },
-  );
-
   group('a resumed passage whose session read fell with the network', () {
     Future<(SalaHarness, SalaSessionState Function())> theRoomComesBack({
       required bool opened,

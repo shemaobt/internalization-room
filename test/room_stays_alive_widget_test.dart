@@ -251,7 +251,6 @@ void main() {
                 ThreadIn(
                   index: 0,
                   total: 3,
-                  threaded: false,
                   child: SizedBox(width: 10, height: 10),
                 ),
               ],
@@ -280,21 +279,6 @@ void main() {
         find.byType(Transform),
         findsNothing,
         reason: 'nada cresce, nada encolhe e nada anda de lugar',
-      );
-
-      final veu = tester.widget<Opacity>(
-        find.descendant(
-          of: find.byType(ThreadIn),
-          matching: find.byType(Opacity),
-        ),
-      );
-      expect(
-        veu.opacity,
-        0.0,
-        reason:
-            'e a conta que ainda não foi enfiada continua escondida: este é '
-            'o único dos quatro que desenha coisa diferente de acordo com o '
-            'estado, e parar a animação não pode acender o cordão inteiro',
       );
     },
   );
