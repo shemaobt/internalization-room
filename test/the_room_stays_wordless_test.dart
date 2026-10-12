@@ -11,7 +11,14 @@ const _screensTheTeamNeverReads = {
   'lib/features/sala/presentation/widgets/codigo_view.dart',
 };
 
-const _wordyExceptions = {..._screensTheTeamNeverReads};
+const _herWordsTheTeamReads = {
+  'lib/features/sala/presentation/widgets/moment_label.dart',
+};
+
+const _wordyExceptions = {
+  ..._screensTheTeamNeverReads,
+  ..._herWordsTheTeamReads,
+};
 
 final _textWidgetPattern = RegExp(r'\bText\(');
 final _commentPattern = RegExp(r'//.*$', multiLine: true);
