@@ -120,6 +120,21 @@ Future<void> _theReplyEnds(
   await tester.pump(const Duration(milliseconds: 500));
 }
 
+Future<(SalaHarness, ProviderContainer)> _afterTheSendOff(
+  WidgetTester tester, {
+  bool watching = false,
+}) async {
+  final (harness, container) = await _inTheLastScene(
+    tester,
+    watching: watching,
+  );
+  await _theNextReplyPlays(tester, harness, container, _sendOff);
+  await _theReplyEnds(tester, harness, container);
+  expect(_dotOpacity(tester), 0.85);
+  expect(_dotIsDeaf(tester), isFalse);
+  return (harness, container);
+}
+
 void main() {
   testWidgets(
     'the send-off lights the dot as it starts, and the team first sees it when the voice ends',
@@ -249,6 +264,24 @@ void main() {
       );
       expect(_dotIsDeaf(tester), isFalse);
       closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'the dot goes, and takes no touch, while the microphone listens',
+    (tester) async {
+      final (_, container) = await _afterTheSendOff(tester);
+
+      container.read(salaSessionProvider.notifier).conversaTap();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(container.read(salaSessionProvider).voice, VoiceState.listening);
+      expect(
+        _dotOpacity(tester),
+        0.0,
+        reason: 'o ponto continuou aceso com o microfone aberto',
+      );
+      expect(_dotIsDeaf(tester), isTrue);
     },
   );
 }
