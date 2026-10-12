@@ -19,6 +19,7 @@ class FacilitatorCircle extends StatelessWidget {
   final RoomReach reach;
   final bool noteMode;
   final bool peerCue;
+  final bool answersATouch;
 
   /// What the warning mark says to VoiceOver, or null while the server's last word
   /// was silence rather than a warning.
@@ -47,6 +48,7 @@ class FacilitatorCircle extends StatelessWidget {
     required this.semanticLabel,
     this.noteMode = false,
     this.peerCue = false,
+    this.answersATouch = true,
     this.warning,
     this.notUnderstood,
     this.halt = const NoHalt(),
@@ -55,7 +57,10 @@ class FacilitatorCircle extends StatelessWidget {
     this.onLongPress,
   });
 
-  bool get _teamTalk => peerCue && voice == VoiceState.invite;
+  bool get _teamTalk =>
+      peerCue && (voice == VoiceState.invite || voice == VoiceState.done);
+
+  bool get _noteBlue => noteMode && voice != VoiceState.done;
 
   @override
   Widget build(BuildContext context) {
@@ -173,10 +178,12 @@ class FacilitatorCircle extends StatelessWidget {
   Widget _body(SalaColors colors, bool still) {
     if (halt is Blocking) return _haltedBody(colors, LucideIcons.userCheck);
     if (voice == VoiceState.offline) return _haltedBody(colors, _offlineGlyph);
+    if (!answersATouch) return _haltedBody(colors, null);
     if (_teamTalk) return _liveBreath(colors);
 
     switch (voice) {
       case VoiceState.invite:
+      case VoiceState.done:
         return _liveBreath(colors);
       case VoiceState.listening:
         return _disc(
@@ -203,8 +210,6 @@ class FacilitatorCircle extends StatelessWidget {
           builder: (context, t) =>
               Transform.scale(scale: 1 + 0.02 * t, child: _liveDisc(colors)),
         );
-      case VoiceState.done:
-        return _doneDisc();
       case VoiceState.offline:
         return _haltedBody(colors, _offlineGlyph);
       case VoiceState.blocked:
@@ -212,20 +217,9 @@ class FacilitatorCircle extends StatelessWidget {
     }
   }
 
-  Widget _doneDisc() => _disc(
-    gradient: BeadStyles.verde,
-    shadows: [
-      BoxShadow(
-        color: ShemaBrand.verdeLo.withValues(alpha: 0.28),
-        offset: const Offset(0, 10),
-        blurRadius: 34,
-      ),
-    ],
-  );
-
   Gradient _liveGradient(SalaColors colors) {
     if (voice != VoiceState.speaking) {
-      return noteMode ? BeadStyles.azul : BeadStyles.telha(colors);
+      return _noteBlue ? BeadStyles.azul : BeadStyles.telha(colors);
     }
     switch (tongue) {
       case Tongue.motherTongue:
@@ -240,7 +234,7 @@ class FacilitatorCircle extends StatelessWidget {
 
   Color _liveShadow(SalaColors colors) {
     if (voice != VoiceState.speaking) {
-      return noteMode ? ShemaBrand.azulLo : colors.telha;
+      return _noteBlue ? ShemaBrand.azulLo : colors.telha;
     }
     switch (tongue) {
       case Tongue.motherTongue:

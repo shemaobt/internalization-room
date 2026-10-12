@@ -1,9 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
+import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
 
@@ -189,6 +193,49 @@ void main() {
           'e o colar tem de concordar com ela. Uma faixa vazia sob uma '
           'passagem conferida é a única coisa que a equipe tem para ler '
           'dizendo que ainda há trabalho, e não há',
+    );
+
+    await _deixarOColarFechar(tester);
+  });
+
+  testWidgets('a conferida não oferece o círculo a um toque que não responde', (
+    tester,
+  ) async {
+    final container = await _pumpToPergunta(tester);
+    await _consertoQueNaoPegou(tester, container);
+    await _oVeredictoVoltaLimpo(tester, container);
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
+
+    final colors = SalaColors.of(
+      tester.element(find.byType(FacilitatorCircle)),
+    );
+    final pintados = [
+      for (final elemento
+          in find
+              .descendant(
+                of: find.byType(FacilitatorCircle),
+                matching: find.byType(Container),
+              )
+              .evaluate())
+        if ((elemento.widget as Container).decoration case BoxDecoration(
+          :final gradient?,
+        ))
+          gradient,
+    ];
+
+    expect(
+      pintados,
+      isNot(contains(BeadStyles.telha(colors))),
+      reason:
+          'a conferida desenhava o círculo de telha do convite, e o toque '
+          'nele não responde nada: a tela da Marcia deixa o círculo vivo '
+          'ali, a nossa mandou a escuta para o botão de ouvir, então um '
+          'convite sem resposta é um toque morto',
+    );
+    expect(
+      pintados,
+      contains(BeadStyles.clay(colors)),
+      reason: 'o círculo que não responde respira devagar, como o parado',
     );
 
     await _deixarOColarFechar(tester);

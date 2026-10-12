@@ -59,16 +59,33 @@ Gradient? _disco(WidgetTester tester) {
   return pintados.isEmpty ? null : pintados.first;
 }
 
+Color _sombraDoDisco(WidgetTester tester) => find
+    .descendant(
+      of: find.byType(FacilitatorCircle),
+      matching: find.byType(Container),
+    )
+    .evaluate()
+    .where((elemento) => !_sobUmaMarca(elemento))
+    .map((elemento) => (elemento.widget as Container).decoration)
+    .whereType<BoxDecoration>()
+    .firstWhere((decoracao) => decoracao.gradient != null)
+    .boxShadow!
+    .first
+    .color;
+
 Future<void> _pumpCirculo(
   WidgetTester tester,
   VoiceState voice,
   ThemeData theme, {
   bool peerCue = false,
+  bool noteMode = false,
   bool warning = false,
   Halt halt = const NoHalt(),
 }) => tester.pumpWidget(
   MaterialApp(
-    key: ValueKey('$voice-$halt-$peerCue-$warning-${theme.brightness}'),
+    key: ValueKey(
+      '$voice-$halt-$peerCue-$noteMode-$warning-${theme.brightness}',
+    ),
     theme: theme,
     home: Scaffold(
       body: Center(
@@ -77,6 +94,7 @@ Future<void> _pumpCirculo(
           size: 150,
           voice: voice,
           peerCue: peerCue,
+          noteMode: noteMode,
           warning: warning ? 'aviso' : null,
           semanticLabel: 'circulo',
           onTap: () {},
@@ -143,7 +161,7 @@ void main() {
         ('thinking', VoiceState.thinking, const NoHalt()): BeadStyles.clay(
           colors,
         ),
-        ('done', VoiceState.done, const NoHalt()): BeadStyles.verde,
+        ('done', VoiceState.done, const NoHalt()): BeadStyles.telha(colors),
         ('needsPerson', VoiceState.invite, const Blocking(NothingKept())):
             BeadStyles.clay(colors),
         ('offline', VoiceState.offline, const NoHalt()): BeadStyles.clay(
@@ -182,6 +200,37 @@ void main() {
     }
   });
 
+  testWidgets('a mão levantada só ganha o azul no convite, não no pronto', (
+    tester,
+  ) async {
+    await _pumpCirculo(
+      tester,
+      VoiceState.invite,
+      AppTheme.light,
+      noteMode: true,
+    );
+    expect(
+      _disco(tester),
+      BeadStyles.azul,
+      reason: 'o azul da mão continua sendo o do convite',
+    );
+
+    await _pumpCirculo(tester, VoiceState.done, AppTheme.light, noteMode: true);
+    expect(
+      _disco(tester),
+      BeadStyles.telha(SalaColors.light),
+      reason:
+          'no pronto a mão levantada ficava azul como no convite; o azul da '
+          'Marcia está escrito só para o convite, e o pronto mantém o '
+          'círculo de telha do turno ao vivo',
+    );
+    expect(
+      _sombraDoDisco(tester).withValues(alpha: 1),
+      SalaColors.light.telha,
+      reason: 'o azul da mão também vazava pela sombra do disco no pronto',
+    );
+  });
+
   testWidgets('uma parada bloqueante nunca é verde, mesmo com o aviso ligado', (
     tester,
   ) async {
@@ -211,7 +260,7 @@ void main() {
   });
 
   testWidgets(
-    'o disco só fica verde com o veredito limpo, o aviso nunca o acende',
+    'nenhuma voz acende o disco verde de pronto, nem com o aviso ligado',
     (tester) async {
       const vozes = [
         ('invite', VoiceState.invite, NoHalt()),
@@ -231,17 +280,14 @@ void main() {
             halt: parada,
             warning: aviso,
           );
-          final verde = voz == VoiceState.done && parada is NoHalt;
 
           expect(
             _disco(tester) == BeadStyles.verde,
-            verde,
-            reason: verde
-                ? '$nome é o veredito limpo, e é a única voz que '
-                      'ainda acende o disco de "pronto"'
-                : '$nome com aviso=$aviso não acende o disco: o aviso '
-                      'deixou de ser uma cor do disco (Henok, revertendo o '
-                      'PR #230)',
+            isFalse,
+            reason:
+                '$nome com aviso=$aviso não acende o disco: a Marcia nunca '
+                'desenhou um disco verde de pronto, e o aviso deixou de ser '
+                'uma cor do disco (Henok, revertendo o PR #230)',
           );
 
           if (parada is Blocking || voz == VoiceState.offline) {
