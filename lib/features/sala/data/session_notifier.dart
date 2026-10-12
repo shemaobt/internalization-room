@@ -1510,7 +1510,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   bool _applyCoverage(Coverage? told, {TurnClock? clock}) {
     final before = state.coverage;
     if (told == null) return false;
-    if (state.voice == VoiceState.speaking) {
+    if (const {
+      VoiceState.thinking,
+      VoiceState.speaking,
+    }.contains(state.voice)) {
       final held = _grown(told, from: _heldCoverage ?? before);
       if (held != null) {
         _heldCoverage = held;
