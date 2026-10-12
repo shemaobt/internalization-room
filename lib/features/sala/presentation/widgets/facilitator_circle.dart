@@ -57,6 +57,8 @@ class FacilitatorCircle extends StatelessWidget {
 
   bool get _teamTalk => peerCue && voice == VoiceState.invite;
 
+  bool get _noteBlue => noteMode && voice != VoiceState.done;
+
   @override
   Widget build(BuildContext context) {
     final colors = SalaColors.of(context);
@@ -213,7 +215,7 @@ class FacilitatorCircle extends StatelessWidget {
 
   Gradient _liveGradient(SalaColors colors) {
     if (voice != VoiceState.speaking) {
-      return noteMode ? BeadStyles.azul : BeadStyles.telha(colors);
+      return _noteBlue ? BeadStyles.azul : BeadStyles.telha(colors);
     }
     switch (tongue) {
       case Tongue.motherTongue:
@@ -228,7 +230,7 @@ class FacilitatorCircle extends StatelessWidget {
 
   Color _liveShadow(SalaColors colors) {
     if (voice != VoiceState.speaking) {
-      return noteMode ? ShemaBrand.azulLo : colors.telha;
+      return _noteBlue ? ShemaBrand.azulLo : colors.telha;
     }
     switch (tongue) {
       case Tongue.motherTongue:
