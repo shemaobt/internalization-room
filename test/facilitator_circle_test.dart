@@ -406,6 +406,22 @@ void main() {
   );
 
   testWidgets(
+    'a peer cue at done shows the team glyph as it does at the invite',
+    (tester) async {
+      await _pumpCircle(tester, VoiceState.done, peerCue: true);
+
+      expect(
+        _glyphs(tester),
+        [LucideIcons.users],
+        reason:
+            'a Marcia desenha o glifo da equipe em todo turno ocioso, e o '
+            'pronto é um deles; a deixa chegava junto com o pronto e o '
+            'círculo ficava sem dizer que a vez era da equipe',
+      );
+    },
+  );
+
+  testWidgets(
     'a circle that changes voice under less motion is as still as one that opened there',
     (tester) async {
       await _pumpStillCircle(tester, VoiceState.thinking, inPlace: true);

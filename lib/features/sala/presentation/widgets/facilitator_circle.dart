@@ -55,7 +55,8 @@ class FacilitatorCircle extends StatelessWidget {
     this.onLongPress,
   });
 
-  bool get _teamTalk => peerCue && voice == VoiceState.invite;
+  bool get _teamTalk =>
+      peerCue && (voice == VoiceState.invite || voice == VoiceState.done);
 
   bool get _noteBlue => noteMode && voice != VoiceState.done;
 
