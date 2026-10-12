@@ -6178,7 +6178,8 @@ void main() {
     final harness = SalaHarness(
       takesOverride: (room, home) =>
           QueueThatFinishesLate(room: room, home: () async => home)
-            ..answersAfter = const Duration(milliseconds: 300),
+            ..answersAfter = const Duration(milliseconds: 300)
+            ..deletesTheCopyAfter = const Duration(milliseconds: 300),
     )..room.failChunkWith = const Refused('BAD_REQUEST');
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -6248,9 +6249,10 @@ void main() {
     });
 
     await waitFor(
-      'a tradução recusada sair da fila',
+      'a tradução recusada sair da fila e do disco',
       () async =>
-          (await harness.takes.entries()).every((e) => e.kind != 'retro'),
+          (await harness.takes.entries()).every((e) => e.kind != 'retro') &&
+          !copiaNaFila.existsSync(),
     );
     expect(
       (await harness.takes.entries()).where((e) => e.kind == 'retro'),
