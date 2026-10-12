@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -55,27 +53,6 @@ List<BeadRowEntry> _beads(WidgetTester tester) => tester
     )
     .entries;
 
-Future<void> _ateAParteTerNome(
-  WidgetTester tester,
-  ProviderContainer container,
-) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 10));
-  bool nomeada() {
-    final partes = container.read(salaSessionProvider).partes;
-    return partes.length == 1 && partes.first.takeId != null;
-  }
-
-  while (!nomeada()) {
-    if (DateTime.now().isAfter(deadline)) {
-      throw TimeoutException(
-        'esperei 10s e a sala nomear a parte não aconteceu',
-        const Duration(seconds: 10),
-      );
-    }
-    await letTheRehearsalReachTheRoom(tester);
-  }
-}
-
 /// The rehearsal, recorded and confirmed in three parts, standing with the play and the
 /// advance disc both ready and nothing pressed yet.
 Future<ProviderContainer> _ensaioDeTresPartes(
@@ -117,7 +94,7 @@ Future<(ProviderContainer, SalaHarness)> _achadoNaParteUm(
   notifier.ensaioTap();
   await tester.pump(const Duration(milliseconds: 100));
   notifier.takeKeep();
-  await _ateAParteTerNome(tester, container);
+  await theRoomNamesTheParts(tester, container, parts: 1);
   notifier.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
   harness.playback.at = const Duration(seconds: 10);
