@@ -186,4 +186,39 @@ void main() {
       );
     },
   );
+
+  for (final MapEntry(key: words, value: moment) in _herEnglishWords.entries) {
+    testWidgets('an English session shows her English words: $words', (
+      tester,
+    ) async {
+      await _theOpeningSays(tester, moment, lingua: 'en');
+
+      expect(
+        _shown(tester),
+        words,
+        reason: 'o tablet em inglês mostrava o momento em português',
+      );
+    });
+  }
 }
+
+const _herEnglishWords = {
+  'Familiarization · the whole passage': Moment(
+    at: MomentAt.familiarization,
+    parts: 3,
+  ),
+  'Internalization · scene 2 of 3': Moment(
+    at: MomentAt.internalization,
+    part: 2,
+    parts: 3,
+  ),
+  'Articulation · scene 1 of 3': Moment(
+    at: MomentAt.articulation,
+    part: 1,
+    parts: 3,
+  ),
+  'Final Rehearsal · the whole passage': Moment(
+    at: MomentAt.ensaioFinal,
+    parts: 3,
+  ),
+};
