@@ -360,4 +360,44 @@ void main() {
       );
     },
   );
+
+  test(
+    'a frame that lands while the voice says her line again lands when that line ends',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1';
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      int lit() => container.read(salaSessionProvider).coverage.beadsFilled;
+
+      harness.voice.holdNextLine();
+      final again = notifier.hearAgain();
+      await waitFor(
+        'a voz dizer de novo',
+        () => container.read(salaSessionProvider).voice == VoiceState.speaking,
+      );
+      harness.room.pushCoverage(
+        CoverageEvent(
+          turnId: 'turno-1',
+          status: CoverageStatus.failed,
+          coverage: coverage(engaged: 3, surfaced: 3),
+        ),
+      );
+      await settle();
+      expect(lit(), 0, reason: 'a voz ainda está dizendo a linha de novo');
+
+      harness.voice.finishHeldLine();
+      await again;
+      await settle();
+
+      expect(
+        lit(),
+        3,
+        reason:
+            'a linha dita de novo terminava sem soltar o aviso guardado — as '
+            'contas esperavam a próxima resposta',
+      );
+    },
+  );
 }

@@ -855,6 +855,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (_abandoned(generation)) return;
       if (!played.heard) return _registerUnplayableTurn(leavesTeamTalk: false);
       state = state.copyWith(awaitingTheGuide: false);
+      _landTheHeldCoverage();
     } on RoomFailure catch (failure) {
       if (_abandoned(generation)) return;
       _decideTheFailure(failure);
