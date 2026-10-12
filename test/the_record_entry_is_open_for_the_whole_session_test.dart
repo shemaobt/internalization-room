@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -15,11 +17,12 @@ Future<void> _pumpWhile(
   bool Function() notYet, {
   Duration step = const Duration(milliseconds: 60),
   int times = 20,
-}) async {
-  for (var i = 0; i < times && notYet(); i++) {
-    await tester.pump(step);
-  }
-}
+}) => waitFor(
+  'the screen to leave the state it was pumped from',
+  () => !notYet(),
+  limit: Duration(milliseconds: times * 100),
+  step: () => tester.pump(step),
+);
 
 const _entry = 'Terminar a conversa e ir para o ensaio';
 
@@ -37,6 +40,19 @@ Future<ProviderContainer> _pumpInConversa(
 }
 
 void main() {
+  testWidgets(
+    'a pump for a state that never ends fails at its deadline, not in silence',
+    (tester) async {
+      await expectLater(
+        () => _pumpWhile(tester, () => true),
+        throwsA(isA<TimeoutException>()),
+        reason:
+            'a espera devolvia depois de vinte quadros sem o estado ter '
+            'mudado, e o caso seguia como se ele tivesse mudado',
+      );
+    },
+  );
+
   testWidgets(
     'the entry is on screen from the first turn, before the room says done',
     (tester) async {

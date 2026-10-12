@@ -939,7 +939,8 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true)
       ..room.verdictChecked = false
       ..room.verdictHasFinding = true
-      ..room.verdictFindingSegmentId = 'trecho-1';
+      ..room.verdictFindingSegmentId = 'trecho-1'
+      ..room.takeLandsAfter = const Duration(milliseconds: 300);
     final container = await pumpSala(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
@@ -951,7 +952,14 @@ void main() {
     notifier.ensaioTap();
     await tester.pump(const Duration(milliseconds: 100));
     notifier.takeKeep();
-    await letTheRehearsalReachTheRoom(tester);
+    await theRoomNamesTheParts(tester, container, parts: 1);
+    expect(
+      container.read(salaSessionProvider).partes.single.takeId,
+      'gravacao-1',
+      reason:
+          'a parte entrava no retro antes de a sala dar o nome, e o '
+          'trecho contado de volta não tinha de quem ser',
+    );
     notifier.startRetro();
     await tester.pump(const Duration(milliseconds: 200));
     harness.playback.at = const Duration(seconds: 10);
@@ -1050,7 +1058,8 @@ void main() {
   testWidgets('a long press unsticks a retro the room abandoned', (
     tester,
   ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.takeLandsAfter = const Duration(milliseconds: 300);
     final container = await pumpSala(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
@@ -1061,7 +1070,14 @@ void main() {
     notifier.ensaioTap();
     await tester.pump(const Duration(milliseconds: 200));
     notifier.takeKeep();
-    await letTheRehearsalReachTheRoom(tester);
+    await theRoomNamesTheParts(tester, container, parts: 1);
+    expect(
+      container.read(salaSessionProvider).partes.single.takeId,
+      'gravacao-1',
+      reason:
+          'a parte entrava no retro antes de a sala dar o nome, e o '
+          'trecho contado de volta não tinha de quem ser',
+    );
     notifier.startRetro();
     await tester.pump(const Duration(milliseconds: 300));
 

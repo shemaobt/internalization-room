@@ -46,13 +46,23 @@ const umaParteInteira = Duration(seconds: 30);
 /// binding to settle, then keep it and let it reach the room.
 Future<void> gravarUmaParte(
   WidgetTester tester,
-  SalaSessionNotifier notifier,
+  ProviderContainer container,
 ) async {
+  final notifier = container.read(salaSessionProvider.notifier);
   notifier.ensaioTap();
   notifier.ensaioTap();
-  await tester.pump(const Duration(milliseconds: 100));
+  await waitFor(
+    'a gravação da parte chegar',
+    () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+    limit: const Duration(seconds: 2),
+    step: () => tester.pump(const Duration(milliseconds: 100)),
+  );
   notifier.takeKeep();
-  await letTheRehearsalReachTheRoom(tester);
+  await theRoomNamesTheParts(
+    tester,
+    container,
+    parts: container.read(salaSessionProvider).partes.length,
+  );
 }
 
 /// Tell the part in the air back whole, from its beginning to its end, then let it finish.

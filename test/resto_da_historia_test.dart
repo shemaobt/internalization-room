@@ -145,7 +145,7 @@ Future<ProviderContainer> aHistoriaSemOFim(
   notifier.goEnsaio();
   await tester.pump(const Duration(milliseconds: 100));
   for (var parte = 0; parte < 3; parte++) {
-    await gravarUmaParte(tester, notifier);
+    await gravarUmaParte(tester, container);
   }
   notifier.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
@@ -212,7 +212,6 @@ void main() {
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
       final container = await aHistoriaSemOFim(tester, harness);
-      final notifier = container.read(salaSessionProvider.notifier);
       final antigas = gravacoesDe(container.read(salaSessionProvider));
 
       await tester.tap(byLabel(continuarOEnsaio));
@@ -227,7 +226,7 @@ void main() {
       );
       expect(gravacoesDe(agora), antigas);
 
-      await gravarUmaParte(tester, notifier);
+      await gravarUmaParte(tester, container);
 
       agora = container.read(salaSessionProvider);
       expect(
@@ -298,7 +297,7 @@ void main() {
 
     await tester.tap(byLabel(continuarOEnsaio));
     await tester.pump(const Duration(milliseconds: 400));
-    await gravarUmaParte(tester, notifier);
+    await gravarUmaParte(tester, container);
     final nova = container.read(salaSessionProvider).keptTakes.last;
 
     await tester.tap(byLabel(irParaARetro));
@@ -541,7 +540,7 @@ void main() {
 
     await tester.tap(byLabel(continuarOEnsaio));
     await tester.pump(const Duration(milliseconds: 400));
-    await gravarUmaParte(tester, notifier);
+    await gravarUmaParte(tester, container);
     final nova = container.read(salaSessionProvider).keptTakes.last;
     final gravacoes = harness.recorder.captures;
     final tocadas = harness.playback.played.length;
