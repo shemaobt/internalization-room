@@ -253,6 +253,35 @@ Future<void> _enterThePanorama(
   await settle();
 }
 
+class _RoomThatKeepsAnOwnTake extends SalaSessionNotifier {
+  void keepBesideTheParts(
+    KeptTake own, {
+    required Duration from,
+    required Duration to,
+  }) {
+    state = state.copyWith(
+      keptTakes: [own, ...state.keptTakes],
+      btTrechos: [
+        for (final trecho in state.btTrechos)
+          if (trecho.takeId == own.takeId)
+            Trecho(
+              segmentId: trecho.segmentId,
+              takeId: trecho.takeId,
+              retroPath: trecho.retroPath,
+              parte: trecho.parte,
+              from: from,
+              to: to,
+              contado: trecho.contado,
+              lugarFrom: trecho.lugarFrom,
+              lugarTo: trecho.lugarTo,
+            )
+          else
+            trecho,
+      ],
+    );
+  }
+}
+
 void main() {
   test('resuming past the conversa does not reopen the conversa', () async {
     final harness = SalaHarness();
@@ -7641,8 +7670,16 @@ void main() {
       ..room.takeLandsAfter = const Duration(milliseconds: 500)
       ..room.verdictChecked = false
       ..room.verdictHasFinding = true;
-    final container = await inConversa(harness);
+    final container = ProviderContainer(
+      overrides: [
+        ...harness.overrides,
+        salaSessionProvider.overrideWith(_RoomThatKeepsAnOwnTake.new),
+      ],
+    );
     final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.goConversa();
+    await settle();
+    final room = notifier as _RoomThatKeepsAnOwnTake;
 
     notifier.goEnsaio();
     await gravaParte(notifier);
@@ -7682,21 +7719,32 @@ void main() {
     await notifier.finishBackTranslation();
     await settle();
 
+    room.keepBesideTheParts(
+      const KeptTake(
+        scopeId: KeptScope.whole,
+        path: 'the-stretch-own-recording.m4a',
+        takeId: 'gravacao-2',
+      ),
+      from: const Duration(seconds: 4),
+      to: const Duration(seconds: 9),
+    );
     notifier.ouvirOTrechoEATraducao();
     await settle();
 
     expect(harness.playback.ranges, isNotEmpty);
     expect(
       harness.playback.ranges.last,
-      '0-3000',
+      '4000-9000',
       reason:
-          'o trecho global 10s–13s vive na parte 2, que começa em 10s: '
-          'localmente é 0–3s dentro do arquivo da parte',
+          'o trecho toca a fatia da gravação própria dele, de 4s a 9s, e não '
+          'o lugar que ocupa na parte, de 0s a 3s',
     );
     expect(
       harness.playback.played.last,
-      contains('captura'),
-      reason: 'e o arquivo tocado é o da parte 2',
+      'the-stretch-own-recording.m4a',
+      reason:
+          'o trecho toca a gravação que o nome dele aponta, e não cai de '
+          'volta na parte onde mora',
     );
   });
 
