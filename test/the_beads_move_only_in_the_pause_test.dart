@@ -110,4 +110,52 @@ void main() {
       );
     },
   );
+
+  test(
+    'a frame that lands while the team is speaking lights no bead before the reply is heard',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1';
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      int lit() => container.read(salaSessionProvider).coverage.beadsFilled;
+
+      harness.room.turnIdInResponse = 'turno-2';
+      notifier.conversaTap();
+      await waitFor(
+        'o microfone abrir para o time',
+        () => container.read(salaSessionProvider).voice == VoiceState.listening,
+      );
+
+      harness.room.pushCoverage(
+        CoverageEvent(
+          turnId: 'turno-1',
+          status: CoverageStatus.settled,
+          coverage: coverage(engaged: 3, surfaced: 3),
+        ),
+      );
+      await settle();
+
+      expect(
+        lit(),
+        0,
+        reason: 'o aviso acendia as contas com o time no meio da própria fala',
+      );
+
+      notifier.conversaTap();
+      await waitFor(
+        'a resposta ser ouvida',
+        () =>
+            harness.room.turnsSent == 1 &&
+            container.read(salaSessionProvider).voice == VoiceState.invite,
+      );
+
+      expect(
+        lit(),
+        3,
+        reason: 'ouvida a resposta, as contas que o aviso trouxe assentam',
+      );
+    },
+  );
 }

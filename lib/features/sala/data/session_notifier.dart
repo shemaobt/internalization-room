@@ -1511,6 +1511,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final before = state.coverage;
     if (told == null) return false;
     if (const {
+      VoiceState.listening,
       VoiceState.thinking,
       VoiceState.speaking,
     }.contains(state.voice)) {
