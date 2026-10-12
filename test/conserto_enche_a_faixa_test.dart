@@ -44,11 +44,13 @@ List<int> _faixasVazias(WidgetTester tester, ProviderContainer container) => [
 Future<ProviderContainer> _pumpToPergunta(
   WidgetTester tester, {
   Duration? teto,
+  Duration? takeLandsInRealTime,
 }) async {
   final harness = SalaHarness(filaEmMemoria: true, busyCeiling: teto)
     ..room.verdictChecked = false
     ..room.verdictHasFinding = true
-    ..room.verdictFindingSegmentId = 'trecho-1';
+    ..room.verdictFindingSegmentId = 'trecho-1'
+    ..room.takeLandsInRealTime = takeLandsInRealTime;
   _harnessDaVez = harness;
   final container = harness.container();
   addTearDown(container.dispose);
@@ -65,7 +67,7 @@ Future<ProviderContainer> _pumpToPergunta(
   sala.ensaioTap();
   await tester.pump(const Duration(milliseconds: 100));
   sala.takeKeep();
-  await letTheRehearsalReachTheRoom(tester);
+  await theRoomNamesTheParts(tester, container, parts: 1);
   sala.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
 
@@ -113,6 +115,24 @@ Future<void> _entregarATraducao(
 }
 
 void main() {
+  testWidgets(
+    'the retro opens on a part the room has named, not on one still in the air',
+    (tester) async {
+      final container = await _pumpToPergunta(
+        tester,
+        takeLandsInRealTime: const Duration(seconds: 1),
+      );
+
+      expect(
+        container.read(salaSessionProvider).partes.single.takeId,
+        'gravacao-1',
+        reason:
+            'a parte entrava no retro antes de a sala dar o nome, e o '
+            'trecho contado de volta não tinha de quem ser',
+      );
+    },
+  );
+
   testWidgets('o veredito esvazia a faixa apontada, e só a dela', (
     tester,
   ) async {
