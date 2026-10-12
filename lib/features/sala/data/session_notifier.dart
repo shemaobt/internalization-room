@@ -319,6 +319,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   String? _awaitingCoverageTurnId;
   String? _resolvedCoverageTurnId;
   String? _coverageReopenedForTurnId;
+  Coverage? _heldCoverage;
+  TurnClock? _heldCoverageClock;
   int _lines = 0;
   int _gestures = 0;
   final Map<int, int> _handedOff = {};
@@ -907,6 +909,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       endOfThePassage: turn.done ? true : null,
       peerCue: played == Said.said ? turn.peerCue : null,
     );
+    _landTheHeldCoverage();
     _awaitCoverageSettle(turn, clock: clock);
     _scheduleInboxPoll();
   }
@@ -1507,15 +1510,36 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   bool _applyCoverage(Coverage? told, {TurnClock? clock}) {
     final before = state.coverage;
     if (told == null) return false;
-    final grows =
-        told.engaged > before.engaged ||
-        (told.engaged == before.engaged && told.surfaced >= before.surfaced);
-    if (!grows) return false;
-    final next = told.beadsTold ? told : told.keepingTheBeadsOf(before);
+    if (state.voice == VoiceState.speaking) {
+      final held = _grown(told, from: _heldCoverage ?? before);
+      if (held != null) {
+        _heldCoverage = held;
+        _heldCoverageClock = clock ?? _heldCoverageClock;
+      }
+      return false;
+    }
+    final next = _grown(told, from: before);
+    if (next == null) return false;
     final moved = next.beadsFilled > before.beadsFilled;
     if (moved) clock?.mark('beads');
     state = state.copyWith(coverage: next);
     return moved;
+  }
+
+  Coverage? _grown(Coverage told, {required Coverage from}) {
+    final grows =
+        told.engaged > from.engaged ||
+        (told.engaged == from.engaged && told.surfaced >= from.surfaced);
+    if (!grows) return null;
+    return told.beadsTold ? told : told.keepingTheBeadsOf(from);
+  }
+
+  void _landTheHeldCoverage() {
+    final held = _heldCoverage;
+    final clock = _heldCoverageClock;
+    _heldCoverage = null;
+    _heldCoverageClock = null;
+    _applyCoverage(held, clock: clock);
   }
 
   void _resolveCoverageWait(
