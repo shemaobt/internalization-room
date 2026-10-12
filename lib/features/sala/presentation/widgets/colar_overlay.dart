@@ -22,12 +22,6 @@ Path cordArc(double sx, double sy) => Path()
 Offset arcPoint(int i, int total) =>
     cordPoint(total > 1 ? i / (total - 1) : 0.0);
 
-Offset circlePoint(int i, int total) {
-  final step = total > 0 ? 360 / total : 0.0;
-  final angle = (-90 + i * step) * 3.141592653589793 / 180;
-  return Offset(195, 400) + Offset.fromDirection(angle, 122);
-}
-
 class ColarOverlay extends StatelessWidget {
   final SalaSessionState session;
 
@@ -42,27 +36,17 @@ class ColarOverlay extends StatelessWidget {
           final sx = constraints.maxWidth / _designWidth;
           final sy = constraints.maxHeight / _designHeight;
           Offset map(Offset p) => Offset(p.dx * sx, p.dy * sy);
-          final onFim = session.onFim;
 
           return Stack(
             children: [
               Positioned.fill(
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 600),
-                  child: CustomPaint(
-                    key: ValueKey(onFim),
-                    size: Size.infinite,
-                    painter: _CordPainter(
-                      color: colors.cord,
-                      onFim: onFim,
-                      sx: sx,
-                      sy: sy,
-                    ),
-                  ),
+                child: CustomPaint(
+                  size: Size.infinite,
+                  painter: _CordPainter(color: colors.cord, sx: sx, sy: sy),
                 ),
               ),
               for (var i = 0; i < session.coverage.beadsTotal; i++)
-                _bead(context, colors, i, map, onFim),
+                _bead(context, colors, i, map),
             ],
           );
         },
@@ -75,11 +59,10 @@ class ColarOverlay extends StatelessWidget {
     SalaColors colors,
     int i,
     Offset Function(Offset) map,
-    bool onFim,
   ) {
     final total = session.coverage.beadsTotal;
-    final size = (onFim ? 26.0 : 18.0);
-    final p = map(onFim ? circlePoint(i, total) : arcPoint(i, total));
+    const size = 18.0;
+    final p = map(arcPoint(i, total));
     final lit = i < session.coverage.beadsFilled;
 
     BoxDecoration decoration;
@@ -104,9 +87,7 @@ class ColarOverlay extends StatelessWidget {
       );
     }
 
-    // The fill settles over 1.3 s; the arc-to-circle growth at the close keeps its own
-    // 700 ms, so no bead is still growing once the passage is done.
-    final sized = SizedBox(
+    final bead = SizedBox(
       width: size,
       height: size,
       child: AnimatedContainer(
@@ -116,13 +97,6 @@ class ColarOverlay extends StatelessWidget {
         decoration: decoration,
       ),
     );
-    final bead = MediaQuery.disableAnimationsOf(context)
-        ? sized
-        : AnimatedSize(
-            duration: const Duration(milliseconds: 700),
-            curve: Curves.easeInOut,
-            child: sized,
-          );
 
     return AnimatedPositioned(
       duration: MediaQuery.disableAnimationsOf(context)
@@ -138,16 +112,10 @@ class ColarOverlay extends StatelessWidget {
 
 class _CordPainter extends CustomPainter {
   final Color color;
-  final bool onFim;
   final double sx;
   final double sy;
 
-  const _CordPainter({
-    required this.color,
-    required this.onFim,
-    required this.sx,
-    required this.sy,
-  });
+  const _CordPainter({required this.color, required this.sx, required this.sy});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -155,25 +123,12 @@ class _CordPainter extends CustomPainter {
       ..color = color
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
-    final path = Path();
-    if (onFim) {
-      path.addOval(
-        Rect.fromCenter(
-          center: Offset(195 * sx, 400 * sy),
-          width: 244 * sx,
-          height: 244 * sy,
-        ),
-      );
-      canvas.drawPath(path, paint);
-    } else {
-      canvas.drawPath(cordArc(sx, sy), paint);
-    }
+    canvas.drawPath(cordArc(sx, sy), paint);
   }
 
   @override
   bool shouldRepaint(_CordPainter oldDelegate) =>
       color != oldDelegate.color ||
-      onFim != oldDelegate.onFim ||
       sx != oldDelegate.sx ||
       sy != oldDelegate.sy;
 }
