@@ -393,6 +393,28 @@ void main() {
     );
   }
 
+  testWidgets(
+    'a screen reader hears the label as a live status named Momento da sessão',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      await _theOpeningSays(
+        tester,
+        const Moment(at: MomentAt.internalization, part: 2, parts: 3),
+      );
+
+      await tester.pump(const Duration(milliseconds: 1500));
+      expect(
+        tester.getSemantics(_label),
+        containsSemantics(
+          label: 'Momento da sessão: Internalização · cena 2 de 3',
+          isLiveRegion: true,
+        ),
+        reason: 'o leitor de tela não anunciava a mudança de momento',
+      );
+      semantics.dispose();
+    },
+  );
+
   for (final MapEntry(key: words, value: moment) in _herEnglishWords.entries) {
     testWidgets('an English session shows her English words: $words', (
       tester,

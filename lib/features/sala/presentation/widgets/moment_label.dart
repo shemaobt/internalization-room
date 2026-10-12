@@ -36,6 +36,7 @@ class MomentLabel extends StatelessWidget {
       letterSpacing: size * 0.01,
     );
     return Semantics(
+      liveRegion: true,
       label: '$aria: $words',
       child: ExcludeSemantics(
         child: Container(
