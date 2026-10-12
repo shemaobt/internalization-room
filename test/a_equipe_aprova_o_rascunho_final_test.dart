@@ -102,7 +102,7 @@ void main() {
       final container = await _ateAConferida(
         tester,
         comEsta: SalaHarness(filaEmMemoria: true)
-          ..room.takeLandsInRealTime = const Duration(seconds: 1),
+          ..room.takeLandsInRealTime = const Duration(milliseconds: 300),
       ).then((conferida) => conferida.container);
 
       expect(
@@ -500,7 +500,7 @@ void main() {
       ..room.verdictChecked = false
       ..room.verdictHasFinding = true
       ..room.verdictFindingSegmentId = 'trecho-1'
-      ..room.takeLandsInRealTime = const Duration(seconds: 1);
+      ..room.takeLandsAfter = const Duration(milliseconds: 300);
     final container = harness.container();
     addTearDown(container.dispose);
     await tester.pumpWidget(
@@ -517,8 +517,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     sala.takeKeep();
     await theRoomNamesTheParts(tester, container, parts: 1);
-    sala.startRetro();
-    await tester.pump(const Duration(milliseconds: 200));
     expect(
       container.read(salaSessionProvider).partes.single.takeId,
       'gravacao-1',
@@ -526,6 +524,8 @@ void main() {
           'a parte entrava no retro antes de a sala dar o nome, e o '
           'trecho contado de volta não tinha de quem ser',
     );
+    sala.startRetro();
+    await tester.pump(const Duration(milliseconds: 200));
 
     Future<void> semAprovar(BtPhase esperada) async {
       expect(

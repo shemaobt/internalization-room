@@ -138,7 +138,7 @@ void main() {
     (tester) async {
       final container = await pumpToPergunta(
         tester,
-        takeLandsInRealTime: const Duration(seconds: 1),
+        takeLandsInRealTime: const Duration(milliseconds: 300),
       );
 
       expect(

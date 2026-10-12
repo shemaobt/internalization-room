@@ -66,7 +66,7 @@ void main() {
       final container = await pumpUpToTheEndOfTheTelling(
         tester,
         SalaHarness(filaEmMemoria: true)
-          ..room.takeLandsInRealTime = const Duration(seconds: 1),
+          ..room.takeLandsInRealTime = const Duration(milliseconds: 300),
       );
 
       expect(

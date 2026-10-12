@@ -58,7 +58,7 @@ void main() {
     'the retro opens on a part the room has named, not on one still in the air',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true)
-        ..room.takeLandsInRealTime = const Duration(seconds: 1);
+        ..room.takeLandsInRealTime = const Duration(milliseconds: 300);
       final container = await _atTheConferida(tester, harness);
 
       expect(

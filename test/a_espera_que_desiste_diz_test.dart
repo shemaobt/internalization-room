@@ -91,7 +91,7 @@ void main() {
     'a recorded part is named by the room when the helper returns, not after a clock',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true)
-        ..room.takeLandsInRealTime = const Duration(seconds: 1);
+        ..room.takeLandsAfter = const Duration(milliseconds: 300);
       final container = await pumpSala(tester, harness);
       final notifier = container.read(salaSessionProvider.notifier);
       await notifier.goConversa();

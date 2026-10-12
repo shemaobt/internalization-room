@@ -142,7 +142,7 @@ void main() {
     'a kept part is named by the room before the team goes on, not after a clock',
     (tester) => withDiskThatAnswersAtOnce(() async {
       final room = await _pump(tester, memory: true);
-      room.harness.room.takeLandsInRealTime = const Duration(seconds: 1);
+      room.harness.room.takeLandsAfter = const Duration(milliseconds: 300);
       await _takeThePassage(tester, room, 'P01');
       await _keepAPart(tester, room);
 
