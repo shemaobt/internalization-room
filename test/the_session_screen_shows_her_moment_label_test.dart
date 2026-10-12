@@ -188,6 +188,7 @@ void main() {
               at: MomentAt.ensaioFinal,
               words: 'Ensaio Final · a passagem inteira',
               aria: 'Momento da sessão',
+              size: 12.8,
             ),
           ),
         ),
@@ -362,6 +363,35 @@ void main() {
       reason: 'o Panorama do Livro não tem momento, e a tela escrevia um',
     );
   });
+
+  for (final (screen, top, size) in const [
+    (Size(390, 844), 136.2, 11.52),
+    (Size(1180, 820), 123.6, 12.8),
+  ]) {
+    testWidgets(
+      'on a screen ${screen.width.toInt()} wide the label sits at her height and her type size',
+      (tester) async {
+        tester.view
+          ..physicalSize = screen
+          ..devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        await _theOpeningSays(
+          tester,
+          const Moment(at: MomentAt.familiarization, parts: 3),
+        );
+
+        expect(
+          tester.getTopLeft(_label).dy,
+          closeTo(top, 0.01),
+          reason: 'no celular a etiqueta encostava no microfone vermelho',
+        );
+        expect(
+          tester.widget<Text>(find.text('Familiarização')).style?.fontSize,
+          size,
+        );
+      },
+    );
+  }
 
   for (final MapEntry(key: words, value: moment) in _herEnglishWords.entries) {
     testWidgets('an English session shows her English words: $words', (

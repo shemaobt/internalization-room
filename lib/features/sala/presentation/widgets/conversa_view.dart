@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -21,6 +23,8 @@ class ConversaView extends ConsumerWidget {
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);
     final language = ref.watch(roomLanguageProvider);
+    final screen = MediaQuery.sizeOf(context);
+    final phone = screen.width <= 520;
 
     return Stack(
       children: [
@@ -74,7 +78,9 @@ class ConversaView extends ConsumerWidget {
             Positioned(
               left: 0,
               right: 0,
-              top: MediaQuery.sizeOf(context).height * 0.08 + 58,
+              top: phone
+                  ? max(screen.height * 0.08 + 66, screen.height * 0.05 + 94)
+                  : screen.height * 0.08 + 58,
               child: Center(
                 child: AnimatedOpacity(
                   opacity: _momentOpacity(session),
@@ -83,6 +89,7 @@ class ConversaView extends ConsumerWidget {
                     at: moment.at,
                     words: words,
                     aria: momentAriaFor(language),
+                    size: phone ? 11.52 : 12.8,
                   ),
                 ),
               ),

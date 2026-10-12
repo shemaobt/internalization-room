@@ -7,12 +7,14 @@ class MomentLabel extends StatelessWidget {
   final MomentAt at;
   final String words;
   final String aria;
+  final double size;
 
   const MomentLabel({
     super.key,
     required this.at,
     required this.words,
     required this.aria,
+    required this.size,
   });
 
   @override
@@ -29,9 +31,9 @@ class MomentLabel extends StatelessWidget {
     final wash = dark ? 0.14 : (at == MomentAt.articulation ? 0.1 : 0.12);
     final style = TextStyle(
       color: colors.momentoInk,
-      fontSize: 12.8,
+      fontSize: size,
       height: 1.25,
-      letterSpacing: 0.128,
+      letterSpacing: size * 0.01,
     );
     return Semantics(
       label: '$aria: $words',
