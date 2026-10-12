@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/coverage.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -213,6 +214,59 @@ void main() {
         reason:
             'as contas guardadas durante a fala da P01 acendiam na P02 assim '
             'que a abertura dela terminava',
+      );
+    },
+  );
+
+  test(
+    'a frame held through a reply that carried more beads never takes them back when it lands',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1';
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      int lit() => container.read(salaSessionProvider).coverage.beadsFilled;
+
+      harness.room
+        ..turnIdInResponse = 'turno-2'
+        ..holdNextTurn();
+      notifier.conversaTap();
+      await settle();
+      notifier.conversaTap();
+      await waitFor(
+        'o turno seguir para a sala',
+        () => container.read(salaSessionProvider).machine.inFlight != null,
+      );
+      harness.room.pushCoverage(
+        CoverageEvent(
+          turnId: 'turno-1',
+          status: CoverageStatus.failed,
+          coverage: coverage(engaged: 3, surfaced: 3),
+        ),
+      );
+      await settle();
+
+      harness.room
+        ..nextCoverage = const Coverage(
+          engaged: 3,
+          surfaced: 3,
+          total: totalBeads,
+          beadsFilled: 5,
+          beadsTold: true,
+        )
+        ..finishHeldTurn();
+      await waitFor(
+        'a resposta ser ouvida',
+        () => container.read(salaSessionProvider).voice == VoiceState.invite,
+      );
+
+      expect(
+        lit(),
+        5,
+        reason:
+            'o aviso guardado tinha as mesmas contagens com 3 contas e pousava '
+            'por cima das 5 que a resposta trouxe — o cordão voltava diante do time',
       );
     },
   );

@@ -1537,7 +1537,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         told.engaged > from.engaged ||
         (told.engaged == from.engaged && told.surfaced >= from.surfaced);
     if (!grows) return null;
-    return told.beadsTold ? told : told.keepingTheBeadsOf(from);
+    return told.beadsTold && told.beadsFilled >= from.beadsFilled
+        ? told
+        : told.keepingTheBeadsOf(from);
   }
 
   void _landTheHeldCoverage() {
