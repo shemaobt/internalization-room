@@ -366,10 +366,11 @@ void main() {
 
   for (final (screen, top, size) in const [
     (Size(390, 844), 136.2, 11.52),
+    (Size(390, 1000), 146.0, 11.52),
     (Size(1180, 820), 123.6, 12.8),
   ]) {
     testWidgets(
-      'on a screen ${screen.width.toInt()} wide the label sits at her height and her type size',
+      'on a screen ${screen.width.toInt()} by ${screen.height.toInt()} the label sits at her height and her type size',
       (tester) async {
         tester.view
           ..physicalSize = screen
