@@ -142,6 +142,7 @@ void main() {
     (tester) async {
       for (final (name, voice, halt) in [
         ('invite', VoiceState.invite, const NoHalt()),
+        ('done', VoiceState.done, const NoHalt()),
         ('listening', VoiceState.listening, const NoHalt()),
         ('speaking', VoiceState.speaking, const NoHalt()),
         ('needsPerson', VoiceState.invite, const Blocking(NothingKept())),
@@ -201,6 +202,31 @@ void main() {
       );
     },
   );
+
+  testWidgets('the circle at done breathes at the pace of the inviting one', (
+    tester,
+  ) async {
+    await _pumpCircle(tester, VoiceState.invite);
+    final convite = _periods(tester);
+    expect(convite, isNotEmpty);
+
+    await _pumpCircle(tester, VoiceState.done);
+    final drawn = await _overAMinuteOfFrames(tester);
+
+    expect(
+      _periods(tester),
+      convite,
+      reason:
+          'o pronto da Marcia reaproveita a respiração do convite; um disco '
+          'parado de telha no lugar do verde ainda diria à equipe que a '
+          'sala terminou',
+    );
+    expect(
+      drawn.scales.length,
+      greaterThan(1),
+      reason: 'e respirar é mudar de tamanho, não só ter um relógio montado',
+    );
+  });
 
   testWidgets('the room moves at her tempos, not at twice her speed', (
     tester,
