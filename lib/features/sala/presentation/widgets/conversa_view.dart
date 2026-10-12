@@ -75,10 +75,14 @@ class ConversaView extends ConsumerWidget {
             right: 0,
             top: MediaQuery.sizeOf(context).height * 0.08 + 58,
             child: Center(
-              child: MomentLabel(
-                at: moment.at,
-                words: momentLabelFor(moment, language),
-                aria: momentAriaFor(language),
+              child: AnimatedOpacity(
+                opacity: _momentOpacity(session),
+                duration: const Duration(milliseconds: 800),
+                child: MomentLabel(
+                  at: moment.at,
+                  words: momentLabelFor(moment, language),
+                  aria: momentAriaFor(language),
+                ),
               ),
             ),
           ),
@@ -92,6 +96,11 @@ class ConversaView extends ConsumerWidget {
       ],
     );
   }
+
+  double _momentOpacity(SalaSessionState session) => switch (session.voice) {
+    VoiceState.listening || VoiceState.thinking || VoiceState.speaking => 0.6,
+    _ => 1,
+  };
 
   String _circleLabel(SalaSessionState session, String language) {
     if (session.needsPerson) return circleLabelFor('needsPerson', language);

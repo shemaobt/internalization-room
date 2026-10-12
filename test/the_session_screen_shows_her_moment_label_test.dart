@@ -34,10 +34,17 @@ Color? _dot(WidgetTester tester) => tester
     .firstWhere((decoration) => decoration.shape == BoxShape.circle)
     .color;
 
+double _opacity(WidgetTester tester) => tester
+    .widgetList<AnimatedOpacity>(
+      find.ancestor(of: _label, matching: find.byType(AnimatedOpacity)),
+    )
+    .fold(1.0, (opacity, fade) => opacity * fade.opacity);
+
 Future<(SalaHarness, ProviderContainer)> _theOpeningSays(
   WidgetTester tester,
   Moment? moment, {
   String lingua = 'pt',
+  bool heldMidLine = false,
 }) async {
   final harness = SalaHarness(lingua: lingua)
     ..room.passages = const [Passagem(pericope: 'P01', audioUrl: '/voice/p01')]
@@ -47,9 +54,16 @@ Future<(SalaHarness, ProviderContainer)> _theOpeningSays(
   final notifier = container.read(salaSessionProvider.notifier);
   await notifier.abrirEscolha();
   await tester.pump(const Duration(milliseconds: 300));
+  if (heldMidLine) harness.voice.holdNextLine();
   unawaited(notifier.goConversa(pericope: 'P01'));
   await tester.pump(const Duration(milliseconds: 300));
   return (harness, container);
+}
+
+Future<void> _pumpUntil(WidgetTester tester, bool Function() done) async {
+  for (var vez = 0; vez < 30 && !done(); vez++) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
 }
 
 Future<void> _theNextReplySays(
@@ -64,12 +78,10 @@ Future<void> _theNextReplySays(
   notifier.conversaTap();
   await tester.pump(const Duration(milliseconds: 300));
   notifier.conversaTap();
-  for (var vez = 0; vez < 30; vez++) {
-    await tester.pump(const Duration(milliseconds: 100));
-    if (container.read(salaSessionProvider).voice == VoiceState.speaking) {
-      break;
-    }
-  }
+  await _pumpUntil(
+    tester,
+    () => container.read(salaSessionProvider).voice == VoiceState.speaking,
+  );
   expect(container.read(salaSessionProvider).voice, VoiceState.speaking);
 }
 
@@ -184,6 +196,53 @@ void main() {
         const Color(0xFFECEADC),
         reason: 'as palavras dela usavam a tinta do tema, não o verde dela',
       );
+    },
+  );
+
+  testWidgets(
+    'the label dims while the voice speaks, thinks or listens, and is whole at rest',
+    (tester) async {
+      final (harness, container) = await _theOpeningSays(
+        tester,
+        const Moment(at: MomentAt.familiarization, parts: 3),
+        heldMidLine: true,
+      );
+      final notifier = container.read(salaSessionProvider.notifier);
+      VoiceState voice() => container.read(salaSessionProvider).voice;
+
+      expect(voice(), VoiceState.speaking);
+      expect(
+        _opacity(tester),
+        0.6,
+        reason: 'o momento disputava a atenção com a voz enquanto ela falava',
+      );
+
+      harness.voice.finishHeldLine();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(voice(), VoiceState.invite);
+      expect(_opacity(tester), 1.0);
+
+      harness.room.holdNextTurn();
+      notifier.conversaTap();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(voice(), VoiceState.listening);
+      expect(
+        _opacity(tester),
+        0.6,
+        reason: 'o momento seguia inteiro com o microfone aberto',
+      );
+
+      notifier.conversaTap();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(voice(), VoiceState.thinking);
+      expect(
+        _opacity(tester),
+        0.6,
+        reason: 'o momento seguia inteiro enquanto a voz pensava',
+      );
+
+      harness.room.finishHeldTurn();
+      await _pumpUntil(tester, () => voice() == VoiceState.invite);
     },
   );
 
