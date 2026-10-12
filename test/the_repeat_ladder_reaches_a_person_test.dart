@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/capture_guard.dart';
@@ -13,15 +14,9 @@ const _guard = CaptureGuard(
 );
 const _longEnough = Duration(milliseconds: 90);
 
-Future<void> _miss(SalaSessionNotifier notifier) async {
-  notifier.conversaTap();
-  notifier.conversaTap();
-  await settle();
-}
-
 void main() {
   test(
-    'a second tap inside the window is ignored, not a second miss',
+    'a second tap inside the window cancels the capture, not a second miss',
     () async {
       final harness = SalaHarness(captureGuard: _guard);
       final container = await inConversa(harness);
@@ -31,26 +26,18 @@ void main() {
       harness.voice.fixedLines.clear();
       final callsBefore = harness.room.calls.length;
 
-      await _miss(notifier);
+      await withClock(Clock.fixed(DateTime(2026, 10, 9)), () async {
+        notifier.conversaTap();
+        await settle();
+        notifier.conversaTap();
+        await settle();
+      });
 
-      expect(
-        harness.voice.assets,
-        isEmpty,
-        reason:
-            'o toque de dentro da janela nunca chega a falar nada — a '
-            'gravação continua, não é um take reprovado',
-      );
+      expect(harness.voice.assets, isEmpty);
       expect(harness.voice.fixedLines, isEmpty);
-      expect(
-        harness.room.calls.length,
-        callsBefore,
-        reason: 'a gravação ainda está de pé; nada foi mandado para a sala',
-      );
-      expect(
-        container.read(salaSessionProvider).voice,
-        VoiceState.listening,
-        reason: 'o segundo toque foi ignorado, o primeiro continua valendo',
-      );
+      expect(harness.room.calls.length, callsBefore);
+      expect(harness.recorder.sounds, contains('recorder:discard'));
+      expect(container.read(salaSessionProvider).voice, VoiceState.invite);
       expect(container.read(salaSessionProvider).needsPerson, isFalse);
     },
   );

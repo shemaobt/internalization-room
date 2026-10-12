@@ -139,6 +139,9 @@ _Avoid_: roda, passage list, carousel, choice (the station that shows it)
 A recording the team kept, identified locally by its scope (part or whole passage) and, after upload, by the server's identifier.
 _Avoid_: gravação, recording (too general), audio
 
+**Capture guard**:
+The short window after a Conversation take opens in which the team's next tap on the circle cancels the take instead of ending it: nothing is sent, the take is discarded on the tablet and the circle rests. A tap after the window ends the take and sends it. This also covers the take an Interruption opens.
+
 **Mother tongue**:
 The team's language, in which the passage is recorded in the Conversation and the Rehearsal, and which nobody in the room needs to understand.
 _Avoid_: língua materna, materna (only as a short form in prose), L1, the team's language
@@ -223,6 +226,10 @@ _Avoid_: next button, continue, seguir, microphone (it never wears one)
 A question the team raised, recorded by a tap on the hand and drawn on the necklace's cord so an unanswered question is visible without a word.
 _Avoid_: nó, question, bead (a knot is not one)
 
+**Raised hand**:
+The team's side channel to the facilitator: it sends a Knot, checks for the facilitator's replies, plays a reply and marks it heard. A failure anywhere on it changes nothing in the room and speaks no line (ADR 0071).
+_Avoid_: mão levantada, question button, note
+
 **Panorama**:
 The book's own entry and the line about the whole book, first on the wheel, played when the team taps it. Not a passage: nothing that counts passages counts it.
 _Avoid_: introduction, overview
@@ -244,7 +251,7 @@ The durable slice of the room's state for one passage, written whole at every tr
 _Avoid_: ponto de retomada, em curso, checkpoint, snapshot (the session's own lives on the server)
 
 **Current session**:
-The session this tablet was in when it last stood in a passage, kept on the tablet so a relaunch lands on it while the room still holds it. Let go when the team goes to the Choice, when the passage closes and when the room no longer knows the session.
+The session this tablet was in when it last stood in a passage, kept on the tablet so a relaunch lands on it while the room still holds it. Let go when the team goes to the Choice, when the passage closes, when the room no longer knows the session and when the Desk unlinks the tablet.
 _Avoid_: pointer, last session, sessão atual
 
 ### Findings and mends
@@ -317,11 +324,11 @@ The room's action of signalling it needs someone, insisted on at intervals until
 _Avoid_: pedir uma pessoa, calling a human, SOS, `needsPerson` (the internal name)
 
 **Reach**:
-Whether the room can get to the server: reachable or out of reach, a region of the machine. A network failure at any door, the Outbox's included, takes the room out of reach; coming back drains the Outbox and re-sends the Pending request once. The circle says the room has fallen, except over an open microphone; the reach is what knows it (ADR 0050).
+Whether the room can get to the server: reachable or out of reach, a region of the machine. A network failure at any door but the Raised hand's, the Outbox's included, takes the room out of reach (ADR 0071); coming back drains the Outbox and re-sends the Pending request once. The circle says the room has fallen, except over an open microphone; the reach is what knows it (ADR 0050).
 _Avoid_: offline (the voice the circle draws while the reach is down, not the fact), connectivity, online/offline flag, Alcance
 
 **Pending request**:
-The one request a Step was waiting on when its door fell on the network, kept in memory with its key and re-sent once when the room comes back (ADR 0050).
+The one request a Step was waiting on when its door fell on the network, kept in memory with its key and re-sent once when the room comes back (ADR 0050). The Verdict is re-sent only when a gesture brings the room back, never on the room's own return (ADR 0073).
 _Avoid_: retry queue, outbox (which holds recordings only)
 
 **Watch**:
@@ -353,7 +360,7 @@ The machine's count of how many times its in-flight work was abandoned; an answe
 _Avoid_: epoch
 
 **Failure policy**:
-The one place every room result (answered, network failed, refused with a code, session gone, timed out) becomes an event: the One look, a blocking Halt that calls for a person, the Session gone, the room out of reach, or the Station's own answer. Nothing decides a failure inside a Station or the notifier (ADR 0053).
+The one place every room result (answered, network failed, refused with a code, session gone, timed out) becomes an event: the One look, a blocking Halt that calls for a person, the Session gone, the room out of reach, the Station's own answer, or the Raised hand's failure, which the machine answers with no change (ADR 0071). Nothing decides a failure inside a Station or the notifier (ADR 0053).
 _Avoid_: error handler, retry policy
 
 **One look**:
@@ -389,5 +396,5 @@ The code the server mints for one tablet, which a facilitator spends once from t
 _Avoid_: código, pairing code, device code, credential (what the link yields afterwards)
 
 **Device link**:
-The bond between one tablet and one team, drawn once a claim code is spent, and carrying the credential the tablet sends on every request thereafter.
+The bond between one tablet and one team, drawn once a claim code is spent, and carrying the device credential: the only thing the tablet sends to be let in, on every request thereafter. Unlinking the tablet from the Desk revokes the credential, and the tablet returns to a fresh claim code.
 _Avoid_: vínculo, pairing, enrolment

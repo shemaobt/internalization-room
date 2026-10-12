@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -21,6 +23,8 @@ class ConversaView extends ConsumerWidget {
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);
     final language = ref.watch(roomLanguageProvider);
+    final screen = MediaQuery.sizeOf(context);
+    final phone = screen.width <= 520;
 
     return Stack(
       children: [
@@ -70,22 +74,26 @@ class ConversaView extends ConsumerWidget {
           ),
         ),
         if (session.moment case final moment?)
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 18 + MediaQuery.viewPaddingOf(context).top,
-            child: Center(
-              child: AnimatedOpacity(
-                opacity: _momentOpacity(session),
-                duration: const Duration(milliseconds: 800),
-                child: MomentLabel(
-                  moment: moment,
-                  words: momentLabelFor(moment, language),
-                  language: language,
+          if (momentLabelFor(moment, language) case final words?)
+            Positioned(
+              left: 0,
+              right: 0,
+              top: phone
+                  ? max(screen.height * 0.08 + 66, screen.height * 0.05 + 94)
+                  : screen.height * 0.08 + 58,
+              child: Center(
+                child: AnimatedOpacity(
+                  opacity: _momentOpacity(session),
+                  duration: const Duration(milliseconds: 800),
+                  child: MomentLabel(
+                    at: moment.at,
+                    words: words,
+                    aria: momentAriaFor(language),
+                    size: phone ? 11.52 : 12.8,
+                  ),
                 ),
               ),
             ),
-          ),
         if (session.handAck)
           Positioned(
             left: 0,
@@ -107,14 +115,16 @@ class ConversaView extends ConsumerWidget {
 
   String _circleLabel(SalaSessionState session, String language) {
     if (session.needsPerson) return circleLabelFor('needsPerson', language);
+    if (session.offline) return circleLabelFor('offline', language);
     if (session.channel case Microphone(owner: MicOwner.question)) {
       return circleLabelFor('noteMode', language);
     }
-    if (session.peerCue && session.voice == VoiceState.invite) {
-      return circleLabelFor('teamTalk', language);
-    }
     if (session.voice == VoiceState.listening) {
       return circleLabelFor('listening', language);
+    }
+    if (session.noteMode) return circleLabelFor('default', language);
+    if (session.peerCue && session.voice == VoiceState.invite) {
+      return circleLabelFor('teamTalk', language);
     }
     return circleLabelFor('default', language);
   }

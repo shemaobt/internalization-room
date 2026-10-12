@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage_platform_interface/flutter_secure_storage_platform_interface.dart';
@@ -13,6 +14,7 @@ import 'package:internalization_room/features/sala/data/device_link_notifier.dar
 import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
+import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 
@@ -47,21 +49,25 @@ ProviderContainer _tablet({
   required RoomRepository room,
   required LinkedTeam ledger,
   Duration? linkPoll,
-}) => ProviderContainer(
-  overrides: [
-    roomRepositoryProvider.overrideWithValue(room),
-    linkedTeamProvider.overrideWithValue(ledger),
-    linkPollIntervalProvider.overrideWithValue(linkPoll),
-    roomRetryBackoffProvider.overrideWithValue(const [_quickPoll]),
-  ],
-);
+}) {
+  final outbox = _tempHome();
+  return ProviderContainer(
+    overrides: [
+      roomRepositoryProvider.overrideWithValue(room),
+      linkedTeamProvider.overrideWithValue(ledger),
+      linkPollIntervalProvider.overrideWithValue(linkPoll),
+      roomRetryBackoffProvider.overrideWithValue(const [_quickPoll]),
+      takeUploadQueueProvider.overrideWithValue(
+        TakeUploadQueue(room: room, home: () async => outbox),
+      ),
+    ],
+  );
+}
 
 void main() {
   setUpAll(() {
     TestWidgetsFlutterBinding.ensureInitialized();
-    dotenv.testLoad(
-      fileInput: 'BACKEND_URL=http://sala.local\nINTERNALIZATION_ROOM_KEY=k',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
   });
 
   group('the credential lives in the Keychain', () {
@@ -71,6 +77,7 @@ void main() {
         final home = _tempHome();
         final vault = FakeCredentialVault();
         final room = FakeRoom()
+          ..presented = null
           ..linkedTo = const TeamLink(projectId: 'equipe-terena');
         final firstRun = _tablet(
           room: room,
@@ -123,6 +130,7 @@ void main() {
       final home = _tempHome();
       final vault = FakeCredentialVault();
       final room = FakeRoom()
+        ..presented = null
         ..linkedTo = const TeamLink(projectId: 'equipe-terena');
       final container = _tablet(
         room: room,
@@ -214,6 +222,7 @@ void main() {
       // notes, refusing after the credential is already held would prove nothing about
       // "sent back to a new code" that "never collected one" would not also show.
       final room = FakeRoom()
+        ..presented = null
         ..linkedTo = const TeamLink(projectId: 'equipe-terena')
         ..refuseCredentialWith = const Refused(RefusalCode.credentialTaken);
       final container = _tablet(room: room, ledger: ledger);
@@ -262,7 +271,7 @@ void main() {
         );
 
         final vault = KeychainCredentialVault();
-        await vault.keep('credencial-1');
+        await vault.keep('credencial-1', forDevice: 'aparelho-1');
 
         expect(
           recorded['credencial-1']?['accessibility'],
@@ -287,6 +296,7 @@ void main() {
         await ledger.rememberTeam(const TeamLink(projectId: 'equipe-terena'));
 
         final room = FakeRoom()
+          ..presented = null
           ..linkedTo = const TeamLink(projectId: 'equipe-terena')
           ..refuseCredentialWith = const Refused(RefusalCode.credentialTaken);
         final container = _tablet(
@@ -400,6 +410,52 @@ void main() {
       },
     );
 
+    test('a migration keeps the credential when the Keychain refuses its first '
+        'write', () async {
+      final platform = _RecordingSecureStoragePlatform({})
+        ..refuseOnce.add('credencial-antiga');
+      FlutterSecureStoragePlatform.instance = platform;
+      final home = _tempHome();
+      await _ledgerFile(home).create(recursive: true);
+      await _ledgerFile(home).writeAsString(
+        jsonEncode({
+          'device_id': 'aparelho-1',
+          'project_id': 'equipe-terena',
+          'credential': 'credencial-antiga',
+        }),
+      );
+      final ledger = _ledger(home, KeychainCredentialVault());
+
+      expect((await ledger.read()).credentialUnavailable, isTrue);
+      await ledger.read();
+
+      expect(
+        (await _ledger(home, KeychainCredentialVault()).read()).credential,
+        'credencial-antiga',
+        reason:
+            'o servidor nunca entrega a credencial duas vezes; a migração que '
+            'apaga o arquivo sem tê-la no cofre perde a única cópia',
+      );
+    });
+
+    test('an unreadable ledger leaves the vault\'s credential alone', () async {
+      final home = _tempHome();
+      final vault = FakeCredentialVault();
+      await vault.keep('credencial-1', forDevice: 'aparelho-1');
+      await _ledgerFile(home).create(recursive: true);
+      await _ledgerFile(home).writeAsString('{"device_id": "aparel');
+
+      await _ledger(home, vault).read();
+
+      expect(
+        await vault.read(),
+        'credencial-1',
+        reason:
+            'um arquivo que não pôde ser lido não diz que o vínculo sumiu; '
+            'apagar a credencial por isso perde a única cópia que o servidor deu',
+      );
+    });
+
     test('case 9 — a vault that cannot keep does not draw a second credential '
         'from the server', () async {
       final home = _tempHome();
@@ -409,6 +465,7 @@ void main() {
       await ledger.rememberTeam(const TeamLink(projectId: 'equipe-terena'));
 
       final room = FakeRoom()
+        ..presented = null
         ..linkedTo = const TeamLink(projectId: 'equipe-terena');
       final container = _tablet(
         room: room,
@@ -467,12 +524,16 @@ class _RecordingSecureStoragePlatform extends FlutterSecureStoragePlatform {
   final Map<String, Map<String, String>> writtenOptions;
   final Map<String, String> _data = {};
 
+  /// Values whose next write the Keychain refuses, once each.
+  final Set<String> refuseOnce = {};
+
   @override
   Future<void> write({
     required String key,
     required String value,
     required Map<String, String> options,
   }) async {
+    if (refuseOnce.remove(value)) throw PlatformException(code: 'refused');
     _data[key] = value;
     writtenOptions[value] = options;
   }

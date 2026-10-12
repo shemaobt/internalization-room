@@ -36,15 +36,12 @@ Future<void> _ateEnsaio(
   WidgetTester tester,
   ProviderContainer container,
   EnsaioStatus alvo,
-) async {
-  for (
-    var vezes = 0;
-    vezes < 40 && container.read(salaSessionProvider).ensaio != alvo;
-    vezes++
-  ) {
-    await tester.pump(const Duration(milliseconds: 50));
-  }
-}
+) => waitFor(
+  'o ensaio chegar a $alvo',
+  () => container.read(salaSessionProvider).ensaio == alvo,
+  limit: const Duration(seconds: 2),
+  step: () => tester.pump(const Duration(milliseconds: 100)),
+);
 
 List<BeadRowEntry> _beads(WidgetTester tester) => tester
     .widget<BeadRow>(
@@ -54,27 +51,6 @@ List<BeadRowEntry> _beads(WidgetTester tester) => tester
       ),
     )
     .entries;
-
-Future<void> _ateAParteTerNome(
-  WidgetTester tester,
-  ProviderContainer container,
-) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 10));
-  bool nomeada() {
-    final partes = container.read(salaSessionProvider).partes;
-    return partes.length == 1 && partes.first.takeId != null;
-  }
-
-  while (!nomeada()) {
-    if (DateTime.now().isAfter(deadline)) {
-      throw TimeoutException(
-        'esperei 10s e a sala nomear a parte não aconteceu',
-        const Duration(seconds: 10),
-      );
-    }
-    await letTheRehearsalReachTheRoom(tester);
-  }
-}
 
 /// The rehearsal, recorded and confirmed in three parts, standing with the play and the
 /// advance disc both ready and nothing pressed yet.
@@ -117,7 +93,7 @@ Future<(ProviderContainer, SalaHarness)> _achadoNaParteUm(
   notifier.ensaioTap();
   await tester.pump(const Duration(milliseconds: 100));
   notifier.takeKeep();
-  await _ateAParteTerNome(tester, container);
+  await theRoomNamesTheParts(tester, container, parts: 1);
   notifier.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
   harness.playback.at = const Duration(seconds: 10);
@@ -203,7 +179,7 @@ Future<ProviderContainer> _achadoNaParteDoisNaTela(
   notifier.goEnsaio();
   await tester.pump(const Duration(milliseconds: 100));
   for (var parte = 0; parte < 3; parte++) {
-    await gravarUmaParte(tester, notifier);
+    await gravarUmaParte(tester, container);
   }
   notifier.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
@@ -222,6 +198,23 @@ Future<ProviderContainer> _achadoNaParteDoisNaTela(
 }
 
 void main() {
+  testWidgets(
+    'a wait for a rehearsal status that never comes fails at its deadline, '
+    'not in silence',
+    (tester) async {
+      final container = await _ensaioDeTresPartes(tester);
+
+      await expectLater(
+        () => _ateEnsaio(tester, container, EnsaioStatus.recording),
+        throwsA(isA<TimeoutException>()),
+        reason:
+            'a espera devolvia depois de quarenta quadros sem ter visto o '
+            'estado, e o teste seguia como se ele tivesse chegado',
+      );
+      closeTheRoom(container);
+    },
+  );
+
   testWidgets(
     'a batida no segundo bead acende o anel, toca só a parte 2 e para no '
     'fim dela',

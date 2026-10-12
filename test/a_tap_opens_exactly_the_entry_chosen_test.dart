@@ -144,13 +144,11 @@ void main() {
     SalaSessionState read() => container.read(salaSessionProvider);
     await enterThePanorama(notifier, read);
     await waitFor('the Panorama to be said', () => read().panoramaSaid);
-    harness.inbox.refuses = true;
+    harness.voice.roomFailsWith = const NetworkFailed('sem rede');
 
-    notifier.handTap();
-    notifier.panoramaTap();
-    notifier.panoramaTap();
+    await notifier.hearAgain();
     await waitFor('the room to be out of reach', () => read().offline);
-    harness.inbox.refuses = false;
+    harness.voice.roomFailsWith = null;
     notifier.retryNow();
     await waitFor('the room to come back', () => !read().offline);
     await settle();

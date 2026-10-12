@@ -265,66 +265,88 @@ void main() {
   });
 
   testWidgets(
-    'a bead whose slot changes lands there on the first frame, reduced',
+    'the beads stay where they hung on the cord when the passage closes',
     (tester) async {
-      const arriving = SalaSessionState(
+      const conversing = SalaSessionState(
         coverage: Coverage(engaged: 0, surfaced: 0, total: 1),
       );
-      await pumpReducedColar(tester, arriving);
+      await pumpColar(tester, conversing);
+      final hung = [
+        for (var i = 0; i < 12; i++)
+          tester.getCenter(find.byType(ThreadIn).at(i)),
+      ];
 
-      await pumpReducedColar(
+      await pumpColar(
         tester,
-        arriving.copyWith(
+        conversing.copyWith(
           machine: Machine(station: Station.stored(SalaStage.fim)),
         ),
       );
-      final landedTopLeft = tester.getTopLeft(
-        find.byType(AnimatedPositioned).first,
-      );
+      await tester.pump(const Duration(seconds: 2));
 
-      await tester.pumpWidget(Container());
-      await pumpReducedColar(
+      for (var i = 0; i < 12; i++) {
+        expect(
+          tester.getCenter(find.byType(ThreadIn).at(i)),
+          hung[i],
+          reason:
+              'no fecho a conta $i deslizava do arco para um círculo em volta do '
+              'facilitador — o time via o colar se mexer quando nada tinha mudado',
+        );
+      }
+    },
+  );
+
+  testWidgets(
+    'the cord stays the arc the beads hang on when the passage closes',
+    (tester) async {
+      await pumpColar(
         tester,
-        arriving.copyWith(
+        SalaSessionState(
           machine: Machine(station: Station.stored(SalaStage.fim)),
+          coverage: const Coverage(engaged: 0, surfaced: 0, total: 1),
         ),
       );
-      final steadyTopLeft = tester.getTopLeft(
-        find.byType(AnimatedPositioned).first,
-      );
+      await tester.pump(const Duration(seconds: 2));
 
       expect(
-        landedTopLeft,
-        steadyTopLeft,
+        find.byType(ColarOverlay),
+        paints..path(
+          color: SalaColors.light.cord,
+          includes: const [Offset(400, 30)],
+          excludes: const [Offset(400, 296)],
+        ),
         reason:
-            'com o movimento reduzido a conta ainda esperava os 900ms do slide — o primeiro frame '
-            'a mostrava no lugar antigo, entre o arco e o novo lugar no círculo',
+            'no fecho o cordão virava um círculo em volta do facilitador e as '
+            'contas ficavam penduradas num arco que não existia mais',
       );
     },
   );
 
   testWidgets(
-    'a bead growing at the close lands at full size on the first frame, reduced',
+    'the beads keep the size they had on the cord when the passage closes',
     (tester) async {
-      const arriving = SalaSessionState(
+      const conversing = SalaSessionState(
         coverage: Coverage(engaged: 0, surfaced: 0, total: 1),
       );
-      await pumpReducedColar(tester, arriving);
+      await pumpColar(tester, conversing);
 
-      await pumpReducedColar(
+      await pumpColar(
         tester,
-        arriving.copyWith(
+        conversing.copyWith(
           machine: Machine(station: Station.stored(SalaStage.fim)),
         ),
       );
+      await tester.pump(const Duration(seconds: 2));
 
-      expect(
-        tester.getSize(find.byType(ThreadIn).first),
-        const Size(26, 26),
-        reason:
-            'com o movimento reduzido a conta ainda crescia 18 para 26px em 700ms — '
-            'o primeiro frame a mostrava num tamanho intermediário',
-      );
+      for (var i = 0; i < 12; i++) {
+        expect(
+          tester.getSize(find.byType(ThreadIn).at(i)),
+          const Size(18, 18),
+          reason:
+              'no fecho a conta $i crescia de 18 para 26px — o colar mudava de '
+              'forma diante do time sem que nada tivesse mudado',
+        );
+      }
     },
   );
 

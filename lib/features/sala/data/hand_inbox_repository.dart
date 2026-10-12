@@ -20,7 +20,8 @@ const _timeout = Duration(seconds: 20);
 const _uploadTimeout = Duration(seconds: 90);
 
 class HandInboxRepository {
-  final http.Client _client;
+  final http.Client client;
+  late final http.Client _client = KeepsTheRequest(client);
   final bool _ownsClient;
   final Future<String> Function() _deviceId;
   late final RoomClient _room = RoomClient(_client);
@@ -28,11 +29,11 @@ class HandInboxRepository {
   HandInboxRepository({
     http.Client? client,
     Future<String> Function()? deviceId,
-  }) : _client = client ?? http.Client(),
+  }) : client = client ?? http.Client(),
        _ownsClient = client == null,
        _deviceId = deviceId ?? deviceIdentity;
 
-  http.Client get client => _client;
+  Stream<String?> get revoked => _room.revoked;
 
   String? _credential;
 
@@ -41,9 +42,8 @@ class HandInboxRepository {
   void presents(String? credential) => _credential = credential;
 
   Future<Map<String, String>> get _headers async => {
-    'X-Room-Key': Env.roomKey,
     'X-Room-Device': await _deviceId(),
-    'X-Device-Credential': ?_credential,
+    deviceCredentialHeader: ?_credential,
   };
 
   Future<RoomAnswer<List<HandReply>>> fetchReplies() => _room.ask(
@@ -107,7 +107,8 @@ class HandInboxRepository {
       );
 
   void dispose() {
-    if (_ownsClient) _client.close();
+    _room.close();
+    if (_ownsClient) client.close();
   }
 }
 

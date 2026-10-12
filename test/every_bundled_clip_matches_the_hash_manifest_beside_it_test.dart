@@ -78,17 +78,15 @@ void main() {
   });
 
   test(
-    'the only clip the render left in the old voice is the Portuguese sem_conexao',
+    'every bundled clip is rendered in the voice: none is left unrendered',
     () {
-      final pt = _recordOf(Directory('$_audio/pt'));
-      final en = _recordOf(Directory('$_audio/en'));
-
-      expect(pt['unrendered'], ['sem_conexao.mp3']);
-      expect(
-        (pt['clips'] as Map)['sem_conexao.mp3'],
-        '5abc5bc5b69aa0c64825e949f80afc5ce00a6af1c51653bf3ddb63e7f619a8cb',
-      );
-      expect(en['unrendered'], isEmpty);
+      for (final language in _languages()) {
+        expect(
+          _recordOf(language)['unrendered'],
+          isEmpty,
+          reason: language.path,
+        );
+      }
     },
   );
 

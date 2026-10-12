@@ -698,12 +698,13 @@ class FakeFinished implements FinishedPassages {
   }
 }
 
+/// The header the shared key travelled in, named here and nowhere else under `test/`.
+const theRoomKeyHeader = 'X-Room-Key';
+
 /// In memory, like the finished-passages double. The real one touches disk, and the
 /// wheel now reads it on every open — under a widget test's fake clock that never
 /// resolves, which hangs the whole suite.
 const turnoUrl = '/api/internalization-room/voice/turno';
-const panoramaUrl = '/api/internalization-room/voice/panorama';
-const sceneUrl = '/api/internalization-room/voice/cena';
 const deNovoUrl = '/api/internalization-room/voice/de-novo';
 
 class FakeCurrentSessionLedger implements CurrentSessionLedger {
@@ -800,37 +801,54 @@ class FakeInbox implements HandInboxRepository {
   List<HandReply> replies;
   final List<String> heard = [];
   final List<String> questionsSent = [];
-  bool refuses = false;
   bool cannotBeAsked = false;
 
-  /// What the desk answers a question with instead of taking it.
-  Refused? refusesTheQuestionWith;
+  /// What the desk answers a Knot with instead of taking it.
+  RoomFailure? knotFailsWith;
+
+  /// Whether the Knot's recording cannot be read off the disk to be sent.
+  bool cannotReadTheKnot = false;
+
+  /// How many times the tablet checked for waiting replies.
+  int checks = 0;
 
   FakeInbox({this.replies = const []});
 
   @override
-  Future<RoomAnswer<List<HandReply>>> fetchReplies() async =>
-      cannotBeAsked ? const NetworkFailed('sem rede') : Answered(replies);
+  Future<RoomAnswer<List<HandReply>>> fetchReplies() async {
+    checks++;
+    return cannotBeAsked ? const NetworkFailed('sem rede') : Answered(replies);
+  }
 
-  /// Whether the desk turns the mark down — the real one answers for itself now, so the
-  /// double has to be able to say no as well as yes.
-  bool refusesMarks = false;
+  /// What the mark comes back with instead of the desk agreeing.
+  RoomFailure? marksFailWith;
 
   @override
   Future<RoomAnswer<void>> markHeard(
     String replyId, {
     required String audioUrl,
   }) async {
-    if (refusesMarks) return const Refused('REPLY_MOVED_ON');
+    final failure = marksFailWith;
+    if (failure != null) return failure;
     heard.add(replyId);
     return const Answered(null);
   }
 
+  final _revocations = StreamController<String?>.broadcast();
+
+  @override
+  Stream<String?> get revoked => _revocations.stream;
+
   @override
   Future<RoomAnswer<void>> sendQuestion(String sessionId, File audio) async {
-    if (refuses) return const NetworkFailed('sem rede');
-    final refusal = refusesTheQuestionWith;
-    if (refusal != null) return refusal;
+    if (cannotReadTheKnot) {
+      throw FileSystemException('sem arquivo', audio.path);
+    }
+    final failure = knotFailsWith;
+    if (failure case Refused(code: RefusalCode.deviceRevoked)) {
+      _revocations.add(presented);
+    }
+    if (failure != null) return failure;
     questionsSent.add(sessionId);
     return const Answered(null);
   }
@@ -898,8 +916,6 @@ class FakeRoom implements RoomRepository {
   Coverage? settledCoverage;
   bool peerCue = false;
 
-  /// Whether the opening comes back cut where the Guide marked it.
-  bool opensInTwoMovements = false;
   bool done = false;
 
   /// What the session read says of the passage's end, when it is not what the turns say.
@@ -1120,7 +1136,10 @@ class FakeRoom implements RoomRepository {
 
   /// What this tablet last told the room to present as itself. What the header actually
   /// carries is measured against real HTTP, not here.
-  String? presented;
+  ///
+  /// A linked tablet's by default, so a case about the room need not walk the link first;
+  /// a case about the link starts from whatever `findTheTeam` presents.
+  String? presented = 'credencial-1';
   String credential = 'credencial-1';
   RoomFailure? refuseCredentialWith;
   RoomFailure? refuseLinkWith;
@@ -1199,21 +1218,49 @@ class FakeRoom implements RoomRepository {
     return const SessionGone();
   }
 
-  static const _sessionless = {
+  static const _claimDoors = {
     'askForACode',
     'readTheLink',
     'collectTheCredential',
+  };
+
+  static const _sessionless = {
+    ..._claimDoors,
     'createSession',
     'passagesOf',
     'fetchClip',
     'openClip',
   };
 
+  /// What the tablet presented as itself on each call, beside [calls].
+  final List<String?> presentedOnEachCall = [];
+
+  final _revocations = StreamController<String?>.broadcast();
+
+  /// Announced, with the credential the call carried, for every call [failWith] turns
+  /// down as revoked, the way the real repository announces every one it is answered. A
+  /// door's own knob is that door's answer, not the tablet's revocation.
+  @override
+  Stream<String?> get revoked => _revocations.stream;
+
   RoomFailure? _guard(String call) {
     calls.add(call);
+    presentedOnEachCall.add(presented);
     final failure = failWith;
     if (failure is SessionGone && _sessionless.contains(call)) {
       return const Refused(RefusalCode.notFound);
+    }
+    if (failure case Refused(code: RefusalCode.deviceRevoked)) {
+      if (_claimDoors.contains(call)) {
+        return reachable ? null : const NetworkFailed('sem rede');
+      }
+      _revocations.add(presented);
+    }
+    if (failure == null &&
+        reachable &&
+        presented == null &&
+        !_claimDoors.contains(call)) {
+      return const Refused(RefusalCode.unauthorized);
     }
     return failure ?? (reachable ? null : const NetworkFailed('sem rede'));
   }
@@ -1434,12 +1481,6 @@ class FakeRoom implements RoomRepository {
           coverage: silentAboutCoverage ? null : nextCoverage,
           done: done,
           moment: nextMoment,
-          segments: opensInTwoMovements
-              ? const [
-                  SpokenSegment(role: 'panorama', audioUrl: panoramaUrl),
-                  SpokenSegment(role: 'scene', audioUrl: sceneUrl),
-                ]
-              : const [],
         ),
       );
     }
@@ -1727,6 +1768,8 @@ class FakeRoom implements RoomRepository {
 
   Duration? takeLandsAfter;
 
+  Duration? takeLandsInRealTime;
+
   Duration? aHeldTakeAnswersAfter;
 
   @override
@@ -1744,6 +1787,10 @@ class FakeRoom implements RoomRepository {
     }
     final wait = takeLandsAfter;
     if (wait != null) await Future<void>.delayed(wait);
+    final onTheClock = takeLandsInRealTime;
+    if (onTheClock != null) {
+      await Zone.root.run(() => Future<void>.delayed(onTheClock));
+    }
     if (scope == holdTakeScope) {
       _reachedTakeHold?.complete();
       await _holdingTake?.future;
@@ -1806,12 +1853,6 @@ class FakeRoom implements RoomRepository {
     turnId: turnIdInResponse ?? 'turno-fake-${++_turnCount}',
     classificationPending: classificationPending,
     bridgeMode: bridgeMode,
-    segments: opensInTwoMovements
-        ? const [
-            SpokenSegment(role: 'panorama', audioUrl: panoramaUrl),
-            SpokenSegment(role: 'scene', audioUrl: sceneUrl),
-          ]
-        : const [],
   );
 
   @override
@@ -2031,8 +2072,8 @@ class FakeNetwork implements ConnectivityService {
       _heldCheck = held;
       await held.future;
     }
-    if (radioSeesNothing) return RoomReach.noNetwork;
-    return reachable ? RoomReach.fine : RoomReach.roomSilent;
+    if (reachable) return RoomReach.fine;
+    return radioSeesNothing ? RoomReach.noNetwork : RoomReach.roomSilent;
   }
 
   @override
@@ -2070,8 +2111,10 @@ class FakeLinkedTeam implements LinkedTeam {
   Future<void> rememberTeam(TeamLink team) async => _keep(team: team);
 
   @override
-  Future<void> rememberCredential(String credential) async =>
-      _keep(credential: credential);
+  Future<void> rememberCredential(
+    String credential, {
+    required String forDevice,
+  }) async => _keep(credential: credential);
 
   @override
   Future<void> forgetTheLink() async => remembered = const RememberedLink();
@@ -2097,8 +2140,23 @@ class FakeLinkedTeam implements LinkedTeam {
 /// can succeed (confirmed empty) while a write to the same item still cannot.
 class FakeCredentialVault implements CredentialVault {
   String? _credential;
+  String? _keptFor;
   bool unavailable = false;
   bool keepUnavailable = false;
+
+  Completer<bool>? _holdingKeep;
+  Completer<bool>? _heldKeep;
+
+  void holdNextKeep() => _holdingKeep = Completer<bool>();
+
+  bool get keepHeld => _heldKeep != null;
+
+  /// Lets the held `keep` go: written, or failing the way a Keychain that refuses
+  /// mid-write does.
+  void finishHeldKeep({bool unavailable = false}) {
+    _heldKeep?.complete(unavailable);
+    _heldKeep = null;
+  }
 
   @override
   Future<String?> read() async {
@@ -2106,16 +2164,32 @@ class FakeCredentialVault implements CredentialVault {
     return _credential;
   }
 
+  /// [forDevice] left out keeps a credential the way a vault from before the device id
+  /// existed held one.
   @override
-  Future<void> keep(String credential) async {
+  Future<void> keep(String credential, {String? forDevice}) async {
     if (unavailable || keepUnavailable) throw const VaultUnavailable();
+    final held = _holdingKeep;
+    _holdingKeep = null;
+    if (held != null) {
+      _heldKeep = held;
+      if (await held.future) throw const VaultUnavailable();
+    }
     _credential = credential;
+    _keptFor = forDevice;
+  }
+
+  @override
+  Future<String?> keptFor() async {
+    if (unavailable) throw const VaultUnavailable();
+    return _keptFor;
   }
 
   @override
   Future<void> forget() async {
     if (unavailable) throw const VaultUnavailable();
     _credential = null;
+    _keptFor = null;
   }
 }
 
@@ -2262,8 +2336,12 @@ class FakeTakeQueue implements TakeUploadQueue {
         entry.scope,
   };
 
+  /// How many takes were still unsent each time the room counted, in order.
+  final List<int> unsentAtEachTally = [];
+
   @override
   Future<OutboxTally> tally({required String? sessionId}) async {
+    unsentAtEachTally.add(rows.where((entry) => !entry.stored).length);
     final held = _armed;
     _armed = null;
     if (held != null) _holding = held;
@@ -2396,6 +2474,8 @@ class SalaHarness {
   final FakeInbox inbox;
   final FakeRoom room;
   final FakeNetwork network = FakeNetwork();
+
+  final ConnectivityService? connectivity;
   final FakeScreenAwake awake = FakeScreenAwake();
   final FakeLinkedTeam vinculo;
   final Duration settleDelay;
@@ -2425,6 +2505,7 @@ class SalaHarness {
     this.settleDelay = const Duration(milliseconds: 60),
     this.watchesWithoutAHalt = false,
     this.retryBackoff = const [Duration(milliseconds: 20)],
+    this.connectivity,
     this.busyCeiling,
     this.rewarm,
     this.playbackCeiling,
@@ -2485,7 +2566,7 @@ class SalaHarness {
     finishedPassagesProvider.overrideWithValue(finishedOnDisk ?? finished),
     workInProgressProvider.overrideWithValue(emAbertoNoDisco ?? emAberto),
     currentSessionLedgerProvider.overrideWithValue(currentSession),
-    connectivityServiceProvider.overrideWithValue(network),
+    connectivityServiceProvider.overrideWithValue(connectivity ?? network),
     linkedTeamProvider.overrideWithValue(vinculo),
     linkPollIntervalProvider.overrideWithValue(linkPoll),
     screenAwakeProvider.overrideWithValue(awake),

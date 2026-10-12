@@ -12,7 +12,7 @@ void main() {
   });
 
   test(
-    'a tap inside the default window is ignored, never treated as a stop',
+    'a tap inside the default window cancels the capture, never treated as a stop',
     () {
       const guard = CaptureGuard();
 
@@ -21,7 +21,7 @@ void main() {
           isRecording: true,
           elapsed: const Duration(milliseconds: 699),
         ),
-        TapDecision.ignore,
+        TapDecision.cancel,
       );
     },
   );
@@ -38,17 +38,20 @@ void main() {
     );
   });
 
-  test('a tap inside the window is ignored, never treated as a stop', () {
-    const guard = CaptureGuard(minDuration: Duration(milliseconds: 1200));
+  test(
+    'a tap inside the window cancels the capture, never treated as a stop',
+    () {
+      const guard = CaptureGuard(minDuration: Duration(milliseconds: 1200));
 
-    expect(
-      guard.decide(
-        isRecording: true,
-        elapsed: const Duration(milliseconds: 1199),
-      ),
-      TapDecision.ignore,
-    );
-  });
+      expect(
+        guard.decide(
+          isRecording: true,
+          elapsed: const Duration(milliseconds: 1199),
+        ),
+        TapDecision.cancel,
+      );
+    },
+  );
 
   test('a tap once the window has passed stops the take', () {
     const guard = CaptureGuard(minDuration: Duration(milliseconds: 1200));

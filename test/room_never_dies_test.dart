@@ -977,7 +977,9 @@ void main() {
   );
 
   test('no network and no room wear different faces', () async {
-    final harness = SalaHarness()..network.radioSeesNothing = true;
+    final harness = SalaHarness()
+      ..network.reachable = false
+      ..network.radioSeesNothing = true;
     final container = harness.container();
     addTearDown(container.dispose);
 
@@ -1031,6 +1033,7 @@ void main() {
     // No pending reply on purpose: with one, the hand plays it and never reaches the
     // branch that overwrites the offline state.
     final harness = SalaHarness(
+      watchesWithoutAHalt: true,
       retryBackoff: const [Duration(milliseconds: 30)],
     );
     final container = await inConversaHarness(harness);
@@ -1039,11 +1042,6 @@ void main() {
 
     harness.network.reachable = false;
     harness.room.reachable = false;
-    harness.inbox.refuses = true;
-    notifier.handTap();
-    notifier.conversaTap();
-    await settle();
-    notifier.conversaTap();
     await waitFor(
       'a sala se dar por fora do ar',
       () => container.read(salaSessionProvider).offline,

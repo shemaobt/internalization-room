@@ -126,14 +126,6 @@ class SalaSessionState {
   final Coverage coverage;
   final Moment? moment;
 
-  /// Whether the beads are on the cord yet.
-  ///
-  /// The room opens in two movements — the whole passage, then the scene — and the
-  /// necklace belongs to the second. Showing it during the first put a full string of
-  /// beads over a passage that had not been opened yet. False only while the opening's
-  /// first movement is being spoken; true everywhere else, so no other stage can be
-  /// caught without it.
-  final bool contasEnfiadas;
   final bool peerCue;
   final bool noteMode;
   final bool handAck;
@@ -229,7 +221,6 @@ class SalaSessionState {
     this.sessionId,
     this.coverage = Coverage.empty,
     this.moment,
-    this.contasEnfiadas = true,
     this.peerCue = false,
     this.noteMode = false,
     this.handAck = false,
@@ -289,8 +280,6 @@ class SalaSessionState {
       stage == SalaStage.escolha &&
       naRoda != null &&
       naRoda!.every((passagem) => passagem.isPanorama);
-
-  bool get onFim => stage == SalaStage.fim;
 
   bool get ensaioDone =>
       takes >= 1 && ensaio == EnsaioStatus.idle && parteARegravar == null;
@@ -573,7 +562,6 @@ class SalaSessionState {
     Coverage? coverage,
     Moment? moment,
     bool clearMoment = false,
-    bool? contasEnfiadas,
     bool? peerCue,
     bool? noteMode,
     bool? handAck,
@@ -631,7 +619,6 @@ class SalaSessionState {
       sessionId: clearSession ? null : (sessionId ?? this.sessionId),
       coverage: coverage ?? this.coverage,
       moment: clearMoment ? null : (moment ?? this.moment),
-      contasEnfiadas: contasEnfiadas ?? this.contasEnfiadas,
       peerCue: peerCue ?? this.peerCue,
       noteMode: noteMode ?? this.noteMode,
       handAck: handAck ?? this.handAck,

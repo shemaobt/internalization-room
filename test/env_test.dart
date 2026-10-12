@@ -4,10 +4,7 @@ import 'package:internalization_room/core/config/env.dart';
 
 void main() {
   test('a trailing slash does not turn every route into a lost session', () {
-    dotenv.testLoad(
-      fileInput:
-          'BACKEND_URL=http://10.0.0.2:8000///\nINTERNALIZATION_ROOM_KEY=k',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://10.0.0.2:8000///');
 
     expect(
       Env.backendUrl,
@@ -18,27 +15,24 @@ void main() {
     );
   });
 
-  test(
-    'a build without a key knows it, instead of throwing at the first request',
-    () {
-      dotenv.testLoad(fileInput: 'BACKEND_URL=http://10.0.0.2:8000\n');
-
-      expect(
-        Env.complete,
-        isFalse,
-        reason:
-            'o throw é um Error, e toda a camada de rede pega Exception — a sala '
-            'ficava em laço entre offline e toque-me contra um servidor saudável',
-      );
-    },
-  );
-
-  test('a complete build says so', () {
-    dotenv.testLoad(
-      fileInput: 'BACKEND_URL=http://10.0.0.2:8000\nINTERNALIZATION_ROOM_KEY=k',
+  test('an env with BACKEND_URL alone is complete', () {
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://10.0.0.2:8000\n');
+    expect(
+      Env.complete,
+      isTrue,
+      reason:
+          'a credencial do aparelho é a única coisa que o tablet manda; uma '
+          'chave a mais no .env seria um segredo que o app não usa',
     );
 
-    expect(Env.complete, isTrue);
+    dotenv.testLoad(fileInput: '');
+    expect(
+      Env.complete,
+      isFalse,
+      reason:
+          'o throw é um Error, e toda a camada de rede pega Exception — a sala '
+          'ficava em laço entre offline e toque-me contra um servidor saudável',
+    );
   });
 
   test('the claim latch is off in any build nobody handed the flag to', () {
@@ -52,9 +46,7 @@ void main() {
   });
 
   test('the phase-skip latch is off unless a dev build asks for it', () {
-    dotenv.testLoad(
-      fileInput: 'BACKEND_URL=http://10.0.0.2:8000\nINTERNALIZATION_ROOM_KEY=k',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://10.0.0.2:8000');
     expect(
       Env.devPularFases,
       isFalse,
@@ -63,8 +55,7 @@ void main() {
     );
 
     dotenv.testLoad(
-      fileInput:
-          'BACKEND_URL=http://10.0.0.2:8000\nINTERNALIZATION_ROOM_KEY=k\nDEV_PULAR_FASES=1',
+      fileInput: 'BACKEND_URL=http://10.0.0.2:8000\nDEV_PULAR_FASES=1',
     );
     expect(Env.devPularFases, isTrue);
   });

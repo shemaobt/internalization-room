@@ -74,16 +74,6 @@ Future<_Room> _inConversa({SalaHarness? harness}) async {
   return _Room(room, container);
 }
 
-/// In the Conversation after an Opening said in two movements, so the line «Ouvir de
-/// novo» holds before any turn is the Scene, never the reply's own url.
-Future<_Room> _afterATwoMovementOpening() async {
-  final harness = SalaHarness()..room.opensInTwoMovements = true;
-  final room = await _inConversa(harness: harness);
-  harness.room.opensInTwoMovements = false;
-  expect(room.state.lastSpoken?.url, sceneUrl);
-  return room;
-}
-
 Future<_Room> _cutWhileSheSpeaks({
   Duration at = _at,
   Duration? of = _of,
@@ -171,20 +161,6 @@ void main() {
     expect(room.lastCut, isNull);
   });
 
-  test('after a cut, «Ouvir de novo» plays the whole reply', () async {
-    final room = await _cutWhileSheSpeaks(
-      on: await _afterATwoMovementOpening(),
-    );
-    await room.aGhostTake();
-
-    expect(room.state.canHearAgain, isTrue);
-    final before = room.harness.voice.played.length;
-    await room.notifier.hearAgain();
-
-    expect(room.harness.voice.played.sublist(before), [turnoUrl]);
-    expect(room.state.needsPerson, isFalse);
-  });
-
   test('a tap while «Ouvir de novo» plays cuts it as it cuts a first telling, '
       'and the next take carries where', () async {
     final room = await _inConversa();
@@ -221,23 +197,76 @@ void main() {
     expect(room.lastCut, const CutPoint(_at, of: _of));
   });
 
-  test('a stop tap under 700 ms after the cut does not end the take', () async {
-    var now = DateTime(2026, 10, 7);
-    var step = const Duration(seconds: 1);
-    await withClock(Clock(() => now = now.add(step)), () async {
-      final room = await _cutWhileSheSpeaks(
-        on: await _inConversa(
-          harness: SalaHarness(captureGuard: const CaptureGuard(minBytes: 1)),
-        ),
-      );
-      final turns = room.harness.room.turnsSent;
+  group('a second tap after the cut, under the 700 ms guard', () {
+    Future<void> secondTapAfter(
+      Duration wait,
+      Future<void> Function(_Room room) then, {
+      _Room? on,
+    }) async {
+      var now = DateTime(2026, 10, 7);
+      var step = const Duration(seconds: 1);
+      await withClock(Clock(() => now = now.add(step)), () async {
+        final room = await _cutWhileSheSpeaks(
+          on:
+              on ??
+              await _inConversa(
+                harness: SalaHarness(
+                  captureGuard: const CaptureGuard(minBytes: 1),
+                ),
+              ),
+        );
+        step = Duration.zero;
+        now = now.add(wait);
+        await then(room);
+      });
+    }
 
-      step = Duration.zero;
-      now = now.add(const Duration(milliseconds: 699));
-      await room.tap();
+    test('a second tap 0.5 s after the cut cancels the capture and sends '
+        'nothing', () async {
+      await secondTapAfter(const Duration(milliseconds: 500), (room) async {
+        final turns = room.harness.room.turnsSent;
+        final fixed = [...room.harness.voice.fixedLines];
+        final played = [...room.harness.voice.played];
+        final deleted = room.harness.recorder.deleted.length;
 
-      expect(room.state.voice, VoiceState.listening);
-      expect(room.harness.room.turnsSent, turns);
+        await room.tap();
+
+        expect(room.harness.recorder.sounds.last, 'recorder:discard');
+        expect(room.harness.recorder.deleted, hasLength(deleted + 1));
+        expect(room.harness.room.turnsSent, turns);
+        expect(room.harness.voice.fixedLines, fixed);
+        expect(room.harness.voice.played, played);
+        expect(room.state.voice, VoiceState.invite);
+      });
+    });
+
+    test(
+      'after a cancelled cut, «Ouvir de novo» plays the cut reply whole',
+      () async {
+        await secondTapAfter(const Duration(milliseconds: 500), (room) async {
+          await room.tap();
+
+          expect(room.state.canHearAgain, isTrue);
+          final before = room.harness.voice.played.length;
+          await room.notifier.hearAgain();
+
+          expect(room.harness.voice.played.sublist(before), [turnoUrl]);
+        });
+      },
+    );
+
+    test('a second tap 1.5 s after the cut sends the take as today', () async {
+      await secondTapAfter(const Duration(milliseconds: 1500), (room) async {
+        final turns = room.harness.room.turnsSent;
+
+        await room.tap();
+        await waitFor(
+          'a vez cortada chegar à sala',
+          () => room.harness.room.turnsSent == turns + 1,
+        );
+
+        expect(room.lastCut, const CutPoint(_at, of: _of));
+      });
     });
   });
 
@@ -266,90 +295,6 @@ void main() {
       () => room.harness.voice.played.length > played,
     );
     expect(room.harness.voice.played.last, turnoUrl);
-  });
-
-  group('a cut in the Opening\'s first movement', () {
-    Future<_Room> cutOnThePanorama() async {
-      final harness = SalaHarness()..room.opensInTwoMovements = true;
-      harness.voice
-        ..holdNextLine()
-        ..linePosition = const Duration(milliseconds: 1000)
-        ..lineLength = const Duration(milliseconds: 5000);
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final room = _Room(harness, container);
-      unawaited(room.notifier.goConversa());
-      await waitFor(
-        'o panorama falar',
-        () =>
-            room.state.voice == VoiceState.speaking &&
-            harness.voice.played.last == panoramaUrl,
-      );
-      harness.room.opensInTwoMovements = false;
-      await room.tap();
-      return room;
-    }
-
-    test('reports that movement, and the Scene is never said', () async {
-      final room = await cutOnThePanorama();
-
-      await room.tap();
-      await waitFor(
-        'a vez cortada chegar à sala',
-        () => room.harness.room.cutsSent.isNotEmpty,
-      );
-      await waitFor(
-        'a sala voltar ao convite',
-        () => room.state.voice == VoiceState.invite,
-      );
-
-      expect(room.harness.voice.played, isNot(contains(sceneUrl)));
-      expect(room.lastCut?.at, const Duration(milliseconds: 1000));
-      expect(room.lastCut?.of, const Duration(milliseconds: 5000));
-    });
-
-    test('keeps the Scene, with its Panorama, for «Ouvir de novo»', () async {
-      final room = await cutOnThePanorama();
-      await room.aGhostTake();
-
-      final beforeAgain = room.harness.voice.played.length;
-      await room.notifier.hearAgain();
-      expect(room.harness.voice.played.sublist(beforeAgain), [sceneUrl]);
-
-      final beforeWhole = room.harness.voice.played.length;
-      await room.notifier.hearTheWholeOpening();
-      expect(room.harness.voice.played.sublist(beforeWhole), [
-        panoramaUrl,
-        sceneUrl,
-      ]);
-    });
-  });
-
-  test('a cut in the Panorama of the whole Opening heard again does not say '
-      'the Scene after the take', () async {
-    final room = await _afterATwoMovementOpening();
-    room.harness.voice.holdNextLine();
-    final heard = room.notifier.hearTheWholeOpening();
-    await waitFor(
-      'o panorama falar de novo',
-      () =>
-          room.state.voice == VoiceState.speaking &&
-          room.harness.voice.played.last == panoramaUrl,
-    );
-    final before = room.harness.voice.played.length;
-
-    await room.tap();
-    await room.tap();
-    await heard;
-    await waitFor(
-      'a sala voltar ao convite',
-      () => room.state.voice == VoiceState.invite,
-    );
-
-    expect(
-      room.harness.voice.played.sublist(before),
-      isNot(contains(sceneUrl)),
-    );
   });
 
   group('a cut reply counts as heard', () {
@@ -444,26 +389,6 @@ void main() {
         expect(room.lastCut?.of, isNull);
       },
     );
-
-    test('keeps the reply for «Ouvir de novo»', () async {
-      final room = await _afterATwoMovementOpening();
-      await room.tap();
-      room.harness.voice.holdNextLine();
-      await room.tap();
-      await waitFor(
-        'a resposta esperar atrás do reconhecimento',
-        () =>
-            room.harness.room.turnsSent > 0 &&
-            room.state.voice == VoiceState.speaking,
-      );
-      await room.tap();
-      await room.aGhostTake();
-
-      final before = room.harness.voice.played.length;
-      await room.notifier.hearAgain();
-
-      expect(room.harness.voice.played.sublist(before), [turnoUrl]);
-    });
   });
 
   test(

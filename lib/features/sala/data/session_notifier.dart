@@ -319,6 +319,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   String? _awaitingCoverageTurnId;
   String? _resolvedCoverageTurnId;
   String? _coverageReopenedForTurnId;
+  Coverage? _heldCoverage;
+  TurnClock? _heldCoverageClock;
   int _lines = 0;
   int _gestures = 0;
   final Map<int, int> _handedOff = {};
@@ -354,8 +356,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// where nobody was looking.
   bool _gone = false;
 
+  int _highestGeneration = 0;
+  int _firstGeneration = 0;
+
   @override
   SalaSessionState build() {
+    _gone = false;
+    _launching = null;
+    _panoramaSessionId = null;
+    listenSelf((_, now) {
+      _highestGeneration = max(_highestGeneration, now.machine.generation);
+    });
     _runner = EffectRunner(
       room: ref.read(roomPortProvider),
       sound: ref.read(soundPortProvider),
@@ -371,6 +382,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       generation: () => _generation,
     );
     ref.onDispose(() {
+      _firstGeneration = _highestGeneration + 1;
       _gone = true;
       _cancelTimers();
       _runner.dispose();
@@ -390,7 +402,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           .sessionsGone
           .listen(_theSessionIsGone),
     );
-    return const SalaSessionState();
+    return SalaSessionState(machine: Machine(generation: _firstGeneration));
   }
 
   void sayTheMicIsBlocked() => unawaited(
@@ -502,6 +514,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _endTheGesturesAbandoned() {
     final abandoned = _waitingOnTheGeneration.difference(_chain.toSet());
     _waitingOnTheGeneration.clear();
+    if (_gone) return;
     for (final gesture in abandoned.intersection(state.machine.onTheirWay)) {
       _endTheGesture(gesture);
     }
@@ -525,6 +538,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _awaitedReplies.clear();
     _openTurnId = null;
     _openingOwed = false;
+    _heldCoverage = null;
+    _heldCoverageClock = null;
     state = state.copyWith(
       clearLastSpoken: true,
       roomSaysItAgain: false,
@@ -752,7 +767,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<Said> _speak(
     String url,
     String fixedLine, {
-    String panoramaUrl = '',
     bool remember = true,
     void Function()? onSoundStart,
   }) async {
@@ -767,11 +781,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     if (said.heard && remember && !_abandoned(generation)) {
       state = state.copyWith(
-        lastSpoken: SpokenLine(
-          url: url,
-          fixedLine: fixedLine,
-          panoramaUrl: panoramaUrl,
-        ),
+        lastSpoken: SpokenLine(url: url, fixedLine: fixedLine),
       );
     }
     return said;
@@ -797,15 +807,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       switch (await _room.openSession(sessionId)) {
         case Answered(value: final line):
           if (_abandoned(generation)) return;
-          final twoMovements = line.toldInTwoMovements;
-          final url = twoMovements ? line.sceneUrl : line.audioUrl;
-          await _readyToSpeak(url, line.fixedLine);
+          await _readyToSpeak(line.audioUrl, line.fixedLine);
           if (_abandoned(generation)) return;
           _watchBusyState();
           final played = await _speak(
-            url,
+            line.audioUrl,
             line.fixedLine,
-            panoramaUrl: twoMovements ? line.panoramaUrl : '',
             remember: !line.usedFailSafe,
           );
           if (_abandoned(generation)) return;
@@ -844,56 +851,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     _watchBusyState();
     try {
-      final played = await _speak(
-        line.url,
-        line.fixedLine,
-        panoramaUrl: line.panoramaUrl,
-      );
+      final played = await _speak(line.url, line.fixedLine);
       if (_abandoned(generation)) return;
       if (!played.heard) return _registerUnplayableTurn(leavesTeamTalk: false);
       state = state.copyWith(awaitingTheGuide: false);
-    } on RoomFailure catch (failure) {
-      if (_abandoned(generation)) return;
-      _decideTheFailure(failure);
-    }
-  }
-
-  /// The whole opening again — the shape of the passage, and then the scene.
-  ///
-  /// A short tap gives back the scene, which is what a team asks for most of the time. The
-  /// movement before it was said once and would otherwise be gone, so it lives here, under
-  /// a press held. The necklace comes off the cord and is strung again as the scene
-  /// arrives: the same movement backwards, which is how the room says what just happened
-  /// without a word for it.
-  Future<void> hearTheWholeOpening() async {
-    final line = state.lastSpoken;
-    if (line == null || !state.canHearAgain) return;
-    if (!line.toldInTwoMovements) {
-      await hearAgain();
-      return;
-    }
-    final generation = _waitOnTheGeneration;
-    state = state.copyWith(contasEnfiadas: false);
-    await _readyToRepeat(line.panoramaUrl, '');
-    if (_abandoned(generation)) return;
-    _watchBusyState();
-    try {
-      final played = await _speakTheFirstMovement(
-        line.panoramaUrl,
-        line.url,
-        generation,
-      );
-      if (_abandoned(generation)) return;
-      if (!played.heard) return _registerUnplayableTurn(leavesTeamTalk: false);
-      if (played != Said.cut) {
-        _watchBusyState();
-        final scene = await _speak(line.url, '', panoramaUrl: line.panoramaUrl);
-        if (_abandoned(generation)) return;
-        if (!scene.heard) {
-          return _registerUnplayableTurn(leavesTeamTalk: false);
-        }
-      }
-      state = state.copyWith(awaitingTheGuide: false);
+      _landTheHeldCoverage();
     } on RoomFailure catch (failure) {
       if (_abandoned(generation)) return;
       _decideTheFailure(failure);
@@ -907,18 +869,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     void Function()? onSoundStart,
   }) async {
     if (_abandoned(generation)) return;
+    _paintCoverage(turn.coverage);
     state = state.copyWith(
-      coverage: turn.coverage,
       moment: turn.moment,
       clearMoment: turn.moment == null,
     );
     clock?.mark('answer');
     _awaitCoverageSettle(turn, clock: clock);
     _scheduleInboxPoll();
-    await _readyToSpeak(
-      turn.toldInTwoMovements ? turn.panoramaUrl : turn.audioUrl,
-      turn.fixedLine,
-    );
+    await _readyToSpeak(turn.audioUrl, turn.fixedLine);
     if (_abandoned(generation)) return;
     clock?.mark('clip');
     if (turn.audioUrl.isEmpty && turn.fixedLine.isEmpty) {
@@ -933,14 +892,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _watchBusyState();
-    final played = turn.toldInTwoMovements
-        ? await _speakTheOpening(turn, generation, onSoundStart: onSoundStart)
-        : await _speak(
-            turn.audioUrl,
-            turn.fixedLine,
-            remember: !turn.usedFailSafe,
-            onSoundStart: onSoundStart,
-          );
+    final played = await _speak(
+      turn.audioUrl,
+      turn.fixedLine,
+      remember: !turn.usedFailSafe,
+      onSoundStart: onSoundStart,
+    );
     if (_abandoned(generation)) return;
     if (!played.heard) {
       _registerUnplayableTurn();
@@ -955,71 +912,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       endOfThePassage: turn.done ? true : null,
       peerCue: played == Said.said ? turn.peerCue : null,
     );
+    _landTheHeldCoverage();
     _awaitCoverageSettle(turn, clock: clock);
     _scheduleInboxPoll();
-  }
-
-  /// The opening said in the two movements the room wrote it in.
-  ///
-  /// The necklace waits for the second one: the beads belong to the scene, and hanging
-  /// them over the passage's own shape said the work was already laid out. Whatever
-  /// happens to the scene's clip, the beads are handed over — a necklace held back by a
-  /// failure would never come. A first movement the team cuts ends the opening there.
-  Future<Said> _speakTheOpening(
-    TurnResult turn,
-    int generation, {
-    void Function()? onSoundStart,
-  }) async {
-    state = state.copyWith(contasEnfiadas: false);
-    // Brought in while the first movement is being spoken, so the second follows it
-    // without a gap — and awaited before it is asked for, so the download and the playing
-    // are never two callers racing for the same file.
-    final arriving = _voice.fetch(turn.sceneUrl);
-    final opened = await _speakTheFirstMovement(
-      turn.panoramaUrl,
-      turn.sceneUrl,
-      generation,
-      onSoundStart: onSoundStart,
-    );
-    if (_abandoned(generation) || opened != Said.said) return opened;
-    await arriving;
-    if (_abandoned(generation)) return opened;
-    // The voice stays `speaking` across both: one opening in two breaths, not a turn that
-    // ended and another that began. Dropping to `thinking` in between showed the team the
-    // room had stopped talking while it was still mid-sentence.
-    _watchBusyState();
-    return _speak(turn.sceneUrl, '', panoramaUrl: turn.panoramaUrl);
-  }
-
-  /// The passage's own shape, with the beads handed over however it ends.
-  ///
-  /// Both openings take the necklace off the cord before it and string it again after — a
-  /// line that played, one that did not, and one the room failed to serve alike. Handed
-  /// over only past the call, a failure the room threw jumped the hand-over, and the
-  /// necklace stayed off until the team left the passage. Cut by the team, the opening is
-  /// remembered as the scene it never reached, with its first movement.
-  Future<Said> _speakTheFirstMovement(
-    String panoramaUrl,
-    String sceneUrl,
-    int generation, {
-    void Function()? onSoundStart,
-  }) async {
-    try {
-      final said = await _speak(
-        panoramaUrl,
-        '',
-        panoramaUrl: panoramaUrl,
-        onSoundStart: onSoundStart,
-      );
-      if (said == Said.cut && !_abandoned(generation)) {
-        state = state.copyWith(
-          lastSpoken: SpokenLine(url: sceneUrl, panoramaUrl: panoramaUrl),
-        );
-      }
-      return said;
-    } finally {
-      if (!_abandoned(generation)) state = state.copyWith(contasEnfiadas: true);
-    }
   }
 
   void _registerUnplayableTurn({bool leavesTeamTalk = true}) {
@@ -1030,6 +925,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       awaitingTheGuide: false,
       peerCue: leavesTeamTalk ? false : null,
     );
+    _landTheHeldCoverage();
   }
 
   /// The build has no address or no key, so nothing the team does can work.
@@ -1048,12 +944,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       generation: _generation,
     ),
   );
-
-  void _raiseAHaltWithNoSession() {
-    state = state.copyWith(clearSession: true);
-    _runner.endTheWatch();
-    _raiseAHalt();
-  }
 
   Kept _whatIsSounding({bool theOpening = true}) {
     if (state.station is Retro &&
@@ -1081,11 +971,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   bool get _watchIsWanted =>
       !((state.halt is NoHalt && !ref.read(watchesWithoutAHaltProvider)) ||
-          state.sessionId == null);
+          _sessionId == null);
 
   bool get _roomIsReachable => state.machine.reachable;
 
-  String? get _sessionId => state.sessionId;
+  String? get _sessionId =>
+      state.station is Panorama ? _panoramaSessionId : state.sessionId;
 
   void _letTheOpeningGo() {
     _openingOwed = false;
@@ -1250,7 +1141,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// family. A refusal there raises the affordance on the spot, the same turn a person
   /// would have been shown E0 in — except over an opening, which rests at the invite
   /// unless the refusal stops the room. Every other caller — the resume itself, the room
-  /// saying its last line again, upload, a written question, a retro edit, an approval —
+  /// saying its last line again, upload, a retro edit, an approval —
   /// keeps the three-strike count underneath.
   void _decideTheFailure(
     RoomFailure failure, {
@@ -1296,7 +1187,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _fellAt(Door door, RoomReach why) {
     state = state.copyWith(reach: why);
-    if (door == Door.step) _theStepWaits();
+    if (door == Door.step || door == Door.verdict) _theStepWaits();
   }
 
   void _countTheRefusal() {
@@ -1343,9 +1234,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final turn = state.machine.inFlight;
     if (turn != null) return _giveUpOnTheTurn(turn, const RoomTimedOut());
     _cancelTimers();
+    if (_onAWayIn) return _theStepFell();
     _leaveThinking();
     _dispatch(FailurePolicy.decide(const RoomTimedOut(), _failureContext()));
   }
+
+  bool get _onAWayIn => switch (state.station) {
+    Canvas() => state.sessionId == null,
+    Panorama() => _panoramaSessionId == null,
+    _ => false,
+  };
 
   void _giveUpOnTheTurn(Turn turn, RoomResult result) => _dispatch(
     FailurePolicy.decide(
@@ -1482,7 +1380,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _resolveWithPerson() {
     if (!state.needsPerson && !state.offline) return;
     final wasOut = state.unreachable;
-    _dispatch(LongPress(somebodyToAsk: state.sessionId != null && !wasOut));
+    _dispatch(LongPress(somebodyToAsk: _sessionId != null && !wasOut));
     if (!state.needsPerson && wasOut) _releaseTheReach();
   }
 
@@ -1616,15 +1514,48 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   bool _applyCoverage(Coverage? told, {TurnClock? clock}) {
     final before = state.coverage;
     if (told == null) return false;
-    final grows =
-        told.engaged > before.engaged ||
-        (told.engaged == before.engaged && told.surfaced >= before.surfaced);
-    if (!grows) return false;
-    final next = told.beadsTold ? told : told.keepingTheBeadsOf(before);
+    if (const {
+      VoiceState.listening,
+      VoiceState.thinking,
+      VoiceState.speaking,
+    }.contains(state.voice)) {
+      final held = _grown(told, from: _heldCoverage ?? before);
+      if (held != null) {
+        _heldCoverage = held;
+        _heldCoverageClock = clock ?? _heldCoverageClock;
+      }
+      return held != null && held.beadsFilled > before.beadsFilled;
+    }
+    return _paintCoverage(told, clock: clock);
+  }
+
+  bool _paintCoverage(Coverage? told, {TurnClock? clock}) {
+    final before = state.coverage;
+    if (told == null) return false;
+    final next = _grown(told, from: before);
+    if (next == null) return false;
     final moved = next.beadsFilled > before.beadsFilled;
     if (moved) clock?.mark('beads');
     state = state.copyWith(coverage: next);
     return moved;
+  }
+
+  Coverage? _grown(Coverage told, {required Coverage from}) {
+    final grows =
+        told.engaged > from.engaged ||
+        (told.engaged == from.engaged && told.surfaced >= from.surfaced);
+    if (!grows) return null;
+    return told.beadsTold && told.beadsFilled >= from.beadsFilled
+        ? told
+        : told.keepingTheBeadsOf(from);
+  }
+
+  void _landTheHeldCoverage() {
+    final held = _heldCoverage;
+    final clock = _heldCoverageClock;
+    _heldCoverage = null;
+    _heldCoverageClock = null;
+    _applyCoverage(held, clock: clock);
   }
 
   void _resolveCoverageWait(
@@ -2309,11 +2240,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     var generation = _waitOnTheGeneration;
     void landed() => generation = _waitOnTheGeneration;
 
-    state = state.copyWith(
-      awaitingTheGuide: true,
-      peerCue: false,
-      contasEnfiadas: true,
-    );
+    state = state.copyWith(awaitingTheGuide: true, peerCue: false);
     _stringTheNecklaceEarly(pericope);
     _watchBusyState();
     final openingClock = TurnClock();
@@ -2823,6 +2750,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (state.needsPerson) return;
+    if (state.sessionId == null) {
+      if (!state.awaitingTheGuide) _handOff(_enterAgain(_emCurso)());
+      return;
+    }
     if (state.playingReplyId != null && state.channel is! Microphone) {
       return;
     }
@@ -2863,8 +2794,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _startListening('conversa_${_stamp()}');
       case TapDecision.stop:
         _handOff(_finishListening());
-      case TapDecision.ignore:
-        break;
+      case TapDecision.cancel:
+        _dispatch(const MicDiscarded());
     }
   }
 
@@ -2924,9 +2855,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (sessionId == null) {
-      state = state.copyWith(awaitingTheGuide: false);
-      _raiseAHaltWithNoSession();
       unawaited(_recorder.delete(path));
+      _theStepFell();
       return;
     }
     await _sendTheTurn(sessionId, path, _stamp(), turnClock, cut: closed.cut);
@@ -2997,10 +2927,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (await _inbox.fetchReplies()) {
       case Answered(:final value):
         fetched = value;
-      case NetworkFailed():
-        return _outOfReach(Door.inbox);
-      case Refused() || SessionGone():
-        return;
+      case final RoomFailure failure:
+        return _decideAt(failure, door: Door.inbox);
     }
     if (_gone) return;
     final known = {for (final reply in state.replies) reply.id: reply};
@@ -3096,9 +3024,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// refused mark, and a reply recorded again arrives at its new address with no
   /// failures, which is what lifts the set-aside.
   ///
-  /// A room that cannot serve the clip is one more way for an answer not to play, and it is
-  /// treated the same way — never through `_decideTheFailure`. The hand is a side
-  /// channel: a halt raised over a reply would take the circle along with it.
+  /// A room that cannot serve the clip is not set aside: the Failure policy decides it at the
+  /// reply door, where it changes nothing in the room (ADR 0071), and the reply keeps its dot
+  /// for the next touch.
   ///
   /// The playing mark is given back on every way out. `_markHeard` is what clears it when
   /// the reply sounded; a reply that did not, or that outlived its generation, clears it
@@ -3111,11 +3039,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         url: reply.audioUrl,
         source: Source.reply(reply.id),
       );
-    } on NetworkFailed {
+    } on NetworkFailed catch (failure) {
       if (state.playingReplyId == reply.id) {
         state = state.copyWith(clearPlayingReply: true);
       }
-      return _outOfReach(Door.reply);
+      return _decideAt(failure, door: Door.reply);
     } on Exception {
       said = Said.failed;
     }
@@ -3187,10 +3115,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (await _inbox.markHeard(replyId, audioUrl: audioUrl)) {
       case Answered():
         return;
-      case NetworkFailed():
-        _outOfReach(Door.inbox);
-      case Refused() || SessionGone():
-        break;
+      case final RoomFailure failure:
+        _decideAt(failure, door: Door.inbox);
     }
     if (_abandoned(generation)) return;
     state = state.copyWith(replies: _replies(replyId, heard: false));
@@ -3238,7 +3164,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       sent = await _inbox.sendQuestion(sessionId, File(path));
     } on FileSystemException {
       if (_abandoned(generation)) return;
-      return _theStepFell();
+      state = state.copyWith(awaitingTheGuide: false);
+      return;
     }
     if (_abandoned(generation)) return;
     switch (sent) {
@@ -3246,7 +3173,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         break;
       case final RoomFailure failure:
         state = state.copyWith(awaitingTheGuide: false);
-        return _decideTheFailure(failure);
+        return _decideAt(failure, door: Door.question);
     }
     unawaited(_recorder.delete(path));
     state = state.copyWith(
@@ -4861,6 +4788,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _finishBackTranslation() async {
     if (!state.canFinishBackTranslation) return;
+    if (state.machine.theVerdictWaitsForTheTap) {
+      _retryNow();
+      return;
+    }
     _dispatch(const TheVerdictAsked());
     _silenceTheRoom();
     final sessionId = state.sessionId;
@@ -4881,7 +4812,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         verdict = answer;
       case final RoomFailure failure:
         if (_abandoned(generation)) return;
-        if (failure case NetworkFailed()) _pending = _finishBackTranslation;
+        if (failure case NetworkFailed()) {
+          _pending = _finishBackTranslation;
+          _decideAt(failure, door: Door.verdict);
+          return;
+        }
         _decideTheFailure(failure);
         return;
     }

@@ -31,9 +31,7 @@ RoomRepository _theRoomSays(Map<String, Object?> moment) => RoomRepository(
 
 void main() {
   setUpAll(() {
-    dotenv.testLoad(
-      fileInput: 'BACKEND_URL=http://sala.local\nINTERNALIZATION_ROOM_KEY=k',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
   });
 
   test(

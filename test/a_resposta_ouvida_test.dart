@@ -116,9 +116,7 @@ int _timesPlayed(SalaHarness harness) =>
 
 void main() {
   setUpAll(() {
-    dotenv.testLoad(
-      fileInput: 'BACKEND_URL=http://sala.local\nINTERNALIZATION_ROOM_KEY=k',
-    );
+    dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
   });
 
   test('a reply the desk never learned about is still unheard', () async {

@@ -1,42 +1,46 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/sala_colors.dart';
-import '../../domain/facilitator_script.dart';
 import '../../domain/moment.dart';
 
 class MomentLabel extends StatelessWidget {
-  final Moment moment;
+  final MomentAt at;
   final String words;
-  final String language;
+  final String aria;
+  final double size;
 
   const MomentLabel({
     super.key,
-    required this.moment,
+    required this.at,
     required this.words,
-    required this.language,
+    required this.aria,
+    required this.size,
   });
 
   @override
   Widget build(BuildContext context) {
     final [name, ...rest] = words.split(' · ');
     final colors = SalaColors.of(context);
-    final tint = switch (moment.at) {
+    final tint = switch (at) {
       MomentAt.familiarization => colors.momentoFam,
       MomentAt.internalization => colors.momentoInt,
       MomentAt.articulation => colors.vermelhoMic,
-      MomentAt.ensaioFinal => colors.telha,
+      MomentAt.ensaioFinal => colors.momentoEf,
     };
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final wash = dark
-        ? 0.14
-        : (moment.at == MomentAt.articulation ? 0.1 : 0.12);
-    final ink = colors.ink;
+    final wash = dark ? 0.14 : (at == MomentAt.articulation ? 0.1 : 0.12);
+    final style = TextStyle(
+      color: colors.momentoInk,
+      fontSize: size,
+      height: 1.25,
+      letterSpacing: size * 0.01,
+    );
     return Semantics(
-      label: '${momentAriaFor(language)}: $words',
       liveRegion: true,
+      label: '$aria: $words',
       child: ExcludeSemantics(
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          padding: const EdgeInsets.fromLTRB(9.92, 4.48, 12.8, 4.8),
           decoration: BoxDecoration(
             color: tint.withValues(alpha: wash),
             border: Border.all(color: tint, width: 1.5),
@@ -47,20 +51,28 @@ class MomentLabel extends StatelessWidget {
             children: [
               DecoratedBox(
                 decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
-                child: SizedBox(width: 9, height: 9),
+                child: const SizedBox(width: 9.6, height: 9.6),
               ),
-              const SizedBox(width: 7),
-              Text(
-                name,
-                style: TextStyle(
-                  color: ink,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+              const SizedBox(width: 7.2),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        name,
+                        maxLines: 1,
+                        style: style.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        rest.map((piece) => ' · $piece').join(),
+                        maxLines: 1,
+                        style: style,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              Text(
-                rest.map((piece) => ' · $piece').join(),
-                style: TextStyle(color: ink, fontSize: 13),
               ),
             ],
           ),

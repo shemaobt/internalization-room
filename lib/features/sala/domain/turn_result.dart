@@ -1,19 +1,6 @@
 import 'coverage.dart';
 import 'moment.dart';
 
-/// One clip of a turn the room chose to tell in more than one breath.
-class SpokenSegment {
-  final String role;
-  final String audioUrl;
-
-  const SpokenSegment({required this.role, required this.audioUrl});
-
-  factory SpokenSegment.fromJson(Map<String, dynamic> json) => SpokenSegment(
-    role: json['role'] as String? ?? '',
-    audioUrl: json['audio_url'] as String? ?? '',
-  );
-}
-
 class TurnResult {
   final String sessionId;
   final String audioUrl;
@@ -34,14 +21,6 @@ class TurnResult {
 
   final String bridgeMode;
 
-  /// The opening cut where the Guide marked it: the whole passage, then the scene and its
-  /// invitation. Empty on every other turn, and `audioUrl` always holds the whole thing —
-  /// so a turn whose segments are missing is simply spoken in one breath. A turn told in
-  /// two movements (see [toldInTwoMovements]: both a panorama and a scene, and no fixed
-  /// line) never downloads `audioUrl` at all: the movements are what the tablet fetches and
-  /// plays. Any other turn, segments or not, still fetches and plays `audioUrl`.
-  final List<SpokenSegment> segments;
-
   final Moment? moment;
 
   const TurnResult({
@@ -57,23 +36,8 @@ class TurnResult {
     this.turnId,
     this.classificationPending = false,
     this.bridgeMode = '',
-    this.segments = const [],
     this.moment,
   });
-
-  String _segment(String role) {
-    for (final segment in segments) {
-      if (segment.role == role) return segment.audioUrl;
-    }
-    return '';
-  }
-
-  String get panoramaUrl => _segment('panorama');
-
-  String get sceneUrl => _segment('scene');
-
-  bool get toldInTwoMovements =>
-      panoramaUrl.isNotEmpty && sceneUrl.isNotEmpty && fixedLine.isEmpty;
 
   factory TurnResult.fromJson(Map<String, dynamic> json) => TurnResult(
     sessionId: json['session_id'] as String,
@@ -90,10 +54,6 @@ class TurnResult {
     turnId: json['turn_id'] as String?,
     classificationPending: json['classification_pending'] as bool? ?? false,
     bridgeMode: json['bridge_mode'] as String? ?? '',
-    segments: [
-      for (final entry in json['segments'] as List<Object?>? ?? const [])
-        SpokenSegment.fromJson((entry as Map).cast<String, dynamic>()),
-    ],
     moment: Moment.fromJson(json['moment']),
   );
 }
