@@ -20,11 +20,13 @@ SalaSessionNotifier notifier(ProviderContainer c) =>
 Future<ProviderContainer> pumpToPergunta(
   WidgetTester tester, {
   String? trecho = 'trecho-1',
+  Duration? takeLandsInRealTime,
 }) async {
   final harness = SalaHarness(filaEmMemoria: true)
     ..room.verdictChecked = false
     ..room.verdictHasFinding = true
-    ..room.verdictFindingSegmentId = trecho;
+    ..room.verdictFindingSegmentId = trecho
+    ..room.takeLandsInRealTime = takeLandsInRealTime;
   final container = harness.container();
   addTearDown(container.dispose);
   await tester.pumpWidget(
@@ -40,7 +42,7 @@ Future<ProviderContainer> pumpToPergunta(
   n.ensaioTap();
   await tester.pump(const Duration(milliseconds: 100));
   n.takeKeep();
-  await letTheRehearsalReachTheRoom(tester);
+  await theRoomNamesTheParts(tester, container, parts: 1);
   n.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
 
@@ -60,6 +62,24 @@ Future<ProviderContainer> pumpToPergunta(
 }
 
 void main() {
+  testWidgets(
+    'the retro opens on a part the room has named, not on one still in the air',
+    (tester) async {
+      final container = await pumpToPergunta(
+        tester,
+        takeLandsInRealTime: const Duration(seconds: 1),
+      );
+
+      expect(
+        container.read(salaSessionProvider).partes.single.takeId,
+        'gravacao-1',
+        reason:
+            'a parte entrava no retro antes de a sala dar o nome, e o '
+            'trecho contado de volta não tinha de quem ser',
+      );
+    },
+  );
+
   testWidgets('falta com endereço mostra os dois microfones', (tester) async {
     await pumpToPergunta(tester);
 
