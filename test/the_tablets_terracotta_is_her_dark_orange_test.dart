@@ -30,4 +30,12 @@ void main() {
       );
     },
   );
+
+  test('in the light the tablet\'s terracotta stays her #BE4A01', () {
+    expect(
+      _installed(AppTheme.light).telha,
+      const Color(0xFFBE4A01),
+      reason: 'o terracota claro já era o dela e não pode andar com o escuro',
+    );
+  });
 }
