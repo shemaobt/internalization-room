@@ -83,7 +83,7 @@ Future<String?> ateOTrechoNomeado(
   harness.playback.at = parte;
   harness.playback.finishPlayback();
   await tester.pump(const Duration(milliseconds: 300));
-  await gravarATraducao(tester);
+  await gravarATraducao(tester, circulo: gravar);
   await tocar(tester, confirmar);
   harness.room
     ..verdictChecked = false
@@ -93,7 +93,7 @@ Future<String?> ateOTrechoNomeado(
   harness.playback.finishPlayback();
   await tester.pump(const Duration(milliseconds: 300));
   harness.room.verdictUntoldSegmentId = null;
-  await gravarATraducao(tester);
+  await gravarATraducao(tester, circulo: gravar);
   return daPrimeira;
 }
 
@@ -393,7 +393,7 @@ void main() {
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
     await confirmarSemPalavras(tester, harness);
     expect(byLabel(linha), findsWidgets);
     expect(aceso(tester, conferir), isTrue);

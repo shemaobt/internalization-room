@@ -96,11 +96,11 @@ Future<ProviderContainer> entrarNaTraducao(
   return container;
 }
 
-String oCirculoParaGravar() =>
-    byLabel(pausadaNoToque).evaluate().isEmpty ? gravar : pausadaNoToque;
-
-Future<void> gravarATraducao(WidgetTester tester) async {
-  await tocar(tester, oCirculoParaGravar());
+Future<void> gravarATraducao(
+  WidgetTester tester, {
+  String circulo = pausadaNoToque,
+}) async {
+  await tocar(tester, circulo);
   await tocar(tester, terminar);
 }
 
@@ -111,7 +111,7 @@ Future<void> contarAteOFimDaParte(
   harness.playback.at = parte;
   harness.playback.finishPlayback();
   await tester.pump(const Duration(milliseconds: 300));
-  await gravarATraducao(tester);
+  await gravarATraducao(tester, circulo: gravar);
   await tocar(tester, confirmar);
 }
 
@@ -285,7 +285,7 @@ void main() {
 
     harness.playback.at = cabeca;
     await tocar(tester, pausar);
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
     await tocar(tester, confirmar);
 
     expect(harness.room.chunkSpans, ['0-4000']);
@@ -308,7 +308,7 @@ void main() {
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
 
     expect(aceso(tester, conferir), isFalse);
     await tester.tap(byLabel(conferir));
@@ -396,7 +396,7 @@ void main() {
 
     harness.room.verdictUntoldSegmentId = null;
     final vereditos = harness.room.playedByTakeSent.length;
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
     expect(harness.room.replacesAsked, isEmpty, reason: 'nada antes do V');
 
     await tocar(tester, confirmar);
@@ -431,7 +431,7 @@ void main() {
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
     harness.room.verdictUntoldSegmentId = null;
-    if (gravando) await gravarATraducao(tester);
+    if (gravando) await gravarATraducao(tester, circulo: gravar);
     return container;
   }
 
@@ -525,7 +525,7 @@ void main() {
     expect(contas(tester), ['solid com anel', 'solid']);
 
     harness.recorder.returnsEmpty = false;
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
     await tocar(tester, confirmar);
     await tester.pump(const Duration(milliseconds: 600));
 
@@ -546,7 +546,7 @@ void main() {
     expect(contas(tester), ['solid com anel', 'solid']);
 
     harness.recorder.returnsNothing = false;
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
     await tocar(tester, confirmar);
     await tester.pump(const Duration(milliseconds: 600));
 
@@ -571,7 +571,7 @@ void main() {
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
     harness.room.verdictUntoldSegmentId = null;
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
   }
 
   Future<void> aSalaVolta(WidgetTester tester) async {
@@ -810,7 +810,7 @@ void main() {
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
     harness.room.verdictUntoldSegmentId = null;
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
     await confirmarEEsperar(tester);
     expect(
       aceso(tester, confirmar),
@@ -1056,7 +1056,7 @@ void main() {
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
     harness.room.verdictUntoldSegmentId = null;
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
 
     harness.room.failReplaceWith = const Refused('BAD_REQUEST');
     await confirmarEEsperar(tester);
@@ -1162,7 +1162,7 @@ void main() {
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
     harness.room.verdictUntoldSegmentId = null;
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
 
     harness.room.loseTheNextReplaceAnswerWith = const NetworkFailed('timeout');
     await confirmarEEsperar(tester);
@@ -1241,7 +1241,7 @@ void main() {
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
     harness.room.verdictUntoldSegmentId = null;
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
     final capturas = harness.recorder.captures;
 
     harness.room.failReplaceWith = const Refused('BAD_REQUEST');
@@ -1297,7 +1297,7 @@ void main() {
 
     harness.playback.at = cabeca;
     await tester.pump(passaDoCursor);
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
     await tocar(tester, confirmar);
 
     expect(harness.room.chunkSpans, ['0-4000']);
@@ -1418,7 +1418,7 @@ void main() {
 
     harness.playback.at = cabeca;
     await tester.pump(passaDoCursor);
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
     await tocar(tester, confirmar);
     harness.playback.at = Duration.zero;
     harness.playback.finishPlayback();
@@ -1436,7 +1436,7 @@ void main() {
 
     harness.playback.at = cabeca;
     await tester.pump(passaDoCursor);
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
     final gravada = harness.recorder.lastPath;
     container.read(salaSessionProvider.notifier).leaveThePassage();
     await tester.pump(const Duration(milliseconds: 300));

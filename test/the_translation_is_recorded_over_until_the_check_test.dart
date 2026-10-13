@@ -20,13 +20,12 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart';
+import 'the_back_translation_is_told_by_beads_test.dart' show pausadaNoToque;
 
 const parte = Duration(seconds: 10);
 const cabeca = Duration(seconds: 4);
 
 const gravar = 'Tocar para gravar a tradução deste trecho';
-const pausadaNoToque =
-    'a pausa ficou no toque — toquem no círculo para traduzir';
 const gravarDeNovo = 'Tocar para gravar a tradução de novo';
 const terminar = 'Tocar ao terminar';
 const ouvir = 'Ouvir';
@@ -152,13 +151,9 @@ Future<ProviderContainer> entrarNaTraducao(
 Future<String> gravarATraducao(
   WidgetTester tester,
   SalaHarness harness, {
-  String? circulo,
+  String circulo = pausadaNoToque,
 }) async {
-  await tocar(
-    tester,
-    circulo ??
-        (byLabel(pausadaNoToque).evaluate().isEmpty ? gravar : pausadaNoToque),
-  );
+  await tocar(tester, circulo);
   await tocar(tester, terminar);
   return harness.recorder.lastPath!;
 }
@@ -510,7 +505,7 @@ void main() {
       harness.playback.at = parte;
       harness.playback.finishPlayback();
       await tester.pump(const Duration(milliseconds: 300));
-      await gravarATraducao(tester, harness);
+      await gravarATraducao(tester, harness, circulo: gravar);
       await tocar(tester, confirmar);
     }
     await tocar(tester, conferir);
@@ -593,7 +588,7 @@ void main() {
       harness.playback.at = parte;
       harness.playback.finishPlayback();
       await tester.pump(const Duration(milliseconds: 300));
-      await gravarATraducao(tester, harness);
+      await gravarATraducao(tester, harness, circulo: gravar);
       await tocar(tester, confirmar);
     }
     expect(aceso(tester, conferir), isTrue);
