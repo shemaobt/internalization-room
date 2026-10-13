@@ -117,7 +117,7 @@ class ConversaView extends ConsumerWidget {
                       child: Center(
                         child: DecoratedBox(
                           decoration: BoxDecoration(
-                            color: SalaColors.of(context).telha,
+                            color: SalaColors.of(context).momentoEf,
                             shape: BoxShape.circle,
                           ),
                           child: const SizedBox(width: 15, height: 15),

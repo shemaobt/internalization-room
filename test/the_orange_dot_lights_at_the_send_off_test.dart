@@ -360,4 +360,20 @@ void main() {
       reason: 'a voz mandou tocar no ponto e o toque não abriu o ensaio',
     );
   });
+
+  testWidgets(
+    'in the dark the dot wears her dark orange, the same as the label beside it',
+    (tester) async {
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+
+      await _afterTheSendOff(tester);
+
+      expect(
+        _dotColour(tester),
+        const Color(0xFFD6612A),
+        reason: 'no escuro o ponto usava outro laranja, não o do rótulo',
+      );
+    },
+  );
 }
