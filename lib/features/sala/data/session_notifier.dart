@@ -4250,7 +4250,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_trechoTraduzidoDeNovo != null) return;
     if (state.btTrechoTocando || state.btTrechoPausada) {
       final cabeca = state.btTrechoDesde! + _playback.position;
-      _silenceTheRoom();
+      _semOTrechoNoAr();
       if (cabeca > _trechoStart && cabeca < _trechoEnd) {
         _trechoEnd = _aPausaNo(cabeca);
       }
@@ -4307,9 +4307,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final ondeCabe = _ondeAPausaCabe();
     if (ondeCabe == null) return;
     final (envelope, :lo, :hi) = ondeCabe;
+    _semOTrechoNoAr();
+    _trechoEnd = nudgeThePause(envelope, _trechoEnd, para, lo: lo, hi: hi);
+  }
+
+  void _semOTrechoNoAr() {
     final segurada = _tirarAParteDoPlayer();
     if (segurada != null) _dispatch(TheHeldPartReturns(segurada));
-    _trechoEnd = nudgeThePause(envelope, _trechoEnd, para, lo: lo, hi: hi);
   }
 
   void ouvirAPausa() => _gesture(() => _ouvirAPausa());

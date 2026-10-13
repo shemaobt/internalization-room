@@ -199,6 +199,30 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('the scissors tapped twice while «ouvir a pausa» plays read '
+      'the head in the part both times', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(
+      tester,
+      harness,
+      aSpokenWav(gaps: [(s(3.1), s(3.3)), (s(4.0), s(4.4))]),
+    );
+    await pausarAos(tester, harness, s(3.0));
+    await tocar(tester, depois);
+    expect(pausa(container), s(4.2));
+    await tocar(tester, ouvirAPausa);
+    expect(harness.playback.ranges.last, '2700-4200');
+    harness.playback.at = s(1.0);
+    await tocar(tester, tesoura);
+    expect(pausa(container), s(3.2));
+    harness.playback.at = s(1.0);
+
+    await tocar(tester, tesoura);
+
+    expect(pausa(container), s(3.2));
+    closeTheRoom(container);
+  });
+
   testWidgets('the scissors after «ouvir a pausa» read the head in the part, '
       'not in the clip just heard', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
