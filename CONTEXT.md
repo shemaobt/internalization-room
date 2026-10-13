@@ -154,6 +154,10 @@ _Avoid_: língua-ponte, L2, Portuguese (it is the role, not the fixed language),
 A piece of the back-translation already told: it points at a rehearsal take and at a time range inside that file, never at the concatenated passage.
 _Avoid_: trecho, segment (the wire name), chunk (the ephemeral position)
 
+**Pause** (`pausa`):
+The point where the team says a frase ends while listening back, snapped to the middle of the nearest silence; moved and heard with her three controls «um pouco antes», «ouvir a pausa» and «um pouco depois». A Stretch ends at its pause.
+_Avoid_: cut, corte, Cortar aqui (ruled out by Marcia on 2026-09-15), split point, boundary
+
 **Capture**:
 The back-translation's open microphone, between the scissors and the tap on the circle. A closed capture becomes a stretch; a halt that lands inside one closes it and keeps nothing.
 _Avoid_: recording, gravação, chunk (the wire's name)
@@ -234,9 +238,17 @@ _Avoid_: mão levantada, question button, note
 The book's own entry and the line about the whole book, first on the wheel, played when the team taps it. Not a passage: nothing that counts passages counts it.
 _Avoid_: introduction, overview
 
-**Scene**:
+**Opening line**:
 The opening line specific to the chosen passage, said when its Conversation opens for the first time.
-_Avoid_: cena
+_Avoid_: scene (until 2026-10-13 this entry's name; a scene is now one of the passage's), cena
+
+**Scene** (`cena N` on screen):
+One of the passage's scenes as her Meaning Map divides it, numbered by its place in the passage; the unit the team rehearses on the red microphone. On the team's screen it reads «cena N» with its title, her words.
+_Avoid_: part (a piece of the rehearsal recording), opening line (the former meaning), section, act
+
+**Scene rehearsal** (`ensaio da cena`):
+One recording of a scene in the mother tongue made on the red microphone, translated frase by frase and sent to the voice with «terminei»; numbered per session, never replaced, frozen once sent and always listenable.
+_Avoid_: rehearsal (the station, and the whole passage's recording), take (what holds it), practice, ensaio in prose
 
 **Opened**:
 A session that holds a Guide line, its Opening at least. The room asks a session's Opening only while it is not opened.
