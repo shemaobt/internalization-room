@@ -271,7 +271,9 @@ void main() {
   testWidgets(
     'the dot goes, and takes no touch, while the microphone listens',
     (tester) async {
+      final semantics = tester.ensureSemantics();
       final (_, container) = await _afterTheSendOff(tester);
+      expect(tester.getSemantics(_dot), isSemantics(hasTapAction: true));
 
       container.read(salaSessionProvider.notifier).conversaTap();
       await tester.pump(const Duration(milliseconds: 500));
@@ -283,6 +285,12 @@ void main() {
         reason: 'o ponto continuou aceso com o microfone aberto',
       );
       expect(_dotIsDeaf(tester), isTrue);
+      expect(
+        tester.getSemantics(_dot),
+        isSemantics(hasTapAction: false),
+        reason: 'o leitor de tela ainda abria o ensaio com o microfone aberto',
+      );
+      semantics.dispose();
     },
   );
 
