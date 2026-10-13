@@ -76,17 +76,15 @@ Future<Sala> _seisPartesSeisTrechos() async {
 }
 
 /// Drive the fake player's clip to completion for every stretch the rehearsal's play opens,
-/// until it stops on its own or gives up waiting.
-Future<void> _tocarOEnsaioAteAcabar(Sala it) async {
-  for (
-    var tentativas = 0;
-    tentativas < 12 && it.estado.playPing;
-    tentativas++
-  ) {
+/// until it stops on its own, and fail at the deadline when it never does.
+Future<void> _tocarOEnsaioAteAcabar(Sala it) => waitFor(
+  'o play do ensaio acabar',
+  () => !it.estado.playPing && !it.estado.btClipRodando,
+  step: () async {
     it.harness.playback.finishPlayback();
     await Future<void>.delayed(const Duration(milliseconds: 20));
-  }
-}
+  },
+);
 
 /// The short way: the telling redone over the same mother tongue, no re-recording.
 Future<void> _traduzirDeNovoPeloCaminhoCurto(Sala it) async {
@@ -102,6 +100,65 @@ Future<void> _traduzirDeNovoPeloCaminhoCurto(Sala it) async {
     'a sala voltar do veredito',
     () => it.estado.btPhase != BtPhase.thinking,
   );
+}
+
+Future<(Sala, File)> _retomadaComUmTrechoSemParte({
+  int trechosComParte = 1,
+}) async {
+  final gravada = File(
+    '${Directory.systemTemp.createTempSync('sala-824').path}/p1.m4a',
+  )..writeAsBytesSync([1, 2, 3]);
+  addTearDown(() => gravada.parent.deleteSync(recursive: true));
+  final harness = SalaHarness()
+    ..emAberto.rows['Ruth/P01'] = ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.retro,
+      takes: [
+        KeptTake(
+          scopeId: KeptScope.parte(1),
+          path: gravada.path,
+          takeId: 'gravacao-1',
+        ),
+      ],
+    )
+    ..room.retroSoFar = BackTranslationProgress(
+      checked: true,
+      segments: [
+        for (var i = 0; i < trechosComParte; i++)
+          SegmentView(
+            segmentId: 'trecho-${i + 1}',
+            takeId: 'gravacao-1',
+            startsMs: i * 1000,
+            endsMs: (i + 1) * 1000,
+          ),
+        // Um trecho de uma gravação que este aparelho não tem e por qual
+        // parte a sala não disse que ela responde — este é quem deve ser
+        // pulado.
+        const SegmentView(
+          segmentId: 'trecho-fantasma',
+          takeId: 'gravacao-fantasma',
+          startsMs: 0,
+          endsMs: 9000,
+        ),
+      ],
+    );
+  final container = harness.container();
+  addTearDown(container.dispose);
+  final it = Sala(harness, container);
+
+  await it.sala.abrirEscolha();
+  await waitFor(
+    'a roda dizer que esta passagem tem trabalho parado',
+    () => it.estado.comecadas.contains('P01'),
+  );
+  await it.sala.goConversa(pericope: 'P01');
+  await waitFor(
+    'a tradução ser retomada com os trechos',
+    () =>
+        it.estado.stage == SalaStage.retro &&
+        it.estado.btTrechos.length == trechosComParte + 1,
+  );
+  return (it, gravada);
 }
 
 void main() {
@@ -154,57 +211,8 @@ void main() {
 
   test('um trecho sem nenhum áudio local (sem parte) continua '
       'sendo pulado — o único caso em que pula', () async {
-    final gravada = File(
-      '${Directory.systemTemp.createTempSync('sala-824').path}/p1.m4a',
-    )..writeAsBytesSync([1, 2, 3]);
-    addTearDown(() => gravada.parent.deleteSync(recursive: true));
-    final harness = SalaHarness()
-      ..emAberto.rows['Ruth/P01'] = ResumePoint(
-        sessionId: 'sessao-antiga',
-        stage: SalaStage.retro,
-        takes: [
-          KeptTake(
-            scopeId: KeptScope.parte(1),
-            path: gravada.path,
-            takeId: 'gravacao-1',
-          ),
-        ],
-      )
-      ..room.retroSoFar = const BackTranslationProgress(
-        checked: true,
-        segments: [
-          SegmentView(
-            segmentId: 'trecho-1',
-            takeId: 'gravacao-1',
-            startsMs: 0,
-            endsMs: 12000,
-          ),
-          // Um trecho de uma gravação que este aparelho não tem e por qual
-          // parte a sala não disse que ela responde — este é quem deve ser
-          // pulado.
-          SegmentView(
-            segmentId: 'trecho-2',
-            takeId: 'gravacao-fantasma',
-            startsMs: 0,
-            endsMs: 9000,
-          ),
-        ],
-      );
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final it = Sala(harness, container);
-
-    await it.sala.abrirEscolha();
-    await waitFor(
-      'a roda dizer que esta passagem tem trabalho parado',
-      () => it.estado.comecadas.contains('P01'),
-    );
-    await it.sala.goConversa(pericope: 'P01');
-    await waitFor(
-      'a tradução ser retomada com os dois trechos',
-      () =>
-          it.estado.stage == SalaStage.retro && it.estado.btTrechos.length == 2,
-    );
+    final (it, gravada) = await _retomadaComUmTrechoSemParte();
+    final harness = it.harness;
     harness.playback.played.clear();
 
     it.sala.playTheRehearsal();
@@ -224,5 +232,30 @@ void main() {
           'só o trecho que tem parte local toca; o trecho que aponta '
           'uma gravação que este tablet não tem é o único pulado',
     );
+  });
+
+  test('a play of thirteen stretches is driven to its end, not left after a '
+      'few tries', () async {
+    final (it, gravada) = await _retomadaComUmTrechoSemParte(
+      trechosComParte: 13,
+    );
+    it.harness.playback.played.clear();
+
+    it.sala.playTheRehearsal();
+    await _tocarOEnsaioAteAcabar(it);
+
+    expect(
+      it.harness.playback.played,
+      everyElement(gravada.path),
+      reason: 'só a parte gravada toca; o trecho fantasma é pulado',
+    );
+    expect(
+      it.harness.playback.played.length,
+      13,
+      reason:
+          'o laço desistia sem esperar e o play ficava no meio dos trechos '
+          'quando o teste ia conferir',
+    );
+    expect(it.estado.btClipRodando, isFalse);
   });
 }
