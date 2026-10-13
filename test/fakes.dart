@@ -2823,11 +2823,12 @@ class QueueThatFinishesLate extends TakeUploadQueue {
     final wait = deletesTheCopyAfter;
     if (wait == null) return super.withdraw(row);
     final copy = File(row.path);
+    if (!copy.existsSync()) return super.withdraw(row);
     final audio = await copy.readAsBytes();
     await super.withdraw(row);
     await copy.writeAsBytes(audio);
     await Future<void>.delayed(wait);
-    await copy.delete();
+    if (copy.existsSync()) await copy.delete();
   }
 }
 
