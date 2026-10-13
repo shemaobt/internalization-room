@@ -404,12 +404,17 @@ void main() {
     final sala = container.read(salaSessionProvider.notifier);
     harness.room.askForAPersonFailsWith = const SessionGone();
 
-    for (var vez = 0; vez < 3 && !_estado(container).needsPerson; vez++) {
-      sala.conversaTap();
-      await settle();
-      sala.conversaTap();
-      await settle();
-    }
+    await waitFor(
+      'a sala pedir uma pessoa',
+      () => harness.room.calls.contains('askForAPerson'),
+      limit: const Duration(seconds: 1),
+      step: () async {
+        sala.conversaTap();
+        await settle();
+        sala.conversaTap();
+        await settle();
+      },
+    );
     await _naEscolha(container);
     await settle();
 
