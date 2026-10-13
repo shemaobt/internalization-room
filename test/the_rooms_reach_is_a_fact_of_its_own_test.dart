@@ -405,18 +405,34 @@ void main() {
       final harness = SalaHarness(
         watchesWithoutAHalt: true,
         retryBackoff: const [Duration(hours: 1)],
-      );
+      )..room.failedReadsLandAfter = const Duration(milliseconds: 150);
       final container = await _fallenInConversa(harness);
       final notifier = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
 
+      harness.room.reachable = true;
+      final checksBefore = harness.network.checks;
       harness.network.holdNextCheck();
       notifier.conversaTap();
-      await settle();
-      harness.room.reachable = true;
+      await waitFor(
+        'a volta ser tentada',
+        () => harness.network.checks > checksBefore,
+      );
+      await waitFor(
+        'as leituras recusadas pousarem',
+        () => harness.room.failedReadsInTheAir == 0,
+      );
       notifier.resolveWithPerson();
+      final answeredBefore = harness.network.answeredChecks;
       harness.network.finishHeldCheck();
-      await settle();
+      await waitFor(
+        'a volta tentada ser respondida',
+        () => harness.network.answeredChecks > answeredBefore,
+      );
+      await waitFor(
+        'a sala seguir solta até as leituras pousarem',
+        () => harness.room.failedReadsInTheAir == 0,
+      );
 
       expect(read().reach, RoomReach.fine);
       expect(read().voice, VoiceState.invite);

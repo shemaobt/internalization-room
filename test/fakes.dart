@@ -1016,6 +1016,9 @@ class FakeRoom implements RoomRepository {
   /// failing the same way forever.
   RoomFailure? failStateOnceWith;
 
+  Duration? failedReadsLandAfter;
+  int failedReadsInTheAir = 0;
+
   /// What the next call to `createSession` throws, independent of `failWith` — a case
   /// needs a retry that opens a session for the same passage to fail exactly once too, so
   /// the attempt after it can land.
@@ -1420,7 +1423,14 @@ class FakeRoom implements RoomRepository {
 
   @override
   Future<RoomAnswer<SessionSnapshot>> fetchState(String sessionId) async {
-    if (_guard('fetchState') case final failure?) return failure;
+    if (_guard('fetchState') case final failure?) {
+      final wait = failedReadsLandAfter;
+      if (wait == null) return failure;
+      failedReadsInTheAir++;
+      await Future<void>.delayed(wait);
+      failedReadsInTheAir--;
+      return failure;
+    }
     if (_forgot('fetchState', sessionId) case final gone?) {
       return gone;
     }
@@ -2053,6 +2063,7 @@ class FakeNetwork implements ConnectivityService {
   bool reachable = true;
   bool radioSeesNothing = false;
   int checks = 0;
+  int answeredChecks = 0;
   Completer<void>? _holdingCheck;
   Completer<void>? _heldCheck;
 
@@ -2072,6 +2083,7 @@ class FakeNetwork implements ConnectivityService {
       _heldCheck = held;
       await held.future;
     }
+    answeredChecks++;
     if (reachable) return RoomReach.fine;
     return radioSeesNothing ? RoomReach.noNetwork : RoomReach.roomSilent;
   }
