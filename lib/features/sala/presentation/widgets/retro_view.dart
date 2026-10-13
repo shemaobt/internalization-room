@@ -46,7 +46,12 @@ class RetroView extends ConsumerWidget {
             onTap: (onde) => contas[onde].$2?.call(),
           ),
         ),
-        const Spacer(flex: 330),
+        const Spacer(flex: 40),
+        SizedBox(
+          height: 48,
+          child: avanca ? _thePauseControls(session, notifier, language) : null,
+        ),
+        const Spacer(flex: 242),
         FacilitatorCircle(
           size: facilitatorCircleSize,
           halt: session.halt,
@@ -349,7 +354,7 @@ class RetroView extends ConsumerWidget {
           const SizedBox(width: 24),
           RoundActionButton(
             size: 60,
-            semanticLabel: retroLabelFor('cut', language),
+            semanticLabel: retroLabelFor('pauseHere', language),
             gradient: BeadStyles.wood,
             mood: session.canCut ? ButtonMood.lit : ButtonMood.dimmed,
             onTap: notifier.cortarTrecho,
@@ -379,6 +384,41 @@ class RetroView extends ConsumerWidget {
     );
   }
 
+  Widget _thePauseControls(
+    SalaSessionState session,
+    SalaSessionNotifier notifier,
+    String language,
+  ) {
+    final mood = session.canAdjustThePause ? ButtonMood.lit : ButtonMood.dimmed;
+    Widget control(String label, IconData glyph, VoidCallback onTap) =>
+        RoundActionButton(
+          size: 48,
+          semanticLabel: retroLabelFor(label, language),
+          gradient: BeadStyles.wood,
+          mood: mood,
+          onTap: onTap,
+          child: Icon(glyph, size: 20, color: ShemaBrand.branco),
+        );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        control(
+          'pauseEarlier',
+          LucideIcons.chevronLeft,
+          notifier.pausaUmPoucoAntes,
+        ),
+        const SizedBox(width: 24),
+        control('hearThePause', LucideIcons.ear, notifier.ouvirAPausa),
+        const SizedBox(width: 24),
+        control(
+          'pauseLater',
+          LucideIcons.chevronRight,
+          notifier.pausaUmPoucoDepois,
+        ),
+      ],
+    );
+  }
+
   String _circleLabel(SalaSessionState session, String language) {
     if (session.needsPerson) return circleLabelFor('needsPerson', language);
     if (session.offline) return circleLabelFor('offline', language);
@@ -387,6 +427,12 @@ class RetroView extends ConsumerWidget {
     }
     switch (session.btPhase) {
       case BtPhase.playing:
+        if (session.thePauseStands) {
+          return retroLabelFor(
+            session.btPausaAjustavel ? 'pauseHint' : 'pauseAtTheTap',
+            language,
+          );
+        }
         if (session.btTrechoTraduzidoDeNovo == null &&
             !session.btCortado &&
             session.nothingHeardSinceCursor) {

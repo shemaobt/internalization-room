@@ -24,7 +24,7 @@ const gravarATraducaoDeNovo = 'Tocar para gravar a tradução de novo';
 const terminar = 'Tocar ao terminar';
 const ouvirATraducao = 'Ouvir a tradução';
 const confirmarATraducao = 'Confirmar a tradução e seguir';
-const tesoura = 'Cortar aqui';
+const tesoura = 'Pausar onde a frase acaba';
 const conferir = 'Conferir a tradução';
 
 const gravarEstaParteDeNovo = 'Tocar para gravar esta parte de novo';

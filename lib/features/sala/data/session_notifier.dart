@@ -18,6 +18,7 @@ import '../domain/failure_policy.dart';
 import '../domain/hand_reply.dart';
 import '../domain/kept_take.dart';
 import '../domain/passagem.dart';
+import '../domain/pausa.dart';
 import '../domain/coverage.dart';
 import '../domain/coverage_event.dart';
 import '../domain/cut_point.dart';
@@ -297,6 +298,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// and the listening ledger — keyed by the file too — cannot disagree with the ruler
   /// about which recording a length belongs to.
   final Map<String, int> _tamanhoDaParteMs = {};
+  final Map<String, Envelope?> _envelopes = {};
   final EscutaDasPartes _escuta = EscutaDasPartes();
   int _desdeMs = 0;
   String? _panoramaSessionId;
@@ -4222,16 +4224,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _quietTheStretch() => unawaited(_playback.stop());
 
-  /// End a stretch here. The scissors only cuts: the translation is the circle's.
+  /// End a stretch here, at the pausa the tap snaps to. The scissors only place the pausa:
+  /// the translation is the circle's.
   void cortarTrecho() => _gesture(() => _cortarTrecho());
 
   void _cortarTrecho() {
     if (!state.canCut) return;
     if (_trechoTraduzidoDeNovo != null) return;
     if (state.btTrechoTocando || state.btTrechoPausada) {
-      final cabeca = _trechoStart + _playback.position;
-      _silenceTheRoom();
-      if (cabeca > _trechoStart && cabeca < _trechoEnd) _trechoEnd = cabeca;
+      final cabeca = state.btTrechoDesde! + _playback.position;
+      _semOTrechoNoAr();
+      if (cabeca > _trechoStart && cabeca < _trechoEnd) {
+        _trechoEnd = _aPausaNo(cabeca);
+      }
       return;
     }
     // A belt. No way the room starts playback puts the playhead behind the cursor any
@@ -4243,7 +4248,74 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // before it begins, whatever else stands.
     _silenceTheRoom(holdTheClip: true);
     if (_cabeca <= _trechoStart) return;
-    _trechoEnd = _cabeca;
+    _trechoEnd = _aPausaNo(_cabeca);
+  }
+
+  Duration _aPausaNo(Duration toque) {
+    final ondeCabe = state.btParteFronteira || state.btClipEnded
+        ? null
+        : _ondeAPausaCabe();
+    state = state.copyWith(btPausaAjustavel: ondeCabe != null);
+    if (ondeCabe == null) return toque;
+    final (envelope, :lo, :hi) = ondeCabe;
+    return placeThePause(envelope, toque, lo: lo, hi: hi);
+  }
+
+  (Envelope, {Duration lo, Duration hi})? _ondeAPausaCabe() {
+    final parte = _parteNoAr;
+    if (parte == null) return null;
+    final envelope = _envelopes.putIfAbsent(parte.path, () {
+      try {
+        return envelopeOf(File(parte.path).readAsBytesSync());
+      } on FileSystemException {
+        return null;
+      }
+    });
+    if (envelope == null) return null;
+    final medido = _tamanhoDaParteMs[parte.path];
+    final limites = pauseBounds(
+      _trechoStart,
+      medido == null ? envelope.length : Duration(milliseconds: medido),
+    );
+    if (limites == null) return null;
+    return (envelope, lo: limites.lo, hi: limites.hi);
+  }
+
+  void pausaUmPoucoAntes() => _gesture(() => _moverAPausa(Nudge.earlier));
+
+  void pausaUmPoucoDepois() => _gesture(() => _moverAPausa(Nudge.later));
+
+  void _moverAPausa(Nudge para) {
+    if (!state.canAdjustThePause) return;
+    final ondeCabe = _ondeAPausaCabe();
+    if (ondeCabe == null) return;
+    final (envelope, :lo, :hi) = ondeCabe;
+    _semOTrechoNoAr();
+    _trechoEnd = nudgeThePause(envelope, _trechoEnd, para, lo: lo, hi: hi);
+  }
+
+  void _semOTrechoNoAr() {
+    final segurada = _tirarAParteDoPlayer();
+    if (segurada != null) _dispatch(TheHeldPartReturns(segurada));
+  }
+
+  void ouvirAPausa() => _gesture(() => _ouvirAPausa());
+
+  void _ouvirAPausa() {
+    if (!state.canAdjustThePause) return;
+    final parte = _parteNoAr;
+    if (parte == null) return;
+    final segurada = _tirarAParteDoPlayer();
+    _play(
+      StretchSound(
+        parte.path,
+        from: theMomentBefore(_trechoEnd, _trechoStart),
+        to: _trechoEnd,
+      ),
+      onComplete: _quietTheStretch,
+      onFailed: _quietTheStretch,
+      beneath: segurada,
+    );
   }
 
   Duration get _cabeca {
@@ -4518,7 +4590,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_trechoTraduzidoDeNovo == null && !state.btCortado) {
       if (_cabeca <= _trechoStart) return;
       _silenceTheRoom(holdTheClip: true);
-      _trechoEnd = _cabeca;
+      _trechoEnd = _aPausaNo(_cabeca);
     } else {
       _silenceTheRoom(holdTheClip: true);
     }
