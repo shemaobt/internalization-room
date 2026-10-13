@@ -7,6 +7,7 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/capture_guard.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/cut_point.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -106,6 +107,23 @@ void main() {
     expect(room.state.voice, VoiceState.listening);
     expect(room.harness.recorder.captures, captures + 1);
     expect(room.harness.room.cutsSent, hasLength(cuts));
+  });
+
+  test('the microphone a cut reopens is the conversation one, so the reply '
+      'that follows a cut records as small as any turn', () async {
+    final room = await _inConversa();
+    await room.aReplySpeaking();
+    room.harness.recorder.lastOwner = MicOwner.question;
+
+    await room.tap();
+
+    expect(
+      room.harness.recorder.lastOwner,
+      MicOwner.conversation,
+      reason:
+          'o toque que corta a voz reabre o microfone sem passar pelo '
+          'convite, e se abrisse com outro dono gravaria grande',
+    );
   });
 
   test('the team\'s next take tells the room it followed an interruption, and '

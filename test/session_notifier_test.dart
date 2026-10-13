@@ -5921,6 +5921,26 @@ void main() {
     );
   });
 
+  test('a panorama turn asks the recorder for the conversation microphone, '
+      'so it records as small as a conversa turn', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    await _enterThePanorama(harness, container);
+    notifier.panoramaTap();
+    await settle();
+
+    expect(
+      harness.recorder.lastOwner,
+      MicOwner.conversation,
+      reason:
+          'o panorama não tem dono próprio no gravador; se abrisse como '
+          'pergunta subiria grande, e só o dono decide o tamanho',
+    );
+  });
+
   test(
     'each pause closes a stretch, and the stretches follow the recording',
     () async {
