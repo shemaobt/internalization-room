@@ -20,6 +20,7 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart';
+import 'the_back_translation_is_told_by_beads_test.dart' show pausadaNoToque;
 
 const parte = Duration(seconds: 10);
 const cabeca = Duration(seconds: 4);
@@ -30,7 +31,7 @@ const terminar = 'Tocar ao terminar';
 const ouvir = 'Ouvir';
 const ouvirATraducao = 'Ouvir a tradução';
 const pausar = 'Pausar';
-const tesoura = 'Cortar aqui';
+const tesoura = 'Pausar onde a frase acaba';
 const confirmar = 'Confirmar a tradução e seguir';
 const conferir = 'Conferir a tradução';
 
@@ -150,7 +151,7 @@ Future<ProviderContainer> entrarNaTraducao(
 Future<String> gravarATraducao(
   WidgetTester tester,
   SalaHarness harness, {
-  String circulo = gravar,
+  String circulo = pausadaNoToque,
 }) async {
   await tocar(tester, circulo);
   await tocar(tester, terminar);
@@ -504,7 +505,7 @@ void main() {
       harness.playback.at = parte;
       harness.playback.finishPlayback();
       await tester.pump(const Duration(milliseconds: 300));
-      await gravarATraducao(tester, harness);
+      await gravarATraducao(tester, harness, circulo: gravar);
       await tocar(tester, confirmar);
     }
     await tocar(tester, conferir);
@@ -587,7 +588,7 @@ void main() {
       harness.playback.at = parte;
       harness.playback.finishPlayback();
       await tester.pump(const Duration(milliseconds: 300));
-      await gravarATraducao(tester, harness);
+      await gravarATraducao(tester, harness, circulo: gravar);
       await tocar(tester, confirmar);
     }
     expect(aceso(tester, conferir), isTrue);
@@ -777,8 +778,11 @@ void main() {
     final container = await entrarNaTraducao(tester, harness);
 
     harness.playback.at = cabeca;
-    await tocar(tester, 'Cut here');
-    await tocar(tester, "Tap to record this stretch's translation");
+    await tocar(tester, 'Pause where the sentence ends');
+    await tocar(
+      tester,
+      'the pause is at your tap — tap the circle to translate',
+    );
     await tocar(tester, 'Tap when you finish');
 
     expect(byLabel('Tap to record the translation again'), findsOneWidget);
@@ -793,8 +797,8 @@ void main() {
     final container = await entrarNaTraducao(tester, harness);
 
     harness.playback.at = cabeca;
-    await tocar(tester, retroLabelFor('cut', 'en'));
-    await tocar(tester, retroLabelFor('record', 'en'));
+    await tocar(tester, retroLabelFor('pauseHere', 'en'));
+    await tocar(tester, retroLabelFor('pauseAtTheTap', 'en'));
     await tocar(tester, retroLabelFor('recording', 'en'));
     harness.room.failChunkWith = const Refused('UNAUTHORIZED');
     await tocar(tester, retroLabelFor('confirm', 'en'));
@@ -813,8 +817,8 @@ void main() {
       final container = await entrarNaTraducao(tester, harness);
 
       harness.playback.at = cabeca;
-      await tocar(tester, retroLabelFor('cut', 'en'));
-      await tocar(tester, retroLabelFor('record', 'en'));
+      await tocar(tester, retroLabelFor('pauseHere', 'en'));
+      await tocar(tester, retroLabelFor('pauseAtTheTap', 'en'));
       await tocar(tester, retroLabelFor('recording', 'en'));
       harness.room.failChunkWith = const NetworkFailed('sem rede');
       harness.network.reachable = false;
@@ -836,8 +840,8 @@ void main() {
       final container = await entrarNaTraducao(tester, harness);
 
       harness.playback.at = cabeca;
-      await tocar(tester, retroLabelFor('cut', 'en'));
-      await tocar(tester, retroLabelFor('record', 'en'));
+      await tocar(tester, retroLabelFor('pauseHere', 'en'));
+      await tocar(tester, retroLabelFor('pauseAtTheTap', 'en'));
       await tocar(tester, retroLabelFor('recording', 'en'));
       harness.room.holdNextChunk();
       await tocar(tester, retroLabelFor('confirm', 'en'));
