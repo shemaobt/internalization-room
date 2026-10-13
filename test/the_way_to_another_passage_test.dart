@@ -315,8 +315,14 @@ void main() {
       room.notifier.ensaioTap();
       room.notifier.ensaioTap();
       await _passTime(tester, 300);
+      room.harness.room.takeLandsAfter = const Duration(seconds: 1);
       room.notifier.takeKeep();
-      await letTheRehearsalReachTheRoom(tester);
+      await theRoomNamesTheParts(tester, room.container, parts: 2);
+      expect(
+        room.state.partes.map((part) => part.takeId),
+        everyElement(isNotNull),
+        reason: 'a segunda parte tocava ainda sem o nome que a sala lhe dá',
+      );
       room.notifier.playTheRehearsal();
       await _passTime(tester, 200);
       room.harness.playback.holdNextOpening();
