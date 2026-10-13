@@ -4249,7 +4249,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!state.canCut) return;
     if (_trechoTraduzidoDeNovo != null) return;
     if (state.btTrechoTocando || state.btTrechoPausada) {
-      final cabeca = _trechoStart + _playback.position;
+      final cabeca = state.btTrechoDesde! + _playback.position;
       _silenceTheRoom();
       if (cabeca > _trechoStart && cabeca < _trechoEnd) {
         _trechoEnd = _aPausaNo(cabeca);
@@ -4269,32 +4269,33 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Duration _aPausaNo(Duration toque) {
-    final envelope = state.btParteFronteira || state.btClipEnded
+    final ondeCabe = state.btParteFronteira || state.btClipEnded
         ? null
-        : _oEnvelopeDaParte();
-    state = state.copyWith(btPausaAjustavel: envelope != null);
-    final limites = envelope == null ? null : _ondeAPausaCabe(envelope);
-    if (envelope == null || limites == null) return toque;
-    return placeThePause(envelope, toque, lo: limites.lo, hi: limites.hi);
+        : _ondeAPausaCabe();
+    state = state.copyWith(btPausaAjustavel: ondeCabe != null);
+    if (ondeCabe == null) return toque;
+    final (envelope, :lo, :hi) = ondeCabe;
+    return placeThePause(envelope, toque, lo: lo, hi: hi);
   }
 
-  Envelope? _oEnvelopeDaParte() {
+  (Envelope, {Duration lo, Duration hi})? _ondeAPausaCabe() {
     final parte = _parteNoAr;
     if (parte == null) return null;
-    return _envelopes.putIfAbsent(parte.path, () {
-      final arquivo = File(parte.path);
-      return arquivo.existsSync()
-          ? envelopeOf(arquivo.readAsBytesSync())
-          : null;
+    final envelope = _envelopes.putIfAbsent(parte.path, () {
+      try {
+        return envelopeOf(File(parte.path).readAsBytesSync());
+      } on FileSystemException {
+        return null;
+      }
     });
-  }
-
-  ({Duration lo, Duration hi})? _ondeAPausaCabe(Envelope envelope) {
-    final medido = _tamanhoDaParteMs[_parteNoAr?.path];
-    return pauseBounds(
+    if (envelope == null) return null;
+    final medido = _tamanhoDaParteMs[parte.path];
+    final limites = pauseBounds(
       _trechoStart,
       medido == null ? envelope.length : Duration(milliseconds: medido),
     );
+    if (limites == null) return null;
+    return (envelope, lo: limites.lo, hi: limites.hi);
   }
 
   void pausaUmPoucoAntes() => _gesture(() => _moverAPausa(Nudge.earlier));
@@ -4303,17 +4304,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _moverAPausa(Nudge para) {
     if (!state.canAdjustThePause) return;
-    final envelope = _oEnvelopeDaParte();
-    final limites = envelope == null ? null : _ondeAPausaCabe(envelope);
-    if (envelope == null || limites == null) return;
+    final ondeCabe = _ondeAPausaCabe();
+    if (ondeCabe == null) return;
+    final (envelope, :lo, :hi) = ondeCabe;
     _silenceTheRoom(holdTheClip: true);
-    _trechoEnd = nudgeThePause(
-      envelope,
-      _trechoEnd,
-      para,
-      lo: limites.lo,
-      hi: limites.hi,
-    );
+    _trechoEnd = nudgeThePause(envelope, _trechoEnd, para, lo: lo, hi: hi);
   }
 
   void ouvirAPausa() => _gesture(() => _ouvirAPausa());

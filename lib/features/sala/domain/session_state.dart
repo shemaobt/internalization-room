@@ -360,6 +360,14 @@ class SalaSessionState {
     _ => false,
   };
 
+  Duration? get btTrechoDesde => switch (channel) {
+    StretchPlaying(stretch: StretchSound(telling: false, :final from)) => from,
+    _ => switch (_paused) {
+      Paused(what: StretchSound(telling: false, :final from)) => from,
+      _ => null,
+    },
+  };
+
   bool get btRetroPausada => switch (_paused) {
     Paused(what: StretchSound(telling: true)) => true,
     _ => false,

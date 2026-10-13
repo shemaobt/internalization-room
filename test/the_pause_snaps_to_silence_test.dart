@@ -175,6 +175,30 @@ void main() {
     );
   });
 
+  testWidgets('the scissors pressed while «ouvir a pausa» plays place the '
+      'pausa where the team hears it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(
+      tester,
+      harness,
+      aSpokenWav(gaps: [(s(3.0), s(3.4)), (s(5.0), s(5.4))]),
+    );
+    await pausarAos(tester, harness, s(6.2));
+    expect(pausa(container), s(5.2));
+    await tocar(tester, ouvirAPausa);
+    expect(harness.playback.ranges.last, '3700-5200');
+
+    harness.playback.at = s(0.8);
+    await tocar(tester, tesoura);
+
+    expect(
+      pausa(container),
+      s(3.2),
+      reason: 'ouvido aos 4,5 s da parte, o silêncio mais perto é o dos 3 s',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a pausa then translated ends the stretch at the snapped pausa', (
     tester,
   ) async {
