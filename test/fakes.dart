@@ -276,6 +276,7 @@ class FakeRecorder implements RecordingRepository {
   final List<String> deleted = [];
   String? lastPath;
   MicOwner? lastOwner;
+  Uint8List? rehearsalSpeaks;
 
   bool permitted = true;
 
@@ -349,6 +350,12 @@ class FakeRecorder implements RecordingRepository {
     if (held != null) await held.future;
     _recording = false;
     if (returnsNothing) return null;
+    final fala = rehearsalSpeaks;
+    if (fala != null && lastOwner == MicOwner.rehearsal) {
+      final wav = File('${home.path}/captura-$captures.wav')
+        ..writeAsBytesSync(fala);
+      return lastPath = wav.path;
+    }
     final file = File('${home.path}/captura-$captures.m4a')
       ..writeAsStringSync(returnsEmpty ? '' : 'a equipe falou');
     return lastPath = file.path;

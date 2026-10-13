@@ -83,7 +83,7 @@ Future<String?> ateOTrechoNomeado(
   harness.playback.at = parte;
   harness.playback.finishPlayback();
   await tester.pump(const Duration(milliseconds: 300));
-  await gravarATraducao(tester);
+  await gravarATraducao(tester, circulo: gravar);
   await tocar(tester, confirmar);
   harness.room
     ..verdictChecked = false
@@ -93,7 +93,7 @@ Future<String?> ateOTrechoNomeado(
   harness.playback.finishPlayback();
   await tester.pump(const Duration(milliseconds: 300));
   harness.room.verdictUntoldSegmentId = null;
-  await gravarATraducao(tester);
+  await gravarATraducao(tester, circulo: gravar);
   return daPrimeira;
 }
 
@@ -393,7 +393,7 @@ void main() {
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
     await confirmarSemPalavras(tester, harness);
     expect(byLabel(linha), findsWidgets);
     expect(aceso(tester, conferir), isTrue);
@@ -429,8 +429,11 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
-    await tocar(tester, 'Cut here');
-    await tocar(tester, 'Tap to record this stretch\'s translation');
+    await tocar(tester, 'Pause where the sentence ends');
+    await tocar(
+      tester,
+      'the pause is at your tap — tap the circle to translate',
+    );
     await tocar(tester, 'Tap when you finish');
     harness.room.failChunkWith = vazia;
     await tocar(tester, 'Confirm the translation and go on');
