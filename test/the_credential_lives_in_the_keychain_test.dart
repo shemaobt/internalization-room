@@ -69,13 +69,10 @@ ProviderContainer _tablet({
 Future<void> _theFlushEnds(ProviderContainer container) async {
   final outbox =
       container.read(takeUploadQueueProvider) as QueueThatFlushesLate;
-  await waitFor('o envio da fila terminar', () => outbox.flushing == 0);
-  expect(
-    outbox.flushing,
-    0,
-    reason:
-        'o envio que a apresentação começou ainda corria quando o caso acabou, '
-        'e o tearDown apagava a pasta da fila por baixo dele',
+  await waitFor(
+    'o envio que a apresentação começou terminar antes de o caso acabar, '
+    'ou o tearDown apaga a pasta da fila por baixo dele',
+    () => outbox.flushing == 0,
   );
 }
 
