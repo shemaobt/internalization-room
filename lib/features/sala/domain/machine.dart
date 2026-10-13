@@ -277,6 +277,10 @@ final class ThePanoramaChosen extends StationEvent {
   const ThePanoramaChosen();
 }
 
+final class TheLanguageChosen extends MachineEvent {
+  const TheLanguageChosen();
+}
+
 final class TheSessionIsGone extends AnsweringEvent {
   const TheSessionIsGone({super.generation});
 }
@@ -579,6 +583,10 @@ final class DiscardTheSession extends LifecycleHandOff {
 
 final class OpenTheChoice extends LifecycleHandOff {
   const OpenTheChoice();
+}
+
+final class ReadTheWheel extends LifecycleHandOff {
+  const ReadTheWheel();
 }
 
 final class LookAtTheSession extends Effect {
@@ -937,6 +945,10 @@ const _watch = ArmTheWatch();
   TheAnswerWarned() ||
   LongPress() ||
   WatchFired() => _theHalt(machine, event),
+  TheLanguageChosen() => switch (machine.station) {
+    Menu() => (moveTheGeneration(machine), const [ReadTheWheel()]),
+    _ => (machine, const []),
+  },
   StationEvent() => _reachTheStation(machine, event),
 };
 
@@ -1596,7 +1608,8 @@ Machine _answered(Machine machine) =>
   TheHandFailed() ||
   TheCallWasRefused() ||
   TheCallMetAClosedPassage() ||
-  StationEvent() => (halt, const []),
+  StationEvent() ||
+  TheLanguageChosen() => (halt, const []),
 };
 
 (Halt, List<Effect>) _read(Halt halt, SessionRead read) {

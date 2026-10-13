@@ -61,9 +61,14 @@ class _LedgerThatCannotWrite extends FakeWorkInProgress {
   bool refuses = false;
 
   @override
-  Future<void> remember(String book, String pericope, ResumePoint point) async {
+  Future<void> remember(
+    String book,
+    String pericope,
+    String language,
+    ResumePoint point,
+  ) async {
     if (refuses) throw const FileSystemException('disco cheio');
-    return super.remember(book, pericope, point);
+    return super.remember(book, pericope, language, point);
   }
 }
 
@@ -141,7 +146,7 @@ Future<(ProviderContainer, SalaSessionState Function())> _reopensOnPartTwoOfTwo(
       ),
     ],
   );
-  harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: SalaStage.retro,
     takes: [
@@ -320,7 +325,7 @@ void main() {
     final harness = SalaHarness(
       replies: const [HandReply(id: 'r1', audioUrl: '/resposta-1')],
     );
-    harness.emAberto.rows['Ruth/P01'] = const ResumePoint(
+    harness.emAberto.rows['Ruth/P01/pt'] = const ResumePoint(
       sessionId: 'sessao-antiga',
       stage: SalaStage.conversa,
     );
@@ -529,7 +534,7 @@ void main() {
         takesOverride: (room, home) =>
             outbox = _OutboxThatGaveUp(room: room, home: () async => home),
       );
-      harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+      harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
         sessionId: 'sessao-guardada',
         stage: SalaStage.ensaio,
         takes: [

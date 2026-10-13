@@ -14,7 +14,7 @@ import 'scenario_helpers.dart';
 const _rememberedSession = 'sessao-lembrada';
 
 void _aCanvasRow(SalaHarness harness, {required bool opened}) {
-  harness.emAberto.rows['Ruth/P01'] = const ResumePoint(
+  harness.emAberto.rows['Ruth/P01/pt'] = const ResumePoint(
     sessionId: _rememberedSession,
     stage: SalaStage.conversa,
   );
@@ -66,7 +66,7 @@ void main() {
       session = read().sessionId!;
       await waitFor(
         'the passage to keep its place',
-        () => harness.emAberto.rows.containsKey('Ruth/P01'),
+        () => harness.emAberto.rows.containsKey('Ruth/P01/pt'),
       );
 
       notifier.leaveThePassage();
@@ -336,7 +336,7 @@ void main() {
       addTearDown(() => home.deleteSync(recursive: true));
       final part = File('${home.path}/p1.m4a')..writeAsBytesSync([1, 2, 3]);
       final harness = SalaHarness();
-      harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+      harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
         sessionId: _rememberedSession,
         stage: SalaStage.ensaio,
         takes: [KeptTake(scopeId: KeptScope.parte(1), path: part.path)],

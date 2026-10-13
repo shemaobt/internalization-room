@@ -20,7 +20,7 @@ void main() {
         '${Directory.systemTemp.createTempSync('sala-1446').path}/p1.m4a',
       )..writeAsBytesSync([1, 2, 3]);
       addTearDown(() => gravada.parent.deleteSync(recursive: true));
-      harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+      harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
         sessionId: 'sessao-antiga',
         stage: SalaStage.retro,
         takes: [

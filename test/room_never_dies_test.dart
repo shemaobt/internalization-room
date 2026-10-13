@@ -228,16 +228,16 @@ void main() {
             container.read(salaSessionProvider).stage == SalaStage.escolha &&
             container.read(salaSessionProvider).oferecida != null &&
             container.read(salaSessionProvider).voice == VoiceState.invite &&
-            await harness.emAberto.of('Ruth', 'P01') != null,
+            await harness.emAberto.of('Ruth', 'P01', 'pt') != null,
       );
-      expect(await harness.emAberto.of('Ruth', 'P01'), isNotNull);
+      expect(await harness.emAberto.of('Ruth', 'P01', 'pt'), isNotNull);
 
       harness.room.forgetTheSession(harness.room.sessionIds.single);
       harness.room.passagesThatCannotOpen = {'P01'};
       notifier.entrarNaOferecida();
       await waitFor(
         'o lugar da sessão lembrada sair do tablet',
-        () async => (await harness.emAberto.of('Ruth', 'P01')) == null,
+        () async => (await harness.emAberto.of('Ruth', 'P01', 'pt')) == null,
       );
 
       final state = container.read(salaSessionProvider);
@@ -245,7 +245,7 @@ void main() {
       expect(state.needsPerson, isFalse);
       expect(harness.room.personsAsked, 0);
       expect(
-        await harness.emAberto.of('Ruth', 'P01'),
+        await harness.emAberto.of('Ruth', 'P01', 'pt'),
         isNull,
         reason: 'a sessão lembrada sumiu, então não há onde retomar',
       );
@@ -261,7 +261,7 @@ void main() {
         stage: SalaStage.conversa,
         language: 'en',
       );
-      harness.emAberto.rows['Ruth/P01'] = noutraLingua;
+      harness.emAberto.rows['Ruth/P01/en'] = noutraLingua;
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -276,7 +276,7 @@ void main() {
       expect(state.needsPerson, isFalse);
       expect(harness.room.personsAsked, 0);
       expect(
-        await harness.emAberto.of('Ruth', 'P01'),
+        await harness.emAberto.of('Ruth', 'P01', 'en'),
         same(noutraLingua),
         reason:
             'o 400 não distingue língua desconhecida de passagem que não anda, e '
@@ -1544,7 +1544,7 @@ void main() {
 
     notifier.goEnsaio();
     await settle();
-    expect(await harness.emAberto.startedIn('Ruth'), contains('P01'));
+    expect(await harness.emAberto.startedIn('Ruth', 'pt'), contains('P01'));
 
     notifier.ensaioTap();
     notifier.ensaioTap();
@@ -1560,7 +1560,7 @@ void main() {
     await settle(const Duration(milliseconds: 900));
 
     expect(
-      await harness.emAberto.startedIn('Ruth'),
+      await harness.emAberto.startedIn('Ruth', 'pt'),
       isEmpty,
       reason:
           'uma passagem aprovada não é trabalho em aberto — conferida '
