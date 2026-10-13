@@ -2421,6 +2421,13 @@ Future<void> theRoomNamesTheParts(
 Future<void> theClipOpens(SalaHarness harness) =>
     waitFor('o clipe abrir', () => harness.playback.open);
 
+Future<void> theRoomRefusesTheGuardedCopy(SalaHarness harness) => waitFor(
+  'a sala recusar a cópia de reserva da tradução',
+  () async => (await harness.takes.entries()).any(
+    (entry) => entry.kind == 'retro' && entry.refusal != null,
+  ),
+);
+
 Future<void> confirmarATraducao(ProviderContainer container) async {
   final sala = container.read(salaSessionProvider.notifier);
   sala.retroTap();
@@ -2779,6 +2786,68 @@ class QueueWhoseTranslationLandsLate extends TakeUploadQueue {
     );
     if (kind == 'retro') translationLanded = true;
     return row;
+  }
+}
+
+class QueueThatFinishesLate extends TakeUploadQueue {
+  QueueThatFinishesLate({required super.room, super.home});
+
+  Duration? answersAfter;
+
+  @override
+  Future<PendingTake> enqueue(
+    File audio, {
+    required String sessionId,
+    required String kind,
+    required String scope,
+    int? passNumber,
+    int? chunkIndex,
+  }) async {
+    final row = await super.enqueue(
+      audio,
+      sessionId: sessionId,
+      kind: kind,
+      scope: scope,
+      passNumber: passNumber,
+      chunkIndex: chunkIndex,
+    );
+    final wait = answersAfter;
+    if (kind == 'retro' && wait != null) await Future<void>.delayed(wait);
+    return row;
+  }
+
+  Duration? deletesTheCopyAfter;
+
+  @override
+  Future<void> withdraw(PendingTake row) async {
+    final wait = deletesTheCopyAfter;
+    if (wait == null) return super.withdraw(row);
+    final copy = File(row.path);
+    if (!copy.existsSync()) return super.withdraw(row);
+    final audio = await copy.readAsBytes();
+    await super.withdraw(row);
+    await copy.writeAsBytes(audio);
+    await Future<void>.delayed(wait);
+    if (copy.existsSync()) await copy.delete();
+  }
+}
+
+class QueueThatFlushesLate extends TakeUploadQueue {
+  QueueThatFlushesLate({required super.room, super.home});
+
+  Duration? flushesAfter;
+  int flushing = 0;
+
+  @override
+  Future<int> flush({bool withTheCodeless = false}) async {
+    flushing++;
+    try {
+      final wait = flushesAfter;
+      if (wait != null) await Future<void>.delayed(wait);
+      return await super.flush(withTheCodeless: withTheCodeless);
+    } finally {
+      flushing--;
+    }
   }
 }
 

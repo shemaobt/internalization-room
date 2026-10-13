@@ -49,6 +49,7 @@ ProviderContainer _tablet({
   required RoomRepository room,
   required LinkedTeam ledger,
   Duration? linkPoll,
+  Duration? flushesAfter,
 }) {
   final outbox = _tempHome();
   return ProviderContainer(
@@ -58,9 +59,20 @@ ProviderContainer _tablet({
       linkPollIntervalProvider.overrideWithValue(linkPoll),
       roomRetryBackoffProvider.overrideWithValue(const [_quickPoll]),
       takeUploadQueueProvider.overrideWithValue(
-        TakeUploadQueue(room: room, home: () async => outbox),
+        QueueThatFlushesLate(room: room, home: () async => outbox)
+          ..flushesAfter = flushesAfter,
       ),
     ],
+  );
+}
+
+Future<void> _theFlushEnds(ProviderContainer container) async {
+  final outbox =
+      container.read(takeUploadQueueProvider) as QueueThatFlushesLate;
+  await waitFor(
+    'o envio que a apresentação começou terminar antes de o caso acabar, '
+    'ou o tearDown apaga a pasta da fila por baixo dele',
+    () => outbox.flushing == 0,
   );
 }
 
@@ -303,6 +315,7 @@ void main() {
           room: room,
           ledger: ledger,
           linkPoll: _quickPoll,
+          flushesAfter: const Duration(milliseconds: 300),
         );
         addTearDown(container.dispose);
 
@@ -349,6 +362,7 @@ void main() {
               'a credencial que já estava no cofre nunca precisou ser pedida '
               'de novo ao servidor',
         );
+        await _theFlushEnds(container);
       },
     );
 
