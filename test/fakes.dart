@@ -2274,16 +2274,23 @@ class FakeTakeQueue implements TakeUploadQueue {
         chunkIndex: entry.chunkIndex,
       )) {
         case Answered(value: final landed):
-          rows[at] = entry.copyWith(takeId: landed, stored: true);
+          _writeBack(entry.copyWith(takeId: landed, stored: true));
           sent++;
         case SessionGone():
           await discardTheSession(entry.sessionId);
           _sessionsGone.add(entry.sessionId);
         case RoomFailure():
-          rows[at] = entry.copyWith(attempts: entry.attempts + 1);
+          _writeBack(entry.copyWith(attempts: entry.attempts + 1));
       }
     }
     return sent;
+  }
+
+  void _writeBack(PendingTake updated) {
+    final at = rows.indexWhere(
+      (entry) => entry.id == updated.id && entry.kind == updated.kind,
+    );
+    if (at >= 0) rows[at] = updated;
   }
 
   /// Whether the room has stopped naming what it stored: the take is kept and sent,
