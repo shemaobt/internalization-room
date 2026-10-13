@@ -745,7 +745,8 @@ void main() {
   testWidgets('B7h2 — a correção guardada com a resposta perdida sai da fila '
       'quando pousa na recusa seguinte', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true, retryBackoff: _volta)
-      ..room.forgetsTheKeys = true;
+      ..room.forgetsTheKeys = true
+      ..room.takeLandsAfter = const Duration(seconds: 1);
     final container = await ateOTrechoNomeado(tester, harness);
     final fila = harness.takes as FakeTakeQueue;
 
