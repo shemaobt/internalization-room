@@ -56,6 +56,7 @@ class RecordingRepository {
           sampleRate: wav || conversation
               ? 16000
               : const RecordConfig().sampleRate,
+          bitRate: conversation ? 32000 : const RecordConfig().bitRate,
           audioInterruption: AudioInterruptionMode.pauseResume,
           echoCancel: true,
           noiseSuppress: roomFilters,

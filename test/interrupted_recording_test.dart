@@ -258,6 +258,21 @@ void main() {
     );
   });
 
+  test('a conversation turn opens the microphone at 32 kbps', () async {
+    final recording = RecordingRepository();
+    addTearDown(recording.dispose);
+
+    await recording.start('conversa');
+
+    expect(
+      microphone.openedWith?.bitRate,
+      32000,
+      reason:
+          'sem taxa, o plugin gravava a 128 kbps, uns 16 KB por segundo de '
+          'fala subindo antes de a transcrição poder começar',
+    );
+  });
+
   test('a conversation turn opens the microphone at 16 kHz', () async {
     final recording = RecordingRepository();
     addTearDown(recording.dispose);
