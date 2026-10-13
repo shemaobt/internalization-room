@@ -4307,7 +4307,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final ondeCabe = _ondeAPausaCabe();
     if (ondeCabe == null) return;
     final (envelope, :lo, :hi) = ondeCabe;
-    _silenceTheRoom(holdTheClip: true);
+    final segurada = _tirarAParteDoPlayer();
+    if (segurada != null) _dispatch(TheHeldPartReturns(segurada));
     _trechoEnd = nudgeThePause(envelope, _trechoEnd, para, lo: lo, hi: hi);
   }
 
@@ -4317,7 +4318,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!state.canAdjustThePause) return;
     final parte = _parteNoAr;
     if (parte == null) return;
-    _silenceTheRoom();
+    final segurada = _tirarAParteDoPlayer();
     _play(
       StretchSound(
         parte.path,
@@ -4326,6 +4327,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ),
       onComplete: _quietTheStretch,
       onFailed: _quietTheStretch,
+      beneath: segurada,
     );
   }
 

@@ -11,7 +11,7 @@ import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart';
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show aceso, confirmar, entrarNaTraducao, parte, passaDoCursor, tocar;
+    show aceso, confirmar, entrarNaTraducao, ouvir, parte, passaDoCursor, tocar;
 
 const tesoura = 'Pausar onde a frase acaba';
 const antes = 'um pouco antes';
@@ -199,6 +199,43 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('the scissors after «ouvir a pausa» read the head in the part, '
+      'not in the clip just heard', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(
+      tester,
+      harness,
+      aSpokenWav(gaps: [(s(3.1), s(3.3))]),
+    );
+    await pausarAos(tester, harness, s(3.0));
+    expect(pausa(container), s(3.2));
+    await tocar(tester, ouvirAPausa);
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+    harness.playback.at = s(1.5);
+
+    await tocar(tester, tesoura);
+
+    expect(pausa(container), s(3.2));
+    closeTheRoom(container);
+  });
+
+  testWidgets('after a nudge nothing the team plays ends at the old pausa', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, umaLacunaAos3);
+    await pausarAos(tester, harness, s(4.2));
+    await tocar(tester, ouvirAPausa);
+    expect(harness.playback.ranges.last, '1700-3200');
+
+    await tocar(tester, antes);
+    await tocar(tester, ouvir);
+
+    expect(harness.playback.ranges.last, endsWith('-2800'));
+    closeTheRoom(container);
+  });
+
   testWidgets('a pausa then translated ends the stretch at the snapped pausa', (
     tester,
   ) async {
@@ -210,6 +247,11 @@ void main() {
 
     expect(harness.room.chunkSpans.last, '0-3200');
     expect(container.read(salaSessionProvider).btTrechos.last.to, s(3.2));
+    expect(
+      harness.playback.playedFrom.last,
+      s(3.2),
+      reason: 'a parte segue da pausa, não do toque',
+    );
     closeTheRoom(container);
   });
 
