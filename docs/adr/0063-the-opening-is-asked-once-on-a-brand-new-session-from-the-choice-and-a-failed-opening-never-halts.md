@@ -1,10 +1,15 @@
 ---
-status: accepted
+status: accepted, amended by the one-reply Opening (2026-10-12: the Opening is her single reply, with no two-movement script; ENG-1303, shema-api #712, this app's #320)
 date: 2026-10-07
 amends: 0053, 0048 (in part: the halt over an opening and the lift's re-ask), 0044 (in part: what a lift replays over an opening)
 ---
 
 # The Opening is asked once, on a brand-new session, from the Choice, and a failed opening never halts
+
+Superseded in part by the one-reply Opening (ENG-1303; shema-api #712, this app's #320): the
+Opening is now her single reply, with no two-movement script. Where the decision below
+speaks of an Opening told in two movements, its Scene and the long press that says both
+movements, read one reply and nothing more; the rest of this record stands.
 
 This amends ADRs 0053, 0048 and 0044 without editing them; it adds "amended by 0063" to
 their status lines. The Definer settled it on the ticket (ENG-1280) on 6 and 7 October:
