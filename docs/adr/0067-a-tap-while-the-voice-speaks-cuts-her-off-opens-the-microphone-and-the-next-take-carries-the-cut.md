@@ -1,10 +1,15 @@
 ---
-status: accepted
+status: accepted, amended by the one-reply Opening (2026-10-12: the Opening is her single reply, with no two-movement script; ENG-1303, shema-api #712, this app's #320)
 date: 2026-10-07
 amends: 0053, 0013 (in part: the first tap also cuts the voice), 0024 (in part: the interruption's stop is the machine's), 0046 (in part: the invariant)
 ---
 
 # A tap while the voice speaks cuts her off, opens the microphone, and the next take carries the cut
+
+Superseded in part by the one-reply Opening (ENG-1303; shema-api #712, this app's #320): the
+Opening is now her single reply, with no two-movement script. The decision below that a cut
+ends "both movements of an Opening" and remembers the Scene with its Panorama reads as a cut
+in the one reply, which ends the line; the rest of this record stands.
 
 This amends ADRs 0053, 0013, 0024 and 0046 without editing their decisions; it adds
 "amended by 0067" to the status lines of 0053 and 0046 and a note under the titles of 0013
