@@ -107,7 +107,7 @@ class ConversaView extends ConsumerWidget {
                 duration: const Duration(milliseconds: 400),
                 child: Semantics(
                   button: true,
-                  label: roomLabelFor('recordDraft', language),
+                  label: roomLabelFor('recordEnsaio', language),
                   child: GestureDetector(
                     onTap: notifier.goEnsaio,
                     behavior: HitTestBehavior.opaque,
