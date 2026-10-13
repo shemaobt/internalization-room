@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -108,6 +111,13 @@ Future<void> contarAteOFimDaParte(
 }
 
 const _volta = [Duration(seconds: 2)];
+
+Future<PendingTake> guardar(FakeTakeQueue fila, String scope) => fila.enqueue(
+  File('/gravacoes/$scope.m4a'),
+  sessionId: 'sessao-1',
+  kind: 'retro',
+  scope: scope,
+);
 
 void main() {
   testWidgets('B1 — a tradução entra tocando, com uma conta pendente e sem '
@@ -627,10 +637,116 @@ void main() {
     closeTheRoom(container);
   });
 
+  test('a row that lands after the row before it was withdrawn in the air is '
+      'stored, not written over the next index', () async {
+    final room = FakeRoom()..refuseTake = 'retro/antes';
+    final fila = FakeTakeQueue(room: room);
+    final antes = await guardar(fila, 'antes');
+    final noAr = await guardar(fila, 'no-ar');
+    room.holdNextTake('no-ar');
+
+    final passada = fila.flush();
+    await room.untilTakeHeld();
+    await fila.withdraw(antes);
+    room.finishHeldTake();
+    final enviadas = await passada;
+
+    expect(enviadas, 1);
+    expect(
+      [for (final linha in fila.rows) (linha.id, linha.stored, linha.takeId)],
+      [(noAr.id, true, room.takeIds.single)],
+      reason: 'a linha que estava no ar pousa pelo que ela é, não pelo lugar',
+    );
+  });
+
+  test('a row withdrawn while its own send is in the air stays withdrawn, '
+      'and the row behind it is left alone', () async {
+    final room = FakeRoom();
+    final fila = FakeTakeQueue(room: room);
+    final noAr = await guardar(fila, 'no-ar');
+    final atras = await guardar(fila, 'atras');
+    room.holdNextTake('no-ar');
+
+    final passada = fila.flush();
+    await room.untilTakeHeld();
+    await fila.withdraw(noAr);
+    room.finishHeldTake();
+    final enviadas = await passada;
+
+    expect(enviadas, 2, reason: 'a sala recebeu os dois envios');
+    expect(
+      [for (final linha in fila.rows) (linha.id, linha.stored)],
+      [(atras.id, true)],
+      reason:
+          'a linha retirada não volta como enviada, e a de trás não some '
+          'debaixo dela',
+    );
+  });
+
+  test('a send that fails after the row before it was withdrawn counts on its '
+      'own row', () async {
+    final room = FakeRoom()
+      ..refuseTake = 'retro/antes'
+      ..unreachableTake = 'retro/no-ar';
+    final fila = FakeTakeQueue(room: room);
+    final antes = await guardar(fila, 'antes');
+    final noAr = await guardar(fila, 'no-ar');
+    room.holdNextTake('no-ar');
+
+    final passada = fila.flush();
+    await room.untilTakeHeld();
+    await fila.withdraw(antes);
+    room.finishHeldTake();
+    await passada;
+
+    expect(
+      [for (final linha in fila.rows) (linha.id, linha.stored, linha.attempts)],
+      [(noAr.id, false, 1)],
+      reason: 'a falha de quem estava no ar é contada em quem estava no ar',
+    );
+  });
+
+  test('a row withdrawn in the air is not written over the row that shares its '
+      'id under another kind', () async {
+    final room = FakeRoom();
+    final fila = FakeTakeQueue(room: room);
+    const noAr = PendingTake(
+      id: '7',
+      path: '/gravacoes/no-ar.m4a',
+      sessionId: 'sessao-1',
+      kind: 'ensaio',
+      scope: 'no-ar',
+    );
+    const irma = PendingTake(
+      id: '7',
+      path: '/gravacoes/irma.m4a',
+      sessionId: 'sessao-1',
+      kind: 'retro',
+      scope: 'irma',
+      takeId: 'gravacao-da-irma',
+      stored: true,
+    );
+    fila.rows.addAll([noAr, irma]);
+    room.holdNextTake('no-ar');
+
+    final passada = fila.flush();
+    await room.untilTakeHeld();
+    await fila.withdraw(noAr);
+    room.finishHeldTake();
+    await passada;
+
+    expect(
+      [for (final linha in fila.rows) (linha.kind, linha.takeId)],
+      [('retro', 'gravacao-da-irma')],
+      reason: 'a linha de outro tipo com o mesmo número não é a que saiu',
+    );
+  });
+
   testWidgets('B7h2 — a correção guardada com a resposta perdida sai da fila '
       'quando pousa na recusa seguinte', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true, retryBackoff: _volta)
-      ..room.forgetsTheKeys = true;
+      ..room.forgetsTheKeys = true
+      ..room.takeLandsAfter = const Duration(seconds: 1);
     final container = await ateOTrechoNomeado(tester, harness);
     final fila = harness.takes as FakeTakeQueue;
 
@@ -1183,10 +1299,11 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('B3h — uma tradução recusada vai para a fila uma vez só', (
+  testWidgets('B3h — com a sala atrasada a cópia guardada sai da fila', (
     tester,
   ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.takeLandsAfter = const Duration(seconds: 1);
     final container = await entrarNaTraducao(tester, harness);
     final fila = harness.takes as FakeTakeQueue;
 
@@ -1204,16 +1321,66 @@ void main() {
     await tocar(tester, confirmar);
     await letTheRehearsalReachTheRoom(tester);
 
+    List<String> guardadas() => [
+      for (final linha in fila.rows)
+        if (linha.path == gravada) linha.kind,
+    ];
+
     expect(harness.room.chunkFiles, [gravada]);
     expect(
-      [
-        for (final linha in fila.rows)
-          if (linha.path == gravada) linha.kind,
-      ],
-      ['retro'],
+      guardadas(),
+      isEmpty,
+      reason:
+          'com a sala atrasada a cópia guardada ainda não pousou quando o '
+          'trecho pousa pela porta dele, e sai da fila sem subir como a '
+          'passagem inteira',
+    );
+    await waitFor(
+      'a sala nomear a cópia guardada que já estava no ar',
+      () => harness.room.takesKept.contains('retro/${KeptScope.whole}'),
+      step: () => letTheRehearsalReachTheRoom(tester),
+    );
+    expect(
+      guardadas(),
+      isEmpty,
+      reason: 'o envio que já estava no ar pousa na sala e não volta à fila',
     );
     closeTheRoom(container);
   });
+
+  testWidgets(
+    'B3h2 — com a sala em dia, a tradução recusada fica na fila, enviada',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await entrarNaTraducao(tester, harness);
+      final fila = harness.takes as FakeTakeQueue;
+
+      harness.playback.at = cabeca;
+      await tocar(tester, tesoura);
+      await gravarATraducao(tester);
+      final gravada = harness.recorder.lastPath;
+
+      harness.room.failChunkWith = const Refused('BAD_REQUEST');
+      await tocar(tester, confirmar);
+      await letTheRehearsalReachTheRoom(tester);
+      await tocar(tester, confirmar);
+      await letTheRehearsalReachTheRoom(tester);
+      harness.room.failChunkWith = null;
+      await tocar(tester, confirmar);
+      await letTheRehearsalReachTheRoom(tester);
+
+      expect(harness.room.chunkFiles, [gravada]);
+      expect(
+        [
+          for (final linha in fila.rows)
+            if (linha.path == gravada) (linha.kind, linha.stored),
+        ],
+        [('retro', true)],
+        reason: 'com a sala em dia a cópia guardada já foi enviada, e fica',
+      );
+      closeTheRoom(container);
+    },
+  );
 
   testWidgets('B4b — o disco fica apagado enquanto sobra chão por contar na '
       'última parte', (tester) async {
