@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/core/theme/sala_colors.dart';
+import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/passage_ruler.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/approval_answer.dart';
@@ -616,6 +619,42 @@ void main() {
           'e a sala não pode ficar dizendo que toca o que não tocou: a '
           'equipe voltaria do halt a um glifo de pausa sobre o silêncio, e o '
           'primeiro toque seria gasto parando uma gravação que nunca começou',
+    );
+
+    closeTheRoom(it.container);
+  });
+
+  testWidgets('the Choice after the Closing paints the approved passage olive '
+      'with its dot and tints nothing', (tester) async {
+    final it = await _ateAConferida(
+      tester,
+      comEsta: SalaHarness(
+        filaEmMemoria: true,
+        fimLinger: const Duration(milliseconds: 40),
+      ),
+    );
+    it.harness.room.passages = const [
+      Passagem(pericope: 'P01', audioUrl: '/voice/p01', approved: true),
+      Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
+      Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
+    ];
+
+    await _aprovarEEsperar(tester);
+    await tester.pump(const Duration(milliseconds: 700));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(_estado(it.container).stage, SalaStage.escolha);
+    expect(
+      find.byType(PassageRuler),
+      paints
+        ..line(color: SalaColors.light.cord, strokeWidth: 1.5)
+        ..line(color: ShemaBrand.verdeClaro)
+        ..circle(x: 30, color: SalaColors.light.telha, radius: 3),
+    );
+    expect(
+      find.byType(PassageRuler),
+      isNot(paints..line(color: ShemaBrand.azul)),
     );
 
     closeTheRoom(it.container);

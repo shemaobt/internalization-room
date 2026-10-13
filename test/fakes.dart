@@ -672,15 +672,6 @@ class FakePlayback implements PlaybackRepository {
 class FakeFinished implements FinishedPassages {
   final Set<String> done = {};
   Completer<void>? _holdingAdd;
-  Completer<void>? _holdingAll;
-
-  void holdNextAll() => _holdingAll = Completer<void>();
-
-  void finishHeldAll() {
-    _holdingAll?.complete();
-    _holdingAll = null;
-  }
-
   void holdNextAdd() => _holdingAdd = Completer<void>();
 
   void finishHeldAdd() {
@@ -694,7 +685,6 @@ class FakeFinished implements FinishedPassages {
       for (final row in done)
         if (row.startsWith('$book/')) row.substring(book.length + 1),
     };
-    await _holdingAll?.future;
     return read;
   }
 

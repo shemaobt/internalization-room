@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
@@ -82,6 +83,44 @@ void main() {
         ..line(color: SalaColors.light.cord, strokeWidth: 2)
         ..line(color: SalaColors.light.cord, strokeWidth: 2)
         ..line(color: ShemaBrand.azul),
+    );
+  });
+
+  testWidgets('nothing is tinted after the tablet is relaunched', (
+    tester,
+  ) async {
+    final harness = SalaHarness();
+    final container = await pumpSala(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await tester.runAsync(() async {
+      await notifier.goConversa(pericope: 'P03');
+      await settle();
+      notifier.leaveThePassage();
+      await settle();
+    });
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      find.byType(PassageRuler),
+      paints
+        ..line(color: SalaColors.light.cord, strokeWidth: 1.5)
+        ..line(color: SalaColors.light.cord, strokeWidth: 2)
+        ..line(color: SalaColors.light.cord, strokeWidth: 2)
+        ..line(color: ShemaBrand.azul),
+    );
+
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
+    final relaunched = await pumpSala(tester, harness);
+    await relaunched.read(salaSessionProvider.notifier).abrirEscolha();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      find.byType(PassageRuler),
+      paints
+        ..line(color: SalaColors.light.cord, strokeWidth: 1.5)
+        ..line(color: SalaColors.light.cord, strokeWidth: 2)
+        ..line(color: SalaColors.light.cord, strokeWidth: 2)
+        ..line(color: SalaColors.light.cord, strokeWidth: 2),
     );
   });
 

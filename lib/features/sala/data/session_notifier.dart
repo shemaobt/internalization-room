@@ -2175,8 +2175,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// Everything of the session before this one stays behind.
   ///
-  /// Only what the book knows crosses over — the wheel, the passages started, the ones
-  /// finished, the one being offered — and entering the passage says the rest again.
+  /// Only what the book knows crosses over — the wheel, the passages started, the one
+  /// being offered — and entering the passage says the rest again.
   /// Built from an empty state rather than cleared field by field, so a fact the session
   /// gains tomorrow is born clean here without anybody remembering this branch; the
   /// counters and latches with no home in the state go through [_forgetThePassage],

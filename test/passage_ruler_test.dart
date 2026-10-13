@@ -153,6 +153,28 @@ void main() {
     );
   });
 
+  testWidgets('an approved passage the team just left is blue-green and '
+      'keeps its dot', (tester) async {
+    await pumpRuler(
+      tester,
+      total: 3,
+      at: 2,
+      aimed: <int>[],
+      settled: <int>[],
+      approved: const {1},
+      current: 1,
+    );
+
+    expect(
+      find.byType(PassageRuler),
+      paints
+        ..line(color: SalaColors.light.cord, strokeWidth: 1.5)
+        ..line(color: SalaColors.light.cord, strokeWidth: 2)
+        ..line(color: ShemaBrand.azul)
+        ..circle(color: SalaColors.light.telha, radius: 3),
+    );
+  });
+
   testWidgets('a screen reader on an approved passage hears that it has a '
       'saved rehearsal, in the language of the room', (tester) async {
     final handle = tester.ensureSemantics();

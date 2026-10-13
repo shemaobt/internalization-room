@@ -68,13 +68,16 @@ void main() {
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true)
         ..room.passages = _theBook;
-      harness.finished.holdNextAll();
+      harness.room.holdNextPassages();
       final container = await pumpSala(tester, harness);
 
       for (var pump = 0; pump < 10; pump++) {
         expect(find.byType(PanoramaView), findsNothing);
         expect(find.byType(EscolhaView), findsOneWidget);
-        if (pump == 5) harness.finished.finishHeldAll();
+        if (pump == 3) {
+          expect(container.read(salaSessionProvider).naRoda, isNull);
+        }
+        if (pump == 5) harness.room.finishHeldPassages();
         await tester.pump(const Duration(milliseconds: 50));
       }
 
