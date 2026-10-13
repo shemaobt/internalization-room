@@ -245,25 +245,61 @@ void main() {
     },
   );
 
-  test(
-    'a capture and a conversation turn keep the plugin\'s own sample rate',
-    () async {
-      final recording = RecordingRepository();
-      addTearDown(recording.dispose);
-      final pluginDefault = const RecordConfig().sampleRate;
+  test('a capture keeps the plugin\'s own sample rate and bit rate', () async {
+    final recording = RecordingRepository();
+    addTearDown(recording.dispose);
 
-      await recording.start('retro_passada1_pedaco1', owner: MicOwner.capture);
-      final capture = microphone.openedWith?.sampleRate;
-      await recording.start('conversa');
-      final turn = microphone.openedWith?.sampleRate;
+    await recording.start('retro_passada1_pedaco1', owner: MicOwner.capture);
 
-      expect(
-        [capture, turn],
-        [pluginDefault, pluginDefault],
-        reason: 'só a parte do ensaio pede 16 kHz; o resto abre como antes',
-      );
-    },
-  );
+    expect(
+      [microphone.openedWith?.sampleRate, microphone.openedWith?.bitRate],
+      [44100, 128000],
+      reason: 'o contar de volta abre como antes; só a conversa encolheu',
+    );
+  });
+
+  test('a question keeps the plugin\'s own sample rate and bit rate', () async {
+    final recording = RecordingRepository();
+    addTearDown(recording.dispose);
+
+    await recording.start('pergunta_1', owner: MicOwner.question);
+
+    expect(
+      [microphone.openedWith?.sampleRate, microphone.openedWith?.bitRate],
+      [44100, 128000],
+      reason: 'a pergunta da mão sobe como antes; só a conversa encolheu',
+    );
+  });
+
+  test('a conversation turn opens the microphone at 32 kbps', () async {
+    final recording = RecordingRepository();
+    addTearDown(recording.dispose);
+
+    await recording.start('conversa');
+
+    expect(
+      microphone.openedWith?.bitRate,
+      32000,
+      reason:
+          'sem taxa, o plugin gravava a 128 kbps, uns 16 KB por segundo de '
+          'fala subindo antes de a transcrição poder começar',
+    );
+  });
+
+  test('a conversation turn opens the microphone at 16 kHz', () async {
+    final recording = RecordingRepository();
+    addTearDown(recording.dispose);
+
+    await recording.start('conversa');
+
+    expect(
+      microphone.openedWith?.sampleRate,
+      16000,
+      reason:
+          'a fala com a sala subia gravada a 44,1 kHz, mais do que a '
+          'transcrição usa, numa rede de campo lenta',
+    );
+  });
 
   test(
     'a take fetched back from the room as WAV is kept as a .wav file',

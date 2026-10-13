@@ -1,9 +1,17 @@
 ---
-status: accepted
+status: accepted, amended by ENG-988 (2026-10-13: the Conversation records at 16 kHz mono 32 kbps AAC)
 date: 2026-10-06
 ---
 
 # A rehearsal part is recorded as 16 kHz mono WAV, and the rest stays AAC
+
+Amended by ENG-988 (2026-10-13): the **Conversation** turns, the panorama's, the conversa's
+and the one reopened after a cut, are recorded as 16 kHz mono AAC at 32 kbps, where they
+used to take the plugin's 44.1 kHz and 128 kbps. João's paid A/B of 23 September ran 21 real
+recordings both ways through the room's own speech-to-text, and no hearing decision changed
+in any of them; the files came out about 5.5 times smaller. The questions and the
+**Capture** keep 44.1 kHz and 128 kbps, and the **Part** stays 16 kHz WAV. The line below
+that says the Conversation turns stay AAC still holds, at the smaller rate.
 
 ## Context
 
