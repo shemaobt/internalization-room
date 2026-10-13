@@ -95,7 +95,7 @@ class SalaColors extends ThemeExtension<SalaColors> {
     line: Color(0x29F2EDE1),
     card: Color(0xFF241D13),
     cord: Color(0xFF4A4336),
-    telha: Color(0xFFE36A1E),
+    telha: Color(0xFFD6612A),
     halo: Color(0x73E36A1E),
     // Raised out of the background. At #2C2620 the unfilled bead sat at 1.2:1 against the
     // dark paper, and the only thing carrying its shape was a ten-percent black shadow,
