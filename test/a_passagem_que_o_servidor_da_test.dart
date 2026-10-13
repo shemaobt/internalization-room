@@ -16,7 +16,7 @@ bool _readyToTalk(ProviderContainer container) {
 void main() {
   test('a remembered place is resumed into the remembered session', () async {
     final harness = SalaHarness();
-    harness.emAberto.rows['Ruth/P01'] = const ResumePoint(
+    harness.emAberto.rows['Ruth/P01/pt'] = const ResumePoint(
       sessionId: 'sessao-lembrada',
       stage: SalaStage.conversa,
     );

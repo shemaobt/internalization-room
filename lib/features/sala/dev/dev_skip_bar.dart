@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/env.dart';
 import '../data/session_notifier.dart';
+import '../domain/facilitator_script.dart';
 import '../domain/session_state.dart';
 
 final debugBuildProvider = Provider<bool>((ref) => kDebugMode);
@@ -36,8 +37,12 @@ class DevSkipBar extends ConsumerWidget {
           _DevButton(
             prefix: 'idioma',
             label: ref.watch(roomLanguageProvider),
-            hint: 'recomeça a sala',
-            onTap: notifier.devTrocarIdioma,
+            hint: 'escolhe a outra língua',
+            onTap: () => notifier.chooseTheLanguage(
+              languages[(languages.indexOf(ref.read(roomLanguageProvider)) +
+                      1) %
+                  languages.length],
+            ),
           ),
           if (emCena.contains(session.stage)) ...[
             _DevButton(

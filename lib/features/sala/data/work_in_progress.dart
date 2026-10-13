@@ -130,7 +130,23 @@ class WorkInProgress {
     return File(p.join(dir.path, _ledger));
   }
 
-  static String _mark(String book, String pericope) => '$book/$pericope';
+  static String _mark(String book, String pericope, String language) =>
+      '$book/$pericope/$language';
+
+  static String _shipped(String book, String pericope) => '$book/$pericope';
+
+  static Map<String, ResumePoint> _without(
+    Map<String, ResumePoint> rows,
+    String book,
+    String pericope,
+    String language,
+  ) => {
+    for (final entry in rows.entries)
+      if (entry.key != _mark(book, pericope, language) &&
+          !(entry.key == _shipped(book, pericope) &&
+              entry.value.language == language))
+        entry.key: entry.value,
+  };
 
   Future<Map<String, ResumePoint>> _rows() async {
     final file = await _file();
@@ -158,17 +174,30 @@ class WorkInProgress {
   /// The passages of this book with work waiting in them.
   Future<Set<String>> startedIn(String book) async => {
     for (final key in (await _rows()).keys)
-      if (key.startsWith('$book/')) key.substring(book.length + 1),
+      if (key.startsWith('$book/')) key.split('/')[1],
   };
 
-  Future<ResumePoint?> of(String book, String pericope) async =>
-      (await _rows())[_mark(book, pericope)];
+  Future<ResumePoint?> of(String book, String pericope, String language) async {
+    final rows = await _rows();
+    final shipped = rows[_shipped(book, pericope)];
+    return rows[_mark(book, pericope, language)] ??
+        (shipped?.language == language ? shipped : null);
+  }
 
-  Future<void> remember(String book, String pericope, ResumePoint point) =>
-      _write((rows) => {...rows, _mark(book, pericope): point});
+  Future<void> remember(
+    String book,
+    String pericope,
+    String language,
+    ResumePoint point,
+  ) => _write(
+    (rows) => {
+      ..._without(rows, book, pericope, language),
+      _mark(book, pericope, language): point,
+    },
+  );
 
-  Future<void> forget(String book, String pericope) =>
-      _write((rows) => {...rows}..remove(_mark(book, pericope)));
+  Future<void> forget(String book, String pericope, String language) =>
+      _write((rows) => _without(rows, book, pericope, language));
 
   Future<List<ResumePoint>> forgetTheSession(String sessionId) async {
     final forgotten = <ResumePoint>[];

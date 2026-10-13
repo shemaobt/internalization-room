@@ -314,7 +314,7 @@ void main() {
       'a cut turn counts toward the calm streak that forgives a failure',
       () async {
         final harness = SalaHarness();
-        harness.emAberto.rows['Ruth/P01'] = const ResumePoint(
+        harness.emAberto.rows['Ruth/P01/pt'] = const ResumePoint(
           sessionId: 'sessao-velha',
           stage: SalaStage.retro,
         );

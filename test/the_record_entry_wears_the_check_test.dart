@@ -61,13 +61,13 @@ void main() {
   });
 
   testWidgets(
-    'an unknown language falls back like circleLabelFor, to en, not to pt',
+    'an unknown language falls back like circleLabelFor, to pt, not to en',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true, lingua: 'xx');
       await _pumpInConversa(tester, harness);
 
-      expect(byLabel(_entryEn), findsOneWidget);
-      expect(byLabel(_entryPt), findsNothing);
+      expect(byLabel(_entryPt), findsOneWidget);
+      expect(byLabel(_entryEn), findsNothing);
     },
   );
 }

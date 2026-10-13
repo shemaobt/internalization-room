@@ -424,19 +424,21 @@ void main() {
         await relaunchedOnTheChoice(offline);
       },
     );
-
-    test('in another language', () async {
-      final tablet = await _inP01();
-      final again = await _relaunch(tablet, lingua: 'en');
-      final reads = again.asked('fetchState');
-      await again.notifier.openTheRoom();
-      await _theChoiceShowsItsWheel(again);
-      await settle();
-
-      expect(again.state.station, isA<Menu>());
-      expect(again.asked('fetchState'), reads);
-    });
   });
+
+  test(
+    'a relaunch with another language chosen lands on the session in its own language',
+    () async {
+      final tablet = await _inP01();
+      final session = tablet.state.sessionId!;
+      final again = await _relaunch(tablet, lingua: 'en');
+
+      await again.notifier.openTheRoom();
+      await _landsOn(again, session);
+
+      expect(again.harness.room.languagesSent, isNot(contains('en')));
+    },
+  );
 
   test(
     'opening the room again while the relaunch\'s read is in the air changes nothing',
@@ -543,7 +545,7 @@ void main() {
     () async {
       final first = await _inP01();
       final session = first.state.sessionId!;
-      await first.harness.emAberto.forget('Ruth', 'P01');
+      await first.harness.emAberto.forget('Ruth', 'P01', 'pt');
 
       final again = await _relaunch(first);
       final before = again.harness.room.calls.length;
@@ -567,7 +569,7 @@ void main() {
     () async {
       final first = await _inP01();
       final session = first.state.sessionId!;
-      await first.harness.emAberto.forget('Ruth', 'P01');
+      await first.harness.emAberto.forget('Ruth', 'P01', 'pt');
 
       final again = await _relaunch(first);
       final before = again.harness.room.calls.length;

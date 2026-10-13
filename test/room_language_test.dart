@@ -4,12 +4,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
+import 'package:internalization_room/features/sala/data/room_language_ledger.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -17,7 +18,9 @@ import 'package:internalization_room/features/sala/presentation/widgets/codigo_v
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show byLabel, enterThePanorama, settle;
+import 'scenario_helpers.dart'
+    show byLabel, enterThePanorama, enterThePassage, relaunch, settle;
+import 'um_ensaio_de_tres_partes.dart' show Sala, gravarUmaParteDoEnsaio;
 
 const _livroComPanorama = [
   Passagem(
@@ -28,82 +31,396 @@ const _livroComPanorama = [
   Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
 ];
 
+Sala _aTabletWithNothingChosen({FakeRoomLanguageLedger? chosen}) {
+  final harness = SalaHarness(lingua: null, roomLanguage: chosen);
+  final container = harness.container();
+  addTearDown(container.dispose);
+  return Sala(harness, container);
+}
+
+Future<void> _inThePassage(Sala it, String pericope) async {
+  final played = it.harness.voice.played.length;
+  await enterThePassage(it.sala, () => it.estado, pericope);
+  await waitFor(
+    'the passage to stand open',
+    () =>
+        it.estado.sessionId != null &&
+        it.harness.voice.played.length > played &&
+        it.estado.voice == VoiceState.invite,
+  );
+  await settle();
+}
+
+Future<void> _leftForTheChoice(Sala it) async {
+  it.sala.leaveThePassage();
+  await waitFor(
+    'the Choice to offer the way back',
+    () => it.estado.theWayBackIsLive,
+  );
+}
+
+Future<void> _choose(Sala it, String language) async {
+  final asked = it.harness.room.languagesAsked.length;
+  it.sala.chooseTheLanguage(language);
+  await waitFor(
+    'the Wheel to be read in the language chosen',
+    () =>
+        it.harness.room.languagesAsked.length > asked &&
+        it.estado.naRoda != null &&
+        it.estado.voice == VoiceState.invite,
+  );
+  await settle();
+}
+
 void main() {
+  for (final locale in const [Locale('en'), Locale('es'), Locale('ja')]) {
+    testWidgets(
+      'a tablet set to ${locale.languageCode} with nothing chosen opens its session '
+      'in Portuguese, voice and screen',
+      (tester) async {
+        tester.platformDispatcher.localesTestValue = [locale];
+        addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+        final harness = SalaHarness(filaEmMemoria: true, lingua: null);
+        final container = await pumpSala(tester, harness);
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(container.read(roomLanguageProvider), 'pt');
+        expect(byLabel('Entrar nesta passagem'), findsOneWidget);
+
+        container.read(salaSessionProvider.notifier).entrarNaOferecida();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(harness.room.languagesAsked, isNotEmpty);
+        expect(harness.room.languagesAsked, everyElement('pt'));
+        expect(
+          harness.room.languagesSent,
+          ['pt'],
+          reason:
+              'a língua do aparelho nunca escolhe a da sessão: sem escolha da '
+              'equipe, a sala é em português',
+        );
+      },
+    );
+  }
+
   test(
-    'a device that speaks none of the room\'s languages is answered in English',
-    () {
-      expect(languageFor(['ja']), floorLanguage);
-      expect(languageFor(['ko', 'th']), floorLanguage);
-      expect(languageFor(const <String>[]), floorLanguage);
+    'the team\'s «EN» outlives closing the app and the next session opens in English',
+    () async {
+      final binding = TestWidgetsFlutterBinding.ensureInitialized();
+      binding.platformDispatcher.localesTestValue = const [Locale('pt', 'BR')];
+      addTearDown(binding.platformDispatcher.clearLocalesTestValue);
+      final chosen = FakeRoomLanguageLedger();
+      final first = _aTabletWithNothingChosen(chosen: chosen);
+      await first.sala.abrirEscolha();
+      await settle();
+      first.sala.chooseTheLanguage('en');
+      await settle();
+
+      final (harness, container) = await relaunch(
+        first.harness,
+        first.container,
+      );
+      final again = Sala(harness, container);
+
+      expect(container.read(roomLanguageProvider), 'en');
+
+      await _inThePassage(again, 'P01');
+      final english = again.estado.sessionId;
+
+      expect(harness.room.languagesSent.last, 'en');
+
+      final (harness3, container3) = await relaunch(harness, container);
+      final third = Sala(harness3, container3);
+      await third.sala.openTheRoom();
+      await waitFor(
+        'the relaunch to land on the English session',
+        () => third.estado.sessionId == english,
+      );
+
+      expect(third.estado.station, isNot(isA<Menu>()));
     },
   );
 
   test(
-    'a device that speaks a room language second is answered in it, not in the floor',
-    () {
+    'a Portuguese session left for the Choice keeps speaking Portuguese after «EN» '
+    'is chosen',
+    () async {
+      final it = _aTabletWithNothingChosen();
+      await _inThePassage(it, 'P01');
+      final portuguese = it.estado.sessionId;
+      await _leftForTheChoice(it);
+
+      await _choose(it, 'en');
+
       expect(
-        languageFor(['ca', 'pt', 'en']),
-        'pt',
+        it.estado.theWayBackIsLive,
+        isTrue,
         reason:
-            'ler só a primeira preferência jogava para o piso uma equipe cujo idioma '
-            'estava logo ali na lista do aparelho',
+            'escolher a língua não recomeça a sala nem apaga o caminho de volta',
+      );
+
+      await it.sala.returnToTheLeftEntry();
+      await waitFor(
+        'the team to be back in the session they left',
+        () => it.estado.sessionId == portuguese,
+      );
+      await settle();
+
+      expect(it.estado.sessionId, portuguese);
+      expect(
+        it.harness.room.languagesSent,
+        isNot(contains('en')),
+        reason:
+            'a sessão aberta em português continua em português; nenhuma sessão '
+            'inglesa nasce na volta',
+      );
+      expect((await it.harness.currentSession.read())?.language, 'pt');
+    },
+  );
+
+  test(
+    'a relaunch after going back to the Portuguese session with «EN» chosen lands '
+    'on it',
+    () async {
+      final it = _aTabletWithNothingChosen();
+      await _inThePassage(it, 'P01');
+      final portuguese = it.estado.sessionId;
+      await _leftForTheChoice(it);
+      await _choose(it, 'en');
+      await it.sala.returnToTheLeftEntry();
+      await waitFor(
+        'the team to be back in the Portuguese session',
+        () => it.estado.sessionId == portuguese,
+      );
+      await settle();
+
+      final (harness, container) = await relaunch(it.harness, it.container);
+      final again = Sala(harness, container);
+      await again.sala.openTheRoom();
+      await waitFor(
+        'the relaunch to land on the Portuguese session',
+        () => again.estado.sessionId == portuguese,
+      );
+
+      expect(harness.room.languagesSent, isNot(contains('en')));
+    },
+  );
+
+  test(
+    'the language a passage opens in is the one chosen when the team tapped it',
+    () async {
+      final it = _aTabletWithNothingChosen();
+      await it.sala.abrirEscolha();
+      await waitFor(
+        'the Wheel to offer a passage',
+        () => it.estado.naRoda != null && it.estado.voice == VoiceState.invite,
+      );
+      it.harness.network.holdNextCheck();
+      final checks = it.harness.network.checks;
+      it.sala.entrarNaOferecida();
+      await waitFor(
+        'the reach check to be in the air',
+        () => it.harness.network.checks > checks,
+      );
+
+      it.sala.chooseTheLanguage('en');
+      await settle();
+      it.harness.network.finishHeldCheck();
+      await waitFor(
+        'the session to be asked for',
+        () => it.harness.room.languagesSent.isNotEmpty,
+      );
+
+      expect(it.container.read(roomLanguageProvider), 'en');
+      expect(it.harness.room.languagesSent, ['pt']);
+    },
+  );
+
+  test(
+    'a passage with a Portuguese session opened in English starts its own session '
+    'and carries none of the Portuguese work',
+    () async {
+      final it = _aTabletWithNothingChosen();
+      await _inThePassage(it, 'P01');
+      final portuguese = it.estado.sessionId;
+      it.sala.goEnsaio();
+      await gravarUmaParteDoEnsaio(it);
+      await settle();
+      await _leftForTheChoice(it);
+      await _choose(it, 'en');
+
+      await _inThePassage(it, 'P01');
+
+      expect(it.harness.room.languagesSent.last, 'en');
+      expect(it.estado.sessionId, isNot(portuguese));
+      expect(it.estado.keptTakes, isEmpty);
+      expect(it.estado.station, isA<Canvas>());
+      expect(
+        (await it.harness.emAberto.of('Ruth', 'P01', 'pt'))?.sessionId,
+        portuguese,
+        reason: 'o ponto de retomada português continua guardado',
       );
     },
   );
 
-  test('the region on a locale never decides which room a team gets', () {
-    expect(languageFor(['pt']), 'pt');
-    expect(languageFor(['PT']), 'pt');
-  });
+  test(
+    'reopening the passage in Portuguese resumes the Portuguese session where the '
+    'team stopped',
+    () async {
+      final it = _aTabletWithNothingChosen();
+      await _inThePassage(it, 'P01');
+      final portuguese = it.estado.sessionId;
+      it.sala.goEnsaio();
+      await gravarUmaParteDoEnsaio(it);
+      final takes = [for (final take in it.estado.keptTakes) take.path];
+      await settle();
+      await _leftForTheChoice(it);
+      await _choose(it, 'en');
+      await _inThePassage(it, 'P01');
+      await _leftForTheChoice(it);
+      await _choose(it, 'pt');
+      final created = it.harness.room.sessionIds.length;
 
-  testWidgets(
-    'a Brazilian tablet is a Portuguese room, not a language of its own',
-    (tester) async {
-      tester.platformDispatcher.localesTestValue = const [Locale('pt', 'BR')];
-      addTearDown(tester.platformDispatcher.clearLocalesTestValue);
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
+      await enterThePassage(it.sala, () => it.estado, 'P01');
+      await waitFor(
+        'the Portuguese session to stand where the team stopped',
+        () =>
+            it.estado.sessionId == portuguese &&
+            it.estado.station is Ensaio &&
+            it.estado.keptTakes.isNotEmpty,
+      );
 
-      expect(container.read(roomLanguageProvider), 'pt');
+      expect(it.harness.room.sessionIds, hasLength(created));
+      expect([for (final take in it.estado.keptTakes) take.path], takes);
+    },
+  );
+
+  test(
+    'leaving a halted session and choosing another language ends every watch of '
+    'that session',
+    () async {
+      final it = _aTabletWithNothingChosen();
+      it.harness.room
+        ..serverStatus = 'needs_person'
+        ..serverHalt = HaltKind.blocking;
+      await enterThePassage(it.sala, () => it.estado, 'P01');
+      await waitFor('the halt to reach the room', () => it.estado.needsPerson);
+      it.sala.leaveThePassage();
+      await waitFor(
+        'the Choice to show its Wheel',
+        () => it.estado.station is Menu && it.estado.naRoda != null,
+      );
+      await _choose(it, 'en');
+
+      final reads = it.harness.room.calls
+          .where((c) => c == 'fetchState')
+          .length;
+      await Future<void>.delayed(const Duration(milliseconds: 900));
+
+      expect(
+        it.harness.room.calls.where((c) => c == 'fetchState'),
+        hasLength(reads),
+        reason:
+            'a vigia da sessão parada continuava lendo-a a cada 30 s depois de a '
+            'equipe ter saído',
+      );
+
+      await enterThePassage(it.sala, () => it.estado, 'P01');
+      await waitFor(
+        'a session to be asked for in English',
+        () => it.harness.room.languagesSent.length == 2,
+      );
+
+      expect(it.harness.room.languagesSent.last, 'en');
     },
   );
 
   testWidgets(
-    'a tablet in a language the room does not speak opens in English',
+    'the dev language button chooses the language without starting the room over',
     (tester) async {
-      tester.platformDispatcher.localesTestValue = const [Locale('ja')];
-      addTearDown(tester.platformDispatcher.clearLocalesTestValue);
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-
-      expect(container.read(roomLanguageProvider), floorLanguage);
-    },
-  );
-
-  testWidgets(
-    'the room does not change language under a team already in a passage',
-    (tester) async {
-      tester.platformDispatcher.localesTestValue = const [Locale('pt')];
-      addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+      dotenv.testLoad(fileInput: 'BACKEND_URL=http://x\nDEV_PULAR_FASES=1');
+      addTearDown(() => dotenv.testLoad(fileInput: ''));
       final harness = SalaHarness(filaEmMemoria: true, lingua: null)
         ..room.passages = _livroComPanorama;
       final container = await pumpSala(tester, harness);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+      await tester.pump(const Duration(milliseconds: 300));
+      notifier.apontarPassagem(1);
+      await tester.pump(const Duration(milliseconds: 300));
+      notifier.entrarNaOferecida();
+      await tester.pump(const Duration(milliseconds: 300));
+      final session = read().sessionId;
+      notifier.leaveThePassage();
+      await tester.pump(const Duration(milliseconds: 300));
 
-      await tester.pump(const Duration(milliseconds: 300));
-      container.read(salaSessionProvider.notifier).entrarNaOferecida();
-      await tester.pump(const Duration(milliseconds: 300));
-      tester.platformDispatcher.localesTestValue = const [Locale('en')];
-      container.read(salaSessionProvider.notifier).abrirEscolha();
+      await tester.tap(find.text('idioma → pt'));
       await tester.pump(const Duration(milliseconds: 300));
 
+      expect(container.read(roomLanguageProvider), 'en');
+      expect(read().station, isA<Menu>());
       expect(
-        harness.room.languagesSent,
-        everyElement('pt'),
+        read().leftEntry?.session,
+        session,
         reason:
-            'a língua trocando no meio de uma passagem é pior do que qualquer uma das '
-            'duas — a equipe ouve metade do trecho numa e metade noutra',
+            'o botão de idioma escolhia a língua recomeçando a sala, e a volta à '
+            'passagem deixada se perdia',
       );
-      expect(harness.room.languagesAsked, everyElement('pt'));
+      expect(harness.room.sessionIds, hasLength(1));
+    },
+  );
+
+  test('a language the room does not speak is never chosen', () async {
+    final chosen = FakeRoomLanguageLedger();
+    final it = _aTabletWithNothingChosen(chosen: chosen);
+    await it.sala.abrirEscolha();
+    await settle();
+
+    it.sala.chooseTheLanguage('ja');
+    await settle();
+
+    expect(it.container.read(roomLanguageProvider), 'pt');
+    expect(chosen.chosen, isNull);
+    expect(it.harness.room.languagesAsked, isNot(contains('ja')));
+  });
+
+  test(
+    'the Panorama left in Portuguese comes back in Portuguese, and a new tap after '
+    '«EN» opens an English one',
+    () async {
+      final harness = SalaHarness(lingua: null)
+        ..room.passages = _livroComPanorama;
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final it = Sala(harness, container);
+      await enterThePanorama(it.sala, () => it.estado);
+      await waitFor('the Panorama to be said', () => it.estado.panoramaSaid);
+      await _leftForTheChoice(it);
+      await _choose(it, 'en');
+
+      await enterThePanorama(it.sala, () => it.estado);
+      await waitFor(
+        'a Panorama session to be asked for',
+        () => harness.room.languagesSent.length == 2,
+      );
+
+      expect(harness.room.languagesSent, ['pt', 'en']);
+    },
+  );
+
+  test(
+    'the room language chosen on one launch is the one the next launch reads',
+    () async {
+      final home = Directory.systemTemp.createTempSync('sala-lingua');
+      addTearDown(() => home.deleteSync(recursive: true));
+      final first = await RoomLanguageLedger.read(home: () async => home);
+
+      expect(first.chosen, isNull);
+
+      await first.choose('en');
+      final again = await RoomLanguageLedger.read(home: () async => home);
+
+      expect(again.chosen, 'en');
     },
   );
 
@@ -175,256 +492,91 @@ void main() {
     timeout: const Timeout(Duration(minutes: 2)),
   );
 
-  test(
-    'the dev knob walks the languages the room claims and comes back round',
-    () {
-      final container = SalaHarness(lingua: null).container();
-      addTearDown(container.dispose);
-      final knob = container.read(devLanguageProvider.notifier);
-
-      final walked = <String>[];
-      var standing = languages.first;
-      for (var step = 0; step < languages.length; step++) {
-        standing = knob.next(standing);
-        walked.add(standing);
-      }
-
-      expect(walked.toSet(), languages.toSet());
-      expect(
-        standing,
-        languages.first,
-        reason:
-            'o botão precisa voltar ao começo, senão dá para ficar preso num idioma',
-      );
-    },
-  );
-
-  test('the dev knob is refused a language the room does not speak', () {
-    dotenv.testLoad(fileInput: 'BACKEND_URL=http://x\nDEV_PULAR_FASES=1');
-    addTearDown(() => dotenv.testLoad(fileInput: ''));
-    final container = SalaHarness(lingua: null).container();
-    addTearDown(container.dispose);
-
-    container.read(devLanguageProvider.notifier).choose('ja');
+  test('the language nobody approved is neither claimed nor bundled', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
 
     expect(
-      container.read(devLanguageProvider),
-      isNull,
+      languages,
+      isNot(contains('es')),
       reason:
-          'a sala pediria ao servidor um idioma que ele recusa, e a passagem não abre',
+          'a sala reivindicava espanhol sem que ninguém tivesse aprovado a língua, '
+          'e um tablet em espanhol ouvia dezessete falas que o próprio arquivo dizia '
+          'serem rascunho',
+    );
+    await expectLater(
+      rootBundle.loadString('assets/audio/es/manifest.json'),
+      throwsA(anything),
+      reason:
+          'os clipes em espanhol continuavam embarcados, então bastava a lista de '
+          'idiomas voltar a citá-los para a equipe ouvir rascunho de novo',
     );
   });
 
-  testWidgets(
-    'changing the language in dev opens a new room rather than moving this one',
-    (tester) async {
-      dotenv.testLoad(fileInput: 'BACKEND_URL=http://x\nDEV_PULAR_FASES=1');
-      addTearDown(() => dotenv.testLoad(fileInput: ''));
-      tester.platformDispatcher.localesTestValue = const [Locale('pt')];
-      addTearDown(tester.platformDispatcher.clearLocalesTestValue);
-      final harness = SalaHarness(filaEmMemoria: true, lingua: null)
-        ..room.passages = _livroComPanorama;
-      final container = await pumpSala(tester, harness);
-      final notifier = container.read(salaSessionProvider.notifier);
+  testWidgets('the one screen a person reads is in the room language', (
+    tester,
+  ) async {
+    const showing = ClaimCode(deviceId: 'aparelho-1', code: 'QHF-3M7K');
+    const expected = {
+      'pt': 'Mostre este código ao facilitador',
+      'en': 'Show this code to the facilitator',
+    };
 
-      await tester.pump(const Duration(milliseconds: 300));
-      notifier.entrarNaOferecida();
-      await tester.pump(const Duration(milliseconds: 300));
-      final antes = [...harness.room.languagesSent];
-      notifier.devTrocarIdioma();
-      await tester.pump(const Duration(milliseconds: 400));
-
-      expect(container.read(roomLanguageProvider), isNot('pt'));
-      expect(
-        harness.room.languagesSent.take(antes.length),
-        everyElement('pt'),
-        reason:
-            'a sessão que já existia não pode passar a responder noutra língua — '
-            'trocar o idioma abre uma sala nova, nunca move a que está aberta',
-      );
-      expect(
-        container.read(salaSessionProvider).sessionId,
-        isNull,
-        reason:
-            'trocar o idioma sem largar a sessão deixaria a equipe ouvindo metade '
-            'da passagem numa língua e metade noutra',
-      );
-    },
-  );
-
-  test(
-    'the dev language button on the wheel restarts the room, even after the panorama was said',
-    () async {
-      dotenv.testLoad(fileInput: 'BACKEND_URL=http://x\nDEV_PULAR_FASES=1');
-      addTearDown(() => dotenv.testLoad(fileInput: ''));
-      final binding = TestWidgetsFlutterBinding.ensureInitialized();
-      binding.platformDispatcher.localesTestValue = const [Locale('pt', 'BR')];
-      addTearDown(binding.platformDispatcher.clearLocalesTestValue);
-      final harness = SalaHarness(lingua: null)
-        ..room.passages = _livroComPanorama;
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-      SalaSessionState read() => container.read(salaSessionProvider);
-
-      await enterThePanorama(notifier, read);
-      await waitFor('o panorama ser dito', () => read().panoramaSaid);
-      await notifier.abrirEscolha();
-      await settle();
-      expect(container.read(salaSessionProvider).stage, SalaStage.escolha);
-      expect(harness.room.languagesAsked, everyElement('pt'));
-
-      notifier.devTrocarIdioma();
-      await settle();
-
-      expect(
-        container.read(salaSessionProvider).voice,
-        isNot(VoiceState.thinking),
-        reason:
-            'o botão recomeça a sala; ficar pensando para sempre deixaria uma '
-            'sessão nova abandonada no servidor',
-      );
-      expect(
-        container.read(salaSessionProvider).stage,
-        SalaStage.escolha,
-        reason:
-            'a dica do botão promete recomeçar a sala — na roda, é a roda que '
-            'volta, na língua nova',
-      );
-      expect(harness.room.languagesAsked.last, 'en');
-      expect(
-        harness.room.sessionIds,
-        hasLength(1),
-        reason:
-            'na roda não há panorama para reabrir; a sessão nova é pedida '
-            'quando a equipe tocar o panorama de novo',
-      );
-    },
-  );
-
-  test(
-    'the dev language button on the Panorama restarts the room on the Choice in '
-    'the new language',
-    () async {
-      dotenv.testLoad(fileInput: 'BACKEND_URL=http://x\nDEV_PULAR_FASES=1');
-      addTearDown(() => dotenv.testLoad(fileInput: ''));
-      final binding = TestWidgetsFlutterBinding.ensureInitialized();
-      binding.platformDispatcher.localesTestValue = const [Locale('pt', 'BR')];
-      addTearDown(binding.platformDispatcher.clearLocalesTestValue);
-      final harness = SalaHarness(lingua: null)
-        ..room.passages = _livroComPanorama;
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-      SalaSessionState read() => container.read(salaSessionProvider);
-      await enterThePanorama(notifier, read);
-      await waitFor('o panorama ser dito', () => read().panoramaSaid);
-
-      notifier.devTrocarIdioma();
-      await waitFor('a roda voltar', () => read().naRoda != null);
-
-      expect(read().station, isA<Menu>());
-      expect(harness.room.languagesAsked.last, 'en');
-    },
-  );
-
-  test(
-    'a tablet set to the language nobody approved opens the room in English',
-    () async {
-      TestWidgetsFlutterBinding.ensureInitialized();
-
-      expect(
-        languages,
-        isNot(contains('es')),
-        reason:
-            'a sala reivindicava espanhol sem que ninguém tivesse aprovado a língua, '
-            'e um tablet em espanhol ouvia dezessete falas que o próprio arquivo dizia '
-            'serem rascunho',
-      );
-      expect(
-        languageFor(['es']),
-        floorLanguage,
-        reason:
-            'um tablet numa língua que a sala não fala tem de abrir, não parar — o '
-            'piso existe para isso',
-      );
-      await expectLater(
-        rootBundle.loadString('assets/audio/es/manifest.json'),
-        throwsA(anything),
-        reason:
-            'os clipes em espanhol continuavam embarcados, então bastava a lista de '
-            'idiomas voltar a citá-los para a equipe ouvir rascunho de novo',
-      );
-    },
-  );
-
-  testWidgets(
-    'the one screen a person reads is in the language they set the tablet to',
-    (tester) async {
-      const showing = ClaimCode(deviceId: 'aparelho-1', code: 'QHF-3M7K');
-      const expected = {
-        'pt': 'Mostre este código ao facilitador',
-        'en': 'Show this code to the facilitator',
-      };
-
-      for (final language in languages) {
-        await tester.pumpWidget(const SizedBox.shrink());
-        await tester.pumpWidget(
-          MaterialApp(
-            theme: AppTheme.light,
-            home: Scaffold(
-              body: CodigoView(code: showing, language: language),
-            ),
+    for (final language in languages) {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: Scaffold(
+            body: CodigoView(code: showing, language: language),
           ),
-        );
-        await tester.pump(const Duration(milliseconds: 80));
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 80));
 
-        expect(
-          byLabel(expected[language]!),
-          findsOneWidget,
-          reason:
-              'o facilitador lê esta tela uma vez, na instalação — num aparelho que ele '
-              'configurou, numa língua que ele não escolheu, não dá para saber se ainda '
-              'está esperando ou se já pode digitar',
-        );
-        expect(
-          find.byType(Text),
-          findsOneWidget,
-          reason: 'o código é a única palavra escrita que a sala mostra',
-        );
-      }
-    },
-  );
+      expect(
+        byLabel(expected[language]!),
+        findsOneWidget,
+        reason:
+            'o facilitador lê esta tela uma vez, na instalação — num aparelho que ele '
+            'configurou, numa língua que ele não escolheu, não dá para saber se ainda '
+            'está esperando ou se já pode digitar',
+      );
+      expect(
+        find.byType(Text),
+        findsOneWidget,
+        reason: 'o código é a única palavra escrita que a sala mostra',
+      );
+    }
+  });
 
-  testWidgets(
-    'the screen waiting for a code is in the language they set the tablet to',
-    (tester) async {
-      const expected = {
-        'pt': 'A sala está preparando o código deste aparelho',
-        'en': 'The room is getting a code for this tablet',
-      };
+  testWidgets('the screen waiting for a code is in the room language', (
+    tester,
+  ) async {
+    const expected = {
+      'pt': 'A sala está preparando o código deste aparelho',
+      'en': 'The room is getting a code for this tablet',
+    };
 
-      for (final language in languages) {
-        await tester.pumpWidget(const SizedBox.shrink());
-        await tester.pumpWidget(
-          MaterialApp(
-            theme: AppTheme.light,
-            home: Scaffold(body: CodigoView(language: language)),
-          ),
-        );
-        await tester.pump(const Duration(milliseconds: 80));
+    for (final language in languages) {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: Scaffold(body: CodigoView(language: language)),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 80));
 
-        expect(
-          byLabel(expected[language]!),
-          findsOneWidget,
-          reason:
-              'esta tela falava as duas línguas por um switch próprio, que o guard '
-              'de completude não via; este teste é a cobertura que faltava, não '
-              'o conserto de uma tela muda',
-        );
-      }
-    },
-  );
+      expect(
+        byLabel(expected[language]!),
+        findsOneWidget,
+        reason:
+            'esta tela falava as duas línguas por um switch próprio, que o guard '
+            'de completude não via; este teste é a cobertura que faltava, não '
+            'o conserto de uma tela muda',
+      );
+    }
+  });
 
   test('the código screen names no language of its own, in any spelling', () {
     final source = File(

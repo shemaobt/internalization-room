@@ -22,6 +22,7 @@ void main() {
       await ledger.remember(
         'Ruth',
         'P03',
+        'pt',
         ResumePoint(
           sessionId: 'sessao-1',
           stage: SalaStage.ensaio,
@@ -33,7 +34,7 @@ void main() {
         ),
       );
 
-      final back = await ledger.of('Ruth', 'P03');
+      final back = await ledger.of('Ruth', 'P03', 'pt');
 
       expect(back, isNotNull);
       expect(back!.sessionId, 'sessao-1');
@@ -65,6 +66,7 @@ void main() {
     await ledger.remember(
       'Ruth',
       'P03',
+      'pt',
       ResumePoint(
         sessionId: 'sessao-1',
         stage: SalaStage.ensaio,
@@ -75,7 +77,7 @@ void main() {
       ),
     );
 
-    final back = await ledger.of('Ruth', 'P03');
+    final back = await ledger.of('Ruth', 'P03', 'pt');
 
     expect(
       [for (final take in back!.takes) take.pass],
@@ -98,7 +100,7 @@ void main() {
         ..createSync(recursive: true);
       Directory('${home.path}/guardadas').createSync(recursive: true);
       File('${home.path}/guardadas/em_curso.json').writeAsStringSync(
-        '{"Ruth/P03":{"session_id":"sessao-antiga","stage":"ensaio","pass":2,'
+        '{"Ruth/P03":{"session_id":"sessao-antiga","language":"pt","stage":"ensaio","pass":2,'
         '"takes":[{"name":"p1.m4a","scope":"parte-1"},'
         '{"name":"p2.m4a","scope":"parte-2"}]}}',
       );
@@ -107,7 +109,7 @@ void main() {
         recordings: () async => gravacoes,
       );
 
-      final back = await ledger.of('Ruth', 'P03');
+      final back = await ledger.of('Ruth', 'P03', 'pt');
 
       expect(
         [for (final take in back!.takes) take.pass],
@@ -134,6 +136,7 @@ void main() {
       await ledger.remember(
         'Ruth',
         'P03',
+        'pt',
         ResumePoint(
           sessionId: 'sessao-antiga',
           stage: SalaStage.ensaio,
@@ -143,7 +146,7 @@ void main() {
         ),
       );
 
-      final back = await ledger.of('Ruth', 'P03');
+      final back = await ledger.of('Ruth', 'P03', 'pt');
 
       expect(back!.takes.single.scopeId, KeptScope.whole);
     },
@@ -160,7 +163,7 @@ void main() {
     // The shape the shipped app writes: the whole path, under a prefix this tablet no
     // longer has.
     File('${home.path}/guardadas/em_curso.json').writeAsStringSync(
-      '{"Ruth/P03":{"session_id":"sessao-antiga","stage":"ensaio","pass":1,'
+      '{"Ruth/P03":{"session_id":"sessao-antiga","language":"pt","stage":"ensaio","pass":1,'
       '"takes":[{"path":"/var/mobile/Containers/Data/velho/recordings/p1.m4a",'
       '"scope":"parte-1"}]}}',
     );
@@ -169,7 +172,7 @@ void main() {
       recordings: () async => gravacoes,
     );
 
-    final back = await ledger.of('Ruth', 'P03');
+    final back = await ledger.of('Ruth', 'P03', 'pt');
 
     expect(back!.takes.single.path, '${gravacoes.path}/p1.m4a');
   });
@@ -256,18 +259,121 @@ void main() {
     await ledger.remember(
       'Ruth',
       'P01',
+      'pt',
       const ResumePoint(sessionId: 'sessao-2', stage: SalaStage.conversa),
     );
     await ledger.remember(
       'Ruth',
       'P02',
+      'pt',
       const ResumePoint(sessionId: 'sessao-1', stage: SalaStage.conversa),
     );
 
     final forgotten = await ledger.forgetTheSession('sessao-1');
 
     expect(forgotten.map((row) => row.sessionId), ['sessao-1']);
-    expect((await ledger.of('Ruth', 'P01'))?.sessionId, 'sessao-2');
-    expect(await ledger.of('Ruth', 'P02'), isNull);
+    expect((await ledger.of('Ruth', 'P01', 'pt'))?.sessionId, 'sessao-2');
+    expect(await ledger.of('Ruth', 'P02', 'pt'), isNull);
+  });
+
+  group('a Resume point is kept per passage and language', () {
+    late Directory home;
+    late WorkInProgress ledger;
+    File file() => File('${home.path}/guardadas/em_curso.json');
+
+    setUp(() {
+      home = Directory.systemTemp.createTempSync('sala-em-curso-lingua');
+      ledger = WorkInProgress(
+        home: () async => home,
+        recordings: () async => home,
+      );
+    });
+    tearDown(() => home.deleteSync(recursive: true));
+
+    test('one passage keeps a Portuguese and an English place', () async {
+      await ledger.remember(
+        'Ruth',
+        'P01',
+        'pt',
+        const ResumePoint(sessionId: 'sessao-pt', stage: SalaStage.ensaio),
+      );
+      await ledger.remember(
+        'Ruth',
+        'P01',
+        'en',
+        const ResumePoint(sessionId: 'sessao-en', stage: SalaStage.conversa),
+      );
+
+      expect((await ledger.of('Ruth', 'P01', 'pt'))?.sessionId, 'sessao-pt');
+      expect((await ledger.of('Ruth', 'P01', 'en'))?.sessionId, 'sessao-en');
+    });
+
+    test('forgetting the English place leaves the Portuguese one', () async {
+      await ledger.remember(
+        'Ruth',
+        'P01',
+        'pt',
+        const ResumePoint(sessionId: 'sessao-pt', stage: SalaStage.ensaio),
+      );
+      await ledger.remember(
+        'Ruth',
+        'P01',
+        'en',
+        const ResumePoint(sessionId: 'sessao-en', stage: SalaStage.conversa),
+      );
+
+      await ledger.forget('Ruth', 'P01', 'en');
+
+      expect(await ledger.of('Ruth', 'P01', 'en'), isNull);
+      expect((await ledger.of('Ruth', 'P01', 'pt'))?.sessionId, 'sessao-pt');
+    });
+
+    test(
+      'a row the shipped app wrote is read as its language\'s row and left as it '
+      'was until the team moves on',
+      () async {
+        Directory('${home.path}/guardadas').createSync(recursive: true);
+        const shipped =
+            '{"Ruth/P01":{"session_id":"sessao-antiga","stage":"ensaio",'
+            '"language":"pt","takes":[]}}';
+        file().writeAsStringSync(shipped);
+
+        expect(
+          (await ledger.of('Ruth', 'P01', 'pt'))?.sessionId,
+          'sessao-antiga',
+        );
+        expect(await ledger.of('Ruth', 'P01', 'en'), isNull);
+        expect(await ledger.startedIn('Ruth'), {'P01'});
+        expect(file().readAsStringSync(), shipped);
+
+        await ledger.remember(
+          'Ruth',
+          'P01',
+          'pt',
+          const ResumePoint(sessionId: 'sessao-antiga', stage: SalaStage.retro),
+        );
+
+        expect(
+          (await ledger.of('Ruth', 'P01', 'pt'))?.stage,
+          SalaStage.retro,
+          reason:
+              'a linha antiga não pode voltar a responder depois de a equipe ter '
+              'avançado',
+        );
+        expect(await ledger.of('Ruth', 'P01', 'en'), isNull);
+        expect(await ledger.startedIn('Ruth'), {'P01'});
+      },
+    );
+
+    test('a row with no language answers for no language', () async {
+      Directory('${home.path}/guardadas').createSync(recursive: true);
+      file().writeAsStringSync(
+        '{"Ruth/P01":{"session_id":"sessao-sem-lingua","stage":"ensaio",'
+        '"takes":[]}}',
+      );
+
+      expect(await ledger.of('Ruth', 'P01', 'pt'), isNull);
+      expect(await ledger.of('Ruth', 'P01', 'en'), isNull);
+    });
   });
 }

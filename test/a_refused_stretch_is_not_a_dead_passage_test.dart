@@ -88,7 +88,7 @@ class _Retomada {
   SalaSessionState get estado => container.read(salaSessionProvider);
 
   String get linhaAgora =>
-      jsonEncode(harness.emAberto.rows['Ruth/P01']?.toJson());
+      jsonEncode(harness.emAberto.rows['Ruth/P01/pt']?.toJson());
 }
 
 /// A passage picked back up in the back-translation on a tablet that holds none of its
@@ -110,7 +110,7 @@ Future<_Retomada> _retomadaNaRetro(SalaHarness harness) async {
         ),
     ],
   );
-  harness.emAberto.rows['Ruth/P01'] = linha;
+  harness.emAberto.rows['Ruth/P01/pt'] = linha;
   harness.playback.measured = _parte;
   harness.room
     ..retroSoFar = BackTranslationProgress(
@@ -250,7 +250,7 @@ void main() {
       );
       await waitFor(
         'a sessão sumida não deixar onde retomar',
-        () async => await harness.emAberto.of('Ruth', 'P01') == null,
+        () async => await harness.emAberto.of('Ruth', 'P01', 'pt') == null,
       );
 
       expect(

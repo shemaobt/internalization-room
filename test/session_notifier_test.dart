@@ -170,7 +170,7 @@ Future<ProviderContainer> inConversaWithoutPausing(SalaHarness harness) async {
 Future<ProviderContainer> inTheChoiceWithAResumePoint(
   SalaHarness harness,
 ) async {
-  harness.emAberto.rows['Ruth/P01'] = const ResumePoint(
+  harness.emAberto.rows['Ruth/P01/pt'] = const ResumePoint(
     sessionId: 'sessao-velha',
     stage: SalaStage.retro,
   );
@@ -289,7 +289,7 @@ void main() {
       '${Directory.systemTemp.createTempSync('sala-retomada').path}/p1.m4a',
     )..writeAsBytesSync([1, 2, 3]);
     addTearDown(() => gravada.parent.deleteSync(recursive: true));
-    harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+    harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
       sessionId: 'sessao-antiga',
       stage: SalaStage.ensaio,
       takes: [KeptTake(scopeId: KeptScope.parte(1), path: gravada.path)],
@@ -335,7 +335,7 @@ void main() {
           ),
       ];
       File(partes[1].path).deleteSync();
-      harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+      harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
         sessionId: 'sessao-antiga',
         stage: SalaStage.ensaio,
         takes: partes,
@@ -380,7 +380,7 @@ void main() {
       '${Directory.systemTemp.createTempSync('sala-semana-passada').path}/p1.m4a',
     )..writeAsBytesSync([1, 2, 3]);
     addTearDown(() => gravada.parent.deleteSync(recursive: true));
-    harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+    harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
       sessionId: 'sessao-velha',
       stage: SalaStage.ensaio,
       takes: [KeptTake(scopeId: KeptScope.parte(1), path: gravada.path)],
@@ -420,7 +420,7 @@ void main() {
           'pedir uma sessão nova aqui deixa órfã a que guarda tudo o '
           'que a equipe contou',
     );
-    expect(harness.emAberto.rows['Ruth/P01']?.sessionId, 'sessao-velha');
+    expect(harness.emAberto.rows['Ruth/P01/pt']?.sessionId, 'sessao-velha');
   });
 
   test(
@@ -431,7 +431,7 @@ void main() {
         '${Directory.systemTemp.createTempSync('sala-recomeco').path}/p1.m4a',
       )..writeAsBytesSync([1, 2, 3]);
       addTearDown(() => gravada.parent.deleteSync(recursive: true));
-      harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+      harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
         sessionId: 'sessao-antiga',
         stage: SalaStage.retro,
         takes: [
@@ -564,7 +564,7 @@ void main() {
     'a session held through one refusal is dropped after the second, not kept forever',
     () async {
       final harness = SalaHarness();
-      harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+      harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
         sessionId: 'sessao-velha',
         stage: SalaStage.conversa,
         savedAt: DateTime.now(),
@@ -580,7 +580,7 @@ void main() {
       await settle();
 
       expect(
-        harness.emAberto.rows['Ruth/P01']?.sessionId,
+        harness.emAberto.rows['Ruth/P01/pt']?.sessionId,
         'sessao-velha',
         reason:
             'uma única recusa é passageira — não é motivo para abandonar o id',
@@ -590,7 +590,7 @@ void main() {
       await settle();
 
       expect(
-        harness.emAberto.rows.containsKey('Ruth/P01'),
+        harness.emAberto.rows.containsKey('Ruth/P01/pt'),
         isFalse,
         reason:
             'duas recusas seguidas numa sessão retomada prendiam o aparelho a '
@@ -605,7 +605,7 @@ void main() {
       '${Directory.systemTemp.createTempSync('sala-passagem-anterior').path}/p1.m4a',
     )..writeAsBytesSync([1, 2, 3]);
     addTearDown(() => gravada.parent.deleteSync(recursive: true));
-    harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+    harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
       sessionId: 'sessao-antiga',
       stage: SalaStage.retro,
       takes: [
@@ -707,13 +707,13 @@ void main() {
         '${Directory.systemTemp.createTempSync('sala-outra-lingua').path}/p2.m4a',
       )..writeAsBytesSync([1, 2, 3]);
       addTearDown(() => gravada.parent.deleteSync(recursive: true));
-      harness.emAberto.rows['Ruth/P02'] = ResumePoint(
+      harness.emAberto.rows['Ruth/P02/en'] = ResumePoint(
         sessionId: 'sessao-p02',
         stage: SalaStage.ensaio,
         savedAt: DateTime.now(),
         takes: [KeptTake(scopeId: KeptScope.parte(1), path: gravada.path)],
       );
-      harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+      harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
         sessionId: 'sessao-pt',
         stage: SalaStage.conversa,
         savedAt: DateTime.now(),
@@ -768,7 +768,7 @@ void main() {
 
     notifier.goEnsaio();
 
-    final row = harness.emAberto.rows['Ruth/P01'];
+    final row = harness.emAberto.rows['Ruth/P01/en'];
     expect(
       row?.language,
       'en',
@@ -3555,7 +3555,7 @@ void main() {
 
   test('two calm turns bring a failure back down before a person is needed', () async {
     final harness = SalaHarness();
-    harness.emAberto.rows['Ruth/P01'] = const ResumePoint(
+    harness.emAberto.rows['Ruth/P01/pt'] = const ResumePoint(
       sessionId: 'sessao-velha',
       stage: SalaStage.retro,
     );
@@ -3602,7 +3602,7 @@ void main() {
   test('a resume with nothing to restore whose opening the room refuses rests '
       'at the invite', () async {
     final harness = SalaHarness();
-    harness.emAberto.rows['Ruth/P01'] = const ResumePoint(
+    harness.emAberto.rows['Ruth/P01/pt'] = const ResumePoint(
       sessionId: 'sessao-velha',
       stage: SalaStage.conversa,
     );
@@ -3767,7 +3767,7 @@ void main() {
     'two visible server errors across an offline episode still fall short of a person',
     () async {
       final harness = SalaHarness(watchesWithoutAHalt: true);
-      harness.emAberto.rows['Ruth/P01'] = const ResumePoint(
+      harness.emAberto.rows['Ruth/P01/pt'] = const ResumePoint(
         sessionId: 'sessao-velha',
         stage: SalaStage.retro,
       );
@@ -5711,7 +5711,7 @@ void main() {
     final harness = SalaHarness();
     final gravadas = Directory.systemTemp.createTempSync('sala-ensaio-passada');
     addTearDown(() => gravadas.deleteSync(recursive: true));
-    harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+    harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
       sessionId: 'sessao-regravada',
       stage: SalaStage.ensaio,
       takes: [

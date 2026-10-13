@@ -418,7 +418,7 @@ void main() {
     harness.playback
       ..measured = parte
       ..length = parte;
-    harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+    harness.emAberto.rows['Ruth/P01/${harness.lingua}'] = ResumePoint(
       sessionId: 'sessao-antiga',
       stage: SalaStage.retro,
       takes: [
@@ -612,7 +612,7 @@ void main() {
     harness.playback
       ..measured = parte
       ..length = parte;
-    harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+    harness.emAberto.rows['Ruth/P01/${harness.lingua}'] = ResumePoint(
       sessionId: 'sessao-antiga',
       stage: SalaStage.retro,
       takes: [

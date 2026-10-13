@@ -23,7 +23,7 @@ Future<ProviderContainer> _retomar(
 }) async {
   final casa = Directory.systemTemp.createTempSync('sala-retro-no-cursor');
   addTearDown(() => casa.deleteSync(recursive: true));
-  harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: SalaStage.retro,
     takes: [
