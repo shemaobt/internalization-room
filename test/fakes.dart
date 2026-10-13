@@ -753,8 +753,9 @@ class FakeWorkInProgress implements WorkInProgress {
 
   @override
   Future<Set<String>> startedIn(String book, String language) async => {
-    for (final key in rows.keys)
-      if (key.startsWith('$book/') && key.endsWith('/$language'))
+    for (final MapEntry(:key, :value) in rows.entries)
+      if (key.startsWith('$book/') &&
+          (key.endsWith('/$language') || value.language == language))
         key.split('/')[1],
   };
 

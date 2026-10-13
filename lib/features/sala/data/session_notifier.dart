@@ -2279,8 +2279,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchBusyState();
     // Only the passages the wheel already said have work waiting are looked up on disk,
     // so entering a fresh one through the wheel costs no read at all. A door the room
-    // opened has no wheel behind it — the list is still empty before the Choice reads
-    // it — so the row is looked up there whatever the list says (ADR 0033).
+    // opened, and an entry that brings its own language (the way back, a retry, a
+    // relaunch), have no wheel of that language behind them, so the row is looked up
+    // there whatever the list says (ADR 0033, ADR 0077).
     final waiting =
         !fresh &&
             pericope != null &&
