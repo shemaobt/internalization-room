@@ -18,4 +18,16 @@ void main() {
       );
     },
   );
+
+  test(
+    'the dark halo is her terracotta at the strength it had, not the old one\'s',
+    () {
+      expect(
+        _installed(AppTheme.dark).halo,
+        const Color(0x73D6612A),
+        reason:
+            'o halo era o laranja antigo a 45%, e o terracota agora é outro',
+      );
+    },
+  );
 }
