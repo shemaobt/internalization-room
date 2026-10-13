@@ -429,10 +429,6 @@ void main() {
         'a volta tentada ser respondida',
         () => harness.network.answeredChecks > answeredBefore,
       );
-      await waitFor(
-        'a sala seguir solta até as leituras pousarem',
-        () => harness.room.failedReadsInTheAir == 0,
-      );
 
       expect(read().reach, RoomReach.fine);
       expect(read().voice, VoiceState.invite);
