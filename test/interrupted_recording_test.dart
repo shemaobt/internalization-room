@@ -245,16 +245,29 @@ void main() {
     },
   );
 
-  test('a capture keeps the plugin\'s own sample rate', () async {
+  test('a capture keeps the plugin\'s own sample rate and bit rate', () async {
     final recording = RecordingRepository();
     addTearDown(recording.dispose);
 
     await recording.start('retro_passada1_pedaco1', owner: MicOwner.capture);
 
     expect(
-      microphone.openedWith?.sampleRate,
-      44100,
+      [microphone.openedWith?.sampleRate, microphone.openedWith?.bitRate],
+      [44100, 128000],
       reason: 'o contar de volta abre como antes; só a conversa encolheu',
+    );
+  });
+
+  test('a question keeps the plugin\'s own sample rate and bit rate', () async {
+    final recording = RecordingRepository();
+    addTearDown(recording.dispose);
+
+    await recording.start('pergunta_1', owner: MicOwner.question);
+
+    expect(
+      [microphone.openedWith?.sampleRate, microphone.openedWith?.bitRate],
+      [44100, 128000],
+      reason: 'a pergunta da mão sobe como antes; só a conversa encolheu',
     );
   });
 
