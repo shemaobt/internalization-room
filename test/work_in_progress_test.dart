@@ -343,7 +343,7 @@ void main() {
           'sessao-antiga',
         );
         expect(await ledger.of('Ruth', 'P01', 'en'), isNull);
-        expect(await ledger.startedIn('Ruth'), {'P01'});
+        expect(await ledger.startedIn('Ruth', 'pt'), {'P01'});
         expect(file().readAsStringSync(), shipped);
 
         await ledger.remember(
@@ -361,7 +361,7 @@ void main() {
               'avançado',
         );
         expect(await ledger.of('Ruth', 'P01', 'en'), isNull);
-        expect(await ledger.startedIn('Ruth'), {'P01'});
+        expect(await ledger.startedIn('Ruth', 'pt'), {'P01'});
       },
     );
 
@@ -374,6 +374,52 @@ void main() {
 
       expect(await ledger.of('Ruth', 'P01', 'pt'), isNull);
       expect(await ledger.of('Ruth', 'P01', 'en'), isNull);
+      expect(await ledger.startedIn('Ruth', 'pt'), isEmpty);
+      expect(await ledger.startedIn('Ruth', 'en'), isEmpty);
+    });
+
+    test(
+      'a passage is started only in the languages it has a place in',
+      () async {
+        Directory('${home.path}/guardadas').createSync(recursive: true);
+        file().writeAsStringSync(
+          '{"Ruth/P03":{"session_id":"sessao-antiga","stage":"ensaio",'
+          '"language":"en","takes":[]}}',
+        );
+        await ledger.remember(
+          'Ruth',
+          'P01',
+          'pt',
+          const ResumePoint(sessionId: 'sessao-pt', stage: SalaStage.ensaio),
+        );
+        await ledger.remember(
+          'Ruth',
+          'P02',
+          'en',
+          const ResumePoint(sessionId: 'sessao-en', stage: SalaStage.ensaio),
+        );
+
+        expect(await ledger.startedIn('Ruth', 'pt'), {'P01'});
+        expect(await ledger.startedIn('Ruth', 'en'), {'P02', 'P03'});
+      },
+    );
+
+    test('closing a passage clears its row with no language too', () async {
+      Directory('${home.path}/guardadas').createSync(recursive: true);
+      file().writeAsStringSync(
+        '{"Ruth/P01":{"session_id":"sessao-sem-lingua","stage":"ensaio",'
+        '"takes":[]}}',
+      );
+      await ledger.remember(
+        'Ruth',
+        'P01',
+        'pt',
+        const ResumePoint(sessionId: 'sessao-pt', stage: SalaStage.retro),
+      );
+
+      await ledger.forget('Ruth', 'P01', 'pt');
+
+      expect(file().readAsStringSync(), '{}');
     });
   });
 }

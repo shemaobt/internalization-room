@@ -144,7 +144,7 @@ class WorkInProgress {
     for (final entry in rows.entries)
       if (entry.key != _mark(book, pericope, language) &&
           !(entry.key == _shipped(book, pericope) &&
-              entry.value.language == language))
+              (entry.value.language ?? language) == language))
         entry.key: entry.value,
   };
 
@@ -172,9 +172,11 @@ class WorkInProgress {
   }
 
   /// The passages of this book with work waiting in them.
-  Future<Set<String>> startedIn(String book) async => {
-    for (final key in (await _rows()).keys)
-      if (key.startsWith('$book/')) key.split('/')[1],
+  Future<Set<String>> startedIn(String book, String language) async => {
+    for (final MapEntry(:key, :value) in (await _rows()).entries)
+      if (key.startsWith('$book/') &&
+          (key.endsWith('/$language') || value.language == language))
+        key.split('/')[1],
   };
 
   Future<ResumePoint?> of(String book, String pericope, String language) async {

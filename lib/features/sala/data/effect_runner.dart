@@ -247,6 +247,8 @@ class EffectRunner {
           host.handOver(effect);
         case OpenTheChoice():
           host.handOver(effect);
+        case ReadTheWheel():
+          host.handOver(effect);
         case SayTheOfflineNotice():
           _sayTheOfflineNotice();
         case LookAtTheSession(:final turn, :final sounding):

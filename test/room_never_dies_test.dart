@@ -1544,7 +1544,7 @@ void main() {
 
     notifier.goEnsaio();
     await settle();
-    expect(await harness.emAberto.startedIn('Ruth'), contains('P01'));
+    expect(await harness.emAberto.startedIn('Ruth', 'pt'), contains('P01'));
 
     notifier.ensaioTap();
     notifier.ensaioTap();
@@ -1560,7 +1560,7 @@ void main() {
     await settle(const Duration(milliseconds: 900));
 
     expect(
-      await harness.emAberto.startedIn('Ruth'),
+      await harness.emAberto.startedIn('Ruth', 'pt'),
       isEmpty,
       reason:
           'uma passagem aprovada não é trabalho em aberto — conferida '

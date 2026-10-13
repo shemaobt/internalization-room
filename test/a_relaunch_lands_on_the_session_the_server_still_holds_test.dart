@@ -276,10 +276,11 @@ void main() {
         'the place of the lost session to leave the tablet',
         () async => !(await again.harness.emAbertoNoDisco!.startedIn(
           'Ruth',
+          'pt',
         )).contains('P01'),
       );
       expect(
-        await again.harness.emAbertoNoDisco!.startedIn('Ruth'),
+        await again.harness.emAbertoNoDisco!.startedIn('Ruth', 'pt'),
         isNot(contains('P01')),
       );
 

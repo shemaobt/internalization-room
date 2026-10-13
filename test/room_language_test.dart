@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -8,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/features/sala/data/room_language_ledger.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -370,9 +372,51 @@ void main() {
     },
   );
 
+  test(
+    'the Wheel on screen is the one read in the language now chosen, however late '
+    'an earlier read lands',
+    () async {
+      const portuguese = [Passagem(pericope: 'P01', audioUrl: '/voice/pt')];
+      const english = [Passagem(pericope: 'P01', audioUrl: '/voice/en')];
+      final it = _aTabletWithNothingChosen();
+      it.harness.room.passagesIn = {'pt': portuguese, 'en': english};
+      final slow = it.harness.room.holdOneWheelRead();
+      unawaited(it.sala.abrirEscolha());
+      await settle();
+
+      it.sala.chooseTheLanguage('en');
+      await waitFor(
+        'the English Wheel to be read',
+        () => it.harness.room.languagesAsked.contains('en'),
+      );
+      await settle();
+      slow.complete();
+      await waitFor(
+        'the Portuguese read to land',
+        () => it.harness.room.languagesAsked.contains('pt'),
+      );
+      await settle();
+
+      expect(it.estado.naRoda, english);
+    },
+  );
+
+  test('a passage with only an English place is not started on the Portuguese '
+      'Wheel', () async {
+    final it = _aTabletWithNothingChosen();
+    it.harness.emAberto.rows['Ruth/P02/en'] = const ResumePoint(
+      sessionId: 'sessao-en',
+      stage: SalaStage.ensaio,
+    );
+
+    await it.sala.abrirEscolha();
+    await waitFor('the Wheel to be read', () => it.estado.naRoda != null);
+
+    expect(it.estado.comecadas, isNot(contains('P02')));
+  });
+
   test('a language the room does not speak is never chosen', () async {
-    final chosen = FakeRoomLanguageLedger();
-    final it = _aTabletWithNothingChosen(chosen: chosen);
+    final it = _aTabletWithNothingChosen();
     await it.sala.abrirEscolha();
     await settle();
 
@@ -380,8 +424,11 @@ void main() {
     await settle();
 
     expect(it.container.read(roomLanguageProvider), 'pt');
-    expect(chosen.chosen, isNull);
     expect(it.harness.room.languagesAsked, isNot(contains('ja')));
+
+    final (_, container) = await relaunch(it.harness, it.container);
+
+    expect(container.read(roomLanguageProvider), 'pt');
   });
 
   test(

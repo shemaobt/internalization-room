@@ -149,12 +149,16 @@ class RoomLanguage extends Notifier<String> {
     return languages.contains(chosen) ? chosen! : floorLanguage;
   }
 
-  void choose(String language) {
-    if (!languages.contains(language) || language == state) return;
+  String get next =>
+      languages[(languages.indexOf(state) + 1) % languages.length];
+
+  bool choose(String language) {
+    if (!languages.contains(language) || language == state) return false;
     state = language;
     unawaited(
       ref.read(roomLanguageLedgerProvider).choose(language).catchError((_) {}),
     );
+    return true;
   }
 }
 
@@ -1810,7 +1814,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       for (final (livro, pericope) in _toldClosed)
         if (livro == book) pericope,
     };
-    final comecadas = await open.startedIn(book);
+    final comecadas = await open.startedIn(book, _lingua);
     if (_abandoned(generation)) return;
     state = state.copyWith(
       naRoda: todas,
@@ -2278,7 +2282,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final waiting =
         !fresh &&
             pericope != null &&
-            (opened != null || state.comecadas.contains(pericope))
+            (opened != null ||
+                language != null ||
+                state.comecadas.contains(pericope))
         ? await _emAberto.of(_book, pericope, speaking)
         : null;
     if (_abandoned(generation)) return;
@@ -3225,9 +3231,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _gesture(() => _chooseTheLanguage(language));
 
   void _chooseTheLanguage(String language) {
-    final before = _lingua;
-    ref.read(roomLanguageProvider.notifier).choose(language);
-    if (_lingua != before && state.station is Menu) _handOff(_abrirEscolha());
+    if (ref.read(roomLanguageProvider.notifier).choose(language)) {
+      _dispatch(const TheLanguageChosen());
+    }
   }
 
   void goEnsaio() => _gesture(() => _goEnsaio());
@@ -5726,6 +5732,8 @@ class _NotifierHost implements StationHost {
     switch (handOff) {
       case OpenTheChoice():
         _notifier._openTheChoice();
+      case ReadTheWheel():
+        _notifier._handOff(_notifier.abrirEscolha());
       case DiscardTheSession():
         _notifier._discardTheSession();
       case SilenceTheRoom():

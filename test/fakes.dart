@@ -745,9 +745,10 @@ class FakeWorkInProgress implements WorkInProgress {
   final List<ResumePoint> written = [];
 
   @override
-  Future<Set<String>> startedIn(String book) async => {
+  Future<Set<String>> startedIn(String book, String language) async => {
     for (final key in rows.keys)
-      if (key.startsWith('$book/')) key.split('/')[1],
+      if (key.startsWith('$book/') && key.endsWith('/$language'))
+        key.split('/')[1],
   };
 
   Completer<void>? _holdingRead;
@@ -1178,6 +1179,14 @@ class FakeRoom implements RoomRepository {
 
   void holdNextPassages() => _holdingPassages = Completer<void>();
 
+  /// The Wheel each language is read as, when a case needs to tell two reads apart.
+  Map<String, List<Passagem>> passagesIn = {};
+
+  Completer<void>? _holdingOneRead;
+
+  /// Hold only the next read of the Wheel; a read asked meanwhile answers at once.
+  Completer<void> holdOneWheelRead() => _holdingOneRead = Completer<void>();
+
   void finishHeldPassages() {
     _holdingPassages?.complete();
     _holdingPassages = null;
@@ -1435,9 +1444,12 @@ class FakeRoom implements RoomRepository {
   }) async {
     if (_guard('passagesOf') case final failure?) return failure;
     await _holdingPassages?.future;
+    final heldRead = _holdingOneRead;
+    _holdingOneRead = null;
+    await heldRead?.future;
     booksAsked.add(book);
     languagesAsked.add(language);
-    return Answered(passages);
+    return Answered(passagesIn[language] ?? passages);
   }
 
   @override
