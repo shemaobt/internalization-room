@@ -650,7 +650,9 @@ void main() {
       paints
         ..line(color: SalaColors.light.cord, strokeWidth: 1.5)
         ..line(color: ShemaBrand.verdeClaro)
-        ..circle(x: 30, color: SalaColors.light.telha, radius: 3),
+        ..circle(x: 30, color: SalaColors.light.telha, radius: 3)
+        ..line(color: SalaColors.light.cord, strokeWidth: 2)
+        ..line(color: SalaColors.light.cord, strokeWidth: 2),
     );
     expect(
       find.byType(PassageRuler),
