@@ -108,16 +108,20 @@ class ConversaView extends ConsumerWidget {
                 child: Semantics(
                   button: true,
                   label: roomLabelFor('recordDraft', language),
-                  child: SizedBox(
-                    width: 34,
-                    height: 34,
-                    child: Center(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: SalaColors.of(context).telha,
-                          shape: BoxShape.circle,
+                  child: GestureDetector(
+                    onTap: notifier.goEnsaio,
+                    behavior: HitTestBehavior.opaque,
+                    child: SizedBox(
+                      width: 34,
+                      height: 34,
+                      child: Center(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: SalaColors.of(context).telha,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const SizedBox(width: 15, height: 15),
                         ),
-                        child: const SizedBox(width: 15, height: 15),
                       ),
                     ),
                   ),

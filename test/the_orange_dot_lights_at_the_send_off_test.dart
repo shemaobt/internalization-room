@@ -345,4 +345,19 @@ void main() {
       closeTheRoom(container);
     },
   );
+
+  testWidgets('a touch on the lit dot takes the team to the rehearsal', (
+    tester,
+  ) async {
+    final (_, container) = await _afterTheSendOff(tester);
+
+    await tester.tap(_dot);
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(
+      container.read(salaSessionProvider).stage,
+      SalaStage.ensaio,
+      reason: 'a voz mandou tocar no ponto e o toque não abriu o ensaio',
+    );
+  });
 }
