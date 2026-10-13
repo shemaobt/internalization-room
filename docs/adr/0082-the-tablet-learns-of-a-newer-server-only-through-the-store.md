@@ -24,6 +24,12 @@ said since ENG-1463: a **Session** in progress on a passage, not on the **Panora
 of waiting the deploy fails and nothing ships. The staging deploy never waits. This decision
 changes none of that.
 
+The vendored doctrine, section 5.4, says: "During pilot session hours the deployment is
+frozen; fixes land between sessions." The hold is narrower than that frozen window: an urgent
+run skips it, a **Session** on the **Panorama** never holds, and a **Team** idle for an hour
+stops holding. This ADR accepts that, by Henok's decision to rely on the store and the
+Definer's ruling that the hold is not widened.
+
 An older tablet against a newer server is a risk accepted until the later check exists. The
 server's CI notes also say the corollary: a server change the installed build cannot speak
 ships only once the store build that speaks it is on the tablets.
