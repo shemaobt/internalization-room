@@ -240,6 +240,7 @@ const escolhaLabels = {
     'en': 'Choose the passage by running a finger along the row',
   },
   'place': {'pt': '{n} de {total}', 'en': '{n} of {total}'},
+  'approved': {'pt': 'tem um ensaio salvo', 'en': 'has a saved rehearsal'},
 };
 
 String escolhaLabelFor(String control, String language) =>

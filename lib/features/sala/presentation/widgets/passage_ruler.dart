@@ -18,11 +18,8 @@ class PassageRuler extends StatefulWidget {
   final int total;
   final int at;
 
-  /// Passages this tablet has work waiting in. They stand taller and take the room's
-  /// own colour, because going back to one is a different act from starting one.
-  final Set<int> started;
-
-  final Set<int> finished;
+  final Set<int> approved;
+  final int? current;
 
   /// While the finger is down: move, and stay quiet.
   final ValueChanged<int> onAim;
@@ -42,8 +39,8 @@ class PassageRuler extends StatefulWidget {
     required this.onAim,
     required this.onSettle,
     required this.language,
-    this.started = const {},
-    this.finished = const {},
+    this.approved = const {},
+    this.current,
     this.hint = false,
   });
 
@@ -70,6 +67,13 @@ class PassageRuler extends StatefulWidget {
 class _PassageRulerState extends State<PassageRuler> {
   bool _touched = false;
 
+  String _placeAt(int index) {
+    final place = rulerPlaceFor(index + 1, widget.total, widget.language);
+    return widget.approved.contains(index)
+        ? '$place, ${escolhaLabelFor('approved', widget.language)}'
+        : place;
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = SalaColors.of(context);
@@ -91,17 +95,9 @@ class _PassageRulerState extends State<PassageRuler> {
         return Semantics(
           slider: true,
           label: escolhaLabelFor('ruler', widget.language),
-          value: rulerPlaceFor(widget.at + 1, total, widget.language),
-          increasedValue: rulerPlaceFor(
-            (widget.at + 2).clamp(1, total),
-            total,
-            widget.language,
-          ),
-          decreasedValue: rulerPlaceFor(
-            widget.at.clamp(1, total),
-            total,
-            widget.language,
-          ),
+          value: _placeAt(widget.at),
+          increasedValue: _placeAt((widget.at + 1).clamp(0, total - 1)),
+          decreasedValue: _placeAt((widget.at - 1).clamp(0, total - 1)),
           onIncrease: () {
             aimAt(PassageRuler._placeOf(widget.at + 1, total, box.maxWidth));
             widget.onSettle();
@@ -128,8 +124,8 @@ class _PassageRulerState extends State<PassageRuler> {
                   painter: _RulerPainter(
                     total: total,
                     at: widget.at,
-                    started: widget.started,
-                    finished: widget.finished,
+                    approved: widget.approved,
+                    current: widget.current,
                     // Toward the end that has room, so the mark never drifts off the row.
                     nudge: hinting
                         ? 7 * t * (widget.at < total - 1 ? 1 : -1)
@@ -148,10 +144,13 @@ class _PassageRulerState extends State<PassageRuler> {
 }
 
 class _RulerPainter extends CustomPainter {
+  static const _reach = 5.0;
+  static const _dotRadius = 3.0;
+
   final int total;
   final int at;
-  final Set<int> started;
-  final Set<int> finished;
+  final Set<int> approved;
+  final int? current;
   final double nudge;
   final Color cord;
   final Color mark;
@@ -159,8 +158,8 @@ class _RulerPainter extends CustomPainter {
   const _RulerPainter({
     required this.total,
     required this.at,
-    required this.started,
-    required this.finished,
+    required this.approved,
+    required this.current,
     required this.nudge,
     required this.cord,
     required this.mark,
@@ -182,28 +181,27 @@ class _RulerPainter extends CustomPainter {
 
     for (var index = 0; index < total; index++) {
       final x = PassageRuler._placeOf(index, total, size.width);
-      // A passage with work waiting stands taller and wears the room's own colour, so a
-      // team can find the one they left without anyone reading them a list.
-      final waiting = started.contains(index);
-      final carried = finished.contains(index);
-      final reach = waiting ? 9.0 : 5.0;
-      final tone = waiting
-          ? mark
-          : carried
-          ? ShemaBrand.wood
+      final approvedHere = approved.contains(index);
+      final tone = index == current
+          ? ShemaBrand.azul
+          : approvedHere
+          ? ShemaBrand.verdeClaro
           : cord;
       canvas.drawLine(
-        Offset(x, y - reach),
-        Offset(x, y + reach),
+        Offset(x, y - _reach),
+        Offset(x, y + _reach),
         Paint()
           ..color = tone
-          ..strokeWidth = waiting
-              ? 2.5
-              : carried
-              ? 4
-              : 2
+          ..strokeWidth = 2
           ..strokeCap = StrokeCap.round,
       );
+      if (approvedHere) {
+        canvas.drawCircle(
+          Offset(x, y - _reach - _dotRadius - 3),
+          _dotRadius,
+          Paint()..color = mark,
+        );
+      }
     }
 
     final here = PassageRuler._placeOf(at, total, size.width) + nudge;
@@ -217,8 +215,7 @@ class _RulerPainter extends CustomPainter {
       old.nudge != nudge ||
       old.cord != cord ||
       old.mark != mark ||
-      old.started.length != started.length ||
-      !old.started.containsAll(started) ||
-      old.finished.length != finished.length ||
-      !old.finished.containsAll(finished);
+      old.current != current ||
+      old.approved.length != approved.length ||
+      !old.approved.containsAll(approved);
 }

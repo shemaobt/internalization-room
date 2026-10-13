@@ -5,12 +5,14 @@ class Passagem {
   final String audioUrl;
   final int beads;
   final PassagemKind kind;
+  final bool approved;
 
   const Passagem({
     required this.pericope,
     required this.audioUrl,
     this.beads = 0,
     this.kind = PassagemKind.passage,
+    this.approved = false,
   });
 
   /// The book's own spoke, first on the wheel when the room offers one — never a passage,
@@ -24,6 +26,7 @@ class Passagem {
     kind: json['kind'] == 'panorama'
         ? PassagemKind.panorama
         : PassagemKind.passage,
+    approved: json['approved'] as bool? ?? false,
   );
 }
 

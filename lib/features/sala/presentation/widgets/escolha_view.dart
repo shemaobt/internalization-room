@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
+import '../../domain/passagem.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
@@ -72,14 +73,11 @@ class EscolhaView extends ConsumerWidget {
         PassageRuler(
           total: roda.length,
           at: session.aOferecer,
-          started: {
+          approved: {
             for (var index = 0; index < roda.length; index++)
-              if (session.comecadas.contains(roda[index].pericope)) index,
+              if (roda[index].approved) index,
           },
-          finished: {
-            for (var index = 0; index < roda.length; index++)
-              if (session.feitas.contains(roda[index].pericope)) index,
-          },
+          current: _indexOfTheEntryLeft(roda, session.leftEntry),
           hint: podeEntrar,
           onAim: notifier.apontarPassagem,
           onSettle: notifier.dizerAPassagem,
@@ -88,4 +86,14 @@ class EscolhaView extends ConsumerWidget {
       ],
     );
   }
+}
+
+int? _indexOfTheEntryLeft(List<Passagem> roda, LeftEntry? left) {
+  if (left == null) return null;
+  final index = roda.indexWhere(
+    (passagem) => left.panorama
+        ? passagem.isPanorama
+        : passagem.pericope == left.pericope,
+  );
+  return index < 0 ? null : index;
 }

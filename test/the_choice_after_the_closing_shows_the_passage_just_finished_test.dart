@@ -1,8 +1,5 @@
-import 'dart:async';
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/data/finished_passages.dart';
+import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 
@@ -10,22 +7,10 @@ import 'fakes.dart';
 import 'um_ensaio_de_tres_partes.dart';
 
 void main() {
-  test('the room finishes a passage and the Choice opens at once; after both, '
-      'the ledger holds the finished mark', () async {
-    final home = Directory.systemTemp.createTempSync('sala-feitas');
-    addTearDown(() => home.deleteSync(recursive: true));
-    final theWriteLands = Completer<void>();
-    var homesAsked = 0;
-    final ledger = FinishedPassages(
-      home: () async {
-        if (homesAsked++ == 0) await theWriteLands.future;
-        return home;
-      },
-    );
-    final harness = SalaHarness(
-      fimLinger: const Duration(milliseconds: 1),
-      finishedOnDisk: ledger,
-    )..room.verdictChecked = true;
+  test('the choice after the closing marks the approved passage from the '
+      "room's next answer", () async {
+    final harness = SalaHarness(fimLinger: const Duration(milliseconds: 1))
+      ..room.verdictChecked = true;
     final container = harness.container();
     addTearDown(container.dispose);
     final it = Sala(harness, container);
@@ -44,6 +29,11 @@ void main() {
     await pedirOVeredito(it);
     expect(it.estado.btPhase, BtPhase.conferida);
 
+    harness.room.passages = const [
+      Passagem(pericope: 'P01', audioUrl: '/voice/p01', approved: true),
+      Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
+      Passagem(pericope: 'P03', audioUrl: '/voice/p03'),
+    ];
     final wheelsAsked = harness.room.booksAsked.length;
     await it.sala.aprovarRascunhoFinal();
     await waitFor('the Closing', () => it.estado.station is Fim);
@@ -52,10 +42,12 @@ void main() {
       'the Choice to ask for its Wheel',
       () => harness.room.booksAsked.length > wheelsAsked,
     );
-    theWriteLands.complete();
     await waitFor('the Wheel to load', () => it.estado.naRoda != null);
 
-    expect(it.estado.feitas, contains('P01'));
-    expect(await ledger.all('Ruth'), contains('P01'));
+    expect(it.estado.naRoda!.map((p) => (p.pericope, p.approved)), [
+      ('P01', true),
+      ('P02', false),
+      ('P03', false),
+    ]);
   }, timeout: const Timeout(Duration(seconds: 40)));
 }

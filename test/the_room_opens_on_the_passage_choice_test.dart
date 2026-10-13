@@ -108,8 +108,8 @@ void main() {
   );
 
   testWidgets(
-    'the Panorama is the book\'s first entry and carries no done mark, and '
-    'progress never reorders or hides an entry',
+    'the Panorama is the book\'s first entry and carries no approved mark, and '
+    'local progress never reorders or hides an entry',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true)
         ..room.passages = _theBook;
@@ -125,8 +125,7 @@ void main() {
       expect(container.read(salaSessionProvider).naRoda, _theBook);
       final ruler = tester.widget<PassageRuler>(find.byType(PassageRuler));
       expect(ruler.total, 4);
-      expect(ruler.finished, {1});
-      expect(ruler.started, {2});
+      expect(ruler.approved, isEmpty);
     },
   );
 }

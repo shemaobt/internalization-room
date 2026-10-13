@@ -280,6 +280,10 @@ _Avoid_: reason, error code, bloqueio, refusal (the answer that carries them)
 The team's gesture, after a clean verdict, that makes the passage its final draft: one press on the back-translation screen, the server's release answered with a version, and Marcia's approved process line, asked of the room by name. The room closes only after it, and a refused one takes the team to the hole its blockers name.
 _Avoid_: aprovação, finalize, release (the server's record of it), approve button
 
+**Approved mark**:
+The dot and olive notch the Wheel's notches wear for a passage the server holds a live release of, from any tablet, forced or not. Read from the room on every load of the Wheel; never from what this tablet started or finished. A Zerar takes it away.
+_Avoid_: finished mark, done mark, started mark, ✓
+
 **Finding**:
 The analyst's result on what was told back, in Marcia's words: missing, addition or unclear.
 _Avoid_: achado, error, problem, the retired kinds meaning change, wrong relation, reordered event, preservation violation and insufficient evidence

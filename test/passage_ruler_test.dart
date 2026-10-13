@@ -11,8 +11,9 @@ void main() {
     required int at,
     required List<int> aimed,
     required List<int> settled,
-    Set<int> started = const {},
-    Set<int> finished = const {},
+    Set<int> approved = const {},
+    int? current,
+    String language = 'pt',
   }) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -24,11 +25,11 @@ void main() {
               child: PassageRuler(
                 total: total,
                 at: at,
-                started: started,
-                finished: finished,
+                approved: approved,
+                current: current,
                 onAim: aimed.add,
                 onSettle: () => settled.add(at),
-                language: 'pt',
+                language: language,
               ),
             ),
           ),
@@ -111,7 +112,7 @@ void main() {
     );
   });
 
-  testWidgets('a notch the team carried to the end wears the wood', (
+  testWidgets('an approved notch wears the olive and the orange dot', (
     tester,
   ) async {
     await pumpRuler(
@@ -120,42 +121,99 @@ void main() {
       at: 2,
       aimed: <int>[],
       settled: <int>[],
-      finished: const {0},
+      approved: const {0},
     );
 
     expect(
       find.byType(PassageRuler),
       paints
         ..line(color: SalaColors.light.cord, strokeWidth: 1.5)
-        ..line(color: ShemaBrand.wood, strokeWidth: 4),
-      reason:
-          'no claro a madeira dá 1,31:1 contra o cordão: só a cor deixa a '
-          'passagem terminada com o mesmo entalhe de uma que ninguém tocou, e '
-          'não há palavra escrita nesta tela que separe as duas',
+        ..line(color: ShemaBrand.verdeClaro)
+        ..circle(x: 30, color: SalaColors.light.telha, radius: 3)
+        ..circle(color: SalaColors.light.telha, radius: 9),
     );
   });
 
-  testWidgets('a passage picked up again after the end reads as work waiting', (
-    tester,
-  ) async {
+  testWidgets('the entry the team left is tinted blue-green', (tester) async {
     await pumpRuler(
       tester,
       total: 3,
       at: 2,
       aimed: <int>[],
       settled: <int>[],
-      started: const {0},
-      finished: const {0},
+      current: 1,
     );
 
     expect(
       find.byType(PassageRuler),
       paints
-        ..line(color: SalaColors.light.cord)
-        ..line(color: SalaColors.light.telha),
-      reason:
-          'entrar de novo numa passagem terminada e sair no meio deixa ela '
-          'nos dois conjuntos, e trabalho parado é o estado que pede a volta',
+        ..line(color: SalaColors.light.cord, strokeWidth: 1.5)
+        ..line(color: SalaColors.light.cord, strokeWidth: 2)
+        ..line(color: ShemaBrand.azul),
     );
+  });
+
+  testWidgets('a screen reader on an approved passage hears that it has a '
+      'saved rehearsal, in the language of the room', (tester) async {
+    final handle = tester.ensureSemantics();
+
+    await pumpRuler(
+      tester,
+      total: 3,
+      at: 1,
+      aimed: <int>[],
+      settled: <int>[],
+      approved: const {1},
+    );
+    expect(
+      tester
+          .getSemantics(
+            find.bySemanticsLabel(
+              RegExp('Escolher a passagem|Choose the passage'),
+            ),
+          )
+          .value,
+      '2 de 3, tem um ensaio salvo',
+    );
+
+    await pumpRuler(
+      tester,
+      total: 3,
+      at: 1,
+      aimed: <int>[],
+      settled: <int>[],
+      approved: const {1},
+      language: 'en',
+    );
+    expect(
+      tester
+          .getSemantics(
+            find.bySemanticsLabel(
+              RegExp('Escolher a passagem|Choose the passage'),
+            ),
+          )
+          .value,
+      '2 of 3, has a saved rehearsal',
+    );
+
+    await pumpRuler(
+      tester,
+      total: 3,
+      at: 1,
+      aimed: <int>[],
+      settled: <int>[],
+      approved: const {0},
+    );
+    expect(
+      tester
+          .getSemantics(
+            find.bySemanticsLabel(
+              RegExp('Escolher a passagem|Choose the passage'),
+            ),
+          )
+          .value,
+      '2 de 3',
+    );
+    handle.dispose();
   });
 }

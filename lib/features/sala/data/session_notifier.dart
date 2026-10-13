@@ -207,7 +207,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   final Set<String> _contadasSemResposta = {};
   int _resumeFailures = 0;
   final Set<String> _goneSessions = {};
-  final Set<(String, String)> _toldClosed = {};
 
   /// When and in what language the session now open was created, so a row rewritten by
   /// a later stage advance carries them instead of going blank the moment the team leaves
@@ -1106,33 +1105,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _markingThePassageClosed = true;
     final pericope = _emCurso;
     if (pericope == null) return null;
-    final book = _book;
-    _toldClosed.add((book, pericope));
-    return (book: book, passage: pericope);
+    return (book: _book, passage: pericope);
   }
 
-  void _theMarkEnds(String sessionId, String? pericope) {
-    _theSessionIsClosed(sessionId, pericope);
+  void _theMarkEnds(String sessionId) {
+    _theSessionIsClosed(sessionId);
     _markingThePassageClosed = false;
   }
 
   Future<void> _thePassageClosed(String sessionId, String? pericope) async {
     if (_gone) return;
-    final book = _book;
     if (pericope != null) {
-      _toldClosed.add((book, pericope));
-      await _feitas.add(book, pericope).catchError((_) {});
+      await _feitas.add(_book, pericope).catchError((_) {});
     }
-    _theSessionIsClosed(sessionId, pericope);
+    _theSessionIsClosed(sessionId);
   }
 
-  void _theSessionIsClosed(String sessionId, String? pericope) {
+  void _theSessionIsClosed(String sessionId) {
     if (_gone) return;
     if (sessionId == _theSession) {
       return _dispatch(ThePassageClosed(generation: _generation));
-    }
-    if (pericope != null && state.station is Menu) {
-      state = state.copyWith(feitas: {...state.feitas, pericope});
     }
     _letGoOf(sessionId);
   }
@@ -1794,22 +1786,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return;
     }
     if (_abandoned(generation)) return;
-    // Held before the awaits: a provider read after the container is disposed throws,
+    // Held before the await: a provider read after the container is disposed throws,
     // and this method is reached from a fire-and-forget touch.
-    final ledger = _feitas;
     final open = _emAberto;
-    final book = _book;
-    final feitas = {
-      ...await ledger.all(book),
-      for (final (livro, pericope) in _toldClosed)
-        if (livro == book) pericope,
-    };
-    final comecadas = await open.startedIn(book);
+    final comecadas = await open.startedIn(_book);
     if (_abandoned(generation)) return;
     state = state.copyWith(
       naRoda: todas,
       comecadas: comecadas,
-      feitas: feitas,
       aOferecer: 0,
       awaitingTheGuide: false,
     );
@@ -2205,7 +2189,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       awaitingTheGuide: true,
       naRoda: livro.naRoda,
       comecadas: livro.comecadas,
-      feitas: livro.feitas,
       aOferecer: livro.aOferecer,
     );
     _arriveAt(const PassageChosen());
@@ -5642,7 +5625,7 @@ class _NotifierHost implements StationHost {
 
   @override
   void hearTheMarkEnd(String session, String? passage) =>
-      _notifier._theMarkEnds(session, passage);
+      _notifier._theMarkEnds(session);
 
   @override
   void hearTheCallLanded() => _notifier
