@@ -35,10 +35,16 @@ void main() {
     expect(silencesIn(envelope!), isEmpty);
   });
 
-  test('a quiet run shorter than 150 ms is not a silence', () {
-    final envelope = envelopeOf(aSpokenWav(gaps: [(s(3.0), s(3.12))]));
+  test('a quiet run of 140 ms is not a silence', () {
+    final envelope = envelopeOf(aSpokenWav(gaps: [(s(3.0), s(3.14))]));
 
     expect(silencesIn(envelope!), isEmpty);
+  });
+
+  test('a quiet run of 160 ms is a silence', () {
+    final envelope = envelopeOf(aSpokenWav(gaps: [(s(3.0), s(3.16))]));
+
+    expect(silencesIn(envelope!), [(from: s(3.0), to: s(3.16))]);
   });
 
   test('on a near tie the silence before the tap wins, because one after it '

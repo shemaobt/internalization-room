@@ -96,7 +96,8 @@ List<Silence> silencesIn(Envelope envelope) {
         sorted.length * _nearPeakPercentile ~/ 100,
       )];
   final quiet = nearPeak * _quietFraction;
-  final shortest = _shortestSilence.inMicroseconds ~/ _binWidth.inMicroseconds;
+  final shortest = (_shortestSilence.inMicroseconds / _binWidth.inMicroseconds)
+      .ceil();
   final silences = <Silence>[];
   int? opened;
   void close(int end) {
