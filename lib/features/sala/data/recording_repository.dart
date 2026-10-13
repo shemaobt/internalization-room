@@ -47,12 +47,15 @@ class RecordingRepository {
     final roomFilters =
         owner != MicOwner.rehearsal && owner != MicOwner.capture;
     final wav = owner == MicOwner.rehearsal;
+    final conversation = owner == MicOwner.conversation;
     try {
       final dir = await _recordingsDir();
       await _recorder.start(
         RecordConfig(
           encoder: wav ? AudioEncoder.wav : AudioEncoder.aacLc,
-          sampleRate: wav ? 16000 : const RecordConfig().sampleRate,
+          sampleRate: wav || conversation
+              ? 16000
+              : const RecordConfig().sampleRate,
           audioInterruption: AudioInterruptionMode.pauseResume,
           echoCancel: true,
           noiseSuppress: roomFilters,
