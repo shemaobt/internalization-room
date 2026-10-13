@@ -23,10 +23,12 @@ const cabeca = Duration(seconds: 4);
 const passaDoCursor = Duration(seconds: 1);
 
 const gravar = 'Tocar para gravar a tradução deste trecho';
+const pausadaNoToque =
+    'a pausa ficou no toque — toquem no círculo para traduzir';
 const terminar = 'Tocar ao terminar';
 const ouvir = 'Ouvir';
 const pausar = 'Pausar';
-const tesoura = 'Cortar aqui';
+const tesoura = 'Pausar onde a frase acaba';
 const confirmar = 'Confirmar a tradução e seguir';
 const conferir = 'Conferir a tradução';
 const aprovar = 'Aprovar como rascunho final';
@@ -94,8 +96,11 @@ Future<ProviderContainer> entrarNaTraducao(
   return container;
 }
 
+String oCirculoParaGravar() =>
+    byLabel(pausadaNoToque).evaluate().isEmpty ? gravar : pausadaNoToque;
+
 Future<void> gravarATraducao(WidgetTester tester) async {
-  await tocar(tester, gravar);
+  await tocar(tester, oCirculoParaGravar());
   await tocar(tester, terminar);
 }
 
@@ -1492,7 +1497,7 @@ void main() {
 
     expect(byLabel("Tap to record this stretch's translation"), findsOneWidget);
     expect(byLabel('Pause'), findsOneWidget);
-    expect(byLabel('Cut here'), findsOneWidget);
+    expect(byLabel('Pause where the sentence ends'), findsOneWidget);
     expect(byLabel('Confirm the translation and go on'), findsOneWidget);
     expect(byLabel('Check the translation'), findsOneWidget);
     expect(byLabel('Stretch 1'), findsOneWidget);

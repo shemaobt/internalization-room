@@ -177,6 +177,7 @@ class SalaSessionState {
   /// capture, the scissors and the circle's label all read to ask whether anything has
   /// been heard since the cursor.
   final bool btOuvidoAlemDoCursor;
+  final bool btPausaAjustavel;
   final int btParte;
   final String? btTraducaoPendente;
   final String? btTraducaoEmprestada;
@@ -249,6 +250,7 @@ class SalaSessionState {
     this.btCursor = Duration.zero,
     this.btCorte = Duration.zero,
     this.btOuvidoAlemDoCursor = false,
+    this.btPausaAjustavel = false,
     this.btParte = 0,
     this.btTraducaoPendente,
     this.btTraducaoEmprestada,
@@ -486,6 +488,15 @@ class SalaSessionState {
         (limite == null || cabeca < limite);
   }
 
+  bool get thePauseStands =>
+      _btNaVez &&
+      btCortado &&
+      btTraducaoPendente == null &&
+      btTrechoTraduzidoDeNovo == null &&
+      btContaEscolhida == null;
+
+  bool get canAdjustThePause => thePauseStands && btPausaAjustavel;
+
   bool get btTraducaoPendenteEmprestada =>
       btTraducaoPendente != null && btTraducaoPendente == btTraducaoEmprestada;
 
@@ -595,6 +606,7 @@ class SalaSessionState {
     Duration? btCursor,
     Duration? btCorte,
     bool? btOuvidoAlemDoCursor,
+    bool? btPausaAjustavel,
     int? btParte,
     String? btTraducaoPendente,
     bool clearTraducaoPendente = false,
@@ -652,6 +664,7 @@ class SalaSessionState {
       btCursor: btCursor ?? this.btCursor,
       btCorte: btCorte ?? this.btCorte,
       btOuvidoAlemDoCursor: btOuvidoAlemDoCursor ?? this.btOuvidoAlemDoCursor,
+      btPausaAjustavel: btPausaAjustavel ?? this.btPausaAjustavel,
       btParte: btParte ?? this.btParte,
       btTraducaoPendente: clearTraducaoPendente
           ? null

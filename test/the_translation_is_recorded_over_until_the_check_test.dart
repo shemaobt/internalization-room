@@ -25,12 +25,14 @@ const parte = Duration(seconds: 10);
 const cabeca = Duration(seconds: 4);
 
 const gravar = 'Tocar para gravar a tradução deste trecho';
+const pausadaNoToque =
+    'a pausa ficou no toque — toquem no círculo para traduzir';
 const gravarDeNovo = 'Tocar para gravar a tradução de novo';
 const terminar = 'Tocar ao terminar';
 const ouvir = 'Ouvir';
 const ouvirATraducao = 'Ouvir a tradução';
 const pausar = 'Pausar';
-const tesoura = 'Cortar aqui';
+const tesoura = 'Pausar onde a frase acaba';
 const confirmar = 'Confirmar a tradução e seguir';
 const conferir = 'Conferir a tradução';
 
@@ -150,9 +152,13 @@ Future<ProviderContainer> entrarNaTraducao(
 Future<String> gravarATraducao(
   WidgetTester tester,
   SalaHarness harness, {
-  String circulo = gravar,
+  String? circulo,
 }) async {
-  await tocar(tester, circulo);
+  await tocar(
+    tester,
+    circulo ??
+        (byLabel(pausadaNoToque).evaluate().isEmpty ? gravar : pausadaNoToque),
+  );
   await tocar(tester, terminar);
   return harness.recorder.lastPath!;
 }
@@ -777,8 +783,11 @@ void main() {
     final container = await entrarNaTraducao(tester, harness);
 
     harness.playback.at = cabeca;
-    await tocar(tester, 'Cut here');
-    await tocar(tester, "Tap to record this stretch's translation");
+    await tocar(tester, 'Pause where the sentence ends');
+    await tocar(
+      tester,
+      'the pause is at your tap — tap the circle to translate',
+    );
     await tocar(tester, 'Tap when you finish');
 
     expect(byLabel('Tap to record the translation again'), findsOneWidget);
@@ -793,8 +802,8 @@ void main() {
     final container = await entrarNaTraducao(tester, harness);
 
     harness.playback.at = cabeca;
-    await tocar(tester, retroLabelFor('cut', 'en'));
-    await tocar(tester, retroLabelFor('record', 'en'));
+    await tocar(tester, retroLabelFor('pauseHere', 'en'));
+    await tocar(tester, retroLabelFor('pauseAtTheTap', 'en'));
     await tocar(tester, retroLabelFor('recording', 'en'));
     harness.room.failChunkWith = const Refused('UNAUTHORIZED');
     await tocar(tester, retroLabelFor('confirm', 'en'));
@@ -813,8 +822,8 @@ void main() {
       final container = await entrarNaTraducao(tester, harness);
 
       harness.playback.at = cabeca;
-      await tocar(tester, retroLabelFor('cut', 'en'));
-      await tocar(tester, retroLabelFor('record', 'en'));
+      await tocar(tester, retroLabelFor('pauseHere', 'en'));
+      await tocar(tester, retroLabelFor('pauseAtTheTap', 'en'));
       await tocar(tester, retroLabelFor('recording', 'en'));
       harness.room.failChunkWith = const NetworkFailed('sem rede');
       harness.network.reachable = false;
@@ -836,8 +845,8 @@ void main() {
       final container = await entrarNaTraducao(tester, harness);
 
       harness.playback.at = cabeca;
-      await tocar(tester, retroLabelFor('cut', 'en'));
-      await tocar(tester, retroLabelFor('record', 'en'));
+      await tocar(tester, retroLabelFor('pauseHere', 'en'));
+      await tocar(tester, retroLabelFor('pauseAtTheTap', 'en'));
       await tocar(tester, retroLabelFor('recording', 'en'));
       harness.room.holdNextChunk();
       await tocar(tester, retroLabelFor('confirm', 'en'));

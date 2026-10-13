@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -112,6 +113,9 @@ class _FileThatAnswersAtOnce implements File {
 
   @override
   int lengthSync() => _real.lengthSync();
+
+  @override
+  Uint8List readAsBytesSync() => _real.readAsBytesSync();
 
   @override
   void writeAsStringSync(

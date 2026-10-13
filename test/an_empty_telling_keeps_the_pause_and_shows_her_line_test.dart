@@ -429,8 +429,11 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
-    await tocar(tester, 'Cut here');
-    await tocar(tester, 'Tap to record this stretch\'s translation');
+    await tocar(tester, 'Pause where the sentence ends');
+    await tocar(
+      tester,
+      'the pause is at your tap — tap the circle to translate',
+    );
     await tocar(tester, 'Tap when you finish');
     harness.room.failChunkWith = vazia;
     await tocar(tester, 'Confirm the translation and go on');
