@@ -23,10 +23,12 @@ const cabeca = Duration(seconds: 4);
 const passaDoCursor = Duration(seconds: 1);
 
 const gravar = 'Tocar para gravar a tradução deste trecho';
+const pausadaNoToque =
+    'a pausa ficou no toque — toquem no círculo para traduzir';
 const terminar = 'Tocar ao terminar';
 const ouvir = 'Ouvir';
 const pausar = 'Pausar';
-const tesoura = 'Cortar aqui';
+const tesoura = 'Pausar onde a frase acaba';
 const confirmar = 'Confirmar a tradução e seguir';
 const conferir = 'Conferir a tradução';
 const aprovar = 'Aprovar como rascunho final';
@@ -94,8 +96,11 @@ Future<ProviderContainer> entrarNaTraducao(
   return container;
 }
 
-Future<void> gravarATraducao(WidgetTester tester) async {
-  await tocar(tester, gravar);
+Future<void> gravarATraducao(
+  WidgetTester tester, {
+  String circulo = pausadaNoToque,
+}) async {
+  await tocar(tester, circulo);
   await tocar(tester, terminar);
 }
 
@@ -106,7 +111,7 @@ Future<void> contarAteOFimDaParte(
   harness.playback.at = parte;
   harness.playback.finishPlayback();
   await tester.pump(const Duration(milliseconds: 300));
-  await gravarATraducao(tester);
+  await gravarATraducao(tester, circulo: gravar);
   await tocar(tester, confirmar);
 }
 
@@ -280,7 +285,7 @@ void main() {
 
     harness.playback.at = cabeca;
     await tocar(tester, pausar);
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
     await tocar(tester, confirmar);
 
     expect(harness.room.chunkSpans, ['0-4000']);
@@ -303,7 +308,7 @@ void main() {
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
 
     expect(aceso(tester, conferir), isFalse);
     await tester.tap(byLabel(conferir));
@@ -391,7 +396,7 @@ void main() {
 
     harness.room.verdictUntoldSegmentId = null;
     final vereditos = harness.room.playedByTakeSent.length;
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
     expect(harness.room.replacesAsked, isEmpty, reason: 'nada antes do V');
 
     await tocar(tester, confirmar);
@@ -426,7 +431,7 @@ void main() {
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
     harness.room.verdictUntoldSegmentId = null;
-    if (gravando) await gravarATraducao(tester);
+    if (gravando) await gravarATraducao(tester, circulo: gravar);
     return container;
   }
 
@@ -520,7 +525,7 @@ void main() {
     expect(contas(tester), ['solid com anel', 'solid']);
 
     harness.recorder.returnsEmpty = false;
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
     await tocar(tester, confirmar);
     await tester.pump(const Duration(milliseconds: 600));
 
@@ -541,7 +546,7 @@ void main() {
     expect(contas(tester), ['solid com anel', 'solid']);
 
     harness.recorder.returnsNothing = false;
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
     await tocar(tester, confirmar);
     await tester.pump(const Duration(milliseconds: 600));
 
@@ -566,7 +571,7 @@ void main() {
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
     harness.room.verdictUntoldSegmentId = null;
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
   }
 
   Future<void> aSalaVolta(WidgetTester tester) async {
@@ -805,7 +810,7 @@ void main() {
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
     harness.room.verdictUntoldSegmentId = null;
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
     await confirmarEEsperar(tester);
     expect(
       aceso(tester, confirmar),
@@ -1051,7 +1056,7 @@ void main() {
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
     harness.room.verdictUntoldSegmentId = null;
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
 
     harness.room.failReplaceWith = const Refused('BAD_REQUEST');
     await confirmarEEsperar(tester);
@@ -1157,7 +1162,7 @@ void main() {
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
     harness.room.verdictUntoldSegmentId = null;
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
 
     harness.room.loseTheNextReplaceAnswerWith = const NetworkFailed('timeout');
     await confirmarEEsperar(tester);
@@ -1236,7 +1241,7 @@ void main() {
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
     harness.room.verdictUntoldSegmentId = null;
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
     final capturas = harness.recorder.captures;
 
     harness.room.failReplaceWith = const Refused('BAD_REQUEST');
@@ -1292,7 +1297,7 @@ void main() {
 
     harness.playback.at = cabeca;
     await tester.pump(passaDoCursor);
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
     await tocar(tester, confirmar);
 
     expect(harness.room.chunkSpans, ['0-4000']);
@@ -1413,7 +1418,7 @@ void main() {
 
     harness.playback.at = cabeca;
     await tester.pump(passaDoCursor);
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
     await tocar(tester, confirmar);
     harness.playback.at = Duration.zero;
     harness.playback.finishPlayback();
@@ -1431,7 +1436,7 @@ void main() {
 
     harness.playback.at = cabeca;
     await tester.pump(passaDoCursor);
-    await gravarATraducao(tester);
+    await gravarATraducao(tester, circulo: gravar);
     final gravada = harness.recorder.lastPath;
     container.read(salaSessionProvider.notifier).leaveThePassage();
     await tester.pump(const Duration(milliseconds: 300));
@@ -1492,7 +1497,7 @@ void main() {
 
     expect(byLabel("Tap to record this stretch's translation"), findsOneWidget);
     expect(byLabel('Pause'), findsOneWidget);
-    expect(byLabel('Cut here'), findsOneWidget);
+    expect(byLabel('Pause where the sentence ends'), findsOneWidget);
     expect(byLabel('Confirm the translation and go on'), findsOneWidget);
     expect(byLabel('Check the translation'), findsOneWidget);
     expect(byLabel('Stretch 1'), findsOneWidget);
