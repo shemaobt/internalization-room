@@ -95,33 +95,30 @@ class ConversaView extends ConsumerWidget {
                 ),
               ),
             ),
-        if (session.endOfThePassage ||
-            session.moment?.at == MomentAt.ensaioFinal)
-          Positioned(
-            right: 14,
-            top: 118 + MediaQuery.viewPaddingOf(context).top,
-            child: IgnorePointer(
-              ignoring: _dotIsHidden(session),
-              child: AnimatedOpacity(
-                opacity: _dotIsHidden(session) ? 0 : 0.85,
-                duration: const Duration(milliseconds: 400),
-                child: Semantics(
-                  button: true,
-                  label: roomLabelFor('recordEnsaio', language),
-                  child: GestureDetector(
-                    onTap: notifier.goEnsaio,
-                    behavior: HitTestBehavior.opaque,
-                    child: SizedBox(
-                      width: 34,
-                      height: 34,
-                      child: Center(
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: SalaColors.of(context).momentoEf,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const SizedBox(width: 15, height: 15),
+        Positioned(
+          right: 14,
+          top: 118 + MediaQuery.viewPaddingOf(context).top,
+          child: IgnorePointer(
+            ignoring: !_dotIsLit(session),
+            child: AnimatedOpacity(
+              opacity: _dotIsLit(session) ? 0.85 : 0,
+              duration: const Duration(milliseconds: 400),
+              child: Semantics(
+                button: true,
+                label: roomLabelFor('recordEnsaio', language),
+                child: GestureDetector(
+                  onTap: notifier.goEnsaio,
+                  behavior: HitTestBehavior.opaque,
+                  child: SizedBox(
+                    width: 34,
+                    height: 34,
+                    child: Center(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: SalaColors.of(context).momentoEf,
+                          shape: BoxShape.circle,
                         ),
+                        child: const SizedBox(width: 15, height: 15),
                       ),
                     ),
                   ),
@@ -129,6 +126,7 @@ class ConversaView extends ConsumerWidget {
               ),
             ),
           ),
+        ),
         if (session.handAck)
           Positioned(
             left: 0,
@@ -148,10 +146,11 @@ class ConversaView extends ConsumerWidget {
     };
   }
 
-  bool _dotIsHidden(SalaSessionState session) =>
-      session.wayOutIsHidden ||
-      session.voice == VoiceState.listening ||
-      session.noteMode;
+  bool _dotIsLit(SalaSessionState session) =>
+      (session.endOfThePassage || session.moment?.at == MomentAt.ensaioFinal) &&
+      !(session.wayOutIsHidden ||
+          session.voice == VoiceState.listening ||
+          session.noteMode);
 
   String _circleLabel(SalaSessionState session, String language) {
     if (session.needsPerson) return circleLabelFor('needsPerson', language);
