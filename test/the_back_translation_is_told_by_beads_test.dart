@@ -1299,10 +1299,11 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('B3h — uma tradução recusada vai para a fila uma vez só', (
+  testWidgets('B3h — com a sala atrasada a cópia guardada sai da fila', (
     tester,
   ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.takeLandsAfter = const Duration(seconds: 1);
     final container = await entrarNaTraducao(tester, harness);
     final fila = harness.takes as FakeTakeQueue;
 
@@ -1320,16 +1321,66 @@ void main() {
     await tocar(tester, confirmar);
     await letTheRehearsalReachTheRoom(tester);
 
+    List<String> guardadas() => [
+      for (final linha in fila.rows)
+        if (linha.path == gravada) linha.kind,
+    ];
+
     expect(harness.room.chunkFiles, [gravada]);
     expect(
-      [
-        for (final linha in fila.rows)
-          if (linha.path == gravada) linha.kind,
-      ],
-      ['retro'],
+      guardadas(),
+      isEmpty,
+      reason:
+          'com a sala atrasada a cópia guardada ainda não pousou quando o '
+          'trecho pousa pela porta dele, e sai da fila sem subir como a '
+          'passagem inteira',
+    );
+    await waitFor(
+      'a sala nomear a cópia guardada que já estava no ar',
+      () => harness.room.takesKept.contains('retro/${KeptScope.whole}'),
+      step: () => letTheRehearsalReachTheRoom(tester),
+    );
+    expect(
+      guardadas(),
+      isEmpty,
+      reason: 'o envio que já estava no ar pousa na sala e não volta à fila',
     );
     closeTheRoom(container);
   });
+
+  testWidgets(
+    'B3h2 — com a sala em dia, a tradução recusada fica na fila, enviada',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await entrarNaTraducao(tester, harness);
+      final fila = harness.takes as FakeTakeQueue;
+
+      harness.playback.at = cabeca;
+      await tocar(tester, tesoura);
+      await gravarATraducao(tester);
+      final gravada = harness.recorder.lastPath;
+
+      harness.room.failChunkWith = const Refused('BAD_REQUEST');
+      await tocar(tester, confirmar);
+      await letTheRehearsalReachTheRoom(tester);
+      await tocar(tester, confirmar);
+      await letTheRehearsalReachTheRoom(tester);
+      harness.room.failChunkWith = null;
+      await tocar(tester, confirmar);
+      await letTheRehearsalReachTheRoom(tester);
+
+      expect(harness.room.chunkFiles, [gravada]);
+      expect(
+        [
+          for (final linha in fila.rows)
+            if (linha.path == gravada) (linha.kind, linha.stored),
+        ],
+        [('retro', true)],
+        reason: 'com a sala em dia a cópia guardada já foi enviada, e fica',
+      );
+      closeTheRoom(container);
+    },
+  );
 
   testWidgets('B4b — o disco fica apagado enquanto sobra chão por contar na '
       'última parte', (tester) async {
