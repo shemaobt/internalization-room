@@ -384,4 +384,23 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'the dot goes, and takes no touch, while a note for the facilitator is armed',
+    (tester) async {
+      final (_, container) = await _afterTheSendOff(tester);
+
+      container.read(salaSessionProvider.notifier).handTap();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(container.read(salaSessionProvider).noteMode, isTrue);
+      expect(container.read(salaSessionProvider).voice, VoiceState.invite);
+      expect(
+        _dotOpacity(tester),
+        0.0,
+        reason: 'o ponto continuou aceso com a nota armada',
+      );
+      expect(_dotIsDeaf(tester), isTrue);
+    },
+  );
 }
