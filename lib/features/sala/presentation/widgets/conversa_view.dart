@@ -8,6 +8,7 @@ import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/channel.dart';
+import '../../domain/moment.dart';
 import '../../domain/session_state.dart';
 import 'bead.dart';
 import 'bead_styles.dart';
@@ -94,6 +95,38 @@ class ConversaView extends ConsumerWidget {
                 ),
               ),
             ),
+        Positioned(
+          right: 14,
+          top: 118 + MediaQuery.viewPaddingOf(context).top,
+          child: IgnorePointer(
+            ignoring: !_dotIsLit(session),
+            child: AnimatedOpacity(
+              opacity: _dotIsLit(session) ? 0.85 : 0,
+              duration: const Duration(milliseconds: 400),
+              child: Semantics(
+                button: true,
+                label: roomLabelFor('recordEnsaio', language),
+                child: GestureDetector(
+                  onTap: notifier.goEnsaio,
+                  behavior: HitTestBehavior.opaque,
+                  child: SizedBox(
+                    width: 34,
+                    height: 34,
+                    child: Center(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: SalaColors.of(context).momentoEf,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const SizedBox(width: 15, height: 15),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
         if (session.handAck)
           Positioned(
             left: 0,
@@ -112,6 +145,12 @@ class ConversaView extends ConsumerWidget {
       _ => 1,
     };
   }
+
+  bool _dotIsLit(SalaSessionState session) =>
+      (session.endOfThePassage || session.moment?.at == MomentAt.ensaioFinal) &&
+      !(session.wayOutIsHidden ||
+          session.voice == VoiceState.listening ||
+          session.noteMode);
 
   String _circleLabel(SalaSessionState session, String language) {
     if (session.needsPerson) return circleLabelFor('needsPerson', language);
