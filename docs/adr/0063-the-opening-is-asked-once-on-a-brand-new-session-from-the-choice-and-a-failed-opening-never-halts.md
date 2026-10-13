@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by the one-reply Opening (2026-10-12: the Opening is her single reply, with no two-movement script; ENG-1303, shema-api #712, this app's #320)
 date: 2026-10-07
 amends: 0053, 0048 (in part: the halt over an opening and the lift's re-ask), 0044 (in part: what a lift replays over an opening)
 ---
