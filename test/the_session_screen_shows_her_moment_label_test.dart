@@ -178,7 +178,7 @@ void main() {
   });
 
   testWidgets(
-    'the Ensaio Final in the dark wears her orange, not the theme\'s',
+    'the Ensaio Final in the dark wears her dark orange, not the light one',
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -197,7 +197,8 @@ void main() {
       expect(
         _dot(tester),
         const Color(0xFFD6612A),
-        reason: 'no escuro o Ensaio Final usava o laranja do tema, #E36A1E',
+        reason:
+            'no escuro o ponto do Ensaio Final não trazia o laranja escuro dela',
       );
       expect(
         tester.widget<Text>(find.text('Ensaio Final')).style?.color,

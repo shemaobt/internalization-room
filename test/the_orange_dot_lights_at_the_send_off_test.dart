@@ -395,7 +395,8 @@ void main() {
       expect(
         _dotColour(tester),
         const Color(0xFFD6612A),
-        reason: 'no escuro o ponto usava outro laranja, não o do rótulo',
+        reason:
+            'no escuro o ponto não trazia o laranja escuro dela, o do rótulo',
       );
     },
   );
