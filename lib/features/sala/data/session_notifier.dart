@@ -1999,6 +1999,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     final panorama = _panoramaSessionId ?? created!.sessionId;
     _panoramaSessionId = panorama;
+    _runner.run(const [ArmTheWatch()]);
     _warmHerLines();
     _openingOwed = true;
     final turnId = _openTurnId ??= _stamp();
@@ -2107,6 +2108,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _arriveAt(const ThePanoramaChosen());
     if (left.said && _panoramaSessionId == left.session) {
       state = state.copyWith(panoramaSaid: true);
+      _runner.run(const [ArmTheWatch()]);
       unawaited(_pullInbox());
       return;
     }
