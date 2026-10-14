@@ -268,6 +268,7 @@ void main() {
       () => read().panoramaSaid && read().voice == VoiceState.invite,
     );
     final panorama = harness.room.sessionIds.last;
+    final heard = harness.voice.played.length;
     notifier.panoramaTap();
     await settle();
     notifier.panoramaTap();
@@ -276,8 +277,10 @@ void main() {
       () => harness.room.turnIdsSent.isNotEmpty,
     );
     await waitFor(
-      'the voice to invite',
-      () => read().voice == VoiceState.invite,
+      'the reply to be voiced',
+      () =>
+          harness.voice.played.length > heard &&
+          read().voice == VoiceState.invite,
     );
 
     expect(harness.room.pericopesAsked, ['P01', panoramaPericope]);
