@@ -342,6 +342,32 @@ void main() {
     },
   );
 
+  testWidgets(
+    'without Reduce Motion the label still fades out over its 800 ms when the team opens a note',
+    (tester) async {
+      final (_, container) = await _theOpeningSays(
+        tester,
+        const Moment(at: MomentAt.familiarization, parts: 3),
+      );
+      await tester.pump(const Duration(milliseconds: 1500));
+      expect(_seen(tester), 1.0);
+
+      container.read(salaSessionProvider.notifier).handTap();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(container.read(salaSessionProvider).noteMode, isTrue);
+      expect(
+        _seen(tester),
+        allOf(greaterThan(0.0), lessThan(1.0)),
+        reason: 'sem o movimento reduzido o momento sumia de uma vez',
+      );
+
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(_seen(tester), 0.0);
+    },
+  );
+
   for (final MapEntry(key: what, value: moment) in _untrusted.entries) {
     testWidgets(
       'a moment whose number cannot be trusted shows no label: $what',
