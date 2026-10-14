@@ -117,7 +117,7 @@ void main() {
       final harness = SalaHarness(filaEmMemoria: true)
         ..room.passages = _theBook;
       harness.finished.done.add('Ruth/P01');
-      harness.emAberto.rows['Ruth/P02'] = const ResumePoint(
+      harness.emAberto.rows['Ruth/P02/pt'] = const ResumePoint(
         sessionId: 'sessao-antiga',
         stage: SalaStage.conversa,
       );

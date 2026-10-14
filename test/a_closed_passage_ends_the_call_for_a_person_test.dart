@@ -164,7 +164,7 @@ void main() {
       passNumber: 1,
       chunkIndex: 1,
     );
-    expect(await harness.emAberto.of('Ruth', 'P01'), isNotNull);
+    expect(await harness.emAberto.of('Ruth', 'P01', 'pt'), isNotNull);
     expect(harness.room.calls, contains('fetchState'));
     final chegadas = harness.room.personArrivedSessions.length;
 
@@ -175,7 +175,7 @@ void main() {
     await waitFor(
       'o lugar e a cópia da sessão saírem do tablet',
       () async =>
-          (await harness.emAberto.of('Ruth', 'P01')) == null &&
+          (await harness.emAberto.of('Ruth', 'P01', 'pt')) == null &&
           await _aCopiaSaiu(harness, sessao, linha),
     );
 
@@ -191,7 +191,7 @@ void main() {
       isNot(contains('fetchState')),
       reason: 'a Watch termina com a sessão',
     );
-    expect(await harness.emAberto.of('Ruth', 'P01'), isNull);
+    expect(await harness.emAberto.of('Ruth', 'P01', 'pt'), isNull);
     expect(await _daSessao(harness, sessao), isEmpty);
     expect(File(linha.path).existsSync(), isFalse);
     expect(
@@ -214,7 +214,7 @@ void main() {
     _sala(container).leaveThePassage();
     await _naEscolha(container);
     await settle();
-    expect(await harness.emAberto.of('Ruth', 'P01'), isNotNull);
+    expect(await harness.emAberto.of('Ruth', 'P01', 'pt'), isNotNull);
     final linha = await harness.takes.enqueue(
       harness.recorder.aFile('parte-guardada'),
       sessionId: sessao,
@@ -229,13 +229,13 @@ void main() {
     await waitFor(
       'o lugar e a cópia da sessão saírem do tablet',
       () async =>
-          (await harness.emAberto.of('Ruth', 'P01')) == null &&
+          (await harness.emAberto.of('Ruth', 'P01', 'pt')) == null &&
           await _aCopiaSaiu(harness, sessao, linha),
     );
 
     expect(_estado(container).stage, SalaStage.escolha);
     expect(_estado(container).naRoda, isNotNull);
-    expect(await harness.emAberto.of('Ruth', 'P01'), isNull);
+    expect(await harness.emAberto.of('Ruth', 'P01', 'pt'), isNull);
     expect(await _daSessao(harness, sessao), isEmpty);
     expect(File(linha.path).existsSync(), isFalse);
     expect(harness.room.calls, isNot(contains('sendTake')));
@@ -432,7 +432,7 @@ void main() {
     final nova = _estado(container).sessionId!;
     await settle(_severalStepsOfTheLadder);
 
-    expect((await harness.emAberto.of('Ruth', 'P01'))?.sessionId, nova);
+    expect((await harness.emAberto.of('Ruth', 'P01', 'pt'))?.sessionId, nova);
   });
 
   test('a passage closed while the team resumes it opens the Choice, never '
@@ -451,7 +451,7 @@ void main() {
     harness.room.finishHeldAskForAPerson();
     await waitFor(
       'o lugar da sessão fechada sair do tablet',
-      () => harness.emAberto.rows['Ruth/P01'] == null,
+      () => harness.emAberto.rows['Ruth/P01/pt'] == null,
     );
     harness.room
       ..failTurnsWith = null
@@ -513,10 +513,11 @@ void main() {
       await waitFor(
         'o lugar da primeira sair do tablet',
         () async =>
-            (await harness.emAberto.of('Ruth', 'P01'))?.sessionId != primeira,
+            (await harness.emAberto.of('Ruth', 'P01', 'pt'))?.sessionId !=
+            primeira,
       );
       expect(
-        (await harness.emAberto.of('Ruth', 'P01'))?.sessionId,
+        (await harness.emAberto.of('Ruth', 'P01', 'pt'))?.sessionId,
         isNot(primeira),
       );
       _sala(container).leaveThePassage();
@@ -533,10 +534,11 @@ void main() {
       await waitFor(
         'o lugar da primeira sair do tablet',
         () async =>
-            (await harness.emAberto.of('Ruth', 'P01'))?.sessionId != primeira,
+            (await harness.emAberto.of('Ruth', 'P01', 'pt'))?.sessionId !=
+            primeira,
       );
       expect(
-        (await harness.emAberto.of('Ruth', 'P01'))?.sessionId,
+        (await harness.emAberto.of('Ruth', 'P01', 'pt'))?.sessionId,
         isNot(primeira),
       );
       _sala(container).leaveThePassage();
@@ -594,7 +596,8 @@ void main() {
       await waitFor(
         'o lugar da primeira ficar guardado no tablet',
         () async =>
-            (await harness.emAberto.of('Ruth', 'P01'))?.sessionId == primeira,
+            (await harness.emAberto.of('Ruth', 'P01', 'pt'))?.sessionId ==
+            primeira,
       );
 
       harness.room.finishHeldAskForAPerson();

@@ -69,7 +69,7 @@ void _aLinhaDeixada(
       ),
     );
   }
-  harness.emAberto.rows['Ruth/$_passagem'] = ResumePoint(
+  harness.emAberto.rows['Ruth/$_passagem/${lingua ?? 'pt'}'] = ResumePoint(
     sessionId: _daLinha,
     stage: parouEm,
     takes: parouEm == SalaStage.conversa ? const [] : takes,
@@ -122,7 +122,7 @@ void main() {
       reason: 'a porta é outra e a linha é a mesma',
     );
     expect(estado.keptTakes, hasLength(3));
-    expect(harness.emAberto.rows['Ruth/$_passagem']!.sessionId, _daLinha);
+    expect(harness.emAberto.rows['Ruth/$_passagem/pt']!.sessionId, _daLinha);
     expect(
       harness.room.sessionIds,
       isEmpty,
@@ -148,7 +148,7 @@ void main() {
           'e a conversa dela continua na sessão que a equipe deixou',
     );
     expect(container.read(salaSessionProvider).sessionId, _daLinha);
-    expect(harness.emAberto.rows['Ruth/$_passagem']!.sessionId, _daLinha);
+    expect(harness.emAberto.rows['Ruth/$_passagem/pt']!.sessionId, _daLinha);
   });
 
   test(
@@ -165,7 +165,8 @@ void main() {
       );
       await waitFor(
         'o lugar da equipe ser anotado',
-        () => harness.emAberto.rows['Ruth/$_passagem']!.sessionId != _daLinha,
+        () =>
+            harness.emAberto.rows['Ruth/$_passagem/pt']!.sessionId != _daLinha,
       );
       expect(
         container.read(salaSessionProvider).sessionId,
@@ -175,7 +176,7 @@ void main() {
             '0031): a sessão que a sala abriu é a que a equipe entra',
       );
       expect(
-        harness.emAberto.rows['Ruth/$_passagem']!.sessionId,
+        harness.emAberto.rows['Ruth/$_passagem/pt']!.sessionId,
         _aMintada(harness),
       );
     },
@@ -213,7 +214,7 @@ void main() {
             '0023); a sessão que ela acabou de abrir não guarda parte nenhuma',
       );
       expect(container.read(salaSessionProvider).sessionId, _daLinha);
-      expect(harness.emAberto.rows['Ruth/$_passagem']!.sessionId, _daLinha);
+      expect(harness.emAberto.rows['Ruth/$_passagem/pt']!.sessionId, _daLinha);
     },
   );
 }

@@ -65,7 +65,7 @@ class _Retomada {
 
   SalaSessionState get estado => container.read(salaSessionProvider);
 
-  ResumePoint? get linha => harness.emAberto.rows['Ruth/P01'];
+  ResumePoint? get linha => harness.emAberto.rows['Ruth/P01/pt'];
 
   String get linhaAgora => jsonEncode(linha?.toJson());
 }
@@ -105,7 +105,7 @@ Future<_Retomada> _reabrir(
         ),
     ],
   );
-  harness.emAberto.rows['Ruth/P01'] = linha;
+  harness.emAberto.rows['Ruth/P01/pt'] = linha;
   harness.playback.measured = _parte;
   harness.room
     ..retroSoFar = contado

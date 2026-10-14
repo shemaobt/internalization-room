@@ -162,7 +162,7 @@ void main() {
       );
       expect(
         it.harness.emAberto.rows,
-        contains('Ruth/P01'),
+        contains('Ruth/P01/pt'),
         reason:
             'e segue sendo ponto de retomada: fechar o app aqui tem de '
             'trazer a equipe de volta a este mesmo gesto',
@@ -233,7 +233,7 @@ void main() {
       );
       expect(
         it.harness.emAberto.rows,
-        isNot(contains('Ruth/P01')),
+        isNot(contains('Ruth/P01/pt')),
         reason: 'e não há mais a que voltar',
       );
 
@@ -677,10 +677,8 @@ void main() {
     // que este ticket cria: ela tem de poder ser aprovada como a primeira. A linha é
     // escrita antes do fecho porque a roda lê quais passagens já foram começadas ao
     // reabrir, e o recomeço reabre a roda sozinho.
-    it.harness.emAberto.rows['Ruth/P02'] = const ResumePoint(
-      sessionId: 'sessao-da-p02',
-      stage: SalaStage.retro,
-    );
+    it.harness.emAberto.rows['Ruth/P02/${it.harness.lingua}'] =
+        const ResumePoint(sessionId: 'sessao-da-p02', stage: SalaStage.retro);
 
     await _aprovarEEsperar(tester);
     await tester.pump(const Duration(milliseconds: 700));
@@ -818,7 +816,7 @@ void main() {
       );
       expect(
         it.harness.emAberto.rows,
-        contains('Ruth/P01'),
+        contains('Ruth/P01/pt'),
         reason: 'ela segue na roda, com a linha de retomada de pé',
       );
 

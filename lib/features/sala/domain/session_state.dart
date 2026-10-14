@@ -96,6 +96,7 @@ class LeftEntry {
   final String? pericope;
   final bool panorama;
   final String? session;
+  final String? language;
   final bool said;
   final Paused? held;
 
@@ -103,6 +104,7 @@ class LeftEntry {
     this.pericope,
     this.panorama = false,
     this.session,
+    this.language,
     this.said = false,
     this.held,
   });

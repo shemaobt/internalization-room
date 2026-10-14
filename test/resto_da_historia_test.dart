@@ -63,6 +63,7 @@ Future<ProviderContainer> aRetomadaNoEnsaio(
   await harness.emAberto.remember(
     'Ruth',
     'P01',
+    'pt',
     ResumePoint(
       sessionId: 'sessao-antiga',
       stage: SalaStage.ensaio,

@@ -46,7 +46,7 @@ Future<ProviderContainer> _fallenInEnsaio(SalaHarness harness) async {
     '${Directory.systemTemp.createTempSync('sala-1061').path}/p1.m4a',
   )..writeAsBytesSync([1, 2, 3]);
   addTearDown(() => gravada.parent.deleteSync(recursive: true));
-  harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: SalaStage.ensaio,
     takes: [
@@ -350,7 +350,7 @@ void main() {
         settleDelay: const Duration(seconds: 2),
         watchesWithoutAHalt: true,
       );
-      harness.emAberto.rows['Ruth/P01'] = const ResumePoint(
+      harness.emAberto.rows['Ruth/P01/pt'] = const ResumePoint(
         sessionId: 'sessao-antiga',
         stage: SalaStage.conversa,
       );

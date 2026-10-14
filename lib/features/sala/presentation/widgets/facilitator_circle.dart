@@ -12,6 +12,9 @@ enum Tongue { guide, motherTongue, bridge }
 
 const facilitatorCircleSize = 160.0;
 
+bool isTeamTalk({required bool peerCue, required VoiceState voice}) =>
+    peerCue && (voice == VoiceState.invite || voice == VoiceState.done);
+
 class FacilitatorCircle extends StatelessWidget {
   final double size;
   final VoiceState voice;
@@ -57,8 +60,7 @@ class FacilitatorCircle extends StatelessWidget {
     this.onLongPress,
   });
 
-  bool get _teamTalk =>
-      peerCue && (voice == VoiceState.invite || voice == VoiceState.done);
+  bool get _teamTalk => isTeamTalk(peerCue: peerCue, voice: voice);
 
   bool get _noteBlue => noteMode && voice != VoiceState.done;
 

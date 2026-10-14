@@ -4,11 +4,7 @@ import 'moment.dart';
 
 const languages = ['pt', 'en'];
 
-const floorLanguage = 'en';
-
-String languageFor(Iterable<String> spoken) => spoken
-    .map((code) => code.toLowerCase())
-    .firstWhere(languages.contains, orElse: () => floorLanguage);
+const floorLanguage = 'pt';
 
 String offlineNoticeAsset(String language) =>
     'assets/audio/$language/sem_conexao.mp3';

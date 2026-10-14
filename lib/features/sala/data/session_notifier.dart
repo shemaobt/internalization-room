@@ -43,6 +43,7 @@ import 'port_adapters.dart';
 import 'recording_repository.dart';
 import 'room_answer.dart';
 import 'room_client.dart';
+import 'room_language_ledger.dart';
 import 'room_repository.dart';
 import 'take_upload_queue.dart';
 import 'work_in_progress.dart';
@@ -138,33 +139,29 @@ final captureGuardProvider = Provider<CaptureGuard>(
 /// change rather than a code change — the catalogue route takes it as a parameter.
 final bookProvider = Provider<String>((ref) => 'Ruth');
 
-final devLanguageProvider = NotifierProvider<DevLanguage, String?>(
-  DevLanguage.new,
+final roomLanguageProvider = NotifierProvider<RoomLanguage, String>(
+  RoomLanguage.new,
 );
 
-class DevLanguage extends Notifier<String?> {
+class RoomLanguage extends Notifier<String> {
   @override
-  String? build() => null;
-
-  void choose(String language) {
-    if (!Env.devPularFases) return;
-    if (!languages.contains(language)) return;
-    state = language;
+  String build() {
+    final chosen = ref.read(roomLanguageLedgerProvider).chosen;
+    return languages.contains(chosen) ? chosen! : floorLanguage;
   }
 
-  String next(String current) =>
-      languages[(languages.indexOf(current) + 1) % languages.length];
-}
+  String get next =>
+      languages[(languages.indexOf(state) + 1) % languages.length];
 
-final roomLanguageProvider = Provider<String>((ref) {
-  final chosen = ref.watch(devLanguageProvider);
-  if (chosen != null) return chosen;
-  return languageFor(
-    WidgetsBinding.instance.platformDispatcher.locales.map(
-      (locale) => locale.languageCode,
-    ),
-  );
-});
+  bool choose(String language) {
+    if (!languages.contains(language) || language == state) return false;
+    state = language;
+    unawaited(
+      ref.read(roomLanguageLedgerProvider).choose(language).catchError((_) {}),
+    );
+    return true;
+  }
+}
 
 final fimLingerProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 14),
@@ -215,6 +212,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// session was born, and nothing decides by it (ADR 0031).
   DateTime? _sessionSavedAt;
   String? _sessionLanguage;
+  String? _panoramaLanguage;
   int _calmTurns = 0;
   Future<void> Function()? _pending;
   CurrentSession? _landingOn;
@@ -1017,10 +1015,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   bool _applyWhatOnlyGrows(SessionSnapshot snapshot, {TurnClock? clock}) {
     final advanced = _applyCoverage(snapshot.coverage, clock: clock);
     if (!state.needsPerson && snapshot.done && state.station is Canvas) {
-      state = state.copyWith(
-        endOfThePassage: true,
-        peerCue: state.voice == VoiceState.invite ? false : null,
-      );
+      state = state.copyWith(endOfThePassage: true);
     }
     return advanced;
   }
@@ -1063,7 +1058,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           _dispatch(NothingReplayed(generation: _generation));
         }
       case TheResume():
-        _handOff(goConversa(pericope: _emCurso));
+        _handOff(goConversa(pericope: _emCurso, language: _sessionLanguage));
         return;
       case TheWheel():
         _handOff(abrirEscolha());
@@ -1072,7 +1067,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         break;
     }
     if (state.sessionId == null && state.station is Canvas) {
-      _handOff(goConversa(pericope: _emCurso));
+      _handOff(goConversa(pericope: _emCurso, language: _sessionLanguage));
     }
     if (state.rodaPorLer) _handOff(abrirEscolha());
   }
@@ -1628,7 +1623,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final held = await _store.currentSession();
     if (_abandoned(generation)) return;
     if (held == null) return _abrirEscolha();
-    if (held.book != _book || held.language != _lingua) {
+    if (held.book != _book) {
       _letGoOfTheCurrentSession();
       return _abrirEscolha();
     }
@@ -1643,7 +1638,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     if (read case Answered(value: final snapshot)) {
       _landingOn = held;
-      return _goConversa(pericope: held.pericope, opened: snapshot);
+      return _goConversa(
+        pericope: held.pericope,
+        opened: snapshot,
+        language: held.language,
+      );
     }
     if (read case SessionGone()) _theSessionIsGone(held.sessionId);
     return _abrirEscolha();
@@ -1651,18 +1650,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> Function() _enterAgain(String? pericope) {
     final landing = _landingOn;
-    if (landing == null) return () => goConversa(pericope: pericope);
+    if (landing == null) {
+      return () => goConversa(pericope: pericope, language: _sessionLanguage);
+    }
     return () => _gestureThen(() => _landOn(landing));
   }
 
-  void _holdTheCurrentSession(String sessionId, String pericope) => unawaited(
+  void _holdTheCurrentSession(
+    String sessionId,
+    String pericope,
+    String language,
+  ) => unawaited(
     _store
         .holdTheSession(
           CurrentSession(
             sessionId: sessionId,
             book: _book,
             pericope: pericope,
-            language: _lingua,
+            language: language,
           ),
         )
         .catchError((_) {}),
@@ -1720,7 +1725,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       return;
     }
-    if (state.voice == VoiceState.invite) _handOff(_entrarNoPanorama());
+    if (state.voice == VoiceState.invite) {
+      _handOff(_entrarNoPanorama(_panoramaLanguage));
+    }
   }
 
   Future<void> _finishPanoramaListening() async {
@@ -1791,7 +1798,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // Held before the await: a provider read after the container is disposed throws,
     // and this method is reached from a fire-and-forget touch.
     final open = _emAberto;
-    final comecadas = await open.startedIn(_book);
+    final comecadas = await open.startedIn(_book, _lingua);
     if (_abandoned(generation)) return;
     state = state.copyWith(
       naRoda: todas,
@@ -1941,7 +1948,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// Asked for by `panoramaPericope`, not by whatever id the wheel happens to label the
   /// entry with, and the session is reused rather than asked for again on every tap: a
   /// retried touch would otherwise mint one abandoned panorama session per attempt.
-  Future<void> _entrarNoPanorama() async {
+  Future<void> _entrarNoPanorama([String? language]) async {
+    final speaking = language ?? _lingua;
+    if (_panoramaLanguage != speaking) _panoramaSessionId = null;
+    _panoramaLanguage = speaking;
     _letGoOfTheCurrentSession();
     final generation = _waitOnTheGeneration;
     state = state.copyWith(awaitingTheGuide: true);
@@ -1962,7 +1972,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_panoramaSessionId == null) {
       switch (await _room.createSession(
         pericope: panoramaPericope,
-        language: _lingua,
+        language: speaking,
       )) {
         case Answered(value: final session):
           created = session;
@@ -2010,6 +2020,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       pericope: pericope,
       panorama: panorama,
       session: session,
+      language: panorama ? _panoramaLanguage : _sessionLanguage,
       said: panorama && state.panoramaSaid,
       held: _theTakeTheLeaveHolds(),
     );
@@ -2063,7 +2074,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final left = state.leftEntry!;
     state = state.copyWith(clearLeftEntry: true);
     if (left.panorama) return _returnToThePanorama(left);
-    await goConversa(pericope: left.pericope);
+    await goConversa(pericope: left.pericope, language: left.language);
     final held = left.held;
     if (held != null &&
         state.sessionId == left.session &&
@@ -2083,7 +2094,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       unawaited(_pullInbox());
       return;
     }
-    _handOff(_entrarNoPanorama());
+    _handOff(_entrarNoPanorama(left.language));
   }
 
   String? get _theSession => state.sessionId ?? _panoramaSessionId;
@@ -2111,18 +2122,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<RoomAnswer<SessionSnapshot>> _createThePassage(
     String? pericope,
+    String language,
     int generation,
   ) async {
     final after = _panoramaSessionId;
     final answer = await _room.createSession(
       pericope: pericope,
       afterSession: after,
-      language: _lingua,
+      language: language,
     );
     if (answer case SessionGone() when after != null) {
       _letGoOf(after);
       if (_abandoned(generation)) return answer;
-      return _room.createSession(pericope: pericope, language: _lingua);
+      return _room.createSession(pericope: pericope, language: language);
     }
     return answer;
   }
@@ -2168,11 +2180,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _handOff(abrirEscolha());
   }
 
-  bool _wrongLanguage(ResumePoint? point) {
-    final language = point?.language;
-    return language != null && language != _lingua;
-  }
-
   /// Everything of the session before this one stays behind.
   ///
   /// Only what the book knows crosses over — the wheel, the passages started, the one
@@ -2208,15 +2215,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     String? pericope,
     bool fresh = false,
     SessionSnapshot? opened,
+    String? language,
   }) => _gestureThen(
-    () => _goConversa(pericope: pericope, fresh: fresh, opened: opened),
+    () => _goConversa(
+      pericope: pericope,
+      fresh: fresh,
+      opened: opened,
+      language: language,
+    ),
   );
 
   Future<void> _goConversa({
     String? pericope,
     bool fresh = false,
     SessionSnapshot? opened,
+    String? language,
   }) async {
+    final speaking = language ?? _lingua;
+    _sessionLanguage = speaking;
     _leaveTheStepFor(const Canvas());
     _clearAll();
     _emCurso = pericope;
@@ -2243,16 +2259,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchBusyState();
     // Only the passages the wheel already said have work waiting are looked up on disk,
     // so entering a fresh one through the wheel costs no read at all. A door the room
-    // opened has no wheel behind it — the list is still empty before the Choice reads
-    // it — so the row is looked up there whatever the list says (ADR 0033).
-    final stored =
+    // opened, and an entry that brings its own language (the way back, a retry, a
+    // relaunch), have no wheel of that language behind them, so the row is looked up
+    // there whatever the list says (ADR 0033, ADR 0077).
+    final waiting =
         !fresh &&
             pericope != null &&
-            (opened != null || state.comecadas.contains(pericope))
-        ? await _emAberto.of(_book, pericope)
+            (opened != null ||
+                language != null ||
+                state.comecadas.contains(pericope))
+        ? await _emAberto.of(_book, pericope, speaking)
         : null;
     if (_abandoned(generation)) return;
-    final waiting = _wrongLanguage(stored) ? null : stored;
     var reachedTheOpeningTurn = false;
     void failed(RoomFailure failure) {
       if (_abandoned(generation)) return;
@@ -2262,7 +2280,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _resumeFailures++;
         if (_resumeFailures >= _resumeFailuresBeforeForgetting) {
           _resumeFailures = 0;
-          unawaited(_mindingThePlace(() => _emAberto.forget(_book, pericope!)));
+          unawaited(
+            _mindingThePlace(
+              () => _emAberto.forget(_book, pericope!, speaking),
+            ),
+          );
         }
       }
       // A resume keeps the three-strike ladder above (waiting != null): the server is
@@ -2280,7 +2302,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final resumed = waiting != null;
     var created = resumed ? null : opened;
     if (!resumed && opened == null) {
-      switch (await _createThePassage(pericope, generation)) {
+      switch (await _createThePassage(pericope, speaking, generation)) {
         case Answered(value: final session):
           created = session;
         case final RoomFailure failure:
@@ -2298,9 +2320,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       moment: created?.moment,
     );
     _runner.run(const [ArmTheWatch()]);
-    if (pericope != null) _holdTheCurrentSession(sessionId, pericope);
+    if (pericope != null) _holdTheCurrentSession(sessionId, pericope, speaking);
     _sessionSavedAt = resumed ? waiting.savedAt : clock.now();
-    _sessionLanguage = resumed ? waiting.language : _lingua;
     _warmHerLines();
     if (pericope != null && !resumed) {
       unawaited(
@@ -2308,6 +2329,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           () => _emAberto.remember(
             _book,
             pericope,
+            speaking,
             ResumePoint(
               sessionId: sessionId,
               stage: const Canvas().stage,
@@ -2473,12 +2495,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_gone) return;
     final pericope = _emCurso;
     final sessionId = state.sessionId;
-    if (pericope == null || sessionId == null) return;
+    final language = _sessionLanguage;
+    if (pericope == null || sessionId == null || language == null) return;
     unawaited(
       _mindingThePlace(
         () => _emAberto.remember(
           _book,
           pericope,
+          language,
           ResumePoint(
             sessionId: sessionId,
             stage: station.stage,
@@ -3181,17 +3205,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // The one discarded erasure that stays discarded: this is behind `devPularFases`, on
     // no team's path, and the entry it drops is rewritten by the fresh entry two lines
     // down. There is nobody here to speak to.
-    unawaited(_emAberto.forget(_book, pericope).catchError((_) {}));
-    _handOff(goConversa(pericope: pericope, fresh: true));
+    final language = _sessionLanguage ?? _lingua;
+    unawaited(_emAberto.forget(_book, pericope, language).catchError((_) {}));
+    _handOff(goConversa(pericope: pericope, fresh: true, language: language));
   }
 
-  void devTrocarIdioma() => _gesture(() => _devTrocarIdioma());
+  void chooseTheLanguage(String language) =>
+      _gesture(() => _chooseTheLanguage(language));
 
-  void _devTrocarIdioma() {
-    if (!Env.devPularFases) return;
-    final knob = ref.read(devLanguageProvider.notifier);
-    knob.choose(knob.next(_lingua));
-    _handOff(_startOver());
+  void _chooseTheLanguage(String language) {
+    if (ref.read(roomLanguageProvider.notifier).choose(language)) {
+      _dispatch(const TheLanguageChosen());
+    }
   }
 
   void goEnsaio() => _gesture(() => _goEnsaio());
@@ -5580,7 +5605,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final feita = _emCurso;
     if (feita != null) {
       unawaited(_feitas.add(_book, feita).catchError((_) {}));
-      unawaited(_mindingThePlace(() => _emAberto.forget(_book, feita)));
+      final language = _sessionLanguage;
+      if (language != null) {
+        unawaited(
+          _mindingThePlace(() => _emAberto.forget(_book, feita, language)),
+        );
+      }
     }
     _letGoOfTheCurrentSession();
     _after('fim', const Duration(milliseconds: 700), () {
@@ -5755,6 +5785,8 @@ class _NotifierHost implements StationHost {
     switch (handOff) {
       case OpenTheChoice():
         _notifier._openTheChoice();
+      case ReadTheWheel():
+        _notifier._handOff(_notifier.abrirEscolha());
       case DiscardTheSession():
         _notifier._discardTheSession();
       case SilenceTheRoom():

@@ -26,6 +26,7 @@ import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/screen_awake.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/data/room_language_ledger.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/approval_answer.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
@@ -719,6 +720,19 @@ class FakeCurrentSessionLedger implements CurrentSessionLedger {
   }
 }
 
+class FakeRoomLanguageLedger implements RoomLanguageLedger {
+  @override
+  String? chosen;
+
+  FakeRoomLanguageLedger({this.chosen});
+
+  @override
+  Future<void> choose(String language) async => chosen = language;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 class FakeWorkInProgress implements WorkInProgress {
   final Map<String, ResumePoint> rows = {};
 
@@ -728,9 +742,11 @@ class FakeWorkInProgress implements WorkInProgress {
   final List<ResumePoint> written = [];
 
   @override
-  Future<Set<String>> startedIn(String book) async => {
-    for (final key in rows.keys)
-      if (key.startsWith('$book/')) key.substring(book.length + 1),
+  Future<Set<String>> startedIn(String book, String language) async => {
+    for (final MapEntry(:key, :value) in rows.entries)
+      if (key.startsWith('$book/') &&
+          (key.endsWith('/$language') || value.language == language))
+        key.split('/')[1],
   };
 
   Completer<void>? _holdingRead;
@@ -745,8 +761,8 @@ class FakeWorkInProgress implements WorkInProgress {
   }
 
   @override
-  Future<ResumePoint?> of(String book, String pericope) async {
-    final row = rows['$book/$pericope'];
+  Future<ResumePoint?> of(String book, String pericope, String language) async {
+    final row = rows['$book/$pericope/$language'];
     final held = _holdingRead;
     if (held != null) {
       _holdingRead = null;
@@ -757,14 +773,19 @@ class FakeWorkInProgress implements WorkInProgress {
   }
 
   @override
-  Future<void> remember(String book, String pericope, ResumePoint point) async {
+  Future<void> remember(
+    String book,
+    String pericope,
+    String language,
+    ResumePoint point,
+  ) async {
     written.add(point);
-    rows['$book/$pericope'] = point;
+    rows['$book/$pericope/$language'] = point;
   }
 
   @override
-  Future<void> forget(String book, String pericope) async =>
-      rows.remove('$book/$pericope');
+  Future<void> forget(String book, String pericope, String language) async =>
+      rows.remove('$book/$pericope/$language');
 
   Duration? forgetsTheSessionAfter;
 
@@ -1156,6 +1177,14 @@ class FakeRoom implements RoomRepository {
 
   void holdNextPassages() => _holdingPassages = Completer<void>();
 
+  /// The Wheel each language is read as, when a case needs to tell two reads apart.
+  Map<String, List<Passagem>> passagesIn = {};
+
+  Completer<void>? _holdingOneRead;
+
+  /// Hold only the next read of the Wheel; a read asked meanwhile answers at once.
+  Completer<void> holdOneWheelRead() => _holdingOneRead = Completer<void>();
+
   void finishHeldPassages() {
     _holdingPassages?.complete();
     _holdingPassages = null;
@@ -1413,9 +1442,12 @@ class FakeRoom implements RoomRepository {
   }) async {
     if (_guard('passagesOf') case final failure?) return failure;
     await _holdingPassages?.future;
+    final heldRead = _holdingOneRead;
+    _holdingOneRead = null;
+    await heldRead?.future;
     booksAsked.add(book);
     languagesAsked.add(language);
-    return Answered(passages);
+    return Answered(passagesIn[language] ?? passages);
   }
 
   @override
@@ -2517,6 +2549,10 @@ class SalaHarness {
 
   final String? lingua;
 
+  /// The room language the team chose, shared by a relaunch so a choice outlives closing
+  /// the app. Seeded from [lingua] unless the test hands one over.
+  final RoomLanguageLedger roomLanguage;
+
   SalaHarness({
     this.voiceService,
     List<HandReply> replies = const [],
@@ -2547,7 +2583,9 @@ class SalaHarness {
     this.takesOverride,
     Directory? takesHome,
     CurrentSessionLedger? currentSession,
+    RoomLanguageLedger? roomLanguage,
   }) : room = room ?? FakeRoom(),
+       roomLanguage = roomLanguage ?? FakeRoomLanguageLedger(chosen: lingua),
        takesHome =
            takesHome ?? Directory.systemTemp.createTempSync('sala-tomadas'),
        currentSession = currentSession ?? FakeCurrentSessionLedger(),
@@ -2589,6 +2627,7 @@ class SalaHarness {
     finishedPassagesProvider.overrideWithValue(finishedOnDisk ?? finished),
     workInProgressProvider.overrideWithValue(emAbertoNoDisco ?? emAberto),
     currentSessionLedgerProvider.overrideWithValue(currentSession),
+    roomLanguageLedgerProvider.overrideWithValue(roomLanguage),
     connectivityServiceProvider.overrideWithValue(connectivity ?? network),
     linkedTeamProvider.overrideWithValue(vinculo),
     linkPollIntervalProvider.overrideWithValue(linkPoll),
@@ -2603,7 +2642,6 @@ class SalaHarness {
     clipGraceProvider.overrideWithValue(clipGrace),
     captureGuardProvider.overrideWithValue(captureGuard),
     fimLingerProvider.overrideWithValue(fimLinger),
-    if (lingua != null) roomLanguageProvider.overrideWithValue(lingua!),
   ];
 
   ProviderContainer container() => ProviderContainer(overrides: overrides);

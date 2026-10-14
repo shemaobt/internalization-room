@@ -36,8 +36,10 @@ class DevSkipBar extends ConsumerWidget {
           _DevButton(
             prefix: 'idioma',
             label: ref.watch(roomLanguageProvider),
-            hint: 'recomeça a sala',
-            onTap: notifier.devTrocarIdioma,
+            hint: 'escolhe a outra língua',
+            onTap: () => notifier.chooseTheLanguage(
+              ref.read(roomLanguageProvider.notifier).next,
+            ),
           ),
           if (emCena.contains(session.stage)) ...[
             _DevButton(
