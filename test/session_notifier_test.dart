@@ -2937,6 +2937,39 @@ void main() {
     },
   );
 
+  test(
+    'a pull that finds the session done after a peer-cue reply keeps the team talking, '
+    'as a turn that brings done does',
+    () async {
+      final harness = SalaHarness(settleDelay: const Duration(seconds: 60))
+        ..room.turnIdInResponse = 'turno-1'
+        ..room.peerCue = true;
+      final container = harness.container();
+      addTearDown(container.dispose);
+
+      await container.read(salaSessionProvider.notifier).goConversa();
+      expect(container.read(salaSessionProvider).voice, VoiceState.invite);
+      expect(container.read(salaSessionProvider).peerCue, isTrue);
+
+      harness.room.done = true;
+      harness.room.pushCoverage(
+        const CoverageEvent(turnId: 'turno-1', status: CoverageStatus.settled),
+      );
+
+      await waitFor(
+        'the pull reading done with the voice idle',
+        () => container.read(salaSessionProvider).voice == VoiceState.done,
+      );
+      expect(
+        container.read(salaSessionProvider).peerCue,
+        isTrue,
+        reason:
+            'done is not an ending: the last reply sent the team to talk among '
+            'themselves, and only a reply changes that',
+      );
+    },
+  );
+
   test('a done the pull saw mid-turn still paints the circle once the line ends, even '
       'when the turn itself never said done', () async {
     final harness = SalaHarness(settleDelay: const Duration(milliseconds: 40))
