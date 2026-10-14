@@ -1014,7 +1014,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   bool _applyWhatOnlyGrows(SessionSnapshot snapshot, {TurnClock? clock}) {
-    final advanced = _applyCoverage(snapshot.coverage, clock: clock);
+    final advanced =
+        state.station is! Panorama &&
+        _applyCoverage(snapshot.coverage, clock: clock);
     if (!state.needsPerson && snapshot.done && state.station is Canvas) {
       state = state.copyWith(endOfThePassage: true);
     }

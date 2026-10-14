@@ -32,7 +32,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/moment_l
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel;
+import 'scenario_helpers.dart' show byLabel, stateReads;
 
 Set<Color> paintedBy(WidgetTester tester, Finder corner) {
   final colours = <Color>{};
@@ -1578,9 +1578,11 @@ void main() {
 
   testWidgets(
     'the Panorama canvas shows the circle, the hand, «Ouvir de novo» and the '
-    'way out, and no necklace, rehearsal entry or moment label',
+    'way out, and no beads, rehearsal entry, moment label or kept takes, '
+    'while the Watch reads a room that says the passage is done',
     (tester) async {
-      final harness = SalaHarness()
+      final harness = SalaHarness(watchesWithoutAHalt: true)
+        ..room.done = true
         ..room.nextMoment = const Moment(at: MomentAt.articulation, parts: 3)
         ..room.nextCoverage = coverage(
           engaged: totalBeads,
@@ -1589,13 +1591,20 @@ void main() {
       final container = await pumpSala(tester, harness);
       await _enterThePanorama(tester, harness, container);
       await tester.pump(const Duration(seconds: 3));
+      final read = container.read(salaSessionProvider);
 
-      expect(container.read(salaSessionProvider).stage, SalaStage.panorama);
+      expect(stateReads(harness), greaterThan(0));
+      expect(read.stage, SalaStage.panorama);
+      expect(read.endOfThePassage, isFalse);
+      expect(read.coverage.engaged, 0);
+      expect(read.coverage.beadsFilled, 0);
       expect(find.byType(FacilitatorCircle), findsOneWidget);
       expect(find.byType(HandButton), findsOneWidget);
       expect(byLabel(roomLabelFor('hearAgain', 'pt')), findsOneWidget);
       expect(byLabel(roomLabelFor('leavePassage', 'pt')), findsOneWidget);
       expect(find.byType(ColarOverlay), findsNothing);
+      expect(find.byType(BeadRow), findsNothing);
+      expect(find.byType(EnsaioView), findsNothing);
       expect(find.byType(MomentLabel), findsNothing);
       expect(byLabel(roomLabelFor('recordEnsaio', 'pt')), findsNothing);
       expect(byLabel(recordEntryLabelFor('pt')), findsNothing);
