@@ -32,7 +32,7 @@ Future<ProviderContainer> _retomadaNoAchado(SalaHarness harness) async {
         ),
       ],
     );
-  harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: SalaStage.retro,
     takes: [

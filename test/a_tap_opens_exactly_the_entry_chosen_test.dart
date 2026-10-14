@@ -58,9 +58,9 @@ void main() {
       await waitFor('P03 to open', () => read().sessionId != null);
       await waitFor(
         'P03 to keep its place',
-        () => harness.emAberto.rows.containsKey('Ruth/P03'),
+        () => harness.emAberto.rows.containsKey('Ruth/P03/pt'),
       );
-      final p03Row = harness.emAberto.rows['Ruth/P03'];
+      final p03Row = harness.emAberto.rows['Ruth/P03/pt'];
 
       notifier.leaveThePassage();
       await enterThePassage(notifier, read, 'P05');
@@ -72,7 +72,7 @@ void main() {
       expect(harness.room.pericopesAsked.last, 'P05');
       expect(read().station, isA<Canvas>());
       expect(read().sessionId, harness.room.sessionIds.last);
-      expect(harness.emAberto.rows['Ruth/P03'], p03Row);
+      expect(harness.emAberto.rows['Ruth/P03/pt'], p03Row);
     },
   );
 

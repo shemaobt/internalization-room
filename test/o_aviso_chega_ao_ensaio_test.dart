@@ -22,7 +22,7 @@ void main() {
       addTearDown(() => gravada.parent.deleteSync(recursive: true));
       final harness = SalaHarness(filaEmMemoria: true, lingua: 'en')
         ..room.serverHalt = HaltKind.warning;
-      harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+      harness.emAberto.rows['Ruth/P01/en'] = ResumePoint(
         sessionId: 'sessao-antiga',
         stage: SalaStage.ensaio,
         takes: [

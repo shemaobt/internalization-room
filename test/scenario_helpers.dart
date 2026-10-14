@@ -175,6 +175,7 @@ Future<(SalaHarness, ProviderContainer)> relaunch(
     finishedOnDisk: harness.finishedOnDisk ?? harness.finished,
     takesHome: harness.takesHome,
     currentSession: harness.currentSession,
+    roomLanguage: lingua == null ? harness.roomLanguage : null,
     lingua: lingua ?? harness.lingua,
     linkPoll: linkPoll ?? harness.linkPoll,
   );

@@ -318,7 +318,7 @@ void main() {
     it.sala.gravarAParteDeNovo();
     await regravarAParte(it, 1);
     await waitFor('o lugar da equipe ser escrito com o arquivo novo', () {
-      final ponto = it.harness.emAberto.rows['Ruth/P01'];
+      final ponto = it.harness.emAberto.rows['Ruth/P01/pt'];
       return ponto != null &&
           ponto.takes.length == 3 &&
           ponto.takes[1].path == it.partes[1].path;
@@ -326,7 +326,7 @@ void main() {
 
     expect(
       [
-        for (final take in it.harness.emAberto.rows['Ruth/P01']!.takes)
+        for (final take in it.harness.emAberto.rows['Ruth/P01/pt']!.takes)
           take.pass,
       ],
       [1, 2, 1],
@@ -598,12 +598,12 @@ void main() {
     final nova = it.partes[1];
 
     await waitFor('o lugar da equipe ser escrito', () {
-      final ponto = it.harness.emAberto.rows['Ruth/P01'];
+      final ponto = it.harness.emAberto.rows['Ruth/P01/pt'];
       return ponto != null &&
           ponto.takes.length == 3 &&
           ponto.takes[1].path == nova.path;
     });
-    final ponto = it.harness.emAberto.rows['Ruth/P01']!;
+    final ponto = it.harness.emAberto.rows['Ruth/P01/pt']!;
     expect(
       [for (final take in ponto.takes) take.scopeId],
       [KeptScope.parte(1), KeptScope.parte(2), KeptScope.parte(3)],
@@ -651,7 +651,8 @@ void main() {
     it.sala.gravarAParteDeNovo();
     await waitFor(
       'o lugar da equipe guardar a marca da parte no disco',
-      () async => (await ledger.of('Ruth', 'P01'))?.partBeingRecordedAgain == 1,
+      () async =>
+          (await ledger.of('Ruth', 'P01', 'pt'))?.partBeingRecordedAgain == 1,
     );
 
     // A morte do app é a queda do container: nada em memória sobrevive, e a
@@ -702,7 +703,8 @@ void main() {
     await waitFor(
       'a marca sair da linha guardada',
       () async =>
-          (await ledger.of('Ruth', 'P01'))?.partBeingRecordedAgain == null,
+          (await ledger.of('Ruth', 'P01', 'pt'))?.partBeingRecordedAgain ==
+          null,
     );
   });
 
@@ -720,7 +722,8 @@ void main() {
     it.sala.gravarAParteDeNovo();
     await waitFor(
       'o lugar guardar a marca da parte',
-      () async => (await ledger.of('Ruth', 'P01'))?.partBeingRecordedAgain == 1,
+      () async =>
+          (await ledger.of('Ruth', 'P01', 'pt'))?.partBeingRecordedAgain == 1,
     );
 
     // A barra de pular da dev chama startRetro() mesmo com uma marca de
@@ -736,7 +739,8 @@ void main() {
     // retomada.
     await waitFor(
       'a linha pousar como retro',
-      () async => (await ledger.of('Ruth', 'P01'))?.stage == SalaStage.retro,
+      () async =>
+          (await ledger.of('Ruth', 'P01', 'pt'))?.stage == SalaStage.retro,
     );
 
     it.container.dispose();
@@ -954,6 +958,7 @@ void main() {
       await harness.emAberto.remember(
         'Ruth',
         'P01',
+        'pt',
         ResumePoint(
           sessionId: 'sessao-antiga',
           stage: SalaStage.retro,
@@ -1357,7 +1362,7 @@ void main() {
       ],
       checked: true,
     );
-    harness.emAberto.rows['Ruth/P01'] = const ResumePoint(
+    harness.emAberto.rows['Ruth/P01/pt'] = const ResumePoint(
       sessionId: 'sessao-de-ontem',
       stage: SalaStage.retro,
     );

@@ -42,7 +42,7 @@ Future<_Check> _readyForTheVerdict(SalaHarness harness) async {
     ..length = const Duration(seconds: 30)
     ..measured = const Duration(seconds: 30);
   final parte1 = KeptScope.parte(1);
-  harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: SalaStage.retro,
     takes: [

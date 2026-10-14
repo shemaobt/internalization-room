@@ -29,7 +29,7 @@ Future<ProviderContainer> _reopensIntoRetro(
   addTearDown(() => pasta.deleteSync(recursive: true));
   final gravada = File('${pasta.path}/p1.m4a');
   if (theFileIsHere) gravada.writeAsBytesSync([1, 2, 3]);
-  harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: SalaStage.retro,
     takes: [

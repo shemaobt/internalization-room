@@ -76,7 +76,7 @@ Future<_Room> _aResumedBackTranslation(
     ..length = const Duration(seconds: 30)
     ..measured = const Duration(seconds: 30);
   harness.room.retroSoFar = BackTranslationProgress(segments: told);
-  harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: SalaStage.retro,
     takes: [
@@ -301,7 +301,7 @@ void main() {
     test('the resume reads', () async {
       final harness = SalaHarness(retryBackoff: _aLadderThatWaits)
         ..room.failTakesWith = const NetworkFailed('sem rede');
-      harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+      harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
         sessionId: 'sessao-antiga',
         stage: SalaStage.ensaio,
         takes: [

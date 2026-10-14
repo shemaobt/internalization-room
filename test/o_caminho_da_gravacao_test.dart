@@ -73,6 +73,7 @@ Future<void> _theyStoppedInTheRehearsal(
   await ledger.remember(
     'Ruth',
     'P01',
+    'pt',
     ResumePoint(
       sessionId: 'sessao-de-ontem',
       stage: SalaStage.ensaio,
@@ -163,7 +164,7 @@ void main() {
       // sempre é o dano, não a primeira. A saída é a sala devolver o ensaio, e
       // ela só pode fazê-lo enquanto a linha continuar de pé.
       expect(
-        (await ledger.of('Ruth', 'P01'))?.takes,
+        (await ledger.of('Ruth', 'P01', 'pt'))?.takes,
         hasLength(1),
         reason:
             'reescrever a linha sem as gravações fecha essa porta para '

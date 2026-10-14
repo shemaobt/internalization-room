@@ -303,6 +303,7 @@ String describeEvent(MachineEvent event) => switch (event) {
   TheNecklaceClosed() => 'TheNecklaceClosed',
   TheRoomStartedOver() => 'TheRoomStartedOver',
   ThePanoramaChosen() => 'ThePanoramaChosen',
+  TheLanguageChosen() => 'TheLanguageChosen',
 };
 
 String describeLine(Line line) => '${line.kind.name}#${line.id}';
@@ -417,6 +418,7 @@ enum EventKind {
   theNecklaceClosed,
   theRoomStartedOver,
   thePanoramaChosen,
+  theLanguageChosen,
 }
 
 EventKind kindOf(MachineEvent event) => switch (event) {
@@ -475,6 +477,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TheNecklaceClosed() => EventKind.theNecklaceClosed,
   TheRoomStartedOver() => EventKind.theRoomStartedOver,
   ThePanoramaChosen() => EventKind.thePanoramaChosen,
+  TheLanguageChosen() => EventKind.theLanguageChosen,
 };
 
 bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
@@ -531,6 +534,7 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.theNecklaceClosed ||
   EventKind.theRoomStartedOver ||
   EventKind.thePanoramaChosen => true,
+  EventKind.theLanguageChosen => true,
 };
 
 Source _drawASource(Random random) => switch (random.nextInt(4)) {
@@ -698,6 +702,7 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
       EventKind.theNecklaceClosed => const TheNecklaceClosed(),
       EventKind.theRoomStartedOver => const TheRoomStartedOver(),
       EventKind.thePanoramaChosen => const ThePanoramaChosen(),
+      EventKind.theLanguageChosen => const TheLanguageChosen(),
     };
 
 Turn _drawATurn(Random random) => Turn('sessao-1', 'turn-${random.nextInt(3)}');
