@@ -245,6 +245,22 @@ final aVerdictWaitingForTheTapIsNeverAskedAgainOnItsOwn = Invariant<Machine>(
   },
 );
 
+final aLanguageChosenReadsTheWheelOnlyOnTheChoice = Invariant<Machine>(
+  'ADR 0077, a language chosen reads the Wheel again on the Choice and nowhere else',
+  (before, event, after, effects, world) {
+    if (event is! TheLanguageChosen) return null;
+    final reads = effects.contains(const ReadTheWheel());
+    if (before.station is! Menu) {
+      return reads ? 'a language chosen off the Choice read the Wheel' : null;
+    }
+    if (!reads) return 'a language chosen on the Choice did not read the Wheel';
+    if (after.generation <= before.generation) {
+      return 'a language chosen on the Choice left the earlier read standing';
+    }
+    return null;
+  },
+);
+
 bool _callsOrStopsCallingAPerson(Effect effect) => switch (effect) {
   CallForAPerson() || TellAPersonArrived() => true,
   _ => false,
@@ -418,8 +434,14 @@ void main() {
         theHeadNeverReadsAnotherSound,
         theOutboxNeverIdlesReachableWithAPartPending,
         theScreenNeverShowsASoundTheChannelDoesNotHold,
+        aLanguageChosenReadsTheWheelOnlyOnTheChoice,
       ], seeds: _seeds);
     });
+  });
+
+  test('ADR 0077: a language chosen reads the Wheel again on the Choice and '
+      'nowhere else', () {
+    _holds(aLanguageChosenReadsTheWheelOnlyOnTheChoice);
   });
 
   group('the generator', () {

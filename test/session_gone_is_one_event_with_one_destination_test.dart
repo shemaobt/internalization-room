@@ -213,7 +213,7 @@ void main() {
       ..emAberto.forgetsTheSessionAfter = _slowerThanAnyWait;
     final aqui = harness.recorder.aFile('parte-1-guardada').path;
     final naoMaisAqui = '${harness.recorder.home.path}/parte-2-sumida.m4a';
-    harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+    harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
       sessionId: 'sessao-apagada',
       stage: SalaStage.ensaio,
       takes: [
@@ -233,12 +233,12 @@ void main() {
     await waitFor(
       'o lugar e a gravação guardada saírem do tablet',
       () async =>
-          (await harness.emAberto.of('Ruth', 'P01')) == null &&
+          (await harness.emAberto.of('Ruth', 'P01', 'pt')) == null &&
           harness.recorder.deleted.contains(aqui),
     );
 
     expect(harness.room.askedOfTheForgotten, contains('takesOf'));
-    expect(await harness.emAberto.of('Ruth', 'P01'), isNull);
+    expect(await harness.emAberto.of('Ruth', 'P01', 'pt'), isNull);
     expect(harness.recorder.deleted, contains(aqui));
     expect(
       harness.room.calls,
@@ -254,7 +254,7 @@ void main() {
       'with no fresh session', () async {
     final harness = SalaHarness()
       ..emAberto.forgetsTheSessionAfter = _slowerThanAnyWait;
-    harness.emAberto.rows['Ruth/P01'] = const ResumePoint(
+    harness.emAberto.rows['Ruth/P01/pt'] = const ResumePoint(
       sessionId: 'sessao-apagada',
       stage: SalaStage.conversa,
     );
@@ -269,11 +269,11 @@ void main() {
     await _naEscolha(container);
     await waitFor(
       'o lugar da sessão esquecida sair do tablet',
-      () async => (await harness.emAberto.of('Ruth', 'P01')) == null,
+      () async => (await harness.emAberto.of('Ruth', 'P01', 'pt')) == null,
     );
 
     expect(harness.room.askedOfTheForgotten, contains('fetchState'));
-    expect(await harness.emAberto.of('Ruth', 'P01'), isNull);
+    expect(await harness.emAberto.of('Ruth', 'P01', 'pt'), isNull);
     expect(harness.room.calls, isNot(contains('createSession')));
     expect(_estado(container).stage, SalaStage.escolha);
   });
@@ -346,7 +346,7 @@ void main() {
     final traducao = _estado(container).btTraducaoPendente!;
     final linhas = await _daSessao(harness, sessao);
     expect(linhas, isNotEmpty);
-    expect(await harness.emAberto.of('Ruth', 'P01'), isNotNull);
+    expect(await harness.emAberto.of('Ruth', 'P01', 'pt'), isNotNull);
 
     harness.room.forgetTheSession(sessao);
     harness.network.reachable = true;
@@ -354,14 +354,14 @@ void main() {
     await waitFor(
       'o lugar, a fila e as gravações da sessão saírem do tablet',
       () async =>
-          (await harness.emAberto.of('Ruth', 'P01')) == null &&
+          (await harness.emAberto.of('Ruth', 'P01', 'pt')) == null &&
           await _aFilaEsvaziou(harness, sessao, linhas) &&
           [parte, traducao].every(harness.recorder.deleted.contains),
     );
     final perguntasNaHora = harness.room.askedOfTheForgotten.length;
     await settle(const Duration(milliseconds: 400));
 
-    expect(await harness.emAberto.of('Ruth', 'P01'), isNull);
+    expect(await harness.emAberto.of('Ruth', 'P01', 'pt'), isNull);
     expect(await _daSessao(harness, sessao), isEmpty);
     for (final linha in linhas) {
       expect(File(linha.path).existsSync(), isFalse, reason: linha.kind);

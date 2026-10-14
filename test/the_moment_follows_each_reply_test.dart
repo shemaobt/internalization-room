@@ -175,7 +175,7 @@ void main() {
           part: 2,
           parts: 4,
         );
-      harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+      harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
         sessionId: 'sessao-antiga',
         stage: SalaStage.ensaio,
         takes: [

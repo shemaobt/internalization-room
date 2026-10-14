@@ -237,7 +237,7 @@ void main() {
             'livro',
       );
       expect(
-        harness.emAberto.rows.containsKey('Ruth/panorama'),
+        harness.emAberto.rows.containsKey('Ruth/panorama/pt'),
         isFalse,
         reason:
             'nada no panorama é um lugar para retomar; é a própria '

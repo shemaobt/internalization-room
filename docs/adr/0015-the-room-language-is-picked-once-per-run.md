@@ -1,5 +1,8 @@
 # The room picks its language once per run
 
+Superseded by ADR 0077: the team picks the room language, Portuguese by default, never the
+device's.
+
 Amended by ENG-1268 (what the language decides): no fixed line is bundled any more, so the
 choice no longer picks a bundle for them (the three courtesy clips still come from the
 per-language bundle). It is the language the tablet asks the room for each fixed and

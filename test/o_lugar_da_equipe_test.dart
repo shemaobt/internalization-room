@@ -32,7 +32,7 @@ void _corruptTheLedger(Directory home) {
 
 Future<void> _placeLands(WorkInProgress ledger, SalaStage stage) => waitFor(
   'o ponto de retomada pousar no disco como $stage',
-  () async => (await ledger.of('Ruth', 'P01'))?.stage == stage,
+  () async => (await ledger.of('Ruth', 'P01', 'pt'))?.stage == stage,
 );
 
 Future<void> _theRoomSays(SalaHarness harness) => waitFor(
@@ -97,7 +97,7 @@ void main() {
 
     await _theRoomSays(harness);
     expect(
-      await ledger.of('Ruth', 'P01'),
+      await ledger.of('Ruth', 'P01', 'pt'),
       isNull,
       reason: 'o arquivo ilegível continua ilegível: nada foi guardado',
     );

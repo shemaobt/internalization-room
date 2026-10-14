@@ -110,7 +110,7 @@ Future<(Sala, File)> _retomadaComUmTrechoSemParte({
   )..writeAsBytesSync([1, 2, 3]);
   addTearDown(() => gravada.parent.deleteSync(recursive: true));
   final harness = SalaHarness()
-    ..emAberto.rows['Ruth/P01'] = ResumePoint(
+    ..emAberto.rows['Ruth/P01/pt'] = ResumePoint(
       sessionId: 'sessao-antiga',
       stage: SalaStage.retro,
       takes: [
