@@ -296,6 +296,25 @@ void main() {
     );
   });
 
+  testWidgets(
+    'the question is reached with the part named, even when the room is late',
+    (tester) async {
+      final (container, harness) = await pumpToPergunta(
+        tester,
+        takeLandsAfter: const Duration(seconds: 1),
+      );
+
+      expect(
+        container.read(salaSessionProvider).btChunkFailures,
+        isEmpty,
+        reason:
+            'o retro abria com a parte ainda sem nome e a tradução do primeiro '
+            'trecho ficava guardada em vez de seguir para a sala',
+      );
+      expect(harness.room.chunksSent, 2);
+    },
+  );
+
   testWidgets('o caminho curto fica curto', (tester) async {
     final (container, harness) = await pumpToPergunta(tester);
     // The rehearsal's own take is already in there from the setup; what this scenario is

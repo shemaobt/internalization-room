@@ -1519,10 +1519,11 @@ void main() {
       notifier.conversaTap();
       await tester.pump(const Duration(milliseconds: 200));
       notifier.conversaTap();
-      for (var frame = 0; frame < 30; frame++) {
-        await tester.pump(const Duration(milliseconds: 200));
-        if (container.read(salaSessionProvider).needsPerson) break;
-      }
+      await waitFor(
+        'a sala pedir uma pessoa',
+        () => container.read(salaSessionProvider).needsPerson,
+        step: () => tester.pump(const Duration(milliseconds: 100)),
+      );
 
       expect(
         container.read(salaSessionProvider).needsPerson,

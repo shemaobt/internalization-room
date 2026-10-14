@@ -54,12 +54,6 @@ Future<void> _pass(_Sala sala, Duration time) async {
 
 const _aBeat = Duration(milliseconds: 100);
 
-Future<void> _wait(_Sala sala) async {
-  for (var beat = 0; beat < 10; beat++) {
-    await sala.tester.pump(const Duration(milliseconds: 100));
-  }
-}
-
 class _ARadioThatForgetsWhenNobodyListens implements Connectivity {
   late final StreamController<List<ConnectivityResult>> _changes =
       StreamController<List<ConnectivityResult>>.broadcast(
@@ -118,7 +112,11 @@ Future<void> _chooseP01(_Sala sala, RoomFailure creation) async {
   await _theChoiceOffers(sala, (entry) => entry.pericope == 'P01');
   sala.harness.room.failCreateOnceWith = creation;
   sala.notifier.entrarNaOferecida();
-  await _wait(sala);
+  await _until(
+    sala,
+    'the retry line',
+    () => byLabel(_tryAgain).evaluate().isNotEmpty,
+  );
 }
 
 void _restsWithoutAHalt(_Sala sala) {
@@ -129,7 +127,7 @@ void _restsWithoutAHalt(_Sala sala) {
 
 Future<void> _theNextTapOpens(_Sala sala, void Function() tap) async {
   final before = _creates(sala);
-  await _wait(sala);
+  await _pass(sala, const Duration(seconds: 1));
   expect(_creates(sala), before);
   tap();
   await _until(
@@ -199,7 +197,11 @@ void main() {
       );
       sala.harness.room.failCreateOnceWith = const NetworkFailed('sem rede');
       unawaited(sala.notifier.returnToTheLeftEntry());
-      await _wait(sala);
+      await _until(
+        sala,
+        'the retry line',
+        () => byLabel(_tryAgain).evaluate().isNotEmpty,
+      );
 
       expect(_read(sala).stage, SalaStage.conversa);
       _restsWithoutAHalt(sala);
@@ -221,7 +223,11 @@ void main() {
       sala.harness.room.reachable = false;
       sala.harness.network.reachable = false;
       sala.notifier.entrarNaOferecida();
-      await _wait(sala);
+      await _until(
+        sala,
+        'the retry line',
+        () => byLabel(_tryAgain).evaluate().isNotEmpty,
+      );
 
       expect(_read(sala).stage, SalaStage.panorama);
       _restsWithoutAHalt(sala);
@@ -234,7 +240,7 @@ void main() {
 
   SalaHarness aRoomThatGivesUp() => SalaHarness(
     retryBackoff: const [Duration(minutes: 1)],
-    busyCeiling: const Duration(milliseconds: 300),
+    busyCeiling: const Duration(milliseconds: 1500),
   )..room.passages = _aBookWithItsPanorama;
 
   Future<void> theCreationIsGivenUp(_Sala sala) async {
@@ -242,7 +248,11 @@ void main() {
     await _theChoiceOffers(sala, (entry) => entry.pericope == 'P01');
     sala.harness.room.holdNextCreate();
     sala.notifier.entrarNaOferecida();
-    await _wait(sala);
+    await _until(
+      sala,
+      'the retry line',
+      () => byLabel(_tryAgain).evaluate().isNotEmpty,
+    );
   }
 
   testWidgets(
@@ -256,7 +266,7 @@ void main() {
       _restsWithoutAHalt(sala);
 
       sala.harness.room.finishHeldCreate();
-      await _wait(sala);
+      await _pass(sala, const Duration(seconds: 1));
 
       expect(_read(sala).sessionId, isNull);
       expect(sala.harness.room.turnIdsAsked, isEmpty);
@@ -316,7 +326,11 @@ void main() {
 
     set(true);
     sala.notifier.entrarNaOferecida();
-    await _wait(sala);
+    await _until(
+      sala,
+      'the retry line',
+      () => byLabel(_tryAgain).evaluate().isNotEmpty,
+    );
     expect(byLabel(_tryAgain), findsOneWidget);
     await _pass(sala, _theProductionLadder[0] + _theProductionLadder[1]);
     set(false);
@@ -415,10 +429,13 @@ void main() {
         SalaHarness()..room.passages = _aBookWithItsPanorama,
       );
       final panorama = await aHaltInThePanoramaCalledFor(sala);
-      await _wait(sala);
 
       sala.notifier.resolveWithPerson();
-      await _wait(sala);
+      await _until(
+        sala,
+        'the arrival to reach the room',
+        () => sala.harness.room.personArrivedSessions.isNotEmpty,
+      );
 
       expect(sala.harness.room.personArrivedSessions, [panorama]);
       closeTheRoom(sala.container);
