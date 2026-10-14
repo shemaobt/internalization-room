@@ -42,6 +42,12 @@ double _opacity(WidgetTester tester) => tester
     )
     .fold(1.0, (opacity, fade) => opacity * fade.opacity);
 
+double _seen(WidgetTester tester) => tester
+    .widgetList<FadeTransition>(
+      find.ancestor(of: _label, matching: find.byType(FadeTransition)),
+    )
+    .fold(1.0, (opacity, fade) => opacity * fade.opacity.value);
+
 Future<(SalaHarness, ProviderContainer)> _theOpeningSays(
   WidgetTester tester,
   Moment? moment, {
@@ -305,6 +311,33 @@ void main() {
         0.0,
         reason:
             'a equipe abriu um recado e o momento continuou disputando a tela',
+      );
+    },
+  );
+
+  testWidgets(
+    'under Reduce Motion the label goes the moment the team opens a note, with no fade',
+    (tester) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      final (_, container) = await _theOpeningSays(
+        tester,
+        const Moment(at: MomentAt.familiarization, parts: 3),
+      );
+      await tester.pump(const Duration(milliseconds: 1500));
+      expect(_seen(tester), 1.0);
+
+      container.read(salaSessionProvider.notifier).handTap();
+      await tester.pump();
+
+      expect(container.read(salaSessionProvider).noteMode, isTrue);
+      expect(
+        _seen(tester),
+        0.0,
+        reason: 'com o movimento reduzido o momento ainda sumia em fade',
       );
     },
   );
