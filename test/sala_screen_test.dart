@@ -726,6 +726,25 @@ void main() {
     expect(byLabel('Tocar para falar'), findsNothing);
   });
 
+  testWidgets(
+    'done without a peer cue offers a tap to speak, with no team glyph',
+    (tester) async {
+      final harness = SalaHarness()..room.done = true;
+      final container = await pumpSala(tester, harness);
+      container.read(salaSessionProvider.notifier).goConversa();
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(container.read(salaSessionProvider).voice, VoiceState.done);
+      expect(find.byIcon(LucideIcons.users), findsNothing);
+      expect(byLabel('Tocar para falar'), findsOneWidget);
+      expect(
+        byLabel('Conversem entre vocês — tocar quando quiserem me contar'),
+        findsNothing,
+      );
+    },
+  );
+
   testWidgets('hearing a line again is offered in english to an english room', (
     tester,
   ) async {
