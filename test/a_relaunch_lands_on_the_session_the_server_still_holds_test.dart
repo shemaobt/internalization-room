@@ -609,7 +609,11 @@ void main() {
 
       expect(again.harness.room.pericopesAsked.last, panoramaPericope);
       expect(again.state.station, isA<Panorama>());
-      expect(again.harness.room.sessionsSpokenTo.last, isNot(passage));
+      expect(again.harness.room.sessionIds.last, isNot(passage));
+      expect(
+        again.harness.room.sessionsSpokenTo.last,
+        again.harness.room.sessionIds.last,
+      );
     },
   );
 }

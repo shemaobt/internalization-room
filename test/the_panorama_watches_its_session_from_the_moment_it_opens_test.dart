@@ -4,6 +4,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart';
@@ -47,7 +48,7 @@ Future<void> _theIdlePanorama(_Sala sala) async {
   );
 }
 
-Future<void> _theRoomHoldsAHalt(_Sala sala) async {
+void _theRoomHoldsAHalt(_Sala sala) {
   sala.harness.room
     ..serverStatus = 'needs_person'
     ..serverHalt = HaltKind.blocking;
@@ -60,7 +61,7 @@ void main() {
     await _theIdlePanorama(sala);
     final before = stateReads(sala.harness);
 
-    await _theRoomHoldsAHalt(sala);
+    _theRoomHoldsAHalt(sala);
 
     await waitFor('the person sign', () => _read(sala).needsPerson);
     expect(stateReads(sala.harness), greaterThan(before));
@@ -78,7 +79,7 @@ void main() {
     );
     final before = stateReads(sala.harness);
 
-    await _theRoomHoldsAHalt(sala);
+    _theRoomHoldsAHalt(sala);
 
     await waitFor('the person sign', () => _read(sala).needsPerson);
     expect(stateReads(sala.harness), greaterThan(before));
@@ -99,5 +100,19 @@ void main() {
     await Future<void>.delayed(_period * 4);
 
     expect(stateReads(sala.harness), after);
+  });
+
+  test('a Panorama whose session the server forgot sends the team to the '
+      'Choice with no gesture', () async {
+    final sala = _aRoomThatWatches();
+    await _theIdlePanorama(sala);
+
+    sala.harness.room.forgetTheSession(sala.harness.room.sessionIds.last);
+
+    await waitFor(
+      'the Choice and its Wheel',
+      () => _read(sala).station is Menu && _read(sala).naRoda != null,
+    );
+    expect(_read(sala).needsPerson, isFalse);
   });
 }
