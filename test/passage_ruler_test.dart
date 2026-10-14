@@ -149,7 +149,7 @@ void main() {
       paints
         ..line(color: SalaColors.light.cord, strokeWidth: 1.5)
         ..line(color: SalaColors.light.cord, strokeWidth: 2)
-        ..line(color: ShemaBrand.azul),
+        ..line(color: ShemaBrand.azul, strokeWidth: 3),
     );
   });
 
@@ -170,7 +170,7 @@ void main() {
       paints
         ..line(color: SalaColors.light.cord, strokeWidth: 1.5)
         ..line(color: SalaColors.light.cord, strokeWidth: 2)
-        ..line(color: ShemaBrand.azul)
+        ..line(color: ShemaBrand.azul, strokeWidth: 3)
         ..circle(color: SalaColors.light.telha, radius: 3),
     );
   });
@@ -235,6 +235,50 @@ void main() {
           )
           .value,
       '2 de 3',
+    );
+    handle.dispose();
+  });
+
+  testWidgets('a screen reader on the passage the team just left hears it is '
+      'the current one, in the language of the room', (tester) async {
+    final handle = tester.ensureSemantics();
+    final ruler = find.bySemanticsLabel(
+      RegExp('Escolher a passagem|Choose the passage'),
+    );
+
+    await pumpRuler(
+      tester,
+      total: 3,
+      at: 1,
+      aimed: <int>[],
+      settled: <int>[],
+      current: 1,
+    );
+    expect(tester.getSemantics(ruler).value, '2 de 3, passagem atual');
+
+    await pumpRuler(
+      tester,
+      total: 3,
+      at: 1,
+      aimed: <int>[],
+      settled: <int>[],
+      current: 1,
+      language: 'en',
+    );
+    expect(tester.getSemantics(ruler).value, '2 of 3, current passage');
+
+    await pumpRuler(
+      tester,
+      total: 3,
+      at: 1,
+      aimed: <int>[],
+      settled: <int>[],
+      approved: const {1},
+      current: 1,
+    );
+    expect(
+      tester.getSemantics(ruler).value,
+      '2 de 3, passagem atual, tem um ensaio salvo',
     );
     handle.dispose();
   });

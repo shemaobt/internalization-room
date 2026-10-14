@@ -69,9 +69,12 @@ class _PassageRulerState extends State<PassageRuler> {
 
   String _placeAt(int index) {
     final place = rulerPlaceFor(index + 1, widget.total, widget.language);
-    return widget.approved.contains(index)
-        ? '$place, ${escolhaLabelFor('approved', widget.language)}'
-        : place;
+    return [
+      place,
+      if (index == widget.current) escolhaLabelFor('current', widget.language),
+      if (widget.approved.contains(index))
+        escolhaLabelFor('approved', widget.language),
+    ].join(', ');
   }
 
   @override
@@ -192,7 +195,7 @@ class _RulerPainter extends CustomPainter {
         Offset(x, y + _reach),
         Paint()
           ..color = tone
-          ..strokeWidth = 2
+          ..strokeWidth = index == current ? 3 : 2
           ..strokeCap = StrokeCap.round,
       );
       if (approvedHere) {

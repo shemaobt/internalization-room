@@ -111,8 +111,8 @@ void main() {
   );
 
   testWidgets(
-    'the Panorama is the book\'s first entry and carries no approved mark, and '
-    'local progress never reorders or hides an entry',
+    'the Panorama is the book\'s first entry, and local progress never '
+    'reorders or hides an entry',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true)
         ..room.passages = _theBook;
