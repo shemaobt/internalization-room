@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/audio/room_audio_session.dart';
 import 'core/config/env.dart';
 import 'core/theme/app_theme.dart';
+import 'features/sala/data/room_language_ledger.dart';
 import 'features/sala/presentation/sala_screen.dart';
 
 Future<void> main() async {
@@ -27,7 +28,13 @@ Future<void> main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  runApp(ProviderScope(child: SalaApp(built: built)));
+  final roomLanguage = await RoomLanguageLedger.read();
+  runApp(
+    ProviderScope(
+      overrides: [roomLanguageLedgerProvider.overrideWithValue(roomLanguage)],
+      child: SalaApp(built: built),
+    ),
+  );
 }
 
 class SalaApp extends StatelessWidget {

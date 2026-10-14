@@ -1,5 +1,8 @@
 # The resume row does not expire
 
+Amended by ADR 0077: a row is kept per passage and language, so a row created in another
+language no longer drops it.
+
 ## Context
 
 A **Resume point** was dropped when the **Session** it names had been created more than a

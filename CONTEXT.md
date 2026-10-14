@@ -131,6 +131,14 @@ _Avoid_: passagem, pericope (the passage's identifier, not the passage), text
 One team's work on one passage, with state and a persisted snapshot allowing it to resume at the exact station where it stopped.
 _Avoid_: sessão, passage, round
 
+**Room language**:
+The language the team chose on the Choice, «PT» or «EN», remembered on the tablet and Portuguese when nothing was chosen. The screen and the sessions opened from then on follow it; the device's own language never decides it.
+_Avoid_: device language, locale, idioma do aparelho
+
+**Session language**:
+The language a session was opened in, fixed at the tap that opens it. A session keeps it when the Room language changes.
+_Avoid_: current language
+
 **Wheel**:
 The list of entries the room offers at the Choice, the book's Panorama first and then the passages still to be worked, which the room reopens on its own after the Closing. Not yet read and holding no passage are different states: holding no passage means the book is finished.
 _Avoid_: roda, passage list, carousel, choice (the station that shows it)
@@ -259,7 +267,7 @@ The queue of takes and stretches waiting to reach the server, with a manifest th
 _Avoid_: fila, caixa de saída, upload queue, buffer
 
 **Resume point**:
-The durable slice of the room's state for one passage, written whole at every transition — the session, the Station and its Step, the kept takes, the part being recorded again (ADR 0045), the Cursor, the pending translation and the Listening ledger — so a reopening lands where the team stopped, on a tablet that still holds the recordings or on one that fetches them from the room again. The server rules over what it knows, the slice over the rest (ADR 0046). It never expires by age: what drops it are facts about the room or the passage — the room no longer knowing the session, the approval closing the passage, the language changing — never the clock.
+The durable slice of the room's state for one passage, written whole at every transition — the session, the Station and its Step, the kept takes, the part being recorded again (ADR 0045), the Cursor, the pending translation and the Listening ledger — so a reopening lands where the team stopped, on a tablet that still holds the recordings or on one that fetches them from the room again. The server rules over what it knows, the slice over the rest (ADR 0046). One per passage and **Session language** (ADR 0077). It never expires by age: what drops it are facts about the room or the passage — the room no longer knowing the session, the approval closing the passage — never the clock.
 _Avoid_: ponto de retomada, em curso, checkpoint, snapshot (the session's own lives on the server)
 
 **Current session**:

@@ -47,7 +47,7 @@ Future<ProviderContainer> _reopensIntoRetro(SalaHarness harness) async {
   final pasta = Directory.systemTemp.createTempSync('sala-1168-velha');
   addTearDown(() => pasta.deleteSync(recursive: true));
   final gravada = File('${pasta.path}/p1.m4a')..writeAsBytesSync([1, 2, 3]);
-  harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: SalaStage.retro,
     takes: [

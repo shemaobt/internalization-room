@@ -53,7 +53,7 @@ Future<ProviderContainer> _reopen(
   )..writeAsBytesSync([1, 2, 3]);
   addTearDown(() => gravada.parent.deleteSync(recursive: true));
   if (semAudio) gravada.deleteSync();
-  harness.emAberto.rows['Ruth/P01'] = ResumePoint(
+  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: parouEm,
     takes: [
@@ -392,7 +392,7 @@ void main() {
       );
       expect(
         harness.emAberto.rows,
-        contains('Ruth/P01'),
+        contains('Ruth/P01/pt'),
         reason: 'então o ponto de retomada continua de pé, para a próxima vez',
       );
       expect(
@@ -424,7 +424,7 @@ void main() {
       );
       expect(container.read(salaSessionProvider).stage, SalaStage.fim);
       expect(harness.finished.done, contains('Ruth/P01'));
-      expect(harness.emAberto.rows, isNot(contains('Ruth/P01')));
+      expect(harness.emAberto.rows, isNot(contains('Ruth/P01/pt')));
     },
   );
 
