@@ -162,7 +162,9 @@ class ConversaView extends ConsumerWidget {
       return circleLabelFor('listening', language);
     }
     if (session.noteMode) return circleLabelFor('default', language);
-    if (session.peerCue && session.voice == VoiceState.invite) {
+    if (session.peerCue &&
+        (session.voice == VoiceState.invite ||
+            session.voice == VoiceState.done)) {
       return circleLabelFor('teamTalk', language);
     }
     return circleLabelFor('default', language);

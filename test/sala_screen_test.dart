@@ -706,6 +706,26 @@ void main() {
     );
   });
 
+  testWidgets('a peer cue at done names the team glyph the circle shows', (
+    tester,
+  ) async {
+    final harness = SalaHarness()
+      ..room.peerCue = true
+      ..room.done = true;
+    final container = await pumpSala(tester, harness);
+    container.read(salaSessionProvider.notifier).goConversa();
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(container.read(salaSessionProvider).voice, VoiceState.done);
+    expect(find.byIcon(LucideIcons.users), findsOneWidget);
+    expect(
+      byLabel('Conversem entre vocês — tocar quando quiserem me contar'),
+      findsOneWidget,
+    );
+    expect(byLabel('Tocar para falar'), findsNothing);
+  });
+
   testWidgets('hearing a line again is offered in english to an english room', (
     tester,
   ) async {
