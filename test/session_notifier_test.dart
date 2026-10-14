@@ -2957,15 +2957,15 @@ void main() {
       );
 
       await waitFor(
-        'the pull reading done with the voice idle',
+        'o pull ler done com a voz ociosa',
         () => container.read(salaSessionProvider).voice == VoiceState.done,
       );
       expect(
         container.read(salaSessionProvider).peerCue,
         isTrue,
         reason:
-            'done is not an ending: the last reply sent the team to talk among '
-            'themselves, and only a reply changes that',
+            'a leitura que trazia done com a voz no convite apagava a deixa, e '
+            'o círculo perdia o glifo da equipe que o turno com done mantinha',
       );
     },
   );
