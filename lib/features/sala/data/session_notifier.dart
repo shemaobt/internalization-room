@@ -1016,10 +1016,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   bool _applyWhatOnlyGrows(SessionSnapshot snapshot, {TurnClock? clock}) {
     final advanced = _applyCoverage(snapshot.coverage, clock: clock);
     if (!state.needsPerson && snapshot.done && state.station is Canvas) {
-      state = state.copyWith(
-        endOfThePassage: true,
-        peerCue: state.voice == VoiceState.invite ? false : null,
-      );
+      state = state.copyWith(endOfThePassage: true);
     }
     return advanced;
   }
