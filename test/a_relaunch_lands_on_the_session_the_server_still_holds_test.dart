@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/device_link_notifier.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -589,6 +590,26 @@ void main() {
         again.harness.room.calls.skip(before),
         isNot(contains('createSession')),
       );
+    },
+  );
+
+  test(
+    'a relaunch in a passage and then the Panorama opens the Panorama, not the '
+    'passage',
+    () async {
+      final first = await _inP01();
+      final passage = first.state.sessionId!;
+      final again = await _relaunch(first);
+      await again.notifier.openTheRoom();
+      await _landsOn(again, passage);
+
+      again.notifier.leaveThePassage();
+      await _theChoiceShowsItsWheel(again);
+      await _intoThePanorama(again);
+
+      expect(again.harness.room.pericopesAsked.last, panoramaPericope);
+      expect(again.state.station, isA<Panorama>());
+      expect(again.harness.room.sessionsSpokenTo.last, isNot(passage));
     },
   );
 }

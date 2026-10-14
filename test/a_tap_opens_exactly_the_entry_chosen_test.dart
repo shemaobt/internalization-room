@@ -249,4 +249,41 @@ void main() {
     expect(harness.room.sessionIds, hasLength(1));
     expect(harness.room.sessionsSpokenTo, hasLength(2));
   });
+
+  test('a team in a passage that goes back and picks the Panorama talks to the '
+      'Panorama\'s voice', () async {
+    final harness = SalaHarness()..room.passages = _theBook;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await enterThePassage(notifier, read, 'P01');
+    await waitFor('P01 to open', () => read().sessionId != null);
+    final passage = harness.room.sessionIds.single;
+
+    notifier.leaveThePassage();
+    await enterThePanorama(notifier, read);
+    await waitFor(
+      'the Panorama to be said',
+      () => read().panoramaSaid && read().voice == VoiceState.invite,
+    );
+    final panorama = harness.room.sessionIds.last;
+    notifier.panoramaTap();
+    await settle();
+    notifier.panoramaTap();
+    await waitFor(
+      'the Panorama to answer',
+      () => harness.room.turnIdsSent.isNotEmpty,
+    );
+    await waitFor(
+      'the voice to invite',
+      () => read().voice == VoiceState.invite,
+    );
+
+    expect(harness.room.pericopesAsked, ['P01', panoramaPericope]);
+    expect(panorama, isNot(passage));
+    expect(harness.room.sessionsSpokenTo.last, panorama);
+    expect(read().station, isA<Panorama>());
+    expect(read().panoramaSaid, isTrue);
+  });
 }

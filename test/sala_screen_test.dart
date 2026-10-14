@@ -14,6 +14,7 @@ import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/data/mic_permission.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
+import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
@@ -25,7 +26,9 @@ import 'package:internalization_room/features/sala/presentation/widgets/passage_
 import 'package:internalization_room/features/sala/presentation/widgets/panorama_view.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/hand_button.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/hear_again_button.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/moment_label.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -1572,4 +1575,31 @@ void main() {
       reason: 'o toque depois da abertura grava a resposta da equipe',
     );
   });
+
+  testWidgets(
+    'the Panorama canvas shows the circle, the hand, «Ouvir de novo» and the '
+    'way out, and no necklace, rehearsal entry or moment label',
+    (tester) async {
+      final harness = SalaHarness()
+        ..room.nextMoment = const Moment(at: MomentAt.articulation, parts: 3)
+        ..room.nextCoverage = coverage(
+          engaged: totalBeads,
+          surfaced: totalBeads,
+        );
+      final container = await pumpSala(tester, harness);
+      await _enterThePanorama(tester, harness, container);
+      await tester.pump(const Duration(seconds: 3));
+
+      expect(container.read(salaSessionProvider).stage, SalaStage.panorama);
+      expect(find.byType(FacilitatorCircle), findsOneWidget);
+      expect(find.byType(HandButton), findsOneWidget);
+      expect(byLabel(roomLabelFor('hearAgain', 'pt')), findsOneWidget);
+      expect(byLabel(roomLabelFor('leavePassage', 'pt')), findsOneWidget);
+      expect(find.byType(ColarOverlay), findsNothing);
+      expect(find.byType(MomentLabel), findsNothing);
+      expect(byLabel(roomLabelFor('recordEnsaio', 'pt')), findsNothing);
+      expect(byLabel(recordEntryLabelFor('pt')), findsNothing);
+      closeTheRoom(container);
+    },
+  );
 }
