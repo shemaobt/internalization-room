@@ -3018,16 +3018,13 @@ void main() {
     },
   );
 
-  test(
-    'the server closing the session offers the rehearsal, not a circle at rest',
-    () async {
-      final harness = SalaHarness()..room.done = true;
-      final container = await inConversa(harness);
-      addTearDown(container.dispose);
+  test('a session the server reads as done stands at done', () async {
+    final harness = SalaHarness()..room.done = true;
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
 
-      expect(container.read(salaSessionProvider).voice, VoiceState.done);
-    },
-  );
+    expect(container.read(salaSessionProvider).voice, VoiceState.done);
+  });
 
   test(
     'the last line can be heard again at done, as it can at the invite',
