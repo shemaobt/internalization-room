@@ -5171,7 +5171,7 @@ void main() {
     expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
   });
 
-  test('a passage carried to the end stays on the wheel, marked', () async {
+  test('a passage carried to the end stays on the wheel', () async {
     final harness = SalaHarness();
     final container = harness.container();
     addTearDown(container.dispose);
@@ -5192,13 +5192,6 @@ void main() {
       reason:
           'a passagem terminada saía da roda e a equipe não tinha como '
           'voltar ao que trabalhou — e o registro informa, não fecha a conversa',
-    );
-    expect(
-      container.read(salaSessionProvider).feitas,
-      {'P01'},
-      reason:
-          'ficar na roda sem marca nenhuma é indistinguível de nunca ter '
-          'sido tocada, e nesta sala não há palavra escrita que diga qual é',
     );
   });
 

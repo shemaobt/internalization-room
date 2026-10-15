@@ -68,13 +68,16 @@ void main() {
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true)
         ..room.passages = _theBook;
-      harness.finished.holdNextAll();
+      harness.room.holdNextPassages();
       final container = await pumpSala(tester, harness);
 
       for (var pump = 0; pump < 10; pump++) {
         expect(find.byType(PanoramaView), findsNothing);
         expect(find.byType(EscolhaView), findsOneWidget);
-        if (pump == 5) harness.finished.finishHeldAll();
+        if (pump == 3) {
+          expect(container.read(salaSessionProvider).naRoda, isNull);
+        }
+        if (pump == 5) harness.room.finishHeldPassages();
         await tester.pump(const Duration(milliseconds: 50));
       }
 
@@ -108,8 +111,8 @@ void main() {
   );
 
   testWidgets(
-    'the Panorama is the book\'s first entry and carries no done mark, and '
-    'progress never reorders or hides an entry',
+    'the Panorama is the book\'s first entry, and local progress never '
+    'reorders or hides an entry',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true)
         ..room.passages = _theBook;
@@ -125,8 +128,7 @@ void main() {
       expect(container.read(salaSessionProvider).naRoda, _theBook);
       final ruler = tester.widget<PassageRuler>(find.byType(PassageRuler));
       expect(ruler.total, 4);
-      expect(ruler.finished, {1});
-      expect(ruler.started, {2});
+      expect(ruler.approved, isEmpty);
     },
   );
 }

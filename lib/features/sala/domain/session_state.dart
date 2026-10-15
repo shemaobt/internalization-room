@@ -158,10 +158,8 @@ class SalaSessionState {
   /// work was over.
   final List<Passagem>? naRoda;
 
-  /// Passages of this book with work waiting in them, by pericope. The ruler draws these
-  /// taller, because going back to one is a different act from starting one.
+  /// Passages of this book with work waiting in them, by pericope, for the resume lookup.
   final Set<String> comecadas;
-  final Set<String> feitas;
   final int aOferecer;
   final List<Trecho> btTrechos;
   final String? btFindingSegmentId;
@@ -240,7 +238,6 @@ class SalaSessionState {
     this.btChunkFailures = const [],
     this.naRoda,
     this.comecadas = const {},
-    this.feitas = const {},
     this.aOferecer = 0,
     this.btTrechos = const [],
     this.btFindingSegmentId,
@@ -602,7 +599,6 @@ class SalaSessionState {
     List<int>? btChunkFailures,
     List<Passagem>? naRoda,
     Set<String>? comecadas,
-    Set<String>? feitas,
     bool clearRoda = false,
     int? aOferecer,
     List<Trecho>? btTrechos,
@@ -660,7 +656,6 @@ class SalaSessionState {
       btChunkFailures: btChunkFailures ?? this.btChunkFailures,
       naRoda: clearRoda ? null : (naRoda ?? this.naRoda),
       comecadas: comecadas ?? this.comecadas,
-      feitas: feitas ?? this.feitas,
       aOferecer: aOferecer ?? this.aOferecer,
       btTrechos: btTrechos ?? this.btTrechos,
       btFindingSegmentId: clearFindingSegment
