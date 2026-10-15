@@ -3255,11 +3255,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(scene: const SceneScreen());
   }
 
-  bool _theSceneMovedOn(SceneScreen asked, int generation) =>
-      _abandoned(generation) ||
-      !identical(state.scene, asked) ||
-      state.channel is Microphone;
-
   void sceneTap() => _gesture(() => _sceneTap());
 
   void _sceneTap() {
@@ -3308,7 +3303,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     switch (kept) {
       case Answered(:final value):
-        if (_theSceneMovedOn(keeping, generation)) return;
         state = state.copyWith(
           scene: SceneScreen(
             step: SceneStep.translate,

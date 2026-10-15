@@ -306,6 +306,18 @@ void main() {
     },
   );
 
+  testWidgets('the scene rehearsal\'s screen never offers «Ouvir de novo»', (
+    tester,
+  ) async {
+    await _inArticulation(tester);
+    expect(byLabel('Ouvir de novo'), findsOneWidget);
+
+    await tester.tap(_redMicrophone);
+    await tester.pump(const Duration(milliseconds: 1500));
+
+    expect(byLabel('Ouvir de novo'), findsNothing);
+  });
+
   testWidgets(
     'while recording, the way back returns to the Conversation and the take is not kept',
     (tester) async {
@@ -426,6 +438,11 @@ void main() {
     );
     await settle();
     room.harness.room.readsDone = false;
+    final notDone = stateReads(room.harness);
+    await waitFor(
+      'a sala ler a sessão sem o fim',
+      () => stateReads(room.harness) > notDone + 1,
+    );
     room.sala.leaveTheSceneRehearsal();
     await waitFor(
       'voltar à conversa',
