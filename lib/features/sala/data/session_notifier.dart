@@ -963,6 +963,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       machine: machine,
       reach: !before.reachable && machine.reachable ? RoomReach.fine : null,
+      scene:
+          before.station is SceneRehearsal && machine.station is! SceneRehearsal
+          ? const SceneScreen()
+          : null,
     );
     _runner.run(effects, micWasOpen: before.channel is Microphone);
     _followTheSound(before, machine);
@@ -3319,7 +3323,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _playTheSceneRehearsal() {
     final SceneScreen(:step, :take, :rehearsal) = state.scene;
-    if (step != SceneStep.translate || take == null || rehearsal == null) {
+    if (state.station is! SceneRehearsal ||
+        step != SceneStep.translate ||
+        take == null ||
+        rehearsal == null) {
       return;
     }
     final playing = state.channel is PartPlaying;
@@ -3343,7 +3350,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _silenceTheRoom();
     _dispatch(const MicDiscarded());
     _arriveAt(const TheSceneRehearsalLeft());
-    state = state.copyWith(scene: const SceneScreen());
   }
 
   void playTheRehearsal() => _gesture(() => _playTheRehearsal());

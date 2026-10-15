@@ -28,8 +28,8 @@ the server (shema-api ADR 0059).
 
 Every failure at a scene door goes through the Failure policy at its own door. A gone
 session, a code that stops the room and a network failure follow the house policy, as at
-every other door. Any other refusal changes nothing and is never counted, because a team
-that only asked to rehearse must never be led to a person by it.
+every other door, and a timeout raises a halt as anywhere else. Any other refusal changes
+nothing and is never counted toward the refusals that call a person.
 
 A door's answer moves the screen only while it still shows what it showed when the door
 was asked, with no microphone open; an answer that arrives after the team moved on is

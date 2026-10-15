@@ -465,6 +465,46 @@ void main() {
     );
   });
 
+  test(
+    'a session gone while on the scene rehearsal leaves nothing of its screen',
+    () async {
+      final room = await _atRest(SalaHarness(watchesWithoutAHalt: true));
+      await _theScreenOpens(room);
+      await _theSceneMicrophoneOpens(room);
+      room.sala.sceneTap();
+      await _translateOpens(room);
+
+      room.harness.room.forgetTheSession(_session);
+      await waitFor(
+        'a sala voltar à Escolha',
+        () => room.state.stage == SalaStage.escolha,
+      );
+
+      expect(room.state.scene.step, SceneStep.record);
+      expect(room.state.scene.rehearsal, isNull);
+      expect(room.state.scene.take, isNull);
+    },
+  );
+
+  test(
+    'another Station reached from the scene rehearsal leaves nothing of its screen',
+    () async {
+      final room = await _atRest();
+      await _theScreenOpens(room);
+      await _theSceneMicrophoneOpens(room);
+      room.sala.sceneTap();
+      await _translateOpens(room);
+
+      room.sala.goEnsaio();
+      await settle();
+
+      expect(room.state.stage, SalaStage.ensaio);
+      expect(room.state.scene.step, SceneStep.record);
+      expect(room.state.scene.rehearsal, isNull);
+      expect(room.state.scene.take, isNull);
+    },
+  );
+
   test('a relaunch never lands on the scene rehearsal', () async {
     final home = Directory.systemTemp.createTempSync('sala-sessao-atual');
     addTearDown(() => home.deleteSync(recursive: true));
