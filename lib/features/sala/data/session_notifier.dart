@@ -2862,11 +2862,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     duration: _listeningSince == null
         ? Duration.zero
         : clock.now().difference(_listeningSince!),
-    bytes: File(path).existsSync() ? File(path).lengthSync() : 0,
+    bytes: _bytesAt(path),
   );
 
-  bool _hasAudio(String path) =>
-      File(path).existsSync() && File(path).lengthSync() > 0;
+  bool _hasAudio(String path) => _bytesAt(path) > 0;
+
+  int _bytesAt(String path) =>
+      File(path).existsSync() ? File(path).lengthSync() : 0;
 
   bool _anAccidentalTap(String path) {
     final file = File(path);
@@ -3217,14 +3219,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     } on FileSystemException {
       return;
     }
-    if (_abandoned(generation)) return;
     switch (sent) {
       case Answered():
-        break;
+        unawaited(_recorder.delete(path));
       case final RoomFailure failure:
-        return _decideAt(failure, door: Door.question);
+        if (_abandoned(generation)) return;
+        _decideAt(failure, door: Door.question);
     }
-    unawaited(_recorder.delete(path));
   }
 
   void devRecomecarPassagem() => _gesture(() => _devRecomecarPassagem());

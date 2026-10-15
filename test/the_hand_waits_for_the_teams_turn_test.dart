@@ -326,6 +326,7 @@ void main() {
         'a pergunta abrir o microfone',
         () => room.estado.voice == VoiceState.listening,
       );
+      await room.beat(800);
       room.sala.conversaTap();
       await room.until(
         'o microfone fechar',
@@ -338,6 +339,40 @@ void main() {
       expect(room.pings, pings);
       expect(room.lookOfTheHand, look);
       expect(room.handLabel, _raise);
+    },
+  );
+
+  testWidgets(
+    'A Knot that reaches the facilitator after the team has left the passage '
+    'leaves no recording behind',
+    (tester) async {
+      final room = await _inConversa(tester);
+      room.sala.handTap();
+      await room.beat();
+      room.sala.conversaTap();
+      await room.until(
+        'a pergunta abrir o microfone',
+        () => room.estado.voice == VoiceState.listening,
+      );
+      room.harness.inbox.holdNextQuestion();
+      room.sala.conversaTap();
+      await room.until(
+        'o microfone fechar',
+        () => room.harness.recorder.lastPath != null,
+      );
+      final knot = room.harness.recorder.lastPath;
+
+      room.sala.leaveThePassage();
+      await room.beat(300);
+      room.harness.inbox.finishHeldQuestion();
+      await room.until(
+        'a pergunta chegar',
+        () => room.harness.inbox.questionsSent.isNotEmpty,
+      );
+      await room.beat(300);
+
+      expect(room.harness.recorder.deleted, contains(knot));
+      closeTheRoom(room.container);
     },
   );
 
@@ -374,8 +409,6 @@ void main() {
       expect(_hand, findsOneWidget);
 
       await room.raisesAKnot();
-
-      expect(room.harness.inbox.questionsSent, hasLength(1));
 
       expect(room.harness.inbox.questionsSent, hasLength(1));
     },
