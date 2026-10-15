@@ -10,6 +10,8 @@ import 'package:internalization_room/features/sala/domain/capture_guard.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
+import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/hand_button.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
@@ -69,6 +71,18 @@ class _Room {
 
   int get pings => find.byType(PingIn).evaluate().length;
 
+  Future<void> aTapOnTheHiddenHandPlaysNothing() async {
+    sala.handTap();
+    await beat(300);
+    expect(harness.voice.played, isNot(contains(_reply.audioUrl)));
+  }
+
+  Future<void> theReplyStillWaitsOnTheHand() async {
+    await beat(300);
+    expect(harness.voice.played, isNot(contains(_reply.audioUrl)));
+    expect(handLabel, _hearTheAnswer);
+  }
+
   Future<void> theNextCircleTapIsATurnNotAKnot() async {
     await theTeamSendsATurn();
     expect(harness.inbox.questionsSent, isEmpty);
@@ -117,6 +131,18 @@ class _Room {
     'a sala voltar ao convite',
     () => estado.voice == VoiceState.invite,
   );
+}
+
+Future<_Room> _inConversaWithAReply(
+  WidgetTester tester, {
+  bool watching = false,
+}) async {
+  final room = await _inConversa(
+    tester,
+    SalaHarness(replies: const [_reply], watchesWithoutAHalt: watching),
+  );
+  await room.until('a resposta chegar', () => room.estado.hasUnheardReply);
+  return room;
 }
 
 Future<_Room> _inConversa(WidgetTester tester, [SalaHarness? given]) async {
@@ -213,7 +239,7 @@ void main() {
   testWidgets('While the voice is thinking after a turn the hand is hidden', (
     tester,
   ) async {
-    final room = await _inConversa(tester);
+    final room = await _inConversaWithAReply(tester);
     room.harness.room.holdNextTurn();
     await room.theTeamSendsATurn();
     await room.until(
@@ -223,51 +249,44 @@ void main() {
 
     expect(_hand, findsNothing);
 
-    room.sala.handTap();
-    await room.beat();
-
-    expect(room.estado.voice, VoiceState.thinking);
-    expect(_handInTheCircle, findsNothing);
+    await room.aTapOnTheHiddenHandPlaysNothing();
     room.harness.room.finishHeldTurn();
     await room.atTheInvite();
+    await room.theReplyStillWaitsOnTheHand();
     await room.theNextCircleTapIsATurnNotAKnot();
   });
 
   testWidgets('While a take is still being sent the hand is hidden', (
     tester,
   ) async {
-    final room = await _inConversa(tester);
+    final room = await _inConversaWithAReply(tester);
     room.harness.room.holdNextTurn();
     await room.theTeamSendsATurn();
     await room.beat();
 
     expect(_hand, findsNothing);
 
-    room.sala.handTap();
-    await room.beat();
-
+    await room.aTapOnTheHiddenHandPlaysNothing();
     room.harness.room.finishHeldTurn();
     await room.atTheInvite();
+    await room.theReplyStillWaitsOnTheHand();
     await room.theNextCircleTapIsATurnNotAKnot();
   });
 
   testWidgets('While the needs-a-person screen is up the hand is hidden', (
     tester,
   ) async {
-    final room = await _inConversa(tester);
+    final room = await _inConversaWithAReply(tester);
     room.sala.haltForABrokenBuild();
     await room.until('a sala chamar alguém', () => room.estado.needsPerson);
 
     expect(_hand, findsNothing);
 
-    room.sala.handTap();
-    await room.beat();
-
-    expect(room.estado.needsPerson, isTrue);
-    expect(_handInTheCircle, findsNothing);
+    await room.aTapOnTheHiddenHandPlaysNothing();
     room.sala.resolveWithPerson();
     await room.until('a parada sair', () => !room.estado.needsPerson);
     await room.atTheInvite();
+    await room.theReplyStillWaitsOnTheHand();
     await room.theNextCircleTapIsATurnNotAKnot();
     closeTheRoom(room.container);
   });
@@ -526,23 +545,19 @@ void main() {
     'While the room is out of reach the hand is hidden, a tap on it does '
     'nothing and the circle still retries the room',
     (tester) async {
-      final room = await _inConversa(
-        tester,
-        SalaHarness(watchesWithoutAHalt: true),
-      );
+      final room = await _inConversaWithAReply(tester, watching: true);
       room.harness.network.reachable = false;
       room.harness.room.failStateOnceWith = const NetworkFailed('sem rede');
       await room.until('a sala cair', () => room.estado.offline);
 
       expect(_hand, findsNothing);
 
-      room.sala.handTap();
-      await room.beat();
-
-      expect(_handInTheCircle, findsNothing);
+      await room.aTapOnTheHiddenHandPlaysNothing();
       room.harness.network.reachable = true;
       room.sala.conversaTap();
       await room.until('a sala voltar', () => !room.estado.offline);
+      await room.atTheInvite();
+      await room.theReplyStillWaitsOnTheHand();
       closeTheRoom(room.container);
     },
   );
@@ -550,7 +565,7 @@ void main() {
   testWidgets(
     'While a line of the room\'s own plays at the invite the hand is hidden',
     (tester) async {
-      final room = await _inConversa(tester);
+      final room = await _inConversaWithAReply(tester);
       room.harness.voice.holdNextLine();
       room.sala.sayTheMicIsBlocked();
       await room.until(
@@ -560,10 +575,10 @@ void main() {
 
       expect(_hand, findsNothing);
 
-      room.sala.handTap();
-      await room.beat();
+      await room.aTapOnTheHiddenHandPlaysNothing();
       room.harness.voice.finishHeldLine();
       await room.atTheInvite();
+      await room.theReplyStillWaitsOnTheHand();
       await room.theNextCircleTapIsATurnNotAKnot();
     },
   );
@@ -673,4 +688,16 @@ void main() {
       closeTheRoom(container);
     },
   );
+
+  test('A Conversation with no session to send to is not the team\'s idle '
+      'turn', () {
+    const atTheInvite = SalaSessionState(machine: Machine(station: Canvas()));
+
+    expect(atTheInvite.voice, VoiceState.invite);
+    expect(atTheInvite.atTheTeamsIdleTurn, isFalse);
+    expect(
+      atTheInvite.copyWith(sessionId: 'sessao-1').atTheTeamsIdleTurn,
+      isTrue,
+    );
+  });
 }

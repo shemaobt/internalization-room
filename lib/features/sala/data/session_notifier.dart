@@ -994,8 +994,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   bool get _roomIsReachable => state.machine.reachable;
 
-  String? get _sessionId =>
-      state.station is Panorama ? state.panoramaSessionId : state.sessionId;
+  String? get _sessionId => state.stationSessionId;
 
   void _letTheOpeningGo() {
     _openingOwed = false;
@@ -3204,9 +3203,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final generation = _waitOnTheGeneration;
     final path = (await _closeTheMicrophone()).take;
     if (_abandoned(generation)) return;
-    final sessionId = state.station is Panorama
-        ? state.panoramaSessionId
-        : state.sessionId;
+    final sessionId = _sessionId;
     if (path == null ||
         !_theGuardKeeps(path, listenedFor) ||
         sessionId == null) {

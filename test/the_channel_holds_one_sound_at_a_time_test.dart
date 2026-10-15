@@ -279,6 +279,42 @@ void main() {
     expect(harness.room.turnsSent, turns);
   });
 
+  test('a reply asked for at the idle turn survives re-entering the same '
+      'conversation', () async {
+    final harness = SalaHarness(
+      replies: const [HandReply(id: 'r1', audioUrl: '/resposta-1')],
+    );
+    harness.emAberto.rows['Ruth/P01/pt'] = const ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.conversa,
+    );
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final sala = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await sala.abrirEscolha();
+    await settle();
+    await sala.goConversa(pericope: 'P01');
+    await waitFor('a resposta chegar à mão', () => read().hasUnheardReply);
+    harness.voice.holdNextLine();
+    sala.handTap();
+    await waitFor('a resposta tocar', () => read().playingReplyId != null);
+
+    unawaited(sala.goConversa(pericope: 'P01'));
+    await settle();
+    harness.voice.finishHeldLine();
+    await settle();
+
+    expect(read().hasUnheardReply, isTrue);
+    expect(harness.inbox.heard, isEmpty);
+
+    sala.handTap();
+    await waitFor(
+      'a resposta ser ouvida depois de reentrar na mesma conversa',
+      () => harness.inbox.heard.contains('r1'),
+    );
+  });
+
   test('a line waiting on the wheel survives the wheel read again in the same '
       'visit', () async {
     final harness = SalaHarness();

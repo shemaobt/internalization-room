@@ -383,7 +383,10 @@ class SalaSessionState {
       (voice == VoiceState.invite || voice == VoiceState.done) &&
       !needsPerson &&
       !_aLineOfTheRoomPlays &&
-      (station is! Panorama || panoramaSessionId != null);
+      stationSessionId != null;
+
+  String? get stationSessionId =>
+      station is Panorama ? panoramaSessionId : sessionId;
 
   bool get anArmedKnotLapsed =>
       noteMode &&
