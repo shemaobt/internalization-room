@@ -335,7 +335,7 @@ The kind of halt that asks for someone to come and watch while refusing the team
 _Avoid_: aviso, cap, block, halt (the state, of which this is one kind)
 
 **Claquete**:
-The line of small text in the session screen's bottom row, left of the hear-again button: the passage's pericope, the device's local date and time, and the first eight characters of the session id. It shows for twenty seconds when a session opens or resumes and again when the Shema mark is tapped, so the field video can be matched to the session. It is not a control and VoiceOver skips it.
+The small line of text on the session screen naming the passage, the moment and the session, so field video can be matched to the session. It is shown briefly, never as a control.
 _Avoid_: slate, clapperboard, session label
 
 **Shema mark**:

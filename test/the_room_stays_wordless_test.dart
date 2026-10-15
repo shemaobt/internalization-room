@@ -15,8 +15,6 @@ const _herWordsTheTeamReads = {
   'lib/features/sala/presentation/widgets/moment_label.dart',
 };
 
-// The claquete is what the Desk's field video is matched against: the team never reads
-// it, the facilitator does, off the tablet (ENG-1310).
 const _wordsOnlyTheCameraReads = {
   'lib/features/sala/presentation/widgets/claquete.dart',
 };

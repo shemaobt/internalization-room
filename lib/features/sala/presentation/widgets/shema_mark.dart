@@ -37,7 +37,7 @@ class _ShemaMarkPainter extends CustomPainter {
 
   static const _viewBox = 1000.0;
 
-  static Path _book() {
+  static Path _shape() {
     final path = Path()
       ..moveTo(900, 451.61)
       ..lineTo(900, 151.07)
@@ -101,7 +101,7 @@ class _ShemaMarkPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     canvas.save();
     canvas.scale(size.width / _viewBox, size.height / _viewBox);
-    canvas.drawPath(_book(), Paint()..color = color);
+    canvas.drawPath(_shape(), Paint()..color = color);
     canvas.restore();
   }
 
