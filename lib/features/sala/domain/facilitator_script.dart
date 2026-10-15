@@ -255,6 +255,8 @@ const escolhaLabels = {
   'place': {'pt': '{n} de {total}', 'en': '{n} of {total}'},
   'current': {'pt': 'passagem atual', 'en': 'current passage'},
   'approved': {'pt': 'tem um ensaio salvo', 'en': 'has a saved rehearsal'},
+  'light': {'pt': 'Claro', 'en': 'Light'},
+  'dark': {'pt': 'Escuro', 'en': 'Dark'},
 };
 
 String escolhaLabelFor(String control, String language) =>
