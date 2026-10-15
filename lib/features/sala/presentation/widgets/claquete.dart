@@ -82,10 +82,20 @@ class _ClaqueteLayerState extends ConsumerState<ClaqueteLayer> {
             ),
           if (words != null)
             Positioned(
+              left: 14 + 76 + 8,
               right: 14 + 76 + 8,
               bottom: 18 + MediaQuery.viewPaddingOf(context).bottom,
               child: IgnorePointer(
-                child: ExcludeSemantics(child: Claquete(words: words)),
+                child: ExcludeSemantics(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    heightFactor: 1,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Claquete(words: words),
+                    ),
+                  ),
+                ),
               ),
             ),
         ],
@@ -100,14 +110,18 @@ class Claquete extends StatelessWidget {
   const Claquete({super.key, required this.words});
 
   @override
-  Widget build(BuildContext context) => Text(
-    words,
-    maxLines: 1,
-    style: TextStyle(
-      color: ShemaBrand.verdeClaro.withValues(alpha: 0.7),
-      fontSize: 11,
-      letterSpacing: 0.66,
-      fontFeatures: const [FontFeature.tabularFigures()],
-    ),
-  );
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Text(
+      words,
+      maxLines: 1,
+      style: TextStyle(
+        color: (dark ? ShemaBrand.verdeClaroNoEscuro : ShemaBrand.verdeClaro)
+            .withValues(alpha: 0.7),
+        fontSize: 11,
+        letterSpacing: 0.66,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+    );
+  }
 }

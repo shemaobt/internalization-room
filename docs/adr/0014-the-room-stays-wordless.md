@@ -16,8 +16,9 @@ exception stands again under its own reason, her words the team reads.
 Amended by ENG-1310 (2026-10-14): each session shows her claquete in the bottom row for
 twenty seconds after it opens or resumes, and again on a tap of the Shema mark
 (`widgets/claquete.dart`): «P05 · 2026-09-30 14:14 · fia-fixt». It is the third named
-exception, under its own reason, words only the camera reads: it lets the field video be
-matched to the session, and it is not a control and VoiceOver skips it.
+exception, under its own reason, words only the camera reads, so that the field video can be
+matched to the session. It is also on the Team's screen, so «the only one the Team sees»
+above is not read alone; it is not a control and VoiceOver skips it.
 
 ## Context
 

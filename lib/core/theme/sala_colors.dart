@@ -6,6 +6,7 @@ abstract class ShemaBrand {
   static const azul = Color(0xFF89AAA3);
   static const telha = Color(0xFFBE4A01);
   static const verdeClaro = Color(0xFF777D45);
+  static const verdeClaroNoEscuro = Color(0xFFAAB07E);
   static const verde = Color(0xFF3F3E20);
   static const preto = Color(0xFF0A0703);
 

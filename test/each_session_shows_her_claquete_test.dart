@@ -8,6 +8,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/claquete.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/hand_button.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/hear_again_button.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/shema_mark.dart';
 import 'package:internalization_room/main.dart' show SalaApp;
@@ -261,6 +262,40 @@ void main() {
           .getRect(_claquete)
           .intersect(tester.getRect(button));
       expect(overlap.width <= 0 || overlap.height <= 0, isTrue);
+    });
+  });
+
+  testWidgets('in the dark room the claquete is her lighter olive', (
+    tester,
+  ) async {
+    tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+    addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+    await withClock(Clock.fixed(_noon), () async {
+      await _openP05(tester);
+
+      final style = tester
+          .widget<Text>(
+            find.descendant(of: _claquete, matching: find.byType(Text)),
+          )
+          .style!;
+      expect(style.color, const Color(0xFFAAB07E).withValues(alpha: 0.7));
+    });
+  });
+
+  testWidgets('at phone width the claquete keeps clear of the hand', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(375, 667);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await withClock(Clock.fixed(_noon), () async {
+      await _openP05(tester);
+      expect(_claquete, findsOneWidget);
+
+      final hand = tester.getRect(find.byType(HandButton));
+      final claquete = tester.getRect(_claquete);
+      expect(claquete.left, greaterThanOrEqualTo(hand.right + 8 - 0.5));
+      expect(claquete.right, closeTo(375 - 14 - 76 - 8, 0.5));
     });
   });
 
