@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/sala_colors.dart';
@@ -38,27 +36,6 @@ class Bead extends StatelessWidget {
           border: marcada
               ? Border.all(color: colors.telha, width: 2)
               : border ?? (filled ? null : Border.all(color: colors.line)),
-        ),
-      ),
-    );
-  }
-}
-
-class KnotMark extends StatelessWidget {
-  final double size;
-
-  const KnotMark({super.key, required this.size});
-
-  @override
-  Widget build(BuildContext context) {
-    return Transform.rotate(
-      angle: math.pi / 4,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: const BoxDecoration(
-          gradient: BeadStyles.azul,
-          borderRadius: BorderRadius.all(Radius.circular(4)),
         ),
       ),
     );

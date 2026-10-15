@@ -190,8 +190,6 @@ class SalaSessionState {
 
   final bool peerCue;
   final bool noteMode;
-  final bool handAck;
-  final bool questionPending;
   final List<HandReply> replies;
   final String? playingReplyId;
   final List<KeptTake> keptTakes;
@@ -294,8 +292,6 @@ class SalaSessionState {
     this.moment,
     this.peerCue = false,
     this.noteMode = false,
-    this.handAck = false,
-    this.questionPending = false,
     this.replies = const [],
     this.playingReplyId,
     this.keptTakes = const [],
@@ -379,6 +375,11 @@ class SalaSessionState {
       !noteMode &&
       station is Canvas &&
       !needsPerson;
+
+  bool get atTheTeamsIdleTurn =>
+      (voice == VoiceState.invite || voice == VoiceState.done) &&
+      !needsPerson &&
+      machine.inFlight == null;
 
   bool get hasUnheardReply => replies.any((reply) => reply.offered);
 
@@ -675,8 +676,6 @@ class SalaSessionState {
     bool clearMoment = false,
     bool? peerCue,
     bool? noteMode,
-    bool? handAck,
-    bool? questionPending,
     List<HandReply>? replies,
     String? playingReplyId,
     bool clearPlayingReply = false,
@@ -737,8 +736,6 @@ class SalaSessionState {
       moment: clearMoment ? null : (moment ?? this.moment),
       peerCue: peerCue ?? this.peerCue,
       noteMode: noteMode ?? this.noteMode,
-      handAck: handAck ?? this.handAck,
-      questionPending: questionPending ?? this.questionPending,
       replies: replies ?? this.replies,
       playingReplyId: clearPlayingReply
           ? null

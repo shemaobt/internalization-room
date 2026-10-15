@@ -83,35 +83,6 @@ class _LedgerThatCannotWrite extends FakeWorkInProgress {
 
 String get _stranded => strandedTakeAsset(testLanguage);
 
-Future<(SalaHarness, ProviderContainer, SalaSessionState Function())>
-_aReplyWaitsThroughAFall() async {
-  final harness = SalaHarness(
-    replies: const [HandReply(id: 'r1', audioUrl: '/resposta-1')],
-    watchesWithoutAHalt: true,
-  );
-  final container = await inConversa(harness);
-  addTearDown(container.dispose);
-  final sala = container.read(salaSessionProvider.notifier);
-  SalaSessionState read() => container.read(salaSessionProvider);
-  await waitFor('a resposta chegar à mão', () => read().hasUnheardReply);
-
-  harness.voice.holdNextLine();
-  harness.room.holdNextTurn();
-  sala.conversaTap();
-  await waitFor('o microfone abrir', () => read().channel is Microphone);
-  sala.conversaTap();
-  await waitFor('a Guia falar', () => read().channel is GuideSpeaking);
-  sala.handTap();
-  await settle();
-  harness.room.failStateOnceWith = const NetworkFailed('sem rede');
-  await waitFor('a sala cair', () => read().unreachable);
-  await waitFor('a sala voltar', () => !read().unreachable);
-  harness.room.finishHeldTurn();
-  expect(read().stage, SalaStage.conversa);
-  harness.voice.finishHeldLine();
-  return (harness, container, read);
-}
-
 Future<(SalaHarness, ProviderContainer, _DiskThatRefusesTheTake Function())>
 _inTheRehearsalOverAFullDisk() async {
   _DiskThatRefusesTheTake? disk;
@@ -307,30 +278,6 @@ void main() {
     await settle();
     expect(harness.room.turnsSent, turns);
   });
-
-  test('a reply waiting while the room falls out of reach and comes back in '
-      'the same Step still plays', () async {
-    final (harness, _, _) = await _aReplyWaitsThroughAFall();
-
-    await waitFor(
-      'a resposta tocar',
-      () => harness.voice.played.contains('/resposta-1'),
-    );
-  });
-
-  test(
-    'a reply that waited through a fall and played is marked heard',
-    () async {
-      final (harness, _, read) = await _aReplyWaitsThroughAFall();
-      await waitFor(
-        'a resposta tocar',
-        () => harness.voice.played.contains('/resposta-1'),
-      );
-
-      await waitFor('a resposta ficar ouvida', () => !read().hasUnheardReply);
-      expect(harness.inbox.heard, contains('r1'));
-    },
-  );
 
   test('a line waiting in the conversation survives re-entering the same '
       'conversation', () async {
@@ -779,63 +726,6 @@ void main() {
     expect(respostaAntes, isTrue, reason: 'a resposta do turno vem antes');
   });
 
-  test("a turn the one look brings back does not end the hand's reply, which "
-      'still plays ahead of a waiting courtesy line', () async {
-    _OutboxThatGaveUp? outbox;
-    final harness = SalaHarness(
-      replies: const [HandReply(id: 'r1', audioUrl: '/resposta-1')],
-      takesOverride: (room, home, recordings) => outbox = _OutboxThatGaveUp(
-        room: room,
-        home: () async => home,
-        recordings: recordings,
-      ),
-    );
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final sala = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-    await waitFor('a resposta chegar à mão', () => read().hasUnheardReply);
-    final ditas = <String>[];
-    var urls = harness.voice.played.length;
-    var assets = harness.voice.assets.length;
-    harness.voice.aoFalar = () {
-      if (harness.voice.played.length > urls) {
-        urls = harness.voice.played.length;
-        ditas.add(harness.voice.played.last);
-      }
-      if (harness.voice.assets.length > assets) {
-        assets = harness.voice.assets.length;
-        ditas.add(harness.voice.assets.last);
-      }
-    };
-    harness.voice.holdNextLine();
-    harness.room
-      ..holdNextTurn()
-      ..turnsLandBeforeTheyFail = true;
-    sala.conversaTap();
-    await waitFor('o microfone abrir', () => read().channel is Microphone);
-    sala.conversaTap();
-    await waitFor('a Guia falar', () => read().channel is GuideSpeaking);
-    outbox!.gaveUp = true;
-    await sala.refreshUnsent();
-    sala.handTap();
-    await settle();
-    harness.room.failHeldTurnWith = const NetworkFailed('a conexão caiu');
-    harness.room.finishHeldTurn();
-    await settle();
-    harness.voice.finishHeldLine();
-
-    await waitFor(
-      'a linha da gravação presa tocar',
-      () => ditas.contains(_stranded),
-    );
-    expect(
-      ditas.indexOf('/resposta-1'),
-      allOf(isNonNegative, lessThan(ditas.indexOf(_stranded))),
-      reason: 'ninguém desistiu da resposta da mão: ela vem antes',
-    );
-  });
-
   test('a turn the room gave up on no longer holds a waiting line once the '
       'halt is lifted', () async {
     _OutboxThatGaveUp? outbox;
@@ -871,34 +761,6 @@ void main() {
   });
 
   group('the spontaneous lines wait for the Channel', () {
-    test('the facilitator\'s reply asked for under an open microphone plays '
-        'only after it closes', () async {
-      final harness = SalaHarness(
-        replies: const [HandReply(id: 'r1', audioUrl: '/resposta-1')],
-      );
-      final container = await inConversa(harness);
-      addTearDown(container.dispose);
-      final sala = container.read(salaSessionProvider.notifier);
-      SalaSessionState read() => container.read(salaSessionProvider);
-      await waitFor('a resposta chegar à mão', () => read().hasUnheardReply);
-
-      sala.conversaTap();
-      await waitFor(
-        'o microfone abrir',
-        () => read().voice == VoiceState.listening,
-      );
-      sala.handTap();
-      await settle();
-
-      expect(harness.voice.played, isNot(contains('/resposta-1')));
-
-      sala.conversaTap();
-      await waitFor(
-        'a resposta tocar depois do microfone',
-        () => harness.voice.played.contains('/resposta-1'),
-      );
-    });
-
     test('the stranded line arriving under an open microphone plays only after '
         'it closes', () async {
       final (harness, container, disk) = await _inTheRehearsalOverAFullDisk();

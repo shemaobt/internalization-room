@@ -214,14 +214,15 @@ class _HandLayer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(salaSessionProvider);
-    if (!_inside.contains(session.stage)) return const SizedBox.shrink();
+    if (!_inside.contains(session.stage) || !session.atTheTeamsIdleTurn) {
+      return const SizedBox.shrink();
+    }
     final notifier = ref.read(salaSessionProvider.notifier);
     return Positioned(
       left: 14,
       bottom: 18 + MediaQuery.viewPaddingOf(context).bottom,
       child: HandButton(
         noteMode: session.noteMode,
-        questionPending: session.questionPending,
         hasUnheardReply: session.hasUnheardReply,
         playingReply: session.playingReplyId != null,
         language: ref.watch(roomLanguageProvider),

@@ -10,7 +10,6 @@ import '../../domain/facilitator_script.dart';
 import '../../domain/channel.dart';
 import '../../domain/moment.dart';
 import '../../domain/session_state.dart';
-import 'bead.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
 import 'moment_label.dart';
@@ -144,13 +143,6 @@ class ConversaView extends ConsumerWidget {
             ),
           ),
         ),
-        if (session.handAck)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 110,
-            child: Center(child: const PingIn(child: KnotMark(size: 15))),
-          ),
       ],
     );
   }

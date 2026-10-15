@@ -7,7 +7,6 @@ import 'motion.dart';
 
 class HandButton extends StatelessWidget {
   final bool noteMode;
-  final bool questionPending;
   final bool hasUnheardReply;
   final bool playingReply;
   final String language;
@@ -16,7 +15,6 @@ class HandButton extends StatelessWidget {
   const HandButton({
     super.key,
     required this.noteMode,
-    required this.questionPending,
     required this.hasUnheardReply,
     required this.playingReply,
     required this.language,
@@ -30,16 +28,10 @@ class HandButton extends StatelessWidget {
 
     return Semantics(
       button: true,
-      label: switch ((
-        playingReply,
-        hasUnheardReply,
-        noteMode,
-        questionPending,
-      )) {
-        (true, _, _, _) => handLabelFor('answering', language),
-        (_, true, _, _) => handLabelFor('hearTheAnswer', language),
-        (_, _, true, _) => handLabelFor('cancel', language),
-        (_, _, _, true) => handLabelFor('sent', language),
+      label: switch ((playingReply, hasUnheardReply, noteMode)) {
+        (true, _, _) => handLabelFor('answering', language),
+        (_, true, _) => handLabelFor('hearTheAnswer', language),
+        (_, _, true) => handLabelFor('cancel', language),
         _ => handLabelFor('raise', language),
       },
       child: GestureDetector(
@@ -77,8 +69,6 @@ class HandButton extends StatelessWidget {
               ),
               if (hasUnheardReply && !playingReply)
                 Positioned(top: 10, right: 10, child: _quietDot()),
-              if (questionPending && !hasUnheardReply && !playingReply)
-                Positioned(top: 10, right: 10, child: _waitingDot()),
             ],
           ),
         ),
@@ -100,17 +90,6 @@ class HandButton extends StatelessWidget {
             0.35 + 0.3 * t,
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _waitingDot() {
-    return Container(
-      width: 11,
-      height: 11,
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        color: ShemaBrand.areia,
       ),
     );
   }

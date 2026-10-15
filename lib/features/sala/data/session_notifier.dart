@@ -2858,6 +2858,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _keepTheConnectionWarm();
   }
 
+  bool _theGuardKeeps(String path) => _captureGuard.accepts(
+    duration: _listeningSince == null
+        ? Duration.zero
+        : clock.now().difference(_listeningSince!),
+    bytes: File(path).existsSync() ? File(path).lengthSync() : 0,
+  );
+
   bool _hasAudio(String path) =>
       File(path).existsSync() && File(path).lengthSync() > 0;
 
@@ -2902,14 +2909,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     turnClock.mark('recorder');
     if (_abandoned(generation)) return;
     final sessionId = state.sessionId;
-    final elapsed = _listeningSince == null
-        ? Duration.zero
-        : clock.now().difference(_listeningSince!);
-    final bytes = path == null
-        ? 0
-        : (File(path).existsSync() ? File(path).lengthSync() : 0);
-    if (path == null ||
-        !_captureGuard.accepts(duration: elapsed, bytes: bytes)) {
+    if (path == null || !_theGuardKeeps(path)) {
       // A take the guard would not have armed in the first place — too short, or too
       // light to be a real recording. Reading that as an ordinary return to the invite
       // is the same silence a phantom tap always deserved, never a fail-safe line.
@@ -3007,11 +3007,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         else
           reply,
     ];
-    if (_sameReplies(merged, state.replies) && !state.questionPending) return;
-    state = state.copyWith(
-      replies: merged,
-      questionPending: merged.isEmpty ? null : false,
-    );
+    if (_sameReplies(merged, state.replies)) return;
+    state = state.copyWith(replies: merged);
   }
 
   bool _sameReplies(List<HandReply> a, List<HandReply> b) {
@@ -3033,11 +3030,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (state.station is Panorama && _panoramaSessionId == null) return;
-    if (state.offline) {
-      retryNow();
-      return;
-    }
-    if (state.needsPerson) return;
+    if (!state.atTheTeamsIdleTurn) return;
     if (state.playingReplyId != null) return;
     final unheard = state.oldestUnheardReply;
     if (unheard != null) {
@@ -3203,8 +3196,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _sendQuestion() {
     if (!state.noteMode) return;
-    state = state.copyWith(noteMode: false, awaitingTheGuide: true);
-    _watchBusyState();
+    state = state.copyWith(noteMode: false);
     _handOff(_deliverQuestion());
   }
 
@@ -3215,10 +3207,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.station is Panorama
         ? _panoramaSessionId
         : state.sessionId;
-    if (path == null || !_hasAudio(path) || sessionId == null) {
-      // The team raised their hand, spoke a question, and nothing came back from the
-      // recorder. Returning to the invite in silence is the room forgetting they asked.
-      state = state.copyWith(awaitingTheGuide: false, noteMode: false);
+    if (path == null || !_theGuardKeeps(path) || sessionId == null) {
       if (path != null) unawaited(_recorder.delete(path));
       return;
     }
@@ -3226,8 +3215,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     try {
       sent = await _inbox.sendQuestion(sessionId, File(path));
     } on FileSystemException {
-      if (_abandoned(generation)) return;
-      state = state.copyWith(awaitingTheGuide: false);
       return;
     }
     if (_abandoned(generation)) return;
@@ -3235,19 +3222,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Answered():
         break;
       case final RoomFailure failure:
-        state = state.copyWith(awaitingTheGuide: false);
         return _decideAt(failure, door: Door.question);
     }
     unawaited(_recorder.delete(path));
-    state = state.copyWith(
-      handAck: true,
-      questionPending: true,
-      awaitingTheGuide: false,
-    );
-    _watchBusyState();
-    _after('ack', const Duration(milliseconds: 3200), () {
-      state = state.copyWith(handAck: false);
-    });
   }
 
   void devRecomecarPassagem() => _gesture(() => _devRecomecarPassagem());

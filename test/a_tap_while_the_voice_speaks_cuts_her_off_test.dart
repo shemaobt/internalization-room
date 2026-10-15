@@ -452,20 +452,6 @@ void main() {
       expect(harness.voice.stops, stops);
       expect(harness.recorder.captures, captures);
     });
-
-    test('by the note', () async {
-      final room = await _inConversa();
-      await room.aReplySpeaking();
-      final stops = room.harness.voice.stops;
-      final captures = room.harness.recorder.captures;
-
-      room.notifier.handTap();
-      expect(room.state.noteMode, isTrue);
-      await room.tap();
-
-      expect(room.harness.voice.stops, stops);
-      expect(room.harness.recorder.captures, captures);
-    });
   });
 
   group('a cut whose microphone ends without a take tells the next take '
