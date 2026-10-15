@@ -125,6 +125,7 @@ class SalaSessionState {
   /// circle records the team's turn.
   final bool panoramaSaid;
   final String? sessionId;
+  final String? pericope;
   final Coverage coverage;
   final Moment? moment;
 
@@ -220,6 +221,7 @@ class SalaSessionState {
     this.reach = RoomReach.fine,
     this.panoramaSaid = false,
     this.sessionId,
+    this.pericope,
     this.coverage = Coverage.empty,
     this.moment,
     this.peerCue = false,
@@ -577,6 +579,7 @@ class SalaSessionState {
     RoomReach? reach,
     bool? panoramaSaid,
     String? sessionId,
+    String? pericope,
     bool clearSession = false,
     Coverage? coverage,
     Moment? moment,
@@ -636,6 +639,7 @@ class SalaSessionState {
       reach: reach ?? this.reach,
       panoramaSaid: panoramaSaid ?? this.panoramaSaid,
       sessionId: clearSession ? null : (sessionId ?? this.sessionId),
+      pericope: clearSession ? null : (pericope ?? this.pericope),
       coverage: coverage ?? this.coverage,
       moment: clearMoment ? null : (moment ?? this.moment),
       peerCue: peerCue ?? this.peerCue,
