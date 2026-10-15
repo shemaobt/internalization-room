@@ -42,6 +42,12 @@ double _opacity(WidgetTester tester) => tester
     )
     .fold(1.0, (opacity, fade) => opacity * fade.opacity);
 
+double _seen(WidgetTester tester) => tester
+    .widgetList<FadeTransition>(
+      find.ancestor(of: _label, matching: find.byType(FadeTransition)),
+    )
+    .fold(1.0, (opacity, fade) => opacity * fade.opacity.value);
+
 Future<(SalaHarness, ProviderContainer)> _theOpeningSays(
   WidgetTester tester,
   Moment? moment, {
@@ -306,6 +312,59 @@ void main() {
         reason:
             'a equipe abriu um recado e o momento continuou disputando a tela',
       );
+    },
+  );
+
+  testWidgets(
+    'under Reduce Motion the label goes the moment the team opens a note, with no fade',
+    (tester) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      final (_, container) = await _theOpeningSays(
+        tester,
+        const Moment(at: MomentAt.familiarization, parts: 3),
+      );
+      await tester.pump(const Duration(milliseconds: 1500));
+      expect(_seen(tester), 1.0);
+
+      container.read(salaSessionProvider.notifier).handTap();
+      await tester.pump();
+
+      expect(container.read(salaSessionProvider).noteMode, isTrue);
+      expect(
+        _seen(tester),
+        0.0,
+        reason: 'com o movimento reduzido o momento ainda sumia em fade',
+      );
+    },
+  );
+
+  testWidgets(
+    'without Reduce Motion the label still fades out over its 800 ms when the team opens a note',
+    (tester) async {
+      final (_, container) = await _theOpeningSays(
+        tester,
+        const Moment(at: MomentAt.familiarization, parts: 3),
+      );
+      await tester.pump(const Duration(milliseconds: 1500));
+      expect(_seen(tester), 1.0);
+
+      container.read(salaSessionProvider.notifier).handTap();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(container.read(salaSessionProvider).noteMode, isTrue);
+      expect(
+        _seen(tester),
+        allOf(greaterThan(0.0), lessThan(1.0)),
+        reason: 'sem o movimento reduzido o momento sumia de uma vez',
+      );
+
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(_seen(tester), 0.0);
     },
   );
 

@@ -214,7 +214,6 @@ void main() {
     _sala(container).leaveThePassage();
     await _naEscolha(container);
     await settle();
-    expect(_estado(container).feitas, isNot(contains('P01')));
     expect(await harness.emAberto.of('Ruth', 'P01', 'pt'), isNotNull);
     final linha = await harness.takes.enqueue(
       harness.recorder.aFile('parte-guardada'),
@@ -226,10 +225,6 @@ void main() {
     );
 
     harness.room.finishHeldAskForAPerson();
-    await waitFor(
-      'a Roda mostrar a passagem fechada',
-      () => _estado(container).feitas.contains('P01'),
-    );
     await settle(_severalStepsOfTheLadder);
     await waitFor(
       'o lugar e a cópia da sessão saírem do tablet',
@@ -244,16 +239,6 @@ void main() {
     expect(await _daSessao(harness, sessao), isEmpty);
     expect(File(linha.path).existsSync(), isFalse);
     expect(harness.room.calls, isNot(contains('sendTake')));
-  });
-
-  test('a passage closed shows closed on the Wheel', () async {
-    final harness = SalaHarness();
-    final container = await _naPassagem(harness);
-
-    await _aPassagemFechaNoPedidoDePessoa(harness, container);
-    await _naEscolha(container);
-
-    expect(_estado(container).feitas, contains('P01'));
   });
 
   test('a halt standing when the passage closes is cleared with no call and '
@@ -478,32 +463,6 @@ void main() {
 
     expect(_estado(container).stage, SalaStage.escolha);
     expect(_estado(container).sessionId, isNull);
-    expect(_estado(container).feitas, contains('P01'));
-  });
-
-  test('a passage closed while the Choice is reading the finished passages '
-      'shows closed on the Wheel', () async {
-    final harness = SalaHarness();
-    final container = await _naPassagem(harness);
-    harness.room.holdNextAskForAPerson();
-    await _aPassagemFechaNoPedidoDePessoa(harness, container);
-    _sala(container).leaveThePassage();
-    await _naEscolha(container);
-    await settle();
-    harness.finished.holdNextAll();
-    final escolha = _sala(container).abrirEscolha();
-    await settle();
-    harness.finished.holdNextAdd();
-
-    harness.room.finishHeldAskForAPerson();
-    await settle();
-    harness.finished.finishHeldAdd();
-    await settle();
-    harness.finished.finishHeldAll();
-    await escolha;
-    await settle(_severalStepsOfTheLadder);
-
-    expect(_estado(container).feitas, contains('P01'));
   });
 
   group('a session the server no longer accepts leaves nothing on the tablet, '

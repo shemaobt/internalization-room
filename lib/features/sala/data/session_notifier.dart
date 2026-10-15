@@ -205,7 +205,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   final Set<String> _contadasSemResposta = {};
   int _resumeFailures = 0;
   final Set<String> _goneSessions = {};
-  final Set<(String, String)> _toldClosed = {};
 
   /// When and in what language the session now open was created, so a row rewritten by
   /// a later stage advance carries them instead of going blank the moment the team leaves
@@ -1014,7 +1013,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   bool _applyWhatOnlyGrows(SessionSnapshot snapshot, {TurnClock? clock}) {
-    final advanced = _applyCoverage(snapshot.coverage, clock: clock);
+    final advanced =
+        state.station is! Panorama &&
+        _applyCoverage(snapshot.coverage, clock: clock);
     if (!state.needsPerson && snapshot.done && state.station is Canvas) {
       state = state.copyWith(endOfThePassage: true);
     }
@@ -1103,33 +1104,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _markingThePassageClosed = true;
     final pericope = _emCurso;
     if (pericope == null) return null;
-    final book = _book;
-    _toldClosed.add((book, pericope));
-    return (book: book, passage: pericope);
+    return (book: _book, passage: pericope);
   }
 
-  void _theMarkEnds(String sessionId, String? pericope) {
-    _theSessionIsClosed(sessionId, pericope);
+  void _theMarkEnds(String sessionId) {
+    _theSessionIsClosed(sessionId);
     _markingThePassageClosed = false;
   }
 
   Future<void> _thePassageClosed(String sessionId, String? pericope) async {
     if (_gone) return;
-    final book = _book;
     if (pericope != null) {
-      _toldClosed.add((book, pericope));
-      await _feitas.add(book, pericope).catchError((_) {});
+      await _feitas.add(_book, pericope).catchError((_) {});
     }
-    _theSessionIsClosed(sessionId, pericope);
+    _theSessionIsClosed(sessionId);
   }
 
-  void _theSessionIsClosed(String sessionId, String? pericope) {
+  void _theSessionIsClosed(String sessionId) {
     if (_gone) return;
     if (sessionId == _theSession) {
       return _dispatch(ThePassageClosed(generation: _generation));
-    }
-    if (pericope != null && state.station is Menu) {
-      state = state.copyWith(feitas: {...state.feitas, pericope});
     }
     _letGoOf(sessionId);
   }
@@ -1803,22 +1797,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return;
     }
     if (_abandoned(generation)) return;
-    // Held before the awaits: a provider read after the container is disposed throws,
+    // Held before the await: a provider read after the container is disposed throws,
     // and this method is reached from a fire-and-forget touch.
-    final ledger = _feitas;
     final open = _emAberto;
-    final book = _book;
-    final feitas = {
-      ...await ledger.all(book),
-      for (final (livro, pericope) in _toldClosed)
-        if (livro == book) pericope,
-    };
-    final comecadas = await open.startedIn(book, _lingua);
+    final comecadas = await open.startedIn(_book, _lingua);
     if (_abandoned(generation)) return;
     state = state.copyWith(
       naRoda: todas,
       comecadas: comecadas,
-      feitas: feitas,
       aOferecer: 0,
       awaitingTheGuide: false,
     );
@@ -1999,6 +1985,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     final panorama = _panoramaSessionId ?? created!.sessionId;
     _panoramaSessionId = panorama;
+    _runner.run(const [ArmTheWatch()]);
     _warmHerLines();
     _openingOwed = true;
     final turnId = _openTurnId ??= _stamp();
@@ -2107,6 +2094,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _arriveAt(const ThePanoramaChosen());
     if (left.said && _panoramaSessionId == left.session) {
       state = state.copyWith(panoramaSaid: true);
+      _runner.run(const [ArmTheWatch()]);
       unawaited(_pullInbox());
       return;
     }
@@ -2198,8 +2186,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// Everything of the session before this one stays behind.
   ///
-  /// Only what the book knows crosses over — the wheel, the passages started, the ones
-  /// finished, the one being offered — and entering the passage says the rest again.
+  /// Only what the book knows crosses over — the wheel, the passages started, the one
+  /// being offered — and entering the passage says the rest again.
   /// Built from an empty state rather than cleared field by field, so a fact the session
   /// gains tomorrow is born clean here without anybody remembering this branch; the
   /// counters and latches with no home in the state go through [_forgetThePassage],
@@ -2214,7 +2202,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       awaitingTheGuide: true,
       naRoda: livro.naRoda,
       comecadas: livro.comecadas,
-      feitas: livro.feitas,
       aOferecer: livro.aOferecer,
     );
     _arriveAt(const PassageChosen());
@@ -5745,7 +5732,7 @@ class _NotifierHost implements StationHost {
 
   @override
   void hearTheMarkEnd(String session, String? passage) =>
-      _notifier._theMarkEnds(session, passage);
+      _notifier._theMarkEnds(session);
 
   @override
   void hearTheCallLanded() => _notifier
