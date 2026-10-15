@@ -106,6 +106,16 @@ class RecordingRepository {
     return target.path;
   }
 
+  /// Where audio kept under [fileName] already is on this tablet, or null when it is not.
+  Future<String?> heldAs(String fileName) async {
+    final dir = await _recordingsDir();
+    for (final extension in ['wav', 'm4a']) {
+      final file = File(p.join(dir.path, '$fileName.$extension'));
+      if (await file.exists() && await file.length() > 0) return file.path;
+    }
+    return null;
+  }
+
   Future<String> keepAs(String path, String fileName) async {
     final dir = await _recordingsDir();
     final target = p.join(dir.path, '$fileName.m4a');

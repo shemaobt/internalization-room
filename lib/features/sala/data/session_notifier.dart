@@ -3314,6 +3314,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     SceneRehearsalRecord rehearsal,
     int generation,
   ) async {
+    final name = 'cena-${rehearsal.rehearsalId}';
+    final held = await _recorder.heldAs(name);
+    if (held != null || _abandoned(generation)) return held;
     final clip = await _room.fetchClip(
       RoomRepository.sceneRehearsalAudioUrl(
         rehearsal.sessionId,
@@ -3324,10 +3327,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (clip) {
       case Answered(:final value) when value.isNotEmpty:
         try {
-          return await _recorder.keepBytes(
-            value,
-            'cena-${rehearsal.rehearsalId}',
-          );
+          return await _recorder.keepBytes(value, name);
         } on Exception {
           return null;
         }

@@ -385,6 +385,12 @@ class FakeRecorder implements RecordingRepository {
   }
 
   @override
+  Future<String?> heldAs(String fileName) async {
+    final file = File('${home.path}/$fileName.m4a');
+    return file.existsSync() && file.lengthSync() > 0 ? file.path : null;
+  }
+
+  @override
   Future<String> keepAs(String path, String fileName) async => path;
 
   @override

@@ -418,6 +418,30 @@ void main() {
   );
 
   test(
+    'a scene take already on the tablet is reopened without a second download',
+    () async {
+      final room = await _atRest();
+      room.harness.room.sceneRehearsals.add(
+        _rehearsal(frases: [_frase('f1', 0, 4000)]),
+      );
+      room.sala.openTheSceneRehearsal();
+      await _translateOpens(room);
+      room.sala.leaveTheSceneRehearsal();
+      await settle();
+
+      room.sala.openTheSceneRehearsal();
+      await _translateOpens(room);
+
+      expect(
+        room.harness.room.clipsFetched.where(
+          (url) => url.contains('/scene-rehearsals/'),
+        ),
+        hasLength(1),
+      );
+    },
+  );
+
+  test(
     'an unsent scene rehearsal listed while the team already records never opens over the microphone',
     () async {
       final room = await _atRest();
