@@ -17,18 +17,19 @@ enum SalaStage { panorama, escolha, conversa, ensaio, retro, fim, cena }
 enum SceneStep { record, translate, placesUnknown, sent }
 
 /// What the scene rehearsal's screen holds: its Step, the rehearsal as the room last
-/// answered it, its take as a file on this tablet, and whether a take is being kept.
+/// answered it, its take as a file on this tablet, and whether a keep or a restart is in
+/// the air.
 final class SceneScreen {
   final SceneStep step;
   final SceneRehearsalRecord? rehearsal;
   final String? take;
-  final bool keeping;
+  final bool waiting;
 
   const SceneScreen({
     this.step = SceneStep.record,
     this.rehearsal,
     this.take,
-    this.keeping = false,
+    this.waiting = false,
   });
 }
 

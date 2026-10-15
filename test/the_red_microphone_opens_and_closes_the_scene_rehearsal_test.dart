@@ -953,7 +953,9 @@ void main() {
       () async {
         final room = await inPlacesUnknown();
         final session = room.state.sessionId;
-        room.harness.room.refuseRestartWith = RefusalCode.notFound;
+        room.harness.room
+          ..refuseRestartWith = RefusalCode.notFound
+          ..sceneRehearsals.clear();
 
         room.sala.restartTheSceneTranslation();
         await waitFor(
@@ -967,6 +969,58 @@ void main() {
         expect(room.state.scene.step, SceneStep.placesUnknown);
       },
     );
+
+    test('a double tap on recomeçar sends one restart', () async {
+      final room = await inPlacesUnknown();
+      room.harness.room.holdNextRestart();
+
+      room.sala.restartTheSceneTranslation();
+      room.sala.restartTheSceneTranslation();
+      await waitFor(
+        'o recomeço subir',
+        () => room.harness.room.restartsSent.isNotEmpty,
+      );
+      await settle();
+
+      expect(room.harness.room.restartsSent, hasLength(1));
+      room.harness.room.finishHeldRestart();
+    });
+
+    test('a gone session on recomeçar leaves for the Choice', () async {
+      final room = await inPlacesUnknown();
+      room.harness.room.forgetTheSession(_session);
+
+      room.sala.restartTheSceneTranslation();
+      await waitFor(
+        'a sala voltar à Escolha',
+        () => room.state.stage == SalaStage.escolha,
+      );
+    });
+
+    test('a late re-read of the list never replaces a newer screen', () async {
+      const landed = 'c3d1a1f0-5b7e-4c1a-9a43-0d6e3f2b8a11';
+      final room = await inPlacesUnknown();
+      room.harness.room
+        ..refuseRestartWith = RefusalCode.restartOutOfOrder
+        ..holdNextSceneList();
+      room.sala.restartTheSceneTranslation();
+      await waitFor(
+        'a lista ser relida',
+        () => room.asked('sceneRehearsalsOf') == 2,
+      );
+      room.sala.leaveTheSceneRehearsal();
+      room.harness.room
+        ..refuseRestartWith = null
+        ..sceneRehearsals[0] = _rehearsal(afterRestart: landed);
+      room.sala.openTheSceneRehearsal();
+      await _translateOpens(room);
+
+      room.harness.room.finishHeldSceneList();
+      await settle();
+
+      expect(room.state.scene.step, SceneStep.translate);
+      expect(room.state.scene.rehearsal?.afterRestart, landed);
+    });
 
     test(
       'a restart the room took without this tablet hearing it is read again',
@@ -1042,6 +1096,26 @@ void main() {
 
       expect(room.state.scene.step, SceneStep.record);
       expect(room.state.stage, SalaStage.cena);
+    });
+
+    test('a gone session at the take\'s audio leaves for the Choice', () async {
+      final room = await _atRest();
+      room.harness.room
+        ..sceneRehearsals.add(_rehearsal(frases: [_frase('f1', 0, 4000)]))
+        ..holdNextClip();
+      room.sala.openTheSceneRehearsal();
+      await waitFor(
+        'o take ser pedido',
+        () => room.harness.room.clipsFetched.isNotEmpty,
+      );
+
+      room.harness.room
+        ..forgetTheSession(_session)
+        ..finishHeldClip();
+      await waitFor(
+        'a sala voltar à Escolha',
+        () => room.state.stage == SalaStage.escolha,
+      );
     });
 
     test('an empty scene take fetched', () async {

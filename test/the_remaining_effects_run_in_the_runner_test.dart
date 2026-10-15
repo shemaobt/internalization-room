@@ -150,29 +150,52 @@ void main() {
 
   group('the scene rehearsals read again', () {
     late ARoomPort room;
+    var generation = 3;
 
     setUp(() {
       room = ARoomPort();
+      generation = 3;
       runner = runnerOver(
         fakePorts(ASoundPort(), room: room, store: store),
         host,
+        generation: () => generation,
       );
     });
 
-    test('are asked of the room and heard by the Station', () async {
-      runner.run(const [ReadTheSceneRehearsals()]);
-      expect(room.heard, ['sceneRehearsals:sessao-1']);
+    test(
+      'are asked of the room and answered with the generation they were asked in',
+      () async {
+        runner.run(const [ReadTheSceneRehearsals()]);
+        expect(room.heard, ['sceneRehearsals:sessao-1']);
+        generation = 4;
 
-      room.answerTheSceneRehearsals(
-        const SceneRehearsalsListed([
+        room.answerTheSceneRehearsals(
+          const SceneRehearsalsListed([
+            SceneRehearsalRecord(
+              rehearsalId: 'ensaio-da-cena-1',
+              sessionId: 'sessao-1',
+              n: 1,
+            ),
+          ]),
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        final listed = host.answers.single as TheSceneRehearsalsListed;
+        expect(listed.listed.single.rehearsalId, 'ensaio-da-cena-1');
+        expect(listed.generation, 3);
+      },
+    );
+
+    test('a list shown is heard by the Station', () {
+      runner.run(const [
+        ShowTheSceneRehearsals([
           SceneRehearsalRecord(
             rehearsalId: 'ensaio-da-cena-1',
             sessionId: 'sessao-1',
             n: 1,
           ),
         ]),
-      );
-      await Future<void>.delayed(Duration.zero);
+      ]);
 
       expect(host.asked, ['hearTheSceneRehearsals:1']);
     });

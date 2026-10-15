@@ -90,6 +90,10 @@ AnsweringEvent _stampedAnswer(
   TurnFailed(:final turn) => TurnFailed(turn, generation: generation),
   TheRefusalPassed() => TheRefusalPassed(generation: generation),
   TheHandFailed() => TheHandFailed(generation: generation),
+  TheSceneRehearsalsListed(:final listed) => TheSceneRehearsalsListed(
+    listed,
+    generation: generation,
+  ),
   TheSceneDoorFailed(:final readAgain) => TheSceneDoorFailed(
     readAgain: readAgain,
     generation: generation,

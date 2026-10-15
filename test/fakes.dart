@@ -1345,6 +1345,11 @@ class FakeRoom implements RoomRepository {
     if (sceneFailure != null && url.contains('/scene-rehearsals/')) {
       return sceneFailure;
     }
+    for (final gone in forgottenSessions) {
+      if (url.contains('/sessions/$gone/scene-rehearsals/')) {
+        return const Refused(RefusalCode.notFound);
+      }
+    }
     final sceneBytes = sceneAudio;
     if (sceneBytes != null && url.contains('/scene-rehearsals/')) {
       return Answered(sceneBytes);
@@ -1417,15 +1422,14 @@ class FakeRoom implements RoomRepository {
   /// The bytes every scene take's audio comes back as, when it is set.
   Uint8List? sceneAudio;
 
-  Completer<void>? _holdingSceneList;
+  bool _holdTheNextSceneList = false;
+  final List<Completer<void>> _heldSceneLists = [];
 
-  /// Hold the next list of scene rehearsals, the way a slow link holds it.
-  void holdNextSceneList() => _holdingSceneList = Completer<void>();
+  /// Hold the next list of scene rehearsals, the way a slow link holds it. It answers
+  /// with what the room held when it was asked.
+  void holdNextSceneList() => _holdTheNextSceneList = true;
 
-  void finishHeldSceneList() {
-    _holdingSceneList?.complete();
-    _holdingSceneList = null;
-  }
+  void finishHeldSceneList() => _heldSceneLists.removeAt(0).complete();
 
   Completer<void>? _holdingRestart;
 
@@ -1442,10 +1446,17 @@ class FakeRoom implements RoomRepository {
     String sessionId,
   ) async {
     if (_guard('sceneRehearsalsOf') case final failure?) return failure;
-    await _holdingSceneList?.future;
+    final listed = List.of(sceneRehearsals);
+    if (_holdTheNextSceneList) {
+      _holdTheNextSceneList = false;
+      final held = Completer<void>();
+      _heldSceneLists.add(held);
+      await held.future;
+    }
+    if (_forgot('sceneRehearsalsOf', sessionId) case final gone?) return gone;
     final refusal = failSceneWith;
     if (refusal != null) return refusal;
-    return Answered(List.of(sceneRehearsals));
+    return Answered(listed);
   }
 
   @override
@@ -1454,6 +1465,7 @@ class FakeRoom implements RoomRepository {
     File audio,
   ) async {
     if (_guard('keepSceneRehearsal') case final failure?) return failure;
+    if (_forgot('keepSceneRehearsal', sessionId) case final gone?) return gone;
     final refusal = failSceneWith;
     if (refusal != null) return refusal;
     scenesKept.add(sessionId);
@@ -1479,6 +1491,9 @@ class FakeRoom implements RoomRepository {
     }
     restartsSent.add((attempt: attempt, closes: closes));
     await _holdingRestart?.future;
+    if (forgottenSessions.contains(sessionId)) {
+      return const Refused(RefusalCode.notFound);
+    }
     final refusal = failSceneWith;
     if (refusal != null) return refusal;
     final code = refuseRestartWith;

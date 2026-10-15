@@ -275,6 +275,8 @@ class EffectRunner {
           host.hearThePassageRefused();
         case ReadTheSceneRehearsals():
           _readTheSceneRehearsals();
+        case ShowTheSceneRehearsals(:final listed):
+          host.hearTheSceneRehearsals(listed);
       }
     }
   }
@@ -542,11 +544,12 @@ class EffectRunner {
   }
 
   Future<void> _answerTheSceneRehearsals(String session) async {
+    final stamp = generation?.call();
     final answer = await room.sceneRehearsalsOf(session);
     if (_disposed || host.session != session) return;
     switch (answer) {
       case SceneRehearsalsListed(:final listed):
-        host.hearTheSceneRehearsals(listed);
+        host.answer(TheSceneRehearsalsListed(listed, generation: stamp));
       case SceneRehearsalsFailed(:final result):
         _decideAt(
           result,

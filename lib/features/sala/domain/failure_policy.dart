@@ -106,7 +106,9 @@ abstract final class FailurePolicy {
         generation: generation,
       ),
       RoomRefused(
-        code: RefusalCode.sceneRehearsalSent || RefusalCode.restartOutOfOrder,
+        code: RefusalCode.sceneRehearsalSent ||
+            RefusalCode.restartOutOfOrder ||
+            RefusalCode.notFound,
       )
           when context.door == Door.sceneRehearsal =>
         TheSceneDoorFailed(readAgain: true, generation: generation),

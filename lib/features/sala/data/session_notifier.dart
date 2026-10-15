@@ -3343,7 +3343,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _sceneTap() {
     if (state.station is! SceneRehearsal ||
         state.scene.step != SceneStep.record ||
-        state.scene.keeping) {
+        state.scene.waiting) {
       return;
     }
     switch (state.channel) {
@@ -3358,7 +3358,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _keepTheSceneTake() async {
     final generation = _waitOnTheGeneration;
-    const keeping = SceneScreen(keeping: true);
+    const keeping = SceneScreen(waiting: true);
     state = state.copyWith(scene: keeping);
     final sessionId = state.sessionId;
     final path = (await _closeTheMicrophone()).take;
@@ -3420,36 +3420,47 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _gesture(() => _restartTheSceneTranslation());
 
   void _restartTheSceneTranslation() {
-    final rehearsal = state.scene.rehearsal;
+    final shown = state.scene;
+    final rehearsal = shown.rehearsal;
     final sessionId = state.sessionId;
-    if (state.scene.step != SceneStep.placesUnknown ||
+    if (state.station is! SceneRehearsal ||
+        shown.step != SceneStep.placesUnknown ||
+        shown.waiting ||
         rehearsal == null ||
         sessionId == null) {
       return;
     }
-    _handOff(_restartTheTranslation(sessionId, rehearsal));
+    final waiting = SceneScreen(
+      step: shown.step,
+      rehearsal: rehearsal,
+      take: shown.take,
+      waiting: true,
+    );
+    state = state.copyWith(scene: waiting);
+    _handOff(_restartTheTranslation(sessionId, shown, waiting));
   }
 
   Future<void> _restartTheTranslation(
     String sessionId,
-    SceneRehearsalRecord rehearsal,
+    SceneScreen shown,
+    SceneScreen waiting,
   ) async {
     final generation = _waitOnTheGeneration;
-    final asked = state.scene;
+    final rehearsal = shown.rehearsal!;
     final restarted = await _room.restartTheSceneTranslation(
       sessionId,
       rehearsal.rehearsalId,
       attempt: mintAnAttempt(),
       closes: rehearsal.afterRestart,
     );
+    if (_abandoned(generation)) return;
+    final stillShown = !_theSceneMovedOn(waiting, generation);
+    if (stillShown) state = state.copyWith(scene: shown);
     switch (restarted) {
       case Answered(:final value):
-        if (_theSceneMovedOn(asked, generation)) return;
-        await _showTheRehearsal(value, asked, generation);
+        if (stillShown) await _showTheRehearsal(value, shown, generation);
       case final RoomFailure failure:
-        if (!_abandoned(generation)) {
-          _decideAt(failure, door: Door.sceneRehearsal);
-        }
+        _decideAt(failure, door: Door.sceneRehearsal);
     }
   }
 

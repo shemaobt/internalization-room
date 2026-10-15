@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 
@@ -224,6 +225,38 @@ void main() {
     ]) {
       _expectItStays(station, const TheSceneRehearsalOpened(), equals(station));
     }
+  });
+
+  test(
+    'the Scene rehearsal shows a list of its rehearsals the room answered',
+    () {
+      const listed = [
+        SceneRehearsalRecord(
+          rehearsalId: 'ensaio-da-cena-1',
+          sessionId: 'sessao-1',
+          n: 1,
+        ),
+      ];
+      final (machine, effects) = reduce(
+        _at(const SceneRehearsal()),
+        const TheSceneRehearsalsListed(listed, generation: _generation),
+      );
+
+      expect(machine.generation, _generation);
+      expect(
+        effects.single,
+        isA<ShowTheSceneRehearsals>().having((e) => e.listed, 'listed', listed),
+      );
+    },
+  );
+
+  test('a list of scene rehearsals from an older generation is dropped', () {
+    final (_, effects) = reduce(
+      _at(const SceneRehearsal()),
+      const TheSceneRehearsalsListed([], generation: _generation - 1),
+    );
+
+    expect(effects, isEmpty);
   });
 
   test('the machine is born on the Menu', () {
