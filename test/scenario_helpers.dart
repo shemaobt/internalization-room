@@ -176,6 +176,7 @@ Future<(SalaHarness, ProviderContainer)> relaunch(
     takesHome: harness.takesHome,
     currentSession: harness.currentSession,
     roomLanguage: lingua == null ? harness.roomLanguage : null,
+    look: harness.look,
     lingua: lingua ?? harness.lingua,
     linkPoll: linkPoll ?? harness.linkPoll,
   );

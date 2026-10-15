@@ -135,6 +135,10 @@ _Avoid_: sessão, passage, round
 The language the team chose on the Choice, «PT» or «EN», remembered on the tablet and Portuguese when nothing was chosen. The screen and the sessions opened from then on follow it; the device's own language never decides it.
 _Avoid_: device language, locale, idioma do aparelho
 
+**Look**:
+Light or dark, chosen on the Choice with the sun or the moon and remembered on the tablet. It follows the device until the team chooses.
+_Avoid_: theme, appearance, mode, One look (a different thing: the turn read once)
+
 **Session language**:
 The language a session was opened in, fixed at the tap that opens it. A session keeps it when the Room language changes.
 _Avoid_: current language

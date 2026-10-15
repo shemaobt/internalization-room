@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/audio/room_audio_session.dart';
 import 'core/config/env.dart';
 import 'core/theme/app_theme.dart';
+import 'features/sala/data/look_ledger.dart';
 import 'features/sala/data/room_language_ledger.dart';
 import 'features/sala/presentation/sala_screen.dart';
 
@@ -29,26 +30,31 @@ Future<void> main() async {
     DeviceOrientation.portraitDown,
   ]);
   final roomLanguage = await RoomLanguageLedger.read();
+  final look = await LookLedger.read();
   runApp(
     ProviderScope(
-      overrides: [roomLanguageLedgerProvider.overrideWithValue(roomLanguage)],
+      overrides: [
+        roomLanguageLedgerProvider.overrideWithValue(roomLanguage),
+        lookLedgerProvider.overrideWithValue(look),
+      ],
       child: SalaApp(built: built),
     ),
   );
 }
 
-class SalaApp extends StatelessWidget {
+class SalaApp extends ConsumerWidget {
   final bool built;
 
   const SalaApp({super.key, this.built = true});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp(
       title: 'Internalization Room',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
+      themeMode: ref.watch(lookProvider),
       builder: (context, child) => _LessMotion(child: child!),
       home: SalaScreen(built: built),
     );
