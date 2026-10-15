@@ -15,9 +15,14 @@ const _herWordsTheTeamReads = {
   'lib/features/sala/presentation/widgets/moment_label.dart',
 };
 
+const _wordsOnlyTheCameraReads = {
+  'lib/features/sala/presentation/widgets/claquete.dart',
+};
+
 const _wordyExceptions = {
   ..._screensTheTeamNeverReads,
   ..._herWordsTheTeamReads,
+  ..._wordsOnlyTheCameraReads,
 };
 
 final _textWidgetPattern = RegExp(r'\bText\(');
