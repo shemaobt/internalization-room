@@ -1125,6 +1125,9 @@ class FakeRoom implements RoomRepository {
   /// The ids this room gave the sessions it opened, in the order it opened them.
   final List<String> sessionIds = [];
 
+  /// When set, the id [createSession] hands back, in place of `sessao-N`.
+  String? nextSessionId;
+
   /// Which session each turn was spoken into, the opening one included, in order.
   final List<String> sessionsSpokenTo = [];
 
@@ -1448,7 +1451,7 @@ class FakeRoom implements RoomRepository {
     pericopesAsked.add(pericope);
     metBefore.add(afterSession != null);
     languagesSent.add(language);
-    final sessionId = 'sessao-${sessionIds.length + 1}';
+    final sessionId = nextSessionId ?? 'sessao-${sessionIds.length + 1}';
     sessionIds.add(sessionId);
     return Answered(
       SessionSnapshot(

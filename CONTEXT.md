@@ -343,6 +343,14 @@ _Avoid_: sala parada, stuck room, pause
 The kind of halt that asks for someone to come and watch while refusing the team nothing. It is a warning, not a cap: the room takes turns as before, and it is what the retells budget raises — on every route a telling can take, whether the tablet hears it on a state read or in the answer to a stretch told again. The room raises it by marking the session itself, so the tablet never calls for a person over one, and it ends when the Desk attends the session, in whatever station the team is in.
 _Avoid_: aviso, cap, block, halt (the state, of which this is one kind)
 
+**Claquete**:
+The small line of text on the session screen giving the passage, the date and time, and the session, so field video can be matched to the session. It is shown briefly, never as a control.
+_Avoid_: slate, clapperboard, session label
+
+**Shema mark**:
+The mark at the top centre of the Conversation, drawn from the four shapes of Marcia's logo. A tap on it shows the claquete again; it is not read aloud.
+_Avoid_: logo, watermark, icon
+
 **Warning mark**:
 The small mark beside the Circle while a warning stands, said in words through its own
 VoiceOver label; the Circle's own colour stays the voice, in every state.
