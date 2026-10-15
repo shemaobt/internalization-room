@@ -254,6 +254,18 @@ void main() {
       const RoomRaisedAHalt(sounding: ThePart(), generation: 4),
     ),
     (
+      'a scene door refused because the rehearsal was sent reads it again',
+      const RoomRefused(RefusalCode.sceneRehearsalSent),
+      _notATurn(door: Door.sceneRehearsal),
+      const TheSceneDoorFailed(readAgain: true, generation: 4),
+    ),
+    (
+      'a scene door refused because a restart landed unheard reads it again',
+      const RoomRefused(RefusalCode.restartOutOfOrder),
+      _notATurn(door: Door.sceneRehearsal),
+      const TheSceneDoorFailed(readAgain: true, generation: 4),
+    ),
+    (
       'a scene door refused for any other reason is never counted',
       const RoomRefused(RefusalCode.notFound),
       _notATurn(door: Door.sceneRehearsal, refusals: 2),

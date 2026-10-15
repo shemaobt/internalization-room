@@ -1341,6 +1341,14 @@ class FakeRoom implements RoomRepository {
     if (devagar != null) await Future<void>.delayed(devagar);
     final refusal = failClipWith;
     if (refusal != null) return refusal;
+    final sceneFailure = failSceneWith;
+    if (sceneFailure != null && url.contains('/scene-rehearsals/')) {
+      return sceneFailure;
+    }
+    final sceneBytes = sceneAudio;
+    if (sceneBytes != null && url.contains('/scene-rehearsals/')) {
+      return Answered(sceneBytes);
+    }
     for (final take in refuseClipOf) {
       if (url.endsWith('/takes/$take/audio')) {
         return const Refused(RefusalCode.notFound);
@@ -1391,14 +1399,54 @@ class FakeRoom implements RoomRepository {
     return Answered(List.of(takes));
   }
 
-  /// Every scene rehearsal this room kept, in order.
+  /// Every live scene rehearsal of the passage, from every session, as the list answers.
   final List<SceneRehearsalRecord> sceneRehearsals = [];
 
   /// The session each scene take this room kept was sent for, in order.
   final List<String> scenesKept = [];
 
-  /// What every scene door answers, when it is set.
+  /// Every restart of a scene translation this room was sent.
+  final List<({String attempt, String? closes})> restartsSent = [];
+
+  /// What every scene door answers, the scene take's audio included, when it is set.
   RoomFailure? failSceneWith;
+
+  /// The code a restart is refused with, when it is set.
+  String? refuseRestartWith;
+
+  /// The bytes every scene take's audio comes back as, when it is set.
+  Uint8List? sceneAudio;
+
+  Completer<void>? _holdingSceneList;
+
+  /// Hold the next list of scene rehearsals, the way a slow link holds it.
+  void holdNextSceneList() => _holdingSceneList = Completer<void>();
+
+  void finishHeldSceneList() {
+    _holdingSceneList?.complete();
+    _holdingSceneList = null;
+  }
+
+  Completer<void>? _holdingRestart;
+
+  /// Hold the next restart's answer, after the room has been sent it.
+  void holdNextRestart() => _holdingRestart = Completer<void>();
+
+  void finishHeldRestart() {
+    _holdingRestart?.complete();
+    _holdingRestart = null;
+  }
+
+  @override
+  Future<RoomAnswer<List<SceneRehearsalRecord>>> sceneRehearsalsOf(
+    String sessionId,
+  ) async {
+    if (_guard('sceneRehearsalsOf') case final failure?) return failure;
+    await _holdingSceneList?.future;
+    final refusal = failSceneWith;
+    if (refusal != null) return refusal;
+    return Answered(List.of(sceneRehearsals));
+  }
 
   @override
   Future<RoomAnswer<SceneRehearsalRecord>> keepSceneRehearsal(
@@ -1417,6 +1465,37 @@ class FakeRoom implements RoomRepository {
     );
     sceneRehearsals.add(kept);
     return Answered(kept);
+  }
+
+  @override
+  Future<RoomAnswer<SceneRehearsalRecord>> restartTheSceneTranslation(
+    String sessionId,
+    String rehearsalId, {
+    required String attempt,
+    String? closes,
+  }) async {
+    if (_guard('restartTheSceneTranslation') case final failure?) {
+      return failure;
+    }
+    restartsSent.add((attempt: attempt, closes: closes));
+    await _holdingRestart?.future;
+    final refusal = failSceneWith;
+    if (refusal != null) return refusal;
+    final code = refuseRestartWith;
+    if (code != null) return Refused(code);
+    final at = sceneRehearsals.indexWhere(
+      (rehearsal) => rehearsal.rehearsalId == rehearsalId,
+    );
+    final old = sceneRehearsals[at];
+    final restarted = SceneRehearsalRecord(
+      rehearsalId: old.rehearsalId,
+      sessionId: old.sessionId,
+      n: old.n,
+      sentAt: old.sentAt,
+      afterRestart: attempt,
+    );
+    sceneRehearsals[at] = restarted;
+    return Answered(restarted);
   }
 
   @override

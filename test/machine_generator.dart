@@ -287,7 +287,8 @@ String describeEvent(MachineEvent event) => switch (event) {
   TurnFailed(:final turn) => 'TurnFailed(${turn.turnId})',
   TheRefusalPassed() => 'TheRefusalPassed',
   TheHandFailed() => 'TheHandFailed',
-  TheSceneDoorFailed() => 'TheSceneDoorFailed',
+  TheSceneDoorFailed(:final readAgain) =>
+    'TheSceneDoorFailed(readAgain: $readAgain)',
   TheCallWasRefused() => 'TheCallWasRefused',
   TheCallMetAClosedPassage() => 'TheCallMetAClosedPassage',
   LookEmpty(:final sounding) => 'LookEmpty(${describeKept(sounding)})',
@@ -704,7 +705,9 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
       EventKind.turnAnswered => TurnAnswered(_drawATurn(random)),
       EventKind.theRefusalPassed => const TheRefusalPassed(),
       EventKind.theHandFailed => const TheHandFailed(),
-      EventKind.theSceneDoorFailed => const TheSceneDoorFailed(),
+      EventKind.theSceneDoorFailed => TheSceneDoorFailed(
+        readAgain: random.nextBool(),
+      ),
       EventKind.theCallWasRefused => const TheCallWasRefused(),
       EventKind.theCallMetAClosedPassage => const TheCallMetAClosedPassage(),
       EventKind.turnFailed => TurnFailed(_drawATurn(random)),

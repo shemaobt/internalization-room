@@ -384,9 +384,12 @@ final class TheHandFailed extends AnsweringEvent {
   const TheHandFailed({super.generation});
 }
 
-/// A scene door was refused for a reason of its own.
+/// A scene door failed; [readAgain] when the room's refusal says the rehearsal moved on
+/// without this tablet: sent to the voice, or restarted by an answer it never heard.
 final class TheSceneDoorFailed extends AnsweringEvent {
-  const TheSceneDoorFailed({super.generation});
+  final bool readAgain;
+
+  const TheSceneDoorFailed({this.readAgain = false, super.generation});
 }
 
 final class TheCallWasRefused extends AnsweringEvent {
@@ -672,6 +675,10 @@ final class RefuseThePassage extends Effect {
   const RefuseThePassage();
 }
 
+final class ReadTheSceneRehearsals extends Effect {
+  const ReadTheSceneRehearsals();
+}
+
 /// How a line ended: said whole, failed, not said, or cut by the team, which counts as
 /// heard.
 enum Said {
@@ -929,6 +936,8 @@ const _watch = ArmTheWatch();
   ),
   TheRefusalPassed() => (machine, const []),
   TheHandFailed() => (machine, const []),
+  TheSceneDoorFailed(readAgain: true) when machine.station is SceneRehearsal =>
+    (machine, const [ReadTheSceneRehearsals()]),
   TheSceneDoorFailed() => (machine, const []),
   TheCallWasRefused() => (machine, const [AskForAPersonAgain()]),
   LookEmpty(sounding: TheOpening()) ||

@@ -105,6 +105,11 @@ abstract final class FailurePolicy {
       _ when _theHandsDoors.contains(context.door) => TheHandFailed(
         generation: generation,
       ),
+      RoomRefused(
+        code: RefusalCode.sceneRehearsalSent || RefusalCode.restartOutOfOrder,
+      )
+          when context.door == Door.sceneRehearsal =>
+        TheSceneDoorFailed(readAgain: true, generation: generation),
       RoomSessionGone() when rule == RefusalRule.keepsTheResume =>
         keptTheResume,
       RoomSessionGone() => TheSessionIsGone(generation: generation),

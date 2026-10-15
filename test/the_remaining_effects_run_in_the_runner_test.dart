@@ -3,9 +3,12 @@ import 'dart:async';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/effect_runner.dart';
+import 'package:internalization_room/features/sala/domain/failure_policy.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/room_reach.dart';
+import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
 import 'a_station_host_double.dart';
@@ -143,6 +146,48 @@ void main() {
 
     expect(host.asked, ['hearTheRefusalCounted']);
     expect(host.answers, isEmpty);
+  });
+
+  group('the scene rehearsals read again', () {
+    late ARoomPort room;
+
+    setUp(() {
+      room = ARoomPort();
+      runner = runnerOver(
+        fakePorts(ASoundPort(), room: room, store: store),
+        host,
+      );
+    });
+
+    test('are asked of the room and heard by the Station', () async {
+      runner.run(const [ReadTheSceneRehearsals()]);
+      expect(room.heard, ['sceneRehearsals:sessao-1']);
+
+      room.answerTheSceneRehearsals(
+        const SceneRehearsalsListed([
+          SceneRehearsalRecord(
+            rehearsalId: 'ensaio-da-cena-1',
+            sessionId: 'sessao-1',
+            n: 1,
+          ),
+        ]),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(host.asked, ['hearTheSceneRehearsals:1']);
+    });
+
+    test('a failed read goes through the failure policy at its door', () async {
+      runner.run(const [ReadTheSceneRehearsals()]);
+
+      room.answerTheSceneRehearsals(
+        const SceneRehearsalsFailed(RoomRefused('HTTP_422')),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(host.asked, isEmpty);
+      expect(host.answers.single, isA<TheSceneDoorFailed>());
+    });
   });
 
   test('a passage that cannot open is heard by the Station', () {

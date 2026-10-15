@@ -14,7 +14,7 @@ import 'station.dart';
 enum SalaStage { panorama, escolha, conversa, ensaio, retro, fim, cena }
 
 /// Where the scene rehearsal's screen is.
-enum SceneStep { record, translate }
+enum SceneStep { record, translate, placesUnknown, sent }
 
 /// What the scene rehearsal's screen holds: its Step, the rehearsal as the room last
 /// answered it, its take as a file on this tablet, and whether a take is being kept.
