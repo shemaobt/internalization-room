@@ -13,6 +13,12 @@ Amended by ENG-1434 (2026-10-12): her moment label arrives on the session screen
 (`widgets/moment_label.dart`), in her words, her colours and her hiding rules, and the
 exception stands again under its own reason, her words the team reads.
 
+Amended by ENG-1310 (2026-10-14): each session shows her claquete in the bottom row for
+twenty seconds after it opens or resumes, and again on a tap of the Shema mark
+(`widgets/claquete.dart`): «P05 · 2026-09-30 14:14 · fia-fixt». It is the third named
+exception, under its own reason, words only the camera reads: it lets the field video be
+matched to the session, and it is not a control and VoiceOver skips it.
+
 ## Context
 
 The **Team** cannot read. Every screen is spoken, and a written word on a team screen is a

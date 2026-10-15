@@ -17,6 +17,7 @@ import 'widgets/panorama_view.dart';
 import 'widgets/ensaio_view.dart';
 import 'widgets/escolha_view.dart';
 import 'widgets/hand_button.dart';
+import 'widgets/claquete.dart';
 import 'widgets/hear_again_button.dart';
 import 'widgets/back_to_passage_button.dart';
 import 'widgets/leave_passage_button.dart';
@@ -143,6 +144,7 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
               ),
             const _HandLayer(),
             const HearAgainButton(),
+            const ClaqueteLayer(),
             const LeavePassageButton(),
             const BackToPassageButton(),
             const DevSkipBar(),

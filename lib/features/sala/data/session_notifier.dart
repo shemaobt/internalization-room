@@ -2333,6 +2333,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!resumed) _startTheSessionClean(pericope);
     state = state.copyWith(
       sessionId: sessionId,
+      pericope: pericope,
       coverage: created?.coverage,
       moment: created?.moment,
     );
