@@ -15,6 +15,7 @@ final class Ensaio extends Station {
     PassageChosen() => const Canvas(),
     TheRehearsalOpened() => const Ensaio(),
     TheBackTranslationOpened() => const Retro(),
+    TheSceneRehearsalOpened() || TheSceneRehearsalLeft() => this,
     TheNecklaceClosed() => this,
   };
 }

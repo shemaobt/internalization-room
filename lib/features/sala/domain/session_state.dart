@@ -8,9 +8,29 @@ import 'hand_reply.dart';
 import 'kept_take.dart';
 import 'moment.dart';
 import 'passagem.dart';
+import 'scene_rehearsal.dart';
 import 'station.dart';
 
-enum SalaStage { panorama, escolha, conversa, ensaio, retro, fim }
+enum SalaStage { panorama, escolha, conversa, ensaio, retro, fim, cena }
+
+/// Where the scene rehearsal's screen is.
+enum SceneStep { record, translate }
+
+/// What the scene rehearsal's screen holds: its Step, the rehearsal as the room last
+/// answered it, its take as a file on this tablet, and whether a take is being kept.
+final class SceneScreen {
+  final SceneStep step;
+  final SceneRehearsalRecord? rehearsal;
+  final String? take;
+  final bool keeping;
+
+  const SceneScreen({
+    this.step = SceneStep.record,
+    this.rehearsal,
+    this.take,
+    this.keeping = false,
+  });
+}
 
 enum VoiceState {
   invite,
@@ -199,6 +219,8 @@ class SalaSessionState {
   /// replacing one.
   final int? parteARegravar;
 
+  final SceneScreen scene;
+
   /// Whether the bead at [index] does not apply right now (ADR 0040: dimmed means it does
   /// not apply). True for every part but the one a finding sent the team back to record,
   /// while that record-again stands open and nothing has been recorded for it yet. Once
@@ -261,6 +283,7 @@ class SalaSessionState {
     this.unsentTakeScopes = const {},
     this.machine = const Machine(),
     this.parteARegravar,
+    this.scene = const SceneScreen(),
   });
 
   bool get colarOn => stage == SalaStage.conversa || stage == SalaStage.fim;
@@ -291,7 +314,17 @@ class SalaSessionState {
       !needsPerson &&
       stage != SalaStage.ensaio &&
       stage != SalaStage.retro &&
-      stage != SalaStage.fim;
+      stage != SalaStage.fim &&
+      !sceneRehearsalIsOpen;
+
+  /// Whether the scene rehearsal's screen stands over the Canvas.
+  bool get sceneRehearsalIsOpen => station is SceneRehearsal;
+
+  bool get redMicrophoneIsShown =>
+      (voice == VoiceState.invite || voice == VoiceState.done) &&
+      !noteMode &&
+      station is Canvas &&
+      !needsPerson;
 
   bool get hasUnheardReply => replies.any((reply) => reply.offered);
 
@@ -390,16 +423,20 @@ class SalaSessionState {
 
   bool get needsPerson => halt is Blocking;
 
-  /// The Choice offers the way back to the entry left, once the Wheel is read.
+  /// The Choice offers the way back to the entry left, once the Wheel is read; the scene
+  /// rehearsal's screen always offers the way back to the Conversation.
   bool get theWayBackIsOffered =>
-      stage == SalaStage.escolha &&
-      leftEntry != null &&
-      naRoda != null &&
-      !needsPerson;
+      sceneRehearsalIsOpen ||
+      (stage == SalaStage.escolha &&
+          leftEntry != null &&
+          naRoda != null &&
+          !needsPerson);
 
-  /// The way back answers the finger only while the Wheel is quiet.
+  /// The way back answers the finger only while the Wheel is quiet, and from any Step of
+  /// the scene rehearsal, its microphone open included.
   bool get theWayBackIsLive =>
-      theWayBackIsOffered && voice == VoiceState.invite;
+      sceneRehearsalIsOpen ||
+      (theWayBackIsOffered && voice == VoiceState.invite);
 
   /// The way out of a Station is hidden while it cannot apply: the voice is busy, or a
   /// microphone other than the raised-hand note's is open, or a person is called, except
@@ -628,6 +665,7 @@ class SalaSessionState {
     Machine? machine,
     int? parteARegravar,
     bool clearParteARegravar = false,
+    SceneScreen? scene,
   }) {
     return SalaSessionState(
       awaitingTheGuide: awaitingTheGuide ?? this.awaitingTheGuide,
@@ -691,6 +729,7 @@ class SalaSessionState {
       parteARegravar: clearParteARegravar
           ? null
           : (parteARegravar ?? this.parteARegravar),
+      scene: scene ?? this.scene,
     );
   }
 }

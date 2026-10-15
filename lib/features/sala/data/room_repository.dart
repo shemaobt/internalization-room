@@ -15,6 +15,7 @@ import '../domain/cut_point.dart';
 import '../domain/device_link.dart';
 import '../domain/escuta_das_partes.dart';
 import '../domain/passagem.dart';
+import '../domain/scene_rehearsal.dart';
 import '../domain/session_snapshot.dart';
 import '../domain/turn_result.dart';
 import 'device_identity.dart';
@@ -384,6 +385,26 @@ class RoomRepository {
   /// redirect, which the client follows on its own.
   static String takeAudioUrl(String sessionId, String takeId) =>
       '$_basePath/sessions/$sessionId/takes/$takeId/audio';
+
+  Future<RoomAnswer<SceneRehearsalRecord>> keepSceneRehearsal(
+    String sessionId,
+    File audio,
+  ) async {
+    final request =
+        http.MultipartRequest(
+            'POST',
+            _uri('/sessions/$sessionId/scene-rehearsals'),
+          )
+          ..headers.addAll(_whoWeAre)
+          ..headers['X-Room-Device'] = await _deviceId()
+          ..files.add(await http.MultipartFile.fromPath('file', audio.path));
+    return _room.askStreamed(
+      request,
+      timeout: _longCallTimeout,
+      read: readJson(SceneRehearsalRecord.fromJson),
+      asksForTheSession: true,
+    );
+  }
 
   /// A new version of one stretch: the explanation redone over the same slice.
   ///

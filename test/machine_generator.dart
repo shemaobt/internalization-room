@@ -287,6 +287,7 @@ String describeEvent(MachineEvent event) => switch (event) {
   TurnFailed(:final turn) => 'TurnFailed(${turn.turnId})',
   TheRefusalPassed() => 'TheRefusalPassed',
   TheHandFailed() => 'TheHandFailed',
+  TheSceneDoorFailed() => 'TheSceneDoorFailed',
   TheCallWasRefused() => 'TheCallWasRefused',
   TheCallMetAClosedPassage() => 'TheCallMetAClosedPassage',
   LookEmpty(:final sounding) => 'LookEmpty(${describeKept(sounding)})',
@@ -303,6 +304,8 @@ String describeEvent(MachineEvent event) => switch (event) {
   TheNecklaceClosed() => 'TheNecklaceClosed',
   TheRoomStartedOver() => 'TheRoomStartedOver',
   ThePanoramaChosen() => 'ThePanoramaChosen',
+  TheSceneRehearsalOpened() => 'TheSceneRehearsalOpened',
+  TheSceneRehearsalLeft() => 'TheSceneRehearsalLeft',
   TheLanguageChosen() => 'TheLanguageChosen',
 };
 
@@ -408,6 +411,7 @@ enum EventKind {
   turnAnswered,
   theRefusalPassed,
   theHandFailed,
+  theSceneDoorFailed,
   theCallWasRefused,
   theCallMetAClosedPassage,
   turnFailed,
@@ -418,6 +422,8 @@ enum EventKind {
   theNecklaceClosed,
   theRoomStartedOver,
   thePanoramaChosen,
+  theSceneRehearsalOpened,
+  theSceneRehearsalLeft,
   theLanguageChosen,
 }
 
@@ -467,6 +473,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TurnAnswered() => EventKind.turnAnswered,
   TheRefusalPassed() => EventKind.theRefusalPassed,
   TheHandFailed() => EventKind.theHandFailed,
+  TheSceneDoorFailed() => EventKind.theSceneDoorFailed,
   TheCallWasRefused() => EventKind.theCallWasRefused,
   TheCallMetAClosedPassage() => EventKind.theCallMetAClosedPassage,
   TurnFailed() => EventKind.turnFailed,
@@ -477,6 +484,8 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TheNecklaceClosed() => EventKind.theNecklaceClosed,
   TheRoomStartedOver() => EventKind.theRoomStartedOver,
   ThePanoramaChosen() => EventKind.thePanoramaChosen,
+  TheSceneRehearsalOpened() => EventKind.theSceneRehearsalOpened,
+  TheSceneRehearsalLeft() => EventKind.theSceneRehearsalLeft,
   TheLanguageChosen() => EventKind.theLanguageChosen,
 };
 
@@ -524,6 +533,7 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.turnAnswered ||
   EventKind.theRefusalPassed ||
   EventKind.theHandFailed ||
+  EventKind.theSceneDoorFailed ||
   EventKind.theCallWasRefused ||
   EventKind.theCallMetAClosedPassage ||
   EventKind.turnFailed ||
@@ -533,7 +543,9 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.theBackTranslationOpened ||
   EventKind.theNecklaceClosed ||
   EventKind.theRoomStartedOver ||
-  EventKind.thePanoramaChosen => true,
+  EventKind.thePanoramaChosen ||
+  EventKind.theSceneRehearsalOpened ||
+  EventKind.theSceneRehearsalLeft => true,
   EventKind.theLanguageChosen => true,
 };
 
@@ -692,6 +704,7 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
       EventKind.turnAnswered => TurnAnswered(_drawATurn(random)),
       EventKind.theRefusalPassed => const TheRefusalPassed(),
       EventKind.theHandFailed => const TheHandFailed(),
+      EventKind.theSceneDoorFailed => const TheSceneDoorFailed(),
       EventKind.theCallWasRefused => const TheCallWasRefused(),
       EventKind.theCallMetAClosedPassage => const TheCallMetAClosedPassage(),
       EventKind.turnFailed => TurnFailed(_drawATurn(random)),
@@ -702,6 +715,8 @@ MachineEvent _draw(EventKind kind, World world, Random random) =>
       EventKind.theNecklaceClosed => const TheNecklaceClosed(),
       EventKind.theRoomStartedOver => const TheRoomStartedOver(),
       EventKind.thePanoramaChosen => const ThePanoramaChosen(),
+      EventKind.theSceneRehearsalOpened => const TheSceneRehearsalOpened(),
+      EventKind.theSceneRehearsalLeft => const TheSceneRehearsalLeft(),
       EventKind.theLanguageChosen => const TheLanguageChosen(),
     };
 

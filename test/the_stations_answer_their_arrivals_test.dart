@@ -195,6 +195,37 @@ void main() {
     _expectItStays(const Fim(), const TheNecklaceClosed(), isA<Fim>());
   });
 
+  test(
+    'the Canvas answers the scene rehearsal opened with the Scene rehearsal',
+    () {
+      _expectTheArrival(
+        const Canvas(),
+        const TheSceneRehearsalOpened(),
+        isA<SceneRehearsal>(),
+      );
+    },
+  );
+
+  test('the Scene rehearsal answers the way back with the Canvas', () {
+    _expectTheArrival(
+      const SceneRehearsal(),
+      const TheSceneRehearsalLeft(),
+      isA<Canvas>(),
+    );
+  });
+
+  test('every other Station ignores the scene rehearsal opened', () {
+    for (final station in const <Station>[
+      Menu(),
+      Panorama(),
+      Ensaio(),
+      Retro(),
+      Fim(),
+    ]) {
+      _expectItStays(station, const TheSceneRehearsalOpened(), equals(station));
+    }
+  });
+
   test('the machine is born on the Menu', () {
     expect(Machine().station, isA<Menu>());
   });

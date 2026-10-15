@@ -42,6 +42,7 @@ import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
+import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
@@ -1388,6 +1389,34 @@ class FakeRoom implements RoomRepository {
     final refusal = failTakesWith;
     if (refusal != null) return refusal;
     return Answered(List.of(takes));
+  }
+
+  /// Every scene rehearsal this room kept, in order.
+  final List<SceneRehearsalRecord> sceneRehearsals = [];
+
+  /// The session each scene take this room kept was sent for, in order.
+  final List<String> scenesKept = [];
+
+  /// What every scene door answers, when it is set.
+  RoomFailure? failSceneWith;
+
+  @override
+  Future<RoomAnswer<SceneRehearsalRecord>> keepSceneRehearsal(
+    String sessionId,
+    File audio,
+  ) async {
+    if (_guard('keepSceneRehearsal') case final failure?) return failure;
+    final refusal = failSceneWith;
+    if (refusal != null) return refusal;
+    scenesKept.add(sessionId);
+    final n = sceneRehearsals.length + 1;
+    final kept = SceneRehearsalRecord(
+      rehearsalId: 'ensaio-da-cena-$n',
+      sessionId: sessionId,
+      n: n,
+    );
+    sceneRehearsals.add(kept);
+    return Answered(kept);
   }
 
   @override
