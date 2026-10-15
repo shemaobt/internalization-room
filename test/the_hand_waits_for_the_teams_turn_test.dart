@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/capture_guard.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
@@ -220,8 +222,15 @@ void main() {
     );
 
     expect(_hand, findsNothing);
+
+    room.sala.handTap();
+    await room.beat();
+
+    expect(room.estado.voice, VoiceState.thinking);
+    expect(_handInTheCircle, findsNothing);
     room.harness.room.finishHeldTurn();
     await room.atTheInvite();
+    await room.theNextCircleTapIsATurnNotAKnot();
   });
 
   testWidgets('While a take is still being sent the hand is hidden', (
@@ -250,6 +259,16 @@ void main() {
     await room.until('a sala chamar alguém', () => room.estado.needsPerson);
 
     expect(_hand, findsNothing);
+
+    room.sala.handTap();
+    await room.beat();
+
+    expect(room.estado.needsPerson, isTrue);
+    expect(_handInTheCircle, findsNothing);
+    room.sala.resolveWithPerson();
+    await room.until('a parada sair', () => !room.estado.needsPerson);
+    await room.atTheInvite();
+    await room.theNextCircleTapIsATurnNotAKnot();
     closeTheRoom(room.container);
   });
 
@@ -502,4 +521,156 @@ void main() {
     expect(_hand, findsOneWidget);
     room.harness.voice.finishHeldLine();
   });
+
+  testWidgets(
+    'While the room is out of reach the hand is hidden, a tap on it does '
+    'nothing and the circle still retries the room',
+    (tester) async {
+      final room = await _inConversa(
+        tester,
+        SalaHarness(watchesWithoutAHalt: true),
+      );
+      room.harness.network.reachable = false;
+      room.harness.room.failStateOnceWith = const NetworkFailed('sem rede');
+      await room.until('a sala cair', () => room.estado.offline);
+
+      expect(_hand, findsNothing);
+
+      room.sala.handTap();
+      await room.beat();
+
+      expect(_handInTheCircle, findsNothing);
+      room.harness.network.reachable = true;
+      room.sala.conversaTap();
+      await room.until('a sala voltar', () => !room.estado.offline);
+      closeTheRoom(room.container);
+    },
+  );
+
+  testWidgets(
+    'While a line of the room\'s own plays at the invite the hand is hidden',
+    (tester) async {
+      final room = await _inConversa(tester);
+      room.harness.voice.holdNextLine();
+      room.sala.sayTheMicIsBlocked();
+      await room.until(
+        'a linha tocar',
+        () => room.estado.channel is GuideSpeaking,
+      );
+
+      expect(_hand, findsNothing);
+
+      room.sala.handTap();
+      await room.beat();
+      room.harness.voice.finishHeldLine();
+      await room.atTheInvite();
+      await room.theNextCircleTapIsATurnNotAKnot();
+    },
+  );
+
+  testWidgets(
+    'An armed Knot is abandoned when the voice speaks again, and the circle '
+    'cuts her off as it would without it',
+    (tester) async {
+      final room = await _inConversa(tester);
+      room.sala.handTap();
+      await room.beat();
+      expect(_handInTheCircle, findsOneWidget);
+
+      room.harness.voice.holdNextLine();
+      unawaited(room.sala.hearAgain());
+      await room.until(
+        'a voz falar de novo',
+        () => room.estado.voice == VoiceState.speaking,
+      );
+      await room.beat(600);
+
+      expect(_handInTheCircle, findsNothing);
+
+      final turns = room.harness.room.turnsSent;
+      room.sala.conversaTap();
+      await room.until(
+        'o corte abrir o microfone da equipe',
+        () => room.estado.voice == VoiceState.listening,
+      );
+      room.sala.conversaTap();
+      await room.until('a vez sair', () => room.harness.room.turnsSent > turns);
+      await room.beat(300);
+
+      expect(room.harness.inbox.questionsSent, isEmpty);
+    },
+  );
+
+  testWidgets(
+    'An armed Knot is abandoned when the room calls for a person, and after '
+    'the halt the circle opens the team\'s turn',
+    (tester) async {
+      final room = await _inConversa(tester);
+      room.sala.handTap();
+      await room.beat();
+
+      room.sala.haltForABrokenBuild();
+      await room.until('a sala chamar alguém', () => room.estado.needsPerson);
+      room.sala.resolveWithPerson();
+      await room.until('a parada sair', () => !room.estado.needsPerson);
+      await room.atTheInvite();
+
+      expect(room.handLabel, _raise);
+      expect(_handInTheCircle, findsNothing);
+      await room.theNextCircleTapIsATurnNotAKnot();
+      closeTheRoom(room.container);
+    },
+  );
+
+  testWidgets(
+    'A Knot stopped before the guard\'s duration is dropped even when the '
+    'recorder is slow to stop',
+    (tester) async {
+      final room = await _inConversa(
+        tester,
+        SalaHarness(captureGuard: const CaptureGuard(minBytes: 1)),
+      );
+      room.sala.handTap();
+      await room.beat();
+      room.sala.conversaTap();
+      await room.until(
+        'a pergunta abrir o microfone',
+        () => room.estado.voice == VoiceState.listening,
+      );
+      await room.beat(450);
+      room.harness.recorder.holdNextStop();
+      room.sala.conversaTap();
+      await room.beat(300);
+      room.harness.recorder.finishStop();
+      await room.until(
+        'o microfone fechar',
+        () => room.harness.recorder.lastPath != null,
+      );
+      await room.beat(300);
+
+      expect(room.harness.inbox.questionsSent, isEmpty);
+      expect(room.harness.recorder.deleted, [room.harness.recorder.lastPath]);
+    },
+  );
+
+  testWidgets(
+    'In a Panorama session the room could not open the hand is hidden',
+    (tester) async {
+      final harness = SalaHarness();
+      harness.room.passages = [_panorama, ...harness.room.passages];
+      final container = await pumpSala(tester, harness);
+      addTearDown(() => closeTheRoom(container));
+      final room = _Room(tester, harness, container);
+      harness.room.failCreateOnceWith = const Refused('BAD_REQUEST');
+      await enterThePanorama(room.sala, () => room.estado, step: room.beat);
+      await room.until('a sala chamar alguém', () => room.estado.needsPerson);
+      room.sala.resolveWithPerson();
+      await room.until('a parada sair', () => !room.estado.needsPerson);
+      await room.beat(300);
+
+      expect(room.estado.stage, SalaStage.panorama);
+      expect(_hand, findsNothing);
+      closeTheRoom(container);
+    },
+  );
 }

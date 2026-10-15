@@ -251,7 +251,7 @@ The team's side channel to the facilitator: it sends a Knot, checks for the faci
 _Avoid_: mão levantada, question button, note
 
 **Idle turn**:
-The moment the room waits on the team and nothing else is happening: the voice at the invite or done, no Halt calling for a person, no turn in the air and no microphone open. The Raised hand is offered only then.
+The moment the Conversation or the Panorama waits on the team and nothing else is happening: the voice at the invite or done, no line of the room's own playing (a reply may), no Halt calling for a person, no microphone open, and a session to send to. The Raised hand is offered only then, and a Knot armed in it is abandoned when it ends.
 _Avoid_: idle, the team's turn (that also covers the open microphone)
 
 **Panorama**:

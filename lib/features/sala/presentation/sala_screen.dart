@@ -209,12 +209,10 @@ class _ColarLayer extends ConsumerWidget {
 class _HandLayer extends ConsumerWidget {
   const _HandLayer();
 
-  static const _inside = {SalaStage.panorama, SalaStage.conversa};
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(salaSessionProvider);
-    if (!_inside.contains(session.stage) || !session.atTheTeamsIdleTurn) {
+    if (!session.atTheTeamsIdleTurn) {
       return const SizedBox.shrink();
     }
     final notifier = ref.read(salaSessionProvider.notifier);

@@ -184,6 +184,7 @@ class SalaSessionState {
   /// circle records the team's turn.
   final bool panoramaSaid;
   final String? sessionId;
+  final String? panoramaSessionId;
   final String? pericope;
   final Coverage coverage;
   final Moment? moment;
@@ -287,6 +288,7 @@ class SalaSessionState {
     this.reach = RoomReach.fine,
     this.panoramaSaid = false,
     this.sessionId,
+    this.panoramaSessionId,
     this.pericope,
     this.coverage = Coverage.empty,
     this.moment,
@@ -377,9 +379,25 @@ class SalaSessionState {
       !needsPerson;
 
   bool get atTheTeamsIdleTurn =>
+      (station is Canvas || station is Panorama) &&
       (voice == VoiceState.invite || voice == VoiceState.done) &&
       !needsPerson &&
-      machine.inFlight == null;
+      !_aLineOfTheRoomPlays &&
+      (station is! Panorama || panoramaSessionId != null);
+
+  bool get anArmedKnotLapsed =>
+      noteMode &&
+      !atTheTeamsIdleTurn &&
+      switch (channel) {
+        Microphone(owner: MicOwner.question) => false,
+        _ => true,
+      };
+
+  bool get _aLineOfTheRoomPlays => switch (channel) {
+    GuideSpeaking(line: Line(kind: LineKind.reply)) => false,
+    GuideSpeaking() => true,
+    _ => false,
+  };
 
   bool get hasUnheardReply => replies.any((reply) => reply.offered);
 
@@ -669,6 +687,8 @@ class SalaSessionState {
     RoomReach? reach,
     bool? panoramaSaid,
     String? sessionId,
+    String? panoramaSessionId,
+    bool clearPanoramaSession = false,
     String? pericope,
     bool clearSession = false,
     Coverage? coverage,
@@ -731,6 +751,9 @@ class SalaSessionState {
       reach: reach ?? this.reach,
       panoramaSaid: panoramaSaid ?? this.panoramaSaid,
       sessionId: clearSession ? null : (sessionId ?? this.sessionId),
+      panoramaSessionId: clearPanoramaSession
+          ? null
+          : (panoramaSessionId ?? this.panoramaSessionId),
       pericope: clearSession ? null : (pericope ?? this.pericope),
       coverage: coverage ?? this.coverage,
       moment: clearMoment ? null : (moment ?? this.moment),

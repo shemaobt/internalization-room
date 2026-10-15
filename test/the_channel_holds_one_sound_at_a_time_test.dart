@@ -279,39 +279,6 @@ void main() {
     expect(harness.room.turnsSent, turns);
   });
 
-  test('a line waiting in the conversation survives re-entering the same '
-      'conversation', () async {
-    final harness = SalaHarness(
-      replies: const [HandReply(id: 'r1', audioUrl: '/resposta-1')],
-    );
-    harness.emAberto.rows['Ruth/P01/pt'] = const ResumePoint(
-      sessionId: 'sessao-antiga',
-      stage: SalaStage.conversa,
-    );
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final sala = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-    await sala.abrirEscolha();
-    await settle();
-    await sala.goConversa(pericope: 'P01');
-    await waitFor('a resposta chegar à mão', () => read().hasUnheardReply);
-    harness.voice.holdNextLine();
-    sala.sayTheMicIsBlocked();
-    await waitFor('a Guia falar', () => read().channel is GuideSpeaking);
-    sala.handTap();
-    await settle();
-    expect(harness.voice.played, isNot(contains('/resposta-1')));
-
-    unawaited(sala.goConversa(pericope: 'P01'));
-    await settle();
-    harness.voice.finishHeldLine();
-    await waitFor(
-      'a resposta tocar depois de reentrar na mesma conversa',
-      () => harness.voice.played.contains('/resposta-1'),
-    );
-  });
-
   test('a line waiting on the wheel survives the wheel read again in the same '
       'visit', () async {
     final harness = SalaHarness();
