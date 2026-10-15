@@ -9,7 +9,6 @@ class ShemaMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
     return ExcludeSemantics(
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -19,9 +18,7 @@ class ShemaMark extends StatelessWidget {
           height: 46,
           child: CustomPaint(
             painter: _ShemaMarkPainter(
-              (dark ? ShemaBrand.branco : ShemaBrand.verde).withValues(
-                alpha: 0.72,
-              ),
+              SalaColors.of(context).shemaMark.withValues(alpha: 0.72),
             ),
           ),
         ),

@@ -339,7 +339,7 @@ The kind of halt that asks for someone to come and watch while refusing the team
 _Avoid_: aviso, cap, block, halt (the state, of which this is one kind)
 
 **Claquete**:
-The small line of text on the session screen naming the passage, the moment and the session, so field video can be matched to the session. It is shown briefly, never as a control.
+The small line of text on the session screen giving the passage, the date and time, and the session, so field video can be matched to the session. It is shown briefly, never as a control.
 _Avoid_: slate, clapperboard, session label
 
 **Shema mark**:

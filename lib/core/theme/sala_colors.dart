@@ -6,7 +6,6 @@ abstract class ShemaBrand {
   static const azul = Color(0xFF89AAA3);
   static const telha = Color(0xFFBE4A01);
   static const verdeClaro = Color(0xFF777D45);
-  static const verdeClaroNoEscuro = Color(0xFFAAB07E);
   static const verde = Color(0xFF3F3E20);
   static const preto = Color(0xFF0A0703);
 
@@ -43,6 +42,8 @@ class SalaColors extends ThemeExtension<SalaColors> {
   final Color vermelhoMic;
   final Color momentoEf;
   final Color momentoInk;
+  final Color claquete;
+  final Color shemaMark;
 
   const SalaColors({
     required this.pg,
@@ -64,6 +65,8 @@ class SalaColors extends ThemeExtension<SalaColors> {
     required this.vermelhoMic,
     required this.momentoEf,
     required this.momentoInk,
+    required this.claquete,
+    required this.shemaMark,
   });
 
   static const light = SalaColors(
@@ -86,6 +89,8 @@ class SalaColors extends ThemeExtension<SalaColors> {
     vermelhoMic: Color(0xFFC8321E),
     momentoEf: Color(0xFFBE4A01),
     momentoInk: Color(0xFF3F3E20),
+    claquete: ShemaBrand.verdeClaro,
+    shemaMark: ShemaBrand.verde,
   );
 
   static const dark = SalaColors(
@@ -115,6 +120,8 @@ class SalaColors extends ThemeExtension<SalaColors> {
     vermelhoMic: Color(0xFFE9503A),
     momentoEf: Color(0xFFD6612A),
     momentoInk: Color(0xFFECEADC),
+    claquete: Color(0xFFAAB07E),
+    shemaMark: ShemaBrand.branco,
   );
 
   static SalaColors of(BuildContext context) =>
@@ -147,6 +154,8 @@ class SalaColors extends ThemeExtension<SalaColors> {
       vermelhoMic: mix(vermelhoMic, other.vermelhoMic),
       momentoEf: mix(momentoEf, other.momentoEf),
       momentoInk: mix(momentoInk, other.momentoInk),
+      claquete: mix(claquete, other.claquete),
+      shemaMark: mix(shemaMark, other.shemaMark),
     );
   }
 }

@@ -111,13 +111,11 @@ class Claquete extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
     return Text(
       words,
       maxLines: 1,
       style: TextStyle(
-        color: (dark ? ShemaBrand.verdeClaroNoEscuro : ShemaBrand.verdeClaro)
-            .withValues(alpha: 0.7),
+        color: SalaColors.of(context).claquete.withValues(alpha: 0.7),
         fontSize: 11,
         letterSpacing: 0.66,
         fontFeatures: const [FontFeature.tabularFigures()],
