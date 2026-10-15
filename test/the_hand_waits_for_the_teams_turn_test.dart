@@ -377,6 +377,35 @@ void main() {
   );
 
   testWidgets(
+    'A Knot that reaches the facilitator after the room has closed leaves no '
+    'recording behind',
+    (tester) async {
+      final room = await _inConversa(tester);
+      room.sala.handTap();
+      await room.beat();
+      room.sala.conversaTap();
+      await room.until(
+        'a pergunta abrir o microfone',
+        () => room.estado.voice == VoiceState.listening,
+      );
+      room.harness.inbox.holdNextQuestion();
+      room.sala.conversaTap();
+      await room.until(
+        'o microfone fechar',
+        () => room.harness.recorder.lastPath != null,
+      );
+      final knot = room.harness.recorder.lastPath;
+
+      closeTheRoom(room.container);
+      room.harness.inbox.finishHeldQuestion();
+      await room.beat(300);
+
+      expect(room.harness.inbox.questionsSent, isNotEmpty);
+      expect(room.harness.recorder.deleted, contains(knot));
+    },
+  );
+
+  testWidgets(
     'After every element of the passage has been worked with the hand is '
     'shown and a Knot can be sent',
     (tester) async {

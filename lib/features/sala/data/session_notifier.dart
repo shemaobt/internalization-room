@@ -3213,6 +3213,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (path != null) unawaited(_recorder.delete(path));
       return;
     }
+    final recorder = _recorder;
     final RoomAnswer<void> sent;
     try {
       sent = await _inbox.sendQuestion(sessionId, File(path));
@@ -3221,7 +3222,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     switch (sent) {
       case Answered():
-        unawaited(_recorder.delete(path));
+        unawaited(recorder.delete(path));
       case final RoomFailure failure:
         if (_abandoned(generation)) return;
         _decideAt(failure, door: Door.question);
