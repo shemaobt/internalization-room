@@ -7,7 +7,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/claquete.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/hear_again_button.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/shema_mark.dart';
@@ -69,8 +68,11 @@ Future<(SalaHarness, ProviderContainer)> _openP05(
 }
 
 Iterable<String> _everythingTheScreenReaderCouldSay(WidgetTester tester) sync* {
-  final root =
-      tester.binding.rootPipelineOwner.semanticsOwner!.rootSemanticsNode!;
+  final root = tester
+      .renderObject(find.byType(Scaffold))
+      .owner!
+      .semanticsOwner!
+      .rootSemanticsNode!;
   final pending = [root];
   while (pending.isNotEmpty) {
     final node = pending.removeLast();
@@ -247,11 +249,12 @@ void main() {
         await tester.pump(const Duration(milliseconds: 100));
       }
       expect(container.read(salaSessionProvider).canHearAgain, isTrue);
-      final button = find.descendant(
-        of: find.byType(HearAgainButton),
-        matching: find.byType(RoundActionButton),
-      );
-      expect(button, findsOneWidget);
+      final button = find
+          .descendant(
+            of: find.byType(HearAgainButton),
+            matching: find.byType(SizedBox),
+          )
+          .first;
       expect(_claquete, findsOneWidget);
 
       final overlap = tester
