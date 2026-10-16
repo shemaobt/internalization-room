@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -5,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
+import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
+import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -64,7 +67,7 @@ void main() {
       await tester.runAsync(() async {
         room = await atRest();
         await theScreenOpens(room);
-        room.harness.room.holdNextKeep();
+        room.harness.room.holdNextKeepBeforeTheRoomActs();
         await _recordAScene(room);
         await waitFor(
           'o take chegar à sala',
@@ -308,7 +311,7 @@ void main() {
     room.harness.room.failSceneWith = const Refused('BAD_REQUEST');
     await _theRetry(room);
     await _notKept(room);
-    room.harness.room.holdNextKeep();
+    room.harness.room.holdNextKeepBeforeTheRoomActs();
     room.sala.sendTheSceneTakeAgain();
     await waitFor(
       'o take chegar à sala',
@@ -465,4 +468,291 @@ void main() {
       expect(room.state.scene.step, SceneStep.record);
     },
   );
+
+  test('a take confirmed after the team left is renamed, and reopens without a '
+      'download', () async {
+    final room = await atRest();
+    await theScreenOpens(room);
+    room.harness.room.failSceneWith = _offline;
+    await _recordAScene(room);
+    await _notKept(room);
+    await waitFor('a sala cair', () => room.state.unreachable);
+    room.sala.leaveTheSceneRehearsal();
+    await settle();
+
+    room.harness.room.failSceneWith = null;
+    room.sala.retryNow();
+    await waitFor(
+      'a sala confirmar o take',
+      () => room.harness.room.scenesKept.isNotEmpty,
+    );
+    await settle();
+    room.sala.openTheSceneRehearsal();
+    await translateOpens(room);
+
+    expect(
+      room.harness.room.clipsFetched.where(
+        (url) => url.contains('/scene-rehearsals/'),
+      ),
+      isEmpty,
+      reason: 'o take da própria equipe está no tablet com outro nome',
+    );
+  });
+
+  test(
+    'a take waiting with its label goes up with it, and a take recorded over '
+    'it carries the same label',
+    () async {
+      final room = await atRest();
+      final session = room.state.sessionId!;
+      await room.harness.takes.enqueue(
+        room.harness.recorder.aFile('cena-rotulada'),
+        sessionId: session,
+        kind: 'cena',
+        scope: 'cena',
+        scene: 'S2',
+      );
+      room.harness.room.failSceneWith = _offline;
+      room.sala.openTheSceneRehearsal();
+      await _notKept(room);
+      expect(room.state.scene.label, 'S2');
+
+      room.harness.room.failSceneWith = null;
+      await _recordAScene(room);
+      await translateOpens(room);
+
+      expect(room.harness.room.sceneLabels, ['S2', 'S2']);
+    },
+  );
+
+  test('a scene take the room refused raises the stranded line', () async {
+    final room = await atRest();
+    await theScreenOpens(room);
+    room.harness.room.failSceneWith = const Refused('BAD_REQUEST');
+
+    await _recordAScene(room);
+    await _notKept(room);
+
+    await waitFor(
+      'a fala de gravação presa',
+      () => room.harness.voice.assets.contains(strandedTakeAsset(testLanguage)),
+    );
+  });
+
+  test(
+    'a full disk shows her save-failed words, holds the take for the retry and '
+    'says the recording is stranded',
+    () async {
+      late _DiskThatRefusesTheScene disk;
+      final room = await atRest(
+        SalaHarness(
+          takesOverride: (room, home) => disk = _DiskThatRefusesTheScene(
+            room: room,
+            home: () async => home,
+          ),
+        ),
+      );
+      await theScreenOpens(room);
+      final recorded = await _recordAScene(room);
+      await _notKept(room);
+      final waiting = room.state.scene.keep! as NotKept;
+
+      expect(waiting.tooLarge, isFalse);
+      expect(waiting.take, room.harness.recorder.lastPath);
+      await waitFor(
+        'a fala de gravação presa',
+        () =>
+            room.harness.voice.assets.contains(strandedTakeAsset(testLanguage)),
+      );
+
+      disk.full = false;
+      await _theRetry(room);
+      await translateOpens(room);
+      expect(room.harness.room.sceneTakesSent.single, recorded);
+    },
+  );
+
+  test(
+    'a scene take closed after the room forgot the session asks nothing of it',
+    () async {
+      final room = await atRest();
+      final session = room.state.sessionId!;
+      await theScreenOpens(room);
+      await room.harness.takes.enqueue(
+        room.harness.recorder.aFile('parte-esquecida'),
+        sessionId: session,
+        kind: 'ensaio',
+        scope: 'parte-1',
+      );
+      room.harness.room.forgetTheSession(session);
+      await theSceneMicrophoneOpens(room);
+      room.harness.recorder.holdNextStop();
+      room.sala.sceneTap();
+      await settle();
+
+      await room.harness.takes.flush();
+      await waitFor(
+        'a sala voltar à Escolha',
+        () => room.state.stage == SalaStage.escolha,
+      );
+      room.harness.recorder.finishStop();
+      await settle();
+
+      expect(
+        room.harness.room.askedOfTheForgotten,
+        isNot(contains('keepSceneRehearsal')),
+      );
+    },
+  );
+
+  test('a full disk under a session the room forgot never says a recording is '
+      'stranded', () async {
+    late _DiskThatRefusesTheScene disk;
+    final room = await atRest(
+      SalaHarness(
+        takesOverride: (room, home) =>
+            disk = _DiskThatRefusesTheScene(room: room, home: () async => home)
+              ..holdsTheRefusal = true,
+      ),
+    );
+    final session = room.state.sessionId!;
+    await theScreenOpens(room);
+    await room.harness.takes.enqueue(
+      room.harness.recorder.aFile('parte-esquecida'),
+      sessionId: session,
+      kind: 'ensaio',
+      scope: 'parte-1',
+    );
+    room.harness.room.forgetTheSession(session);
+    await _recordAScene(room);
+    await waitFor('o disco ser pedido', () => disk.asked);
+
+    await room.harness.takes.flush();
+    await waitFor(
+      'a sala voltar à Escolha',
+      () => room.state.stage == SalaStage.escolha,
+    );
+    disk.letTheRefusalGo();
+    await settle();
+
+    expect(
+      room.harness.voice.assets,
+      isNot(contains(strandedTakeAsset(testLanguage))),
+    );
+  });
+
+  test('a confirmed scene take counts the Outbox again', () async {
+    final room = await atRest(SalaHarness(filaEmMemoria: true));
+    await theScreenOpens(room);
+    final queue = room.harness.takes as FakeTakeQueue;
+    room.harness.recorder.rehearsalSpeaks = _aTake(7);
+    await theSceneMicrophoneOpens(room);
+    final countsBefore = queue.unsentAtEachTally.length;
+
+    room.sala.sceneTap();
+    await translateOpens(room);
+    await settle();
+
+    expect(queue.unsentAtEachTally.length, greaterThan(countsBefore));
+  });
+
+  test('a take whose file cannot be measured never sticks the screen on '
+      '«guardando…»', () async {
+    var unreadable = false;
+    await IOOverrides.runZoned(
+      () async {
+        final room = await atRest();
+        await theScreenOpens(room);
+        room.harness.recorder.rehearsalSpeaks = _aTake(7);
+        await theSceneMicrophoneOpens(room);
+        unreadable = true;
+
+        room.sala.sceneTap();
+        await waitFor(
+          'o microfone da cena fechar',
+          () => room.state.channel is! Microphone,
+        );
+        await settle();
+
+        expect(room.state.scene.keep, isNot(isA<Keeping>()));
+      },
+      createFile: (path) => unreadable && path.contains('captura-')
+          ? _UnmeasurableTake(path)
+          : _realFile(path),
+    );
+  });
+}
+
+final class _Plain extends IOOverrides {}
+
+File _realFile(String path) =>
+    IOOverrides.runWithIOOverrides(() => File(path), _Plain());
+
+class _UnmeasurableTake implements File {
+  final File _real;
+
+  _UnmeasurableTake(String path) : _real = _realFile(path);
+
+  @override
+  String get path => _real.path;
+
+  @override
+  bool existsSync() => true;
+
+  @override
+  Future<bool> exists() async => true;
+
+  @override
+  int lengthSync() => throw FileSystemException('o take sumiu', _real.path);
+
+  @override
+  void writeAsBytesSync(
+    List<int> bytes, {
+    FileMode mode = FileMode.write,
+    bool flush = false,
+  }) => _real.writeAsBytesSync(bytes, mode: mode, flush: flush);
+
+  @override
+  Future<int> length() async =>
+      throw FileSystemException('o take sumiu', _real.path);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _DiskThatRefusesTheScene extends TakeUploadQueue {
+  _DiskThatRefusesTheScene({required super.room, super.home});
+
+  bool full = true;
+  bool asked = false;
+  bool holdsTheRefusal = false;
+  final _refusal = Completer<void>();
+
+  void letTheRefusalGo() => _refusal.complete();
+
+  @override
+  Future<PendingTake> enqueue(
+    File audio, {
+    required String sessionId,
+    required String kind,
+    required String scope,
+    int? passNumber,
+    int? chunkIndex,
+    String? scene,
+  }) async {
+    if (kind == 'cena' && full) {
+      asked = true;
+      if (holdsTheRefusal) await _refusal.future;
+      throw const FileSystemException('disco cheio');
+    }
+    return super.enqueue(
+      audio,
+      sessionId: sessionId,
+      kind: kind,
+      scope: scope,
+      passNumber: passNumber,
+      chunkIndex: chunkIndex,
+      scene: scene,
+    );
+  }
 }

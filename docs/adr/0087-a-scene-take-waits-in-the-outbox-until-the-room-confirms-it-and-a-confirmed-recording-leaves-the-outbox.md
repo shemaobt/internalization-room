@@ -48,7 +48,8 @@ across failures and relaunches. It also kept every row the room had stored, for 
 
 ## Consequences
 
-A scene take confirmed by a background flush after a relaunch cannot take the rehearsal's
-name, because only the run that recorded it knew the file: the first reopening downloads it
-once, and the original stays under its own name. Nothing the team recorded is deleted on
-the way: the Outbox deletes only its own copy.
+The row carries the name of the team's own take, so every confirmation, on any flush and
+in any run, renames that take to the rehearsal's name: a reopening never downloads a take
+the tablet holds. Nothing the team recorded is deleted on the way: the Outbox deletes only
+its own copy. The team's keep or retry makes due every scene take of the session waiting
+ahead of it, and a take too large for the room holds no one behind it.

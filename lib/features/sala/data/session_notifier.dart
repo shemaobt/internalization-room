@@ -2864,11 +2864,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final file = File(path);
     if (!file.existsSync()) return true;
     final wav = path.endsWith('.wav');
-    return isAnAccidentalTap(
-      wav: wav,
-      head: wav ? _headOf(file) : Uint8List(0),
-      length: file.lengthSync(),
-    );
+    try {
+      return isAnAccidentalTap(
+        wav: wav,
+        head: wav ? _headOf(file) : Uint8List(0),
+        length: file.lengthSync(),
+      );
+    } on FileSystemException {
+      return false;
+    }
   }
 
   Uint8List _headOf(File file) {
@@ -3365,6 +3369,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int generation,
   ) async {
     final name = 'cena-${rehearsal.rehearsalId}';
+    await _nameTheKeptScenes();
     final held = await _heldOnTheTablet(name);
     if (held != null || _abandoned(generation)) return held;
     final clip = await _room.fetchClip(
@@ -3441,10 +3446,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     SceneScreen keeping,
     int generation,
   ) async {
+    if (_goneSessions.contains(sessionId)) return;
+    final queue = _takes;
     final tooLarge = _tooLargeForTheRoom(path);
     final PendingTake row;
     try {
-      row = await _takes.enqueue(
+      row = await queue.enqueue(
         File(path),
         sessionId: sessionId,
         kind: sceneTakeKind,
@@ -3452,6 +3459,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         scene: keeping.label,
       );
     } on Object {
+      if (_goneSessions.contains(sessionId)) return;
       _sayARecordingIsStranded();
       _showTheTakeNotKept(
         NotKept(take: path, tooLarge: tooLarge),
@@ -3459,6 +3467,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         generation,
       );
       return;
+    }
+    if (_goneSessions.contains(sessionId)) {
+      return queue.discardTheSession(sessionId);
     }
     await _keepTheRow(
       NotKept(row: row.id, take: path, tooLarge: tooLarge),
@@ -3496,12 +3507,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     SceneScreen keeping,
     int generation,
   ) async {
-    final take = waiting.take;
-    final named = take == null
-        ? null
-        : await _underTheRehearsalsName(take, kept);
+    await _nameTheKeptScenes();
+    await _countUnsent();
+    final named = await _heldOnTheTablet('cena-${kept.rehearsalId}');
     if (_abandoned(generation)) return;
     await _showTheRehearsal(kept, keeping, generation, take: named);
+  }
+
+  Future<void> _nameTheKeptScenes() async {
+    final queue = _takes;
+    for (final MapEntry(key: original, value: name)
+        in queue.scenesToName().entries) {
+      final held = await _heldOnTheTablet(original);
+      if (held != null) await _underTheRehearsalsName(held, name);
+      queue.named(original);
+    }
   }
 
   void _showTheTakeNotKept(
@@ -3516,8 +3536,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   bool _tooLargeForTheRoom(String path) {
-    final file = File(path);
-    return file.existsSync() && file.lengthSync() > largestTakeTheRoomKeeps;
+    try {
+      return File(path).lengthSync() > largestTakeTheRoomKeeps;
+    } on FileSystemException {
+      return false;
+    }
   }
 
   void _sendTheSceneTakeAgain() {
@@ -3547,12 +3570,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     await _sendTheSceneTake(sessionId, take, keeping, generation);
   }
 
-  Future<String> _underTheRehearsalsName(
-    String path,
-    SceneRehearsalRecord rehearsal,
-  ) async {
+  Future<String> _underTheRehearsalsName(String path, String name) async {
     try {
-      return await _recorder.keepAs(path, 'cena-${rehearsal.rehearsalId}');
+      return await _recorder.keepAs(path, name);
     } on FileSystemException {
       return path;
     }
@@ -6244,6 +6264,7 @@ class _NotifierHost implements StationHost {
   @override
   Future<void> hearTheOutboxFlushed() async {
     await _notifier._adoptTheNames(_notifier._takes);
+    await _notifier._nameTheKeptScenes();
     await _notifier._theRoomKeptWhatWaited();
   }
 
