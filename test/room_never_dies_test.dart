@@ -495,11 +495,6 @@ void main() {
         reason: 'o Guia não anuncia a pergunta nem a resposta — o envio é mudo',
       );
       expect(harness.voice.fixedLines, isEmpty);
-      expect(
-        container.read(salaSessionProvider).questionPending,
-        isTrue,
-        reason: 'o ponto na mão é que carrega a espera agora, não uma fala',
-      );
     },
   );
 

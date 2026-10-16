@@ -237,25 +237,6 @@ class Pulse extends StatelessWidget {
   }
 }
 
-class PingIn extends StatelessWidget {
-  final Widget child;
-
-  const PingIn({super.key, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    if (MediaQuery.disableAnimationsOf(context)) return child;
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 1.5, end: 1),
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeOut,
-      builder: (context, scale, child) =>
-          Transform.scale(scale: scale, child: child),
-      child: child,
-    );
-  }
-}
-
 class FadeUp extends StatelessWidget {
   final Widget child;
 

@@ -907,8 +907,19 @@ class FakeInbox implements HandInboxRepository {
   @override
   Stream<String?> get revoked => _revocations.stream;
 
+  Completer<void>? _holdingQuestion;
+
+  void holdNextQuestion() => _holdingQuestion = Completer<void>();
+
+  void finishHeldQuestion() {
+    _holdingQuestion?.complete();
+    _holdingQuestion = null;
+  }
+
   @override
   Future<RoomAnswer<void>> sendQuestion(String sessionId, File audio) async {
+    final held = _holdingQuestion;
+    if (held != null) await held.future;
     if (cannotReadTheKnot) {
       throw FileSystemException('sem arquivo', audio.path);
     }

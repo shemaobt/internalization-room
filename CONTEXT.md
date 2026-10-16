@@ -243,12 +243,16 @@ The wood disc with no glyph that leads from one station to the next: to the Back
 _Avoid_: next button, continue, seguir, microphone (it never wears one)
 
 **Knot**:
-A question the team raised, recorded by a tap on the hand and drawn on the necklace's cord so an unanswered question is visible without a word.
+A question the team raised at its idle turn, recorded by a tap on the hand and sent to the facilitator. A sent Knot leaves no sign on the tablet, and one too short for the capture guard is dropped unsent.
 _Avoid_: nó, question, bead (a knot is not one)
 
 **Raised hand**:
 The team's side channel to the facilitator: it sends a Knot, checks for the facilitator's replies, plays a reply and marks it heard. A failure anywhere on it changes nothing in the room and speaks no line (ADR 0071).
 _Avoid_: mão levantada, question button, note
+
+**Idle turn**:
+The moment the Conversation or the Panorama waits on the team and nothing else is happening: the voice at the invite or done, no line of the room's own playing (a reply may), no Halt calling for a person, no microphone open, and a session to send to. The Raised hand is offered only then, and a Knot armed in it is abandoned when it ends.
+_Avoid_: idle, the team's turn (that also covers the open microphone)
 
 **Panorama**:
 The book's own entry and the line about the whole book, first on the wheel, played when the team taps it. Not a passage: nothing that counts passages counts it.

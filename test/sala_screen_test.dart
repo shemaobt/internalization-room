@@ -856,30 +856,6 @@ void main() {
     );
   });
 
-  testWidgets('a question sent waits in english in an english room', (
-    tester,
-  ) async {
-    final container = await pumpSala(tester, SalaHarness(lingua: 'en'));
-    final notifier = container.read(salaSessionProvider.notifier);
-    notifier.goConversa();
-    await tester.pump(const Duration(milliseconds: 200));
-
-    notifier.handTap();
-    notifier.conversaTap();
-    await tester.pump(const Duration(milliseconds: 200));
-    notifier.conversaTap();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(container.read(salaSessionProvider).questionPending, isTrue);
-    expect(byLabel('Question sent, waiting for an answer'), findsOneWidget);
-    expect(
-      byLabel('Pergunta enviada, aguardando resposta'),
-      findsNothing,
-      reason: 'a pergunta enviada esperava em português num aparelho em inglês',
-    );
-    closeTheRoom(container);
-  });
-
   testWidgets('a reply playing is announced in english to an english room', (
     tester,
   ) async {

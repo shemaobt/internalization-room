@@ -77,10 +77,6 @@ const handLabels = {
     'en': 'Hear the facilitator\'s answer',
   },
   'cancel': {'pt': 'Cancelar a pergunta', 'en': 'Cancel the question'},
-  'sent': {
-    'pt': 'Pergunta enviada, aguardando resposta',
-    'en': 'Question sent, waiting for an answer',
-  },
   'raise': {'pt': 'Levantar a mão', 'en': 'Raise a hand'},
 };
 

@@ -215,14 +215,13 @@ class SalaSessionState {
   /// circle records the team's turn.
   final bool panoramaSaid;
   final String? sessionId;
+  final String? panoramaSessionId;
   final String? pericope;
   final Coverage coverage;
   final Moment? moment;
 
   final bool peerCue;
   final bool noteMode;
-  final bool handAck;
-  final bool questionPending;
   final List<HandReply> replies;
   final String? playingReplyId;
   final List<KeptTake> keptTakes;
@@ -323,13 +322,12 @@ class SalaSessionState {
     this.reach = RoomReach.fine,
     this.panoramaSaid = false,
     this.sessionId,
+    this.panoramaSessionId,
     this.pericope,
     this.coverage = Coverage.empty,
     this.moment,
     this.peerCue = false,
     this.noteMode = false,
-    this.handAck = false,
-    this.questionPending = false,
     this.replies = const [],
     this.playingReplyId,
     this.keptTakes = const [],
@@ -414,6 +412,30 @@ class SalaSessionState {
       !noteMode &&
       station is Canvas &&
       !needsPerson;
+
+  bool get atTheTeamsIdleTurn =>
+      (station is Canvas || station is Panorama) &&
+      (voice == VoiceState.invite || voice == VoiceState.done) &&
+      !needsPerson &&
+      !_aLineOfTheRoomPlays &&
+      stationSessionId != null;
+
+  String? get stationSessionId =>
+      station is Panorama ? panoramaSessionId : sessionId;
+
+  bool get anArmedKnotLapsed =>
+      noteMode &&
+      !atTheTeamsIdleTurn &&
+      switch (channel) {
+        Microphone(owner: MicOwner.question) => false,
+        _ => true,
+      };
+
+  bool get _aLineOfTheRoomPlays => switch (channel) {
+    GuideSpeaking(line: Line(kind: LineKind.reply)) => false,
+    GuideSpeaking() => true,
+    _ => false,
+  };
 
   bool get hasUnheardReply => replies.any((reply) => reply.offered);
 
@@ -728,6 +750,8 @@ class SalaSessionState {
     RoomReach? reach,
     bool? panoramaSaid,
     String? sessionId,
+    String? panoramaSessionId,
+    bool clearPanoramaSession = false,
     String? pericope,
     bool clearSession = false,
     Coverage? coverage,
@@ -735,8 +759,6 @@ class SalaSessionState {
     bool clearMoment = false,
     bool? peerCue,
     bool? noteMode,
-    bool? handAck,
-    bool? questionPending,
     List<HandReply>? replies,
     String? playingReplyId,
     bool clearPlayingReply = false,
@@ -793,13 +815,14 @@ class SalaSessionState {
       reach: reach ?? this.reach,
       panoramaSaid: panoramaSaid ?? this.panoramaSaid,
       sessionId: clearSession ? null : (sessionId ?? this.sessionId),
+      panoramaSessionId: clearPanoramaSession
+          ? null
+          : (panoramaSessionId ?? this.panoramaSessionId),
       pericope: clearSession ? null : (pericope ?? this.pericope),
       coverage: coverage ?? this.coverage,
       moment: clearMoment ? null : (moment ?? this.moment),
       peerCue: peerCue ?? this.peerCue,
       noteMode: noteMode ?? this.noteMode,
-      handAck: handAck ?? this.handAck,
-      questionPending: questionPending ?? this.questionPending,
       replies: replies ?? this.replies,
       playingReplyId: clearPlayingReply
           ? null
