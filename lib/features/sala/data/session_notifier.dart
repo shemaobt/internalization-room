@@ -3430,7 +3430,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             sessionId,
           ),
         );
-        final unsent = SceneRehearsalRecord.toReopen(value, sessionId);
+        final unsent = SceneRehearsalRecord.toReopen(
+          state.sceneRehearsals,
+          sessionId,
+        );
         if (waiting != null ||
             unsent == null ||
             _theSceneMovedOn(asked, generation)) {
@@ -3892,7 +3895,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         sessionId,
       ),
     );
-    final held = listed
+    final held = state.sceneRehearsals
         .where(
           (rehearsal) => rehearsal.rehearsalId == asked.rehearsal?.rehearsalId,
         )
