@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-10-16
 amends: 0083
 ---
@@ -35,3 +35,12 @@ towards calling a person, whatever the Station.
   scene rehearsal, which her app does not.
 - **A person count per Station.** Discarded: her screen counts nothing, so a count of its own
   would still bring a person in where she brings none.
+
+## Consequences
+
+A team whose permission is refused for good sees the scene rehearsal exactly as it was and
+can tap the circle as often as it likes: nothing is said, nothing is recorded, and the Desk
+gets no call. The permission check on return still learns the refusal, so the way back lands
+on the Canvas's gate and its line. Every Microphone answer now carries its owner, and a rule
+that belongs to one Station reads that owner rather than the Channel at the moment the
+answer arrives.
