@@ -44,24 +44,23 @@ final class SceneScreen {
     this.again,
   });
 
-  static const _same = Object();
-
-  /// This screen with the fields given changed; [label], [keep] and [picked] may be
-  /// set to null.
   SceneScreen copyWith({
     bool? waiting,
-    Object? label = _same,
-    Object? keep = _same,
-    Object? picked = _same,
+    String? label,
+    bool clearLabel = false,
+    SceneKeep? keep,
+    bool clearKeep = false,
+    String? picked,
+    bool clearPicked = false,
   }) => SceneScreen(
     step: step,
     rehearsal: rehearsal,
     take: take,
     length: length,
     waiting: waiting ?? this.waiting,
-    label: identical(label, _same) ? this.label : label as String?,
-    keep: identical(keep, _same) ? this.keep : keep as SceneKeep?,
-    picked: identical(picked, _same) ? this.picked : picked as String?,
+    label: clearLabel ? null : (label ?? this.label),
+    keep: clearKeep ? null : (keep ?? this.keep),
+    picked: clearPicked ? null : (picked ?? this.picked),
     again: again,
   );
 

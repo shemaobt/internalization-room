@@ -3519,7 +3519,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         !state.sceneChipLive) {
       return;
     }
-    state = state.copyWith(scene: shown.copyWith(picked: null));
+    state = state.copyWith(scene: shown.copyWith(clearPicked: true));
   }
 
   void sendTheSceneTakeAgain() => _gesture(() => _sendTheSceneTakeAgain());
@@ -3542,7 +3542,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           return;
         }
         state = state.copyWith(
-          scene: shown.copyWith(label: state.scenes.labelFor(shown.picked)),
+          scene: switch (state.scenes.labelFor(shown.picked)) {
+            final label? => shown.copyWith(label: label),
+            null => shown.copyWith(clearLabel: true),
+          },
         );
         _startListening('cena_${_stamp()}', owner: MicOwner.scene);
     }
@@ -3560,7 +3563,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return _sendTheSceneTake(sessionId, path, keeping, generation);
     }
     if (identical(state.scene, keeping)) {
-      state = state.copyWith(scene: keeping.copyWith(keep: null));
+      state = state.copyWith(scene: keeping.copyWith(clearKeep: true));
     }
   }
 

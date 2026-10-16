@@ -77,10 +77,10 @@ class SceneButton extends StatelessWidget {
     return Semantics(
       button: true,
       label: label,
-      child: ExcludeSemantics(
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onTap,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: ExcludeSemantics(
           child: Container(
             width: 360,
             padding: const EdgeInsets.all(12),
@@ -137,11 +137,11 @@ class SceneChip extends StatelessWidget {
       button: true,
       enabled: live,
       label: label,
-      child: ExcludeSemantics(
-        child: Opacity(
-          opacity: live ? 1 : 0.35,
-          child: GestureDetector(
-            onTap: live ? onTap : null,
+      child: GestureDetector(
+        onTap: live ? onTap : null,
+        child: ExcludeSemantics(
+          child: Opacity(
+            opacity: live ? 1 : 0.35,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
