@@ -15,6 +15,7 @@ import '../domain/cut_point.dart';
 import '../domain/device_link.dart';
 import '../domain/escuta_das_partes.dart';
 import '../domain/passagem.dart';
+import '../domain/scene_rehearsal.dart';
 import '../domain/session_snapshot.dart';
 import '../domain/turn_result.dart';
 import 'device_identity.dart';
@@ -384,6 +385,61 @@ class RoomRepository {
   /// redirect, which the client follows on its own.
   static String takeAudioUrl(String sessionId, String takeId) =>
       '$_basePath/sessions/$sessionId/takes/$takeId/audio';
+
+  /// The passage's live scene rehearsals, from every session of it, each naming its own.
+  Future<RoomAnswer<List<SceneRehearsalRecord>>> sceneRehearsalsOf(
+    String sessionId,
+  ) => _room.ask(
+    () => _client.get(
+      _uri('/sessions/$sessionId/scene-rehearsals'),
+      headers: _headers,
+    ),
+    timeout: _stateTimeout,
+    read: readJson(SceneRehearsalRecord.listFrom),
+    asksForTheSession: true,
+  );
+
+  Future<RoomAnswer<SceneRehearsalRecord>> keepSceneRehearsal(
+    String sessionId,
+    File audio,
+  ) async {
+    final request =
+        http.MultipartRequest(
+            'POST',
+            _uri('/sessions/$sessionId/scene-rehearsals'),
+          )
+          ..headers.addAll(_whoWeAre)
+          ..headers['X-Room-Device'] = await _deviceId()
+          ..files.add(await http.MultipartFile.fromPath('file', audio.path));
+    return _room.askStreamed(
+      request,
+      timeout: _longCallTimeout,
+      read: readJson(SceneRehearsalRecord.fromJson),
+      asksForTheSession: true,
+    );
+  }
+
+  /// Where the take of one scene rehearsal of this session is, for [fetchClip].
+  static String sceneRehearsalAudioUrl(String sessionId, String rehearsalId) =>
+      '$_basePath/sessions/$sessionId/scene-rehearsals/$rehearsalId/audio';
+
+  /// «recomeçar a tradução» into the [attempt] this tablet minted, closing the one the
+  /// current frases follow. It names a rehearsal, whose 404 never ends the session.
+  Future<RoomAnswer<SceneRehearsalRecord>> restartTheSceneTranslation(
+    String sessionId,
+    String rehearsalId, {
+    required String attempt,
+    String? closes,
+  }) => _room.ask(
+    () => _client.post(
+      _uri('/sessions/$sessionId/scene-rehearsals/$rehearsalId/restart'),
+      headers: _whoWeAre,
+      body: {'attempt': attempt, 'closes': ?closes},
+    ),
+    timeout: _stateTimeout,
+    read: readJson(SceneRehearsalRecord.fromJson),
+    asksForTheSession: false,
+  );
 
   /// A new version of one stretch: the explanation redone over the same slice.
   ///

@@ -47,6 +47,15 @@ class ProviderRoomPort implements RoomPort {
       };
 
   @override
+  Future<SceneRehearsalsAnswer> sceneRehearsalsOf(String session) async =>
+      switch (await _ref
+          .read(roomRepositoryProvider)
+          .sceneRehearsalsOf(session)) {
+        Answered(:final value) => SceneRehearsalsListed(value),
+        final RoomFailure failure => SceneRehearsalsFailed(failure.result),
+      };
+
+  @override
   Future<RoomReach> reach() =>
       _ref.read(connectivityServiceProvider).reachRoom();
 

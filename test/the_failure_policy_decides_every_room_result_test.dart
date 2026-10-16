@@ -236,6 +236,48 @@ void main() {
       const TheRefusalPassed(generation: 4),
     ),
     (
+      'a scene door whose session is gone is the session gone',
+      const RoomSessionGone(),
+      _notATurn(door: Door.sceneRehearsal),
+      const TheSessionIsGone(generation: 4),
+    ),
+    (
+      'a scene door whose network failed falls out of reach at its door',
+      const RoomNetworkFailed(),
+      _notATurn(door: Door.sceneRehearsal),
+      const NetworkFailedAt(Door.sceneRehearsal, generation: 4),
+    ),
+    (
+      'a scene door refused with a code that stops the room calls a person',
+      const RoomRefused(RefusalCode.unauthorized),
+      _notATurn(door: Door.sceneRehearsal),
+      const RoomRaisedAHalt(sounding: ThePart(), generation: 4),
+    ),
+    (
+      'a scene door refused because the rehearsal was sent reads it again',
+      const RoomRefused(RefusalCode.sceneRehearsalSent),
+      _notATurn(door: Door.sceneRehearsal),
+      const TheSceneDoorFailed(readAgain: true, generation: 4),
+    ),
+    (
+      'a scene door refused because a restart landed unheard reads it again',
+      const RoomRefused(RefusalCode.restartOutOfOrder),
+      _notATurn(door: Door.sceneRehearsal),
+      const TheSceneDoorFailed(readAgain: true, generation: 4),
+    ),
+    (
+      'a scene door that does not find the rehearsal reads it again',
+      const RoomRefused(RefusalCode.notFound),
+      _notATurn(door: Door.sceneRehearsal),
+      const TheSceneDoorFailed(readAgain: true, generation: 4),
+    ),
+    (
+      'a scene door refused for any other reason is never counted',
+      RoomRefused(RefusalCode.unnamed(422)),
+      _notATurn(door: Door.sceneRehearsal, refusals: 2),
+      const TheSceneDoorFailed(generation: 4),
+    ),
+    (
       'a call that is not a turn whose session is gone is the session gone',
       const RoomSessionGone(),
       _notATurn(),

@@ -118,6 +118,43 @@ const recordEntryLabel = {
 String recordEntryLabelFor(String language) =>
     recordEntryLabel[language] ?? recordEntryLabel[floorLanguage]!;
 
+/// Her scene-rehearsal words (strings.ts), read only by VoiceOver.
+const sceneRehearsalLabels = {
+  'enter': {'pt': 'ensaio da cena', 'en': 'scene rehearsal'},
+  'record': {
+    'pt': 'Gravar o ensaio da cena',
+    'en': 'Record the scene rehearsal',
+  },
+  'recording': {
+    'pt': 'gravem o ensaio da cena na língua materna; toquem para parar',
+    'en': 'record the scene rehearsal in your own language; tap to stop',
+  },
+  'translate': {
+    'pt': 'traduzir o ensaio da cena',
+    'en': 'translate the scene rehearsal',
+  },
+  'again': {
+    'pt': 'gravar o ensaio da cena de novo',
+    'en': 'record the scene rehearsal again',
+  },
+  'send': {'pt': 'terminei', 'en': 'done'},
+  'restart': {'pt': 'recomeçar a tradução', 'en': 'start the translation over'},
+  'placesUnknown': {
+    'pt':
+        'as frases já traduzidas não estão neste computador — toquem em terminei para enviar, ou recomecem a tradução',
+    'en':
+        'the phrases already translated are not on this computer — tap done to send them, or start the translation over',
+  },
+  'sent': {
+    'pt': 'a tradução deste ensaio da cena já foi para a voz',
+    'en': 'this scene rehearsal\'s translation already went to the voice',
+  },
+};
+
+String sceneRehearsalLabelFor(String control, String language) =>
+    sceneRehearsalLabels[control]![language] ??
+    sceneRehearsalLabels[control]![floorLanguage]!;
+
 const retroLabels = {
   'record': {
     'pt': 'Tocar para gravar a tradução deste trecho',

@@ -43,6 +43,7 @@ import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
+import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
@@ -384,8 +385,19 @@ class FakeRecorder implements RecordingRepository {
     return file.path;
   }
 
+  /// Whether looking for audio already on the tablet fails, the way a disk does.
+  bool heldAsFails = false;
+
   @override
-  Future<String> keepAs(String path, String fileName) async => path;
+  Future<String?> heldAs(String fileName) async {
+    if (heldAsFails) throw const FileSystemException('o disco falhou');
+    final file = File('${home.path}/$fileName.m4a');
+    return file.existsSync() && file.lengthSync() > 0 ? file.path : null;
+  }
+
+  @override
+  Future<String> keepAs(String path, String fileName) async =>
+      File(path).renameSync('${home.path}/$fileName.m4a').path;
 
   @override
   Future<void> dispose() async => _interruptions.close();
@@ -1357,6 +1369,19 @@ class FakeRoom implements RoomRepository {
     if (devagar != null) await Future<void>.delayed(devagar);
     final refusal = failClipWith;
     if (refusal != null) return refusal;
+    final sceneFailure = failSceneWith;
+    if (sceneFailure != null && url.contains('/scene-rehearsals/')) {
+      return sceneFailure;
+    }
+    for (final gone in forgottenSessions) {
+      if (url.contains('/sessions/$gone/scene-rehearsals/')) {
+        return const Refused(RefusalCode.notFound);
+      }
+    }
+    final sceneBytes = sceneAudio;
+    if (sceneBytes != null && url.contains('/scene-rehearsals/')) {
+      return Answered(sceneBytes);
+    }
     for (final take in refuseClipOf) {
       if (url.endsWith('/takes/$take/audio')) {
         return const Refused(RefusalCode.notFound);
@@ -1405,6 +1430,126 @@ class FakeRoom implements RoomRepository {
     final refusal = failTakesWith;
     if (refusal != null) return refusal;
     return Answered(List.of(takes));
+  }
+
+  /// Every live scene rehearsal of the passage, from every session, as the list answers.
+  final List<SceneRehearsalRecord> sceneRehearsals = [];
+
+  /// The session each scene take this room kept was sent for, in order.
+  final List<String> scenesKept = [];
+
+  /// Every restart of a scene translation this room was sent.
+  final List<({String attempt, String? closes})> restartsSent = [];
+
+  /// What every scene door answers, the scene take's audio included, when it is set.
+  RoomFailure? failSceneWith;
+
+  /// The code a restart is refused with, when it is set.
+  String? refuseRestartWith;
+
+  /// The bytes every scene take's audio comes back as, when it is set.
+  Uint8List? sceneAudio;
+
+  bool _holdTheNextSceneList = false;
+  final List<Completer<void>> _heldSceneLists = [];
+
+  /// Hold the next list of scene rehearsals, the way a slow link holds it. It answers
+  /// with what the room held when it was asked.
+  void holdNextSceneList() => _holdTheNextSceneList = true;
+
+  void finishHeldSceneList() => _heldSceneLists.removeAt(0).complete();
+
+  Completer<void>? _holdingKeep;
+
+  /// Hold the next keep's answer, after the room has taken the take.
+  void holdNextKeep() => _holdingKeep = Completer<void>();
+
+  void finishHeldKeep() {
+    _holdingKeep?.complete();
+    _holdingKeep = null;
+  }
+
+  Completer<void>? _holdingRestart;
+
+  /// Hold the next restart's answer, after the room has been sent it.
+  void holdNextRestart() => _holdingRestart = Completer<void>();
+
+  void finishHeldRestart() {
+    _holdingRestart?.complete();
+    _holdingRestart = null;
+  }
+
+  @override
+  Future<RoomAnswer<List<SceneRehearsalRecord>>> sceneRehearsalsOf(
+    String sessionId,
+  ) async {
+    if (_guard('sceneRehearsalsOf') case final failure?) return failure;
+    final listed = List.of(sceneRehearsals);
+    if (_holdTheNextSceneList) {
+      _holdTheNextSceneList = false;
+      final held = Completer<void>();
+      _heldSceneLists.add(held);
+      await held.future;
+    }
+    if (_forgot('sceneRehearsalsOf', sessionId) case final gone?) return gone;
+    final refusal = failSceneWith;
+    if (refusal != null) return refusal;
+    return Answered(listed);
+  }
+
+  @override
+  Future<RoomAnswer<SceneRehearsalRecord>> keepSceneRehearsal(
+    String sessionId,
+    File audio,
+  ) async {
+    if (_guard('keepSceneRehearsal') case final failure?) return failure;
+    if (_forgot('keepSceneRehearsal', sessionId) case final gone?) return gone;
+    final refusal = failSceneWith;
+    if (refusal != null) return refusal;
+    scenesKept.add(sessionId);
+    final n = sceneRehearsals.length + 1;
+    final kept = SceneRehearsalRecord(
+      rehearsalId: 'ensaio-da-cena-$n',
+      sessionId: sessionId,
+      n: n,
+    );
+    sceneRehearsals.add(kept);
+    await _holdingKeep?.future;
+    return Answered(kept);
+  }
+
+  @override
+  Future<RoomAnswer<SceneRehearsalRecord>> restartTheSceneTranslation(
+    String sessionId,
+    String rehearsalId, {
+    required String attempt,
+    String? closes,
+  }) async {
+    if (_guard('restartTheSceneTranslation') case final failure?) {
+      return failure;
+    }
+    restartsSent.add((attempt: attempt, closes: closes));
+    await _holdingRestart?.future;
+    if (forgottenSessions.contains(sessionId)) {
+      return const Refused(RefusalCode.notFound);
+    }
+    final refusal = failSceneWith;
+    if (refusal != null) return refusal;
+    final code = refuseRestartWith;
+    if (code != null) return Refused(code);
+    final at = sceneRehearsals.indexWhere(
+      (rehearsal) => rehearsal.rehearsalId == rehearsalId,
+    );
+    final old = sceneRehearsals[at];
+    final restarted = SceneRehearsalRecord(
+      rehearsalId: old.rehearsalId,
+      sessionId: old.sessionId,
+      n: old.n,
+      sentAt: old.sentAt,
+      afterRestart: attempt,
+    );
+    sceneRehearsals[at] = restarted;
+    return Answered(restarted);
   }
 
   @override

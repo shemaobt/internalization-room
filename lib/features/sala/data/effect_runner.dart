@@ -6,6 +6,7 @@ import '../domain/halt.dart';
 import '../domain/machine.dart';
 import '../domain/ports.dart';
 import '../domain/room_reach.dart';
+import '../domain/scene_rehearsal.dart';
 import '../domain/session_snapshot.dart';
 import '../domain/session_state.dart';
 import '../domain/turn_result.dart';
@@ -135,6 +136,9 @@ abstract interface class StationHost {
   void hearThePendingTranslationLetGo();
 
   void hearThePassageRefused();
+
+  /// The Station takes the scene rehearsals the room listed when it was asked again.
+  void hearTheSceneRehearsals(List<SceneRehearsalRecord> listed);
 }
 
 class EffectRunner {
@@ -269,6 +273,10 @@ class EffectRunner {
           host.hearThePendingTranslationLetGo();
         case RefuseThePassage():
           host.hearThePassageRefused();
+        case ReadTheSceneRehearsals():
+          _readTheSceneRehearsals();
+        case ShowTheSceneRehearsals(:final listed):
+          host.hearTheSceneRehearsals(listed);
       }
     }
   }
@@ -527,6 +535,29 @@ class EffectRunner {
         room.readTheSession(session),
       ),
     );
+  }
+
+  void _readTheSceneRehearsals() {
+    final session = host.session;
+    if (session == null) return;
+    unawaited(_answerTheSceneRehearsals(session));
+  }
+
+  Future<void> _answerTheSceneRehearsals(String session) async {
+    final stamp = generation?.call();
+    final answer = await room.sceneRehearsalsOf(session);
+    if (_disposed || host.session != session) return;
+    switch (answer) {
+      case SceneRehearsalsListed(:final listed):
+        host.answer(TheSceneRehearsalsListed(listed, generation: stamp));
+      case SceneRehearsalsFailed(:final result):
+        _decideAt(
+          result,
+          door: Door.sceneRehearsal,
+          rule: RefusalRule.counts,
+          why: RoomReach.noNetwork,
+        );
+    }
   }
 
   /// A read the room answers for a session that is no longer the room's changes nothing.

@@ -7,6 +7,7 @@ part 'stations/ensaio.dart';
 part 'stations/fim.dart';
 part 'stations/menu.dart';
 part 'stations/retro.dart';
+part 'stations/scene_rehearsal.dart';
 
 /// One of the stops a session passes through; it answers the arrivals it understands.
 sealed class Station {
@@ -20,6 +21,7 @@ sealed class Station {
     SalaStage.ensaio => const Ensaio(),
     SalaStage.retro => const Retro(),
     SalaStage.fim => const Fim(),
+    SalaStage.cena => const Canvas(),
   };
 
   /// What the screen shows for this Station.

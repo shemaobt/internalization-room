@@ -15,6 +15,8 @@ final class Canvas extends Station {
     PassageChosen() => const Canvas(),
     TheRehearsalOpened() => const Ensaio(),
     TheBackTranslationOpened() => const Retro(),
+    TheSceneRehearsalOpened() => const SceneRehearsal(),
+    TheSceneRehearsalLeft() => this,
     TheNecklaceClosed() => this,
   };
 }

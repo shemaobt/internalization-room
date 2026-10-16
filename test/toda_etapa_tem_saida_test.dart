@@ -45,6 +45,10 @@ final _wayOut =
         take: (n) async => n.leaveThePassage(),
       ),
       SalaStage.fim: (name: 'beginAgain', take: (n) async => n.beginAgain()),
+      SalaStage.cena: (
+        name: 'leaveTheSceneRehearsal',
+        take: (n) async => n.leaveTheSceneRehearsal(),
+      ),
     };
 
 /// Put the room in [stage], through the gestures that really reach it.
@@ -85,6 +89,19 @@ Future<void> _standIn(
   await notifier.goConversa(pericope: 'P01');
   await waitFor('a conversa abrir', () => read().sessionId != null);
   if (stage == SalaStage.conversa) return;
+
+  if (stage == SalaStage.cena) {
+    await waitFor(
+      'a conversa repousar',
+      () => read().voice == VoiceState.invite && !read().awaitingTheGuide,
+    );
+    notifier.openTheSceneRehearsal();
+    await waitFor(
+      'o ensaio da cena abrir',
+      () => read().stage == SalaStage.cena,
+    );
+    return;
+  }
 
   notifier.goEnsaio();
   await settle();

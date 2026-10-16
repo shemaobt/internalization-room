@@ -23,6 +23,7 @@ import '../domain/coverage.dart';
 import '../domain/coverage_event.dart';
 import '../domain/cut_point.dart';
 import '../domain/room_reach.dart';
+import '../domain/scene_rehearsal.dart';
 import '../domain/session_snapshot.dart';
 import '../domain/halt.dart';
 import '../domain/machine.dart';
@@ -33,6 +34,7 @@ import '../domain/turn_clock.dart';
 import '../domain/turn_result.dart';
 import '../domain/ports.dart';
 import 'connectivity_service.dart';
+import 'device_identity.dart';
 import 'effect_runner.dart';
 import 'facilitator_voice_service.dart';
 import 'finished_passages.dart';
@@ -973,6 +975,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       machine: machine,
       reach: !before.reachable && machine.reachable ? RoomReach.fine : null,
+      scene:
+          before.station is SceneRehearsal && machine.station is! SceneRehearsal
+          ? const SceneScreen()
+          : null,
     );
     _runner.run(effects, micWasOpen: before.channel is Microphone);
     _followTheSound(before, machine);
@@ -1027,7 +1033,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final advanced =
         state.station is! Panorama &&
         _applyCoverage(snapshot.coverage, clock: clock);
-    if (!state.needsPerson && snapshot.done && state.station is Canvas) {
+    if (!state.needsPerson &&
+        snapshot.done &&
+        (state.station is Canvas || state.sceneRehearsalIsOpen)) {
       state = state.copyWith(endOfThePassage: true);
     }
     return advanced;
@@ -3249,6 +3257,277 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ensaio: EnsaioStatus.idle,
       peerCue: false,
     );
+  }
+
+  void openTheSceneRehearsal() => _gesture(() => _openTheSceneRehearsal());
+
+  void _openTheSceneRehearsal() {
+    final sessionId = state.sessionId;
+    if (sessionId == null ||
+        state.station is! Canvas ||
+        state.machine.inFlight != null ||
+        state.awaitingTheGuide) {
+      return;
+    }
+    _silenceTheRoom();
+    _cancelQuestion();
+    _arriveAt(const TheSceneRehearsalOpened());
+    state = state.copyWith(scene: const SceneScreen());
+    _handOff(_reopenTheUnsent(sessionId));
+  }
+
+  bool _theSceneMovedOn(SceneScreen asked, int generation) =>
+      _abandoned(generation) ||
+      !identical(state.scene, asked) ||
+      state.channel is Microphone;
+
+  Future<void> _reopenTheUnsent(String sessionId) async {
+    final generation = _waitOnTheGeneration;
+    final asked = state.scene;
+    final listed = await _room.sceneRehearsalsOf(sessionId);
+    switch (listed) {
+      case Answered(:final value):
+        final unsent = SceneRehearsalRecord.toReopen(value, sessionId);
+        if (unsent == null || _theSceneMovedOn(asked, generation)) return;
+        await _showTheRehearsal(unsent, asked, generation);
+      case final RoomFailure failure:
+        if (!_abandoned(generation)) {
+          _decideAt(failure, door: Door.sceneRehearsal);
+        }
+    }
+  }
+
+  Future<void> _showTheRehearsal(
+    SceneRehearsalRecord rehearsal,
+    SceneScreen asked,
+    int generation, {
+    String? take,
+  }) async {
+    final here =
+        take ??
+        (asked.rehearsal?.rehearsalId == rehearsal.rehearsalId
+            ? asked.take
+            : null) ??
+        await _fetchTheSceneTake(rehearsal, generation);
+    if (here == null || _theSceneMovedOn(asked, generation)) return;
+    final length = await _playback.howLong(here);
+    if (_theSceneMovedOn(asked, generation)) return;
+    state = state.copyWith(
+      scene: SceneScreen(
+        step: rehearsal.placesKnownIn(length)
+            ? SceneStep.translate
+            : SceneStep.placesUnknown,
+        rehearsal: rehearsal,
+        take: here,
+      ),
+    );
+  }
+
+  Future<String?> _fetchTheSceneTake(
+    SceneRehearsalRecord rehearsal,
+    int generation,
+  ) async {
+    final name = 'cena-${rehearsal.rehearsalId}';
+    final held = await _heldOnTheTablet(name);
+    if (held != null || _abandoned(generation)) return held;
+    final clip = await _room.fetchClip(
+      RoomRepository.sceneRehearsalAudioUrl(
+        rehearsal.sessionId,
+        rehearsal.rehearsalId,
+      ),
+    );
+    if (_abandoned(generation)) return null;
+    switch (clip) {
+      case Answered(:final value) when value.isNotEmpty:
+        try {
+          return await _recorder.keepBytes(value, name);
+        } on Exception {
+          return null;
+        }
+      case Answered():
+        return null;
+      case final RoomFailure failure:
+        _decideAt(failure, door: Door.sceneRehearsal);
+        return null;
+    }
+  }
+
+  Future<String?> _heldOnTheTablet(String name) async {
+    try {
+      return await _recorder.heldAs(name);
+    } on FileSystemException {
+      return null;
+    }
+  }
+
+  void sceneTap() => _gesture(() => _sceneTap());
+
+  void _sceneTap() {
+    if (state.station is! SceneRehearsal ||
+        state.scene.step != SceneStep.record ||
+        state.scene.waiting) {
+      return;
+    }
+    switch (state.channel) {
+      case Microphone(owner: MicOwner.scene):
+        _handOff(_keepTheSceneTake());
+      case Microphone():
+        return;
+      default:
+        _startListening('cena_${_stamp()}', owner: MicOwner.scene);
+    }
+  }
+
+  Future<void> _keepTheSceneTake() async {
+    final generation = _waitOnTheGeneration;
+    const keeping = SceneScreen(waiting: true);
+    state = state.copyWith(scene: keeping);
+    final sessionId = state.sessionId;
+    final path = (await _closeTheMicrophone()).take;
+    if (_abandoned(generation)) return;
+    if (sessionId != null && path != null && _hasAudio(path)) {
+      await _keepAt(sessionId, path, keeping, generation);
+    }
+    if (identical(state.scene, keeping)) {
+      state = state.copyWith(scene: const SceneScreen());
+    }
+  }
+
+  Future<void> _keepAt(
+    String sessionId,
+    String path,
+    SceneScreen keeping,
+    int generation,
+  ) async {
+    final RoomAnswer<SceneRehearsalRecord> kept;
+    try {
+      kept = await _room.keepSceneRehearsal(sessionId, File(path));
+    } on FileSystemException {
+      return;
+    }
+    switch (kept) {
+      case Answered(:final value):
+        final named = await _underTheRehearsalsName(path, value);
+        if (_abandoned(generation)) return;
+        await _showTheRehearsal(value, keeping, generation, take: named);
+      case final RoomFailure failure:
+        if (!_abandoned(generation)) {
+          _decideAt(failure, door: Door.sceneRehearsal);
+        }
+    }
+  }
+
+  Future<String> _underTheRehearsalsName(
+    String path,
+    SceneRehearsalRecord rehearsal,
+  ) async {
+    try {
+      return await _recorder.keepAs(path, 'cena-${rehearsal.rehearsalId}');
+    } on FileSystemException {
+      return path;
+    }
+  }
+
+  void playTheSceneRehearsal() => _gesture(() => _playTheSceneRehearsal());
+
+  void _playTheSceneRehearsal() {
+    final SceneScreen(:step, :take, :rehearsal) = state.scene;
+    if (state.station is! SceneRehearsal ||
+        step != SceneStep.translate ||
+        take == null ||
+        rehearsal == null) {
+      return;
+    }
+    final playing = state.channel is PartPlaying;
+    _silenceTheRoom();
+    if (playing) return;
+    _play(PartSound(0, take, from: rehearsal.frontier));
+  }
+
+  void recordTheSceneAgain() => _gesture(() => _recordTheSceneAgain());
+
+  void _recordTheSceneAgain() {
+    if (state.station is! SceneRehearsal) return;
+    _silenceTheRoom();
+    state = state.copyWith(scene: const SceneScreen());
+  }
+
+  void restartTheSceneTranslation() =>
+      _gesture(() => _restartTheSceneTranslation());
+
+  void _restartTheSceneTranslation() {
+    final shown = state.scene;
+    final rehearsal = shown.rehearsal;
+    final sessionId = state.sessionId;
+    if (state.station is! SceneRehearsal ||
+        shown.step != SceneStep.placesUnknown ||
+        shown.waiting ||
+        rehearsal == null ||
+        sessionId == null) {
+      return;
+    }
+    final waiting = SceneScreen(
+      step: shown.step,
+      rehearsal: rehearsal,
+      take: shown.take,
+      waiting: true,
+    );
+    state = state.copyWith(scene: waiting);
+    _handOff(_restartTheTranslation(sessionId, shown, waiting));
+  }
+
+  Future<void> _restartTheTranslation(
+    String sessionId,
+    SceneScreen shown,
+    SceneScreen waiting,
+  ) async {
+    final generation = _waitOnTheGeneration;
+    final rehearsal = shown.rehearsal!;
+    final restarted = await _room.restartTheSceneTranslation(
+      sessionId,
+      rehearsal.rehearsalId,
+      attempt: mintAnAttempt(),
+      closes: rehearsal.afterRestart,
+    );
+    if (_abandoned(generation)) return;
+    final stillShown = !_theSceneMovedOn(waiting, generation);
+    if (stillShown) state = state.copyWith(scene: shown);
+    switch (restarted) {
+      case Answered(:final value):
+        if (stillShown) await _showTheRehearsal(value, shown, generation);
+      case final RoomFailure failure:
+        _decideAt(failure, door: Door.sceneRehearsal);
+    }
+  }
+
+  void _theSceneRehearsalsHeard(List<SceneRehearsalRecord> listed) {
+    final asked = state.scene;
+    final shown = asked.rehearsal;
+    if (shown == null || _theSceneMovedOn(asked, _generation)) return;
+    final held = listed
+        .where((rehearsal) => rehearsal.rehearsalId == shown.rehearsalId)
+        .firstOrNull;
+    if (held == null) return;
+    if (!held.unsent) {
+      state = state.copyWith(
+        scene: SceneScreen(
+          step: SceneStep.sent,
+          rehearsal: held,
+          take: asked.take,
+        ),
+      );
+      return;
+    }
+    _handOff(_showTheRehearsal(held, asked, _generation));
+  }
+
+  void leaveTheSceneRehearsal() => _gesture(() => _leaveTheSceneRehearsal());
+
+  void _leaveTheSceneRehearsal() {
+    if (state.station is! SceneRehearsal) return;
+    _silenceTheRoom();
+    _dispatch(const MicDiscarded());
+    _arriveAt(const TheSceneRehearsalLeft());
   }
 
   void playTheRehearsal() => _gesture(() => _playTheRehearsal());
@@ -5855,6 +6134,10 @@ class _NotifierHost implements StationHost {
 
   @override
   void hearThePassageRefused() => _notifier._refuseThePassage();
+
+  @override
+  void hearTheSceneRehearsals(List<SceneRehearsalRecord> listed) =>
+      _notifier._theSceneRehearsalsHeard(listed);
 }
 
 final salaSessionProvider =

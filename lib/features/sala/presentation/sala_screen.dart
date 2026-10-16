@@ -24,6 +24,7 @@ import 'widgets/language_and_look.dart';
 import 'widgets/leave_passage_button.dart';
 import 'widgets/mic_gate_view.dart';
 import 'widgets/retro_view.dart';
+import 'widgets/scene_rehearsal_view.dart';
 
 class SalaScreen extends ConsumerStatefulWidget {
   /// Whether the build carries an address at all.
@@ -170,6 +171,8 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
         return const RetroView();
       case SalaStage.fim:
         return const _FimView();
+      case SalaStage.cena:
+        return const SceneRehearsalView();
     }
   }
 }

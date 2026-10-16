@@ -16,6 +16,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
@@ -1318,6 +1319,9 @@ void main() {
           turnId: 'turno-1',
         ),
         'takesOf': (room) => room.takesOf('sessao-1'),
+        'sceneRehearsalsOf': (room) => room.sceneRehearsalsOf('sessao-1'),
+        'keepSceneRehearsal': (room) async =>
+            room.keepSceneRehearsal('sessao-1', await _tempRecording()),
         'askForAPerson': (room) => room.askForAPerson('sessao-1'),
         'personArrived': (room) => room.personArrived('sessao-1'),
         'approveRelease': (room) => room.approveRelease('sessao-1'),
@@ -1340,6 +1344,11 @@ void main() {
       };
 
       final stretchCalls = <String, Future<Object?> Function(RoomRepository)>{
+        'restartTheSceneTranslation': (room) => room.restartTheSceneTranslation(
+          'sessao-1',
+          'ensaio-da-cena-1',
+          attempt: '1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b',
+        ),
         'replaceSegment': (room) async => room.replaceSegment(
           'sessao-1',
           'trecho-1',
@@ -1636,6 +1645,218 @@ void main() {
       }
     },
   );
+
+  group('the scene rehearsal doors', () {
+    Map<String, Object?> record({
+      String? sentAt,
+      String? afterRestart,
+      List<Map<String, Object?>> frases = const [],
+    }) => {
+      'rehearsal_id': 'ensaio-da-cena-1',
+      'session_id': 'sessao-1',
+      'pericope': 'P01',
+      'n': 1,
+      'scene': null,
+      'scene_said': null,
+      'duration_ms': 20000,
+      'content_type': 'audio/mp4',
+      'verified': true,
+      'recorded_at': '2026-10-14T09:00:00+00:00',
+      'sent_at': sentAt,
+      'after_restart': afterRestart,
+      'frases': frases,
+    };
+
+    test('the list parses after_restart, sent_at and the frases', () async {
+      late http.BaseRequest seen;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seen = request;
+          return http.Response(
+            jsonEncode({
+              'pericope': 'P01',
+              'scene_rehearsals': [
+                record(
+                  sentAt: '2026-10-14T10:00:00+00:00',
+                  afterRestart: '1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b',
+                  frases: [
+                    {
+                      'frase_id': 'f1',
+                      'starts_ms': 0,
+                      'ends_ms': 4000,
+                      'replaces': null,
+                      'replaced_by': 'f2',
+                    },
+                    {
+                      'frase_id': 'f2',
+                      'starts_ms': 0,
+                      'ends_ms': 4600,
+                      'replaces': 'f1',
+                      'replaced_by': null,
+                    },
+                  ],
+                ),
+              ],
+            }),
+            200,
+          );
+        }),
+        deviceId: () async => 'aparelho-1',
+      );
+      addTearDown(repository.dispose);
+
+      final answer = await repository.sceneRehearsalsOf('sessao-1');
+
+      expect(seen.method, 'GET');
+      expect(
+        seen.url.path,
+        '/api/internalization-room/sessions/sessao-1/scene-rehearsals',
+      );
+      final listed = (answer as Answered<List<SceneRehearsalRecord>>).value;
+      expect(listed, hasLength(1));
+      final kept = listed.single;
+      expect(kept.rehearsalId, 'ensaio-da-cena-1');
+      expect(kept.sessionId, 'sessao-1');
+      expect(kept.n, 1);
+      expect(kept.sentAt, '2026-10-14T10:00:00+00:00');
+      expect(kept.afterRestart, '1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b');
+      expect(kept.unsent, isFalse);
+      expect(
+        [
+          for (final frase in kept.frases)
+            (frase.fraseId, frase.startsMs, frase.endsMs, frase.replacedBy),
+        ],
+        [('f1', 0, 4000, 'f2'), ('f2', 0, 4600, null)],
+      );
+    });
+
+    test('a frase with no place is read without one', () async {
+      final repository = RoomRepository(
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'pericope': 'P01',
+              'scene_rehearsals': [
+                record(
+                  frases: [
+                    {'frase_id': 'f1', 'replaces': null, 'replaced_by': null},
+                  ],
+                ),
+              ],
+            }),
+            200,
+          ),
+        ),
+        deviceId: () async => 'aparelho-1',
+      );
+      addTearDown(repository.dispose);
+
+      final answer = await repository.sceneRehearsalsOf('sessao-1');
+
+      final frase = (answer as Answered<List<SceneRehearsalRecord>>)
+          .value
+          .single
+          .frases
+          .single;
+      expect((frase.startsMs, frase.endsMs), (null, null));
+    });
+
+    test(
+      'the keep sends the take as this tablet and reads the record back',
+      () async {
+        late http.BaseRequest seen;
+        final repository = RoomRepository(
+          client: MockClient((request) async {
+            seen = request;
+            return http.Response(jsonEncode(record()), 200);
+          }),
+          deviceId: () async => 'aparelho-1',
+        );
+        addTearDown(repository.dispose);
+
+        final answer = await repository.keepSceneRehearsal(
+          'sessao-1',
+          await _tempRecording(),
+        );
+
+        expect(seen.method, 'POST');
+        expect(
+          seen.url.path,
+          '/api/internalization-room/sessions/sessao-1/scene-rehearsals',
+        );
+        expect(seen.headers['X-Room-Device'], 'aparelho-1');
+        expect(
+          (answer as Answered<SceneRehearsalRecord>).value.rehearsalId,
+          'ensaio-da-cena-1',
+        );
+      },
+    );
+
+    test('the restart posts attempt and closes as form fields', () async {
+      late http.Request seen;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          seen = request;
+          return http.Response(
+            jsonEncode(
+              record(afterRestart: 'c3d1a1f0-5b7e-4c1a-9a43-0d6e3f2b8a11'),
+            ),
+            200,
+          );
+        }),
+        deviceId: () async => 'aparelho-1',
+      );
+      addTearDown(repository.dispose);
+
+      final answer = await repository.restartTheSceneTranslation(
+        'sessao-1',
+        'ensaio-da-cena-1',
+        attempt: 'c3d1a1f0-5b7e-4c1a-9a43-0d6e3f2b8a11',
+        closes: '1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b',
+      );
+
+      expect(seen.method, 'POST');
+      expect(
+        seen.url.path,
+        '/api/internalization-room/sessions/sessao-1/scene-rehearsals/'
+        'ensaio-da-cena-1/restart',
+      );
+      expect(seen.bodyFields, {
+        'attempt': 'c3d1a1f0-5b7e-4c1a-9a43-0d6e3f2b8a11',
+        'closes': '1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b',
+      });
+      expect(
+        (answer as Answered<SceneRehearsalRecord>).value.afterRestart,
+        'c3d1a1f0-5b7e-4c1a-9a43-0d6e3f2b8a11',
+      );
+    });
+
+    test('the two 409 codes come back as refusals naming them', () async {
+      for (final code in [
+        RefusalCode.sceneRehearsalSent,
+        RefusalCode.restartOutOfOrder,
+      ]) {
+        final repository = RoomRepository(
+          client: MockClient(
+            (_) async => http.Response(
+              jsonEncode({'code': code, 'detail': 'recusado'}),
+              409,
+            ),
+          ),
+          deviceId: () async => 'aparelho-1',
+        );
+        addTearDown(repository.dispose);
+
+        final answer = await repository.restartTheSceneTranslation(
+          'sessao-1',
+          'ensaio-da-cena-1',
+          attempt: 'c3d1a1f0-5b7e-4c1a-9a43-0d6e3f2b8a11',
+        );
+
+        expect(answer, isA<Refused>().having((r) => r.code, 'code', code));
+      }
+    });
+  });
 
   group('the audio part of each door', () {
     late http.Request sent;

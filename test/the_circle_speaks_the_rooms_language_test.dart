@@ -16,6 +16,7 @@ void main() {
       'circleLabels': circleLabels,
       'retroLabels': retroLabels,
       'rehearsalLabels': rehearsalLabels,
+      'sceneRehearsalLabels': sceneRehearsalLabels,
       'findingLabels': findingLabels,
       'panoramaCircleLabels': {'circle': panoramaCircleLabels},
       'escolhaLabels': escolhaLabels,

@@ -101,9 +101,19 @@ class RecordingRepository {
   Future<String> keepBytes(Uint8List bytes, String fileName) async {
     final dir = await _recordingsDir();
     final extension = _isWav(bytes) ? 'wav' : 'm4a';
-    final target = File(p.join(dir.path, '$fileName.$extension'));
-    await target.writeAsBytes(bytes);
-    return target.path;
+    final target = p.join(dir.path, '$fileName.$extension');
+    final whole = await File('$target.part').writeAsBytes(bytes, flush: true);
+    return (await whole.rename(target)).path;
+  }
+
+  /// Where audio kept under [fileName] already is on this tablet, or null when it is not.
+  Future<String?> heldAs(String fileName) async {
+    final dir = await _recordingsDir();
+    for (final extension in ['wav', 'm4a']) {
+      final file = File(p.join(dir.path, '$fileName.$extension'));
+      if (await file.exists() && await file.length() > 0) return file.path;
+    }
+    return null;
   }
 
   Future<String> keepAs(String path, String fileName) async {

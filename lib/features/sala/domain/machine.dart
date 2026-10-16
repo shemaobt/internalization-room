@@ -2,6 +2,7 @@ import 'channel.dart';
 import 'cut_point.dart';
 import 'halt.dart';
 import 'room_reach.dart';
+import 'scene_rehearsal.dart';
 import 'session_snapshot.dart';
 import 'station.dart';
 import 'turn_result.dart';
@@ -77,6 +78,7 @@ enum Door {
   question,
   step,
   verdict,
+  sceneRehearsal,
 }
 
 enum PartFact { sent, pending, stranded }
@@ -277,6 +279,14 @@ final class ThePanoramaChosen extends StationEvent {
   const ThePanoramaChosen();
 }
 
+final class TheSceneRehearsalOpened extends StationEvent {
+  const TheSceneRehearsalOpened();
+}
+
+final class TheSceneRehearsalLeft extends StationEvent {
+  const TheSceneRehearsalLeft();
+}
+
 final class TheLanguageChosen extends MachineEvent {
   const TheLanguageChosen();
 }
@@ -373,6 +383,21 @@ final class TheRefusalPassed extends AnsweringEvent {
 
 final class TheHandFailed extends AnsweringEvent {
   const TheHandFailed({super.generation});
+}
+
+/// The scene rehearsals the room listed when they were read again.
+final class TheSceneRehearsalsListed extends AnsweringEvent {
+  final List<SceneRehearsalRecord> listed;
+
+  const TheSceneRehearsalsListed(this.listed, {super.generation});
+}
+
+/// A scene door failed; [readAgain] when the room's refusal says the rehearsal moved on
+/// without this tablet: sent to the voice, or restarted by an answer it never heard.
+final class TheSceneDoorFailed extends AnsweringEvent {
+  final bool readAgain;
+
+  const TheSceneDoorFailed({this.readAgain = false, super.generation});
 }
 
 final class TheCallWasRefused extends AnsweringEvent {
@@ -658,6 +683,16 @@ final class RefuseThePassage extends Effect {
   const RefuseThePassage();
 }
 
+final class ReadTheSceneRehearsals extends Effect {
+  const ReadTheSceneRehearsals();
+}
+
+final class ShowTheSceneRehearsals extends Effect {
+  final List<SceneRehearsalRecord> listed;
+
+  const ShowTheSceneRehearsals(this.listed);
+}
+
 /// How a line ended: said whole, failed, not said, or cut by the team, which counts as
 /// heard.
 enum Said {
@@ -915,6 +950,13 @@ const _watch = ArmTheWatch();
   ),
   TheRefusalPassed() => (machine, const []),
   TheHandFailed() => (machine, const []),
+  TheSceneDoorFailed(readAgain: true) when machine.station is SceneRehearsal =>
+    (machine, const [ReadTheSceneRehearsals()]),
+  TheSceneDoorFailed() => (machine, const []),
+  TheSceneRehearsalsListed(:final listed)
+      when machine.station is SceneRehearsal =>
+    (machine, [ShowTheSceneRehearsals(listed)]),
+  TheSceneRehearsalsListed() => (machine, const []),
   TheCallWasRefused() => (machine, const [AskForAPersonAgain()]),
   LookEmpty(sounding: TheOpening()) ||
   TheOpeningMissed() => (machine, const [LetTheOpeningGo()]),
@@ -1606,6 +1648,8 @@ Machine _answered(Machine machine) =>
   TurnFailed() ||
   TheRefusalPassed() ||
   TheHandFailed() ||
+  TheSceneDoorFailed() ||
+  TheSceneRehearsalsListed() ||
   TheCallWasRefused() ||
   TheCallMetAClosedPassage() ||
   StationEvent() ||
