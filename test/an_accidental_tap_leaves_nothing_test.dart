@@ -155,6 +155,29 @@ void main() {
     },
   );
 
+  test(
+    'a WAV whose data size was never patched is measured by its length',
+    () async {
+      final room = await atRest();
+      final unpatched = _wavOf(16000);
+      ByteData.sublistView(unpatched).setUint32(40, 0, Endian.little);
+
+      await _recordTheScene(room, unpatched);
+      await waitFor(
+        'o ensaio ser guardado',
+        () => room.asked('keepSceneRehearsal') > 0,
+      );
+
+      expect(
+        room.harness.recorder.deleted,
+        isEmpty,
+        reason:
+            'um cabeçalho escrito e nunca corrigido diz zero bytes de áudio, e '
+            'apagar a tomada como toque perdia a fala da equipe',
+      );
+    },
+  );
+
   group('a compressed scene take under 800 bytes is an accidental tap, and one '
       'of 800 bytes is kept', () {
     test('799 bytes are dropped', () async {

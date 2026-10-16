@@ -19,8 +19,9 @@ bool isAnAccidentalTap({
     return _shorterThanATake(length - _roomWavHeader, _roomWavBytesPerSecond);
   }
   if (data.channels < 1 || data.rate <= 0 || data.bits < 8) return true;
+  final unfinished = data.size == 0 || data.size == 0xFFFFFFFF;
   return _shorterThanATake(
-    min(data.size, length - data.offset),
+    unfinished ? length - data.offset : min(data.size, length - data.offset),
     data.rate * data.channels * (data.bits ~/ 8),
   );
 }

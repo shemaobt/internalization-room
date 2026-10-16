@@ -8,9 +8,9 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/env.dart';
+import '../domain/accidental_tap.dart';
 import '../domain/approval_answer.dart';
 import '../domain/bt_finding.dart';
-import '../domain/accidental_tap.dart';
 import '../domain/capture_guard.dart';
 import '../domain/channel.dart';
 import '../domain/escuta_das_partes.dart';
