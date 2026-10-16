@@ -3315,7 +3315,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int generation,
   ) async {
     final name = 'cena-${rehearsal.rehearsalId}';
-    final held = await _recorder.heldAs(name);
+    final held = await _heldOnTheTablet(name);
     if (held != null || _abandoned(generation)) return held;
     final clip = await _room.fetchClip(
       RoomRepository.sceneRehearsalAudioUrl(
@@ -3336,6 +3336,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case final RoomFailure failure:
         _decideAt(failure, door: Door.sceneRehearsal);
         return null;
+    }
+  }
+
+  Future<String?> _heldOnTheTablet(String name) async {
+    try {
+      return await _recorder.heldAs(name);
+    } on FileSystemException {
+      return null;
     }
   }
 
@@ -3384,12 +3392,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     } on FileSystemException {
       return;
     }
-    if (_abandoned(generation)) return;
     switch (kept) {
       case Answered(:final value):
-        await _showTheRehearsal(value, keeping, generation, take: path);
+        final named = await _underTheRehearsalsName(path, value);
+        if (_abandoned(generation)) return;
+        await _showTheRehearsal(value, keeping, generation, take: named);
       case final RoomFailure failure:
-        _decideAt(failure, door: Door.sceneRehearsal);
+        if (!_abandoned(generation)) {
+          _decideAt(failure, door: Door.sceneRehearsal);
+        }
+    }
+  }
+
+  Future<String> _underTheRehearsalsName(
+    String path,
+    SceneRehearsalRecord rehearsal,
+  ) async {
+    try {
+      return await _recorder.keepAs(path, 'cena-${rehearsal.rehearsalId}');
+    } on FileSystemException {
+      return path;
     }
   }
 

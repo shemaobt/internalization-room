@@ -442,6 +442,27 @@ void main() {
   );
 
   test(
+    'a disk that cannot be read for the held take falls back to the download',
+    () async {
+      final room = await _atRest();
+      room.harness.recorder.heldAsFails = true;
+      room.harness.room.sceneRehearsals.add(
+        _rehearsal(frases: [_frase('f1', 0, 4000)]),
+      );
+
+      room.sala.openTheSceneRehearsal();
+      await _translateOpens(room);
+
+      expect(
+        room.harness.room.clipsFetched.where(
+          (url) => url.contains('/scene-rehearsals/'),
+        ),
+        hasLength(1),
+      );
+    },
+  );
+
+  test(
     'an unsent scene rehearsal listed while the team already records never opens over the microphone',
     () async {
       final room = await _atRest();
@@ -890,6 +911,19 @@ void main() {
         ),
         isEmpty,
         reason: 'o take gravado neste tablet não é baixado de novo',
+      );
+
+      room.sala.leaveTheSceneRehearsal();
+      await settle();
+      room.sala.openTheSceneRehearsal();
+      await _translateOpens(room);
+
+      expect(
+        room.harness.room.clipsFetched.where(
+          (url) => url.contains('/scene-rehearsals/'),
+        ),
+        isEmpty,
+        reason: 'reaberto, o take da própria equipe também não é baixado',
       );
     },
   );

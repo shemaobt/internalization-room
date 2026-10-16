@@ -48,6 +48,41 @@ class RecorderSpy extends RecordPlatform {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+final class _Plain extends IOOverrides {}
+
+/// A file whose write dies halfway, the way it does when the app is killed mid-write.
+class _DiesHalfway implements File {
+  final File _real;
+
+  _DiesHalfway(String path)
+    : _real = IOOverrides.runWithIOOverrides(() => File(path), _Plain());
+
+  @override
+  String get path => _real.path;
+
+  @override
+  Future<File> writeAsBytes(
+    List<int> bytes, {
+    FileMode mode = FileMode.write,
+    bool flush = false,
+  }) async {
+    await _real.writeAsBytes(bytes.sublist(0, bytes.length ~/ 2), flush: true);
+    throw const FileSystemException('o app morreu no meio da escrita');
+  }
+
+  @override
+  Future<bool> exists() => _real.exists();
+
+  @override
+  Future<int> length() => _real.length();
+
+  @override
+  Future<File> rename(String newPath) => _real.rename(newPath);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -390,6 +425,27 @@ void main() {
           'a pausa que a ligação provoca é o único aviso que sai do '
           'gravador; sem lê-lo a sala seguia desenhando uma captura parada, e '
           'o fim da tomada não pode ser lido como microfone tomado',
+    );
+  });
+
+  test('audio whose write dies halfway is never held as kept', () async {
+    final recording = RecordingRepository();
+    addTearDown(recording.dispose);
+    final bytes = Uint8List.fromList(List.filled(64, 7));
+
+    await IOOverrides.runZoned(() async {
+      await expectLater(
+        recording.keepBytes(bytes, 'cena-1'),
+        throwsA(isA<FileSystemException>()),
+      );
+    }, createFile: _DiesHalfway.new);
+
+    expect(
+      await recording.heldAs('cena-1'),
+      isNull,
+      reason:
+          'um take pela metade sob o nome final seria confiado por toda '
+          'reabertura, e o ensaio ficaria preso sem lugar para as frases',
     );
   });
 }

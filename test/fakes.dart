@@ -384,14 +384,19 @@ class FakeRecorder implements RecordingRepository {
     return file.path;
   }
 
+  /// Whether looking for audio already on the tablet fails, the way a disk does.
+  bool heldAsFails = false;
+
   @override
   Future<String?> heldAs(String fileName) async {
+    if (heldAsFails) throw const FileSystemException('o disco falhou');
     final file = File('${home.path}/$fileName.m4a');
     return file.existsSync() && file.lengthSync() > 0 ? file.path : null;
   }
 
   @override
-  Future<String> keepAs(String path, String fileName) async => path;
+  Future<String> keepAs(String path, String fileName) async =>
+      File(path).renameSync('${home.path}/$fileName.m4a').path;
 
   @override
   Future<void> dispose() async => _interruptions.close();
