@@ -102,7 +102,7 @@ What the room hears or sounds at one moment: silence, an open microphone and who
 _Avoid_: audio state, voice (the Circle's colour), player
 
 **Microphone owner**:
-Whose open microphone the Channel holds: the conversation, the rehearsal, the capture or the question. The circle's words follow it.
+Whose open microphone the Channel holds: the conversation's, the rehearsal's, the capture's, the question's or the scene rehearsal's. The circle's words follow it.
 _Avoid_: listening (the circle's voice, not the fact), recording flag
 
 **Microphone answer**:
@@ -256,7 +256,12 @@ _Avoid_: part (a piece of the rehearsal recording), opening line (the former mea
 
 **Scene rehearsal** (`ensaio da cena`):
 One recording of a scene in the mother tongue made on the red microphone, translated frase by frase and sent to the voice with «terminei»; numbered per session, never replaced, frozen once sent and always listenable.
+Its screen is a Station of its own (`cena`), reached by the red microphone and left by «Voltar para a passagem atual».
 _Avoid_: rehearsal (the station, and the whole passage's recording), take (what holds it), practice, ensaio in prose
+
+**Red microphone**:
+The round red control beside the orange dot that opens the Scene rehearsal's screen, shown only while the Conversation rests and no raised-hand note or person call stands.
+_Avoid_: record entry, green check, orange dot
 
 **Opened**:
 A session that holds a Guide line, its Opening at least. The room asks a session's Opening only while it is not opened.

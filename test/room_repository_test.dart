@@ -16,6 +16,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/coverage_event.dart';
 import 'package:internalization_room/features/sala/domain/escuta_das_partes.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 
@@ -1318,6 +1319,8 @@ void main() {
           turnId: 'turno-1',
         ),
         'takesOf': (room) => room.takesOf('sessao-1'),
+        'keepSceneRehearsal': (room) async =>
+            room.keepSceneRehearsal('sessao-1', await _tempRecording()),
         'askForAPerson': (room) => room.askForAPerson('sessao-1'),
         'personArrived': (room) => room.personArrived('sessao-1'),
         'approveRelease': (room) => room.approveRelease('sessao-1'),
@@ -1636,6 +1639,59 @@ void main() {
       }
     },
   );
+
+  group('the scene rehearsal doors', () {
+    Map<String, Object?> record({
+      String? sentAt,
+      String? afterRestart,
+      List<Map<String, Object?>> frases = const [],
+    }) => {
+      'rehearsal_id': 'ensaio-da-cena-1',
+      'session_id': 'sessao-1',
+      'pericope': 'P01',
+      'n': 1,
+      'scene': null,
+      'scene_said': null,
+      'duration_ms': 20000,
+      'content_type': 'audio/mp4',
+      'verified': true,
+      'recorded_at': '2026-10-14T09:00:00+00:00',
+      'sent_at': sentAt,
+      'after_restart': afterRestart,
+      'frases': frases,
+    };
+
+    test(
+      'the keep sends the take as this tablet and reads the record back',
+      () async {
+        late http.BaseRequest seen;
+        final repository = RoomRepository(
+          client: MockClient((request) async {
+            seen = request;
+            return http.Response(jsonEncode(record()), 200);
+          }),
+          deviceId: () async => 'aparelho-1',
+        );
+        addTearDown(repository.dispose);
+
+        final answer = await repository.keepSceneRehearsal(
+          'sessao-1',
+          await _tempRecording(),
+        );
+
+        expect(seen.method, 'POST');
+        expect(
+          seen.url.path,
+          '/api/internalization-room/sessions/sessao-1/scene-rehearsals',
+        );
+        expect(seen.headers['X-Room-Device'], 'aparelho-1');
+        expect(
+          (answer as Answered<SceneRehearsalRecord>).value.rehearsalId,
+          'ensaio-da-cena-1',
+        );
+      },
+    );
+  });
 
   group('the audio part of each door', () {
     late http.Request sent;

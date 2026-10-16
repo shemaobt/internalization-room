@@ -23,6 +23,7 @@ import '../domain/coverage.dart';
 import '../domain/coverage_event.dart';
 import '../domain/cut_point.dart';
 import '../domain/room_reach.dart';
+import '../domain/scene_rehearsal.dart';
 import '../domain/session_snapshot.dart';
 import '../domain/halt.dart';
 import '../domain/machine.dart';
@@ -962,6 +963,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       machine: machine,
       reach: !before.reachable && machine.reachable ? RoomReach.fine : null,
+      scene:
+          before.station is SceneRehearsal && machine.station is! SceneRehearsal
+          ? const SceneScreen()
+          : null,
     );
     _runner.run(effects, micWasOpen: before.channel is Microphone);
     _followTheSound(before, machine);
@@ -1016,7 +1021,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final advanced =
         state.station is! Panorama &&
         _applyCoverage(snapshot.coverage, clock: clock);
-    if (!state.needsPerson && snapshot.done && state.station is Canvas) {
+    if (!state.needsPerson &&
+        snapshot.done &&
+        (state.station is Canvas || state.sceneRehearsalIsOpen)) {
       state = state.copyWith(endOfThePassage: true);
     }
     return advanced;
@@ -3236,6 +3243,114 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ensaio: EnsaioStatus.idle,
       peerCue: false,
     );
+  }
+
+  void openTheSceneRehearsal() => _gesture(() => _openTheSceneRehearsal());
+
+  void _openTheSceneRehearsal() {
+    if (state.sessionId == null ||
+        state.station is! Canvas ||
+        state.machine.inFlight != null ||
+        state.awaitingTheGuide) {
+      return;
+    }
+    _silenceTheRoom();
+    _cancelQuestion();
+    _arriveAt(const TheSceneRehearsalOpened());
+    state = state.copyWith(scene: const SceneScreen());
+  }
+
+  void sceneTap() => _gesture(() => _sceneTap());
+
+  void _sceneTap() {
+    if (state.station is! SceneRehearsal ||
+        state.scene.step != SceneStep.record ||
+        state.scene.keeping) {
+      return;
+    }
+    switch (state.channel) {
+      case Microphone(owner: MicOwner.scene):
+        _handOff(_keepTheSceneTake());
+      case Microphone():
+        return;
+      default:
+        _startListening('cena_${_stamp()}', owner: MicOwner.scene);
+    }
+  }
+
+  Future<void> _keepTheSceneTake() async {
+    final generation = _waitOnTheGeneration;
+    const keeping = SceneScreen(keeping: true);
+    state = state.copyWith(scene: keeping);
+    final sessionId = state.sessionId;
+    final path = (await _closeTheMicrophone()).take;
+    if (_abandoned(generation)) return;
+    if (sessionId != null && path != null && _hasAudio(path)) {
+      await _keepAt(sessionId, path, keeping, generation);
+    }
+    if (identical(state.scene, keeping)) {
+      state = state.copyWith(scene: const SceneScreen());
+    }
+  }
+
+  Future<void> _keepAt(
+    String sessionId,
+    String path,
+    SceneScreen keeping,
+    int generation,
+  ) async {
+    final RoomAnswer<SceneRehearsalRecord> kept;
+    try {
+      kept = await _room.keepSceneRehearsal(sessionId, File(path));
+    } on FileSystemException {
+      return;
+    }
+    if (_abandoned(generation)) return;
+    switch (kept) {
+      case Answered(:final value):
+        state = state.copyWith(
+          scene: SceneScreen(
+            step: SceneStep.translate,
+            rehearsal: value,
+            take: path,
+          ),
+        );
+      case final RoomFailure failure:
+        _decideAt(failure, door: Door.sceneRehearsal);
+    }
+  }
+
+  void playTheSceneRehearsal() => _gesture(() => _playTheSceneRehearsal());
+
+  void _playTheSceneRehearsal() {
+    final SceneScreen(:step, :take, :rehearsal) = state.scene;
+    if (state.station is! SceneRehearsal ||
+        step != SceneStep.translate ||
+        take == null ||
+        rehearsal == null) {
+      return;
+    }
+    final playing = state.channel is PartPlaying;
+    _silenceTheRoom();
+    if (playing) return;
+    _play(PartSound(0, take, from: rehearsal.frontier));
+  }
+
+  void recordTheSceneAgain() => _gesture(() => _recordTheSceneAgain());
+
+  void _recordTheSceneAgain() {
+    if (state.station is! SceneRehearsal) return;
+    _silenceTheRoom();
+    state = state.copyWith(scene: const SceneScreen());
+  }
+
+  void leaveTheSceneRehearsal() => _gesture(() => _leaveTheSceneRehearsal());
+
+  void _leaveTheSceneRehearsal() {
+    if (state.station is! SceneRehearsal) return;
+    _silenceTheRoom();
+    _dispatch(const MicDiscarded());
+    _arriveAt(const TheSceneRehearsalLeft());
   }
 
   void playTheRehearsal() => _gesture(() => _playTheRehearsal());

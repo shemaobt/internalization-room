@@ -23,6 +23,7 @@ const _rotulosDeTraduzir = {
   'Não entendi — traduzam de novo esse pedaço',
   'a pausa ficou aqui — ouçam, ajustem se precisar e toquem no círculo para traduzir',
   'a pausa ficou no toque — toquem no círculo para traduzir',
+  'traduzir o ensaio da cena',
 };
 
 final _literalPattern = RegExp(r"'([^'\\]|\\.)*'");

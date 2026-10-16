@@ -23,7 +23,9 @@ class BackToPassageButton extends ConsumerWidget {
           button: true,
           label: roomLabelFor('backToPassage', ref.watch(roomLanguageProvider)),
           child: GestureDetector(
-            onTap: ref.read(salaSessionProvider.notifier).returnToTheLeftEntry,
+            onTap: session.sceneRehearsalIsOpen
+                ? ref.read(salaSessionProvider.notifier).leaveTheSceneRehearsal
+                : ref.read(salaSessionProvider.notifier).returnToTheLeftEntry,
             behavior: HitTestBehavior.opaque,
             child: SizedBox(
               width: 46,

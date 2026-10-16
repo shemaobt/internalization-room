@@ -77,6 +77,7 @@ enum Door {
   question,
   step,
   verdict,
+  sceneRehearsal,
 }
 
 enum PartFact { sent, pending, stranded }
@@ -277,6 +278,14 @@ final class ThePanoramaChosen extends StationEvent {
   const ThePanoramaChosen();
 }
 
+final class TheSceneRehearsalOpened extends StationEvent {
+  const TheSceneRehearsalOpened();
+}
+
+final class TheSceneRehearsalLeft extends StationEvent {
+  const TheSceneRehearsalLeft();
+}
+
 final class TheLanguageChosen extends MachineEvent {
   const TheLanguageChosen();
 }
@@ -373,6 +382,11 @@ final class TheRefusalPassed extends AnsweringEvent {
 
 final class TheHandFailed extends AnsweringEvent {
   const TheHandFailed({super.generation});
+}
+
+/// A scene door was refused for a reason of its own.
+final class TheSceneDoorFailed extends AnsweringEvent {
+  const TheSceneDoorFailed({super.generation});
 }
 
 final class TheCallWasRefused extends AnsweringEvent {
@@ -915,6 +929,7 @@ const _watch = ArmTheWatch();
   ),
   TheRefusalPassed() => (machine, const []),
   TheHandFailed() => (machine, const []),
+  TheSceneDoorFailed() => (machine, const []),
   TheCallWasRefused() => (machine, const [AskForAPersonAgain()]),
   LookEmpty(sounding: TheOpening()) ||
   TheOpeningMissed() => (machine, const [LetTheOpeningGo()]),
@@ -1606,6 +1621,7 @@ Machine _answered(Machine machine) =>
   TurnFailed() ||
   TheRefusalPassed() ||
   TheHandFailed() ||
+  TheSceneDoorFailed() ||
   TheCallWasRefused() ||
   TheCallMetAClosedPassage() ||
   StationEvent() ||

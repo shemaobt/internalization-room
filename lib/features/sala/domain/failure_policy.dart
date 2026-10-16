@@ -132,6 +132,8 @@ abstract final class FailurePolicy {
       ),
       RoomRefused(:final code) when RefusalCode.stopsTheRoom.contains(code) =>
         halt,
+      RoomRefused() when context.door == Door.sceneRehearsal =>
+        TheSceneDoorFailed(generation: generation),
       RoomRefused() when rule == RefusalRule.passesUnlessItStops => passed,
       RoomRefused(code: RefusalCode.passageCannotOpen) => ThePassageCannotOpen(
         generation: generation,
