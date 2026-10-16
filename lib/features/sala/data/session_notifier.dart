@@ -56,6 +56,10 @@ final roomPollDelayProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 30),
 );
 
+final roomInboxWatchProvider = Provider<Duration>(
+  (ref) => const Duration(seconds: 15),
+);
+
 final watchesWithoutAHaltProvider = Provider<bool>((ref) => true);
 
 final coverageFallbackDelayProvider = Provider<Duration>(
@@ -1731,9 +1735,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (state.needsPerson) return;
-    if (state.playingReplyId != null && state.channel is! Microphone) {
-      return;
-    }
     if (state.noteMode) {
       _noteTap();
       return;
@@ -1754,6 +1755,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (state.voice == VoiceState.invite) {
+      _silenceTheRoom();
       _handOff(_entrarNoPanorama(_panoramaLanguage));
     }
   }
@@ -2800,9 +2802,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (!state.awaitingTheGuide) _handOff(_enterAgain(_emCurso)());
       return;
     }
-    if (state.playingReplyId != null && state.channel is! Microphone) {
-      return;
-    }
     if (state.noteMode) {
       _noteTap();
       return;
@@ -2995,7 +2994,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  Future<void> _pullInbox() async {
+  Future<void> _pullInbox() =>
+      _inboxRead ??= _readTheInbox().whenComplete(() => _inboxRead = null);
+
+  Future<void> _readTheInbox() async {
     final List<HandReply> fetched;
     switch (await _inbox.fetchReplies()) {
       case Answered(:final value):
@@ -3029,11 +3031,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return true;
   }
 
+  Future<void>? _inboxRead;
+
+  void lookForReplies() => unawaited(_pullInbox());
+
   void handTap() => _gesture(() => _handTap());
 
   void _handTap() {
     if (!state.atTheTeamsIdleTurn) return;
-    if (state.playingReplyId != null) return;
+    if (state.playingReplyId != null) _silenceTheRoom();
     final unheard = state.oldestUnheardReply;
     if (unheard != null) {
       state = state.copyWith(playingReplyId: unheard.id);
@@ -3088,7 +3094,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ///
   /// The playing mark is given back on every way out. `_markHeard` is what clears it when
   /// the reply sounded; a reply that did not, or that outlived its generation, clears it
-  /// here, or the hand and the circle return early on it for good.
+  /// here, or the hand stays lit on it for good. A reply stopped by the hand to be played
+  /// again leaves the mark, and the heard mark, to the play that took its place, whatever
+  /// the player reports of the stopped one.
   Future<void> _playReply(HandReply reply) async {
     Said said;
     try {
@@ -3105,7 +3113,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     } on Exception {
       said = Said.failed;
     }
-    if (_gone) return;
+    if (_gone || _aReplySounds) return;
     final current =
         said != Said.unsaid &&
         !state.replies.any(
@@ -3123,6 +3131,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       unawaited(_pullInbox());
     }
   }
+
+  bool get _aReplySounds => switch (state.channel) {
+    GuideSpeaking(line: Line(kind: LineKind.reply)) => true,
+    _ => false,
+  };
 
   List<HandReply> _unsounded(HandReply reply) => [
     for (final kept in state.replies)
