@@ -7,7 +7,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
-import '../../domain/channel.dart';
 import '../../domain/moment.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
@@ -157,13 +156,7 @@ class ConversaView extends ConsumerWidget {
 
   bool _dotIsLit(SalaSessionState session) =>
       (session.endOfThePassage || session.moment?.at == MomentAt.ensaioFinal) &&
-      !(session.wayOutIsHidden ||
-          (session.voice == VoiceState.listening && !_theKnotRecords(session)));
-
-  bool _theKnotRecords(SalaSessionState session) => switch (session.channel) {
-    Microphone(owner: MicOwner.question) => true,
-    _ => false,
-  };
+      !session.wayOutIsHidden;
 
   String _circleLabel(SalaSessionState session, String language) {
     if (session.needsPerson) return circleLabelFor('needsPerson', language);
