@@ -243,4 +243,106 @@ void main() {
       expect(read().channel, isNot(isA<Microphone>()));
     });
   });
+
+  test(
+    'an older start is discarded when the newest failed before it answered',
+    () async {
+      final harness = SalaHarness();
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+
+      notifier.goEnsaio();
+      harness.recorder.holdNextStart();
+      notifier.ensaioTap();
+      await settle();
+      notifier.ensaioTap();
+      await waitFor(
+        'a primeira tomada voltar',
+        () => read().ensaio == EnsaioStatus.recorded,
+      );
+      harness.recorder.startThrows = true;
+      notifier.ensaioTap();
+      await settle();
+      harness.recorder.startThrows = false;
+      final soundsBefore = harness.sounds.length;
+
+      harness.recorder.finishStart();
+      await settle();
+
+      expect(
+        harness.sounds.skip(soundsBefore),
+        contains('recorder:discard'),
+        reason: 'a abertura velha seria a única gravando, sem ninguém no canal',
+      );
+    },
+  );
+
+  test('an older start of the passage before is discarded when the newest '
+      'never started', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    notifier.goEnsaio();
+    harness.recorder.holdNextStart();
+    notifier.ensaioTap();
+    await settle();
+    await notifier.goConversa(pericope: 'P02');
+    await waitFor('P02 abrir', () => read().voice == VoiceState.invite);
+    notifier.goEnsaio();
+    harness.recorder.startThrows = true;
+    notifier.ensaioTap();
+    await settle();
+    harness.recorder.startThrows = false;
+    final soundsBefore = harness.sounds.length;
+
+    harness.recorder.finishStart();
+    await settle();
+
+    expect(
+      harness.sounds.skip(soundsBefore),
+      contains('recorder:discard'),
+      reason:
+          'a abertura da passagem de antes gravava a sala sem canal quando a '
+          'nova não abriu',
+    );
+    expect(read().channel, isNot(isA<Microphone>()));
+  });
+
+  test('an older start is discarded when the newest fails after the passage '
+      'changed', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    notifier.goEnsaio();
+    harness.recorder.holdNextStart();
+    notifier.ensaioTap();
+    await settle();
+    notifier.ensaioTap();
+    await waitFor(
+      'a primeira tomada voltar',
+      () => read().ensaio == EnsaioStatus.recorded,
+    );
+    harness.recorder.holdNextStart();
+    notifier.ensaioTap();
+    await settle();
+    await notifier.goConversa(pericope: 'P02');
+    await waitFor('P02 abrir', () => read().voice == VoiceState.invite);
+    harness.recorder.finishStart();
+    await settle();
+    final soundsBefore = harness.sounds.length;
+
+    harness.recorder.startThrows = true;
+    harness.recorder.finishStart();
+    await settle();
+
+    expect(harness.sounds.skip(soundsBefore), contains('recorder:discard'));
+  });
 }

@@ -76,7 +76,7 @@ class RecordingRepository {
       // A full disk, an unwritable directory, another app holding the microphone. This
       // used to escape as an unhandled async error while the screen already showed the
       // room listening, and the team spoke into a recorder that was never running.
-      await restoreTheSampleRate();
+      await _giveTheRateBack();
       return Capture.failed;
     }
   }
@@ -92,10 +92,13 @@ class RecordingRepository {
     try {
       return await _recorder.stop();
     } finally {
-      if (!await _recorder.isRecording().catchError((Object _) => false)) {
-        await restoreTheSampleRate();
-      }
+      await _giveTheRateBack();
     }
+  }
+
+  Future<void> _giveTheRateBack() async {
+    if (await _recorder.isRecording().catchError((Object _) => false)) return;
+    await restoreTheSampleRate();
   }
 
   Future<void> discard() async {

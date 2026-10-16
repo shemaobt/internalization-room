@@ -632,6 +632,24 @@ void main() {
       expectTheRateGivenBack();
     });
 
+    test(
+      'a failed start never gives the rate back over a recording that started '
+      'meanwhile',
+      () async {
+        await configureRoomAudio();
+        final recording = RecordingRepository();
+        addTearDown(recording.dispose);
+        microphone
+          ..refusesToOpen = true
+          ..recordingAgain = true;
+        heard.clear();
+
+        await recording.start('tomada', owner: MicOwner.rehearsal);
+
+        expect(heard, isEmpty);
+      },
+    );
+
     test('a discarded recording gives the rate back too', () async {
       await recordAndThen((recording) => recording.discard());
 

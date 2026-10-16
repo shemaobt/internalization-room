@@ -485,27 +485,27 @@ class EffectRunner {
     if (_disposed) return;
     final started = answer == MicAnswer.started;
     final now = generation?.call();
-    if (stamp != now) {
-      if (start == _starts && started) {
-        unawaited(recorder.discard());
-        host.answer(MicAnswered(MicAnswer.abandoned, generation: now));
-      } else if (start == _starts) {
-        host.answer(MicClosed(generation: now));
-      }
-    } else if (start != _starts) {
+    if (start != _starts) {
       if (started && _newestStarted == false) {
         unawaited(recorder.discard());
       } else if (started) {
         _anOlderStartRuns = true;
       }
       return;
-    } else {
-      _newestStarted = started;
-      if ((started && !host.keepsTheStart(owner)) ||
-          (!started && _anOlderStartRuns)) {
-        unawaited(recorder.discard());
-      }
-      _anOlderStartRuns = false;
+    }
+    _newestStarted = started;
+    final anOlderStartRuns = _anOlderStartRuns;
+    _anOlderStartRuns = false;
+    if (stamp != now) {
+      if (started || anOlderStartRuns) unawaited(recorder.discard());
+      host.answer(
+        started
+            ? MicAnswered(MicAnswer.abandoned, generation: now)
+            : MicClosed(generation: now),
+      );
+    } else if ((started && !host.keepsTheStart(owner)) ||
+        (!started && anOlderStartRuns)) {
+      unawaited(recorder.discard());
     }
     host.answer(MicAnswered(answer, generation: stamp));
   }
