@@ -373,6 +373,367 @@ void main() {
     );
   });
 
+  group('the sleep', () {
+    testWidgets(
+      'case 9: a tap on the question within 600 ms of its appearing picks '
+      'nothing',
+      (tester) async {
+        final room = await _theScreenOpens(tester);
+
+        await room.pump(const Duration(milliseconds: 300));
+        await room.pick(_scene2);
+
+        expect(byLabel(_question), findsOneWidget);
+        expect(_shows(_chip2), isFalse);
+
+        await room.pump(const Duration(milliseconds: 300));
+        await room.pick(_scene2);
+
+        expect(_shows(_question), isFalse);
+        expect(byLabel(_chip2), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'case 10: a double tap on the question picks the scene and does not open '
+      'the microphone',
+      (tester) async {
+        final room = await _theScreenOpens(tester);
+        await room.sleepThrough();
+        final sounds = room.harness.sounds.length;
+
+        await room.pick(_scene2);
+        await room.pump(const Duration(milliseconds: 100));
+        await tester.tap(byLabel(_record));
+        await room.pump(const Duration(milliseconds: 100));
+
+        expect(room.state.channel, isNot(isA<Microphone>()));
+        expect(
+          room.harness.sounds.skip(sounds),
+          isNot(contains('recorder:start')),
+        );
+        expect(byLabel(_chip2), findsOneWidget);
+
+        await room.pump(const Duration(milliseconds: 400));
+        await tester.tap(byLabel(_record));
+        await room.pumpUntil(
+          'o microfone da cena abrir',
+          () => room.state.channel is Microphone,
+        );
+      },
+    );
+
+    testWidgets(
+      'case 11: after the chip brings the question back, a tap within 600 ms '
+      'picks nothing',
+      (tester) async {
+        final room = await _theScreenOpens(tester);
+        await room.sleepThrough();
+        await room.pick(_scene2);
+        await room.sleepThrough();
+
+        await tester.tap(byLabel(_chip2));
+        await room.pump(const Duration(milliseconds: 300));
+        await room.pick(_scene1);
+
+        expect(byLabel(_question), findsOneWidget);
+
+        await room.pump(const Duration(milliseconds: 300));
+        await room.pick(_scene1);
+
+        expect(_shows(_question), isFalse);
+      },
+    );
+  });
+
+  group('the sleep after a microphone that never opened', () {
+    testWidgets(
+      'a question that appears when a microphone fails to open sleeps 600 ms',
+      (tester) async {
+        final room = await _theScreenOpens(
+          tester,
+          before: (harness) => harness.room.holdNextScenes(),
+          rests: false,
+        );
+        await room.pump(const Duration(seconds: 4));
+        room.harness.recorder
+          ..startThrows = true
+          ..holdNextStart();
+        room.sala.sceneTap();
+        await room.pump();
+        room.room.finishHeldScenes();
+        await room.pump(const Duration(milliseconds: 100));
+
+        room.harness.recorder.finishStart();
+        await room.pumpUntil('a pergunta aparecer', () => _shows(_question));
+        await room.pump(const Duration(milliseconds: 300));
+        await room.pick(_scene1);
+
+        expect(byLabel(_question), findsOneWidget);
+        closeTheRoom(room.container);
+      },
+    );
+  });
+
+  group('the waits and the way out', () {
+    testWidgets(
+      'case 13: with no scene list, the screen waits 4 seconds, then shows the '
+      'circle, and the team records unlabelled',
+      (tester) async {
+        final room = await _theScreenOpens(
+          tester,
+          before: (harness) => harness.room.holdNextScenes(),
+          rests: false,
+        );
+        await room.pump(const Duration(milliseconds: 3900));
+
+        expect(_shows(_question), isFalse);
+        expect(_theCircleShows(), isFalse);
+
+        await room.pump(const Duration(milliseconds: 100));
+
+        expect(byLabel(_record), findsOneWidget);
+
+        await room.recordAndStop();
+
+        expect(room.room.sceneLabels, [null]);
+        expect(
+          _labelsOnScreen(tester).where((label) => label.contains(' · cena')),
+          isEmpty,
+        );
+        room.room.finishHeldScenes();
+        closeTheRoom(room.container);
+      },
+    );
+
+    testWidgets(
+      'case 15: a missing scene list is asked again 2 s and 8 s after it was '
+      'missed, then never',
+      (tester) async {
+        final room = await _theScreenOpens(
+          tester,
+          before: (harness) => harness.room.failScenesWith = _offline,
+        );
+
+        expect(room.asked('scenesOf'), 1);
+        await room.pump(const Duration(milliseconds: 1900));
+        expect(room.asked('scenesOf'), 1);
+        await room.pump(const Duration(milliseconds: 200));
+        expect(room.asked('scenesOf'), 2);
+        await room.pump(const Duration(milliseconds: 7800));
+        expect(room.asked('scenesOf'), 2);
+        await room.pump(const Duration(milliseconds: 200));
+        expect(room.asked('scenesOf'), 3);
+        for (var second = 0; second < 60; second++) {
+          await room.pump(const Duration(seconds: 1));
+        }
+        expect(room.asked('scenesOf'), 3);
+      },
+    );
+
+    testWidgets(
+      'case 16: a scene list due again while the microphone is open is asked '
+      'only once the record step rests',
+      (tester) async {
+        final room = await _theScreenOpens(
+          tester,
+          before: (harness) => harness.room.failScenesWith = _offline,
+        );
+        room.harness.recorder.rehearsalSpeaks = _aTake(7);
+        await room.pump(const Duration(milliseconds: 700));
+        await room.theMicrophoneOpens();
+        await room.pump(const Duration(seconds: 5));
+
+        expect(room.asked('scenesOf'), 1);
+
+        room.room.failSceneWith = _offline;
+        await room.stop();
+        expect(room.state.scene.keep, isA<NotKept>());
+        final atRest = room.asked('scenesOf');
+        expect(atRest, 1);
+
+        await room.pump(const Duration(seconds: 2));
+
+        expect(room.asked('scenesOf'), 2);
+        closeTheRoom(room.container);
+      },
+    );
+
+    testWidgets(
+      'a missing scene list due again while the screen shows a rehearsal is '
+      'not asked for',
+      (tester) async {
+        final room = await _theScreenOpens(
+          tester,
+          before: (harness) => harness.room.failScenesWith = _offline,
+        );
+        await room.recordAndStop();
+        await room.pumpUntil(
+          'o ensaio abrir na tradução',
+          () => room.state.scene.step == SceneStep.translate,
+        );
+        expect(room.asked('scenesOf'), 1);
+
+        for (var second = 0; second < 30; second++) {
+          await room.pump(const Duration(seconds: 1));
+        }
+
+        expect(room.asked('scenesOf'), 1);
+        closeTheRoom(room.container);
+      },
+    );
+
+    testWidgets(
+      'case 17: «gravar o ensaio da cena de novo» asks for a missing scene '
+      'list once more, and only once',
+      (tester) async {
+        final room = await _theScreenOpens(
+          tester,
+          before: (harness) => harness.room.failScenesWith = _offline,
+        );
+        await room.pump(const Duration(seconds: 11));
+        expect(room.asked('scenesOf'), 3);
+
+        await room.again();
+        await room.pump();
+
+        expect(room.asked('scenesOf'), 4);
+        for (var second = 0; second < 60; second++) {
+          await room.pump(const Duration(seconds: 1));
+        }
+        expect(room.asked('scenesOf'), 4);
+      },
+    );
+
+    testWidgets(
+      'case 18: a scene list that arrives at 8 s leaves the recording started '
+      'at 4 s unlabelled',
+      (tester) async {
+        final room = await _theScreenOpens(
+          tester,
+          before: (harness) => harness.room.holdNextScenes(),
+          rests: false,
+        );
+        await room.pump(const Duration(seconds: 4));
+        room.harness.recorder
+          ..rehearsalSpeaks = _aTake(7)
+          ..holdNextStart();
+        room.sala.sceneTap();
+        await room.pump(const Duration(seconds: 4));
+
+        room.room.finishHeldScenes();
+        await room.pump(const Duration(milliseconds: 100));
+        room.harness.recorder.finishStart();
+        await room.pump(const Duration(milliseconds: 100));
+        await room.stop();
+
+        expect(room.room.sceneLabels, [null]);
+        closeTheRoom(room.container);
+      },
+    );
+
+    testWidgets(
+      'case 19: a scene list that arrives while the microphone is opening '
+      'never takes the circle away',
+      (tester) async {
+        final room = await _theScreenOpens(
+          tester,
+          before: (harness) => harness.room.holdNextScenes(),
+          rests: false,
+        );
+        await room.pump(const Duration(seconds: 4));
+        room.harness.recorder
+          ..rehearsalSpeaks = _aTake(7)
+          ..holdNextStart();
+        room.sala.sceneTap();
+        await room.pump();
+
+        room.room.finishHeldScenes();
+        for (var beat = 0; beat < 20; beat++) {
+          await room.pump(const Duration(milliseconds: 100));
+          expect(_theCircleShows(), isTrue, reason: 'batida $beat');
+          expect(_shows(_question), isFalse, reason: 'batida $beat');
+        }
+        room.harness.recorder.finishStart();
+        await room.pump(const Duration(milliseconds: 100));
+        expect(_theCircleShows(), isTrue);
+        expect(_shows(_question), isFalse);
+
+        room.room.failSceneWith = _offline;
+        await room.stop();
+
+        expect(
+          byLabel(_question),
+          findsOneWidget,
+          reason: 'a lista que chegou tarde é a lista quando o passo repousa',
+        );
+      },
+    );
+
+    testWidgets(
+      'case 20: a scene list that arrives while the record step rests shows '
+      'the question',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final room = await _theScreenOpens(
+          tester,
+          before: (harness) => harness.room.failScenesWith = _offline,
+        );
+        expect(byLabel(_record), findsOneWidget);
+
+        room.room.failScenesWith = null;
+        await room.pump(const Duration(seconds: 2));
+        await room.pump();
+
+        expect(byLabel(_question), findsOneWidget);
+        expect(_focused(tester, _scene1), isTrue);
+
+        await room.pump(const Duration(milliseconds: 300));
+        await room.pick(_scene1);
+
+        expect(byLabel(_question), findsOneWidget);
+        semantics.dispose();
+      },
+    );
+
+    testWidgets(
+      'case 28: every way out forgets the scene list and stops asking for it',
+      (tester) async {
+        final room = await _theScreenOpens(
+          tester,
+          before: (harness) => harness.room.failScenesWith = _offline,
+        );
+        expect(room.asked('scenesOf'), 1);
+
+        room.sala.leaveTheSceneRehearsal();
+        for (var second = 0; second < 60; second++) {
+          await room.pump(const Duration(seconds: 1));
+        }
+        expect(room.asked('scenesOf'), 1);
+
+        room.room
+          ..failScenesWith = null
+          ..holdNextScenes();
+        await room.pumpUntil(
+          'a sala voltar ao convite',
+          () =>
+              room.state.voice == VoiceState.invite &&
+              !room.state.awaitingTheGuide,
+          beat: const Duration(milliseconds: 100),
+        );
+        room.sala.openTheSceneRehearsal();
+        await room.pump(const Duration(milliseconds: 100));
+
+        expect(room.asked('scenesOf'), 2);
+        expect(room.state.stage, SalaStage.cena);
+        expect(_theScreenRests(), isFalse);
+        room.room.finishHeldScenes();
+        await room.pump(const Duration(milliseconds: 100));
+        expect(byLabel(_question), findsOneWidget);
+      },
+    );
+  });
+
   group('one scene, no list', () {
     testWidgets(
       'case 12: a passage with one scene asks nothing and labels the recording '

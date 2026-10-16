@@ -31,8 +31,7 @@ Failure policy as one event the machine answers with nothing, as the raised hand
 door, a timeout included, raises a halt does not hold for this door.
 
 **The list never stands between the team and its recording.** The open waits for it at most
-4 seconds (with the stacked change that brings the waits; until then the open waits for the
-list's answer or failure), an idle record step asks again 2 s and 8 s after a miss and then never, and «gravar o
+4 seconds, an idle record step asks again 2 s and 8 s after a miss and then never, and «gravar o
 ensaio da cena de novo» asks once more. A list that arrives late is taken, but never relabels a
 take already started and never takes the circle away while the microphone opens. A tap within
 600 ms of the question appearing, or of the pick, is ignored, so a double tap cannot pick and

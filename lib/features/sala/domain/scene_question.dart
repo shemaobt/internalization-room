@@ -17,8 +17,17 @@ final class Scene {
   ];
 }
 
-/// How long the scene list is waited for: a later list is no list.
+/// How long the scene list is waited for when the screen opens, and how long a tap on
+/// what just appeared sleeps.
 const sceneListWait = Duration(seconds: 4);
+const sceneWake = Duration(milliseconds: 600);
+
+const _sceneListRetryWaits = [Duration(seconds: 2), Duration(seconds: 8)];
+
+/// The wait before the scene list is asked again after [asked] retries; null once the
+/// retries are spent.
+Duration? sceneListRetryWait(int asked) =>
+    asked < _sceneListRetryWaits.length ? _sceneListRetryWaits[asked] : null;
 
 /// What the screen knows of the passage's scenes.
 sealed class SceneList {
