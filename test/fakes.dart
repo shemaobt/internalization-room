@@ -45,6 +45,7 @@ import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
+import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
@@ -1537,6 +1538,38 @@ class FakeRoom implements RoomRepository {
     return Answered(listed);
   }
 
+  /// The passage's scenes as the scenes door answers them, in passage order. None by
+  /// default: the screen then asks nothing and labels nothing.
+  List<Scene> passageScenes = const [];
+
+  /// The scenes the room's keep knows as labels, when they are not [passageScenes]'s.
+  Set<String>? roomScenes;
+
+  /// What the scenes door answers, when it is set.
+  RoomFailure? failScenesWith;
+
+  bool _holdTheNextScenes = false;
+  final List<Completer<void>> _heldScenes = [];
+
+  /// Hold the next ask for the passage's scenes, the way a slow link holds it.
+  void holdNextScenes() => _holdTheNextScenes = true;
+
+  void finishHeldScenes() => _heldScenes.removeAt(0).complete();
+
+  Future<RoomAnswer<List<Scene>>> scenesOf(String sessionId) async {
+    if (_guard('scenesOf') case final failure?) return failure;
+    if (_holdTheNextScenes) {
+      _holdTheNextScenes = false;
+      final held = Completer<void>();
+      _heldScenes.add(held);
+      await held.future;
+    }
+    if (_forgot('scenesOf', sessionId) case final gone?) return gone;
+    final refusal = failScenesWith;
+    if (refusal != null) return refusal;
+    return Answered(List.of(passageScenes));
+  }
+
   @override
   Future<RoomAnswer<SceneRehearsalRecord>> keepSceneRehearsal(
     String sessionId,
@@ -1553,10 +1586,13 @@ class FakeRoom implements RoomRepository {
     sceneLabels.add(scene);
     sceneTakesSent.add(audio.readAsBytesSync());
     final n = sceneRehearsals.length + 1;
+    final known =
+        roomScenes ?? {for (final scene in passageScenes) scene.sceneId};
     final kept = SceneRehearsalRecord(
       rehearsalId: 'ensaio-da-cena-$n',
       sessionId: sessionId,
       n: n,
+      scene: known.contains(scene) ? scene : null,
     );
     sceneRehearsals.add(kept);
     await _holdingKeep?.future;
