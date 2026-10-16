@@ -423,6 +423,15 @@ class RoomRepository {
   static String sceneRehearsalAudioUrl(String sessionId, String rehearsalId) =>
       '$_basePath/sessions/$sessionId/scene-rehearsals/$rehearsalId/audio';
 
+  /// Where one frase's translation of a scene rehearsal is, for [fetchClip].
+  static String sceneFraseAudioUrl(
+    String sessionId,
+    String rehearsalId,
+    String fraseId,
+  ) =>
+      '$_basePath/sessions/$sessionId/scene-rehearsals/$rehearsalId/frases/'
+      '$fraseId/audio';
+
   /// «recomeçar a tradução» into the [attempt] this tablet minted, closing the one the
   /// current frases follow. It names a rehearsal, whose 404 never ends the session.
   Future<RoomAnswer<SceneRehearsalRecord>> restartTheSceneTranslation(

@@ -1856,6 +1856,44 @@ void main() {
         expect(answer, isA<Refused>().having((r) => r.code, 'code', code));
       }
     });
+
+    test('the list reads each rehearsal\'s scene and recording time', () async {
+      final repository = RoomRepository(
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'pericope': 'P01',
+              'scene_rehearsals': [
+                {...record(), 'scene': 'S2'},
+                {...record(), 'recorded_at': ''},
+                {...record(), 'scene': 'cena-dois', 'recorded_at': 'ontem'},
+              ],
+            }),
+            200,
+          ),
+        ),
+        deviceId: () async => 'aparelho-1',
+      );
+      addTearDown(repository.dispose);
+
+      final answer = await repository.sceneRehearsalsOf('sessao-1');
+
+      final [labelled, untimed, unreadable] =
+          (answer as Answered<List<SceneRehearsalRecord>>).value;
+      expect(labelled.sceneNumber, 2);
+      expect(labelled.recordedAt, DateTime.utc(2026, 10, 14, 9));
+      expect(untimed.sceneNumber, isNull);
+      expect(untimed.recordedAt, isNull);
+      expect(unreadable.sceneNumber, isNull);
+      expect(unreadable.recordedAt, isNull);
+    });
+
+    test('a frase\'s audio is asked at its own door', () {
+      expect(
+        RoomRepository.sceneFraseAudioUrl('s', 'r', 'f2'),
+        '/api/internalization-room/sessions/s/scene-rehearsals/r/frases/f2/audio',
+      );
+    });
   });
 
   group('the audio part of each door', () {
