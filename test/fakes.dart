@@ -1035,6 +1035,9 @@ class FakeRoom implements RoomRepository {
     for (final segment in segments) segment.segmentId,
   ];
   final List<String> takesKept = [];
+
+  /// What the next takes answer, one each, before [refuseTake] is read.
+  final List<RoomFailure> takeAnswersFirst = [];
   final List<({String kind, String scope, int? chunkIndex})> takesReceived = [];
   final List<int?> takePasses = [];
   String? refuseTake;
@@ -1470,6 +1473,9 @@ class FakeRoom implements RoomRepository {
   /// What every scene door answers, the scene take's audio included, when it is set.
   RoomFailure? failSceneWith;
 
+  /// What the next keeps answer, one each, before [failSceneWith] is read.
+  final List<RoomFailure> sceneAnswersFirst = [];
+
   /// The code a restart is refused with, when it is set.
   String? refuseRestartWith;
 
@@ -1540,6 +1546,7 @@ class FakeRoom implements RoomRepository {
     if (_guard('keepSceneRehearsal') case final failure?) return failure;
     await _holdingKeepBefore?.future;
     if (_forgot('keepSceneRehearsal', sessionId) case final gone?) return gone;
+    if (sceneAnswersFirst.isNotEmpty) return sceneAnswersFirst.removeAt(0);
     final refusal = failSceneWith;
     if (refusal != null) return refusal;
     scenesKept.add(sessionId);
@@ -2036,6 +2043,7 @@ class FakeRoom implements RoomRepository {
       final answersAfter = aHeldTakeAnswersAfter;
       if (answersAfter != null) await Future<void>.delayed(answersAfter);
     }
+    if (takeAnswersFirst.isNotEmpty) return takeAnswersFirst.removeAt(0);
     if (refuseTake == '$kind/$scope') return Refused(refuseTakeCode);
     if (unreachableTake == '$kind/$scope') {
       return const NetworkFailed('sem rede');
@@ -2450,7 +2458,9 @@ class FakeTakeQueue implements TakeUploadQueue {
   final List<PendingTake> rows = [];
   int _minted = 0;
 
-  FakeTakeQueue({required this.room});
+  final RecordingRepository? recordings;
+
+  FakeTakeQueue({required this.room, this.recordings});
 
   @override
   Future<PendingTake> enqueue(
@@ -2493,7 +2503,6 @@ class FakeTakeQueue implements TakeUploadQueue {
       rows.removeWhere((entry) => entry.sessionId == sessionId);
 
   final Map<String, SceneRehearsalRecord> _keptScenes = {};
-  final Map<String, String> _toName = {};
 
   @override
   Future<SceneRehearsalRecord?> keepTheScene(String row) async {
@@ -2509,12 +2518,6 @@ class FakeTakeQueue implements TakeUploadQueue {
     await flush();
     return keptSceneOf(row);
   }
-
-  @override
-  Map<String, String> scenesToName() => Map.of(_toName);
-
-  @override
-  void named(String original) => _toName.remove(original);
 
   @override
   SceneRehearsalRecord? keptSceneOf(String row) => _keptScenes[row];
@@ -2553,10 +2556,13 @@ class FakeTakeQueue implements TakeUploadQueue {
         )) {
           case Answered(:final value):
             _keptScenes[entry.id] = value;
-            if (entry.original case final original?) {
-              _toName[original] = 'cena-${value.rehearsalId}';
+            final held = entry.original == null
+                ? null
+                : await recordings?.heldAs(entry.original!);
+            if (held != null) {
+              await recordings?.keepAs(held, 'cena-${value.rehearsalId}');
             }
-            rows.removeAt(at);
+            rows.removeAt(rows.indexWhere((row) => row.id == entry.id));
             sent++;
           case SessionGone():
             await discardTheSession(entry.sessionId);
@@ -2894,8 +2900,12 @@ class SalaHarness {
   late final TakeUploadQueue takes =
       takesOverride?.call(room, takesHome) ??
       (filaEmMemoria
-          ? FakeTakeQueue(room: room)
-          : TakeUploadQueue(room: room, home: () async => takesHome));
+          ? FakeTakeQueue(room: room, recordings: recorder)
+          : TakeUploadQueue(
+              room: room,
+              home: () async => takesHome,
+              recordings: () => recorder,
+            ));
 
   List<Override> get overrides => [
     facilitatorVoiceProvider.overrideWithValue(voiceService ?? voice),

@@ -3369,7 +3369,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int generation,
   ) async {
     final name = 'cena-${rehearsal.rehearsalId}';
-    await _nameTheKeptScenes();
     final held = await _heldOnTheTablet(name);
     if (held != null || _abandoned(generation)) return held;
     final clip = await _room.fetchClip(
@@ -3507,21 +3506,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     SceneScreen keeping,
     int generation,
   ) async {
-    await _nameTheKeptScenes();
     await _countUnsent();
     final named = await _heldOnTheTablet('cena-${kept.rehearsalId}');
     if (_abandoned(generation)) return;
     await _showTheRehearsal(kept, keeping, generation, take: named);
-  }
-
-  Future<void> _nameTheKeptScenes() async {
-    final queue = _takes;
-    for (final MapEntry(key: original, value: name)
-        in queue.scenesToName().entries) {
-      final held = await _heldOnTheTablet(original);
-      if (held != null) await _underTheRehearsalsName(held, name);
-      queue.named(original);
-    }
   }
 
   void _showTheTakeNotKept(
@@ -3568,14 +3556,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     if (take == null || sessionId == null) return;
     await _sendTheSceneTake(sessionId, take, keeping, generation);
-  }
-
-  Future<String> _underTheRehearsalsName(String path, String name) async {
-    try {
-      return await _recorder.keepAs(path, name);
-    } on FileSystemException {
-      return path;
-    }
   }
 
   void playTheSceneRehearsal() => _gesture(() => _playTheSceneRehearsal());
@@ -6264,7 +6244,6 @@ class _NotifierHost implements StationHost {
   @override
   Future<void> hearTheOutboxFlushed() async {
     await _notifier._adoptTheNames(_notifier._takes);
-    await _notifier._nameTheKeptScenes();
     await _notifier._theRoomKeptWhatWaited();
   }
 

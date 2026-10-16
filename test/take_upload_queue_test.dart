@@ -12,6 +12,7 @@ import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 
+import 'a_wav_take.dart';
 import 'fakes.dart';
 
 void main() {
@@ -640,7 +641,8 @@ void main() {
     );
   });
 
-  test('a row behind a refused row of its part does not leave', () async {
+  test('a row behind a row of its part refused for good is still tried in '
+      'that pass', () async {
     final room = FakeRoom()..refuseTake = 'ensaio/parte-2';
     final queue = queueOn(room);
     await queue.enqueue(
@@ -661,18 +663,15 @@ void main() {
     expect(room.takesKept, isEmpty);
     expect(
       room.calls.where((call) => call == 'sendTake'),
-      hasLength(1),
-      reason: 'a sala só pode ter visto a primeira gravação da parte 2',
+      hasLength(2),
+      reason:
+          'ENG-1347: uma recusa de vez nunca chegou à sala, então não segura '
+          'a gravação de trás nem nesta passada',
     );
     final atras = (await queue.pending()).firstWhere(
       (entry) => entry.id == segunda.id,
     );
-    expect(
-      [atras.attempts, atras.lastTry],
-      [0, null],
-      reason:
-          'a linha de trás não foi tentada: não gasta tentativa nem marca hora',
-    );
+    expect(atras.exhausted, isTrue);
   });
 
   test(
@@ -797,7 +796,7 @@ void main() {
   });
 
   test('a row that gave up holds nothing behind it', () async {
-    final room = FakeRoom()..refuseTake = 'ensaio/parte-2';
+    final room = FakeRoom()..takeAnswersFirst.add(const Refused('BAD_REQUEST'));
     final queue = queueOn(room);
     await queue.enqueue(
       aTake('primeira'),
@@ -811,9 +810,6 @@ void main() {
       kind: 'ensaio',
       scope: 'parte-2',
     );
-
-    await queue.flush();
-    room.refuseTake = null;
 
     expect(await queue.flush(), 1);
     expect(room.takesKept, ['ensaio/parte-2']);
@@ -1678,7 +1674,8 @@ void main() {
       });
 
       test('not behind one refused for good', () async {
-        final room = FakeRoom()..failSceneWith = const Refused('BAD_REQUEST');
+        final room = FakeRoom()
+          ..sceneAnswersFirst.add(const Refused('BAD_REQUEST'));
         final queue = queueOn(room);
         for (final name in ['cena-1', 'cena-2']) {
           await queue.enqueue(
@@ -1688,15 +1685,13 @@ void main() {
             scope: 'cena',
           );
         }
-        await queue.flush();
-        room.failSceneWith = null;
 
         await queue.flush();
 
-        expect(room.scenesKept, hasLength(1));
         expect(
           room.sceneTakesSent.single,
           File('${home.path}/cena-2.m4a').readAsBytesSync(),
+          reason: 'nem na mesma passada a recusada segura a de trás',
         );
       });
     });
@@ -1892,6 +1887,87 @@ void main() {
       expect(kept, isNull);
       expect(room.calls, isNot(contains('keepSceneRehearsal')));
     });
+  });
+
+  group('the scene take in the Outbox, after review', () {
+    Future<PendingTake> aScene(
+      TakeUploadQueue queue,
+      String name, {
+      String sessionId = 'sessao-1',
+    }) => queue.enqueue(
+      aTake(name),
+      sessionId: sessionId,
+      kind: 'cena',
+      scope: 'cena',
+    );
+
+    test(
+      'a take confirmed by another run of the Outbox is still named after its '
+      'rehearsal',
+      () async {
+        final room = FakeRoom()..reachable = false;
+        final recorder = FakeRecorder();
+        final take = File('${recorder.home.path}/cena_1.wav')
+          ..writeAsBytesSync(aWavTake());
+        await queueOn(
+          room,
+        ).enqueue(take, sessionId: 'sessao-1', kind: 'cena', scope: 'cena');
+        room.reachable = true;
+        final again = TakeUploadQueue(
+          room: room,
+          home: () async => home,
+          recordings: () => recorder,
+        );
+
+        await again.flush();
+
+        expect(
+          await recorder.heldAs(
+            'cena-${room.sceneRehearsals.single.rehearsalId}',
+          ),
+          isNotNull,
+          reason: 'o take da equipe leva o nome do ensaio em qualquer execução',
+        );
+      },
+    );
+
+    test(
+      'a take refused for good is never made due by the team\'s keep',
+      () async {
+        final room = FakeRoom()
+          ..sceneAnswersFirst.add(const Refused('BAD_REQUEST'));
+        final queue = queueOn(room);
+        await aScene(queue, 'cena-1');
+        await queue.flush();
+        final second = await aScene(queue, 'cena-2');
+
+        await queue.keepTheScene(second.id);
+
+        expect(room.sceneTakesSent, [
+          File('${home.path}/cena-2.m4a').readAsBytesSync(),
+        ]);
+      },
+    );
+
+    test(
+      'another session\'s scene takes are untouched by the team\'s keep',
+      () async {
+        final room = FakeRoom()
+          ..failSceneWith = const NetworkFailed('sem rede');
+        final queue = queueOn(room, backoff: const [Duration(seconds: 5)]);
+        await aScene(queue, 'outra', sessionId: 'sessao-2');
+        await queue.flush();
+        clock = clock.add(const Duration(seconds: 1));
+        room.failSceneWith = null;
+        final mine = await aScene(queue, 'minha');
+
+        await queue.keepTheScene(mine.id);
+
+        expect(room.sceneTakesSent, [
+          File('${home.path}/minha.m4a').readAsBytesSync(),
+        ]);
+      },
+    );
   });
 }
 

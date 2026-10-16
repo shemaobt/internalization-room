@@ -48,8 +48,13 @@ across failures and relaunches. It also kept every row the room had stored, for 
 
 ## Consequences
 
-The row carries the name of the team's own take, so every confirmation, on any flush and
-in any run, renames that take to the rehearsal's name: a reopening never downloads a take
-the tablet holds. Nothing the team recorded is deleted on the way: the Outbox deletes only
-its own copy. The team's keep or retry makes due every scene take of the session waiting
-ahead of it, and a take too large for the room holds no one behind it.
+The row carries the name of the team's own take, and the Outbox renames that take to the
+rehearsal's name before the confirmed row leaves the manifest. A tablet killed in between
+still holds the row, sends it again, gets the same rehearsal for the same bytes, and names
+the take then: a reopening never downloads a take the tablet holds. Nothing the team
+recorded is deleted on the way: the Outbox deletes only its own copy. The team's keep or
+retry makes due every scene take of the session waiting ahead of it, except one refused for
+good. A row refused for good, a take too large for the room included, holds no one behind
+it even within the pass that refused it, a part's recording as much as a scene take
+(this narrows ADR 0025, whose pass held the rest of a part behind any row that did not
+land).

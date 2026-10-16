@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../domain/machine.dart';
 import '../domain/scene_rehearsal.dart';
+import 'recording_repository.dart';
 import 'room_answer.dart';
 import 'room_repository.dart';
 import 'staged_write.dart';
@@ -240,13 +241,15 @@ class TakeUploadQueue {
   _CachedRead? _cachedRead;
   final Map<String, String?> _confirmed = {};
   final Map<String, SceneRehearsalRecord> _keptScenes = {};
-  final Map<String, String> _toName = {};
+
+  final RecordingRepository Function()? _recordings;
 
   TakeUploadQueue({
     required this._room,
     Future<Directory> Function()? home,
     this._backoff = const [],
     DateTime Function()? now,
+    this._recordings,
   }) : _home = home ?? getApplicationSupportDirectory,
        _now = now ?? clock.now;
 
@@ -723,6 +726,7 @@ class TakeUploadQueue {
             refusal: code,
           ),
         );
+        return _Landing.givenUp;
       case SessionGone():
         await discardTheSession(entry.sessionId);
         await _deleteTheCopy(entry);
@@ -767,12 +771,21 @@ class TakeUploadQueue {
     switch (kept) {
       case Answered(:final value):
         _keptScenes[entry.id] = value;
-        if (entry.original case final original?) {
-          _toName[original] = 'cena-${value.rehearsalId}';
-        }
+        await _nameTheTake(entry.original, 'cena-${value.rehearsalId}');
         return Answered(value.rehearsalId);
       case final RoomFailure failure:
         return failure;
+    }
+  }
+
+  Future<void> _nameTheTake(String? original, String name) async {
+    final recordings = _recordings?.call();
+    if (original == null || recordings == null) return;
+    try {
+      final held = await recordings.heldAs(original);
+      if (held != null) await recordings.keepAs(held, name);
+    } on FileSystemException {
+      return;
     }
   }
 
@@ -829,10 +842,6 @@ class TakeUploadQueue {
   }
 
   SceneRehearsalRecord? keptSceneOf(String row) => _keptScenes[row];
-
-  Map<String, String> scenesToName() => Map.of(_toName);
-
-  void named(String original) => _toName.remove(original);
 
   Future<void> dueAgain(String row) => _mutate(
     (written) => [
@@ -893,6 +902,7 @@ final takeUploadQueueProvider = Provider<TakeUploadQueue>(
   (ref) => TakeUploadQueue(
     room: ref.read(roomRepositoryProvider),
     backoff: ref.read(takeRetryBackoffProvider),
+    recordings: () => ref.read(recordingRepositoryProvider),
   ),
 );
 
