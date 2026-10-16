@@ -521,6 +521,29 @@ void main() {
 
   group('the waits and the way out', () {
     testWidgets(
+      'the session\'s rehearsals that answer after the 4 s gate showed the '
+      'question still list',
+      (tester) async {
+        final room = await _theScreenOpens(
+          tester,
+          rehearsals: [_rehearsal(1, scene: 'S1', sent: true)],
+          before: (harness) => harness.room.holdNextSceneList(),
+          rests: false,
+        );
+        await room.pump(const Duration(seconds: 4));
+        expect(byLabel(_question), findsOneWidget);
+
+        await room.pump(const Duration(seconds: 1));
+        room.room.finishHeldSceneList();
+        await room.pump(const Duration(milliseconds: 100));
+
+        expect(byLabel(_theList), findsOneWidget);
+        expect(_highlighted(tester), [_scene2]);
+        closeTheRoom(room.container);
+      },
+    );
+
+    testWidgets(
       'a question that came while a row was loading sleeps 600 ms once the row '
       'gives up',
       (tester) async {
@@ -548,6 +571,11 @@ void main() {
         await room.pick(_scene2);
 
         expect(byLabel(_question), findsOneWidget);
+
+        await room.pump(const Duration(milliseconds: 300));
+        await room.pick(_scene2);
+
+        expect(byLabel(_chip2), findsOneWidget);
         closeTheRoom(room.container);
       },
     );
