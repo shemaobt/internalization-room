@@ -375,8 +375,12 @@ void main() {
     _sala(container).leaveThePassage();
     await _naEscolha(container);
     await settle();
+    expect(harness.emAberto.rows.containsKey('Ruth/P01/pt'), isTrue);
     harness.room.finishHeldAskForAPerson();
-    await settle();
+    await waitFor(
+      'a resposta tardia largar o lugar da sessão fechada',
+      () => !harness.emAberto.rows.containsKey('Ruth/P01/pt'),
+    );
     harness.room
       ..failTurnsWith = null
       ..askForAPersonFailsWith = null;

@@ -7,8 +7,8 @@ amends: 0047, 0050, 0051
 # A closed passage is asked once, and a key in flight three times
 
 Amended by ENG-1297 (2026-10-16): the tablet no longer adds a closed
-passage to a list of finished passages, and the Wheel shows no passage closed. A closed
-passage still leaves the tablet as decided below.
+passage to a list of finished passages: the Wheel's marks come only from the room. A
+closed passage still leaves the tablet as decided below.
 
 This amends ADRs 0047, 0050 and 0051 without editing their text; it adds "amended by
 0052" to their status lines. Henok's decisions of 29 and 30 September, settled by the Definer on
