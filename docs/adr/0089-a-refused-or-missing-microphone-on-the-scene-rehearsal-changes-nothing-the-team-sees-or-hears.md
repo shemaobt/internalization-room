@@ -18,7 +18,8 @@ towards calling a person, whatever the Station.
 
 1. On the **Scene rehearsal**, a refused or failed opening of its **Microphone** only gives
    the **Channel** back. It records no refusal of the permission, does not count towards a
-   **Call for a person**, and does not reset the Conversation's count. The **Microphone
+   **Call for a person**, and does not reset the Conversation's count; nor does a scene start
+   that opens, as the count belongs to the Conversation's circle. The **Microphone
    answer** carries the owner of the start it answers, and the rule reads that owner, not the
    Channel or the Station when the answer arrives: a start the team closed with a second tap,
    or that a halt discarded, still answers as the scene's.

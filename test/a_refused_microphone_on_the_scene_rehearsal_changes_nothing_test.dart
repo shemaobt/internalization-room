@@ -311,6 +311,33 @@ void main() {
       expect(room.state.needsPerson, isTrue);
     });
 
+    test(
+      "a scene recording that works does not reset the Conversation's count",
+      () async {
+        final room = await atRest();
+        room.harness.recorder.startThrows = true;
+        room.sala.conversaTap();
+        await settle();
+        room.harness.recorder.startThrows = false;
+        await theScreenOpens(room);
+        await theSceneMicrophoneOpens(room);
+        await _tapsTheSceneCircle(room);
+        await translateOpens(room);
+        room.sala.leaveTheSceneRehearsal();
+        await waitFor(
+          'a conversa voltar',
+          () => room.state.stage == SalaStage.conversa,
+        );
+        await settle();
+
+        room.harness.recorder.startThrows = true;
+        room.sala.conversaTap();
+        await settle();
+
+        expect(room.state.needsPerson, isTrue);
+      },
+    );
+
     testWidgets(
       'a refusal on the Conversation still shows the gate and says its line',
       (tester) async {

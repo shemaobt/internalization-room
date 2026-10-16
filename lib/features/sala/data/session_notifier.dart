@@ -4286,7 +4286,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     switch (heard.answer) {
       case MicAnswer.started:
-        _captureFails = 0;
+        if (heard.owner != MicOwner.scene) _captureFails = 0;
       case MicAnswer.refused:
         _undoTheListening();
         ref.read(micPermissionProvider.notifier).refuse();
