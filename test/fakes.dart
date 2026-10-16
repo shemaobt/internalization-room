@@ -1521,8 +1521,9 @@ class FakeRoom implements RoomRepository {
   @override
   Future<RoomAnswer<SceneRehearsalRecord>> keepSceneRehearsal(
     String sessionId,
-    File audio,
-  ) async {
+    File audio, {
+    String? scene,
+  }) async {
     if (_guard('keepSceneRehearsal') case final failure?) return failure;
     if (_forgot('keepSceneRehearsal', sessionId) case final gone?) return gone;
     final refusal = failSceneWith;

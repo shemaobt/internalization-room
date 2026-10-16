@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
+import '../../../core/audio/room_audio_session.dart';
 import '../domain/channel.dart';
 
 const _permissionAnswerCeiling = Duration(seconds: 60);
@@ -37,18 +38,24 @@ class RecordingRepository {
     }
   }
 
-  // A rehearsal or a capture drops noise suppression and gain, as the reference's
-  // DRAFT_MIC_CONSTRAINTS (wavRecorder.ts:141-144); only a rehearsal is WAV (ADR 0054).
+  // A rehearsal, a scene take or a capture drops noise suppression and gain, as the
+  // reference's DRAFT_MIC_CONSTRAINTS (wavRecorder.ts:141-144); a rehearsal and a scene
+  // take are WAV (ADR 0054, ADR 0086).
   Future<Capture> start(
     String fileName, {
     MicOwner owner = MicOwner.conversation,
   }) async {
     if (await hasPermission() == false) return Capture.denied;
     final roomFilters =
-        owner != MicOwner.rehearsal && owner != MicOwner.capture;
-    final wav = owner == MicOwner.rehearsal;
+        owner != MicOwner.rehearsal &&
+        owner != MicOwner.scene &&
+        owner != MicOwner.capture;
     final conversation = owner == MicOwner.conversation;
     try {
+      final wav =
+          owner == MicOwner.rehearsal ||
+          (owner == MicOwner.scene &&
+              await _recorder.isEncoderSupported(AudioEncoder.wav));
       final dir = await _recordingsDir();
       await _recorder.start(
         RecordConfig(
@@ -77,10 +84,16 @@ class RecordingRepository {
   Stream<bool> get interrupted =>
       _recorder.onStateChanged().map((state) => state == RecordState.pause);
 
-  Future<String?> stop() => _recorder.stop();
+  Future<String?> stop() async {
+    try {
+      return await _recorder.stop();
+    } finally {
+      await restoreTheSampleRate();
+    }
+  }
 
   Future<void> discard() async {
-    final path = await _recorder.stop();
+    final path = await stop();
     if (path != null) {
       final file = File(path);
       if (await file.exists()) await file.delete();
@@ -118,7 +131,7 @@ class RecordingRepository {
 
   Future<String> keepAs(String path, String fileName) async {
     final dir = await _recordingsDir();
-    final target = p.join(dir.path, '$fileName.m4a');
+    final target = p.join(dir.path, '$fileName${p.extension(path)}');
     await File(path).rename(target);
     return target;
   }
