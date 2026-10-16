@@ -49,31 +49,30 @@ final class SceneScreen {
     this.pickedAt,
   });
 
-  static const _same = Object();
-
-  /// This screen with the fields given changed; [label], [keep], [picked], [askedAt]
-  /// and [pickedAt] may be set to null.
   SceneScreen copyWith({
     bool? waiting,
-    Object? label = _same,
-    Object? keep = _same,
-    Object? picked = _same,
-    Object? askedAt = _same,
-    Object? pickedAt = _same,
+    String? label,
+    bool clearLabel = false,
+    SceneKeep? keep,
+    bool clearKeep = false,
+    String? picked,
+    bool clearPicked = false,
+    DateTime? askedAt,
+    bool clearAskedAt = false,
+    DateTime? pickedAt,
+    bool clearPickedAt = false,
   }) => SceneScreen(
     step: step,
     rehearsal: rehearsal,
     take: take,
     length: length,
     waiting: waiting ?? this.waiting,
-    label: identical(label, _same) ? this.label : label as String?,
-    keep: identical(keep, _same) ? this.keep : keep as SceneKeep?,
-    picked: identical(picked, _same) ? this.picked : picked as String?,
+    label: clearLabel ? null : (label ?? this.label),
+    keep: clearKeep ? null : (keep ?? this.keep),
+    picked: clearPicked ? null : (picked ?? this.picked),
     again: again,
-    askedAt: identical(askedAt, _same) ? this.askedAt : askedAt as DateTime?,
-    pickedAt: identical(pickedAt, _same)
-        ? this.pickedAt
-        : pickedAt as DateTime?,
+    askedAt: clearAskedAt ? null : (askedAt ?? this.askedAt),
+    pickedAt: clearPickedAt ? null : (pickedAt ?? this.pickedAt),
   );
 
   SceneScreen get asWaiting => copyWith(waiting: true);

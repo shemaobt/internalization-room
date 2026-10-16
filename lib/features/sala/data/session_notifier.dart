@@ -3558,7 +3558,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       scene: shown.copyWith(
         picked: sceneId,
         pickedAt: clock.now(),
-        askedAt: null,
+        clearAskedAt: true,
       ),
     );
   }
@@ -3570,11 +3570,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.station is! SceneRehearsal ||
         shown.step != SceneStep.record ||
         shown.picked == null ||
-        !state.sceneChipLive) {
+        !state.sceneChipLive ||
+        _asleep(shown.pickedAt)) {
       return;
     }
     state = state.copyWith(
-      scene: shown.copyWith(picked: null, pickedAt: null, askedAt: null),
+      scene: shown.copyWith(
+        clearPicked: true,
+        clearPickedAt: true,
+        clearAskedAt: true,
+      ),
     );
     _stampTheQuestion();
   }
@@ -3601,7 +3606,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           return;
         }
         state = state.copyWith(
-          scene: shown.copyWith(label: state.scenes.labelFor(shown.picked)),
+          scene: switch (state.scenes.labelFor(shown.picked)) {
+            final label? => shown.copyWith(label: label),
+            null => shown.copyWith(clearLabel: true),
+          },
         );
         _startListening('cena_${_stamp()}', owner: MicOwner.scene);
     }
@@ -3619,7 +3627,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return _sendTheSceneTake(sessionId, path, keeping, generation);
     }
     if (identical(state.scene, keeping)) {
-      state = state.copyWith(scene: keeping.copyWith(keep: null));
+      state = state.copyWith(scene: keeping.copyWith(clearKeep: true));
       _stampTheQuestion();
     }
   }

@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
-import 'dart:ui' show Tristate;
+import 'dart:ui' show SemanticsAction, SemanticsActionEvent, Tristate;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -218,6 +218,22 @@ List<String> _buttonsInOrder(WidgetTester tester) => [
     button.label,
 ];
 
+void _voiceOverTaps(WidgetTester tester, String label) {
+  final node = tester.getSemantics(byLabel(label));
+  expect(
+    node.getSemanticsData().hasAction(SemanticsAction.tap),
+    isTrue,
+    reason: '$label precisa de uma ação de toque para o VoiceOver',
+  );
+  tester.binding.performSemanticsAction(
+    SemanticsActionEvent(
+      type: SemanticsAction.tap,
+      viewId: tester.view.viewId,
+      nodeId: node.id,
+    ),
+  );
+}
+
 bool _focused(WidgetTester tester, String label) {
   final node = tester.getSemantics(byLabel(label));
   return node.getSemanticsData().flagsCollection.isFocused == Tristate.isTrue;
@@ -398,7 +414,52 @@ void main() {
     );
   });
 
+  group('VoiceOver', () {
+    testWidgets(
+      'VoiceOver picks a scene with the button\'s own tap, and the chip\'s brings '
+      'the question back',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final room = await _theScreenOpens(tester);
+        await tester.pump(_theStageFadesIn);
+
+        _voiceOverTaps(tester, _scene2);
+        await room.pump();
+
+        expect(byLabel(_chip2), findsOneWidget);
+
+        await room.sleepThrough();
+        _voiceOverTaps(tester, _chip2);
+        await room.pump();
+
+        expect(byLabel(_question), findsOneWidget);
+        semantics.dispose();
+      },
+    );
+  });
+
   group('the sleep', () {
+    testWidgets('a tap on the chip within 600 ms of the pick keeps the pick', (
+      tester,
+    ) async {
+      final room = await _theScreenOpens(tester);
+      await room.sleepThrough();
+      await room.pick(_scene2);
+
+      await room.pump(const Duration(milliseconds: 100));
+      await tester.tap(byLabel(_chip2));
+      await room.pump();
+
+      expect(byLabel(_chip2), findsOneWidget);
+      expect(_shows(_question), isFalse);
+
+      await room.pump(const Duration(milliseconds: 500));
+      await tester.tap(byLabel(_chip2));
+      await room.pump();
+
+      expect(byLabel(_question), findsOneWidget);
+    });
+
     test('a tap sleeps for 600 ms after what it answers appeared, and a clock '
         'set back wakes it', () {
       final at = DateTime(2026, 10, 16, 10);
