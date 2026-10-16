@@ -106,7 +106,7 @@ Future<(SalaHarness, ProviderContainer)> _inArticulation(
   WidgetTester tester, {
   SalaHarness? given,
 }) async {
-  final harness = given ?? SalaHarness()
+  final harness = given ?? SalaHarness(filaEmMemoria: true)
     ..room.passages = const [Passagem(pericope: 'P01', audioUrl: '/voice/p01')]
     ..room.nextMoment = _articulation;
   final container = await pumpSala(tester, harness);
@@ -128,7 +128,7 @@ Future<(SalaHarness, ProviderContainer)> _theScreenShows(
   List<SceneRehearsalRecord> rehearsals, {
   required bool Function(SalaSessionState state) when,
 }) async {
-  final harness = SalaHarness();
+  final harness = SalaHarness(filaEmMemoria: true);
   _seed(harness, rehearsals);
   final (_, container) = await _inArticulation(tester, given: harness);
   await tester.tap(_redMicrophone);
