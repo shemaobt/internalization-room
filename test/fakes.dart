@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
+import 'package:path/path.dart' as p;
 import 'package:internalization_room/features/sala/data/connectivity_service.dart';
 import 'package:internalization_room/features/sala/data/current_session_ledger.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
@@ -280,6 +281,7 @@ class FakeRecorder implements RecordingRepository {
   String? lastPath;
   MicOwner? lastOwner;
   Uint8List? rehearsalSpeaks;
+  String? rehearsalSpeaksAs;
 
   bool permitted = true;
 
@@ -353,16 +355,28 @@ class FakeRecorder implements RecordingRepository {
     if (held != null) await held.future;
     _recording = false;
     if (returnsNothing) return null;
+    final deliverable =
+        lastOwner == MicOwner.rehearsal || lastOwner == MicOwner.scene;
     final fala = rehearsalSpeaks;
-    if (fala != null && lastOwner == MicOwner.rehearsal) {
-      final wav = File('${home.path}/captura-$captures.wav')
-        ..writeAsBytesSync(fala);
-      return lastPath = wav.path;
+    if (fala != null && deliverable) {
+      final take = File(
+        '${home.path}/captura-$captures.'
+        '${rehearsalSpeaksAs ?? (_isWav(fala) ? 'wav' : 'm4a')}',
+      )..writeAsBytesSync(fala);
+      return lastPath = take.path;
     }
     final file = File('${home.path}/captura-$captures.m4a')
-      ..writeAsStringSync(returnsEmpty ? '' : 'a equipe falou');
+      ..writeAsStringSync(
+        returnsEmpty
+            ? ''
+            : deliverable
+            ? _aWholeTake
+            : 'a equipe falou',
+      );
     return lastPath = file.path;
   }
+
+  static final _aWholeTake = 'a equipe falou a passagem inteira. ' * 32;
 
   File aFile(String name) =>
       File('${home.path}/$name.m4a')
@@ -381,7 +395,8 @@ class FakeRecorder implements RecordingRepository {
 
   @override
   Future<String> keepBytes(Uint8List bytes, String fileName) async {
-    final file = File('${home.path}/$fileName.m4a')..writeAsBytesSync(bytes);
+    final file = File('${home.path}/$fileName.${_isWav(bytes) ? 'wav' : 'm4a'}')
+      ..writeAsBytesSync(bytes);
     return file.path;
   }
 
@@ -391,17 +406,25 @@ class FakeRecorder implements RecordingRepository {
   @override
   Future<String?> heldAs(String fileName) async {
     if (heldAsFails) throw const FileSystemException('o disco falhou');
-    final file = File('${home.path}/$fileName.m4a');
-    return file.existsSync() && file.lengthSync() > 0 ? file.path : null;
+    for (final extension in ['wav', 'm4a']) {
+      final file = File('${home.path}/$fileName.$extension');
+      if (file.existsSync() && file.lengthSync() > 0) return file.path;
+    }
+    return null;
   }
 
   @override
   Future<String> keepAs(String path, String fileName) async =>
-      File(path).renameSync('${home.path}/$fileName.m4a').path;
+      File(path).renameSync('${home.path}/$fileName${p.extension(path)}').path;
 
   @override
   Future<void> dispose() async => _interruptions.close();
 }
+
+bool _isWav(Uint8List bytes) =>
+    bytes.length >= 12 &&
+    String.fromCharCodes(bytes, 0, 4) == 'RIFF' &&
+    String.fromCharCodes(bytes, 8, 12) == 'WAVE';
 
 class FakePlayback implements PlaybackRepository {
   final List<String> sounds;
@@ -1437,6 +1460,7 @@ class FakeRoom implements RoomRepository {
 
   /// The session each scene take this room kept was sent for, in order.
   final List<String> scenesKept = [];
+  final List<String?> sceneLabels = [];
 
   /// Every restart of a scene translation this room was sent.
   final List<({String attempt, String? closes})> restartsSent = [];
@@ -1500,13 +1524,15 @@ class FakeRoom implements RoomRepository {
   @override
   Future<RoomAnswer<SceneRehearsalRecord>> keepSceneRehearsal(
     String sessionId,
-    File audio,
-  ) async {
+    File audio, {
+    String? scene,
+  }) async {
     if (_guard('keepSceneRehearsal') case final failure?) return failure;
     if (_forgot('keepSceneRehearsal', sessionId) case final gone?) return gone;
     final refusal = failSceneWith;
     if (refusal != null) return refusal;
     scenesKept.add(sessionId);
+    sceneLabels.add(scene);
     final n = sceneRehearsals.length + 1;
     final kept = SceneRehearsalRecord(
       rehearsalId: 'ensaio-da-cena-$n',

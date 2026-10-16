@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/core/audio/room_audio_session.dart';
 import 'package:internalization_room/features/sala/data/recording_repository.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:path/path.dart' as p;
@@ -14,6 +15,9 @@ class RecorderSpy extends RecordPlatform {
   RecordConfig? openedWith;
   String? openedPath;
   bool refusesToOpen = false;
+  bool wavSupported = true;
+  bool encoderCheckFails = false;
+  bool recordingAgain = false;
   final StreamController<RecordState> states =
       StreamController<RecordState>.broadcast();
 
@@ -34,6 +38,18 @@ class RecorderSpy extends RecordPlatform {
     openedWith = config;
     openedPath = path;
   }
+
+  @override
+  Future<bool> isEncoderSupported(
+    String recorderId,
+    AudioEncoder encoder,
+  ) async {
+    if (encoderCheckFails) throw PlatformException(code: 'gravador');
+    return encoder != AudioEncoder.wav || wavSupported;
+  }
+
+  @override
+  Future<bool> isRecording(String recorderId) async => recordingAgain;
 
   @override
   Future<String?> stop(String recorderId) async => openedPath;
@@ -448,4 +464,212 @@ void main() {
           'reabertura, e o ensaio ficaria preso sem lugar para as frases',
     );
   });
+  test('a scene take opens the microphone as 16 kHz mono WAV with echo '
+      'cancellation and no noise suppression or automatic gain', () async {
+    final recording = RecordingRepository();
+    addTearDown(recording.dispose);
+
+    await recording.start('cena_1', owner: MicOwner.scene);
+
+    final config = microphone.openedWith;
+    expect(
+      config?.encoder,
+      AudioEncoder.wav,
+      reason: 'o Refine recebe o ensaio da cena no formato dela, sem perda',
+    );
+    expect(config?.sampleRate, 16000);
+    expect(config?.numChannels, 1);
+    expect(config?.echoCancel, isTrue);
+    expect(config?.noiseSuppress, isFalse);
+    expect(config?.autoGain, isFalse);
+    expect(
+      microphone.openedPath,
+      p.join(documents.path, 'recordings', 'cena_1.wav'),
+    );
+  });
+
+  test(
+    'a scene take is compressed only when the tablet cannot capture raw audio',
+    () async {
+      microphone.wavSupported = false;
+      final recording = RecordingRepository();
+      addTearDown(recording.dispose);
+
+      await recording.start('cena_1', owner: MicOwner.scene);
+
+      final config = microphone.openedWith;
+      expect(config?.encoder, AudioEncoder.aacLc);
+      expect(
+        microphone.openedPath,
+        p.join(documents.path, 'recordings', 'cena_1.m4a'),
+        reason: 'o player escolhe o leitor pela extensão',
+      );
+      expect(config?.noiseSuppress, isFalse);
+      expect(config?.autoGain, isFalse);
+
+      microphone.wavSupported = true;
+      await recording.start('cena_2', owner: MicOwner.scene);
+
+      expect(microphone.openedWith?.encoder, AudioEncoder.wav);
+    },
+  );
+
+  test('a scene take is compressed when the tablet cannot say whether it '
+      'captures raw audio', () async {
+    microphone.encoderCheckFails = true;
+    final recording = RecordingRepository();
+    addTearDown(recording.dispose);
+
+    final capture = await recording.start('cena_1', owner: MicOwner.scene);
+
+    expect(
+      capture,
+      Capture.started,
+      reason:
+          'uma pergunta ao gravador que falhou não é um microfone que '
+          'não abriu, e duas seguidas chamavam uma pessoa',
+    );
+    expect(microphone.openedWith?.encoder, AudioEncoder.aacLc);
+  });
+
+  test('a WAV take kept under the rehearsal\'s name is still a .wav', () async {
+    final recording = RecordingRepository();
+    addTearDown(recording.dispose);
+    final take = File(p.join(documents.path, 'recordings', 'cena_1.wav'))
+      ..createSync(recursive: true)
+      ..writeAsBytesSync(aWavTake());
+
+    final kept = await recording.keepAs(take.path, 'cena-ensaio-1');
+
+    expect(
+      kept,
+      p.join(documents.path, 'recordings', 'cena-ensaio-1.wav'),
+      reason: 'um WAV chamado .m4a não toca, e a reabertura o baixaria de novo',
+    );
+    expect(File(kept).readAsBytesSync(), aWavTake());
+  });
+
+  group('the audio session', () {
+    const audioSession = MethodChannel('internalization_room/audio_session');
+    late List<MethodCall> heard;
+
+    setUp(() {
+      heard = [];
+      messenger.setMockMethodCallHandler(audioSession, (call) async {
+        heard.add(call);
+        return call.method == 'sampleRate' ? 48000.0 : null;
+      });
+    });
+
+    tearDown(() => messenger.setMockMethodCallHandler(audioSession, null));
+
+    Future<void> recordAndThen(
+      Future<void> Function(RecordingRepository) end, {
+      MicOwner owner = MicOwner.conversation,
+    }) async {
+      await configureRoomAudio();
+      final recording = RecordingRepository();
+      addTearDown(recording.dispose);
+      await recording.start('tomada', owner: owner);
+      heard.clear();
+      await end(recording);
+    }
+
+    void expectTheRateGivenBack() => expect(
+      [for (final call in heard) (call.method, call.arguments)],
+      [('preferSampleRate', 48000.0)],
+      reason:
+          'o gravador deixa a sessão preferindo 16 kHz, e a voz do Guia que '
+          'toca depois sai abafada',
+    );
+
+    test('after a WAV part the audio session prefers the sample rate it had '
+        'before the first recording', () async {
+      await recordAndThen(
+        (recording) => recording.stop(),
+        owner: MicOwner.rehearsal,
+      );
+
+      expectTheRateGivenBack();
+    });
+
+    test('a conversation turn gives the rate back too', () async {
+      await recordAndThen((recording) => recording.stop());
+
+      expectTheRateGivenBack();
+    });
+
+    test(
+      'the rate is never given back over a recording that started meanwhile',
+      () async {
+        await recordAndThen((recording) {
+          microphone.recordingAgain = true;
+          return recording.discard();
+        });
+
+        expect(
+          heard,
+          isEmpty,
+          reason:
+              'a devolução atrasada de um descarte trocaria a taxa no meio da '
+              'tomada nova',
+        );
+      },
+    );
+
+    test('a start that fails gives the rate back too', () async {
+      await configureRoomAudio();
+      final recording = RecordingRepository();
+      addTearDown(recording.dispose);
+      microphone.refusesToOpen = true;
+      heard.clear();
+
+      expect(
+        await recording.start('tomada', owner: MicOwner.rehearsal),
+        Capture.failed,
+      );
+
+      expectTheRateGivenBack();
+    });
+
+    test(
+      'a failed start never gives the rate back over a recording that started '
+      'meanwhile',
+      () async {
+        await configureRoomAudio();
+        final recording = RecordingRepository();
+        addTearDown(recording.dispose);
+        microphone
+          ..refusesToOpen = true
+          ..recordingAgain = true;
+        heard.clear();
+
+        await recording.start('tomada', owner: MicOwner.rehearsal);
+
+        expect(heard, isEmpty);
+      },
+    );
+
+    test('a discarded recording gives the rate back too', () async {
+      await recordAndThen((recording) => recording.discard());
+
+      expectTheRateGivenBack();
+    });
+  });
+
+  test(
+    'the room still records on a tablet with no audio-session channel',
+    () async {
+      await configureRoomAudio();
+      final recording = RecordingRepository();
+      addTearDown(recording.dispose);
+
+      expect(
+        await recording.start('tomada', owner: MicOwner.rehearsal),
+        Capture.started,
+      );
+      expect(await recording.stop(), isNotNull);
+      await recording.discard();
+    },
+  );
 }

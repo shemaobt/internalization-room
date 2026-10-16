@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'staged_write.dart';
 
 const _folder = 'guardadas';
 const _ledger = 'passagens_feitas.json';
@@ -83,12 +84,7 @@ class FinishedPassages {
       final file = await _file();
       if (await file.exists() && (await _readable(file)) == null) return;
       final rows = (await _rows())..add(row);
-      final staging = File('${file.path}.novo');
-      await staging.writeAsString(
-        jsonEncode(rows.toList()..sort()),
-        flush: true,
-      );
-      await staging.rename(file.path);
+      await writeWhole(file, jsonEncode(rows.toList()..sort()));
     });
     _writes = next.then((_) {}, onError: (_) {});
     return next;

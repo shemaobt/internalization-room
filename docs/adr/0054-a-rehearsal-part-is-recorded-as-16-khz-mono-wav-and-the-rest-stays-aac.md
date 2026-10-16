@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by ENG-988 (2026-10-13: the Conversation records at 16 kHz mono 32 kbps AAC)
+status: accepted, amended by ENG-988 (2026-10-13: the Conversation records at 16 kHz mono 32 kbps AAC), amended by 0086 (2026-10-16: the scene take is WAV too)
 date: 2026-10-06
 ---
 

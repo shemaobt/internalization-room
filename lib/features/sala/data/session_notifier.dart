@@ -8,6 +8,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/env.dart';
+import '../domain/accidental_tap.dart';
 import '../domain/approval_answer.dart';
 import '../domain/bt_finding.dart';
 import '../domain/capture_guard.dart';
@@ -72,6 +73,8 @@ const _clockSegments = <(String, String, String)>[
 ];
 
 const _sendsWhileInFlight = 3;
+
+const _takeHead = 64 * 1024;
 
 /// How many times the recorder may fail to start in a row before the room calls a
 /// person — mirroring `micFails` in her client.
@@ -2857,6 +2860,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   bool _hasAudio(String path) =>
       File(path).existsSync() && File(path).lengthSync() > 0;
 
+  bool _anAccidentalTap(String path) {
+    final file = File(path);
+    if (!file.existsSync()) return true;
+    final wav = path.endsWith('.wav');
+    return isAnAccidentalTap(
+      wav: wav,
+      head: wav ? _headOf(file) : Uint8List(0),
+      length: file.lengthSync(),
+    );
+  }
+
+  Uint8List _headOf(File file) {
+    final opened = file.openSync();
+    try {
+      return opened.readSync(_takeHead);
+    } finally {
+      opened.closeSync();
+    }
+  }
+
   void _keepTheConnectionWarm() {
     unawaited(_network.reachRoom());
     final every = ref.read(connectionRewarmIntervalProvider);
@@ -3385,7 +3408,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     final path = (await _closeTheMicrophone()).take;
     if (_abandoned(generation)) return;
-    if (sessionId != null && path != null && _hasAudio(path)) {
+    if (path != null && _anAccidentalTap(path)) {
+      unawaited(_recorder.delete(path));
+    } else if (sessionId != null && path != null) {
       await _keepAt(sessionId, path, keeping, generation);
     }
     if (identical(state.scene, keeping)) {
@@ -3650,17 +3675,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final generation = _waitOnTheGeneration;
     final path = (await _closeTheMicrophone()).take;
     if (_abandoned(generation)) return;
-    if (path == null || !_hasAudio(path)) {
-      // Nothing came back. A check over a take that does not exist let a team confirm a
-      // rehearsal into nothing — no bead appeared, and the way to the retro never opened.
+    if (path == null || _anAccidentalTap(path)) {
       state = state.copyWith(ensaio: _semGravacaoAberta);
-      _raiseAHalt();
       if (path != null) unawaited(_recorder.delete(path));
       return;
     }
-    final substituida = _pendingTakePath;
     _pendingTakePath = path;
-    if (substituida != null) unawaited(_recorder.delete(substituida));
     state = state.copyWith(ensaio: EnsaioStatus.recorded);
   }
 
@@ -3926,10 +3946,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  /// A start that answers after a halt landed, or after its capture was closed, has no
-  /// microphone left to record into.
+  /// A start that answers after a halt landed, after its microphone was closed, or after
+  /// its capture was closed, has no microphone left to record into.
   bool _keepsTheStart(MicOwner owner) =>
       !state.needsPerson &&
+      state.channel is Microphone &&
+      (state.channel as Microphone).owner == owner &&
       (owner != MicOwner.capture || state.btPhase == BtPhase.capturing);
 
   void _theMicrophoneChangedHands(bool taken) {
@@ -4967,7 +4989,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     if (substituida != null) {
       unawaited(_retirarDaFilaSeGuardada(substituida));
-      unawaited(_recorder.delete(substituida));
     }
   }
 

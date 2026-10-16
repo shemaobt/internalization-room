@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import '../domain/machine.dart';
 import 'room_answer.dart';
 import 'room_repository.dart';
+import 'staged_write.dart';
 
 const _folder = 'guardadas';
 const _manifest = 'fila.json';
@@ -449,12 +450,7 @@ class TakeUploadQueue {
   Future<void> _write(List<PendingTake> entries) async {
     final dir = await _dir();
     final file = File(p.join(dir.path, _manifest));
-    final staging = File('${file.path}.novo');
-    await staging.writeAsString(
-      jsonEncode([for (final e in entries) e.toJson()]),
-      flush: true,
-    );
-    await staging.rename(file.path);
+    await writeWhole(file, jsonEncode([for (final e in entries) e.toJson()]));
     final stat = await file.stat();
     _cachedRead = _CachedRead(dir.path, stat.modified, stat.size, [
       for (final e in entries) e,

@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../domain/ports.dart';
+import 'staged_write.dart';
 
 const _folder = 'guardadas';
 const _ledger = 'sessao_atual.json';
@@ -49,17 +50,15 @@ class CurrentSessionLedger {
         if (await file.exists()) await file.delete();
         return;
       }
-      final staging = File('${file.path}.novo');
-      await staging.writeAsString(
+      await writeWhole(
+        file,
         jsonEncode({
           'session_id': session.sessionId,
           'book': session.book,
           'pericope': session.pericope,
           'language': session.language,
         }),
-        flush: true,
       );
-      await staging.rename(file.path);
     });
     _writes = next.then((_) {}, onError: (_) {});
     return next;

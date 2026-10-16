@@ -132,7 +132,11 @@ Future<String> _gravarPorCima(Sala it) async {
         it.estado.ensaio == EnsaioStatus.recorded &&
         it.harness.recorder.lastPath != substituida,
   );
-  expect(it.harness.recorder.deleted, contains(substituida));
+  expect(
+    it.harness.recorder.deleted,
+    isNot(contains(substituida)),
+    reason: 'ENG-1347: a parte gravada de novo fica no tablet como histórico',
+  );
   return it.harness.recorder.lastPath!;
 }
 
