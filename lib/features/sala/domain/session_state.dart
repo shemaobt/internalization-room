@@ -44,25 +44,28 @@ final class SceneScreen {
     this.again,
   });
 
-  /// The record step with [keep], the team's pick carried as it stood.
-  SceneScreen withKeep(SceneKeep? keep) =>
-      SceneScreen(label: label, keep: keep, picked: picked, again: again);
+  static const _same = Object();
 
-  SceneScreen labelled(String? label) =>
-      SceneScreen(label: label, keep: keep, picked: picked, again: again);
-
-  SceneScreen picking(String? picked) =>
-      SceneScreen(label: label, keep: keep, picked: picked, again: again);
-
-  SceneScreen get asWaiting => SceneScreen(
+  /// This screen with the fields given changed; [label], [keep] and [picked] may be
+  /// set to null.
+  SceneScreen copyWith({
+    bool? waiting,
+    Object? label = _same,
+    Object? keep = _same,
+    Object? picked = _same,
+  }) => SceneScreen(
     step: step,
     rehearsal: rehearsal,
     take: take,
     length: length,
-    waiting: true,
-    picked: picked,
+    waiting: waiting ?? this.waiting,
+    label: identical(label, _same) ? this.label : label as String?,
+    keep: identical(keep, _same) ? this.keep : keep as SceneKeep?,
+    picked: identical(picked, _same) ? this.picked : picked as String?,
     again: again,
   );
+
+  SceneScreen get asWaiting => copyWith(waiting: true);
 }
 
 sealed class SceneKeep {
@@ -406,12 +409,24 @@ class SalaSessionState {
   bool get sceneTakeUnderWay => channel is Microphone || scene.keep is Keeping;
 
   /// Whether the record step asks «Qual cena vocês vão ensaiar?» instead of showing the
-  /// circle.
+  /// circle: not while a take is under way or waits unsent.
   bool get sceneQuestionShown =>
       scene.step == SceneStep.record &&
       scenes.asks &&
       scenes.numberOf(scene.picked) == null &&
-      !sceneTakeUnderWay;
+      scene.keep == null &&
+      channel is! Microphone;
+
+  /// Whether the chip above the circle shows: the pick, or a waiting take's own label.
+  bool get sceneChipShown =>
+      scene.step == SceneStep.record &&
+      scenes.asks &&
+      !sceneQuestionShown &&
+      (scene.keep is NotKept || scenes.numberOf(scene.picked) != null);
+
+  /// Whether a tap on the chip brings the question back.
+  bool get sceneChipLive =>
+      scene.keep == null && !sceneTakeUnderWay && !scene.waiting;
 
   /// The scene the question highlights.
   String? get sceneHighlighted =>
