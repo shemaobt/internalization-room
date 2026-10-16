@@ -27,6 +27,9 @@ class SceneRehearsalView extends ConsumerWidget {
     final scene = session.scene;
     final sending = session.theSceneIsSending;
     final unlessSending = sending ? ButtonMood.dimmed : ButtonMood.lit;
+    final playable = sending || scene.waiting
+        ? ButtonMood.dimmed
+        : ButtonMood.lit;
 
     final terminei = RoundActionButton(
       size: 52,
@@ -75,7 +78,7 @@ class SceneRehearsalView extends ConsumerWidget {
                 children: [
                   RoundActionButton(
                     size: 120,
-                    mood: unlessSending,
+                    mood: playable,
                     semanticLabel: said('translate'),
                     onTap: notifier.playTheSceneRehearsal,
                     border: Border.all(color: colors.vermelhoMic, width: 2),
@@ -118,6 +121,7 @@ class SceneRehearsalView extends ConsumerWidget {
                   said: said,
                   play: RoundActionButton(
                     size: 120,
+                    mood: playable,
                     semanticLabel: said('playPause'),
                     onTap: notifier.playTheSceneRehearsal,
                     border: Border.all(color: colors.vermelhoMic, width: 2),
@@ -233,9 +237,13 @@ class _ListenMode extends ConsumerWidget {
               children: [
                 Semantics(
                   button: true,
+                  enabled: !scene.waiting,
                   label: said('frase', i + 1),
                   child: GestureDetector(
-                    onTap: () => notifier.playTheFrase(frase.fraseId),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: scene.waiting
+                        ? null
+                        : () => notifier.playTheFrase(frase.fraseId),
                     child: SizedBox(
                       width: 240,
                       height: 24,
@@ -248,7 +256,9 @@ class _ListenMode extends ConsumerWidget {
                           child: DecoratedBox(
                             decoration: BoxDecoration(
                               color: colors.vermelhoMic.withValues(
-                                alpha: span(frase) > 0 ? 0.6 : 0.2,
+                                alpha: span(frase) > 0 && !scene.waiting
+                                    ? 0.6
+                                    : 0.2,
                               ),
                               borderRadius: BorderRadius.circular(12),
                             ),

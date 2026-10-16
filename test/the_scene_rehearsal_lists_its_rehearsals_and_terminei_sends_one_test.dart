@@ -75,10 +75,10 @@ final _sentOne = _rehearsal(
   recordedAt: DateTime(2026, 10, 15, 14, 5),
   sentAt: '2026-10-15T14:20:00+00:00',
   frases: [
-    _frase('f0', 0, 3500, replacedBy: 'f1'),
-    _frase('f1', 0, 4000),
-    _frase('f2', 4000, 9000),
     _frase('f3', 9000, 15000),
+    _frase('f0', 0, 3500, replacedBy: 'f1'),
+    _frase('f2', 4000, 9000),
+    _frase('f1', 0, 4000),
   ],
 );
 final _unsentTwo = _rehearsal(n: 2, recordedAt: DateTime(2026, 10, 15, 14, 10));
@@ -231,6 +231,16 @@ bool _onTheRecordStep(SceneScreen scene) => scene.step == SceneStep.record;
 bool Function(SceneScreen) _showing(int n, SceneStep step) =>
     (scene) => scene.rehearsal?.n == n && scene.step == step && !scene.waiting;
 
+Future<_Room> _inListenModeOf(
+  SceneRehearsalRecord sent,
+  SceneRehearsalRecord unsent,
+) async {
+  final room = await _atRest([sent, unsent]);
+  await _theScreenOpens(room, on: _showing(unsent.n, SceneStep.translate));
+  await _theRowOpens(room, sent.n, SceneStep.sent);
+  return room;
+}
+
 Future<void> _theRowOpens(_Room room, int n, SceneStep step) async {
   room.sala.openTheListedSceneRehearsal('ensaio-da-cena-$n');
   await waitFor(
@@ -273,9 +283,9 @@ void main() {
     'its number, scene, time, frases and sent state',
     (tester) async {
       await _theScreenShows(tester, [
-        _sentOne,
         _unsentTwo,
         _ofAnotherSession,
+        _sentOne,
       ], when: (state) => state.scene.rehearsal?.n == 2);
 
       final list = byLabel('ensaios da cena desta sessão');
@@ -296,12 +306,23 @@ void main() {
     },
   );
 
+  test('the rows read in the order of their numbers', () async {
+    final room = await _atRest([
+      _rehearsal(n: 2, sentAt: '2026-10-15T14:20:00+00:00'),
+      _rehearsal(n: 3),
+      _rehearsal(sentAt: '2026-10-15T14:00:00+00:00'),
+    ]);
+    await _theScreenOpens(room, on: _showing(3, SceneStep.translate));
+
+    expect(_rows(room).map((row) => row.$1), [1, 2, 3]);
+  });
+
   testWidgets('the row on screen cannot be tapped', (tester) async {
     final (harness, container) = await _theScreenShows(tester, [
       _sentOne,
       _unsentTwo,
     ], when: (state) => state.scene.rehearsal?.n == 2);
-    final before = harness.room.clipsFetched.length;
+    final measured = harness.playback.measurements.length;
     final step = container.read(salaSessionProvider).scene.step;
     final notifier = container.read(salaSessionProvider.notifier);
     notifier.playTheSceneRehearsal();
@@ -314,7 +335,7 @@ void main() {
     expect(container.read(salaSessionProvider).channel, isA<PartPlaying>());
     expect(container.read(salaSessionProvider).scene.step, step);
     expect(container.read(salaSessionProvider).scene.rehearsal?.n, 2);
-    expect(harness.room.clipsFetched, hasLength(before));
+    expect(harness.playback.measurements, hasLength(measured));
   });
 
   test('an unsent row resumes at the frase where the team stopped', () async {
@@ -356,6 +377,23 @@ void main() {
       await settle();
 
       expect(_showing(2, SceneStep.translate)(room.state.scene), isTrue);
+    },
+  );
+
+  test(
+    'a rehearsal whose reopen could not fetch its take opens from its row',
+    () async {
+      final room = await _atRest([_sentOne, _unsentTwo]);
+      room.harness.room.failClipWith = const Refused('UNREADABLE');
+      room.sala.openTheSceneRehearsal();
+      await waitFor(
+        'o take do ensaio 2 ser pedido',
+        () => room.harness.room.clipsFetched.isNotEmpty,
+      );
+      await settle();
+      room.harness.room.failClipWith = null;
+
+      await _theRowOpens(room, 2, SceneStep.translate);
     },
   );
 
@@ -962,7 +1000,158 @@ void main() {
     }
   });
 
+  testWidgets(
+    'the bars and speakers in listen mode follow the frases\' order in the take',
+    (tester) async {
+      final (harness, container) = await _theScreenShows(tester, [
+        _sentOne,
+      ], when: (state) => state.sceneRehearsals.isNotEmpty);
+      await tester.tap(byLabel(_sentRow));
+      await _pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).scene.step == SceneStep.sent,
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+
+      await tester.tap(byLabel('frase 2'));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(harness.playback.ranges.last, '4000-9000');
+
+      await tester.tap(byLabel('ouvir a minha tradução da frase 3'));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(
+        harness.room.clipsFetched.last,
+        _fraseAudioOf('ensaio-da-cena-1', 'f3'),
+      );
+    },
+  );
+
+  test('a row reads the time the take was recorded on this tablet\'s clock', () {
+    final recorded = DateTime.utc(2026, 10, 15, 17, 5);
+    final here = recorded.toLocal();
+    final hhmm =
+        '${'${here.hour}'.padLeft(2, '0')}:${'${here.minute}'.padLeft(2, '0')}';
+
+    expect(
+      sceneRehearsalRowLabelFor(
+        _rehearsal(n: 2, recordedAt: recorded),
+        'pt',
+        onScreen: true,
+      ),
+      'Ensaio da cena 2, $hhmm, 0 · frases traduzidas, não enviado',
+    );
+  });
+
+  group('nothing plays while the screen waits', () {
+    Future<_Room> inListenMode() async {
+      final room = await _atRest([_sentOne, _unsentTwo]);
+      await _theScreenOpens(room, on: _showing(2, SceneStep.translate));
+      await _theRowOpens(room, 1, SceneStep.sent);
+      return room;
+    }
+
+    test('on a speaker\'s download, neither play nor a bar sounds', () async {
+      final room = await inListenMode();
+      room.harness.room.holdNextClip();
+
+      room.sala
+        ..hearTheFraseTranslation('f2')
+        ..playTheSceneRehearsal()
+        ..playTheFrase('f1');
+      await settle();
+      expect(room.harness.playback.played, isEmpty);
+      room.harness.room.finishHeldClip();
+      await waitFor(
+        'a tradução da frase tocar',
+        () => room.harness.playback.played.isNotEmpty,
+      );
+      await settle();
+
+      expect(room.harness.playback.played, hasLength(1));
+      expect(room.harness.playback.ranges, isEmpty);
+    });
+
+    test('on a row opening, no bar sounds', () async {
+      final room = await inListenMode();
+      room.harness.room.holdNextClip();
+
+      room.sala
+        ..openTheListedSceneRehearsal('ensaio-da-cena-2')
+        ..playTheFrase('f1');
+      await settle();
+
+      expect(room.harness.playback.ranges, isEmpty);
+      room.harness.room.finishHeldClip();
+      await settle();
+    });
+
+    testWidgets('play and the bars are drawn dimmed', (tester) async {
+      final (harness, container) = await _theScreenShows(tester, [
+        _sentOne,
+      ], when: (state) => state.sceneRehearsals.isNotEmpty);
+      await tester.tap(byLabel(_sentRow));
+      await _pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).scene.step == SceneStep.sent,
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+      harness.room.holdNextClip();
+
+      await tester.tap(byLabel('ouvir a minha tradução da frase 2'));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(_enabled(tester, byLabel('Tocar ou pausar a gravação')), isFalse);
+      expect(_enabled(tester, byLabel('frase 1')), isFalse);
+      harness.room.finishHeldClip();
+      await tester.pump(const Duration(milliseconds: 500));
+    });
+  });
+
   group('a late answer never moves the scene screen', () {
+    test(
+      'the row being reopened is fetched once, however soon it is tapped',
+      () async {
+        final room = await _atRest([_sentOne, _unsentTwo]);
+        room.harness.room.holdNextClip();
+        room.sala.openTheSceneRehearsal();
+        await waitFor('a lista chegar', () => _rows(room).length == 2);
+
+        room.sala.openTheListedSceneRehearsal('ensaio-da-cena-2');
+        await settle();
+        room.harness.room.finishHeldClip();
+        await waitFor(
+          'o ensaio 2 abrir',
+          () => _showing(2, SceneStep.translate)(room.state.scene),
+        );
+        await settle();
+
+        expect(
+          room.harness.room.clipsFetched.where(
+            (url) => url.endsWith('/ensaio-da-cena-2/audio'),
+          ),
+          hasLength(1),
+        );
+      },
+    );
+
+    test(
+      'a speaker download that lands after «gravar de novo» plays nothing',
+      () async {
+        final room = await _inListenModeOf(_sentOne, _unsentTwo);
+        room.harness.room.holdNextClip();
+
+        room.sala.hearTheFraseTranslation('f2');
+        await settle();
+        room.sala.recordTheSceneAgain();
+        await settle();
+        room.harness.room.finishHeldClip();
+        await settle(const Duration(milliseconds: 400));
+
+        expect(room.harness.playback.played, isEmpty);
+        expect(room.state.scene.step, SceneStep.record);
+      },
+    );
+
     test(
       'the list read again after a refused send never replaces the row the team tapped meanwhile',
       () async {
@@ -1002,10 +1191,10 @@ void main() {
         await waitFor('a lista chegar', () => _rows(room).length == 2);
 
         room.sala.openTheListedSceneRehearsal('ensaio-da-cena-1');
-        final shown = <int?>[];
+        final shown = <bool>[];
         room.container.listen(
           salaSessionProvider,
-          (_, next) => shown.add(next.scene.rehearsal?.n),
+          (_, next) => shown.add(_showing(2, SceneStep.translate)(next.scene)),
         );
         await settle();
         room.harness.room.finishHeldClip();
@@ -1015,7 +1204,7 @@ void main() {
         );
         await settle(const Duration(milliseconds: 400));
 
-        expect(shown, isNot(contains(2)));
+        expect(shown, isNot(contains(true)));
         expect(_showing(1, SceneStep.sent)(room.state.scene), isTrue);
       },
     );
