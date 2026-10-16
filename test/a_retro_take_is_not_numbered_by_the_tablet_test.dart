@@ -47,20 +47,17 @@ void main() {
     notifier.retroTap();
     await settle();
     await confirmarATraducao(container);
-    // Waited on the outbox, not on time, for the reason the case below gives: the guard's
-    // write to disk can land after the chunk reached the room, and on a loaded runner a
-    // fixed settle read an empty outbox.
-    await waitFor('a retro chegar à caixa de saída', () async {
-      final naCaixa = await harness.takes.entries();
-      return naCaixa.any((entrada) => entrada.kind == 'retro');
-    });
+    await waitFor(
+      'a retro guardada chegar à sala',
+      () => harness.room.takesReceived.any((take) => take.kind == 'retro'),
+    );
 
-    final guardadas = await harness.takes.entries();
-    final retro = guardadas.singleWhere((e) => e.kind == 'retro');
+    final recebidas = harness.room.takesReceived;
+    final retro = recebidas.singleWhere((e) => e.kind == 'retro');
     expect(retro.scope, KeptScope.whole);
     expect(retro.chunkIndex, isNull);
 
-    final ensaio = guardadas.singleWhere((e) => e.kind == 'ensaio');
+    final ensaio = recebidas.singleWhere((e) => e.kind == 'ensaio');
     expect(ensaio.scope, KeptScope.parte(1));
     expect(ensaio.chunkIndex, 1);
   });
@@ -121,16 +118,12 @@ void main() {
     harness.room.failReplaceWith = const Refused(RefusalCode.wordlessTelling);
     await fecharACaptura(container);
     await notifier.confirmarTraducao();
-    // Waited on the outbox, not on the phase. What this case reads is the row the guard
-    // writes to disk, and that write can land after the phase has settled: on a loaded
-    // runner it did, and the case read an empty outbox and called it a missing guard.
-    await waitFor('a tradução de novo chegar à caixa de saída', () async {
-      final naCaixa = await harness.takes.entries();
-      return naCaixa.any((entrada) => entrada.kind == 'retro');
-    });
+    await waitFor(
+      'a tradução de novo guardada chegar à sala',
+      () => harness.room.takesReceived.any((take) => take.kind == 'retro'),
+    );
 
-    final guardadas = await harness.takes.entries();
-    final retells = guardadas.where((e) => e.kind == 'retro');
+    final retells = harness.room.takesReceived.where((e) => e.kind == 'retro');
     expect(retells, isNotEmpty);
     expect(retells.every((e) => e.chunkIndex == null), isTrue);
   });

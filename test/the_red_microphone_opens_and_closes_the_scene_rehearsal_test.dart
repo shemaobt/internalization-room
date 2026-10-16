@@ -93,9 +93,12 @@ Future<(SalaHarness, ProviderContainer)> _inArticulation(
   WidgetTester tester, {
   bool watching = false,
 }) async {
-  final harness = SalaHarness(watchesWithoutAHalt: watching)
-    ..room.passages = const [Passagem(pericope: 'P01', audioUrl: '/voice/p01')]
-    ..room.nextMoment = articulation;
+  final harness =
+      SalaHarness(watchesWithoutAHalt: watching, filaEmMemoria: true)
+        ..room.passages = const [
+          Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+        ]
+        ..room.nextMoment = articulation;
   final container = await pumpSala(tester, harness);
   addTearDown(() => closeTheRoom(container));
   final notifier = container.read(salaSessionProvider.notifier);
@@ -1123,6 +1126,12 @@ void main() {
 
       expect(room.state.scene.step, SceneStep.record);
       expect(room.state.stage, SalaStage.cena);
+      expect(
+        room.state.scene.keep,
+        isA<NotKept>(),
+        reason:
+            'ENG-1347: o take recusado fica esperando no tablet, com o retry',
+      );
     });
 
     test('a gone session at the take\'s audio leaves for the Choice', () async {

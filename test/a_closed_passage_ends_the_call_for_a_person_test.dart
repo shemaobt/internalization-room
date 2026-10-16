@@ -615,9 +615,11 @@ void main() {
       '${casa.path}/guardadas/em_curso.json',
     ).writeAsStringSync('{"Ruth/P01": isto nao e json');
     final harness = SalaHarness(
-      takesOverride: (room, home) =>
-          QueueThatDiscardsLate(room: room, home: () async => home)
-            ..discardsAfter = _slowerThanAnyWait,
+      takesOverride: (room, home, recordings) => QueueThatDiscardsLate(
+        room: room,
+        home: () async => home,
+        recordings: recordings,
+      )..discardsAfter = _slowerThanAnyWait,
       emAbertoNoDisco: WorkInProgress(
         home: () async => casa,
         recordings: () async =>

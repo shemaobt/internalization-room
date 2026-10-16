@@ -558,16 +558,22 @@ void main() {
     );
     await settle();
 
-    var queued = await harness.takes.entries();
+    Future<int> guardadas() async =>
+        (await harness.takes.entries())
+            .where((entry) => entry.kind == 'retro')
+            .length +
+        harness.room.takesKept
+            .where((take) => take.startsWith('retro/'))
+            .length;
+    var queued = await guardadas();
     final deadline = DateTime.now().add(const Duration(seconds: 5));
-    while (queued.where((entry) => entry.kind == 'retro').isEmpty &&
-        DateTime.now().isBefore(deadline)) {
+    while (queued == 0 && DateTime.now().isBefore(deadline)) {
       await Future<void>.delayed(const Duration(milliseconds: 10));
-      queued = await harness.takes.entries();
+      queued = await guardadas();
     }
     expect(
-      queued.where((entry) => entry.kind == 'retro'),
-      isNotEmpty,
+      queued,
+      isPositive,
       reason:
           'o servidor devolve 200 sem guardar nada; se o app também soltar, o trecho deixa de existir',
     );
@@ -1007,9 +1013,11 @@ void main() {
     'a kept take still reaches the queue when the room is disposed',
     () async {
       final harness = SalaHarness(
-        takesOverride: (room, home) =>
-            QueueThatEnqueuesLate(room: room, home: () async => home)
-              ..enqueuesAfter = const Duration(milliseconds: 700),
+        takesOverride: (room, home, recordings) => QueueThatEnqueuesLate(
+          room: room,
+          home: () async => home,
+          recordings: recordings,
+        )..enqueuesAfter = const Duration(milliseconds: 700),
       );
       final container = await inConversaHarness(harness);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -1024,7 +1032,9 @@ void main() {
         'a gravação guardada chegar à fila (a guarda contra ler providers '
         'descartados foi posta antes do enfileiramento, no método cujo '
         'trabalho é não perder gravação)',
-        () async => (await harness.takes.entries()).isNotEmpty,
+        () async =>
+            (await harness.takes.entries()).isNotEmpty ||
+            harness.room.takesKept.isNotEmpty,
       );
     },
   );

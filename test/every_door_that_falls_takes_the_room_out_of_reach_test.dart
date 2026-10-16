@@ -168,9 +168,10 @@ void main() {
     final stumbling = _RoomThatCannotReadTheTakeOnce();
     final harness = SalaHarness(
       room: stumbling,
-      takesOverride: (room, home) => TakeUploadQueue(
+      takesOverride: (room, home, recordings) => TakeUploadQueue(
         room: room,
         home: () async => home,
+        recordings: recordings,
         backoff: [backoff],
       ),
     );
@@ -573,6 +574,10 @@ void main() {
           if (row.sessionId == sessao && row.kind == 'retro') row,
       ];
       expect(await traducoesNaFila(), isEmpty);
+      int recebidas() => harness.room.takesKept
+          .where((take) => take.startsWith('retro/'))
+          .length;
+      final recebidasAntes = recebidas();
       harness.network.reachable = false;
       harness.room.chunkAnswersFirst.addAll(
         List.filled(10, _theKeyStillInFlight),
@@ -586,7 +591,11 @@ void main() {
       expect(harness.room.chunkKeys.toSet(), hasLength(1));
       expect(room.estado.unreachable, isTrue);
       expect(room.estado.btTraducaoPendente, isNotNull);
-      expect(await traducoesNaFila(), hasLength(1));
+      expect(
+        (await traducoesNaFila()).length + recebidas() - recebidasAntes,
+        1,
+        reason: 'ENG-1347: guardada, ela fica na fila até a sala confirmá-la',
+      );
     },
   );
 
@@ -848,7 +857,11 @@ void main() {
           },
         ]),
       );
-      final queue = TakeUploadQueue(room: FakeRoom(), home: () async => home);
+      final queue = TakeUploadQueue(
+        room: FakeRoom(),
+        home: () async => home,
+        recordings: FakeRecorder.new,
+      );
 
       final rows = await queue.entries();
 
