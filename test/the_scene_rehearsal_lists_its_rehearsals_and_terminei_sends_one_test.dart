@@ -1358,7 +1358,47 @@ void main() {
 
         room.harness.room.theDeskAttended();
         await waitFor('a resposta tocar', () => room.repliedOnTheCanvas);
+        await settle();
         expect(room.state.stage, SalaStage.conversa);
+        expect(
+          room.harness.voice.fixedLines
+              .skip(saidBefore)
+              .where((line) => instantAckLines.contains(line.$1)),
+          hasLength(1),
+          reason: 'o reenvio sob o halt não é gesto da equipe; nada pensa alto',
+        );
+      },
+    );
+
+    test(
+      'a row tapped under the halt never keeps the held reply from playing',
+      () async {
+        final room = await _atRest([_sentOne, _unsentTwoWithAFrase]);
+        await _theScreenOpens(room, on: _showing(2, SceneStep.translate));
+        room.harness.room
+          ..failHeldTurnWith = const NetworkFailed('a rede caiu')
+          ..sceneRehearsals[1] = _asTheRoomHoldsIt(
+            _unsentTwoWithAFrase,
+            sentAt: '2026-10-15T15:00:00+00:00',
+          )
+          ..holdNextSceneList();
+        final listed = room.asked('sceneRehearsalsOf');
+
+        room.sala.sendTheSceneRehearsal();
+        await waitFor(
+          'a lista ser lida de novo',
+          () => room.asked('sceneRehearsalsOf') > listed,
+        );
+        room.sala.openTheListedSceneRehearsal('ensaio-da-cena-1');
+        await settle();
+        room.harness.room.finishHeldSceneList();
+        await waitFor(
+          'o ensaio ir de novo',
+          () => room.harness.room.scenesSent.length == 2,
+        );
+
+        room.harness.room.theDeskAttended();
+        await waitFor('a resposta tocar', () => room.repliedOnTheCanvas);
       },
     );
 

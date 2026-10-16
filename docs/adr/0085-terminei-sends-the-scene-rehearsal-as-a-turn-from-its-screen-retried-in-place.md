@@ -45,7 +45,10 @@ A loss whose one look comes back empty halts and calls a person, as for any turn
 that halt the list is read once. When the row reads «enviado» and the turn id is still held,
 the send goes once more under it: the one send allowed under a halt, because it reuses the
 held id and mints nothing. The reply is kept and plays when the person lifts the halt, as any
-late answer does. Without a held id, after a relaunch, «enviado» ends it with nothing played.
+late answer does. That send says no acknowledgement, since no one in the room made it, and
+while the halt stands no row opens. A send that goes once more and is itself lost with an
+empty look gives the held id up, so it ends on «enviado» with nothing played, as does a
+row read «enviado» with no held id, after a relaunch.
 
 ## Considered Options
 

@@ -3632,6 +3632,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state.channel is Microphone ||
         shown.waiting ||
         state.theSceneIsSending ||
+        state.needsPerson ||
         row == null ||
         rehearsalId == shown.rehearsal?.rehearsalId) {
       return;
@@ -3684,7 +3685,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     String turnId,
   ) async {
     final generation = _waitOnTheGeneration;
-    _sayImThinking();
+    if (!state.needsPerson) _sayImThinking();
     state = state.copyWith(awaitingTheGuide: true);
     _watchBusyState();
     await _sendATurn(
