@@ -346,6 +346,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   String get _lingua => ref.read(roomLanguageProvider);
 
+  String get _inTheSessionsLanguage =>
+      (state.station is Panorama ? _panoramaLanguage : _sessionLanguage) ??
+      _lingua;
+
   /// The room is gone and its providers with it.
   ///
   /// Half this class is fire-and-forget: `_guard` queues a take and counts what is left
@@ -2921,7 +2925,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       tellLine,
       approvedLine,
     ]) {
-      unawaited(_voice.readyFixedLine(line, _lingua));
+      unawaited(_voice.readyFixedLine(line, _inTheSessionsLanguage));
     }
   }
 
@@ -2931,7 +2935,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(
       _sayALine(
         LineKind.acknowledgement,
-        fixedLine: (name: line, language: _lingua),
+        fixedLine: (name: line, language: _inTheSessionsLanguage),
       ),
     );
   }
@@ -5050,7 +5054,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       try {
         disse = await _sayALine(
           LineKind.approved,
-          fixedLine: (name: approvedLine, language: _lingua),
+          fixedLine: (name: approvedLine, language: _inTheSessionsLanguage),
         );
       } on RoomFailure catch (failure) {
         return failed(failure);

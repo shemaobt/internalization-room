@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/sala_colors.dart';
@@ -20,8 +21,21 @@ Future<void> _theThemeFinishes(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 300));
 }
 
-bool _selected(WidgetTester tester, String label) =>
-    tester.widget<Semantics>(byLabel(label)).properties.selected ?? false;
+Brightness _statusBarGlyphs(WidgetTester tester) => tester
+    .widget<AnnotatedRegion<SystemUiOverlayStyle>>(
+      find
+          .ancestor(
+            of: find.byType(Scaffold).first,
+            matching: find.byType(AnnotatedRegion<SystemUiOverlayStyle>),
+          )
+          .first,
+    )
+    .value
+    .statusBarIconBrightness!;
+
+bool _selected(WidgetTester tester, String label) => isSemantics(
+  isSelected: true,
+).matches(tester.getSemantics(find.bySemanticsLabel(label)), {});
 
 Color _ground(WidgetTester tester) =>
     SalaColors.of(tester.element(find.byType(Scaffold).first)).paper;
@@ -70,6 +84,16 @@ Future<ProviderContainer> _reopen(
   return next;
 }
 
+void choiceTest(String name, Future<void> Function(WidgetTester) body) =>
+    testWidgets(name, (tester) async {
+      final voiceOver = tester.ensureSemantics();
+      try {
+        await body(tester);
+      } finally {
+        voiceOver.dispose();
+      }
+    });
+
 void main() {
   void deviceIs(WidgetTester tester, {Locale? locale, Brightness? brightness}) {
     if (locale != null) {
@@ -82,7 +106,7 @@ void main() {
     }
   }
 
-  testWidgets(
+  choiceTest(
     'a fresh tablet set to English shows «PT» chosen and opens its first session '
     'in Portuguese',
     (tester) async {
@@ -100,7 +124,7 @@ void main() {
     },
   );
 
-  testWidgets(
+  choiceTest(
     'tapping «EN» on the Choice opens the next passage in English, screen and voice',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true, lingua: null);
@@ -119,7 +143,7 @@ void main() {
     },
   );
 
-  testWidgets(
+  choiceTest(
     '«EN» chosen on the Choice is still chosen after the app is closed and reopened',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true, lingua: null);
@@ -134,7 +158,7 @@ void main() {
     },
   );
 
-  testWidgets(
+  choiceTest(
     'an English session left for the Choice stays English after «PT» is tapped, and '
     'the next passage opens in Portuguese',
     (tester) async {
@@ -162,7 +186,7 @@ void main() {
     },
   );
 
-  testWidgets(
+  choiceTest(
     'a fresh tablet set to dark opens dark, the sun makes it light, and light '
     'outlives a reopen',
     (tester) async {
@@ -183,7 +207,7 @@ void main() {
     },
   );
 
-  testWidgets(
+  choiceTest(
     'a tablet set to Spanish opens Portuguese sessions until «EN» is chosen',
     (tester) async {
       deviceIs(tester, locale: const Locale('es'));
@@ -203,7 +227,7 @@ void main() {
     },
   );
 
-  testWidgets('a fresh tablet set to light opens light, with the sun chosen', (
+  choiceTest('a fresh tablet set to light opens light, with the sun chosen', (
     tester,
   ) async {
     deviceIs(tester, brightness: Brightness.light);
@@ -214,7 +238,7 @@ void main() {
     expect(_selected(tester, 'Escuro'), isFalse);
   });
 
-  testWidgets('dark keeps the warm ground', (tester) async {
+  choiceTest('dark keeps the warm ground', (tester) async {
     await _openTheChoice(tester, SalaHarness(filaEmMemoria: true));
 
     await tester.tap(byLabel('Escuro'));
@@ -229,7 +253,7 @@ void main() {
     );
   });
 
-  testWidgets(
+  choiceTest(
     'the language and look controls show on the Choice and nowhere else',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
@@ -247,7 +271,7 @@ void main() {
     },
   );
 
-  testWidgets('the sun and the moon are named in the Room language', (
+  choiceTest('the sun and the moon are named in the Room language', (
     tester,
   ) async {
     await _openTheChoice(
@@ -263,5 +287,59 @@ void main() {
 
     expect(byLabel('Light'), findsOneWidget);
     expect(byLabel('Dark'), findsOneWidget);
+  });
+
+  choiceTest(
+    'an English session reached again after «PT» is tapped still hears her acknowledgement in English',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true, lingua: null);
+      final container = await _openTheChoice(tester, harness);
+      final notifier = container.read(salaSessionProvider.notifier);
+      await tester.tap(find.text('EN'));
+      await _catchUp(tester);
+      await _enter(tester, container, 'P01');
+      await _leave(tester, container);
+      await tester.tap(find.text('PT'));
+      await _catchUp(tester);
+      await tester.tap(byLabel(roomLabelFor('backToPassage', 'pt')));
+      await _catchUp(tester);
+      harness.voice.fixedLines.clear();
+
+      notifier.conversaTap();
+      await _catchUp(tester);
+      notifier.conversaTap();
+      await _catchUp(tester);
+
+      final heard = [
+        for (final line in harness.voice.fixedLines)
+          if (instantAckLines.contains(line.$1)) line.$2,
+      ];
+      expect(heard, isNotEmpty);
+      expect(heard, everyElement('en'));
+    },
+  );
+
+  choiceTest('on a dark device, the sun gives the status bar dark glyphs', (
+    tester,
+  ) async {
+    deviceIs(tester, brightness: Brightness.dark);
+    await _openTheChoice(tester, SalaHarness(filaEmMemoria: true));
+
+    await tester.tap(byLabel('Claro'));
+    await _theThemeFinishes(tester);
+
+    expect(_statusBarGlyphs(tester), Brightness.dark);
+  });
+
+  choiceTest('on a light device, the moon gives the status bar light glyphs', (
+    tester,
+  ) async {
+    deviceIs(tester, brightness: Brightness.light);
+    await _openTheChoice(tester, SalaHarness(filaEmMemoria: true));
+
+    await tester.tap(byLabel('Escuro'));
+    await _theThemeFinishes(tester);
+
+    expect(_statusBarGlyphs(tester), Brightness.light);
   });
 }

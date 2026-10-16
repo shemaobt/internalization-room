@@ -55,11 +55,22 @@ class SalaApp extends ConsumerWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ref.watch(lookProvider),
-      builder: (context, child) => _LessMotion(child: child!),
+      builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+        value: _statusBarFor(Theme.of(context).brightness),
+        child: _LessMotion(child: child!),
+      ),
       home: SalaScreen(built: built),
     );
   }
 }
+
+SystemUiOverlayStyle _statusBarFor(Brightness look) => SystemUiOverlayStyle(
+  statusBarColor: Colors.transparent,
+  statusBarBrightness: look,
+  statusBarIconBrightness: look == Brightness.light
+      ? Brightness.dark
+      : Brightness.light,
+);
 
 class _LessMotion extends StatefulWidget {
   final Widget child;
