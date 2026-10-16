@@ -3307,6 +3307,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _reopenTheUnsent(String sessionId) async {
     final generation = _waitOnTheGeneration;
     final asked = state.scene;
+    final waiting = await _takes.sceneWaitingIn(sessionId);
+    if (waiting != null) {
+      if (_theSceneMovedOn(asked, generation)) return;
+      state = state.copyWith(
+        scene: SceneScreen(
+          label: waiting.scene,
+          keep: NotKept(
+            row: waiting.id,
+            tooLarge: _tooLargeForTheRoom(waiting.path),
+          ),
+        ),
+      );
+      return;
+    }
     final listed = await _room.sceneRehearsalsOf(sessionId);
     switch (listed) {
       case Answered(:final value):
@@ -3385,10 +3399,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void sceneTap() => _gesture(() => _sceneTap());
 
+  void sendTheSceneTakeAgain() => _gesture(() => _sendTheSceneTakeAgain());
+
   void _sceneTap() {
     if (state.station is! SceneRehearsal ||
         state.scene.step != SceneStep.record ||
-        state.scene.waiting) {
+        state.scene.waiting ||
+        state.scene.keep is Keeping) {
       return;
     }
     switch (state.channel) {
@@ -3403,43 +3420,112 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _keepTheSceneTake() async {
     final generation = _waitOnTheGeneration;
-    const keeping = SceneScreen(waiting: true);
+    final label = state.scene.label;
+    final keeping = SceneScreen(label: label, keep: const Keeping());
     state = state.copyWith(scene: keeping);
     final sessionId = state.sessionId;
     final path = (await _closeTheMicrophone()).take;
-    if (_abandoned(generation)) return;
-    if (path != null && _anAccidentalTap(path)) {
-      unawaited(_recorder.delete(path));
-    } else if (sessionId != null && path != null) {
-      await _keepAt(sessionId, path, keeping, generation);
+    if (path == null || _anAccidentalTap(path)) {
+      if (path != null) unawaited(_recorder.delete(path));
+    } else if (sessionId != null) {
+      return _sendTheSceneTake(sessionId, path, keeping, generation);
     }
     if (identical(state.scene, keeping)) {
-      state = state.copyWith(scene: const SceneScreen());
+      state = state.copyWith(scene: SceneScreen(label: label));
     }
   }
 
-  Future<void> _keepAt(
+  Future<void> _sendTheSceneTake(
     String sessionId,
     String path,
     SceneScreen keeping,
     int generation,
   ) async {
-    final RoomAnswer<SceneRehearsalRecord> kept;
+    final tooLarge = _tooLargeForTheRoom(path);
+    final PendingTake row;
     try {
-      kept = await _room.keepSceneRehearsal(sessionId, File(path));
-    } on FileSystemException {
+      row = await _takes.enqueue(
+        File(path),
+        sessionId: sessionId,
+        kind: sceneTakeKind,
+        scope: sceneTakeKind,
+        scene: keeping.label,
+      );
+    } on Object {
+      _sayARecordingIsStranded();
+      _showTheTakeNotKept(
+        NotKept(take: path, tooLarge: tooLarge),
+        keeping,
+        generation,
+      );
       return;
     }
-    switch (kept) {
-      case Answered(:final value):
-        final named = await _underTheRehearsalsName(path, value);
-        if (_abandoned(generation)) return;
-        await _showTheRehearsal(value, keeping, generation, take: named);
-      case final RoomFailure failure:
-        if (!_abandoned(generation)) {
-          _decideAt(failure, door: Door.sceneRehearsal);
-        }
+    await _keepTheRow(
+      NotKept(row: row.id, take: path, tooLarge: tooLarge),
+      keeping,
+      generation,
+    );
+  }
+
+  Future<void> _keepTheRow(
+    NotKept waiting,
+    SceneScreen keeping,
+    int generation,
+  ) async {
+    final kept = await _takes.keepTheScene(waiting.row!);
+    if (kept == null) {
+      _showTheTakeNotKept(waiting, keeping, generation);
+      return _countUnsent();
     }
+    final take = waiting.take;
+    final named = take == null
+        ? null
+        : await _underTheRehearsalsName(take, kept);
+    if (_abandoned(generation)) return;
+    await _showTheRehearsal(kept, keeping, generation, take: named);
+  }
+
+  void _showTheTakeNotKept(
+    NotKept waiting,
+    SceneScreen keeping,
+    int generation,
+  ) {
+    if (_theSceneMovedOn(keeping, generation)) return;
+    state = state.copyWith(
+      scene: SceneScreen(label: keeping.label, keep: waiting),
+    );
+  }
+
+  bool _tooLargeForTheRoom(String path) {
+    final file = File(path);
+    return file.existsSync() && file.lengthSync() > largestTakeTheRoomKeeps;
+  }
+
+  void _sendTheSceneTakeAgain() {
+    final asked = state.scene;
+    final waiting = asked.keep;
+    if (state.station is! SceneRehearsal ||
+        asked.step != SceneStep.record ||
+        waiting is! NotKept ||
+        state.channel is Microphone) {
+      return;
+    }
+    final keeping = SceneScreen(label: asked.label, keep: const Keeping());
+    state = state.copyWith(scene: keeping);
+    _handOff(_sendAgain(waiting, keeping));
+  }
+
+  Future<void> _sendAgain(NotKept waiting, SceneScreen keeping) async {
+    final generation = _waitOnTheGeneration;
+    final row = waiting.row;
+    if (row != null) {
+      await _takes.dueAgain(row);
+      return _keepTheRow(waiting, keeping, generation);
+    }
+    final take = waiting.take;
+    final sessionId = state.sessionId;
+    if (take == null || sessionId == null) return;
+    await _sendTheSceneTake(sessionId, take, keeping, generation);
   }
 
   Future<String> _underTheRehearsalsName(

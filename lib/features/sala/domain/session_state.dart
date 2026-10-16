@@ -24,13 +24,33 @@ final class SceneScreen {
   final SceneRehearsalRecord? rehearsal;
   final String? take;
   final bool waiting;
+  final String? label;
+  final SceneKeep? keep;
 
   const SceneScreen({
     this.step = SceneStep.record,
     this.rehearsal,
     this.take,
     this.waiting = false,
+    this.label,
+    this.keep,
   });
+}
+
+sealed class SceneKeep {
+  const SceneKeep();
+}
+
+final class Keeping extends SceneKeep {
+  const Keeping();
+}
+
+final class NotKept extends SceneKeep {
+  final String? row;
+  final String? take;
+  final bool tooLarge;
+
+  const NotKept({this.row, this.take, this.tooLarge = false});
 }
 
 enum VoiceState {

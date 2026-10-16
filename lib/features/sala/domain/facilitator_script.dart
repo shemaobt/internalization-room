@@ -149,6 +149,22 @@ const sceneRehearsalLabels = {
     'pt': 'a tradução deste ensaio da cena já foi para a voz',
     'en': 'this scene rehearsal\'s translation already went to the voice',
   },
+  'saving': {
+    'pt': 'guardando o ensaio da cena…',
+    'en': 'keeping the scene rehearsal…',
+  },
+  'saveFailed': {
+    'pt': 'não deu para guardar o ensaio da cena — gravem de novo',
+    'en': 'couldn\'t keep the scene rehearsal — record it again',
+  },
+  'tooLarge': {
+    'pt': 'grande demais para o servidor — grave em partes menores',
+    'en': 'too large for the server — record in shorter parts',
+  },
+  'retry': {
+    'pt': 'falhou — toque para tentar de novo',
+    'en': 'failed — tap to try again',
+  },
 };
 
 String sceneRehearsalLabelFor(String control, String language) =>
