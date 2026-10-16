@@ -261,6 +261,7 @@ _Avoid_: part (a piece of the rehearsal recording), opening line (the former mea
 **Scene rehearsal** (`ensaio da cena`):
 One recording of a scene in the mother tongue made on the red microphone, translated frase by frase and sent to the voice with «terminei»; numbered per session, never replaced, frozen once sent and always listenable.
 Its screen is a Station of its own (`cena`), reached by the red microphone and left by «Voltar para a passagem atual».
+The screen lists this session's scene rehearsals: an unsent one resumes where it stood, and a sent one opens to be listened to.
 _Avoid_: rehearsal (the station, and the whole passage's recording), take (what holds it), practice, ensaio in prose
 
 **Red microphone**:

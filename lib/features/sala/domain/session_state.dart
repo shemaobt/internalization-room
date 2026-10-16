@@ -17,20 +17,30 @@ enum SalaStage { panorama, escolha, conversa, ensaio, retro, fim, cena }
 enum SceneStep { record, translate, placesUnknown, sent }
 
 /// What the scene rehearsal's screen holds: its Step, the rehearsal as the room last
-/// answered it, its take as a file on this tablet, and whether a keep or a restart is in
-/// the air.
+/// answered it, its take as a file on this tablet and the take's measured length, and
+/// whether a call this screen made is in the air.
 final class SceneScreen {
   final SceneStep step;
   final SceneRehearsalRecord? rehearsal;
   final String? take;
+  final Duration? length;
   final bool waiting;
 
   const SceneScreen({
     this.step = SceneStep.record,
     this.rehearsal,
     this.take,
+    this.length,
     this.waiting = false,
   });
+
+  SceneScreen get asWaiting => SceneScreen(
+    step: step,
+    rehearsal: rehearsal,
+    take: take,
+    length: length,
+    waiting: true,
+  );
 }
 
 enum VoiceState {
@@ -223,6 +233,9 @@ class SalaSessionState {
 
   final SceneScreen scene;
 
+  /// This session's scene rehearsals, by number, as the room last answered them.
+  final List<SceneRehearsalRecord> sceneRehearsals;
+
   /// Whether the bead at [index] does not apply right now (ADR 0040: dimmed means it does
   /// not apply). True for every part but the one a finding sent the team back to record,
   /// while that record-again stands open and nothing has been recorded for it yet. Once
@@ -287,6 +300,7 @@ class SalaSessionState {
     this.machine = const Machine(),
     this.parteARegravar,
     this.scene = const SceneScreen(),
+    this.sceneRehearsals = const [],
   });
 
   bool get colarOn => stage == SalaStage.conversa || stage == SalaStage.fim;
@@ -670,6 +684,7 @@ class SalaSessionState {
     int? parteARegravar,
     bool clearParteARegravar = false,
     SceneScreen? scene,
+    List<SceneRehearsalRecord>? sceneRehearsals,
   }) {
     return SalaSessionState(
       awaitingTheGuide: awaitingTheGuide ?? this.awaitingTheGuide,
@@ -735,6 +750,7 @@ class SalaSessionState {
           ? null
           : (parteARegravar ?? this.parteARegravar),
       scene: scene ?? this.scene,
+      sceneRehearsals: sceneRehearsals ?? this.sceneRehearsals,
     );
   }
 }

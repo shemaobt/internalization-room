@@ -972,13 +972,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _dispatch(MachineEvent event) {
     final before = state.machine;
     final (machine, effects) = reduce(before, event);
+    final leavesTheScene =
+        before.station is SceneRehearsal && machine.station is! SceneRehearsal;
     state = state.copyWith(
       machine: machine,
       reach: !before.reachable && machine.reachable ? RoomReach.fine : null,
-      scene:
-          before.station is SceneRehearsal && machine.station is! SceneRehearsal
-          ? const SceneScreen()
-          : null,
+      scene: leavesTheScene ? const SceneScreen() : null,
+      sceneRehearsals: leavesTheScene ? const [] : null,
     );
     _runner.run(effects, micWasOpen: before.channel is Microphone);
     _followTheSound(before, machine);
@@ -3287,8 +3287,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final listed = await _room.sceneRehearsalsOf(sessionId);
     switch (listed) {
       case Answered(:final value):
+        if (_theSceneMovedOn(asked, generation)) return;
+        state = state.copyWith(
+          sceneRehearsals: SceneRehearsalRecord.ofTheSession(value, sessionId),
+        );
         final unsent = SceneRehearsalRecord.toReopen(value, sessionId);
-        if (unsent == null || _theSceneMovedOn(asked, generation)) return;
+        if (unsent == null) return;
         await _showTheRehearsal(unsent, asked, generation);
       case final RoomFailure failure:
         if (!_abandoned(generation)) {
@@ -3314,28 +3318,46 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_theSceneMovedOn(asked, generation)) return;
     state = state.copyWith(
       scene: SceneScreen(
-        step: rehearsal.placesKnownIn(length)
-            ? SceneStep.translate
-            : SceneStep.placesUnknown,
+        step: switch (rehearsal) {
+          SceneRehearsalRecord(unsent: false) => SceneStep.sent,
+          _ when rehearsal.placesKnownIn(length) => SceneStep.translate,
+          _ => SceneStep.placesUnknown,
+        },
         rehearsal: rehearsal,
         take: here,
+        length: length,
       ),
+      sceneRehearsals: _listedWith(rehearsal),
     );
   }
+
+  List<SceneRehearsalRecord> _listedWith(SceneRehearsalRecord rehearsal) =>
+      SceneRehearsalRecord.ofTheSession([
+        for (final row in state.sceneRehearsals)
+          if (row.rehearsalId != rehearsal.rehearsalId) row,
+        rehearsal,
+      ], rehearsal.sessionId);
 
   Future<String?> _fetchTheSceneTake(
     SceneRehearsalRecord rehearsal,
     int generation,
+  ) => _fetchASceneClip(
+    'cena-${rehearsal.rehearsalId}',
+    RoomRepository.sceneRehearsalAudioUrl(
+      rehearsal.sessionId,
+      rehearsal.rehearsalId,
+    ),
+    generation,
+  );
+
+  Future<String?> _fetchASceneClip(
+    String name,
+    String url,
+    int generation,
   ) async {
-    final name = 'cena-${rehearsal.rehearsalId}';
     final held = await _heldOnTheTablet(name);
     if (held != null || _abandoned(generation)) return held;
-    final clip = await _room.fetchClip(
-      RoomRepository.sceneRehearsalAudioUrl(
-        rehearsal.sessionId,
-        rehearsal.rehearsalId,
-      ),
-    );
+    final clip = await _room.fetchClip(url);
     if (_abandoned(generation)) return null;
     switch (clip) {
       case Answered(:final value) when value.isNotEmpty:
@@ -3433,7 +3455,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _playTheSceneRehearsal() {
     final SceneScreen(:step, :take, :rehearsal) = state.scene;
     if (state.station is! SceneRehearsal ||
-        step != SceneStep.translate ||
+        (step != SceneStep.translate && step != SceneStep.sent) ||
         take == null ||
         rehearsal == null) {
       return;
@@ -3441,7 +3463,76 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final playing = state.channel is PartPlaying;
     _silenceTheRoom();
     if (playing) return;
-    _play(PartSound(0, take, from: rehearsal.frontier));
+    _play(
+      PartSound(
+        0,
+        take,
+        from: step == SceneStep.sent ? Duration.zero : rehearsal.frontier,
+      ),
+    );
+  }
+
+  void playTheFrase(String fraseId) => _gesture(() => _playTheFrase(fraseId));
+
+  void _playTheFrase(String fraseId) {
+    final SceneScreen(:take, :length) = state.scene;
+    final frase = _theListenedFrase(fraseId);
+    if (frase == null || take == null || !frase.placedIn(length)) return;
+    _silenceTheRoom();
+    _play(
+      PartSound(
+        0,
+        take,
+        from: Duration(milliseconds: frase.startsMs!),
+        to: Duration(milliseconds: frase.endsMs!),
+      ),
+    );
+  }
+
+  SceneFrase? _theListenedFrase(String fraseId) {
+    final SceneScreen(:step, :rehearsal) = state.scene;
+    if (state.station is! SceneRehearsal ||
+        step != SceneStep.sent ||
+        state.channel is Microphone) {
+      return null;
+    }
+    return rehearsal?.currentFrases
+        .where((frase) => frase.fraseId == fraseId)
+        .firstOrNull;
+  }
+
+  void hearTheFraseTranslation(String fraseId) =>
+      _gesture(() => _hearTheFraseTranslation(fraseId));
+
+  void _hearTheFraseTranslation(String fraseId) {
+    final shown = state.scene;
+    final frase = _theListenedFrase(fraseId);
+    if (frase == null || shown.waiting) return;
+    final waiting = shown.asWaiting;
+    _silenceTheRoom();
+    state = state.copyWith(scene: waiting);
+    _handOff(_hearTheFrase(shown.rehearsal!, frase, shown, waiting));
+  }
+
+  Future<void> _hearTheFrase(
+    SceneRehearsalRecord rehearsal,
+    SceneFrase frase,
+    SceneScreen shown,
+    SceneScreen waiting,
+  ) async {
+    final generation = _waitOnTheGeneration;
+    final path = await _fetchASceneClip(
+      'cena-${rehearsal.rehearsalId}-frase-${frase.fraseId}',
+      RoomRepository.sceneFraseAudioUrl(
+        rehearsal.sessionId,
+        rehearsal.rehearsalId,
+        frase.fraseId,
+      ),
+      generation,
+    );
+    if (_theSceneMovedOn(waiting, generation)) return;
+    state = state.copyWith(scene: shown);
+    if (path != null) _play(PartSound(0, path));
   }
 
   void recordTheSceneAgain() => _gesture(() => _recordTheSceneAgain());
@@ -3466,12 +3557,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         sessionId == null) {
       return;
     }
-    final waiting = SceneScreen(
-      step: shown.step,
-      rehearsal: rehearsal,
-      take: shown.take,
-      waiting: true,
-    );
+    final waiting = shown.asWaiting;
     state = state.copyWith(scene: waiting);
     _handOff(_restartTheTranslation(sessionId, shown, waiting));
   }
@@ -3502,23 +3588,48 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _theSceneRehearsalsHeard(List<SceneRehearsalRecord> listed) {
     final asked = state.scene;
-    final shown = asked.rehearsal;
-    if (shown == null || _theSceneMovedOn(asked, _generation)) return;
+    final sessionId = state.sessionId;
+    if (sessionId == null || _theSceneMovedOn(asked, _generation)) return;
+    state = state.copyWith(
+      sceneRehearsals: SceneRehearsalRecord.ofTheSession(listed, sessionId),
+    );
     final held = listed
-        .where((rehearsal) => rehearsal.rehearsalId == shown.rehearsalId)
+        .where(
+          (rehearsal) => rehearsal.rehearsalId == asked.rehearsal?.rehearsalId,
+        )
         .firstOrNull;
-    if (held == null) return;
-    if (!held.unsent) {
-      state = state.copyWith(
-        scene: SceneScreen(
-          step: SceneStep.sent,
-          rehearsal: held,
-          take: asked.take,
-        ),
-      );
+    if (held == null || asked.waiting) return;
+    _handOff(_showTheRehearsal(held, asked, _generation));
+  }
+
+  void openTheListedSceneRehearsal(String rehearsalId) =>
+      _gesture(() => _openTheListedSceneRehearsal(rehearsalId));
+
+  void _openTheListedSceneRehearsal(String rehearsalId) {
+    final shown = state.scene;
+    final row = state.sceneRehearsals
+        .where((rehearsal) => rehearsal.rehearsalId == rehearsalId)
+        .firstOrNull;
+    if (state.station is! SceneRehearsal ||
+        state.channel is Microphone ||
+        shown.waiting ||
+        row == null ||
+        rehearsalId == shown.rehearsal?.rehearsalId) {
       return;
     }
-    _handOff(_showTheRehearsal(held, asked, _generation));
+    _silenceTheRoom();
+    final waiting = shown.asWaiting;
+    state = state.copyWith(scene: waiting);
+    _handOff(_openTheRow(row, shown, waiting));
+  }
+
+  Future<void> _openTheRow(
+    SceneRehearsalRecord row,
+    SceneScreen shown,
+    SceneScreen waiting,
+  ) async {
+    await _showTheRehearsal(row, waiting, _waitOnTheGeneration);
+    if (identical(state.scene, waiting)) state = state.copyWith(scene: shown);
   }
 
   void leaveTheSceneRehearsal() => _gesture(() => _leaveTheSceneRehearsal());
