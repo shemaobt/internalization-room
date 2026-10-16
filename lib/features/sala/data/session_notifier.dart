@@ -1755,6 +1755,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (state.voice == VoiceState.invite) {
+      _silenceTheRoom();
       _handOff(_entrarNoPanorama(_panoramaLanguage));
     }
   }

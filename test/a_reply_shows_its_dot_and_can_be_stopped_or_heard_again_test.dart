@@ -7,11 +7,13 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/hand_button.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
+import 'scenario_helpers.dart' show enterThePanorama;
 
 const _reply = HandReply(id: 'r1', audioUrl: '/resposta/r1');
 const _terracotta = Color(0xFFBE4A01);
@@ -324,6 +326,44 @@ void main() {
       room.sala.conversaTap();
       await room.until('a vez sair', () => room.harness.room.turnsSent > turns);
       await room.theReplyStaysUnheard();
+    },
+  );
+
+  testWidgets(
+    'Tapping the circle on the Panorama before its first line was heard stops '
+    'a playing reply before the room is asked',
+    (tester) async {
+      const panorama = Passagem(
+        pericope: 'panorama',
+        audioUrl: '/voice/panorama',
+        kind: PassagemKind.panorama,
+      );
+      final harness = SalaHarness(replies: const [_reply]);
+      harness.room.passages = [panorama, ...harness.room.passages];
+      final container = await pumpSala(tester, harness);
+      addTearDown(() => closeTheRoom(container));
+      final room = _Room(tester, harness, container);
+      harness.voice.succeeds = false;
+      await enterThePanorama(room.sala, () => room.estado, step: room.beat);
+      await room.until(
+        'o panorama abrir sem ser ouvido',
+        () =>
+            room.estado.panoramaSessionId != null &&
+            !room.estado.panoramaSaid &&
+            room.estado.voice == VoiceState.invite &&
+            room.estado.hasUnheardReply,
+      );
+      harness.voice.succeeds = true;
+      await room.theReplyIsPlaying();
+      final stops = harness.voice.stops;
+
+      harness.network.holdNextCheck();
+      room.sala.panoramaTap();
+      await room.beat(300);
+
+      expect(harness.voice.stops, greaterThan(stops), reason: 'parou');
+      expect(harness.inbox.heard, isEmpty);
+      harness.network.finishHeldCheck();
     },
   );
 
