@@ -333,6 +333,26 @@ void main() {
   );
 
   test(
+    'a row that fails to open while the reopen is in the air leaves the reopened row to tap',
+    () async {
+      final room = await _atRest([_sentOne, _unsentTwo]);
+      room.harness.room.holdNextClip();
+      room.sala.openTheSceneRehearsal();
+      await waitFor('a lista chegar', () => _rows(room).length == 2);
+
+      room.sala.openTheListedSceneRehearsal('ensaio-da-cena-1');
+      await settle();
+      room.harness.room
+        ..failClipWith = const Refused('UNREADABLE')
+        ..finishHeldClip();
+      await settle(const Duration(milliseconds: 400));
+      room.harness.room.failClipWith = null;
+
+      await _theRowOpens(room, 2, SceneStep.translate);
+    },
+  );
+
+  test(
     'a rehearsal whose reopen could not fetch its take opens from its row',
     () async {
       final room = await _atRest([_sentOne, _unsentTwo]);
