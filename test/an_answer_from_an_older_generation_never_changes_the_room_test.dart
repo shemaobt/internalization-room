@@ -60,12 +60,14 @@ AnsweringEvent _stampedAnswer(
     generation: generation,
   ),
   MicClosed() => MicClosed(generation: generation),
-  MicAnswered(:final answer, :final take, :final because) => MicAnswered(
-    answer,
-    take: take,
-    because: because,
-    generation: generation,
-  ),
+  MicAnswered(:final answer, :final take, :final because, :final owner) =>
+    MicAnswered(
+      answer,
+      take: take,
+      because: because,
+      owner: owner,
+      generation: generation,
+    ),
   NothingReplayed() => NothingReplayed(generation: generation),
   TheSessionIsGone() => TheSessionIsGone(generation: generation),
   ThePassageClosed() => ThePassageClosed(generation: generation),

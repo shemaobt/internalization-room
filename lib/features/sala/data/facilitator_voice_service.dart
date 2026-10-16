@@ -14,12 +14,12 @@ import 'package:path_provider/path_provider.dart';
 
 import 'room_answer.dart';
 import 'room_repository.dart';
+import 'staged_write.dart';
 
 const _libraryFolder = 'voz';
 const _clipsKept = 60;
 const _lineGrace = Duration(seconds: 8);
 const _unknownLineCeiling = Duration(seconds: 90);
-const _staleStagingAge = Duration(minutes: 10);
 const _slowestBytesPerSecond = 4000;
 const _restartsAllowed = 2;
 
@@ -341,7 +341,7 @@ class FacilitatorVoiceService {
           .where((entry) => entry is File && entry.path.endsWith('.novo'))
           .cast<File>()
           .toList();
-      final cutoff = clock.now().subtract(_staleStagingAge);
+      final cutoff = clock.now().subtract(staleStagingAge);
       for (final novo in novos) {
         if (protected.contains(novo.path)) continue;
         if ((await novo.stat()).modified.isBefore(cutoff)) {
