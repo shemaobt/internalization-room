@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
+import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -257,6 +258,29 @@ void main() {
     );
 
     expect(effects, isEmpty);
+  });
+
+  test(
+    'an empty look on the scene rehearsal calls a person and reads the list again',
+    () {
+      final (machine, effects) = reduce(
+        _at(const SceneRehearsal()),
+        const LookEmpty(generation: _generation),
+      );
+
+      expect(machine.halt, isA<Blocking>());
+      expect(effects, contains(isA<ReadTheSceneRehearsals>()));
+    },
+  );
+
+  test('an empty look on the Canvas reads no scene rehearsals', () {
+    final (machine, effects) = reduce(
+      _at(const Canvas()),
+      const LookEmpty(generation: _generation),
+    );
+
+    expect(machine.halt, isA<Blocking>());
+    expect(effects, isNot(contains(isA<ReadTheSceneRehearsals>())));
   });
 
   test('the machine is born on the Menu', () {

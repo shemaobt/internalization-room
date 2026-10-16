@@ -244,6 +244,10 @@ class SalaSessionState {
   /// This session's scene rehearsals, by number, as the room last answered them.
   final List<SceneRehearsalRecord> sceneRehearsals;
 
+  /// The turn «terminei» last sent for a scene rehearsal and no reply has played for:
+  /// the next «terminei» on that rehearsal goes under it again.
+  final ({String rehearsalId, String turnId})? sceneTurn;
+
   /// Whether the bead at [index] does not apply right now (ADR 0040: dimmed means it does
   /// not apply). True for every part but the one a finding sent the team back to record,
   /// while that record-again stands open and nothing has been recorded for it yet. Once
@@ -309,6 +313,7 @@ class SalaSessionState {
     this.parteARegravar,
     this.scene = const SceneScreen(),
     this.sceneRehearsals = const [],
+    this.sceneTurn,
   });
 
   bool get colarOn => stage == SalaStage.conversa || stage == SalaStage.fim;
@@ -697,6 +702,8 @@ class SalaSessionState {
     bool clearParteARegravar = false,
     SceneScreen? scene,
     List<SceneRehearsalRecord>? sceneRehearsals,
+    ({String rehearsalId, String turnId})? sceneTurn,
+    bool clearSceneTurn = false,
   }) {
     return SalaSessionState(
       awaitingTheGuide: awaitingTheGuide ?? this.awaitingTheGuide,
@@ -763,6 +770,7 @@ class SalaSessionState {
           : (parteARegravar ?? this.parteARegravar),
       scene: scene ?? this.scene,
       sceneRehearsals: sceneRehearsals ?? this.sceneRehearsals,
+      sceneTurn: clearSceneTurn ? null : (sceneTurn ?? this.sceneTurn),
     );
   }
 }

@@ -26,6 +26,7 @@ class SceneRehearsalView extends ConsumerWidget {
     final colors = SalaColors.of(context);
     final scene = session.scene;
     final sending = session.theSceneIsSending;
+    final sendable = scene.sendable && !session.needsPerson;
     final unlessSending = sending ? ButtonMood.dimmed : ButtonMood.lit;
     final playable = sending || scene.waiting
         ? ButtonMood.dimmed
@@ -35,7 +36,7 @@ class SceneRehearsalView extends ConsumerWidget {
       size: 52,
       mood: sending
           ? ButtonMood.waiting
-          : scene.sendable
+          : sendable
           ? ButtonMood.lit
           : ButtonMood.dimmed,
       halo: colors.vermelhoMic,
@@ -44,7 +45,7 @@ class SceneRehearsalView extends ConsumerWidget {
       child: Icon(
         LucideIcons.check,
         size: 22,
-        color: sending || scene.sendable ? colors.vermelhoMic : colors.mut,
+        color: sending || sendable ? colors.vermelhoMic : colors.mut,
       ),
     );
     final again = RoundActionButton(

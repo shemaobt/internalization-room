@@ -979,6 +979,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       reach: !before.reachable && machine.reachable ? RoomReach.fine : null,
       scene: leavesTheScene ? const SceneScreen() : null,
       sceneRehearsals: leavesTheScene ? const [] : null,
+      clearSceneTurn: leavesTheScene,
     );
     _runner.run(effects, micWasOpen: before.channel is Microphone);
     _followTheSound(before, machine);
@@ -3609,6 +3610,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         .firstOrNull;
     if (held == null || asked.waiting) return;
     _handOff(_showTheRehearsal(held, asked, _generation));
+    final turn = state.sceneTurn;
+    if (!held.unsent &&
+        state.needsPerson &&
+        turn != null &&
+        turn.rehearsalId == held.rehearsalId) {
+      state = state.copyWith(clearSceneTurn: true);
+      _handOff(_sendTheScene(sessionId, held, turn.turnId));
+    }
   }
 
   void openTheListedSceneRehearsal(String rehearsalId) =>
@@ -3652,11 +3661,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         rehearsal == null ||
         sessionId == null ||
         state.theSceneIsSending ||
+        state.needsPerson ||
         state.channel is Microphone) {
       return;
     }
+    final held = state.sceneTurn;
+    final turnId = held != null && held.rehearsalId == rehearsal.rehearsalId
+        ? held.turnId
+        : mintAUuid();
+    state = state.copyWith(
+      sceneTurn: (rehearsalId: rehearsal.rehearsalId, turnId: turnId),
+    );
     _silenceTheRoom();
-    _handOff(_sendTheScene(sessionId, rehearsal, mintAUuid()));
+    _handOff(_sendTheScene(sessionId, rehearsal, turnId));
   }
 
   /// «terminei» is a turn on the house path: the screen waits on it, closes on the
@@ -3719,7 +3736,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           readTheList = true;
           switch (await _room.sceneRehearsalsOf(sessionId)) {
             case final RoomFailure failure:
-              _decideAt(failure, door: Door.sceneRehearsal);
+              if (!_abandoned(generation)) {
+                _decideAt(failure, door: Door.sceneRehearsal);
+              }
               return answer;
             case Answered(:final value):
               if (_abandoned(generation)) return answer;
