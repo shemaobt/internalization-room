@@ -521,6 +521,73 @@ void main() {
 
   group('the waits and the way out', () {
     testWidgets(
+      'a question that came while a row was loading sleeps 600 ms once the row '
+      'gives up',
+      (tester) async {
+        final room = await _theScreenOpens(
+          tester,
+          rehearsals: [_rehearsal(1, scene: 'S1', sent: true)],
+          before: (harness) => harness.room.holdNextScenes(),
+          rests: false,
+        );
+        await room.pump(const Duration(seconds: 4));
+        room.room
+          ..sceneAudio = Uint8List(0)
+          ..holdNextClip();
+        room.sala.openTheListedSceneRehearsal('ensaio-da-cena-1');
+        await room.pump(const Duration(milliseconds: 100));
+        room.room.finishHeldScenes();
+        await room.pump(const Duration(milliseconds: 100));
+
+        room.room.finishHeldClip();
+        await room.pumpUntil(
+          'a pergunta voltar',
+          () => !room.state.scene.waiting && _shows(_question),
+        );
+        await room.pump(const Duration(milliseconds: 300));
+        await room.pick(_scene2);
+
+        expect(byLabel(_question), findsOneWidget);
+        closeTheRoom(room.container);
+      },
+    );
+
+    testWidgets(
+      'a late scene list never cancels a row the team asked to open, and the '
+      'question it brings is stamped when the row is done',
+      (tester) async {
+        final room = await _theScreenOpens(
+          tester,
+          rehearsals: [_rehearsal(1, scene: 'S1', sent: true)],
+          before: (harness) => harness.room.holdNextScenes(),
+          rests: false,
+        );
+        await room.pump(const Duration(seconds: 4));
+        room.room.holdNextClip();
+        room.sala.openTheListedSceneRehearsal('ensaio-da-cena-1');
+        await room.pump(const Duration(milliseconds: 100));
+
+        room.room.finishHeldScenes();
+        await room.pump(const Duration(milliseconds: 100));
+        room.room.finishHeldClip();
+        await room.pumpUntil(
+          'o ensaio 1 abrir',
+          () => room.state.scene.step == SceneStep.sent,
+        );
+
+        await tester.tap(byLabel(_again));
+        await room.pump();
+        await room.sleepThrough();
+        await room.pick(_scene3);
+        await room.sleepThrough();
+        await room.recordAndStop();
+
+        expect(room.room.sceneLabels, ['S3']);
+        closeTheRoom(room.container);
+      },
+    );
+
+    testWidgets(
       'case 13: with no scene list, the screen waits 4 seconds, then shows the '
       'circle, and the team records unlabelled',
       (tester) async {

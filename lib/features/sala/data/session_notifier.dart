@@ -3384,8 +3384,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// A question that comes on screen sleeps [sceneWake] from now.
+  /// A screen that waits on a call is never replaced; it is stamped when the wait ends.
   void _stampTheQuestion() {
-    if (!state.sceneQuestionShown || state.scene.askedAt != null) return;
+    if (!state.sceneQuestionShown ||
+        state.scene.waiting ||
+        state.scene.askedAt != null) {
+      return;
+    }
     state = state.copyWith(scene: state.scene.copyWith(askedAt: clock.now()));
   }
 
