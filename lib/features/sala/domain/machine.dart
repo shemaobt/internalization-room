@@ -967,10 +967,16 @@ const _watch = ArmTheWatch();
   TheCallWasRefused() => (machine, const [AskForAPersonAgain()]),
   LookEmpty(sounding: TheOpening()) ||
   TheOpeningMissed() => (machine, const [LetTheOpeningGo()]),
-  LookEmpty(:final sounding) => _theHalt(
+  LookEmpty(:final sounding) => switch (_theHalt(
     machine,
     RoomRaisedAHalt(sounding: sounding),
-  ),
+  )) {
+    (final halted, final effects) when machine.station is SceneRehearsal => (
+      halted,
+      [...effects, const ReadTheSceneRehearsals()],
+    ),
+    final halted => halted,
+  },
   TheRoomRefused(:final third, :final sounding) => _refused(
     machine,
     third,
