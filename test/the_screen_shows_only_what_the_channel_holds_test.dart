@@ -95,12 +95,12 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('"Enviar a pergunta" shows only once the microphone opened for '
+  testWidgets('"Tocar ao terminar" shows only once the microphone opened for '
       'the question', (tester) async {
     final harness = SalaHarness();
     final container = await _pump(tester, harness);
     final sala = container.read(salaSessionProvider.notifier);
-    final enviar = byLabel(circleLabelFor('noteMode', testLanguage));
+    final enviar = byLabel(circleLabelFor('listening', testLanguage));
     await sala.goConversa();
     await tester.pump(const Duration(milliseconds: 300));
 

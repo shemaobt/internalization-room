@@ -38,7 +38,6 @@ const circleLabels = {
     'pt': 'Um momento para uma pessoa',
     'en': 'A moment for someone',
   },
-  'noteMode': {'pt': 'Enviar a pergunta', 'en': 'Send the question'},
   'teamTalk': {
     'pt': 'Conversem entre vocês — tocar quando quiserem me contar',
     'en': 'Talk among yourselves — tap when you want to tell me',
@@ -59,25 +58,15 @@ const warningNoticeLabel = {
 String warningNoticeLabelFor(String language) =>
     warningNoticeLabel[language] ?? warningNoticeLabel[floorLanguage]!;
 
-const panoramaCircleLabels = {
-  'pt': 'Falar com o facilitador',
-  'en': 'Talk to the facilitator',
-};
-
-String panoramaCircleLabelFor(String language) =>
-    panoramaCircleLabels[language] ?? panoramaCircleLabels[floorLanguage]!;
-
 const handLabels = {
-  'answering': {
-    'pt': 'O facilitador está respondendo',
-    'en': 'The facilitator is answering',
-  },
   'hearTheAnswer': {
     'pt': 'Ouvir a resposta do facilitador',
     'en': 'Hear the facilitator\'s answer',
   },
-  'cancel': {'pt': 'Cancelar a pergunta', 'en': 'Cancel the question'},
-  'raise': {'pt': 'Levantar a mão', 'en': 'Raise a hand'},
+  'leaveAQuestion': {
+    'pt': 'Deixar uma pergunta para o facilitador',
+    'en': 'Leave a question for the facilitator',
+  },
 };
 
 String handLabelFor(String state, String language) =>

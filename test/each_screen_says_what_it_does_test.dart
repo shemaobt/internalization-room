@@ -73,7 +73,7 @@ void main() {
       await _theCircleReadsWhileTheTeamRecords(
         tester,
         lingua: null,
-        resting: 'Falar com o facilitador',
+        resting: 'Tocar para falar',
         recording: 'Tocar ao terminar',
       );
     },
@@ -86,7 +86,7 @@ void main() {
       await _theCircleReadsWhileTheTeamRecords(
         tester,
         lingua: 'en',
-        resting: 'Talk to the facilitator',
+        resting: 'Tap to speak',
         recording: 'Tap when you are done',
       );
     },

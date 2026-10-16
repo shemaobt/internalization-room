@@ -28,12 +28,9 @@ class HandButton extends StatelessWidget {
 
     return Semantics(
       button: true,
-      label: switch ((playingReply, hasUnheardReply, noteMode)) {
-        (true, _, _) => handLabelFor('answering', language),
-        (_, true, _) => handLabelFor('hearTheAnswer', language),
-        (_, _, true) => handLabelFor('cancel', language),
-        _ => handLabelFor('raise', language),
-      },
+      label: playingReply || hasUnheardReply
+          ? handLabelFor('hearTheAnswer', language)
+          : handLabelFor('leaveAQuestion', language),
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
