@@ -278,6 +278,18 @@ void main() {
       const TheSceneDoorFailed(generation: 4),
     ),
     (
+      'a scene send refused for any other reason reads the list again',
+      RoomRefused(RefusalCode.unnamed(422)),
+      _notATurn(door: Door.sceneRehearsal, rule: RefusalRule.readsTheListAgain),
+      const TheSceneDoorFailed(readAgain: true, generation: 4),
+    ),
+    (
+      'a scene send refused with a code that stops the room calls a person',
+      const RoomRefused(RefusalCode.unauthorized),
+      _notATurn(door: Door.sceneRehearsal, rule: RefusalRule.readsTheListAgain),
+      const RoomRaisedAHalt(sounding: ThePart(), generation: 4),
+    ),
+    (
       'a call that is not a turn whose session is gone is the session gone',
       const RoomSessionGone(),
       _notATurn(),

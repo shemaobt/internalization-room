@@ -1888,6 +1888,75 @@ void main() {
       expect(unreadable.recordedAt, isNull);
     });
 
+    test(
+      'the scene send posts its turn id and the attempt it closes',
+      () async {
+        final seen = <http.Request>[];
+        final repository = RoomRepository(
+          client: MockClient((request) async {
+            seen.add(request);
+            return http.Response(_turnBody(), 200);
+          }),
+          deviceId: () async => 'aparelho-1',
+        );
+        addTearDown(repository.dispose);
+
+        final closing = await repository.sendTheSceneRehearsal(
+          's',
+          'r',
+          turnId: '7f0c1f9e-2b9a-4c47-9d0e-5f3b8a1c2d4e',
+          closes: '1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b',
+        );
+        await repository.sendTheSceneRehearsal(
+          's',
+          'r',
+          turnId: '7f0c1f9e-2b9a-4c47-9d0e-5f3b8a1c2d4e',
+        );
+
+        expect(seen.first.method, 'POST');
+        expect(
+          seen.first.url.path,
+          '/api/internalization-room/sessions/s/scene-rehearsals/r/send',
+        );
+        expect(seen.first.bodyFields, {
+          'turn_id': '7f0c1f9e-2b9a-4c47-9d0e-5f3b8a1c2d4e',
+          'closes': '1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b',
+        });
+        expect(seen.last.bodyFields, {
+          'turn_id': '7f0c1f9e-2b9a-4c47-9d0e-5f3b8a1c2d4e',
+        });
+        expect((closing as Answered<TurnResult>).value.sessionId, 'sessao-1');
+      },
+    );
+
+    test('the scene send\'s refusals come back by code', () async {
+      for (final (status, code) in [
+        (409, RefusalCode.sceneRehearsalSending),
+        (409, RefusalCode.sceneRehearsalSent),
+        (409, RefusalCode.restartOutOfOrder),
+        (404, RefusalCode.notFound),
+      ]) {
+        final repository = RoomRepository(
+          client: MockClient(
+            (_) async => http.Response(
+              jsonEncode({'code': code, 'detail': 'recusado'}),
+              status,
+            ),
+          ),
+          deviceId: () async => 'aparelho-1',
+        );
+        addTearDown(repository.dispose);
+
+        final answer = await repository.sendTheSceneRehearsal(
+          'sessao-1',
+          'ensaio-da-cena-1',
+          turnId: '7f0c1f9e-2b9a-4c47-9d0e-5f3b8a1c2d4e',
+        );
+
+        expect(answer, isA<Refused>().having((r) => r.code, 'code', code));
+      }
+    });
+
     test('a frase\'s audio is asked at its own door', () {
       expect(
         RoomRepository.sceneFraseAudioUrl('s', 'r', 'f2'),

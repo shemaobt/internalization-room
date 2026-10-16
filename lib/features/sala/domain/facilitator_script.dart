@@ -146,6 +146,10 @@ const sceneRehearsalLabels = {
     'en':
         'the phrases already translated are not on this computer — tap done to send them, or start the translation over',
   },
+  'sending': {
+    'pt': 'enviando a tradução do ensaio da cena para a voz…',
+    'en': 'sending the translation of the scene rehearsal to the voice…',
+  },
   'listen': {
     'pt':
         'A tradução deste ensaio da cena já foi para a voz. Toquem numa frase para ouvir o ensaio naquela parte, e no alto-falante para ouvir a tradução de vocês.',

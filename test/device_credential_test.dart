@@ -76,6 +76,11 @@ final Map<String, _Request> _everyRequest = {
     'ensaio-da-cena-1',
     attempt: '1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b',
   ),
+  'sendTheSceneRehearsal': (room, _) => room.sendTheSceneRehearsal(
+    'sessao-1',
+    'ensaio-da-cena-1',
+    turnId: '7f0c1f9e-2b9a-4c47-9d0e-5f3b8a1c2d4e',
+  ),
   'replaceSegment': (room, audio) => room.replaceSegment(
     'sessao-1',
     'trecho-1',
