@@ -446,6 +446,25 @@ class RoomRepository {
       '$_basePath/sessions/$sessionId/scene-rehearsals/$rehearsalId/frases/'
       '$fraseId/audio';
 
+  /// «terminei»: the rehearsal goes to the voice by reference as the team's turn
+  /// [turnId], closing the attempt its frases follow. It names a rehearsal, whose 404
+  /// never ends the session.
+  Future<RoomAnswer<TurnResult>> sendTheSceneRehearsal(
+    String sessionId,
+    String rehearsalId, {
+    required String turnId,
+    String? closes,
+  }) => _room.ask(
+    () => _client.post(
+      _uri('/sessions/$sessionId/scene-rehearsals/$rehearsalId/send'),
+      headers: _whoWeAre,
+      body: {'turn_id': turnId, 'closes': ?closes},
+    ),
+    timeout: _turnTimeout,
+    read: readJson(TurnResult.fromJson),
+    asksForTheSession: false,
+  );
+
   /// «recomeçar a tradução» into the [attempt] this tablet minted, closing the one the
   /// current frases follow. It names a rehearsal, whose 404 never ends the session.
   Future<RoomAnswer<SceneRehearsalRecord>> restartTheSceneTranslation(

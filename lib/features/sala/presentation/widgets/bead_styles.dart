@@ -53,7 +53,9 @@ abstract class BeadStyles {
   ];
 }
 
-enum ButtonMood { lit, dimmed, beckoning }
+/// [waiting] pulses like [beckoning] while a call it made is in the air, and takes no
+/// tap.
+enum ButtonMood { lit, dimmed, beckoning, waiting }
 
 class RoundActionButton extends StatelessWidget {
   static const dropShadow = [
@@ -87,14 +89,17 @@ class RoundActionButton extends StatelessWidget {
     this.halo = ShemaBrand.verdeClaro,
   });
 
-  bool get _live => mood != ButtonMood.dimmed;
+  bool get _live => mood == ButtonMood.lit || mood == ButtonMood.beckoning;
+
+  bool get _pulses =>
+      mood == ButtonMood.beckoning || mood == ButtonMood.waiting;
 
   Widget _button(double t) => Semantics(
     button: true,
     enabled: _live,
     label: semanticLabel,
     child: AnimatedOpacity(
-      opacity: _live ? 1 : 0.35,
+      opacity: mood == ButtonMood.dimmed ? 0.35 : 1,
       duration: const Duration(milliseconds: 300),
       child: GestureDetector(
         onTap: _live ? onTap : null,
@@ -107,7 +112,7 @@ class RoundActionButton extends StatelessWidget {
             gradient: gradient,
             color: background,
             border: border,
-            boxShadow: mood == ButtonMood.beckoning
+            boxShadow: _pulses
                 ? [
                     ...?shadows,
                     BoxShadow(
@@ -127,7 +132,7 @@ class RoundActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Loop(
       period: const Duration(milliseconds: 2400),
-      animate: mood == ButtonMood.beckoning,
+      animate: _pulses,
       builder: (context, t) => _button(t),
     );
   }

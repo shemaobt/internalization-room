@@ -984,6 +984,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       scene: leavesTheScene ? const SceneScreen() : null,
       sceneRehearsals: leavesTheScene ? const [] : null,
       scenes: leavesTheScene ? const ScenesAwaited() : null,
+      clearSceneTurn: leavesTheScene,
     );
     _runner.run(effects, micWasOpen: before.channel is Microphone);
     _followTheSound(before, machine);
@@ -3748,6 +3749,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final SceneScreen(:step, :take, :rehearsal, :waiting) = state.scene;
     if (state.station is! SceneRehearsal ||
         waiting ||
+        state.theSceneIsSending ||
         (step != SceneStep.translate && step != SceneStep.sent) ||
         take == null ||
         rehearsal == null) {
@@ -3832,7 +3834,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void recordTheSceneAgain() => _gesture(() => _recordTheSceneAgain());
 
   void _recordTheSceneAgain() {
-    if (state.station is! SceneRehearsal) return;
+    if (state.station is! SceneRehearsal || state.theSceneIsSending) return;
     _silenceTheRoom();
     state = state.copyWith(
       scene: SceneScreen(again: state.scene.rehearsal?.scene),
@@ -3851,6 +3853,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.station is! SceneRehearsal ||
         shown.step != SceneStep.placesUnknown ||
         shown.waiting ||
+        state.theSceneIsSending ||
         rehearsal == null ||
         sessionId == null) {
       return;
@@ -3870,7 +3873,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final restarted = await _room.restartTheSceneTranslation(
       sessionId,
       rehearsal.rehearsalId,
-      attempt: mintAnAttempt(),
+      attempt: mintAUuid(),
       closes: rehearsal.afterRestart,
     );
     if (_abandoned(generation)) return;
@@ -3902,6 +3905,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         .firstOrNull;
     if (held == null || asked.waiting) return;
     _handOff(_showTheRehearsal(held, asked, _generation));
+    final turn = state.sceneTurn;
+    if (!held.unsent &&
+        state.needsPerson &&
+        turn != null &&
+        turn.rehearsalId == held.rehearsalId) {
+      state = state.copyWith(clearSceneTurn: true);
+      _handOff(_sendTheScene(sessionId, held, turn.turnId));
+    }
   }
 
   void openTheListedSceneRehearsal(String rehearsalId) =>
@@ -3915,6 +3926,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.station is! SceneRehearsal ||
         state.channel is Microphone ||
         shown.waiting ||
+        state.theSceneIsSending ||
+        state.needsPerson ||
         row == null ||
         rehearsalId == shown.rehearsal?.rehearsalId ||
         rehearsalId == _theRowTheOpenReopens?.rehearsalId) {
@@ -3943,10 +3956,119 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(scene: shown);
   }
 
+  void sendTheSceneRehearsal() => _gesture(() => _sendTheSceneRehearsal());
+
+  void _sendTheSceneRehearsal() {
+    final rehearsal = state.scene.rehearsal;
+    final sessionId = state.sessionId;
+    if (state.station is! SceneRehearsal ||
+        !state.scene.sendable ||
+        rehearsal == null ||
+        sessionId == null ||
+        state.theSceneIsSending ||
+        state.needsPerson ||
+        state.channel is Microphone) {
+      return;
+    }
+    final held = state.sceneTurn;
+    final turnId = held != null && held.rehearsalId == rehearsal.rehearsalId
+        ? held.turnId
+        : mintAUuid();
+    state = state.copyWith(
+      sceneTurn: (rehearsalId: rehearsal.rehearsalId, turnId: turnId),
+    );
+    _silenceTheRoom();
+    _handOff(_sendTheScene(sessionId, rehearsal, turnId));
+  }
+
+  /// «terminei» is a turn on the house path: the screen waits on it, closes on the
+  /// answer, and the reply plays on the Canvas.
+  Future<void> _sendTheScene(
+    String sessionId,
+    SceneRehearsalRecord rehearsal,
+    String turnId,
+  ) async {
+    final generation = _waitOnTheGeneration;
+    if (!state.needsPerson) _sayImThinking();
+    state = state.copyWith(awaitingTheGuide: true);
+    _watchBusyState();
+    await _sendATurn(
+      Turn(sessionId, turnId),
+      generation,
+      () => _theSceneGoes(sessionId, rehearsal, turnId, generation),
+      play: (reply) async {
+        _closeTheSceneRehearsal();
+        await _voiceTurn(reply, _waitOnTheGeneration);
+      },
+      failed: (failure) {
+        if (_abandoned(generation)) return;
+        _registerUnplayableTurn();
+        _decideAt(
+          failure,
+          door: Door.sceneRehearsal,
+          rule: RefusalRule.readsTheListAgain,
+        );
+      },
+    );
+  }
+
+  /// The send, retried in place under the same turn: while another tablet's send of
+  /// this rehearsal is in the air, along the ladder; once, closing the room's attempt,
+  /// when the attempt it closed moved on.
+  Future<RoomAnswer<TurnResult>> _theSceneGoes(
+    String sessionId,
+    SceneRehearsalRecord rehearsal,
+    String turnId,
+    int generation,
+  ) async {
+    var closes = rehearsal.afterRestart;
+    var inFlight = 0;
+    var readTheList = false;
+    while (true) {
+      final answer = await _room.sendTheSceneRehearsal(
+        sessionId,
+        rehearsal.rehearsalId,
+        turnId: turnId,
+        closes: closes,
+      );
+      if (_abandoned(generation)) return answer;
+      switch (answer) {
+        case Refused(code: RefusalCode.sceneRehearsalSending)
+            when ++inFlight < _sendsWhileInFlight:
+          await Future<void>.delayed(_onTheLadder(inFlight - 1));
+          if (_abandoned(generation)) return answer;
+        case Refused(code: RefusalCode.restartOutOfOrder) when !readTheList:
+          readTheList = true;
+          switch (await _room.sceneRehearsalsOf(sessionId)) {
+            case final RoomFailure failure:
+              if (!_abandoned(generation)) {
+                _decideAt(failure, door: Door.sceneRehearsal);
+              }
+              return answer;
+            case Answered(:final value):
+              if (_abandoned(generation)) return answer;
+              final held = value
+                  .where((row) => row.rehearsalId == rehearsal.rehearsalId)
+                  .firstOrNull;
+              if (held == null || !held.unsent || held.afterRestart == closes) {
+                return answer;
+              }
+              closes = held.afterRestart;
+          }
+        default:
+          return answer;
+      }
+    }
+  }
+
   void leaveTheSceneRehearsal() => _gesture(() => _leaveTheSceneRehearsal());
 
   void _leaveTheSceneRehearsal() {
-    if (state.station is! SceneRehearsal) return;
+    if (state.station is! SceneRehearsal || state.theSceneIsSending) return;
+    _closeTheSceneRehearsal();
+  }
+
+  void _closeTheSceneRehearsal() {
     _silenceTheRoom();
     _dispatch(const MicDiscarded());
     _arriveAt(const TheSceneRehearsalLeft());
