@@ -6487,8 +6487,10 @@ void main() {
       () => container.read(salaSessionProvider).btPhase != BtPhase.thinking,
     );
     await waitFor(
-      'a tradução recusada entrar na fila',
-      () async => (await harness.takes.entries()).any((e) => e.kind == 'retro'),
+      'a tradução recusada ser guardada',
+      () async =>
+          (await harness.takes.entries()).any((e) => e.kind == 'retro') ||
+          harness.room.takesKept.any((take) => take.startsWith('retro/')),
     );
 
     final capturasAntes = harness.recorder.captures;

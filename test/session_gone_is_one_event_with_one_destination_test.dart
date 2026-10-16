@@ -344,6 +344,9 @@ void main() {
     await confirmarATraducao(container);
     await waitFor('a sala cair', () => _estado(container).unreachable);
     final traducao = _estado(container).btTraducaoPendente!;
+    harness.room.refuseTake = 'ensaio/parte-9';
+    await _naFila(harness, sessao, nome: 'recusada', scope: 'parte-9');
+    await harness.takes.flush();
     final linhas = await _daSessao(harness, sessao);
     expect(linhas, isNotEmpty);
     expect(await harness.emAberto.of('Ruth', 'P01', 'pt'), isNotNull);
@@ -455,6 +458,7 @@ void main() {
     final velha = await _naFila(harness, 'sessao-velha', nome: 'parte-velha');
     final atual = await _naFila(harness, sessao, nome: 'parte-atual');
     harness.room.forgetTheSession('sessao-velha');
+    harness.room.refuseTake = 'ensaio/parte-1';
 
     await container.read(salaSessionProvider.notifier).refreshUnsent();
     await waitFor(

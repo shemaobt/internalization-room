@@ -32,6 +32,7 @@ class _DiskThatRefusesTheTake extends TakeUploadQueue {
     required String scope,
     int? passNumber,
     int? chunkIndex,
+    String? scene,
   }) async {
     asked = true;
     throw const FileSystemException('disco cheio');
