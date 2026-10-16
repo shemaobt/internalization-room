@@ -190,6 +190,11 @@ void main() {
       await waitFor('the Panorama to be said', () => it.estado.panoramaSaid);
 
       expect(harness.room.languagesSent, ['en']);
+      expect(harness.room.sessionsSpokenTo, isNotEmpty);
+      expect(
+        harness.room.sessionsSpokenTo,
+        everyElement(harness.room.sessionIds.first),
+      );
     },
   );
 }

@@ -16,8 +16,8 @@ the other, and warmed one language while playing the other.
 
 ## Decision
 
-- Inside a session (the Conversation, the Panorama, the Rehearsal, the Back-translation and
-  the Closing) every spoken line plays in the Session language: her fixed and process
+- Inside a session (the Conversation, the Scene rehearsal of ADR 0083, the Panorama, the Rehearsal, the
+  Back-translation and the Closing) every spoken line plays in the Session language: her fixed and process
   lines, the lines the server names for a turn, the Panorama and the back-translation
   verdict, and the recorded assets (offline notice, microphone blocked, stranded take). A
   retry of an entry opens it in the language it was opened in.
