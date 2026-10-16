@@ -66,6 +66,39 @@ class RecorderSpy extends RecordPlatform {
 
 final class _Plain extends IOOverrides {}
 
+/// A directory listed by position, the way a listing can skip the entry after one deleted
+/// while it is still open.
+class _ListedByPosition implements Directory {
+  final Directory _real;
+
+  _ListedByPosition(String path)
+    : _real = IOOverrides.runWithIOOverrides(() => Directory(path), _Plain());
+
+  @override
+  String get path => _real.path;
+
+  @override
+  Future<Directory> create({bool recursive = false}) async {
+    await _real.create(recursive: recursive);
+    return this;
+  }
+
+  @override
+  Stream<FileSystemEntity> list({
+    bool recursive = false,
+    bool followLinks = true,
+  }) async* {
+    for (var at = 0; ; at++) {
+      final now = _real.listSync()..sort((a, b) => a.path.compareTo(b.path));
+      if (at >= now.length) return;
+      yield now[at];
+    }
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 /// A file whose write dies halfway, the way it does when the app is killed mid-write.
 class _DiesHalfway implements File {
   final File _real;
@@ -398,13 +431,20 @@ void main() {
       final old = File(p.join(recordings.path, 'cena-old.wav.part'))
         ..writeAsBytesSync(aWavTake())
         ..setLastModifiedSync(now.subtract(const Duration(minutes: 11)));
+      final older = File(p.join(recordings.path, 'cena-older.wav.part'))
+        ..writeAsBytesSync(aWavTake())
+        ..setLastModifiedSync(now.subtract(const Duration(minutes: 30)));
       final fresh = File(p.join(recordings.path, 'cena-new.wav.part'))
         ..writeAsBytesSync(aWavTake())
         ..setLastModifiedSync(now.subtract(const Duration(minutes: 1)));
 
-      final kept = await recording.keepBytes(aWavTake(), 'cena-x');
+      final kept = await IOOverrides.runZoned(
+        () => recording.keepBytes(aWavTake(), 'cena-x'),
+        createDirectory: _ListedByPosition.new,
+      );
 
       expect(old.existsSync(), isFalse);
+      expect(older.existsSync(), isFalse);
       expect(fresh.existsSync(), isTrue);
       expect(kept, p.join(recordings.path, 'cena-x.wav'));
       expect(File(kept).readAsBytesSync(), aWavTake());

@@ -136,12 +136,14 @@ class RecordingRepository {
 
   Future<void> _sweepStaleStaging(Directory dir) async {
     try {
+      final parts = await dir
+          .list()
+          .where((entry) => entry is File && entry.path.endsWith('.part'))
+          .cast<File>()
+          .toList();
       final cutoff = clock.now().subtract(staleStagingAge);
-      await for (final entry in dir.list()) {
-        if (entry is! File || !entry.path.endsWith('.part')) continue;
-        if ((await entry.stat()).modified.isBefore(cutoff)) {
-          await entry.delete();
-        }
+      for (final part in parts) {
+        if ((await part.stat()).modified.isBefore(cutoff)) await part.delete();
       }
     } on Exception {
       return;
