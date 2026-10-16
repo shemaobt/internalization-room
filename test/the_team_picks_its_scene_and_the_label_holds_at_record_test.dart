@@ -579,7 +579,7 @@ void main() {
         await room.pump(const Duration(milliseconds: 100));
 
         expect(room.state.scene.step, SceneStep.record);
-        expect(byLabel(_record), findsOneWidget);
+        expect(_theScreenRests(), isTrue);
 
         room.sala.openTheListedSceneRehearsal('ensaio-da-cena-1');
         await room.pumpUntil(
