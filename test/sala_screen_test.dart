@@ -28,6 +28,7 @@ import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/hand_button.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/hear_again_button.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/language_and_look.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/moment_label.dart';
 import 'package:internalization_room/main.dart';
 
@@ -91,6 +92,20 @@ bool leaveIsDeaf(WidgetTester tester) => tester
       ),
     )
     .any((portao) => portao.ignoring);
+
+void expectOnlyTheLanguageCodesAreWritten() {
+  final words = find.byType(Text);
+  expect(
+    find.descendant(of: find.byType(LanguageAndLook), matching: words),
+    findsNWidgets(languages.length),
+    reason: 'na escolha só os códigos PT e EN são escritos',
+  );
+  expect(
+    words,
+    findsNWidgets(languages.length),
+    reason: 'nenhuma outra palavra escrita na escolha',
+  );
+}
 
 Future<ProviderContainer> pumpSala(
   WidgetTester tester,
@@ -229,11 +244,7 @@ void main() {
       findsNothing,
       reason: 'o colar mede uma passagem; na escolha ainda não há passagem',
     );
-    expect(
-      find.byType(Text),
-      findsNothing,
-      reason: 'nenhuma palavra escrita, em nenhuma tela da sala',
-    );
+    expectOnlyTheLanguageCodesAreWritten();
   });
 
   testWidgets('the wooden button carries the passage the room just said', (
@@ -477,11 +488,11 @@ void main() {
     final container = await pumpSala(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    expect(find.byType(Text), findsNothing, reason: 'convite');
+    expectOnlyTheLanguageCodesAreWritten();
 
     await notifier.abrirEscolha();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.byType(Text), findsNothing, reason: 'escolha');
+    expectOnlyTheLanguageCodesAreWritten();
 
     for (final go in [
       notifier.goConversa,

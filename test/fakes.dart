@@ -26,6 +26,7 @@ import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/screen_awake.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/data/look_ledger.dart';
 import 'package:internalization_room/features/sala/data/room_language_ledger.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/approval_answer.dart';
@@ -740,6 +741,19 @@ class FakeRoomLanguageLedger implements RoomLanguageLedger {
 
   @override
   Future<void> choose(String language) async => chosen = language;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class FakeLookLedger implements LookLedger {
+  @override
+  String? chosen;
+
+  FakeLookLedger({this.chosen});
+
+  @override
+  Future<void> choose(String look) async => chosen = look;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -2701,6 +2715,8 @@ class SalaHarness {
   /// the app. Seeded from [lingua] unless the test hands one over.
   final RoomLanguageLedger roomLanguage;
 
+  final LookLedger look;
+
   SalaHarness({
     this.voiceService,
     List<HandReply> replies = const [],
@@ -2732,8 +2748,10 @@ class SalaHarness {
     Directory? takesHome,
     CurrentSessionLedger? currentSession,
     RoomLanguageLedger? roomLanguage,
+    LookLedger? look,
   }) : room = room ?? FakeRoom(),
        roomLanguage = roomLanguage ?? FakeRoomLanguageLedger(chosen: lingua),
+       look = look ?? FakeLookLedger(),
        takesHome =
            takesHome ?? Directory.systemTemp.createTempSync('sala-tomadas'),
        currentSession = currentSession ?? FakeCurrentSessionLedger(),
@@ -2776,6 +2794,7 @@ class SalaHarness {
     workInProgressProvider.overrideWithValue(emAbertoNoDisco ?? emAberto),
     currentSessionLedgerProvider.overrideWithValue(currentSession),
     roomLanguageLedgerProvider.overrideWithValue(roomLanguage),
+    lookLedgerProvider.overrideWithValue(look),
     connectivityServiceProvider.overrideWithValue(connectivity ?? network),
     linkedTeamProvider.overrideWithValue(vinculo),
     linkPollIntervalProvider.overrideWithValue(linkPoll),

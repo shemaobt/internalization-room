@@ -19,10 +19,15 @@ const _wordsOnlyTheCameraReads = {
   'lib/features/sala/presentation/widgets/claquete.dart',
 };
 
+const _wordsTheTeamPicksItsLanguageBy = {
+  'lib/features/sala/presentation/widgets/language_and_look.dart',
+};
+
 const _wordyExceptions = {
   ..._screensTheTeamNeverReads,
   ..._herWordsTheTeamReads,
   ..._wordsOnlyTheCameraReads,
+  ..._wordsTheTeamPicksItsLanguageBy,
 };
 
 final _textWidgetPattern = RegExp(r'\bText\(');

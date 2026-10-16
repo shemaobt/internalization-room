@@ -62,7 +62,7 @@ The fixed line played the moment a team turn ends: one of Marcia's three, picked
 _Avoid_: thinking line, filler, wait line
 
 **Process line**:
-One of Marcia's fixed lines for a step of the back-translation (start, tell, unheard, approved), asked of the room by position in the room's language, never rotated; the approval's line is the fourth.
+One of Marcia's fixed lines for a step of the back-translation (start, tell, unheard, approved), asked of the room by position in the Session language (the Room language on the Choice), never rotated; the approval's line is the fourth.
 _Avoid_: fail-safe (a fixed line that answers a failure and rotates), canned line, linha de processo
 
 **Spoken line**:
@@ -134,6 +134,10 @@ _Avoid_: sessão, passage, round
 **Room language**:
 The language the team chose on the Choice, «PT» or «EN», remembered on the tablet and Portuguese when nothing was chosen. The screen and the sessions opened from then on follow it; the device's own language never decides it.
 _Avoid_: device language, locale, idioma do aparelho
+
+**Look**:
+Light or dark, chosen on the Choice with the sun or the moon and remembered on the tablet. It follows the device until the team chooses.
+_Avoid_: theme, appearance, mode, One look (a different thing: the turn read once)
 
 **Session language**:
 The language a session was opened in, fixed at the tap that opens it. A session keeps it when the Room language changes.

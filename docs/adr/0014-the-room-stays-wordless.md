@@ -20,6 +20,13 @@ exception, under its own reason, words only the camera reads, so that the field 
 matched to the session. It is also on the Team's screen, so «the only one the Team sees»
 above is not read alone; it is not a control and VoiceOver skips it.
 
+Amended by ENG-1296 (2026-10-15): the Choice shows «PT» and «EN» at its top right, and the
+team taps one to choose the Room language (`widgets/language_and_look.dart`). It is the fourth
+named exception, under its own reason, the words the team picks its language by: the codes
+are the language's own name, and the team sees them on the Choice only. They are controls,
+so VoiceOver reads each one's word and says which is selected. The sun and the moon beside
+them are icons, labelled in the Room language.
+
 ## Context
 
 The **Team** cannot read. Every screen is spoken, and a written word on a team screen is a

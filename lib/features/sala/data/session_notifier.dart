@@ -348,6 +348,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   String get _lingua => ref.read(roomLanguageProvider);
 
+  String get _inTheSessionsLanguage => switch (state.station) {
+    Menu() => _lingua,
+    Panorama() => _panoramaLanguage ?? _lingua,
+    _ => _sessionLanguage ?? _lingua,
+  };
+
   /// The room is gone and its providers with it.
   ///
   /// Half this class is fire-and-forget: `_guard` queues a take and counts what is left
@@ -378,8 +384,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       retryDelay: _onTheLadder,
       partCeiling: () => ref.read(playbackCeilingProvider),
       clipGrace: () => ref.read(clipGraceProvider),
-      offlineNotice: () =>
-          _newLine(LineKind.offlineNotice, asset: offlineNoticeAsset(_lingua)),
+      offlineNotice: () => _newLine(
+        LineKind.offlineNotice,
+        asset: offlineNoticeAsset(_inTheSessionsLanguage),
+      ),
       generation: () => _generation,
     );
     ref.onDispose(() {
@@ -407,7 +415,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void sayTheMicIsBlocked() => unawaited(
-    _sayALine(LineKind.micBlocked, asset: micBlockedAsset(_lingua)),
+    _sayALine(
+      LineKind.micBlocked,
+      asset: micBlockedAsset(_inTheSessionsLanguage),
+    ),
   );
 
   Future<bool> _sayALine(
@@ -755,7 +766,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchBusyState();
     await (fixedLine.isEmpty
         ? _voice.ready(url)
-        : _voice.readyFixedLine(fixedLine, _lingua));
+        : _voice.readyFixedLine(fixedLine, _inTheSessionsLanguage));
   }
 
   /// Say a line, and remember it as the one "ouvir de novo" gives back, whether it was
@@ -777,7 +788,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       url: fixedLine.isEmpty ? url : null,
       fixedLine: fixedLine.isEmpty
           ? null
-          : (name: fixedLine, language: _lingua),
+          : (name: fixedLine, language: _inTheSessionsLanguage),
       onSoundStart: onSoundStart,
     );
     if (said.heard && remember && !_abandoned(generation)) {
@@ -1347,7 +1358,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       Fim() => _startOver,
       Menu() => abrirEscolha,
       Canvas() when state.sessionId == null => _enterAgain(_emCurso),
-      Panorama() when !state.panoramaSaid => _entrarNoPanorama,
+      Panorama() when !state.panoramaSaid => () => _entrarNoPanorama(
+        _panoramaLanguage,
+      ),
       _ => null,
     };
   }
@@ -2929,7 +2942,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       tellLine,
       approvedLine,
     ]) {
-      unawaited(_voice.readyFixedLine(line, _lingua));
+      unawaited(_voice.readyFixedLine(line, _inTheSessionsLanguage));
     }
   }
 
@@ -2939,7 +2952,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(
       _sayALine(
         LineKind.acknowledgement,
-        fixedLine: (name: line, language: _lingua),
+        fixedLine: (name: line, language: _inTheSessionsLanguage),
       ),
     );
   }
@@ -4016,7 +4029,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _sayARecordingIsStranded() {
     if (_strandedSpoken || _gone) return;
     _strandedSpoken = true;
-    unawaited(_sayALine(LineKind.stranded, asset: strandedTakeAsset(_lingua)));
+    unawaited(
+      _sayALine(
+        LineKind.stranded,
+        asset: strandedTakeAsset(_inTheSessionsLanguage),
+      ),
+    );
   }
 
   void startRetro() => _gesture(() => _startRetro());
@@ -5329,7 +5347,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       try {
         disse = await _sayALine(
           LineKind.approved,
-          fixedLine: (name: approvedLine, language: _lingua),
+          fixedLine: (name: approvedLine, language: _inTheSessionsLanguage),
         );
       } on RoomFailure catch (failure) {
         return failed(failure);
