@@ -109,6 +109,9 @@ abstract final class FailurePolicy {
       _ when _theHandsDoors.contains(context.door) => TheHandFailed(
         generation: generation,
       ),
+      _ when context.door == Door.sceneList => TheScenesMissed(
+        generation: generation,
+      ),
       RoomRefused(
         code: RefusalCode.sceneRehearsalSent ||
             RefusalCode.restartOutOfOrder ||

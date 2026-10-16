@@ -79,6 +79,23 @@ final class SceneRehearsalRecord {
       listed.where((rehearsal) => rehearsal.sessionId == sessionId).toList()
         ..sort((a, b) => a.n.compareTo(b.n));
 
+  /// A list the room answered, laid over the rows [held]: a row is never dropped, and
+  /// a sent rehearsal never goes back to unsent, whatever an older answer says.
+  static List<SceneRehearsalRecord> listedOver(
+    List<SceneRehearsalRecord> held,
+    List<SceneRehearsalRecord> listed,
+    String sessionId,
+  ) {
+    final rows = {for (final row in held) row.rehearsalId: row};
+    for (final row in ofTheSession(listed, sessionId)) {
+      final before = rows[row.rehearsalId];
+      if (before == null || before.unsent || !row.unsent) {
+        rows[row.rehearsalId] = row;
+      }
+    }
+    return ofTheSession(rows.values.toList(), sessionId);
+  }
+
   /// The newest rehearsal of [sessionId], when it is not yet sent: the one the screen
   /// reopens. An older unsent one under it is abandoned.
   static SceneRehearsalRecord? toReopen(
