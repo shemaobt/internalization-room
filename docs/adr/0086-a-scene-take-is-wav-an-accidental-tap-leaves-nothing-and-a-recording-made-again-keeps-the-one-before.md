@@ -26,13 +26,14 @@ part or a translation recorded again deleted the recording it replaced, against 
   encode WAV, or cannot answer at all, records it as AAC, with the same filters off. The Part keeps no such fallback:
   its format is the deliverable rule of ADR 0054.
 - **An accidental tap leaves nothing.** A scene take or a Part whose WAV `data` chunk holds
-  less than 0.3 s, or no readable one, or a compressed take under 800 bytes, is dropped in
+  less than 0.3 s, or a compressed take under 800 bytes, or no take at all, is dropped in
   silence: nothing kept, nothing pending, no halt, no line, no person. Its file goes, since it
   is not a take. The audio is measured from the `data` chunk, not the file's size, because
   the platform writes chunks before it. A WAV whose header the recorder never finished is
   measured by its length instead, as the room's own format, so a whole take is never
-  deleted as a tap. A Part the recorder handed back no file for still
-  halts. The Back-translation's **Capture** keeps its own rule.
+  deleted as a tap. A take the recorder handed back nothing for, as a very fast double tap
+  leaves, is the same accidental tap (the Definer, 16 October); a recorder that raises on
+  start or stop is still a failure. The Back-translation's **Capture** keeps its own rule.
 - **A recording made again deletes nothing.** The Part and the translation it replaces stay
   on the tablet. A replaced translation still leaves the **Outbox**, so it never goes up as
   a telling of the whole passage.

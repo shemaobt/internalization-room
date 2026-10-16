@@ -7,7 +7,8 @@ stretches — is written under the app's documents directory, and so is a part f
 from the room when a resume finds its file gone: a part of the Rehearsal is a part of the
 Rehearsal whoever's tablet it reaches. A recording a part was replaced with is left beside
 the one it replaced. That is the rule: audio a team
-recorded is never removed, and a second directory would only be a second thing to keep
+recorded is never removed, except the file of an accidental tap, which is not a take (ADR
+0086), and a second directory would only be a second thing to keep
 alive.
 
 Capture survives interruption. A call, an alarm or another app taking the microphone pauses

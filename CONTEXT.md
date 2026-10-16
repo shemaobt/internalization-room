@@ -148,11 +148,11 @@ The list of entries the room offers at the Choice, the book's Panorama first and
 _Avoid_: roda, passage list, carousel, choice (the station that shows it)
 
 **Take**:
-A recording the team kept, identified locally by its scope (part or whole passage) and, after upload, by the server's identifier. A recording made again never deletes the one before.
+A recording the team kept, identified locally by its scope (part or whole passage) and, after upload, by the server's identifier.
 _Avoid_: gravação, recording (too general), audio
 
 **Accidental tap**:
-A scene take or a part too short to be anything the team said: under 0.3 s of audio, or a compressed recording under 800 bytes. It leaves nothing behind: nothing kept, no halt, no line, no person called.
+A scene take or a part too short to be anything the team said. It leaves nothing behind (ADR 0086).
 _Avoid_: empty take, short take, capture guard (the Conversation's window)
 
 **Capture guard**:
@@ -263,7 +263,7 @@ One of the passage's scenes as her Meaning Map divides it, numbered by its place
 _Avoid_: part (a piece of the rehearsal recording), opening line (the former meaning), section, act
 
 **Scene rehearsal** (`ensaio da cena`):
-One recording of a scene in the mother tongue made on the red microphone, recorded as WAV like a part, translated frase by frase and sent to the voice with «terminei»; numbered per session, never replaced, frozen once sent and always listenable.
+One recording of a scene in the mother tongue made on the red microphone, translated frase by frase and sent to the voice with «terminei»; numbered per session, never replaced, frozen once sent and always listenable.
 Its screen is a Station of its own (`cena`), reached by the red microphone and left by «Voltar para a passagem atual».
 _Avoid_: rehearsal (the station, and the whole passage's recording), take (what holds it), practice, ensaio in prose
 
