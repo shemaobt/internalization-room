@@ -3377,7 +3377,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Answered(:final value):
         if (_abandoned(generation) || state.station is! SceneRehearsal) return;
         state = state.copyWith(
-          sceneRehearsals: SceneRehearsalRecord.ofTheSession(value, sessionId),
+          sceneRehearsals: SceneRehearsalRecord.listedOver(
+            state.sceneRehearsals,
+            value,
+            sessionId,
+          ),
         );
         final unsent = SceneRehearsalRecord.toReopen(value, sessionId);
         if (waiting != null ||
@@ -3387,7 +3391,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         }
         final take = await _fetchTheSceneTake(unsent, generation);
         if (take == null || state.scenes is! ScenesAwaited) return;
-        await _showTheRehearsal(unsent, asked, generation, take: take);
+        await _showTheRehearsal(
+          unsent,
+          asked,
+          generation,
+          take: take,
+          whileTheOpenWaits: true,
+        );
       case final RoomFailure failure:
         if (!_abandoned(generation)) {
           _decideAt(failure, door: Door.sceneRehearsal);
@@ -3400,6 +3410,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     SceneScreen asked,
     int generation, {
     String? take,
+    bool whileTheOpenWaits = false,
   }) async {
     final here =
         take ??
@@ -3409,7 +3420,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         await _fetchTheSceneTake(rehearsal, generation);
     if (here == null || _theSceneMovedOn(asked, generation)) return;
     final length = await _playback.howLong(here);
-    if (_theSceneMovedOn(asked, generation)) return;
+    if (_theSceneMovedOn(asked, generation) ||
+        (whileTheOpenWaits && state.scenes is! ScenesAwaited)) {
+      return;
+    }
     state = state.copyWith(
       scene: SceneScreen(
         step: switch (rehearsal) {
@@ -3809,7 +3823,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     if (sessionId == null || _theSceneMovedOn(asked, _generation)) return;
     state = state.copyWith(
-      sceneRehearsals: SceneRehearsalRecord.ofTheSession(listed, sessionId),
+      sceneRehearsals: SceneRehearsalRecord.listedOver(
+        state.sceneRehearsals,
+        listed,
+        sessionId,
+      ),
     );
     final held = listed
         .where(
