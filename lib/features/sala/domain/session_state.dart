@@ -20,7 +20,8 @@ enum SceneStep { record, translate, placesUnknown, sent }
 /// What the scene rehearsal's screen holds: its Step, the rehearsal as the room last
 /// answered it, its take as a file on this tablet and the take's measured length, and
 /// whether a call this screen made is in the air. On the record step it also holds the
-/// scene the team picked and the scene of the rehearsal recorded again.
+/// scene the team picked, the scene of the rehearsal recorded again, and when the
+/// question appeared and when the pick was made.
 final class SceneScreen {
   final SceneStep step;
   final SceneRehearsalRecord? rehearsal;
@@ -31,6 +32,8 @@ final class SceneScreen {
   final SceneKeep? keep;
   final String? picked;
   final String? again;
+  final DateTime? askedAt;
+  final DateTime? pickedAt;
 
   const SceneScreen({
     this.step = SceneStep.record,
@@ -42,6 +45,8 @@ final class SceneScreen {
     this.keep,
     this.picked,
     this.again,
+    this.askedAt,
+    this.pickedAt,
   });
 
   SceneScreen copyWith({
@@ -52,6 +57,10 @@ final class SceneScreen {
     bool clearKeep = false,
     String? picked,
     bool clearPicked = false,
+    DateTime? askedAt,
+    bool clearAskedAt = false,
+    DateTime? pickedAt,
+    bool clearPickedAt = false,
   }) => SceneScreen(
     step: step,
     rehearsal: rehearsal,
@@ -62,6 +71,8 @@ final class SceneScreen {
     keep: clearKeep ? null : (keep ?? this.keep),
     picked: clearPicked ? null : (picked ?? this.picked),
     again: again,
+    askedAt: clearAskedAt ? null : (askedAt ?? this.askedAt),
+    pickedAt: clearPickedAt ? null : (pickedAt ?? this.pickedAt),
   );
 
   SceneScreen get asWaiting => copyWith(waiting: true);

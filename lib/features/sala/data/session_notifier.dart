@@ -989,6 +989,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _runner.run(effects, micWasOpen: before.channel is Microphone);
     _followTheSound(before, machine);
     _followTheMicrophone(before, machine);
+    _stampTheQuestion();
   }
 
   bool get _watchIsWanted =>
@@ -3302,6 +3303,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _silenceTheRoom();
     _cancelQuestion();
     _arriveAt(const TheSceneRehearsalOpened());
+    _timers.remove('sceneListRetry')?.cancel();
     state = state.copyWith(
       scene: const SceneScreen(),
       scenes: const ScenesAwaited(),
@@ -3329,10 +3331,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _timers.remove('sceneList')?.cancel();
     final answer = answered;
     if (answer == null) {
-      state = state.copyWith(scenes: const ScenesMissing());
+      _theScenesMissed(0);
       unawaited(first.then((late) => _theScenesAnswered(late, generation)));
     } else if (!_theScenesAnswered(answer, generation)) {
-      state = state.copyWith(scenes: const ScenesMissing());
+      _theScenesMissed(0);
     }
   }
 
@@ -3342,6 +3344,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Answered(:final value):
         if (state.station is SceneRehearsal && state.scenes is! ScenesHad) {
           state = state.copyWith(scenes: ScenesHad(value));
+          _stampTheQuestion();
         }
         return true;
       case final RoomFailure failure:
@@ -3349,6 +3352,50 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return false;
     }
   }
+
+  void _theScenesMissed(int asked) {
+    if (state.station is! SceneRehearsal || state.scenes is ScenesHad) return;
+    state = state.copyWith(scenes: const ScenesMissing());
+    final wait = sceneListRetryWait(asked);
+    if (wait == null) return;
+    _after('sceneListRetry', wait, () => _askForTheScenesAgain(asked, wait));
+  }
+
+  /// [asked] is how many retries the list has spent; [wait] is the one now due.
+  void _askForTheScenesAgain(int asked, Duration wait) {
+    if (state.scene.step != SceneStep.record ||
+        state.scenes is! ScenesMissing) {
+      return;
+    }
+    if (state.sceneTakeUnderWay) {
+      _after('sceneListRetry', wait, () => _askForTheScenesAgain(asked, wait));
+      return;
+    }
+    unawaited(_askForTheScenes(onMiss: () => _theScenesMissed(asked + 1)));
+  }
+
+  Future<void> _askForTheScenes({VoidCallback? onMiss}) async {
+    final sessionId = state.sessionId;
+    if (sessionId == null) return;
+    final generation = _waitOnTheGeneration;
+    final answer = await _room.scenesOf(sessionId);
+    if (!_theScenesAnswered(answer, generation) && !_abandoned(generation)) {
+      onMiss?.call();
+    }
+  }
+
+  /// A question that comes on screen sleeps [sceneWake] from now.
+  /// A screen that waits on a call is never replaced; it is stamped when the wait ends.
+  void _stampTheQuestion() {
+    if (!state.sceneQuestionShown ||
+        state.scene.waiting ||
+        state.scene.askedAt != null) {
+      return;
+    }
+    state = state.copyWith(scene: state.scene.copyWith(askedAt: clock.now()));
+  }
+
+  bool _asleep(DateTime? since) => asleepAt(clock.now(), since: since);
 
   bool _theSceneMovedOn(SceneScreen asked, int generation) =>
       _abandoned(generation) ||
@@ -3503,10 +3550,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.station is! SceneRehearsal ||
         !state.sceneQuestionShown ||
         shown.waiting ||
-        state.scenes.numberOf(sceneId) == null) {
+        state.scenes.numberOf(sceneId) == null ||
+        _asleep(shown.askedAt)) {
       return;
     }
-    state = state.copyWith(scene: shown.copyWith(picked: sceneId));
+    state = state.copyWith(
+      scene: shown.copyWith(
+        picked: sceneId,
+        pickedAt: clock.now(),
+        clearAskedAt: true,
+      ),
+    );
   }
 
   void backToTheSceneQuestion() => _gesture(_backToTheSceneQuestion);
@@ -3516,10 +3570,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.station is! SceneRehearsal ||
         shown.step != SceneStep.record ||
         shown.picked == null ||
-        !state.sceneChipLive) {
+        !state.sceneChipLive ||
+        _asleep(shown.pickedAt)) {
       return;
     }
-    state = state.copyWith(scene: shown.copyWith(clearPicked: true));
+    state = state.copyWith(
+      scene: shown.copyWith(
+        clearPicked: true,
+        clearPickedAt: true,
+        clearAskedAt: true,
+      ),
+    );
+    _stampTheQuestion();
   }
 
   void sendTheSceneTakeAgain() => _gesture(() => _sendTheSceneTakeAgain());
@@ -3538,7 +3600,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return;
       default:
         final shown = state.scene;
-        if (state.scenes is ScenesAwaited || state.sceneQuestionShown) {
+        if (state.scenes is ScenesAwaited ||
+            state.sceneQuestionShown ||
+            _asleep(shown.pickedAt)) {
           return;
         }
         state = state.copyWith(
@@ -3564,6 +3628,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (identical(state.scene, keeping)) {
       state = state.copyWith(scene: keeping.copyWith(clearKeep: true));
+      _stampTheQuestion();
     }
   }
 
@@ -3647,6 +3712,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ) {
     if (_theSceneMovedOn(keeping, generation)) return;
     state = state.copyWith(scene: keeping.copyWith(keep: waiting));
+    _stampTheQuestion();
   }
 
   bool _tooLargeForTheRoom(String path) {
@@ -3781,6 +3847,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       scene: SceneScreen(again: state.scene.rehearsal?.scene),
     );
+    if (state.scenes is ScenesMissing) unawaited(_askForTheScenes());
+    _stampTheQuestion();
   }
 
   void restartTheSceneTranslation() =>
