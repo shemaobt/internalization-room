@@ -106,7 +106,7 @@ Whose open microphone the Channel holds: the conversation's, the rehearsal's, th
 _Avoid_: listening (the circle's voice, not the fact), recording flag
 
 **Microphone answer**:
-How the recorder answered the microphone the room asked for: an opening started, refused or failed; a close with the take, or with none; a discard; or a late start abandoned. Every answer but a start, and but a close the recorder failed, gives the Channel back (ADR 0057).
+How the recorder answered the microphone the room asked for: an opening started, refused or failed; a close with the take, or with none; a discard; or a late start abandoned. Every answer but a start, and but a close the recorder failed, gives the Channel back (ADR 0057). On the scene rehearsal's Station a refused or failed opening only gives the Channel back: no gate, no line, no count towards a person (ADR 0089).
 _Avoid_: capture result (a Capture is the back-translation's microphone), recorder state
 
 **Gesture on its way**:

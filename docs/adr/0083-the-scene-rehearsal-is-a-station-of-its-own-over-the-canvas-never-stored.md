@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0087 (2026-10-16: the scene take's keep goes through the Outbox)
+status: accepted, amended by 0087 (2026-10-16: the scene take's keep goes through the Outbox), amended by 0089 (2026-10-16: a refused or failed scene microphone shows and says nothing)
 date: 2026-10-14
 amends: 0053
 ---
