@@ -27,6 +27,13 @@ are the language's own name, and the team sees them on the Choice only. They are
 so VoiceOver reads each one's word and says which is selected. The sun and the moon beside
 them are icons, labelled in the Room language.
 
+Amended by ENG-1344 (2026-10-16, ADR 0088): the scene rehearsal's record step writes the
+scene question, its buttons and the chip above the circle (`widgets/scene_question.dart`):
+«Qual cena vocês vão ensaiar?», «cena 2 Primeiro apelo e recusa», «cena 2 · Primeiro apelo e
+recusa». It is the fifth named exception, under the moment label's reason, her words the team
+reads; VoiceOver reads each one's written words, and the chip's name adds the question it goes
+back to. The rest of that screen stays wordless.
+
 ## Context
 
 The **Team** cannot read. Every screen is spoken, and a written word on a team screen is a

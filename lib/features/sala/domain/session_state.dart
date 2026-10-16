@@ -8,6 +8,7 @@ import 'hand_reply.dart';
 import 'kept_take.dart';
 import 'moment.dart';
 import 'passagem.dart';
+import 'scene_question.dart';
 import 'scene_rehearsal.dart';
 import 'station.dart';
 
@@ -18,7 +19,9 @@ enum SceneStep { record, translate, placesUnknown, sent }
 
 /// What the scene rehearsal's screen holds: its Step, the rehearsal as the room last
 /// answered it, its take as a file on this tablet and the take's measured length, and
-/// whether a call this screen made is in the air.
+/// whether a call this screen made is in the air. On the record step it also holds the
+/// scene the team picked, the scene of the rehearsal recorded again, and when the
+/// question appeared and when the pick was made.
 final class SceneScreen {
   final SceneStep step;
   final SceneRehearsalRecord? rehearsal;
@@ -27,6 +30,10 @@ final class SceneScreen {
   final bool waiting;
   final String? label;
   final SceneKeep? keep;
+  final String? picked;
+  final String? again;
+  final DateTime? askedAt;
+  final DateTime? pickedAt;
 
   const SceneScreen({
     this.step = SceneStep.record,
@@ -36,15 +43,39 @@ final class SceneScreen {
     this.waiting = false,
     this.label,
     this.keep,
+    this.picked,
+    this.again,
+    this.askedAt,
+    this.pickedAt,
   });
 
-  SceneScreen get asWaiting => SceneScreen(
+  SceneScreen copyWith({
+    bool? waiting,
+    String? label,
+    bool clearLabel = false,
+    SceneKeep? keep,
+    bool clearKeep = false,
+    String? picked,
+    bool clearPicked = false,
+    DateTime? askedAt,
+    bool clearAskedAt = false,
+    DateTime? pickedAt,
+    bool clearPickedAt = false,
+  }) => SceneScreen(
     step: step,
     rehearsal: rehearsal,
     take: take,
     length: length,
-    waiting: true,
+    waiting: waiting ?? this.waiting,
+    label: clearLabel ? null : (label ?? this.label),
+    keep: clearKeep ? null : (keep ?? this.keep),
+    picked: clearPicked ? null : (picked ?? this.picked),
+    again: again,
+    askedAt: clearAskedAt ? null : (askedAt ?? this.askedAt),
+    pickedAt: clearPickedAt ? null : (pickedAt ?? this.pickedAt),
   );
+
+  SceneScreen get asWaiting => copyWith(waiting: true);
 
   /// Whether «terminei» applies: an unsent rehearsal with a translated frase, being
   /// translated, with nothing in the air.
@@ -264,6 +295,9 @@ class SalaSessionState {
   /// This session's scene rehearsals, by number, as the room last answered them.
   final List<SceneRehearsalRecord> sceneRehearsals;
 
+  /// The passage's scenes, as the room answered them on this visit to the scene rehearsal.
+  final SceneList scenes;
+
   /// The turn «terminei» last sent for a scene rehearsal and no reply has played for:
   /// the next «terminei» on that rehearsal goes under it again.
   final ({String rehearsalId, String turnId})? sceneTurn;
@@ -333,6 +367,7 @@ class SalaSessionState {
     this.parteARegravar,
     this.scene = const SceneScreen(),
     this.sceneRehearsals = const [],
+    this.scenes = const ScenesAwaited(),
     this.sceneTurn,
   });
 
@@ -396,6 +431,31 @@ class SalaSessionState {
   Halt get halt => machine.halt;
 
   Channel get channel => machine.channel;
+
+  /// Whether a scene take is opening, recording or being kept.
+  bool get sceneTakeUnderWay => channel is Microphone || scene.keep is Keeping;
+
+  /// Whether the record step asks «Qual cena vocês vão ensaiar?» instead of showing the
+  /// circle: nothing picked and no take under way.
+  bool get sceneQuestionShown =>
+      scene.step == SceneStep.record &&
+      scenes.asks &&
+      scenes.numberOf(scene.picked) == null &&
+      !sceneTakeUnderWay;
+
+  /// Whether the chip above the circle names the pick.
+  bool get sceneChipShown =>
+      scene.step == SceneStep.record &&
+      scenes.asks &&
+      scenes.numberOf(scene.picked) != null;
+
+  /// Whether a tap on the chip brings the question back.
+  bool get sceneChipLive =>
+      scene.keep == null && !sceneTakeUnderWay && !scene.waiting;
+
+  /// The scene the question highlights.
+  String? get sceneHighlighted =>
+      scenes.highlighted(sceneRehearsals, again: scene.again);
 
   bool get wordlessTelling => machine.wordlessTelling;
 
@@ -722,6 +782,7 @@ class SalaSessionState {
     bool clearParteARegravar = false,
     SceneScreen? scene,
     List<SceneRehearsalRecord>? sceneRehearsals,
+    SceneList? scenes,
     ({String rehearsalId, String turnId})? sceneTurn,
     bool clearSceneTurn = false,
   }) {
@@ -790,6 +851,7 @@ class SalaSessionState {
           : (parteARegravar ?? this.parteARegravar),
       scene: scene ?? this.scene,
       sceneRehearsals: sceneRehearsals ?? this.sceneRehearsals,
+      scenes: scenes ?? this.scenes,
       sceneTurn: clearSceneTurn ? null : (sceneTurn ?? this.sceneTurn),
     );
   }

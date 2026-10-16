@@ -268,6 +268,14 @@ Its screen is a Station of its own (`cena`), reached by the red microphone and l
 The screen lists this session's scene rehearsals: an unsent one resumes where it stood, and a sent one opens to be listened to.
 _Avoid_: rehearsal (the station, and the whole passage's recording), take (what holds it), practice, ensaio in prose
 
+**Scene question**:
+«Qual cena vocês vão ensaiar?», asked before recording a Scene rehearsal on a passage of two or more scenes, with one button per scene; it may highlight a scene but never picks one.
+_Avoid_: scene picker, scene menu
+
+**Scene label**:
+The scene the team tapped on the Scene question, read at the tap that starts the recording; never guessed, and never changed by a retry of the upload.
+_Avoid_: scene guess (the classifier's, Observation Room only), sceneId
+
 **Red microphone**:
 The round red control beside the orange dot that opens the Scene rehearsal's screen, shown only while the Conversation rests and no raised-hand note or person call stands.
 _Avoid_: record entry, green check, orange dot
