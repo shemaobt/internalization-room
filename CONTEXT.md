@@ -276,7 +276,7 @@ A session that holds a Guide line, its Opening at least. The room asks a session
 _Avoid_: started, begun
 
 **Outbox**:
-The queue of takes and stretches waiting to reach the server, with a manifest that survives the app closing and names each recording by file rather than by path. It delivers one part's recordings in the order the team made them.
+The queue of takes, scene takes and stretches waiting to reach the server, with a manifest that survives the app closing and names each recording by file rather than by path. It delivers one part's recordings in the order the team made them; a recording leaves it once the room confirmed it.
 _Avoid_: fila, caixa de saída, upload queue, buffer
 
 **Resume point**:

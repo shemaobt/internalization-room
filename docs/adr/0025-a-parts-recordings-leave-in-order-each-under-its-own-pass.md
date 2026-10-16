@@ -1,5 +1,7 @@
 # A part's recordings leave in order, each under its own pass
 
+Amended by 0087 (2026-10-16): a confirmed recording leaves the Outbox.
+
 ## Context
 
 ADR 0020 let a team record a **Part** again in its own place, and said what it left

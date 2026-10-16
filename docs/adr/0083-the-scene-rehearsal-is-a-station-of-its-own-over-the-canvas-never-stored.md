@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by 0087 (2026-10-16: the scene take's keep goes through the Outbox)
 date: 2026-10-14
 amends: 0053
 ---
